@@ -1,6 +1,6 @@
 import { expect, test, vi } from 'vitest';
 
-import { createSandboxSession } from './sandboxSession';
+import { createSandboxSession, sandboxSessionKey } from './sandboxSession';
 
 const SPEC = {
   version: 1 as const,
@@ -149,4 +149,14 @@ test('a second ready (iframe reload) re-inits with current values', () => {
   const inits = sent().filter((message) => message.type === 'init');
   expect(inits).toHaveLength(2);
   expect(inits[1].state).toEqual({ votes: { '~ten': 'no' } });
+});
+
+test('the session key changes on a revision bump AND on a bundle change', () => {
+  const otherBundle = { ...SPEC.bundle, sha256: 'b'.repeat(64) };
+  const base = sandboxSessionKey(SPEC);
+
+  expect(sandboxSessionKey({ ...SPEC, specRevision: 8 })).not.toBe(base);
+  expect(sandboxSessionKey({ ...SPEC, bundle: otherBundle })).not.toBe(base);
+  // same bundle, same revision — the same live session, no remount
+  expect(sandboxSessionKey({ ...SPEC })).toBe(base);
 });

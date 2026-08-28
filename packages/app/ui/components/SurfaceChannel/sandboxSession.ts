@@ -24,6 +24,25 @@ const logger = createDevLogger('surfaceSandboxSession', false);
 
 export type ShellTheme = 'light' | 'dark';
 
+/**
+ * The identity of a sandbox session: the exact bundle bytes and the exact
+ * spec revision the sandbox was initialized with. A session cannot be
+ * *updated* onto a new revision — `spec` is captured at construction, is
+ * what every `init` carries, and is what every inbound invoke is
+ * cross-checked against. So when either half of this key changes the host
+ * must throw the whole sandbox away and start a new one (a new element, a
+ * new document load, a new `ready`, a new `init`) rather than re-pointing
+ * the existing session at a spec the running sandbox has never seen.
+ *
+ * Used as the React `key` of the sandbox host, which is what makes
+ * "replace the session" a REMOUNT rather than a mutation of the live
+ * frame — see the host's teardown comment for why that distinction is
+ * load-bearing.
+ */
+export function sandboxSessionKey(spec: SurfaceSpec): string {
+  return `${spec.bundle.sha256}:${spec.specRevision}`;
+}
+
 export interface SandboxSessionOptions {
   spec: SurfaceSpec;
   initialState: JsonObject;

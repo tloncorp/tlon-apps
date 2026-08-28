@@ -27,6 +27,10 @@ export function SurfaceSandboxHost(props: SurfaceSandboxHostProps) {
 
   const { document: sandboxDocument, spec } = props;
   useEffect(() => {
+    // bound once, to this session — same reason as the web host: the
+    // handler stamps its own spec revision, and it must be the revision
+    // this session validates invokes against
+    const boundOnInvoke = latest.current.onInvoke;
     const session = createSandboxSession({
       spec,
       initialState: latest.current.state,
@@ -45,7 +49,7 @@ export function SurfaceSandboxHost(props: SurfaceSandboxHostProps) {
           )} })); true;`
         );
       },
-      onInvoke: (actionId) => latest.current.onInvoke(actionId),
+      onInvoke: (actionId) => boundOnInvoke(actionId),
       onShellError: (phase, message) =>
         latest.current.onShellError?.(phase, message),
     });

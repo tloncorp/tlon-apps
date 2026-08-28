@@ -14,6 +14,7 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useCanWrite } from '../../utils/channelUtils';
 import { SurfaceSandboxHost } from './SurfaceSandboxHost';
 import { buildSandboxDocument } from './sandboxDocument';
+import { sandboxSessionKey } from './sandboxSession';
 import { shellThemeFromThemeName } from './surfaceTheme';
 
 /**
@@ -64,7 +65,26 @@ export function SurfaceSandboxContainer({
   );
 
   return (
+    /**
+     * The key is the whole fix for "an admin edits the spec and the
+     * dashboard quietly stops working": the sandbox document is memoized
+     * on the bundle bytes, so a revision bump that keeps the same bundle
+     * leaves `srcDoc` byte-identical and the frame never reloads on its
+     * own. Without a remount the host would tear down the ready session
+     * and build a replacement that never receives a `ready`, so state
+     * updates stop arriving and invokes are dropped until the screen is
+     * remounted by hand.
+     *
+     * Note what this deliberately is NOT: reassigning `srcDoc` on the
+     * live element. That would reload the same frame, which is
+     * indistinguishable from the frame navigating itself — exactly the
+     * signal the host's teardown watches for. Changing the key produces a
+     * NEW element instead, whose first load is its own initial load, so
+     * an intentional session replacement can never be read as hostile
+     * navigation.
+     */
     <SurfaceSandboxHost
+      key={sandboxSessionKey(spec)}
       document={sandboxDocument}
       spec={spec}
       state={state}
