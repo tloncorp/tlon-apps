@@ -91,7 +91,7 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setSubmitting(true);
     setError(undefined);
     try {
-      await submitBrowserCredentials(
+      const result = await submitBrowserCredentials(
         handoff,
         handoff.kind === 'password'
           ? {
@@ -101,11 +101,17 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
             }
           : { code: code.trim(), submit: true }
       );
-      setUsername('');
-      setPassword('');
-      setCode('');
-      setShowPassword(false);
-      setSubmitted(true);
+      if (!result.submitted) {
+        setError(
+          'The browser filled the form but could not submit it. Check that the entries are correct and try again.'
+        );
+      } else {
+        setUsername('');
+        setPassword('');
+        setCode('');
+        setShowPassword(false);
+        setSubmitted(true);
+      }
     } catch (nextError) {
       setError(errorMessage(nextError));
     }
