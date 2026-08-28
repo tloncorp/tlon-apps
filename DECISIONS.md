@@ -1139,3 +1139,31 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   to be `PARADIGM.md` carrying a **vocabulary section** next to the
   technical rules, and the templates modelling the words rather than
   leaving each generation to coin them. An authoring-session deliverable.
+
+- **D56: Open question — a bundle-hash change at an unchanged
+  `specRevision` did not reach a running client.** Found while updating
+  the workout fixture's copy mid-demo, and not fully diagnosed.
+
+  Sequence: the bundle's bytes changed, the seed republished the spec
+  with the new `sha256` (verified by scry: the ship held the new hash),
+  and `specRevision` stayed at 1. The running iOS client kept rendering
+  the **old** bundle. Bumping to revision 2 fixed it immediately.
+
+  This sits awkwardly against §3, which says **"the current content of
+  that cell is authoritative, full stop"** and that `specRevision` is for
+  correlating events and snapshots, *not* a cache key. If a client can
+  miss a change to the authoritative cell because a correlation number
+  did not move, then either the client is wrong or §3 overstates.
+
+  Both plausible mechanisms are unverified: the client may not have
+  re-synced the channel description at all, or it may have re-synced and
+  then served the old bundle from the content-addressed cache under the
+  spec it already held. **Deliberately not guessed at** — distinguishing
+  them needs an actual repro.
+
+  Two follow-ups: (1) determine which, and fix the client if it is the
+  client; (2) independently, the **seed must bump the revision whenever
+  the bundle bytes change**, which is what `surface publish` is already
+  specified to do (§9). The seed silently violated that and it cost a
+  demo cycle. A hardcoded bump is in place; deriving the revision from
+  the bundle hash would make the class of mistake unavailable.
