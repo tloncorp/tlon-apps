@@ -1053,3 +1053,50 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   "cannot know when" something happened. The information exists and is
   trustworthy; it is simply not plumbed into reduced state yet, because
   op values are spec literals.
+
+- **D54: `append` cannot be made idempotent inside v0, and the honest
+  answer is an app-design pattern, not a mechanism.** Design analysis of
+  the duplicate-invoke problem (double-tap, transport retry, same user on
+  two devices; hand-crafted duplicate posts are spam, bounded by writer
+  perms and the state cap, not a correctness issue).
+
+  **Why it is unfixable in-language:** members supply no values, so two
+  duplicate appends produce **byte-identical entries** — nothing
+  downstream, render or bot or human, can distinguish a double-tap from
+  two legitimate entries from state alone. The backend offers no help:
+  `%add` stamps a fresh `now.bowl` id per poke with no `(author, sent)`
+  dedup (`desk/app/channels-server.hoon:1086-1093`), so a retry is
+  genuinely two posts. And the distinguishing datum is not even reachable
+  at fold time — `SurfacePostView`
+  (`packages/api/src/client/surface/reducer.ts:39-45`) carries
+  `authorId`/`sequenceNum`/`isEdited`/`isDeleted`/`blob` and **no id**.
+
+  **v0 answer (no reducer change):** shell-side invoke debounce as
+  standard shell behavior; and the **host-is-the-clock** pattern in the
+  authoring skill — the member does an idempotent
+  `set /today/$actor …`, the host posts a rollover event
+  (`set /history/<date> <copy of /today>` + `del /today`) computing date
+  and value from its own fold. Two ops, under caps, fully idempotent,
+  dated history, no `append` anywhere. Degrades gracefully: a missed
+  rollover just stretches "today". §4.3's guidance was corrected — "key
+  appended records by `$actor`" under-states the problem, since keying
+  the path by actor does not dedupe *repeated* appends by that actor.
+  In v0, `append` in a member action means "duplicates acceptable."
+
+  **v1 answer: `$period` substitution** (see §12) — bucketed from the
+  host-stamped id, both substitution sites, **fixed-offset integer
+  arithmetic only; never viewer timezone (divergence) and never IANA
+  named zones (tzdata skew across clients)**. Cleanest §6 story of the
+  options considered: duplicates become literal no-ops, so deletion and
+  edit-retraction of either duplicate is a state no-op and snapshots
+  finalize normally.
+
+  **Rejected: reducer-internal debounce bookkeeping.** It convergently
+  dedupes within a post set, but "when did this actor last invoke" lives
+  outside reduced state, so it is **lost at the snapshot boundary** — a
+  duplicate pair straddling the boundary silently folds both, failing
+  exactly where it cannot be observed. Fixing that means putting the
+  markers in state, which is the `oncePer` design; the reserved-subtree
+  variant is therefore strictly better than the bookkeeping one. Also
+  rejected: a client-supplied idempotency nonce — a member-supplied wire
+  value, and it only addresses transport retries anyway.
