@@ -135,10 +135,22 @@ export function UserProfileScreen({ route, navigation }: Props) {
     currentUserId,
     isWeb && isHostedUser
   );
-  // TEMPORARY -- REVERT BEFORE MERGE. The real gate needs a hosted account
-  // with the expected bot DM, neither of which a fakeship rig has. Forcing
-  // it on makes the row visible for local demos, but it also shows Bot
-  // settings to users for whom openExternalBotSettings leads nowhere.
+  // TODO(bot-profile): MAKE BOT SETTINGS HOSTING-DEPENDENT AGAIN.
+  // Restore the gate below. Bot settings opens openExternalBotSettings, which
+  // goes to the hosting console, so the row must not appear for anyone who is
+  // not a hosted user with the expected bot DM -- otherwise it is a link to
+  // nowhere.
+  //
+  //   const shouldShowBotSettingsProfileAction = isWeb
+  //     ? isHostedUser && hasExpectedBotDm && isOwnBotProfile
+  //     : isOwnBotProfile;
+  //
+  // Reverting this restores the two now-unused reads above (isHostedUser,
+  // hasExpectedBotDm), which are deliberately left in place for that reason.
+  //
+  // TEMPORARY -- REVERT BEFORE MERGE. A fakeship rig is not hosted and has no
+  // bot DM, so the real gate hides the row and the bot-owner surfaces cannot
+  // be demoed together.
   const shouldShowBotSettingsProfileAction = ownedBotForTasks;
 
   const handlePressBotSettings = useCallback(() => {

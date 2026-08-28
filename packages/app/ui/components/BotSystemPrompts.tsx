@@ -164,6 +164,14 @@ const promptOrder = new Map(
  * applies it and restarts. Renders nothing when the ship (or the bot's
  * gateway) doesn't support prompt sync yet.
  */
+// TODO(bot-profile): KEEP PROMPT EDITS BACKEND-DEPENDENT.
+// Unlike the Scheduled tasks row, this section is already gated on a real
+// backend and must stay that way: it renders only once %steward answers for
+// this bot, and setBotSystemPrompt pokes the ship rather than any local
+// service. Do not add a feature flag, a mock, or a local shim to make it
+// appear on a ship whose %steward has no prompts module -- an editor that
+// saves nowhere is worse than a hidden one. If the module is absent the
+// probe reports it and this renders null, which is the intended behaviour.
 export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   const queryClient = useQueryClient();
   const promptsQuery = useBotSystemPrompts(botShip);
