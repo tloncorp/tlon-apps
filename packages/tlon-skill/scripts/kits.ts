@@ -84,7 +84,7 @@ type KitInstall = {
 const TERM_PATTERN = /^[a-z][a-z0-9-]*$/;
 
 function getKitsHelp(command?: string): string {
-  return command ? KITS_COMMAND_HELP[command] ?? KITS_HELP : KITS_HELP;
+  return command ? (KITS_COMMAND_HELP[command] ?? KITS_HELP) : KITS_HELP;
 }
 
 function validateKitsArgs(args: string[]): void {

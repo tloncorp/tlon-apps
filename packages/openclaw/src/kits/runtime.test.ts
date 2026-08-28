@@ -99,10 +99,12 @@ function makeRuntime(overrides?: {
   kit?: Kit | null;
 }) {
   const reader = makeReader(
-    overrides && 'config' in overrides ? overrides.config ?? null : makeConfig()
+    overrides && 'config' in overrides
+      ? (overrides.config ?? null)
+      : makeConfig()
   );
   const store = makeStore(
-    overrides && 'kit' in overrides ? overrides.kit ?? null : makeKit()
+    overrides && 'kit' in overrides ? (overrides.kit ?? null) : makeKit()
   );
   const runtime = createKitsRuntime({
     botShip: BOT,

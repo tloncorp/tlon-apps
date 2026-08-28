@@ -606,7 +606,8 @@ describe('post blob helpers', () => {
         size: 123,
       },
     ]);
-  test('toPostData writes kit attachments as blob entries with a text fallback', () => {
+  });
+
   test('toPostData writes kit attachments as blob entries without story spillover', () => {
     const attachment: FinalizedAttachment = {
       type: 'kit',

@@ -50,6 +50,7 @@ vi.mock('../../contexts/nowPlaying', () => ({
 }));
 vi.mock('../AudioRecorder/Waveform', () => ({ Waveform: () => null }));
 vi.mock('../FileUploadPreview', () => ({ FileUploadPreview: () => null }));
+vi.mock('../KitCard', () => ({ KitCard: () => null }));
 vi.mock('../VideoPreview', () => ({ VideoPreview: () => null }));
 vi.mock('./InlineRenderer', () => ({ InlineRenderer: () => null }));
 
