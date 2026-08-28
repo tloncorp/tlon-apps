@@ -1409,3 +1409,60 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   failure class as D45's dead-code-that-reads-like-protection, and it
   would have shipped a comment promising legible stack traces we did not
   have.
+
+- **D66: skill location is `packages/tlon-skill/skills/surfaces/`, and it
+  needs four registration changes nobody has made.** Plan §9 names the
+  path; the deciding argument is coupling — the skill is inert without
+  the `surface *` CLI verbs, which ship in `@tloncorp/tlon-skill`, so
+  co-locating makes skill/CLI version skew impossible, keeps the docs
+  beside the `templates/` CI renders, and means a Hermes deployment with
+  the CLI but no plugin tree still gets it. `packages/openclaw/skills/`
+  is where the repo puts *tool-less* knowledge.
+
+  **Discoverability is not automatic. Four gaps, all unaddressed:**
+  1. `packages/tlon-skill/package.json` `files` omits `skills/` — the
+     directory will not ship in the npm tarball.
+  2. `scripts/release-package.ts` hard-fails unless `files` matches an
+     exact required list, and stages only `SKILL.md` + `references/`.
+  3. `packages/openclaw/openclaw.plugin.json` lists skills explicitly and
+     needs `node_modules/@tloncorp/tlon-skill/skills/surfaces` — without
+     it **no OpenClaw bot loads the skill at all**.
+  4. Hermes registers skills one at a time by path
+     (`packages/hermes-tlon-adapter/adapter.py`) and needs a third
+     `register_skill` call plus a resolver.
+
+  Written docs that ship nowhere are worth nothing; this is a blocking
+  item for the authoring milestone, not a packaging detail.
+
+- **D67: plan errors found while writing the doctrine.** Each verified
+  against code, none silently smoothed over.
+
+  - **`app.html` is wrong; the bundle is JavaScript.** Plan §9 and the
+    SKILL draft both write `surface lint app.html spec.json`, but
+    `buildSandboxDocument` injects `bundleSource` inside a `<script>` and
+    `wrapBundleSource` wraps it in a function, so an `.html` file
+    containing markup would not run. Both existing bundles are `.js`.
+    The plan needs correcting, and the gate is being made
+    extension-agnostic.
+  - **§7 describes an escaping intermediate that does not exist.** It
+    says the `$actor` segment is substituted "RFC 6901-escaped", but
+    `resolveActorSegments` runs *after* `parsePointer` has unescaped, so
+    the plain ship goes into an already-unescaped segment and the state
+    key is `~zod`. Same observable result, but the author-facing rule is
+    position-dependent: hand-written path segments need `~0`, keys read
+    back in `render` are plain. Verified at
+    `packages/api/src/__tests__/surfaceJsonPointer.test.ts:244`.
+  - **`duplicatesTolerated` is not in the schema.** The session-5 prompt
+    introduces it as a gate feature, but `SurfaceActionSchema` declares
+    only `ops` and `acceptStale` and `z.object` strips unknown keys — so
+    it survives only in the **raw** persisted spec. A gate reading it off
+    a validated spec would see `undefined` and fail every `append`
+    action, including correctly-marked ones.
+  - **`countdown` cannot work under the no-clock rule.** It is in the
+    launch template set, but `render` may not read `Date`, so a countdown
+    cannot tick or compute "3 days left" — only display a host-written
+    target and host-written status. Either the template needs a host
+    rollover cadence, or it waits for `$period` (§12).
+  - **No app CSS reaches the sandbox**, so the poll fixture's
+    `class="poll-option-label"` is inert — a class with no rule behind
+    it. Worth removing when that fixture is promoted.
