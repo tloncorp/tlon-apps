@@ -572,6 +572,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     cancelUpload,
     createFolder: (parentId: number | null, name: string) =>
       sendBucketsAction({ type: 'create-folder', flag, name, parentId }),
+    // Both verbs existed in the protocol and in the row's action menu, but
+    // nothing outside the fixture supplied the callbacks, so neither was
+    // reachable from a real Bucket.
+    renameEntry: (id: number, name: string) =>
+      sendBucketsAction({ type: 'rename-entry', flag, id, name }),
+    moveEntry: (id: number, parentId: number | null) =>
+      sendBucketsAction({ type: 'move-entry', flag, id, parentId }),
     deleteEntry: async (id: number, recursive: boolean) => {
       const current = snapshotRef.current;
       const root = current?.state.entries.find((entry) => entry.id === id);

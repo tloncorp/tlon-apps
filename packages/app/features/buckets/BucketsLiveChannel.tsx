@@ -19,7 +19,9 @@ import {
   BucketSearchResult,
   BucketUploadCandidate,
   BucketsHeaderActions,
+  BucketsMoveSheet,
   BucketsNewSheet,
+  BucketsRenameSheet,
   BucketsPane,
   BucketsSearchScreen,
   ChannelHeader,
@@ -140,8 +142,17 @@ export function BucketsLiveChannel({
   const [operationError, setOperationError] = useState<string | null>(null);
   const [folderPendingDeletion, setFolderPendingDeletion] =
     useState<BucketItem | null>(null);
+  const [itemPendingRename, setItemPendingRename] = useState<BucketItem | null>(
+    null
+  );
+  const [itemPendingMove, setItemPendingMove] = useState<BucketItem | null>(
+    null
+  );
   const currentUserId = useCurrentUserId();
-  useHideChannelHeader(embedded && previewItem !== null);
+  // Search and preview both replace the pane with a screen that draws its own
+  // header. Leaving the channel header mounted stacks two of them, with two
+  // competing back controls.
+  useHideChannelHeader(embedded && (previewItem !== null || searchOpen));
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
   const entries = useMemo(
@@ -399,6 +410,27 @@ export function BucketsLiveChannel({
     }
   };
 
+  // A folder cannot move into itself or into anything beneath it, and the
+  // moving entry's own parent is where it already is.
+  const moveDestinations = useMemo(() => {
+    if (!itemPendingMove) return [];
+    const movingId = Number(itemPendingMove.id);
+    const barred = new Set<number>([movingId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      entries.forEach((entry) => {
+        if (entry.parentId !== null && barred.has(entry.parentId)) {
+          if (!barred.has(entry.id)) grew = true;
+          barred.add(entry.id);
+        }
+      });
+    }
+    return entries
+      .filter((entry) => entry.kind === 'folder' && !barred.has(entry.id))
+      .map((entry) => ({ id: entry.id, name: entry.name }));
+  }, [entries, itemPendingMove]);
+
   const paneProps = {
     canEdit,
     // Suppressed only where the ChannelHeader below already names the folder
@@ -412,7 +444,12 @@ export function BucketsLiveChannel({
     uploadAggregateProgress: live.uploadAggregateProgress,
     uploadItems: live.localItems,
     onCancelUpload: (item: BucketItem) => void live.cancelUpload(item.id),
-    onNavigateUp: goBack,
+    onNavigateRoot: () => {
+      setActiveFolderId(null);
+      setSelectedItemId(null);
+    },
+    onRenameItem: (item: BucketItem) => setItemPendingRename(item),
+    onMoveItem: (item: BucketItem) => setItemPendingMove(item),
     onDeleteItem: (item: BucketItem) => {
       if (item.kind === 'folder') {
         setFolderPendingDeletion(item);
@@ -555,6 +592,34 @@ export function BucketsLiveChannel({
           </XStack>
         )}
       </MaybeChannelHeaderItemsProvider>
+      <BucketsRenameSheet
+        item={itemPendingRename}
+        onOpenChange={(open) => {
+          if (!open) setItemPendingRename(null);
+        }}
+        onRename={(name) => {
+          const item = itemPendingRename;
+          setItemPendingRename(null);
+          if (item) {
+            void reportOperation(live.renameEntry(Number(item.id), name));
+          }
+        }}
+      />
+      <BucketsMoveSheet
+        destinations={moveDestinations}
+        item={itemPendingMove}
+        rootLabel={rootLabel}
+        onOpenChange={(open) => {
+          if (!open) setItemPendingMove(null);
+        }}
+        onMove={(parentId) => {
+          const item = itemPendingMove;
+          setItemPendingMove(null);
+          if (item) {
+            void reportOperation(live.moveEntry(Number(item.id), parentId));
+          }
+        }}
+      />
       <ConfirmDialog
         open={folderPendingDeletion !== null}
         onOpenChange={(open) => {
