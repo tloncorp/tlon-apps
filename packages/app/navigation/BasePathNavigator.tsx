@@ -11,6 +11,11 @@ import {
   MobileBasePathStackParamList,
 } from './types';
 
+export type {
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+} from './types';
+
 const MobileBasePathStackNavigator =
   createNativeStackNavigator<MobileBasePathStackParamList>();
 const DesktopBasePathStackNavigator =
