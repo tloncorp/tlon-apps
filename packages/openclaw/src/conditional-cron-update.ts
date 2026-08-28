@@ -147,9 +147,17 @@ function hasUnrelatedSideEffect(prompt: string): boolean {
     ) {
       return false;
     }
-    return !/\b(?:alert|notify|notification|monitor|update|bother|message|tell|send|urgent|risk|routine|threshold|relevant)\b/i.test(
-      clause
-    );
+    const changesAlertCriteria =
+      /\b(?:edit|change|update|save)\b[^.!?\n]{0,80}\b(?:alert|notification|monitor)(?:ing)?\s+(?:rule|criteria|threshold|settings?)\b/i.test(
+        clause
+      ) ||
+      /\b(?:delete|remove)\b[^.!?\n]{0,40}\b(?:routine|non-urgent|irrelevant)\s+(?:alerts?|notifications?|updates?)\b/i.test(
+        clause
+      ) ||
+      /\bpost\b[^.!?\n]{0,40}\b(?:alerts?|notifications?|updates?)\b/i.test(
+        clause
+      );
+    return !changesAlertCriteria;
   });
 }
 
@@ -172,8 +180,12 @@ function isThresholdCorrection(prompt: string): boolean {
 }
 
 function explicitlyChangesSchedule(prompt: string): boolean {
+  const affirmative = prompt.replace(
+    /\b(?:do not|don't|never)\s+(?:change|edit|update|modify)\b[^.!?\n]{0,80}\b(?:schedule|cadence|frequency|cron)\b/gi,
+    ''
+  );
   return /\bevery\b[^.!?\n]{0,40}\b(?:minute|hour|day|week|month)s?\b|\b(?:hourly|daily|weekly|monthly|schedule|cadence|frequency|run\s+(?:at|on)|cron)\b/i.test(
-    prompt
+    affirmative
   );
 }
 
@@ -188,8 +200,12 @@ function explicitlyChangesEnabled(prompt: string): boolean {
 }
 
 function explicitlyChangesDelivery(prompt: string): boolean {
+  const affirmative = prompt.replace(
+    /\b(?:do not|don't|never)\s+(?:change|edit|update|modify)\b[^.!?\n]{0,80}\b(?:delivery\s+mode|delivery|destination)\b/gi,
+    ''
+  );
   return /\bdelivery\s+mode\b|\b(?:send|deliver|post)\b[^.!?\n]{0,80}\b(?:via|instead|to\s+(?:my\s+)?(?:dm|direct messages?)|in\s+(?:the\s+)?channel)\b|\b(?:disable|stop|turn\s+off)\s+(?:the\s+)?announce\s+delivery\b/i.test(
-    prompt
+    affirmative
   );
 }
 

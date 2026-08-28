@@ -198,6 +198,47 @@ describe('conditional cron update preservation', () => {
     expect(adjusted?.patch).toMatchObject({ enabled: true });
   });
 
+  it('preserves schedule and delivery when the owner says not to change them', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Do not change the schedule or delivery mode; only notify me when there is real risk.',
+      true
+    );
+    rememberJob();
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        delivery: { mode: 'none' },
+        schedule: { kind: 'cron', expr: '*/5 * * * *' },
+        payload: { message: 'Alert on actual risk.' },
+      },
+    });
+
+    expect(adjusted?.patch).toMatchObject({
+      delivery: { mode: 'announce' },
+      schedule: { kind: 'cron', expr: '0 * * * *' },
+    });
+  });
+
+  it('does not embed a destructive notification side effect', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Delete the old notifications, and only alert me for actual risk.',
+      true
+    );
+    rememberJob();
+
+    expect(
+      preserveConditionalCronUpdate(sessionKey, {
+        action: 'update',
+        jobId,
+        patch: { payload: { message: 'Delete old notifications each run.' } },
+      })
+    ).toBeUndefined();
+  });
+
   it('requires a fresh read for a repeated owner correction', () => {
     const prompt = 'Only notify me when my keys are actually at risk.';
     rememberCronOwnerPrompt(sessionKey, prompt, true);
