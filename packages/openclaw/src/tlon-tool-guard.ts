@@ -500,15 +500,15 @@ function ownerRolesFromGroupInfo(
   const membersSection =
     nextSection === -1 ? afterHeader : afterHeader.slice(0, nextSection);
   const escapedOwner = owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = membersSection.match(
-    new RegExp(
-      `^\\s*${escapedOwner}(?:\\s+\\([^\\n)]*\\))?(?:\\s+\\[([^\\]]*)\\])?\\s*$`,
-      'im'
-    )
-  );
-  if (!match) return null;
-  return match[1]
-    ? match[1]
+  const memberLine = membersSection
+    .split(/\r?\n/)
+    .find((line) =>
+      new RegExp(`^\\s*${escapedOwner}(?:\\s|$)`, 'i').test(line)
+    );
+  if (!memberLine) return null;
+  const roles = memberLine.match(/\[([^\]]*)\]\s*$/);
+  return roles?.[1]
+    ? roles[1]
         .split(',')
         .map((role) => role.trim())
         .filter(Boolean)

@@ -364,6 +364,26 @@ describe('tlon tool guard', () => {
       ).toContain('could not be verified as a reader');
     });
 
+    it('parses roles after a nickname containing a closing parenthesis', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          channels: [{ nest: 'notes/~bot/restricted' }],
+        },
+      ]);
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/restricted',
+          '~owner',
+          {
+            groupInfo: '--- Members ---\n  ~owner (Alice (work)) [vip]\n',
+            channelInfo: 'Readers: vip',
+          }
+        )
+      ).toBeNull();
+    });
+
     it('allows an active admin from real group info output', () => {
       const actualListing = JSON.stringify([
         {
