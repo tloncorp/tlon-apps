@@ -64,6 +64,109 @@ export interface SeedBundle {
   declaredLength?: number;
 }
 
+/* ------------------------------------------------------------------ */
+/* workout tracker: the host-is-the-clock fixture (D54)                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The whole point of this fixture is that a member's action is an
+ * idempotent `set`, never an `append` — so the outcome is one of exactly
+ * two spec-authored literals, and a duplicate invoke re-sets the same path
+ * to the same literal.
+ */
+const OK = { r: 'ok' } as const;
+const FAIL = { r: 'fail' } as const;
+
+type Outcome = typeof OK | typeof FAIL;
+
+/** Workout A: squat, bench press, barbell row. */
+const A = (squat: Outcome, bench: Outcome, row: Outcome) => ({
+  squat,
+  bench,
+  row,
+});
+
+/** Workout B: squat, overhead press, deadlift. */
+const B = (squat: Outcome, ohp: Outcome, deadlift: Outcome) => ({
+  squat,
+  ohp,
+  deadlift,
+});
+
+/**
+ * Archived history, seeded through `initialState` so the chart and the
+ * progression have something to derive from on the first render. The live
+ * rollover below adds 2026-08-21 on top of this by the mechanism under
+ * test, rather than by assertion.
+ *
+ * Shaped so every derived quantity has a non-trivial value to prove:
+ * ~zod misses bench on 08-12 and 08-17 and misses it again in the live
+ * session, which is the third consecutive miss and must deload 25 → 22.5;
+ * ~zod misses OHP once on 08-14 and then makes it, which must RESET the
+ * streak rather than accumulate; ~ten carries an open one-miss streak on
+ * OHP with no deload. The two ships are offset by one session so their
+ * A/B alternations differ, which is what makes the alternation derived
+ * rather than global.
+ */
+const WORKOUT_HISTORY: Record<string, Record<string, object>> = {
+  '2026-08-03': { '~zod': A(OK, OK, OK) },
+  '2026-08-05': { '~zod': B(OK, OK, OK) },
+  '2026-08-07': { '~zod': A(OK, OK, OK) },
+  '2026-08-10': { '~zod': B(OK, OK, OK) },
+  '2026-08-12': { '~zod': A(OK, FAIL, OK), '~ten': A(OK, OK, OK) },
+  '2026-08-14': { '~zod': B(OK, FAIL, OK), '~ten': B(OK, OK, OK) },
+  '2026-08-17': { '~zod': A(OK, FAIL, OK), '~ten': A(OK, OK, OK) },
+  '2026-08-19': { '~zod': B(OK, OK, OK), '~ten': B(OK, FAIL, OK) },
+};
+
+/** The date the seeded host rollover archives. */
+export const WORKOUT_ROLLOVER_DATE = '2026-08-21';
+
+/**
+ * Exactly what the host's rollover op archives — and, independently, what
+ * the reducer must already be holding in `/today` when the host posts it.
+ * The seed asserts those two are the same object, which is the check that
+ * makes the rollover proven rather than assumed.
+ */
+export const WORKOUT_ROLLOVER_VALUE = {
+  // A plain object KEY, not a pointer segment: D51's `~` → `~0` escaping
+  // applies to paths only, so this is the bare ship name — the same form
+  // `$actor` substitution lands in state.
+  '~zod': A(OK, FAIL, OK),
+};
+
+/** The action a member invokes twice, to exercise D54's idempotency claim. */
+export const WORKOUT_DUPLICATED_ACTION = 'squat-ok';
+
+/**
+ * A once-only invoke ABOVE the rollover, used as the negative control for
+ * the idempotency check: dropping this post must change the fold, which is
+ * what proves the "dropping the duplicate changed nothing" result is a
+ * measurement rather than a comparison that cannot see anything.
+ */
+export const WORKOUT_CONTROL_ACTION = 'ohp-fail';
+
+const WORKOUT_LIFT_ORDER = ['squat', 'bench', 'row', 'ohp', 'deadlift'];
+
+function workoutActions(): Record<string, { ops: object[] }> {
+  const actions: Record<string, { ops: object[] }> = {};
+  for (const id of WORKOUT_LIFT_ORDER) {
+    // Two parameterless actions per lift — ten in total, against a cap of
+    // 64 — each a single idempotent `set` keyed by the verified actor.
+    actions[`${id}-ok`] = {
+      ops: [{ op: 'set', path: `/today/$actor/${id}`, value: OK }],
+    };
+    actions[`${id}-fail`] = {
+      ops: [{ op: 'set', path: `/today/$actor/${id}`, value: FAIL }],
+    };
+  }
+  // `del` on a missing path is a no-op (§7), so this is idempotent too.
+  actions['clear-today'] = {
+    ops: [{ op: 'del', path: '/today/$actor' }],
+  };
+  return actions;
+}
+
 export type SpecOverride = (bundle: {
   assetRef: string;
   sha256: string;
@@ -169,6 +272,10 @@ export function buildFixtures(): SeedFixture[] {
   const hostileBundle: SeedBundle = {
     name: 'hostile-navigation.js',
     content: readBundle('hostile-navigation.js'),
+  };
+  const workoutBundle: SeedBundle = {
+    name: 'workout.js',
+    content: readBundle('workout.js'),
   };
   const oversized = oversizedBody();
   const oversizedBundle: SeedBundle = {
@@ -590,6 +697,145 @@ export function buildFixtures(): SeedFixture[] {
         },
         actions: {},
       }),
+    },
+
+    {
+      slug: 'surface-workout',
+      title: 'Workout tracker — host is the clock',
+      description: 'Derived state, and a rollover instead of an append.',
+      bundle: workoutBundle,
+      expectedRead: 'valid',
+      expected:
+        'A StrongLifts 5×5 dashboard: a log card with All reps / Missed for five lifts, a crew card showing ~zod and ~ten at different working weights, a drawn line chart of squat weight over nine archived dates, and an archived-session list whose newest date is 2026-08-21. ~zod’s bench must read 22.5 kg with a “Bench Press deloaded ×1” badge (three consecutive misses, 25 × 0.9); ~zod’s next workout must read B and ~ten’s A. Tapping the same button twice must change nothing on the second tap.',
+      spec: (bundle) => ({
+        version: 1,
+        surfaceId: 'seed-workout',
+        specRevision: 1,
+        title: 'StrongLifts 5×5',
+        bundle,
+        // The log, and nothing derived. Working weight, the A/B
+        // alternation, failure streaks and the deload are all computed in
+        // `render` — the op language has no arithmetic, so there is no
+        // other place they could live (plan §9).
+        initialState: {
+          program: 'StrongLifts 5×5',
+          progression: '+2.5 kg a session, +5 kg deadlift, −10% after 3 misses',
+          unit: 'kg',
+          barWeight: 20,
+          plateStep: 2.5,
+          deloadAfter: 3,
+          deloadFactor: 0.9,
+          chartLift: 'squat',
+          historyShown: 6,
+          liftOrder: WORKOUT_LIFT_ORDER,
+          lifts: {
+            squat: { label: 'Squat', scheme: '5×5', start: 20, inc: 2.5 },
+            bench: { label: 'Bench Press', scheme: '5×5', start: 20, inc: 2.5 },
+            row: { label: 'Barbell Row', scheme: '5×5', start: 30, inc: 2.5 },
+            ohp: {
+              label: 'Overhead Press',
+              scheme: '5×5',
+              start: 20,
+              inc: 2.5,
+            },
+            // the deadlift's conventional +5 kg, and a single work set
+            deadlift: { label: 'Deadlift', scheme: '1×5', start: 40, inc: 5 },
+          },
+          workouts: {
+            A: ['squat', 'bench', 'row'],
+            B: ['squat', 'ohp', 'deadlift'],
+          },
+          history: WORKOUT_HISTORY,
+          today: {},
+        },
+        actions: workoutActions(),
+      }),
+      posts: (spec) => {
+        const event = (entry: Record<string, unknown>) => ({
+          type: 'surface-event',
+          version: 1,
+          surfaceId: spec.surfaceId as string,
+          specRevision: spec.specRevision as number,
+          ...entry,
+        });
+        const log = (as: 'zod' | 'ten', actionId: string): SeedPost => ({
+          as,
+          kind: 'event',
+          fallback: 'Logged a lift. Update Tlon to view this dashboard.',
+          entry: event({ mode: 'invoke', actionId }),
+        });
+
+        return [
+          // ~zod's session, straight into the scratch area. Three
+          // idempotent `set /today/$actor/<lift>` writes.
+          log('zod', 'squat-ok'),
+          log('zod', 'bench-fail'),
+          log('zod', 'row-ok'),
+
+          // The host rollover (D54's host-is-the-clock). The host computes
+          // both the date and the archived value from its own fold, so
+          // members never supply either — two raw ops, against a cap of 20.
+          {
+            as: 'zod',
+            kind: 'event',
+            fallback:
+              'Archived the day’s session. Update Tlon to view this dashboard.',
+            entry: event({
+              mode: 'host',
+              ops: [
+                {
+                  op: 'set',
+                  path: `/history/${WORKOUT_ROLLOVER_DATE}`,
+                  value: WORKOUT_ROLLOVER_VALUE,
+                },
+                { op: 'del', path: '/today' },
+              ],
+            }),
+          },
+
+          // Post-rollover: the next session starts in a scratch area the
+          // host just emptied.
+          log('zod', WORKOUT_DUPLICATED_ACTION),
+          // The D54 probe: the SAME action again. Two posts land, carrying
+          // byte-identical blob entries, and the fold must be unchanged.
+          log('zod', WORKOUT_DUPLICATED_ACTION),
+          log('zod', WORKOUT_CONTROL_ACTION),
+          log('zod', 'deadlift-ok'),
+
+          // ~ten trains on its own alternation.
+          log('ten', 'squat-ok'),
+          log('ten', 'bench-ok'),
+
+          // §4.3's host-only rule, probed with a payload that could not be
+          // missed if it folded: a NON-host ship posting raw ops that would
+          // delete the entire archive and forge a perfect session.
+          {
+            as: 'ten',
+            kind: 'event',
+            fallback:
+              'A non-host ship attempted a rollover. The reducer must ignore it.',
+            entry: event({
+              mode: 'host',
+              ops: [
+                { op: 'del', path: '/history' },
+                {
+                  op: 'set',
+                  path: '/today',
+                  value: {
+                    '~ten': {
+                      squat: OK,
+                      bench: OK,
+                      row: OK,
+                      ohp: OK,
+                      deadlift: OK,
+                    },
+                  },
+                },
+              ],
+            }),
+          },
+        ];
+      },
     },
   ];
 }

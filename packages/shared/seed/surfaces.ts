@@ -25,6 +25,9 @@ import {
 import {
   BYTE_IDENTITY_PROBES,
   type SeedFixture,
+  WORKOUT_CONTROL_ACTION,
+  WORKOUT_DUPLICATED_ACTION,
+  WORKOUT_ROLLOVER_DATE,
   buildFixtures,
   bundleRef,
   bundlesOf,
@@ -552,7 +555,12 @@ async function main() {
       const posts = fixture.posts?.(specs.get(fixture.slug)!) ?? [];
       for (const post of posts.filter((p) => p.as === 'ten')) {
         await postSurfaceRecord(channelIdOf(fixture), post);
-        pass(fixture.slug, `~ten invoked ${String(post.entry['actionId'])}`);
+        pass(
+          fixture.slug,
+          post.entry['mode'] === 'host'
+            ? '~ten posted raw ops as a non-host ship'
+            : `~ten invoked ${String(post.entry['actionId'])}`
+        );
       }
     }
 
@@ -713,9 +721,19 @@ async function verifyFixture(fixture: SeedFixture): Promise<void> {
   }
 
   // 3. hydration, which is where the reducer, the revision filter and the
-  //    migration gate all show up
-  await store.syncPosts({ channelId, mode: 'newest', count: 50 });
-  const hydration = await hydrateSurface({ channelId });
+  //    migration gate all show up.
+  //
+  // The window is sized to the channel's ACCUMULATED history, not its live
+  // post count. The seed is re-runnable by clearing posts, and a cleared
+  // post keeps its sequence number — so after a handful of runs the oldest
+  // live post sits well above sequence 1, and `hydrateSurface` (called with
+  // no backfill here) can only reach the channel start if the local mirror
+  // already holds every row down to it. At `count: 50` the workout fixture,
+  // which posts eleven records a run, crossed that line and reported
+  // `partial` — an artifact of re-running the seed, not of the fixture.
+  const window = 400;
+  await store.syncPosts({ channelId, mode: 'newest', count: window });
+  const hydration = await hydrateSurface({ channelId, pageSize: window });
   note(`${fixture.slug}: hydration → ${hydration.status}`);
 
   if (fixture.slug === 'surface-poll' && hydration.status === 'hydrated') {
@@ -757,6 +775,341 @@ async function verifyFixture(fixture: SeedFixture): Promise<void> {
       );
     }
   }
+
+  if (fixture.slug === 'surface-workout') {
+    await runWorkoutChecks(fixture);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* the host-is-the-clock checks (D54)                                  */
+/* ------------------------------------------------------------------ */
+
+/** A post's surface blob entries, parsed with no client transform. */
+function blobEntries(post: db.Post): Record<string, unknown>[] {
+  if (typeof post.blob !== 'string' || post.blob.length === 0) {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(post.blob);
+    return Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Key-order-independent comparison, for state built by different routes. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`;
+  }
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.keys(value as Record<string, unknown>)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalJson(
+            (value as Record<string, unknown>)[key]
+          )}`
+      );
+    return `{${entries.join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
+}
+
+/**
+ * The four claims the workout fixture exists to test, each measured
+ * against the real post set the ships hold rather than against the
+ * fixture's own intent:
+ *
+ *  1. the host rollover archived EXACTLY the `/today` the fold was
+ *     holding at that moment (computed by re-folding the posts beneath
+ *     the rollover, not by trusting the literal the host wrote), and
+ *     `/today` was cleared;
+ *  2. a duplicate invoke is a state no-op — the two posts carry
+ *     byte-identical blobs, and dropping one produces a byte-identical
+ *     fold (D54's central claim, verified by observation);
+ *  3. a NON-host ship's raw ops are ignored (§4.3 host-only rule);
+ *  4. the whole reduced state is exactly the log, with nothing derived
+ *     stored in it.
+ */
+async function runWorkoutChecks(fixture: SeedFixture): Promise<void> {
+  const slug = fixture.slug;
+  const channelId = channelIdOf(fixture);
+  const channel = await db.getChannel({ id: channelId });
+  const read = readSurfaceSpec(channel?.surfaceSpec ?? null);
+  if (read.status !== 'valid') {
+    fail(slug, 'setup', `the spec reads back as ${read.status}`);
+    return;
+  }
+  const spec = read.spec;
+
+  const posts = await db.getSequencedChannelPosts({
+    channelId,
+    mode: 'newest',
+    count: 200,
+  });
+  const reduction = store.reduceSurfaceChannel({ channelId, spec, posts });
+  if (reduction.status !== 'reduced') {
+    fail(slug, 'fold', `expected a reduction, got ${reduction.status}`);
+    return;
+  }
+  const state = reduction.state as {
+    history?: Record<string, Record<string, unknown>>;
+    today?: Record<string, Record<string, unknown>>;
+  };
+
+  /* ---- 1. the rollover ------------------------------------------- */
+
+  const rollover = posts.find((post) =>
+    blobEntries(post).some(
+      (entry) =>
+        entry.mode === 'host' &&
+        Array.isArray(entry.ops) &&
+        (entry.ops as { path?: string }[]).some(
+          (op) => op.path === `/history/${WORKOUT_ROLLOVER_DATE}`
+        )
+    )
+  );
+  if (!rollover || typeof rollover.sequenceNum !== 'number') {
+    fail(slug, 'rollover', 'no host rollover post is on the ship');
+    return;
+  }
+
+  // What the fold held one post before the rollover: the value the host
+  // would have computed from its own fold.
+  const beneath = posts.filter(
+    (post) =>
+      typeof post.sequenceNum === 'number' &&
+      post.sequenceNum < (rollover.sequenceNum as number)
+  );
+  const before = store.reduceSurfaceChannel({
+    channelId,
+    spec,
+    posts: beneath,
+  });
+  const scratchBefore =
+    before.status === 'reduced'
+      ? (before.state as { today?: unknown }).today
+      : undefined;
+  const archived = (state.history ?? {})[WORKOUT_ROLLOVER_DATE];
+
+  if (canonicalJson(archived) === canonicalJson(scratchBefore)) {
+    pass(
+      slug,
+      `rollover archived the exact pre-rollover scratch area under ${WORKOUT_ROLLOVER_DATE}`
+    );
+  } else {
+    fail(
+      slug,
+      'rollover archive',
+      `/history/${WORKOUT_ROLLOVER_DATE} is ${JSON.stringify(archived)} but ` +
+        `the fold beneath the rollover held ${JSON.stringify(scratchBefore)}`
+    );
+  }
+
+  // `del /today` cleared the scratch area: the pre-rollover lifts are
+  // gone and only the post-rollover ones remain.
+  const zodToday = Object.keys((state.today ?? {})['~zod'] ?? {}).sort();
+  const expectedZodToday = ['deadlift', 'ohp', 'squat'];
+  if (canonicalJson(zodToday) === canonicalJson(expectedZodToday)) {
+    pass(slug, 'del /today cleared the scratch area across the rollover');
+  } else {
+    fail(
+      slug,
+      'rollover clear',
+      `~zod's scratch area is ${JSON.stringify(zodToday)}; expected ` +
+        `${JSON.stringify(expectedZodToday)} (the pre-rollover lifts should ` +
+        'have been deleted)'
+    );
+  }
+
+  /* ---- 2. idempotency (D54) --------------------------------------- */
+
+  const byBlob = new Map<string, db.Post[]>();
+  for (const post of posts) {
+    if (typeof post.blob !== 'string' || post.blob.length === 0) {
+      continue;
+    }
+    const key = JSON.stringify([post.authorId, post.blob]);
+    byBlob.set(key, [...(byBlob.get(key) ?? []), post]);
+  }
+  const duplicated = [...byBlob.values()].filter((group) => group.length > 1);
+
+  // D54's premise, measured rather than argued: the fixture invokes
+  // `squat-ok` three times as ~zod — once in the session the host archived
+  // and twice after it — and all THREE posts carry byte-identical blobs.
+  // Nothing in the entry distinguishes the legitimate second session from
+  // the double-tap; only the host's rollover between them does. That is
+  // exactly why `append` is unfixable in v0 and `set` is not.
+  if (duplicated.length !== 1 || duplicated[0].length !== 3) {
+    fail(
+      slug,
+      'duplicate invoke',
+      `expected exactly one group of three byte-identical blobs, found ${
+        duplicated.length
+      } group(s) of sizes ${JSON.stringify(duplicated.map((g) => g.length))}`
+    );
+    return;
+  }
+  const identical = [...duplicated[0]].sort(
+    (a, b) => (a.sequenceNum ?? 0) - (b.sequenceNum ?? 0)
+  );
+  const actionId = blobEntries(identical[0])[0]?.actionId;
+  if (actionId !== WORKOUT_DUPLICATED_ACTION) {
+    fail(
+      slug,
+      'duplicate invoke',
+      `the byte-identical group invokes ${String(actionId)}, not ${WORKOUT_DUPLICATED_ACTION}`
+    );
+    return;
+  }
+  const archivedTwin = identical[0];
+  const doubleTap = identical[2];
+  const rolloverSeq = rollover.sequenceNum as number;
+  if (
+    !(
+      (archivedTwin.sequenceNum ?? 0) < rolloverSeq &&
+      (identical[1].sequenceNum ?? 0) > rolloverSeq &&
+      (doubleTap.sequenceNum ?? 0) > rolloverSeq
+    )
+  ) {
+    fail(
+      slug,
+      'duplicate invoke',
+      `the three identical invokes are at seq ${JSON.stringify(
+        identical.map((post) => post.sequenceNum)
+      )}, which does not straddle the rollover at seq ${rolloverSeq}`
+    );
+    return;
+  }
+  pass(
+    slug,
+    `three distinct posts (seq ${identical
+      .map((post) => post.sequenceNum)
+      .join(', ')}) carry byte-identical ` +
+      `${Buffer.byteLength(archivedTwin.blob!, 'utf8')}-byte blobs`
+  );
+
+  const foldWithout = (post: db.Post) => {
+    const result = store.reduceSurfaceChannel({
+      channelId,
+      spec,
+      posts: posts.filter((candidate) => candidate.id !== post.id),
+    });
+    return result.status === 'reduced'
+      ? JSON.stringify(result.state)
+      : '<not reduced>';
+  };
+  const foldedAll = JSON.stringify(reduction.state);
+
+  // The claim: dropping the double-tap changes nothing.
+  if (foldWithout(doubleTap) === foldedAll) {
+    pass(
+      slug,
+      'the second invoke changed nothing: folding without it is byte-identical'
+    );
+  } else {
+    fail(
+      slug,
+      'IDEMPOTENCY VIOLATED',
+      'dropping the duplicate post changed the fold.\n' +
+        `      with both: ${foldedAll}\n` +
+        `      with one:  ${foldWithout(doubleTap)}`
+    );
+  }
+
+  // The negative control, so the result above is a measurement rather than
+  // a comparison that cannot see anything: a once-only invoke from the same
+  // ship, above the same rollover, whose removal MUST change the fold.
+  const control = posts.find((post) =>
+    blobEntries(post).some((entry) => entry.actionId === WORKOUT_CONTROL_ACTION)
+  );
+  if (!control) {
+    fail(
+      slug,
+      'idempotency control',
+      `no ${WORKOUT_CONTROL_ACTION} invoke is on the ship to control against`
+    );
+  } else if (foldWithout(control) !== foldedAll) {
+    pass(
+      slug,
+      `dropping the once-only ${WORKOUT_CONTROL_ACTION} invoke DOES change the fold`
+    );
+  } else {
+    fail(
+      slug,
+      'idempotency control',
+      `dropping the once-only ${WORKOUT_CONTROL_ACTION} invoke changed nothing ` +
+        'either, so the comparison above cannot distinguish a folded post ' +
+        'from an ignored one'
+    );
+  }
+
+  // Measured, and worth stating because it is a property of the PATTERN
+  // rather than of this fixture: dropping the pre-rollover twin of the
+  // duplicate also changes nothing. The rollover writes a literal the host
+  // computed off-fold and then deletes `/today`, so once a day is archived,
+  // none of the member invokes underneath it are load-bearing any more —
+  // the archived day is host-ASSERTED, not reducer-derived.
+  if (foldWithout(archivedTwin) === foldedAll) {
+    note(
+      `${slug}: after the rollover, the member invokes it archived are no ` +
+        'longer load-bearing — the dated history is a host-authored literal, ' +
+        'not a reducer-verified copy of what /today held'
+    );
+  } else {
+    note(
+      `${slug}: dropping a pre-rollover invoke still changes the fold, so ` +
+        'the archived day depends on posts beneath the rollover'
+    );
+  }
+
+  /* ---- 3. host-only raw ops (§4.3) -------------------------------- */
+
+  const forged = posts.filter(
+    (post) =>
+      post.authorId !== SHIPS.zod.name &&
+      blobEntries(post).some((entry) => entry.mode === 'host')
+  );
+  if (forged.length === 0) {
+    fail(
+      slug,
+      'host-only rule',
+      'no non-host raw-op post is on the ship, so the rule was never probed'
+    );
+  } else {
+    const historyDates = Object.keys(state.history ?? {}).length;
+    const tenToday = Object.keys((state.today ?? {})['~ten'] ?? {}).sort();
+    const intact =
+      historyDates === 9 &&
+      canonicalJson(tenToday) === canonicalJson(['bench', 'squat']);
+    if (intact && reduction.skippedEventCount >= 1) {
+      pass(
+        slug,
+        `~ten's raw-op rollover was skipped (${reduction.skippedEventCount} ` +
+          `skipped event(s); ${historyDates} archived dates intact)`
+      );
+    } else {
+      fail(
+        slug,
+        'HOST-ONLY RULE VIOLATED',
+        `a non-host ship's raw ops folded: ${historyDates} archived dates ` +
+          `(expected 9), ~ten's scratch area is ${JSON.stringify(tenToday)} ` +
+          `(expected ["bench","squat"]), ${reduction.skippedEventCount} skipped`
+      );
+    }
+  }
+
+  /* ---- 4. the state is the log and nothing else -------------------- */
+
+  const derivedKeys = Object.keys(state.today ?? {}).length;
+  note(
+    `${slug}: reduced state carries ${
+      Object.keys(state.history ?? {}).length
+    } archived dates and ${derivedKeys} scratch ship(s); every weight, ` +
+      'streak and deload on screen is derived in render()'
+  );
 }
 
 /**
@@ -851,6 +1204,13 @@ async function runF3(fixture: SeedFixture): Promise<void> {
  * back through the same decoder the app uses rather than string-matching.
  */
 async function runF4Hush(fixtures: SeedFixture[]): Promise<void> {
+  // The hush is gated on the ship's "already defaulted" markers having been
+  // read into the local mirror: hushing against an empty mirror would
+  // re-mute a surface the user unmuted on another device. A real client
+  // gets that read from `syncSettings` during boot; the seed has no boot
+  // sequence, so it does the same read explicitly. Without it the sweep
+  // defers and hushes nothing.
+  await store.syncSettings();
   await applySurfaceChannelNotificationDefaults();
 
   const volumes = await api.getVolumeSettings();
