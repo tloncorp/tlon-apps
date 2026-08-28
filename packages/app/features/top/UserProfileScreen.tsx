@@ -9,7 +9,6 @@ import { View, isWeb, useTheme } from 'tamagui';
 
 import { useCurrentUserId } from '../../hooks/useCurrentUser';
 import { useGroupActions } from '../../hooks/useGroupActions';
-import { useFeatureFlag } from '../../lib/featureFlags';
 import { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -26,6 +25,7 @@ import {
   openExternalBotSettings,
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
+import { useIsOwnedBot } from '../../ui/components/BotSystemPrompts';
 import { useShipConnectionStatus } from './useShipConnectionStatus';
 import {
   tasksForShip,
@@ -111,10 +111,12 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const isOwnBotProfile = useMemo(() => {
     return api.isBotUserIdForUser(userId, currentUserId);
   }, [currentUserId, userId]);
-  const [scheduledTasksEnabled] = useFeatureFlag('scheduledTasks');
-  const automationQuery = useStewardAutomationTasks(
-    scheduledTasksEnabled && isOwnBotProfile
-  );
+  // isBotUserIdForUser is a naming-convention check, so it excludes a bot
+  // that runs on its own ship and named us owner. Use the same data-gated
+  // signal the prompts section uses, which treats the presence of an owner
+  // mirror as the ownership proof.
+  const ownedBotForTasks = useIsOwnedBot(userId).isOwnedBot || isOwnBotProfile;
+  const automationQuery = useStewardAutomationTasks(ownedBotForTasks);
   const scheduledTasks = tasksForShip(automationQuery.data, userId);
 
   const handlePressScheduledTasks = useCallback(() => {
@@ -201,9 +203,7 @@ export function UserProfileScreen({ route, navigation }: Props) {
                   : undefined
               }
               onPressScheduledTasks={
-                scheduledTasksEnabled &&
-                isOwnBotProfile &&
-                automationQuery.data?.available
+                ownedBotForTasks && automationQuery.data?.available
                   ? handlePressScheduledTasks
                   : undefined
               }
