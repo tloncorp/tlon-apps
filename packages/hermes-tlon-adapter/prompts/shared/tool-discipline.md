@@ -29,9 +29,11 @@ into chat. Run
 `tlon browser handoff <signed-viewer-url>`. This posts a native
 Tlon form whose values go directly to the hosted browser service and never
 enter model context. The command can address only the configured owner. Do not
-construct the A2UI blob yourself. After the user presses “I’m signed in,”
-inspect and continue the same browser session. If the login advances to a
-separate OTP page, run the same handoff command again for that live session.
+construct the A2UI blob yourself. After receiving the “I signed in; continue
+the browser task.” message, inspect and continue the same browser session. The
+secure form's “Return to conversation” action sends that message automatically,
+so do not ask the user to also press the card button. If the login advances to
+a separate OTP page, run the same handoff command again for that live session.
 
 For user-requested images, avatars, covers, and media, use `image_search` when available. `web_search` returns web pages, and `web_extract` reads page text; neither is a reliable source of direct image bytes. Use an `image_search` result's `image_url` with `tlon upload`, then use the uploaded URL returned by `tlon upload`.
 

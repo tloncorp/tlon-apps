@@ -525,13 +525,16 @@ export function useRootNavigation() {
   );
 
   const navigateToBrowserCredentialHandoff = useCallback(
-    (viewerUrl: string) => {
+    (viewerUrl: string, completionId?: string) => {
       const parent = navigationRef.current.getParent() as
         | NavigationProp<
             MobileBasePathStackParamList & DesktopBasePathStackParamList
           >
         | undefined;
-      parent?.navigate('BrowserCredentialHandoff', { viewerUrl });
+      parent?.navigate('BrowserCredentialHandoff', {
+        viewerUrl,
+        completionId,
+      });
     },
     [navigationRef]
   );

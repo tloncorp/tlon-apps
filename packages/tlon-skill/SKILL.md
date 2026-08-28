@@ -64,10 +64,12 @@ embed the remote page. The browser service re-inspects the live page, tells
 Tlon which standard fields are present, and receives the submitted values
 directly. The values are never posted to chat or returned to the bot. If login
 advances to a separate OTP page, run the same command again with the same live
-session's signed viewer URL to send the owner the OTP form. Wait for the user
-to press the card's “I’m signed in” action, then inspect the same browser
-session and continue. Never claim the handoff was sent unless the command
-returned success.
+session's signed viewer URL to send the owner the OTP form. After a successful
+submission, the owner's “Return to conversation” action automatically sends
+the same continuation message as the card's “I'm signed in” button. Wait for
+that message, then inspect the same browser session and continue; do not ask
+them to press both. The card button remains a manual fallback. Never claim the
+handoff was sent unless the command returned success.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 

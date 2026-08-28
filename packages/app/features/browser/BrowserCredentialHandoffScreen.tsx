@@ -1,5 +1,14 @@
 import { Button, Icon, Pressable, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useState } from 'react';
+import {
+  createContext,
+  type PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { View, XStack, YStack } from 'tamagui';
 
 import type { BrowserCredentialHandoffParams } from '../../navigation/BasePathNavigator';
@@ -14,6 +23,69 @@ import {
   beginBrowserCredentialHandoff,
   submitBrowserCredentials,
 } from './browserCredentialHandoff';
+
+type CompletionHandler = () => Promise<void>;
+
+type BrowserCredentialHandoffCompletionContextValue = {
+  register: (handler: CompletionHandler) => string;
+  complete: (id: string) => Promise<void>;
+  discard: (id: string) => void;
+};
+
+const BrowserCredentialHandoffCompletionContext =
+  createContext<BrowserCredentialHandoffCompletionContextValue | null>(null);
+
+export function BrowserCredentialHandoffCompletionProvider({
+  children,
+}: PropsWithChildren) {
+  const handlers = useRef(new Map<string, CompletionHandler>());
+  const sequence = useRef(0);
+
+  const register = useCallback((handler: CompletionHandler) => {
+    const id = `browser-handoff-${Date.now()}-${++sequence.current}`;
+    handlers.current.set(id, handler);
+    return id;
+  }, []);
+
+  const complete = useCallback(async (id: string) => {
+    const handler = handlers.current.get(id);
+    if (!handler) {
+      throw new Error('The originating conversation is no longer available.');
+    }
+    handlers.current.delete(id);
+    try {
+      await handler();
+    } catch (error) {
+      handlers.current.set(id, handler);
+      throw error;
+    }
+  }, []);
+
+  const discard = useCallback((id: string) => {
+    handlers.current.delete(id);
+  }, []);
+
+  const value = useMemo(
+    () => ({ register, complete, discard }),
+    [complete, discard, register]
+  );
+
+  return (
+    <BrowserCredentialHandoffCompletionContext.Provider value={value}>
+      {children}
+    </BrowserCredentialHandoffCompletionContext.Provider>
+  );
+}
+
+export function useBrowserCredentialHandoffCompletion() {
+  const value = useContext(BrowserCredentialHandoffCompletionContext);
+  if (!value) {
+    throw new Error(
+      'Browser credential handoff completion provider is unavailable.'
+    );
+  }
+  return value;
+}
 
 type Props = {
   navigation: { goBack(): void };
@@ -42,8 +114,11 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string>();
+  const browserHandoffCompletion = useBrowserCredentialHandoffCompletion();
+  const completionId = route.params.completionId;
 
   const load = useCallback(
     async (signal?: AbortSignal) => {
@@ -64,6 +139,13 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
+
+  useEffect(
+    () => () => {
+      if (completionId) browserHandoffCompletion.discard(completionId);
+    },
+    [browserHandoffCompletion, completionId]
+  );
 
   const fillAndSubmit = useCallback(async () => {
     if (!handoff) return;
@@ -106,6 +188,20 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
     setError(undefined);
     void load();
   }, [load]);
+
+  const returnToConversation = useCallback(async () => {
+    setReturning(true);
+    setError(undefined);
+    try {
+      if (completionId) {
+        await browserHandoffCompletion.complete(completionId);
+      }
+      navigation.goBack();
+    } catch (nextError) {
+      setError(errorMessage(nextError));
+      setReturning(false);
+    }
+  }, [browserHandoffCompletion, completionId, navigation]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
@@ -168,11 +264,14 @@ export function BrowserCredentialHandoffScreen({ navigation, route }: Props) {
                   ? 'Your code was sent directly to the hosted browser. It was not added to this conversation.'
                   : 'Your credentials were sent directly to the hosted browser. They were not added to this conversation.'}
               </Text>
+              {error ? <Text color="$negativeActionText">{error}</Text> : null}
               <Button
                 preset="primary"
-                label="Done"
+                label="Return to conversation"
                 centered
-                onPress={navigation.goBack}
+                loading={returning}
+                disabled={returning}
+                onPress={returnToConversation}
               />
             </YStack>
           ) : handoff ? (
