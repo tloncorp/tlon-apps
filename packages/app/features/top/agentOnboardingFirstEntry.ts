@@ -5,6 +5,8 @@ import {
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 
+const AGENT_ONBOARDING_FIRST_ENTRY_PENDING_MARKER = 'first-entry-pending';
+
 function hasMarker(
   posts: db.Post[] | null | undefined,
   agentShipId: string | null | undefined,
@@ -38,6 +40,28 @@ export function hasAgentOnboardingFirstEntryFailed(
     agentShipId,
     AGENT_ONBOARDING_FIRST_ENTRY_FAILED_MARKER
   );
+}
+
+/** The pending post is transcript proof that the bot started the first run. */
+export function getAgentOnboardingFirstEntryPendingAt(
+  posts: db.Post[] | null | undefined,
+  agentShipId: string | null | undefined
+): number | undefined {
+  if (!agentShipId) return undefined;
+
+  let latest: number | undefined;
+  for (const post of posts ?? []) {
+    if (
+      post.authorId !== agentShipId ||
+      findPostBlobEntry(post.blob, 'tlon-agent-post-marker')?.key !==
+        AGENT_ONBOARDING_FIRST_ENTRY_PENDING_MARKER
+    ) {
+      continue;
+    }
+    latest =
+      latest == null ? post.receivedAt : Math.max(latest, post.receivedAt);
+  }
+  return latest;
 }
 
 /** Match the opened note to the cite carried by the authenticated reveal. */

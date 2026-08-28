@@ -3,6 +3,7 @@ import * as store from '@tloncorp/shared/store';
 import { useEffect, useMemo, useState } from 'react';
 
 import {
+  getAgentOnboardingFirstEntryPendingAt,
   hasAgentOnboardingFirstEntry,
   hasAgentOnboardingFirstEntryFailed,
 } from './agentOnboardingFirstEntry';
@@ -44,20 +45,25 @@ export function useAgentOnboardingFirstEntry({
     (durableSettlement !== null &&
       durableSettlement.agentShipId === agentShipId &&
       durableSettlement.channelId === channelId);
+  const renderedPendingAt = useMemo(
+    () => getAgentOnboardingFirstEntryPendingAt(posts, agentShipId),
+    [agentShipId, posts]
+  );
+  const firstEntryStartedAt = provisionAcknowledgedAt ?? renderedPendingAt;
+  const firstEntryActive = awaitingFirstEntry || renderedPendingAt != null;
   const [indicatorExpired, setIndicatorExpired] = useState(false);
 
   useEffect(() => {
     setIndicatorExpired(false);
-    if (!awaitingFirstEntry || settled || !provisionAcknowledgedAt) return;
-    const remainingMs =
-      REFRESH_TIMEOUT_MS - (Date.now() - provisionAcknowledgedAt);
+    if (!firstEntryActive || settled || !firstEntryStartedAt) return;
+    const remainingMs = REFRESH_TIMEOUT_MS - (Date.now() - firstEntryStartedAt);
     if (remainingMs <= 0) {
       setIndicatorExpired(true);
       return;
     }
     const timeout = setTimeout(() => setIndicatorExpired(true), remainingMs);
     return () => clearTimeout(timeout);
-  }, [awaitingFirstEntry, provisionAcknowledgedAt, groupId, settled]);
+  }, [firstEntryActive, firstEntryStartedAt, groupId, settled]);
 
   useEffect(() => {
     if (!groupId || !settled) return;
@@ -70,9 +76,9 @@ export function useAgentOnboardingFirstEntry({
   }, [groupId, provisionId, settled]);
 
   useEffect(() => {
-    if (!isFocused || !awaitingFirstEntry || settled) return;
-    const acknowledgedAt = provisionAcknowledgedAt ?? Date.now();
-    const refreshDeadline = acknowledgedAt + REFRESH_TIMEOUT_MS;
+    if (!isFocused || !firstEntryActive || settled) return;
+    const refreshDeadline =
+      (firstEntryStartedAt ?? Date.now()) + REFRESH_TIMEOUT_MS;
 
     let cancelled = false;
     let refreshInFlight = false;
@@ -123,19 +129,19 @@ export function useAgentOnboardingFirstEntry({
     };
   }, [
     agentShipId,
-    awaitingFirstEntry,
     channelId,
+    firstEntryActive,
+    firstEntryStartedAt,
     isFocused,
-    provisionAcknowledgedAt,
     settled,
   ]);
 
   const withinTimeout = Boolean(
-    provisionAcknowledgedAt &&
-    Date.now() - provisionAcknowledgedAt < REFRESH_TIMEOUT_MS &&
+    firstEntryStartedAt &&
+    Date.now() - firstEntryStartedAt < REFRESH_TIMEOUT_MS &&
     !indicatorExpired
   );
-  return awaitingFirstEntry && !settled && withinTimeout
+  return firstEntryActive && !settled && withinTimeout
     ? 'Writing your first entry…'
     : undefined;
 }
