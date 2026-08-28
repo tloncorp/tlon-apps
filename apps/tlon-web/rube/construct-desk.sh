@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Assemble the %groups desk inside an extracted rube pier.
+# Assemble the %tlon desk inside an extracted rube pier.
 #
 # Delegates to scripts/assemble-desk.sh, which layers the peru-vendored deps
 # (desk-deps/, see ../../../../peru.yaml) in with --delete, then our own source
@@ -12,11 +12,11 @@ set -euo pipefail
 # many unused and some that don't compile on the target kelvin) on top of the
 # pier's committed desk. peru picks only the transitively-required subset.
 #
-# It only constructs files on disk. ORDER MATTERS: 'mount %groups' writes clay's
+# It only constructs files on disk. ORDER MATTERS: 'mount %tlon' writes clay's
 # current desk OUT to the dir on first mount (clobbering disk), and the files
 # only enter clay on 'commit'. So the desk is applied by running this BETWEEN
 # mount and commit against a live ship:
-#   boot -> mount %groups -> construct-desk.sh -> commit %groups
+#   boot -> mount %tlon -> construct-desk.sh -> commit %tlon
 # Constructing on a cold pier and skipping commit changes nothing in clay.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -24,8 +24,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 DIST_DIR="${DIST_DIR:-$RUBE_DIR/dist}"
 
-# Desk to construct (the rube piers only use %groups)
-DESK="${DESK:-groups}"
+# Desk to construct (the rube piers only use %tlon)
+DESK="${DESK:-tlon}"
 
 # Default ships, matching archive-piers.sh's SHIPS_TO_ARCHIVE
 DEFAULT_SHIPS=("zod" "ten" "mug")
@@ -52,7 +52,7 @@ Options:
 
 Optional environment variables:
   DIST_DIR         Where extracted piers live (default: $RUBE_DIR/dist)
-  DESK             Desk name to construct (default: groups)
+  DESK             Desk name to construct (default: tlon)
 
 Pier location: for each ship, looks for the pier dir containing .urb at either
   \$DIST_DIR/<ship>/<ship>   (rube's double-nested extract), or

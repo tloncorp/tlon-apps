@@ -288,7 +288,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install peru
-        # run-tests.sh assembles the groups desk via scripts/assemble-desk.sh,
+        # run-tests.sh assembles the tlon desk via scripts/assemble-desk.sh,
         # which runs `peru sync` to vendor desk deps (desk-deps/) — including
         # peru-only deps like sur/mcp-proxy that aren't in the test pill.
         run: |

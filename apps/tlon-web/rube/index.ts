@@ -740,12 +740,12 @@ const copyDesks = async (): Promise<string[]> => {
       continue;
     }
 
-    const groupsDir = IN_CONTAINER
-      ? path.join(ship.extractPath, 'groups')
-      : path.join(ship.extractPath, ship.ship, 'groups');
+    const tlonDir = IN_CONTAINER
+      ? path.join(ship.extractPath, 'tlon')
+      : path.join(ship.extractPath, ship.ship, 'tlon');
 
     try {
-      if (desksMatch(DESK_STAGING_DIR, groupsDir)) {
+      if (desksMatch(DESK_STAGING_DIR, tlonDir)) {
         continue;
       }
 
@@ -755,7 +755,7 @@ const copyDesks = async (): Promise<string[]> => {
       // same-mtime edit would be detected by desksMatch and then silently not
       // transferred, and the |commit below would publish stale Hoon.
       childProcess.execSync(
-        `rsync -aL --delete --checksum "${DESK_STAGING_DIR}/" "${groupsDir}/"`,
+        `rsync -aL --delete --checksum "${DESK_STAGING_DIR}/" "${tlonDir}/"`,
         { stdio: 'inherit' }
       );
       shipsNeedingUpdates.push(ship.ship);
@@ -970,10 +970,10 @@ const mountDesks = async () => {
       continue;
     }
 
-    console.log(`Mounting groups on ${ship.ship}`);
+    console.log(`Mounting tlon on ${ship.ship}`);
     await hoodCommand(
       ship.ship as ShipName,
-      `mount %groups`,
+      `mount %tlon`,
       ship.loopbackPort
     );
   }
@@ -1007,7 +1007,7 @@ const commitDesks = async (shipsNeedingUpdates: string[]) => {
         try {
           await hoodCommand(
             ship.ship as ShipName,
-            `commit %groups`,
+            `commit %tlon`,
             ship.loopbackPort
           );
           await assertShipHealthy(
@@ -1032,8 +1032,8 @@ const commitDesks = async (shipsNeedingUpdates: string[]) => {
   }
 };
 
-const installGroupsDesk = async () => {
-  console.log('Installing %groups desk on fresh ships');
+const installTlonDesk = async () => {
+  console.log('Installing %tlon desk on fresh ships');
 
   for (const ship of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== ship.ship) {
@@ -1043,10 +1043,10 @@ const installGroupsDesk = async () => {
       continue;
     }
 
-    console.log(`Creating %groups desk on ${ship.ship}`);
+    console.log(`Creating %tlon desk on ${ship.ship}`);
     await hoodCommand(
       ship.ship as ShipName,
-      'merge %groups our %base',
+      'merge %tlon our %base',
       ship.loopbackPort
     );
 
@@ -1054,7 +1054,7 @@ const installGroupsDesk = async () => {
     await new Promise((resolve) => setTimeout(resolve, 3000));
   }
 
-  console.log('Groups desk installed on all ships');
+  console.log('Tlon desk installed on all ships');
 };
 
 const nukeStateOnShips = async () => {
@@ -1067,7 +1067,7 @@ const nukeStateOnShips = async () => {
       console.log(`Nuking state on ${ship.ship}`);
       await hoodCommand(
         ship.ship as ShipName,
-        'nuke %groups, =desk &, =hard &',
+        'nuke %tlon, =desk &, =hard &',
         ship.loopbackPort
       );
     } catch (e) {
@@ -1078,14 +1078,14 @@ const nukeStateOnShips = async () => {
     await new Promise((resolve) => setTimeout(resolve, 3000));
 
     try {
-      console.log(`Reviving groups on ${ship.ship}`);
+      console.log(`Reviving tlon on ${ship.ship}`);
       await hoodCommand(
         ship.ship as ShipName,
-        'revive %groups',
+        'revive %tlon',
         ship.loopbackPort
       );
     } catch (e) {
-      console.error(`Error reviving groups on ${ship.ship}:`, e);
+      console.error(`Error reviving tlon on ${ship.ship}:`, e);
     }
   }
 
@@ -1178,7 +1178,7 @@ const makeRequestWithCookies = async (
   return responseBody;
 };
 
-const waitForGroupsDeskInKiln = async (
+const waitForTlonDeskInKiln = async (
   ship: Ship,
   options: { maxAttempts?: number; delayMs?: number } = {}
 ): Promise<string> => {
@@ -1190,25 +1190,25 @@ const waitForGroupsDeskInKiln = async (
       ship.ship as ShipName,
       `http://localhost:${ship.httpPort}/~/scry/hood/kiln/pikes.json`,
       {
-        context: `wait for %groups desk in kiln (attempt ${attempt}/${maxAttempts})`,
+        context: `wait for %tlon desk in kiln (attempt ${attempt}/${maxAttempts})`,
       }
     );
 
     const json = JSON.parse(response);
-    if (json?.groups?.hash) {
-      return json.groups.hash as string;
+    if (json?.tlon?.hash) {
+      return json.tlon.hash as string;
     }
 
     if (attempt < maxAttempts) {
       console.log(
-        `%groups desk not yet available in kiln for ~${ship.ship} (attempt ${attempt}/${maxAttempts}), retrying...`
+        `%tlon desk not yet available in kiln for ~${ship.ship} (attempt ${attempt}/${maxAttempts}), retrying...`
       );
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
   }
 
   throw new Error(
-    `%groups desk did not appear in kiln/pikes.json for ~${ship.ship} after ${maxAttempts} attempts`
+    `%tlon desk did not appear in kiln/pikes.json for ~${ship.ship} after ${maxAttempts} attempts`
   );
 };
 
@@ -1239,17 +1239,20 @@ const assertShipHealthy = async (
 
 const getStartHashes = async () => {
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    if (
+      (targetShip && targetShip !== ship.ship) ||
+      ship.skipCommit === true
+    ) {
       continue;
     }
 
-    const groupsHash = await waitForGroupsDeskInKiln(ship, {
+    const tlonHash = await waitForTlonDeskInKiln(ship, {
       maxAttempts: FRESH_BOOT ? 60 : 10,
       delayMs: 1_000,
     });
 
     startHashes[ship.ship] = {
-      groups: groupsHash,
+      tlon: tlonHash,
     };
     console.log(`Start hashes for ~${ship.ship}:`, startHashes[ship.ship]);
   }
@@ -1327,21 +1330,21 @@ const shipsAreReadyForTests = async (shipsNeedingUpdates: string[]) => {
       const json = JSON.parse(response);
 
       if (
-        json.groups.hash !== startHashes[ship.ship].groups &&
+        json.tlon.hash !== startHashes[ship.ship].tlon &&
         ship.skipCommit === false
       ) {
         // Desk has been updated, now verify the app is responding
         const appHealthy = await checkGroupsAppHealth(ship);
         if (appHealthy) {
           console.log(`~${ship.ship} is ready`, {
-            groups: json.groups.hash,
+            tlon: json.tlon.hash,
           });
           return true;
         }
       }
 
       console.log(`~${ship.ship} is not ready`, {
-        groups: json.groups.hash,
+        tlon: json.tlon.hash,
       });
 
       return false;
@@ -1652,7 +1655,7 @@ const shipNeedsExtraction = (ship: Ship): boolean => {
   // Check if the ship directory looks valid (has expected structure).
   // archive-piers.sh excludes .run and .bin/* from the tarballs, so no
   // published archive can ever contain them.
-  const expectedFiles = ['.urb', 'groups'];
+  const expectedFiles = ['.urb', 'tlon'];
   const hasValidStructure = expectedFiles.every((file) =>
     fs.existsSync(path.join(shipPath, file))
   );
@@ -2117,7 +2120,7 @@ const main = async () => {
 
     if (FRESH_BOOT) {
       // Fresh boot: install desk from scratch, skip nuke
-      await installGroupsDesk();
+      await installTlonDesk();
       await getStartHashes();
 
       // Mount desks so Urbit writes its current state to filesystem

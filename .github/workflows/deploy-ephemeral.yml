@@ -107,7 +107,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups ${{
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tlon ${{
           needs.build_test_images.outputs.moon_name }} us-central1-a
           mainnet-tlon-other-2d
         env:

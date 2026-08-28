@@ -26,7 +26,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tlon
           doznec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{
           github.event.inputs.tag }}
         env:
@@ -36,7 +36,7 @@ jobs:
         name: Deploy Kernel Moon
         if: ${{ github.event.inputs.kernel == 'true' }}
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tlon
           bosdev-dozzod-marnus us-central1-b mainnet-tlon-other-2d ${{
           github.event.inputs.tag }}
         env:
