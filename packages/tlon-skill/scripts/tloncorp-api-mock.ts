@@ -132,6 +132,9 @@ export const mockedRequestBucketReadToken = {
 export const mockedRequestBucketsGrant = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
+export const mockedRequestBucketsUpload = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
 
 export const mockedSendBucketsAction = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
@@ -179,6 +182,8 @@ mock.module('@tloncorp/api', () => ({
     mockedRequestBucketReadToken.impl(...args),
   requestBucketsGrant: (...args: unknown[]) =>
     mockedRequestBucketsGrant.impl(...args),
+  requestBucketsUpload: (...args: unknown[]) =>
+    mockedRequestBucketsUpload.impl(...args),
   sendBucketsAction: (...args: unknown[]) =>
     mockedSendBucketsAction.impl(...args),
   deleteNotesNotebookStrict: async () => undefined,

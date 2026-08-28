@@ -15,6 +15,7 @@ import {
   mockedGetBuckets,
   mockedGetBucketReadToken,
   mockedRequestBucketsGrant,
+  mockedRequestBucketsUpload,
   mockedSendBucketsAction,
 } from './tloncorp-api-mock';
 
@@ -81,6 +82,7 @@ beforeEach(() => {
   mockedGetBucket.impl = async () => null;
   mockedGetBucketReadToken.impl = async () => null;
   mockedRequestBucketsGrant.impl = async () => undefined;
+  mockedRequestBucketsUpload.impl = async () => undefined;
   mockedSendBucketsAction.impl = async () => undefined;
 });
 
@@ -134,33 +136,33 @@ describe('Buckets runtime hardening', () => {
 
     mockedGetBucket.impl = async () =>
       phase === 'initial' ? snapshot() : phase === 'pending' ? pending : ready;
-    mockedRequestBucketsGrant.impl = async (action: unknown) => {
+    mockedRequestBucketsUpload.impl = async (action: unknown) => {
       expect(action).toMatchObject({
         type: 'begin-upload',
         name: 'plan.md',
         size: Buffer.byteLength(contents),
       });
       phase = 'pending';
-      return { token: 'upload-token', entryId: 11, expiresAt: '~2026.1.1' };
+      return {
+        session: 'upload-session',
+        entryId: 11,
+        url: 'https://upload.test/object-mine',
+        headers: [['Content-Type', 'text/markdown']],
+        expiresAt: '~2026.1.1',
+      };
     };
+    // The host settles with storage and publishes in one step, so the entry
+    // is ready by the time %finish-upload returns -- no polling.
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      if ((action as BucketsAction).type === 'finish-upload') phase = 'ready';
+    };
+    // The only request this side makes now is the PUT itself.
     globalThis.fetch = (async (input, init) => {
       const url = String(input);
-      if (url.endsWith('/uploads/grant')) {
-        return Response.json({
-          reservationId: 'reservation-mine',
-          objectId: 'object-mine',
-          uploadUrl: 'https://upload.test/object-mine',
-          requiredHeaders: [['Content-Type', 'text/markdown']],
-        });
-      }
       if (url === 'https://upload.test/object-mine') {
         expect(init?.body).toBeInstanceOf(Blob);
         expect(await (init?.body as Blob).text()).toBe(contents);
-        phase = 'ready';
         return new Response('', { status: 200 });
-      }
-      if (url.endsWith('/uploads/reservation-mine/complete')) {
-        return Response.json({});
       }
       throw new Error(`Unexpected fetch: ${url}`);
     }) as typeof fetch;
@@ -183,24 +185,13 @@ describe('Buckets runtime hardening', () => {
     const filePath = path.join(directory, 'plan.md');
     writeFileSync(filePath, '# Project\n');
     mockedGetBucket.impl = async () => snapshot();
-    mockedRequestBucketsGrant.impl = async () => ({
-      token: 'upload-token',
-      entryId: 12,
-      expiresAt: '~2026.1.1',
-    });
+    // Storage refuses through the host now, so the refusal arrives as the
+    // answer to %begin-upload rather than from a call made here.
+    mockedRequestBucketsUpload.impl = async () => {
+      throw new Error('The Bucket host rejected this actor');
+    };
     globalThis.fetch = (async (input) => {
-      const url = String(input);
-      if (url.endsWith('/uploads/grant')) {
-        return Response.json(
-          {
-            code: 'permission_denied',
-            message: 'The Bucket host rejected this actor',
-            retryable: false,
-          },
-          { status: 403 }
-        );
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
+      throw new Error(`Unexpected fetch: ${String(input)}`);
     }) as typeof fetch;
 
     try {
@@ -211,47 +202,33 @@ describe('Buckets runtime hardening', () => {
           parentId: null,
         })
       ).rejects.toThrow(
-        'Bucket upload failed after the host authorized plan.md: The Bucket host rejected this actor'
+        'Bucket host did not authorize plan.md: The Bucket host rejected this actor'
       );
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
 
-  it('cancels the broker reservation when an upload fails after it is granted', async () => {
+  it('cancels through the host when an upload fails after it is granted', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
     const filePath = path.join(directory, 'plan.md');
     writeFileSync(filePath, '# Project\n');
     const actions: BucketsAction[] = [];
     mockedGetBucket.impl = async () => snapshot();
-    mockedRequestBucketsGrant.impl = async () => ({
-      token: 'upload-token',
+    mockedRequestBucketsUpload.impl = async () => ({
+      session: 'upload-session',
       entryId: 12,
+      url: 'https://upload.test/object-mine',
+      headers: [],
       expiresAt: '~2026.1.1',
     });
     mockedSendBucketsAction.impl = async (action: unknown) => {
       actions.push(action as BucketsAction);
     };
-    let canceled = false;
     globalThis.fetch = (async (input) => {
       const url = String(input);
-      if (url.endsWith('/uploads/grant')) {
-        return Response.json({
-          reservationId: 'reservation-mine',
-          objectId: 'object-mine',
-          uploadUrl: 'https://upload.test/object-mine',
-          requiredHeaders: [],
-        });
-      }
       if (url === 'https://upload.test/object-mine') {
         return new Response('nope', { status: 500, statusText: 'Error' });
-      }
-      if (url.endsWith('/uploads/reservation-mine/cancel')) {
-        canceled = true;
-        return Response.json({
-          reservationId: 'reservation-mine',
-          canceledAt: '~2026.1.1',
-        });
       }
       throw new Error(`Unexpected fetch: ${url}`);
     }) as typeof fetch;
@@ -264,11 +241,11 @@ describe('Buckets runtime hardening', () => {
           parentId: null,
         })
       ).rejects.toThrow('Bucket upload failed after the host authorized');
-      expect(canceled).toBe(true);
+      // One cancel, to the host, which releases the storage reservation.
       expect(actions).toContainEqual({
         type: 'cancel-upload',
         flag: TARGET.flag,
-        sessionId: 'upload-token',
+        sessionId: 'upload-session',
         reason: expect.any(String),
       });
     } finally {

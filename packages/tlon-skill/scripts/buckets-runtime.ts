@@ -9,6 +9,7 @@ import {
   getBuckets,
   requestBucketReadToken,
   requestBucketsGrant,
+  requestBucketsUpload,
   sendBucketsAction,
 } from '@tloncorp/api';
 import { randomBytes } from 'node:crypto';
@@ -233,31 +234,6 @@ async function brokerRequest<T>(
   return (await response.json()) as T;
 }
 
-function grantUpload(capability: string, host: string) {
-  return brokerRequest<BucketUploadGrant>('/uploads/grant', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${capability}` },
-    body: JSON.stringify({ host: hostName(host) }),
-  });
-}
-
-function completeUpload(reservationId: string) {
-  return brokerRequest<unknown>(
-    `/uploads/${encodeURIComponent(reservationId)}/complete`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ reservationId }),
-    }
-  );
-}
-
-function cancelUpload(reservationId: string) {
-  return brokerRequest<{ reservationId: string; canceledAt: string }>(
-    `/uploads/${encodeURIComponent(reservationId)}/cancel`,
-    { method: 'POST' }
-  );
-}
-
 function grantRead(capability: string, host: string, objectId: string) {
   return brokerRequest<BucketReadGrant>(
     `/objects/${encodeURIComponent(objectId)}/read-grant`,
@@ -325,20 +301,19 @@ async function readBoundedText(response: Response, fileId: number) {
   }
 }
 
-async function waitForReadyFile(target: BucketTarget, id: number) {
-  for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-    const snapshot = await getSnapshot(target);
-    const entry = snapshot.state.entries.find(
-      (candidate): candidate is BucketsFileEntry =>
-        candidate.kind === 'file' && candidate.id === id
-    );
-    if (entry?.file.status === 'ready') return entry;
-    if (entry?.file.status === 'failed') {
-      throw commandError(`The Bucket host marked file ${id} failed`);
-    }
-    await delay(POLL_DELAY_MS);
+// Read once rather than poll. Completion is the answer to the host's own
+// call to storage, so the entry is published before %finish-upload returns.
+async function readyFile(target: BucketTarget, id: number) {
+  const snapshot = await getSnapshot(target);
+  const entry = snapshot.state.entries.find(
+    (candidate): candidate is BucketsFileEntry =>
+      candidate.kind === 'file' && candidate.id === id
+  );
+  if (entry?.file.status === 'ready') return entry;
+  if (entry?.file.status === 'failed') {
+    throw commandError(`The Bucket host marked file ${id} failed`);
   }
-  throw commandError('The Bucket host did not finish the upload in time');
+  throw commandError(`The Bucket host did not publish file ${id}`);
 }
 
 function mimeFromPath(filePath: string) {
@@ -529,11 +504,12 @@ function createBucketsOperations(): BucketsOperations {
       );
       const contentType = mime ?? mimeFromPath(resolvedPath);
       let completionAttempted = false;
-      let brokerReservationId: string | undefined;
-      let grant: Awaited<ReturnType<typeof requestBucketsGrant>> | undefined;
+      let grant: Awaited<ReturnType<typeof requestBucketsUpload>> | undefined;
       try {
         await getSnapshot(target);
-        grant = await requestBucketsGrant({
+        // The host calls storage as itself and answers with the signed URL,
+        // so there is nothing to exchange from here.
+        grant = await requestBucketsUpload({
           type: 'begin-upload',
           checksum: null,
           flag: target.flag,
@@ -542,15 +518,12 @@ function createBucketsOperations(): BucketsOperations {
           parentId,
           size: stat.size,
         });
-        const brokerGrant = await grantUpload(grant.token, target.flag.host);
-        brokerReservationId = brokerGrant.reservationId;
-        const requiredHeaders = Object.fromEntries(brokerGrant.requiredHeaders);
-        const uploadResponse = await fetch(brokerGrant.uploadUrl, {
+        const uploadResponse = await fetch(grant.url, {
           method: 'PUT',
           // These headers are part of the GCS signature. Do not add a second
           // Content-Type with different casing: Fetch coalesces duplicate
           // header names and invalidates the signed canonical request.
-          headers: requiredHeaders,
+          headers: Object.fromEntries(grant.headers),
           // Bun.file is a lazy Blob. Fetch streams it from disk while retaining
           // a known content length, so large workspace files are not buffered
           // in the hosted bot's heap.
@@ -566,8 +539,15 @@ function createBucketsOperations(): BucketsOperations {
           );
         }
         completionAttempted = true;
-        await completeUpload(brokerGrant.reservationId);
-        const ready = await waitForReadyFile(target, grant.entryId);
+        // The host settles with storage and publishes the entry in the same
+        // step, so by the time this returns the manifest already has it --
+        // this used to poll for the entry to appear.
+        await sendBucketsAction({
+          type: 'finish-upload',
+          flag: target.flag,
+          sessionId: grant.session,
+        });
+        const ready = await readyFile(target, grant.entryId);
         return {
           id: ready.id,
           mime: ready.file.mime,
@@ -578,16 +558,16 @@ function createBucketsOperations(): BucketsOperations {
           status: ready.file.status,
         };
       } catch (error) {
+        // One cancel: the host releases the storage reservation as part of
+        // it, so the quota reserved before the first byte moved does not sit
+        // held until the reservation lapses.
         if (!completionAttempted && grant) {
           await sendBucketsAction({
             type: 'cancel-upload',
             flag: target.flag,
-            sessionId: grant.token,
+            sessionId: grant.session,
             reason: errorMessage(error).slice(0, 500),
           }).catch(() => undefined);
-        }
-        if (brokerReservationId) {
-          await cancelUpload(brokerReservationId).catch(() => undefined);
         }
         throw commandError(
           grant
