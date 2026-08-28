@@ -104,6 +104,73 @@ describe('conditional cron update preservation', () => {
     expect(message).toContain('delivery.mode=announce');
   });
 
+  it('keeps control changes the owner explicitly requested', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Only notify me when my keys are actually at risk, run every five minutes, and pause the schedule.',
+      true
+    );
+    rememberJob();
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        enabled: false,
+        schedule: { kind: 'cron', expr: '*/5 * * * *' },
+        payload: { message: 'Alert on actual risk.' },
+      },
+    });
+
+    expect(adjusted?.patch).toMatchObject({
+      enabled: false,
+      schedule: { kind: 'cron', expr: '*/5 * * * *' },
+    });
+  });
+
+  it('keeps an explicitly requested delivery change consistent', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Only notify me when my keys are actually at risk, and stop announcing updates.',
+      true
+    );
+    rememberJob();
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        delivery: { mode: 'none' },
+        payload: { message: 'Alert on actual risk.' },
+      },
+    });
+
+    expect(adjusted?.patch).toMatchObject({ delivery: { mode: 'none' } });
+    expect(
+      (
+        (adjusted?.patch as Record<string, unknown>)?.payload as Record<
+          string,
+          unknown
+        >
+      )?.message
+    ).not.toContain('delivery.mode=announce');
+  });
+
+  it('requires a fresh read for a repeated owner correction', () => {
+    const prompt = 'Only notify me when my keys are actually at risk.';
+    rememberCronOwnerPrompt(sessionKey, prompt, true);
+    rememberJob();
+    rememberCronOwnerPrompt(sessionKey, prompt, true);
+
+    expect(
+      preserveConditionalCronUpdate(sessionKey, {
+        action: 'update',
+        jobId,
+        patch: { payload: { message: 'Alert on actual risk.' } },
+      })
+    ).toBeUndefined();
+  });
+
   it('drops control-field mutations when the original job omitted them', () => {
     rememberCronOwnerPrompt(
       sessionKey,

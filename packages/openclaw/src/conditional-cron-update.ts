@@ -171,6 +171,24 @@ function isThresholdCorrection(prompt: string): boolean {
   );
 }
 
+function explicitlyChangesSchedule(prompt: string): boolean {
+  return /\bevery\b[^.!?\n]{0,40}\b(?:minute|hour|day|week|month)s?\b|\b(?:hourly|daily|weekly|monthly|schedule|cadence|frequency|run\s+(?:at|on)|cron)\b/i.test(
+    prompt
+  );
+}
+
+function explicitlyChangesEnabled(prompt: string): boolean {
+  return /\b(?:enable|disable|pause|resume|start|stop)\b[^.!?\n]{0,80}\b(?:job|schedule|task|monitor|running|run)\b|\bturn\b[^.!?\n]{0,80}\b(?:on|off)\b/i.test(
+    prompt
+  );
+}
+
+function explicitlyChangesDelivery(prompt: string): boolean {
+  return /\b(?:announc(?:e|ing)|delivery\s+mode|send|deliver|post)\b[^.!?\n]{0,80}\b(?:instead|direct|channel|dm|message|nowhere|none)\b|\b(?:don't|do not|stop)\s+(?:announc(?:e|ing)|send|deliver|post)\b/i.test(
+    prompt
+  );
+}
+
 export function rememberCronOwnerPrompt(
   sessionKey: string | undefined,
   prompt: string,
@@ -185,10 +203,7 @@ export function rememberCronOwnerPrompt(
   const existing = ownerPrompts.get(key);
   if (senderIsOwner === true) {
     ownerPrompts.set(key, {
-      generation:
-        existing?.trusted && existing.prompt === value
-          ? existing.generation
-          : (existing?.generation ?? 0) + 1,
+      generation: (existing?.generation ?? 0) + 1,
       prompt: value,
       timestamp: Date.now(),
       trusted: true,
@@ -326,8 +341,13 @@ export function preserveConditionalCronUpdate(
     return undefined;
   }
   const correction = prompt.trim();
+  const keepProposedDelivery =
+    explicitlyChangesDelivery(correction) && hasOwn(patch, 'delivery');
+  const effectiveDeliveryMode = keepProposedDelivery
+    ? cronDeliveryMode({ delivery: patch.delivery })
+    : previous.deliveryMode;
   const announceRule =
-    previous.deliveryMode === 'announce'
+    effectiveDeliveryMode === 'announce'
       ? '\nThis job uses delivery.mode=announce: never call or use the message tool for delivery. Return alert text only through announce delivery.'
       : '';
   const correctedMessage = `${previous.message}\n\nOwner correction (higher priority):\n${correction}\nThis correction overrides any conflicting earlier delivery instruction. Preserve the original subject, sources, and input scope; do not introduce unrelated events.${announceRule}\nWhen the corrected alert criteria are not met, return exactly NO_REPLY with no heartbeat, status update, or explanation.`;
@@ -347,12 +367,18 @@ export function preserveConditionalCronUpdate(
   // from the exact-job read so the rewritten message and its announce rule
   // describe the effective update that will actually be applied.
   const safePatch = { ...patch };
-  delete safePatch.delivery;
-  delete safePatch.enabled;
-  delete safePatch.schedule;
-  if (previous.hasDelivery) safePatch.delivery = previous.delivery;
-  if (previous.hasEnabled) safePatch.enabled = previous.enabled;
-  if (previous.hasSchedule) safePatch.schedule = previous.schedule;
+  if (!keepProposedDelivery) {
+    delete safePatch.delivery;
+    if (previous.hasDelivery) safePatch.delivery = previous.delivery;
+  }
+  if (!explicitlyChangesEnabled(correction)) {
+    delete safePatch.enabled;
+    if (previous.hasEnabled) safePatch.enabled = previous.enabled;
+  }
+  if (!explicitlyChangesSchedule(correction)) {
+    delete safePatch.schedule;
+    if (previous.hasSchedule) safePatch.schedule = previous.schedule;
+  }
 
   return {
     ...params,
