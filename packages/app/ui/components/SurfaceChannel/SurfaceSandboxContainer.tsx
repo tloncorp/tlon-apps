@@ -6,6 +6,7 @@ import {
   shellArtifactCss,
   shellArtifactJs,
 } from '@tloncorp/surface-shell/artifact-strings';
+import { buildSandboxDocument } from '@tloncorp/surface-shell/sandbox';
 import * as store from '@tloncorp/shared';
 import { useCallback, useMemo } from 'react';
 import { useThemeName } from 'tamagui';
@@ -13,7 +14,6 @@ import { useThemeName } from 'tamagui';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useCanWrite } from '../../utils/channelUtils';
 import { SurfaceSandboxHost } from './SurfaceSandboxHost';
-import { buildSandboxDocument } from './sandboxDocument';
 import { sandboxSessionKey } from './sandboxSession';
 import { shellThemeFromThemeName } from './surfaceTheme';
 

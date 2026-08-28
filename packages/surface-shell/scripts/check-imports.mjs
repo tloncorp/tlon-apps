@@ -19,7 +19,16 @@ import { fileURLToPath } from 'node:url';
 const packageRoot = join(fileURLToPath(import.meta.url), '..', '..');
 const srcRoot = join(packageRoot, 'src');
 
+// The vendored runtime set (plan §9). Its own transitives (`invariant`;
+// `lodash.memoize`, which the sigil core does not use) arrive inside the
+// libraries and are not importable from here.
 const ALLOWED_EXTERNALS = ['preact', 'htm', 'chart.js'];
+// Packages allowed at ONE exact specifier rather than as a whole tree.
+// `@urbit/sigil-js`'s root export is a custom-element registration and its
+// `components/` wrappers are React — either would put a DOM side effect or
+// a second view library next to the app bundle. `/core` is the pure
+// point-name-to-SVG function and is the only thing the shell may reach.
+const ALLOWED_EXACT_EXTERNALS = ['@urbit/sigil-js/core'];
 const ZOD_ALLOWED_IN = ['protocol/schemas.ts'];
 // Modules that must never let the protocol's zod schemas leak into the
 // sandbox artifact: everything reachable from the artifact entry.
@@ -65,8 +74,11 @@ function specifiersOf(source) {
 }
 
 function isAllowedExternal(specifier) {
-  return ALLOWED_EXTERNALS.some(
-    (allowed) => specifier === allowed || specifier.startsWith(`${allowed}/`)
+  return (
+    ALLOWED_EXACT_EXTERNALS.includes(specifier) ||
+    ALLOWED_EXTERNALS.some(
+      (allowed) => specifier === allowed || specifier.startsWith(`${allowed}/`)
+    )
   );
 }
 
@@ -124,7 +136,7 @@ for (const file of walk(srcRoot)) {
     violations.push(
       forbidden
         ? `${relativePath}: FORBIDDEN import '${specifier}' crosses the sandbox boundary`
-        : `${relativePath}: import '${specifier}' is not in the allowlist (${ALLOWED_EXTERNALS.join(', ')})`
+        : `${relativePath}: import '${specifier}' is not in the allowlist (${[...ALLOWED_EXTERNALS, ...ALLOWED_EXACT_EXTERNALS].join(', ')})`
     );
   }
 }

@@ -4,11 +4,11 @@ import {
   SURFACE_SANDBOX_NAV_GUARD_JS,
   buildSandboxDocument,
   wrapBundleSource,
-} from './sandboxDocument';
+} from './document';
 
 /**
  * The in-realm navigation guard is bar-raising, not containment — see the
- * header comment in sandboxDocument.ts. These tests pin exactly what it
+ * header comment in document.ts. These tests pin exactly what it
  * does (the bare `location` identifier inside the bundle is inert, and
  * `window.open` is replaced) and, just as importantly, what it does NOT
  * do (a `location` reached through `window`/`globalThis` is untouched).

@@ -2,9 +2,9 @@ import type { JsonObject, SurfaceSpec } from '@tloncorp/api';
 // the /debug subpath keeps this module off the shared barrel, which drags
 // expo-modules-core into node tests
 import { createDevLogger } from '@tloncorp/shared/debug';
+import { SURFACE_SANDBOX_IFRAME_FLAGS } from '@tloncorp/surface-shell/sandbox';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { SURFACE_SANDBOX_IFRAME_FLAGS } from './sandboxDocument';
 import {
   SandboxSession,
   ShellTheme,
@@ -43,7 +43,7 @@ export interface SurfaceSandboxHostProps {
  *   the shared session before anything acts on it.
  *
  * The frame CAN still navigate itself (D43, and the in-realm caveats in
- * sandboxDocument.ts); the teardown below bounds what that buys an
+ * `@tloncorp/surface-shell/sandbox`); the teardown below bounds what that buys an
  * attacker without pretending to prevent it.
  *
  * This component is mounted under a `sandboxSessionKey(spec)` React key,

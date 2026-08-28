@@ -5,6 +5,14 @@
  * (D31), and the bundle is a plain script after it. Pure and
  * dependency-free so the browser-level sandbox-posture test can import it
  * directly.
+ *
+ * This is HOST-side code, and it lives in the shell package for the same
+ * reason the reducer lives in `@tloncorp/api` and the protocol schemas
+ * live here: one implementation, no second copy to drift. `packages/app`
+ * and `tlon-skill`'s preview both import this exact function, so "preview
+ * renders what production renders" is true by construction rather than by
+ * two files agreeing. It is never part of the sandbox artifact — the
+ * artifact entry (`src/artifact/main.ts`) does not reach it.
  */
 
 /**

@@ -1,6 +1,8 @@
 import { ComponentChildren, JSX } from 'preact';
 import { useLayoutEffect, useRef } from 'preact/hooks';
 
+import { sigilVNode } from './sigil';
+
 /**
  * The primitive kit (plan §5): small, boring visual ports of the Tlon
  * look. Styling comes entirely from the token variables via the tsh-*
@@ -75,17 +77,49 @@ export function Badge(props: {
   return <span class={`tsh-badge${tone}`}>{props.children}</span>;
 }
 
-export function Avatar(props: { initials: string; color?: string }) {
-  // identity-blind by design: initials and color come from the caller;
-  // the shell knows nothing about contacts. `color` is expected to be a
-  // token variable reference; the style checker keeps literals out of
-  // shell/app code.
+export interface AvatarProps {
+  /**
+   * A point name (`~zod`, `~sampel-palnet`). Given one, the avatar draws
+   * the real sigil, colored from the tokens — apps never touch sigil
+   * rendering, the same posture as the chart primitive owning its
+   * container (D58). A name the library cannot draw falls back to
+   * initials rather than throwing.
+   */
+  ship?: string;
+  /** used when there is no `ship`, or when its sigil cannot be drawn */
+  initials?: string;
+  color?: string;
+}
+
+/**
+ * At most two characters, from `initials` when given and otherwise from
+ * the ship name, so `<Avatar ship="~zod" />` still says something when the
+ * name turns out not to be drawable.
+ */
+function avatarInitials(props: AvatarProps): string {
+  if (typeof props.initials === 'string' && props.initials.length > 0) {
+    return props.initials.slice(0, 2);
+  }
+  if (typeof props.ship === 'string') {
+    return props.ship.replace(/^~/, '').slice(0, 2);
+  }
+  return '';
+}
+
+export function Avatar(props: AvatarProps) {
+  // identity-blind by design: the shell knows nothing about contacts, so
+  // the sigil's colors come from the token palette rather than from
+  // per-ship contact metadata the sandbox cannot see. `color` tints the
+  // box BEHIND the sigil — a frame, which is how small sigils read best.
+  // It is expected to be a token variable reference; the style checker
+  // keeps literals out of shell/app code.
+  const sigil = sigilVNode(props.ship);
   return (
     <span
       class="tsh-avatar"
       style={props.color != null ? { background: props.color } : undefined}
     >
-      {props.initials.slice(0, 2)}
+      {sigil ?? avatarInitials(props)}
     </span>
   );
 }

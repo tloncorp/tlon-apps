@@ -1268,3 +1268,108 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   code are now reviewed against each other, and amendments have a history
   instead of living only in a working copy. Session prompts, reports and
   the review logs stay untracked as before.
+
+- **D61: the sandbox document assembler lives in `packages/surface-shell`,
+  not in `packages/app`.** It moved to `src/sandbox/document.ts`, exported
+  as `@tloncorp/surface-shell/sandbox`, and `packages/app` now imports it
+  from there. Nothing about the assembly changed — CSP meta, nav guard,
+  shell-first ordering, `</script` escaping and the bundle wrapper are
+  byte-for-byte what they were, and the browser posture suite (47
+  chromium) passes with only its import path edited.
+
+  The reason is the same one that puts the reducer in `@tloncorp/api` and
+  the protocol schemas here: `tlon-skill`'s preview and the publish gate's
+  smoke render have to run the **identical** function, not an equivalent
+  one. A second copy would make "preview equals production" a claim
+  maintained by convention, which is the class of guarantee that holds
+  right up until someone edits one side. This is host-side code inside the
+  package whose boundary is the sandbox — deliberately so; the artifact
+  entry does not reach it, and `check:deps` still refuses anything that
+  would drag app internals in.
+
+  Its unit tests moved with it (`app` 545 → 539, `surface-shell` 43 → 49);
+  they run unchanged under happy-dom.
+
+- **D62: sigil rendering is folded into the avatar primitive, and the core
+  is imported rather than injected.**
+
+  - **Vetting.** `@urbit/sigil-js@2.2.0` is MIT (Tlon's own). The `/core`
+    entry is a total function from a point name to an SVG string with
+    **no** `document`, `window`, `Date`, `performance`, `Math.random`,
+    `fetch`, `XMLHttpRequest`, `localStorage` or `navigator` reference
+    anywhere in the module — so it satisfies the "`render` never reads the
+    clock" rule structurally rather than by inspection, and it runs under
+    `default-src 'none'`. Only `invariant` comes along; `lodash.memoize` is
+    used by the root export (a custom-element registration) and not by
+    `/core`. `check:deps` therefore allows the **exact** specifier
+    `@urbit/sigil-js/core` and not the package tree, so the web-component
+    and React wrappers stay unreachable from shell source.
+  - **Imported, not injected — deliberately unlike the Chart.js
+    constructor (D58).** A chart needs a live 2D context and legitimately
+    degrades to an empty state without one. A sigil is arithmetic, so
+    injection would buy nothing but the possibility of the publish gate's
+    happy-dom smoke render drawing an avatar the sandbox does not. That is
+    exactly the divergence D61 exists to prevent.
+  - **The core returns a STRING, not a structure.** v2 dropped v1's
+    renderer split, so "pure core → SVG structure" is not on offer. The
+    string is parsed into Preact vnodes with the already-vendored **htm**,
+    which costs no new dependency and keeps the sigil out of
+    `innerHTML` — markup assembly around a bundle-supplied ship name is
+    precisely what not to do.
+  - **Colors are token references handed straight to the library**
+    (`var(--color-text-secondary)` on `var(--color-bg-secondary)`), which
+    it substitutes into `fill`/`stroke` presentation attributes. Measured
+    to resolve in chromium, firefox and webkit, both standalone and inside
+    the real sandbox document. This buys a property the chart does not
+    have: because the colors stay live custom-property references, a theme
+    flip recolors an already-drawn sigil — the gap D58 recorded as "left
+    alone" does not exist on this path.
+  - **The library's pixel `width`/`height` are replaced with a real
+    `viewBox`** (it emits a lowercase `viewbox`, which SVG ignores), so
+    `.tsh-avatar`'s token owns the size and no pixel number is ever an
+    author's to guess — the D58 rule again. A star's 2:1 drawing
+    letterboxes rather than being squashed.
+  - **An undrawable name degrades to initials, never throws.** sigil-js
+    throws through `invariant` on anything that is not a galaxy, star or
+    planet, and `ship` arrives from app state, so a bad one is ordinary
+    input. A throw inside `render` would replace the whole app with the
+    broken-state view. Note the library normalises leniently: `zod~~`
+    draws ~zod's sigil, matching what the rest of the app does.
+  - **Parsing is memoized under a fixed bound (128).** The key is
+    app-supplied, so an unbounded cache would be an app-controlled
+    allocation.
+  - **`SHELL_VERSION` is unchanged.** A new optional prop is additive per
+    plan §9; `<Avatar initials="…" />` renders exactly what it did, and
+    `initials` merely widened from required to optional, so no existing
+    call changes shape or behavior.
+
+- **D63: the build now defines `process.env.NODE_ENV`, and the artifact
+  check forbids `process.env` outright.** Vite's lib mode deliberately
+  leaves the substitution to the consumer — but the consumer here is an
+  iframe with no `process`, so an unreplaced read is a `ReferenceError`
+  parked on a code path. Vendoring sigil-js put five of them in (its
+  `invariant` guards), all on the not-a-point-name path, which is exactly
+  the path an app reaches by accident. Found by grepping the built
+  artifact, not by a failing test — which is why the assertion now lives in
+  `check:determinism` alongside the no-zod one, where the next vendored
+  dependency will trip it.
+
+- **D64: minify is now worth flipping, and the numbers say so.** D32 left
+  `minify: 'esbuild'` off while size did not matter. Measured on this
+  branch (JS only, CSS is ~7.6 kB):
+
+  | | raw | gzip |
+  |---|---|---|
+  | before sigil, `minify: false` | 506,407 B | 110.9 kB |
+  | after sigil, `minify: false` | 802,262 B | 129.1 kB |
+  | before sigil, `minify: 'esbuild'` | 227,480 B | 79.0 kB |
+  | after sigil, `minify: 'esbuild'` | 513,580 B | 96.5 kB |
+
+  Sigil adds **+295,855 B raw (+58%)**, and tree-shaking cannot touch it:
+  the two symbol tables (208 kB detailed, 79 kB icon-grade) are indexed by
+  a runtime-computed phoneme, so rollup keeps both even though the avatar
+  only ever asks for the icon-grade one. Minifying returns the artifact to
+  roughly its pre-sigil raw size (514 kB vs 506 kB) and *below* its
+  pre-sigil gzip (96.5 vs 110.9 kB). Recorded, not flipped: D32 called it
+  a deliberate decision, and this is the evidence for making it, not the
+  authority to make it.

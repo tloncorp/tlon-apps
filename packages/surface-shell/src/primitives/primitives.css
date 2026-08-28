@@ -141,6 +141,17 @@
   overflow: hidden;
 }
 
+/*
+ * The sigil scales to whatever box .tsh-avatar declares: the drawing
+ * carries a viewBox rather than a pixel size, so the token above is the
+ * only place an avatar's size is decided.
+ */
+.tsh-avatar-sigil {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .tsh-progress {
   height: var(--space-m);
   background: var(--color-bg-secondary);

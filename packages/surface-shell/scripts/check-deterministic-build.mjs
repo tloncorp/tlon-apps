@@ -55,6 +55,17 @@ try {
       failed = true;
     }
   }
+  // The sandbox has no `process`, so an unreplaced `process.env` read is a
+  // ReferenceError sitting on whatever code path reaches it. Vite's lib
+  // mode leaves the substitution to the consumer, and the consumer here is
+  // an iframe — the build defines it instead (vite.config.ts), and this is
+  // what keeps a newly vendored dependency from reintroducing one.
+  if (js.includes('process.env')) {
+    console.error(
+      'determinism check: artifact reads process.env — there is no `process` in the sandbox'
+    );
+    failed = true;
+  }
   // markers that must survive bundling: the version global (artifact
   // entry), a primitive class (the kit), and the broken-state class (the
   // harness's error boundary). Library names don't survive bundling, so
@@ -63,6 +74,9 @@ try {
     '__TLON_SURFACE_SHELL_VERSION',
     'tsh-button',
     'tsh-broken',
+    // the sigil is drawn inside the sandbox, not fetched or passed over
+    // the bridge, so its symbol data has to be in the artifact
+    'tsh-avatar-sigil',
   ]) {
     if (!js.includes(marker)) {
       console.error(

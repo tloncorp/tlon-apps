@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import {
   SURFACE_SANDBOX_IFRAME_FLAGS,
   buildSandboxDocument,
-} from '../../../packages/app/ui/components/SurfaceChannel/sandboxDocument';
+} from '../../../packages/surface-shell/src/sandbox/document';
 
 /**
  * SELF-NAVIGATION posture.
@@ -27,7 +27,7 @@ import {
  *   1. the HOST-PAGE `frame-src` allowlist — a real boundary, enforced by
  *      the engine outside the sandbox's realm (D43);
  *   2. the IN-REALM shim the host injects around the bundle
- *      (`wrapBundleSource` in sandboxDocument.ts) — bar-raising only. It
+ *      (`wrapBundleSource` in the shell's sandbox/document.ts) — bar-raising only. It
  *      shadows the bare `location` identifier inside the bundle's own
  *      scope, because the real `Location` members are
  *      `[LegacyUnforgeable]` and cannot be patched at all.

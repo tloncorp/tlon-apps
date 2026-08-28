@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import {
   SURFACE_SANDBOX_IFRAME_FLAGS,
   buildSandboxDocument,
-} from '../../../packages/app/ui/components/SurfaceChannel/sandboxDocument';
+} from '../../../packages/surface-shell/src/sandbox/document';
 
 /**
  * Proves the web sandbox posture in a real browser, with the REAL shell
