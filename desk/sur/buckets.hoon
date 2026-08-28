@@ -93,17 +93,23 @@
 ::
 ::  $upload-session: host-private record of one in-flight upload.
 ::
-::  .id doubles as the opaque broker token the uploader presents to Memex.
-::  It is minted from bowl entropy and returned only to .requested-by, never
-::  broadcast — so it is safe to use as a bearer secret.
+::  .id names the session in every action its uploader sends. It is no longer
+::  a bearer secret: the uploader never presents it to the broker, because it
+::  never talks to the broker -- we do, authenticated as ourselves.
 ::  .entry is the not-yet-published entry: it joins the bucket's manifest
 ::  only once the object lands, so an in-flight upload is invisible to
 ::  everyone but its uploader.
-::  .reservation is the broker reservation id bound on first exchange.
+::  .reservation is the broker's id for this upload, learned from the answer
+::  to our own grant call rather than proposed to us by the broker.
 ::
-::  .cancelled is the uploader withdrawing, which is all it can report: only
-::  the broker knows whether the bytes landed, so a cancelled session still
-::  accepts a completion. It stops a new upload URL being issued against it.
+::  .cancelled is the uploader withdrawing. It stops a new upload URL being
+::  issued against the session, and a cancel is also sent on to the broker so
+::  the quota it reserved is released rather than held until expiry.
+::
+::  .awaiting is the client request held open while a broker call is in
+::  flight for this session. It rides here rather than on the wire so a
+::  restart drops it cleanly instead of stranding a request that can never be
+::  answered.
 ::
 +$  session-status  ?(%pending %complete %cancelled)
 +$  upload-session
@@ -116,6 +122,7 @@
       status=session-status
       reservation=(unit @t)
       error=(unit @t)
+      awaiting=(unit request-id)
   ==
 ::
 ::  $object-capability: host-private grant to read or delete objects.
@@ -248,6 +255,11 @@
       [%set-writers writers=(set @tas)]
       [%create-folder parent=(unit @ud) name=@t]
       [%begin-upload parent=(unit @ud) name=@t mime=@t size=@ud checksum=(unit @t)]
+      ::  The uploader drives its own transfer, so it says when the bytes are
+      ::  up, when it wants another URL, and when it is giving up. Each is a
+      ::  call we make to the broker on its behalf.
+      [%finish-upload session=@uv]
+      [%retry-upload session=@uv]
       [%cancel-upload session=@uv reason=@t]
       [%issue-bucket-read ~]
       [%issue-delete id=@ud]
@@ -304,9 +316,27 @@
 +$  response-body
   $%  [%ok ~]
       [%grant =grant]
+      [%upload =upload-grant]
       [%token =read-token]
       [%pending ~]
       [%error type=action-error message=@t]
+  ==
+::
+::  $upload-grant: where to PUT one file's bytes, and how.
+::
+::  .headers are the broker's, not ours: they are part of what the URL is
+::  signed over, so sending a different set -- or the same set under different
+::  capitalisation -- invalidates the signature. Pass them through unchanged.
+::
+::  .session is what the uploader names in %finish-upload, %retry-upload and
+::  %cancel-upload afterwards.
+::
++$  upload-grant
+  $:  session=@uv
+      entry-id=@ud
+      url=@t
+      headers=(list [key=@t value=@t])
+      expires-at=@da
   ==
 ::
 ::  $req-response: a $response-body addressed to one in-flight request.
