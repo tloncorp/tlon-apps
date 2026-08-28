@@ -182,14 +182,14 @@ function isEmptyDeliveryClaim(reply: string): boolean {
   const sameLineTail = reply
     .slice((claim.index ?? 0) + claim[0].length)
     .split(/\r?\n/, 1)[0]
-    ?.replace(/^[\s:;,.!\-–—`]+/, '')
+    ?.replace(/^[\s:;,.!\-–—`*_~]+/, '')
     .trim();
   if (sameLineTail && !isDeferredSameLineTail(sameLineTail)) return false;
 
   const visiblePayloadLines = reply
     .slice((claim.index ?? 0) + claim[0].length)
     .split(/\r?\n/)
-    .map((line) => line.replace(/^[\s:;,.!\-–—`]+/, '').trim())
+    .map((line) => line.replace(/^[\s:;,.!\-–—`*_~]+/, '').trim())
     .filter(
       (line) =>
         Boolean(line) && !/^```/.test(line) && !isDeferredSameLineTail(line)

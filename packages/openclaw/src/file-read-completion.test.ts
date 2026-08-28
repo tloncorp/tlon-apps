@@ -172,6 +172,18 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it('rejects an emphasized empty delivery heading', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('emphasized-empty-heading'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'emphasized-empty-heading',
+        lastAssistantMessage: '**Here are the requested contents:**',
+      })
+    ).not.toBeNull();
+  });
+
   it.each([
     'Opening the summary now.',
     'Reading the records now.',
