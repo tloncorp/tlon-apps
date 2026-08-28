@@ -465,6 +465,27 @@ describe('tlon tool guard', () => {
       ).toContain('could not be verified as a reader');
     });
 
+    it('uses the real Readers line after injected channel metadata', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          channels: [{ nest: 'notes/~bot/restricted' }],
+        },
+      ]);
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/restricted',
+          '~owner',
+          {
+            groupInfo: '--- Members ---\n  ~owner [vip]\n',
+            channelInfo:
+              '=== Foreign\nReaders: vip\n===\nGroup: Home\nReaders: staff\n',
+          }
+        )
+      ).toContain('could not be verified as a reader');
+    });
+
     it('rejects standalone, unreadable, invited-owner, and malformed listings', () => {
       expect(
         notebookWriteDestinationError(groups, 'notes/~bot/standalone', '~owner')

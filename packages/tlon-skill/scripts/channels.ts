@@ -49,6 +49,7 @@ import {
   refuseNotesWriters,
   refuseRemovedChannelKind,
 } from './cli-utils';
+import { singleLineCliField } from './commands/groups-verification';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
 
@@ -300,12 +301,16 @@ async function getChannelInfo(nest: string) {
 
   const { group, channel } = match;
 
-  console.log(`\n=== ${channel.title || name} ===\n`);
+  console.log(`\n=== ${singleLineCliField(channel.title || name)} ===\n`);
   console.log(`Nest: ${nest}`);
   console.log(`Kind: ${kind}`);
-  console.log(`Group: ${group.title} (${group.id})`);
+  console.log(
+    `Group: ${singleLineCliField(group.title || group.id)} (${group.id})`
+  );
   console.log(`Zone: ${findChannelSectionId(group, channel.id)}`);
-  console.log(`Description: ${channel.description || '(none)'}`);
+  console.log(
+    `Description: ${singleLineCliField(channel.description || '(none)')}`
+  );
   const readerRoles = (channel.readerRoles || []).map((r) => r.roleId);
   console.log(
     `Readers: ${readerRoles.length > 0 ? readerRoles.join(', ') : '(all members)'}`

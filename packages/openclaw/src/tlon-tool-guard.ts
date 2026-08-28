@@ -536,7 +536,10 @@ function adminRolesFromGroupInfo(
 function readersFromChannelInfo(
   channelInfo: string | undefined
 ): string[] | null {
-  const match = channelInfo?.match(/^Readers:\s*(.+?)\s*$/im);
+  const matches = Array.from(
+    channelInfo?.matchAll(/^Readers:\s*(.+?)\s*$/gim) ?? []
+  );
+  const match = matches.at(-1);
   if (!match) return null;
   if (match[1].toLowerCase() === '(all members)') return [];
   return match[1]
