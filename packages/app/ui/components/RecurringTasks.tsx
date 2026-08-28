@@ -332,7 +332,11 @@ export function RecurringTaskEditorView({
             }}
             frameStyle={{
               height: promptHeight,
-              alignItems: 'flex-start',
+              // InputFrame is an XStack, so the cross axis is vertical:
+              // flex-start would leave the input at the intrinsic height of
+              // numberOfLines and scrolling inside the grown frame. Stretch so
+              // it fills the height onContentSizeChange measured for it.
+              alignItems: 'stretch',
               borderWidth: 0,
               borderRadius: '$2xl',
               backgroundColor: '$background',
