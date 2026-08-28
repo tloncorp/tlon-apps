@@ -47,13 +47,14 @@
     "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm dev\"",
     "test": "vitest",
     "types": "tsc --emitDeclarationOnly --noEmit false",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit && tsc --noEmit -p seed/tsconfig.json",
     "lint": "oxlint src/",
     "lint:fix": "oxlint src/ --fix --quiet",
     "lint:format": "oxfmt src/",
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
-    "watch-migrations": "pnpm generate:migration --watch"
+    "watch-migrations": "pnpm generate:migration --watch",
+    "seed:surfaces": "vite-node --config seed/vite.config.ts seed/surfaces.ts --"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

@@ -43,7 +43,8 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "lint": "oxlint",
-    "build:surface-shell": "pnpm --filter '@tloncorp/surface-shell' build"
+    "build:surface-shell": "pnpm --filter '@tloncorp/surface-shell' build",
+    "seed:surfaces": "pnpm --filter '@tloncorp/shared' seed:surfaces"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
