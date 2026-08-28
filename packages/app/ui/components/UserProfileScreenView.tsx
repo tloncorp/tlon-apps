@@ -528,15 +528,17 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
   const queryClient = db.queryClient;
   const currentUserId = useCurrentUserId();
-  // Blocking your own bot makes no sense; hide the button on an owned
-  // bot's profile. Unblock stays reachable so an already-blocked bot
-  // can't get stranded.
+  // Blocking or un-contacting your own bot makes no sense; hide both
+  // buttons on an owned bot's profile. Unblock and Add Contact stay
+  // reachable so an already-blocked or not-yet-added bot can't get
+  // stranded.
   const ownedBot = useIsOwnedBot(props.userId);
   const isDesignatedBot = api.isBotUserIdForUser(props.userId, currentUserId);
   const isOwnedBot = ownedBot.isOwnedBot || isDesignatedBot;
   // While the mirror scry is still deciding we can't tell an owned bot
-  // from a stranger — suppress Block (never Unblock) instead of flashing
-  // a tappable Block on a slow first load.
+  // from a stranger — suppress the destructive direction only, rather
+  // than flashing a tappable Block or Remove Contact on a slow first
+  // load.
   const ownershipPending = ownedBot.isPending && !isDesignatedBot;
 
   const handleMessageUser = useCallback(() => {
@@ -593,10 +595,12 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
         {!isBlocked && (
           <ProfileButton title="Message" onPress={handleMessageUser} hero />
         )}
-        <ProfileButton
-          title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
-          onPress={handleToggleContact}
-        />
+        {!props.contact?.isContact || (!isOwnedBot && !ownershipPending) ? (
+          <ProfileButton
+            title={props.contact?.isContact ? 'Remove Contact' : 'Add Contact'}
+            onPress={handleToggleContact}
+          />
+        ) : null}
         {props.contact?.isContactSuggestion ? (
           <ProfileButton
             title="Clear Suggestion"
