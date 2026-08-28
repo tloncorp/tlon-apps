@@ -2078,6 +2078,45 @@
 ::  client needs no correlation of its own. A refusal comes back as a typed
 ::  error with a 200, not as a crash.
 ::
+::  Every verb a client can send has to survive the JSON decoder, and only
+::  the HTTP path goes through it -- poking a typed vase, as most of these
+::  examples do, skips it entirely. %finish-upload and %retry-upload shipped
+::  decoded by nothing and failed as malformed against a live client while
+::  the whole typed suite stayed green.
+::
+++  test-http-decodes-every-session-verb
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'private.pdf' 42)
+  ;<  sv=vase  b  get-save
+  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  =/  sid=@t  (scot %uv id.ses)
+  =/  verb
+    |=  [rid=@t type=@t]
+    ^-  @t
+    %+  rap  3
+    :~  '{"requestId":"'  rid
+        '","action":{"type":"'  type
+        '","flag":{"host":"~sampel-palnet","name":"project-files"}'
+        ',"sessionId":"'  sid  '"}}'
+    ==
+  ::  Reaching the arm is the whole point: a verb the decoder does not know
+  ::  answers %invalid-input and makes no broker call at all, so the call's
+  ::  wire is what pins the decode.
+  ;<  fin=(list card)  b  (http-post & (verb '0v2' 'finish-upload'))
+  ;<  ~  b
+    %+  ex-equal
+      !>(wire:(only-iris fin))
+    !>(/buckets/upload/[sid]/complete)
+  ;<  ret=(list card)  b  (http-post & (verb '0v3' 'retry-upload'))
+  %+  ex-equal
+    !>(wire:(only-iris ret))
+  !>(/buckets/upload/[sid]/retry)
+::
 ++  test-http-post-answers-inline
   %-  eval-mare
   =/  m  (mare ,~)
