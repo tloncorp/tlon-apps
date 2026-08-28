@@ -329,6 +329,37 @@ test('a channel whose metadata is ahead of its posts reports partial', async () 
   );
 });
 
+test('a late response carrying a stale head cannot turn a partial fold into a hydrated one', async () => {
+  await insertSurfaceChannel(spec());
+  // the same 1..50 window as above
+  await insertPosts(
+    Array.from({ length: 50 }, (_, i) =>
+      makePost(i + 1, MEMBER, [invokeEntry('log-entry')])
+    )
+  );
+  await db.setLatestChannelSequenceNum({
+    channelId: CHANNEL,
+    sequenceNum: 100,
+  });
+
+  // An older-range request that observed head 50 completes last. If it were
+  // allowed to lower the watermark, `reachesHead` would compare 50 >= 50 and
+  // hand the renderer a fold over half the history as if it were current.
+  await db.setLatestChannelSequenceNum({
+    channelId: CHANNEL,
+    sequenceNum: 50,
+  });
+
+  const result = await hydrateSurface({
+    channelId: CHANNEL,
+    backfill: noopBackfill(),
+  });
+
+  expect(result.status).toBe('partial');
+  expect('state' in result).toBe(false);
+  expect('reduction' in result).toBe(false);
+});
+
 test('the same channel hydrates once its posts catch up to the head', async () => {
   await insertSurfaceChannel(spec());
   await insertPosts(

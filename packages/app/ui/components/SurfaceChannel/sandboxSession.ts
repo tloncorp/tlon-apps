@@ -32,13 +32,6 @@ const logger = createDevLogger('surfaceSandboxSession', false);
  */
 
 /**
- * Telemetry bound for the sandbox-chosen `message` on a shell error
- * report. Diagnostics only: a prefix is enough to recognize a stack or a
- * thrown string, and the full text stays in the local dev log.
- */
-export const SHELL_ERROR_TELEMETRY_DETAIL_LIMIT = 256;
-
-/**
  * At most this many shell errors per session reach telemetry. A looping
  * bundle can emit `error` as fast as it likes; after the cap the session
  * keeps logging locally and keeps calling `onShellError`, but stops
@@ -197,17 +190,19 @@ export function createSandboxSession(
           // consumers get different treatment:
           //
           // - TELEMETRY (`trackError` → the configured PostHog/Sentry
-          //   logger) is BOUNDED, because it leaves the device: an enum'd
-          //   category instead of the reported phase, a truncated detail
-          //   instead of the reported message, and at most
-          //   SHELL_ERROR_TELEMETRY_REPORT_LIMIT reports per session. The
-          //   detail rides under `detail`, not `message`: trackError's
-          //   custom props are spread last, so a `message` key would
-          //   overwrite the event's own message with sandbox text.
-          // - The local dev log and `onShellError` are UNBOUNDED and get
-          //   the full strings, because both stay in this process — the
-          //   dev log is console/debug-store only, and `onShellError` is
-          //   the host component's own error UI.
+          //   logger) LEAVES THE DEVICE, so nothing the sandbox chose
+          //   goes into it — not even a truncated prefix. Truncation and
+          //   the per-session cap bound the VOLUME of an exfiltration
+          //   channel; they do not close it, and a bundle that wants to
+          //   ship scraped state off the device is content to do so a few
+          //   hundred bytes at a time. The payload is therefore entirely
+          //   host-derived: the reported phase mapped onto a fixed enum,
+          //   plus which of the permitted reports this is.
+          // - The local dev log and `onShellError` get the full strings,
+          //   because both stay in this process — the dev log is
+          //   console/debug-store only, and `onShellError` is the host
+          //   component's own error UI, where the developer looking at a
+          //   broken dashboard is exactly who should see the message.
           logger.log(
             'surface shell reported an error',
             message.phase,
@@ -217,10 +212,7 @@ export function createSandboxSession(
             telemetryReports += 1;
             logger.trackError('surface shell reported an error', {
               phase: shellErrorCategory(message.phase),
-              detail: message.message.slice(
-                0,
-                SHELL_ERROR_TELEMETRY_DETAIL_LIMIT
-              ),
+              reportIndex: telemetryReports,
             });
           }
           options.onShellError?.(message.phase, message.message);

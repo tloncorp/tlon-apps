@@ -3626,16 +3626,33 @@ export const getLatestChannelSequenceNums = createReadQuery(
   ['channels']
 );
 
+/**
+ * Raise the channel's advertised-head watermark to a server-reported
+ * `newestSequenceNum`.
+ *
+ * The raise is an atomic SQL maximum, not a read-modify-write, because
+ * nothing serializes these writes by channel: the sync queue runs several
+ * requests concurrently, so a request that observed head 50 can complete
+ * after one that observed head 100. An unconditional set would let the
+ * watermark move BACKWARD, and a watermark below the true head is worse than
+ * a stale one — `hydrateSurface` reads it as proof that the loaded window is
+ * complete and presents a truncated fold as current state (plan §6).
+ *
+ * Same CASE shape as `setLastPostsMonotonic`, which guards the same column
+ * against local inserts. Every caller here writes a server head, so none
+ * needs to lower it; a deliberate reset goes through `updateChannel`.
+ */
 export const setLatestChannelSequenceNum = createWriteQuery(
   'setLatestChannelSequenceNum',
   async (
     options: { channelId: string; sequenceNum: number },
     ctx: QueryCtx
   ) => {
+    const newSeq = options.sequenceNum;
     await ctx.db
       .update($channels)
       .set({
-        lastPostSequenceNum: options.sequenceNum,
+        lastPostSequenceNum: sql`CASE WHEN ${$channels.lastPostSequenceNum} IS NULL OR ${newSeq} > ${$channels.lastPostSequenceNum} THEN ${newSeq} ELSE ${$channels.lastPostSequenceNum} END`,
       })
       .where(eq($channels.id, options.channelId));
   },

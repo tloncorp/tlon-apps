@@ -43,7 +43,10 @@ import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
 import { migrateLegacyContextLensFlag } from '../settingsActions';
-import { applySurfaceChannelNotificationDefaults } from '../surfaceNotificationDefaults';
+import {
+  applySurfaceChannelNotificationDefaults,
+  installSurfaceMarkersFromShip,
+} from '../surfaceNotificationDefaults';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
@@ -522,7 +525,11 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   await db.dismissedPinnedPostBannerIds.setValue(
     result.dismissedPinnedPostBannerIds
   );
-  await db.surfaceNotificationDefaultedChannelIds.setValue(
+  // Installs the §8 markers AND declares them authoritative — surface
+  // discovery may only act on a mirror that has been proven against the ship,
+  // so the write and the declaration are deliberately one call rather than a
+  // setValue that a future edit could leave undeclared. Never rejects.
+  await installSurfaceMarkersFromShip(
     result.surfaceNotificationDefaultedChannelIds
   );
   await db.replaceBotReplyFeedback(
@@ -2468,7 +2475,10 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // §8 notification policy. Deliberately after low-priority sync: channels
     // land in the high-priority block, but the "already defaulted" markers
     // come from syncSettings above, and hushing without them would override a
-    // user who unmuted on another device.
+    // user who unmuted on another device. Ordering alone isn't enough —
+    // `Promise.all` swallows a settings failure and would leave this sweeping
+    // against an empty cache — so the pass itself defers until the markers
+    // have actually loaded, and a later successful syncSettings runs it.
     await applySurfaceChannelNotificationDefaults();
 
     // post sync initialization work

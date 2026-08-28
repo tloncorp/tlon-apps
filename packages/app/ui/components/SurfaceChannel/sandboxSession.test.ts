@@ -1,7 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
-  SHELL_ERROR_TELEMETRY_DETAIL_LIMIT,
   SHELL_ERROR_TELEMETRY_REPORT_LIMIT,
   createSandboxSession,
   sandboxSessionKey,
@@ -214,28 +213,48 @@ test('an unrecognized phase telemeters as the enum fallback, not itself', () => 
   }
 });
 
-test('telemetry gets a category and a truncated detail; local paths get all of it', () => {
+test('telemetry carries only fixed category and count; sandbox text never leaves the process', () => {
   const { session, onShellError } = setup();
-  // the protocol caps the reported message at 1024
-  const long = 'secret-'.repeat(146).slice(0, 1024);
-  session.handleInbound(shellError('render', long));
+  // the protocol caps the reported message at 1024, and a hostile bundle
+  // will happily fill all of it with whatever it scraped
+  const exfiltrated = 'secret-'.repeat(146).slice(0, 1024);
+  session.handleInbound(shellError('render', exfiltrated));
 
   expect(mockLogger.trackError).toHaveBeenCalledTimes(1);
-  const reported = mockLogger.trackError.mock.calls[0][1];
-  expect(reported.phase).toBe('render');
-  expect(reported.detail).toBe(
-    long.slice(0, SHELL_ERROR_TELEMETRY_DETAIL_LIMIT)
-  );
-  expect(reported.detail.length).toBe(SHELL_ERROR_TELEMETRY_DETAIL_LIMIT);
-  // nothing sandbox-chosen rides under a key trackError writes itself
-  expect(reported).not.toHaveProperty('message');
+  const [label, reported] = mockLogger.trackError.mock.calls[0];
 
-  // in-process paths are deliberately unbounded
-  expect(onShellError).toHaveBeenCalledWith('render', long);
+  // the whole payload is host-chosen: an enum'd category and a counter.
+  // Truncating attacker text would still exfiltrate it, just in smaller
+  // slices, so no slice of it appears here at all.
+  expect(reported).toEqual({ phase: 'render', reportIndex: 1 });
+  expect(JSON.stringify([label, reported])).not.toContain('secret');
+
+  // in-process paths are deliberately unbounded and still get everything
+  expect(onShellError).toHaveBeenCalledWith('render', exfiltrated);
   expect(mockLogger.log).toHaveBeenCalledWith(
     'surface shell reported an error',
     'render',
-    long
+    exfiltrated
+  );
+});
+
+test('a burst of hostile errors telemeters no sandbox bytes at all', () => {
+  const { session } = setup();
+  for (let i = 0; i < SHELL_ERROR_TELEMETRY_REPORT_LIMIT + 3; i++) {
+    session.handleInbound(shellError('bridge', `state-chunk-${i}-secret`));
+  }
+
+  const everythingTelemetered = JSON.stringify(
+    mockLogger.trackError.mock.calls
+  );
+  expect(everythingTelemetered).not.toContain('secret');
+  expect(everythingTelemetered).not.toContain('state-chunk');
+  // and the counter is the only thing that varied across the burst
+  expect(mockLogger.trackError.mock.calls.map(([, props]) => props)).toEqual(
+    Array.from({ length: SHELL_ERROR_TELEMETRY_REPORT_LIMIT }, (_, i) => ({
+      phase: 'bridge',
+      reportIndex: i + 1,
+    }))
   );
 });
 

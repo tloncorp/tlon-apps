@@ -2241,6 +2241,61 @@ describe('last post repair after channel metadata insert', () => {
   });
 });
 
+// The advertised head is a watermark, and the sync layer writes it from
+// whichever posts response happens to land — the sync queue runs three
+// requests concurrently and does not serialize by channel, so an older-range
+// request that observed head 50 can complete AFTER a request that observed
+// head 100. A watermark that moves backward re-opens the truncated-fold
+// defect: hydration would accept a 50-post window as reaching a head of 50
+// and present a partial fold as current state (plan §6).
+describe('setLatestChannelSequenceNum monotonicity', () => {
+  const channelId = 'chat/~zod/seq-watermark/general';
+
+  async function seedChannel() {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  }
+
+  async function head() {
+    const channel = await queries.getChannel({ id: channelId });
+    return channel!.lastPostSequenceNum;
+  }
+
+  test('a late response carrying a stale head cannot lower the watermark', async () => {
+    await seedChannel();
+
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 100 });
+    expect(await head()).toBe(100);
+
+    // request A observed head 50 before the channel advanced, and only now
+    // completes
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 50 });
+    expect(await head()).toBe(100);
+  });
+
+  test('the watermark still rises, and still installs over a null', async () => {
+    await seedChannel();
+    expect(await head()).toBeNull();
+
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 50 });
+    expect(await head()).toBe(50);
+
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 100 });
+    expect(await head()).toBe(100);
+  });
+
+  // No caller of this setter ever wants to lower the watermark: all three
+  // write a server-reported `newestSequenceNum`. A deliberate reset goes
+  // through `updateChannel`, which stays unconditional, so the monotonic
+  // setter doesn't have to grow an escape hatch nothing asks for.
+  test('a deliberate reset still has an unconditional path', async () => {
+    await seedChannel();
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 100 });
+
+    await queries.updateChannel({ id: channelId, lastPostSequenceNum: null });
+    expect(await head()).toBeNull();
+  });
+});
+
 // TLON-5606: the delivery-polling query must keep in-flight rows visible
 // even when the user has locally cleared them, so the backoff can still
 // reconcile against the server. `failed` and `needs_verification` are

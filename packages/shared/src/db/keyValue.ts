@@ -41,6 +41,14 @@ export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
  * replaced wholesale by `syncSettings` and kept live by the settings
  * subscription, so a hush applied on one device is not re-applied by another
  * after the user unmutes.
+ *
+ * Because the ship is the authority, the DEFAULT VALUE HERE IS NOT EVIDENCE.
+ * An empty array means "not loaded yet" just as much as it means "nothing
+ * defaulted", and the two are indistinguishable from a read. Anything that
+ * would act on the absence of a marker must first establish that a settings
+ * sync has populated this item in the current session, which is what
+ * `installSurfaceMarkersFromShip` in `store/surfaceNotificationDefaults.ts`
+ * does — write it from there rather than calling `setValue` directly.
  */
 export const surfaceNotificationDefaultedChannelIds = createStorageItem<
   string[]
