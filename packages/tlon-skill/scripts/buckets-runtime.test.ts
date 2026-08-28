@@ -16,6 +16,7 @@ import {
   mockedGetBucketReadToken,
   mockedRequestBucketsGrant,
   mockedRequestBucketsUpload,
+  mockedGetGroup,
   mockedSendBucketsAction,
 } from './tloncorp-api-mock';
 
@@ -110,6 +111,73 @@ describe('Buckets runtime hardening', () => {
         name: 'project-files',
       })
     ).rejects.toThrow('Bucket buckets/~zod/project-files already exists');
+    expect(actions).toEqual([]);
+  });
+
+  // Both role lists mean the opposite of restrictive when empty: readers []
+  // is readable by every group member, writers [] is writable by every
+  // reader. So a restricted Bucket has to be created restricted, and a role
+  // the group does not have is dropped by reconciliation -- leaving empty.
+  it('sends reader and writer roles with the create itself', async () => {
+    const actions: BucketsAction[] = [];
+    mockedGetBuckets.impl = async () => [];
+    mockedGetGroup.impl = async () => ({
+      roles: [{ id: 'admin' }, { id: 'staff' }],
+    });
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      actions.push(action as BucketsAction);
+    };
+
+    // create polls until the Bucket shows up, so the snapshot has to answer.
+    mockedGetBucket.impl = async () => snapshot({ title: 'Private' });
+
+    await createBucketsDeps().buckets.create({
+      group: GROUP,
+      title: 'Private',
+      name: 'private',
+      readers: ['staff'],
+      writers: ['admin'],
+    });
+
+    expect(actions).toContainEqual(
+      expect.objectContaining({
+        type: 'create',
+        readers: ['staff'],
+        writers: ['admin'],
+      })
+    );
+  });
+
+  it('refuses a role the group does not have rather than widening access', async () => {
+    const actions: BucketsAction[] = [];
+    mockedGetBuckets.impl = async () => [];
+    mockedGetGroup.impl = async () => ({ roles: [{ id: 'admin' }] });
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      actions.push(action as BucketsAction);
+    };
+
+    await expect(
+      createBucketsDeps().buckets.create({
+        group: GROUP,
+        title: 'Private',
+        name: 'private',
+        writers: ['admn'],
+      })
+    ).rejects.toThrow('has no role named admn');
+    expect(actions).toEqual([]);
+  });
+
+  it('refuses an unknown role on set-writers', async () => {
+    const actions: BucketsAction[] = [];
+    mockedGetBucket.impl = async () => snapshot();
+    mockedGetGroup.impl = async () => ({ roles: [{ id: 'admin' }] });
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      actions.push(action as BucketsAction);
+    };
+
+    await expect(
+      createBucketsDeps().buckets.setWriters(TARGET, ['pubilsher'])
+    ).rejects.toThrow('has no role named pubilsher');
     expect(actions).toEqual([]);
   });
 

@@ -44,7 +44,8 @@ const HELP_BY_COMMAND: Record<string, string> = {
   show: 'Usage: tlon buckets show <buckets/~host/name>',
   files: 'Usage: tlon buckets files <buckets/~host/name> [--parent <id|root>]',
   search: 'Usage: tlon buckets search <buckets/~host/name> <query>',
-  create: 'Usage: tlon buckets create <~host/group> <title> [--name <slug>]',
+  create:
+    'Usage: tlon buckets create <~host/group> <title> [--name <slug>] [--readers <role,...>] [--writers <role,...>]',
   mkdir:
     'Usage: tlon buckets mkdir <buckets/~host/name> <folder-name> [--parent <id|root>]',
   upload:
@@ -73,6 +74,8 @@ export interface BucketsOperations {
     group: BucketsFlag;
     title: string;
     name?: string;
+    readers?: string[];
+    writers?: string[];
   }): Promise<{ nest: string }>;
   createFolder(input: {
     target: BucketTarget;
@@ -112,7 +115,14 @@ type ParsedArgs =
   | { kind: 'show'; target: BucketTarget }
   | { kind: 'files'; target: BucketTarget; parentId: number | null }
   | { kind: 'search'; target: BucketTarget; query: string }
-  | { kind: 'create'; group: BucketsFlag; title: string; name?: string }
+  | {
+      kind: 'create';
+      group: BucketsFlag;
+      title: string;
+      name?: string;
+      readers?: string[];
+      writers?: string[];
+    }
   | {
       kind: 'mkdir';
       target: BucketTarget;
@@ -298,15 +308,38 @@ function parseArgs(args: string[]): ParsedArgs {
       const options = parseOptions(
         args,
         titleEnd,
-        [{ key: 'name', names: ['--name'], takesValue: true }],
+        [
+          { key: 'name', names: ['--name'], takesValue: true },
+          { key: 'readers', names: ['--readers'], takesValue: true },
+          { key: 'writers', names: ['--writers'], takesValue: true },
+        ],
         help
       );
       const name = options.get('name') as string | undefined;
+      // Sent with the create rather than applied afterwards. Empty readers
+      // mean every group member can read and empty writers mean every reader
+      // can write, so a Bucket that is restricted in the end must never have
+      // been open in the middle -- and if a follow-up call failed it would
+      // stay open for good.
+      const roleList = (key: string) => {
+        const raw = options.get(key) as string | undefined;
+        if (raw === undefined) return undefined;
+        const roles = raw
+          .split(',')
+          .map((role) => role.trim())
+          .filter(Boolean);
+        if (roles.length === 0) throw usageError(`--${key} needs a role`, help);
+        return roles;
+      };
+      const readers = roleList('readers');
+      const writers = roleList('writers');
       return {
         kind: 'create',
         group: parseGroup(args[1], help),
         title,
         ...(name ? { name } : {}),
+        ...(readers ? { readers } : {}),
+        ...(writers ? { writers } : {}),
       };
     }
     case 'mkdir': {
@@ -443,6 +476,8 @@ export async function run(args: string[], deps: BucketsDeps): Promise<number> {
               group: parsed.group,
               title: parsed.title,
               ...(parsed.name ? { name: parsed.name } : {}),
+              ...(parsed.readers ? { readers: parsed.readers } : {}),
+              ...(parsed.writers ? { writers: parsed.writers } : {}),
             })
           )
         );

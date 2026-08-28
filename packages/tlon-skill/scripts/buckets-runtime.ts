@@ -6,6 +6,7 @@ import {
   type BucketsSummary,
   getBucket,
   getBucketReadToken,
+  getGroup,
   getBuckets,
   requestBucketReadToken,
   requestBucketsGrant,
@@ -96,6 +97,30 @@ function brokerBaseUrl() {
     /\/$/,
     ''
   );
+}
+
+/**
+ * Refuse role names the group does not have.
+ *
+ * Both reader and writer lists are reconciled against the group's roles, and
+ * an id that is not there is dropped. What is left of a list of one typo is
+ * an empty list -- whose meaning in this protocol is not "nobody" but
+ * "everyone", so the mistake opens a Bucket rather than closing it.
+ */
+async function assertGroupRoles(group: BucketsFlag, roles: string[]) {
+  if (roles.length === 0) return;
+  const groupId = `${normalizeHost(group.host)}/${group.name}`;
+  const found = await getGroup(groupId).catch(() => null);
+  if (!found) {
+    throw commandError(`Could not read roles for group ${groupId}`);
+  }
+  const known = new Set((found.roles ?? []).map((role) => role.id));
+  const unknown = roles.filter((role) => !known.has(role));
+  if (unknown.length > 0) {
+    throw commandError(
+      `Group ${groupId} has no role named ${unknown.join(', ')}`
+    );
+  }
 }
 
 function hostName(host: string) {
@@ -421,7 +446,7 @@ function createBucketsOperations(): BucketsOperations {
         }));
     },
 
-    async create({ group, title, name }) {
+    async create({ group, title, name, readers, writers }) {
       const bucketName = validateBucketName(name ?? defaultBucketName());
       const bucketTitle = title.trim();
       const normalizedGroup = {
@@ -436,13 +461,20 @@ function createBucketsOperations(): BucketsOperations {
       if (existing) {
         throw commandError(`Bucket ${nest} already exists`);
       }
+      // Checked before the create, because both lists mean the opposite of
+      // restrictive when they are empty: a role the group does not have is
+      // dropped by reconciliation, and what is left is "everyone".
+      await assertGroupRoles(normalizedGroup, [
+        ...(readers ?? []),
+        ...(writers ?? []),
+      ]);
       await sendBucketsAction({
         type: 'create',
         group: normalizedGroup,
         name: bucketName,
-        readers: [],
+        readers: readers ?? [],
         title: bucketTitle,
-        writers: [],
+        writers: writers ?? [],
       });
       for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
         const found = await getBucket(flag);
@@ -685,6 +717,10 @@ function createBucketsOperations(): BucketsOperations {
       if (sameStrings(current.state.writers, writers)) {
         return { nest: target.nest, writers };
       }
+      // A role the group does not have is silently dropped by %buckets'
+      // reconciliation, and an empty writer set means every reader may write
+      // -- so a misspelled role widens access instead of narrowing it.
+      await assertGroupRoles(current.state.group, writers);
       await sendBucketsAction({
         type: 'set-writers',
         flag: target.flag,
