@@ -1100,3 +1100,42 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   variant is therefore strictly better than the bookkeeping one. Also
   rejected: a client-supplied idempotency nonce — a member-supplied wire
   value, and it only addresses transport retries anyway.
+
+- **D55: v0's constraints push generated apps to narrate their own
+  mechanism, and the gate cannot catch it.** Found by reading the workout
+  fixture's UI on a phone, not by any test.
+
+  The fixture shipped user-facing copy reading *"lifts logged since the
+  last rollover"* and *"Clearing removes only your own scratch entries"*,
+  with empty states referring to *"No rollover has happened yet"*. Both
+  are accurate. Both expose internal vocabulary no lifter should ever
+  meet.
+
+  **The cause is a real constraint, correctly handled and badly worded.**
+  `render` must never call `Date` — the sandbox clock belongs to the
+  *viewer* while the archive boundary belongs to the *host*, so a viewer
+  in a different timezone reading "today" would be looking at a lie. The
+  author chose a technically-true label over a friendly-but-wrong one,
+  which is the right instinct and the wrong words. "This session" is both
+  true and natural, requires no date, and matches how the domain already
+  talks.
+
+  Recommended replacements, as a model for the class:
+  *"since the last rollover"* → *"this session"*; *"your own scratch
+  entries"* → *"your own entries for this session"*; *"Archived sessions
+  appear here after the first rollover"* → *"Your past sessions will
+  appear here"*; *"No rollover has happened yet"* → *"No sessions saved
+  yet"*.
+
+  **This is a class, not an instance.** Every v0 constraint that shapes
+  behavior — no in-app date, host-driven archiving, no viewer identity,
+  parameterless actions — invites a generating model to hit the wall,
+  describe it accurately, and ship jargon. Left alone, each generated app
+  invents its own internal vocabulary.
+
+  **The publish gate cannot detect this**: the style lint covers
+  `font-family`, non-token colors and non-whitelisted style properties —
+  nothing about whether copy makes sense to a human. So the control has
+  to be `PARADIGM.md` carrying a **vocabulary section** next to the
+  technical rules, and the templates modelling the words rather than
+  leaving each generation to coin them. An authoring-session deliverable.
