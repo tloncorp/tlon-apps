@@ -251,6 +251,13 @@ function completeUpload(reservationId: string) {
   );
 }
 
+function cancelUpload(reservationId: string) {
+  return brokerRequest<{ reservationId: string; canceledAt: string }>(
+    `/uploads/${encodeURIComponent(reservationId)}/cancel`,
+    { method: 'POST' }
+  );
+}
+
 function grantRead(capability: string, host: string, objectId: string) {
   return brokerRequest<BucketReadGrant>(
     `/objects/${encodeURIComponent(objectId)}/read-grant`,
@@ -393,7 +400,8 @@ async function privateReadUrl(target: BucketTarget, entry: BucketsFileEntry) {
     ) {
       throw cause;
     }
-    return (await open((await requestBucketReadToken(target.flag)).token)).readUrl;
+    return (await open((await requestBucketReadToken(target.flag)).token))
+      .readUrl;
   }
 }
 
@@ -521,6 +529,7 @@ function createBucketsOperations(): BucketsOperations {
       );
       const contentType = mime ?? mimeFromPath(resolvedPath);
       let completionAttempted = false;
+      let brokerReservationId: string | undefined;
       let grant: Awaited<ReturnType<typeof requestBucketsGrant>> | undefined;
       try {
         await getSnapshot(target);
@@ -534,6 +543,7 @@ function createBucketsOperations(): BucketsOperations {
           size: stat.size,
         });
         const brokerGrant = await grantUpload(grant.token, target.flag.host);
+        brokerReservationId = brokerGrant.reservationId;
         const requiredHeaders = Object.fromEntries(brokerGrant.requiredHeaders);
         const uploadResponse = await fetch(brokerGrant.uploadUrl, {
           method: 'PUT',
@@ -575,6 +585,9 @@ function createBucketsOperations(): BucketsOperations {
             sessionId: grant.token,
             reason: errorMessage(error).slice(0, 500),
           }).catch(() => undefined);
+        }
+        if (brokerReservationId) {
+          await cancelUpload(brokerReservationId).catch(() => undefined);
         }
         throw commandError(
           grant

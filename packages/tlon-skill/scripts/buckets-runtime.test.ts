@@ -218,6 +218,64 @@ describe('Buckets runtime hardening', () => {
     }
   });
 
+  it('cancels the broker reservation when an upload fails after it is granted', async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
+    const filePath = path.join(directory, 'plan.md');
+    writeFileSync(filePath, '# Project\n');
+    const actions: BucketsAction[] = [];
+    mockedGetBucket.impl = async () => snapshot();
+    mockedRequestBucketsGrant.impl = async () => ({
+      token: 'upload-token',
+      entryId: 12,
+      expiresAt: '~2026.1.1',
+    });
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      actions.push(action as BucketsAction);
+    };
+    let canceled = false;
+    globalThis.fetch = (async (input) => {
+      const url = String(input);
+      if (url.endsWith('/uploads/grant')) {
+        return Response.json({
+          reservationId: 'reservation-mine',
+          objectId: 'object-mine',
+          uploadUrl: 'https://upload.test/object-mine',
+          requiredHeaders: [],
+        });
+      }
+      if (url === 'https://upload.test/object-mine') {
+        return new Response('nope', { status: 500, statusText: 'Error' });
+      }
+      if (url.endsWith('/uploads/reservation-mine/cancel')) {
+        canceled = true;
+        return Response.json({
+          reservationId: 'reservation-mine',
+          canceledAt: '~2026.1.1',
+        });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    }) as typeof fetch;
+
+    try {
+      await expect(
+        createBucketsDeps().buckets.upload({
+          target: TARGET,
+          filePath,
+          parentId: null,
+        })
+      ).rejects.toThrow('Bucket upload failed after the host authorized');
+      expect(canceled).toBe(true);
+      expect(actions).toContainEqual({
+        type: 'cancel-upload',
+        flag: TARGET.flag,
+        sessionId: 'upload-token',
+        reason: expect.any(String),
+      });
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('cancels a text download as soon as it exceeds the 2 MiB limit', async () => {
     const entry: BucketsEntry = {
       ...pendingFile(12, 'object-read'),
