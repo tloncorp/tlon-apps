@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 import type {
   PluginHookCronChangedEvent,
@@ -81,12 +84,19 @@ function makeCronService(job = makeJob()): {
 }
 
 describe('cron auth quarantine', () => {
+  const temporaryDirs: string[] = [];
+
   beforeEach(() => {
     _testing.clear();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     _testing.clear();
+    await Promise.all(
+      temporaryDirs
+        .splice(0)
+        .map((directory) => rm(directory, { recursive: true, force: true }))
+    );
   });
 
   it('pauses the job at the threshold and sends one actionable notice', async () => {
@@ -183,7 +193,7 @@ describe('cron auth quarantine', () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
-  it('restores the schedule when the owner notice cannot be delivered', async () => {
+  it('leaves the schedule safely paused when the owner notice cannot be delivered', async () => {
     const job = makeJob();
     const { service, update } = makeCronService(job);
     const notify = vi.fn(async () => false);
@@ -197,13 +207,10 @@ describe('cron auth quarantine', () => {
       status: 'notification-failed',
       jobId: 'job-1',
       consecutiveErrors: 3,
-      restored: true,
+      restored: false,
     });
-    expect(update.mock.calls).toEqual([
-      ['job-1', { enabled: false }],
-      ['job-1', { enabled: true }],
-    ]);
-    expect(job.enabled).toBe(true);
+    expect(update.mock.calls).toEqual([['job-1', { enabled: false }]]);
+    expect(job.enabled).toBe(false);
   });
 
   it('uses a local auth streak on hosts without structured counters', async () => {
@@ -222,6 +229,49 @@ describe('cron auth quarantine', () => {
     await handleCronAuthQuarantine(event, { getCron: () => service });
     await handleCronAuthQuarantine(event, { getCron: () => service });
     await handleCronAuthQuarantine(event, { getCron: () => service });
+    expect(update).toHaveBeenCalledWith('job-1', { enabled: false });
+  });
+
+  it('uses run time before a reusable main-session id for event identity', async () => {
+    const { service, update } = makeCronService();
+    setCronAuthQuarantineNotifier('default', async () => true);
+    const ctx = { getCron: () => service };
+
+    await handleCronAuthQuarantine(
+      makeEvent({ sessionId: 'main', runAtMs: 100 }),
+      ctx
+    );
+    await handleCronAuthQuarantine(
+      makeEvent({ sessionId: 'main', runAtMs: 100 }),
+      ctx
+    );
+    await handleCronAuthQuarantine(
+      makeEvent({ sessionId: 'main', runAtMs: 200 }),
+      ctx
+    );
+    expect(update).not.toHaveBeenCalled();
+    await handleCronAuthQuarantine(
+      makeEvent({ sessionId: 'main', runAtMs: 300 }),
+      ctx
+    );
+    expect(update).toHaveBeenCalledWith('job-1', { enabled: false });
+  });
+
+  it('continues an authentication streak after a gateway restart', async () => {
+    const workspaceDir = await mkdtemp(
+      path.join(tmpdir(), 'tlon-cron-auth-quarantine-')
+    );
+    temporaryDirs.push(workspaceDir);
+    const { service, update } = makeCronService();
+    setCronAuthQuarantineNotifier('default', async () => true);
+    const ctx = { getCron: () => service, workspaceDir };
+
+    await handleCronAuthQuarantine(makeEvent({ runAtMs: 100 }), ctx);
+    _testing.clearMemoryOnly();
+    await handleCronAuthQuarantine(makeEvent({ runAtMs: 200 }), ctx);
+    _testing.clearMemoryOnly();
+    await handleCronAuthQuarantine(makeEvent({ runAtMs: 300 }), ctx);
+
     expect(update).toHaveBeenCalledWith('job-1', { enabled: false });
   });
 

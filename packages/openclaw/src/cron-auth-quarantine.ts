@@ -11,6 +11,9 @@ import type {
   PluginHookGatewayContext,
   PluginHookGatewayCronJob,
 } from 'openclaw/plugin-sdk/types';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 
 import { sharedMap } from './shared-state.js';
 
@@ -93,26 +96,115 @@ function normalizedReason(value: unknown): string | null {
 
 function eventIdentity(event: PluginHookCronChangedEvent): string | null {
   if (event.runId?.trim()) return `run:${event.runId.trim()}`;
-  if (event.sessionId?.trim()) return `session:${event.sessionId.trim()}`;
   if (typeof event.runAtMs === 'number' && Number.isFinite(event.runAtMs)) {
     return `at:${event.runAtMs}`;
   }
+  if (event.sessionId?.trim()) return `session:${event.sessionId.trim()}`;
   return null;
 }
 
-function resetAuthenticationStreak(jobId: string): void {
-  authFailureStreaks.delete(jobId);
+function streakStorePath(workspaceDir: string): string {
+  return path.join(workspaceDir, '.openclaw', 'tlon-cron-auth-streaks.json');
 }
 
-function recordAuthenticationFailure(
-  jobId: string,
-  event: PluginHookCronChangedEvent
-): number {
-  const previous = authFailureStreaks.get(jobId);
-  const identity = eventIdentity(event);
-  if (identity && previous?.lastEventId === identity) {
-    return previous.count;
+async function readPersistedStreaks(
+  workspaceDir: string
+): Promise<Record<string, AuthFailureStreak>> {
+  try {
+    const parsed: unknown = JSON.parse(
+      await readFile(streakStorePath(workspaceDir), 'utf8')
+    );
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return {};
+    }
+    const valid: Record<string, AuthFailureStreak> = {};
+    for (const [jobId, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== 'object') continue;
+      const record = value as { count?: unknown; lastEventId?: unknown };
+      if (
+        typeof record.count === 'number' &&
+        Number.isInteger(record.count) &&
+        record.count > 0 &&
+        (record.lastEventId === null || typeof record.lastEventId === 'string')
+      ) {
+        valid[jobId] = {
+          count: record.count,
+          lastEventId: record.lastEventId,
+        };
+      }
+    }
+    return valid;
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 'ENOENT') return {};
+    return {};
   }
+}
+
+async function writePersistedStreaks(
+  workspaceDir: string,
+  streaks: Record<string, AuthFailureStreak>
+): Promise<void> {
+  const target = streakStorePath(workspaceDir);
+  await mkdir(path.dirname(target), { recursive: true, mode: 0o700 });
+  const temporary = `${target}.${randomUUID()}.tmp`;
+  await writeFile(temporary, `${JSON.stringify(streaks)}\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  });
+  await rename(temporary, target);
+}
+
+let persistedMutation = Promise.resolve();
+
+async function mutatePersistedStreaks<T>(
+  workspaceDir: string,
+  mutate: (streaks: Record<string, AuthFailureStreak>) => T
+): Promise<T> {
+  let result!: T;
+  const operation = persistedMutation.then(async () => {
+    const streaks = await readPersistedStreaks(workspaceDir);
+    result = mutate(streaks);
+    await writePersistedStreaks(workspaceDir, streaks);
+  });
+  persistedMutation = operation.catch(() => undefined);
+  await operation;
+  return result;
+}
+
+async function resetAuthenticationStreak(
+  jobId: string,
+  workspaceDir?: string
+): Promise<void> {
+  authFailureStreaks.delete(jobId);
+  if (workspaceDir) {
+    await mutatePersistedStreaks(workspaceDir, (streaks) => {
+      delete streaks[jobId];
+    });
+  }
+}
+
+async function recordAuthenticationFailure(
+  jobId: string,
+  event: PluginHookCronChangedEvent,
+  workspaceDir?: string
+): Promise<number> {
+  const identity = eventIdentity(event);
+  if (workspaceDir) {
+    const next = await mutatePersistedStreaks(workspaceDir, (streaks) => {
+      const previous = streaks[jobId];
+      if (identity && previous?.lastEventId === identity) return previous;
+      const value = {
+        count: (previous?.count ?? 0) + 1,
+        lastEventId: identity,
+      };
+      streaks[jobId] = value;
+      return value;
+    });
+    authFailureStreaks.set(jobId, next);
+    return next.count;
+  }
+  const previous = authFailureStreaks.get(jobId);
+  if (identity && previous?.lastEventId === identity) return previous.count;
   const count = (previous?.count ?? 0) + 1;
   authFailureStreaks.set(jobId, { count, lastEventId: identity });
   return count;
@@ -174,14 +266,6 @@ function notifierForJob(
   return notifierMap.values().next().value ?? null;
 }
 
-function revision(value: unknown): number | null {
-  if (!value || typeof value !== 'object') return null;
-  const updatedAtMs = (value as { updatedAtMs?: unknown }).updatedAtMs;
-  return typeof updatedAtMs === 'number' && Number.isFinite(updatedAtMs)
-    ? updatedAtMs
-    : null;
-}
-
 export function formatCronAuthQuarantineNotice(
   job: Pick<PluginHookGatewayCronJob, 'id' | 'name'>,
   failures: number
@@ -202,10 +286,10 @@ export function formatCronAuthQuarantineNotice(
  */
 export async function handleCronAuthQuarantine(
   event: PluginHookCronChangedEvent,
-  ctx: Pick<PluginHookGatewayContext, 'getCron'>
+  ctx: Pick<PluginHookGatewayContext, 'getCron' | 'workspaceDir'>
 ): Promise<CronAuthQuarantineResult> {
   if (event.action === 'removed') {
-    resetAuthenticationStreak(event.jobId);
+    await resetAuthenticationStreak(event.jobId, ctx.workspaceDir);
     return { status: 'ignored', reason: 'not-finished-auth-error' };
   }
   if (event.action !== 'finished') {
@@ -219,22 +303,26 @@ export async function handleCronAuthQuarantine(
   const jobs = await service.list({ includeDisabled: true });
   const job = jobs.find((candidate) => candidate.id === event.jobId);
   if (!job) {
-    resetAuthenticationStreak(event.jobId);
+    await resetAuthenticationStreak(event.jobId, ctx.workspaceDir);
     return { status: 'ignored', reason: 'job-not-found' };
   }
   if (event.status !== 'error') {
-    resetAuthenticationStreak(job.id);
+    await resetAuthenticationStreak(job.id, ctx.workspaceDir);
     return { status: 'ignored', reason: 'not-finished-auth-error' };
   }
   if (job.enabled === false) {
     return { status: 'ignored', reason: 'already-disabled' };
   }
   if (!isAuthenticationFailure(event, job)) {
-    resetAuthenticationStreak(job.id);
+    await resetAuthenticationStreak(job.id, ctx.workspaceDir);
     return { status: 'ignored', reason: 'not-authentication-failure' };
   }
 
-  const failures = recordAuthenticationFailure(job.id, event);
+  const failures = await recordAuthenticationFailure(
+    job.id,
+    event,
+    ctx.workspaceDir
+  );
   if (failures < CRON_AUTH_QUARANTINE_THRESHOLD) {
     return { status: 'ignored', reason: 'below-threshold' };
   }
@@ -250,29 +338,19 @@ export async function handleCronAuthQuarantine(
 
   activeClaims.set(job.id, true);
   try {
-    const quarantined = await service.update(job.id, { enabled: false });
-    const quarantineRevision = revision(quarantined);
+    await service.update(job.id, { enabled: false });
     const ownerNotified = await notifier(
       formatCronAuthQuarantineNotice(job, failures)
     );
     if (!ownerNotified) {
-      // A silent pause would strand the owner. Restore the schedule so a later
-      // run can retry the quarantine once Tlon delivery is available again.
-      const current = (await service.list({ includeDisabled: true })).find(
-        (candidate) => candidate.id === job.id
-      );
-      const canRestore =
-        current?.enabled === false &&
-        quarantineRevision !== null &&
-        revision(current) === quarantineRevision;
-      if (canRestore) {
-        await service.update(job.id, { enabled: true });
-      }
+      // The cron service does not expose compare-and-swap updates. Never
+      // perform a read/check/write rollback that could overwrite an owner's
+      // concurrent edit; leave the failed job safely paused instead.
       return {
         status: 'notification-failed',
         jobId: job.id,
         consecutiveErrors: failures,
-        restored: canRestore,
+        restored: false,
       };
     }
     return {
@@ -290,5 +368,9 @@ export const _testing = {
     activeClaims.clear();
     authFailureStreaks.clear();
     notifierMap.clear();
+  },
+  clearMemoryOnly: () => {
+    activeClaims.clear();
+    authFailureStreaks.clear();
   },
 };
