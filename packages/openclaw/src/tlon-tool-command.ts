@@ -3,9 +3,14 @@ import {
   checkBlockedDiaryOperation,
   checkBlockedMigrationOperation,
   checkBlockedSendOperation,
+  checkBlockedStandaloneNotebookCreation,
   findFirstPositionalArgumentIndex,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
+  modelNotebookContentWriteTarget,
+  notebookNavigationNotice,
+  notebookWriteDestinationError,
+  notebookWriteRegistrationGroup,
   refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
@@ -277,7 +282,12 @@ export function findTlonSubcommandIndex(args: string[]): number {
 
 export type BlockedTlonOperation = {
   message: string;
-  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  reason:
+    | 'diary_operation'
+    | 'migration_operation'
+    | 'send_operation'
+    | 'standalone_notebook_creation'
+    | 'unverified_notebook_write';
   diaryNest?: string;
 };
 
@@ -307,6 +317,14 @@ export function checkBlockedTlonOperation(
       diaryNest: diary.nest,
     };
   }
+  const standaloneNotebook =
+    checkBlockedStandaloneNotebookCreation(commandArgs);
+  if (standaloneNotebook) {
+    return {
+      message: standaloneNotebook,
+      reason: 'standalone_notebook_creation',
+    };
+  }
   const send = checkBlockedSendOperation(commandArgs);
   return send ? { message: send, reason: 'send_operation' } : null;
 }
@@ -314,11 +332,13 @@ export function checkBlockedTlonOperation(
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
+  ownerShip?: string | null;
   logError?: (message: string) => void;
 };
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
   return async function execute(_id: string, params: { command: string }) {
+    let navigationNotice: string | null = null;
     try {
       const args = shellSplitCommand(params.command);
 
@@ -362,15 +382,93 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
+      const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+      const notebookWriteTarget = modelNotebookContentWriteTarget(commandArgs);
+      if (notebookWriteTarget) {
+        let destinationError: string;
+        try {
+          const credentialPrefix = subIdx > 0 ? args.slice(0, subIdx) : [];
+          const groupsJson = await deps.runCommand([
+            ...credentialPrefix,
+            'channels',
+            'groups',
+          ]);
+          const groupId = notebookWriteRegistrationGroup(
+            groupsJson,
+            notebookWriteTarget
+          );
+          const groupInfo = groupId
+            ? await deps.runCommand([
+                ...credentialPrefix,
+                'groups',
+                'info',
+                groupId,
+              ])
+            : undefined;
+          const channelInfo = groupId
+            ? await deps.runCommand([
+                ...credentialPrefix,
+                'channels',
+                'info',
+                notebookWriteTarget,
+              ])
+            : undefined;
+          destinationError =
+            notebookWriteDestinationError(
+              groupsJson,
+              notebookWriteTarget,
+              deps.ownerShip,
+              { groupInfo, channelInfo }
+            ) ?? '';
+        } catch (error) {
+          destinationError =
+            `Blocked: cannot write to ${notebookWriteTarget} because its current ` +
+            `group registration and owner visibility could not be verified: ${
+              error instanceof Error ? error.message : String(error)
+            }`;
+        }
+        if (destinationError) {
+          deps.logError?.(
+            `Blocked tlon tool operation: reason=unverified_notebook_write subcommand=notes nest=${notebookWriteTarget}`
+          );
+          return {
+            content: [{ type: 'text' as const, text: destinationError }],
+            details: {
+              status: 'blocked',
+              blocked: true,
+              reason: 'unverified_notebook_write',
+            },
+          };
+        }
+      }
+
+      const subIdxForNotice = findTlonSubcommandIndex(args);
+      navigationNotice = notebookNavigationNotice(
+        subIdxForNotice >= 0 ? args.slice(subIdxForNotice) : []
+      );
       const output = await deps.runCommand(args);
       return {
-        content: [{ type: 'text' as const, text: output }],
+        content: [
+          {
+            type: 'text' as const,
+            text: navigationNotice
+              ? `${output.trimEnd()}\n\n${navigationNotice}`
+              : output,
+          },
+        ],
         details: undefined,
       };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       return {
-        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        content: [
+          {
+            type: 'text' as const,
+            text: navigationNotice
+              ? `Error: ${message}\n\n${navigationNotice}`
+              : `Error: ${message}`,
+          },
+        ],
         details: { status: 'error', error: message },
       };
     }

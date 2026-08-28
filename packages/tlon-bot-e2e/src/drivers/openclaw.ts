@@ -452,7 +452,11 @@ async function waitForOpenClawBaseServices(ctx: RuntimeContext): Promise<void> {
   });
   for (const [label, endpoint] of Object.entries(ctx.endpoints.ships)) {
     await waitForShipLogin(endpoint.hostUrl, endpoint.code, {
-      timeoutMs: 180_000,
+      // A cold arm64 run can spend nearly three minutes extracting the three
+      // cached piers before Vere exposes login. Keep the readiness deadline
+      // above that observed cold-start boundary so scenarios, not boot timing,
+      // determine the result.
+      timeoutMs: 300_000,
       intervalMs: 3_000,
       description: `OpenClaw ${label} fake ship login`,
     });

@@ -508,8 +508,14 @@ describe('notes writes call operations with typed args', () => {
     expect(context.calls.notesV1).toEqual([
       { op: 'createNotebook', args: [{ title: 'New Notebook' }] },
     ]);
-    expect(context.stdout()).toContain('✓ Notebook created');
+    expect(context.stdout()).toContain('✓ Standalone notebook created');
     expect(context.stdout()).toContain('Nest: notes/~zod/new-book');
+    expect(context.stdout()).toContain(
+      'Visibility: standalone backend notebook; not listed as a Tlon Messenger group channel.'
+    );
+    expect(context.stdout()).toContain(
+      'tlon channels create ~host/group-slug "Title" --kind notes'
+    );
   });
 
   it('preserves option-like words in notebook titles', async () => {

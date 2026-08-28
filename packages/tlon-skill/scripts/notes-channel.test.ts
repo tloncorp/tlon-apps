@@ -15,24 +15,36 @@ const NEW_NEST = 'notes/~zod/newbook';
 const READERS = ['members'];
 
 interface MakeDepsOptions {
+  administer?: NotesChannelDeps['assertCanAdministerGroup'];
   create?: NotesChannelDeps['createGroupNotesNotebook'];
+  delete?: NotesChannelDeps['deleteStandaloneNotebook'];
   channelIds?: NotesChannelDeps['getGroupChannelIds'];
   readers?: NotesChannelDeps['getChannelReaders'];
 }
 
 function makeDeps(options: MakeDepsOptions = {}) {
   const calls = {
+    administer: [] as string[],
     create: [] as Array<
       Parameters<NotesChannelDeps['createGroupNotesNotebook']>[0]
     >,
+    delete: [] as string[],
     channelIds: [] as string[],
     readers: [] as [string, string][],
     sleep: [] as number[],
   };
   const deps: NotesChannelDeps = {
+    assertCanAdministerGroup: async (groupId) => {
+      calls.administer.push(groupId);
+      await options.administer?.(groupId);
+    },
     createGroupNotesNotebook: async (input) => {
       calls.create.push(input);
       return options.create ? options.create(input) : SUMMARY;
+    },
+    deleteStandaloneNotebook: async (nest) => {
+      calls.delete.push(nest);
+      await options.delete?.(nest);
     },
     getGroupChannelIds: async (groupId) => {
       calls.channelIds.push(groupId);
@@ -66,6 +78,7 @@ describe('createNotesChannelInGroup', () => {
         readers: READERS,
       },
     ]);
+    expect(calls.administer).toEqual(['~zod/group']);
     expect(calls.readers).toEqual([['~zod/group', NEW_NEST]]);
   });
 
@@ -158,7 +171,7 @@ describe('createNotesChannelInGroup', () => {
     expect(calls.sleep).toEqual([500, 500]);
   });
 
-  it('leaves an unverified notebook in place when listing stays absent', async () => {
+  it('rolls back a standalone notebook when listing stays absent', async () => {
     const created: string[] = [];
     const { calls, deps } = makeDeps({ channelIds: async () => [] });
     try {
@@ -175,10 +188,28 @@ describe('createNotesChannelInGroup', () => {
     } catch (error) {
       expect(String(error)).toContain('host may not support group-mode notes');
       expect(String(error)).not.toContain('PR 7');
-      expect(String(error)).toContain('Left the notebook in place');
+      expect(String(error)).toContain('Rolled back the standalone notebook');
     }
     expect(created).toEqual([NEW_NEST]);
     expect(calls.channelIds).toHaveLength(5);
+    expect(calls.delete).toEqual([NEW_NEST]);
+  });
+
+  it('reports a failed standalone notebook rollback', async () => {
+    const { calls, deps } = makeDeps({
+      channelIds: async () => [],
+      delete: async () => {
+        throw new Error('delete denied');
+      },
+    });
+
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~zod/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).rejects.toThrow('rollback failed: delete denied');
+    expect(calls.delete).toEqual([NEW_NEST]);
   });
 
   it('fails as unverifiable when the final group read fails', async () => {
@@ -207,6 +238,23 @@ describe('createNotesChannelInGroup', () => {
         deps
       )
     ).rejects.toThrow('denied');
+    expect(calls.channelIds).toEqual([]);
+  });
+
+  it('refuses before creating when the acting ship cannot administer the group', async () => {
+    const { calls, deps } = makeDeps({
+      administer: async () => {
+        throw new Error('not an admin');
+      },
+    });
+
+    await expect(
+      createNotesChannelInGroup(
+        { groupId: '~bus/group', title: 'New', readers: READERS },
+        deps
+      )
+    ).rejects.toThrow('not an admin');
+    expect(calls.create).toEqual([]);
     expect(calls.channelIds).toEqual([]);
   });
 

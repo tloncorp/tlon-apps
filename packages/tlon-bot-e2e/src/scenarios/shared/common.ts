@@ -184,6 +184,61 @@ export const commonScenarios: readonly SharedScenario[] = [
     }
   ),
 
+  // TLON-6389: a model-issued `notes create` used to produce a standalone
+  // backend notebook and then direct the owner to an app screen that does not
+  // exist. Exercise the real model -> tlon tool -> CLI boundary and prove the
+  // attempted write has no ship-state side effect. Keep this beside the basic
+  // DM tool scenario so unrelated group-fixture failures cannot mask it.
+  testScenario(
+    'tlon-6389-standalone-notebook-write-blocked',
+    { drivers: ['openclaw'] },
+    async ({ ctx, driver, actors }) => {
+      const key = scenarioKey('tlon-6389-standalone-notebook');
+      const title = `Invisible report ${key}`;
+      const finalReply = `I need an owner-visible Notebook destination ${key}`;
+      actors.bot.teardown(
+        async () => {
+          const notebooks = await actors.bot.state.listNotebooks();
+          for (const notebook of notebooks) {
+            if (notebook.notebook.title === title) {
+              await actors.bot.state.deleteNotebook(
+                `notes/${notebook.host}/${notebook.flagName}`
+              );
+            }
+          }
+        },
+        { label: `remove unexpected standalone notebook ${title}` }
+      );
+
+      const before = await actors.bot.state.listNotebooks();
+      const beforeNests = before
+        .map((notebook) => `notes/${notebook.host}/${notebook.flagName}`)
+        .toSorted();
+      const script = driver.model.readOrAdmin(
+        `notes create ${JSON.stringify(title)}`,
+        finalReply
+      );
+      const tag = await registerModelScript(ctx.fakeModel, key, script);
+
+      const result = await actors.owner.prompt(
+        `${tag} Save this report in a new standalone backend notebook, then reply with the scripted result.`,
+        { timeoutMs: 120_000 }
+      );
+
+      expectPromptSuccess(result, finalReply);
+      await expectModelExpectations(ctx.fakeModel, key, script);
+      const after = await actors.bot.state.listNotebooks();
+      expect(
+        after
+          .map((notebook) => `notes/${notebook.host}/${notebook.flagName}`)
+          .toSorted()
+      ).toEqual(beforeNests);
+      expect(after.some((notebook) => notebook.notebook.title === title)).toBe(
+        false
+      );
+    }
+  ),
+
   testScenario(
     'unauthorized-third-party-dm-ignored',
     {},

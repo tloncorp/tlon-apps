@@ -85,13 +85,13 @@ import {
 } from './cli-utils';
 import {
   type RawGroupForAdminVerification,
-  actingShipCanAdminister,
   getShipRecordValue,
   seatHasAdminRole,
   seatHasRole,
   shipIsBanned,
   shipIsSeated,
 } from './commands/groups-verification';
+import { assertGroupAdminAccess } from './group-admin-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
 
@@ -625,60 +625,6 @@ function getGroupHost(groupId: string): string {
 }
 
 /**
- * Refuse an admin mutation up front when the acting ship can't perform it, instead
- * of firing a poke that a foreign host silently drops while the CLI reports success.
- *
- * A poke ack means "my ship forwarded this," not "the host applied it" — so this
- * reads the group's actual state and checks the acting ship is the host or an admin
- * before any mutation runs. `action` is the user-facing verb (e.g. "promote").
- *
- * Retries like the post-poke verification paths: on a foreign-hosted group the local
- * snapshot can lag a just-granted admin role, so a single stale read shouldn't hard
- * fail an action the host would now accept. The happy path returns on the first
- * attempt; only a (transient or genuine) rejection waits.
- */
-async function assertActingShipCanAdminister(
-  groupId: string,
-  action: string
-): Promise<void> {
-  const actingShip = normalizeShip(getCurrentUserId());
-  const hostShip = getGroupHost(groupId);
-
-  let lastReason: string | null = null;
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
-    try {
-      const rawGroup = await getRawGroupForAdminVerification(groupId);
-      const result = actingShipCanAdminister(
-        rawGroup,
-        actingShip,
-        hostShip,
-        normalizeShip
-      );
-      if (result.ok) {
-        return;
-      }
-      lastReason = result.reason;
-    } catch (err) {
-      lastError = err;
-    }
-
-    if (attempt < VERIFY_ATTEMPTS) {
-      await sleep(VERIFY_DELAY_MS);
-    }
-  }
-
-  if (lastReason) {
-    throw new Error(`Can't ${action} in ${groupId}: ${lastReason}`);
-  }
-
-  throw new Error(
-    `Can't ${action} in ${groupId}: could not read group state: ${lastError}`
-  );
-}
-
-/**
  * Scry-poll the group's actual state until every target ship satisfies `isSatisfied`,
  * or attempts are exhausted. One scry per attempt covers all ships — never poll per
  * ship. On exhaustion, throws naming the still-unverified ships via `describeFailure`.
@@ -1129,7 +1075,7 @@ async function updateGroup(
 // Kick members from a group
 async function kickMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'kick');
+  await assertGroupAdminAccess(groupId, 'kick');
 
   console.log(`Kicking ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -1145,7 +1091,7 @@ async function kickMembers(groupId: string, ships: string[]) {
 // Ban members from a group
 async function banMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'ban');
+  await assertGroupAdminAccess(groupId, 'ban');
 
   console.log(`Banning ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -1161,7 +1107,7 @@ async function banMembers(groupId: string, ships: string[]) {
 // Unban members from a group
 async function unbanMembers(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'unban');
+  await assertGroupAdminAccess(groupId, 'unban');
 
   console.log(`Unbanning ${normalizedShips.join(', ')} from ${groupId}...`);
 
@@ -1232,7 +1178,7 @@ async function updateRole(
 // Assign a role to members
 async function assignRole(groupId: string, roleId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'assign roles');
+  await assertGroupAdminAccess(groupId, 'assign roles');
 
   console.log(
     `Assigning role "${roleId}" to ${normalizedShips.join(', ')} in ${groupId}...`
@@ -1251,7 +1197,7 @@ async function assignRole(groupId: string, roleId: string, ships: string[]) {
 // Remove a role from members
 async function removeRole(groupId: string, roleId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'remove roles');
+  await assertGroupAdminAccess(groupId, 'remove roles');
 
   console.log(
     `Removing role "${roleId}" from ${normalizedShips.join(', ')} in ${groupId}...`
@@ -1369,7 +1315,7 @@ async function addNotesChannel(groupId: string, title: string) {
 // Promote a member to admin by assigning them an admin role
 async function promoteMemberToAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'promote');
+  await assertGroupAdminAccess(groupId, 'promote');
   await ensureAdminRole(groupId);
 
   console.log(
@@ -1389,7 +1335,7 @@ async function promoteMemberToAdmin(groupId: string, ships: string[]) {
 // Demote a member from admin by removing them from every admin-marked role
 async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   const normalizedShips = ships.map(normalizeShip);
-  await assertActingShipCanAdminister(groupId, 'demote');
+  await assertGroupAdminAccess(groupId, 'demote');
 
   // The host is an admin unconditionally, so it can't be demoted. Refuse up front
   // rather than strip its roles and falsely report success on a no-op.

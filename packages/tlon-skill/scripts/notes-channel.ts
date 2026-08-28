@@ -17,6 +17,9 @@ export interface GroupListingPollDeps {
 }
 
 export interface NotesChannelDeps extends GroupListingPollDeps {
+  // Fail closed before `%notes` creates anything unless the acting ship can
+  // administer the target group.
+  assertCanAdministerGroup: (groupId: string) => Promise<void>;
   // POST the group-bound notebook via `@tloncorp/api` notesV1 and return its
   // summary (the API unwraps the envelope / rejects errors).
   createGroupNotesNotebook: (input: {
@@ -24,6 +27,9 @@ export interface NotesChannelDeps extends GroupListingPollDeps {
     group: { host: string; flagName: string };
     readers: string[];
   }) => Promise<NotesV1NotebookSummary>;
+  // Remove the backend notebook when successful group reads prove that the
+  // requested group registration never appeared.
+  deleteStandaloneNotebook: (nest: string) => Promise<void>;
   // Read the reader roles for a channel in a group (used for post-create
   // reader verification). Returns null if the channel is not found.
   getChannelReaders: (
@@ -38,6 +44,16 @@ export interface NotesChannelInput {
   title: string;
   readers: string[];
   onCreated?: (nest: string) => void;
+}
+
+/** A definite pre-write rejection; callers must not offer orphan cleanup. */
+export class NotesChannelPreflightError extends Error {
+  override name = 'NotesChannelPreflightError';
+}
+
+/** The created backend notebook was definitely removed before this error. */
+export class NotesChannelRolledBackError extends Error {
+  override name = 'NotesChannelRolledBackError';
 }
 
 export type GroupListingGoal = 'present-in-all' | 'absent-from-all';
@@ -115,6 +131,12 @@ export async function createNotesChannelInGroup(
   const [groupHost, groupName] = groupParts;
   const readers = input.readers;
 
+  try {
+    await deps.assertCanAdministerGroup(input.groupId);
+  } catch (error) {
+    throw new NotesChannelPreflightError(errorMessage(error));
+  }
+
   deps.log(`Creating %notes channel "${input.title}" in ${input.groupId}...`);
 
   const summary = await deps.createGroupNotesNotebook({
@@ -163,10 +185,20 @@ export async function createNotesChannelInGroup(
     return nest;
   }
   if (verdict === 'not-confirmed') {
-    throw commandError(
+    try {
+      await deps.deleteStandaloneNotebook(nest);
+    } catch (error) {
+      throw commandError(
+        `%notes created ${nest} but it did not register as a channel in ${input.groupId}, ` +
+          `and rollback failed: ${errorMessage(error)}. ` +
+          `Do not write to this notebook; remove it with ` +
+          `\`tlon notes notebook-delete ${nest} --yes\`.`
+      );
+    }
+    throw new NotesChannelRolledBackError(
       `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
         `the host may not support group-mode notes, or the listing poke has not arrived. ` +
-        `Left the notebook in place — verify it manually and remove it if it is a stray solo notebook.`
+        `Rolled back the standalone notebook; no Notebook channel was created.`
     );
   }
   throw commandError(

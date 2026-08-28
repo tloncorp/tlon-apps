@@ -31,7 +31,8 @@ export const NOTES_HELP = `Usage: tlon notes <command>
 Manage %notes notebooks (Markdown-first notebooks). Notebooks are addressed as
 nests of the form notes/~host/name. Note bodies are plain Markdown.
 
-For Tlon app/group notebooks, create a notes channel with:
+For Tlon app/group notebooks, choose a group you host or administer, then create
+a notes channel with:
   tlon channels create ~host/group-slug "Title" --kind notes
 
 The notes create command is for standalone %notes notebooks only; it does not
@@ -89,7 +90,7 @@ export const NOTES_COMMAND_HELP: Record<string, string> = {
     'Usage: tlon notes notes <nest>\nExample: tlon notes notes notes/~zod/blog',
   note: 'Usage: tlon notes note <nest> <id>\nExample: tlon notes note notes/~zod/blog 12',
   create:
-    'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Tlon app/group notebooks, use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
+    'Usage: tlon notes create <title>\nCreates a standalone %notes notebook only. For Tlon app/group notebooks, choose a group you host or administer, then use:\n  tlon channels create ~host/group-slug "Title" --kind notes',
   'note-create':
     'Usage: tlon notes note-create <nest> <folder-id|root> <title> (--body <file> | --stdin | --markdown <file>)',
   'note-update':
@@ -817,9 +818,17 @@ async function runNote(
 
 async function runCreate(title: string, deps: NotesDeps): Promise<number> {
   const summary = await deps.notesV1.createNotebook({ title });
-  writeLine(deps.stdout, '✓ Notebook created');
+  writeLine(deps.stdout, '✓ Standalone notebook created');
   writeLine(deps.stdout, `  Nest: ${notebookNest(summary)}`);
   writeLine(deps.stdout, `  ID: ${summary.notebook.id}`);
+  writeLine(
+    deps.stdout,
+    '  Visibility: standalone backend notebook; not listed as a Tlon Messenger group channel.'
+  );
+  writeLine(
+    deps.stdout,
+    '  For an app-visible Notebook, use: tlon channels create ~host/group-slug "Title" --kind notes'
+  );
   return 0;
 }
 

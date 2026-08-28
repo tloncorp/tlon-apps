@@ -362,6 +362,287 @@ export function checkBlockedMigrationOperation(args: string[]): string | null {
   return subcommand === 'migrate-plan' ? null : migrationBlockedMessage(nest);
 }
 
+/**
+ * Keep app-invisible standalone notebooks out of model-issued writes.
+ *
+ * The CLI remains available to an operator who deliberately needs a raw
+ * `%notes` notebook. Tlonbot should keep output in the requesting conversation
+ * unless the owner explicitly chooses a reachable Notebook channel.
+ */
+export function checkBlockedStandaloneNotebookCreation(
+  args: string[]
+): string | null {
+  const command = args[0]?.toLowerCase();
+  const subcommand = args[1]?.toLowerCase();
+  if (command !== 'notes' || subcommand !== 'create') return null;
+
+  // Let the packaged CLI answer help and malformed invocations. Only block an
+  // actual create attempt with a title.
+  if (args.slice(2).some((arg) => HELP_ARGS.has(arg)) || !args[2]) return null;
+
+  return (
+    'Blocked: `notes create` makes a standalone backend notebook that is not ' +
+    'listed in Tlon Messenger. Send replies, alerts, and status updates to ' +
+    'the requesting conversation unless the owner chose another destination. ' +
+    'If the owner explicitly asked to save durable reference material, use ' +
+    '`channels groups` to find the named Notebook or the existing `Updates` ' +
+    'Notebook in the relevant Tlonbot group. Prefer the current group; from ' +
+    'a DM, confirm the destination when more than one owner-visible Notebook ' +
+    'could fit. Then use `channels groups` to verify the Notebook is registered ' +
+    'and its reader roles include the owner (group membership alone is not ' +
+    'enough). Create a new group-backed Notebook with ' +
+    '`channels create ~host/group-slug "Title" --kind notes` only when the ' +
+    'owner explicitly asks for a new Notebook. Never silently choose an ' +
+    'ambiguous group.'
+  );
+}
+
+const NOTE_PATH_READ_OPERATIONS = new Set([
+  'show',
+  'notes',
+  'note',
+  'folders',
+  'folder',
+  'history',
+  'members',
+]);
+const NOTEBOOK_CONTENT_WRITE_OPERATIONS = new Set([
+  'note-create',
+  'note-update',
+  'note-rename',
+  'note-move',
+  'note-delete',
+  'folder-create',
+  'folder-rename',
+  'folder-move',
+  'folder-delete',
+]);
+
+export function modelNotebookContentWriteTarget(args: string[]): string | null {
+  if (args[0]?.toLowerCase() !== 'notes' || wantsHelp(args.slice(1))) {
+    return null;
+  }
+  if (!NOTEBOOK_CONTENT_WRITE_OPERATIONS.has(args[1]?.toLowerCase() ?? '')) {
+    return null;
+  }
+  return canonicalNotesNest(args[2]);
+}
+
+function normalizeShipForComparison(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  return trimmed.startsWith('~') ? trimmed : `~${trimmed}`;
+}
+
+function roleIds(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const roles: string[] = [];
+  for (const entry of value) {
+    if (typeof entry === 'string') {
+      roles.push(entry);
+    } else if (
+      entry &&
+      typeof entry === 'object' &&
+      typeof (entry as { roleId?: unknown }).roleId === 'string'
+    ) {
+      roles.push((entry as { roleId: string }).roleId);
+    } else {
+      return null;
+    }
+  }
+  return roles;
+}
+
+function groupForNotebook(
+  groups: unknown[],
+  nest: string
+): Record<string, unknown> | null {
+  for (const rawGroup of groups) {
+    if (!rawGroup || typeof rawGroup !== 'object') continue;
+    const group = rawGroup as { channels?: unknown };
+    if (!Array.isArray(group.channels)) continue;
+    const registered = group.channels.some(
+      (candidate) =>
+        candidate &&
+        typeof candidate === 'object' &&
+        ((candidate as { nest?: unknown }).nest === nest ||
+          (candidate as { id?: unknown }).id === nest)
+    );
+    if (registered) return rawGroup as Record<string, unknown>;
+  }
+  return null;
+}
+
+export function notebookWriteRegistrationGroup(
+  groupsJson: string,
+  nest: string
+): string | null {
+  try {
+    const parsed = JSON.parse(groupsJson);
+    if (!Array.isArray(parsed)) return null;
+    const group = groupForNotebook(parsed, nest);
+    return typeof group?.id === 'string' ? group.id : null;
+  } catch {
+    return null;
+  }
+}
+
+function ownerRolesFromGroupInfo(
+  groupInfo: string | undefined,
+  owner: string
+): string[] | null {
+  if (!groupInfo) return null;
+  const membersHeader = groupInfo.match(/^--- Members ---\s*$/im);
+  if (membersHeader?.index == null) return null;
+  const afterHeader = groupInfo.slice(
+    membersHeader.index + membersHeader[0].length
+  );
+  const nextSection = afterHeader.search(/^--- .+ ---\s*$/m);
+  const membersSection =
+    nextSection === -1 ? afterHeader : afterHeader.slice(0, nextSection);
+  const escapedOwner = owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = membersSection.match(
+    new RegExp(
+      `^\\s*${escapedOwner}(?:\\s+\\([^\\n)]*\\))?(?:\\s+\\[([^\\]]*)\\])?\\s*$`,
+      'im'
+    )
+  );
+  if (!match) return null;
+  return match[1]
+    ? match[1]
+        .split(',')
+        .map((role) => role.trim())
+        .filter(Boolean)
+    : [];
+}
+
+function readersFromChannelInfo(
+  channelInfo: string | undefined
+): string[] | null {
+  const match = channelInfo?.match(/^Readers:\s*(.+?)\s*$/im);
+  if (!match) return null;
+  if (match[1].toLowerCase() === '(all members)') return [];
+  return match[1]
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Validate a model-selected destination against the fresh `channels groups`
+ * response. Registration alone is insufficient: the configured owner must be
+ * a joined member (or host), and restricted channels must include one of the
+ * owner's roles. Missing or malformed permission data fails closed.
+ */
+export function notebookWriteDestinationError(
+  groupsJson: string,
+  nest: string,
+  ownerShip: string | null | undefined,
+  evidence?: { groupInfo?: string; channelInfo?: string }
+): string | null {
+  if (!ownerShip) {
+    return (
+      `Blocked: cannot write to ${nest} because no owner ship is configured ` +
+      'for visibility verification.'
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(groupsJson);
+  } catch {
+    return (
+      `Blocked: cannot write to ${nest} because the current group/channel ` +
+      'listing could not be parsed for visibility verification.'
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    return (
+      `Blocked: cannot write to ${nest} because the current group/channel ` +
+      'listing is malformed.'
+    );
+  }
+
+  const owner = normalizeShipForComparison(ownerShip);
+  const group = groupForNotebook(parsed, nest) as {
+    id?: unknown;
+    channels?: unknown;
+    members?: unknown;
+  } | null;
+  if (!group) {
+    return `Blocked: ${nest} is a standalone or stale backend notebook, not a currently registered Notebook channel. Choose a Notebook from \`channels groups\` first.`;
+  }
+
+  const groupId = typeof group.id === 'string' ? group.id : '';
+  const host = groupId.split('/')[0];
+  const ownerIsHost = !!host && normalizeShipForComparison(host) === owner;
+  if (ownerIsHost) return null;
+
+  const channels = Array.isArray(group.channels) ? group.channels : [];
+  const channel = channels.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === 'object' &&
+      ((candidate as { nest?: unknown }).nest === nest ||
+        (candidate as { id?: unknown }).id === nest)
+  ) as { readerRoles?: unknown } | undefined;
+  const members = Array.isArray(group.members) ? group.members : [];
+  const ownerMember = members.find((candidate) => {
+    if (!candidate || typeof candidate !== 'object') return false;
+    const member = candidate as { contactId?: unknown; status?: unknown };
+    return (
+      typeof member.contactId === 'string' &&
+      normalizeShipForComparison(member.contactId) === owner &&
+      (member.status == null || member.status === 'joined')
+    );
+  }) as { roles?: unknown } | undefined;
+
+  const ownerRoles = ownerMember
+    ? roleIds(ownerMember.roles)
+    : ownerRolesFromGroupInfo(evidence?.groupInfo, owner);
+  const readers =
+    roleIds(channel?.readerRoles) ??
+    readersFromChannelInfo(evidence?.channelInfo);
+  if (ownerRoles && readers) {
+    if (ownerRoles.includes('admin') || readers.length === 0) return null;
+    if (readers.some((readerRole) => ownerRoles.includes(readerRole))) {
+      return null;
+    }
+  }
+
+  return `Blocked: ${nest} is registered as a Notebook channel, but the configured owner ${owner} could not be verified as a reader. Choose an owner-visible Notebook or fix its reader roles first.`;
+}
+
+/**
+ * Add navigation semantics to model-facing reads of a `%notes` path. A nest is
+ * a backend identifier whether or not the notebook is registered in a group;
+ * it must never be presented as a route to a global app screen.
+ */
+export function notebookNavigationNotice(args: string[]): string | null {
+  if (args[0]?.toLowerCase() !== 'notes') return null;
+  const operation = args[1]?.toLowerCase() ?? '';
+  if (operation === 'list') {
+    return (
+      'Navigation: `%notes` lists backend notebooks, including standalone ' +
+      'notebooks that have no Tlon Messenger screen. A notebook is app-visible ' +
+      'only when its nest is registered as a Notebook channel inside a group; ' +
+      'verify with `channels info <notes-nest>`.'
+    );
+  }
+  if (!NOTE_PATH_READ_OPERATIONS.has(operation)) {
+    return null;
+  }
+  if (!canonicalizeNest(args[2], 'notes')) return null;
+
+  return (
+    'Navigation: a `notes/~host/name` nest is a backend identifier, not a ' +
+    'Tlon Messenger route, and it does not imply a global Notes or Notebooks ' +
+    'screen. An owner can open it in the app only when it is registered as a ' +
+    'Notebook channel inside a group; verify with `channels info <notes-nest>`. ' +
+    'Otherwise offer to copy or paste the content into a group channel or chat ' +
+    'the owner can reach.'
+  );
+}
+
 export function refusedDiaryNest(args: string[]): string | null {
   const migration = checkBlockedMigrationOperation(args);
   if (migration) {
