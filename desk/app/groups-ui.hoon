@@ -1,5 +1,5 @@
 /-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver,
-    a=activity, av=activity-ver
+    a=activity, av=activity-ver, b=buckets
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 /+  mark-warmer
@@ -255,6 +255,29 @@
           profile
       ==
     ``ui-init-9+!>(init)
+  ::
+  ::  /v10: buckets, whose writer roles no other agent models
+  ::
+      [%x %v10 %init ~]
+    =+  .^([=groups-ui:v9:gv =foreigns:v8:gv] (scry %gx %groups /v3/init/noun))
+    =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
+    =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
+    =+  .^(=activity:v10:av (scry %gx %activity /v6/activity/noun))
+    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  Safe to read unguarded: %buckets ships in this desk's bill, so it is
+    ::  running wherever this arm is.
+    =+  .^(buckets=(list summary:b) (scry %gx %buckets /v1/buckets/noun))
+    =/  init=init-10:u
+      :*  groups-ui
+          foreigns
+          channel
+          activity
+          pins
+          chat
+          profile
+          buckets
+      ==
+    ``ui-init-10+!>(init)
   ::
       [%x %v5 %changes since=@ ~]
     =+  .^(activity=json (scry %gx %activity /v4/activity/changes/[since.pole]/json))

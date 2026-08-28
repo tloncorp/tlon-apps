@@ -60,15 +60,6 @@ export const syncInitData = async (
   // the init endpoint version is capability-picked and this can run before
   // syncAppInfo on a fresh boot — apply the persisted capabilities first
   await syncReactionSupport();
-  // Buckets is optional on desk-less ships, so this starts alongside init but
-  // is not awaited with it. Promise.all waits for the slowest of its
-  // arguments, and catching a rejection does not change that -- so with the
-  // scry's own one-minute timeout, a wedged %buckets held the cold-start gate
-  // for a minute on behalf of a feature the ship may not even have. It is
-  // awaited below instead, where the data is first needed and init is already
-  // done. (Better still would be for the init scry to carry this, the way it
-  // carries %channels and %chat; that is a separate change.)
-  const bucketSnapshots = api.getBuckets().catch(() => []);
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
@@ -114,7 +105,10 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
-    const buckets = await bucketSnapshots;
+    // Straight from init now, alongside the channels whose writers arrive the
+    // same way. Reading them separately meant a Bucket that appeared after
+    // startup never got its writer roles at all.
+    const buckets = initData.buckets;
     if (buckets.length > 0) {
       // Writers only. %groups does not model a channel's writer roles, so a
       // bucket keeps its own and this is the only place they come from --

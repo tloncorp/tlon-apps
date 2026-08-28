@@ -1,6 +1,7 @@
 import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
+import type { BucketsSummary } from '../urbit/buckets';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -20,6 +21,7 @@ export interface InitData {
   unjoinedGroups: db.Group[];
   channels: db.Channel[];
   channelPerms: ChannelInit[];
+  buckets: BucketsSummary[];
   joinedGroups: string[];
   joinedGroupChannels: string[];
   hiddenPostIds: string[];
@@ -32,12 +34,13 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  // /v9/init embeds v10-native activity (notebook/note sources) so a fresh
-  // init hydrates pre-existing note unreads; the payload shape is otherwise
-  // identical to /v7. Old backends don't serve it.
+  // /v10/init carries the same v10-native activity /v9 did, plus Buckets and
+  // their writer roles. Gated on the same capability as /v9 because the
+  // activity shape is what differs from /v7; a backend new enough for one is
+  // new enough for the other, since both ship in this desk.
   const response = await scry<ub.GroupsInit7>({
     app: 'groups-ui',
-    path: getActivitySupportsNotes() ? '/v9/init' : '/v7/init',
+    path: getActivitySupportsNotes() ? '/v10/init' : '/v7/init',
   });
 
   logger.crumb('got init data from api');
@@ -152,5 +155,6 @@ export const toInitData = (
     joinedGroupChannels,
     hiddenPostIds,
     blockedUsers,
+    buckets: response.buckets ?? [],
   };
 };
