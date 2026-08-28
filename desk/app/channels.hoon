@@ -797,7 +797,7 @@
   =.  cor  (emil reconcile-notes-cards)
   inflate-io
 ::  +reconcile-notes-cards: %notes ships as its own gall agent but is kept OUT
-::  of desk.bill, so installing %groups never trips gall's "can't run from two
+::  of desk.bill, so installing %tlon never trips gall's "can't run from two
 ::  desks" against a user's standalone %notes desk. Instead we suspend that
 ::  desk (a no-op if it isn't installed) and rein our %notes agent on. Fired
 ::  once on install (+init) and once on upgrade (state-18-to-19).
@@ -810,7 +810,7 @@
     ^-  (list card:agent:gall)
     :~  [%pass /kiln/suspend-notes %agent [our.bowl %hood] %poke %kiln-suspend !>(`@tas`%notes)]
         :*  %pass  /kiln/rein-notes  %agent  [our.bowl %hood]  %poke
-            %kiln-rein  !>(`[@tas (map @tas ?)]`[%groups (~(put by *(map @tas ?)) %notes &)])
+            %kiln-rein  !>(`[@tas (map @tas ?)]`[%tlon (~(put by *(map @tas ?)) %notes &)])
         ==
     ==
   unsafe:guard

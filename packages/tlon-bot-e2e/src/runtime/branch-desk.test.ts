@@ -383,11 +383,11 @@ class BranchDeskHarness {
       if (argv[1] === '-e' && script.includes('+hood/')) {
         const ship = argv[3] as ShipLabel;
         const command = argv[4] ?? '';
-        if (command === 'mount %groups') {
+        if (command === 'mount %tlon') {
           this.events.push(`mount:${ship}`);
           return success();
         }
-        if (command === 'commit %groups') {
+        if (command === 'commit %tlon') {
           this.events.push(`commit:${ship}`);
           if (this.commitConnectionFailuresRemaining > 0) {
             this.commitConnectionFailuresRemaining -= 1;
@@ -443,7 +443,7 @@ class BranchDeskHarness {
     }
     if (url.endsWith('/~/scry/hood/kiln/pikes.json')) {
       this.events.push(`hash:${ship}:${this.hashes[ship]}`);
-      return jsonResponse({ groups: { hash: this.hashes[ship] } });
+      return jsonResponse({ tlon: { hash: this.hashes[ship] } });
     }
     if (url.endsWith('/~/scry/groups/groups/light.json')) {
       this.events.push(`health:${ship}`);

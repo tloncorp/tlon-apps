@@ -59,7 +59,7 @@ broke compilation on new kelvins.
     cloning and after editing `peru.yaml`. Requires peru (`pipx install peru`).
 -   `./scripts/assemble-desk.sh <target>` — build a full desk into `<target>`:
     rsync `desk-deps/` in with `--delete`, then `desk/` on top, then stamp
-    `commit.txt`. This is how a `%groups` desk is assembled for a ship (used by
+    `commit.txt`. This is how a `%tlon` desk is assembled for a ship (used by
     `deploy.sh`, rube, and local dev — see DEVELOPMENT.md).
 -   Upstream revs (urbit tag, landscape commit) are **pinned in `peru.yaml`**.
     To build against a different kernel, change the rev there on your branch.

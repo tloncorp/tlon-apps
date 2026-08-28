@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/assemble-desk.sh <target-dir>
 #
-# Assemble a complete %groups desk into <target-dir> by layering:
+# Assemble a complete %tlon desk into <target-dir> by layering:
 #   1. desk-deps/  (peru-vendored upstream deps)  -- rsync'd in with --delete
 #   2. desk/       (our own source)               -- rsync'd on top
 #
@@ -46,7 +46,7 @@ rsync -aL --exclude=.DS_Store desk/ "$target/"
 # Stamp the build commit, like the deploy pipeline does. Redirecting straight
 # into the file would truncate it before git ran, so a checkout without git
 # metadata (e.g. a Docker build context that .dockerignore strips .git from)
-# left an EMPTY stamp and %groups/%logs then compiled provenance as unknown.
+# left an EMPTY stamp and %tlon/%logs then compiled provenance as unknown.
 # Capture first and only overwrite the copied desk/commit.txt on success.
 commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
 if [ -n "$commit" ]; then

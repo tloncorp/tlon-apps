@@ -4,7 +4,7 @@ These instructions are for working on the Tlon app as a developer at Tlon.
 
 ## Project Structure
 
--   `/desk`: The folder containing the desk for %groups. This currently contains the agents necessary for the Tlon app.
+-   `/desk`: The folder containing the desk for %tlon. This currently contains the agents necessary for the Tlon app.
 
 -   `/apps/tlon-web`: Tlon is built primarily using [React], [TypeScript], and [Tamagui]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
 
@@ -18,48 +18,48 @@ Regardless of what you run to develop, Vite will hot-reload code changes as you 
 
 ## Fakezod Development
 
-To get started, make sure your %groups desk is mounted:
+To get started, make sure your %tlon desk is mounted:
 
 ```
-|mount %groups
+|mount %tlon
 ```
 
-Sync the latest %groups files. `assemble-desk.sh` vendors the base-dev/landscape
+Sync the latest %tlon files. `assemble-desk.sh` vendors the base-dev/landscape
 dependencies into `desk-deps/` (gitignored — see `peru.yaml`) and layers them
-with our `desk/` into the ship's mounted groups desk:
+with our `desk/` into the ship's mounted tlon desk:
 
 ```
-./scripts/assemble-desk.sh ~/urbit/zod/groups
+./scripts/assemble-desk.sh ~/urbit/zod/tlon
 ```
 
 And commit:
 
 ```
-|commit %groups
+|commit %tlon
 ```
 
-Since %groups has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions.
+Since %tlon has already been released and is now in the pill. It is very unlikely that you would have to create this desk from scratch, but if you do you can follow these instructions.
 
 1. Clone or pull latest versions of this repo, `tloncorp/landscape` and `urbit/urbit`.
 2. Boot a fake ship. Use local networking with `-F` like so: `urbit -F zod`
 3. Create and mount the appropriate desks on local `~zod`:
     1. `|new-desk %landscape`
     2. `|mount %landscape`
-    3. `|new-desk %groups`
-    4. `|mount %groups`
+    3. `|new-desk %tlon`
+    4. `|mount %tlon`
 4. Assemble the `%landscape` desk (it is built from upstream, not via peru):
     1. From `urbit/urbit`: `rsync -avL --delete pkg/base-dev/* ~/urbit/zod/landscape/`
     2. From `tloncorp/landscape`: `rsync -avL desk/* ~/urbit/zod/landscape/`
-5. Assemble the `%groups` desk from this repo. `assemble-desk.sh` vendors its
+5. Assemble the `%tlon` desk from this repo. `assemble-desk.sh` vendors its
    base-dev and landscape dependencies into `desk-deps/` via peru, then layers
    `desk-deps/` + `desk/` into the mounted desk:
-    1. `./scripts/assemble-desk.sh ~/urbit/zod/groups`
+    1. `./scripts/assemble-desk.sh ~/urbit/zod/tlon`
 6. Commit and install landscape on local `~zod`:
     1. `|commit %landscape`
     2. `|install our %landscape`
 7. Similarly commit and install Tlon:
-    1. `|commit %groups`
-    2. `|install our %groups`
+    1. `|commit %tlon`
+    2. `|install our %tlon`
 
 ## Deploying
 

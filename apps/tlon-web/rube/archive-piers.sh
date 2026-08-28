@@ -720,8 +720,8 @@ validate_archive_locally() {
 
     # Check for essential files
     local essential_files=(
-        "$ship/groups/sys.kelvin"
-        "$ship/groups/desk.bill"
+        "$ship/tlon/sys.kelvin"
+        "$ship/tlon/desk.bill"
         "$ship/.urb"
     )
 
@@ -825,7 +825,7 @@ EOF
         # Never embed macOS resource forks/xattrs: BSD tar stores them as
         # AppleDouble entries that GNU tar inside the Linux containers
         # materializes as literal ._* files throughout the piers — including
-        # the mounted %groups desk, which then never matches a clean
+        # the mounted %tlon desk, which then never matches a clean
         # assembly (observed breaking the bot-e2e desk apply on v28).
         # COPYFILE_DISABLE covers BSD tar; it is harmless for the GNU paths.
         export COPYFILE_DISABLE=1

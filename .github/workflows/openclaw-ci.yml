@@ -57,7 +57,7 @@ jobs:
   integration-test:
     name: Shared E2E
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    # Three runtimes boot fresh stacks and re-apply the branch %groups desk
+    # Three runtimes boot fresh stacks and re-apply the branch %tlon desk
     # (baseline and cron scenario partitions, then the package suite; ~8-9
     # minutes per apply on native runners when the desk has drifted). One
     # CLI invocation spans all three runtimes, so all three applies land in

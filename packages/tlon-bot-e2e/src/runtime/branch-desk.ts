@@ -16,11 +16,11 @@ type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 
 // Every running ship, not just the two the scenarios drive directly. ~mug is
 // the reel/lure provider, so leaving it on its pier's desk makes a mixed-version
-// fleet — harmless until a change bumps the negotiated %groups protocol version,
+// fleet — harmless until a change bumps the negotiated %tlon protocol version,
 // at which point ~zod/~ten treat ~mug as a certain-mismatch and negotiate's
 // poke path crashes outright (`%poke-to-mismatching-gill`) rather than deferring.
 const DEFAULT_DESK_SHIPS = '~zod,~ten,~mug';
-const STAGED_DESK = '/tmp/tlon-bot-e2e-groups';
+const STAGED_DESK = '/tmp/tlon-bot-e2e-tlon';
 const COMMIT_ATTEMPTS = 4;
 const ASSEMBLE_DESK_TIMEOUT_MS = 300_000;
 const MOUNT_STABLE_SAMPLES = 3;
@@ -49,7 +49,7 @@ function deskReadyTimeoutMs(): number {
 
 class ShipUnavailableError extends Error {}
 // Distinct from unavailable: the ship holds the connection but has not
-// answered yet. A `%groups` commit makes vere compile the desk, which is
+// answered yet. A `%tlon` commit makes vere compile the desk, which is
 // CPU-bound for minutes and cannot serve eyre meanwhile — treating that as a
 // dead ship and rebooting kills the compile, which is exactly what the first
 // live runs did. Rube imposes no request deadline at all and classifies only
@@ -151,12 +151,12 @@ export async function applyBranchDesk(
   const dependencies = { ...DEFAULT_DEPENDENCIES, ...overrides };
   const ships = parseDeskShips(dependencies.deskShips());
   const tempDir = await mkdtemp(path.join(os.tmpdir(), 'tlon-bot-e2e-desk-'));
-  const deskDir = path.join(tempDir, 'groups');
+  const deskDir = path.join(tempDir, 'tlon');
   const manifestPath = path.join(tempDir, 'manifest.sha256');
 
   try {
     console.log(
-      `==> Applying branch %groups desk to ${ships.map((s) => `~${s}`).join(', ')}...`
+      `==> Applying branch %tlon desk to ${ships.map((s) => `~${s}`).join(', ')}...`
     );
     const assembled = await dependencies.runCommand(
       'bash',
@@ -201,9 +201,9 @@ export async function applyBranchDesk(
     for (const ship of ships) {
       const endpoint = ctx.endpoints.ships[ship];
       let cookie = await login(endpoint, dependencies);
-      await hoodCommand(ctx, ship, 'mount %groups', dependencies);
+      await hoodCommand(ctx, ship, 'mount %tlon', dependencies);
       await waitForMountedDeskStable(ctx, ship, dependencies);
-      const startHash = await waitForGroupsHash(endpoint, cookie, dependencies);
+      const startHash = await waitForTlonHash(endpoint, cookie, dependencies);
       if (await deskMatches(ctx, ship, manifest, dependencies)) {
         console.log(`    ~${ship}: assembled desk unchanged; skipping commit`);
         continue;
@@ -231,9 +231,9 @@ export async function applyBranchDesk(
             await assertDeskMatches(ctx, ship, manifest, dependencies);
           }
           if (
-            (await groupsHash(endpoint, cookie, dependencies)) === startHash
+            (await tlonHash(endpoint, cookie, dependencies)) === startHash
           ) {
-            await hoodCommand(ctx, ship, 'commit %groups', dependencies);
+            await hoodCommand(ctx, ship, 'commit %tlon', dependencies);
           }
           await waitForDeskReady(endpoint, cookie, startHash, dependencies);
         },
@@ -290,12 +290,12 @@ async function readMountedDeskManifest(
       '-c',
       'set -euo pipefail; mount="$1"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt ! -path ./desk.docket-0 -print0 | sort -z | xargs -0r sha256sum',
       'bash',
-      `/data/${ship}/groups`,
+      `/data/${ship}/tlon`,
     ]
   );
   if (result.exitCode !== 0) {
     throw new MountedDeskUnavailableError(
-      `Mounted %groups desk for ~${ship} is missing or unreadable ` +
+      `Mounted %tlon desk for ~${ship} is missing or unreadable ` +
         `(exit ${result.exitCode}): ${(result.stderr || result.stdout).trim()}`
     );
   }
@@ -319,7 +319,7 @@ async function waitForMountedDeskStable(
     {
       timeoutMs: 30_000,
       intervalMs: 1_000,
-      description: `~${ship} %groups mount to exist and settle`,
+      description: `~${ship} %tlon mount to exist and settle`,
     }
   );
 }
@@ -371,7 +371,7 @@ async function assertDeskMatches(
 ): Promise<void> {
   if (!(await deskMatches(ctx, ship, expectedManifest, dependencies))) {
     throw new Error(
-      `Mounted %groups desk for ~${ship} changed after replacement; refusing to commit.`
+      `Mounted %tlon desk for ~${ship} changed after replacement; refusing to commit.`
     );
   }
 }
@@ -386,8 +386,8 @@ async function replaceMountedDesk(
     '-c',
     'set -euo pipefail; target="$1"; source="$2"; mkdir -p "$target"; find "$target" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +; cp -a "$source"/. "$target"/',
     'bash',
-    `/data/${ship}/groups`,
-    `${STAGED_DESK}/groups`,
+    `/data/${ship}/tlon`,
+    `${STAGED_DESK}/tlon`,
   ]);
 }
 
@@ -469,7 +469,7 @@ async function hoodCommand(
   requireSuccess(result, `exec in ${ctx.services.ships}`);
 }
 
-async function groupsHash(
+async function tlonHash(
   endpoint: ShipEndpoint,
   cookie: string,
   dependencies: BranchDeskDependencies,
@@ -478,29 +478,29 @@ async function groupsHash(
   const data = await shipJson(
     endpoint,
     cookie,
-    'read %groups desk hash',
+    'read %tlon desk hash',
     '/~/scry/hood/kiln/pikes.json',
     dependencies,
     timeoutMs
   );
-  const hash = (data as { groups?: { hash?: unknown } }).groups?.hash;
+  const hash = (data as { tlon?: { hash?: unknown } }).tlon?.hash;
   if (typeof hash !== 'string') {
-    throw new Error(`No %groups desk hash returned by ${endpoint.ship}.`);
+    throw new Error(`No %tlon desk hash returned by ${endpoint.ship}.`);
   }
   return hash;
 }
 
-async function waitForGroupsHash(
+async function waitForTlonHash(
   endpoint: ShipEndpoint,
   cookie: string,
   dependencies: BranchDeskDependencies
 ) {
   return dependencies.waitFor(
-    () => groupsHash(endpoint, cookie, dependencies),
+    () => tlonHash(endpoint, cookie, dependencies),
     {
       timeoutMs: 30_000,
       intervalMs: 1_000,
-      description: `${endpoint.ship} %groups desk in kiln`,
+      description: `${endpoint.ship} %tlon desk in kiln`,
     }
   );
 }
@@ -515,7 +515,7 @@ async function waitForDeskReady(
     async () => {
       try {
         if (
-          (await groupsHash(
+          (await tlonHash(
             endpoint,
             cookie,
             dependencies,
@@ -546,7 +546,7 @@ async function waitForDeskReady(
     {
       timeoutMs: deskReadyTimeoutMs(),
       intervalMs: 2_000,
-      description: `${endpoint.ship} %groups desk ready after commit`,
+      description: `${endpoint.ship} %tlon desk ready after commit`,
       rethrowError: (error) => error instanceof ShipUnavailableError,
     }
   );

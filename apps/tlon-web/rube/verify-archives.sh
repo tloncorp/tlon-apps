@@ -175,19 +175,19 @@ verify_desk_content() {
     
     print_info "Verifying desk content for $ship..."
     
-    # Check for groups desk
-    if [ ! -d "$pier_path/groups" ]; then
-        print_error "Groups desk not found in $ship"
+    # Check for tlon desk
+    if [ ! -d "$pier_path/tlon" ]; then
+        print_error "Tlon desk not found in $ship"
         return 1
     fi
     
     # Check for essential files
     local essential_files=(
-        "groups/sys.kelvin"
-        "groups/desk.bill"
-        "groups/app/groups.hoon"
-        "groups/app/channels.hoon"
-        "groups/app/chat.hoon"
+        "tlon/sys.kelvin"
+        "tlon/desk.bill"
+        "tlon/app/groups.hoon"
+        "tlon/app/channels.hoon"
+        "tlon/app/chat.hoon"
     )
     
     for file in "${essential_files[@]}"; do
