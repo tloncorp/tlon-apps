@@ -751,6 +751,7 @@ export async function scry<T>({
 
 export interface RequestJsonOptions {
   reauthStatuses?: readonly number[];
+  signal?: AbortSignal;
 }
 
 // Authenticated JSON request to an arbitrary ship path. Reauths once on 403 by
@@ -769,16 +770,25 @@ export async function requestJson<T = any>(
     await config.pendingAuth;
   }
   const reauthStatuses = options.reauthStatuses ?? [403];
+  const send = () =>
+    options.signal
+      ? activeClient.requestJson<T>(path, method, body, {
+          signal: options.signal,
+        })
+      : activeClient.requestJson<T>(path, method, body);
 
   try {
-    return await activeClient.requestJson<T>(path, method, body);
+    return await send();
   } catch (res) {
+    if (options.signal?.aborted || res?.name === 'AbortError') {
+      throw res;
+    }
     if (
       activeClient === config.client &&
       reauthStatuses.includes(res?.status)
     ) {
       await reauth();
-      return await activeClient.requestJson<T>(path, method, body);
+      return await send();
     }
     const errorBody = await responseErrorBody(res);
     throw new BadResponseError(res?.status ?? 0, errorBody);

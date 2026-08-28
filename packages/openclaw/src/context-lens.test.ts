@@ -906,6 +906,37 @@ describe('retry seed and dispatch', () => {
     }
   });
 
+  it('keeps degraded provenance across retry chains', () => {
+    // A retry of a degraded run seeds a new lens; its threading metadata is
+    // still untrustworthy, so a second retry must stay degraded.
+    const registry = createContextLensRegistry();
+    const lens = registry.create({
+      messageId: 'react-170.141-~nec-1',
+      chatType: 'channel',
+      trigger: 'retry',
+      sessionKey: 'session-retry-5',
+      senderShip: '~ten',
+      conversationId: 'heap/~ten/gallery',
+      preview: 'preview text',
+      retrySeed: {
+        messageText: 'full original text',
+        blobField: null,
+        parentId: null,
+        isThreadReply: false,
+        replyParentId: null,
+        cachesHistory: true,
+        degraded: true,
+      },
+    });
+    const failed = registry.setStatus(lens.lensId, 'error', new Error('boom'));
+
+    const result = buildRetryDispatch(failed!);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.dispatch.degraded).toBe(true);
+    }
+  });
+
   it('refuses non-retryable, internal, and incomplete runs', () => {
     const registry = createContextLensRegistry();
 

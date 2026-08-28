@@ -2,7 +2,7 @@ import * as api from '@tloncorp/api';
 import {
   StructuredChannelDescriptionPayload,
   scry,
-  toClientGroupV7,
+  toClientGroup,
 } from '@tloncorp/api';
 import '@tloncorp/api';
 import {
@@ -12,7 +12,7 @@ import {
 } from '@tloncorp/api';
 import {
   CombinedHeads,
-  GroupsInit6,
+  GroupsInit10,
   PagedPosts,
   PostDataResponse,
 } from '@tloncorp/api/urbit';
@@ -20,7 +20,7 @@ import {
   ContactBookScryResult1,
   ContactsDirectoryScryResult1,
 } from '@tloncorp/api/urbit/contact';
-import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
+import { GroupV11 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
@@ -64,8 +64,8 @@ const contactsData = rawContactsData as unknown as ContactsDirectoryScryResult1;
 const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
-const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
-const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
+const groupsInitData = rawGroupsInitData as unknown as GroupsInit10;
+const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit10;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
 function setInitSyncScryOutputs({
@@ -73,12 +73,9 @@ function setInitSyncScryOutputs({
   init,
 }: {
   heads?: CombinedHeads;
-  init: GroupsInit6;
+  init: GroupsInit10;
 }) {
   vi.mocked(scry).mockImplementation(async ({ app, path }) => {
-    if (app === 'buckets' && path === '/v1/buckets') {
-      return [];
-    }
     if (app === 'groups-ui' && /^\/v\d+\/init$/.test(path)) {
       return init;
     }
@@ -536,7 +533,7 @@ const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
 const testGroupData: db.Group = {
-  ...toClientGroupV7(
+  ...toClientGroup(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
     true

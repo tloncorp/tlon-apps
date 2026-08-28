@@ -6,12 +6,12 @@ import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
 import {
+  toClientGroups,
   toClientGroupsFromForeigns,
-  toClientGroupsV7,
   toClientPinnedItems,
 } from './groupsApi';
 import { toClientHiddenPosts } from './postsApi';
-import { getActivitySupportsNotes, getCurrentUserId, scry } from './urbit';
+import { getCurrentUserId, scry } from './urbit';
 
 const logger = createDevLogger('initApi', false);
 
@@ -34,13 +34,15 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  // /v10/init carries the same v10-native activity /v9 did, plus Buckets and
-  // their writer roles. Gated on the same capability as /v9 because the
-  // activity shape is what differs from /v7; a backend new enough for one is
-  // new enough for the other, since both ship in this desk.
-  const response = await scry<ub.GroupsInit7>({
+  // /v11/init is /v10 plus Buckets and their writer roles, which no agent
+  // but %buckets models — so a Bucket learned from the group alone arrives
+  // without them. /v10 is /v9 plus the group blob: v10-native activity
+  // (notebook/note sources) so a fresh init hydrates pre-existing note
+  // unreads, over v11 groups so it also carries blob. Old backends don't
+  // serve it.
+  const response = await scry<ub.GroupsInit11>({
     app: 'groups-ui',
-    path: getActivitySupportsNotes() ? '/v10/init' : '/v7/init',
+    path: '/v11/init',
   });
 
   logger.crumb('got init data from api');
@@ -48,8 +50,8 @@ export const getInitData = async () => {
   return toInitData(response, { currentUserId: getCurrentUserId() });
 };
 
-function extractChannelReadersFromV7Groups(
-  groups: Record<string, ub.GroupV7>
+function extractChannelReadersFromGroups(
+  groups: Record<string, ub.GroupV11>
 ): Record<string, string[]> {
   const readers: Record<string, string[]> = {};
   Object.entries(groups).forEach(([_groupId, group]) => {
@@ -63,7 +65,7 @@ function extractChannelReadersFromV7Groups(
 }
 
 function extractJoinedGroupChannelsFromV7Groups(
-  groups: Record<string, ub.GroupV7>
+  groups: Record<string, ub.GroupV11>
 ): string[] {
   const joinedChannelIds = new Set<string>();
 
@@ -77,7 +79,9 @@ function extractJoinedGroupChannelsFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit7,
+  // Accepts a /v10 payload too: fixtures and older captures have no buckets
+  // field, and an absent one is simply no buckets.
+  response: ub.GroupsInit10 & { buckets?: ub.BucketsSummary[] },
   options: InitDataOptions
 ): InitData => {
   logger.crumb('converting init data to client data');
@@ -85,7 +89,7 @@ export const toInitData = (
 
   const pins = toClientPinnedItems(response.pins);
 
-  const channelReaders = extractChannelReadersFromV7Groups(response.groups);
+  const channelReaders = extractChannelReadersFromGroups(response.groups);
 
   const channelsInit = toClientChannelsInit(
     response.channel.channels,
@@ -107,7 +111,7 @@ export const toInitData = (
 
   logger.crumb('converting groups to client data');
 
-  const groups = toClientGroupsV7(response.groups, true, options.currentUserId);
+  const groups = toClientGroups(response.groups, true, options.currentUserId);
 
   logger.crumb('converting unjoined groups to client data');
 

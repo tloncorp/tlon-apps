@@ -115,7 +115,7 @@ export function UserProfileScreenView(props: Props) {
           flexDirection: 'row',
         }}
       >
-        <View paddingHorizontal={'$l'}>
+        <View paddingHorizontal={'$l'} width="100%">
           <UserInfoRow
             userId={props.userId}
             hasNickname={!!userContact?.nickname?.length}

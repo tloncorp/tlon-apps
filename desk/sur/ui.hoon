@@ -10,8 +10,8 @@
 ::  Summaries rather than snapshots: the manifest is what makes a bucket
 ::  large, nothing at startup needs it, and a bucket is opened one at a time.
 ::
-+$  init-10
-  $:  groups=groups-ui:v9:gv
++$  init-11
+  $:  groups=groups-ui:v11:gv
       =foreigns:v8:gv
       channel=channel-10
       =activity:v10:av
@@ -19,6 +19,15 @@
       chat=chat-2
       profile=?
       buckets=(list summary:b)
+  ==
++$  init-10
+  $:  groups=groups-ui:v11:gv
+      =foreigns:v8:gv
+      channel=channel-10
+      =activity:v10:av
+      pins=(list whom)
+      chat=chat-2
+      profile=?
   ==
 +$  init-9
   $:  groups=groups-ui:v9:gv

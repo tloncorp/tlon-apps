@@ -32,6 +32,9 @@ on:
       - "packages/openclaw/openclaw.plugin.json"
       - "packages/openclaw/tsconfig.json"
       - "packages/openclaw/scripts/**"
+      # Skills are content, not code, but they ship to the bot the same way
+      # and a guide correction is worthless until the hosted bots restart.
+      - "packages/openclaw/skills/**"
       # Every top-level runtime module, minus the test suite. A per-file list
       # silently stopped deploying cite/lens/media/migration/nudge/sanitize as
       # they were added; `*` does not match `/`, so dev/ and prompts/ stay out.
