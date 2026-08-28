@@ -81,13 +81,14 @@ import AttachmentSheet from '../AttachmentSheet';
 import { Badge } from '../Badge';
 import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
-import { OpenAISubscriptionAuthView } from '../OpenAISubscriptionAuthView';
+import { LLMSubscriptionAuthView } from '../LLMSubscriptionAuthView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { getDefaultBotName } from './botName';
 import {
   BotCredentialOption,
   buildBotCredentialOptions,
@@ -139,15 +140,6 @@ export type TlonbotSplashConfig = {
   botModel?: string;
   stage?: db.TlonbotRevivalStage;
 };
-
-function getPreviewBotName(userNickname?: string | null) {
-  const trimmedNickname = userNickname?.trim();
-  if (!trimmedNickname) {
-    return 'Tlonbot';
-  }
-
-  return `${trimmedNickname}'s Tlonbot 🌱`;
-}
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
@@ -1003,11 +995,12 @@ function SplashSequenceComponent(props: {
         )}
         {currentPane === SplashPane.BotSubscriptionAuth && (
           <BotSubscriptionAuthPane>
-            <OpenAISubscriptionAuthView
+            <LLMSubscriptionAuthView
               state={subscriptionAuth.state}
               browserError={subscriptionAuth.browserError ?? configError}
               onStart={() => void handleStartSubscription()}
               onOpenBrowser={() => void subscriptionAuth.openVerificationUrl()}
+              onSubmitToken={subscriptionAuth.completeToken}
               onRetry={() => void subscriptionAuth.restart()}
               onCancel={() => {
                 subscriptionAuth.dismiss();
@@ -1229,10 +1222,24 @@ export function BotNamePane(props: {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInputRef>(null);
+  const [seedKey, setSeedKey] = useState(0);
+  const lastTypedNameRef = useRef(props.name);
   const handleNameChange = (value: string) => {
+    lastTypedNameRef.current = value;
     setError(null);
     props.onNameChange(value);
   };
+
+  // The persisted revival name hydrates asynchronously, so props.name can
+  // change without the user typing. The native input is uncontrolled (see
+  // below), so remount it to re-seed defaultValue when that happens.
+  useEffect(() => {
+    if (isWeb || props.name === lastTypedNameRef.current) {
+      return;
+    }
+    lastTypedNameRef.current = props.name;
+    setSeedKey((key) => key + 1);
+  }, [props.name]);
 
   const handlePress = () => {
     if (!props.name.trim()) {
@@ -1262,8 +1269,15 @@ export function BotNamePane(props: {
             <Field error={error ?? undefined}>
               <TextInput
                 ref={inputRef}
+                key={seedKey}
                 testID="bot-name-input"
-                value={props.name}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native seeds the revival
+                // prefill via defaultValue and stays uncontrolled; the
+                // key remount re-seeds it when the prefill hydrates late.
+                value={isWeb ? props.name : undefined}
+                defaultValue={isWeb ? undefined : props.name}
                 onChangeText={handleNameChange}
                 onBlur={refocusInput}
                 autoCapitalize="none"
@@ -1274,7 +1288,7 @@ export function BotNamePane(props: {
                 autoFocus
                 placeholder={
                   props.userNickname
-                    ? getPreviewBotName(props.userNickname)
+                    ? getDefaultBotName(props.userNickname)
                     : 'My Tlonbot'
                 }
                 frameStyle={{

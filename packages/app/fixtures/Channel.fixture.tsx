@@ -1,4 +1,5 @@
 import type * as db from '@tloncorp/shared/db';
+import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
@@ -20,6 +21,12 @@ import {
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
+const onboardingCompletePost = createFakePost();
+onboardingCompletePost.blob = appendToPostBlob(undefined, {
+  type: 'tlon-agent-post-marker',
+  version: 1,
+  key: 'orientation-complete',
+});
 
 function noopProps<T extends object>() {
   return new Proxy<T>({} as unknown as T, {
@@ -382,6 +389,15 @@ export default {
           channel: baseProps.channel,
           post: baseProps.posts!.at(10)!,
         }),
+      })}
+    />
+  ),
+  onboardingComplete: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      passedProps={() => ({
+        posts: [onboardingCompletePost],
       })}
     />
   ),

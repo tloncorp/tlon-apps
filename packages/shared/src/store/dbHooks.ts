@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
+import { getBotReplyFeedbackQueryKey } from './botReplyFeedback';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -29,6 +30,45 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['allChannels', querykey],
     queryFn: () => db.getAllChannels(),
+    enabled,
+  });
+};
+
+/**
+ * The viewer's durable A2UI selections in a channel. Depends on the posts
+ * table, so the optimistic insert of a reply invalidates it immediately and a
+ * just-answered control locks in the same tick it posts.
+ */
+export const useA2UISelections = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getA2UISelections);
+  return useQuery({
+    queryKey: ['a2uiSelections', deps, channelId, authorId],
+    queryFn: () => db.getA2UISelections({ channelId, authorId }),
+    enabled,
+  });
+};
+
+export const useAgentA2UIProtocolReceipts = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getAgentA2UIProtocolReceipts);
+  return useQuery({
+    queryKey: ['agentA2UIProtocolReceipts', deps, channelId, authorId],
+    queryFn: () => db.getAgentA2UIProtocolReceipts({ channelId, authorId }),
     enabled,
   });
 };
@@ -888,6 +928,17 @@ export const useContextLensEnabled = () => {
   });
 };
 
+export const useShowDeleteMarkers = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['showDeleteMarkers', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.showDeleteMarkers ?? false;
+    },
+  });
+};
+
 export const useTelemetrySettings = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
@@ -899,6 +950,14 @@ export const useTelemetrySettings = () => {
         logActivity: settings?.logActivity,
       };
     },
+  });
+};
+
+export const useBotReplyFeedback = (messageId: string) => {
+  return useQuery({
+    queryKey: getBotReplyFeedbackQueryKey(messageId),
+    queryFn: () => db.getBotReplyFeedback(messageId),
+    enabled: Boolean(messageId),
   });
 };
 

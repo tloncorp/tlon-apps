@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Pressable } from '@tloncorp/ui';
@@ -7,10 +8,12 @@ import { View, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
+import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
+import { BotFeedbackRow } from './BotFeedbackRow';
 import { ChatMessageActions } from './ChatMessageActions/Component';
 import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
@@ -23,6 +26,7 @@ import { StaticChatMessage } from './StaticChatMessage';
  */
 const ChatMessage = ({
   post,
+  a2uiActionCompletion,
   showAuthor,
   hideProfilePreview,
   onPressReplies,
@@ -41,6 +45,7 @@ const ChatMessage = ({
   searchQuery,
 }: {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
@@ -69,6 +74,9 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
+  const showBotFeedback =
+    (post.type === 'chat' || post.type === 'reply') &&
+    api.isBotUserIdForUser(post.authorId, currentUserId);
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -153,10 +161,14 @@ const ChatMessage = ({
                 onPressReplies,
                 onPressRetry,
                 post,
+                a2uiActionCompletion,
                 searchQuery,
                 setViewReactionsPost,
                 showAuthor,
                 showReplies,
+                feedbackRow: showBotFeedback ? (
+                  <BotFeedbackRow post={post} currentUserId={currentUserId} />
+                ) : undefined,
               }}
             />
             {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
@@ -200,6 +212,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
     prev.onPressBotRun === next.onPressBotRun &&
+    isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.searchQuery === next.searchQuery &&
     prev.displayDebugMode === next.displayDebugMode;
 

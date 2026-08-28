@@ -16,6 +16,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -127,6 +128,7 @@ export function ChannelHeader({
   showSpinner,
   loadingSubtitle = 'Loading messages…',
   hideIdentity = false,
+  backDisabled = false,
   showSearchButton = false,
   showEditButton = false,
   preferProvidedTitle = false,
@@ -148,6 +150,7 @@ export function ChannelHeader({
   showSpinner?: boolean;
   loadingSubtitle?: string | null;
   hideIdentity?: boolean;
+  backDisabled?: boolean;
   showSearchButton?: boolean;
   showEditButton?: boolean;
   preferProvidedTitle?: boolean;
@@ -433,7 +436,6 @@ export function ChannelHeader({
     enabled: usesNavigationHeader,
     bottomEdgeEffect: 'soft',
   });
-
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
     // registrations are reserved for inline notebook and gallery headers.
@@ -442,6 +444,7 @@ export function ChannelHeader({
         {...headerProps}
         placement="navigation"
         backAction={goBack}
+        backDisabled={backDisabled}
         rightActions={rightActions}
       />
     );
@@ -451,6 +454,7 @@ export function ChannelHeader({
     <ScreenHeader
       {...headerProps}
       backAction={goBack}
+      backDisabled={backDisabled}
       rightActions={rightActions}
       rightControls={
         contextItems.length ? (
