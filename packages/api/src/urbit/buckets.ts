@@ -116,6 +116,8 @@ export type BucketsAction =
       size: number;
       checksum: string | null;
     }
+  | { type: 'finish-upload'; flag: BucketsFlag; sessionId: string }
+  | { type: 'retry-upload'; flag: BucketsFlag; sessionId: string }
   | {
       type: 'cancel-upload';
       flag: BucketsFlag;
@@ -180,9 +182,27 @@ export type BucketsReadToken = {
   expiresAt: string;
 };
 
+/**
+ * Where to PUT one file's bytes, and how.
+ *
+ * The client never talks to the storage broker: its Bucket's host does, as
+ * itself, and hands back the signed URL. `headers` are part of what that URL
+ * is signed over, so they go on the PUT exactly as given — a dropped one, or
+ * the same one under different capitalisation, fails as a signature mismatch
+ * rather than as anything legible.
+ */
+export type BucketsUploadGrant = {
+  session: string;
+  entryId: number;
+  url: string;
+  headers: [string, string][];
+  expiresAt: string;
+};
+
 export type BucketsResponseBody =
   | { ok: null }
   | { grant: BucketsGrant }
+  | { upload: BucketsUploadGrant }
   | { token: BucketsReadToken }
   | { pending: null }
   | { error: { type: BucketsActionError; message: string } };

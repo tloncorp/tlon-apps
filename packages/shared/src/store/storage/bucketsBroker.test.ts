@@ -3,9 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   BucketsBrokerError,
   canFallBackFromBucketsBroker,
-  completeBucketUpload,
   grantBucketRead,
-  grantBucketUpload,
   isBucketObjectAlreadyDeleted,
 } from './bucketsBroker';
 
@@ -15,53 +13,21 @@ afterEach(() => {
 });
 
 describe('Buckets broker client', () => {
-  test('exchanges a capability without including the sigil in the host', async () => {
-    const grant = {
-      objectId: 'object-1',
-      requiredHeaders: [['content-type', 'application/pdf']],
-      reservationId: 'reservation-1',
-      uploadExpiresAt: '2026-08-06T20:00:00Z',
-      uploadUrl: 'https://storage.test/upload',
-    };
+  // The host is pointed at a broker by poke and the client by this variable;
+  // they have to move together, so the override has to exist on both sides.
+  test('honours TLON_MEMEX_URL, trailing slash and all', async () => {
+    vi.stubEnv('TLON_MEMEX_URL', 'https://memex.test.tlon.systems/');
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify(grant), {
-        headers: { 'Content-Type': 'application/json' },
+      new Response(JSON.stringify({ readUrl: 'https://storage.test/get' }), {
         status: 200,
       })
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(
-      grantBucketUpload('opaque-capability', '~zod')
-    ).resolves.toEqual(grant);
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://memex.tlon.network/v2/buckets/uploads/grant',
-      expect.objectContaining({
-        body: JSON.stringify({ host: 'zod' }),
-        headers: expect.objectContaining({
-          Authorization: 'Bearer opaque-capability',
-          'Content-Type': 'application/json',
-        }),
-        method: 'POST',
-      })
-    );
-  });
-
-  // The host is pointed at a broker by poke and the client by this variable;
-  // they have to move together, so the override has to exist on both sides.
-  test('honours TLON_MEMEX_URL, trailing slash and all', async () => {
-    vi.stubEnv('TLON_MEMEX_URL', 'https://memex.test.tlon.systems/');
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ objectId: 'object-1' }), { status: 200 })
-      );
-    vi.stubGlobal('fetch', fetchMock);
-
-    await completeBucketUpload('reservation-1');
+    await grantBucketRead('token', '~zod', 'object-1');
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://memex.test.tlon.systems/v2/buckets/uploads/reservation-1/complete',
+      'https://memex.test.tlon.systems/v2/buckets/objects/object-1/read-grant',
       expect.anything()
     );
   });
@@ -114,22 +80,21 @@ describe('Buckets broker client', () => {
     );
   });
 
-  test('sends the reservation in both the completion path and body', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(JSON.stringify({ objectId: 'object-1' }), { status: 200 })
-      );
+  // Object keys contain slashes, so anything naming one in a path has to
+  // encode it or the request lands on a different route entirely.
+  test('percent-encodes an object key into the request path', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ readUrl: 'https://storage.test/get' }), {
+        status: 200,
+      })
+    );
     vi.stubGlobal('fetch', fetchMock);
 
-    await completeBucketUpload('reservation/1');
+    await grantBucketRead('token', '~zod', 'bucket/object-1');
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://memex.tlon.network/v2/buckets/uploads/reservation%2F1/complete',
-      expect.objectContaining({
-        body: JSON.stringify({ reservationId: 'reservation/1' }),
-        method: 'POST',
-      })
+      'https://memex.tlon.network/v2/buckets/objects/bucket%2Fobject-1/read-grant',
+      expect.objectContaining({ method: 'POST' })
     );
   });
 
@@ -146,7 +111,7 @@ describe('Buckets broker client', () => {
     );
     vi.stubGlobal('fetch', fetchMock);
 
-    const cause = await grantBucketUpload('opaque-capability', '~zod').catch(
+    const cause = await grantBucketRead('token', '~zod', 'object-1').catch(
       (error: unknown) => error
     );
 

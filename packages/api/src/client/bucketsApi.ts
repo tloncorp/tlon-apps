@@ -3,6 +3,7 @@ import type {
   BucketsActionError,
   BucketsFlag,
   BucketsGrant,
+  BucketsUploadGrant,
   BucketsReadToken,
   BucketsRequestResponse,
   BucketsResponse,
@@ -196,6 +197,24 @@ export async function sendBucketsAction(
  * Reads do not: one token covers the whole bucket, so they answer with a
  * token instead -- see getBucketReadToken.
  */
+/**
+ * Open an upload and get back where to PUT its bytes.
+ *
+ * The host calls the storage broker on our behalf and holds this request open
+ * until it has an answer, so there is one round trip here rather than a token
+ * to carry onward.
+ */
+export async function requestBucketsUpload(
+  action: BucketsAction,
+  requestId?: string
+): Promise<BucketsUploadGrant> {
+  const body = await sendBucketsAction(action, requestId);
+  if (!('upload' in body)) {
+    throw new Error(`%buckets ${action.type} did not return an upload grant`);
+  }
+  return body.upload;
+}
+
 export async function requestBucketsGrant(
   action: BucketsAction,
   requestId?: string

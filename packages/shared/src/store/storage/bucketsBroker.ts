@@ -48,25 +48,6 @@ export class BucketsBrokerError extends Error {
   }
 }
 
-export type BucketUploadGrant = {
-  reservationId: string;
-  objectId: string;
-  uploadUrl: string;
-  uploadExpiresAt: string;
-  requiredHeaders: [string, string][];
-};
-
-export type BucketObjectReceipt = {
-  reservationId: string;
-  objectId: string;
-  host: string;
-  bucketId: string;
-  size: number;
-  mimeType: string;
-  checksum: { algorithm: 'crc32c' | 'md5'; value: string } | null;
-  createdAt: string;
-};
-
 export type BucketReadGrant = {
   objectId: string;
   readUrl: string;
@@ -109,44 +90,6 @@ async function brokerRequest<T>(path: string, init: RequestInit): Promise<T> {
  * upload — the client never invents one, and the broker verifies it with that
  * host before issuing anything.
  */
-export function grantBucketUpload(
-  capability: string,
-  host: string
-): Promise<BucketUploadGrant> {
-  return brokerRequest('/uploads/grant', {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${capability}` },
-    body: JSON.stringify({ host: hostName(host) }),
-  });
-}
-
-export function completeBucketUpload(
-  reservationId: string
-): Promise<BucketObjectReceipt> {
-  return brokerRequest(
-    `/uploads/${encodeURIComponent(reservationId)}/complete`,
-    {
-      method: 'POST',
-      body: JSON.stringify({ reservationId }),
-    }
-  );
-}
-
-export function retryBucketUpload(
-  reservationId: string
-): Promise<BucketUploadGrant> {
-  return brokerRequest(`/uploads/${encodeURIComponent(reservationId)}/retry`, {
-    method: 'POST',
-  });
-}
-
-export function cancelBucketUpload(reservationId: string) {
-  return brokerRequest<{ reservationId: string; canceledAt: string }>(
-    `/uploads/${encodeURIComponent(reservationId)}/cancel`,
-    { method: 'POST' }
-  );
-}
-
 /**
  * Exchange a bucket read token for a signed URL for one object.
  *
@@ -191,10 +134,6 @@ export function isBucketObjectAlreadyDeleted(cause: unknown) {
     cause.code === 'invalid_state' &&
     cause.message.toLowerCase().includes('object was not found')
   );
-}
-
-export function brokerRequiredHeaders(grant: BucketUploadGrant) {
-  return Object.fromEntries(grant.requiredHeaders);
 }
 
 export function canFallBackFromBucketsBroker(cause: unknown) {
