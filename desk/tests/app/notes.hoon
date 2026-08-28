@@ -6,7 +6,7 @@
 ::  Multi-ship scenarios are NOT covered: test-agent.hoon is a single-bowl
 ::  harness with no cross-agent sign exchange.
 ::
-/-  n=notes
+/-  n=notes, av=activity-ver
 /+  *test-agent
 /+  notes-json
 /=  notes-agent  /app/notes
@@ -250,6 +250,16 @@
   ?:  ?=([%pass * %agent * %poke *] i.caz)
     `+<.i.caz
   $(caz t.caz)
+::  +find-watch-wire: first %pass %agent %watch card's wire, if any.
+::
+++  find-watch-wire
+  |=  caz=(list card)
+  ^-  (unit wire)
+  |-  ^-  (unit wire)
+  ?~  caz  ~
+  ?:  ?=([%pass * %agent * %watch *] i.caz)
+    `+<.i.caz
+  $(caz t.caz)
 ::  +find-poke-vase: vase of the first %pass %agent %poke card whose cage
 ::  carries the given mark, if any. cage is +>+>+.c (cf. +has-poke-mark,
 ::  which reads its mark via -.); the vase is the cage tail, +..
@@ -284,7 +294,27 @@
   ^-  form:m
   ;<  ~  bind:m  (jab-bowl |=(=bowl bowl(our ~zod)))
   ;<  *  bind:m  (do-init dap notes-agent)
+  ;<  ~  bind:m  (set-scry-gate base-scry)
   (pure:m ~)
+::  +base-scry: default scry gate. %notes probes %activity liveness
+::  ([%gu @ %activity @ %$ ~]) before submitting events; answer %.n so
+::  tests that don't care about activity see no extra cards. Tests that
+::  assert activity behavior set a gate answering %.y instead.
+::
+++  base-scry
+  ^-  scry
+  |=  pax=path
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(|)
+  ~
+::  +activity-scry: %activity is running; used by activity-submission tests.
+::
+++  activity-scry
+  ^-  scry
+  |=  pax=path
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(&)
+  ~
 ::  +nb-flag: flag for notebook with title+nid under ship who
 ::  Applies the same slug algorithm as ++slugify in app/notes.hoon.
 ::
@@ -594,11 +624,13 @@
   ::  mock the group can-read GATE scry: ~bus permitted.
   =/  can-read-allow=scry
     |=  pax=path
+    ?:  ?=([%gu @ %activity @ %$ ~] pax)  `!>(|)
     ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
     `!>(|=([who=ship =nest:n] =(who ~bus)))
   ::  revoked: can-read denies everyone (host self-shortcuts in group-can-read).
   =/  can-read-deny=scry
     |=  pax=path
+    ?:  ?=([%gu @ %activity @ %$ ~] pax)  `!>(|)
     ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)  ~
     `!>(|=([who=ship =nest:n] |))
   ;<  ~  b  init-zod
@@ -1735,6 +1767,39 @@
   ?.  (~(has by books.s) f)
     |+['notebook not created from requestId-less POST']~
   &+[~ s2]
+::  +test-v1-requests-evicted-on-next-post
+::
+::  Terminated request records are evicted lazily when the next HTTP
+::  request registers — no cleanup timer involved.
+::
+++  test-v1-requests-evicted-on-next-post
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  sv0=vase  b  get-save
+  =/  s0=state-15:n  !<(state-15:n sv0)
+  =/  key=@t  ?~(api-key.s0 '' u.api-key.s0)
+  =/  body1=@t
+    '{"requestId":"0v1","action":{"type":"create-notebook","title":"One"}}'
+  ;<  *  b  (http-post-v1 ~[['x-api-key' key]] body1)
+  ;<  sv1=vase  b  get-save
+  =/  s1=state-15:n  !<(state-15:n sv1)
+  ;<  *  b  (jab-bowl |=(bw=bowl bw(now (add now.bw ~d2))))
+  ::  the next registration sweeps — via the first-class REST write
+  ::  path, which registers directly like the generic POST does
+  ;<  *  b
+    (http-req-v1 %'POST' ~[['x-api-key' key]] '/notes/~/v1/notebooks' '{"title":"Two"}')
+  ;<  sv2=vase  b  get-save
+  =/  s2=state-15:n  !<(state-15:n sv2)
+  |=  s=state
+  ?~  api-key.s0  |+['no api-key after init']~
+  ?.  (~(has by requests.s1) `@uv`0v1)
+    |+['expected first request recorded']~
+  ?:  (~(has by requests.s2) `@uv`0v1)
+    |+['expected stale request evicted on next registration']~
+  &+[~ s]
 ::  +test-v1-post-garbage-requestid-no-500
 ::
 ::  A non-@uv requestId must be tolerated (server mints), not crash.
@@ -2427,6 +2492,410 @@
   ?~  vis
     |+['snapshot missing visibility field']~
   &+[~ s]
+::  +activity-actions: extract the activity actions poked at %activity
+::  from a card list, in emission order.
+::
+++  activity-actions
+  |=  caz=(list card)
+  ^-  (list action:v10:av)
+  %+  murn  caz
+  |=  =card
+  ^-  (unit action:v10:av)
+  ?.  ?=([%pass * %agent * %poke *] card)  ~
+  ?.  =(%activity name.q.card)  ~
+  ?.  =(%activity-action-2 p.cage.task.q.card)  ~
+  `!<(action:v10:av q.cage.task.q.card)
+::  +edit-timer-wires: extract the %note-edit debounce timer wires from a
+::  card list, in emission order.
+::
+++  edit-timer-wires
+  |=  caz=(list card)
+  ^-  (list wire)
+  %+  murn  caz
+  |=  =card
+  ^-  (unit wire)
+  ?.  ?=([%pass * %arvo %b %wait *] card)  ~
+  ?.  ?=([%activity %edit *] p.card)  ~
+  `p.card
+::  +setup-shared-notebook: zod hosts a public notebook, ~bus joins as
+::  %editor. Returns the notebook flag. Sets the activity-running gate.
+::
+++  setup-shared-notebook
+  =/  m  (mare ,flag:n)
+  ^-  form:m
+  =*  b  bind:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%visibility %public]])
+  ;<  *  b  (set-src ~bus)
+  ;<  *  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v1 [%notebook f [%member-join ~]]])
+  (pure:m f)
+::  creation is debounced like edits; an untouched note's timer submits
+::  %note-create for the creating author
+::
+++  test-activity-note-create-submits
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  setup-shared-notebook
+  ;<  *  b  (set-src ~bus)
+  ;<  caz=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v2 [%notebook f [%create-note 2 'T' 'B']]])
+  =/  acts  (activity-actions caz)
+  =/  timers  (edit-timer-wires caz)
+  ;<  caz2=(list card)  b  (do-arvo (snag 0 timers) [%behn %wake ~])
+  =/  acts2  (activity-actions caz2)
+  |=  s=state
+  ?.  =(~ acts)
+    |+['expected creation to submit nothing immediately']~
+  ?.  =(1 (lent timers))
+    |+['expected creation to arm a debounce timer']~
+  ?.  =(1 (lent acts2))
+    |+['expected the timer to submit one action']~
+  =/  act  (snag 0 acts2)
+  ?.  ?=(%add -.act)
+    |+['expected an %add submission']~
+  =/  ev  incoming-event.act
+  ?.  ?=(%note-create -.ev)
+    |+['expected a %note-create event']~
+  ?.  =(~bus author.ev)
+    |+['expected event author ~bus']~
+  ?.  =('T' title.ev)
+    |+['expected event title from the note']~
+  ?.  =([ship.f name.f] notebook.ev)
+    |+['expected event notebook flag']~
+  &+[~ s]
+::  self-authored changes don't notify, they just bump the notebook's
+::  recency — immediately, since a bump adds no event and can't notify
+::
+++  test-activity-self-note-bumps
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  caz2=(list card)  b
+    (poke-a [%notebook f [%note 3 [%update 'B2' 0]]])
+  =/  acts  (weld (activity-actions caz) (activity-actions caz2))
+  =/  timers  (weld (edit-timer-wires caz) (edit-timer-wires caz2))
+  |=  s=state
+  ?.  =(2 (lent acts))
+    |+['expected a bump for each self-authored change']~
+  ?.  =(~ timers)
+    |+['expected no debounce timers for self-authored changes']~
+  |-
+  ?~  acts  &+[~ s]
+  =/  act  i.acts
+  ?.  ?=(%bump -.act)
+    |+['expected self-authored changes to submit a %bump']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the bumped notebook flag']~
+  ?.  =(~ group.source.act)
+    |+['expected no group on a solo notebook source']~
+  $(acts t.acts)
+::  creating a notebook gives it an %activity source right away, so its
+::  notes have a parent to hang off and roll their unreads up into
+::
+++  test-activity-notebook-create-inits-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  caz=(list card)  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on notebook create']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected a %bump to init the notebook source']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the created notebook flag']~
+  &+[~ s]
+::  joining someone else's notebook inits its source too — the snapshot is
+::  the first point the group (and so the source) is known
+::
+++  test-activity-join-inits-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  ~  b  (set-scry-gate activity-scry)
+  =/  f=flag:n  [~bus %shared]
+  ;<  caz0=(list card)  b  (poke-a [%join f])
+  =/  req-watch=(unit wire)  (find-watch-wire caz0)
+  ~|  %no-join-request-watch-wire
+  ?>  ?=(^ req-watch)
+  ;<  *  b
+    %+  do-agent-drain  u.req-watch
+    :-  [~bus %notes]
+    :+  %fact  %notes-response-update-1
+    !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
+  =/  nb=notebook:n  [1 'NB' ~bus *@da *@da ~bus]
+  =/  root=folder:n  [1 1 'root' ~ ~bus *@da *@da ~bus]
+  =/  nb-state=notebook-state:n
+    :*  nb
+        (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
+        %public
+        (~(gas by *(map @ud folder:n)) ~[[1 root]])
+        ~  ~  ~
+    ==
+  =/  =response:n  [%snapshot f %public nb-state]
+  ;<  caz=(list card)  b
+    %+  do-agent  /notes/sub/(scot %p ~bus)/shared
+    [[~bus %notes] [%fact %notes-response !>(response)]]
+  ::  a rewatch re-sends the same snapshot; it must not bump again
+  ;<  caz2=(list card)  b
+    %+  do-agent  /notes/sub/(scot %p ~bus)/shared
+    [[~bus %notes] [%fact %notes-response !>(response)]]
+  =/  acts  (activity-actions caz)
+  =/  acts2  (activity-actions caz2)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on join snapshot']~
+  ?.  =(~ acts2)
+    |+['expected no activity submission on a resubscribe snapshot']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected a %bump to init the joined notebook source']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  ?.  =([ship.f name.f] flag.source.act)
+    |+['expected the joined notebook flag']~
+  &+[~ s]
+::  a batch import calls +se-update per note; the redundant per-note bumps
+::  collapse into one for the whole event
+::
+++  test-activity-batch-import-bumps-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b
+    %^  poke-a  %notebook  f
+    :-  %batch-import
+    [2 ~[['A' 'a'] ['B' 'b'] ['C' 'c']]]
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected one bump for the whole import, not one per note']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%bump -.act)
+    |+['expected the import to submit a %bump']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected the bump to name the notebook source']~
+  &+[~ s]
+::  changes don't submit immediately: each one (re)arms a debounce timer,
+::  and only the timer armed against the note's latest change submits
+::  when it fires — stale timers (including the creation's, when edits
+::  follow within the window) no-op, and the surviving event is a single
+::  %note-edit
+::
+++  test-activity-edit-debounces
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  f=flag:n  b  setup-shared-notebook
+  ;<  *  b  (set-src ~bus)
+  ;<  caz0=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v2 [%notebook f [%create-note 2 'T' 'B']]])
+  ;<  *  b  (jab-bowl |=(bl=bowl bl(now (add now.bl ~s30))))
+  ;<  *  b  (set-src ~bus)
+  ;<  caz1=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v3 [%notebook f [%note 3 [%update 'B2' 0]]]])
+  ;<  *  b  (jab-bowl |=(bl=bowl bl(now (add now.bl ~s30))))
+  ;<  *  b  (set-src ~bus)
+  ;<  caz2=(list card)  b
+    %+  do-poke-drain  %notes-command-1
+    !>(`command:v1:n`[`@uv`0v4 [%notebook f [%note 3 [%update 'B3' 1]]]])
+  =/  acts1  (activity-actions caz1)
+  =/  acts2  (activity-actions caz2)
+  =/  timers0  (edit-timer-wires caz0)
+  =/  timers1  (edit-timer-wires caz1)
+  =/  timers2  (edit-timer-wires caz2)
+  ::  the creation's and first edit's timers are stale (a later change
+  ::  re-armed the window)
+  ;<  caz3=(list card)  b  (do-arvo (snag 0 timers0) [%behn %wake ~])
+  ;<  caz4=(list card)  b  (do-arvo (snag 0 timers1) [%behn %wake ~])
+  ::  the second edit's timer is live and submits
+  ;<  caz5=(list card)  b  (do-arvo (snag 0 timers2) [%behn %wake ~])
+  =/  acts3  (activity-actions caz3)
+  =/  acts4  (activity-actions caz4)
+  =/  acts5  (activity-actions caz5)
+  |=  s=state
+  ?.  &(=(~ acts1) =(~ acts2))
+    |+['expected edits to submit nothing immediately']~
+  ?.  &(=(1 (lent timers0)) =(1 (lent timers1)) =(1 (lent timers2)))
+    |+['expected each change to arm a debounce timer']~
+  ?:  =((snag 0 timers1) (snag 0 timers2))
+    |+['expected distinct timer wires per edit']~
+  ?.  &(=(~ acts3) =(~ acts4))
+    |+['expected stale timers to submit nothing']~
+  ?.  =(1 (lent acts5))
+    |+['expected the live timer to submit one action']~
+  =/  a5  (snag 0 acts5)
+  ?.  ?=(%add -.a5)
+    |+['expected the live timer to submit an %add']~
+  =/  ev  incoming-event.a5
+  ?.  ?=(%note-edit -.ev)
+    |+['expected the collapsed event to be a %note-edit']~
+  ?.  =(~bus author.ev)
+    |+['expected event author ~bus']~
+  &+[~ s]
+::  deleting a note drops its activity source, even when self-authored
+::
+++  test-activity-delete-note-dels-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  *  b  (poke-a [%notebook f [%create-note 2 'T' 'B']])
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%note 3 [%delete ~]]])
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on delete']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%del -.act)
+    |+['expected a %del submission']~
+  ?.  ?=(%note -.source.act)
+    |+['expected %del of a note source']~
+  ?.  =(3 id.source.act)
+    |+['expected the deleted note id in the source']~
+  &+[~ s]
+::  deleting the whole notebook drops the notebook source
+::
+++  test-activity-notebook-delete-dels-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  =bowl:gall  b  get-bowl
+  ;<  ~  b  (set-scry-gate activity-scry)
+  ;<  *  b  (poke-a [%create-notebook 'NB'])
+  =/  f=flag:n  (nb-flag our.bowl 'NB' 1)
+  ;<  caz=(list card)  b  (poke-a [%notebook f [%delete ~]])
+  =/  acts  (activity-actions caz)
+  |=  s=state
+  ?.  =(1 (lent acts))
+    |+['expected exactly one activity submission on delete']~
+  =/  act  (snag 0 acts)
+  ?.  ?=(%del -.act)
+    |+['expected a %del submission']~
+  ?.  ?=(%notebook -.source.act)
+    |+['expected %del of the notebook source']~
+  &+[~ s]
+::  a subscriber receiving %folder %deleted mirrors the host's recursive
+::  subtree removal and %dels the removed notes' activity sources — the
+::  wire update only names the folder
+::
+++  test-activity-subscriber-folder-delete-clears-notes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  init-zod
+  ;<  ~  b  (set-scry-gate activity-scry)
+  =/  f=flag:n  [~bus %shared]
+  ::  join creates the %sub placeholder book and a request watch on the
+  ::  host; the %ok response makes the agent start its stream watch
+  ;<  caz0=(list card)  b  (poke-a [%join f])
+  =/  req-watch=(unit wire)  (find-watch-wire caz0)
+  ~|  %no-join-request-watch-wire
+  ?>  ?=(^ req-watch)
+  ;<  *  b
+    %+  do-agent-drain  u.req-watch
+    :-  [~bus %notes]
+    :+  %fact  %notes-response-update-1
+    !>(`response-update:v1:n`[`@uv`0v0 [%ok *@da [%member-joined ~zod %viewer]]])
+  ::  host snapshot: root folder 1 with note 4, subfolder 2 with note 5,
+  ::  and nested subfolder 3 (inside 2) with note 6 — deleting folder 2
+  ::  must take the whole subtree with it
+  =/  root=folder:n    [1 1 'root' ~ ~bus *@da *@da ~bus]
+  =/  subf=folder:n    [2 1 'sub' `1 ~bus *@da *@da ~bus]
+  =/  nested=folder:n  [3 1 'nested' `2 ~bus *@da *@da ~bus]
+  =/  kept=note:n      [4 1 1 'kept' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  doomed=note:n    [5 1 2 'doomed' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  buried=note:n    [6 1 3 'buried' ~ 'body' ~bus *@da ~bus *@da 0]
+  =/  nb=notebook:n    [1 'NB' ~bus *@da *@da ~bus]
+  =/  nb-state=notebook-state:n
+    :*  nb
+        (~(gas by *members:n) ~[[~bus %owner] [~zod %viewer]])
+        %public
+        (~(gas by *(map @ud folder:n)) ~[[1 root] [2 subf] [3 nested]])
+        (~(gas by *(map @ud note:n)) ~[[4 kept] [5 doomed] [6 buried]])
+        ~  ~
+    ==
+  =/  =wire  /notes/sub/(scot %p ~bus)/shared
+  ;<  *  b
+    %+  do-agent  wire
+    [[~bus %notes] [%fact %notes-response !>(`response:n`[%snapshot f %public nb-state])]]
+  ::  the host deletes the subfolder recursively
+  ;<  caz=(list card)  b
+    %+  do-agent  wire
+    :-  [~bus %notes]
+    [%fact %notes-response !>(`response:n`[%update f [*@da [%folder 2 [%deleted ~]]]])]
+  =/  acts  (activity-actions caz)
+  ;<  sv=vase  b  get-save
+  =/  s15=state-15:n  !<(state-15:n sv)
+  =/  [net:n nbs=notebook-state:n]  (~(got by books.s15) f)
+  |=  s=state
+  ?.  =(2 (lent acts))
+    |+['expected one activity submission per removed note']~
+  =/  del-ids=(set @ud)
+    %-  silt
+    %+  murn  acts
+    |=  act=action:v10:av
+    ^-  (unit @ud)
+    ?.  ?=(%del -.act)  ~
+    ?.  ?=(%note -.source.act)  ~
+    `id.source.act
+  ?.  =((silt ~[5 6]) del-ids)
+    |+['expected %del of both subtree note sources']~
+  ?:  |((~(has by folders.nbs) 2) (~(has by folders.nbs) 3))
+    |+['subtree folders not removed from local state']~
+  ?.  (~(has by folders.nbs) 1)
+    |+['root folder should survive']~
+  ?:  |((~(has by notes.nbs) 5) (~(has by notes.nbs) 6))
+    |+['subtree notes not removed from local state']~
+  ?.  (~(has by notes.nbs) 4)
+    |+['root note should survive']~
+  &+[~ s]
 ::  /v0/said: single-shot note reference previews
 ::
 ::  +said-watch-path: the client-facing watch path for a note preview
@@ -2653,6 +3122,10 @@
   |=  [synced=? allowed=?]
   ^-  scry
   |=  pax=path
+  ::  creating the notebook probes %activity liveness; answer it like
+  ::  +base-scry so these tests see no activity cards
+  ?:  ?=([%gu @ %activity @ %$ ~] pax)
+    `!>(|)
   ?:  ?=([%gu @ %groups @ %groups @ @ ~] pax)
     `!>(synced)
   ?.  ?=([%gx @ %groups @ %v2 %groups @ @ %channels %can-read %noun ~] pax)

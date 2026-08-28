@@ -189,6 +189,44 @@ describe('UrbitSSEClient', () => {
     });
   });
 
+  describe('requestJson', () => {
+    it('uses the authenticated SSE transport for JSON requests', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const release = vi.fn().mockResolvedValue(undefined);
+      vi.mocked(urbitFetch).mockResolvedValue({
+        response: {
+          ok: true,
+          status: 200,
+          text: vi.fn().mockResolvedValue('{"notes":[]}'),
+        } as unknown as Response,
+        finalUrl: 'https://example.com/notes',
+        release,
+      });
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      const controller = new AbortController();
+
+      await expect(
+        client.requestJson('/notes', 'GET', undefined, {
+          signal: controller.signal,
+        })
+      ).resolves.toEqual({ notes: [] });
+      expect(vi.mocked(urbitFetch)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: '/notes',
+          signal: controller.signal,
+          init: expect.objectContaining({
+            method: 'GET',
+            headers: { Cookie: 'urbauth-~zod=123' },
+          }),
+        })
+      );
+      expect(release).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('reconnection', () => {
     it('has autoReconnect enabled by default', () => {
       const client = new UrbitSSEClient(
@@ -1094,9 +1132,8 @@ describe('UrbitSSEClient', () => {
 
     it('a wake 404 (Channel activation) does not re-set the reap flag', async () => {
       const { urbitFetch } = await import('./fetch.js');
-      const { createUrbitChannel, wakeUrbitChannel } = await import(
-        './channel-ops.js'
-      );
+      const { createUrbitChannel, wakeUrbitChannel } =
+        await import('./channel-ops.js');
       const mockUrbitFetch = vi.mocked(urbitFetch);
       const mockCreate = vi.mocked(createUrbitChannel);
       const mockWake = vi.mocked(wakeUrbitChannel);
@@ -1563,9 +1600,8 @@ describe('UrbitSSEClient', () => {
 
     it('close() racing a rebuild never marks the client connected', async () => {
       const { urbitFetch } = await import('./fetch.js');
-      const { createUrbitChannel, wakeUrbitChannel } = await import(
-        './channel-ops.js'
-      );
+      const { createUrbitChannel, wakeUrbitChannel } =
+        await import('./channel-ops.js');
       const mockUrbitFetch = vi.mocked(urbitFetch);
       const mockCreate = vi.mocked(createUrbitChannel);
       const mockWake = vi.mocked(wakeUrbitChannel);

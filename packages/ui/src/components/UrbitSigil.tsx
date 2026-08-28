@@ -2,6 +2,8 @@ import { useMemo } from 'react';
 
 import { UrbitSigilSvg, makeSigil } from './UrbitSigilSvg';
 
+export { makeSigil };
+
 function UrbitSigil({
   contactId,
   colors,

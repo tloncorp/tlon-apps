@@ -217,6 +217,9 @@ class FakeSSE:
         self.pokes.append((app, mark, json_payload))
         return 1
 
+    async def close(self, graceful=True):
+        pass
+
     def pokes_for(self, mark):
         return [poke for poke in self.pokes if poke[1] == mark]
 
@@ -1391,6 +1394,343 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertIn(f"#{first_id}", text)
         self.assertIn(f"#{second_id}", text)
         self.assertIsNone(blob)
+
+    # ── source-message navigation targets ───────────────────────────────
+
+    @staticmethod
+    def card_components(blob):
+        entry = json.loads(blob)[0]
+        return {
+            component["id"]: component
+            for component in entry["messages"][1]["updateComponents"]["components"]
+        }
+
+    def notification_target(self, adapter):
+        """Nav target on the last owner-notification card, or None."""
+        notification = adapter._cli.notifications()[-1]
+        self.assertIn("--blob", notification)
+        components = self.card_components(notification[notification.index("--blob") + 1])
+        view = components.get("viewMessage")
+        return view["action"]["event"]["context"]["target"] if view else None
+
+    @staticmethod
+    def post_scries(adapter):
+        return [path for path in adapter._sse.scries if "/posts/post/" in path]
+
+    @staticmethod
+    def init_scries(adapter):
+        return [path for path in adapter._sse.scries if path == "/groups-ui/v7/init"]
+
+    def test_channel_approval_takes_parent_author_from_cache(self):
+        adapter = self.make_adapter()
+        # the parent arrives through the normal channel path, which is what
+        # populates the cache under the key the lookup reads
+        self.dispatches(
+            adapter, channel_event("root post", author="~bus", post_id="170.100")
+        )
+
+        self.dispatches(adapter, channel_event("~pen replying", parent_id="170.100"))
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["parentAuthorId"], "~bus")
+        self.assertEqual(self.notification_target(adapter)["parentAuthorId"], "~bus")
+        self.assertEqual(self.post_scries(adapter), [])
+
+    def test_channel_approval_scries_parent_author_on_cache_miss(self):
+        adapter = self.make_adapter()
+        path = "/channels/v4/chat/~pen/general/posts/post/170.100"
+        # a parent with no readable body still has an author
+        adapter._sse.payloads[path] = {
+            "post": {
+                "essay": {"author": "~bus", "sent": 500, "content": []},
+                "seal": {"id": "170100"},
+            }
+        }
+
+        self.dispatches(adapter, channel_event("~pen replying", parent_id="170.100"))
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["parentAuthorId"], "~bus")
+        self.assertEqual(self.post_scries(adapter), [path])
+
+    def test_channel_approval_scries_past_unknown_cache_sentinel(self):
+        adapter = self.make_adapter()
+        adapter._message_cache.record("chat/~pen/general", "170.100", "", "root post")
+        self.assertEqual(
+            adapter._message_cache.lookup("chat/~pen/general", "170.100").author,
+            "unknown",
+        )
+        path = "/channels/v4/chat/~pen/general/posts/post/170.100"
+        adapter._sse.payloads[path] = {
+            "post": {
+                "essay": {"author": "~bus", "sent": 500, "content": []},
+                "seal": {"id": "170100"},
+            }
+        }
+
+        self.dispatches(adapter, channel_event("~pen replying", parent_id="170.100"))
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["parentAuthorId"], "~bus")
+        self.assertEqual(self.post_scries(adapter), [path])
+
+    def test_channel_approval_queues_when_parent_author_is_unresolvable(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(adapter, channel_event("~pen replying", parent_id="170.100"))
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["type"], "channel")
+        self.assertEqual(pending["originalMessage"]["parentId"], "170.100")
+        self.assertNotIn("parentAuthorId", pending["originalMessage"])
+        self.assertNotIn("parentAuthorId", self.notification_target(adapter))
+
+    def test_channel_approval_card_carries_group_id_from_init_scry(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "groups": {
+                "~host/projects": {
+                    "channels": {"chat/~pen/general": {}, "heap/~pen/gallery": {}}
+                }
+            }
+        }
+
+        self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        target = self.notification_target(adapter)
+        self.assertEqual(target["channelId"], "chat/~pen/general")
+        self.assertEqual(target["groupId"], "~host/projects")
+        self.assertEqual(adapter._nest_to_group["heap/~pen/gallery"], "~host/projects")
+
+    def test_channel_approval_card_omits_group_id_when_init_scry_fails(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(adapter, channel_event("~pen are you there?"))
+
+        target = self.notification_target(adapter)
+        self.assertEqual(target["channelId"], "chat/~pen/general")
+        self.assertNotIn("groupId", target)
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+    def test_out_of_budget_pending_skips_group_scries(self):
+        adapter = self.make_adapter()
+        adapter._pending_approvals = [
+            {
+                "id": f"c{index}",
+                "type": "channel",
+                "requestingShip": f"~ship{index}",
+                "channelNest": f"chat/~pen/room{index}",
+                "timestamp": int(time.time() * 1000),
+            }
+            for index in range(5)
+        ]
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        self.assertIsNone(adapter._cli.message_blobs[-1][0])
+        self.assertEqual(self.init_scries(adapter), [])
+
+    def test_pending_resolves_group_ids_with_one_init_scry(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "groups": {
+                "~host/projects": {"channels": {"chat/~pen/general": {}}},
+                "~host/garden": {"channels": {"chat/~bus/plants": {}}},
+            }
+        }
+        adapter._pending_approvals = [
+            {
+                "id": f"c{index}",
+                "type": "channel",
+                "requestingShip": "~ten",
+                "channelNest": nest,
+                "timestamp": int(time.time() * 1000),
+                "originalMessage": {"messageId": f"170.{index}"},
+            }
+            for index, nest in enumerate(["chat/~pen/general", "chat/~bus/plants"])
+        ]
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        components = self.card_components(adapter._cli.message_blobs[-1][0])
+        target0 = components["item0View"]["action"]["event"]["context"]["target"]
+        target1 = components["item1View"]["action"]["event"]["context"]["target"]
+        self.assertEqual(target0["groupId"], "~host/projects")
+        self.assertEqual(target1["groupId"], "~host/garden")
+        self.assertEqual(len(self.init_scries(adapter)), 1)
+
+    def test_disconnect_clears_the_nest_to_group_cache(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "groups": {"~host/projects": {"channels": {"chat/~pen/general": {}}}}
+        }
+        self.dispatches(adapter, channel_event("~pen are you there?"))
+        self.assertEqual(
+            adapter._nest_to_group["chat/~pen/general"], "~host/projects"
+        )
+
+        asyncio.run(adapter.disconnect())
+
+        self.assertEqual(adapter._nest_to_group, {})
+
+    def test_dm_approval_takes_parent_author_from_cache(self):
+        adapter = self.make_adapter()
+        # same as the channel case: record through the real inbound path so
+        # the test pins the cache key the DM lookup actually uses
+        self.dispatches(adapter, dm_event("root message", msg_id="dm-parent"), dm=True)
+
+        self.dispatches(
+            adapter,
+            dm_event("replying", parent_id="dm-parent", msg_id="dm-2"),
+            dm=True,
+        )
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["parentId"], "dm-parent")
+        self.assertEqual(pending["originalMessage"]["parentAuthorId"], "~ten")
+        self.assertEqual(self.post_scries(adapter), [])
+
+    def test_dm_approval_never_scries_for_an_uncached_parent(self):
+        adapter = self.make_adapter()
+
+        self.dispatches(
+            adapter,
+            dm_event("replying", parent_id="dm-parent", msg_id="dm-2"),
+            dm=True,
+        )
+
+        pending = adapter._pending_approvals[0]
+        self.assertEqual(pending["originalMessage"]["parentId"], "dm-parent")
+        self.assertNotIn("parentAuthorId", pending["originalMessage"])
+        self.assertEqual(self.post_scries(adapter), [])
+
+    def test_hosted_owner_gets_no_dm_source_link_but_keeps_channel_links(self):
+        # owner ~mug ≠ bot ~pen: the bot's DM conversation does not exist in
+        # the owner's client, so a DM source link would dead-end.
+        dm_adapter = self.make_adapter()
+        self.dispatches(dm_adapter, dm_event("hi bot"), dm=True)
+        self.assertIsNone(self.notification_target(dm_adapter))
+
+        channel_adapter = self.make_adapter()
+        self.dispatches(channel_adapter, channel_event("~pen are you there?"))
+        self.assertEqual(
+            self.notification_target(channel_adapter)["channelId"],
+            "chat/~pen/general",
+        )
+
+    def test_self_owned_bot_keeps_the_dm_source_link(self):
+        adapter = self.make_adapter({"owner_ship": "~pen"})
+
+        self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        target = self.notification_target(adapter)
+        self.assertEqual(target["channelId"], "~ten")
+        self.assertEqual(target["postId"], "dm-1")
+
+    def test_pending_card_hides_dm_source_for_a_hosted_owner(self):
+        adapter = self.make_adapter()
+        self.dispatches(adapter, dm_event("hi bot"), dm=True)
+        self.dispatches(
+            adapter, channel_event("~pen help", author="~bus", post_id="170.9")
+        )
+
+        self.dispatches(
+            adapter,
+            dm_event("/pending", author="~mug", whom="~mug", msg_id="cmd-1"),
+            dm=True,
+        )
+
+        components = self.card_components(adapter._cli.message_blobs[-1][0])
+        self.assertNotIn("item0View", components)
+        self.assertEqual(
+            components["item0Actions"]["children"],
+            ["item0Allow", "item0Reject", "item0Block"],
+        )
+        self.assertIn("item1View", components["item1Actions"]["children"])
+        self.assertEqual(
+            components["item1View"]["action"]["event"]["context"]["target"][
+                "channelId"
+            ],
+            "chat/~pen/general",
+        )
+
+    def test_pending_card_keeps_dm_source_for_a_self_owned_bot(self):
+        # the owner ship is the bot ship, so /pending arrives on the bot's own
+        # DM surface rather than through an inbound DM event
+        adapter = self.make_adapter({"owner_ship": "~pen"})
+        self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        asyncio.run(
+            adapter._handle_approval_command(
+                "pending", "", reply_chat_id="~pen", reply_parent_id=None
+            )
+        )
+
+        components = self.card_components(adapter._cli.message_blobs[-1][0])
+        self.assertIn("item0View", components["item0Actions"]["children"])
+        self.assertEqual(
+            components["item0View"]["action"]["event"]["context"]["target"][
+                "channelId"
+            ],
+            "~ten",
+        )
+
+    # ── owner notification fallback ─────────────────────────────────────
+
+    def test_owner_notification_drops_blob_when_card_fails_validation(self):
+        adapter, fake = self.make_instrumented_adapter()
+
+        with patch.object(adapter_mod, "validate_a2ui_card", lambda _card: False):
+            self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        notification = adapter._cli.notifications()[-1]
+        self.assertNotIn("--blob", notification)
+        self.assertIn("DM request", notification[3])
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        errors = [
+            props
+            for name, props in fake.captures
+            if name == "TlonBot Error" and props.get("component") == "approval"
+        ]
+        self.assertEqual(len(errors), 1)
+        self.assertEqual(errors[0]["requestType"], "dm")
+
+    def test_owner_notification_survives_a_raising_card_builder(self):
+        adapter = self.make_adapter()
+
+        def explode(*_args, **_kwargs):
+            raise RuntimeError("card builder regression")
+
+        with patch.object(adapter_mod, "build_approval_card", explode):
+            self.dispatches(adapter, dm_event("hi bot"), dm=True)
+
+        notification = adapter._cli.notifications()[-1]
+        self.assertNotIn("--blob", notification)
+        self.assertIn("DM request", notification[3])
+        self.assertEqual(len(adapter._pending_approvals), 1)
+
+    def test_owner_notification_text_is_clamped_to_max_message_length(self):
+        adapter = self.make_adapter()
+        approval = {
+            "id": "c1a2b",
+            "type": "channel",
+            "requestingShip": "~ten",
+            "timestamp": int(time.time() * 1000),
+            "channelNest": "n" * (tlon_api.MAX_MESSAGE_LENGTH + 500),
+        }
+
+        asyncio.run(adapter._notify_owner_approval(approval))
+
+        text = adapter._cli.notifications()[-1][3]
+        self.assertEqual(len(text), tlon_api.MAX_MESSAGE_LENGTH)
 
     def test_control_reply_truncates_to_max_message_length(self):
         adapter = self.make_adapter()

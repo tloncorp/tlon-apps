@@ -16,15 +16,12 @@ function wait(ms) {
 }
 
 function retrieveOtp() {
-  const response = http.post(
-    `${MAESTRO_SERVERLESS_INFRA_API}/retreiveE2eOtp`,
-    {
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email: output.signupEmail }),
-    }
-  );
+  const response = http.post(`${MAESTRO_SERVERLESS_INFRA_API}/retreiveE2eOtp`, {
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email: output.signupEmail }),
+  });
 
   lastBody = response.body == null ? '' : String(response.body).trim();
   return /^\d{6}$/.test(lastBody) ? lastBody : undefined;

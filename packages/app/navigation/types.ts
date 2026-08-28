@@ -14,6 +14,10 @@ export type TopLevelTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
+  OnboardingStartup: {
+    channelId: string;
+    groupId: string;
+  };
   VerifierStub: undefined;
   Empty: undefined;
   Settings: undefined;
@@ -29,6 +33,7 @@ export type RootStackParamList = {
   };
   Channel: {
     channelId: string;
+    disableTransition?: boolean;
     groupId?: string;
     selectedPostId?: string | null;
     startDraft?: boolean;
@@ -67,6 +72,13 @@ export type RootStackParamList = {
     folderId: number;
     folderTitle?: string;
     groupId?: string;
+    // Note to select once the folder opens, for jumping straight to a note
+    // that lives outside the folder currently on screen.
+    noteId?: number;
+  };
+  NotesSearch: {
+    channelId: string;
+    groupId?: string;
   };
   MediaViewer: {
     mediaType: 'image' | 'video';
@@ -80,9 +92,12 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
-  BotMcpSettings: undefined;
+  BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
+  BotOpenAISubscription:
+    | { provider?: 'openai' | 'anthropic' | 'xai' }
+    | undefined;
   BotShipListSettings: {
     list: 'dmAllowlist' | 'defaultAuthorizedShips' | 'groupInviteAllowlist';
   };
@@ -189,6 +204,7 @@ export type SettingsDrawerParamList = Pick<
   | 'BotMcpSettings'
   | 'BotModelSettings'
   | 'BotApiKeySettings'
+  | 'BotOpenAISubscription'
   | 'BotShipListSettings'
   | 'BotChannelRulesSettings'
   | 'BotChannelRuleSettings'
@@ -206,6 +222,7 @@ export type ChannelStackParamList = {
   Post: RootStackParamList['Post'];
   NotesDetail: RootStackParamList['NotesDetail'];
   NotesFolder: RootStackParamList['NotesFolder'];
+  NotesSearch: RootStackParamList['NotesSearch'];
   MediaViewer: RootStackParamList['MediaViewer'];
   UserProfile: RootStackParamList['UserProfile'];
   EditProfile: RootStackParamList['EditProfile'];
@@ -220,6 +237,7 @@ export type DesktopChannelStackParamList = Pick<
   | 'Post'
   | 'NotesDetail'
   | 'NotesFolder'
+  | 'NotesSearch'
   | 'MediaViewer'
   | 'UserProfile'
   | 'EditProfile'

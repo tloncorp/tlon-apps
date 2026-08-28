@@ -295,7 +295,7 @@ const ButtonIcon = (props: { color?: ColorTokens; children: any }) => {
     props.color ??
     (context.hero || context.heroDestructive
       ? '$background'
-      : context.color ?? '$primaryText');
+      : (context.color ?? '$primaryText'));
 
   return cloneElement(props.children, {
     color: iconColor,

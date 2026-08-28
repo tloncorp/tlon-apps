@@ -10,13 +10,17 @@ import type {
   RuntimeContext,
   RuntimeSeed,
 } from '../drivers/types.js';
+import { applyBranchDesk } from '../runtime/branch-desk.js';
 import { runCommand } from '../runtime/compose.js';
 import { createComposeHandle } from '../runtime/compose.js';
 import {
   createRuntimeContext,
   runtimeContextForJson,
 } from '../runtime/context.js';
-import { collectRuntimeDiagnostics } from '../runtime/diagnostics.js';
+import {
+  collectRuntimeDiagnostics,
+  writeDiagnosticsArtifacts,
+} from '../runtime/diagnostics.js';
 import { loadTlonBotE2eEnvFile } from '../runtime/env.js';
 import {
   type RuntimePortOverrides,
@@ -42,6 +46,7 @@ const packageDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '../..'
 );
+const COMPOSE_UP_TIMEOUT_MS = 300_000;
 
 async function main(): Promise<void> {
   await loadPackageEnv();
@@ -139,8 +144,12 @@ async function runDriverRuntime(args: {
     await args.driver.beforeComposeBuild?.(ctx);
     await compose.build([ctx.services.bot]);
     await args.driver.beforeComposeUp?.(ctx, compose);
-    await compose.up();
+    await compose.up([ctx.services.ships, ctx.services.fakeModel], {
+      timeoutMs: COMPOSE_UP_TIMEOUT_MS,
+    });
     await waitForBaseServices(ctx);
+    await applyBranchDesk(ctx);
+    await compose.up([], { timeoutMs: COMPOSE_UP_TIMEOUT_MS });
     await args.driver.waitReady(ctx, compose);
     await args.driver.assertRuntimeConfig?.(ctx, compose);
     await args.runTests(ctx);
@@ -162,6 +171,20 @@ async function runDriverRuntime(args: {
       console.error('\n==> Runtime diagnostics\n');
       console.error(diagnostics);
     }
+    try {
+      const outDir = await writeDiagnosticsArtifacts(
+        ctx,
+        compose,
+        path.join(packageDir, 'diagnostics'),
+        diagnostics
+      );
+      console.error(`==> Diagnostics written to ${outDir}`);
+    } catch (writeError) {
+      console.error(
+        `==> Failed to write diagnostics artifacts: ` +
+          `${writeError instanceof Error ? writeError.message : writeError}`
+      );
+    }
     throw error;
   } finally {
     if (!args.keepStack) {
@@ -175,7 +198,7 @@ async function runDriverRuntime(args: {
         console.error('\n==> Compose teardown failed during cleanup\n');
         console.error(
           cleanupError instanceof Error
-            ? cleanupError.stack ?? cleanupError.message
+            ? (cleanupError.stack ?? cleanupError.message)
             : cleanupError
         );
       }
@@ -320,6 +343,14 @@ async function runCommonScenarioPartition(
   );
   console.log('');
 
+  // Scoped local debugging: run only scenarios whose names match, e.g.
+  // TLON_BOT_E2E_TEST_NAME='migrate-happy-path' (vitest -t semantics).
+  // Scenario IDs are dashed but register as space-separated test titles
+  // (see testScenario), so normalize the same way and accept either form.
+  const testNameFilter = process.env.TLON_BOT_E2E_TEST_NAME?.replace(
+    /[-_.:]+/g,
+    ' '
+  );
   const result = await withRuntimeContextFile(ctx, async (contextFile) => {
     const env = buildCommonScenarioEnv(ctx, contextFile, partition);
     return runCommand(
@@ -331,6 +362,7 @@ async function runCommonScenarioPartition(
         '--config',
         'vitest.e2e.config.ts',
         'src/scenarios/common.test.ts',
+        ...(testNameFilter ? ['-t', testNameFilter] : []),
       ],
       { cwd: path.join(ctx.repoRoot, 'packages/tlon-bot-e2e'), env }
     );
@@ -512,6 +544,8 @@ function flag(value: string | undefined): boolean {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
+  console.error(
+    error instanceof Error ? (error.stack ?? error.message) : error
+  );
   process.exit(1);
 });

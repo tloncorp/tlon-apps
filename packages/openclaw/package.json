@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/openclaw",
-  "version": "0.19.0",
+  "version": "0.25.0",
   "description": "OpenClaw Tlon/Urbit channel plugin",
   "license": "MIT",
   "repository": {
@@ -10,6 +10,7 @@
   },
   "files": [
     "dist/",
+    "skills/",
     "openclaw.plugin.json",
     "README.md"
   ],
@@ -31,8 +32,8 @@
     "postbuild": "node scripts/generate-channel-configs.mjs",
     "clean": "rm -rf dist",
     "dev": "./dev/run.sh",
-    "lint": "eslint .",
-    "lint:format": "prettier ./ --write",
+    "lint": "oxlint .",
+    "lint:format": "oxfmt ./",
     "postinstall": "node scripts/generate-version.js",
     "prebuild": "node scripts/generate-version.js",
     "tsc": "tsc --noEmit",

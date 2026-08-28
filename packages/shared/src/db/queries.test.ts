@@ -1,6 +1,7 @@
 import { QueryObserver } from '@tanstack/react-query';
-import { v0PeersToClientProfiles } from '@tloncorp/api';
-import { toClientGroupsV7 } from '@tloncorp/api';
+import { directoryToClientProfiles } from '@tloncorp/api';
+import { toClientGroups } from '@tloncorp/api';
+import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -10,7 +11,7 @@ import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
 import contactBookResponse from '../test/contactBook.json';
-import contactsResponse from '../test/contacts.json';
+import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
 import {
   getClient,
@@ -23,8 +24,8 @@ import * as queries from './queries';
 import { queryClient } from './reactQuery';
 import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
 
-const groupsData = toClientGroupsV7(
-  groupsResponse as unknown as Record<string, ub.GroupV7>,
+const groupsData = toClientGroups(
+  groupsResponse as unknown as Record<string, ub.GroupV11>,
   true
 );
 
@@ -414,7 +415,9 @@ test('inserts contacts without overriding block data', async () => {
   const blockedUsers = await queries.getBlockedUsers();
   expect(blockedUsers.map((b) => b.id)).toEqual(blocks);
 
-  const contacts = v0PeersToClientProfiles(contactsResponse);
+  const contacts = directoryToClientProfiles(
+    contactsDirectoryResponse as unknown as ContactsDirectoryScryResult1
+  );
   // nocsyx and ravmel are in contacts, but blocked
   expect(
     contacts.filter(
@@ -429,6 +432,46 @@ test('inserts contacts without overriding block data', async () => {
   await queries.insertContacts(contacts);
   const newBlockedUsers = await queries.getBlockedUsers();
   expect(newBlockedUsers.map((b) => b.id)).toEqual(blocks);
+});
+
+describe('insertContacts botInfo', () => {
+  const ship = '~bot-info-provenance';
+  const claim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.19.0',
+  });
+  const updatedClaim = JSON.stringify({
+    v: 1,
+    harness: 'openclaw',
+    version: '0.20.0',
+  });
+
+  // Every bulk source is lossless since the /v1/directory migration, so
+  // insertContacts writes the column unconditionally: present replaces,
+  // absent clears. (The old v0 `/all` path required an exclusion-list guard
+  // here; it died with the endpoint.)
+  test('a synced row replaces an existing claim', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    await queries.insertContacts([{ id: ship, botInfo: updatedClaim }]);
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(
+      updatedClaim
+    );
+  });
+
+  test('a synced row clears the claim when the key is missing', async () => {
+    await queries.insertContacts([{ id: ship, botInfo: claim }]);
+    // The bot stopped advertising: the row arrives without the key.
+    await queries.insertContacts([{ id: ship }]);
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
+  });
+
+  test('upsertContact sets and clears the claim (subscription path)', async () => {
+    await queries.upsertContact({ id: ship, botInfo: claim });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBe(claim);
+    await queries.upsertContact({ id: ship, botInfo: null });
+    expect((await queries.getContact({ id: ship }))?.botInfo).toBeNull();
+  });
 });
 
 const refDate = Date.now();
@@ -571,12 +614,257 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   return posts;
 }
 
+test('getA2UISelections: returns the author’s live selections newest first', async () => {
+  const channelId = '~zod/dm';
+  const selectionBlob = (surfaceId: string) =>
+    JSON.stringify([
+      { type: 'tlon-context-lens', version: 1, lensId: 'other-entry' },
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId,
+        componentId: 'topics',
+        values: ['Weather'],
+      },
+    ]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...base,
+        id: 'mine',
+        authorId: '~zod',
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        blob: selectionBlob('s-mine'),
+      },
+      // Another member posting a matching blob must not consume the
+      // viewer's control (or fake their answer).
+      {
+        ...base,
+        id: 'theirs',
+        authorId: '~ten',
+        receivedAt: refDate + 2,
+        sentAt: refDate + 2,
+        blob: selectionBlob('s-theirs'),
+      },
+      // Deleting the reply un-consumes the control.
+      {
+        ...base,
+        id: 'mine-deleted',
+        authorId: '~zod',
+        receivedAt: refDate + 3,
+        sentAt: refDate + 3,
+        isDeleted: true,
+        blob: selectionBlob('s-deleted'),
+      },
+      {
+        ...base,
+        id: 'mine-failed',
+        authorId: '~zod',
+        receivedAt: refDate + 4,
+        sentAt: refDate + 4,
+        deliveryStatus: 'failed' as const,
+        blob: selectionBlob('s-failed'),
+      },
+      {
+        ...base,
+        id: 'mine-no-blob',
+        authorId: '~zod',
+        receivedAt: refDate + 5,
+        sentAt: refDate + 5,
+      },
+    ],
+  });
+
+  const selections = await queries.getA2UISelections({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(selections).toEqual([
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId: 's-failed',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId: 's-mine',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
+  ]);
+});
+
+test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', async () => {
+  const channelId = '~zod/dm';
+  const blob = (entry: Record<string, unknown>) => JSON.stringify([entry]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    authorId: '~zod',
+    sentAt: refDate,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...base,
+        id: 'provision-old',
+        receivedAt: refDate + 30,
+        sequenceNum: 1,
+        blob: blob({
+          type: 'tlon-agent-provision',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          purposeId: 'agent-daily-digest',
+          purpose: 'Daily digest',
+          topics: ['Weather'],
+          timezone: 'UTC',
+          scheduleHour: 8,
+          scheduleMinute: 0,
+          notebookNest: '~zod/notebook',
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-old-cycle',
+        receivedAt: refDate + 20,
+        sequenceNum: 2,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          providerIds: ['calendar'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-live',
+        receivedAt: refDate + 2,
+        sequenceNum: 3,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provision-new',
+        receivedAt: refDate + 3,
+        sequenceNum: 4,
+        blob: JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-new',
+            groupId: '~zod/group',
+            purposeId: 'agent-research',
+            purpose: 'Research',
+            topics: ['Robotics'],
+            timezone: 'UTC',
+            scheduleHour: 9,
+            scheduleMinute: 30,
+            notebookNest: '~zod/notebook',
+          },
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: 'source-post',
+            surfaceId: 'topics-surface',
+            componentId: 'topics',
+            values: ['Robotics'],
+          },
+        ]),
+      },
+      {
+        ...base,
+        id: 'provider-deleted',
+        receivedAt: refDate + 4,
+        isDeleted: true,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['github'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-other-author',
+        authorId: '~ten',
+        receivedAt: refDate + 5,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['notion'],
+        }),
+      },
+    ],
+  });
+
+  const receipts = await queries.getAgentA2UIProtocolReceipts({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(receipts.provision).toMatchObject({
+    postId: 'provision-new',
+    receivedAt: refDate + 3,
+    entry: { topics: ['Robotics'] },
+    selection: {
+      sourcePostId: 'source-post',
+      surfaceId: 'topics-surface',
+      componentId: 'topics',
+    },
+  });
+  expect(receipts.provisions).toMatchObject([
+    { postId: 'provision-old', entry: { topics: ['Weather'] } },
+    {
+      postId: 'provision-new',
+      entry: { topics: ['Robotics'] },
+      selection: { sourcePostId: 'source-post' },
+    },
+  ]);
+  expect(receipts.providerConfig).toMatchObject({
+    postId: 'provider-live',
+    receivedAt: refDate + 2,
+    entry: { providerIds: ['gmail'] },
+  });
+  expect(receipts.providerConfigs).toMatchObject([
+    {
+      postId: 'provider-old-cycle',
+      entry: { provisionId: 'provision-old', providerIds: ['calendar'] },
+    },
+    {
+      postId: 'provider-live',
+      entry: { provisionId: 'provision-new', providerIds: ['gmail'] },
+    },
+  ]);
+});
+
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
@@ -637,7 +925,7 @@ test('getMentionCandidates: limits results to 6', async () => {
   setScryOutputs([initResponse]);
   await syncInitData();
   setScryOutputs([
-    contactsResponse,
+    contactsDirectoryResponse,
     contactBookResponse,
     suggestedContactsResponse,
   ]);
@@ -1144,6 +1432,25 @@ test('channel unread count updates invalidate channel unreads', () => {
   expect(queries.updateChannelUnreadCount.meta.tableEffects).toEqual([
     'channelUnreads',
   ]);
+});
+
+// The group-channel bot popup gates on group.members (via useGroup), so member
+// churn must refresh getGroup. Assert both sides of the invalidation relation:
+// the member writers declare the 'groups' effect AND getGroup depends on it.
+// Either side regressing silently breaks popup reactivity.
+test('membership writes invalidate group detail queries', () => {
+  expect(queries.insertMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.addChatMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.removeChatMembers.meta.tableEffects).toEqual(
+    expect.arrayContaining(['groups'])
+  );
+  expect(queries.getGroup.meta.tableDependencies).toEqual(
+    expect.arrayContaining(['groups'])
+  );
 });
 
 test('insertChannelUnreads updates nested thread unread conflicts', async () => {
@@ -2175,5 +2482,71 @@ describe('pins reordering (TLON-5948)', () => {
       await refetch;
       unsubscribe();
     });
+  });
+});
+
+describe('thread unreads by channel', () => {
+  const channelId = 'chat/~zod/thread-unread-contract';
+
+  function threadUnread(
+    threadId: string,
+    overrides: Partial<ThreadUnreadState> = {}
+  ): ThreadUnreadState {
+    return {
+      channelId,
+      threadId,
+      count: 1,
+      notify: false,
+      updatedAt: 1,
+      firstUnreadPostId: null,
+      firstUnreadPostReceivedAt: null,
+      ...overrides,
+    } as ThreadUnreadState;
+  }
+
+  // The channel-scoped thread-unread overlay keys its map on threadId and
+  // matches it against post ids, so these rows have to come back keyed that
+  // way. If this contract moves, the reply-summary dot silently stops
+  // resolving.
+  test('returns rows keyed by the parent post id', async () => {
+    await queries.insertThreadUnreads([threadUnread('parent-post-1')]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['parent-post-1']);
+    expect(result[0].count).toBe(1);
+  });
+
+  test('excludeRead drops threads with no unread activity', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('unread-thread', { count: 2 }),
+      threadUnread('read-thread', { count: 0, notify: false }),
+      threadUnread('notifying-thread', { count: 0, notify: true }),
+    ]);
+
+    const active = await queries.getThreadUnreadsByChannel({
+      channelId,
+      excludeRead: true,
+    });
+
+    // A read thread drops out entirely — which is why the overlay treats a
+    // missing entry as "no dot" rather than falling back to the post's own
+    // stale copy. A notifying row is kept but carries count 0, so it still
+    // renders no dot.
+    expect(active.map((u) => u.threadId).sort()).toEqual([
+      'notifying-thread',
+      'unread-thread',
+    ]);
+  });
+
+  test('scopes results to the requested channel', async () => {
+    await queries.insertThreadUnreads([
+      threadUnread('mine'),
+      threadUnread('theirs', { channelId: 'chat/~zod/other' }),
+    ]);
+
+    const result = await queries.getThreadUnreadsByChannel({ channelId });
+
+    expect(result.map((u) => u.threadId)).toEqual(['mine']);
   });
 });

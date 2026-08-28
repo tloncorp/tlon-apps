@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
-import { useIsDarkTheme } from '../../utils';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import { EditLinkBar } from './EditLinkBar';
 import {
   DEFAULT_TOOLBAR_ITEMS,
@@ -61,7 +61,7 @@ const InputToolbar = memo(
       ToolbarContext.Main
     );
     const tamagui = useTheme();
-    const isDark = useIsDarkTheme();
+    const isDark = useIsDarkMode();
 
     const bgColor = backgroundColor || tamagui.background.val;
     const staticStyles = useMemo(() => createStaticStyles(bgColor), [bgColor]);

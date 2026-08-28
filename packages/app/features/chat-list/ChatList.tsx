@@ -8,6 +8,7 @@ import { getTokenValue } from 'tamagui';
 import { SectionedChatData } from '../../hooks/useFilteredChats';
 import { usePinnedChatOrdering } from '../../hooks/usePinnedChatOrdering';
 import { useRenderCount } from '../../hooks/useRenderCount';
+import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 import {
   ChatListItem,
   InteractableChatListItem,
@@ -47,6 +48,7 @@ export const ChatList = React.memo(function ChatListComponent({
   scrollerTestID?: string;
   scrollRef?: React.RefObject<FlashListRef<ChatListItemData> | null>;
 }) {
+  const bottomContentInset = useTopLevelTabBarContentInset();
   // The pinned section renders as the FlashList ListHeaderComponent (sortable),
   // and only the non-pinned sections feed the virtualized list (TLON-5948 §5.5).
   const { pinned, rest } = useMemo(() => splitPinnedSection(data), [data]);
@@ -88,7 +90,7 @@ export const ChatList = React.memo(function ChatListComponent({
   // see: https://github.com/Shopify/flash-list/pull/852
   const contentContainerStyle = {
     padding: getTokenValue('$l', 'size'),
-    paddingBottom: 100, // bottom nav height + some cushion
+    paddingBottom: bottomContentInset,
   };
 
   const listItemHoverStyle = useMemo(

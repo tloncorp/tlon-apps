@@ -3,9 +3,19 @@
  *
  * Test 1 is the sensitivity guard: on prewarming cores, a forced Tlon monitor
  * restart must establish a new lease and then renew it from the replacement
- * monitor. Test 2 is omitted because rube-27's archived activity feed does not
- * advance the old agent's owner-activity; a regenerated steward pier can cover
- * it later.
+ * monitor.
+ *
+ * Both halves of this test talk to %steward: the plugin POKES it with
+ * %steward-gateway-action-1 (see @tloncorp/api stewardGatewayApi) and the test
+ * SCRIES it at /x/v1/gateway/status. The standalone %gateway-status agent —
+ * latterly a poke-only proxy onto steward — has been removed. Its status
+ * payload was byte-identical to what steward's gateway module serves, so
+ * decodeGatewayStatus is unchanged.
+ *
+ * An owner-activity assertion (/v1/gateway/owner-activity, decodeDa) is still
+ * unwritten. It was previously blocked on rube-27's archived activity feed not
+ * advancing the old agent's owner-activity; the piers now carry a steward that
+ * would serve it.
  */
 import { beforeAll, describe, expect, test } from 'vitest';
 
@@ -16,11 +26,12 @@ import {
   createBoundedNounClient,
   decodeGatewayStatus,
   getContainerLogsSince,
+  getGatewayRestartPreflight,
   getTestConfig,
   setGatewayStatusRestartConfig,
 } from '../lib/index.js';
 
-const ARCHIVE = 'pinned rube-zod27';
+const ARCHIVE = 'pinned rube-zod-group-blob';
 // Must match dev/Dockerfile.test's ARG OPENCLAW_CORE_VERSION default: the test
 // asserts the container's installed core equals this requested version. Bumping
 // both together to 2026.6.11/2026.7.1 (already in the known-prewarm map below)
@@ -31,8 +42,8 @@ const INTERNAL_TEST_TIMEOUT_MS = 165_000;
 const DIAGNOSTIC_RESERVE_MS = 12_000;
 const MIN_POLL_OPERATION_BUDGET_MS = 2_000;
 const STATUS_SCRY = {
-  app: 'gateway-status',
-  path: '/status',
+  app: 'steward',
+  path: '/v1/gateway/status',
   archive: ARCHIVE,
 } as const;
 const GATEWAY_START = '[gateway-status] gateway_start received (generation=1)';
@@ -41,6 +52,10 @@ const REGISTERING_TOOL = '[tlon] Registering tlon tool, binary:';
 const PREWARM_RE = /agent runtime plugins pre-warmed in \d+ms/;
 const RESTARTING_CHANNEL = 'restarting tlon channel';
 const STARTING_MONITOR = '[tlon] Starting monitor for ~zod';
+// Diagnostics only (never asserted): core logs these when a config-driven
+// channel reload is deferred behind active work / forced by its timeout.
+const RELOAD_DEFERRED = 'config change requires channel reload';
+const RELOAD_FORCED = 'channel reload timeout after';
 const CORE_VERSION_RE =
   /\[tlon-e2e\] openclaw-core-version=([^\s]+) requested=([^\s]+)/g;
 
@@ -112,6 +127,8 @@ function markerSummary(logs: string): string {
     `${REGISTERING_TOOL} count=${countOccurrences(logs, REGISTERING_TOOL)}`,
     `${RESTARTING_CHANNEL} count=${countOccurrences(logs, RESTARTING_CHANNEL)}`,
     `${STARTING_MONITOR} count=${countOccurrences(logs, STARTING_MONITOR)}`,
+    `${RELOAD_DEFERRED} count=${countOccurrences(logs, RELOAD_DEFERRED)}`,
+    `${RELOAD_FORCED} count=${countOccurrences(logs, RELOAD_FORCED)}`,
   ].join('; ');
 }
 
@@ -376,6 +393,43 @@ describe('gateway-status lifecycle', () => {
         preMutationLogs,
         STARTING_MONITOR
       );
+
+      // Gate the mutation on the reload gate's own idle predicate. Core defers a
+      // channel reload behind queued work / pending replies / embedded runs with
+      // a 300s default bound — far beyond the 20s restart window below — and
+      // counter leaks from earlier files' error paths never drain (TLON-6287).
+      // 10s is deliberate: post-fix, anything still active this long after
+      // 07-blobs finished is leaked, not in-flight, and the phase budget is tight.
+      // The gate runs after the log-boundary capture so the mutation follows
+      // the last idle observation directly.
+      const idleDeadline = phaseDeadline(overallDeadline, 10_000);
+      let preflight = getGatewayRestartPreflight(
+        composeFile,
+        remainingTimeout(idleDeadline, 10_000, 'gateway preflight idle probe')
+      );
+      while (preflight.counts.totalActive > 0 && canStartPoll(idleDeadline)) {
+        await sleepWithin(idleDeadline, 1_000);
+        // Re-check the budget after sleeping: a probe needs the same minimum
+        // window a poll does, and exiting here lands on the leaked-counts
+        // error below instead of a deadline/spawn-timeout throw mid-probe.
+        if (!canStartPoll(idleDeadline)) {
+          break;
+        }
+        preflight = getGatewayRestartPreflight(
+          composeFile,
+          remainingTimeout(idleDeadline, 10_000, 'gateway preflight idle probe')
+        );
+      }
+      if (preflight.counts.totalActive > 0) {
+        throw new Error(
+          `Runtime not idle before config mutation — work leaked from earlier ` +
+            `test files: ${JSON.stringify(preflight.counts)} (${preflight.summary})`
+        );
+      }
+      evidence(
+        `[gateway-status-e2e] preflight idle: ${JSON.stringify(preflight.counts)}`
+      );
+
       const configDeadline = phaseDeadline(overallDeadline, 20_000);
       const configResult = setGatewayStatusRestartConfig(
         composeFile,

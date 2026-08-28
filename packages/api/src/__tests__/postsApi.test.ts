@@ -1,13 +1,16 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
 import {
+  editPost,
   getChannelPosts,
   getPostReference,
+  sendPost,
+  sendReply,
   toPostData,
   toPostReplyData,
   toPostsData,
 } from '../client/postsApi';
-import { scry, subscribeOnce } from '../client/urbit';
+import { poke, scry, subscribeOnce } from '../client/urbit';
 import type { Post } from '../types/models';
 import * as ub from '../urbit';
 import rawChannelPostWithRepliesData from './fixtures/channelPostWithReplies.json';
@@ -20,12 +23,14 @@ vi.mock('../client/urbit', async () => {
     await vi.importActual<typeof import('../client/urbit')>('../client/urbit');
   return {
     ...actual,
+    poke: vi.fn(),
     scry: vi.fn(),
     subscribeOnce: vi.fn(),
   };
 });
 
 const scryMock = scry as unknown as ReturnType<typeof vi.fn>;
+const pokeMock = poke as unknown as ReturnType<typeof vi.fn>;
 
 const botAuthor: ub.BotProfile = {
   ship: '~bot-test',
@@ -207,6 +212,200 @@ function makePostSaid(): ub.Said {
 
 beforeEach(() => {
   vi.mocked(subscribeOnce).mockReset();
+  pokeMock.mockReset();
+});
+
+// `botProfile` is what makes a send carry an object-shaped author — the signal
+// clients read as "this is a bot". Pin it at the send boundary, not just in
+// toAuthor, since only these paths decide whether it is passed through at all.
+function sentAuthor(): ub.Author {
+  const sent = pokeMock.mock.calls[0][0].json;
+  const channelAdd = sent.channel?.action?.post;
+  if (channelAdd?.add) {
+    return channelAdd.add.author;
+  }
+  // An edit resubmits the whole essay, so it carries an author of its own.
+  if (channelAdd?.edit) {
+    return channelAdd.edit.essay.author;
+  }
+  if (channelAdd?.reply) {
+    const replyAction = channelAdd.reply.action;
+    return replyAction.add
+      ? replyAction.add.author
+      : replyAction.edit['reply-essay'].author;
+  }
+  // DM/club writs: a top-level send carries an essay, a reply a reply-essay.
+  const delta = sent.diff.delta;
+  return delta.reply
+    ? delta.reply.delta.add['reply-essay'].author
+    : delta.add.essay.author;
+}
+
+test('sendPost authors as a bare ship without a botProfile', async () => {
+  await sendPost({
+    channelId: 'chat/~zod/test',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+  });
+
+  expect(sentAuthor()).toBe('~bot-test');
+});
+
+test('sendPost authors as a bot object with a botProfile', async () => {
+  await sendPost({
+    channelId: 'chat/~zod/test',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+    botProfile: { nickname: 'TestBot', avatar: 'https://example.com/bot.png' },
+  });
+
+  expect(sentAuthor()).toEqual(botAuthor);
+});
+
+test('sendPost authors a DM as a bot object with a botProfile', async () => {
+  await sendPost({
+    channelId: '~sampel-palnet',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+    botProfile: { nickname: 'TestBot', avatar: 'https://example.com/bot.png' },
+  });
+
+  expect(sentAuthor()).toEqual(botAuthor);
+});
+
+test('sendReply authors as a bare ship without a botProfile', async () => {
+  await sendReply({
+    channelId: 'chat/~zod/test',
+    parentId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    parentAuthor: '~zod',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+  });
+
+  expect(sentAuthor()).toBe('~bot-test');
+});
+
+test('sendReply authors as a bot object with a botProfile', async () => {
+  await sendReply({
+    channelId: 'chat/~zod/test',
+    parentId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    parentAuthor: '~zod',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+    botProfile: { nickname: 'TestBot', avatar: 'https://example.com/bot.png' },
+  });
+
+  expect(sentAuthor()).toEqual(botAuthor);
+});
+
+test('sendReply authors a DM reply as a bot object with a botProfile', async () => {
+  await sendReply({
+    channelId: '~sampel-palnet',
+    parentId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    parentAuthor: '~sampel-palnet',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+    botProfile: { nickname: 'TestBot', avatar: 'https://example.com/bot.png' },
+  });
+
+  expect(sentAuthor()).toEqual(botAuthor);
+});
+
+test('sendReply authors a DM reply as a bare ship without a botProfile', async () => {
+  await sendReply({
+    channelId: '~sampel-palnet',
+    parentId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    parentAuthor: '~sampel-palnet',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+  });
+
+  expect(sentAuthor()).toBe('~bot-test');
+});
+
+test('a null-valued botProfile still authors as a bot', async () => {
+  await sendPost({
+    channelId: 'chat/~zod/test',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['hello'] }],
+    botProfile: { nickname: null, avatar: null },
+  });
+
+  expect(sentAuthor()).toEqual({
+    ship: '~bot-test',
+    nickname: null,
+    avatar: null,
+  });
+});
+
+// The %edit arm stores the submitted essay wholesale, so an edit that dropped
+// the bot author would silently strip the Bot tag off an existing bot post.
+test('editPost keeps a bot author on a top-level edit', async () => {
+  await editPost({
+    channelId: 'chat/~zod/test',
+    postId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['edited'] }],
+    botProfile: { nickname: null, avatar: null },
+  });
+
+  expect(sentAuthor()).toEqual({
+    ship: '~bot-test',
+    nickname: null,
+    avatar: null,
+  });
+});
+
+test('editPost authors a top-level edit as a bare ship without a botProfile', async () => {
+  await editPost({
+    channelId: 'chat/~zod/test',
+    postId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['edited'] }],
+  });
+
+  expect(sentAuthor()).toBe('~bot-test');
+});
+
+test('editPost keeps a bot author on a reply edit', async () => {
+  await editPost({
+    channelId: 'chat/~zod/test',
+    postId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    parentId: '170.141.184.506.535.164.684.262.900.635.183.087.615',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['edited'] }],
+    botProfile: { nickname: null, avatar: null },
+  });
+
+  expect(sentAuthor()).toEqual({
+    ship: '~bot-test',
+    nickname: null,
+    avatar: null,
+  });
+});
+
+test('editPost authors a reply edit as a bare ship without a botProfile', async () => {
+  await editPost({
+    channelId: 'chat/~zod/test',
+    postId: '170.141.184.506.535.164.684.262.900.635.183.087.616',
+    parentId: '170.141.184.506.535.164.684.262.900.635.183.087.615',
+    authorId: '~bot-test',
+    sentAt: 1701275662689,
+    content: [{ inline: ['edited'] }],
+  });
+
+  expect(sentAuthor()).toBe('~bot-test');
 });
 
 test('getPostReference requests the parent/reply said path for reply refs', async () => {

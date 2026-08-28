@@ -1,14 +1,14 @@
 import type { BridgeState, EditorBridge } from '@10play/tentap-editor';
-import { JSONContent, Story } from '@tloncorp/api/urbit';
+import { JSONContent } from '@tloncorp/api/urbit';
 import type { PostSendOptions } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
-import { memo, useState } from 'react';
-import { PropsWithChildren } from 'react';
-import { LayoutChangeEvent } from 'react-native';
-import { SpaceTokens, styled } from 'tamagui';
+import type { ReactNode } from 'react';
+import { ComponentProps, PropsWithChildren, memo, useState } from 'react';
+import { LayoutChangeEvent, Platform, StyleSheet } from 'react-native';
+import { SpaceTokens } from 'tamagui';
 import {
   ThemeTokens,
   View,
@@ -19,15 +19,26 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { useConversationScrollToBottomControl } from '../../contexts/scroll';
 import { MentionOption } from '../BareChatInput/useMentions';
 import {
   type SlashCommandManifest,
   type SlashCommandOption,
 } from '../BareChatInput/useSlashCommands';
+import {
+  GlassSurface,
+  GlassSurfaceGroup,
+  supportsLiquidGlass,
+} from '../GlassSurface';
 import { MentionPopupRef } from '../MentionPopup';
 import { type SlashCommandPopupRef } from '../SlashCommandPopup';
 import Notices from '../Wayfinding/Notices';
-import { GalleryDraftType, useDraftInputContext } from '../draftInputs/shared';
+import {
+  ConversationScrollToBottomButton,
+  floatingScrollControlClearance,
+  floatingChromeMetrics as metrics,
+} from '../conversationScrollChrome';
+import { GalleryDraftType } from '../draftInputs/shared';
 import AttachmentButton from './AttachmentButton';
 import InputMentionPopup from './InputMentionPopup';
 import InputSlashCommandPopup from './InputSlashCommandPopup';
@@ -84,12 +95,6 @@ export interface MessageInputProps {
   }>;
 }
 
-const AttachmentButtonContainer = styled(View, {
-  $sm: {
-    marginBottom: '$xs',
-  },
-});
-
 export const MessageInputContainer = memo(
   ({
     children,
@@ -119,6 +124,7 @@ export const MessageInputContainer = memo(
     mentionRef,
     slashCommandRef,
     frameless = false,
+    contentBackgroundColor,
   }: PropsWithChildren<{
     setShouldBlur: (shouldBlur: boolean) => void;
     onPressSend: () => void;
@@ -146,6 +152,7 @@ export const MessageInputContainer = memo(
     mentionRef?: MentionPopupRef;
     slashCommandRef?: SlashCommandPopupRef;
     frameless?: boolean;
+    contentBackgroundColor?: ThemeTokens;
   }>) => {
     const { canUpload } = useAttachmentContext();
     const theme = useTheme();
@@ -159,16 +166,15 @@ export const MessageInputContainer = memo(
     // accessible even if the user writes a huge multi-line draft.
     const [measuredInputHeight, setMeasuredInputHeight] =
       useState(containerHeight);
-    const handleInputLayout = (e: LayoutChangeEvent) => {
-      setMeasuredInputHeight(e.nativeEvent.layout.height);
+    const handleInputHeightChange = (height: number) => {
+      setMeasuredInputHeight(height);
     };
 
     return (
-      <YStack
-        width="100%"
-        backgroundColor={
-          isEditing ? secondaryBackgroundColor : defaultBackgroundColor
-        }
+      <MessageInputChromeRoot
+        isEditing={isEditing}
+        backgroundColor={defaultBackgroundColor}
+        editingBackgroundColor={secondaryBackgroundColor}
       >
         <InputMentionPopup
           containerHeight={containerHeight}
@@ -192,95 +198,371 @@ export const MessageInputContainer = memo(
           />
         ) : null}
         {!frameless ? (
-          <XStack
-            paddingVertical="$s"
-            paddingHorizontal="$xl"
-            gap="$l"
-            alignItems="flex-end"
-            justifyContent="space-between"
-            backgroundColor="$background"
-            disableOptimization
-            onLayout={handleInputLayout}
-          >
+          <MessageInputChromeRow onHeightChange={handleInputHeightChange}>
             {goBack ? (
-              <View paddingBottom="$xs">
-                <Button
+              <MessageInputChromeAction>
+                <MessageInputChromeButton
                   preset="secondary"
                   icon="ChevronLeft"
                   onPress={goBack}
                 />
-              </View>
+              </MessageInputChromeAction>
             ) : null}
 
             {isEditing ? (
-              <View marginBottom="$2xs">
-                <Button
+              <MessageInputChromeAction>
+                <MessageInputChromeButton
                   preset="secondary"
                   icon="Close"
                   onPress={cancelEditing}
                 />
-              </View>
+              </MessageInputChromeAction>
             ) : null}
             {canUpload && showAttachmentButton ? (
-              <AttachmentButtonContainer>
+              <MessageInputChromeAction>
                 <AttachmentButton setShouldBlur={setShouldBlur} />
-              </AttachmentButtonContainer>
+              </MessageInputChromeAction>
             ) : null}
-            {children}
-            {floatingActionButton ? (
-              <View position="absolute" bottom="$l" right="$l">
-                {disableSend ? null : (
-                  <FloatingActionButton
-                    onPress={
-                      isEditing && onPressEdit ? onPressEdit : onPressSend
-                    }
+            <MessageInputChromeBody
+              isEditing={isEditing}
+              editingTintColor={secondaryBackgroundColor}
+              overlay={
+                floatingActionButton ? null : (
+                  <>
+                    {showWayfindingTooltip && <Notices.ChatInputTooltip />}
+                    {showBotMentionTooltip && <Notices.BotMentionTooltip />}
+                  </>
+                )
+              }
+            >
+              <MessageInputContentFrame
+                backgroundColor={contentBackgroundColor}
+              >
+                {children}
+              </MessageInputContentFrame>
+              {floatingActionButton ? (
+                <View position="absolute" bottom="$l" right="$l">
+                  {disableSend ? null : (
+                    <FloatingActionButton
+                      onPress={
+                        isEditing && onPressEdit ? onPressEdit : onPressSend
+                      }
+                      icon={
+                        <Icon
+                          color={sendError ? 'red' : undefined}
+                          type={sendError ? 'Refresh' : 'ArrowUp'}
+                        />
+                      }
+                    />
+                  )}
+                </View>
+              ) : (
+                <MessageInputChromeSendAction>
+                  <MessageInputChromeButton
+                    preset="secondary"
+                    disabled={disableSend}
+                    loading={isSending}
+                    testID="MessageInputSendButton"
+                    onPress={isEditing ? onPressEdit : onPressSend}
                     icon={
-                      <Icon
-                        color={sendError ? 'red' : undefined}
-                        type={sendError ? 'Refresh' : 'ArrowUp'}
-                      />
+                      isEditing ? (
+                        'Checkmark'
+                      ) : (
+                        <Icon
+                          color={sendError ? '$negativeActionText' : undefined}
+                          type="ArrowUp"
+                        />
+                      )
                     }
                   />
-                )}
-              </View>
-            ) : (
-              <View marginBottom="$xs">
-                {showWayfindingTooltip && <Notices.ChatInputTooltip />}
-                {showBotMentionTooltip && <Notices.BotMentionTooltip />}
-                <Button
-                  preset="secondary"
-                  disabled={disableSend}
-                  loading={isSending}
-                  testID="MessageInputSendButton"
-                  onPress={isEditing ? onPressEdit : onPressSend}
-                  icon={
-                    isEditing ? (
-                      'Checkmark'
-                    ) : (
-                      <Icon
-                        color={sendError ? '$negativeActionText' : undefined}
-                        type="ArrowUp"
-                      />
-                    )
-                  }
-                />
-              </View>
-            )}
-          </XStack>
+                </MessageInputChromeSendAction>
+              )}
+            </MessageInputChromeBody>
+          </MessageInputChromeRow>
         ) : (
           // Note: This **must** be an XStack (not a YStack, View, or Stack), otherwise the WebView in MessageInput will not
           // be interactive on Android.
           <XStack
             width="100%"
             backgroundColor="$background"
-            onLayout={handleInputLayout}
+            onLayout={(event) =>
+              handleInputHeightChange(event.nativeEvent.layout.height)
+            }
           >
             {children}
           </XStack>
         )}
-      </YStack>
+      </MessageInputChromeRoot>
     );
   }
 );
 
 MessageInputContainer.displayName = 'MessageInputContainer';
+
+const usesFloatingChrome = Platform.OS !== 'web';
+const usesIOSGlass = supportsLiquidGlass();
+
+const materialSurfaceProps = {
+  backgroundColor: '$secondaryBackground',
+  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.24)',
+} as const;
+
+function MessageInputChromeRoot({
+  children,
+  isEditing,
+  backgroundColor,
+  editingBackgroundColor,
+}: PropsWithChildren<{
+  isEditing: boolean;
+  backgroundColor: string;
+  editingBackgroundColor: string;
+}>) {
+  return (
+    <YStack
+      width="100%"
+      backgroundColor={
+        usesFloatingChrome
+          ? 'transparent'
+          : isEditing
+            ? editingBackgroundColor
+            : backgroundColor
+      }
+    >
+      {children}
+    </YStack>
+  );
+}
+
+function MessageInputChromeRow({
+  children,
+  onHeightChange,
+}: PropsWithChildren<{
+  onHeightChange: (height: number) => void;
+}>) {
+  const scrollToBottomControl = useConversationScrollToBottomControl();
+  const showsScrollToBottomControl = scrollToBottomControl?.visible;
+  const handleLayout = (event: LayoutChangeEvent) => {
+    onHeightChange(
+      event.nativeEvent.layout.height -
+        (usesIOSGlass && showsScrollToBottomControl
+          ? floatingScrollControlClearance
+          : 0)
+    );
+  };
+
+  if (usesIOSGlass) {
+    return (
+      <GlassSurfaceGroup
+        spacing={metrics.rowGap}
+        style={[
+          inputChromeStyles.row,
+          showsScrollToBottomControl && inputChromeStyles.rowWithScrollControl,
+        ]}
+        onLayout={handleLayout}
+      >
+        {scrollToBottomControl && (
+          <ConversationScrollToBottomButton
+            inComposer
+            loading={scrollToBottomControl.isLoading}
+            onPress={scrollToBottomControl.onPress}
+            visible={scrollToBottomControl.visible}
+          />
+        )}
+        {children}
+      </GlassSurfaceGroup>
+    );
+  }
+
+  if (usesFloatingChrome) {
+    return (
+      <XStack
+        width="100%"
+        alignItems="center"
+        gap={metrics.rowGap}
+        paddingHorizontal={metrics.rowPaddingHorizontal}
+        paddingVertical={metrics.rowPaddingVertical}
+        backgroundColor="transparent"
+        onLayout={handleLayout}
+      >
+        {children}
+      </XStack>
+    );
+  }
+
+  return (
+    <XStack
+      paddingVertical="$s"
+      paddingHorizontal="$xl"
+      gap="$l"
+      alignItems="flex-end"
+      justifyContent="space-between"
+      backgroundColor="$background"
+      disableOptimization
+      onLayout={handleLayout}
+    >
+      {children}
+    </XStack>
+  );
+}
+
+function MessageInputChromeAction({ children }: PropsWithChildren) {
+  if (usesIOSGlass) {
+    return (
+      <GlassSurface isInteractive style={inputChromeStyles.action}>
+        {children}
+      </GlassSurface>
+    );
+  }
+
+  if (usesFloatingChrome) {
+    return (
+      <View
+        {...materialSurfaceProps}
+        width={metrics.controlSize}
+        height={metrics.controlSize}
+        borderRadius={metrics.controlRadius}
+        overflow="hidden"
+        alignItems="center"
+        justifyContent="center"
+      >
+        {children}
+      </View>
+    );
+  }
+
+  return <View top={2}>{children}</View>;
+}
+
+function MessageInputChromeBody({
+  children,
+  isEditing,
+  editingTintColor,
+  overlay,
+}: PropsWithChildren<{
+  isEditing: boolean;
+  editingTintColor: string;
+  overlay: ReactNode;
+}>) {
+  if (usesIOSGlass) {
+    return (
+      <GlassSurface
+        glassEffectStyle="regular"
+        tintColor={isEditing ? editingTintColor : undefined}
+        style={inputChromeStyles.body}
+      >
+        {children}
+        {overlay}
+      </GlassSurface>
+    );
+  }
+
+  if (usesFloatingChrome) {
+    return (
+      <XStack flex={1} position="relative">
+        <XStack
+          {...materialSurfaceProps}
+          flex={1}
+          minHeight={metrics.controlSize}
+          borderRadius={metrics.controlRadius}
+          alignItems="center"
+          gap={metrics.rowGap}
+          backgroundColor={
+            isEditing ? '$positiveBackground' : '$secondaryBackground'
+          }
+          overflow="hidden"
+        >
+          {children}
+        </XStack>
+        {overlay}
+      </XStack>
+    );
+  }
+
+  return (
+    <XStack flex={1} gap="$l" alignItems="flex-end">
+      {children}
+      {overlay}
+    </XStack>
+  );
+}
+
+function MessageInputContentFrame({
+  children,
+  backgroundColor,
+}: PropsWithChildren<{
+  backgroundColor?: ThemeTokens;
+}>) {
+  if (usesFloatingChrome) {
+    return <>{children}</>;
+  }
+
+  return (
+    <YStack
+      flex={1}
+      backgroundColor={backgroundColor}
+      borderColor="$border"
+      borderWidth={1}
+      borderRadius="$xl"
+    >
+      {children}
+    </YStack>
+  );
+}
+
+function MessageInputChromeButton(props: ComponentProps<typeof Button>) {
+  if (!usesFloatingChrome) {
+    return <Button {...props} />;
+  }
+
+  return (
+    <Button
+      {...props}
+      backgroundColor="transparent"
+      borderColor="transparent"
+    />
+  );
+}
+
+function MessageInputChromeSendAction({ children }: PropsWithChildren) {
+  return (
+    <View
+      top={usesFloatingChrome ? undefined : 2}
+      alignSelf={usesFloatingChrome ? 'center' : undefined}
+    >
+      {children}
+    </View>
+  );
+}
+
+const inputChromeStyles = StyleSheet.create({
+  row: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: metrics.rowGap,
+    paddingHorizontal: metrics.rowPaddingHorizontal,
+    paddingVertical: metrics.rowPaddingVertical,
+    backgroundColor: 'transparent',
+  },
+  // Keep the floating control inside the native glass container's bounds
+  // without making the composer or its matching scroll inset any taller.
+  rowWithScrollControl: {
+    paddingTop: metrics.rowPaddingVertical + floatingScrollControlClearance,
+  },
+  action: {
+    width: metrics.controlSize,
+    height: metrics.controlSize,
+    borderRadius: metrics.controlRadius,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  body: {
+    flex: 1,
+    minHeight: metrics.controlSize,
+    borderRadius: metrics.controlRadius,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: metrics.rowGap,
+  },
+});

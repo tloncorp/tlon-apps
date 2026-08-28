@@ -13,6 +13,22 @@ import {
 
 const openclaw = getStaticSlashCommandManifest('openclaw').commands;
 const hermes = getStaticSlashCommandManifest('hermes').commands;
+// A list shaped like neither static one, to keep the ranking assertions about
+// the pure function rather than about today's curated lists.
+const other: SlashCommandOption[] = [
+  {
+    command: '/compress',
+    title: 'Compress context',
+    keywords: ['compact', 'context', 'summarize'],
+    priority: 1,
+  },
+  {
+    command: '/model',
+    title: 'Model',
+    keywords: ['model', 'provider'],
+    priority: 2,
+  },
+];
 
 const commandNames = (options: SlashCommandOption[]) =>
   options.map((o) => o.command);
@@ -134,8 +150,59 @@ describe('rankSlashCommands', () => {
     expect(rankSlashCommands(openclaw, 'STAT')[0].command).toBe('/status');
   });
 
-  test('hermes /compress is found via the compact keyword', () => {
-    expect(rankSlashCommands(hermes, 'compact')[0].command).toBe('/compress');
+  test('/compress is found via the compact keyword', () => {
+    expect(rankSlashCommands(other, 'compact')[0].command).toBe('/compress');
+  });
+
+  // The static lists' presentation order is carried by `priority`, not by
+  // array position — this is the function that renders it, and the empty-query
+  // popup shows 4 rows on native / 7 on web (SlashCommandPopup maxResults), so
+  // the leading rows are the most user-visible part of the ordering decision.
+  //
+  // The full sequences are pinned, not just the ends: a mid-list swap (say
+  // /ban ahead of /unban) never reaches the empty-query first page but does
+  // reorder a query that matches both, and end-anchored assertions cannot see
+  // it. Update these lists deliberately when the owner reorders a list.
+  describe('static list ordering', () => {
+    test('openclaw ranks in its curated order', () => {
+      expect(commandNames(rankSlashCommands(openclaw, ''))).toEqual([
+        '/owner-listen',
+        '/status',
+        '/help',
+        '/new',
+        '/pending',
+        '/allow',
+        '/reject',
+        '/ban',
+        '/banned',
+        '/unban',
+        '/tlon-version',
+        '/tlon',
+        '/migrate',
+        '/model',
+      ]);
+    });
+
+    test('hermes ranks core discovery, the adapter commands, then core tail', () => {
+      expect(commandNames(rankSlashCommands(hermes, ''))).toEqual([
+        '/help',
+        '/status',
+        '/new',
+        '/owner-listen',
+        '/migrate',
+        '/tlon',
+        '/allow',
+        '/reject',
+        '/ban',
+        '/unban',
+        '/pending',
+        '/banned',
+        '/channel-access',
+        '/stop',
+        '/usage',
+        '/model',
+      ]);
+    });
   });
 });
 

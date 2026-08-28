@@ -44,8 +44,9 @@ export type TlonSettingsStore = {
   showModelSig?: boolean;
   autoAcceptDmInvites?: boolean;
   autoDiscoverChannels?: boolean;
+  /** No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat */
   autoAcceptGroupInvites?: boolean;
-  /** Ships allowed to invite us to groups (when autoAcceptGroupInvites is true) */
+  /** Ships allowed to invite us to groups (allowlist membership is sufficient for auto-accept) */
   groupInviteAllowlist?: string[];
   channelRules?: Record<
     string,
@@ -108,9 +109,9 @@ function hasUsableOriginalMessage(approval: PendingApproval): boolean {
   const message = approval.originalMessage;
   return Boolean(
     message &&
-      typeof message.messageId === 'string' &&
-      typeof message.messageText === 'string' &&
-      typeof message.timestamp === 'number'
+    typeof message.messageId === 'string' &&
+    typeof message.messageText === 'string' &&
+    typeof message.timestamp === 'number'
   );
 }
 

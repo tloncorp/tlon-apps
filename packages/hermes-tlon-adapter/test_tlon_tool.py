@@ -345,6 +345,123 @@ class TlonToolGuardTests(unittest.TestCase):
         self.assertIn("--parent <post-id>", platform_hint)
         self.assertIn("posts delete heap/~host/name <post-id>", platform_hint)
 
+    def test_media_guidance_carries_the_delivery_claim_and_fallback_rules(self):
+        # TLON_TOOL_DESCRIPTION is the authoritative rule set; the platform
+        # hint only has to carry the two rules a wrong answer is costly on —
+        # never claiming an undelivered image, and the storage-less fallback.
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+        self.assertIn("public https", description)
+        self.assertIn(
+            "never claim an image was delivered unless the upload", description
+        )
+        self.assertIn("cannot store uploads", description)
+        self.assertIn("posts without uploading", description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+        self.assertIn("never claim an image was posted unless", platform_hint)
+        self.assertIn("cannot store uploads", platform_hint)
+
+    def test_platform_hint_advertises_product_guide_only_when_registered(self):
+        # The guide ships in the OpenClaw plugin tree, which a Hermes install
+        # may not have. Pointing the model at a skill_view that can't resolve
+        # would turn every product question into a failed tool call, so the
+        # hint fragment has to track the registration.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.skills: list[str] = []
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, name, *_args, **_kwargs):
+                self.skills.append(name)
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        marker = 'skill_view("tlon-platform:tlon-product-guide")'
+
+        found = RecordingContext()
+        with patch.object(
+            adapter_mod,
+            "resolve_tlon_product_guide_path",
+            return_value=Path("/plugin/skills/tlon-product-guide/SKILL.md"),
+        ):
+            adapter_mod.register(found)
+        self.assertIn("tlon-product-guide", found.skills)
+        self.assertIn(marker, found.platform["platform_hint"])
+
+        missing = RecordingContext()
+        with patch.object(
+            adapter_mod, "resolve_tlon_product_guide_path", return_value=None
+        ):
+            adapter_mod.register(missing)
+        self.assertNotIn("tlon-product-guide", missing.skills)
+        self.assertNotIn(marker, missing.platform["platform_hint"])
+        # The rest of the hint is unaffected by the guide's absence.
+        self.assertIn(
+            'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
+        )
+
+    def test_tool_description_includes_latex_guidance(self):
+        description = tlon_tool.TLON_TOOL_DESCRIPTION
+
+        self.assertIn("Never use LaTeX math delimiters", description)
+        self.assertIn("$$...$$", description)
+        self.assertIn("\\(...\\)", description)
+        self.assertIn("\\[...\\]", description)
+        self.assertIn("plain text/Unicode", description)
+        self.assertIn("code blocks", description)
+
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, *_args, **_kwargs):
+                pass
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        context = RecordingContext()
+        adapter_mod.register(context)
+        platform_hint = context.platform["platform_hint"]
+
+        self.assertIn("Never use LaTeX math delimiters", platform_hint)
+        self.assertIn("$$...$$", platform_hint)
+        self.assertIn("\\(...\\)", platform_hint)
+        self.assertIn("\\[...\\]", platform_hint)
+        self.assertIn("plain text/Unicode", platform_hint)
+        self.assertIn("code blocks", platform_hint)
+
     def test_blocks_notebook(self):
         args, error = tlon_tool.split_tlon_command('notebook diary/~zod/notes "Title"')
         self.assertIsNone(error)
@@ -1474,6 +1591,61 @@ class TlonSkillPathTests(unittest.TestCase):
                 skill,
             )
 
+    def test_resolve_tlon_product_guide_path_uses_explicit_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            guide = Path(tmp) / "SKILL.md"
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PRODUCT_GUIDE_PATH": str(guide)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_uses_plugin_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin_dir = Path(tmp) / "openclaw"
+            guide = plugin_dir / "skills" / "tlon-product-guide" / "SKILL.md"
+            guide.parent.mkdir(parents=True)
+            guide.write_text("# Tlon Messenger\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_product_guide_path(
+                    {"TLON_PLUGIN_DIR": str(plugin_dir)}
+                ),
+                guide,
+            )
+
+    def test_resolve_tlon_product_guide_path_falls_back_to_sibling_package(self):
+        # No env pointing anywhere: the monorepo layout (this adapter and the
+        # OpenClaw plugin as sibling packages) has to resolve on its own. This
+        # is the assertion that breaks if the skill directory is ever moved or
+        # renamed inside the plugin.
+        resolved = tlon_tool.resolve_tlon_product_guide_path({})
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertTrue(resolved.is_file())
+        self.assertEqual(resolved.parent.name, "tlon-product-guide")
+
+    def test_resolve_tlon_product_guide_path_absent_without_plugin_tree(self):
+        # A Hermes deployment that installs the adapter without the OpenClaw
+        # plugin registers no product-guide skill rather than failing to boot.
+        # The sibling fallback resolves inside this monorepo, so point the
+        # search at a tree that has neither.
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter_dir = Path(tmp) / "packages" / "hermes-tlon-adapter"
+            adapter_dir.mkdir(parents=True)
+            with patch.object(
+                tlon_tool, "__file__", str(adapter_dir / "tlon_tool.py")
+            ):
+                self.assertIsNone(
+                    tlon_tool.resolve_tlon_product_guide_path(
+                        {"TLON_PLUGIN_DIR": str(Path(tmp) / "nonexistent")}
+                    )
+                )
+
 
 class TlonSessionGateTests(unittest.TestCase):
     """The `tlon` tool is owner-only in Tlon chat sessions.
@@ -1602,6 +1774,79 @@ class ReactionToolGateTests(unittest.TestCase):
                 TLON_REACTION_LEVEL="off",
             )
         )
+
+
+
+class MediaCommandTimeoutTests(unittest.TestCase):
+    def test_upload_and_image_sends_get_budgets_above_the_cli_fetch_deadlines(self):
+        timeout = tlon_tool.media_command_timeout
+        self.assertEqual(
+            timeout(["upload", "https://x.example/a.png"]),
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        self.assertEqual(
+            timeout(["--config", "/tmp/c.json", "upload", "https://x.example/a.png"]),
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        for args in (
+            ["posts", "send", "chat/~pen/general", "hi", "--image", "https://x/y.png"],
+            ["posts", "send", "chat/~pen/general", "--image=https://x/y.png"],
+            ["dms", "send", "0v5.abcde", "hi", "--image", "https://x/y.png"],
+        ):
+            self.assertEqual(
+                timeout(args), tlon_tool.IMAGE_SEND_CLI_TIMEOUT_SECONDS, args
+            )
+
+        # The override must clear the CLI's own inner budgets, or the model
+        # sees "tlon CLI timed out" instead of the contract error.
+        self.assertGreater(tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS, 120.0)
+        self.assertGreater(tlon_tool.IMAGE_SEND_CLI_TIMEOUT_SECONDS, 30.0)
+
+    def test_non_media_commands_keep_the_default_timeout(self):
+        timeout = tlon_tool.media_command_timeout
+        for args in (
+            ["posts", "send", "chat/~pen/general", "hi"],
+            ["dms", "send", "0v5.abcde", "hi"],
+            ["posts", "react", "chat/~pen/general", "170.141", "\u2764\ufe0f"],
+            ["activity", "mentions"],
+            ["contacts", "self"],
+            [],
+        ):
+            self.assertIsNone(timeout(args), args)
+
+    def test_execute_passes_the_override_to_the_cli(self):
+        recorded = {}
+
+        class RecordingCLI:
+            def __init__(self, *_args, **_kwargs):
+                pass
+
+            async def run_command(self, args, *, timeout=None, on_deadline=None):
+                recorded[tuple(args)] = timeout
+                return tlon_api.TlonSendResult(success=True, command=tuple(args))
+
+        config = tlon_api.TlonConfig(
+            ship_url="https://pen.tlon.network",
+            ship_name="~pen",
+            ship_code="code",
+        )
+        with patch.object(tlon_tool, "TlonCLI", RecordingCLI):
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {"command": "upload https://x.example/a.png"}, config=config
+                )
+            )
+            asyncio.run(
+                tlon_tool.execute_tlon_tool(
+                    {"command": "activity mentions"}, config=config
+                )
+            )
+
+        self.assertEqual(
+            recorded[("upload", "https://x.example/a.png")],
+            tlon_tool.UPLOAD_CLI_TIMEOUT_SECONDS,
+        )
+        self.assertIsNone(recorded[("activity", "mentions")])
 
 
 if __name__ == "__main__":

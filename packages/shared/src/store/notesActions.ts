@@ -81,7 +81,7 @@ async function fetchNotesNotebookSnapshot(flagInput: api.NotesFlag | string) {
       db.getNotesMembers({ notebookFlag: flag }),
     ]);
     currentUserRole = existingNotebook
-      ? existingNotebook.currentUserRole ?? null
+      ? (existingNotebook.currentUserRole ?? null)
       : undefined;
     dbMembers = existingMembers;
   }
@@ -552,29 +552,52 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
+  // Read locally — free, unlike the pre-write snapshot fetch this replaces —
+  // so the compatibility path below can tell a genuinely new note from one
+  // that merely shares its title.
   const knownNoteIds = new Set(
     (await db.getNotesNotes({ notebookFlag })).map((note) => note.noteId)
   );
-  const update = await api.notes.createNote({
+
+  const created = await api.notes.createNote({
     flag: notebookFlag,
     folder: folderId,
     title,
     body,
   });
 
-  // The payload is the created note in full — id, host-assigned revision and
-  // stamps included — so there is nothing left to read back.
-  if (
-    update?.type === 'note-created' &&
-    (await applyNotesUpdate(notebookFlag, update))
-  ) {
-    return db.getNotesNote({ notebookFlag, noteId: update.noteId });
+  // The response comes from the notebook host and is authoritative: it carries
+  // the assigned id, revision and server stamps, so there is nothing to read
+  // back. Confirming through getNote would be worse than useless — for a
+  // remote notebook that read hits the local replica, which can legitimately
+  // lag the response. Applying it as an update reuses the same revision guard
+  // and field resolution the stream path uses; the folder and body we sent
+  // stand in for anything an older host leaves out.
+  if (created) {
+    const update: api.NotesUpdate = {
+      type: 'note-created',
+      noteId: created.id,
+      note: {
+        ...created,
+        folderId: created.folderId ?? folderId,
+        bodyMd: created.bodyMd ?? body,
+      },
+    };
+    if (await applyNotesUpdate(notebookFlag, update)) {
+      return db.getNotesNote({ notebookFlag, noteId: created.id });
+    }
+    // Only reachable when the notebook itself hasn't synced yet, so there is
+    // no row for the note to hang off. Sync once and apply again — still no
+    // per-note read-back, and never on the path the app actually takes.
+    await syncNotesNotebook(notebookFlag);
+    if (await applyNotesUpdate(notebookFlag, update)) {
+      return db.getNotesNote({ notebookFlag, noteId: created.id });
+    }
   }
 
-  logger.error(
-    'Note create returned no usable update; falling back to sync',
-    update?.type ?? 'none'
-  );
+  // Older hosts answer a create without the applied note. Only that path has
+  // to discover the new id by diffing a sync against what we already had.
+  logger.error('Note create returned no applied note; falling back to sync');
   const note = await findCreatedItemAfterSync({
     notebookFlag,
     knownIds: knownNoteIds,
@@ -582,7 +605,21 @@ export async function createNotebookNote({
     getId: (note) => note.noteId,
     matches: (note) => note.title === title && note.folderId === folderId,
   });
-  return note ? db.getNotesNote({ notebookFlag, noteId: note.noteId }) : null;
+  if (!note) {
+    return null;
+  }
+
+  // Such a host omits the body from its note list too, so the row found above
+  // can be bodyless. We know what we just sent — write it, rather than
+  // spending a per-note detail fetch to be told the same thing.
+  if (body && !note.bodyMd) {
+    await db.updateNotesNote({
+      notebookFlag,
+      noteId: note.noteId,
+      bodyMd: body,
+    });
+  }
+  return db.getNotesNote({ notebookFlag, noteId: note.noteId });
 }
 
 export async function createNotebookFolder({
@@ -1138,6 +1175,81 @@ export async function markNotesNotebookOpened(notebookFlag: string) {
   });
 }
 
+// Marks a single note read in %activity. Per-note unreads ride the
+// thread-unread table keyed by (notes/<flag>, <note id>); mirror
+// markThreadRead's optimistic flow: clear locally, decrement the channel and
+// group rollup counts, poke, roll back on failure.
+export async function markNoteRead({
+  notebookFlag,
+  noteId,
+}: {
+  notebookFlag: string;
+  noteId: number;
+}) {
+  // before the capability resolves (or on a backend without notes
+  // activity) the read poke can't be sent — skip the optimistic clear
+  // too, or local state diverges from the ship with nothing to retry.
+  // the note detail effect re-runs when the capability epoch changes.
+  if (!api.getActivitySupportsNotes()) {
+    return;
+  }
+  const channelId = `notes/${notebookFlag}`;
+  const threadId = String(noteId);
+  const channel = await db.getChannel({ id: channelId });
+  const existingUnread = await db.getThreadActivity({
+    channelId,
+    postId: threadId,
+  });
+
+  // optimistic local clear only applies when we have a local row, but the
+  // backend read must happen regardless — the note may be viewed before
+  // the thread-unread sync has landed the row, and the effect won't rerun
+  // when it arrives. the backend no-ops on sources with no unread state.
+  const existingCount = existingUnread?.count ?? 0;
+  const priorChannelUnread =
+    existingCount > 0 ? await db.getChannelUnread({ channelId }) : null;
+  const priorGroupUnread =
+    existingCount > 0 && channel?.groupId
+      ? await db.getGroupUnread({ groupId: channel.groupId })
+      : null;
+
+  if (existingUnread) {
+    await db.clearThreadUnread({ channelId, threadId });
+    if (existingCount > 0) {
+      await db.updateChannelUnreadCount({
+        channelId,
+        decrement: existingCount,
+      });
+      if (channel?.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount,
+        });
+      }
+    }
+  }
+
+  try {
+    await api.readNote({
+      channelId,
+      noteId: threadId,
+      groupId: channel?.groupId,
+    });
+  } catch (e) {
+    logger.error('failed to mark note read', channelId, noteId, e);
+    // roll back the whole optimistic update, rollup decrements included
+    if (existingUnread) {
+      await db.insertThreadUnreads([existingUnread]);
+      if (priorChannelUnread) {
+        await db.insertChannelUnreads([priorChannelUnread]);
+      }
+      if (priorGroupUnread) {
+        await db.insertGroupUnreads([priorGroupUnread]);
+      }
+    }
+  }
+}
+
 async function notesNotebookIsJoined(flag: api.NotesFlag) {
   const notebooks = await api.notes.listNotebooks();
   return notebooks.some(
@@ -1158,7 +1270,7 @@ async function syncNotesNotebookUntil<T>(
   getReadyValue: (
     snapshot: NotesNotebookSnapshot
   ) => ReadyValue<T> | Promise<ReadyValue<T>>
-) {
+): Promise<T | null> {
   let readySnapshot: NotesNotebookSnapshot | null = null;
   let readyValue: T | null = null;
   try {
@@ -1231,8 +1343,8 @@ function notebookForSnapshot(
     currentUserRole:
       preservedCurrentUserRole !== undefined
         ? preservedCurrentUserRole
-        : currentMember?.role ??
-          (notebook.host === currentUserId ? ('owner' as const) : null),
+        : (currentMember?.role ??
+          (notebook.host === currentUserId ? ('owner' as const) : null)),
   };
 }
 
@@ -1279,7 +1391,7 @@ function noteFromUpdate(
     notebookId:
       note.notebookId ?? existingNote?.notebookId ?? notebook.notebookId,
     folderId,
-    slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
+    slug: note.slug === undefined ? (existingNote?.slug ?? null) : note.slug,
     bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
     createdBy: note.createdBy ?? existingNote?.createdBy ?? null,
     createdAt: note.createdAt ?? existingNote?.createdAt ?? null,
@@ -1302,7 +1414,7 @@ function noteForSnapshot(
       note.notebookId ?? existingNote?.notebookId ?? notebook.notebookId,
     folderId: note.folderId ?? existingNote?.folderId ?? notebook.rootFolderId,
     title: note.title,
-    slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
+    slug: note.slug === undefined ? (existingNote?.slug ?? null) : note.slug,
     bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
     createdBy: note.createdBy ?? existingNote?.createdBy ?? null,
     createdAt: note.createdAt ?? existingNote?.createdAt ?? null,

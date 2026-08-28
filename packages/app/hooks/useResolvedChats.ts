@@ -27,6 +27,11 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
       // Reorder-only changes (same lengths/unreads/titles) must bust the memo;
       // key on pin.itemId, the canonical pinned-order identity.
       pinnedOrder: chats.pinned.map((c) => c.pin?.itemId ?? c.id).join('|'),
+      // Unpinned order can change on recency alone (e.g. non-post activity
+      // like a note bumping a group), with lengths, unread sums, and
+      // lastPostAt all unchanged — key on the order itself.
+      unpinnedOrder: chats.unpinned.map((c) => c.id).join('|'),
+      pendingOrder: chats.pending.map((c) => c.id).join('|'),
       pinnedUnreadCount: chats.pinned.reduce(
         (acc, chat) => acc + (chat.unreadCount ?? 0),
         0
@@ -44,8 +49,8 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           Math.max(
             latest,
             chat.type === 'group'
-              ? chat.group.lastPostAt ?? 0
-              : chat.channel.lastPostAt ?? 0
+              ? (chat.group.lastPostAt ?? 0)
+              : (chat.channel.lastPostAt ?? 0)
           ),
         0
       ),
@@ -54,8 +59,8 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           Math.max(
             latest,
             chat.type === 'group'
-              ? chat.group.lastPostAt ?? 0
-              : chat.channel.lastPostAt ?? 0
+              ? (chat.group.lastPostAt ?? 0)
+              : (chat.channel.lastPostAt ?? 0)
           ),
         0
       ),
@@ -64,8 +69,8 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
           Math.max(
             latest,
             chat.type === 'group'
-              ? chat.group.lastPostAt ?? 0
-              : chat.channel.lastPostAt ?? 0
+              ? (chat.group.lastPostAt ?? 0)
+              : (chat.channel.lastPostAt ?? 0)
           ),
         0
       ),

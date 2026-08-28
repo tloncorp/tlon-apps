@@ -1,10 +1,12 @@
 import type * as db from '@tloncorp/shared/db';
+import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Button, SafeAreaView, Switch, View } from 'react-native';
 import { Label, XStack, YStack } from 'tamagui';
 
+import { ShipProvider } from '../contexts/ship';
 import { AppDataContextProvider, Channel, ChatOptionsProvider } from '../ui';
 import { FixtureWrapper } from './FixtureWrapper';
 import {
@@ -19,6 +21,12 @@ import {
 
 const posts = createFakePosts(100);
 const notebookPosts = createFakePosts(5, 'note');
+const onboardingCompletePost = createFakePost();
+onboardingCompletePost.blob = appendToPostBlob(undefined, {
+  type: 'tlon-agent-post-marker',
+  version: 1,
+  key: 'orientation-complete',
+});
 
 function noopProps<T extends object>() {
   return new Proxy<T>({} as unknown as T, {
@@ -30,11 +38,21 @@ const ChannelFixtureWrapper = ({
   children,
 }: PropsWithChildren<{ theme?: 'light' | 'dark' }>) => {
   return (
-    <AppDataContextProvider contacts={initialContacts}>
-      <FixtureWrapper fillWidth fillHeight>
-        <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
-      </FixtureWrapper>
-    </AppDataContextProvider>
+    <ShipProvider
+      initialShipInfo={{
+        authType: 'hosted',
+        ship: 'zod',
+        shipUrl: 'https://zod.test',
+        authCookie: 'fixture',
+        needsSplashSequence: false,
+      }}
+    >
+      <AppDataContextProvider currentUserId="~zod" contacts={initialContacts}>
+        <FixtureWrapper fillWidth fillHeight>
+          <ChatOptionsProvider {...noopProps()}>{children}</ChatOptionsProvider>
+        </FixtureWrapper>
+      </AppDataContextProvider>
+    </ShipProvider>
   );
 };
 
@@ -218,14 +236,14 @@ function ChannelWithControlledPostLoading() {
 
   const [shouldLoadOnScrollBoundaries, setShouldLoadOnScrollBoundaries] =
     useState(false);
-  const onScrollStartReached = useMemo(
+  const onLoadNewerPosts = useMemo(
     () =>
       shouldLoadOnScrollBoundaries
         ? () => loadMore({ limit: 5, insertionPoint: 'start' })
         : undefined,
     [shouldLoadOnScrollBoundaries, loadMore]
   );
-  const onScrollEndReached = useMemo(
+  const onLoadOlderPosts = useMemo(
     () =>
       shouldLoadOnScrollBoundaries
         ? () => loadMore({ limit: 5, insertionPoint: 'end' })
@@ -246,8 +264,8 @@ function ChannelWithControlledPostLoading() {
             post: anchorPost,
           }),
           hasNewerPosts: true,
-          onScrollStartReached,
-          onScrollEndReached,
+          onLoadNewerPosts,
+          onLoadOlderPosts,
         })}
       />
       <FixtureToolbar>
@@ -371,6 +389,15 @@ export default {
           channel: baseProps.channel,
           post: baseProps.posts!.at(10)!,
         }),
+      })}
+    />
+  ),
+  onboardingComplete: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      passedProps={() => ({
+        posts: [onboardingCompletePost],
       })}
     />
   ),

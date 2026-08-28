@@ -172,6 +172,18 @@ optional_env:
       60)'
     prompt: 'SSE read timeout'
     password: false
+  - name: TLON_SSE_STALE_THRESHOLD_SECONDS
+    description:
+      'Seconds without SSE event frames before the watchdog forces a reconnect
+      (default: 180; 0 disables staleness detection but not the liveness probes)'
+    prompt: 'SSE stale threshold'
+    password: false
+  - name: TLON_SSE_WATCHDOG_INTERVAL_SECONDS
+    description:
+      'Seconds between SSE staleness watchdog ticks and idle liveness probes
+      (default: 30)'
+    prompt: 'SSE watchdog interval'
+    password: false
   - name: TLON_HOSTING
     description:
       'Force the hosted (memex) image-upload path (true/false). Needed for
@@ -185,14 +197,27 @@ optional_env:
       registration'
     prompt: 'Tlon skill path'
     password: false
+  - name: TLON_PRODUCT_GUIDE_PATH
+    description:
+      'Optional path to the OpenClaw plugin''s
+      skills/tlon-product-guide/SKILL.md for explicit product-guide skill
+      registration'
+    prompt: 'Tlon product guide path'
+    password: false
+  - name: TLON_PLUGIN_DIR
+    description:
+      'Optional path to the @tloncorp/openclaw plugin root; used to locate
+      bundled skills when TLON_PRODUCT_GUIDE_PATH is unset'
+    prompt: 'Tlon plugin directory'
+    password: false
   - name: TLON_GATEWAY_STATUS
     description:
-      'Enable %gateway-status start/heartbeat/stop pokes (true/false)'
+      'Enable %steward gateway start/heartbeat/stop pokes (true/false)'
     prompt: 'Gateway status heartbeat?'
     password: false
   - name: TLON_GATEWAY_STATUS_OWNER
     description:
-      'Optional owner ship override for %gateway-status offline replies;
+      'Optional owner ship override for %steward gateway offline replies;
       defaults to TLON_OWNER_SHIP'
     prompt: 'Gateway status owner'
     password: false

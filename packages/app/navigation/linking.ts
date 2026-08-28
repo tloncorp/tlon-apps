@@ -48,6 +48,10 @@ export const getMobileLinkingConfig = (
             },
           },
           ChannelSearch: { path: 'channel/:channelId/search' },
+          NotesSearch: {
+            path: 'channel/:channelId/search-notes',
+            parse: parsePathParams('channelId'),
+          },
           ContextLensRuns: { path: 'lens/runs' },
           ContextLensRun: {
             path: 'lens/run/:botShip/:lensId',

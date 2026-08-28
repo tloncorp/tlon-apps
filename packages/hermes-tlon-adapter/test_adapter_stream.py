@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 import types
 import unittest
 from pathlib import Path
@@ -159,10 +160,16 @@ class StreamLoopTests(unittest.TestCase):
         async def record_profile():
             calls.append("profile")
 
+        async def record_publish(self_contact):
+            calls.append("publish")
+
         return [
             patch.object(adapter, "_load_settings_state", record_settings),
             patch.object(adapter, "_process_pending_dm_invites", record_invites),
             patch.object(adapter, "_load_bot_profile", record_profile),
+            patch.object(
+                adapter, "_publish_bot_info", record_publish
+            ),
         ]
 
     def test_transport_error_resumes_same_client(self):
@@ -203,7 +210,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -248,7 +255,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -261,7 +268,7 @@ class StreamLoopTests(unittest.TestCase):
         sse_instances = []
 
         class FailingConnectSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 sse_instances.append(self)
                 self.subscribe_calls = []
                 self.close_calls = []
@@ -300,7 +307,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingConnectSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -316,7 +323,7 @@ class StreamLoopTests(unittest.TestCase):
         close_calls = []
 
         class CatchupSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 self.last_heard_event_id = -1
 
             async def authenticate(self):
@@ -371,7 +378,7 @@ class StreamLoopTests(unittest.TestCase):
         close_calls = []
 
         class CatchupSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 self.last_heard_event_id = -1
 
             async def authenticate(self):
@@ -424,7 +431,7 @@ class StreamLoopTests(unittest.TestCase):
         sse_instances = []
 
         class RebuildSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 sse_instances.append(self)
                 self.subscribe_calls = []
                 self.close_calls = []
@@ -462,7 +469,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", RebuildSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -471,11 +478,32 @@ class StreamLoopTests(unittest.TestCase):
         self.assertEqual(sse_instances[0].close_calls, [False])
         rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
         self.assertEqual(len(rebuild_events), 1)
-        self.assertEqual(calls, ["settings", "invites", "profile", "settings", "invites", "profile"])
+        # The bot-info republish is bound to the reconnect catch-up here: drop
+        # the call site in _run_stream and this sequence loses its "publish".
+        self.assertEqual(
+            calls,
+            [
+                "settings",
+                "invites",
+                "profile",
+                "publish",
+                "settings",
+                "invites",
+                "profile",
+                "publish",
+            ],
+        )
+        # Re-read then republish, in that order, on every reconnect.
+        for index, name in enumerate(calls):
+            if name == "profile":
+                self.assertEqual(calls[index + 1], "publish")
         sub_apps = [s[0] for s in sse_instances[1].subscribe_calls]
         self.assertIn("steward", sub_apps)
 
     def test_idle_resume_resets_backoff(self):
+        # Established fires on the first payload, not the bare 200: repeated
+        # 200-then-instant-EOF resumes must escalate backoff (1, 2) instead
+        # of hammering at the first delay forever.
         adapter = self.make_adapter()
         call_count = [0]
         telemetry_events = []
@@ -495,8 +523,6 @@ class StreamLoopTests(unittest.TestCase):
 
             async def events(self, *, on_open=None):
                 call_count[0] += 1
-                if on_open:
-                    on_open()
                 if call_count[0] >= 3:
                     adapter._running = False
                     return
@@ -505,6 +531,50 @@ class StreamLoopTests(unittest.TestCase):
                 raise ConnectionError("Tlon SSE stream ended")
 
         adapter._sse = IdleSSE()
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        async def run():
+            with patches[0], patches[1], patches[2], patches[3]:
+                await adapter._run_stream()
+
+        with patch("asyncio.sleep", _instant_sleep):
+            asyncio.run(run())
+        self.assertEqual(len(telemetry_events), 2)
+        self.assertEqual(telemetry_events[0]["attempt"], 1)
+        self.assertEqual(telemetry_events[1]["attempt"], 2)
+
+    def test_resume_with_payload_resets_backoff_to_first_attempt(self):
+        adapter = self.make_adapter()
+        call_count = [0]
+        telemetry_events = []
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: telemetry_events.append(kw),
+            error=lambda *a, **kw: None,
+        )
+
+        async def fake_route(event):
+            pass
+
+        adapter._route_stream_event = fake_route
+
+        class PayloadThenFaultSSE:
+            def __init__(self):
+                self.last_heard_event_id = -1
+
+            async def events(self, *, on_open=None):
+                call_count[0] += 1
+                if call_count[0] >= 3:
+                    adapter._running = False
+                    return
+                    if False:
+                        yield None
+                # A payload was delivered before the fault: established.
+                if on_open:
+                    on_open()
+                raise ConnectionError("Tlon SSE stream ended")
+
+        adapter._sse = PayloadThenFaultSSE()
         calls = []
         patches = self._patch_catchups(adapter, calls)
 
@@ -525,7 +595,7 @@ class StreamLoopTests(unittest.TestCase):
                 sse_instances = []
 
                 class AuthSSE:
-                    def __init__(self, config):
+                    def __init__(self, config, *, reap_detection=False):
                         sse_instances.append(self)
                         self.last_heard_event_id = -1
 
@@ -561,7 +631,7 @@ class StreamLoopTests(unittest.TestCase):
 
                 with patch.object(adapter_mod, "TlonSSEClient", AuthSSE):
                     async def run():
-                        with patches[0], patches[1], patches[2]:
+                        with patches[0], patches[1], patches[2], patches[3]:
                             await adapter._run_stream()
                     with patch("asyncio.sleep", _instant_sleep):
                         asyncio.run(run())
@@ -599,7 +669,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -688,7 +758,7 @@ class StreamLoopTests(unittest.TestCase):
         sse_instances = []
 
         class ReapSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 sse_instances.append(self)
                 self.last_heard_event_id = -1
 
@@ -722,7 +792,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", ReapSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -787,6 +857,55 @@ class StreamLoopTests(unittest.TestCase):
             result = asyncio.run(adapter.connect())
         self.assertEqual(connect_attempted, [True])
         return adapter, result, errors
+
+    def test_connect_publishes_the_bot_info_once(self):
+        """Binds publication to the connect() lifecycle. Every other publisher
+        test drives _publish_bot_info directly, so deleting the call site would
+        make publication dead code with no failing test."""
+        adapter = self.make_adapter()
+        published = []
+
+        async def anoop(*a, **k):
+            return None
+
+        async def load_profile():
+            return {"nickname": {"type": "text", "value": "Bot"}}
+
+        async def record_publish(self_contact):
+            published.append(self_contact)
+
+        adapter._connect_sse = anoop
+        adapter._load_bot_profile = load_profile
+        adapter._publish_bot_info = record_publish
+        adapter._load_settings_state = anoop
+        adapter._process_pending_dm_invites = anoop
+        adapter._process_pending_group_invites = anoop
+        adapter._start_gateway_status = anoop
+        adapter._start_lens = anoop
+        adapter._start_event_worker = lambda *a, **k: None
+        adapter._start_nudge_settings_retry = lambda *a, **k: None
+        adapter._run_stream = anoop
+        adapter._nudge_scheduler = types.SimpleNamespace(
+            start=lambda *a, **k: None
+        )
+        adapter._telemetry = types.SimpleNamespace(
+            set_common=lambda *a, **kw: None,
+            gateway_connected=lambda *a, **kw: None,
+            error=lambda *a, **kw: None,
+        )
+
+        with (
+            patch.object(adapter_mod, "AIOHTTP_AVAILABLE", True),
+            patch.object(adapter_mod, "_cli_available", return_value=True),
+            patch.object(adapter_mod, "set_active_telemetry", lambda *a: None),
+            patch.object(adapter_mod, "git_source", anoop),
+            patch.object(adapter_mod, "content_fingerprint", lambda *a: "fp1:x"),
+        ):
+            result = asyncio.run(adapter.connect())
+
+        self.assertTrue(result)
+        # Exactly once, against the self contact just read.
+        self.assertEqual(published, [{"nickname": {"type": "text", "value": "Bot"}}])
 
     def test_connect_fixed_cookie_terminal_auth_is_fatal(self):
         # A rejected fixed cookie surfaces at STARTUP via connect()->_connect_sse
@@ -876,7 +995,7 @@ class StreamLoopTests(unittest.TestCase):
             )
 
         class DedupRebuildSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 sse_instances.append(self)
                 self.last_heard_event_id = -1
 
@@ -919,7 +1038,7 @@ class StreamLoopTests(unittest.TestCase):
         with patch.object(adapter_mod, "TlonSSEClient", DedupRebuildSSE), \
              patch.object(adapter, "_dispatch_message", record_dispatch):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 asyncio.run(run())
@@ -960,7 +1079,7 @@ class StreamLoopTests(unittest.TestCase):
         patches = self._patch_catchups(adapter, calls)
 
         async def run():
-            with patches[0], patches[1], patches[2]:
+            with patches[0], patches[1], patches[2], patches[3]:
                 await adapter._run_stream()
 
         with patch("asyncio.sleep", _instant_sleep):
@@ -973,7 +1092,7 @@ class StreamLoopTests(unittest.TestCase):
         connect_count = [0]
 
         class FailingSetupSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 self.last_heard_event_id = -1
 
             async def authenticate(self):
@@ -1007,7 +1126,7 @@ class StreamLoopTests(unittest.TestCase):
 
         with patch.object(adapter_mod, "TlonSSEClient", FailingSetupSSE):
             async def run():
-                with patches[0], patches[1], patches[2]:
+                with patches[0], patches[1], patches[2], patches[3]:
                     await adapter._run_stream()
             with patch("asyncio.sleep", _instant_sleep):
                 with self.assertLogs(adapter_mod.logger.name, level="WARNING") as cm:
@@ -1017,6 +1136,674 @@ class StreamLoopTests(unittest.TestCase):
             any("SSE setup failed" in msg for msg in cm.output),
             f"Expected 'SSE setup failed' in log output: {cm.output}",
         )
+
+
+class WatchdogFakeSSE:
+    def __init__(self, *, bound=True, frame_at=0.0, poke_error=None):
+        self.stream_bound = bound
+        self.last_event_frame_at = frame_at
+        self.poke_error = poke_error
+        self.pokes = []
+        self.condemns = []
+
+    async def poke(self, app, mark, json_payload):
+        self.pokes.append((app, mark, json_payload))
+        if self.poke_error is not None:
+            raise self.poke_error
+        return len(self.pokes)
+
+    def condemn(self, exc):
+        self.condemns.append(exc)
+
+
+async def wait_until(
+    predicate, timeout=5.0, message="condition not reached within timeout"
+):
+    """Yield the event loop until `predicate()` holds, bounded by wall-clock.
+
+    A counted run of bare `asyncio.sleep(0)` pins one particular event-loop
+    interleaving and flakes when scheduler timing shifts (TLON-6368); waiting
+    on the observable does not, and the deadline keeps a genuine hang loud.
+    """
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() >= deadline:
+            raise AssertionError(message)
+        await asyncio.sleep(0)
+
+
+async def settle_probe(adapter, timeout=5.0):
+    """Wait until no watchdog probe is in flight.
+
+    `done()` is not enough: the adapter clears `_sse_probe_task` in a done
+    callback that runs a loop turn later, and the next tick's launch guard
+    reads that field — so "settled" means the field is None again.
+    """
+    await wait_until(
+        lambda: adapter._sse_probe_task is None,
+        timeout,
+        "watchdog probe did not settle within timeout",
+    )
+
+
+
+class WatchdogTickTests(unittest.TestCase):
+    def make_adapter(self, extra=None):
+        base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "access_code": "code",
+            "channels": ["chat/~pen/general"],
+            "owner_ship": "~mug",
+        }
+        base.update(extra or {})
+        with patch.dict(os.environ, {}, clear=True):
+            adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+        adapter._settings_loaded = True
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: None,
+            error=lambda *a, **kw: None,
+        )
+        return adapter
+
+    def test_fresh_frame_no_probe_no_condemn(self):
+        adapter = self.make_adapter()
+        sse = WatchdogFakeSSE(frame_at=95.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._sse_watchdog_tick(100.0, 30.0)
+            await asyncio.sleep(0)
+
+        asyncio.run(run())
+        self.assertEqual(sse.pokes, [])
+        self.assertEqual(sse.condemns, [])
+        self.assertIsNone(adapter._sse_probe_task)
+
+    def test_idle_launches_a_single_probe(self):
+        adapter = self.make_adapter()
+        sse = WatchdogFakeSSE(frame_at=0.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._sse_watchdog_tick(100.0, 30.0)
+            await settle_probe(adapter)
+            # The delivered probe's epoch is valid for this silence: no
+            # second probe.
+            adapter._sse_watchdog_tick(101.0, 30.0)
+            await settle_probe(adapter)
+
+        asyncio.run(run())
+        self.assertEqual(len(sse.pokes), 1)
+        self.assertEqual(sse.pokes[0][:2], ("hood", "helm-hi"))
+
+    def test_failed_probe_arms_no_epoch_and_retries_next_tick(self):
+        adapter = self.make_adapter()
+        sse = WatchdogFakeSSE(frame_at=0.0, poke_error=ConnectionError("HTTP 503"))
+        adapter._sse = sse
+
+        async def run():
+            for now in (100.0, 140.0, 400.0):
+                adapter._sse_watchdog_tick(now, 30.0)
+                await settle_probe(adapter)
+
+        asyncio.run(run())
+        # A broken outbound path must never condemn a healthy inbound stream;
+        # failed probes simply retry.
+        self.assertEqual(sse.condemns, [])
+        self.assertIsNone(adapter._sse_probe_epoch_at)
+        self.assertEqual(len(sse.pokes), 3)
+
+    def test_condemn_requires_delivered_probe_plus_grace_interval(self):
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": 60.0})
+        t0 = time.monotonic()
+        sse = WatchdogFakeSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            # Idle past the threshold with no successful probe for this
+            # silence: no condemn — the probe launches instead.
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await settle_probe(adapter)
+            self.assertEqual(sse.condemns, [])
+            self.assertEqual(len(sse.pokes), 1)
+            # Grace runs from the PUT's completion, not the probe's start.
+            delivered = adapter._sse_probe_success_at
+            self.assertIsNotNone(delivered)
+            # Not yet a full grace interval after the delivered probe.
+            adapter._sse_watchdog_tick(delivered + 29.0, 30.0)
+            self.assertEqual(sse.condemns, [])
+            # A full grace interval later: condemn. Nudged past the exact
+            # boundary because `delivered + 30.0` can land a fraction under
+            # `delivered + 30` when the addition crosses a binade (TLON-6368);
+            # the guard is `>=`, so the shortfall reads as "grace not elapsed".
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
+
+        asyncio.run(run())
+        self.assertEqual(len(sse.condemns), 1)
+        self.assertIsInstance(sse.condemns[0], tlon_api.TlonStreamStaleError)
+
+    def test_comparison_rule_invalidates_epoch_when_frame_postdates_probe(self):
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": 60.0})
+        t0 = time.monotonic()
+        sse = WatchdogFakeSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await settle_probe(adapter)
+            epoch = adapter._sse_probe_epoch_at
+            # A frame arrives after the probe; the watchdog tick is then
+            # delayed far past the threshold.
+            sse.last_event_frame_at = epoch + 1.0
+            adapter._sse_watchdog_tick(epoch + 200.0, 30.0)
+            await settle_probe(adapter)
+
+        asyncio.run(run())
+        self.assertEqual(sse.condemns, [])
+        # The stale epoch was discarded by the comparison and a fresh probe
+        # launched for the new silence.
+        self.assertEqual(len(sse.pokes), 2)
+
+    def test_close_sse_settles_inflight_probe_before_teardown(self):
+        # Rebuilds call _close_sse without the disconnect path's watchdog
+        # shutdown; a probe still inside its PUT must be cancelled there or it
+        # could race the teardown and re-create the channel it targets.
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": 60.0})
+        t0 = time.monotonic()
+
+        class BlockingPokeSSE(WatchdogFakeSSE):
+            def __init__(self, **kwargs):
+                super().__init__(**kwargs)
+                self.close_calls = []
+
+            async def poke(self, app, mark, json_payload):
+                self.pokes.append((app, mark, json_payload))
+                await asyncio.Event().wait()
+
+            async def close(self, *, graceful=True):
+                self.close_calls.append(graceful)
+
+        sse = BlockingPokeSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await wait_until(lambda: len(sse.pokes) == 1)
+            probe = adapter._sse_probe_task
+            self.assertIsNotNone(probe)
+            await adapter._close_sse(graceful=False)
+            # Asserted INSIDE the running loop: asyncio.run() cancels pending
+            # tasks at shutdown, which would make a post-run cancelled() check
+            # pass even if _close_sse never settled the probe.
+            self.assertTrue(probe.cancelled())
+            self.assertIsNone(adapter._sse_probe_task)
+            self.assertEqual(sse.close_calls, [False])
+            self.assertIsNone(adapter._sse)
+
+        asyncio.run(run())
+
+    def test_probe_ack_parsed_before_poke_returns_does_not_poison_next_silence(self):
+        # On a single event loop the stream parser can process the probe's own
+        # ack (refreshing the frame clock) before poke() returns. The epoch
+        # must anchor on the probe's START time, or the answered probe would
+        # look valid for the next silence and condemn a healthy stream with
+        # zero probes sent in it.
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": 60.0})
+        t0 = time.monotonic()
+
+        class AckRacingSSE(WatchdogFakeSSE):
+            async def poke(self, app, mark, json_payload):
+                self.pokes.append((app, mark, json_payload))
+                self.last_event_frame_at = time.monotonic()
+                return len(self.pokes)
+
+        sse = AckRacingSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await settle_probe(adapter)
+            ack_at = sse.last_event_frame_at
+            # Deep into a NEW silence: the answered probe must not count.
+            adapter._sse_watchdog_tick(ack_at + 200.0, 30.0)
+            await settle_probe(adapter)
+
+        asyncio.run(run())
+        self.assertEqual(sse.condemns, [])
+        # A fresh probe launched for the new silence instead.
+        self.assertEqual(len(sse.pokes), 2)
+
+    def test_probe_from_previous_client_cancelled_after_rebuild(self):
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": 60.0})
+        t0 = time.monotonic()
+
+        class BlockingPokeSSE(WatchdogFakeSSE):
+            async def poke(self, app, mark, json_payload):
+                self.pokes.append((app, mark, json_payload))
+                await asyncio.Event().wait()
+
+        old = BlockingPokeSSE(frame_at=t0 - 100.0)
+        adapter._sse = old
+
+        async def run():
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await wait_until(lambda: len(old.pokes) == 1)
+            old_task = adapter._sse_probe_task
+            self.assertIsNotNone(old_task)
+            # Rebuild publishes a fresh client.
+            new = WatchdogFakeSSE(frame_at=t0 - 100.0)
+            adapter._sse = new
+            adapter._sse_watchdog_tick(t0 + 40.0, 30.0)
+            await settle_probe(adapter)
+            await wait_until(old_task.cancelled)
+            return old_task, new
+
+        old_task, new = asyncio.run(run())
+        self.assertTrue(old_task.cancelled())
+        self.assertEqual(len(old.pokes), 1)
+        self.assertEqual(len(new.pokes), 1)
+        self.assertIs(adapter._sse_probe_client, new)
+
+    def test_backpressure_gate_holds_condemnation_until_probe_grace(self):
+        # Reader blocked at every would-be probe tick, then unblocking at
+        # threshold age: still no condemn until a delivered probe has had its
+        # grace interval.
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": 60.0})
+        t0 = time.monotonic()
+        sse = WatchdogFakeSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._route_blocked = True
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            adapter._sse_watchdog_tick(t0 + 200.0, 30.0)
+            await asyncio.sleep(0)
+            self.assertEqual(sse.pokes, [])
+            self.assertEqual(sse.condemns, [])
+            adapter._route_blocked = False
+            adapter._sse_watchdog_tick(t0 + 201.0, 30.0)
+            await settle_probe(adapter)
+            self.assertEqual(sse.condemns, [])
+            delivered = adapter._sse_probe_success_at
+            self.assertIsNotNone(delivered)
+            # See the binade note in
+            # test_condemn_requires_delivered_probe_plus_grace_interval.
+            adapter._sse_watchdog_tick(delivered + 30.5, 30.0)
+
+        asyncio.run(run())
+        self.assertEqual(len(sse.condemns), 1)
+
+    def test_unbound_or_missing_client_is_a_noop(self):
+        adapter = self.make_adapter()
+
+        async def run():
+            adapter._sse = None
+            adapter._sse_watchdog_tick(100.0, 30.0)
+            adapter._sse = WatchdogFakeSSE(bound=False, frame_at=0.0)
+            adapter._sse_watchdog_tick(100.0, 30.0)
+            await asyncio.sleep(0)
+
+        asyncio.run(run())
+        self.assertIsNone(adapter._sse_probe_task)
+
+    def test_route_blocked_tick_is_a_noop(self):
+        adapter = self.make_adapter()
+        sse = WatchdogFakeSSE(frame_at=0.0)
+        adapter._sse = sse
+        adapter._route_blocked = True
+
+        async def run():
+            adapter._sse_watchdog_tick(100.0, 30.0)
+            await asyncio.sleep(0)
+
+        asyncio.run(run())
+        self.assertEqual(sse.pokes, [])
+        self.assertEqual(sse.condemns, [])
+        self.assertIsNone(adapter._sse_probe_task)
+
+    def test_threshold_zero_keeps_probes_but_never_condemns(self):
+        # The disable token is the literal string '0'.
+        adapter = self.make_adapter({"sse_stale_threshold_seconds": "0"})
+        t0 = time.monotonic()
+        sse = WatchdogFakeSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await settle_probe(adapter)
+            epoch = adapter._sse_probe_epoch_at
+            self.assertIsNotNone(epoch)
+            adapter._sse_watchdog_tick(epoch + 300.0, 30.0)
+            await settle_probe(adapter)
+
+        asyncio.run(run())
+        self.assertEqual(len(sse.pokes), 1)
+        self.assertEqual(sse.condemns, [])
+
+    def test_watchdog_loop_ticks_and_cancels_cleanly(self):
+        adapter = self.make_adapter()
+        ticks = []
+        adapter._sse_watchdog_tick = lambda now, interval: ticks.append(
+            (now, interval)
+        )
+        real_sleep = asyncio.sleep
+
+        async def yielding_sleep(delay):
+            await real_sleep(0)
+
+        async def run():
+            task = asyncio.create_task(adapter._run_sse_watchdog())
+            await wait_until(lambda: len(ticks) >= 1)
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+            return task
+
+        with patch("asyncio.sleep", yielding_sleep):
+            task = asyncio.run(run())
+        self.assertGreaterEqual(len(ticks), 1)
+        self.assertEqual(ticks[0][1], adapter.tlon_config.sse_watchdog_interval_seconds)
+        self.assertTrue(task.cancelled())
+
+
+class WatchdogRoutingTests(unittest.TestCase):
+    def make_adapter(self, extra=None):
+        base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "access_code": "code",
+            "channels": ["chat/~pen/general"],
+            "owner_ship": "~mug",
+        }
+        base.update(extra or {})
+        with patch.dict(os.environ, {}, clear=True):
+            adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+        adapter._settings_loaded = True
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: None,
+            error=lambda *a, **kw: None,
+        )
+        return adapter
+
+    def test_route_blocked_flag_set_while_put_parked_and_cleared_after(self):
+        adapter = self.make_adapter()
+        adapter._event_queue = asyncio.Queue(maxsize=1)
+        adapter._event_queue.put_nowait(
+            adapter_mod._StreamWorkItem("settings", {})
+        )
+        states = []
+
+        async def run():
+            route = asyncio.create_task(
+                adapter._route_stream_event(make_event(app="groups"))
+            )
+            await wait_until(lambda: adapter._route_blocked)
+            states.append(adapter._route_blocked)
+            adapter._event_queue.get_nowait()
+            await route
+            states.append(adapter._route_blocked)
+
+        asyncio.run(run())
+        self.assertEqual(states, [True, False])
+
+    def test_nonempty_queue_does_not_suppress_the_watchdog(self):
+        adapter = self.make_adapter()
+        adapter._event_queue = asyncio.Queue(maxsize=2)
+        adapter._event_queue.put_nowait(
+            adapter_mod._StreamWorkItem("settings", {})
+        )
+        t0 = time.monotonic()
+        sse = WatchdogFakeSSE(frame_at=t0 - 100.0)
+        adapter._sse = sse
+
+        async def run():
+            await adapter._route_stream_event(make_event(app="groups"))
+            self.assertFalse(adapter._route_blocked)
+            adapter._sse_watchdog_tick(t0 + 35.0, 30.0)
+            await settle_probe(adapter)
+
+        asyncio.run(run())
+        # A merely non-empty queue is not backpressure: the tick probed.
+        self.assertEqual(len(sse.pokes), 1)
+
+
+class DetectorStreamLoopTests(unittest.TestCase):
+    def make_adapter(self, extra=None):
+        base = {
+            "node_url": "https://pen.tlon.network",
+            "node_id": "~pen",
+            "access_code": "code",
+            "channels": ["chat/~pen/general"],
+            "owner_ship": "~mug",
+        }
+        base.update(extra or {})
+        with patch.dict(os.environ, {}, clear=True):
+            adapter = adapter_mod.TlonAdapter(PlatformConfig(extra=base))
+        adapter._settings_loaded = True
+        return adapter
+
+    def _patch_catchups(self, adapter, calls):
+        async def record_settings():
+            calls.append("settings")
+            return True
+
+        async def record_invites():
+            calls.append("invites")
+
+        async def record_profile():
+            calls.append("profile")
+
+        return [
+            patch.object(adapter, "_load_settings_state", record_settings),
+            patch.object(adapter, "_process_pending_dm_invites", record_invites),
+            patch.object(adapter, "_load_bot_profile", record_profile),
+        ]
+
+    def test_detector_channel_error_midstream_rebuilds_with_full_setup(self):
+        adapter = self.make_adapter()
+        sse_instances = []
+
+        class DetectorSSE:
+            def __init__(self, config, *, reap_detection=False):
+                sse_instances.append(self)
+                self.reap_detection = reap_detection
+                self.subscribe_calls = []
+                self.close_calls = []
+                self.last_heard_event_id = 42
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                pass
+
+            async def subscribe(self, app, path, *, optional=False):
+                self.subscribe_calls.append((app, path))
+                return len(self.subscribe_calls)
+
+            async def close(self, *, graceful=True):
+                self.close_calls.append(graceful)
+
+            async def events(self, *, on_open=None):
+                if len(sse_instances) == 1:
+                    if on_open:
+                        on_open()
+                    yield make_event(event_id=43)
+                    raise tlon_api.TlonChannelError(
+                        "Tlon event-id regression (heard 3, confirmed floor 7): "
+                        "channel silently recreated"
+                    )
+                if on_open:
+                    on_open()
+                adapter._running = False
+                if False:
+                    yield None
+
+        telemetry_events = []
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: telemetry_events.append(kw),
+            error=lambda *a, **kw: None,
+        )
+        dispatched = []
+
+        async def fake_route(event):
+            dispatched.append(event)
+
+        adapter._route_stream_event = fake_route
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        with patch.object(adapter_mod, "TlonSSEClient", DetectorSSE):
+            async def run():
+                with patches[0], patches[1], patches[2]:
+                    await adapter._run_stream()
+            with patch("asyncio.sleep", _instant_sleep):
+                asyncio.run(run())
+
+        self.assertEqual(len(sse_instances), 2)
+        self.assertTrue(sse_instances[0].reap_detection)
+        self.assertEqual(sse_instances[0].close_calls, [False])
+        self.assertEqual(len(dispatched), 1)
+        rebuild_events = [e for e in telemetry_events if e.get("mode") == "rebuild"]
+        self.assertEqual(len(rebuild_events), 1)
+        self.assertEqual(
+            calls, ["settings", "invites", "profile", "settings", "invites", "profile"]
+        )
+
+    def test_stale_error_resumes_same_client_with_watchdog_stale_mode(self):
+        adapter = self.make_adapter()
+        telemetry_events = []
+        adapter._telemetry = types.SimpleNamespace(
+            sse_reconnect=lambda **kw: telemetry_events.append(kw),
+            error=lambda *a, **kw: None,
+        )
+
+        async def fake_route(event):
+            adapter._running = False
+
+        adapter._route_stream_event = fake_route
+
+        class StaleSSE:
+            def __init__(self):
+                self.last_heard_event_id = -1
+                self.events_calls = 0
+
+            async def events(self, *, on_open=None):
+                self.events_calls += 1
+                if self.events_calls == 1:
+                    raise tlon_api.TlonStreamStaleError(
+                        "Tlon SSE stream stale: no events for 180s (threshold 180s)"
+                    )
+                if on_open:
+                    on_open()
+                yield make_event(event_id=2)
+
+        sse = StaleSSE()
+        adapter._sse = sse
+        calls = []
+        patches = self._patch_catchups(adapter, calls)
+
+        async def run():
+            with patches[0], patches[1], patches[2]:
+                await adapter._run_stream()
+
+        with patch("asyncio.sleep", _instant_sleep):
+            asyncio.run(run())
+
+        # Resume: the same client re-GETs with Last-Event-ID, no catch-ups.
+        self.assertEqual(sse.events_calls, 2)
+        self.assertEqual(calls, [])
+        stale_events = [
+            e for e in telemetry_events if e.get("mode") == "watchdog_stale"
+        ]
+        self.assertEqual(len(stale_events), 1)
+        self.assertEqual(stale_events[0]["attempt"], 1)
+
+    def test_connect_sse_constructs_client_with_reap_detection(self):
+        adapter = self.make_adapter()
+        constructed = []
+
+        class RecorderSSE:
+            def __init__(self, config, *, reap_detection=False):
+                constructed.append(
+                    {"config": config, "reap_detection": reap_detection}
+                )
+
+            async def authenticate(self):
+                return "cookie"
+
+            async def open(self):
+                pass
+
+            async def subscribe(self, app, path, *, optional=False):
+                return 1
+
+            async def close(self, *, graceful=True):
+                pass
+
+        with patch.object(adapter_mod, "TlonSSEClient", RecorderSSE):
+            asyncio.run(adapter._connect_sse())
+
+        self.assertEqual(len(constructed), 1)
+        self.assertIs(constructed[0]["config"], adapter.tlon_config)
+        self.assertTrue(constructed[0]["reap_detection"])
+        self.assertIsNotNone(adapter._sse)
+
+    def test_watchdog_and_probe_drained_before_close_sse_on_disconnect(self):
+        adapter = self.make_adapter()
+        order = []
+
+        class ProbeBlockSSE:
+            def __init__(self):
+                self.stream_bound = True
+                self.last_event_frame_at = time.monotonic() - 1000
+                self.closed = False
+
+            async def poke(self, app, mark, json_payload):
+                order.append("probe_started")
+                try:
+                    await asyncio.Event().wait()
+                except asyncio.CancelledError:
+                    order.append("probe_cancelled")
+                    raise
+
+            def condemn(self, exc):
+                pass
+
+            async def close(self, *, graceful=True):
+                self.closed = True
+
+        sse = ProbeBlockSSE()
+        adapter._sse = sse
+
+        async def run():
+            adapter._start_event_worker()
+            await asyncio.sleep(0)
+            # Force a probe launch directly through the tick.
+            adapter._sse_watchdog_tick(time.monotonic(), 30.0)
+            await wait_until(lambda: "probe_started" in order)
+            probe_task = adapter._sse_probe_task
+            assert probe_task is not None
+
+            real_close_sse = adapter._close_sse
+
+            async def recording_close_sse(*, graceful=True):
+                order.append("close_sse")
+                await real_close_sse(graceful=graceful)
+
+            adapter._close_sse = recording_close_sse
+            await adapter.disconnect()
+            return probe_task
+
+        probe_task = asyncio.run(run())
+        self.assertTrue(probe_task.cancelled())
+        self.assertIsNone(adapter._sse_watchdog_task)
+        self.assertIsNone(adapter._sse_probe_task)
+        self.assertTrue(sse.closed)
+        self.assertEqual(order, ["probe_started", "probe_cancelled", "close_sse"])
 
 
 if __name__ == "__main__":

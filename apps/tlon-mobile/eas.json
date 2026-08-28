@@ -117,9 +117,8 @@
     "preview": {
       "android": {
         "applicationId": "io.tlon.groups.preview",
-        "releaseStatus": "draft",
-        "track": "internal",
-        "changesNotSentForReview": true
+        "releaseStatus": "completed",
+        "track": "internal"
       },
       "ios": {
         "ascAppId": "6477973000",

@@ -144,6 +144,22 @@ export async function execInContainer(
   );
 }
 
+export async function copyIntoComposeService(
+  ctx: RuntimeContext,
+  service: string,
+  source: string,
+  destination: string,
+  run: DockerCommandRunner = runCommand
+): Promise<void> {
+  const container = await resolveComposeContainer(ctx, service, run);
+  const result = await runDocker(
+    ctx,
+    ['cp', source, `${container}:${destination}`],
+    run
+  );
+  requireSuccess(result, `copy into service ${service}`);
+}
+
 function remainingTimeoutMs(deadlineAtMs: number, action: string): number {
   const remainingMs = deadlineAtMs - Date.now();
   if (remainingMs <= 0) {
@@ -194,6 +210,56 @@ export async function readComposeServiceLogs(
   );
   requireSuccess(result, `read logs for service ${service}`);
   return [result.stdout, result.stderr].filter(Boolean).join('\n');
+}
+
+// Diagnostics helpers. The timeout is spent as a single deadline across
+// resolve + inspect/top (like execInComposeService) so an unhealthy docker
+// daemon cannot exceed the caller's budget — each call on its own would
+// default to 60s, unacceptable inside a teardown dump.
+export async function inspectComposeServiceState(
+  ctx: RuntimeContext,
+  service: string,
+  opts: { timeoutMs?: number } = {},
+  run: DockerCommandRunner = runCommand
+): Promise<string> {
+  const deadlineAtMs = Date.now() + (opts.timeoutMs ?? DOCKER_TIMEOUT_MS);
+  const container = await resolveComposeContainer(
+    ctx,
+    service,
+    run,
+    remainingTimeoutMs(deadlineAtMs, `resolve service ${service}`)
+  );
+  const result = await runDocker(
+    ctx,
+    ['container', 'inspect', '--format', '{{json .State}}', container],
+    run,
+    remainingTimeoutMs(deadlineAtMs, `inspect state for service ${service}`)
+  );
+  requireSuccess(result, `inspect state for service ${service}`);
+  return JSON.stringify(JSON.parse(result.stdout.trim()), null, 2);
+}
+
+export async function topComposeService(
+  ctx: RuntimeContext,
+  service: string,
+  opts: { timeoutMs?: number } = {},
+  run: DockerCommandRunner = runCommand
+): Promise<string> {
+  const deadlineAtMs = Date.now() + (opts.timeoutMs ?? DOCKER_TIMEOUT_MS);
+  const container = await resolveComposeContainer(
+    ctx,
+    service,
+    run,
+    remainingTimeoutMs(deadlineAtMs, `resolve service ${service}`)
+  );
+  const result = await runDocker(
+    ctx,
+    ['top', container, '-eo', 'pid,ppid,comm,args'],
+    run,
+    remainingTimeoutMs(deadlineAtMs, `top service ${service}`)
+  );
+  requireSuccess(result, `top service ${service}`);
+  return result.stdout;
 }
 
 interface DockerContainerState {

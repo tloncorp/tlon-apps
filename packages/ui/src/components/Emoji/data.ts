@@ -51,12 +51,22 @@ export function getNativeEmoji(input: string): string | undefined {
       return undefined;
     }
 
-    // otherwise just make sure it's vaguely "emoji shaped" (i.e. not long text)
-    const fancyCharCount = Array.from(
-      input.split(/[\ufe00-\ufe0f]/).join('')
-    ).length;
+    // otherwise just make sure it's vaguely "emoji shaped" (i.e. not long
+    // text). ZWJ sequences like \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67\u200d\ud83d\udc66 are one emoji spread over many code
+    // points, so measure each joined segment rather than the whole string \u2014
+    // counting the whole thing rejects them as if they were a sentence.
+    const segments = input
+      .split(/[\ufe00-\ufe0f]/)
+      .join('')
+      .split('\u200d');
     const conservativeEmojiMaxLength = 4;
-    if (fancyCharCount > conservativeEmojiMaxLength) {
+    const conservativeMaxJoinedSegments = 5;
+    if (
+      segments.length > conservativeMaxJoinedSegments ||
+      segments.some(
+        (segment) => Array.from(segment).length > conservativeEmojiMaxLength
+      )
+    ) {
       return undefined;
     }
     return input;

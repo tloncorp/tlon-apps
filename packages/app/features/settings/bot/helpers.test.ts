@@ -6,9 +6,11 @@ import {
   buildConfigFromChatValues,
   buildMergedChannelModelEntries,
   formatShipList,
+  getAvailableProviderIds,
   getModelFormValues,
   groupChannelEntries,
   hasGroupMembership,
+  hasProviderCredential,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
   normalizeChannelRuleKey,
@@ -107,6 +109,60 @@ describe('provider config', () => {
         default: { basic: { key: 'x' } },
       }).defaultKeys
     ).toEqual({ basic: { key: 'x' } });
+  });
+
+  it('treats a connected OpenAI subscription as a provider credential', () => {
+    const config = normalizeProviderConfig(null);
+    expect(
+      hasProviderCredential(config, 'openai', {
+        ts: 1,
+        providers: [{ provider: 'openai', status: 'ok' }],
+      })
+    ).toBe(true);
+    expect(
+      hasProviderCredential(config, 'openai', {
+        ts: 1,
+        providers: [{ provider: 'openai', status: 'expired' }],
+      })
+    ).toBe(false);
+  });
+
+  it('includes subscription-backed OpenAI in the ordered provider list', () => {
+    const config = normalizeProviderConfig({
+      keys: { anthropic: 'sk-ant-test' },
+      defaultKeys: { basic: { key: 'included' } },
+    });
+    expect(
+      getAvailableProviderIds(config, {
+        ts: 1,
+        providers: [{ provider: 'openai', status: 'ok' }],
+      })
+    ).toEqual(['basic', 'anthropic', 'openai']);
+  });
+
+  it('treats a connected xAI subscription as a provider credential', () => {
+    const config = normalizeProviderConfig(null);
+    const status = {
+      ts: 1,
+      providers: [{ provider: 'xai', status: 'ok' }],
+    };
+
+    expect(hasProviderCredential(config, 'xai', status)).toBe(true);
+    expect(getAvailableProviderIds(config, status)).toEqual(['xai']);
+  });
+
+  it('treats a connected Anthropic subscription as a provider credential', () => {
+    const config = normalizeProviderConfig(null);
+    const status = {
+      ts: 1,
+      providers: [{ provider: 'anthropic', status: 'static' }],
+      subscriptionModels: {
+        anthropic: [{ id: 'claude-sonnet-5' }],
+      },
+    };
+
+    expect(hasProviderCredential(config, 'anthropic', status)).toBe(true);
+    expect(getAvailableProviderIds(config, status)).toEqual(['anthropic']);
   });
 
   it('maps default-key openrouter usage to the basic provider', () => {

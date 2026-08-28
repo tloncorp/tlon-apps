@@ -5,7 +5,6 @@ import {
   AuthError,
   ChannelStatus,
   NounPokeInterface,
-  PokeInterface,
   Thread,
   Urbit,
 } from '../http-api';
@@ -21,17 +20,17 @@ const logger = createDevLogger('urbit', false);
 const DEFAULT_SCRY_TIMEOUT = 60 * 1000; // 1 minute
 const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
 
-interface Config
-  extends Pick<
-    ClientParams,
-    'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
-  > {
+interface Config extends Pick<
+  ClientParams,
+  'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
+> {
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
   loggingOut: boolean;
   lastStatus: string;
   activitySupportsReactions: boolean;
+  activitySupportsNotes: boolean;
 }
 
 type Predicate = (event: any, mark: string) => boolean;
@@ -118,6 +117,51 @@ const config: Config = {
   // Off until the app confirms the backend's groups version ships reactions.
   // Drives which %activity endpoint versions the client uses (feed/sub/marks).
   activitySupportsReactions: false,
+  // Off until the app confirms the backend's groups version ships notes
+  // activity (v10 %activity endpoints).
+  activitySupportsNotes: false,
+};
+
+type ClientResolver = () => Urbit | null | undefined;
+let clientResolver: ClientResolver | null = null;
+
+/**
+ * Let a server runtime provide an async-context-local client while preserving
+ * the configured singleton as the default for app clients. Returning
+ * `undefined` uses that default; `null` explicitly represents an empty scope.
+ */
+export function setClientResolver(resolver: ClientResolver | null): void {
+  clientResolver = resolver;
+}
+
+function resolveClient(): Urbit | null {
+  const resolved = clientResolver?.();
+  return resolved === undefined ? config.client : resolved;
+}
+
+// The capability flags below start false every boot and flip when app-info
+// sync resolves the backend version. Long-lived consumers that bake a
+// capability into something at call time (e.g. a subscription's stream
+// version) can subscribe here and redo that work when the flags change.
+let activityCapabilitiesEpoch = 0;
+const activityCapabilityListeners = new Set<() => void>();
+
+export const getActivityCapabilitiesEpoch = (): number => {
+  return activityCapabilitiesEpoch;
+};
+
+export const onActivityCapabilitiesChange = (
+  listener: () => void
+): (() => void) => {
+  activityCapabilityListeners.add(listener);
+  return () => {
+    activityCapabilityListeners.delete(listener);
+  };
+};
+
+const bumpActivityCapabilitiesEpoch = () => {
+  activityCapabilitiesEpoch += 1;
+  activityCapabilityListeners.forEach((listener) => listener());
 };
 
 // Whether the connected backend supports reaction activity (v9 %activity
@@ -125,21 +169,41 @@ const config: Config = {
 // activity client to pick endpoint versions. Defaults false so an old backend
 // gets the pre-reaction (v5 feed / v4 subscription / v8 mark) endpoints.
 export const setActivitySupportsReactions = (value: boolean) => {
+  const changed = config.activitySupportsReactions !== value;
   config.activitySupportsReactions = value;
+  if (changed) {
+    bumpActivityCapabilitiesEpoch();
+  }
 };
 
 export const getActivitySupportsReactions = (): boolean => {
   return config.activitySupportsReactions;
 };
 
+// Whether the connected backend supports notes activity (v10 %activity
+// endpoints: v6 subscription, v7 feed, activity-action-2 mark). Same pattern
+// as reactions above; defaults false so old backends get older endpoints.
+export const setActivitySupportsNotes = (value: boolean) => {
+  const changed = config.activitySupportsNotes !== value;
+  config.activitySupportsNotes = value;
+  if (changed) {
+    bumpActivityCapabilitiesEpoch();
+  }
+};
+
+export const getActivitySupportsNotes = (): boolean => {
+  return config.activitySupportsNotes;
+};
+
 export const client = new Proxy(
   {},
   {
     get: function (target, prop, receiver) {
-      if (!config.client) {
+      const activeClient = resolveClient();
+      if (!activeClient) {
         throw new Error('Urbit client not set.');
       }
-      return Reflect.get(config.client, prop, receiver);
+      return Reflect.get(activeClient, prop, receiver);
     },
   }
 ) as Urbit;
@@ -255,6 +319,11 @@ export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
   config.subWatchers = {};
+  // backend capabilities belong to the ship we were connected to; reset
+  // so an account switch to an older backend doesn't request newer
+  // endpoints until app-info sync resolves the new ship's version
+  setActivitySupportsReactions(false);
+  setActivitySupportsNotes(false);
 }
 
 function printEndpoint(endpoint: UrbitEndpoint) {
@@ -455,26 +524,22 @@ export async function poke({ app, mark, json }: PokeParams) {
     app,
     mark,
   });
-  const doPoke = async (params?: Partial<PokeInterface<any>>) => {
-    if (!config.client) {
+  const activeClient = resolveClient();
+  const doPoke = async () => {
+    if (!activeClient) {
       throw new Error('Client not initialized');
     }
-    if (config.pendingAuth) {
+    if (activeClient === config.client && config.pendingAuth) {
       await config.pendingAuth;
     }
-    return config.client.poke({
-      ...params,
-      app,
-      mark,
-      json,
-    });
+    return activeClient.poke({ app, mark, json });
   };
   const retry = async (err: any) => {
     logger.trackError(`bad poke to ${app} with mark ${mark}`, {
       stack: err,
       body: json,
     });
-    if (!(err instanceof AuthError)) {
+    if (!(err instanceof AuthError) || activeClient !== config.client) {
       trackDuration('error');
       throw err;
     }
@@ -636,10 +701,11 @@ export async function scry<T>({
   path: string;
   timeout?: number;
 }) {
-  if (!config.client) {
+  const activeClient = resolveClient();
+  if (!activeClient) {
     throw new Error('Client not initialized');
   }
-  if (config.pendingAuth) {
+  if (activeClient === config.client && config.pendingAuth) {
     await config.pendingAuth;
   }
   logger.log('scry', app, path);
@@ -650,7 +716,7 @@ export async function scry<T>({
   });
   try {
     const { result, responseSizeInBytes, responseStatus } =
-      await config.client.scryWithInfo<T>({
+      await activeClient.scryWithInfo<T>({
         app,
         path,
         timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
@@ -659,11 +725,11 @@ export async function scry<T>({
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
-    if (res.status === 403) {
+    if (res.status === 403 && activeClient === config.client) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
       const { result, responseSizeInBytes, responseStatus } =
-        await config.client.scryWithInfo<T>({ app, path });
+        await activeClient.scryWithInfo<T>({ app, path });
       trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
@@ -677,6 +743,7 @@ export async function scry<T>({
 
 export interface RequestJsonOptions {
   reauthStatuses?: readonly number[];
+  signal?: AbortSignal;
 }
 
 // Authenticated JSON request to an arbitrary ship path. Reauths once on 403 by
@@ -687,20 +754,33 @@ export async function requestJson<T = any>(
   body?: unknown,
   options: RequestJsonOptions = {}
 ): Promise<T> {
-  if (!config.client) {
+  const activeClient = resolveClient();
+  if (!activeClient) {
     throw new Error('Client not initialized');
   }
-  if (config.pendingAuth) {
+  if (activeClient === config.client && config.pendingAuth) {
     await config.pendingAuth;
   }
   const reauthStatuses = options.reauthStatuses ?? [403];
+  const send = () =>
+    options.signal
+      ? activeClient.requestJson<T>(path, method, body, {
+          signal: options.signal,
+        })
+      : activeClient.requestJson<T>(path, method, body);
 
   try {
-    return await config.client.requestJson<T>(path, method, body);
+    return await send();
   } catch (res) {
-    if (reauthStatuses.includes(res?.status)) {
+    if (options.signal?.aborted || res?.name === 'AbortError') {
+      throw res;
+    }
+    if (
+      activeClient === config.client &&
+      reauthStatuses.includes(res?.status)
+    ) {
       await reauth();
-      return await config.client.requestJson<T>(path, method, body);
+      return await send();
     }
     const errorBody = await responseErrorBody(res);
     throw new BadResponseError(res?.status ?? 0, errorBody);

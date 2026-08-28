@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, it, test } from 'vitest';
 
 import type { Story } from '../../urbit/channel';
 import {
@@ -60,9 +60,9 @@ describe('Sect / Tag / BlockReference emission', () => {
 });
 
 describe('Ship emission', () => {
-  test('normalizes a backend-shaped ship to a bare mdast mention value', () => {
+  test('normalizes a backend-shaped ship to a sigiled mdast mention value', () => {
     const result = inlinesToPhrasing([{ ship: '~zod' } as Ship]);
-    expect(result).toEqual([{ type: 'shipMention', value: 'zod' }]);
+    expect(result).toEqual([{ type: 'shipMention', value: '~zod' }]);
   });
 });
 
@@ -93,7 +93,7 @@ describe('nesting', () => {
       } as Blockquote,
     ]);
 
-    expect(result).toEqual([{ type: 'html', value: '> quoted ~zod' }]);
+    expect(result).toEqual([{ type: 'html', value: '> quoted ~zod<!-- -->' }]);
   });
 
   test('serializes a backend-shaped inline %code as a fenced code block', () => {
@@ -123,7 +123,7 @@ describe('nesting', () => {
         children: [
           {
             type: 'paragraph',
-            children: [{ type: 'shipMention', value: 'zod' }],
+            children: [{ type: 'shipMention', value: '~zod' }],
           },
         ],
       },
@@ -154,7 +154,7 @@ describe('nesting', () => {
             children: [
               {
                 type: 'strong',
-                children: [{ type: 'shipMention', value: 'zod' }],
+                children: [{ type: 'shipMention', value: '~zod' }],
               },
             ],
           },
@@ -232,6 +232,151 @@ describe('nesting', () => {
         ],
       },
     ]);
+  });
+});
+
+describe('non-strict bridge mention invariant', () => {
+  function headerStory(content: Inline[]): Story {
+    return [
+      {
+        block: {
+          header: { tag: 'h1', content },
+        },
+      },
+    ];
+  }
+
+  it('separates a bridged mention from fusable text in a header', () => {
+    const story = headerStory([{ blockquote: [{ ship: '~zod' }, 'abc'] }]);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toContain('# > ~zod<!-- -->abc');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+    expect(JSON.stringify(reparsed)).toContain('"abc"');
+    expect(JSON.stringify(reparsed)).not.toContain('~zodabc');
+  });
+
+  it('separates a bridged mention in standalone task content', () => {
+    const story: Story = [
+      {
+        inline: [
+          {
+            task: {
+              checked: true,
+              content: [{ blockquote: [{ ship: '~zod' }, 'abc'] }],
+            },
+          } as Task,
+        ],
+      },
+    ];
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toContain('~zod<!-- -->abc');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+    expect(JSON.stringify(reparsed)).not.toContain('~zodabc');
+  });
+
+  it('escapes ship-shaped prose text in the bridge', () => {
+    const story = headerStory([{ blockquote: ['~zod is here'] }]);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toContain('\\~zod');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).not.toContain('"ship"');
+    expect(JSON.stringify(reparsed)).toContain('~zod is here');
+  });
+
+  it('separates despite an empty piece between mention and text', () => {
+    const story = headerStory([{ blockquote: [{ ship: '~zod' }, '', 'abc'] }]);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toContain('~zod<!-- -->abc');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+    expect(JSON.stringify(reparsed)).not.toContain('~zodabc');
+  });
+
+  it('does not apply the mark-sibling rule inside the bridge', () => {
+    const story = headerStory([
+      { blockquote: [{ ship: '~zod' }, { bold: ['word'] }] },
+    ]);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('# > ~zod**word**');
+    expect(markdownToStory(markdown)).toEqual([
+      {
+        block: {
+          header: {
+            tag: 'h1',
+            content: ['> ', { ship: '~zod' }, { bold: ['word'] }],
+          },
+        },
+      },
+    ]);
+  });
+
+  it('guards the bridge trailing edge before a text sibling', () => {
+    const story = headerStory([{ blockquote: [{ ship: '~zod' }] }, 'abc']);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toBe('# > ~zod<!-- -->abc');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+    expect(JSON.stringify(reparsed)).not.toContain('~zodabc');
+  });
+
+  it('guards the bridge trailing edge before a mark sibling', () => {
+    const story = headerStory([
+      { blockquote: [{ ship: '~zod' }] },
+      { bold: ['!lead'] },
+    ]);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).not.toMatch(/&#/);
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).toContain('"ship":"~zod"');
+  });
+
+  it('escapes backslashes before tildes in bridge prose', () => {
+    const story = headerStory([{ blockquote: ['\\ ~zod'] }]);
+    const markdown = storyToMarkdown(story);
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).not.toContain('"ship"');
+    expect(JSON.stringify(reparsed)).toContain('\\\\ ~zod');
+  });
+
+  it('keeps a backslash directly before a ship shape inert', () => {
+    // The discriminating input for escape ORDER: with tilde-only escaping,
+    // `\` + `~zod` becomes `\\~zod`, which reparses as a literal backslash
+    // followed by a LIVE mention. Correct backslash-first escaping yields
+    // `\\\~zod`, which stays fully literal.
+    const story = headerStory([{ blockquote: ['\\~zod'] }]);
+    const markdown = storyToMarkdown(story);
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).not.toContain('"ship"');
+    expect(JSON.stringify(reparsed)).toContain('\\\\~zod');
+  });
+
+  it('keeps a bridged fenced-code payload byte-identical', () => {
+    const story = headerStory([{ blockquote: [{ code: '~zod' }] }]);
+    const markdown = storyToMarkdown(story);
+    // Inside a fence a backslash is data; the payload must not gain one.
+    expect(markdown).not.toContain('\\~zod');
+    expect(markdown).toContain('~zod');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).toContain('"code":"~zod"');
+  });
+
+  it('escapes prose that merely starts with a fence marker', () => {
+    // Only bridge-rendered code is exempt from escaping — by construction,
+    // not by sniffing the value. Prose that happens to start with three
+    // backticks must still have its ship-shaped tokens escaped. (The
+    // backticks themselves flip form on reserialization — raw from the
+    // bridge, escaped from remark-stringify — a pre-existing, ship-free
+    // bridge-prose fidelity limit; only mention stability is asserted.)
+    const story = headerStory([{ blockquote: ['``` ~zod prose'] }]);
+    const markdown = storyToMarkdown(story);
+    expect(markdown).toContain('\\~zod');
+    const reparsed = markdownToStory(markdown);
+    expect(JSON.stringify(reparsed)).not.toContain('"ship"');
+    const secondPass = storyToMarkdown(reparsed);
+    expect(secondPass).toContain('\\~zod');
+    expect(JSON.stringify(markdownToStory(secondPass))).not.toContain('"ship"');
   });
 });
 
