@@ -139,6 +139,9 @@ export const mockedRequestBucketsUpload = {
 export const mockedSendBucketsAction = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
+export const mockedSubmitBucketsAction = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
 
 export class MockUrbit {
   cookie = '';
@@ -186,6 +189,9 @@ mock.module('@tloncorp/api', () => ({
     mockedRequestBucketsUpload.impl(...args),
   sendBucketsAction: (...args: unknown[]) =>
     mockedSendBucketsAction.impl(...args),
+  submitBucketsAction: (...args: unknown[]) =>
+    mockedSubmitBucketsAction.impl(...args),
+  mintRequestId: () => '0vtest',
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,

@@ -1,4 +1,4 @@
-import type { BucketsEntry, BucketsFlag, BucketsSnapshot } from '@tloncorp/api';
+import type { BucketsEntry, BucketsFlag, BucketsSummary } from '@tloncorp/api';
 import { p } from '@urbit/aura';
 
 import {
@@ -67,7 +67,9 @@ export type BucketTarget = {
 
 export interface BucketsOperations {
   list(): Promise<unknown[]>;
-  show(target: BucketTarget): Promise<BucketsSnapshot>;
+  // A summary, not the manifest: entries are unbounded and `files` pages
+  // through them. `show` answers what the Bucket is, plus how much is in it.
+  show(target: BucketTarget): Promise<BucketsSummary & { entryCount: number }>;
   files(target: BucketTarget, parentId: number | null): Promise<BucketsEntry[]>;
   search(target: BucketTarget, query: string): Promise<unknown[]>;
   create(input: {

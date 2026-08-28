@@ -18,6 +18,7 @@ import {
   mockedRequestBucketsUpload,
   mockedGetGroup,
   mockedSendBucketsAction,
+  mockedSubmitBucketsAction,
 } from './tloncorp-api-mock';
 
 const TARGET = {
@@ -85,6 +86,10 @@ beforeEach(() => {
   mockedRequestBucketsGrant.impl = async () => undefined;
   mockedRequestBucketsUpload.impl = async () => undefined;
   mockedSendBucketsAction.impl = async () => undefined;
+  mockedSubmitBucketsAction.impl = async () => ({
+    requestId: '0vtest',
+    body: { ok: null },
+  });
 });
 
 afterEach(() => {
@@ -226,6 +231,57 @@ describe('Buckets runtime hardening', () => {
       createBucketsDeps().buckets.delete(TARGET, 3, false)
     ).rejects.toThrow('Folder 3 is not empty; it holds 1 entry');
     expect(actions).toEqual([]);
+  });
+
+  // The action has already been sent when polling starts, so the host may
+  // well have applied it. Abandoning the loop on one failed read reports a
+  // failure the caller may retry -- duplicating the folder, since the host
+  // permits same-named ones.
+  it('keeps polling through a transient snapshot failure', async () => {
+    let reads = 0;
+    mockedGetBucket.impl = async () => {
+      reads += 1;
+      if (reads === 1) return snapshot();
+      if (reads === 2) throw new Error('network blip');
+      return snapshot({
+        entries: [
+          {
+            id: 42,
+            kind: 'folder',
+            name: 'plans',
+            parentId: null,
+            updatedAt: 1,
+            updatedBy: '~zod',
+          },
+        ] as unknown as BucketsEntry[],
+        revision: 9,
+      });
+    };
+
+    await expect(
+      createBucketsDeps().buckets.createFolder({
+        target: TARGET,
+        parentId: null,
+        name: 'plans',
+      })
+    ).resolves.toMatchObject({ id: 42 });
+    expect(reads).toBeGreaterThan(2);
+  });
+
+  it('refuses a folder the host rejected rather than adopting another one', async () => {
+    mockedGetBucket.impl = async () => snapshot();
+    mockedSubmitBucketsAction.impl = async () => ({
+      requestId: '0vtest',
+      body: { error: { type: 'not-authorized', message: 'not a writer' } },
+    });
+
+    await expect(
+      createBucketsDeps().buckets.createFolder({
+        target: TARGET,
+        parentId: null,
+        name: 'plans',
+      })
+    ).rejects.toThrow('not a writer');
   });
 
   it('uses the host-minted upload grant and streams the file', async () => {

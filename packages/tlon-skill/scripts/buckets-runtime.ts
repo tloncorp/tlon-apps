@@ -7,11 +7,13 @@ import {
   getBucket,
   getBucketReadToken,
   getGroup,
+  mintRequestId,
   getBuckets,
   requestBucketReadToken,
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
+  submitBucketsAction,
 } from '@tloncorp/api';
 import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs';
@@ -92,11 +94,21 @@ function createProcessCommandDeps() {
   };
 }
 
+/**
+ * Where the storage broker lives, for the read grants this still exchanges.
+ *
+ * TLON_MEMEX_URL is the documented way to move Buckets to another broker and
+ * is what the app client reads, so honouring only BUCKETS_BROKER_URL meant a
+ * host pushing read tokens to a test broker while the bot exchanged them
+ * against production -- an authorization failure with no obvious cause.
+ * BUCKETS_BROKER_URL stays as an explicit override of the full path.
+ */
 function brokerBaseUrl() {
-  return (process.env.BUCKETS_BROKER_URL || DEFAULT_BROKER_URL).replace(
-    /\/$/,
-    ''
-  );
+  const explicit = process.env.BUCKETS_BROKER_URL?.trim();
+  if (explicit) return explicit.replace(/\/$/, '');
+  const memex = process.env.TLON_MEMEX_URL?.trim();
+  if (memex) return `${memex.replace(/\/+$/, '')}/v2/buckets`;
+  return DEFAULT_BROKER_URL;
 }
 
 /**
@@ -277,8 +289,13 @@ async function waitForBucketUpdate<T>(
   select: (snapshot: BucketsSnapshot) => T | undefined
 ): Promise<T> {
   for (let attempt = 0; attempt < STATE_ATTEMPTS; attempt += 1) {
-    const snapshot = await getSnapshot(target);
-    if (snapshot.state.revision > priorRevision) {
+    // A failed read is a failed attempt, not a failed operation. The action
+    // has already been sent and the host may well have applied it, so
+    // abandoning the loop on one transient scry reports a failure the caller
+    // may retry -- duplicating a folder, since the host permits same-named
+    // ones. Spend the budget instead and let the deadline decide.
+    const snapshot = await getSnapshot(target).catch(() => null);
+    if (snapshot && snapshot.state.revision > priorRevision) {
       const selected = select(snapshot);
       if (selected !== undefined) return selected;
     }
@@ -447,7 +464,13 @@ function createBucketsOperations(): BucketsOperations {
     },
 
     async show(target) {
-      return getSnapshot(target);
+      const snapshot = await getSnapshot(target);
+      // Entries are documented as unbounded and the runner buffers all of
+      // stdout, so a large Bucket could exhaust the bot's heap or swamp the
+      // model's tool result. The metadata is what `show` is for; `files`
+      // pages through the contents.
+      const { entries, ...state } = snapshot.state;
+      return { flag: snapshot.flag, state, entryCount: entries.length };
     },
 
     async files(target, parentId) {
@@ -535,12 +558,26 @@ function createBucketsOperations(): BucketsOperations {
       const current = await getSnapshot(target);
       requireFolder(current, parentId, 'Parent');
       const priorIds = new Set(current.state.entries.map((entry) => entry.id));
-      await sendBucketsAction({
-        type: 'create-folder',
-        flag: target.flag,
-        name: folderName,
-        parentId,
-      });
+      // Our own request id, so the confirmation is ours. Two clients creating
+      // the same name under the same parent from the same snapshot share a
+      // priorIds, and both polls would otherwise settle on whichever folder
+      // appeared first -- the second reporting success with the first's id,
+      // even if its own request was refused.
+      const requestId = mintRequestId();
+      const answer = await submitBucketsAction(
+        {
+          type: 'create-folder',
+          flag: target.flag,
+          name: folderName,
+          parentId,
+        },
+        requestId
+      );
+      if ('error' in answer.body) {
+        throw commandError(
+          `Bucket host refused the folder: ${answer.body.error.message}`
+        );
+      }
       const created = await waitForBucketUpdate(
         target,
         current.state.revision,
