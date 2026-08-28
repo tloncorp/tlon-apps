@@ -264,6 +264,54 @@ describe('tlon tool guard', () => {
       ).toBeNull();
     });
 
+    it('does not treat a custom members role as an open channel', () => {
+      expect(
+        notebookWriteDestinationError(
+          JSON.stringify([
+            {
+              id: '~bot/home',
+              members: [{ contactId: '~owner', status: 'joined', roles: [] }],
+              channels: [
+                {
+                  id: 'notes/~bot/restricted',
+                  readerRoles: [{ roleId: 'members' }],
+                },
+              ],
+            },
+          ]),
+          'notes/~bot/restricted',
+          '~owner'
+        )
+      ).toContain('could not be verified as a reader');
+    });
+
+    it('allows a verified group admin regardless of reader roles', () => {
+      expect(
+        notebookWriteDestinationError(
+          JSON.stringify([
+            {
+              id: '~bot/home',
+              members: [
+                {
+                  contactId: '~owner',
+                  status: 'joined',
+                  roles: [{ roleId: 'admin' }],
+                },
+              ],
+              channels: [
+                {
+                  id: 'notes/~bot/restricted',
+                  readerRoles: [{ roleId: 'staff' }],
+                },
+              ],
+            },
+          ]),
+          'notes/~bot/restricted',
+          '~owner'
+        )
+      ).toBeNull();
+    });
+
     it('verifies the real channels-groups schema with fresh info output', () => {
       const actualListing = JSON.stringify([
         {
@@ -284,6 +332,54 @@ describe('tlon tool guard', () => {
           {
             groupInfo: '--- Members ---\n  ~owner (Owner) [vip]\n',
             channelInfo: 'Group: Home (~bot/home)\nReaders: vip\n',
+          }
+        )
+      ).toBeNull();
+    });
+
+    it('uses only the active members section in text output', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          channels: [{ nest: 'notes/~bot/open' }],
+        },
+      ]);
+      const nonMembers = [
+        '--- Members ---',
+        '  ~someone-else',
+        '--- Pending Invites ---',
+        '  ~owner [admin]',
+        '--- Join Requests ---',
+        '  ~owner [admin]',
+        '--- Banned Ships ---',
+        '  ~owner [admin]',
+      ].join('\n');
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/open',
+          '~owner',
+          { groupInfo: nonMembers, channelInfo: 'Readers: (all members)' }
+        )
+      ).toContain('could not be verified as a reader');
+    });
+
+    it('allows an active admin from real group info output', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          channels: [{ nest: 'notes/~bot/restricted' }],
+        },
+      ]);
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/restricted',
+          '~owner',
+          {
+            groupInfo:
+              '--- Members ---\n  ~owner (Owner) [admin]\n--- Roles ---\n  staff: Staff\n',
+            channelInfo: 'Readers: staff',
           }
         )
       ).toBeNull();

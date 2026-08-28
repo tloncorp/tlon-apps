@@ -491,8 +491,16 @@ function ownerRolesFromGroupInfo(
   owner: string
 ): string[] | null {
   if (!groupInfo) return null;
+  const membersHeader = groupInfo.match(/^--- Members ---\s*$/im);
+  if (membersHeader?.index == null) return null;
+  const afterHeader = groupInfo.slice(
+    membersHeader.index + membersHeader[0].length
+  );
+  const nextSection = afterHeader.search(/^--- .+ ---\s*$/m);
+  const membersSection =
+    nextSection === -1 ? afterHeader : afterHeader.slice(0, nextSection);
   const escapedOwner = owner.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const match = groupInfo.match(
+  const match = membersSection.match(
     new RegExp(
       `^\\s*${escapedOwner}(?:\\s+\\([^\\n)]*\\))?(?:\\s+\\[([^\\]]*)\\])?\\s*$`,
       'im'
@@ -584,7 +592,7 @@ export function notebookWriteDestinationError(
     return (
       typeof member.contactId === 'string' &&
       normalizeShipForComparison(member.contactId) === owner &&
-      member.status !== 'invited'
+      (member.status == null || member.status === 'joined')
     );
   }) as { roles?: unknown } | undefined;
 
@@ -595,7 +603,7 @@ export function notebookWriteDestinationError(
     roleIds(channel?.readerRoles) ??
     readersFromChannelInfo(evidence?.channelInfo);
   if (ownerRoles && readers) {
-    if (readers.length === 0 || readers.includes('members')) return null;
+    if (ownerRoles.includes('admin') || readers.length === 0) return null;
     if (readers.some((readerRole) => ownerRoles.includes(readerRole))) {
       return null;
     }
