@@ -202,7 +202,8 @@ function isEmptyDeliveryClaim(reply: string): boolean {
 
 export function isIncompleteFileDeliveryReply(reply: string): boolean {
   const trimmed = reply.trim();
-  if (!trimmed || trimmed.length > MAX_SUSPICIOUS_REPLY_LENGTH) return false;
+  if (!trimmed) return true;
+  if (trimmed.length > MAX_SUSPICIOUS_REPLY_LENGTH) return false;
   const normalized = trimmed.replace(/[’‘]/g, "'");
   if (/^NO_REPLY$/i.test(normalized)) return true;
   const progressCandidate = unwrapProgressMarkdown(normalized);
@@ -302,8 +303,8 @@ export function createFileReadCompletionGuard(options?: {
 
     beforeFinalize(input: FileReadFinalizeInput): FileReadRevision | null {
       const runId = input.runId?.trim();
-      const reply = input.lastAssistantMessage;
-      if (!runId || !reply) return null;
+      const reply = input.lastAssistantMessage ?? '';
+      if (!runId) return null;
       const state = runs.get(runId);
       if (
         !state ||

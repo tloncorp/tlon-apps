@@ -46,6 +46,21 @@ describe('file read completion guard', () => {
     expect(isIncompleteFileDeliveryReply(reply)).toBe(true);
   });
 
+  it.each(['', '   \n'])(
+    'revises a blank reply after a successful read',
+    (reply) => {
+      const guard = createFileReadCompletionGuard();
+      guard.recordToolResult(successfulRead('blank-reply'));
+
+      expect(
+        guard.beforeFinalize({
+          runId: 'blank-reply',
+          lastAssistantMessage: reply,
+        })
+      ).not.toBeNull();
+    }
+  );
+
   it.each([
     'The CSV contains 31 daily rows and peaks on August 20.',
     'Reading the file, I found 31 rows and a peak on August 20.',
