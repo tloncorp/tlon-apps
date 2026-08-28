@@ -698,4 +698,55 @@ describe('initContextLensShipSync retirement', () => {
       vi.useRealTimers();
     }
   });
+
+  it('asserts a replacement owner without waiting for a lens event', async () => {
+    const pokes: RecordedPoke[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    slot.set(makeParams(pokes));
+    const apiFor = (owner: string) => ({
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner,
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    });
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+    const configures = () =>
+      pokes
+        .filter((poke) => poke.mark === 'steward-action-1')
+        .map((poke) => JSON.stringify(poke.json));
+    try {
+      expect(initContextLensShipSync(apiFor('~bus'))).toBe(true);
+      await settle();
+
+      // A reload points the lens elsewhere. The retired sync's %configure
+      // cannot be recalled, so the replacement must assert its own owner
+      // now — waiting for the next run would leave the former owner
+      // holding the prompt mirror until one happens, and forever if none
+      // does.
+      expect(initContextLensShipSync(apiFor('~dev'))).toBe(true);
+      await settle();
+      expect(configures()).toEqual([
+        JSON.stringify({ configure: { owner: '~bus' } }),
+        JSON.stringify({ configure: { owner: '~dev' } }),
+      ]);
+
+      // The sync knows the transport is already configured, so its first
+      // run poke does not repeat it.
+      publishContextLensEvent('final', makeLens({ status: 'completed' }));
+      await settle();
+      expect(pokes.map(pokeKind)).toEqual(['configure', 'configure', 'lens']);
+    } finally {
+      slot.set(previousParams);
+    }
+  });
 });

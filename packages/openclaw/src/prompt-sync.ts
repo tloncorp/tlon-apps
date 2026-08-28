@@ -896,6 +896,15 @@ export function createPromptSync(opts: {
     // private prompt on disk, loaded by the agent every turn, with every
     // later reconcile bailing at the same place.
     for (const name of PROMPT_FILE_NAMES) {
+      if (aborted()) {
+        // Torn down partway through the pass. Every check below reads a
+        // snapshot taken before the reload, so a replacement's freshly
+        // written file could look foreign to us and be deleted. Anything
+        // already removed is re-detected (and its stamp cleared) by the
+        // replacement's own reconcile, since a missing file reads as
+        // already-removed.
+        return;
+      }
       const stamp = fileStamps[name];
       const stampForeign =
         stamp !== undefined && normalizeShip(stamp) !== myShipNorm;
@@ -955,6 +964,14 @@ export function createPromptSync(opts: {
       // owner-edited content unowned.
       await clearRemovedStamps(removedStamps);
       removedStamps.length = 0;
+    }
+    if (aborted()) {
+      // The cleanup and stamp-clear above both await, so the teardown can
+      // land between the last check and here. A replacement monitor may
+      // already have written the workspace for a different bot; renaming
+      // our cached prompts over those files would leave it running our
+      // text, and the stamping config write below would be refused.
+      return;
     }
     const { applied, ok } = await applyPromptsToWorkspace({
       workspaceDir,

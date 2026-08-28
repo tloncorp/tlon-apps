@@ -745,6 +745,45 @@ describe('createPromptSync retries and teardown', () => {
   });
 });
 
+describe('createPromptSync abort during foreign cleanup', () => {
+  it('does not apply prompts when teardown lands mid-cleanup', async () => {
+    // A replacement monitor may already have written the workspace for a
+    // different bot by now; renaming our cached prompts over those files
+    // would leave it running our text (the stamping config write that
+    // follows is refused, so nothing would even record the overwrite).
+    const controller = new AbortController();
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'former owner notes');
+    const unlinkSpy = vi
+      .spyOn(fs.promises, 'unlink')
+      .mockImplementation(async (file) => {
+        controller.abort();
+        fs.unlinkSync(file as fs.PathLike);
+      });
+    try {
+      const sync = createPromptSync({
+        core: makeCore(),
+        accountId: 'default',
+        botShip: '~zod',
+        workspaceDir: tmpDir,
+        configPrompts: { 'SOUL.md': 'our edit' },
+        fileStamps: { 'USER.md': '~bus' },
+        owner: null,
+        scry: async () => ({}),
+        poke: async () => ({}),
+        logger,
+        abortSignal: controller.signal,
+      });
+      await sync.startup();
+      // The foreign file still goes (leaving it would keep private text on
+      // the shared workspace), but nothing of ours is written after it.
+      expect(fs.existsSync(path.join(tmpDir, 'USER.md'))).toBe(false);
+      expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
+    } finally {
+      unlinkSpy.mockRestore();
+    }
+  });
+});
+
 describe('createPromptSync abort after in-flight apply', () => {
   it('handleFact applies the file but never persists once torn down', async () => {
     const controller = new AbortController();

@@ -174,6 +174,12 @@ export function isContextLensEffectivelyEnabled(
 
 export type ContextLensShipSync = {
   handleEvent: (event: ContextLensEvent) => void;
+  /**
+   * Record that this params instance already has our owner configured, so
+   * the lazy configure below doesn't repeat a poke someone else just made
+   * on our behalf (see the opening assertion in initContextLensShipSync).
+   */
+  noteConfigured: (params: SharedApiClientParams) => void;
   /** Resolves when all pokes enqueued so far have settled. */
   flush: () => Promise<void>;
   /**
@@ -311,6 +317,9 @@ export function createContextLensShipSync(opts: {
 
   return {
     handleEvent,
+    noteConfigured: (params: SharedApiClientParams) => {
+      configuredFor = params;
+    },
     flush: () => queue,
     cancel: () => {
       cancelled = true;
@@ -367,7 +376,12 @@ export function initContextLensShipSync(api: {
    * it, instead of racing an assertion that resolved its owner from a
    * since-replaced config.
    */
-  const retireAndAssertOwnership = (): void => {
+  const retireAndAssertOwnership = (opts?: {
+    onConfigured?: (params: SharedApiClientParams) => void;
+  }): {
+    assertion: Promise<void>;
+    supersede: () => void;
+  } => {
     const settled = retirePrevious();
     let superseded = false;
     let wake: (() => void) | null = null;
@@ -397,6 +411,7 @@ export function initContextLensShipSync(api: {
               mark: 'steward-action-1',
               json,
             });
+            opts?.onConfigured?.(params);
             return;
           } catch (error) {
             failure = error;
@@ -419,48 +434,65 @@ export function initContextLensShipSync(api: {
         `[tlon] Could not re-assert %steward ownership after retiring the lens sync: ${String(failure)}`
       );
     })();
-    shipSyncUnsubscribeSlot.set({
-      retire: () => {
+    return {
+      assertion,
+      supersede: () => {
         superseded = true;
         wake?.();
       },
-      flush: () => assertion,
-    });
+    };
+  };
+
+  /** Retire, assert, and park the assertion in the shared ordering chain. */
+  const retireAndPark = (): void => {
+    const { assertion, supersede } = retireAndAssertOwnership();
+    shipSyncUnsubscribeSlot.set({ retire: supersede, flush: () => assertion });
   };
   if (!resolveTlonAccount(api.config, accountId).contextLens.enabled) {
     // Nothing replaces this sync, so nothing would otherwise order itself
     // after its in-flight poke — re-assert the current ownership once that
     // settles.
-    retireAndAssertOwnership();
+    retireAndPark();
     return false;
   }
   const owner = resolveLensOwner(api.config, accountId);
   if (owner === null) {
-    retireAndAssertOwnership();
+    retireAndPark();
     api.logger.info(
       '[tlon] Context lens ship sync disabled: no owner configured (set contextLens.owner or ownerShip)'
     );
     return false;
   }
-  // Retire first, and chain this sync's queue after the old one's in-flight
-  // work: cancellation stops queued tasks but cannot recall a request
-  // already sent, and a late %configure from the retired sync would
-  // otherwise overwrite the owner we are about to assert.
-  const previousSettled = retirePrevious();
+  // Retire first, then assert THIS owner immediately rather than waiting
+  // for a lens event: cancellation stops queued tasks but cannot recall a
+  // request already sent, so a retired sync's in-flight %configure would
+  // otherwise be the last word — for however long it takes the next run to
+  // produce an event, and forever if none does. The new sync's queue
+  // chains after that assertion for the same reason.
+  let noteConfigured: (params: SharedApiClientParams) => void = () => {};
+  const { assertion, supersede } = retireAndAssertOwnership({
+    // Only ever called after the retirement settles, so the assignment
+    // below has run by then.
+    onConfigured: (params) => noteConfigured(params),
+  });
   const sync = createContextLensShipSync({
     owner,
     logger: api.logger,
-    after: previousSettled,
+    after: assertion,
   });
+  noteConfigured = sync.noteConfigured;
   const unsubscribe = subscribeToContextLensEvents(sync.handleEvent);
   // The slot holds a full teardown, not just the unsubscribe: dropping the
-  // event handler alone leaves already-queued pokes free to run with this
-  // sync's captured owner.
+  // event handler alone leaves already-queued pokes (and the pending
+  // assertion) free to run with this sync's captured owner.
   shipSyncUnsubscribeSlot.set({
     retire: () => {
+      supersede();
       sync.cancel();
       unsubscribe();
     },
+    // The sync's queue starts chained on the assertion, so flushing it
+    // covers both.
     flush: sync.flush,
   });
   api.logger.info(
