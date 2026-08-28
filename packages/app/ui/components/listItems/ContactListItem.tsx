@@ -52,7 +52,7 @@ export const ContactListItem = ({
       <ListItem alignItems="center" justifyContent="flex-start" {...props}>
         {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
         <ListItem.MainContent minWidth={0}>
-          <ListItem.Title flex={1} minWidth={0}>
+          <ListItem.Title minWidth={0}>
             {matchText ? (
               // Use old ContactName for search highlighting
               <ContactName
