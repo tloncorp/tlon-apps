@@ -461,7 +461,12 @@ export async function updateChannel({
     logger.log('updated channel on server');
   } catch (e) {
     console.error('Failed to update channel', e);
-    await db.updateChannel(channel);
+    // Roll back to what the optimistic write actually replaced — the same
+    // `currentChannel` the update was built from — not to the caller's copy.
+    // The screen's copy can be older than what sync has already stored, and
+    // restoring it would locally regress the channel (for surface channels,
+    // briefly resurrecting an older surfaceSpec/bundle) until the next sync.
+    await db.updateChannel(currentChannel ?? channel);
   }
 }
 

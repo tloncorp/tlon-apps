@@ -734,4 +734,33 @@ describe('updateChannel description-payload losslessness', () => {
     await edit({ ...stored!, title: 'Renamed' });
     expect(sentDescription(spy)).toBe('');
   });
+
+  test('a failed edit rolls back to the stored channel, not the screen’s stale copy', async () => {
+    // the edit sheet is holding this revision...
+    const screenCopy = await insertSurfaceChannel();
+
+    // ...while sync stores a newer one underneath it
+    const NEWER_SPEC = { ...SPEC, specRevision: 5 };
+    const NEWER_PAYLOAD = JSON.stringify({
+      description: 'the description',
+      channelContentConfiguration: { draftInput: 'tlon.r0.input.chat' },
+      surfaceSpec: NEWER_SPEC,
+      unknownPayloadKey: { keep: true },
+    });
+    await db.updateChannel({
+      id: surfaceChannelId,
+      title: 'Synced title',
+      ...SCDP.rawPersistenceFields(NEWER_PAYLOAD),
+    });
+
+    vi.spyOn(api, 'updateChannel').mockRejectedValue(new Error('poke failed'));
+
+    await edit({ ...screenCopy, title: 'User title' });
+
+    // rolling back to the screen's copy would resurrect the older spec
+    const after = await db.getChannel({ id: surfaceChannelId });
+    expect(after?.descriptionPayload).toBe(NEWER_PAYLOAD);
+    expect(after?.surfaceSpec).toBe(JSON.stringify(NEWER_SPEC));
+    expect(after?.title).toBe('Synced title');
+  });
 });

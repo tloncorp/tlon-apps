@@ -1,4 +1,4 @@
-import { SurfaceBundleRef } from '@tloncorp/api';
+import { SURFACE_CAPS, SurfaceBundleRef } from '@tloncorp/api';
 import { expect, test, vi } from 'vitest';
 
 import * as db from '../../db';
@@ -82,8 +82,19 @@ test('fetch failures degrade to unavailable', async () => {
 });
 
 test('oversize fetched bundles are refused before hashing', async () => {
-  const big = 'x'.repeat(256 * 1024 + 1);
+  const big = 'x'.repeat(SURFACE_CAPS.bundleSize + 1);
   const ref = await refFor(big);
+  expect(await getOrFetchBundle(ref, fetcherOf(big))).toEqual({
+    status: 'unavailable',
+    reason: 'oversize',
+  });
+});
+
+test('a ref that under-reports its size does not soften the cap', async () => {
+  // whatever the spec (or an asset host's Content-Length) claims, the cap is
+  // enforced on the bytes we actually got
+  const big = 'x'.repeat(SURFACE_CAPS.bundleSize + 1);
+  const ref = { ...(await refFor(big)), size: 10 };
   expect(await getOrFetchBundle(ref, fetcherOf(big))).toEqual({
     status: 'unavailable',
     reason: 'oversize',
