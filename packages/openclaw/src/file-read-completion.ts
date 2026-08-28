@@ -142,6 +142,13 @@ function isDeferredSameLineTail(tail: string): boolean {
   );
 }
 
+function unwrapProgressMarkdown(reply: string): string {
+  let value = reply.replace(/^\s*(?:>\s*|[-+*]\s+|\d+[.)]\s+)/, '').trim();
+  const emphasis = value.match(/^(?:\*\*|__)([\s\S]*)(?:\*\*|__)$/);
+  if (emphasis?.[1]) value = emphasis[1].trim();
+  return value;
+}
+
 function matchedReadContentCount(reply: string, anchors: string[]): number {
   if (anchors.length === 0) return 0;
   const normalizedReply = normalizeForComparison(reply);
@@ -197,9 +204,11 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   const trimmed = reply.trim();
   if (!trimmed || trimmed.length > MAX_SUSPICIOUS_REPLY_LENGTH) return false;
   const normalized = trimmed.replace(/[’‘]/g, "'");
+  if (/^NO_REPLY$/i.test(normalized)) return true;
+  const progressCandidate = unwrapProgressMarkdown(normalized);
   return (
-    (PROGRESS_ONLY.test(normalized) &&
-      !SUBSTANTIVE_PROGRESS_TAIL.test(normalized)) ||
+    (PROGRESS_ONLY.test(progressCandidate) &&
+      !SUBSTANTIVE_PROGRESS_TAIL.test(progressCandidate)) ||
     isEmptyDeliveryClaim(normalized)
   );
 }

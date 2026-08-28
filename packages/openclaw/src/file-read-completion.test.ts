@@ -38,6 +38,15 @@ describe('file read completion guard', () => {
   });
 
   it.each([
+    '**Opening the CSV now.**',
+    '- Opening the CSV now.',
+    '> Reading the file now.',
+    'NO_REPLY',
+  ])('recognizes formatted or silent incomplete output: %s', (reply) => {
+    expect(isIncompleteFileDeliveryReply(reply)).toBe(true);
+  });
+
+  it.each([
     'The CSV contains 31 daily rows and peaks on August 20.',
     'Reading the file, I found 31 rows and a peak on August 20.',
     `${CSV}\n`,
