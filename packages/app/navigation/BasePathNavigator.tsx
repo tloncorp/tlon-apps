@@ -1,30 +1,15 @@
-import { NavigatorScreenParams } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { memo, useMemo } from 'react';
 
-import {
-  BrowserCredentialHandoffCompletionProvider,
-  BrowserCredentialHandoffScreen,
-} from '../features/browser/BrowserCredentialHandoffScreen';
+import { BrowserCredentialHandoffCompletionProvider } from '../features/browser/BrowserCredentialHandoffCompletion';
+import { BrowserCredentialHandoffScreen } from '../features/browser/BrowserCredentialHandoffScreen';
 import { useRenderCount } from '../hooks/useRenderCount';
 import { RootStack } from './RootStack';
 import { TopLevelDrawer } from './desktop/TopLevelDrawer';
-import { RootDrawerParamList, RootStackParamList } from './types';
-
-export type BrowserCredentialHandoffParams = {
-  viewerUrl: string;
-  completionId?: string;
-};
-
-export type MobileBasePathStackParamList = {
-  Root: NavigatorScreenParams<RootStackParamList>;
-  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
-};
-
-export type DesktopBasePathStackParamList = {
-  Root: NavigatorScreenParams<RootDrawerParamList>;
-  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
-};
+import {
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+} from './types';
 
 const MobileBasePathStackNavigator =
   createNativeStackNavigator<MobileBasePathStackParamList>();

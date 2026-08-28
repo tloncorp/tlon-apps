@@ -4,7 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { useCallback } from 'react';
 
-import { useBrowserCredentialHandoffCompletion } from '../features/browser/BrowserCredentialHandoffScreen';
+import { useBrowserCredentialHandoffCompletion } from '../features/browser/BrowserCredentialHandoffCompletion';
 import { useRootNavigation } from '../navigation/utils';
 
 const logger = createDevLogger('a2ui-navigation', false);

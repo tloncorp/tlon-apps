@@ -16,10 +16,6 @@ import { Platform } from 'react-native';
 
 import { openExternalBotSettings } from '../utils/botSettings';
 
-import type {
-  DesktopBasePathStackParamList,
-  MobileBasePathStackParamList,
-} from './BasePathNavigator';
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
@@ -29,7 +25,12 @@ import {
   screenNameFromChannelId,
 } from './routeHelpers';
 import { getTopLevelTabRoute } from './topLevelTabs';
-import { CombinedParamList, RootStackParamList } from './types';
+import {
+  CombinedParamList,
+  DesktopBasePathStackParamList,
+  MobileBasePathStackParamList,
+  RootStackParamList,
+} from './types';
 
 export { screenNameFromChannelId } from './routeHelpers';
 export { getTopLevelTabRoute } from './topLevelTabs';
