@@ -13,7 +13,11 @@ const jobId = 'job-1';
 const original =
   "Evaluate this fixed scenario: Bitcoin's price moved one percent. This is known, routine market information; the owner's keys and coins are safe. Send a status update every run.";
 
-function rememberJob(id = jobId, message = original): void {
+function rememberJob(
+  id = jobId,
+  message = original,
+  overrides: Record<string, unknown> = {}
+): void {
   recordCronGetResult(
     sessionKey,
     { action: 'get', jobId: id },
@@ -22,6 +26,9 @@ function rememberJob(id = jobId, message = original): void {
         id,
         payload: { kind: 'agentTurn', message },
         delivery: { mode: 'announce' },
+        enabled: true,
+        schedule: { kind: 'cron', expr: '0 * * * *' },
+        ...overrides,
       },
     }
   );
@@ -61,6 +68,68 @@ describe('conditional cron update preservation', () => {
     expect(message).toContain('return exactly NO_REPLY');
     expect(message).toContain('never call or use the message tool');
     expect(message).not.toContain('Search for any genuinely urgent');
+  });
+
+  it('preserves delivery, schedule, and enabled while correcting the message', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Only notify me when my keys are actually at risk.',
+      true
+    );
+    rememberJob();
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        delivery: { mode: 'none' },
+        enabled: false,
+        schedule: { kind: 'cron', expr: '* * * * *' },
+        payload: { message: 'Alert on anything urgent.' },
+      },
+    });
+
+    if (!adjusted) throw new Error('expected the cron update to be adjusted');
+    expect(adjusted.patch).toMatchObject({
+      delivery: { mode: 'announce' },
+      enabled: true,
+      schedule: { kind: 'cron', expr: '0 * * * *' },
+    });
+    const message = (
+      (adjusted.patch as Record<string, unknown>).payload as Record<
+        string,
+        unknown
+      >
+    ).message;
+    expect(message).toContain('delivery.mode=announce');
+  });
+
+  it('drops control-field mutations when the original job omitted them', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Only notify me when my keys are actually at risk.',
+      true
+    );
+    recordCronGetResult(
+      sessionKey,
+      { action: 'get', jobId },
+      { details: { id: jobId, payload: { message: original } } }
+    );
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        delivery: { mode: 'none' },
+        enabled: false,
+        schedule: { kind: 'cron', expr: '* * * * *' },
+        payload: { message: 'Alert on anything urgent.' },
+      },
+    });
+
+    expect(adjusted?.patch).not.toHaveProperty('delivery');
+    expect(adjusted?.patch).not.toHaveProperty('enabled');
+    expect(adjusted?.patch).not.toHaveProperty('schedule');
   });
 
   it('does not rewrite an explicit scope change', () => {

@@ -15,8 +15,14 @@ interface OwnerPromptState {
 interface CronSnapshot {
   id: string;
   message: string;
+  delivery: unknown;
   deliveryMode: string | null;
+  enabled: unknown;
+  hasDelivery: boolean;
+  hasEnabled: boolean;
+  hasSchedule: boolean;
   promptGeneration: number;
+  schedule: unknown;
 }
 
 const STATE_TTL_MS = 60 * 60 * 1000;
@@ -103,6 +109,10 @@ function cronDeliveryMode(job: Record<string, unknown>): string | null {
   return typeof mode === 'string' && mode.trim()
     ? mode.trim().toLowerCase()
     : null;
+}
+
+function hasOwn(record: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(record, key);
 }
 
 function explicitlyChangesMonitorScope(prompt: string): boolean {
@@ -258,8 +268,14 @@ export function recordCronGetResult(
     value: {
       id,
       message,
+      delivery: job.delivery,
       deliveryMode: cronDeliveryMode(job),
+      enabled: job.enabled,
+      hasDelivery: hasOwn(job, 'delivery'),
+      hasEnabled: hasOwn(job, 'enabled'),
+      hasSchedule: hasOwn(job, 'schedule'),
       promptGeneration: promptState.generation,
+      schedule: job.schedule,
     },
   });
 }
@@ -302,7 +318,9 @@ export function preserveConditionalCronUpdate(
   }
 
   const patch = isRecord(params.patch) ? params.patch : null;
-  const payload = patch && isRecord(patch.payload) ? patch.payload : null;
+  if (!patch) return undefined;
+  const payload = isRecord(patch.payload) ? patch.payload : null;
+  if (!payload) return undefined;
   const proposedMessage = payload?.message;
   if (typeof proposedMessage !== 'string' || !proposedMessage.trim()) {
     return undefined;
@@ -318,13 +336,28 @@ export function preserveConditionalCronUpdate(
   // sentence and append a conflicting broad alert criterion. Only the exact
   // canonical form is accepted unchanged.
   if (proposedMessage === correctedMessage) {
-    return undefined;
+    const changesControlFields = ['delivery', 'enabled', 'schedule'].some(
+      (key) => hasOwn(patch, key)
+    );
+    if (!changesControlFields) return undefined;
   }
+
+  // A threshold-only correction must not silently change when a job runs,
+  // whether it remains enabled, or how it is delivered. Restore those fields
+  // from the exact-job read so the rewritten message and its announce rule
+  // describe the effective update that will actually be applied.
+  const safePatch = { ...patch };
+  delete safePatch.delivery;
+  delete safePatch.enabled;
+  delete safePatch.schedule;
+  if (previous.hasDelivery) safePatch.delivery = previous.delivery;
+  if (previous.hasEnabled) safePatch.enabled = previous.enabled;
+  if (previous.hasSchedule) safePatch.schedule = previous.schedule;
 
   return {
     ...params,
     patch: {
-      ...patch,
+      ...safePatch,
       payload: {
         ...payload,
         message: correctedMessage,
