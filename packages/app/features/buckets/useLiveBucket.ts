@@ -545,7 +545,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const localItems = useMemo<BucketItem[]>(
     () =>
       uploads.map((upload) => ({
-        author: snapshot?.state.bucket.updatedBy ?? '',
+        // Whoever is uploading, which is us. bucket.updatedBy is the last
+        // person to change the Bucket, so a collaborator's edit would put
+        // their name on our own in-flight rows.
+        author: getCurrentUserId(),
         id: upload.id,
         kind: 'file',
         mimeType: upload.candidate.mimeType,
@@ -595,6 +598,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           });
         }
       }
+      // Local rows are not in the snapshot, so the traversal above cannot see
+      // them. The host drops their sessions with the folder, so left alone
+      // each keeps transferring, fails, and settles as a row under a folder
+      // that no longer exists -- unreachable from the pane, and stuck in the
+      // batch's aggregate progress for as long as the Bucket is open.
+      const doomedUploads = uploads.filter(
+        (upload) =>
+          (upload.parentId !== null && ids.has(upload.parentId)) ||
+          (upload.serverEntryId !== undefined && ids.has(upload.serverEntryId))
+      );
+      await Promise.all(doomedUploads.map((upload) => cancelUpload(upload.id)));
+
       const privateFiles = current?.state.entries.filter(
         (entry): entry is BucketsFileEntry =>
           ids.has(entry.id) &&

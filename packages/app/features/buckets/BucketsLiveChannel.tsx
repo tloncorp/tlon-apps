@@ -244,12 +244,21 @@ export function BucketsLiveChannel({
   const canEdit = useCanWrite(channel, currentUserId);
 
   const reportOperation = async (operation: Promise<unknown>) => {
+    setOperationError(null);
     try {
-      setOperationError(null);
       await operation;
-      await live.refresh();
     } catch (cause) {
       setOperationError(cause instanceof Error ? cause.message : String(cause));
+      return;
+    }
+    // The write landed. A failed re-read afterwards is a stale view, not a
+    // failed operation, and reporting it as one invites a retry -- which for
+    // folder creation makes a second folder of the same name, since the host
+    // permits duplicates. The subscription reconciles us either way.
+    try {
+      await live.refresh();
+    } catch {
+      // Deliberately silent.
     }
   };
 
@@ -508,7 +517,21 @@ export function BucketsLiveChannel({
             onClose={closePreview}
             onOpenExternally={
               previewItem.previewUri
-                ? () => void Linking.openURL(previewItem.previewUri!)
+                ? () => {
+                    // Freshly signed rather than the URL captured when the
+                    // preview loaded: a grant lasts minutes, a preview left
+                    // open lasts as long as the user leaves it, and handing
+                    // an expired URL to another app looks like lost access.
+                    const item = previewItem;
+                    void live
+                      .readUrl(Number(item.id))
+                      .then((url) => Linking.openURL(url))
+                      .catch((cause) =>
+                        setPreviewError(
+                          cause instanceof Error ? cause.message : String(cause)
+                        )
+                      );
+                  }
                 : undefined
             }
             onRetry={() => void loadPreview(previewItem)}
