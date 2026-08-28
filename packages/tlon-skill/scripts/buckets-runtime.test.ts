@@ -181,6 +181,53 @@ describe('Buckets runtime hardening', () => {
     expect(actions).toEqual([]);
   });
 
+  // The snapshot already proves these wrong. Sending anyway costs a poke that
+  // succeeds locally, ten seconds of polling, and a generic timeout instead
+  // of the reason.
+  it('refuses a parent that is missing or is a file, before sending', async () => {
+    const actions: BucketsAction[] = [];
+    const file = { ...pendingFile(7, 'object-7'), kind: 'file' as const };
+    mockedGetBucket.impl = async () => snapshot({ entries: [file] });
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      actions.push(action as BucketsAction);
+    };
+    const deps = createBucketsDeps();
+
+    await expect(deps.buckets.files(TARGET, 999)).rejects.toThrow(
+      'Parent 999 does not exist'
+    );
+    await expect(
+      deps.buckets.createFolder({ target: TARGET, parentId: 7, name: 'sub' })
+    ).rejects.toThrow('Parent 7 is a file, not a folder');
+    await expect(deps.buckets.move(TARGET, 7, 999)).rejects.toThrow(
+      'Destination 999 does not exist'
+    );
+    expect(actions).toEqual([]);
+  });
+
+  it('refuses to delete a folder that still holds entries', async () => {
+    const actions: BucketsAction[] = [];
+    const folder = {
+      id: 3,
+      kind: 'folder' as const,
+      name: 'docs',
+      parentId: null,
+      updatedAt: 1,
+      updatedBy: '~zod',
+    };
+    const child = { ...pendingFile(4, 'object-4'), parentId: 3 };
+    mockedGetBucket.impl = async () =>
+      snapshot({ entries: [folder, child] as BucketsEntry[] });
+    mockedSendBucketsAction.impl = async (action: unknown) => {
+      actions.push(action as BucketsAction);
+    };
+
+    await expect(
+      createBucketsDeps().buckets.delete(TARGET, 3, false)
+    ).rejects.toThrow('Folder 3 is not empty; it holds 1 entry');
+    expect(actions).toEqual([]);
+  });
+
   it('uses the host-minted upload grant and streams the file', async () => {
     const directory = mkdtempSync(path.join(tmpdir(), 'tlon-buckets-upload-'));
     const filePath = path.join(directory, 'plan.md');

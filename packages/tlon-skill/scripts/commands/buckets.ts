@@ -201,7 +201,15 @@ function parseId(value: string | undefined, label: string, usage: string) {
   if (!value || !/^\d+$/.test(value)) {
     throw usageError(`Invalid ${label}: ${value ?? '(missing)'}`, usage);
   }
-  return Number.parseInt(value, 10);
+  const parsed = Number.parseInt(value, 10);
+  // All digits is not enough: past 2^53 the parse rounds to a different id,
+  // and past ~309 digits it is Infinity, which JSON writes as null -- and a
+  // null parent means the Bucket root, so mkdir, upload and move would
+  // quietly put the entry somewhere the caller never named.
+  if (!Number.isSafeInteger(parsed)) {
+    throw usageError(`${label} is out of range: ${value}`, usage);
+  }
+  return parsed;
 }
 
 function parseParent(value: string | undefined, usage: string) {

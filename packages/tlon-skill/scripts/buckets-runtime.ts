@@ -372,14 +372,49 @@ function pathForEntry(entry: BucketsEntry, entries: BucketsEntry[]) {
   return names.join('/');
 }
 
+/**
+ * A parent has to exist and be a folder.
+ *
+ * The snapshot in hand already proves it either way, so checking here turns
+ * what the host would refuse -- after a poke that succeeds locally and ten
+ * seconds of polling for a change that never comes -- into an answer the
+ * caller can act on.
+ */
+function requireFolder(
+  snapshot: BucketsSnapshot,
+  parentId: number | null,
+  what: string
+) {
+  if (parentId === null) return;
+  const parent = snapshot.state.entries.find((entry) => entry.id === parentId);
+  if (!parent) {
+    throw commandError(`${what} ${parentId} does not exist`);
+  }
+  if (parent.kind !== 'folder') {
+    throw commandError(`${what} ${parentId} is a file, not a folder`);
+  }
+}
+
+/**
+ * The media type without its parameters, lowercased.
+ *
+ * Stored types are whatever the uploader sent, so `Text/Plain` and
+ * `application/json; charset=utf-8` are both valid and both missed by an
+ * exact comparison.
+ */
+function baseMime(mime: string) {
+  return mime.split(';')[0].trim().toLowerCase();
+}
+
 function isTextMime(mime: string) {
+  const base = baseMime(mime);
   return (
-    mime.startsWith('text/') ||
-    mime === 'application/json' ||
-    mime === 'application/javascript' ||
-    mime === 'application/xml' ||
-    mime.endsWith('+json') ||
-    mime.endsWith('+xml')
+    base.startsWith('text/') ||
+    base === 'application/json' ||
+    base === 'application/javascript' ||
+    base === 'application/xml' ||
+    base.endsWith('+json') ||
+    base.endsWith('+xml')
   );
 }
 
@@ -417,6 +452,9 @@ function createBucketsOperations(): BucketsOperations {
 
     async files(target, parentId) {
       const snapshot = await getSnapshot(target);
+      // Otherwise a bad --parent is indistinguishable from an empty folder,
+      // and a caller can go on to mutate against a tree that is not there.
+      requireFolder(snapshot, parentId, 'Parent');
       return snapshot.state.entries
         .filter((entry) => entry.parentId === parentId)
         .sort((left, right) => {
@@ -495,6 +533,7 @@ function createBucketsOperations(): BucketsOperations {
     async createFolder({ target, parentId, name }) {
       const folderName = validateDisplayName(name, 'Folder name');
       const current = await getSnapshot(target);
+      requireFolder(current, parentId, 'Parent');
       const priorIds = new Set(current.state.entries.map((entry) => entry.id));
       await sendBucketsAction({
         type: 'create-folder',
@@ -664,6 +703,7 @@ function createBucketsOperations(): BucketsOperations {
     async move(target, id, parentId) {
       const current = await getSnapshot(target);
       const entry = requireEntry(current, id);
+      requireFolder(current, parentId, 'Destination');
       if (entry.parentId === parentId) {
         return { id, nest: target.nest, parentId };
       }
@@ -692,6 +732,18 @@ function createBucketsOperations(): BucketsOperations {
       if (root.kind === 'file' || recursive) {
         throw commandError(
           'Bot deletion of Bucket files and recursive folders is temporarily disabled until object storage and metadata can be deleted atomically.'
+        );
+      }
+      // The host refuses a non-recursive delete of a folder with children, so
+      // sending it buys a generic confirmation timeout instead of the reason.
+      const children = snapshot.state.entries.filter(
+        (entry) => entry.parentId === id
+      );
+      if (children.length > 0) {
+        throw commandError(
+          `Folder ${id} is not empty; it holds ${children.length} ${
+            children.length === 1 ? 'entry' : 'entries'
+          }`
         );
       }
       await sendBucketsAction({
