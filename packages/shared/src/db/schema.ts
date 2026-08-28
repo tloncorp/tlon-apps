@@ -516,6 +516,7 @@ export type GroupPrivacy = ApiGroupPrivacy;
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
+  blob: text('blob'),
   privacy: text('privacy').$type<GroupPrivacy>(),
   haveInvite: boolean('have_invite'),
   haveRequestedInvite: boolean('have_requested_invite'),
@@ -1434,6 +1435,27 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
+
+export const botReplyFeedback = sqliteTable(
+  'bot_reply_feedback',
+  {
+    messageId: text('message_id').primaryKey().notNull(),
+    postId: text('post_id').notNull(),
+    feedbackId: text('feedback_id').notNull(),
+    revision: integer('revision').notNull(),
+    rating: text('rating').$type<'up' | 'down' | null>(),
+    categories: text('categories', { mode: 'json' })
+      .$type<string[]>()
+      .notNull(),
+    submittedAt: timestamp('submitted_at').notNull(),
+  },
+  (table) => ({
+    postIdIndex: index('bot_reply_feedback_post_id_index').on(table.postId),
+    submittedAtIndex: index('bot_reply_feedback_submitted_at_index').on(
+      table.submittedAt
+    ),
+  })
+);
 
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner

@@ -1,10 +1,11 @@
 export type TlonTarget =
   | { kind: 'dm'; ship: string }
-  | { kind: 'channel'; nest: string; hostShip: string; channelName: string };
+  | { kind: 'channel'; nest: string; hostShip: string; channelName: string }
+  | { kind: 'notebook'; nest: string; hostShip: string; notebookName: string };
 
 const SHIP_RE = /^~?[a-z-]+$/i;
 const NEST_RE = /^([^/]+)\/([^/]+)\/([^/]+)$/i;
-const CHANNEL_NEST_PREFIXES = new Set(['chat', 'heap', 'diary']);
+const CHANNEL_NEST_PREFIXES = new Set(['chat', 'heap', 'diary', 'notes']);
 
 type NestPrefix = 'chat' | 'heap' | 'diary' | 'notes';
 
@@ -96,6 +97,14 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
     const groupTarget = groupPrefix[2].trim();
     const parsedNest = parseNest(groupTarget);
     if (parsedNest) {
+      if (parsedNest.nestPrefix === 'notes') {
+        return {
+          kind: 'notebook',
+          nest: `notes/${parsedNest.hostShip}/${parsedNest.channelName}`,
+          hostShip: parsedNest.hostShip,
+          notebookName: parsedNest.channelName,
+        };
+      }
       return {
         kind: 'channel',
         nest: `${parsedNest.nestPrefix}/${parsedNest.hostShip}/${parsedNest.channelName}`,
@@ -118,9 +127,18 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
     return null;
   }
 
-  // Direct nest format: chat/~host/channel, heap/~host/channel, diary/~host/channel
+  // Direct nest format: chat/~host/channel, heap/~host/channel,
+  // diary/~host/channel, notes/~host/notebook
   const parsedNest = parseNest(withoutPrefix);
   if (parsedNest) {
+    if (parsedNest.nestPrefix === 'notes') {
+      return {
+        kind: 'notebook',
+        nest: `notes/${parsedNest.hostShip}/${parsedNest.channelName}`,
+        hostShip: parsedNest.hostShip,
+        notebookName: parsedNest.channelName,
+      };
+    }
     return {
       kind: 'channel',
       nest: `${parsedNest.nestPrefix}/${parsedNest.hostShip}/${parsedNest.channelName}`,
@@ -138,5 +156,5 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
 }
 
 export function formatTargetHint(): string {
-  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
+  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel | notes/~host/notebook';
 }
