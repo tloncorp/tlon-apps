@@ -84,10 +84,26 @@ cat > "$cmdfile" <<EOF
 staging=\$(mktemp -d)
 tar xzf /tmp/janeway-desk.tgz -C \$staging
 cd /urbit || exit 1
-curl -s --data '{"source":{"dojo":"+hood/unmount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
-curl -s --data '{"source":{"dojo":"+hood/mount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
+set -euo pipefail
+has_desk() {
+  curl -fsS http://localhost:12321/~/scry/hood/kiln/pikes.json \
+    | grep -Eq '"$desk"[[:space:]]*:'
+}
+if ! has_desk; then
+  echo "Creating %$desk from %base"
+  curl -fsS --data '{"source":{"dojo":"+hood/merge %$desk our %base"},"sink":{"app":"hood"}}' http://localhost:12321
+  for attempt in \$(seq 1 30); do
+    if has_desk; then
+      break
+    fi
+    sleep 1
+  done
+  has_desk || { echo "Timed out waiting for %$desk" >&2; exit 1; }
+fi
+curl -fsS --data '{"source":{"dojo":"+hood/unmount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
+curl -fsS --data '{"source":{"dojo":"+hood/mount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
 rsync -avL --delete \$staging/assembled/ $folder
-curl -s --data '{"source":{"dojo":"+hood/commit %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
+curl -fsS --data '{"source":{"dojo":"+hood/commit %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
 rm -rf \$staging /tmp/janeway-desk.tgz
 EOF
 echo "Remote commands:"
