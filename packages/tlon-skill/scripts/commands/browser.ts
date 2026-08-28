@@ -177,11 +177,14 @@ function browserCredentialHandoffBlob(
 
 export async function run(args: string[], deps: BrowserDeps): Promise<number> {
   try {
-    if (!args[0] || args.some(isHelpArg)) {
+    if (args.some(isHelpArg)) {
       return writeHelp(
         deps,
         args[0] === 'handoff' ? BROWSER_HANDOFF_HELP : BROWSER_HELP
       );
+    }
+    if (!args[0]) {
+      throw usageError(BROWSER_HELP);
     }
     if (args[0] !== 'handoff' || !args[1]) {
       throw usageError(BROWSER_HELP);
