@@ -25,6 +25,10 @@ describe('file read completion guard', () => {
     "I'm going to read the pollen log now.",
     "I'll now open the pollen log.",
     'Let me go ahead and check the pollen log.',
+    'Pasting the CSV now.',
+    'Displaying the requested file now.',
+    'Showing the records now.',
+    'Printing the summary now.',
     'That’s the complete revised v0.1.1 text displayed inline.',
     'Here are the requested contents:',
     'The file contents are below.',
@@ -104,6 +108,38 @@ describe('file read completion guard', () => {
       })
     ).toBeNull();
   });
+
+  it('accepts transformed output on the same line as the delivery claim', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('run-same-line'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'run-same-line',
+        lastAssistantMessage:
+          'Here are the requested contents: Date, compte de pollen, notes — 1 août 2026, 42, faible',
+      })
+    ).toBeNull();
+  });
+
+  it.each([
+    'Opening the summary now.',
+    'Reading the records now.',
+    'Displaying the results now.',
+  ])(
+    'does not mistake a requested object noun for completed work: %s',
+    (reply) => {
+      const guard = createFileReadCompletionGuard();
+      guard.recordToolResult(successfulRead('object-noun'));
+
+      expect(
+        guard.beforeFinalize({
+          runId: 'object-noun',
+          lastAssistantMessage: reply,
+        })
+      ).not.toBeNull();
+    }
+  );
 
   it('does not accept one source anchor as complete raw-file delivery', () => {
     const guard = createFileReadCompletionGuard();
@@ -258,6 +294,42 @@ describe('file read completion guard', () => {
         })
       ).toBeNull();
     }
+    expect(guard.trackedRunCount()).toBe(0);
+  });
+
+  it('suppresses correction when a later read fails', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('later-failure'));
+    guard.recordToolResult({
+      runId: 'later-failure',
+      toolName: 'read',
+      error: 'permission denied',
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'later-failure',
+        lastAssistantMessage: 'Opening the file now.',
+      })
+    ).toBeNull();
+  });
+
+  it('does not treat an opaque non-text read result as an empty file', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'non-text',
+      toolName: 'read',
+      result: {
+        content: [{ type: 'resource', resource: { uri: 'file.bin' } }],
+      },
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'non-text',
+        lastAssistantMessage: 'Opening the file now.',
+      })
+    ).toBeNull();
     expect(guard.trackedRunCount()).toBe(0);
   });
 

@@ -34,7 +34,7 @@ const MAX_SUSPICIOUS_REPLY_LENGTH = 600;
 const MAX_REVISION_ATTEMPTS = 2;
 
 const PROGRESS_VERBS =
-  '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|pull(?:ing)?\\s+up|paste|display|show|print)';
+  '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
 const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
 const PROGRESS_ONLY = new RegExp(
   `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
@@ -43,7 +43,7 @@ const PROGRESS_ONLY = new RegExp(
 const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
-  /\b(?:found|contains?|had|has|showed|shows|revealed|reveals|indicated|indicates|rows?|records?|result|summary|peak(?:ed|s)?|average[ds]?)\b/i;
+  /\b(?:found|contains?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b/i;
 const TRUNCATION_MARKER = /^\s*\[(?:showing|reading|truncated)\b/im;
 
 function nonEmptyError(error: string | undefined): boolean {
@@ -69,6 +69,18 @@ function resultText(result: unknown): string {
       return typeof text === 'string' ? [text] : [];
     })
     .join('\n');
+}
+
+function resultHasNonTextContent(result: unknown): boolean {
+  if (!result || typeof result !== 'object') return false;
+  const content = (result as { content?: unknown }).content;
+  if (!Array.isArray(content)) return false;
+  return content.some(
+    (block) =>
+      block != null &&
+      typeof block === 'object' &&
+      (block as { type?: unknown }).type !== 'text'
+  );
 }
 
 function normalizeForComparison(value: string): string {
@@ -102,11 +114,8 @@ function contentAnchors(text: string): string[] {
   ).slice(0, MAX_ANCHORS_PER_RUN);
 }
 
-function containsRepresentativeReadContent(
-  reply: string,
-  anchors: string[]
-): boolean {
-  if (anchors.length === 0) return false;
+function matchedReadContentCount(reply: string, anchors: string[]): number {
+  if (anchors.length === 0) return 0;
   const normalizedReply = normalizeForComparison(reply);
   const replyLines = new Set(
     reply
@@ -114,16 +123,33 @@ function containsRepresentativeReadContent(
       .map((line) => normalizeForComparison(line))
       .filter(Boolean)
   );
-  const matched = anchors.filter((anchor) =>
+  return anchors.filter((anchor) =>
     anchor.length < 8
       ? replyLines.has(anchor)
       : normalizedReply.includes(anchor)
   ).length;
-  return matched >= Math.min(3, anchors.length);
+}
+
+function containsRepresentativeReadContent(
+  reply: string,
+  anchors: string[]
+): boolean {
+  if (anchors.length === 0) return false;
+  return matchedReadContentCount(reply, anchors) >= Math.min(3, anchors.length);
 }
 
 function isEmptyDeliveryClaim(reply: string): boolean {
-  if (!EMPTY_DELIVERY_CLAIM.test(reply)) return false;
+  const claim = EMPTY_DELIVERY_CLAIM.exec(reply);
+  if (!claim) return false;
+
+  // A heading and its transformed payload may share one line. Only treat the
+  // claim as empty when nothing visible follows the matched claim.
+  const sameLineTail = reply
+    .slice((claim.index ?? 0) + claim[0].length)
+    .split(/\r?\n/, 1)[0]
+    ?.replace(/^[\s:;,.!\-–—`]+/, '')
+    .trim();
+  if (sameLineTail) return false;
 
   const nonEmptyLines = reply
     .split(/\r?\n/)
@@ -185,10 +211,19 @@ export function createFileReadCompletionGuard(options?: {
   return {
     recordToolResult(input: FileReadToolResult): void {
       const runId = input.runId?.trim();
-      if (!runId || input.toolName !== 'read' || nonEmptyError(input.error)) {
+      if (!runId || input.toolName !== 'read') {
         return;
       }
-      if (toolResultIsError(input.result)) return;
+      if (
+        nonEmptyError(input.error) ||
+        toolResultIsError(input.result) ||
+        resultHasNonTextContent(input.result)
+      ) {
+        // A later failure or an opaque result means we can no longer prove the
+        // user's requested read succeeded. Suppress correction for this run.
+        runs.delete(runId);
+        return;
+      }
       const text = resultText(input.result);
 
       const existing = runs.get(runId);
@@ -212,7 +247,11 @@ export function createFileReadCompletionGuard(options?: {
         return null;
       if (
         containsRepresentativeReadContent(reply, state.anchors) ||
-        !isIncompleteFileDeliveryReply(reply)
+        (!isIncompleteFileDeliveryReply(reply) &&
+          !(
+            EMPTY_DELIVERY_CLAIM.test(reply) &&
+            matchedReadContentCount(reply, state.anchors) > 0
+          ))
       ) {
         return null;
       }
