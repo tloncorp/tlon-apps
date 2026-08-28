@@ -190,6 +190,54 @@
   :+  %finished  [200 ~]
   `['application/json' [(met 3 body) body]]
 ::
+::  +iris-grant: the broker answering our own upload-grant call.
+::
+++  iris-grant
+  |=  [reservation=@t url=@t]
+  ^-  sign-arvo
+  =/  body=@t
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['reservationId' s+reservation]
+        ['objectId' s+seed-token]
+        ['uploadUrl' s+url]
+        ['uploadExpiresAtMillis' (numb:enjs:format 1.767.240.000.000)]
+        :-  'requiredHeaders'
+        a+~[a+~[s+'content-type' s+'application/pdf']]
+    ==
+  :+  %iris  %http-response
+  :+  %finished  [200 ~]
+  `['application/json' [(met 3 body) body]]
+::
+::  +iris-object: the receipt the broker returns when we complete an upload.
+::
+++  iris-object
+  |=  [object=@t size=@ud mime=@t]
+  ^-  sign-arvo
+  =/  body=@t
+    %-  en:json:html
+    %-  pairs:enjs:format
+    :~  ['objectId' s+object]
+        ['size' (numb:enjs:format size)]
+        ['mimeType' s+mime]
+    ==
+  :+  %iris  %http-response
+  :+  %finished  [200 ~]
+  `['application/json' [(met 3 body) body]]
+::
+::  +begun: open an upload and take the broker's grant, leaving a session
+::  whose reservation is bound. The shape every upload test starts from.
+::
+++  begun
+  |=  [rid=@uv name=@t size=@ud]
+  =/  m  (mare ,(list card))
+  ^-  form:m
+  ;<  ~  bind:m  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  bind:m
+    (ask rid [%bucket flag [%begin-upload ~ name 'application/pdf' size ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  (do-arvo wire.push (iris-grant 'res-1' 'https://storage.test/put'))
+::
 ::  +iris-refusal: the broker's shape for a failure it has classified.
 ::
 ++  iris-refusal
@@ -329,12 +377,30 @@
   ^-  form:m
   ;<  ~  b  setup
   ;<  ~  b  create
+  ;<  ~  b  (set-scry-gate genuine-scries)
   ;<  caz=(list card)  b
     (ask 0v7 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
+  ::  The URL is the broker's to issue, so the request is held rather than
+  ::  answered, and the only other card is the call that will answer it.
   ;<  ~  b
-    %+  ex-cards  caz
+    %+  ex-cards
+      %+  skim  caz
+      |=(=card ?=([%give %fact *] card))
+    :~  (grant-fact 0v7 [%pending ~])
+    ==
+  ::  +only-iris crashes unless exactly one broker call was made.
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  done=(list card)  b
+    (do-arvo wire.push (iris-grant 'res-1' 'https://storage.test/put'))
+  ;<  ~  b
+    %+  ex-cards  done
     :~  %+  grant-fact  0v7
-        [%grant seed-token 2 (add ~2026.1.1 ~h1)]
+        :*  %upload  seed
+            2
+            'https://storage.test/put'
+            ~[['content-type' 'application/pdf']]
+            ~2026.1.1..04.00.00
+        ==
     ==
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
@@ -396,24 +462,24 @@
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  rid=@t  '00000000-0000-0000-0000-00000000000a'
   ;<  ~  b  setup
   ;<  ~  b  create
   ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
-  ;<  *  b  (ask 0v2 [%bucket flag [%begin-upload `2 'meadow.png' 'image/png' 2.048 ~]])
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b
+    (ask 0v2 [%bucket flag [%begin-upload `2 'meadow.png' 'image/png' 2.048 ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  *  b  (do-arvo wire.push (iris-grant 'res-a' 'https://storage.test/put'))
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   =/  bs=bucket-state:bu  (state-for st flag)
   =/  ses=upload-session:bu  (only-session st)
   ::  the folder is published, the pending file is not
   ;<  ~  b  (ex-equal !>([~(wyt by entries.bs) revision.bs]) !>([1 1]))
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
   =/  fil=file:bu  (file-of entry.ses)
-  =/  receipt=broker-receipt:bu
-    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 2.048 'image/png']
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ;<  fin=(list card)  b  (ask 0v3 [%bucket flag [%finish-upload id.ses]])
+  =/  done=[=wire =request:http]  (only-iris fin)
+  ;<  *  b  (do-arvo wire.done (iris-object object-key.fil 2.048 'image/png'))
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
@@ -433,84 +499,78 @@
 ::  completion arriving afterwards still publishes; refusing it would leave
 ::  the object stored and paid for with nothing in the manifest for it.
 ::
-++  test-a-cancelled-session-still-publishes-a-completion
+++  test-cancelling-releases-the-reservation
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  rid=@t  '00000000-0000-0000-0000-000000000009'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  *  b  (begun 0v1 'private.pdf' 42)
   ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
-  =/  ses=upload-session:bu  (only-session st)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  =/  fil=file:bu  (file-of entry.ses)
-  ::  the uploader's completion call fails, so it withdraws
-  ;<  *  b  (ask 0v2 [%bucket flag [%cancel-upload id.ses 'connection lost']])
+  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  ::  Quota is reserved before the first byte moves, so withdrawing has to
+  ::  reach the broker or the space stays held until the reservation lapses.
+  ;<  caz=(list card)  b
+    (ask 0v2 [%bucket flag [%cancel-upload id.ses 'connection lost']])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  b
+    (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv id.ses)/cancel))
+  ::  The session stops issuing URLs whether or not the broker is reachable
+  ::  to hear about it, so it is already cancelled here.
   ;<  mid=vase  b  get-save
   =/  cancelled=upload-session:bu  (only-session !<(state-0:bu mid))
   ;<  ~  b  (ex-equal !>(status.cancelled) !>(%cancelled))
-  ::  but the broker did take the bytes, and says so
-  =/  receipt=broker-receipt:bu
-    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
-  ;<  after=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu after)
-  =/  bs2=bucket-state:bu  (state-for st2 flag)
-  =/  published=upload-session:bu  (only-session st2)
-  ::  the entry is in the manifest and the session settled as complete
-  %+  ex-equal
-    !>([~(wyt by entries.bs2) status.published])
-  !>([1 %complete])
+  ;<  done=(list card)  b  (do-arvo wire.push iris-ok)
+  %+  ex-cards  done
+  :~  (grant-fact 0v2 [%ok ~])
+  ==
 ::
 ++  test-broker-upload-lifecycle
   %-  eval-mare
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  rid=@t  '00000000-0000-0000-0000-000000000001'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
-  ;<  upload-cage=cage  b
-    (got-peek /x/v1/broker/upload/[seed-token]/[rid])
-  =/  upload-result=@t
-    (so:dejs:format (get:dejs:buckets-json 'result' !<(json q.upload-cage)))
+  ;<  ~  b  (set-scry-gate genuine-scries)
+  ;<  caz=(list card)  b
+    (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
+  =/  push=[=wire =request:http]  (only-iris caz)
+  ;<  ~  b
+    (ex-equal !>(wire.push) !>(/buckets/upload/(scot %uv seed)/grant))
+  ;<  *  b  (do-arvo wire.push (iris-grant 'res-1' 'https://storage.test/put'))
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   =/  ses=upload-session:bu  (only-session st)
-  =/  bs=bucket-state:bu  (state-for st flag)
   =/  fil=file:bu  (file-of entry.ses)
-  ;<  ~  b  (ex-equal !>(reservation.ses) !>(`rid))
-  =/  receipt=broker-receipt:bu
-    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
-  ::  Completion retries are idempotent — no second entry, no second revision.
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ::  The reservation is what the broker told us, not something it proposed
+  ::  and we had to bind and echo back.
+  ;<  ~  b  (ex-equal !>(reservation.ses) !>(`'res-1'))
+  ;<  ~  b  (ex-equal !>((~(got by reservations.st) 'res-1')) !>(id.ses))
+  ::  Another URL runs against the same reservation rather than opening a
+  ::  second one, so the broker's retry budget still applies.
+  ;<  again=(list card)  b  (ask 0v2 [%bucket flag [%retry-upload id.ses]])
+  =/  retry=[=wire =request:http]  (only-iris again)
+  ;<  ~  b
+    (ex-equal !>(wire.retry) !>(/buckets/upload/(scot %uv id.ses)/retry))
+  ;<  *  b  (do-arvo wire.retry (iris-grant 'res-1' 'https://storage.test/again'))
+  ::  The receipt answers our own completion call, so the entry is published
+  ::  in the same event rather than waiting for a push that may not come.
+  ;<  fin=(list card)  b  (ask 0v3 [%bucket flag [%finish-upload id.ses]])
+  =/  done=[=wire =request:http]  (only-iris fin)
+  ;<  ~  b
+    (ex-equal !>(wire.done) !>(/buckets/upload/(scot %uv id.ses)/complete))
+  ;<  *  b  (do-arvo wire.done (iris-object object-key.fil 42 'application/pdf'))
   ;<  sv2=vase  b  get-save
   =/  st2=state-0:bu  !<(state-0:bu sv2)
   =/  bs2=bucket-state:bu  (state-for st2 flag)
   =/  ent2=entry:bu  (~(got by entries.bs2) id.entry.ses)
   =/  fil2=file:bu  (file-of ent2)
-  ;<  complete-cage=cage  b  (got-peek /x/v1/broker/complete/[rid])
-  =/  complete-result=@t
-    (so:dejs:format (get:dejs:buckets-json 'result' !<(json q.complete-cage)))
+  =/  ses2=upload-session:bu  (~(got by sessions.st2) id.ses)
   %+  ex-equal
-  !>  :*  upload-result
-          complete-result
-          status.fil2
-          [~(wyt by entries.bs2) revision.bs2]
-      ==
-  !>([%'authorized' %'completed' %ready [1 1]])
+  !>([status.fil2 status.ses2 ~(wyt by entries.bs2) revision.bs2])
+  !>([%ready %complete 1 1])
 ::
 ::  One read token covers the whole bucket: it authorizes any ready object in
 ::  it, and nothing outside it. Deletes stay bound to a single object.
@@ -520,21 +580,16 @@
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  rid=@t  '00000000-0000-0000-0000-000000000002'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  *  b  (begun 0v1 'private.pdf' 42)
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
-  =/  bs=bucket-state:bu  (state-for st flag)
   =/  ses=upload-session:bu  (only-session st)
   =/  fil=file:bu  (file-of entry.ses)
-  =/  receipt=broker-receipt:bu
-    [rid object-key.fil 'sampel-palnet' (scot %ud id.bucket.bs) 42 'application/pdf']
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%complete-upload receipt]))
+  ;<  fin=(list card)  b  (ask 0v9 [%bucket flag [%finish-upload id.ses]])
+  =/  done=[=wire =request:http]  (only-iris fin)
+  ;<  *  b  (do-arvo wire.done (iris-object object-key.fil 42 'application/pdf'))
   ::  A fresh eny so the read token differs from the upload session id.
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v5678)))
   ;<  ~  b  (set-scry-gate genuine-scries)
@@ -677,6 +732,7 @@
     =/  ents  ~(tap by entries.bs)
     ?~(ents !! p.i.ents)
   ::  an upload lands inside that folder, and one at the root
+  ;<  ~  b  (set-scry-gate genuine-scries)
   ;<  *  b
     (ask 0v2 [%bucket flag [%begin-upload `folder 'inside.pdf' 'application/pdf' 9 ~]])
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
@@ -1111,19 +1167,16 @@
   =/  m  (mare ,~)
   =*  b  bind:m
   ^-  form:m
-  =/  rid=@t  '00000000-0000-0000-0000-000000000003'
   ;<  ~  b  setup
   ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%bucket flag [%begin-upload ~ 'private.pdf' 'application/pdf' 42 ~]])
-  ;<  *  b
-    (do-poke %buckets-broker-command-1 !>(`broker-command:bu`[%authorize-upload seed-token rid]))
+  ;<  *  b  (begun 0v1 'private.pdf' 42)
   ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
   ;<  *  b  (ask 0v2 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
   ;<  sv=vase  b  get-save
   =/  st=state-0:bu  !<(state-0:bu sv)
   %+  ex-equal
   !>  :*  (~(has by sessions.st) seed)
-          (~(has by reservations.st) rid)
+          (~(has by reservations.st) 'res-1')
           ~(wyt by sessions.st)
       ==
   !>([%.n %.n 1])

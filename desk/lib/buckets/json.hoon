@@ -116,6 +116,24 @@
         ['expiresAt' s+(scot %da expires-at.gra)]
     ==
   ::
+  ::  .headers stay a list of pairs rather than becoming an object: they are
+  ::  part of what the upload URL is signed over, and an object would let a
+  ::  client reorder or case-fold them on the way to the PUT.
+  ::
+  ++  upload-grant
+    |=  gra=upload-grant:b
+    ^-  json
+    %-  pairs
+    :~  ['session' s+(scot %uv session.gra)]
+        ['entryId' (numb entry-id.gra)]
+        ['url' s+url.gra]
+        :-  'headers'
+        :-  %a
+        %+  turn  headers.gra
+        |=([key=@t value=@t] `json`a+~[s+key s+value])
+        ['expiresAt' s+(scot %da expires-at.gra)]
+    ==
+  ::
   ++  read-token
     |=  tok=read-token:b
     ^-  json
@@ -132,6 +150,7 @@
         %ok       (frond 'ok' ~)
         %pending  (frond 'pending' ~)
         %grant    (frond 'grant' (grant grant.body.res))
+        %upload   (frond 'upload' (upload-grant upload-grant.body.res))
         %token    (frond 'token' (read-token read-token.body.res))
       ::
           %error

@@ -12,17 +12,14 @@ import {
   getCurrentUserId,
   requestBucketReadToken,
   requestBucketsGrant,
+  requestBucketsUpload,
   sendBucketsAction,
   subscribeToBuckets,
 } from '@tloncorp/api';
 import {
   BucketsBrokerError,
-  brokerRequiredHeaders,
-  cancelBucketUpload,
-  completeBucketUpload,
   deleteBucketObject,
   grantBucketRead,
-  grantBucketUpload,
   isBucketObjectAlreadyDeleted,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -44,8 +41,6 @@ import { createBucketUploadTask } from './bucketUploadTask';
 import type { BucketUploadTask } from './bucketUploadTask.types';
 
 type LocalUpload = {
-  brokerObjectId?: string;
-  brokerReservationId?: string;
   candidate: BucketUploadCandidate;
   error?: string;
   id: string;
@@ -317,8 +312,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const { candidate, id, parentId } = upload;
       let sessionId: string | undefined;
       let serverEntryId: number | undefined;
-      let brokerObjectId: string | undefined;
-      let brokerReservationId: string | undefined;
       let brokerCompleted = false;
 
       try {
@@ -334,10 +327,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           progress: 1,
           state: 'uploading',
         });
-        // The host mints the upload token and answers with it, along with the
-        // id of the entry it reserved. Nothing has to be matched against the
-        // replica afterwards, and nothing is broadcast until the object lands.
-        const grant = await requestBucketsGrant({
+        // One round trip: the host reserves the entry, calls storage as
+        // itself, and answers with the signed URL. Nothing has to be matched
+        // against the replica afterwards, and nothing is broadcast until the
+        // object lands.
+        const grant = await requestBucketsUpload({
           type: 'begin-upload',
           checksum: null,
           flag,
@@ -346,27 +340,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           parentId,
           size: candidate.size,
         });
-        sessionId = grant.token;
+        sessionId = grant.session;
         serverEntryId = grant.entryId;
-        updateLocalUpload(id, { progress: 3, serverEntryId, sessionId });
-
-        const privateGrant = await grantBucketUpload(grant.token, flag.host);
-        brokerObjectId = privateGrant.objectId;
-        brokerReservationId = privateGrant.reservationId;
-        updateLocalUpload(id, {
-          brokerObjectId,
-          brokerReservationId,
-          progress: 5,
-        });
+        updateLocalUpload(id, { progress: 5, serverEntryId, sessionId });
 
         if (cancelledRef.current.has(id)) {
           throw new Error('Upload cancelled');
         }
 
         const task = createBucketUploadTask(
-          privateGrant.uploadUrl,
+          grant.url,
           candidate,
-          brokerRequiredHeaders(privateGrant),
+          Object.fromEntries(grant.headers),
           (progress) =>
             updateLocalUpload(id, {
               progress: Math.max(5, Math.round(5 + progress * 0.9)),
@@ -383,7 +368,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw new Error('The upload session was lost');
         }
         updateLocalUpload(id, { progress: 96 });
-        await completeBucketUpload(brokerReservationId);
+        // The host settles the reservation with storage and publishes the
+        // entry in one step, so this is the last thing the uploader does.
+        await sendBucketsAction({ type: 'finish-upload', flag, sessionId });
         brokerCompleted = true;
         updateLocalUpload(id, { progress: 100 });
         // Nothing further here on purpose. The host broadcasts the published
@@ -401,6 +388,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       } catch (cause) {
         tasksRef.current.delete(id);
         const cancelled = cancelledRef.current.has(id);
+        // One cancel, not two. The host releases the storage reservation as
+        // part of this -- previously that was a second call from here, made
+        // while the tab was closing and with its error swallowed, so an
+        // abandoned upload held quota until the reservation lapsed.
         if (sessionId && !brokerCompleted) {
           await sendBucketsAction({
             type: 'cancel-upload',
@@ -408,9 +399,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             reason: errorMessage(cause),
             sessionId,
           }).catch(() => undefined);
-        }
-        if (brokerReservationId && !brokerCompleted) {
-          await cancelBucketUpload(brokerReservationId).catch(() => undefined);
         }
         if (cancelled && serverEntryId !== undefined) {
           await sendBucketsAction({
@@ -422,7 +410,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
         if (!cancelled) {
           updateLocalUpload(id, {
-            brokerReservationId: undefined,
             error: errorMessage(cause),
             progress: 0,
             serverEntryId,
@@ -498,11 +485,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           sessionId,
         }).catch(() => undefined);
       }
-      if (upload?.brokerReservationId) {
-        await cancelBucketUpload(upload.brokerReservationId).catch(
-          () => undefined
-        );
-      }
       if (serverEntryId !== undefined) {
         await sendBucketsAction({
           type: 'delete-entry',
@@ -540,8 +522,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const next = {
         ...upload,
         error: undefined,
-        brokerReservationId: undefined,
-        brokerObjectId: undefined,
         progress: 0,
         serverEntryId: undefined,
         sessionId: undefined,
