@@ -6,7 +6,7 @@ import {
   trackEvent,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getTextContent } from '@tloncorp/shared/logic';
+import { getTextContent, isSurfaceChannel } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
@@ -73,6 +73,13 @@ export default function useDesktopNotifications(isClientReady: boolean) {
           : null;
 
         if (!channel) return;
+
+        // Plan §8: surface channels never notify. The hush applied at channel
+        // discovery is what actually stops these events being marked
+        // notify-worthy; this covers the window before it lands. The Electron
+        // main process only sees a title/body over IPC, so this renderer-side
+        // check is the last point with any channel context.
+        if (isSurfaceChannel(channel)) return;
 
         // Use nickname if available, otherwise use contactId
         // This matches the logic in ContactNameV2

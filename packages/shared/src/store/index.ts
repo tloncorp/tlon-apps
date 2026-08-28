@@ -29,6 +29,7 @@ export * from './lanyardActions';
 export * from './notesActions';
 export * from './useNotesSearch';
 export * from './settingsActions';
+export * from './surfaceNotificationDefaults';
 export * from './systemContactActions';
 export * from './blockingActions';
 export * from './metagrabActions';

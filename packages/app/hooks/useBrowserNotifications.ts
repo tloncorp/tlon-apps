@@ -1,7 +1,11 @@
 import * as api from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
+import {
+  getTextContent,
+  isSurfaceChannel,
+  useMutableRef,
+} from '@tloncorp/shared/logic';
 import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
@@ -385,6 +389,15 @@ export default function useBrowserNotifications() {
             'Channel unavailable after retrying browser notification target:',
             channelId
           );
+          return;
+        }
+
+        // Plan §8: surface channels never notify. The real suppression is the
+        // hush applied at channel discovery, which stops the recipient's own
+        // %activity agent from ever marking the event notify-worthy. This
+        // covers the window before that hush lands, and the case where it
+        // failed to.
+        if (isSurfaceChannel(channel)) {
           return;
         }
 

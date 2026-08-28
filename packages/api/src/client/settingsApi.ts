@@ -12,6 +12,17 @@ export function getDismissedPinnedPostBannerKey(postId: string) {
   return `${DISMISSED_PINNED_POST_BANNER_PREFIX}${postId}`;
 }
 
+// Records that this account has already applied the surface-channel
+// notification default (hush) to a channel. Lives in %settings rather than
+// local storage because unmuting *removes* the volume entry, so the volume
+// map alone can't distinguish "deliberately unmuted" from "never touched" —
+// a device-local marker would let a second device re-hush a channel the user
+// unmuted elsewhere.
+const SURFACE_NOTIFICATION_DEFAULTED_PREFIX = 'surfaceNotificationDefaulted:';
+export function getSurfaceNotificationDefaultedKey(channelId: string) {
+  return `${SURFACE_NOTIFICATION_DEFAULTED_PREFIX}${channelId}`;
+}
+
 export type BotReplyFeedbackRating = 'up' | 'down';
 
 export type BotReplyFeedbackEntry = {
@@ -128,6 +139,9 @@ function getBucket(key: string): string {
   if (key.startsWith(DISMISSED_PINNED_POST_BANNER_PREFIX)) {
     return 'groups';
   }
+  if (key.startsWith(SURFACE_NOTIFICATION_DEFAULTED_PREFIX)) {
+    return 'groups';
+  }
 
   switch (key) {
     case 'messagesFilter':
@@ -179,6 +193,7 @@ export const getSettings = async (): Promise<{
   settings: db.Settings;
   pendingMemberDismissals: db.PendingMemberDismissals;
   dismissedPinnedPostBannerIds: string[];
+  surfaceNotificationDefaultedChannelIds: string[];
   botReplyFeedback: BotReplyFeedbackSetting[];
 }> => {
   const results = await scry<ub.GroupsDeskSettings>({
@@ -190,12 +205,15 @@ export const getSettings = async (): Promise<{
   const pendingMemberDismissals = parsePendingMemberDismissals(results);
   const dismissedPinnedPostBannerIds =
     parseDismissedPinnedPostBannerIds(results);
+  const surfaceNotificationDefaultedChannelIds =
+    parseSurfaceNotificationDefaultedChannelIds(results);
   const botReplyFeedback = parseBotReplyFeedback(results);
 
   return {
     settings,
     pendingMemberDismissals,
     dismissedPinnedPostBannerIds,
+    surfaceNotificationDefaultedChannelIds,
     botReplyFeedback,
   };
 };
@@ -320,6 +338,29 @@ export const parseDismissedPinnedPostBannerIds = (
   return postIds;
 };
 
+export const parseSurfaceNotificationDefaultedChannelIds = (
+  settings: ub.GroupsDeskSettings
+) => {
+  const channelIds: string[] = [];
+
+  Object.entries(settings.desk.groups || {})
+    .filter(([key, value]) => {
+      return (
+        key.startsWith(SURFACE_NOTIFICATION_DEFAULTED_PREFIX) &&
+        value !== null &&
+        value !== false
+      );
+    })
+    .forEach(([key]) => {
+      const channelId = key.slice(SURFACE_NOTIFICATION_DEFAULTED_PREFIX.length);
+      if (channelId.length > 0) {
+        channelIds.push(channelId);
+      }
+    });
+
+  return channelIds;
+};
+
 export interface ChargeUpdateInitial {
   initial: {
     [desk: string]: Charge;
@@ -415,6 +456,11 @@ export type SettingsUpdate =
       dismissed: boolean;
     }
   | {
+      type: 'surfaceNotificationDefaulted';
+      channelId: string;
+      defaulted: boolean;
+    }
+  | {
       type: 'botReplyFeedback';
       messageId: string;
       entry: BotReplyFeedbackEntry | null;
@@ -456,6 +502,21 @@ export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
             type: 'dismissPinnedPostBanner',
             postId,
             dismissed: update.value !== null && update.value !== false,
+          });
+          return;
+        }
+
+        if (entryKey.startsWith(SURFACE_NOTIFICATION_DEFAULTED_PREFIX)) {
+          const channelId = entryKey.slice(
+            SURFACE_NOTIFICATION_DEFAULTED_PREFIX.length
+          );
+          if (channelId.length === 0) {
+            return;
+          }
+          handler({
+            type: 'surfaceNotificationDefaulted',
+            channelId,
+            defaulted: update.value !== null && update.value !== false,
           });
           return;
         }

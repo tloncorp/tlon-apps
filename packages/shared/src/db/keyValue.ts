@@ -35,6 +35,20 @@ export const dismissedPinnedPostBannerIds = createStorageItem<string[]>({
   defaultValue: [],
 });
 
+/**
+ * Local mirror of the ship-side `surfaceNotificationDefaulted:<channelId>`
+ * %settings entries (plan §8). Authority is the ship, not this cache: it is
+ * replaced wholesale by `syncSettings` and kept live by the settings
+ * subscription, so a hush applied on one device is not re-applied by another
+ * after the user unmutes.
+ */
+export const surfaceNotificationDefaultedChannelIds = createStorageItem<
+  string[]
+>({
+  key: 'surfaceNotificationDefaultedChannelIds',
+  defaultValue: [],
+});
+
 export const storageConfiguration =
   createStorageItem<StorageConfiguration | null>({
     key: 'storageConfiguration',
