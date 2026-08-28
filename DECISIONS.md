@@ -720,3 +720,77 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   (`packages/app/fixtures/SurfaceChannel.fixture.tsx`) and render the
   real state components; the ready-state fixture documents the shared
   rendered-state scenarios in comments.
+
+## Session 4.5 decisions (fix batch + the frame-src experiment)
+
+- **D43: The `frame-src` experiment (F1 option D) — hypothesis HOLDS.** A
+  `frame-src` allowlist on the **host page** blocks the sandboxed iframe's
+  self-initiated navigation **pre-flight** on all three engines. Measured,
+  not assumed (`apps/tlon-web/sandbox-posture/navigation.spec.ts`;
+  `SANDBOX_ENGINES=all`, 111 tests).
+
+  | host-page config | chromium | firefox | webkit | srcdoc loads? |
+  | --- | --- | --- | --- | --- |
+  | A — no CSP (production today) | NOT blocked | NOT blocked | NOT blocked | yes |
+  | header `frame-src 'none'` | pre-flight | pre-flight | pre-flight | **yes** |
+  | header `frame-src 'self'` | pre-flight | pre-flight | pre-flight | yes |
+  | header `frame-src https://example.com` | pre-flight | pre-flight | pre-flight | yes |
+  | header `frame-src <attacker>` *(control)* | NOT blocked | NOT blocked | NOT blocked | yes |
+  | meta `frame-src 'none'` | pre-flight | pre-flight | pre-flight | yes |
+  | meta `frame-src <attacker>` *(control)* | NOT blocked | NOT blocked | NOT blocked | yes |
+
+  Cells are identical across all four probes (`location.replace`,
+  `location.href =`, anchor click, `document.write` meta-refresh); that
+  uniformity is itself asserted, so a future per-vector divergence fails
+  the suite.
+
+  - **Q2 (the one that decides usability): `about:srcdoc` frames still
+    load and run under `frame-src 'none'` on all three engines** — srcdoc
+    is not a network fetch, so it is exempt from `frame-src`. The
+    restriction costs us nothing.
+  - **Q3: pre-flight.** Ground truth is the attacker's own HTTP server
+    logging zero connections — not merely an absent Playwright event.
+    Nothing left the device, so the URL-borne payload never escaped.
+    Late/commit-stage blocking would have been useless here, since the
+    URL *is* the exfiltration.
+  - **Q4:** `'none'`, `'self'`, and an allowlist excluding the attacker
+    behave identically; allowlisting the attacker lets it through on the
+    same delivery mechanism, which is what attributes the blocking to
+    `frame-src` source matching rather than to the page merely carrying
+    a CSP.
+
+  **Methodology, deliberately stronger than the original posture spec**
+  (and the standard for future leak tests): a real attacker HTTP server
+  replaces the `.invalid` host, because an unresolvable host cannot
+  distinguish "CSP blocked it" from "DNS failed"; every probe posts
+  `probe-armed` before navigating, so a frame that never loaded cannot be
+  mis-scored as blocked; and every blocking config is paired with an
+  allowlist-the-attacker control.
+
+  **Engine divergence, recorded and asserted:** after a blocked
+  navigation Chromium commits an error page *into the sandbox frame*,
+  destroying the running app; firefox and webkit leave it on
+  `about:srcdoc` and the app keeps running. Neither leaks — on Chromium a
+  hostile bundle can only DoS itself.
+
+  **Known-untested residual:** redirect chains from an allowlisted origin
+  to an attacker origin. Any non-empty allowlist reintroduces a hop, so
+  this must be measured before anyone calls the hole closed. Also
+  untested: `data:`/`blob:` navigation targets. (`window.open` and
+  top-level navigation are already blocked by the withheld
+  `allow-popups` / `allow-top-navigation` tokens.)
+
+  **Enforcement flip criteria** — the enforcing `frame-src` may be turned
+  on only when all of: (1) the allowlist demonstrably covers every
+  legitimate frame in the app, verified against Report-Only violation
+  reports from real usage, not just static enumeration; (2) the redirect
+  residual above has been measured; (3) a rollback path exists that does
+  not require a full client release. Until then the enforcing policy
+  ships written-but-disabled.
+
+  This upgrades the web posture from "gate is the only boundary against
+  navigation egress" to "gate plus origin-restricted navigation," but does
+  **not** retire the Worker-realm migration: `frame-src` restricts where a
+  frame may navigate, not whether unpinned code can run in it, and it
+  depends on a host-page policy that a future deployment change could drop
+  silently. M4 stands as recorded in D36 and the amended plan §5.
