@@ -794,3 +794,22 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   frame may navigate, not whether unpinned code can run in it, and it
   depends on a host-page policy that a future deployment change could drop
   silently. M4 stands as recorded in D36 and the amended plan §5.
+
+### Found, flagged, not fixed (session 4.5)
+
+- **`setChannelVolumeLevel` rolls back only when a previous setting
+  existed.** `packages/shared/src/store/activityActions.ts` (~line 351):
+  the catch restores `existingVolumeSetting` guarded by
+  `if (existingVolumeSetting)`. For a channel with no prior setting — a
+  freshly discovered one, or any channel a user mutes for the first time
+  — a failed poke leaves the optimistic `hush` row in the local DB while
+  the ship still says default-notify: the UI shows "muted" and pushes
+  keep arriving. `muteThread`/`unmuteThread` in the same file handle this
+  correctly via `db.clearVolumeSetting(...)`, so the fix is a small
+  `else` branch with in-file precedent.
+
+  Pre-existing and shared with the UI mute button, so **not** fixed here:
+  it changes shipped mute behavior and is orthogonal to surface channels.
+  F4 does not depend on that local row being correct — the actual
+  suppression is the ship-side volume map, and F4's marker correctly
+  stays unset on a failed poke so the next discovery retries.
