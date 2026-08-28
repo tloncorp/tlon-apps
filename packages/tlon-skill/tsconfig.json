@@ -4,6 +4,15 @@
     "module": "CommonJS",
     "moduleResolution": "Node",
     "esModuleInterop": true,
+    // The surface publish gate imports @tloncorp/surface-shell/node, whose
+    // primitives are .tsx compiled against preact. Bun transpiles those files
+    // with THIS project's jsx settings, so without these two lines it emits
+    // React elements (frozen in dev) and preact's renderer throws
+    // "Attempting to define property on object that is not extensible".
+    // tlon-skill has no .tsx of its own; this exists purely so the real shell
+    // can run here.
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist",
