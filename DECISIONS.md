@@ -1373,3 +1373,39 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   pre-sigil gzip (96.5 vs 110.9 kB). Recorded, not flipped: D32 called it
   a deliberate decision, and this is the evidence for making it, not the
   authority to make it.
+
+- **D65: minify flipped on (supersedes D32's default).** Vendoring
+  sigil-js grew the artifact 58% raw and it is embedded as a string
+  constant in every client, so D32's "if embedding budgets care" became
+  true. Measured:
+
+  | build | raw | gzip |
+  | --- | --- | --- |
+  | unminified, pre-sigil | 506,407 | 110.9 kB |
+  | unminified, post-sigil | 802,262 | 129.1 kB |
+  | **minified + `keepNames`** | **528,343** | **102.6 kB** |
+
+  Sigils land and the artifact still travels smaller than before them.
+
+  **`keepNames: true`** costs ~14.7 kB raw over bare minification and is
+  worth it. The sandbox is deliberately hard to inspect — no devtools on
+  a native webview, no network — so a shell stack trace arriving over the
+  bridge is frequently the only signal available, and names are what make
+  it legible. That is the auditability the old "readable output"
+  justification was actually reaching for; a whole unminified artifact
+  was a costly proxy for it. The stale comment was replaced rather than
+  left to mislead a future reader into flipping it back.
+
+  Verified rather than reasoned: every artifact assertion is a string
+  literal (`tsh-button`, `tsh-broken`, `tsh-avatar-sigil`, `ZodError`,
+  `process.env`, `import(`) or a `window` property name
+  (`__TLON_SURFACE_SHELL_VERSION`), neither of which esbuild mangles by
+  default — and `check:all` passes in the new mode, determinism included.
+
+  **A near-miss worth recording:** the first attempt put `keepNames`
+  under `build.esbuildOptions`, which is not a Vite key. It was silently
+  ignored and produced **byte-identical** output. Only measuring caught
+  it — a config key that looks meaningful and does nothing is the same
+  failure class as D45's dead-code-that-reads-like-protection, and it
+  would have shipped a comment promising legible stack traces we did not
+  have.
