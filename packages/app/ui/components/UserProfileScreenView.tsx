@@ -130,14 +130,6 @@ export function UserProfileScreenView(props: Props) {
           <ProfileButtons userId={props.userId} contact={userContact} />
         ) : null}
 
-        {props.onPressBotSettings || props.onPressScheduledTasks ? (
-          <BotManagementList
-            onPressBotSettings={props.onPressBotSettings}
-            onPressScheduledTasks={props.onPressScheduledTasks}
-            scheduledTaskCount={props.scheduledTaskCount}
-          />
-        ) : null}
-
         {userContact?.status && (
           <StatusDisplay status={userContact?.status ?? ''} />
         )}
@@ -164,6 +156,14 @@ export function UserProfileScreenView(props: Props) {
             <StatusBlock status={sponsorStatus} label="Sponsor" />
           </View>
         </XStack>
+
+        {props.onPressBotSettings || props.onPressScheduledTasks ? (
+          <BotManagementList
+            onPressBotSettings={props.onPressBotSettings}
+            onPressScheduledTasks={props.onPressScheduledTasks}
+            scheduledTaskCount={props.scheduledTaskCount}
+          />
+        ) : null}
 
         {/* Data-gated rather than riding the hosted-bot check: our steward
             only serves prompt sets for bots that configured us as their
