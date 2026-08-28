@@ -174,6 +174,70 @@ function formatEverySchedule(schedule: StewardAutomationSchedule) {
   return `Every ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
 }
 
+const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
+
+function parseDayNumbers(field: string) {
+  const days: number[] = [];
+  for (const part of field.split(',')) {
+    const range = /^(\d+)-(\d+)$/.exec(part);
+    if (range) {
+      const from = numberInRange(range[1], 0, 7);
+      const to = numberInRange(range[2], 0, 7);
+      if (from === undefined || to === undefined || from > to) return undefined;
+      for (let day = from; day <= to; day += 1) days.push(normalizeDay(day));
+      continue;
+    }
+    const single = numberInRange(part, 0, 7);
+    if (single === undefined) return undefined;
+    days.push(normalizeDay(single));
+  }
+  const unique = [...new Set(days)].sort();
+  return unique.length ? unique : undefined;
+}
+
+/**
+ * The structured counterpart to `formatAutomationSchedule`: the editor needs
+ * the repeat kind, selected weekdays and time as separate fields rather than
+ * one sentence. Returns undefined for schedules the editor cannot represent
+ * (interval and one-off schedules, or a cron expression it cannot parse) so
+ * callers can avoid displaying a schedule they would have to invent.
+ */
+export function automationScheduleFields(task: StewardAutomationTask) {
+  const schedule = task.schedule;
+  if (schedule?.kind !== 'cron' || !schedule.expr) return undefined;
+
+  const fields = schedule.expr.trim().split(/\s+/);
+  if (fields.length !== 5) return undefined;
+
+  const [minuteField, hourField, dayOfMonthField, monthField, dayOfWeekField] =
+    fields;
+  const minute = numberInRange(minuteField, 0, 59);
+  const hour = numberInRange(hourField, 0, 23);
+  if (minute === undefined || hour === undefined) return undefined;
+
+  const timeLabel = formatTime(hour, minute);
+
+  if (dayOfMonthField === '*' && monthField === '*') {
+    if (dayOfWeekField === '*') {
+      return { repeat: 'Daily' as const, selectedDays: ALL_DAYS, timeLabel };
+    }
+    const selectedDays = parseDayNumbers(dayOfWeekField);
+    if (!selectedDays) return undefined;
+    return { repeat: 'Weekly' as const, selectedDays, timeLabel };
+  }
+
+  if (dayOfWeekField === '*' && numberInRange(dayOfMonthField, 1, 31)) {
+    if (monthField === '*') {
+      return { repeat: 'Monthly' as const, selectedDays: [], timeLabel };
+    }
+    if (numberInRange(monthField, 1, 12)) {
+      return { repeat: 'Yearly' as const, selectedDays: [], timeLabel };
+    }
+  }
+
+  return undefined;
+}
+
 export function formatAutomationSchedule(task: StewardAutomationTask) {
   const schedule = task.schedule;
   if (!schedule) return 'Schedule unavailable';

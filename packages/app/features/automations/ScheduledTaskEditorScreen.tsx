@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useMemo, useState } from 'react';
 
 import type { RootStackParamList } from '../../navigation/types';
+import { automationScheduleFields } from '../../ui/components/formatAutomationSchedule';
 import {
   type RecurringTaskDraft,
   RecurringTaskEditorView,
@@ -27,17 +28,19 @@ export function ScheduledTaskEditorScreen({ navigation, route }: Props) {
   const task = route.params.taskId
     ? tasksForShip(query.data, route.params.botShip)[route.params.taskId]
     : undefined;
-  const initialDraft = useMemo<RecurringTaskDraft>(
-    () =>
-      task
-        ? {
-            ...emptyDraft,
-            name: task.name || task.description || 'Untitled task',
-            prompt: task.payload?.message || task.description || '',
-          }
-        : emptyDraft,
-    [task]
-  );
+  const initialDraft = useMemo<RecurringTaskDraft>(() => {
+    if (!task) return emptyDraft;
+    // Only override the placeholder repeat/day/time fields when the schedule
+    // can actually be represented; otherwise the card would assert a schedule
+    // the task does not have.
+    const schedule = automationScheduleFields(task);
+    return {
+      ...emptyDraft,
+      ...schedule,
+      name: task.name || task.description || 'Untitled task',
+      prompt: task.payload?.message || task.description || '',
+    };
+  }, [task]);
   const [draftOverride, setDraftOverride] = useState<RecurringTaskDraft | null>(
     null
   );
