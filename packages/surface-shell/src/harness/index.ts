@@ -1,7 +1,11 @@
 import htm from 'htm';
 import { ComponentChild, h, render } from 'preact';
 
-import { BrokenState, primitives } from '../primitives/index';
+import {
+  BrokenState,
+  PrimitiveKit,
+  createPrimitiveKit,
+} from '../primitives/index';
 import { isHostToShellMessage } from '../protocol/guards';
 import {
   ACTION_ID_MAX_LENGTH,
@@ -40,11 +44,19 @@ export interface SurfaceApi {
   /** htm bound to preact's h — apps write `surface.html\`...\`` */
   html: (strings: TemplateStringsArray, ...values: unknown[]) => ComponentChild;
   h: typeof h;
-  primitives: typeof primitives;
   /**
-   * The vendored Chart.js constructor, when the environment ships it (the
-   * artifact does; harness unit tests run chart-free). Presentation
-   * tooling, not a capability.
+   * The visual kit, including the `Chart` primitive bound to this shell's
+   * Chart.js constructor. Charting goes through `primitives.Chart` —
+   * pass it data and options and it owns the container, the canvas node
+   * and the instance lifecycle.
+   */
+  primitives: PrimitiveKit;
+  /**
+   * The raw vendored Chart.js constructor, when the environment ships it
+   * (the artifact does; harness unit tests run chart-free). Kept as the
+   * low-level escape hatch for chart work the primitive cannot express;
+   * app bundles should reach for `primitives.Chart` instead, which is the
+   * only path that gets container sizing right on a phone.
    */
   Chart?: unknown;
   register(app: SurfaceApp): void;
@@ -168,7 +180,7 @@ export function createSurfaceShell(options: {
   const api: SurfaceApi = {
     html,
     h,
-    primitives,
+    primitives: createPrimitiveKit(options.chart),
     Chart: options.chart,
     register(nextApp: SurfaceApp) {
       if (

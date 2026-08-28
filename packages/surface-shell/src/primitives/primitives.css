@@ -182,6 +182,45 @@
   margin: var(--space-xl) 0 var(--space-m) 0;
 }
 
+/*
+ * The chart box. An ASPECT-RATIO BOX, not a height prop: the height is
+ * derived from whatever width the card gives it, so one declaration works
+ * at a 393pt phone and a wide desktop card, and an app bundle never has a
+ * pixel dimension to guess wrong. `min-height` keeps the box from
+ * collapsing (Chart.js with maintainAspectRatio:false draws into whatever
+ * height the container has, including zero); `max-height` keeps a wide
+ * card from producing an absurdly tall chart.
+ */
+.tsh-chart {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 160px;
+  max-height: 320px;
+  margin: var(--space-m) 0;
+}
+
+.tsh-chart--compact {
+  aspect-ratio: 12 / 5;
+  min-height: 120px;
+  max-height: 200px;
+}
+
+.tsh-chart--tall {
+  aspect-ratio: 4 / 3;
+  min-height: 220px;
+  max-height: 420px;
+}
+
+/* Chart.js sets the canvas's inline width/height on every resize; these
+   are the pre-first-resize values and the overflow backstop. */
+.tsh-chart > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+}
+
 .tsh-broken {
   border: 1px solid var(--color-negative-border);
   background: var(--color-negative-bg);

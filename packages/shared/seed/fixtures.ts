@@ -710,7 +710,11 @@ export function buildFixtures(): SeedFixture[] {
       spec: (bundle) => ({
         version: 1,
         surfaceId: 'seed-workout',
-        specRevision: 1,
+        // bumped when the bundle's bytes change: the sha256 in `bundle`
+        // changes but nothing else does, and a client that already synced
+        // revision 1 has no signal to re-read the spec or re-fetch. A real
+        // `surface publish` bumps for the same reason (§9).
+        specRevision: 2,
         title: 'StrongLifts 5×5',
         bundle,
         // The log, and nothing derived. Working weight, the A/B

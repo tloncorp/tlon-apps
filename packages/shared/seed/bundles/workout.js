@@ -18,15 +18,24 @@
 // Two things this app deliberately does not do, because v0 cannot:
 //   - it never calls `Date`. The sandbox has a clock, but it is the
 //     VIEWER's, and the rollover boundary is the HOST's; showing one as
-//     the other would be a lie. The scratch area is labeled "since the
-//     last rollover", not "today's date".
+//     the other would be a lie. So the UI says "this session" — true
+//     regardless of date, and how lifters already talk. Never "today",
+//     and never mechanism words like "rollover" or "scratch" (D55).
 //   - it cannot say which crew member is looking at it. The shell's init
 //     message carries `canInvoke` but no viewer identity, so the log
 //     controls are labeled "you" and the per-ship board is shown in full.
 (function () {
-  const { html, primitives, invoke, canInvoke, Chart } = surface;
-  const { Card, Button, ListRow, SectionHeader, Stat, Badge, EmptyState } =
-    primitives;
+  const { html, primitives, invoke, canInvoke } = surface;
+  const {
+    Card,
+    Button,
+    ListRow,
+    SectionHeader,
+    Stat,
+    Badge,
+    EmptyState,
+    Chart,
+  } = primitives;
 
   const has = function (object, key) {
     return Object.prototype.hasOwnProperty.call(object, key);
@@ -199,47 +208,25 @@
   /* chart                                                             */
   /* ---------------------------------------------------------------- */
 
-  // Every color the chart draws with is read out of the shell's token
-  // variables at render time, so the chart follows the host theme and no
-  // color literal appears in this bundle.
-  const SERIES_TOKENS = [
-    '--color-positive-text',
-    '--color-negative-text',
-    '--color-text-secondary',
-    '--color-text-tertiary',
-  ];
-
-  const token = function (name) {
-    try {
-      const raw = getComputedStyle(document.documentElement).getPropertyValue(
-        name
-      );
-      const value = raw == null ? '' : raw.trim();
-      return value.length > 0 ? value : undefined;
-    } catch (error) {
-      return undefined;
-    }
-  };
-
-  const chartConfig = function (state, ships, progress) {
+  // The shell's `Chart` primitive owns the container, the canvas and the
+  // Chart.js instance, so this app hands it a series and nothing else: no
+  // width, no height, no colors. Series colors come from the shell's token
+  // variables in declaration order, and the axes, grid and legend follow
+  // the host theme — so no color literal appears in this bundle either.
+  const chartData = function (state, ships, progress) {
     const dates = datesOf(state);
     const liftId = state.chartLift || 'squat';
-    const grid = token('--color-border');
-    const ink = token('--color-text-secondary');
 
-    const datasets = ships.map(function (ship, index) {
+    const datasets = ships.map(function (ship) {
       const byDate = {};
       for (const point of progress[ship].series[liftId] || []) {
         byDate[point.date] = point.weight;
       }
-      const color = token(SERIES_TOKENS[index % SERIES_TOKENS.length]);
       return {
         label: ship,
         data: dates.map(function (date) {
           return has(byDate, date) ? byDate[date] : null;
         }),
-        borderColor: color,
-        backgroundColor: color,
         borderWidth: 2,
         pointRadius: 3,
         spanGaps: true,
@@ -247,37 +234,7 @@
       };
     });
 
-    return {
-      type: 'line',
-      data: { labels: dates, datasets: datasets },
-      options: {
-        animation: false,
-        responsive: false,
-        plugins: { legend: { labels: { color: ink } } },
-        scales: {
-          x: { ticks: { color: ink }, grid: { color: grid } },
-          y: { ticks: { color: ink }, grid: { color: grid } },
-        },
-      },
-    };
-  };
-
-  // Charting from a pure `render(state)` with no hooks: the canvas carries
-  // a `ref` CALLBACK whose identity changes every render, so Preact calls
-  // the previous one with null (teardown) and the new one with the node
-  // (setup). The single live handle is the only mutable thing in the app.
-  let chart = null;
-  const attach = function (config) {
-    return function (node) {
-      if (chart !== null) {
-        chart.destroy();
-        chart = null;
-      }
-      if (node == null) {
-        return;
-      }
-      chart = new Chart(node, config);
-    };
+    return { labels: dates, datasets: datasets };
   };
 
   /* ---------------------------------------------------------------- */
@@ -310,20 +267,17 @@
         logged += Object.keys(today[ship] || {}).length;
       }
 
-      const chartable = typeof Chart === 'function' && dates.length > 0;
+      const chartable = dates.length > 0;
 
       return html`
         <${Card} title=${state.program || 'Workout'}>
           <div data-testid="workout-summary">
             <${Stat}
               value=${String(dates.length)}
-              label="sessions archived"
+              label="sessions completed"
               hint=${state.progression || ''}
             />
-            <${Stat}
-              value=${String(logged)}
-              label="lifts logged since the last rollover"
-            />
+            <${Stat} value=${String(logged)} label="logged this session" />
           </div>
 
           <${SectionHeader}>Log your session<//>
@@ -377,7 +331,7 @@
             `}
           >
             <div>
-              ${'Mis-tapped? Clearing removes only your own scratch entries.'}
+              ${'Mis-tapped? This clears only your own entries for this session.'}
             </div>
           <//>
         <//>
@@ -441,24 +395,23 @@
         >
           ${chartable
             ? html`<div data-testid="workout-chart-host">
-                <canvas
-                  data-testid="workout-chart-canvas"
-                  width="560"
-                  height="260"
-                  ref=${attach(chartConfig(state, ships, progress))}
-                ></canvas>
+                <${Chart}
+                  type="line"
+                  label="Working weight over time"
+                  data=${chartData(state, ships, progress)}
+                />
               </div>`
             : html`<${EmptyState}
                 title="Nothing to chart yet"
-                description="Archived sessions appear here after the first rollover."
+                description="Your past sessions will appear here."
               />`}
         <//>
 
-        <${Card} title="Archived sessions">
+        <${Card} title="Past sessions">
           ${dates.length === 0
             ? html`<${EmptyState}
-                title="No rollover has happened yet"
-                description="The channel host archives the scratch area under a date."
+                title="No sessions saved yet"
+                description="Sessions are saved automatically once you finish."
               />`
             : dates
                 .slice()
