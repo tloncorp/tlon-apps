@@ -299,3 +299,103 @@ test('a local window that cannot reach coverage reports partial, not state', asy
   // it did ask the network for the missing range
   expect(backfill).toHaveBeenCalled();
 });
+
+test('a channel whose metadata is ahead of its posts reports partial', async () => {
+  await insertSurfaceChannel(spec());
+  // contiguous local history 1..50, so the OLDEST end is fully covered
+  await insertPosts(
+    Array.from({ length: 50 }, (_, i) =>
+      makePost(i + 1, MEMBER, [invokeEntry('log-entry')])
+    )
+  );
+  // but the server has advertised sequence 100: 51..100 never synced here,
+  // and another client is already showing their effects
+  await db.setLatestChannelSequenceNum({
+    channelId: CHANNEL,
+    sequenceNum: 100,
+  });
+
+  const backfill = noopBackfill();
+  const result = await hydrateSurface({ channelId: CHANNEL, backfill });
+
+  expect(result.status).toBe('partial');
+  // a truncated fold carries no state at all — not even an empty one (§6)
+  expect('state' in result).toBe(false);
+  expect('reduction' in result).toBe(false);
+  expect('stateFull' in result).toBe(false);
+  // it tried the newest end before giving up
+  expect(backfill).toHaveBeenCalledWith(
+    expect.objectContaining({ channelId: CHANNEL, mode: 'newest' })
+  );
+});
+
+test('the same channel hydrates once its posts catch up to the head', async () => {
+  await insertSurfaceChannel(spec());
+  await insertPosts(
+    Array.from({ length: 50 }, (_, i) =>
+      makePost(i + 1, MEMBER, [invokeEntry('log-entry')])
+    )
+  );
+  await db.setLatestChannelSequenceNum({
+    channelId: CHANNEL,
+    sequenceNum: 100,
+  });
+  const behind = await hydrateSurface({
+    channelId: CHANNEL,
+    backfill: noopBackfill(),
+  });
+  expect(behind.status).toBe('partial');
+
+  // 51..100 land
+  await insertPosts(
+    Array.from({ length: 50 }, (_, i) =>
+      makePost(i + 51, MEMBER, [invokeEntry('log-entry')])
+    )
+  );
+
+  const caughtUp = await hydrateSurface({
+    channelId: CHANNEL,
+    backfill: noopBackfill(),
+  });
+  expect(caughtUp.status).toBe('hydrated');
+  expect((caughtUp.state!.log as unknown[]).length).toBe(100);
+  expect(caughtUp.oldestLoadedSeq).toBe(1);
+  expect(caughtUp.newestLoadedSeq).toBe(100);
+});
+
+test('a head post that folds no event still counts as coverage', async () => {
+  await insertSurfaceChannel(spec());
+  await insertPosts([
+    makePost(1, MEMBER, [invokeEntry('vote')]),
+    // an ordinary chat message at the head: nothing for the reducer to fold,
+    // so the newest FOLDED sequence stays at 1 while the head is 2
+    makePost(2, MEMBER, [], { blob: null }),
+  ]);
+
+  const result = await hydrateSurface({
+    channelId: CHANNEL,
+    backfill: noopBackfill(),
+  });
+  expect(result.status).toBe('hydrated');
+  expect(result.state!.votes).toEqual({ [MEMBER]: 'yes' });
+  expect(result.reduction?.newestFoldedSeq).toBe(1);
+  expect(result.newestLoadedSeq).toBe(2);
+});
+
+test('a channel with no synced head withholds state rather than guess', async () => {
+  await insertSurfaceChannel(spec());
+  await insertPosts(
+    Array.from({ length: 5 }, (_, i) =>
+      makePost(i + 1, MEMBER, [invokeEntry('log-entry')])
+    )
+  );
+  // no head watermark was ever recorded for this channel
+  await db.updateChannel({ id: CHANNEL, lastPostSequenceNum: null });
+
+  const result = await hydrateSurface({
+    channelId: CHANNEL,
+    backfill: noopBackfill(),
+  });
+  expect(result.status).toBe('partial');
+  expect('state' in result).toBe(false);
+});

@@ -18,6 +18,15 @@ const logger = createDevLogger('surfaceHydration', false);
  * boundary or the channel start, and reduce. No UI here; "bundle
  * unavailable" and "update to view" for shellVersion belong to the
  * renderer sessions.
+ *
+ * Coverage has TWO ends and both are proven before any state is presented.
+ * The oldest end is the paging loop below. The newest end is the channel's
+ * advertised head: local rows routinely trail the backend, and folding a
+ * truncated history would hand the renderer a state that another client
+ * has already moved past — two clients silently disagreeing about
+ * "current". Per §6 an incomplete fold is wrong derived state, not stale
+ * state, so a fold that cannot reach the head reports `partial` and
+ * carries nothing.
  */
 
 export type SurfaceHydrationStatus =
@@ -133,9 +142,9 @@ export async function hydrateSurface(
     mode: 'newest',
     count: pageSize,
   });
+  let head = await db.getLatestChannelSequenceNum({ channelId });
   if (posts.length === 0) {
-    const latestSeq = await db.getLatestChannelSequenceNum({ channelId });
-    if (latestSeq === 0) {
+    if (head === 0) {
       // genuinely empty channel: fold over nothing
       return completeState(channelId, spec, []);
     }
@@ -147,6 +156,7 @@ export async function hydrateSurface(
         mode: 'newest',
         count: pageSize,
       });
+      head = await db.getLatestChannelSequenceNum({ channelId });
     }
     if (posts.length === 0) {
       // no loadable window over a non-empty (or unknown) channel
@@ -154,9 +164,32 @@ export async function hydrateSurface(
     }
   }
 
+  // Newest-end coverage, settled before any paging: the window anchors at the
+  // newest local row and the loop below only ever extends it downward, so this
+  // never changes once decided. One backfill attempt, then a decision — the
+  // same single-shot discipline as `readOlderLocalFirst`, which is what keeps
+  // a channel whose head we can never reach from looping the network forever.
+  if (!reachesHead(newestOf(posts), head) && backfill) {
+    await backfill({ channelId, mode: 'newest', count: pageSize });
+    posts = await db.getSequencedChannelPosts({
+      channelId,
+      mode: 'newest',
+      count: pageSize,
+    });
+    head = await db.getLatestChannelSequenceNum({ channelId });
+  }
+  if (!reachesHead(newestOf(posts), head)) {
+    logger.log('window does not reach the advertised head', {
+      channelId,
+      newest: newestOf(posts),
+      head,
+    });
+    return partialState(spec, oldestOf(posts), newestOf(posts));
+  }
+
   for (let page = 0; page <= maxPages; page++) {
-    const oldest = posts.at(-1)?.sequenceNum ?? null;
-    const newest = posts[0]?.sequenceNum ?? null;
+    const oldest = oldestOf(posts);
+    const newest = newestOf(posts);
     const reduction = reduceSurfaceChannel({ channelId, spec, posts });
 
     const coveredToStart = oldest === 1;
@@ -208,11 +241,56 @@ export async function hydrateSurface(
     channelId,
     maxPages,
   });
-  return partialState(
-    spec,
-    posts.at(-1)?.sequenceNum ?? null,
-    posts[0]?.sequenceNum ?? null
-  );
+  return partialState(spec, oldestOf(posts), newestOf(posts));
+}
+
+function oldestOf(posts: db.Post[]): number | null {
+  return posts.at(-1)?.sequenceNum ?? null;
+}
+
+function newestOf(posts: db.Post[]): number | null {
+  return posts[0]?.sequenceNum ?? null;
+}
+
+/**
+ * Does the loaded window reach the channel's advertised head?
+ *
+ * `head` is `channels.lastPostSequenceNum`, which sync writes from the
+ * `newest` field the posts scry returns (`setLatestChannelSequenceNum`) and
+ * otherwise only ever raises to the newest local row. It is therefore a
+ * SERVER watermark that can legitimately sit above everything we hold —
+ * which is the whole point: a purely locally-derived head would compare
+ * local against local and pass unconditionally.
+ *
+ * Compares the newest LOADED sequence number, not the newest FOLDED one.
+ * A surface channel's head post is frequently an ordinary chat message that
+ * folds no event, and `newestFoldedSeq` would then sit below the head
+ * forever, wedging every such channel on `partial`. What has to be proven is
+ * that no post exists above our window — that the fold isn't truncated — not
+ * that the head post happened to carry an event.
+ */
+function reachesHead(
+  newestLoadedSeq: number | null,
+  head: number | null
+): boolean {
+  if (newestLoadedSeq === null) {
+    return false;
+  }
+  if (head === null) {
+    // Never synced a head for this channel, so coverage is unprovable. §6
+    // makes the tie-break for us: an incomplete fold is wrong derived state,
+    // not stale state. A surface parked on a loading indicator is visibly
+    // unfinished and recovers on the next sync; a surface confidently
+    // rendering a truncated history disagrees with every other client and
+    // says nothing about it. So absence of a head withholds state.
+    //
+    // Nearly unreachable in practice: any channel holding sequenced posts
+    // locally has had the watermark set by `setLastPostsMonotonic` on
+    // insert, so a null head with a non-empty window means the local store
+    // is in a state we cannot reason about anyway.
+    return false;
+  }
+  return newestLoadedSeq >= head;
 }
 
 function partialState(
