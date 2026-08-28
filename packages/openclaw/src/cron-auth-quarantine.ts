@@ -115,7 +115,7 @@ async function readPersistedStreaks(
       await readFile(streakStorePath(workspaceDir), 'utf8')
     );
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      return {};
+      throw new Error('invalid persisted cron authentication streak store');
     }
     const valid: Record<string, AuthFailureStreak> = {};
     for (const [jobId, value] of Object.entries(parsed)) {
@@ -136,7 +136,7 @@ async function readPersistedStreaks(
     return valid;
   } catch (error) {
     if ((error as { code?: unknown }).code === 'ENOENT') return {};
-    return {};
+    throw error;
   }
 }
 
@@ -228,13 +228,11 @@ function isAuthenticationFailure(
     (event as ForwardCompatibleCronEvent).errorReason
   );
   const jobReason = normalizedReason(cronJobState(job)?.lastErrorReason);
-  if (
-    eventReason === 'auth' ||
-    eventReason === 'auth_permanent' ||
-    jobReason === 'auth' ||
-    jobReason === 'auth_permanent'
-  ) {
-    return true;
+  if (eventReason) {
+    return eventReason === 'auth' || eventReason === 'auth_permanent';
+  }
+  if (jobReason) {
+    return jobReason === 'auth' || jobReason === 'auth_permanent';
   }
 
   // Older hosts may not project the structured reason through plugin hook

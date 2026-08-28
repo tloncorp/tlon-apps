@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -162,6 +162,32 @@ describe('cron auth quarantine', () => {
     expect(notify).not.toHaveBeenCalled();
   });
 
+  it('honors a structured non-auth reason over nested 401 text', async () => {
+    const job = makeJob({
+      state: {
+        consecutiveErrors: 7,
+        lastError: 'timeout after previous provider response: 401 Unauthorized',
+        lastErrorReason: 'timeout',
+      },
+    });
+    const { service, update } = makeCronService(job);
+    setCronAuthQuarantineNotifier('default', async () => true);
+
+    await expect(
+      handleCronAuthQuarantine(
+        makeEvent({
+          error: 'timeout after previous provider response: 401 Unauthorized',
+          provider: 'openrouter',
+        }),
+        { getCron: () => service }
+      )
+    ).resolves.toEqual({
+      status: 'ignored',
+      reason: 'not-authentication-failure',
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('does not quarantine before an owner notifier is connected', async () => {
     const { service, update } = makeCronService();
 
@@ -273,6 +299,27 @@ describe('cron auth quarantine', () => {
     await handleCronAuthQuarantine(makeEvent({ runAtMs: 300 }), ctx);
 
     expect(update).toHaveBeenCalledWith('job-1', { enabled: false });
+  });
+
+  it('does not erase persisted streaks when the store is malformed', async () => {
+    const workspaceDir = await mkdtemp(
+      path.join(tmpdir(), 'tlon-cron-auth-quarantine-')
+    );
+    temporaryDirs.push(workspaceDir);
+    const storeDir = path.join(workspaceDir, '.openclaw');
+    const storePath = path.join(storeDir, 'tlon-cron-auth-streaks.json');
+    await mkdir(storeDir, { recursive: true });
+    await writeFile(storePath, '{truncated', 'utf8');
+    const { service } = makeCronService();
+    setCronAuthQuarantineNotifier('default', async () => true);
+
+    await expect(
+      handleCronAuthQuarantine(makeEvent({ runAtMs: 100 }), {
+        getCron: () => service,
+        workspaceDir,
+      })
+    ).rejects.toThrow();
+    await expect(readFile(storePath, 'utf8')).resolves.toBe('{truncated');
   });
 
   it('formats unnamed jobs with their stable id', () => {
