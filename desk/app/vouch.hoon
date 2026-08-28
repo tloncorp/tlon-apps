@@ -79,10 +79,31 @@
   ::  /x/status/<moon> -> the moon's status (%unknown if no record). the
   ::  trailing element (a mark like %noun on a gall %gx scry) is ignored.
   ::
+  ::  for our OWN moons, an %unknown record is backed by jael: keys exist
+  ::  for exactly two reasons -- steward minted the moon (which records
+  ::  %bot BEFORE registering keys) or the owner ran |moon (a real moon).
+  ::  so keys-without-a-%bot-record proves %real, with no time window to
+  ::  snapshot. this makes the sponsor's answer always authoritative for
+  ::  spawned moons; only a truly unspawned ship stays %unknown.
+  ::
       [%x %status @ *]
     =/  moon  (slav %p i.t.t.path)
     =/  =status:v  (~(gut by moons) moon %unknown)
-    ``noun+!>(status)
+    ?.  ?&  ?=(%unknown status)
+            ?=(%earl (clan:title moon))
+            =(our.bowl (^sein:title moon))
+        ==
+      ``noun+!>(status)
+    =/  ryf=(unit (unit rift))
+      %-  mole  |.
+      .^  (unit rift)  %j
+        /(scot %p our.bowl)/ryft/(scot %da now.bowl)/(scot %p moon)
+      ==
+    ?:  ?=([~ ~ *] ryf)
+      ``noun+!>(`status:v`%real)
+    ::  cast back up: the ?= in the guard narrowed .status to the constant
+    ::  %unknown, and the vase should carry the full status union
+    ``noun+!>(`status:v`status)
   ==
 ::
 ++  on-agent  on-agent:def

@@ -860,16 +860,18 @@
   ;<  caz=(list card)  bind:m  mint-default
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  %-  ex-arvo
-        :-  /roster/mint/(scot %p roster-mon)
-        [%j %moon roster-mon *id:block:jael %keys [1 1 roster-pass] %.n]
-      ::
+    :~  ::  %bot is recorded before the jael registration so %vouch's
+        ::  keys-imply-real inference can never observe keys first
         %-  ex-poke
         :*  /roster/vouch/(scot %p roster-mon)
             [~sampel-palnet %vouch]
             %vouch-learn
             !>(`learn:v`[roster-mon %bot])
         ==
+      ::
+        %-  ex-arvo
+        :-  /roster/mint/(scot %p roster-mon)
+        [%j %moon roster-mon *id:block:jael %keys [1 1 roster-pass] %.n]
       ::
         %-  ex-poke
         :*  /roster/profile/(scot %p roster-mon)

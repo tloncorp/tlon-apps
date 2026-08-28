@@ -239,16 +239,17 @@
   ^-  [ship context]
   ?.  ?=(%earl (clan:title partner))
     [partner /dm/(scot %p our.bowl)]
-  ::  our own bot moon: presence for it is always self-hosted at the
-  ::  vouched context (+inflate skips subscribing to ourselves, so this
-  ::  never produces an actual outgoing watch -- unchanged from before
-  ::  %vouch was consulted here).
-  ?:  =(our.bowl (^sein:title partner))
-    [our.bowl /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
-  ::  a foreign moon our own %vouch store believes has booted: watch it
-  ::  directly, like any other ship.
+  ::  a moon %vouch believes has booted -- OURS included -- is watched
+  ::  directly, like any other ship. this must precede the self-hosted
+  ::  branch: routing our own real moon to ourselves would be skipped by
+  ::  +inflate's self-watch guard and we'd never see its presence.
   ?:  =(%real (vouch-status partner bowl))
     [partner /dm/(scot %p our.bowl)]
+  ::  our own bot moon: presence for it is always self-hosted at the
+  ::  vouched context (+inflate skips subscribing to ourselves, so this
+  ::  never produces an actual outgoing watch).
+  ?:  =(our.bowl (^sein:title partner))
+    [our.bowl /vouched/(scot %p partner)/dm/(scot %p our.bowl)]
   ::  bot or unknown: it never boots (or we can't yet tell), so watch its
   ::  presence via its host (sponsor) on the vouched context; the host
   ::  relays the moon's presence to us. once the contacts resolver's

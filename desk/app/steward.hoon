@@ -826,14 +826,20 @@
     ::
     =/  cic  (pit:nu:cric:crypto 512 (shaz (jam mon 1 eny.bowl)) %b ~)
     =/  =pass  pub:ex:cic
-    =.  cor
-      %-  emit
-      [%pass /roster/mint/(scot %p mon) %arvo %j %moon mon *id:block:jael %keys [1 1 pass] %.n]
+    ::  classify %bot BEFORE registering keys: %vouch's status peek treats
+    ::  keys-without-a-%bot-record as proof of a real (|moon-made) moon, so
+    ::  this ordering is what makes that inference airtight. cards from one
+    ::  event are processed in order, so no query can observe the keys
+    ::  before the classification.
+    ::
     =.  cor
       %-  emit
       :*  %pass  /roster/vouch/(scot %p mon)  %agent  [our.bowl %vouch]
           %poke  %vouch-learn  !>(`learn:v`[mon %bot])
       ==
+    =.  cor
+      %-  emit
+      [%pass /roster/mint/(scot %p mon) %arvo %j %moon mon *id:block:jael %keys [1 1 pass] %.n]
     =/  con=contact:ct  (ro-build-contact nickname avatar)
     =.  cor
       %-  emit

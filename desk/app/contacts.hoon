@@ -151,8 +151,22 @@
       cor
     ?:  =(%real (vouch-status who))
       cor
-    %+  pass  /vouch-learn
-    [%agent [our.bowl %vouch] %poke unsafe+vouch-learn+!>([who %real])]
+    =.  cor
+      %+  pass  /vouch-learn
+      [%agent [our.bowl %vouch] %poke unsafe+vouch-learn+!>([who %real])]
+    ::  a formerly-%bot moon of ours may have live resolver subscribers
+    ::  still being served its bot profile: redirect them the same way a
+    ::  fresh resolver watch would (a %vouch-real fact, then a kick), so
+    ::  they switch to a direct subscription instead of staying stale.
+    ::
+    =/  vouch-path=path  /v1/vouch/(scot %p who)
+    ?.  ?&  =(our.bowl (^sein:title who))
+            %+  lien  ~(tap by sup.bowl)
+            |=([duct ship pat=path] =(vouch-path pat))
+        ==
+      cor
+    =.  cor  (give %fact ~[vouch-path] unsafe+vouch-real+!>(who))
+    (give %kick ~[vouch-path] ~)
   ::
   +|  %operations
   ::

@@ -55,6 +55,19 @@ through the host), so there is nothing to push and no reason to trust the claim.
 - `/x/status/<moon>` → `?(%unknown %real %bot)`. The moon's status, `%unknown`
   when there is no record.
 
+For our OWN moons, an `%unknown` record is backed by jael before answering:
+keys are registered for a moon by exactly two paths — steward's `%mint`,
+which records `%bot` in this store *before* the jael task (cards from one
+event are processed in order, so no query can observe the keys first), or
+`|moon`, which makes a real moon. Keys-without-a-`%bot`-record therefore
+proves `%real`, with no snapshot or time window; the check is a per-moon
+`%ryft` peek at answer time. This covers every moon that predates the
+system, and it means a sponsor's answer is authoritative for every spawned
+moon — only a truly unspawned ship reads `%unknown`, and the consumers'
+refuse-on-unknown behavior is exactly right for those. The check speaks
+only for moons we sponsor: another ship's moon having keys proves nothing
+we may attest to.
+
 ## Invariants
 
 - Writes are authority-gated: local for `%vouch-learn`, `src == sein(moon)` for

@@ -1588,5 +1588,35 @@
   ;<  ~  b  (set-src ~bud)
   ;<  caz=(list card)  b  (do-watch /v1/contact)
   (ex-cards caz ~[(ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))])
+::  when a moon WE host boots for real and contacts us directly, any live
+::  resolver subscribers still being served its bot profile are redirected
+::  the same way a fresh resolver watch would be: %vouch-real fact + kick
+::
+++  test-learn-real-redirects-resolver-subs
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our ~sampel-palnet)))
+  ;<  caz=(list card)  b  (do-init %contacts contacts-agent)
+  ;<  ~  b  (set-scry-gate bot-scries)
+  ;<  =bowl  b  get-bowl
+  =/  moon=ship  ~doznec-sampel-palnet
+  ::  a foreign ship holds a live resolver subscription for our bot moon
+  ::
+  ;<  ~  b  (set-src ~bus)
+  ;<  *  b  (do-watch /v1/vouch/(scot %p moon))
+  ::  the moon itself then watches us directly: learn it real AND redirect
+  ::  the resolver subscriber
+  ::
+  ;<  ~  b  (set-src moon)
+  ;<  caz=(list card)  b  (do-watch /v1/contact)
+  =/  vouch-path=path  /v1/vouch/(scot %p moon)
+  %+  ex-cards  caz
+  :~  (ex-poke /vouch-learn [our.bowl %vouch] vouch-learn+!>([moon %real]))
+      (ex-fact ~[vouch-path] vouch-real+!>(moon))
+      (ex-card [%give %kick ~[vouch-path] ~])
+      (ex-fact ~ contact-update-1+!>(`update`[%full now.bowl ~]))
+  ==
 --
 

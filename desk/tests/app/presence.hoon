@@ -256,9 +256,23 @@
   ::
   ;<  ~  b  (set-scry-gate (setup-scries splanet %unknown))
   ;<  caz=(list card)  b  (do-arvo /setup [%behn %wake ~])
+  ;<  ~  b
+    %+  ex-cards  caz
+    :~  (exp-watch splanet /dm/(scot %p human))
+        (ex-task /activity/all [human %activity] %watch /v4)
+    ==
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(wex ~)))
+  ::  OUR OWN moon that %vouch says is %real: watched directly like any
+  ::  ship -- the self-hosted vouched route would be skipped by +inflate's
+  ::  self-watch guard and we'd never see its presence
+  ::
+  ;<  ~  b  (jab-bowl |=(byl=bowl byl(our vhost, src vhost)))
+  ;<  ~  b  (set-scry-gate (setup-scries vmoon %real))
+  ;<  caz=(list card)  b  (do-arvo /setup [%behn %wake ~])
   %+  ex-cards  caz
-  :~  (exp-watch splanet /dm/(scot %p human))
-      (ex-task /activity/all [human %activity] %watch /v4)
+  :~  %^  ex-task  [%context-2 /dm/(scot %p vhost)]  [vmoon %presence]
+      [%watch-as %presence-update-1 [%context (scot %p vhost) /dm/(scot %p vhost)]]
+      (ex-task /activity/all [vhost %activity] %watch /v4)
   ==
 ::
 ::  "any traffic from a moon is real": a moon watching our presence
