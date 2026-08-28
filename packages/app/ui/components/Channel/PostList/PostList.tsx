@@ -604,6 +604,10 @@ const ConversationPostListAttempt = React.forwardRef<
           Platform.OS === 'ios' ? 'never' : undefined
         }
         keyboardLiftBehavior="always"
+        // Android already resizes the window for the keyboard. Applying the
+        // list's keyboard lift as well double-counts that height and makes an
+        // end-anchor land below the last message when a post is sent.
+        freeze={Platform.OS === 'android'}
         keyboardOffset={insets.bottom}
         scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
         automaticallyAdjustsScrollIndicatorInsets={false}
