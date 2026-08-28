@@ -5,6 +5,7 @@ import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 import { sharedMap } from './shared-state.js';
 import {
   type MessageJourneyLoggerLike,
+  type TlonMessageJourneyDestinationKind,
   recordTlonMessageJourneyEvent,
 } from './message-journey.js';
 
@@ -113,8 +114,12 @@ export type TlonAgentTurnObserver = {
   recordTerminal(summary: TlonAgentTurnSummary): void;
 };
 
-export type TlonAgentTurnDispatchAttempt = TlonAgentTurnStart & {
+export type TlonAgentTurnDispatchAttempt = Omit<
+  TlonAgentTurnStart,
+  'destinationKind'
+> & {
   attemptNumber: number;
+  destinationKind: TlonMessageJourneyDestinationKind;
 };
 
 export type TlonAgentTurnDispatchOutcome = TlonAgentTurnDispatchAttempt & {
@@ -681,7 +686,9 @@ export function claimActiveTlonTurnOutput(): {
   };
 }
 
-function activeDispatchAttempt(): TlonAgentTurnDispatchAttempt | null {
+function activeDispatchAttempt(
+  destinationKind?: TlonMessageJourneyDestinationKind
+): TlonAgentTurnDispatchAttempt | null {
   const state = turnStorage.getStore();
   if (!state || state.finalized) {
     return null;
@@ -691,7 +698,7 @@ function activeDispatchAttempt(): TlonAgentTurnDispatchAttempt | null {
     accountId: state.accountId,
     agentId: state.agentId,
     attemptNumber: state.dispatchAttemptCount,
-    destinationKind: state.destinationKind,
+    destinationKind: destinationKind ?? state.destinationKind,
     inputMessageId: state.inputMessageId,
     runId: state.runId,
     sessionKey: state.sessionKey,
@@ -752,9 +759,10 @@ function extractOutputMessageId(result: unknown): string | undefined {
 }
 
 export async function observeActiveTlonTurnDelivery<T>(
-  delivery: () => Promise<T>
+  delivery: () => Promise<T>,
+  options?: { destinationKind?: TlonMessageJourneyDestinationKind }
 ): Promise<T> {
-  const attempt = activeDispatchAttempt();
+  const attempt = activeDispatchAttempt(options?.destinationKind);
   try {
     const result = await delivery();
     activeDispatchOutcome({
