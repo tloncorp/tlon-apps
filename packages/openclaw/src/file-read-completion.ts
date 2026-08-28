@@ -23,12 +23,13 @@ export type FileReadRevision = {
 type RunState = {
   anchors: string[];
   empty: boolean;
+  failed: boolean;
   revisionAttempts: number;
   truncated: boolean;
 };
 
 const DEFAULT_MAX_TRACKED_RUNS = 128;
-const MAX_ANCHORS_PER_RUN = 6;
+const MAX_ANCHORS_PER_RUN = 12;
 const MAX_ANCHOR_LENGTH = 180;
 const MAX_SUSPICIOUS_REPLY_LENGTH = 600;
 const MAX_REVISION_ATTEMPTS = 2;
@@ -43,7 +44,7 @@ const PROGRESS_ONLY = new RegExp(
 const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
-  /\b(?:found|contains?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b/i;
+  /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
 const TRUNCATION_MARKER = /^\s*\[(?:showing|reading|truncated)\b/im;
 
 function nonEmptyError(error: string | undefined): boolean {
@@ -197,6 +198,7 @@ export function createFileReadCompletionGuard(options?: {
     options?.maxTrackedRuns ?? DEFAULT_MAX_TRACKED_RUNS
   );
   const runs = new Map<string, RunState>();
+  const failedRuns = new Set<string>();
 
   function touch(runId: string, state: RunState): void {
     runs.delete(runId);
@@ -219,20 +221,29 @@ export function createFileReadCompletionGuard(options?: {
         toolResultIsError(input.result) ||
         resultHasNonTextContent(input.result)
       ) {
-        // A later failure or an opaque result means we can no longer prove the
-        // user's requested read succeeded. Suppress correction for this run.
+        // A failure for any read target makes a global completion correction
+        // unsafe. Keep that fact sticky so an unrelated later success cannot
+        // make us tell the model not to retry the failed read.
         runs.delete(runId);
+        failedRuns.delete(runId);
+        failedRuns.add(runId);
+        while (failedRuns.size > maxTrackedRuns) {
+          const oldest = failedRuns.values().next().value;
+          if (typeof oldest !== 'string') break;
+          failedRuns.delete(oldest);
+        }
         return;
       }
       const text = resultText(input.result);
 
       const existing = runs.get(runId);
       const anchors = Array.from(
-        new Set([...(existing?.anchors ?? []), ...contentAnchors(text)])
+        new Set([...contentAnchors(text), ...(existing?.anchors ?? [])])
       ).slice(0, MAX_ANCHORS_PER_RUN);
       touch(runId, {
         anchors,
         empty: anchors.length === 0 && !text.trim(),
+        failed: failedRuns.has(runId) || (existing?.failed ?? false),
         revisionAttempts: existing?.revisionAttempts ?? 0,
         truncated: Boolean(existing?.truncated) || TRUNCATION_MARKER.test(text),
       });
@@ -243,10 +254,15 @@ export function createFileReadCompletionGuard(options?: {
       const reply = input.lastAssistantMessage;
       if (!runId || !reply) return null;
       const state = runs.get(runId);
-      if (!state || state.revisionAttempts >= MAX_REVISION_ATTEMPTS)
+      if (
+        !state ||
+        state.failed ||
+        state.revisionAttempts >= MAX_REVISION_ATTEMPTS
+      )
         return null;
       if (
-        containsRepresentativeReadContent(reply, state.anchors) ||
+        (!state.truncated &&
+          containsRepresentativeReadContent(reply, state.anchors)) ||
         (!isIncompleteFileDeliveryReply(reply) &&
           !(
             EMPTY_DELIVERY_CLAIM.test(reply) &&
@@ -271,7 +287,10 @@ export function createFileReadCompletionGuard(options?: {
 
     clear(runId: string | undefined): void {
       const key = runId?.trim();
-      if (key) runs.delete(key);
+      if (key) {
+        runs.delete(key);
+        failedRuns.delete(key);
+      }
     },
 
     trackedRunCount(): number {

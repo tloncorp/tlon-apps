@@ -231,6 +231,24 @@ describe('file read completion guard', () => {
     expect(revision?.retry.instruction).not.toContain('Do not call read again');
   });
 
+  it('does not accept sampled lines as a complete truncated delivery', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'truncated-delivery',
+        'first line\nsecond line\nthird line\n[Showing lines 1-20 of 40]'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'truncated-delivery',
+        lastAssistantMessage:
+          'Here are the requested contents:\nfirst line\nsecond line\nthird line',
+      })?.retry.instruction
+    ).toContain('Continue reading');
+  });
+
   it('preserves truncation when a later read result has no marker', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
@@ -260,6 +278,36 @@ describe('file read completion guard', () => {
       'summary, transformation, or inspection'
     );
     expect(revision?.retry.instruction).toContain('perform that instead');
+  });
+
+  it('keeps enough anchors from a later read', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('later-target', 'a1\na2\na3\na4\na5\na6')
+    );
+    guard.recordToolResult(
+      successfulRead('later-target', 'b1\nb2\nb3\nb4\nb5\nb6')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'later-target',
+        lastAssistantMessage:
+          'Here are the requested contents:\nb1\nb2\nb3\nb4\nb5\nb6',
+      })
+    ).toBeNull();
+  });
+
+  it('treats a gerund result sentence as substantive', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('gerund-result'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'gerund-result',
+        lastAssistantMessage: 'Reading the CSV confirms there are 31 rows.',
+      })
+    ).toBeNull();
   });
 
   it('ignores failed, non-read, and unkeyed tool results', () => {
@@ -310,6 +358,23 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'later-failure',
         lastAssistantMessage: 'Opening the file now.',
+      })
+    ).toBeNull();
+  });
+
+  it('keeps a read failure sticky across an unrelated later success', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'failed-then-success',
+      toolName: 'read',
+      error: 'permission denied',
+    });
+    guard.recordToolResult(successfulRead('failed-then-success'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'failed-then-success',
+        lastAssistantMessage: 'Reading the failed file again now.',
       })
     ).toBeNull();
   });
