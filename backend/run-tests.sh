@@ -125,24 +125,24 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Unmount and mount %groups
-echo "Mounting groups..."
+# Create and mount %tlon
+echo "Creating %tlon..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%groups))  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-merge+!>([%tlon our.bowl %base 0 %auto]))
 ;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %groups]))  
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) ~]
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %tlon]))
 (pure:m !>(%ok))  
 EOF
 
 # Insert the jammed pill
 
-if [ ! -f "${pier}/groups/${pill_name}.jam" ]
+if [ ! -f "${pier}/tlon/${pill_name}.jam" ]
 then
-  cp $pill ${pier}/groups/${pill_name}.jam
+  cp $pill ${pier}/tlon/${pill_name}.jam
 fi
 
 echo "Updating base desk..."
@@ -154,10 +154,10 @@ $run_click $pier <<EOF
 EOF
 
 # TODO: We should figure out the source ship for this file and delete it
-rm -f $pier/groups/tests/lib/diary-graph.hoon
+rm -f $pier/tlon/tests/lib/diary-graph.hoon
 
-# Update the groups desk. Assemble the full desk (desk-deps/ vendored deps +
-# desk/ source) and overlay it onto the pill's groups desk. The pill provides a
+# Update the tlon desk. Assemble the full desk (desk-deps/ vendored deps +
+# desk/ source) and overlay it onto the pill's tlon desk. The pill provides a
 # bootable base; the assembled tree brings in peru-vendored deps (e.g.
 # sur/mcp-proxy) that live only in desk-deps/. Overlaid without --delete so the
 # pill's own artifacts (the jammed pill used by the aqua tests) are preserved.
@@ -166,14 +166,14 @@ assembled=$(mktemp -d)
 # assemble-desk stamps the git hash into commit.txt; keep the 'development'
 # placeholder the logs test (/tests/app/logs) asserts on instead.
 cp desk/commit.txt "$assembled/commit.txt"
-rsync -r "$assembled"/ $pier/groups
+rsync -r "$assembled"/ $pier/tlon
 rm -rf "$assembled"
 
-rsync -r --delete desk/tests/ $pier/groups/tests
+rsync -r --delete desk/tests/ $pier/tlon/tests
 
 result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
-;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /tlon)
 (pure:m !>(hash))  
 EOF
 )
@@ -186,11 +186,11 @@ then
   exit 1
 fi
 
-echo "Updating groups desk"
+echo "Updating tlon desk"
 ${run_click} $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%tlon |]))
 (pure:m !>(%ok))  
 EOF
 
@@ -200,7 +200,7 @@ await_ship
 
 result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
-;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /tlon)
 (pure:m !>(hash))  
 EOF
 )
@@ -227,7 +227,7 @@ result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests ~]  
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) %tests ~]
 ;<  =thread-result  bind:m  
   (await-thread %test !>(\`tests))  
 ?:  ?=(%| -.thread-result)  
@@ -258,7 +258,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
 ;<  ~      bind:m  (sleep ~s0)  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
-=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam  
+=+  pill-path=/(scot %p p.byk.bowl)/tlon/(scot %da now.bowl)/${pill_name}/jam
 =+  .^(pil=@ %cx pill-path)  
 =/  pill  ;;(pill:pill (cue pil))  
 ;<  ~  bind:m  (poke [our.bowl %aqua] pill+!>(pill))  
@@ -273,7 +273,7 @@ result=$( $run_click $pier <<EOF
 =+  tid=~.ci-ph-fleet  
 =/  args  
   [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet] &]  
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %tlon) %ph-fleet !>(\`args)])
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
 ;<  =cage  bind:m  (take-fact /awaiting/[tid])  
@@ -306,11 +306,11 @@ result=$( $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) %tests %ph ~]
 =/  args  
   [\`ph-tests %ci-aqua-tests]  
 =+  tid=~.ci-ph-test  
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %tlon) %ph-test !>(\`args)])
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
 ;<  =cage  bind:m  (take-fact /awaiting/[tid])  
@@ -341,4 +341,3 @@ fi
 
 kill -TERM $vere_pid
 exit 0
-
