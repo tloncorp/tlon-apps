@@ -1,5 +1,9 @@
 import * as api from '@tloncorp/api';
-import { SurfaceEventEntrySchema, SurfaceSpec } from '@tloncorp/api';
+import {
+  SurfaceEventEntrySchema,
+  SurfaceSpec,
+  getDeclaredAction,
+} from '@tloncorp/api';
 import { constructStory } from '@tloncorp/api/urbit';
 
 import { createDevLogger } from '../../debug';
@@ -40,6 +44,10 @@ export function buildSurfaceInvokeBlob(params: {
  * - fallback Story text so pre-surface clients degrade to an inert chat
  *   message;
  * - `specRevision` stamped from the host's own spec, never a message;
+ * - the action must be declared by that same spec, and the blob must
+ *   validate — the writer re-checks both rather than trusting whichever
+ *   caller reached it, so an undeclared action never becomes a signed
+ *   post no matter how it got here;
  * - success is judged by the post being observed back through the
  *   channel subscription and refolded — NOT by the poke ack. This action
  *   only fires the post; the hydration layer converges on the result.
@@ -53,6 +61,15 @@ export async function sendSurfaceInvoke({
   spec: SurfaceSpec;
   actionId: string;
 }): Promise<void> {
+  // own-property lookup, so an inherited name can never resolve
+  if (getDeclaredAction(spec, actionId) === undefined) {
+    logger.trackError('refusing to post an undeclared surface action', {
+      channelId,
+      actionId,
+    });
+    return;
+  }
+
   const blob = buildSurfaceInvokeBlob({
     surfaceId: spec.surfaceId,
     specRevision: spec.specRevision,

@@ -86,10 +86,38 @@ test('sendSurfaceInvoke posts one entry under the surface/event kind tail', asyn
 });
 
 test('sendSurfaceInvoke never posts a malformed invoke', async () => {
+  // declared, so the undeclared-action gate passes it through and the blob
+  // validation is what refuses it
+  await sendSurfaceInvoke({
+    channelId: 'chat/~zod/dash',
+    spec: { ...SPEC, actions: { ...SPEC.actions, 'BAD ID': { ops: [] } } },
+    actionId: 'BAD ID',
+  });
+  expect(sendPostMock).not.toHaveBeenCalled();
+});
+
+test('sendSurfaceInvoke never posts an action the spec does not declare', async () => {
   await sendSurfaceInvoke({
     channelId: 'chat/~zod/dash',
     spec: SPEC,
-    actionId: 'BAD ID',
+    actionId: 'ghost',
+  });
+  expect(sendPostMock).not.toHaveBeenCalled();
+});
+
+test('sendSurfaceInvoke does not resolve an inherited name as an action', async () => {
+  // `spec.actions['constructor']` resolves off the prototype; the writer's
+  // own-property lookup does not. Note this asserts the OUTCOME, not which
+  // gate produced it: at this layer `constructor` is refused twice over,
+  // since ActionIdSchema's reserved-key refinement would also fail the blob.
+  // The discriminating version of this test is in the session
+  // (packages/app .../sandboxSession.test.ts), whose bridge schema has no
+  // such refinement.
+  expect((SPEC.actions as Record<string, unknown>).constructor).toBeDefined();
+  await sendSurfaceInvoke({
+    channelId: 'chat/~zod/dash',
+    spec: SPEC,
+    actionId: 'constructor',
   });
   expect(sendPostMock).not.toHaveBeenCalled();
 });

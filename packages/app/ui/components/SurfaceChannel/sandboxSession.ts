@@ -1,4 +1,8 @@
-import type { JsonObject, SurfaceSpec } from '@tloncorp/api';
+import {
+  type JsonObject,
+  type SurfaceSpec,
+  getDeclaredAction,
+} from '@tloncorp/api';
 // the /debug subpath keeps this module (and its vitest suite) off the
 // shared barrel, which drags expo-modules-core into node tests
 import { createDevLogger } from '@tloncorp/shared/debug';
@@ -18,9 +22,50 @@ const logger = createDevLogger('surfaceSandboxSession', false);
  *   initialized the sandbox with; a mismatch means a stale sandbox and the
  *   invoke is dropped and logged. The caller stamps its own revision when
  *   constructing the event.
+ * - The host also trusts its own PERMISSION and its own SPEC: an invoke is
+ *   dropped unless this session currently holds write permission and the
+ *   actionId is an own property of the initialized spec's actions. The
+ *   shell disables controls for both cases, but a bundle can post the
+ *   message directly, so neither is enforced by the sandbox's chrome.
  * - Outbound messages are JSON strings (the shell parses both, but
  *   strings survive every transport identically).
  */
+
+/**
+ * Telemetry bound for the sandbox-chosen `message` on a shell error
+ * report. Diagnostics only: a prefix is enough to recognize a stack or a
+ * thrown string, and the full text stays in the local dev log.
+ */
+export const SHELL_ERROR_TELEMETRY_DETAIL_LIMIT = 256;
+
+/**
+ * At most this many shell errors per session reach telemetry. A looping
+ * bundle can emit `error` as fast as it likes; after the cap the session
+ * keeps logging locally and keeps calling `onShellError`, but stops
+ * spending network on a fault that has already been reported.
+ */
+export const SHELL_ERROR_TELEMETRY_REPORT_LIMIT = 5;
+
+const SHELL_ERROR_CATEGORIES = ['init', 'render', 'bridge'] as const;
+
+export type ShellErrorCategory =
+  | (typeof SHELL_ERROR_CATEGORIES)[number]
+  | 'unknown';
+
+/**
+ * Map a reported phase onto a fixed enum before it can reach telemetry.
+ *
+ * The protocol schema already narrows `phase` to these three literals, so
+ * in the current wiring `'unknown'` is unreachable from `handleInbound` —
+ * this is deliberately not a schema-shaped guarantee. The rule is that
+ * NOTHING the sandbox chooses reaches the telemetry path as a raw string,
+ * held here rather than borrowed from a validator one package away.
+ */
+export function shellErrorCategory(phase: string): ShellErrorCategory {
+  return (SHELL_ERROR_CATEGORIES as readonly string[]).includes(phase)
+    ? (phase as ShellErrorCategory)
+    : 'unknown';
+}
 
 export type ShellTheme = 'light' | 'dark';
 
@@ -73,6 +118,7 @@ export function createSandboxSession(
   let theme = options.theme;
   let canInvoke = options.canInvoke;
   let ready = false;
+  let telemetryReports = 0;
 
   function post(message: unknown) {
     try {
@@ -127,13 +173,56 @@ export function createSandboxSession(
             });
             return;
           }
+          // the shell disables controls when permission is off, but that
+          // is the sandbox's chrome, not a gate: re-check the permission
+          // this session currently holds.
+          if (!canInvoke) {
+            logger.log('dropping invoke without write permission', {
+              actionId: message.actionId,
+            });
+            return;
+          }
+          // and only actions this session's spec actually declares —
+          // own-property, so no inherited name resolves as an action.
+          if (getDeclaredAction(spec, message.actionId) === undefined) {
+            logger.log('dropping undeclared-action invoke', {
+              actionId: message.actionId,
+            });
+            return;
+          }
           options.onInvoke(message.actionId);
           return;
         case 'error':
-          logger.trackError('surface shell reported an error', {
-            phase: message.phase,
-            message: message.message,
-          });
+          // The sandbox chooses both `phase` and `message`, so the two
+          // consumers get different treatment:
+          //
+          // - TELEMETRY (`trackError` → the configured PostHog/Sentry
+          //   logger) is BOUNDED, because it leaves the device: an enum'd
+          //   category instead of the reported phase, a truncated detail
+          //   instead of the reported message, and at most
+          //   SHELL_ERROR_TELEMETRY_REPORT_LIMIT reports per session. The
+          //   detail rides under `detail`, not `message`: trackError's
+          //   custom props are spread last, so a `message` key would
+          //   overwrite the event's own message with sandbox text.
+          // - The local dev log and `onShellError` are UNBOUNDED and get
+          //   the full strings, because both stay in this process — the
+          //   dev log is console/debug-store only, and `onShellError` is
+          //   the host component's own error UI.
+          logger.log(
+            'surface shell reported an error',
+            message.phase,
+            message.message
+          );
+          if (telemetryReports < SHELL_ERROR_TELEMETRY_REPORT_LIMIT) {
+            telemetryReports += 1;
+            logger.trackError('surface shell reported an error', {
+              phase: shellErrorCategory(message.phase),
+              detail: message.message.slice(
+                0,
+                SHELL_ERROR_TELEMETRY_DETAIL_LIMIT
+              ),
+            });
+          }
           options.onShellError?.(message.phase, message.message);
           return;
       }
