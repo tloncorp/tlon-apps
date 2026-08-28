@@ -48,7 +48,8 @@ const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
   /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
-const TRUNCATION_MARKER = /^\s*\[(?:showing|reading|truncated)\b/im;
+const TRUNCATION_MARKER =
+  /^\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/im;
 
 function nonEmptyError(error: string | undefined): boolean {
   return typeof error === 'string' && error.trim().length > 0;
@@ -301,13 +302,13 @@ export function createFileReadCompletionGuard(options?: {
       )
         return null;
       if (
-        (!state.truncated &&
-          containsRepresentativeReadContent(reply, state.anchors)) ||
-        (!isIncompleteFileDeliveryReply(reply) &&
-          !(
-            EMPTY_DELIVERY_CLAIM.test(reply) &&
-            matchedReadContentCount(reply, state.anchors) > 0
-          ))
+        !state.truncated &&
+        (containsRepresentativeReadContent(reply, state.anchors) ||
+          (!isIncompleteFileDeliveryReply(reply) &&
+            !(
+              EMPTY_DELIVERY_CLAIM.test(reply) &&
+              matchedReadContentCount(reply, state.anchors) > 0
+            )))
       ) {
         return null;
       }

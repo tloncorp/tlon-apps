@@ -281,6 +281,41 @@ describe('file read completion guard', () => {
     ).toContain('Continue reading');
   });
 
+  it('does not accept unmarked partial output from a truncated read', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'truncated-plain-output',
+        'first line\nsecond line\n[Showing lines 1-20 of 40]'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'truncated-plain-output',
+        lastAssistantMessage: 'first line\nsecond line',
+      })?.retry.instruction
+    ).toContain('Continue reading');
+  });
+
+  it('does not mistake a bracketed file heading for a truncation footer', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'reading-heading',
+        '[Reading list]\nThe Left Hand of Darkness\nKindred'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'reading-heading',
+        lastAssistantMessage:
+          'Here are the requested contents:\n[Reading list]\nThe Left Hand of Darkness\nKindred',
+      })
+    ).toBeNull();
+  });
+
   it('preserves truncation when a later read result has no marker', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
