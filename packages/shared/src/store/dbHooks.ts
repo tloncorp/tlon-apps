@@ -917,6 +917,8 @@ export const useTelemetryEnabled = () => {
   });
 };
 
+// Legacy setting retained for older clients. Current clients make Context Lens
+// available by default and do not use this value as an availability gate.
 export const useContextLensEnabled = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
