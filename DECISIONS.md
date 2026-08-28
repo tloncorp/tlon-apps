@@ -1021,3 +1021,35 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   foreign-key mismatch recorded in session 4 reproduces here on group
   delete under an enforcing `foreign_keys` pragma. Independent
   confirmation of a pre-existing defect, still not ours to fix.
+
+- **D53: A post's id is a host-stamped `@da`; `sentAt` is not (and the
+  naming misleads).** Verified today while scoping a `$now` substitution.
+
+  `%channels-server`'s `%add` arm sets the post id to **`now.bowl`** — the
+  *host ship's* clock at the moment it processes the poke — with a
+  collision loop bumping by `~s1/2^16` until free
+  (`desk/app/channels-server.hoon:1089`), and `desk/sur/channels.hoon:75`
+  types `id-post` as `time`. So the id **is** a timestamp, and it is
+  server-authoritative: a member cannot forge it, exactly as they cannot
+  forge `post.authorId`. The client already derives it —
+  `getReceivedAtFromId` → `udToDate` (`packages/api/src/client/postsApi.ts:1421`).
+
+  **The trap:** the client model's two time fields are the reverse of
+  what their names suggest.
+  - `receivedAt: getReceivedAtFromId(id)` (`postsApi.ts:1385`) — id-derived,
+    host-stamped, **trustworthy**.
+  - `sentAt: post.essay.sent` (`postsApi.ts:1384`) — the `sent` field the
+    **sender** wrote into the essay, **forgeable**.
+
+  Any future `$now`/`$date` substitution (§12) MUST derive from the id.
+  Implementing it against `sentAt` — the obvious-looking field, with the
+  right-sounding name, sitting one line away — would let a member
+  backdate or postdate their own entries, reintroducing the forgery the
+  parameterless-invoke design exists to prevent. Recorded here rather
+  than only in the plan because this is a fact about the codebase that
+  the next implementer can get wrong in a single keystroke.
+
+  Corrects an earlier claim of mine in conversation that surface apps
+  "cannot know when" something happened. The information exists and is
+  trustworthy; it is simply not plumbed into reduced state yet, because
+  op values are spec literals.
