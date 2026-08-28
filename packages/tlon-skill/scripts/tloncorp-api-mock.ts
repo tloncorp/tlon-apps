@@ -143,6 +143,18 @@ export const mockedSubmitBucketsAction = {
   impl: async (..._args: unknown[]): Promise<unknown> => undefined,
 };
 
+// The real class, so `instanceof` in the runtime works against what the mock
+// throws -- the upload path distinguishes a typed refusal from a transport
+// failure that way.
+export class MockBucketsActionFailed extends Error {
+  errorType: string;
+  constructor(errorType: string, message: string) {
+    super(message);
+    this.errorType = errorType;
+    this.name = 'BucketsActionFailed';
+  }
+}
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -174,6 +186,7 @@ mock.module('@tloncorp/api', () => ({
   updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
+  BucketsActionFailed: MockBucketsActionFailed,
   notesV1: mockedNotesV1,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),

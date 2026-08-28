@@ -6,6 +6,7 @@ import {
   type BucketsSummary,
   getBucket,
   getBucketReadToken,
+  BucketsActionFailed,
   getGroup,
   mintRequestId,
   getBuckets,
@@ -616,15 +617,31 @@ function createBucketsOperations(): BucketsOperations {
       try {
         await getSnapshot(target);
         // The host calls storage as itself and answers with the signed URL,
-        // so there is nothing to exchange from here.
-        grant = await requestBucketsUpload({
-          type: 'begin-upload',
-          checksum: null,
-          flag: target.flag,
-          mime: contentType,
-          name: displayName,
-          parentId,
-          size: stat.size,
+        // so there is nothing to exchange from here. The request id is minted
+        // here and kept, though: the host holds this request open across its
+        // own call to storage, so a lost response is a real possibility, and
+        // without the id the only option is a fresh one -- opening a second
+        // session while the first holds a reservation and its quota. The host
+        // answers a repeated id with the answer it already gave.
+        const openRequestId = mintRequestId();
+        const openUpload = () =>
+          requestBucketsUpload(
+            {
+              type: 'begin-upload',
+              checksum: null,
+              flag: target.flag,
+              mime: contentType,
+              name: displayName,
+              parentId,
+              size: stat.size,
+            },
+            openRequestId
+          );
+        grant = await openUpload().catch((cause) => {
+          // A typed refusal is the host's answer and stands. Anything else
+          // never reached it, or its answer never reached us.
+          if (cause instanceof BucketsActionFailed) throw cause;
+          return openUpload();
         });
         const uploadResponse = await fetch(grant.url, {
           method: 'PUT',
