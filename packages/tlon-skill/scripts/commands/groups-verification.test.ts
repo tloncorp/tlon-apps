@@ -8,6 +8,7 @@ import {
   seatHasRole,
   shipIsBanned,
   shipIsSeated,
+  singleLineCliField,
 } from './groups-verification';
 
 // Minimal stand-in for the real `preSig`-based normalizer: ensure a leading sig.
@@ -17,6 +18,14 @@ const normalizeShip = (ship: string): string =>
 const HOST = '~ravmel-ropdyl';
 const ADMIN = '~admin-ship';
 const MEMBER = '~lorhep-binfen';
+
+describe('singleLineCliField', () => {
+  it('prevents metadata from forging CLI section headers', () => {
+    expect(singleLineCliField('Foreign\n--- Members ---\n  ~owner [vip]')).toBe(
+      'Foreign --- Members ---   ~owner [vip]'
+    );
+  });
+});
 
 describe('getShipRecordValue', () => {
   it('returns undefined for a missing record', () => {

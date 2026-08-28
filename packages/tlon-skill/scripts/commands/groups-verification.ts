@@ -23,6 +23,11 @@ export type RawGroupForAdminVerification = {
 
 export type NormalizeShip = (ship: string) => string;
 
+/** Keep human-controlled metadata from forging line-oriented CLI sections. */
+export function singleLineCliField(value: string): string {
+  return value.replace(/[\r\n\u2028\u2029]+/g, ' ').trim();
+}
+
 /**
  * Look up a ship-keyed record value, matching on the raw key first and falling
  * back to a normalized comparison so unnormalized record keys still resolve.

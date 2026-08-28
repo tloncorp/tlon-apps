@@ -90,6 +90,7 @@ import {
   seatHasRole,
   shipIsBanned,
   shipIsSeated,
+  singleLineCliField,
 } from './commands/groups-verification';
 import { assertGroupAdminAccess } from './group-admin-runtime';
 import { createNotesChannelInGroup } from './notes-channel';
@@ -336,7 +337,7 @@ function formatShipWithNickname(
   nicknameMap: Map<string, string>
 ): string {
   const nickname = nicknameMap.get(ship);
-  return nickname ? `${ship} (${nickname})` : ship;
+  return nickname ? `${ship} (${singleLineCliField(nickname)})` : ship;
 }
 
 type CreatedGroup = {
@@ -733,18 +734,22 @@ async function verifyShipsBanned(
 
 // Get info about a specific group
 async function getGroupInfo(groupId: string) {
-  const [group, nicknameMap] = await Promise.all([
+  const [group, nicknameMap, rawGroup] = await Promise.all([
     getGroup(groupId),
     buildNicknameMap(),
+    getRawGroupForAdminVerification(groupId),
   ]);
 
-  console.log(`\n=== ${group.title || groupId} ===\n`);
+  console.log(`\n=== ${singleLineCliField(group.title || groupId)} ===\n`);
   console.log(`ID: ${groupId}`);
   console.log(`Privacy: ${group.privacy || 'unknown'}`);
-  console.log(`Description: ${group.description || '(none)'}`);
+  console.log(
+    `Description: ${singleLineCliField(group.description || '(none)')}`
+  );
+  console.log(`Admin roles: ${(rawGroup.admins ?? []).join(', ') || '(none)'}`);
 
   if (group.iconImage) {
-    console.log(`Icon: ${group.iconImage}`);
+    console.log(`Icon: ${singleLineCliField(group.iconImage)}`);
   }
 
   console.log('\n--- Members ---');
@@ -758,14 +763,16 @@ async function getGroupInfo(groupId: string) {
   if (group.roles && group.roles.length > 0) {
     console.log('\n--- Roles ---');
     for (const role of group.roles) {
-      console.log(`  ${role.id}: ${role.title || '(untitled)'}`);
+      console.log(
+        `  ${role.id}: ${singleLineCliField(role.title || '(untitled)')}`
+      );
     }
   }
 
   if (group.channels && group.channels.length > 0) {
     console.log('\n--- Channels ---');
     for (const channel of group.channels) {
-      const title = channel.title || channel.id;
+      const title = singleLineCliField(channel.title || channel.id);
       console.log(`  ${title} (${channel.id})`);
     }
   }

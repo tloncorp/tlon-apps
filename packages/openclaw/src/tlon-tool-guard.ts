@@ -491,7 +491,10 @@ function ownerRolesFromGroupInfo(
   owner: string
 ): string[] | null {
   if (!groupInfo) return null;
-  const membersHeader = groupInfo.match(/^--- Members ---\s*$/im);
+  const membersHeaders = Array.from(
+    groupInfo.matchAll(/^--- Members ---\s*$/gim)
+  );
+  const membersHeader = membersHeaders.at(-1);
   if (membersHeader?.index == null) return null;
   const afterHeader = groupInfo.slice(
     membersHeader.index + membersHeader[0].length
@@ -513,6 +516,21 @@ function ownerRolesFromGroupInfo(
         .map((role) => role.trim())
         .filter(Boolean)
     : [];
+}
+
+function adminRolesFromGroupInfo(
+  groupInfo: string | undefined
+): string[] | null {
+  const matches = Array.from(
+    groupInfo?.matchAll(/^Admin roles:\s*(.+?)\s*$/gim) ?? []
+  );
+  const value = matches.at(-1)?.[1];
+  if (!value) return null;
+  if (value.toLowerCase() === '(none)') return [];
+  return value
+    .split(',')
+    .map((role) => role.trim())
+    .filter(Boolean);
 }
 
 function readersFromChannelInfo(
@@ -564,6 +582,7 @@ export function notebookWriteDestinationError(
 
   const owner = normalizeShipForComparison(ownerShip);
   const group = groupForNotebook(parsed, nest) as {
+    admins?: unknown;
     id?: unknown;
     channels?: unknown;
     members?: unknown;
@@ -599,11 +618,17 @@ export function notebookWriteDestinationError(
   const ownerRoles = ownerMember
     ? roleIds(ownerMember.roles)
     : ownerRolesFromGroupInfo(evidence?.groupInfo, owner);
+  const adminRoles =
+    roleIds(group.admins) ?? adminRolesFromGroupInfo(evidence?.groupInfo);
   const readers =
     roleIds(channel?.readerRoles) ??
     readersFromChannelInfo(evidence?.channelInfo);
   if (ownerRoles && readers) {
-    if (ownerRoles.includes('admin') || readers.length === 0) return null;
+    if (
+      readers.length === 0 ||
+      adminRoles?.some((role) => ownerRoles.includes(role))
+    )
+      return null;
     if (readers.some((readerRole) => ownerRoles.includes(readerRole))) {
       return null;
     }

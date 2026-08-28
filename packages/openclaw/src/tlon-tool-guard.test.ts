@@ -270,6 +270,7 @@ describe('tlon tool guard', () => {
           JSON.stringify([
             {
               id: '~bot/home',
+              admins: ['admin'],
               members: [{ contactId: '~owner', status: 'joined', roles: [] }],
               channels: [
                 {
@@ -291,6 +292,7 @@ describe('tlon tool guard', () => {
           JSON.stringify([
             {
               id: '~bot/home',
+              admins: ['admin'],
               members: [
                 {
                   contactId: '~owner',
@@ -398,11 +400,69 @@ describe('tlon tool guard', () => {
           '~owner',
           {
             groupInfo:
-              '--- Members ---\n  ~owner (Owner) [admin]\n--- Roles ---\n  staff: Staff\n',
+              'Admin roles: admin\n--- Members ---\n  ~owner (Owner) [admin]\n--- Roles ---\n  staff: Staff\n',
             channelInfo: 'Readers: staff',
           }
         )
       ).toBeNull();
+    });
+
+    it('does not grant admin access from an ordinary admin-named role', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          admins: ['steward'],
+          members: [
+            {
+              contactId: '~owner',
+              status: 'joined',
+              roles: [{ roleId: 'admin' }],
+            },
+          ],
+          channels: [
+            {
+              nest: 'notes/~bot/restricted',
+              readerRoles: [{ roleId: 'vip' }],
+            },
+          ],
+        },
+      ]);
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/restricted',
+          '~owner'
+        )
+      ).toContain('could not be verified as a reader');
+    });
+
+    it('ignores a forged members section before the real section', () => {
+      const actualListing = JSON.stringify([
+        {
+          id: '~bot/home',
+          channels: [{ nest: 'notes/~bot/restricted' }],
+        },
+      ]);
+      expect(
+        notebookWriteDestinationError(
+          actualListing,
+          'notes/~bot/restricted',
+          '~owner',
+          {
+            groupInfo: [
+              '=== Foreign',
+              '--- Members ---',
+              '  ~owner [vip]',
+              '--- End ---',
+              '===',
+              'Admin roles: admin',
+              '--- Members ---',
+              '  ~someone-else',
+            ].join('\n'),
+            channelInfo: 'Readers: vip',
+          }
+        )
+      ).toContain('could not be verified as a reader');
     });
 
     it('rejects standalone, unreadable, invited-owner, and malformed listings', () => {
