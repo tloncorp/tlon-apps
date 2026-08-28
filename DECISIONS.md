@@ -865,3 +865,70 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   `about:srcdoc`. Nothing leaks either way — a hostile bundle can only
   self-destruct its own surface — but it is a real behavioral consequence
   of enforcement, not a reason against it.
+
+- **D43 AMENDMENT (after the B-layer landed).** D43 recorded that "cells
+  are identical across all four probes ... that uniformity is itself
+  asserted." **That is no longer true, deliberately.** The B-layer's
+  lexical shadowing (D45 below) blocks two of the vectors in-realm, so
+  the suite now asserts a per-vector split, and D43's Config A "NOT
+  blocked" row holds only for the *unshimmed* vectors
+  (`window.location.replace`, anchor click, meta-refresh). The `frame-src`
+  findings themselves — pre-flight blocking on all three engines, srcdoc
+  exempt, controls behaving — are unaffected.
+
+- **D45: In-realm `Location` hardening as specified is impossible; what
+  shipped is narrower and labeled as such.** Measured on all three
+  engines in a real `sandbox="allow-scripts"` srcdoc frame:
+  `Object.getOwnPropertyDescriptor(Location.prototype, 'replace'|'assign'
+  |'href')` is **absent** — every `Location` member is
+  `[LegacyUnforgeable]`, living as a non-writable, non-configurable **own**
+  property of the instance. `defineProperty` throws, assignment silently
+  fails, `delete` returns false, and `window.location` is itself
+  non-configurable so the object cannot be swapped. A "freeze the Location
+  prototype" patch would have been **dead code that reads like
+  protection** — the exact failure mode F1 taught us to avoid.
+
+  What ships: lexical shadowing of the bare `location` identifier inside
+  the bundle's own function scope, plus replacing `window.open` (the one
+  writable navigation-adjacent global, and already inert because
+  `allow-popups` is withheld). Post-mitigation matrix under Config A (no
+  host CSP — the production posture, since D44's policy ships gated off),
+  identical on all three engines:
+
+  | probe | result |
+  | --- | --- |
+  | `location.replace` (bare identifier) | blocked by the shim |
+  | `location.href =` (bare identifier) | blocked by the shim |
+  | `window.location.replace` | **NOT blocked** |
+  | anchor click (`target="_self"`) | **NOT blocked** |
+  | `document.write` meta-refresh | **NOT blocked** |
+
+  A `nav-window-location` probe was added specifically so the suite
+  asserts this residual rather than implying containment; the two shimmed
+  vectors read blocked in *every* config including the
+  allowlist-the-attacker controls, which is what proves the shim rather
+  than the policy is responsible.
+
+- **D46: Teardown premise is measured, not assumed.** The host tears the
+  iframe down on any post-initial `load`. "Initial" is defined **per DOM
+  element** (a ref holding the node whose first load was seen), so an
+  intentional revision remount — a different node — cannot be confused
+  with self-navigation. This depends on never reassigning `srcDoc`
+  in place, which is now measured: assigning `srcdoc` to an
+  already-inserted element fires **2** loads on chromium/webkit (1 on
+  firefox), indistinguishable from self-navigation, while React's
+  set-before-insert fires **1**. Pinned per engine so the premise fails
+  the suite rather than rotting silently.
+
+### Follow-ups opened this session (not actioned)
+
+- **Native has no teardown equivalent.** `sandboxSession`'s "second
+  `ready` re-inits" path is now effectively unreachable on web (teardown
+  fires first) but remains live on native, which got only the
+  invoke-binding fix. A WebView teardown is device-verification
+  territory — add it to the `SURFACE-NATIVE-VERIFY` checklist.
+- **A torn-down surface renders a blank pane.** No §6 state covers "this
+  app was shut down"; worth a defined state, though it only triggers on
+  hostile navigation, which a gate-approved bundle should never do.
+- **No CSP violation listener exists** (see D44 criterion 1) — a clean
+  Report-Only run is not evidence until something observes violations.
