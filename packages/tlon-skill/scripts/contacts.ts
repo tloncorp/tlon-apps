@@ -179,8 +179,9 @@ async function updateProfile(updates: {
 }) {
   const moon = botMoon();
   if (moon) {
-    // acting as a bot moon: write the bot's published profile (merged with
-    // its current fields), never the host ship's own profile
+    // acting as a bot moon: edit the bot's published profile via steward
+    // (the arbiter of bot data in contacts; absent fields stay untouched),
+    // never the host ship's own profile
     await registerBotProfile(moon, updates);
     return { updated: Object.keys(updates), ship: moon };
   }

@@ -82,28 +82,34 @@ const normalizeMoonId = (id: string): string =>
  * registered as a bot gets normal peer-to-peer DMs.
  */
 export const isRegisteredBot = async (ship: string): Promise<boolean> => {
+  let host: string;
   try {
     if (p.clan(ship) !== 'earl') {
       return false;
     }
-    const host = p.sein(ship);
-    const directory = await scry<ub.ContactsDirectoryScryResult1>({
-      app: 'contacts',
-      path: '/v1/directory',
-    });
-    const entry = directory?.[host];
-    if (!entry) {
-      return false;
-    }
-    const bots = readBotsField(entry.contact);
-    // Honor the claim only when `ship` really is a moon of `host`, so a ship
-    // can't route another ship's DMs through the vouched path by claiming it.
-    return (
-      isMoonOf(ship, host) && bots.some((id) => normalizeMoonId(id) === ship)
-    );
+    host = p.sein(ship);
   } catch {
+    // not a parseable ship id -- never a bot
     return false;
   }
+  // NB: deliberately no catch around the scry. This read gates whether a DM
+  // takes the vouched path, so a failed read must fail the send loudly
+  // rather than silently demote a bot DM to peer-to-peer (which would queue
+  // forever against a never-booted moon).
+  const directory = await scry<ub.ContactsDirectoryScryResult1>({
+    app: 'contacts',
+    path: '/v1/directory',
+  });
+  const entry = directory?.[host];
+  if (!entry) {
+    return false;
+  }
+  const bots = readBotsField(entry.contact);
+  // Honor the claim only when `ship` really is a moon of `host`, so a ship
+  // can't route another ship's DMs through the vouched path by claiming it.
+  return (
+    isMoonOf(ship, host) && bots.some((id) => normalizeMoonId(id) === ship)
+  );
 };
 
 /** Editable fields of a bot moon's published profile. `undefined` keeps the
@@ -116,91 +122,39 @@ export interface BotProfileEdit {
   cover?: string | null;
 }
 
-const BOT_PROFILE_FIELD_TYPES: Record<
-  keyof BotProfileEdit,
-  ub.ContactFieldText['type'] | ub.ContactImageField['type']
-> = {
-  nickname: 'text',
-  bio: 'text',
-  status: 'text',
-  avatar: 'look',
-  cover: 'look',
-};
+const BOT_PROFILE_FIELDS: (keyof BotProfileEdit)[] = [
+  'nickname',
+  'avatar',
+  'bio',
+  'status',
+  'cover',
+];
 
 /**
- * Register or update a bot moon owned by the current (host) ship. Two writes:
- *   1. Claim: add the moon to the host's `bots` convention field (a list of
- *      @p) so peers know it's a bot this host owns.
- *   2. Profile: publish the bot's real contact profile via the
- *      `contact-bot-0` poke, so it renders like any peer without ever running.
- * The contact-bot-0 poke REPLACES the bot's whole profile, so this reads the
- * current one and merges: `undefined` fields keep their current value,
- * `null`/empty clears them. Sibling bots in the claim are preserved. Must be
- * poked by the moon's host (the moon's sponsor).
+ * Register or update the profile of a bot moon owned by the current (host)
+ * ship, via steward's roster `%profile` action. Steward is the arbiter of
+ * bot data in contacts: it validates the moon against its roster, forwards
+ * the edit to %contacts as a merge (`undefined` fields stay untouched,
+ * `null`/empty deletes), and maintains the host's `bots` claim field itself
+ * as a projection of its roster -- so there is nothing to read, merge, or
+ * claim client-side. Must be poked as the host (the moon's sponsor).
  */
 export const registerBotProfile = async (
   moon: string,
   profile: BotProfileEdit
 ) => {
-  const botId = normalizeMoonId(moon);
-  const self = await scry<ub.ContactBookProfile>({
-    app: 'contacts',
-    path: '/v1/self',
-  });
-  const claim = readBotsField(self);
-  if (!claim.some((id) => normalizeMoonId(id) === botId)) {
-    claim.push(botId);
-    await poke({
-      app: 'contacts',
-      mark: 'contact-action-1',
-      json: {
-        self: {
-          bots: {
-            type: 'set',
-            value: claim.map((id) => ({ type: 'ship', value: id })),
-          },
-        },
-      },
-    });
-  }
-  // start from the bot's currently published profile so a partial update
-  // (or a runner restart re-registering from static config) doesn't wipe
-  // fields set elsewhere
-  const con: Record<string, ub.ContactFieldText | ub.ContactImageField> = {};
-  try {
-    const directory = await scry<ub.ContactsDirectoryScryResult1>({
-      app: 'contacts',
-      path: '/v1/directory',
-    });
-    const existing = directory?.[botId]?.contact ?? {};
-    for (const [key, value] of Object.entries(existing)) {
-      const type = (value as { type?: string } | null)?.type;
-      if (type === 'text' || type === 'look') {
-        con[key] = value as ub.ContactFieldText | ub.ContactImageField;
-      }
-    }
-  } catch {
-    // no directory yet (or scry failed): merge onto an empty profile
-  }
-  for (const key of Object.keys(
-    BOT_PROFILE_FIELD_TYPES
-  ) as (keyof BotProfileEdit)[]) {
+  const edits: Record<string, string | null> = {};
+  for (const key of BOT_PROFILE_FIELDS) {
     const value = profile[key];
     if (value === undefined) {
       continue;
     }
-    if (value === null || value === '') {
-      delete con[key];
-      continue;
-    }
-    con[key] = { type: BOT_PROFILE_FIELD_TYPES[key], value } as
-      | ub.ContactFieldText
-      | ub.ContactImageField;
+    edits[key] = value === '' ? null : value;
   }
   return poke({
-    app: 'contacts',
-    mark: 'contact-bot-0',
-    json: { who: botId, con },
+    app: 'steward',
+    mark: 'steward-roster-action-1',
+    json: { profile: { ship: normalizeMoonId(moon), edits } },
   });
 };
 

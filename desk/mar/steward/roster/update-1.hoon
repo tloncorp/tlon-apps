@@ -8,7 +8,7 @@
 =>  |%
     +$  jsn  json
     --
-|_  upd=update:v1:r
+|_  upd=update:v2:r
 ++  grad  %noun
 ++  grow
   |%
@@ -25,7 +25,7 @@
       ::  gate (json-from-ship), so a `=ship` sample here would resolve the
       ::  mold to that gate instead of the ship aura.
       ::
-      |=  [who=@p =bot:v1:r]
+      |=  [who=@p =bot:v2:r]
       [(scot %p who) (bot-json bot)]
     ::
         %minted
@@ -48,7 +48,7 @@
       s+(scot %p ship.upd)
     ==
     ++  bot-json
-      |=  =bot:v1:r
+      |=  =bot:v2:r
       ^-  jsn
       %-  pairs
       :~  ['nickname' s+nickname.bot]
@@ -63,6 +63,6 @@
   --
 ++  grab
   |%
-  ++  noun  update:v1:r
+  ++  noun  update:v2:r
   --
 --

@@ -1,5 +1,4 @@
 import type { Story } from '@tloncorp/api';
-import { registerBotProfile } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -757,25 +756,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   };
   apiClientParamsSlot.set(myApiClientParams);
 
-  // When acting as a moon, publish its display profile into the host's own
-  // contact profile (the `bots` convention field) so peers resolve the bot's
-  // name/avatar without contacting the non-running moon. Idempotent: merges
-  // with any sibling bots already registered on the host.
-  if (account.moon) {
-    try {
-      await registerBotProfile(botShipName, {
-        nickname: account.moonNickname,
-        avatar: account.moonAvatar,
-      });
-      runtime.log?.(
-        `[tlon] Registered bot ${botShipName} on ${hostShipName}'s profile`
-      );
-    } catch (error: any) {
-      runtime.error?.(
-        `[tlon] Failed to register bot profile: ${error?.message ?? String(error)}`
-      );
-    }
-  }
+  // NB: no boot-time profile registration for moon accounts. Steward is the
+  // arbiter of bot data in contacts -- it publishes the bot's profile at
+  // mint time and on roster %profile edits, and the runner's own identity
+  // config comes FROM the roster, so poking it back would be a circular
+  // echo (and clobber-prone before contact-bot-0 gained merge semantics).
 
   // gsCoordinator is hoisted here (from its prior location at the
   // gateway-status activation block below) so cleanupGatewayStatus can

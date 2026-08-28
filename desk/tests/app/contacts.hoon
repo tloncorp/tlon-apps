@@ -1312,6 +1312,19 @@
   ::  the bot's profile is retrievable, like any peer's
   ::
   ;<  ~  b  (ex-scry-result /x/v1/contact/(scot %p moon) !>(con))
+  ::  a later edit MERGES (+do-edit): absent fields are untouched, ~
+  ::  deletes -- a partial write can never wipe the rest of the profile
+  ::
+  =/  edit=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[bio+text/'cloudy with a chance' avatar+~]
+  ;<  caz=(list card)  b  (do-poke %contact-bot-0 !>([moon edit]))
+  =/  merged=contact
+    %-  malt
+    ^-  (list (pair @tas value))
+    ~[nickname+text/'Weatherbot' bio+text/'cloudy with a chance']
+  ;<  ~  b  (ex-scry-result /x/v1/contact/(scot %p moon) !>(merged))
   ::  meeting the bot moon does not subscribe -- it never boots
   ::
   ;<  caz=(list card)  b  (do-poke contact-action-1+!>([%meet ~[moon]]))

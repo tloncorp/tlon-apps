@@ -83,16 +83,19 @@ While the gateway is not live, a DM from the configured `owner` triggers a canne
 
 ## module: roster
 
-Mints bot moons: a bot is a moon that never boots, hosted (and spoken for) by its sponsor. Minting is entirely local — an owner mints its own bots — and does four things in sequence:
+Mints bot moons: a bot is a moon that never boots, hosted (and spoken for) by its sponsor. The roster module is also the **arbiter of bot data in `%contacts`**: every bot profile write and every write of the host's own `bots` claim field flows through it, so those values always have exactly one writer (by API shape — contacts can't distinguish local pokers, since every local poke arrives as `src=our`). Identity fields (nickname/avatar) are **not stored** in the roster — the bot's contact profile is the single copy, joined into roster facts and peeks at read time.
+
+Minting is entirely local — an owner mints its own bots — and does five things in sequence:
 
 1. **Spawn+reserve a moon.** Pick a random 32-bit suffix under `our` (the same shape `|moon` uses), retried up to 16 times against a collision on jael's own `%ryft` scry (non-`~` means keys are already set, from either a real point or a prior `%moon` registration) or our own roster. Register only the *public* half of a freshly derived keypair with jael (`life` 1, crub suite) via a `%moon` task. The private seed is discarded the instant the public key is derived — never slogged, stored, or emitted. This is deliberate: the bot moon is unbootable by design, so nobody (not even the minting ship) can ever assume its identity. If the owner ever wants a real, bootable moon instead, `|moon-cycle-keys` replaces these keys with ones it actually keeps.
 2. **Classify it `%bot` in `%vouch`** (`%vouch-learn [mon %bot]`), so the rest of the system knows to route to it through its host rather than expecting it to ever appear as `src`.
-3. **Publish its `%contacts` profile** (`%contact-bot-0 [mon con]`), built from `.nickname`/`.avatar`, so the bot has an identity in the frontend from the moment it's minted.
-4. **Record its runner config** (`.model`/`.harness`/`.persona`, opaque to steward) in the roster and give a `%minted` fact on `/v1/roster` for the runner (openclaw) to pick up.
+3. **Publish its `%contacts` profile** (`%contact-bot-0 [mon con]`), seeded from `.nickname`/`.avatar`, so the bot has an identity in the frontend from the moment it's minted. `%contact-bot-0` applies `+do-edit` merge semantics (same as `%self`): `~` deletes a field, absent fields are untouched — a partial write can never wipe the rest of the profile. The seed profile is validated (`+sane-contact`) before anything commits, so the poke can't nack after the roster entry exists.
+4. **Claim it** in the host's own profile's `bots` field. The field is a pure **projection** of steward's grow-only `.claimed` set — written whole from state steward owns, never read-modify-written from contacts — so there is no read to fail or race, and any corruption of the field heals on the next roster change.
+5. **Record its rig** (`.model`/`.harness`/`.persona`, opaque to steward) in the roster and give a `%minted` fact on `/v1/roster` for the runner (openclaw) to pick up.
 
-If jael's `%moon` registration itself fails (the async `%done` ack carries an error), the moon is rolled back out of the roster and a `%retired` fact is given — the optimistic roster insert at mint time is undone.
+If jael's `%moon` registration itself fails (the async `%done` ack carries an error), everything the mint published is unwound: the roster entry and `.claimed` membership are removed, the claim projection is rewritten, the seeded profile fields are nulled out, and a `%retired` fact is given. The `%vouch` `%bot` record deliberately stays (there is no `%vouch-forget`; a permanently burned `@p` costs nothing — there are 2³² per host).
 
-`%configure` updates an existing bot's runner config and re-publishes its `%contacts` profile; `.created` is preserved. `%retire` drops a bot from the roster but deliberately does **not** touch `%vouch` — the moon stays classified `%bot` forever, so history involving it (past chat messages, etc.) stays routable/attributable. Only a ship able to sponsor a moon (galaxy, star, or planet) can mint one; a moon or comet has no room under it.
+`%configure` updates an existing bot's stored rig only — every field is a unit, `~` means keep — and never touches contacts; identity edits are `%profile`'s job. `%profile` edits an existing bot's contact profile: steward validates the field names (`nickname`/`bio`/`status` are `%text`, `avatar`/`cover` are `%look`; anything else crashes), forwards the typed edits to `%contacts` as a merge, and puts the post-edit identity on a `%configured` fact (composed with the same deterministic `+do-edit` contacts will apply). `%retire` drops a bot from the roster but deliberately does **not** touch `%vouch` or `.claimed` — the moon stays classified `%bot` and claimed forever, so history involving it stays routable/attributable and peers keep routing its DMs through the host rather than peer-to-peer into a never-booted void. Only a ship able to sponsor a moon (galaxy, star, or planet) can mint one; a moon or comet has no room under it.
 
 ## poke surface
 
@@ -149,13 +152,15 @@ Minting is driven by the owner from the host frontend (HTTP), so unlike most oth
 
 ```json
 { "mint": { "nickname": "Bot", "avatar": null, "model": "gpt", "harness": "openclaw", "persona": "default" } }
-{ "configure": { "ship": "~sampel-palnet-...", "nickname": "Bot", "avatar": null, "model": "gpt", "harness": "openclaw", "persona": "default" } }
+{ "configure": { "ship": "~sampel-palnet-...", "model": "gpt2", "harness": null, "persona": null } }
+{ "profile": { "ship": "~sampel-palnet-...", "edits": { "bio": "helpful", "avatar": null } } }
 { "retire": { "ship": "~sampel-palnet-..." } }
 ```
 
 ```
 [%mint nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
-[%configure =ship nickname=@t avatar=(unit @t) model=@t harness=@t persona=@t]
+[%configure =ship model=(unit @t) harness=(unit @t) persona=(unit @t)]     :: ~ = keep
+[%profile =ship edits=(map @tas (unit @t))]                                :: ~ = delete field
 [%retire =ship]
 ```
 
@@ -175,8 +180,8 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 - `/x/v1/lens/run/[ship]/[id]` → `[%entry entry]`, or empty (`[~ ~]`) when absent.
 - `/x/v1/gateway/status` → `%noun` `[status:v1:gateway (unit @da)]` — current liveness and lease expiry.
 - `/x/v1/gateway/owner-activity` → `%noun` `@da` — timestamp of the most recent owner DM.
-- `/x/v1/roster` → `%noun` `(map ship bot:v1:roster)` — the full roster.
-- `/x/v1/roster/[ship]` → `%noun` `bot:v1:roster`, or empty (`[~ ~]`) when that ship isn't in the roster. Tolerates a trailing mark segment (e.g. `/noun`) like other scries on this branch.
+- `/x/v1/roster` → the `%steward-roster-update-1` mark (an `%init` update), so the full roster is HTTP-scryable as JSON. Each entry is the runner-facing `$bot` view: the stored rig joined at read time with the identity fields from the moon's contact profile.
+- `/x/v1/roster/[ship]` → `%noun` `bot:v2:roster` (the same joined view), or empty (`[~ ~]`) when that ship isn't in the roster. Tolerates a trailing mark segment (e.g. `/noun`) like other scries on this branch.
 
 `entry` is `[bot=ship id=@t run]`. The `%entry` update grows to JSON for Eyre, embedding the stored payload directly:
 
@@ -187,8 +192,8 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 ## lifecycle and invariants
 
 - `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` migrates `state-0` → `state-1` (adding a bunted `roster`) and loads `state-1` as-is otherwise. An unreadable state still crashes — that path is only reachable pre-release.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. Roster mint's jael registration is on `/roster/mint/[moon-p]` (an `%arvo` pass, not an agent poke); its `%vouch`/`%contacts` fan-out are on `/roster/vouch/[moon-p]` and `/roster/profile/[moon-p]`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- `on-load` migrates `state-0` → `state-2` (adding a bunted `roster`) and `state-1` → `state-2` (dropping nickname/avatar from stored bot records — the contact profile is now the single copy — and seeding `.claimed` from the roster keys). An unreadable state still crashes — that path is only reachable pre-release.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. Roster mint's jael registration is on `/roster/mint/[moon-p]` (an `%arvo` pass, not an agent poke); its `%vouch`/`%contacts` fan-out are on `/roster/vouch/[moon-p]`, `/roster/profile/[moon-p]`, and the claim projection on `/roster/claim`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes

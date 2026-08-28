@@ -878,14 +878,31 @@
       %+  roll  kis
       |=  [=kip =_last-updated]
       (~(put ol last-updated) kip now.bowl)
-      ::  local: set a bot moon's contact profile so our own frontend
+      ::  local: edit a bot moon's contact profile so our own frontend
       ::  renders it, and push it to any foreign resolver subscribers
       ::  watching this moon at /v1/vouch -- see docs/vouch.md.
       ::
+      ::  the edit is a merge (+do-edit, same semantics as %self): ~
+      ::  deletes a field, absent fields are untouched -- so writers send
+      ::  only the fields they mean to change and can never wipe the rest.
+      ::  %steward is the only intended writer (its roster %profile action
+      ::  is the arbiter of bot data); that can't be enforced here, since
+      ::  every local poker arrives as src=our.
+      ::
         %contact-bot-0
       ?>  =(our src):bowl
-      =+  !<([who=ship con=contact] vase)
-      =.  peers  (~(put by peers) who [`profile`[now.bowl con] ~])
+      =+  !<([who=ship mod=contact] vase)
+      =/  far=(unit foreign)  (~(get by peers) who)
+      =/  old=contact
+        ?~  far  *contact
+        ?~  for.u.far  *contact
+        con.for.u.far
+      =/  con=contact  (do-edit old mod)
+      ?:  =(old con)
+        cor
+      ?>  (sane-contact ~ con)
+      =.  peers
+        (~(put by peers) who [`profile`[now.bowl con] ?~(far ~ sag.u.far)])
       =.  last-updated  (~(put ol last-updated) who now.bowl)
       =.  cor  (p-news-0:pub who (contact:to-0 con))
       =.  cor

@@ -29,106 +29,47 @@ beforeEach(() => {
   vi.mocked(scry).mockClear();
 });
 
-const SIBLING = '~marzod-sampel-palnet';
-
-// registerBotProfile scries /v1/self (the claim) then /v1/directory (the
-// bot's current profile, merged into the update)
-const mockBotProfileScries = (
-  self: ContactBookProfile,
-  directory: Record<string, unknown> = {}
-) => {
-  vi.mocked(scry).mockImplementation(async ({ path }: { path: string }) =>
-    path === '/v1/self' ? (self as never) : (directory as never)
-  );
-};
-
-test('registerBotProfile claims the moon (list) and publishes its real profile', async () => {
-  mockBotProfileScries({
-    nickname: { type: 'text', value: 'Host' },
-    bots: { type: 'set', value: [{ type: 'ship', value: SIBLING }] },
-  } as ContactBookProfile);
+// registerBotProfile is a single steward poke: steward (the arbiter of bot
+// data in contacts) validates the moon against its roster, merges the edit
+// into the bot's profile, and maintains the host's `bots` claim itself --
+// there is nothing to read, merge, or claim client-side.
+test('registerBotProfile sends one steward roster %profile poke', async () => {
   vi.mocked(poke).mockResolvedValue(undefined as never);
 
-  await registerBotProfile(MOON, { nickname: 'Helper', avatar: 'http://x/a' });
+  // update bio, clear avatar, leave everything else alone
+  await registerBotProfile(MOON, { bio: 'new bio', avatar: null });
 
-  // two pokes: the claim (contact-action-1) then the real profile (contact-bot-0)
-  expect(poke).toHaveBeenCalledTimes(2);
-  const claim = vi.mocked(poke).mock.calls[0][0] as {
-    app: string;
-    mark: string;
-    json: { self: { bots: { type: string; value: unknown } } };
-  };
-  expect(claim).toMatchObject({ app: 'contacts', mark: 'contact-action-1' });
-  // the claim is a native %set of %ship values; sibling preserved, moon added
-  expect(claim.json.self.bots).toEqual({
-    type: 'set',
-    value: [
-      { type: 'ship', value: SIBLING },
-      { type: 'ship', value: MOON },
-    ],
-  });
-
-  const profile = vi.mocked(poke).mock.calls[1][0] as {
-    app: string;
-    mark: string;
-    json: { who: string; con: Record<string, { type: string; value: string }> };
-  };
-  expect(profile).toMatchObject({ app: 'contacts', mark: 'contact-bot-0' });
-  expect(profile.json).toEqual({
-    who: MOON,
-    con: {
-      nickname: { type: 'text', value: 'Helper' },
-      avatar: { type: 'look', value: 'http://x/a' },
+  expect(scry).not.toHaveBeenCalled();
+  expect(poke).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(poke).mock.calls[0][0]).toEqual({
+    app: 'steward',
+    mark: 'steward-roster-action-1',
+    json: {
+      profile: {
+        ship: MOON,
+        edits: { bio: 'new bio', avatar: null },
+      },
     },
   });
 });
 
-test('registerBotProfile skips the claim poke when the moon is already claimed', async () => {
-  mockBotProfileScries({
-    bots: { type: 'set', value: [{ type: 'ship', value: MOON }] },
-  } as ContactBookProfile);
+test('registerBotProfile normalizes the moon id and empty-string deletes', async () => {
   vi.mocked(poke).mockResolvedValue(undefined as never);
 
-  await registerBotProfile(MOON, { nickname: 'Helper' });
-
-  // only the real-profile poke; the claim is already present
-  expect(poke).toHaveBeenCalledTimes(1);
-  expect(vi.mocked(poke).mock.calls[0][0]).toMatchObject({
-    mark: 'contact-bot-0',
+  await registerBotProfile('doznec-sampel-palnet', {
+    nickname: 'Helper',
+    status: '',
   });
-});
 
-test('registerBotProfile merges a partial update into the existing profile', async () => {
-  mockBotProfileScries(
-    {
-      bots: { type: 'set', value: [{ type: 'ship', value: MOON }] },
-    } as ContactBookProfile,
-    {
-      [MOON]: {
-        isContact: false,
-        contact: {
-          nickname: { type: 'text', value: 'Helper' },
-          avatar: { type: 'look', value: 'http://x/a' },
-          bio: { type: 'text', value: 'old bio' },
-        },
-        mod: {},
+  expect(vi.mocked(poke).mock.calls[0][0]).toEqual({
+    app: 'steward',
+    mark: 'steward-roster-action-1',
+    json: {
+      profile: {
+        ship: MOON,
+        edits: { nickname: 'Helper', status: null },
       },
-    }
-  );
-  vi.mocked(poke).mockResolvedValue(undefined as never);
-
-  // update bio, clear avatar, leave nickname alone
-  await registerBotProfile(MOON, { bio: 'new bio', avatar: null });
-
-  expect(poke).toHaveBeenCalledTimes(1);
-  const arg = vi.mocked(poke).mock.calls[0][0] as {
-    mark: string;
-    json: { who: string; con: Record<string, { type: string; value: string }> };
-  };
-  expect(arg.mark).toBe('contact-bot-0');
-  expect(arg.json.con).toEqual({
-    nickname: { type: 'text', value: 'Helper' },
-    bio: { type: 'text', value: 'new bio' },
+    },
   });
 });
 
@@ -160,6 +101,13 @@ test('isRegisteredBot is false for a non-moon ship', async () => {
   vi.mocked(scry).mockResolvedValue({} as never);
   // ~bus is a planet, not a moon — never a bot
   expect(await isRegisteredBot('~bus')).toBe(false);
+});
+
+test('isRegisteredBot fails closed: a failed directory read rejects', async () => {
+  // this read gates whether a DM takes the vouched path -- a scry failure
+  // must fail the send, never silently demote to peer-to-peer
+  vi.mocked(scry).mockRejectedValue(new Error('scry failed'));
+  await expect(isRegisteredBot(MOON)).rejects.toThrow('scry failed');
 });
 
 test('isRegisteredBot tolerates a malformed/missing bots field', async () => {
