@@ -50,6 +50,9 @@ type LocalUpload = {
   progress: number;
   serverEntryId?: number;
   sessionId?: string;
+  // Kept across a failure so a user's Retry re-asks under the id the host may
+  // already have answered, rather than opening a second session beside it.
+  openRequestId?: string;
   state: 'queued' | 'uploading' | 'failed';
 };
 
@@ -340,7 +343,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // what happened: retrying would mint a new one and open a second
         // session, leaving the first holding a reservation and its quota.
         // The host answers a repeated id with the answer it already gave.
-        const openRequestId = mintRequestId();
+        const openRequestId = upload.openRequestId ?? mintRequestId();
+        updateLocalUpload(id, { openRequestId });
         const openUpload = () =>
           requestBucketsUpload(
             {
@@ -408,6 +412,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       } catch (cause) {
         tasksRef.current.delete(id);
         const cancelled = cancelledRef.current.has(id);
+        // Only an ambiguous failure is worth re-asking under the same id. A
+        // typed refusal is an answer the host has stored, so reusing the id
+        // would replay that refusal on every Retry until the record is swept,
+        // even once whatever caused it has been put right.
+        if (cause instanceof BucketsActionFailed) {
+          updateLocalUpload(id, { openRequestId: undefined });
+        }
         // One cancel, not two. The host releases the storage reservation as
         // part of this -- previously that was a second call from here, made
         // while the tab was closing and with its error swallowed, so an
