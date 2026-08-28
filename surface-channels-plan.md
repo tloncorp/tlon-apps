@@ -1,0 +1,425 @@
+# Surface Channels v0: Bot-Generated Dashboard Pseudo-Channels
+
+**Status:** Draft plan
+**Scope:** v0 MVP — zero new Hoon; two provisioning changes; `%channels` as the store; sandboxed HTML/JS rendering
+
+---
+
+## 1. Executive summary
+
+**What this is.** Every user's tlonbot gets the ability to build small live apps — polls, trackers, RSVP lists, signup sheets, dashboards — that appear in a group as a new kind of channel. Instead of a message list, the channel renders an interactive app that the bot creates and keeps up to date, and that group members can use directly. Think Claude Artifacts, but living inside a Tlon group and backed by the user's own ship.
+
+**How it works, in one paragraph.** We don't build any new backend. A dashboard is an ordinary channel whose metadata identifies the app — a hash-pinned HTML bundle stored through the same upload path we already use for images and video — and whose message history doubles as the app's database: the bot and members write small structured records as posts, and the client folds them into the app's current state. The app itself runs in a locked-down sandbox with no network access, rendered against a Tlon-designed component shell that ships with the client. Because the data layer is just channels and posts, we inherit everything the platform already does well — replication, permissions, offline caching, history — without writing or deploying new ship-side software.
+
+**Why this approach.**
+
+- **Speed and quality.** Models are extremely fluent at generating HTML/JS apps — it's why Claude Artifacts works. The bot writes small apps against a component kit we control; a template library and an automated quality gate keep output consistent.
+- **Not ugly by construction.** Apps cannot choose fonts or colors — they compose Tlon-styled components and design tokens from a shell the client ships. Every app looks like part of Tlon (accepted trade for v0: coherent and uniform beats varied and ugly).
+- **Contained by construction.** App code runs in a sandbox with no network egress and no device access. Its only capabilities are reading the dashboard's state and triggering interactions the app _declares in advance_ — a member's tap can never be forged or repurposed, and app code can never write state directly.
+- **A real upgrade path.** Everything user-visible (the runtime, the bundle format, the bot commands) carries forward unchanged to the v1 backend (a dedicated store agent, group-host hosting). v0 validates the product; v1 upgrades the plumbing.
+
+**The user experience.** The user describes an outcome in one sentence in their group — "can we track who's bringing what to the potluck?" The bot picks the closest template, adapts it, publishes, and the app appears as a channel. The user reacts in plain language ("show who hasn't responded yet"), and the bot revises. No design decisions, no technical decisions, no code seen. The demo metric is time from sentence to working app.
+
+**What v0 delivers.** In the user's personal group (user + their tlonbot), the bot can create a dashboard channel, publish and revise its app, and update its state; the user (and any invited members) see it live on iOS, Android, and web, and interact through controls whose effects are validated against the app's declaration. Launch template set: poll, RSVP, potluck/signup, habit tracker, leaderboard, countdown, expense split, lightweight kanban, workout tracker (StrongLifts-style 5×5).
+
+**What v0 does not do.** No free-form input fields that write state (declared, parameterless interactions only — per-user state like votes and RSVPs works via verified authorship). No arbitrary groups — the bot needs admin standing, which we grant in the personal group at provisioning. Dashboards are hosted on the bot's moon; moving them to the group host ship is the v1 flow. Apps cannot fetch anything from the network, ever.
+
+**Prerequisites outside the repo.** (1) Provisioning must add the tlonbot's moon to an admin role of the personal group at onboarding — channel creation and app definition both require it. (2) The moon needs write access to the user's remote storage to upload bundles. Both are provisioning changes, both verified in the first milestone.
+
+**Trust model, in one sentence.** Group admins define and can redefine the app (pinned by hash, so exactly the reviewed bytes run); group members can only trigger the interactions the app declares; app code runs blind to the network and cannot write state itself.
+
+---
+
+## 2. Non-goals for v0
+
+- No `%surface` Hoon agent (v1; see §12).
+- No network access from app code: no fetching, no external scripts/fonts/images, no telemetry from inside apps. Bundles are fully self-contained.
+- No free-form input arguments to interactions. Members trigger declared, parameterless actions; per-user state is keyed by verified authorship (§4.3, §7). Input-carrying actions are v1.
+- No per-app dependency choices. The app's entire library universe is what the client-shipped shell exposes (§5).
+- No random-access key-value semantics. State is reduce-over-log with snapshots.
+- No support for groups where the bot lacks admin standing; no group-host hosting.
+- No in-app editing UI. The bot is the author; users talk to the bot to change the app.
+- No per-post unread granularity (§8; surface channels are excluded from unread badges wholesale).
+- No visual variety between apps beyond shell affordances. All apps look like Tlon.
+
+---
+
+## 3. Architecture
+
+A **surface channel** is a normal `%chat` channel with three properties:
+
+1. Its **channel description** carries a `StructuredChannelDescriptionPayload` containing (a) a `channelContentConfiguration` selecting the surface renderer and a null composer, and (b) the **authoritative app definition** (`surfaceSpec`, §4.1): a hash-pinned reference to the HTML bundle plus the app's declared actions and initial state.
+2. Its **posts** carry the app's **event log and snapshots** in blob entries, under backend-valid kind paths (§4.2–4.4).
+3. The client's **surface renderer** fetches and hash-verifies the bundle, hydrates snapshot + events into current state (§6), and runs the app in a sandboxed webview against the client-shipped shell (§5).
+
+### Spec locus, authority, and persistence
+
+**Why the description.** `%channels-server` requires every post's kind head to equal the channel's nest kind, so post kinds are `/chat/surface/...` and posts alone can't carry a privileged kind. Channel metadata, by contrast, is editable only through the group-admin path — backend-enforced — and arrives with the channel object through existing sync, making both app authorship and app discovery structural rather than conventional.
+
+**The hash is the authority.** The description carries `{ assetRef, sha256, size }`. The client verifies the fetched bundle against the hash before the sandbox ever sees a byte; a mismatch renders an error state, never the bundle. Storage is transport, not trust: whoever holds storage credentials can overwrite bytes at a key, but cannot change what clients will _run_ — only an admin edit to the description cell can do that. This keeps the authority model identical to every other field in the payload.
+
+**Authority.** Group-channel description edits are gated on **group admins** by `%groups` — not on the channel host specifically. The spec's trust set is therefore _the group's admin set_: any admin may define or redefine the app. In the personal group that set is {user's planet, bot's moon}, which is the correct trust model — the user can always override or fire their bot. Concurrency between admin writers is resolved by the host's groups agent sequencing the description cell, and **the current content of that cell is authoritative, full stop**. `specRevision` exists to correlate events and snapshots with the spec they were written against (§4.3–4.4, §6) — it is _not_ a conflict-resolution mechanism. Spec writers must read-modify-write and bump the revision; the `surface publish` skill command does this; a human admin editing by hand can produce a regression, which clients honor (the cell is authoritative) and the bot detects and repairs on next write. A malicious or compromised admin can redefine the app; that is within the trust model — admins own the group.
+
+**Change detection.** Clients detect spec changes by cell **content**, never by `specRevision` — the revision correlates events and snapshots with the spec they targeted and is not a change signal or a cache key; a content change at an unchanged revision (tolerated for hand edits, and semantically coherent for bundle-only changes, since the action map is what events resolve against) must propagate like any other. This was not merely under-specified: every write that carries channel metadata must refresh the **verbatim payload and the spec**, not only the fields derived from them. A conflict-update allowlist that refreshed the readable description while pinning the raw cell left surface channels rendering a superseded bundle indefinitely, and — worse — made any routine metadata edit push the superseded spec back onto the authoritative cell, reverting a republish (D59).
+
+**Persistence.** Today the client sync layer extracts only `description` and `channelContentConfiguration` from the structured payload, and channel-edit flows _reconstruct_ the payload from those two fields — so a routine title or privacy edit would silently erase `surfaceSpec`. Two required changes, both in §9's workstreams:
+
+1. `surfaceSpec` becomes a first-class field on the persisted channel model (client schema + sync extraction), so the renderer reads it from the same place it reads everything else.
+2. Every metadata-edit path reconstructs the description payload from the **full decoded payload with unknown keys preserved**, not from the known fields. This protects `surfaceSpec` and future-proofs the next field anyone adds to the payload. An integration test asserts: edit title → spec survives.
+
+### Bundle storage and delivery
+
+Bundles ride the **existing remote-storage upload path** (the S3-compatible storage users already have for images/video/documents):
+
+- **Upload:** `surface publish` uploads the bundle from the bot's moon and records `{ assetRef, sha256, size }` in the description. **Precondition (M0): the moon can write to the user's storage** — storage credentials live on the user's ship, and the moon's access to that path must be verified or provisioned alongside the admin role.
+- **Fetch + verify:** clients fetch the bundle, verify the sha256, and store it in a **content-addressed bundle cache** keyed by hash — eviction and integrity are trivial, and a fully hydrated surface with a cached bundle renders offline.
+- **Immutability discipline:** publishes always write new storage keys (content-addressed naming); nothing ever depends on a key's mutability, and stale keys are garbage, not state.
+- **Privacy posture:** viewer clients fetching from the host's bucket exposes viewer IP/timing to the storage host — identical to today's image posture, stated here because apps otherwise have _no_ network story at all.
+- **Availability posture:** self-hosted users without configured storage can't publish surfaces (they also can't upload images today; same degradation line). Hosted users are unaffected.
+
+### Hosting and creation
+
+The bot creates the channel via `tlon-skill`; the channel is hosted on the bot's moon.
+
+- **Hard precondition (verified against the backend):** `can-nest` requires the creating ship to hold an admin role in the target group — membership is not sufficient. **Provisioning must add the moon to an admin role of the personal group at onboarding.** The same grant covers app authorship (description editing) per the authority model above.
+- **Writers.** Channel writer sets are role sets; an empty set admits every group member. v0 policy: empty writer set in the personal group; shared-group deployments must define an explicit member role. Interaction authorization beyond "may post" is handled by the invoke design (§4.3).
+- **A deleted channel's name is burned on that ship.** `%channels-server`'s `ca-create` silently no-ops when the name already exists, so re-creating a previously used name leaves it half-created — `%channels` holds an entry with a bunt flag, `%groups` never lists it — **and the client's tracked poke still resolves successfully**, so the caller believes it worked. The app only avoids this because `createChannel` uses random slugs; any bot flow tempted to use a readable `customSlug` (`potluck`, `standup`) must treat names as single-use, or verify creation by observing the channel rather than by the poke. The silent success is the dangerous half.
+- **v1 direction:** user-hosted creation via a confirm-gated bot proposal card, putting the channel on the group host ship. Out of scope for v0.
+
+---
+
+## 4. Wire format
+
+All schemas are registered in `postBlobDataEntryDefinitions` per the post-blobs playbook. All posts carry minimal fallback text so pre-surface clients degrade to inert chat messages. Post kinds use backend-valid `/chat/...` heads; the TS post writers gain a constrained kind-tail parameter allowlisted to `surface` tails.
+
+### 4.1 `surfaceSpec` (channel description payload) — the app definition
+
+```ts
+interface SurfaceSpec {
+  version: 1;
+  surfaceId: string; // stable per channel
+  specRevision: number; // monotonic by convention; correlates events/snapshots
+  // with the spec they target. NOT a conflict resolver:
+  // the description cell's current content is authoritative (§3).
+  title?: string;
+  bundle: {
+    assetRef: string; // storage location of the HTML bundle
+    sha256: string; // the authority: clients run only bytes matching this
+    size: number; // bytes; sanity bound before fetch
+    shellVersion: number; // shell major version the bundle targets (§5)
+  };
+  initialState: JsonObject;
+  preserveState?: boolean; // false (default): this revision's state starts from
+  // initialState. true: this revision's state starts from a
+  // host-posted migration snapshot at exactly this revision;
+  // until that snapshot exists, the surface is "migration
+  // pending" (§6).
+  actions: Record<ActionId, SurfaceAction>; // the ONLY operations members may invoke
+  recipe?: unknown; // generation context for bot revision loops; capped (§7)
+  provenance?: {
+    // Written by `surface fork` (§9). A CLAIM, never an attestation:
+    // the forker writes it and nothing verifies it. Capped (§7).
+    surfaceId: string; // the source surface
+    specRevision: number; // the source revision forked from
+    sha256: string; // source bundle; equals bundle.sha256 for a byte
+    // copy, differs when regenerated from `recipe`
+    channel?: string; // source nest — OMITTABLE ON PURPOSE, see §9
+    mode: 'copy' | 'regenerated';
+  };
+}
+
+type ActionId = string; // ≤ 64 chars, /^[a-z0-9-]+$/
+interface SurfaceAction {
+  ops: Op[]; // may use $actor in values and as a path segment (§7)
+  acceptStale?: boolean; // default false: invocations tagged with an older
+  // specRevision are dropped. true: applied anyway, resolved
+  // against the CURRENT spec's action of the same actionId;
+  // dropped if the actionId no longer exists.
+}
+```
+
+The spec itself is small metadata (the bundle lives in storage), so channel-meta size pressure is minimal; M0 still verifies the effective cap end-to-end.
+
+### 4.2 `/chat/surface/spec` posts — revision mirror
+
+Blob entry `surface-spec-mirror` v1: `{ surfaceId, specRevision, spec: SurfaceSpec }`. Non-authoritative history for audit/rollback UI. Ignored by the reducer. (Bundle bytes are retained in storage under content-addressed keys, so a mirror entry is sufficient to roll back.)
+
+### 4.3 `/chat/surface/event` posts — interaction and host updates
+
+Blob entry `surface-event` v1:
+
+```ts
+type SurfaceEvent =
+  | {
+      type: "surface-event";
+      version: 1;
+      surfaceId: string;
+      specRevision: number;
+      mode: "host";
+      ops: Op[];
+    }
+  | {
+      type: "surface-event";
+      version: 1;
+      surfaceId: string;
+      specRevision: number;
+      mode: "invoke";
+      actionId: ActionId;
+    };
+```
+
+**Reducer rules (the security core):**
+
+- **Revision filter (uniform):** an event is folded only if `event.specRevision === currentSpec.specRevision`, with exactly one exception — `mode: 'invoke'` events with an older revision whose `actionId` exists in the current spec with `acceptStale: true`, which are applied using the **current** action's ops. Host events have no stale exception: a host event tagged with a stale revision is dropped. This guarantees a non-preserving revision reset never replays prior-revision events into the new state.
+- `mode: 'host'` events are honored only when `post.authorId` is the channel host ship. Raw ops from any other author are ignored. Note the scope of what this grants: because host ops are arbitrary, a host that archives or summarises member activity owns the **content** of that archive and not merely its timing — the reducer never checks that a host-written record matches what members actually reported. That is inside the trust model (admins own the group, §3), but it is worth stating plainly for templates whose history is host-written, since "members can only trigger declared actions" is true of the *live* state and not of what a host later writes about it.
+- `mode: 'invoke'` events carry no ops. The reducer resolves `actionId` in the governing spec, takes the ops from the spec, substitutes `$actor` with `post.authorId`, and applies. A member cannot touch paths no action exposes, cannot forge another ship's identity, and cannot smuggle undeclared ops. Hand-crafting the post achieves exactly what tapping the control achieves. **App code is bound by the same rule: the sandbox bridge (§5) exposes `invoke(actionId)` and nothing else — there is no raw-op write path from inside an app.**
+- Backend writer permissions still gate whether a ship can post at all; the invoke design gates what a post can _mean_.
+- Replay/idempotency: with `$actor` usable as a path segment (§7), per-user state is expressed as `set /votes/$actor` — naturally idempotent. **`append` is not, and the mitigation is stronger than "key by `$actor`":** keying the _path_ by actor does nothing to dedupe _repeated_ appends by that same actor. Because members supply no values, two duplicate appends produce **byte-identical entries**, so nothing downstream — render, bot, or human — can distinguish a double-tap from two legitimate entries from state alone. The backend offers no help: `%add` stamps a fresh `now.bowl` id per poke with no `(author, sent)` dedup, so a transport retry is genuinely two posts. Duplicate sources are double-tap, retry, and the same user on two devices. **Therefore in v0, `append` inside a member action means "duplicates are acceptable"** — use it only where a stray duplicate is cosmetic, never where it drives derived logic. For anything periodic, use the **host-is-the-clock** pattern instead: the member does an idempotent `set /today/$actor …`, and the channel host posts a rollover host event (`set /history/<date> <copy of /today>` + `del /today`) computing the date and copied value from its own fold. Two ops, well under caps, fully idempotent, and it yields dated history without any reducer change. Encoded in the authoring skill's action-design guidance; `$period` substitution (§12) is the v1 fix that makes this first-class.
+
+### 4.4 `/chat/surface/snapshot` posts — compaction and migration
+
+Blob entry `surface-snapshot` v1:
+
+```ts
+{
+  type: "surface-snapshot";
+  version: 1;
+  surfaceId: string;
+  specRevision: number; // MUST equal the current spec's revision to be usable
+  upToSequenceNum: number; // all folded events have sequenceNum ≤ this
+  state: JsonObject;
+}
+```
+
+Honored only from the channel host ship. **Selection rule: a snapshot is valid only if its `specRevision` equals the current spec's revision.** There is no cross-revision selection under any setting. The effective snapshot is the valid one with the greatest `upToSequenceNum`. The bot snapshots every N events or M bytes, and posting a migration snapshot at the new revision is a **mandatory part of any `preserveState: true` transition** — until it lands, the surface is migration-pending (§6).
+
+---
+
+## 5. Rendering: sandbox, shell, and bridge
+
+### The sandbox
+
+App bundles run in a webview locked down per platform. The guarantees differ by platform and are stated exactly:
+
+- **Web (iframe):** `sandbox="allow-scripts"` (opaque origin — no cookies, no host DOM, no storage, no same-origin anything) plus a host-injected CSP (`default-src 'none'` shape; the document's own headers are never trusted). This blocks resource-fetch egress (`fetch`/XHR/WebSocket/beacons/images), top navigation, popups, forms, and downloads. **It does not block the frame navigating itself** — no sandbox token or shipped CSP directive governs self-navigation, so a hostile bundle could navigate to an attacker URL (the request itself is egress) and load unpinned code in the frame. The web posture is therefore layered: the **publish gate is the primary boundary** against navigation egress (its lint rejects navigation APIs and markup, §9); the sandbox is defense in depth (plus best-effort in-realm hardening, labeled bar-raising rather than boundary, and host teardown of the iframe on any post-initial load, which bounds second-stage dwell but not the initial request). **Parent-page `frame-src` is now verified** (session 4.5; matrix in `DECISIONS.md` D43): an allowlist CSP on the host page blocks the sandbox frame's self-navigation **pre-flight** on chromium, firefox and webkit, for all four vectors, and `about:srcdoc` frames still load under it on all three — so the restriction costs nothing and web gains origin-restricted navigation. Two delivery facts constrain the rollout (D44): `Content-Security-Policy-Report-Only` cannot be delivered in a `<meta>` tag, and `tlon-web` ships as a glob served by `%docket`, which emits only a `content-type` header and lives outside this repo — so **there is no production Report-Only path**, and the enforcing `<meta>` is the only production mechanism. Report-Only therefore runs on the dev/preview servers (which the e2e suite exercises) while the enforcing policy ships written-but-disabled behind a one-line flag, pending D44's amended flip criteria. Note that once enforcing, failures are silent — `report-uri` is likewise unavailable in `<meta>` — so an allowlist gap surfaces as a broken feature rather than a report.
+- **Native (iOS/Android):** WKWebView + WKContentRuleList deny-all; Android WebView + `shouldInterceptRequest` deny-all. These operate at the network layer and **can** cover the navigation vector — native is capable of the stronger guarantee — but every native behavior must be **verified on device** (egress enforcement, srcdoc/baseUrl behavior, message transport, shell asset delivery); `onShouldStartLoadWithRequest` alone vetoes navigations but not subresources and is not sufficient.
+- **No device or host access.** No native bridges beyond the surface bridge below; sandbox/webview settings deny storage, popups, downloads, media capture.
+- **Leak tests must enumerate vectors, including navigation**, and assert _true_ behavior — a probe set that omits a vector reads as proof the vector is closed. Passing posture tests may only be cited for the vectors they probe.
+
+The v0 security claim, stated honestly: _reviewed-hash bytes; resource-fetch egress blocked; no same-origin, storage, or host access; two capabilities — read state, invoke declared actions; navigation egress on web prevented by the publish gate rather than the platform._ This is sufficient for v0's trust reality (bundles come from the user's own bot through the gate). It is **not** yet sufficient for shared groups — "another member's bot's code runs on your device" requires the structural fix: **migrating bundle execution to a Worker realm (no browsing context to hijack), with serialized DOM ops replayed by a host-side interpreter that allowlists elements and attributes. That migration — evaluating `remote-dom`-style implementations before hand-rolling — is an explicit M4 deliverable, not just a review topic**, and shared-group trust is gated on it.
+
+### The shell
+
+The client injects a versioned **surface shell** into the sandbox alongside the verified bundle. It lives as its own monorepo package, `packages/surface-shell` (§9), because the existing `@tloncorp/ui` cannot run inside the sandbox — it's Tamagui over React Native primitives, with expo/reanimated/gesture-handler peers and a hard dependency on `@tloncorp/shared`'s app context. The relationship to the existing UI package is deliberate and threefold: **tokens are shared by codegen** (the shell's CSS custom properties are compiled at build time from the Tamagui config `@tloncorp/ui` exports, CI-checked for drift — one source of truth for designers), **icons are reused directly** (they're plain SVGs, inlined), and **primitives are visual ports, not shared code** (a small hand-written DOM/Preact kit reproducing the components' appearance from the tokens). Host-side chrome around the webview — headers and every §6 state screen — uses `@tloncorp/ui` normally; only pixels inside the sandbox come from the shell.
+
+The shell is where "easy to generate" and "not ugly" are enforced:
+
+- **Design tokens as CSS custom properties**, generated from the Tamagui config and fed theme/dark-mode state from the host — never the app's concern.
+- **A styled primitive kit** (card, list row, button, stat, badge, avatar, progress, empty-state, section header, **chart**) matching Tlon's UI. Apps compose primitives; the publish gate rejects `font-family`, non-token colors, and styles outside a whitelisted layout subset. Apps cannot be ugly in the ways that matter because those decisions are never the app's to make. **The chart primitive owns its container**, and exists because the alternative was measured: exposing the raw Chart.js constructor led both early bundles to independently write `responsive: false` with a hardcoded pixel canvas, which overflowed every phone viewport. Bundles pass data and options, never dimensions; the responsive settings are applied *after* the caller's options so the broken path is unreachable rather than merely discouraged.
+- **Vendored libraries, chosen for model fluency:** **Preact + htm** (React-shaped hooks and components with zero build step — bundles are single runnable files; htm parses each template once and caches, so runtime tagging costs microseconds) and **Chart.js** (the visualization library models generate most reliably; charts are the highest-impact "real app" feature for dashboards). and **`@urbit/sigil-js`** (already a `@tloncorp/ui` dependency at `^2.2.0`, so no new supply chain). Sigils are not decoration: `$actor`-keyed apps must render the whole group (§5, no viewer identity), and without them every dashboard showing people renders bare `~zod` text and looks nothing like Tlon. The `avatar` primitive renders a real sigil, with colors from the tokens like every other primitive. Shipped once in the client, not per bundle. No React-with-build, no Tailwind, no per-app dependencies.
+
+  **Size consequence, stated because it is not small:** sigil-js's core is ~284 KB minified against a current artifact of ~499 KB, and it pulls two small transitive deps (`invariant`, `lodash.memoize`). This roughly doubles the embedded shell, which every client carries whether or not any app uses a sigil. Two mitigations, both available: tree-shaking through the existing vite lib build, and **flipping `minify: 'esbuild'`** — recorded in D32 as deterministic and deliberately left off while size did not matter. It now matters; revisit at the same time. Rendering sigils host-side and passing them over the bridge is **not** an alternative — they appear inside the app's own layout, so they must be drawable inside the sandbox.
+- **One paradigm, enforced:** the shell loads first and exposes `globalThis.surface` (`html`, `h`, `primitives`, `Chart`, `register`, `invoke`, `canInvoke`); a bundle is a **single plain script — no imports or exports** — that calls `surface.register({ render })`, where `render(state)` is pure and returns a Preact tree. The shell calls it on every state update and wires `invoke(actionId)` to controls (own-property action lookup, permission-gated live, tagged with the rendered `specRevision`). No app-local mutable state diverging from the store, no manual DOM, no subscription bookkeeping — the stale-or-inconsistent-data class of generated-app bugs mostly can't be written. The publish gate enforces this shape. **`render` must never read the clock.** The sandbox's `Date` is the *viewer's*, while every boundary that matters (a host rollover, an archived date) is the *host's* — showing one as the other is a lie that differs per viewer. Apps know the order of their state and any date the host wrote into it, and nothing else; see §12's `$period`.
+
+**Shell versioning.** The shell carries a major version; specs pin `shellVersion` (§4.1). v0 ships a single version. A client older than a bundle's target renders a clean "update Tlon to view this" state — refusal over best-effort, same philosophy as the reducer skipping invalid entries. Templates in the authoring skill target a shell version, and monorepo CI renders every template against the current shell on every change, so drift is caught at commit time.
+
+### The bridge
+
+A postMessage API between shell and host, deliberately narrow:
+
+- `getState() / subscribe(cb)` — read-only access to the reduced state (§6).
+- `invoke(actionId)` — posts a `mode: 'invoke'` event as the viewer, tagged with the rendered spec revision. Parameterless by design in v0; the host disables invocation when the viewer lacks channel write permission, and the reducer re-validates regardless.
+- Nothing else. No message sending, no navigation, no raw writes. Widening the bridge is a v1 decision made capability-by-capability.
+- **No viewer identity.** The init message carries `canInvoke` but not the viewer's ship, so an app cannot personalise — it renders the whole group and labels its own controls "you". This is the largest authoring awkwardness found in practice and it hits every `$actor`-keyed template (poll, RSVP, habit, leaderboard, workout), not one of them. Exposing identity is a bridge widening, hence a deliberate v1 capability decision rather than an oversight; recorded here so template authors design around it instead of discovering it.
+
+DM bot cards continue to use the existing A2UI v1 path, untouched — this runtime is for surface channels only.
+
+---
+
+## 6. Hydration and reduction
+
+**Hydration algorithm:**
+
+1. **Spec:** read from the persisted channel model (the _raw_ stored value, validated at read — validated views strip unknown keys and must never be what gets persisted). A `surfaceSpec` that is present but fails validation renders a defined **"invalid definition"** state — unless its declared `version` is newer than the client understands, which renders "update to view." Neither case falls back to the chat renderer (which would display raw event posts as messages), and events are never folded without a governing spec. Available via existing channel sync — no paging.
+2. **Bundle:** resolve from the content-addressed cache by `sha256`, else fetch from `assetRef` and verify. Hash mismatch or fetch failure → defined error state (retry affordance), never a render of unverified bytes. `shellVersion` newer than the client's shell → "update to view" state.
+3. **Migration gate:** if the current spec has `preserveState: true` and no valid snapshot at the current revision exists in the hydrated range or arrives during search, render **"migration pending"** — a defined UI state, not an error — and keep watching. This also covers the case where the migration snapshot is later deleted: the surface returns to migration-pending until the host reposts. Non-preserving specs never enter this state; absent a snapshot they fold from `initialState`.
+4. **Snapshot search:** page backward from the newest post by `sequenceNum` until a valid current-revision snapshot is found, or (for non-preserving specs) sequence 1 is reached. Track a `hydratedFromSequenceNum` watermark; the surface shows a loading state until the watermark is contiguous with the snapshot boundary or channel start.
+5. **Reduce:** fold events passing the §4.3 revision filter with `sequenceNum` in `(snapshot.upToSequenceNum, newest]` — or from `initialState` over the full hydrated history when no snapshot exists — in sequence order (the ordering both ships and clients already agree on). Push live events incrementally through the bridge as the post subscription delivers them.
+6. **Completeness is explicit.** "Hydrated," "partially loaded," "migration pending," "bundle unavailable," "invalid definition," and "update to view" are distinct rendered states; a partial fold is never presented as current — the partial status carries **no state at all**, since an incomplete fold is wrong derived state, not stale state. A fully hydrated surface with a cached bundle renders offline.
+
+**Mutation semantics** (channel posts are mutable, so these must be defined, not discovered):
+
+- **Edits retract.** The backend replaces a post's essay in place on edit — there is no original blob for a cold client to consult. Rule: the reducer **rejects any surface post marked edited** (revision counter > 0). Editing an event, snapshot, or mirror post is therefore a retraction mechanism, with the same downstream consequences as deletion, governed by the finalization rule below.
+- **Snapshots finalize.** Events with `sequenceNum ≤` a valid current-revision snapshot's boundary are frozen into it. Because hydration _mandates_ folding from the newest valid snapshot, no compliant client folds beneath the boundary — so deleting or editing an event below it changes nothing, and clients cannot diverge over it.
+- **Above the boundary, the live post set governs.** Deleting or edit-retracting an event above the newest snapshot changes state identically on all clients as the deletion propagates through normal channel sync (transient windows are ordinary eventual consistency).
+- **Snapshot removal degrades cleanly.** If the newest valid snapshot is deleted or edit-retracted: fall back to the next-oldest valid current-revision snapshot; if none exists, non-preserving specs refold from `initialState` over the present post set (consistent across clients), and preserving specs return to migration-pending. Refolded state may differ from previously finalized state when folded events were meanwhile deleted — the documented cost of the host destroying its own snapshots, and still _convergent_.
+
+**The reducer** is a pure, total function (invalid entries are skipped with a debug log, never fatal), property-tested, living in `@tloncorp/api` so the client, `tlon-skill`, and integration tests share one implementation and bot-written payloads cannot drift from what clients accept.
+
+---
+
+## 7. Exact semantics and limits
+
+**Paths.** RFC 6901 JSON Pointer, restricted: must start with `/`; `~0`/`~1` escaping per the RFC; max 200 chars, max 12 segments; segments must not be `__proto__`, `constructor`, or `prototype`; the empty pointer is forbidden as an op target. `set` creates missing intermediate objects (never arrays); `del` on a missing path is a no-op; `append` requires an existing array target. Array index segments are valid only in read paths, not write targets, except `append`'s implicit tail. A violation invalidates that single op; remaining ops in the entry apply in order.
+
+**Ops.** Wire shape: `{ op: 'set' | 'del' | 'append', path: string, value?: Json }` — `value` required for `set`/`append`, absent for `del`. Enforcement is two-layer: caps and shape violations fail schema validation, degrading the **whole blob entry** to unknown; path-grammar and `$actor` violations are checked per-op at reduce time, skipping **only that op** while the rest apply in order. Multiple surface entries in one post fold deterministically in blob order within the post's sequence slot; writers nonetheless emit exactly one surface entry per post (a writer rule, not a reducer rule — the reducer stays permissive so malformed writers can't cause divergence).
+
+**`$actor`.** Permitted **only inside spec-declared action ops** (invalid anywhere in host ops — the op is skipped), in two positions:
+
+- **As a value** (any string exactly `"$actor"`, anywhere in the value tree — needed for `append`-keyed records; substrings stay literal): substituted with the actor's plain ship string (`~sampel-palnet`), derived from `post.authorId` during reduction. Safe because members supply no values: every substituted value originates in the admin-authored spec.
+- **As a complete path segment** (the literal segment `$actor`, e.g. `set /votes/$actor`): substituted with the actor's ship string **RFC 6901-escaped** (`~` → `~0`, so `~zod` becomes the segment `~0zod`). Partial-segment use is invalid. This is what makes per-user state — poll votes, RSVP status, habit checkmarks — an idempotent `set` keyed by the verified actor.
+
+Substitution happens in the reducer, after authorship is known; no client- or app-supplied expansion is ever trusted.
+
+**A ship has two spellings, depending on position, and one spec routinely needs both.** As a path *segment* it must be RFC 6901-escaped (`~0zod`), because `~` is the escape character and a bare `~z` is an invalid escape that silently invalidates the op. As an object *key inside a value* it is the plain ship (`~zod`), since values are not pointers. `$actor` substitution already emits the right form for its position, but a hand-authored host op naming a literal ship does not — the authoring guidance and the gate should cover the distinction, not merely the escape.
+
+**Value types.** Recursive `Json`/`JsonObject` types in `@tloncorp/api` (the existing `JSONValue` is scalar-only and unsuitable), Zod-validated, depth cap 16.
+
+**Caps** (spec/event caps validated at parse — violations skip the entry; bundle caps enforced by the publish gate and re-checked at fetch):
+
+| thing                                                              | cap                                                                                                                                                                                                               |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| bundle size                                                        | 256 KB                                                                                                                                                                                                            |
+| spec metadata total (actions + initialState + recipe + bundle ref) | 32 KB                                                                                                                                                                                                             |
+| `initialState`                                                     | 8 KB                                                                                                                                                                                                              |
+| `recipe`                                                           | 8 KB (within the spec total)                                                                                                                                                                                      |
+| `provenance`                                                       | 512 B (within the spec total)                                                                                                                                                                                     |
+| actions per spec                                                   | 64                                                                                                                                                                                                                |
+| ops per action / per host event                                    | 20                                                                                                                                                                                                                |
+| single op value                                                    | 4 KB                                                                                                                                                                                                              |
+| event entry total                                                  | 8 KB                                                                                                                                                                                                              |
+| snapshot `state`                                                   | 64 KB                                                                                                                                                                                                             |
+| reduced in-memory state                                            | 128 KB — **any** op whose result would exceed the cap is refused (state unchanged; `stateFull` drives the "dashboard full" state; shrinking ops still apply); the bot's fix is snapshot + prune via spec revision |
+| JSON depth                                                         | 16 — enforced at write time: an op whose path depth plus value depth would exceed the cap is refused, so reduced state always validates under the snapshot schema and remains snapshottable                       |
+
+Server-side, `%channels-server`'s per-post `size-limit` is an independent backstop for post-borne records.
+
+---
+
+## 8. Unread, activity, and notification policy
+
+The activity path sends the post's Story content and mention flag — neither kind nor blob — so per-post suppression of surface records is not implementable at the client boundary without Hoon changes. Policy: **surface channels are excluded from unread badges, activity summaries, and push/desktop notifications — wholesale for badges and summaries, but only best-effort for notifications.** The notification half cannot be wholesale in v0 and the distinction is load-bearing: suppression depends on each *recipient's own client* having discovered the channel and poked their volume map. A member whose client simply was not running when the channel was created or converted has an always-running ship that still evaluates the default notify-on volume, so they receive pushes for every interaction until they next launch a surface-aware client. This is **not** the same as the pre-surface-client residual below — it affects fully current clients — and no client-side mechanism can close it, because the guarantee has to hold while the client is absent. The three are distinct mechanisms and each needs its own treatment:
+
+- **Badges and summaries:** excluded client-side, keyed off the channel's content configuration (which the client always has).
+- **Notifications:** the backend has zero surface awareness and the default volume is notify-on, so without intervention **every dashboard interaction would push to every unmuted member**. Fix: notification volume is computed inside each _recipient's own_ `%activity` agent from their own volume settings, so the client **auto-hushes surface channels on discovery** (`setChannelVolumeLevel('hush')`), guarded by a one-shot "already defaulted" marker — unmuting _removes_ the volume entry, making "unmuted by choice" and "never touched" otherwise indistinguishable, and a naive re-hush would override user choice. A cheap `isSurfaceChannel` filter at browser/Electron presentation is belt-and-suspenders for the pre-hush window. Residuals, both of which stay with the v1 kind-aware-activity item because only server-side kind awareness closes them: members who only ever run pre-surface clients; **and current-client members who were offline when the surface was created or converted, who keep receiving pushes until they next launch.** The second is the reason the notification exclusion is described above as best-effort rather than wholesale — a client-side discovery poke cannot establish a recipient's default before events are accepted on their behalf.
+
+Consequences accepted and documented: no chat-hybrid dashboards in v0, and surface channels never badge or notify — the bot announces noteworthy dashboard changes in a real chat channel when attention is wanted. Server-side kind-aware activity is a v1 item.
+
+---
+
+## 9. Workstreams
+
+### `packages/api`
+
+- `surfaceSpec` in `StructuredChannelDescriptionPayload` (bundle ref shape incl. `shellVersion`); **decode/encode round-trips unknown keys**; `surface-spec-mirror`, `surface-event`, `surface-snapshot` schemas; recursive `Json` types; JSON Pointer module incl. `$actor` segment substitution; the reducer (revision filter, migration gate, finalization, edit-rejection); kind-tail support in post writers. (Bridge protocol types live in `packages/surface-shell`, below.) Tests: valid/malformed per schema; property tests for pointer ops and reducer determinism/totality; explicit cases for revision-boundary replay, stale-invoke resolution, `$actor` escaping, edited-post rejection, snapshot-deletion fallback.
+
+### `packages/shared` (sync + persistence)
+
+- `surfaceSpec` as a first-class field on the persisted channel model: SQLite schema addition, sync extraction alongside `channelContentConfiguration`, exposure to the renderer. **Persist the raw decoded value and validate at read** — validated views strip unknown spec keys, so persisting them would defeat forward compatibility. **Additionally persist the verbatim description payload string** (`description_payload`): the extracted `description`/`contentConfiguration` fields are lossy, so the byte-identity guarantee for metadata edits requires decode→modify→encode over the stored verbatim payload; both columns derive from the same string in one extraction helper so they cannot drift.
+- **All channel-metadata edit paths reconstruct the description from the full decoded payload** (unknown keys preserved). Integration test: title edit, privacy edit, and content-config edit each leave `surfaceSpec` byte-identical.
+- Content-addressed bundle cache keyed by sha256 (store, verify-on-read, LRU eviction).
+
+### `packages/surface-shell` (new package)
+
+The shell as its own package, because its boundary must coincide with the sandbox boundary:
+
+- **Contents:** `tokens/` (codegen reading `@tloncorp/ui/config` → committed CSS custom-properties file; CI regenerates and fails on drift), `primitives/` (the DOM/Preact kit + inlined icon subset), `harness/` (the `render(state)` loop, error boundaries so an app exception renders a defined broken-state rather than a white screen, the bridge client), `protocol/` (bridge message types **and Zod schemas** — the shell is the canonical speaker of the protocol, and the host validates every inbound postMessage against these same schemas; zod itself stays out of the sandbox artifact — it's a dev dependency, with the in-sandbox direction validated by dependency-free guards held in agreement with the schemas by test), `vendor/` (pinned Preact, htm, Chart.js), and the baked-in `SHELL_VERSION` constant.
+- **Dependency rules, mechanically enforced (depcheck in CI, not convention):** runtime deps are `preact`, `htm`, `chart.js`, `@urbit/sigil-js` (plus its `invariant` / `lodash.memoize` transitives) and nothing else; `@tloncorp/ui` appears as a dev dep for token codegen only; **`@tloncorp/shared`, `@tloncorp/app`, and anything RN/expo/Tamagui are forbidden at runtime.** Anything that leaks app internals into this package is code running next to semi-trusted app bundles.
+- **Build output:** one self-contained, deterministically built artifact (single JS + CSS, everything inlined, no dynamic imports — the sandbox forbids them), consumed by `packages/app` (embedded asset, injected into the sandbox) and by `tlon-skill` (the publish gate's smoke render and the CI template-render job use the _real_ shell, not an approximation — the same shared-implementation argument as the reducer). Deterministic builds make a given `SHELL_VERSION` auditable.
+- **Versioning:** major-only integer per §5. Additive changes (new primitives, new tokens) are free within a major; changes to existing primitive behavior or the bridge protocol are a major bump, gated by the CI job rendering all templates.
+
+### `packages/app`
+
+- `tlon.r0.collection.surface` and `tlon.r0.input.none` in `channelContentConfig.ts` (in `packages/api`).
+- **Sandbox hosts per platform** with deny-all egress (WKContentRuleList / `shouldInterceptRequest` / host-injected CSP + iframe sandbox) and leak tests; shell-artifact injection incl. **shell asset delivery inside the deny-all posture** (base64-inlined fonts, or a host-controlled internal scheme — WKURLSchemeHandler / `shouldInterceptRequest` / same-origin blob — that serves only shell-bundled resources); postMessage validation against the shell's protocol schemas.
+- Host-side chrome and all §6 state screens in ordinary `@tloncorp/ui`.
+- `SurfaceCollectionRenderer`: hydration loop of §6 with all rendered states (hydrated / partial / migration pending / bundle unavailable / update-to-view / dashboard full), incremental state push over the bridge, perm-aware invocation gating, unread exclusion.
+- **Fork affordance** — "duplicate this dashboard", in the channel's host-side chrome (header overflow), **never inside the sandbox**: forking is a host capability and the bridge stays exactly `getState`/`subscribe`/`invoke` (§5). Disabled unless the surface currently renders — you should not be able to fork a definition you cannot verify (invalid spec, bundle unavailable, shell too old). Copy makes clear it duplicates the **app, not the data**: the fork starts empty.
+
+  **Who executes it decides what you get, and the two answers differ materially:**
+
+  - **Bot-executed** (consistent with v0): the affordance asks the bot to run `surface fork` (§9). The channel is hosted on the bot's moon like every other v0 surface, so the bot can keep posting **host events** — rollovers, snapshots, compaction. Blocked on the moon→storage grant.
+  - **Client-executed** (available today): the user's own client already holds the spec and the cached bundle, can upload to the user's own storage exactly as it does for images, and can create a channel and edit its description in a group where the **user** is admin. So this path needs **no new provisioning at all**. The catch: the resulting channel is hosted on the *user's ship*, not the bot's, so the bot cannot post host events for it. Templates that need a host — anything using the host-is-the-clock rollover, snapshots, or compaction — are effectively read-only when forked this way, while self-contained ones (poll, RSVP, countdown) are fine.
+
+  That split is worth deciding deliberately rather than discovering: the client path is strictly easier to ship and quietly produces the **v1** hosting arrangement (§12), while the bot path preserves the v0 capability model. Offering only the client path would silently degrade half the template set.
+
+  Failure modes the UI must handle rather than assume away: no storage configured (cannot re-host — the same degradation line as image upload); the bot lacks admin in the target group; and **the bundle has been evicted from the LRU cache**, in which case the fork must re-fetch from the source `assetRef`, which may no longer resolve. In v0 the target picker is nearly always a single group (the user's own), which is honest but makes the affordance most valuable only once cross-group sharing exists.
+
+- Cosmos fixtures: no spec; partial hydration; migration pending incl. late-arriving and deleted migration snapshots; stale invoke with and without `acceptStale`; deleted snapshot fallback; revision regression; hash mismatch; shell-version mismatch.
+
+### `tlon-skill` (parity surface — Hermes inherits everything here)
+
+- **The authoring skill** at `skills/surfaces/`: `SKILL.md` (trigger + workflow: intent → pick template → adapt → lint → publish → revise loop), `PARADIGM.md` (the `render(state)` contract, action design incl. idempotent `set /…/$actor` as the default pattern, bridge API, do/don'ts, **a vocabulary section**, and **integer arithmetic**). The vocabulary section is not decoration: every v0 constraint invites a generating model to hit the wall, describe it accurately, and ship jargon — the first workout fixture said "since the last rollover" and "your own scratch entries", both true and both meaningless to a user, where "this session" was available. The gate cannot detect this (its style lint covers fonts, colors and layout properties, never whether copy makes sense), so the skill and the templates are the only control. Integer arithmetic likewise: `25 * 0.9` is `22.499999999999996`, so an obvious floor yields 20 kg where 22.5 was meant — any template computing in `render` carries values as integer minor units, `PRIMITIVES.md` (shell component catalog with usage examples), and `templates/` — the nine golden exemplars (poll, RSVP, potluck/signup, habit tracker, leaderboard, countdown, expense split, kanban, workout tracker), each `app.html` + `spec.json` + `NOTES.md` (what to customize). Templates are the quality anchor: adapting a strong exemplar beats inventing from scratch at a rate that decides the product.
+
+**The workout tracker is the derived-state exemplar**, and earns its place by teaching a pattern the other eight don't. A StrongLifts-style 5×5 program has no expressible progression op — there is no arithmetic in the op language, so "add 2.5 kg" cannot be an op. The pattern is that **state holds only the log and `render` derives everything else**: working weight, next workout in the A/B alternation, failure streak, and deload trigger are all computed in `render(state)`, which is ordinary unrestricted JavaScript. The log itself uses the **host-is-the-clock** pattern from §4.3 rather than `append` — the member's action is an idempotent `set /today/$actor/squat {r:'ok'}`, and the bot's nightly rollover host event archives it to `/history/<date>/$actor/squat` and clears `/today`. Since nobody runs the program twice in a day, daily rollover is exactly the right grain: a double-tap re-sets the same path to the same literal and changes nothing, the history is dated for free, and the template never touches `append` — which would otherwise double-log a session and double-progress the weight. Actions stay parameterless and cheap (roughly an `ok`/`fail` pair per lift — ten against a cap of 64), `$actor` keying makes a shared channel a training-crew board for free, and a weight-over-time chart exercises Chart.js. Deliberate v0 simplification, to be stated in its `NOTES.md`: **no per-set rep entry** ("I got 5,5,4,3,3") — that needs input-carrying actions, which are v1 (§12). Logging per-exercise success/failure is enough to drive faithful progression, since the program only branches on whether all reps were completed. Because it uses `set` + rollover rather than `append`, it does **not** inherit §4.3's duplicate caveat.
+
+- **Commands:** `surface create` (clear error when the moon lacks the admin role); `surface templates list|show`; `surface lint <bundle> <spec>`; `surface publish <channel> --bundle --spec` (gate → upload to storage → sha256 → read-modify-write the description with revision bump → mirror post → **migration snapshot in the same command when `preserveState`**, keeping the pending window one command wide); `surface event` (host ops); `surface state` (hydrate + reduce via the shared reducer); `surface snapshot`; **`surface fork <source-channel> [--into <group>] [--regenerate]`** (below).
+- **Writer disciplines (from live-ship verification):** every post-writing command confirms success **by observing the post** (scry or subscription), never by the poke ack — the ack fires from the local `%channels` agent even when `%channels-server` rejects the forwarded poke. Writers emit exactly one surface blob entry per post and are responsible for the fallback Story text (the entry schemas don't enforce it). Edit-retraction must pass the kind tail: the server's edit path replaces the essay wholesale **without re-checking kind**, so an edit that omits it silently rewrites a surface post's kind to `/chat`.
+- **`surface fork <source-channel> [--into <group>] [--regenerate]`** — duplicate a surface you can see into a group your bot administers. Everything it needs is **already local**: a member's client persists the spec as a first-class channel field and has already fetched and hash-verified the bundle into the content-addressed cache in order to render it. Nothing is extracted from the source's owner, and **membership in the source group is the hard precondition** — a non-member has neither spec nor bundle, and no export format exists.
+
+  Steps: read the source spec → take the bundle from the local cache by its declared `sha256` → **re-upload those bytes to the forker's storage** → create the channel → write the spec with a fresh `surfaceId`, the new `assetRef`, `specRevision` reset to 1, and `provenance` (§4.1). **Re-hosting does not change the hash** — content addressing means the integrity guarantee survives the copy, and the fork's viewers verify the same bytes against a completely different bucket. Depends on the same moon→storage grant as `surface publish`.
+
+  It copies the **spec, not the posts**. The new channel has no history, so it folds from `initialState` — a pristine instance, not the source's accumulated votes. No cleanup step, and no risk of inheriting someone else's data.
+
+  **`--regenerate`** forks from the source's `recipe` instead of its bytes: the bot re-generates the app from the original intent, adapted to the new group, and the output passes the full publish gate as new code. Prefer it wherever a recipe exists. A byte copy inherits code no gate has re-checked since the source published it, so the plain path **re-lints the copied bundle before publishing** rather than trusting the hash — the hash proves the bytes are unchanged, which is not the same as proving they are acceptable here.
+
+  **Provenance is a claim, not an attestation.** The forker writes it and nothing verifies it; anyone can assert any origin. Treat it as attribution and lineage, never as trust. It also **leaks group membership** — naming the source nest reveals that the channel exists and that the forker could see it — so `channel` is optional and the command omits it by default when forking out of a private group. Forks do not track their source: if the original is revised later the fork is unaffected, which is the point of a fork.
+
+- **The publish gate**, in order: byte cap; single-file check; no-external-reference parse (any non-inline `src`/`href`/`import`/`fetch` rejected — belt-and-suspenders under the egress-blocked sandbox); forbidden-API lint (`fetch`, `XMLHttpRequest`, `WebSocket`, `eval`, dynamic `import`, **and the navigation vectors: `location` references, `document.write`, `window.open`, meta-refresh markup, and anchor-driven navigation** — on web the gate is the primary boundary against navigation egress, per §5); entry-point shape (a single plain script — no module syntax — calling `surface.register({ render })`; **every `invoke(actionId)` in the bundle references an action declared in the spec** — catches the most common generation bug); style lint (`font-family`, non-token colors, non-whitelisted style properties); **canvas-sizing check — behavioral, not lexical**: the gate already smoke-renders through the real shell, so after the render it asserts that no `<canvas>` in the output carries `width`/`height` attributes and that every live chart reports `responsive: true` / `maintainAspectRatio: false`. A source grep for `new Chart(` is a reasonable warning on top but cannot be the primary gate — it false-positives on comments and is dodged by concatenation, whereas the behavioral check would have caught both early bundles exactly as they shipped. (Not a job for `check-styles.mjs`, which only walks shell source; bundles are not shell source.); spec schema via the shared Zod; smoke render (`render(initialState)` in happy-dom must not throw — catches the second most common bug at publish, not on the user's screen). **Gate failures are machine-readable violation lists with line references** — the consumer is the bot's self-repair loop, and the user never sees them.
+
+### `packages/openclaw`
+
+- Serializers; integration coverage that discovery/authorization treat surface channels as ordinary channels; opt-in content-free telemetry (`TlonBot Surface Published`, `... Event Posted`, `... Snapshot Posted`, `... Lint Failed` — sizes, counts, and violation categories only).
+
+### Provisioning (outside the repo)
+
+- Add the tlonbot moon to an admin role of the personal group at onboarding (channel creation + app authorship). **Blocking for M2.**
+- Grant the moon write access to the user's remote storage for bundle uploads. **Blocking for M2; verified in M0.**
+
+---
+
+## 10. Milestones
+
+**M0 — Spikes (short, de-risking).** (1) Egress posture on all three platforms with a leak test each whose probe set **enumerates every vector including navigation** and asserts true behavior (web cannot express deny-all for self-navigation; see §5) — including delivering the shell's own JS/CSS/fonts into the sandbox (inlined or via an internal scheme), with the leak test asserting the delivery mechanism can reach _only_ shell-bundled assets; if the app's typeface is licensed, confirm embedding it in the shell artifact is covered. (2) Moon write access to user storage confirmed or provisioned. (3) Provisioning path for the moon admin role confirmed. (4) `/chat/surface/event` kind-tail posts round-trip through server, sync, and old clients benignly. (5) Channel-meta cap comfortably fits the spec metadata. Exit: five answers with evidence.
+
+**M1 — Shell + renderer + schemas (client-only, fixture-driven).** `packages/api` list; persistence changes; `packages/surface-shell` v1 (token codegen, primitive kit, harness, bridge protocol, vendored libraries, deterministic build); sandbox hosts consuming the shell artifact; renderer + hydration against local fixture bundles. Exit: a cosmos-rendered poll app from fixtures covering simulated invokes, stale-invoke handling, migration-pending, snapshot hydration and fallback, hash mismatch, shell-version mismatch — **plus the persistence test: metadata edits leave the spec intact.**
+
+**M2 — Bot end-to-end (personal group).** Authoring skill with all eight templates; publish pipeline incl. the gate; provisioning live in the fakezod flow. Exit: from a one-sentence request, the bot creates a dashboard channel, publishes a templated app, and updates its state; the client renders and live-updates; a plain-language revision request round-trips through `recipe`. Demo apps: poll, potluck signup, habit tracker.
+
+**M3 — Member interaction + lifecycle.** `invoke` end-to-end through the bridge; revision transitions both preserving (migration snapshot, pending window) and non-preserving (clean reset, no prior-revision replay); compaction; cold-start and offline convergence incl. cached-bundle offline render; unread exclusion. Exit: a second user votes from the rendered app; two clients converge after cold start, offline relaunch, and a spec revision mid-session; adversarial inputs (non-host raw ops, forged identity values, stale host events, stale invokes without `acceptStale`, wrong-revision snapshots, oversize entries, edited events, tampered bundles/hash mismatch, bundles with external references or forbidden APIs, in-sandbox network attempts) are all inert.
+
+**M4 — Hardening + docs.** **Security review of the sandbox and bridge** (egress, capability surface, postMessage origin discipline) as an explicit deliverable, **including the Worker-realm migration for bundle execution (remote-dom-style serialized DOM ops with an allowlisting host-side interpreter; evaluate existing implementations before hand-rolling) — the structural fix for web navigation egress that gates shared-group trust**; integration suite (~zod bot / ~ten user / ~mug third party) covering the M3 adversarial list plus deletion below/above snapshot boundaries, migration-snapshot deletion, and description-cell revision regression; Playwright on web; telemetry; `docs/tlon-apps/surface-channels.md` + post-blobs.md updates.
+
+M1 and M2 parallelize after M0 and the schema PR land (M1 is app/shell-heavy; M2 is skill-heavy).
+
+---
+
+## 11. Risks
+
+| Risk                                                    | Exposure                                                  | Mitigation                                                                                                                                                                                                                                                           |
+| ------------------------------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Web self-navigation egress (platform cannot block it)   | Ungated bundle exfiltrates viewer IP / runs unpinned code | Publish gate as primary boundary (navigation lint); in-realm hardening + teardown-on-load as depth; `frame-src` allowlist if the experiment verifies it; Worker-realm migration at M4 gates shared-group trust; v0 trust reality is own-bot bundles through the gate |
+| Native sandbox egress unverified on device              | Exfiltration channel                                      | `SURFACE-NATIVE-VERIFY` checklist executed on real devices before any native release; network-layer mechanisms (rule lists / request interception) cover navigation once verified                                                                                    |
+| App Store review of rendered third-party HTML apps      | Launch risk on iOS                                        | Precedented (artifact-rendering apps ship today); sandboxed, no-download, no-payment posture documented for review; flagged to whoever owns App Store relations                                                                                                      |
+| Provisioning changes slip (admin role, storage write)   | M2 blocked                                                | Explicit cross-team dependencies surfaced now; fakezod grants both locally so dev proceeds regardless                                                                                                                                                                |
+| Metadata edits erasing the spec                         | Data loss                                                 | Persisted first-class field + full-payload round-trip; regression-tested in M1                                                                                                                                                                                       |
+| Generated apps are low-quality despite the shell        | Product quality                                           | Templates as the anchor (adapt, don't invent); machine-readable gate feeding the bot's self-repair loop; smoke render at publish                                                                                                                                     |
+| Shell/template drift                                    | Broken templates                                          | Templates live in the monorepo; CI renders all against current shell on every change; `shellVersion` pinning with a clean update-to-view state                                                                                                                       |
+| Reducer nondeterminism → divergent states               | Correctness                                               | Single shared implementation; uniform revision filter; finalization rule; property tests                                                                                                                                                                             |
+| Bundle unavailable (storage outage, cache miss offline) | Render failure                                            | Defined error state with retry; content-addressed cache makes hydrated surfaces render offline                                                                                                                                                                       |
+| Migration-pending window user-visible                   | UX papercut                                               | Publish command posts spec + migration snapshot together; defined UI state, not an error                                                                                                                                                                             |
+| Hydration cost on long histories                        | Cold-start latency                                        | Snapshots + backward paging stops at the boundary; caps bound state size                                                                                                                                                                                             |
+| No unread badging on surface channels                   | Product limitation                                        | Accepted for v0; bot announces in chat; server-side kind-aware activity in v1                                                                                                                                                                                        |
+| Offline members still get pushes from new surfaces      | Notification exclusion is best-effort, not wholesale (§8) | Recipient-side hush needs the recipient's client to have discovered the channel; a member offline at creation keeps notifying until they next launch. Unclosable client-side — gated on the v1 server-side kind-aware activity item |
+| Empty writer set = all members can post events          | Fine in personal group; footgun in shared groups          | Documented; shared groups require an explicit role; invoke design bounds what any post can mean regardless                                                                                                                                                           |
+| All apps look alike                                     | Accepted v0 trade                                         | Uniform-and-clean over varied-and-ugly; shell variants (accent, density, layout archetypes) are the v1 pressure valve — not loosening the style lint                                                                                                                 |
+
+---
+
+## 12. v1 direction (recorded, not scoped)
+
+- **Group-host hosting via client-mediated creation:** confirm-gated proposal card; the user's ship creates the channel and grants the moon the roles it needs (creation _and_ description editing per §3). Dashboards then survive the bot and live on the group host, per the desired end state.
+- **`%surface` agent** modeled on the `%notes` group-channel-registration pattern: real kv + log buckets, role-derived per-bucket perms, byte quotas, kind-aware activity. Runtime, shell, bundle format, reducer semantics, and skill commands carry over; only the transport changes — and the revision/finalization semantics defined here become server-enforced instead of reducer-enforced.
+- **Input-carrying actions:** declared, typed, size-capped arguments flowing from in-app form fields into ops, validated by the reducer against the action's declaration — the same trust posture extended to parameters. **Params belong in value position only, never as a path segment** — today's guarantee is that a member cannot touch paths no action exposes, and it survives precisely because values are member-supplied while *where they land* stays spec-controlled; allowing `set /x/$params.key` hands the write location to the member and reduces the property to charset validation. Three surfaces open with it, none of which exist today: member-controlled content reaches the renderer (Preact escapes by default, so **the gate's forbidden-API lint must grow `innerHTML`/`dangerouslySetInnerHTML`** — the sandbox bounds the blast radius to dashboard defacement, but that is still one member defacing it for everyone); state growth becomes member-driven, so templates should default to `set` keyed by `$actor` rather than `append`; and abuse becomes possible, for which the reduce-over-log design already has the mechanism — delete the post and state refolds convergently — but no affordance. Note it also **partly resolves the `append` duplicate problem** (§4.3): member-supplied values make duplicate entries distinguishable for the first time, so dedup becomes expressible where today duplicates are byte-identical.
+- **`$now` — a time substitution alongside `$actor`.** Reduced state currently has no way to record _when_ anything happened: op values are literals from the spec, and `$actor` is the only injection, so an app knows the order of its log entries but never their dates. That blocks "did I already log today", streaks, rest-day gaps, and any dated view — wanted by the habit tracker and workout tracker at minimum. The fix is small and carries **exactly the same trust properties as `$actor`**, because the value is server-authoritative: a post's id _is_ a host-stamped `@da` (`%channels-server` sets it to `now.bowl`, the host ship's clock, with a collision loop; `desk/sur/channels.hoon` types `id-post` as `time`), so a member cannot forge it. The reducer already holds the whole post at fold time, which is how `$actor` works. **Implementation trap, recorded because the naming actively misleads:** derive it from the post **id** (the client's `receivedAt`, via `getReceivedAtFromId`), **never** from the client model's `sentAt` — that field is `post.essay.sent`, supplied by the _sender_, and using it would let a member backdate or postdate their own entries, reintroducing precisely the forgery the invoke design exists to prevent. **Ship it as `$period`, not a raw timestamp**: a bare timestamp does not dedupe (two rapid taps land on two different host clocks), whereas a value bucketed to a declared granularity does — `set /log/$actor/$period` makes double-taps, retries and two devices land on the same path with the same literal, idempotent by construction, which is the smallest change that makes periodic logs first-class. Both existing substitution sites generalize (segment position and value position), and the reducer needs `receivedAt` threaded into its post view — note `SurfacePostView` currently carries `authorId`/`sequenceNum`/`isEdited`/`isDeleted`/`blob` and **no id**, so the timestamp is not reachable at fold time today. **Bucketing must be fixed integer arithmetic — UTC or a spec-declared fixed offset in minutes. Never the viewer's timezone (instant divergence between clients) and never IANA named zones (tzdata version skew across clients is a real divergence hazard).** Value-position `$period` additionally makes appended entries distinguishable, which unlocks render-time dedup for genuine feed apps. Reducer-enforced rate limiting (a per-action `oncePer` with markers in a reserved state subtree) is the natural follow-on if append-with-limit apps materialize, and is snapshot-safe in a way that reducer-internal bookkeeping is not. See §4.3.
+- Shell variants (accent token, density, layout archetypes) for visual range without loosening the style lint; capability-by-capability bridge additions (e.g., a consent-gated message-send); spec rollback UI over mirror posts; configurable app-author roles.
