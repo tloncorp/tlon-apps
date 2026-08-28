@@ -40,6 +40,7 @@ import {
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../../test/helpers';
+import { batchEffects } from '../../db/query';
 import rawGroupsInit2 from '../../test/init.json';
 import {
   ensureDmInviteChannel,
@@ -47,6 +48,7 @@ import {
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
+  handleBucketsUpdate,
   syncInitData,
   syncLatestPosts,
   syncPinnedItems,
@@ -102,6 +104,63 @@ test('does not sync thread unreads for Buckets', async () => {
 
   expect(getThreadUnreads).not.toHaveBeenCalled();
   getThreadUnreads.mockRestore();
+});
+
+// A Bucket's writers live in %buckets alone, so nothing else can supply
+// them. Init covers startup; this covers a Bucket created or edited while
+// the app is running. Without it the settings form cannot tell "no writers"
+// from "not yet known" and saving unrelated metadata submits set-writers [],
+// which opens a restricted Bucket to every reader.
+test('hydrates Bucket writers from a live subscription update', async () => {
+  const channelId = 'buckets/~zod/live-added';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const before = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(before?.writerRoles ?? []).toEqual([]);
+
+  // A Bucket arriving whole, as one created while we are running does.
+  await batchEffects('test:bucketSnapshot', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'live-added' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Live',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const hydrated = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(hydrated?.writerRoles?.map((r) => r.roleId)).toEqual(['admin']);
+
+  // And an edit afterwards replaces the set rather than adding to it.
+  await batchEffects('test:bucketWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag: { host: '~zod', name: 'live-added' },
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['editor'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const edited = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(edited?.writerRoles?.map((r) => r.roleId)).toEqual(['editor']);
 });
 
 const inputData = [

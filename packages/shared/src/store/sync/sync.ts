@@ -1687,6 +1687,43 @@ export const handleSettingsUpdate = async (
   }
 };
 
+/**
+ * Keep a Bucket's writer roles current, the way %channels does its own.
+ *
+ * A Bucket's writers live in %buckets, not %groups, so nothing else can
+ * supply them. Init carries them at startup; this carries them afterwards --
+ * for a Bucket created while the app is running, and for one whose writers
+ * are edited. Without it a live-added Bucket sits with no writer roles at
+ * all, and the settings form cannot tell that from "no writers", so saving
+ * unrelated metadata submits set-writers [] and opens the Bucket to every
+ * reader.
+ *
+ * A snapshot and a %writers update both carry the whole set, so both are
+ * simply written through.
+ */
+export const handleBucketsUpdate = async (
+  response: api.BucketsResponse,
+  ctx: QueryCtx
+) => {
+  const channelId = api.formatBucketsChannelId(response.flag);
+  const writers =
+    response.type === 'snapshot'
+      ? response.state.writers
+      : response.update.type === 'writers-updated'
+        ? response.update.writers
+        : null;
+  if (writers === null) {
+    return;
+  }
+  await db.updateChannel(
+    {
+      id: channelId,
+      writerRoles: writers.map((roleId) => ({ channelId, roleId })),
+    },
+    ctx
+  );
+};
+
 export const handleChannelsUpdate = async (
   update: api.ChannelsUpdate,
   ctx: QueryCtx
@@ -2486,6 +2523,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
+      api.subscribeToBuckets(createHandler(handleBucketsUpdate)),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),
