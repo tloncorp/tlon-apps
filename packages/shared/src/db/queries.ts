@@ -1594,7 +1594,18 @@ export const insertGroups = createWriteQuery(
             }))
           );
 
-          // First insert/update the channels
+          // First insert/update the channels.
+          //
+          // `descriptionPayload` and `surfaceSpec` are the raw description
+          // cell and the app definition inside it. They must refresh here
+          // alongside the fields derived from the same cell: this is the
+          // only write that carries channel metadata on a boot or a full
+          // group sync, so leaving them out pins an existing row's spec to
+          // whatever it held when the row was created. A surface channel
+          // then keeps rendering a superseded bundle indefinitely — the
+          // description cell is authoritative (plan §3), and its CONTENT is
+          // the change signal, so a republish that reuses `specRevision`
+          // has to land exactly like one that bumps it.
           await txCtx.db
             .insert($channels)
             .values(group.channels)
@@ -1605,6 +1616,8 @@ export const insertGroups = createWriteQuery(
                 $channels.coverImage,
                 $channels.title,
                 $channels.description,
+                $channels.descriptionPayload,
+                $channels.surfaceSpec,
                 $channels.addedToGroupAt,
                 $channels.type,
                 $channels.isPendingChannel,
