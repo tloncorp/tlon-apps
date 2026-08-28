@@ -932,3 +932,38 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   hostile navigation, which a gate-approved bundle should never do.
 - **No CSP violation listener exists** (see D44 criterion 1) — a clean
   Report-Only run is not evidence until something observes violations.
+
+- **D47: `trackError` custom props silently clobber reserved telemetry
+  fields — repo-wide, not surface-specific.** `createDevLogger`'s
+  `trackError` builds the PostHog/Sentry payload and spreads
+  `...customProps` **last** (`packages/shared/src/debug.ts` ~line 303),
+  after `message`, `errorMessage`, `breadcrumbs`, `logLevel`,
+  `jsContextId`, and `buildInfo`. Any caller passing one of those keys
+  overwrites the event's own field. **27 call sites across
+  `packages/api` and `packages/shared` pass such a key.**
+
+  For surface this was live: the shell-error branch passed
+  `message: <sandbox-supplied string>`, so **attacker-chosen text became
+  the telemetry event's own message**, not merely an attached property.
+  F6 fixes the surface call site (the bounded detail now rides under
+  `detail`), but the underlying footgun is untouched — the next caller to
+  pass `message:` reintroduces it silently, with no type error.
+
+  Follow-up worth filing: either spread `customProps` **first** so
+  reserved fields win, or namespace them under a single `props` key.
+  Deliberately not changed here — it alters the shape of every existing
+  error event and belongs in its own reviewed change, not inside a
+  surface-channels fix batch.
+
+- **D48: Mutation M12 survived, and the test was kept anyway.** The
+  writer-side "an inherited name is not resolvable as a declared action"
+  test does not discriminate *which* gate rejects it: `ActionIdSchema`'s
+  charset (`/^[a-z0-9-]+$/`) plus its forbidden-key refinement already
+  make `constructor` the only expressible prototype member and reject it,
+  so replacing `getDeclaredAction` with a naive lookup still passes. The
+  test asserts the outcome rather than the mechanism, which is the right
+  thing to assert at that layer — the bridge schema has **no** such
+  refinement, and the session-side equivalent (M2) does discriminate.
+  Recorded because a surviving mutation is evidence about what a test
+  proves, and silently keeping it would be the failure mode
+  `feedback_mutation_testing_limits` warns about.
