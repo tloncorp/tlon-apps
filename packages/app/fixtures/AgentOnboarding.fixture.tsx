@@ -129,23 +129,7 @@ const homeGroup: db.Group = {
   currentUserIsHost: true,
   title: 'Open hardware + Space weather Digest',
   channels: [homeChannel, updatesNotebook],
-  description: JSON.stringify([
-    {
-      type: 'tlon-group-agent-config',
-      version: 1,
-      templateId: 'agent-daily-digest',
-      purpose: 'A daily digest',
-      instructions: '',
-      agents: [tlonbot.id],
-      jobs: [{}],
-      onboarding: {
-        state: 'complete',
-        topics: 'Open hardware, Space weather',
-        timezone: 'America/New_York',
-      },
-      updatedAt: 1,
-    },
-  ]),
+  description: 'A daily digest of open hardware and space weather.',
 };
 
 function action(text: string): A2UI.ButtonAction {
