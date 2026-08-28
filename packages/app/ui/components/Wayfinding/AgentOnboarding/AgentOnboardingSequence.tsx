@@ -61,6 +61,32 @@ async function clearNavigationLock(groupId: string) {
   });
 }
 
+async function retryLaterAgentGroupFurnishing({
+  agentShipId,
+  groupId,
+  ownerId,
+}: {
+  agentShipId?: string;
+  groupId: string;
+  ownerId: string;
+}) {
+  for (const delayMs of [30_000, 60_000]) {
+    await wait(delayMs);
+    try {
+      if (api.getCurrentUserId() !== ownerId) return;
+      const repaired = await store.ensureAgentGroupFurnished({
+        agentShipId,
+        groupId,
+        isFirstGroup: true,
+      });
+      await repaired.tail;
+      return;
+    } catch (error) {
+      logger.trackError('Agent group furnishing retry failed', error);
+    }
+  }
+}
+
 /**
  * Bridges the post-readiness splash into the real, provisioned home group.
  * The splash is outside the authenticated navigator, so the destination is
@@ -199,9 +225,14 @@ export function AgentOnboardingSequence(props: {
           );
           void furnished.tail.catch((error) => {
             logger.trackError(
-              'Agent group admin verification failed after handoff',
+              'Agent group admin verification failed; scheduling retry',
               { error, groupId: activeGroupId }
             );
+            void retryLaterAgentGroupFurnishing({
+              agentShipId: AGENT_SHIP_OVERRIDE || undefined,
+              groupId: furnished.group.id,
+              ownerId: api.getCurrentUserId(),
+            });
           });
           completedRef.current = true;
           logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
