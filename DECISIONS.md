@@ -1216,3 +1216,55 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
     sets `data-theme` without re-rendering, so a canvas keeps its colors
     until the next state update. Pre-existing, and the fix is a harness
     behavior change; not folded into a primitive change.
+
+- **D59: D56 resolved — the mechanism was not the one hypothesised, and
+  the ruling still holds.** `insertGroups`' `onConflictDoUpdate` allowlist
+  (`packages/shared/src/db/queries.ts`) listed `description` and
+  `contentConfiguration` — both **derived** from the description cell —
+  while omitting `descriptionPayload` (the verbatim cell) and
+  `surfaceSpec`. It is the only write carrying group-channel metadata on
+  a boot or full group sync, so once a channel row existed it refreshed
+  the readable description and the renderer config while **pinning the
+  raw payload and the app definition** to whatever they held when the row
+  was created. Two writers of the same table disagreed:
+  `insertChannelsInternal` uses `conflictUpdateSetAll` with explicit
+  exclusions and was always correct; `insertGroups` hand-listed columns
+  and drifted.
+
+  **D56 guessed wrong about the cause.** The bumped-revision case failed
+  identically before the fix, so the swallow was never keyed on
+  `specRevision` — it dropped the whole cell. What made "bump the
+  revision" appear to fix it during the demo was a *different carrier*
+  landing the change: the live `r-groups` edit fact spreads the full
+  channel into `db.updateChannel`, which does write both columns. With a
+  live SSE connection in the foreground it lands; recovering via init or
+  group sync it never does. Both candidate mechanisms D56 recorded are
+  now settled — the first confirmed and reproducible, the second (a stale
+  content-addressed bundle cache) ruled out, since `useSurfaceBundle`
+  keys on `sha256` and a new hash is a miss by construction.
+
+  Worth keeping as a lesson: the demo-time "fix" was a **coincidence of
+  transport**, and had we accepted it as the explanation we would have
+  shipped a bump-the-revision workaround around a bug that drops the cell
+  entirely. Diagnosing before fixing was what separated them.
+
+  **The second consequence was worse than the reported one.**
+  `channelActions.updateChannel` rebuilds the outgoing description from
+  `currentChannel.descriptionPayload`, so a stale payload meant any
+  routine metadata edit — a rename, a privacy change — pushed the
+  **superseded spec back onto the ship**, reverting a bot's republish on
+  the authoritative cell. The reported symptom was a client rendering
+  stale; the unreported one was a client silently corrupting shared
+  state.
+
+  §3 amended accordingly (on-branch): change detection keys on cell
+  content, and every write carrying channel metadata must refresh the
+  verbatim payload and the spec, not only the fields derived from them.
+
+- **D60: the plan is now committed on-branch, superseding D1.** Session
+  5's prompt treats `surface-channels-plan.md` as canonical on the branch
+  and directs amendments to be applied there. D1 had kept it untracked
+  alongside the handoff prompts; that no longer holds. The plan and the
+  code are now reviewed against each other, and amendments have a history
+  instead of living only in a working copy. Session prompts, reports and
+  the review logs stay untracked as before.
