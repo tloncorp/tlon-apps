@@ -118,7 +118,8 @@ export function AgentOnboardingSequence(props: {
 
       // Hosting provisions the deterministic home group. The local override
       // has no Hosting automation, so let furnishing create a real group.
-      const hostedHomeGroupId = `${api.getCurrentUserId()}/${BotHomeGroupSlugs.slug}`;
+      const ownerId = api.getCurrentUserId();
+      const hostedHomeGroupId = `${ownerId}/${BotHomeGroupSlugs.slug}`;
       let activeGroupId = AGENT_SHIP_OVERRIDE ? undefined : hostedHomeGroupId;
       let activeChannelId: string | undefined;
       let landedInAgentChat = false;
@@ -231,7 +232,7 @@ export function AgentOnboardingSequence(props: {
             void retryLaterAgentGroupFurnishing({
               agentShipId: AGENT_SHIP_OVERRIDE || undefined,
               groupId: furnished.group.id,
-              ownerId: api.getCurrentUserId(),
+              ownerId,
             });
           });
           completedRef.current = true;
