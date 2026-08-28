@@ -188,6 +188,41 @@ describe('cron auth quarantine', () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it('clears a non-auth streak even when the job was disabled concurrently', async () => {
+    const job = makeJob();
+    const { service, update } = makeCronService(job);
+    setCronAuthQuarantineNotifier('default', async () => true);
+    await handleCronAuthQuarantine(makeEvent({ runAtMs: 100 }), {
+      getCron: () => service,
+    });
+    await handleCronAuthQuarantine(makeEvent({ runAtMs: 200 }), {
+      getCron: () => service,
+    });
+    job.enabled = false;
+    job.state = {
+      consecutiveErrors: 3,
+      lastError: 'upstream timed out',
+      lastErrorReason: 'timeout',
+    };
+    await handleCronAuthQuarantine(
+      makeEvent({ error: 'upstream timed out', runAtMs: 300 }),
+      { getCron: () => service }
+    );
+    job.enabled = true;
+    job.state = {
+      consecutiveErrors: 4,
+      lastError: '401 User not found',
+      lastErrorReason: 'auth',
+    };
+
+    await expect(
+      handleCronAuthQuarantine(makeEvent({ runAtMs: 400 }), {
+        getCron: () => service,
+      })
+    ).resolves.toEqual({ status: 'ignored', reason: 'below-threshold' });
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('does not quarantine before an owner notifier is connected', async () => {
     const { service, update } = makeCronService();
 

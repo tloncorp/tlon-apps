@@ -308,12 +308,12 @@ export async function handleCronAuthQuarantine(
     await resetAuthenticationStreak(job.id, ctx.workspaceDir);
     return { status: 'ignored', reason: 'not-finished-auth-error' };
   }
-  if (job.enabled === false) {
-    return { status: 'ignored', reason: 'already-disabled' };
-  }
   if (!isAuthenticationFailure(event, job)) {
     await resetAuthenticationStreak(job.id, ctx.workspaceDir);
     return { status: 'ignored', reason: 'not-authentication-failure' };
+  }
+  if (job.enabled === false) {
+    return { status: 'ignored', reason: 'already-disabled' };
   }
 
   const failures = await recordAuthenticationFailure(
