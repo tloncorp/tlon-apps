@@ -17,7 +17,12 @@ const MAX_GENERATED_GROUP_TITLE_LENGTH = 48;
 const PENDING_GROUP_ADOPTION_ATTEMPTS = 8;
 const PENDING_GROUP_ADOPTION_DELAY_MS = 500;
 const notesChannelFlights = new Map<string, Promise<db.Channel>>();
-const agentStandingFlights = new Map<string, Promise<void>>();
+type AgentStandingFlight = {
+  readyToReveal: Promise<void>;
+  complete: Promise<void>;
+};
+
+const agentStandingFlights = new Map<string, AgentStandingFlight>();
 const agentGroupFurnishingFlights = new Map<
   string,
   Promise<AgentGroupFurnishingStart>
@@ -28,6 +33,8 @@ export type AgentGroupFurnishing = {
   chatChannelId: string;
   notebookNest: string;
   agentShipId: string;
+  /** Membership is visible and the admin grant request has been accepted. */
+  readyToReveal: Promise<void>;
   /** Seating and admin verification deliberately overlap the intro wait. */
   tail: Promise<void>;
 };
@@ -327,11 +334,12 @@ async function finishAgentGroupFurnishingOnce({
     notebookNest: notebook.id,
   });
 
-  const tail = reconcileAgentStandingUntilReady({
+  const standing = reconcileAgentStandingUntilReady({
     groupId: group.id,
     agentShipId,
     hostedShipId,
-  }).catch((error) => {
+  });
+  const tail = standing.complete.catch((error) => {
     logger.trackError('Agent Group Furnish Tail Failed', {
       error,
       groupId: group.id,
@@ -344,6 +352,7 @@ async function finishAgentGroupFurnishingOnce({
     chatChannelId: chatChannel.id,
     notebookNest: notebook.id,
     agentShipId,
+    readyToReveal: standing.readyToReveal,
     tail,
   };
 }
@@ -707,33 +716,49 @@ async function reconcileAgentStanding({
   groupId,
   agentShipId,
   hostedShipId,
+  onReadyToReveal,
+  deps = {},
 }: {
   groupId: string;
   agentShipId: string;
   hostedShipId: string | null;
+  onReadyToReveal: () => void;
+  deps?: {
+    getGroup?: typeof api.getGroup;
+    addMembersToRole?: typeof api.addMembersToRole;
+    addCordonThenJoin?: typeof addCordonThenJoin;
+  };
 }) {
+  const getGroup = deps.getGroup ?? api.getGroup;
+  const addMembersToRole = deps.addMembersToRole ?? api.addMembersToRole;
+  const cordonThenJoin = deps.addCordonThenJoin ?? addCordonThenJoin;
   let lastError: unknown;
   for (const delay of [0, 1_000, 2_000, 5_000, 10_000]) {
     if (delay) await wait(delay);
     try {
-      let group = await api.getGroup(groupId);
+      let group = await getGroup(groupId);
       if (agentHasAdmin(group, agentShipId)) {
+        onReadyToReveal();
         logger.trackEvent('Agent Group Furnish Tail Verified', { groupId });
         return;
       }
       if (hostedShipId && !agentHasJoined(group, agentShipId)) {
         const moon = desig(agentShipId);
-        await addCordonThenJoin(hostedShipId, groupId, moon);
-        group = await api.getGroup(groupId);
+        await cordonThenJoin(hostedShipId, groupId, moon);
+        group = await getGroup(groupId);
       }
       if (agentHasJoined(group, agentShipId)) {
-        await api.addMembersToRole({
+        await addMembersToRole({
           groupId,
           roleId: 'admin',
           ships: [agentShipId],
         });
+        // The bot can consume the intro request as soon as it is joined. Keep
+        // verifying the admin grant in the background, but do not hide the
+        // already-mounted conversation while that read-back propagates.
+        onReadyToReveal();
       }
-      group = await api.getGroup(groupId);
+      group = await getGroup(groupId);
       if (agentHasAdmin(group, agentShipId)) {
         logger.trackEvent('Agent Group Furnish Tail Verified', { groupId });
         return;
@@ -754,10 +779,40 @@ function reconcileAgentStandingUntilReady(params: {
 }) {
   const existing = agentStandingFlights.get(params.groupId);
   if (existing) return existing;
-  const flight = retryAgentStanding(
-    () => reconcileAgentStanding(params),
+  let resolveReadyToReveal!: () => void;
+  let rejectReadyToReveal!: (error: unknown) => void;
+  let revealSettled = false;
+  const readyToReveal = new Promise<void>((resolve, reject) => {
+    resolveReadyToReveal = () => {
+      if (revealSettled) return;
+      revealSettled = true;
+      resolve();
+    };
+    rejectReadyToReveal = (error) => {
+      if (revealSettled) return;
+      revealSettled = true;
+      reject(error);
+    };
+  });
+  // Some furnishing callers only need the completion tail. Keep a rejected
+  // reveal milestone from becoming an unhandled promise in those paths.
+  void readyToReveal.catch(() => undefined);
+
+  const complete = retryAgentStanding(
+    () =>
+      reconcileAgentStanding({
+        ...params,
+        onReadyToReveal: resolveReadyToReveal,
+      }),
     params.groupId
-  ).finally(() => agentStandingFlights.delete(params.groupId));
+  )
+    .then(() => resolveReadyToReveal())
+    .catch((error) => {
+      rejectReadyToReveal(error);
+      throw error;
+    })
+    .finally(() => agentStandingFlights.delete(params.groupId));
+  const flight = { readyToReveal, complete };
   agentStandingFlights.set(params.groupId, flight);
   return flight;
 }
@@ -843,6 +898,7 @@ export const agentGroupOnboardingTesting = {
   isAgentGroupTitleRenameEligible,
   chooseCreatedNotebookResolution,
   retryAgentStanding,
+  reconcileAgentStanding,
   startAgentGroupFurnishingFlight,
   waitForPendingGroupWithChat,
 };

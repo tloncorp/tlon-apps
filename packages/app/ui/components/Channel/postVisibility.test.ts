@@ -9,6 +9,7 @@ import {
   isAgentOnboardingFirstGroupRequestPost,
   isAgentOnboardingOrientationCompletePost,
   isVisibleChannelPost,
+  TLAWN_HOME_GROUP_WELCOME_MESSAGE,
 } from './postVisibility';
 
 describe('isVisibleChannelPost', () => {
@@ -76,6 +77,49 @@ describe('isVisibleChannelPost', () => {
           }),
         },
         '~ten'
+      )
+    ).toBe(true);
+  });
+
+  it('hides the provisioning welcome only in the bot home group', () => {
+    const welcome = {
+      authorId: '~bot',
+      blob: null,
+      isBot: true,
+      textContent: TLAWN_HOME_GROUP_WELCOME_MESSAGE,
+    };
+
+    expect(
+      isVisibleChannelPost(welcome, '~ten', 'chat/~ten/home-group-chat')
+    ).toBe(false);
+    expect(isVisibleChannelPost(welcome, '~ten', 'chat/~ten/elsewhere')).toBe(
+      true
+    );
+  });
+
+  it('keeps user-authored and combined onboarding welcomes visible', () => {
+    const channelId = 'chat/~ten/home-group-chat';
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~ten',
+          blob: null,
+          textContent: TLAWN_HOME_GROUP_WELCOME_MESSAGE,
+        },
+        '~ten',
+        channelId
+      )
+    ).toBe(true);
+    expect(
+      isVisibleChannelPost(
+        {
+          authorId: '~bot',
+          blob: null,
+          isBot: true,
+          textContent: `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\nWhat can I help you with?`,
+        },
+        '~ten',
+        channelId
       )
     ).toBe(true);
   });

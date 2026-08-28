@@ -12,8 +12,10 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { KeyboardController } from 'react-native-keyboard-controller';
 import { View, XStack, YStack, isWeb } from 'tamagui';
 
+import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { ActionSheet } from '../ActionSheet';
 import { TextInput } from '../Form';
 import { A2UIMenuRow } from './A2UIMenuRow';
@@ -184,7 +186,38 @@ function SmallChoiceControl({
   const [customTopics, setCustomTopics] = useState<string[]>([]);
   const [customDraft, setCustomDraft] = useState('');
   const [customInputOpen, setCustomInputOpen] = useState(false);
+  const customInputMountedRef = useRef(true);
+  const customInputOpenRef = useRef(false);
+  const conversationScrollEndAnchor = useConversationScrollEndAnchor();
   const oneShot = useOneShotAction(Boolean(consumedSelection));
+
+  const setCustomInputVisibility = useCallback(
+    (open: boolean) => {
+      customInputOpenRef.current = open;
+      if (open) {
+        conversationScrollEndAnchor?.capture();
+        setCustomInputOpen(true);
+        return;
+      }
+
+      setCustomInputOpen(false);
+      void KeyboardController.dismiss().finally(() => {
+        if (customInputMountedRef.current && !customInputOpenRef.current) {
+          requestAnimationFrame(() => {
+            conversationScrollEndAnchor?.restore();
+          });
+        }
+      });
+    },
+    [conversationScrollEndAnchor]
+  );
+
+  useEffect(
+    () => () => {
+      customInputMountedRef.current = false;
+    },
+    []
+  );
 
   const toggle = useCallback(
     (id: string) => {
@@ -298,8 +331,28 @@ function SmallChoiceControl({
       return;
     }
     setCustomDraft('');
-    setCustomInputOpen(true);
-  }, [oneShot]);
+    setCustomInputVisibility(true);
+  }, [oneShot, setCustomInputVisibility]);
+
+  const closeSavedCustomInput = useCallback(() => {
+    customInputOpenRef.current = false;
+    void KeyboardController.dismiss().finally(() => {
+      if (!customInputMountedRef.current || customInputOpenRef.current) {
+        return;
+      }
+
+      // Keep the sheet over the conversation until its keyboard has fully
+      // settled. Closing it first exposes the floating composer's native
+      // bottom-edge effect while it still has keyboard-sized geometry, and a
+      // scroll-to-end during that transition anchors against the wrong inset.
+      conversationScrollEndAnchor?.restore();
+      requestAnimationFrame(() => {
+        if (customInputMountedRef.current && !customInputOpenRef.current) {
+          setCustomInputOpen(false);
+        }
+      });
+    });
+  }, [conversationScrollEndAnchor]);
 
   const saveCustomInput = useCallback(() => {
     if (oneShot.isLocked()) {
@@ -335,8 +388,9 @@ function SmallChoiceControl({
           : [...previous, topic];
       });
     }
-    setCustomInputOpen(false);
+    closeSavedCustomInput();
   }, [
+    closeSavedCustomInput,
     component.options,
     customDraft,
     customTopics.length,
@@ -474,7 +528,7 @@ function SmallChoiceControl({
           moveOnKeyboardChange
           modal
           open={customInputOpen}
-          onOpenChange={setCustomInputOpen}
+          onOpenChange={setCustomInputVisibility}
           unmountOnClose
         >
           <ActionSheet.SimpleHeader title="Add your own" />
