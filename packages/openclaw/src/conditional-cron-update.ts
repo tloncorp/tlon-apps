@@ -168,7 +168,7 @@ function isThresholdCorrection(prompt: string): boolean {
       normalized
     );
   const concernsDelivery =
-    /\b(?:alert|notify|notification|monitor|update|bother|message|tell|send|urgent|risk)\b/i.test(
+    /\b(?:alerts?|notify|notifications?|monitor|updates?|bother|messages?|tell|send|urgent|risk)\b/i.test(
       normalized
     );
   return (

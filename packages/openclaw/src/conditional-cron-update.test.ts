@@ -70,6 +70,20 @@ describe('conditional cron update preservation', () => {
     expect(message).not.toContain('Search for any genuinely urgent');
   });
 
+  it('recognizes plural alert and notification corrections', () => {
+    const prompt = 'These routine notifications are not relevant.';
+    rememberCronOwnerPrompt(sessionKey, prompt, true);
+    rememberJob();
+
+    expect(
+      preserveConditionalCronUpdate(sessionKey, {
+        action: 'update',
+        jobId,
+        patch: { payload: { message: 'Only send important alerts.' } },
+      })
+    ).toBeDefined();
+  });
+
   it('preserves delivery, schedule, and enabled while correcting the message', () => {
     rememberCronOwnerPrompt(
       sessionKey,
