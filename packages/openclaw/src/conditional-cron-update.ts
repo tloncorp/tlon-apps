@@ -178,13 +178,17 @@ function explicitlyChangesSchedule(prompt: string): boolean {
 }
 
 function explicitlyChangesEnabled(prompt: string): boolean {
+  const affirmative = prompt.replace(
+    /\b(?:do not|don't|never)\s+(?:enable|disable|pause|resume|start|stop|turn)\b[^.!?\n]*/gi,
+    ''
+  );
   return /\b(?:enable|disable|pause|resume|start|stop)\b[^.!?\n]{0,80}\b(?:job|schedule|task|monitor|running|run)\b|\bturn\b[^.!?\n]{0,80}\b(?:on|off)\b/i.test(
-    prompt
+    affirmative
   );
 }
 
 function explicitlyChangesDelivery(prompt: string): boolean {
-  return /\b(?:announc(?:e|ing)|delivery\s+mode|send|deliver|post)\b[^.!?\n]{0,80}\b(?:instead|direct|channel|dm|message|nowhere|none)\b|\b(?:don't|do not|stop)\s+(?:announc(?:e|ing)|send|deliver|post)\b/i.test(
+  return /\bdelivery\s+mode\b|\b(?:send|deliver|post)\b[^.!?\n]{0,80}\b(?:via|instead|to\s+(?:my\s+)?(?:dm|direct messages?)|in\s+(?:the\s+)?channel)\b|\b(?:disable|stop|turn\s+off)\s+(?:the\s+)?announce\s+delivery\b/i.test(
     prompt
   );
 }

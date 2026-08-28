@@ -131,7 +131,7 @@ describe('conditional cron update preservation', () => {
   it('keeps an explicitly requested delivery change consistent', () => {
     rememberCronOwnerPrompt(
       sessionKey,
-      'Only notify me when my keys are actually at risk, and stop announcing updates.',
+      'Only notify me when my keys are actually at risk, and change the delivery mode to none.',
       true
     );
     rememberJob();
@@ -154,6 +154,48 @@ describe('conditional cron update preservation', () => {
         >
       )?.message
     ).not.toContain('delivery.mode=announce');
+  });
+
+  it('does not mistake a negative alert filter for a delivery change', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      "Don't send routine updates; only notify me when my keys are actually at risk.",
+      true
+    );
+    rememberJob();
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        delivery: { mode: 'none' },
+        payload: { message: 'Alert on actual risk.' },
+      },
+    });
+
+    expect(adjusted?.patch).toMatchObject({
+      delivery: { mode: 'announce' },
+    });
+  });
+
+  it('does not treat a negated stop phrase as a disable request', () => {
+    rememberCronOwnerPrompt(
+      sessionKey,
+      'Do not stop the monitor; only notify me when there is real risk.',
+      true
+    );
+    rememberJob();
+
+    const adjusted = preserveConditionalCronUpdate(sessionKey, {
+      action: 'update',
+      jobId,
+      patch: {
+        enabled: false,
+        payload: { message: 'Alert on actual risk.' },
+      },
+    });
+
+    expect(adjusted?.patch).toMatchObject({ enabled: true });
   });
 
   it('requires a fresh read for a repeated owner correction', () => {
