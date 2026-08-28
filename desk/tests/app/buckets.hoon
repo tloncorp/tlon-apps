@@ -1809,6 +1809,44 @@
 ::  A kick is not a revocation. The replica survives and the subscription is
 ::  re-established; only a nack from the host drops the bucket.
 ::
+::  A host we subscribe to publishes facts about its own bucket and no other.
+::  The wire says which bucket the subscription is for; the fact says which it
+::  is about, and only an honest host makes those agree. Applying the fact's
+::  own claim would let a host we joined rewrite a replica of someone else's
+::  bucket -- an empty writer set being the payload that matters, since
+::  clients mirror writers and an admin saving that bucket's settings would
+::  carry the emptiness to its real host.
+::
+++  test-a-host-cannot-publish-about-another-bucket
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  =/  theirs=flag:bu  [~bus %their-files]
+  ;<  ~  b  (setup-as ~rus)
+  ::  We hold replicas of two buckets, hosted by different ships.
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~sampel-palnet %project-files] group]))
+  ;<  *  b
+    (do-poke %group-channel-join !>(`channel-join:bu`[[%buckets ~bus %their-files] group]))
+  =/  bare=bucket:bu  [1 'Theirs' ~bus ~2026.1.1 ~bus ~2026.1.1]
+  =/  st=bucket-state:bu  [bare group (silt `(list @tas)`~[%admin]) ~ 1]
+  ::  ~bus, whose subscription this is, publishes a snapshot claiming to be
+  ::  about ~sampel-palnet's bucket, with nobody able to write.
+  =/  lie=response:bu
+    [%snapshot flag st(writers *(set @tas))]
+  ;<  caz=(list card)  b
+    %^    do-agent
+        /buckets/sub/(scot %p ~bus)/their-files
+      [~bus %buckets]
+    [%fact %buckets-response-1 !>(lie)]
+  ::  Nothing is applied and nothing is forwarded to our own clients.
+  ;<  ~  b  (ex-cards caz ~)
+  ;<  sv=vase  b  get-save
+  =/  saved=state-0:bu  !<(state-0:bu sv)
+  =/  sp=space:bu  (~(got by spaces.saved) flag)
+  %+  ex-equal  !>(state.sp)  !>(~)
+::
 ++  test-kick-resubscribes
   %-  eval-mare
   =/  m  (mare ,~)

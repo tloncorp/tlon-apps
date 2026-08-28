@@ -2350,7 +2350,22 @@
     ?+  -.sign  cor
         %fact
       ?.  =(%buckets-response-1 p.cage.sign)  cor
-      (apply-response !<(response:b q.cage.sign))
+      =/  res=response:b  !<(response:b q.cage.sign)
+      ::  The wire says which bucket this subscription is for; the fact says
+      ::  which bucket it is about. They are only the same if the host is
+      ::  honest, so a host we subscribe to could otherwise publish a fact
+      ::  naming a different bucket -- one we hold a replica of and it does
+      ::  not host -- and we would apply it. An empty writer set is the
+      ::  payload that matters: clients mirror writers into the channel row,
+      ::  and an admin later saving that bucket's settings would send the
+      ::  emptiness on to its real host, where it opens the bucket to every
+      ::  reader.
+      ?.  =(flag flag.res)
+        %-  %+  slog
+              leaf+"buckets: {<flag>} published a fact about {<flag.res>}"
+            ~
+        cor
+      (apply-response res)
     ::
     ::  A kick is not a revocation, so re-watch rather than dropping the
     ::  replica. The host's nack below is what tells us access is gone.
