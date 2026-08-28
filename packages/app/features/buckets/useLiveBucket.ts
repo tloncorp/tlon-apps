@@ -11,6 +11,8 @@ import {
   getBucketReadToken,
   getCurrentUserId,
   requestBucketReadToken,
+  BucketsActionFailed,
+  mintRequestId,
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
@@ -331,14 +333,32 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // itself, and answers with the signed URL. Nothing has to be matched
         // against the replica afterwards, and nothing is broadcast until the
         // object lands.
-        const grant = await requestBucketsUpload({
-          type: 'begin-upload',
-          checksum: null,
-          flag,
-          mime: mimeType,
-          name: candidate.name,
-          parentId,
-          size: candidate.size,
+        // The request id is minted here rather than inside, and kept, so an
+        // ambiguous transport failure is recoverable. The host holds a
+        // request open across its own call to storage, so a lost response is
+        // a real possibility -- and without the id there is no way to ask
+        // what happened: retrying would mint a new one and open a second
+        // session, leaving the first holding a reservation and its quota.
+        // The host answers a repeated id with the answer it already gave.
+        const openRequestId = mintRequestId();
+        const openUpload = () =>
+          requestBucketsUpload(
+            {
+              type: 'begin-upload',
+              checksum: null,
+              flag,
+              mime: mimeType,
+              name: candidate.name,
+              parentId,
+              size: candidate.size,
+            },
+            openRequestId
+          );
+        const grant = await openUpload().catch((cause) => {
+          // A typed refusal is the host's answer and stands. Anything else
+          // never reached it, or its answer never reached us.
+          if (cause instanceof BucketsActionFailed) throw cause;
+          return openUpload();
         });
         sessionId = grant.session;
         serverEntryId = grant.entryId;

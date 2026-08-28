@@ -1,4 +1,8 @@
-import type { BucketsEntry, BucketsFlag } from '@tloncorp/api';
+import {
+  type BucketsEntry,
+  type BucketsFlag,
+  isBotUserId,
+} from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
 import { ConfirmDialog, Text } from '@tloncorp/ui';
 import * as DocumentPicker from 'expo-document-picker';
@@ -57,6 +61,7 @@ function toItem(
     return {
       author: entry.updatedBy,
       id: String(entry.id),
+      isBot: isBotUserId(entry.updatedBy),
       itemCount: childCounts.get(entry.id) ?? 0,
       kind: 'folder',
       modifiedLabel: formatBucketTimestamp(entry.updatedAt),
@@ -66,6 +71,7 @@ function toItem(
 
   return {
     author: entry.updatedBy,
+    isBot: isBotUserId(entry.updatedBy),
     id: String(entry.id),
     kind: 'file',
     mimeType: entry.file.mime,

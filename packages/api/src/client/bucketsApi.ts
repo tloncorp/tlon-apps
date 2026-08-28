@@ -287,19 +287,30 @@ export async function subscribeToBuckets(
   handler: (response: BucketsResponse) => void
 ) {
   let activeSubscriptionId: number | null = null;
+  // Airlock reallocates the id when a subscription is kicked and re-established,
+  // and that can happen while our own unsubscribe is in flight. Without this
+  // flag the callback would publish a replacement the disposer has already run
+  // past, leaving it live for good -- decoding every Bucket snapshot on a
+  // subscription nobody is listening to.
+  let disposed = false;
   const subscriptionId = await subscribe<BucketsResponse>(
     { app: BUCKETS_APP, path: '/v1' },
     handler,
     {
       onSubscriptionId: (id) => {
         activeSubscriptionId = id;
+        if (disposed) {
+          void unsubscribe(id).catch(() => undefined);
+        }
       },
     }
   );
   activeSubscriptionId ??= subscriptionId;
 
-  return () =>
-    activeSubscriptionId === null
+  return () => {
+    disposed = true;
+    return activeSubscriptionId === null
       ? Promise.resolve()
       : unsubscribe(activeSubscriptionId);
+  };
 }

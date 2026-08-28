@@ -1162,6 +1162,39 @@
 ::  Expired grants and pending sessions are swept the next time authority is
 ::  touched, and their reservation bindings go with them.
 ::
+::  A pending session that ran out of time may have bytes behind it: the
+::  uploader held a signed PUT, and a large file on a slow link outlasts our
+::  window. Dropping our record alone leaves the broker holding a reservation,
+::  its quota, and possibly a stored object nothing will publish.
+::
+++  test-a-lapsed-upload-is-given-up-at-the-broker
+  %-  eval-mare
+  =/  m  (mare ,~)
+  =*  b  bind:m
+  ^-  form:m
+  ;<  ~  b  setup
+  ;<  ~  b  create
+  ;<  *  b  (begun 0v1 'huge.iso' 42)
+  ;<  sv=vase  b  get-save
+  =/  ses=upload-session:bu  (only-session !<(state-0:bu sv))
+  ;<  ~  b  (ex-equal !>(reservation.ses) !>(`'res-1'))
+  ::  Past the session window, with something else driving a prune.
+  ;<  ~  b  (jab-bowl |=(bol=bowl bol(now ~2026.1.2, eny 0v9999)))
+  ;<  caz=(list card)  b
+    (ask 0v2 [%bucket flag [%begin-upload ~ 'later.pdf' 'application/pdf' 7 ~]])
+  =/  cancels=(list [=wire =request:http])
+    %+  murn  caz
+    |=  =card
+    ^-  (unit [wire request:http])
+    ?.  ?=([%pass * %arvo %i %request * *] card)  ~
+    ?.  =(/buckets/upload/(scot %uv id.ses)/cancel p.card)  ~
+    `[p.card request.q.card]
+  ;<  ~  b  (ex-equal !>((lent cancels)) !>(1))
+  ::  And the lapsed session is gone from our own state either way.
+  ;<  after=vase  b  get-save
+  =/  st=state-0:bu  !<(state-0:bu after)
+  (ex-equal !>((~(has by sessions.st) id.ses)) !>(|))
+::
 ++  test-expired-authority-is-pruned
   %-  eval-mare
   =/  m  (mare ,~)
