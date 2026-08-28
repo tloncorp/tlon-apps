@@ -1167,3 +1167,52 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   specified to do (§9). The seed silently violated that and it cost a
   demo cycle. A hardcoded bump is in place; deriving the revision from
   the bundle hash would make the class of mistake unavailable.
+
+- **D57: Judgment calls in the Sol round-2 fix pass.** Recorded because
+  each was a choice not to do the obvious thing.
+
+  - **No `allowLower` escape hatch on the head watermark.** Making
+    `setLatestChannelSequenceNum` an atomic maximum removes the ability to
+    lower it. All three callers write a server-reported `newest`, and no
+    channel-reset or nuke path uses this setter — `updateChannel` is the
+    explicit reset path, and a test documents that. An escape hatch
+    "just in case" would have reopened the defect for whoever used it.
+  - **No `detailLength` in shell-error telemetry.** Having removed the
+    truncated `detail`, the tempting compromise is to keep a length for
+    debugging. A message length is still a low-bandwidth
+    attacker-controlled channel, so the payload carries only
+    host-derived values.
+  - **Restructuring beat testing** for the surviving mutation. Deleting
+    the marker-authority declaration left all 615 tests passing, silently
+    in the never-hush direction. Rather than adding a test to cover the
+    gap, the mirror write and the declaration were collapsed into one
+    call so the omission is inexpressible. A test would have caught that
+    one mutation; the restructure removes the shape of the mistake.
+
+- **D58: Judgment calls in the chart primitive.**
+
+  - **Aspect-ratio box, not a height prop.** A pixel height is exactly
+    the dimension being removed — one number an author guesses against an
+    unknown viewport, where the guess that looks right on desktop is the
+    one that breaks on a phone. Floor and ceiling bound the box
+    (`maintainAspectRatio: false` will happily draw into zero height).
+  - **Responsive options applied AFTER the caller's**, so a bundle cannot
+    opt back into a fixed canvas through the primitive. The broken path
+    is unreachable rather than discouraged — the same discipline as the
+    reducer taking ops from the spec rather than the message.
+  - **Constructor injected, not imported**, so the kit keeps no hard
+    `chart.js` dependency, tests can stub it, and a chart-free shell
+    renders an empty state instead of throwing.
+  - **`surface.Chart` (raw) retained.** Removing it is a breaking change,
+    so the escape hatch — and therefore the residual way to write the
+    broken version — remains. This is why the gate check must be
+    behavioral (§9) rather than relying on the primitive's existence.
+  - **Guarded `chart.update()`.** Chart.js's documented clean degradation
+    covers construction only; `update()` with no 2D context throws, and
+    the effect runs inside `render()`, so an escaping throw would replace
+    the whole app with the broken-state view — worse than the old bundles,
+    which never called `update`. Falls back to destroy-and-rebuild.
+  - **Left alone: theme flips don't recolor a drawn chart.** The harness
+    sets `data-theme` without re-rendering, so a canvas keeps its colors
+    until the next state update. Pre-existing, and the fix is a harness
+    behavior change; not folded into a primitive change.
