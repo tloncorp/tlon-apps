@@ -238,22 +238,43 @@
   |%
   ++  jo-contact-for
     |=  who=ship
-    ^-  contact:co
+    ^-  (unit contact:co)
     ?:  =(who our.bowl)
-      .^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
-    .^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who)/contact-1)
+      `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
+    ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who))
+      ~
+    `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who)/contact-1)
+  ::
+  ++  jo-valid-text
+    |=  jon=(unit json)
+    ^-  ?
+    ?~  jon  |
+    ?.  ?=([%s *] u.jon)  |
+    ?&  !=('' p.u.jon)
+        (lte (lent (trip p.u.jon)) 64)
+    ==
   ::
   ++  jo-is-openclaw
     |=  who=ship
     ^-  ?
-    =/  con=contact:co  (jo-contact-for who)
-    ?~  info=(~(get by con) %bot-info)  |
+    =/  con=(unit contact:co)  (jo-contact-for who)
+    ?~  con  |
+    ?~  info=(~(get by u.con) %bot-info)  |
     ?.  ?=([%text *] u.info)  |
+    ?.  (lte (met 3 p.u.info) 512)  |
     ?~  jon=(de:json:html p.u.info)  |
     ?.  ?=([%o *] u.jon)  |
+    ?~  schema-version=(~(get by p.u.jon) 'v')  |
+    ?.  =([%n '1'] u.schema-version)  |
     ?~  harness=(~(get by p.u.jon) 'harness')  |
     ?.  ?=([%s *] u.harness)  |
-    =('openclaw' p.u.harness)
+    ?.  (jo-valid-text harness)  |
+    ?.  =('openclaw' p.u.harness)  |
+    =/  claim-ver=(unit json)  (~(get by p.u.jon) 'version')
+    ?.  (jo-valid-text claim-ver)  |
+    =/  harness-ver=(unit json)  (~(get by p.u.jon) 'harnessVersion')
+    ?~  harness-ver  &
+    (jo-valid-text harness-ver)
   ::
   ++  jo-message
     |=  response=response:writs:c

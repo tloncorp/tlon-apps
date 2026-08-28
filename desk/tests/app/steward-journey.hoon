@@ -9,28 +9,34 @@
 ::
 ++  bot-contact
   ^-  contact:co
+  (malt [%bot-info [%text '{"v":1,"harness":"openclaw","version":"0.25.0"}']] ~)
+::
+++  missing-version-contact
+  ^-  contact:co
   (malt [%bot-info [%text '{"v":1,"harness":"openclaw"}']] ~)
+::
+++  stale-contact
+  ^-  contact:co
+  (malt [%bot-info [%text '{"v":2,"harness":"openclaw","version":"0.25.0"}']] ~)
+::
+++  malformed-harness-version-contact
+  ^-  contact:co
+  (malt [%bot-info [%text '{"v":1,"harness":"openclaw","version":"0.25.0","harnessVersion":42}']] ~)
 ::
 ++  human-contact
   ^-  contact:co
   (malt [%nickname [%text 'Human']] ~)
 ::
-++  scry-owner-bot
+++  scry-owner-contact
+  |=  con=(unit contact:co)
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
     [%gu @ %activity @ %$ ~]  `!>(&)
     [%j @ %sein @ @ ~]  `!>(owner)
-    [%gx @ %contacts @ %v1 %contact @ %contact-1 ~]  `!>(bot-contact)
-  ==
-::
-++  scry-owner-human
-  |=  =path
-  ^-  (unit vase)
-  ?+  path  ~
-    [%gu @ %activity @ %$ ~]  `!>(&)
-    [%j @ %sein @ @ ~]  `!>(owner)
-    [%gx @ %contacts @ %v1 %contact @ %contact-1 ~]  `!>(human-contact)
+    [%gu @ %contacts @ %v1 %contact @ ~]  `!>(?=(^ con))
+    [%gx @ %contacts @ %v1 %contact @ %contact-1 ~]
+      ?~(con ~ `!>(u.con))
   ==
 ::
 ++  scry-moon
@@ -96,7 +102,7 @@
 ++  test-owner-input-for-openclaw-bot
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  (setup owner scry-owner-bot)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact `bot-contact))
   =/  =id:c  [owner when]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
   (ex-cards caz ~[(ex-card (expected owner 'owner_input_accepted' id owner bot))])
@@ -104,7 +110,7 @@
 ++  test-owner-reply-for-openclaw-bot
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  (setup owner scry-owner-bot)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact `bot-contact))
   =/  =id:c  [bot when]
   =/  bot-author=author:c  [bot ~ ~]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot bot-author id))
@@ -137,7 +143,40 @@
 ++  test-human-dm-emits-nothing
   %-  eval-mare
   =/  m  (mare ,~)
-  ;<  ~  bind:m  (setup owner scry-owner-human)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact `human-contact))
+  =/  =id:c  [owner when]
+  ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
+  (ex-cards caz ~)
+::
+++  test-missing-contact-emits-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact ~))
+  =/  =id:c  [owner when]
+  ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
+  (ex-cards caz ~)
+::
+++  test-incomplete-bot-info-emits-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact `missing-version-contact))
+  =/  =id:c  [owner when]
+  ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
+  (ex-cards caz ~)
+::
+++  test-stale-bot-info-emits-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m  (setup owner (scry-owner-contact `stale-contact))
+  =/  =id:c  [owner when]
+  ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
+  (ex-cards caz ~)
+::
+++  test-malformed-optional-bot-info-emits-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ;<  ~  bind:m
+    (setup owner (scry-owner-contact `malformed-harness-version-contact))
   =/  =id:c  [owner when]
   ;<  caz=(list card)  bind:m  (do-agent (make-fact owner bot owner id))
   (ex-cards caz ~)

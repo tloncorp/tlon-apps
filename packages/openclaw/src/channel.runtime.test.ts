@@ -145,6 +145,8 @@ describe('sendMedia', () => {
       new Error('Local file paths are not supported on this channel')
     );
     const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const recordDispatchFailed = vi.fn();
     const turn = startTlonAgentTurn(
       {
         accountId: 'hosted',
@@ -158,6 +160,8 @@ describe('sendMedia', () => {
       },
       {
         observer: {
+          recordDispatchAttempted,
+          recordDispatchFailed,
           recordStarted: () => undefined,
           recordTerminal: () => undefined,
         },
@@ -176,10 +180,14 @@ describe('sendMedia', () => {
     expect(sendDm).not.toHaveBeenCalled();
     expect(sendDmWithStory).not.toHaveBeenCalled();
     expect(sendChannelPost).not.toHaveBeenCalled();
+    expect(recordDispatchAttempted).not.toHaveBeenCalled();
+    expect(recordDispatchFailed).not.toHaveBeenCalled();
     expect(turn.finalize({ durationMs: 10 })).toMatchObject({
-      delivery: 'failed',
-      deliveryFailureCount: 1,
+      delivery: 'not_applicable',
+      deliveryFailureCount: 0,
       deliverySuccessCount: 0,
+      dispatch: 'not_applicable',
+      dispatchAttemptCount: 0,
     });
   });
 
@@ -222,6 +230,53 @@ describe('sendMedia', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
     });
+  });
+
+  it('records the actual outbound destination kind for cross-target sends', async () => {
+    const { startTlonAgentTurn } = await import('./turn-recorder.js');
+    const recordDispatchAttempted = vi.fn();
+    const recordMoonReplyEnqueued = vi.fn();
+    const turn = startTlonAgentTurn(
+      {
+        accountId: 'hosted',
+        agentId: 'main',
+        destinationKind: 'dm',
+        inputMessageId: '~nec/333',
+        runId: 'cross-target',
+        sessionKey: 'agent:main:tlon:direct:~nec',
+        ship: '~zod',
+        trigger: 'dm',
+      },
+      {
+        observer: {
+          recordDispatchAttempted,
+          recordMoonReplyEnqueued,
+          recordStarted: () => undefined,
+          recordTerminal: () => undefined,
+        },
+      }
+    );
+
+    await turn.run(() =>
+      tlonRuntimeOutbound.sendText({
+        ...baseCtx,
+        to: 'chat/~zod/general',
+      })
+    );
+
+    expect(sendDm).not.toHaveBeenCalled();
+    expect(sendChannelPost).toHaveBeenCalledTimes(1);
+    expect(recordDispatchAttempted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationKind: 'group_channel',
+      })
+    );
+    expect(recordMoonReplyEnqueued).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationKind: 'group_channel',
+        outputMessageId: '~zod/123',
+      })
+    );
   });
 });
 

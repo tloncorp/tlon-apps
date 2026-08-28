@@ -2,6 +2,11 @@ import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
 export const TLON_MESSAGE_JOURNEY_SCHEMA_VERSION = 1;
 
+export type TlonMessageJourneyDestinationKind =
+  | 'dm'
+  | 'group_channel'
+  | 'notebook';
+
 export type TlonMessageJourneyStage =
   | 'plugin_input_observed'
   | 'plugin_input_selected'
@@ -15,7 +20,7 @@ export type TlonMessageJourneyEvent = {
   agentId?: string | null;
   attemptNumber?: number;
   botShip: string;
-  destinationKind: 'dm' | 'group_channel';
+  destinationKind: TlonMessageJourneyDestinationKind;
   errorKind?: string | null;
   inputMessageId?: string | null;
   outputMessageId?: string | null;

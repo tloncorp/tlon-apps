@@ -32,15 +32,17 @@ Schema version: `1`.
 | `plugin_input_selected` | OpenClaw Tlon monitor | `input_message_id` | The plugin accepted the message for processing. |
 | `turn_started` | OpenClaw turn recorder | `input_message_id`, `run_id` | OpenClaw began a turn for the message. |
 | `tlon.agent_turn.terminal` | OpenClaw turn recorder | `input_message_id`, `run_id` | The turn ended, with `dispatch` set to `attempted`, `skipped`, or `not_applicable`. |
-| `reply_dispatch_attempted` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A reply transport call began. There can be multiple attempts per turn. |
-| `reply_dispatch_failed` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A reply transport call failed. |
+| `reply_dispatch_attempted` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A Tlon reply transport call began, after local validation, setup, and authentication. There can be multiple attempts per turn. |
+| `reply_dispatch_failed` | OpenClaw turn recorder | `input_message_id`, `run_id`, `attempt_number` | A Tlon reply transport call failed. |
 | `moon_reply_enqueued` | OpenClaw turn recorder | `input_message_id`, `run_id`, `output_message_id` | The moon API accepted the outgoing message and returned its canonical ID. This is not proof of owner delivery. |
 | `moon_reply_persisted` | moon `%steward` journey module | `output_message_id` | The marked OpenClaw moon's `%chat` feed observed its locally authored DM reply to its owner. |
 | `owner_reply_persisted` | owner `%steward` journey module | `output_message_id` | The owner observed a remote reply from a child moon marked as an OpenClaw bot. |
 
 The backend stages currently define the owner/moon SLO for DMs. OpenClaw also
-emits turn and dispatch stages for group-channel turns, but group persistence
-has a different topology and is not part of this alert.
+emits turn and dispatch stages for group-channel turns. Dispatch events use the
+actual outbound target kind (`dm`, `group_channel`, or `notebook`),
+which can differ from the turn's inbound destination. Non-DM persistence has a
+different topology and is not part of this alert.
 
 ## Grafana alert
 
