@@ -18,12 +18,18 @@ export default defineConfig({
     jsx: 'automatic',
     jsxImportSource: 'preact',
     legalComments: 'none',
+    // The sandbox is deliberately hard to inspect — no devtools on a
+    // native webview, no network — so a shell stack trace arriving over
+    // the bridge is often the only signal there is. Names make it legible.
+    keepNames: true,
   },
   build: {
     target: 'es2020',
-    // readable output: the artifact is reviewed and injected locally, so
-    // auditability beats size
-    minify: false,
+    // Minified. Vendoring sigil-js grew the artifact 58% raw, and it is
+    // embedded as a string constant in every client, so size is a real
+    // cost paid by every user. Measured deterministic in both modes, and
+    // `keepNames` below preserves what auditability actually needs.
+    minify: 'esbuild',
     sourcemap: false,
     cssCodeSplit: false,
     emptyOutDir: true,
