@@ -134,6 +134,52 @@ skipped — that op alone, with a debug log nobody reads. The remaining ops in
 the entry still apply. A typo in an action path is not an error, it is an
 action that quietly does nothing. Lint, then fold, then preview.
 
+### Keep action ids literal: the handler table
+
+The gate cross-references every `invoke('…')` in the bundle against the spec's
+declared actions. That check is the only thing standing between a typo'd id
+and a button that silently does nothing — and it works on **literals only**.
+`invoke(option.actionId)` or `invoke('vote-' + option.id)` cannot be
+cross-referenced at all, so one computed call turns the check off **for the
+whole bundle**, not just for that line.
+
+Rendering one button per item is still the natural shape. Do it through a
+table keyed by item id, with a literal in every entry:
+
+```js
+const VOTE = {
+  pizza: function () {
+    return invoke('vote-pizza');
+  },
+  tacos: function () {
+    return invoke('vote-tacos');
+  },
+};
+
+const has = function (object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+};
+```
+
+Then look it up per item, and render a **disabled** control when there is no
+entry:
+
+```js
+html`<${Button} disabled=${!canInvoke() || !has(VOTE, id)} onPress=${VOTE[id]}>
+  Vote
+<//>`;
+```
+
+Adding a choice is two edits — an action in `spec.json`, a line in the table —
+and the gate fails if you make one without the other. A choice with no entry
+is **visibly inert** rather than a live control that does nothing, which is
+the same refusal-over-best-effort posture as every other state in the runtime.
+Use `hasOwnProperty`, never a bare `id in VOTE`: an inherited name like
+`constructor` would otherwise resolve to something that is not an action.
+
+Both templates use it — `VOTE` in `templates/poll/`, `LOG` in
+`templates/workout-tracker/`.
+
 ---
 
 ## 3. `render` never reads the clock
@@ -375,6 +421,24 @@ is not.
 
 **State changes are events. UI and action changes are revisions.** Never
 publish a new spec to change data; never post events to change the UI.
+
+**The trap: adding a thing is usually both.** `initialState` is the state a
+revision starts from — and a live channel with data does not start over. With
+`--preserve-state` the carried state wins and the new `initialState` is never
+read; without it, state resets to the new `initialState` and the existing data
+is gone. Neither of those is "add one item to the existing list".
+
+So **data that lives in state changes by host event, not by revision.** "Add a
+poll choice" is two mechanisms:
+
+1. a **revision** — the new action in `spec.json`, the new line in the handler
+   table, and `--preserve-state` so the votes already cast survive it;
+2. a **host event** — `tlon surface event <channel>` with the op that appends
+   the choice to `/options`.
+
+Publish the revision alone and the user is told the choice was added, opens
+the channel, and sees the old three. Read the state back with
+`tlon surface state <channel>` before you claim a change landed.
 
 - **Any content change bumps the revision** — including a bundle-bytes-only
   change. `surface publish` does this; a byte-identical republish is reported

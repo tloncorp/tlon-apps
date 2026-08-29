@@ -172,8 +172,16 @@ export type PreviewStateName = 'initial' | 'populated';
  * by accident and a one-ship list hides the "no viewer identity" rule
  * (PARADIGM §4) entirely — an app that renders only the viewer looks fine
  * with one actor and wrong with three.
+ *
+ * One of them is a **planet** on purpose. At the `detail: 'none'` grade the
+ * avatar primitive uses, sigil-js draws a galaxy as a single featureless
+ * glyph — measured: `~zod` is one `<circle>`, `~ten` one `<rect>`, `~mug`
+ * one `<path>` — so an all-galaxy crew fills every capture with three
+ * near-identical marks and a reviewer scoring the rubric reasonably files
+ * "the avatars are broken". A planet draws four, which is what most real
+ * members look like and what the readability check is meant to score.
  */
-export const PREVIEW_ACTORS = ['~zod', '~ten', '~mug'] as const;
+export const PREVIEW_ACTORS = ['~zod', '~ten', '~palfun-foslup'] as const;
 
 /** The channel host for the fold. `$actor` never resolves to it. */
 export const PREVIEW_HOST_SHIP = '~zod';

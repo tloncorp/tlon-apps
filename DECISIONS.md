@@ -729,15 +729,15 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   not assumed (`apps/tlon-web/sandbox-posture/navigation.spec.ts`;
   `SANDBOX_ENGINES=all`, 111 tests).
 
-  | host-page config | chromium | firefox | webkit | srcdoc loads? |
-  | --- | --- | --- | --- | --- |
-  | A — no CSP (production today) | NOT blocked | NOT blocked | NOT blocked | yes |
-  | header `frame-src 'none'` | pre-flight | pre-flight | pre-flight | **yes** |
-  | header `frame-src 'self'` | pre-flight | pre-flight | pre-flight | yes |
-  | header `frame-src https://example.com` | pre-flight | pre-flight | pre-flight | yes |
-  | header `frame-src <attacker>` *(control)* | NOT blocked | NOT blocked | NOT blocked | yes |
-  | meta `frame-src 'none'` | pre-flight | pre-flight | pre-flight | yes |
-  | meta `frame-src <attacker>` *(control)* | NOT blocked | NOT blocked | NOT blocked | yes |
+  | host-page config                          | chromium    | firefox     | webkit      | srcdoc loads? |
+  | ----------------------------------------- | ----------- | ----------- | ----------- | ------------- |
+  | A — no CSP (production today)             | NOT blocked | NOT blocked | NOT blocked | yes           |
+  | header `frame-src 'none'`                 | pre-flight  | pre-flight  | pre-flight  | **yes**       |
+  | header `frame-src 'self'`                 | pre-flight  | pre-flight  | pre-flight  | yes           |
+  | header `frame-src https://example.com`    | pre-flight  | pre-flight  | pre-flight  | yes           |
+  | header `frame-src <attacker>` _(control)_ | NOT blocked | NOT blocked | NOT blocked | yes           |
+  | meta `frame-src 'none'`                   | pre-flight  | pre-flight  | pre-flight  | yes           |
+  | meta `frame-src <attacker>` _(control)_   | NOT blocked | NOT blocked | NOT blocked | yes           |
 
   Cells are identical across all four probes (`location.replace`,
   `location.href =`, anchor click, `document.write` meta-refresh); that
@@ -752,7 +752,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
     logging zero connections — not merely an absent Playwright event.
     Nothing left the device, so the URL-borne payload never escaped.
     Late/commit-stage blocking would have been useless here, since the
-    URL *is* the exfiltration.
+    URL _is_ the exfiltration.
   - **Q4:** `'none'`, `'self'`, and an allowlist excluding the attacker
     behave identically; allowlisting the attacker lets it through on the
     same delivery mechanism, which is what attributes the blocking to
@@ -768,7 +768,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   allowlist-the-attacker control.
 
   **Engine divergence, recorded and asserted:** after a blocked
-  navigation Chromium commits an error page *into the sandbox frame*,
+  navigation Chromium commits an error page _into the sandbox frame_,
   destroying the running app; firefox and webkit leave it on
   `about:srcdoc` and the app keeps running. Neither leaks — on Chromium a
   hostile bundle can only DoS itself.
@@ -860,7 +860,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
      app-store cycle, but not instant. State it accurately when planning.
 
   **Chromium consequence of flipping** (measured, `navigation.spec.ts`):
-  a refused navigation commits an error page *into* the sandbox frame,
+  a refused navigation commits an error page _into_ the sandbox frame,
   destroying the running mini-app; firefox and webkit leave it on
   `about:srcdoc`. Nothing leaks either way — a hostile bundle can only
   self-destruct its own surface — but it is a real behavioral consequence
@@ -871,7 +871,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   asserted." **That is no longer true, deliberately.** The B-layer's
   lexical shadowing (D45 below) blocks two of the vectors in-realm, so
   the suite now asserts a per-vector split, and D43's Config A "NOT
-  blocked" row holds only for the *unshimmed* vectors
+  blocked" row holds only for the _unshimmed_ vectors
   (`window.location.replace`, anchor click, meta-refresh). The `frame-src`
   findings themselves — pre-flight blocking on all three engines, srcdoc
   exempt, controls behaving — are unaffected.
@@ -880,7 +880,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   shipped is narrower and labeled as such.** Measured on all three
   engines in a real `sandbox="allow-scripts"` srcdoc frame:
   `Object.getOwnPropertyDescriptor(Location.prototype, 'replace'|'assign'
-  |'href')` is **absent** — every `Location` member is
+|'href')` is **absent** — every `Location` member is
   `[LegacyUnforgeable]`, living as a non-writable, non-configurable **own**
   property of the instance. `defineProperty` throws, assignment silently
   fails, `delete` returns false, and `window.location` is itself
@@ -895,17 +895,17 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   host CSP — the production posture, since D44's policy ships gated off),
   identical on all three engines:
 
-  | probe | result |
-  | --- | --- |
+  | probe                                | result              |
+  | ------------------------------------ | ------------------- |
   | `location.replace` (bare identifier) | blocked by the shim |
-  | `location.href =` (bare identifier) | blocked by the shim |
-  | `window.location.replace` | **NOT blocked** |
-  | anchor click (`target="_self"`) | **NOT blocked** |
-  | `document.write` meta-refresh | **NOT blocked** |
+  | `location.href =` (bare identifier)  | blocked by the shim |
+  | `window.location.replace`            | **NOT blocked**     |
+  | anchor click (`target="_self"`)      | **NOT blocked**     |
+  | `document.write` meta-refresh        | **NOT blocked**     |
 
   A `nav-window-location` probe was added specifically so the suite
   asserts this residual rather than implying containment; the two shimmed
-  vectors read blocked in *every* config including the
+  vectors read blocked in _every_ config including the
   allowlist-the-attacker controls, which is what proves the shim rather
   than the policy is responsible.
 
@@ -957,7 +957,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
 
 - **D48: Mutation M12 survived, and the test was kept anyway.** The
   writer-side "an inherited name is not resolvable as a declared action"
-  test does not discriminate *which* gate rejects it: `ActionIdSchema`'s
+  test does not discriminate _which_ gate rejects it: `ActionIdSchema`'s
   charset (`/^[a-z0-9-]+$/`) plus its forbidden-key refinement already
   make `constructor` the only expressible prototype member and reject it,
   so replacing `getDeclaredAction` with a naive lookup still passes. The
@@ -1011,8 +1011,8 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   (`location.replace`, `location.href`) do nothing; the unshimmed ones
   (`window.location.replace`, anchor click, meta-refresh) **do navigate**,
   the browser logs `…violates the following report-only CSP directive:
-  "frame-src 'self' https://tlon.network". The violation has been logged,
-  but no further action has been taken.`, and the host then tears the
+"frame-src 'self' https://tlon.network". The violation has been logged,
+but no further action has been taken.`, and the host then tears the
   iframe down. This is exactly D43+D44+D45 composing as recorded — and it
   confirms concretely that under Report-Only the request still leaves the
   device. Only the enforcing flip changes that.
@@ -1026,7 +1026,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   naming misleads).** Verified today while scoping a `$now` substitution.
 
   `%channels-server`'s `%add` arm sets the post id to **`now.bowl`** — the
-  *host ship's* clock at the moment it processes the poke — with a
+  _host ship's_ clock at the moment it processes the poke — with a
   collision loop bumping by `~s1/2^16` until free
   (`desk/app/channels-server.hoon:1089`), and `desk/sur/channels.hoon:75`
   types `id-post` as `time`. So the id **is** a timestamp, and it is
@@ -1080,7 +1080,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   dated history, no `append` anywhere. Degrades gracefully: a missed
   rollover just stretches "today". §4.3's guidance was corrected — "key
   appended records by `$actor`" under-states the problem, since keying
-  the path by actor does not dedupe *repeated* appends by that actor.
+  the path by actor does not dedupe _repeated_ appends by that actor.
   In v0, `append` in a member action means "duplicates acceptable."
 
   **v1 answer: `$period` substitution** (see §12) — bucketed from the
@@ -1105,15 +1105,15 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   mechanism, and the gate cannot catch it.** Found by reading the workout
   fixture's UI on a phone, not by any test.
 
-  The fixture shipped user-facing copy reading *"lifts logged since the
-  last rollover"* and *"Clearing removes only your own scratch entries"*,
-  with empty states referring to *"No rollover has happened yet"*. Both
+  The fixture shipped user-facing copy reading _"lifts logged since the
+  last rollover"_ and _"Clearing removes only your own scratch entries"_,
+  with empty states referring to _"No rollover has happened yet"_. Both
   are accurate. Both expose internal vocabulary no lifter should ever
   meet.
 
   **The cause is a real constraint, correctly handled and badly worded.**
   `render` must never call `Date` — the sandbox clock belongs to the
-  *viewer* while the archive boundary belongs to the *host*, so a viewer
+  _viewer_ while the archive boundary belongs to the _host_, so a viewer
   in a different timezone reading "today" would be looking at a lie. The
   author chose a technically-true label over a friendly-but-wrong one,
   which is the right instinct and the wrong words. "This session" is both
@@ -1121,11 +1121,11 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   talks.
 
   Recommended replacements, as a model for the class:
-  *"since the last rollover"* → *"this session"*; *"your own scratch
-  entries"* → *"your own entries for this session"*; *"Archived sessions
-  appear here after the first rollover"* → *"Your past sessions will
-  appear here"*; *"No rollover has happened yet"* → *"No sessions saved
-  yet"*.
+  _"since the last rollover"_ → _"this session"_; _"your own scratch
+  entries"_ → _"your own entries for this session"_; _"Archived sessions
+  appear here after the first rollover"_ → _"Your past sessions will
+  appear here"_; _"No rollover has happened yet"_ → _"No sessions saved
+  yet"_.
 
   **This is a class, not an instance.** Every v0 constraint that shapes
   behavior — no in-app date, host-driven archiving, no viewer identity,
@@ -1151,7 +1151,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
 
   This sits awkwardly against §3, which says **"the current content of
   that cell is authoritative, full stop"** and that `specRevision` is for
-  correlating events and snapshots, *not* a cache key. If a client can
+  correlating events and snapshots, _not_ a cache key. If a client can
   miss a change to the authoritative cell because a correlation number
   did not move, then either the client is wrong or §3 overstates.
 
@@ -1234,7 +1234,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   **D56 guessed wrong about the cause.** The bumped-revision case failed
   identically before the fix, so the swallow was never keyed on
   `specRevision` — it dropped the whole cell. What made "bump the
-  revision" appear to fix it during the demo was a *different carrier*
+  revision" appear to fix it during the demo was a _different carrier_
   landing the change: the live `r-groups` edit fact spreads the full
   channel into `db.updateChannel`, which does write both columns. With a
   live SSE connection in the foreground it lands; recovering via init or
@@ -1260,6 +1260,8 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   §3 amended accordingly (on-branch): change detection keys on cell
   content, and every write carrying channel metadata must refresh the
   verbatim payload and the spec, not only the fields derived from them.
+
+## Session 5 decisions (tlon-skill: the `surface` commands, gate, preview, templates)
 
 - **D60: the plan is now committed on-branch, superseding D1.** Session
   5's prompt treats `surface-channels-plan.md` as canonical on the branch
@@ -1358,18 +1360,18 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   `minify: 'esbuild'` off while size did not matter. Measured on this
   branch (JS only, CSS is ~7.6 kB):
 
-  | | raw | gzip |
-  |---|---|---|
-  | before sigil, `minify: false` | 506,407 B | 110.9 kB |
-  | after sigil, `minify: false` | 802,262 B | 129.1 kB |
-  | before sigil, `minify: 'esbuild'` | 227,480 B | 79.0 kB |
-  | after sigil, `minify: 'esbuild'` | 513,580 B | 96.5 kB |
+  |                                   | raw       | gzip     |
+  | --------------------------------- | --------- | -------- |
+  | before sigil, `minify: false`     | 506,407 B | 110.9 kB |
+  | after sigil, `minify: false`      | 802,262 B | 129.1 kB |
+  | before sigil, `minify: 'esbuild'` | 227,480 B | 79.0 kB  |
+  | after sigil, `minify: 'esbuild'`  | 513,580 B | 96.5 kB  |
 
   Sigil adds **+295,855 B raw (+58%)**, and tree-shaking cannot touch it:
   the two symbol tables (208 kB detailed, 79 kB icon-grade) are indexed by
   a runtime-computed phoneme, so rollup keeps both even though the avatar
   only ever asks for the icon-grade one. Minifying returns the artifact to
-  roughly its pre-sigil raw size (514 kB vs 506 kB) and *below* its
+  roughly its pre-sigil raw size (514 kB vs 506 kB) and _below_ its
   pre-sigil gzip (96.5 vs 110.9 kB). Recorded, not flipped: D32 called it
   a deliberate decision, and this is the evidence for making it, not the
   authority to make it.
@@ -1379,10 +1381,10 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   constant in every client, so D32's "if embedding budgets care" became
   true. Measured:
 
-  | build | raw | gzip |
-  | --- | --- | --- |
-  | unminified, pre-sigil | 506,407 | 110.9 kB |
-  | unminified, post-sigil | 802,262 | 129.1 kB |
+  | build                      | raw         | gzip         |
+  | -------------------------- | ----------- | ------------ |
+  | unminified, pre-sigil      | 506,407     | 110.9 kB     |
+  | unminified, post-sigil     | 802,262     | 129.1 kB     |
   | **minified + `keepNames`** | **528,343** | **102.6 kB** |
 
   Sigils land and the artifact still travels smaller than before them.
@@ -1417,7 +1419,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   co-locating makes skill/CLI version skew impossible, keeps the docs
   beside the `templates/` CI renders, and means a Hermes deployment with
   the CLI but no plugin tree still gets it. `packages/openclaw/skills/`
-  is where the repo puts *tool-less* knowledge.
+  is where the repo puts _tool-less_ knowledge.
 
   **Discoverability is not automatic. Four gaps, all unaddressed:**
   1. `packages/tlon-skill/package.json` `files` omits `skills/` — the
@@ -1446,7 +1448,7 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
     extension-agnostic.
   - **§7 describes an escaping intermediate that does not exist.** It
     says the `$actor` segment is substituted "RFC 6901-escaped", but
-    `resolveActorSegments` runs *after* `parsePointer` has unescaped, so
+    `resolveActorSegments` runs _after_ `parsePointer` has unescaped, so
     the plain ship goes into an already-unescaped segment and the state
     key is `~zod`. Same observable result, but the author-facing rule is
     position-dependent: hand-written path segments need `~0`, keys read
@@ -1466,3 +1468,223 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   - **No app CSS reaches the sandbox**, so the poll fixture's
     `class="poll-option-label"` is inert — a class with no rule behind
     it. Worth removing when that fixture is promoted.
+
+- **D68: `surface create` could never succeed — a tracked poke needs its
+  subscriptions open.** Fixed in `createSurfaceDeps().authenticate`
+  (`packages/tlon-skill/scripts/surface-runtime.ts`).
+
+  `authenticate` called `ensureClient()` with **no** subscription apps, but
+  `createChannel` is a **tracked** poke and a tracked poke's watcher is fed
+  by the subscription stream. With nothing subscribed the watcher could
+  never fire: the poke created the channel on the ship, and the tracker
+  threw `TimeoutError` ~20s later. Every `surface create` therefore
+  reported failure for work that had already landed — and D50's observation
+  logic, which exists precisely to tell a real failure from a silent
+  success, was never reached, because the tracker threw first.
+
+  **The cost was not a retry.** D50 makes a channel name single-use forever,
+  so each retry burned a name. Two real names are burned in
+  `~zod/surface-seed`: `dash-pj14oqjp` and `dash-lc4k5q4w`.
+
+  The fix is `ensureClient(['groups', 'channels'])`, matching the precedent
+  at `packages/tlon-skill/scripts/groups.ts` — the same list for the same
+  reason. `sendPost` and `updateChannel` are plain pokes, which is why
+  publish and event were unaffected: the defect is exactly co-extensive
+  with the tracked ones, which is also what makes it easy to miss.
+
+  **Why it escaped the suite.** The surface command tests substitute a test
+  double for `authenticate` (`scripts/surface-test-doubles.ts` — an empty
+  async function), so the real subscription requirement is exercised by no
+  test at all. The dep boundary that makes the command group testable is
+  the same boundary that leaves its runtime assembly uncovered; every rule
+  the commands enforce is tested, and the wiring that lets them run is not.
+
+  **Follow-up: audit the remaining tracked pokes reachable from the
+  `surface *` command group for the same gap.**
+  `packages/api/src/client/channelsApi.ts` alone holds five `trackedPoke`
+  call sites; `createChannel` is the one the surface path reaches today,
+  and Session 6's `surface fork` reaches it again.
+
+- **D69: `--preserve-state` discards the new `initialState`, and preview
+  shows the opposite.** Verified in source. The publish behaviour is
+  correct and does not change; the preview divergence is now labelled.
+
+  `foldForMigration` (`scripts/commands/surface-publish.ts`) returns
+  `published.initialState` **only** when there is no existing definition.
+  When one exists it folds the channel's history against the **old** spec
+  and snapshots that. So on any revision of a live channel, the new spec's
+  `initialState` is dead on arrival. Preview does the opposite:
+  `migrationSnapshotPost` (`scripts/surface-preview.ts`) stands in a
+  snapshot of `spec.initialState`, because a `preserveState` spec folds to
+  `migration-pending` with no snapshot and the populated cell would
+  otherwise be empty for a reason that has nothing to do with the app.
+  **Preview therefore renders the new `initialState` and production renders
+  the carried state.**
+
+  Three rulings, in order.
+
+  **(a) Publish is right and does not change.** Preserving state means the
+  carried state wins. Letting the new `initialState` overwrite it would
+  make the flag mean something else, and would leave no way at all to say
+  "keep the data".
+
+  **(b) The preview divergence is labelled, not fixed by guessing.** §9
+  claimed preview equals production "by construction, not by resemblance".
+  That is true of **document assembly** — the same assembler, the same
+  shell artifact, the same CSP, the same bridge protocol, pinned by the
+  test that fails if the renderer stops using the shared function — and
+  false of **state derivation**. For a `preserveState` spec the populated
+  capture is knowingly optimistic: it shows the app running on the state
+  the spec asks for, where production shows it running on the state the
+  channel already had. Narrowed rather than withdrawn in §9 and in
+  `RUBRIC.md`, because the assembly guarantee is the real one and is the
+  one anything is pinned against.
+
+  **(c) The authoring consequence is the most valuable part. Data that
+  lives in state changes by host event, not by revision.** "Add a poll
+  choice" is therefore **two** mechanisms: a spec revision for the handler
+  and the declared action, and a host event for the choice itself. A bot
+  that publishes a revision and reports "added" is wrong, and the user
+  looks at an unchanged screen and concludes the bot is broken. Recorded in
+  `PARADIGM.md` §13 and in `SKILL.md`'s revise step.
+
+- **D70: preview cannot fold host events, so a host-is-the-clock app
+  captures only its pre-rollover half.** `foldPopulatedState` folds
+  **declared actions** only — there is no way to say "and then the host
+  posted a rollover". For the workout tracker that means the chart card and
+  the past-sessions card are empty in all twelve preview cells: everything
+  a rollover produces is invisible to the reviewer, and those are exactly
+  the elements preview exists to inspect. The tall fold-free phone cell was
+  added (§9) so a chart below the fold appears in some capture; this is the
+  same element missing for a different reason.
+
+  **Ruled: do not build the fix now.** State the limitation where the
+  scorer reads it (`RUBRIC.md`, with the other artifacts that are preview's
+  and not the app's) and where the design is recorded (§9's preview
+  paragraph), so nobody files "the chart is broken" against an app whose
+  chart works.
+
+  **Session 6 candidate: `--host-ops <file>`** — a file of host operations
+  preview folds _after_ the actions, so a template can ship the rollover
+  its own screenshots need. Session 6 adds seven more templates and several
+  of them are host-dependent, so the gap widens before it narrows.
+
+- **D71: the gate's computed-invoke rule is right; nothing taught the
+  pattern that satisfies it.** Both promoted fixtures tripped
+  `undeclared-action` on a computed `invoke(option.actionId)`.
+
+  Iterating over state to build one button per item is the natural shape
+  for a poll, and it disables the gate's only defence against a typo'd
+  action id **for the whole bundle** — a computed argument cannot be
+  cross-referenced against the spec at all, so the check degrades from
+  "every id is declared" to "no id was checked". `PARADIGM.md` §2 already
+  said a typo'd action id "quietly does nothing"; it never showed the shape
+  that keeps ids literal while still rendering a list.
+
+  **Ruled: the rule stands, the templates changed.** The pattern is a
+  literal handler table keyed by item id — `const VOTE = { pizza: () =>
+invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
+  control for an id with no entry rather than a live control that does
+  nothing. Adding a choice is then two edits the gate keeps honest (an
+  action in `spec.json`, a line in the table), and a missing one is visibly
+  inert instead of quietly dead. Both promoted templates demonstrate it
+  (`VOTE` in poll, `LOG` in workout-tracker) and both `NOTES.md` say why
+  the argument is a literal.
+
+  It goes into `PARADIGM.md` §2 **before** Session 6 writes seven more
+  templates against it. Otherwise seven more generations reach for the
+  computed form, and seven more get a warning with no remedy anywhere in
+  the doctrine.
+
+- **D72: the raw-vs-validated hazard generalizes past the gate (generalizes
+  D67).** D67 recorded that `duplicatesTolerated` is not in
+  `SurfaceActionSchema` and `z.object` strips unknown keys, so **the gate**
+  must read it off the raw spec. That framing was too narrow: the same trap
+  was hit a second time, in a different command.
+
+  `surface publish`'s post-write observation compared
+  `canonicalJson(read.spec)` — the **validated** view — against the raw
+  object it had just written. Any gate-only marker was therefore present in
+  what was written and absent from what was compared, so a landed write
+  reported `publish-unconfirmed`. Net effect: every `append`-using app was
+  unpublishable through the exact opt-out the gate **requires** and both
+  `PARADIGM.md` and the gate's own violation message promise. Fixed in
+  commit `5002b721ac` by comparing the verbatim cell, with a test pinning
+  the round trip so a later "cleanup" to the validated view fails loudly.
+
+  **The rule is not "the gate reads raw."** It is: **any comparison of a
+  written spec against a read-back one must use the raw cell**, because the
+  schema strips exactly the keys the gate depends on. Reading a _field_ off
+  the validated spec stays correct; comparing _specs_ does not. §9's gate
+  paragraph now states the general rule and names both instances rather
+  than describing only the gate's.
+
+  Two instances in two different commands is enough to suspect a third.
+  **Follow-up: audit the remaining read-back comparisons.** Today's other
+  writer observations compare `post.blob` as a string, which is already raw
+  against raw; the live risk is Session 6's `surface fork`, which reads a
+  source spec and republishes it — republishing the validated view would
+  silently drop `duplicatesTolerated` from every forked `append` app, and
+  the fork would fail its own gate on a bundle that passed at the source.
+
+- **The step-9 jargon-denylist bullet closes with no additions.** Session
+  5's step 5 said to extend the denylist "as template work suggests".
+  Template work is now done: the workout tracker tripped the jargon rule on
+  **"spec"**, which is already one of the six terms (`rollover`,
+  `revision`, `invoke`, `spec`, `scratch`, `$actor`), and writing both
+  templates surfaced no new jargon. **The denylist needs no additions** —
+  recorded explicitly so the bullet closes rather than staying silently
+  open. Step 9's companion requirement, that §9's gate paragraph be the
+  union of the gate as designed and the gate as built, is likewise
+  satisfied: **the gate did not change during template promotion — the
+  templates did.**
+
+### Found, flagged, not fixed (session 5, template promotion)
+
+- **`surface publish` has no dev storage path.** Without an S3-compatible
+  endpoint it dies at `storage-unavailable`, so the whole pipeline is
+  unrunnable against a fakeship — the one environment where it is cheap to
+  run. The seed already faces this problem and solved it: it ships a local
+  bundle server (`packages/shared/seed/bundleServer.ts`) precisely because
+  provisioning a bucket is an out-of-repo human step, and the client does
+  not special-case it. Publish has no equivalent. Session 5 worked around
+  it with a ~70-line throwaway stub that lives in the session scratchpad,
+  not in the repo, and will be lost. **Ruled:** either the CLI grows a
+  documented dev-storage story or the plan's provisioning list says plainly
+  that the loop is unrunnable locally without one — the note is added to
+  the provisioning list now, and promoting a real dev-storage stub is a
+  Session 6 candidate.
+
+- **Preview's synthetic crew was three galaxies** (`~zod`, `~ten`,
+  `~mug`). Measured rather than assumed: at the `detail: 'none'` grade the
+  avatar primitive uses, sigil-js draws each galaxy as **exactly one
+  featureless glyph** — `~zod` a `<circle>`, `~ten` a `<rect>`, `~mug` a
+  `<path>` — against a planet's four. Every crew list in every capture was
+  therefore three near-identical marks. (An earlier write-up of this
+  finding claimed `~zod` and `~ten` emitted _no_ glyph at all and rendered
+  as blank swatches; that came from counting only `<path>` elements and
+  missing the circle and the rect. The conclusion is unchanged, the
+  severity was overstated.) A reviewer scoring `RUBRIC.md`'s
+  readability check could reasonably file "the avatars are broken" against
+  an app whose avatars are fine. **Fixed narrowly:** `PREVIEW_ACTORS` is
+  now `['~zod', '~ten', '~palfun-foslup']`, so at least one capture shows
+  the four-glyph sigil most real members have. Two galaxies remain on
+  purpose — a galaxy is a legitimate member and the crew should not be
+  uniform — and the residual stands regardless: **synthetic preview actors
+  are not real group members and their sigils are not a quality signal.**
+  Stated in `RUBRIC.md` so it is scored that way.
+
+- **A running rube web server cannot resolve
+  `@tloncorp/surface-shell/sandbox` after the lockfile changes under it**,
+  and shows a vite overlay where the app should be. A freshly started
+  server re-optimizes its dependencies and works. Not a code defect — a
+  trap that reads exactly like "the app is broken", costing a debugging
+  cycle to whoever hits it next. Worth a line wherever the seed and dev-loop
+  instructions live (`docs/tlon-apps/surface-channels-seed.md`).
+
+- **The shell's own poll fixture still carries the inert
+  `class="poll-option-label"`** that D67 flagged (no app CSS reaches the
+  sandbox, so the class has no rule behind it). Discharged for the promoted
+  template; `packages/surface-shell/fixtures/poll/` was deliberately left
+  untouched, because it is the shell's own test fixture and its job is to
+  exercise the shell, not to model authoring style.

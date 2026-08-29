@@ -31,6 +31,15 @@ It also starts one web dev server per ship.
 ./stop-playwright-dev.sh
 ```
 
+**If a running server was up when the lockfile changed, restart it.** Vite
+pre-bundles workspace dependencies once at server start; if
+`@tloncorp/surface-shell` gains or moves a subpath export while the server is
+already running, the page shows a vite overlay saying it cannot resolve
+`@tloncorp/surface-shell/sandbox` instead of showing the app. Nothing is
+broken — a freshly started server re-optimizes and works. Restart the dev
+servers after any `pnpm install` or branch switch rather than debugging the
+overlay.
+
 Ship access codes (from `CLAUDE.md`):
 
 | ship | web              | access key                    |

@@ -30,8 +30,8 @@ Each in `light` and `dark`, and in two states:
 - **`initial`** — `initialState`, exactly. This is the screen the first
   member ever sees, and it is the one most often shipped unlooked-at.
 - **`populated`** — produced by folding **every declared action**, twice,
-  through the real reducer as `~zod`, `~ten` and `~mug`. Not a state
-  anybody invented: if it looks wrong, the app's own actions produce
+  through the real reducer as `~zod`, `~ten` and `~palfun-foslup`. Not a
+  state anybody invented: if it looks wrong, the app's own actions produce
   something wrong.
 
 `manifest.json` records which invokes were folded, in order.
@@ -173,3 +173,30 @@ Do not raise these as findings against the app.
   the same width as `phone`, with the fold removed so you can see the
   bottom of the app. Judge width and layout on it; judge the fold on
   `phone`.
+- **The crew's sigils.** The three actors are synthetic — they are not the
+  group's members, and which ships they are is an artifact of the harness.
+  A sigil's own look is never a quality signal: judge whether avatars are
+  the right **size**, aligned, and legible against the background, not
+  whether a particular one is busy or plain. `~zod` and `~ten` are
+  galaxies, and at the icon grade the avatar uses a galaxy sigil is **one
+  featureless glyph** — a bare circle for `~zod`, a bare square for `~ten`
+  — which is what a galaxy looks like everywhere in Tlon, not a rendering
+  failure. `~palfun-foslup` is a planet and draws four glyphs, like most
+  real members. All three are correct.
+- **Anything a host event would have produced.** The populated state folds
+  **declared actions only** — preview cannot post a host event, so it
+  cannot roll a period over, archive a session, or write a date. In any
+  host-is-the-clock app (`PARADIGM.md` §2) everything downstream of a
+  rollover — history lists, charts over past periods, streaks — is
+  **empty in all twelve cells**, and that is the harness, not the app.
+  Score the pre-rollover half; check the archived half by reading
+  `tlon surface state` on a live channel instead.
+- **A `preserveState` spec's populated cell.** Preview stands in a snapshot
+  of the spec's `initialState`, because a preserving spec holds no state
+  until the host posts a migration snapshot. Production does the opposite —
+  `surface publish --preserve-state` carries the state the channel already
+  had, and never reads the new `initialState`. So for a revision of a live
+  channel, the populated capture shows the state the spec asks for, not the
+  state members will meet. What preview equals production on **by
+  construction** is the assembled document — the same assembler, shell,
+  CSP and bridge — not the state that document is handed.

@@ -88,6 +88,18 @@ language: "I don't have permission to add channels here yet."
    pending window is one command wide. Without it, state resets from
    `initialState`; that is only correct when the user wants a fresh start.
 
+   **Adding data is not a revision.** A revision changes the app; it does not
+   change what is already in state. `--preserve-state` carries the existing
+   state forward and **never reads the new `initialState`**, so editing
+   `initialState` to add a fourth poll choice changes nothing a member sees.
+   Adding a choice is two steps: the revision (new action, new handler-table
+   entry, `--preserve-state`) **and** a host event —
+   `tlon surface event <channel>` with an op appending the choice to
+   `/options`. Publish the revision alone and you will tell the user it was
+   added while they look at the old three. Confirm with
+   `tlon surface state <channel>` before you say it landed. See
+   `PARADIGM.md` §13.
+
 ## Rules that are never optional
 
 - **State changes are events; UI changes are revisions.** Never publish a new
