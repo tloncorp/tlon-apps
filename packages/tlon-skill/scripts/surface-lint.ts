@@ -783,14 +783,15 @@ interface RawAction {
 /**
  * Reads actions off the RAW spec.
  *
- * DO NOT "simplify" this onto the validated spec. `SurfaceActionSchema`
- * (`packages/api/src/client/surface/schemas.ts`) declares only `ops` and
- * `acceptStale`, and `z.object` STRIPS unknown keys — so
- * `duplicatesTolerated` survives validation but is `undefined` on every
- * parsed view. Reading it off the validated object would make a correctly
- * marked `append` action fail the gate with no way to pass. The flag lives
- * in the raw persisted spec and nowhere else; adding it to the api schema is
- * a wire-format change, not a lint change.
+ * `duplicatesTolerated` is now a declared optional field on
+ * `SurfaceActionSchema` (`packages/api/src/client/surface/schemas.ts`), so
+ * it survives validation and this raw read is no longer the only thing
+ * keeping the marker alive — it is defence in depth, not load-bearing.
+ *
+ * It stays raw anyway because the gate must judge the spec it was HANDED,
+ * including one that fails validation outright: a spec the schema rejects
+ * still has to produce violations naming the real defect rather than
+ * vanishing into an empty action list.
  */
 function readRawActions(spec: unknown): RawAction[] {
   if (!isRecord(spec) || !isRecord(spec.actions)) {

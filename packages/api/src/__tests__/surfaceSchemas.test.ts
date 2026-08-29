@@ -116,6 +116,33 @@ describe('SurfaceSpecSchema', () => {
     expect(parsed.success).toBe(true);
   });
 
+  test('an action survives validation carrying duplicatesTolerated', () => {
+    // The gate's `append` opt-out has to come back OUT of the schema, not
+    // just go in. `z.object` strips what it does not declare, so while the
+    // marker was undeclared it was present in every written spec and absent
+    // from the validated read-back of that same spec — and every comparison
+    // of the two saw a change that was not there (D67, D72, and the
+    // `decideRevision` false bump that reset live state on a no-op
+    // republish). The contrast below is the mechanism: a genuinely unknown
+    // key still vanishes, which is exactly what the marker used to do.
+    const spec = validSpec({
+      actions: {
+        'add-note': {
+          ops: [{ op: 'append', path: '/log', value: '$actor' }],
+          duplicatesTolerated: true,
+        },
+      },
+    });
+    const parsed = SurfaceSpecSchema.parse({
+      ...spec,
+      actions: {
+        'add-note': { ...spec.actions['add-note'], stillUnknown: true },
+      },
+    });
+    expect(parsed.actions['add-note'].duplicatesTolerated).toBe(true);
+    expect(parsed.actions['add-note']).not.toHaveProperty('stillUnknown');
+  });
+
   test('getDeclaredAction resolves only own declared actions', () => {
     const spec = SurfaceSpecSchema.parse(validSpec());
     expect(getDeclaredAction(spec, 'vote')).toBeDefined();

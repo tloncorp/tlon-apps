@@ -99,6 +99,20 @@ const SurfaceOpsSchema = z.array(SurfaceOpSchema).max(SURFACE_CAPS.opsPerEvent);
 export const SurfaceActionSchema = z.object({
   ops: SurfaceOpsSchema,
   acceptStale: z.boolean().optional(),
+  /**
+   * The publish gate's opt-out from the idempotency rule, required on any
+   * action whose ops use `append` (D54). The reducer never reads it.
+   *
+   * It is declared HERE, rather than left as an unknown key the gate reads
+   * off the raw spec, because `z.object` strips what it does not declare:
+   * an undeclared marker is present in a written spec and absent from the
+   * validated read-back of that same spec, so every comparison of the two
+   * sees a difference that is not there. That divergence produced four
+   * separate defects (D67, D72, the `decideRevision` false bump, and the
+   * predicted fork-strips-the-marker hazard). Declaring the field is the
+   * fix for the class; patching comparison sites one at a time is not.
+   */
+  duplicatesTolerated: z.boolean().optional(),
 });
 
 export type SurfaceAction = z.infer<typeof SurfaceActionSchema>;

@@ -83,19 +83,34 @@ export interface RevisionDecision {
  * and the only durable fix is to make the number underivable by hand.
  */
 export function decideRevision(
-  current: SurfaceSpec | null,
+  current: { spec: SurfaceSpec; raw: string } | null,
   candidate: Record<string, unknown>
 ): RevisionDecision {
   if (!current) {
     return { changed: true, revision: 1, previousRevision: null };
   }
-  const changed =
-    specContentKey(current as unknown as Record<string, unknown>) !==
-    specContentKey(candidate);
+  // Compare the VERBATIM previous cell against the raw candidate. Keying the
+  // previous side off `current.spec` compares a schema-stripped view with an
+  // unstripped one, so any key the schema does not declare reads as a
+  // difference that is not there: the revision bumps, prior events stop
+  // folding against the new revision, and live state resets.
+  //
+  // Declaring a field (as `duplicatesTolerated` now is) fixes that field. It
+  // does not fix this comparison — the next undeclared key reproduces the
+  // same false bump with the same blast radius. Raw-to-raw is what closes
+  // the class; the declared field is defence in depth behind it.
+  //
+  // `specRevision` still comes from the validated spec: it is a declared
+  // scalar, so stripping cannot touch it, and `specContentKey` drops it from
+  // the content comparison anyway.
+  const previousContent = JSON.parse(current.raw) as Record<string, unknown>;
+  const changed = specContentKey(previousContent) !== specContentKey(candidate);
   return {
     changed,
-    revision: changed ? current.specRevision + 1 : current.specRevision,
-    previousRevision: current.specRevision,
+    revision: changed
+      ? current.spec.specRevision + 1
+      : current.spec.specRevision,
+    previousRevision: current.spec.specRevision,
   };
 }
 
@@ -308,7 +323,16 @@ export async function runSurfacePublish(
     preserveState,
     revision: 0,
   });
-  const decision = decideRevision(current, candidateContent);
+  // The raw cell travels with the validated spec: the revision number comes
+  // from the latter, the content comparison from the former (see
+  // `decideRevision`). `current` stays the validated view because every
+  // other reader above wants declared fields, not bytes.
+  const decision = decideRevision(
+    currentRead.status === 'valid'
+      ? { spec: currentRead.spec, raw: currentRead.raw }
+      : null,
+    candidateContent
+  );
   const published = { ...candidateContent, specRevision: decision.revision };
 
   const schemaCheck = deps.validateSpecValue(published);
@@ -397,17 +421,20 @@ export async function runSurfacePublish(
       };
     }
     // Compare the VERBATIM cell, not the validated view. `read.spec` has
-    // been through the schema, which strips unknown keys — so a gate-only
-    // marker like `duplicatesTolerated` would be present in what we wrote
-    // and absent from what we compare, and a landed write would report
-    // `publish-unconfirmed`. Content is the change signal (D59), and the
-    // raw payload is the content.
-    let readKey: string;
-    try {
-      readKey = canonicalJson(JSON.parse(read.raw));
-    } catch {
-      readKey = canonicalJson(read.spec);
-    }
+    // been through the schema, which strips whatever it does not declare —
+    // so any key present in what we wrote and absent from what we compare
+    // makes a landed write report `publish-unconfirmed`. The marker that
+    // exposed this, `duplicatesTolerated`, is now a declared field, but the
+    // comparison stays raw: content is the change signal (D59), the raw
+    // payload is the content, and the next undeclared key must not
+    // resurrect the bug.
+    // No fallback to `read.spec` on a parse failure. `status === 'valid'`
+    // means the cell already parsed, so the catch was unreachable — and an
+    // unreachable branch that silently restores the stripped comparison is
+    // the bug one broken invariant away. If the cell ever stops parsing,
+    // throwing is correct: a confirmation that cannot read what it is
+    // confirming has not confirmed anything.
+    const readKey = canonicalJson(JSON.parse(read.raw));
     if (readKey !== expectedKey) {
       return {
         done: false,

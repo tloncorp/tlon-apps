@@ -100,9 +100,44 @@ describe('specContentKey / decideRevision', () => {
       initialState: {},
       actions: {},
     };
-    expect(decideRevision(current, candidate)).toEqual({
+    expect(
+      decideRevision({ spec: current, raw: JSON.stringify(current) }, candidate)
+    ).toEqual({
       changed: true,
       revision: 5,
+      previousRevision: 4,
+    });
+  });
+
+  it('does not bump when the previous cell carries a key the schema strips', () => {
+    // The class, not the instance. `duplicatesTolerated` is declared now, so
+    // it can no longer demonstrate this — an undeclared key can. Keying the
+    // previous side off the validated spec would drop `x-note`, make the
+    // content differ, bump the revision, and reset live state.
+    const stored = {
+      version: 1,
+      surfaceId: 'srf',
+      specRevision: 4,
+      title: 't',
+      bundle: {
+        assetRef: 'u',
+        sha256: 'b'.repeat(64),
+        size: 10,
+        shellVersion: 1,
+      },
+      initialState: {},
+      actions: {},
+      'x-note': 'survives in the cell, stripped by the schema',
+    };
+    const { 'x-note': _stripped, ...validated } = stored;
+    expect(
+      decideRevision(
+        { spec: validated as never, raw: JSON.stringify(stored) },
+        stored
+      )
+    ).toEqual({
+      changed: false,
+      revision: 4,
       previousRevision: 4,
     });
   });
@@ -175,6 +210,39 @@ describe('surface publish — no-op versus bump', () => {
     expect(harness.ship.descriptionWrites).toHaveLength(1);
     expect(harness.ship.posts.get(CHANNEL)).toHaveLength(1);
     expect(harness.ship.uploads).toHaveLength(1);
+  });
+
+  it('is a no-op when an identical append-marked spec is republished', async () => {
+    // The raw-vs-validated class. `decideRevision` keys the PREVIOUS spec off
+    // the schema-validated read-back and the CANDIDATE off the raw assembled
+    // object. Any field the schema drops is therefore present on one side of
+    // the comparison and absent from the other, so an unchanged spec reads as
+    // changed: the revision bumps, prior events stop folding, and — because
+    // preservation defaults off — every live surface resets. `append` actions
+    // are the ones that must carry `duplicatesTolerated` to pass the gate at
+    // all, so this hits precisely the specs the marker exists for.
+    // `specFile()` is a SHALLOW copy of the shared fixture, so `initialState`
+    // and `actions` are still the corpus's own objects; clone before adding.
+    const marked = structuredClone(specFile()) as Record<string, unknown>;
+    (marked.initialState as Record<string, unknown>).log = [];
+    (marked.actions as Record<string, unknown>)['add-note'] = {
+      ops: [{ op: 'append', path: '/log', value: '$actor' }],
+      duplicatesTolerated: true,
+    };
+    const harness = setup({ spec: marked });
+
+    expect(await publish(harness)).toBe(0);
+    const first = harness.json();
+    expect(first.changed).toBe(true);
+    expect(first.specRevision).toBe(1);
+
+    expect(await publish(harness)).toBe(0);
+    const second = harness.json();
+
+    expect(second.changed).toBe(false);
+    expect(second.outcome).toBe('no-op');
+    expect(second.specRevision).toBe(1);
+    expect(harness.ship.descriptionWrites).toHaveLength(1);
   });
 
   it('is a no-op even when the spec file reorders its keys', async () => {
