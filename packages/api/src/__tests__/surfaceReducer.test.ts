@@ -487,6 +487,293 @@ describe('state cap', () => {
   });
 });
 
+/* ------------------------------------------------------------------ */
+/* Resource refusals abort the entry; author errors do not (§7)         */
+/* ------------------------------------------------------------------ */
+
+const STATE_CAP = 128 * 1024;
+const ROLLOVER_DATE = '2026-08-29';
+
+/**
+ * The host-is-the-clock shape at the edge of the cap: `/history` is the
+ * accumulated archive, `/today` the scratch area a rollover copies and then
+ * clears. `headroom` is how many bytes of the reduced-state cap are left
+ * free, so a test can pick an op that does or does not fit.
+ */
+function nearCapState(headroom: number): JsonObject {
+  const state: JsonObject = {
+    history: { '2026-08-01': '' },
+    today: { [MEMBER]: { r: 'ok' } },
+  };
+  const pad = STATE_CAP - headroom - jsonByteLength(state);
+  (state.history as JsonObject)['2026-08-01'] = 'x'.repeat(pad);
+  return state;
+}
+
+/** A host snapshot carrying `nearCapState`, so the fold starts at the edge. */
+function nearCapSnapshotPost(headroom: number) {
+  return post(HOST, [snapshot(nearCapState(headroom), 0)]);
+}
+
+/** `set /history/<date>` with a copy of `/today`, then `del /today`. */
+function rolloverEvent(archive: Json) {
+  return hostEvent([
+    { op: 'set', path: `/history/${ROLLOVER_DATE}`, value: archive },
+    { op: 'del', path: '/today' },
+  ]);
+}
+
+describe('resource refusals abort the entry (§7)', () => {
+  // The negative control. Pre-amendment the archiving `set` was refused for
+  // the state cap and the `del` still applied, so the day's data was neither
+  // archived nor still in `/today` — PARADIGM's "fully idempotent, gracefully
+  // degrading" rollover destroying data at the cap.
+  test('a near-cap rollover never loses the day it failed to archive', () => {
+    nextSeq = 1;
+    const today = { [MEMBER]: { r: 'ok' } };
+    const result = expectReduced(
+      reduce([nearCapSnapshotPost(10), post(HOST, [rolloverEvent(today)])])
+    );
+
+    const history = result.state.history as JsonObject;
+    const archived = history[ROLLOVER_DATE] !== undefined;
+    const kept = result.state.today !== undefined;
+
+    // the invariant: the archive lands, or the day survives to be archived
+    // later. "Neither" is the day destroyed.
+    expect(archived || kept).toBe(true);
+
+    // and specifically: the refused `set` stops the entry, so `del` is never
+    // reached and `/today` is exactly as it was.
+    expect(archived).toBe(false);
+    expect(result.state.today).toEqual(today);
+    expect(result.stateFull).toBe(true);
+    expect(result.abortedEventCount).toBe(1);
+    // an aborted entry is still folded: it moved state and the watermark
+    expect(result.foldedEventCount).toBe(1);
+    expect(result.newestFoldedSeq).toBe(2);
+  });
+
+  test('the same rollover with room to spare applies both ops', () => {
+    nextSeq = 1;
+    const result = expectReduced(
+      reduce([
+        nearCapSnapshotPost(4096),
+        post(HOST, [rolloverEvent({ [MEMBER]: { r: 'ok' } })]),
+      ])
+    );
+    expect((result.state.history as JsonObject)[ROLLOVER_DATE]).toEqual({
+      [MEMBER]: { r: 'ok' },
+    });
+    expect(result.state.today).toBeUndefined();
+    expect(result.stateFull).toBe(false);
+    expect(result.abortedEventCount).toBe(0);
+  });
+
+  test('the depth cap aborts too: both caps are resource refusals', () => {
+    nextSeq = 1;
+    // 12 path segments (the pointer maximum, so the path itself is legal)
+    // carrying a value nested 5 deep: 17 containers against a depth cap of
+    // 16. The op is well formed and the shape admits it, the state simply
+    // cannot hold the result. The `del` after it must not run.
+    const tooDeep = `/${Array.from({ length: 12 }, (_, i) => `d${i}`).join('/')}`;
+    const nested = { a: { b: { c: { d: {} } } } };
+    const result = expectReduced(
+      reduce([
+        post(HOST, [
+          hostEvent([
+            { op: 'set', path: '/keep', value: 'before' },
+            { op: 'set', path: tooDeep, value: nested },
+            { op: 'del', path: '/keep' },
+          ]),
+        ]),
+      ])
+    );
+    expect(result.state.keep).toBe('before');
+    expect(result.abortedEventCount).toBe(1);
+    // depth is not "dashboard full" — pruning state does not fix it
+    expect(result.stateFull).toBe(false);
+  });
+
+  test('an author error skips its own op and the entry continues (§7)', () => {
+    nextSeq = 1;
+    const result = expectReduced(
+      reduce([
+        post(HOST, [
+          hostEvent([
+            { op: 'set', path: '/keep', value: 'before' },
+            { op: 'set', path: '/votes/$actor', value: 'x' }, // $actor in host ops
+            { op: 'del', path: '/keep' },
+          ]),
+        ]),
+      ])
+    );
+    expect(result.state.keep).toBeUndefined();
+    expect(result.abortedEventCount).toBe(0);
+  });
+
+  // Known residual, pinned deliberately: a write through a scalar depends on
+  // accumulated state exactly as the size cap does, but the amendment covers
+  // resource caps only, so it stays on the skip side. PARADIGM's doctrine
+  // rule is what covers it.
+  test('a structural refusal stays on the skip side', () => {
+    nextSeq = 1;
+    const result = expectReduced(
+      reduce([
+        post(HOST, [
+          hostEvent([
+            { op: 'set', path: '/scalar', value: 5 },
+            { op: 'set', path: '/scalar/under', value: 1 }, // write through 5
+            { op: 'del', path: '/scalar' },
+          ]),
+        ]),
+      ])
+    );
+    expect(result.state.scalar).toBeUndefined();
+    expect(result.abortedEventCount).toBe(0);
+  });
+
+  test('property: a cap refusal leaves exactly the prefix that applied', () => {
+    // Every op before the refusal keeps its effect; no op after it has any.
+    // Prefix, not subsequence, is the whole point: a subsequence can contain
+    // a destructive op without the op it depended on.
+    const trailingOp = fc.constantFrom<Json>(
+      { op: 'del', path: '/today' },
+      { op: 'del', path: '/history' },
+      { op: 'set', path: '/today', value: 'clobbered' },
+      { op: 'del', path: '/marks' }
+    );
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 5 }),
+        fc.array(trailingOp, { minLength: 1, maxLength: 6 }),
+        (leadingCount, trailing) => {
+          const leading = Array.from({ length: leadingCount }, (_, i) => ({
+            op: 'set',
+            path: `/marks/m${i}`,
+            value: i,
+          }));
+          // 300 bytes of value against 200 bytes of headroom: refused however
+          // many of the (tiny) leading ops landed first.
+          const overflow = {
+            op: 'set',
+            path: `/history/${ROLLOVER_DATE}`,
+            value: 'x'.repeat(300),
+          };
+
+          nextSeq = 1;
+          const base = nearCapSnapshotPost(200);
+          const full = expectReduced(
+            reduce([
+              base,
+              post(HOST, [hostEvent([...leading, overflow, ...trailing])]),
+            ])
+          );
+
+          nextSeq = 1;
+          const prefixOnly = expectReduced(
+            reduce([nearCapSnapshotPost(200), post(HOST, [hostEvent(leading)])])
+          );
+
+          expect(full.state).toEqual(prefixOnly.state);
+          expect(full.stateFull).toBe(true);
+          expect(full.abortedEventCount).toBe(1);
+          // the destructive trailing ops never ran
+          expect(full.state.today).toEqual({ [MEMBER]: { r: 'ok' } });
+        }
+      )
+    );
+  });
+
+  test('property: an author error never stops the ops after it', () => {
+    // Same generator shape, an invalid op instead of a refused one. These are
+    // wrong on every client at every fold position, so skipping just them
+    // lets a mostly correct entry apply — the §7 rule, unchanged.
+    const invalidOp = fc.constantFrom<Json>(
+      { op: 'set', path: 'no-leading-slash', value: 1 },
+      { op: 'set', path: '/votes/$actor', value: 1 }, // $actor in a host op
+      { op: 'set', path: '/__proto__/x', value: 1 },
+      { op: 'set', path: '/bad~zescape', value: 1 },
+      { op: 'set', path: `/${'seg/'.repeat(13)}x`, value: 1 },
+      { op: 'set', path: `/${'a'.repeat(250)}`, value: 1 },
+      { op: 'set', path: '', value: 1 }
+    );
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 5 }),
+        invalidOp,
+        fc.integer({ min: 1, max: 6 }),
+        (leadingCount, invalid, trailingCount) => {
+          const leading = Array.from({ length: leadingCount }, (_, i) => ({
+            op: 'set',
+            path: `/marks/lead${i}`,
+            value: i,
+          }));
+          const trailing = Array.from({ length: trailingCount }, (_, i) => ({
+            op: 'set',
+            path: `/marks/tail${i}`,
+            value: i,
+          }));
+
+          nextSeq = 1;
+          const result = expectReduced(
+            reduce([
+              post(HOST, [hostEvent([...leading, invalid, ...trailing])]),
+            ])
+          );
+
+          const marks = result.state.marks as JsonObject;
+          for (let i = 0; i < leadingCount; i++) {
+            expect(marks[`lead${i}`]).toBe(i);
+          }
+          for (let i = 0; i < trailingCount; i++) {
+            expect(marks[`tail${i}`]).toBe(i);
+          }
+          expect(result.abortedEventCount).toBe(0);
+        }
+      )
+    );
+  });
+
+  test('property: clients converge on a log containing an aborted entry', () => {
+    // The abort has to be a function of the log alone, or the one component
+    // every client runs identically stops agreeing.
+    nextSeq = 1;
+    const posts = [
+      nearCapSnapshotPost(200),
+      post(MEMBER, [invoke('vote')]),
+      post(HOST, [rolloverEvent({ [MEMBER]: 'x'.repeat(300) })]),
+      post(OTHER, [invoke('vote')]),
+      post(HOST, [hostEvent([{ op: 'del', path: '/today' }])]),
+    ];
+    const reference = reduceSurface({ spec: spec(), hostShip: HOST, posts });
+    expect(expectReduced(reference).abortedEventCount).toBe(1);
+
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray(posts, {
+          minLength: posts.length,
+          maxLength: posts.length,
+        }),
+        (shuffled) => {
+          expect(
+            reduceSurface({ spec: spec(), hostShip: HOST, posts: shuffled })
+          ).toEqual(reference);
+        }
+      )
+    );
+
+    // and a client that folds the log in two batches lands in the same place
+    // as one that folds it whole: the state is a function of the post set.
+    const late = reduceSurface({
+      spec: spec(),
+      hostShip: HOST,
+      posts: [...posts.slice(2), ...posts.slice(0, 2)],
+    });
+    expect(late).toEqual(reference);
+  });
+});
+
 describe('totality and determinism', () => {
   test('property: never throws on arbitrary post garbage', () => {
     const garbagePost = fc.record(

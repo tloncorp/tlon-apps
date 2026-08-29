@@ -1,7 +1,7 @@
 import { createDevLogger } from '../../lib/logger';
 import { parsePostBlob } from '../content-helpers';
 import { JsonObject, jsonByteLength } from './json';
-import { applyOp } from './jsonPointer';
+import { OpRefusal, SurfaceOp, applyOp } from './jsonPointer';
 import {
   SURFACE_CAPS,
   SurfaceEventEntry,
@@ -30,6 +30,69 @@ const logger = createDevLogger('surfaceReducer', false);
  * - Edited posts are retractions (§6): any surface post marked edited is
  *   skipped wholesale.
  */
+
+/**
+ * The refusals one folded op can produce: `applyOp`'s own, plus the one cap
+ * only the reducer can check, because only the reducer holds the whole
+ * reduced state.
+ */
+type FoldRefusal = OpRefusal | 'state-cap';
+
+/**
+ * The refusals that abort the rest of the entry (§7). Everything else skips
+ * the single op and lets the entry continue.
+ *
+ * The split is not about severity, it is about what the refusal tells you.
+ * A `grammar` or `structure` refusal is the author's: the op is wrong as
+ * written, it would be refused identically on every client, and the rest of
+ * a mostly correct entry is still worth applying. A *resource* refusal is
+ * the environment's: the op is exactly what the author meant and the only
+ * reason it did not land is that state has grown into a cap. Continuing past
+ * one applies ops whose meaning depended on it — the "archive, then clear"
+ * rollover clearing without archiving — so the entry stops instead, leaving
+ * state at the prefix that did apply.
+ *
+ * Deterministic, and that is load-bearing: state is a pure function of the
+ * post log, both caps are pure functions of state and the op, so every
+ * client reaches the cap at the same op of the same entry. Nothing here
+ * reads a clock, an allocator, or anything else client-local.
+ */
+const RESOURCE_REFUSALS: ReadonlySet<FoldRefusal> = new Set([
+  'depth-cap',
+  'state-cap',
+]);
+
+type FoldOutcome =
+  | { ok: true; state: JsonObject }
+  | { ok: false; refusal: FoldRefusal; error: string };
+
+/**
+ * One op against the current state under every cap that governs the fold.
+ * `applyOp` enforces the op's own rules (grammar, `$actor`, value shape,
+ * depth); the reduced-state size cap is added here. Both arrive as the same
+ * kind of answer so the fold has one decision to make rather than two.
+ */
+function foldOp(
+  state: JsonObject,
+  op: SurfaceOp,
+  actor: string | undefined
+): FoldOutcome {
+  const result = applyOp(state, op, actor === undefined ? {} : { actor });
+  if (!result.ok) {
+    return { ok: false, refusal: result.refusal, error: result.error };
+  }
+  if (
+    result.changed &&
+    jsonByteLength(result.state) > SURFACE_CAPS.reducedState
+  ) {
+    return {
+      ok: false,
+      refusal: 'state-cap',
+      error: `state would exceed ${SURFACE_CAPS.reducedState} bytes`,
+    };
+  }
+  return { ok: true, state: result.state };
+}
 
 /**
  * The slice of the client post model the reducer reads. Posts without a
@@ -70,10 +133,25 @@ export interface SurfaceReductionReduced {
    * events never advance it.
    */
   newestFoldedSeq: number | null;
-  /** true when at least one op was refused for exceeding the state cap */
+  /**
+   * True when at least one op was refused for exceeding the reduced-state
+   * size cap — and only that cap, because it is the one a host can repair by
+   * snapshotting and pruning, which is what "dashboard full" asks for. A
+   * depth refusal is also a resource refusal but is not fixed by pruning, so
+   * it does not raise this flag; `abortedEventCount` is what reports it.
+   */
   stateFull: boolean;
   foldedEventCount: number;
   skippedEventCount: number;
+  /**
+   * Entries that stopped early because a resource cap refused one of their
+   * ops (§7). The state is the prefix of such an entry that did apply, so a
+   * host that reads a non-zero count knows its last entry landed only in
+   * part and must be re-posted after the cap is dealt with. Aborted entries
+   * still count as folded and still advance `newestFoldedSeq`: they were
+   * processed to a deterministic conclusion.
+   */
+  abortedEventCount: number;
 }
 
 export interface SurfaceReductionPending {
@@ -184,6 +262,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
   let stateFull = false;
   let foldedEventCount = 0;
   let skippedEventCount = 0;
+  let abortedEventCount = 0;
   let newestFoldedSeq: number | null = snapshot
     ? snapshot.upToSequenceNum
     : null;
@@ -233,24 +312,24 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
     }
 
     for (const op of ops) {
-      const result = applyOp(state, op, actor === undefined ? {} : { actor });
-      if (!result.ok) {
-        // A violation invalidates the single op; remaining ops apply (§7).
-        logger.log('skipping op', op.op, op.path, result.error);
+      const outcome = foldOp(state, op, actor);
+      if (outcome.ok) {
+        state = outcome.state;
         continue;
       }
-      if (
-        result.changed &&
-        jsonByteLength(result.state) > SURFACE_CAPS.reducedState
-      ) {
-        // State cap: the op is refused, state stays as it was, and the
-        // surface reports "dashboard full" (§7). Later ops still apply —
-        // a del can shrink state back under the cap.
-        logger.log('refusing op over state cap', op.op, op.path);
+      if (outcome.refusal === 'state-cap') {
         stateFull = true;
+      }
+      if (!RESOURCE_REFUSALS.has(outcome.refusal)) {
+        // Author error: this op alone is void, the entry continues (§7).
+        logger.log('skipping op', op.op, op.path, outcome.error);
         continue;
       }
-      state = result.state;
+      // Resource refusal: the ops after this one were written on the
+      // assumption that it landed, so none of them apply (§7).
+      logger.log('aborting entry at op', op.op, op.path, outcome.error);
+      abortedEventCount++;
+      break;
     }
     foldedEventCount++;
     // events are sorted ascending, so the last folded one is the greatest
@@ -265,5 +344,6 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
     stateFull,
     foldedEventCount,
     skippedEventCount,
+    abortedEventCount,
   };
 }

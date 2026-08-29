@@ -11,8 +11,9 @@ import {
  * Restricted RFC 6901 JSON Pointer ops for surface channels.
  *
  * This module is the write path for all surface state. Every input is
- * untrusted; nothing here throws on bad input — invalid ops report failure
- * and leave state untouched, and callers skip them. Semantics:
+ * untrusted; nothing here throws on bad input — a refused op reports failure
+ * and leaves state untouched, tagged with the `OpRefusal` kind the caller
+ * decides on. Semantics:
  *
  * - Paths must start with `/`; `~0`/`~1` escaping; max 200 chars and 12
  *   segments; no `__proto__`/`constructor`/`prototype` segments; the empty
@@ -188,9 +189,29 @@ function substituteActorInValue(value: Json, actor: string): Json {
   return value;
 }
 
+/**
+ * Why an op was refused. The reason travels with the failure because the
+ * reducer's continue-or-abort decision turns on it, and re-deriving it from
+ * the message text would be a decision made by string matching.
+ *
+ * - `grammar`   — the op is malformed on its face: a bad pointer, an over-long
+ *                 or over-segmented path, a forbidden segment, `$actor`
+ *                 misuse, a value that is not surface JSON.
+ * - `structure` — the op is well formed, but the state's shape has no such
+ *                 write: a scalar or array where an object must be traversed,
+ *                 an `append` onto something that is not an array.
+ * - `depth-cap` — the op is well formed and the shape admits it; the result
+ *                 would simply nest past the JSON depth cap.
+ *
+ * `depth-cap` is a *resource* refusal — a limit on what state may hold — and
+ * the other two are not. The consequence of that split lives in the reducer,
+ * the only place that folds a sequence of ops.
+ */
+export type OpRefusal = 'grammar' | 'structure' | 'depth-cap';
+
 export type ApplyOpResult =
   | { ok: true; state: JsonObject; changed: boolean }
-  | { ok: false; error: string };
+  | { ok: false; refusal: OpRefusal; error: string };
 
 function isPlainObjectValue(value: Json | undefined): value is JsonObject {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -302,8 +323,9 @@ function appendAtPath(
 /**
  * Applies one op to `state`, returning the next state. Never mutates input.
  * Pass `actor` for spec-declared action ops (enables `$actor`); omit it for
- * host ops (any `$actor` use invalidates the op). Failure means the op is
- * skipped by the caller; state is unaffected either way.
+ * host ops (any `$actor` use invalidates the op). State is unaffected by a
+ * failure; what the caller does about it depends on the `refusal` kind, and
+ * that decision belongs to the reducer.
  */
 export function applyOp(
   state: JsonObject,
@@ -312,11 +334,11 @@ export function applyOp(
 ): ApplyOpResult {
   const parsed = parsePointer(op.path);
   if (!parsed.ok) {
-    return { ok: false, error: parsed.error };
+    return { ok: false, refusal: 'grammar', error: parsed.error };
   }
   const resolved = resolveActorSegments(parsed.segments, opts.actor);
   if (!resolved.ok) {
-    return { ok: false, error: resolved.error };
+    return { ok: false, refusal: 'grammar', error: resolved.error };
   }
   const segments = resolved.segments;
 
@@ -326,11 +348,19 @@ export function applyOp(
     // hostile values on its own: no non-JSON runtime values, forbidden
     // keys, or over-deep trees enter state through this layer.
     if (!isJson(op.value)) {
-      return { ok: false, error: 'op value is not valid surface JSON' };
+      return {
+        ok: false,
+        refusal: 'grammar',
+        error: 'op value is not valid surface JSON',
+      };
     }
     if (opts.actor === undefined) {
       if (valueContainsActorPlaceholder(op.value)) {
-        return { ok: false, error: '$actor is not valid in host ops' };
+        return {
+          ok: false,
+          refusal: 'grammar',
+          error: '$actor is not valid in host ops',
+        };
       }
       value = op.value;
     } else {
@@ -343,6 +373,7 @@ export function applyOp(
     if (pathDepth + jsonContainerDepth(value) > SURFACE_JSON_MAX_DEPTH) {
       return {
         ok: false,
+        refusal: 'depth-cap',
         error: `op would nest state beyond depth ${SURFACE_JSON_MAX_DEPTH}`,
       };
     }
@@ -358,7 +389,10 @@ export function applyOp(
     return { ok: true, state, changed: false };
   }
   if ('error' in result) {
-    return { ok: false, error: result.error };
+    // every write-helper error is a shape mismatch with the state as it
+    // stands: a scalar or array where an object had to be traversed, or an
+    // append onto a non-array.
+    return { ok: false, refusal: 'structure', error: result.error };
   }
   return { ok: true, state: result.next, changed: true };
 }

@@ -2375,3 +2375,85 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   refusing an already-edited post instead would trade a false success for a
   false failure on the retry of a half-failed retraction, so it is filed
   rather than guessed at.
+
+- **D91: an op refused by a resource cap aborts the rest of its entry; an op
+  the author got wrong does not.** §7 had one rule for every per-op refusal —
+  skip that op, apply the rest — and PARADIGM built the host-is-the-clock
+  rollover on top of it, calling it fully idempotent and gracefully
+  degrading. The two combine into data loss at the 128 KB live-state cap:
+  the rollover's archiving `set` grows state and is refused, its `del /today`
+  shrinks state and still applies, and the day ends up neither archived nor
+  present. Verified against the reducer with a state 10 bytes under the cap.
+
+  The incident fix is to stop the `del`. The class fix is the distinction the
+  incident exposed. Under skip-and-continue the state after an entry is an
+  arbitrary **subsequence** of its ops, and a subsequence can contain a
+  destructive op without the op it depended on. Aborting on a cap refusal
+  makes it a **prefix**, which is the strongest property available without a
+  transaction log, and it is what makes "archive, then clear" safe: the clear
+  is unreachable unless the archive landed.
+
+  Grammar and shape refusals keep skip-and-continue, and the difference is
+  not severity. A malformed pointer, a `$actor` misuse, a forbidden segment
+  is wrong as written: it is refused identically on every client, the author
+  meets it on the first fold, and the rest of a mostly correct entry is still
+  worth applying. A cap refusal is the environment's answer to an op that is
+  exactly what the author meant — it appears only at a volume of state the
+  author never had, so nothing about the entry itself is a warning that the
+  ops after it are about to run alone.
+
+  Determinism was the condition for touching the reducer at all, since it is
+  the one component every client runs identically. State is a pure function
+  of the post log (posts are sorted by sequence number and blob index, and
+  unsequenced posts never fold), and both caps are pure functions of state
+  and the op — the size cap through `JSON.stringify`, whose key order is
+  insertion order and therefore fixed by the op sequence, and the depth cap
+  from the op alone. So every client aborts at the same op of the same entry.
+  Nothing in the decision reads a clock, an allocator, or anything else that
+  is client-local.
+
+  The depth cap is grouped with the size cap deliberately, and it is the one
+  judgment call here. Unlike the size cap it is computable from the op alone,
+  so by the "same at every fold position" test it would sort with the author
+  errors. It aborts anyway, because the classification that matters is what
+  the refusal means rather than when it is detectable: both are "state cannot
+  hold this", and a `del` following a depth-refused `set` destroys data
+  exactly as it does following a size-refused one.
+
+  `stateFull` keeps its narrow meaning — the size cap, the one refusal a host
+  repairs by snapshotting and pruning, which is what "dashboard full" asks
+  for — and a depth refusal does not raise it. The reduction gained
+  `abortedEventCount` instead, so a partial entry is reported as such rather
+  than inferred from a flag that means something else. An aborted entry still
+  counts as folded and still advances `newestFoldedSeq`: it was processed to
+  a deterministic conclusion, and holding the watermark back would make
+  hydration re-request it forever.
+
+  In code the distinction is one classification, not two branches.
+  `applyOp` now returns a `refusal` alongside its error — `grammar`,
+  `structure`, or `depth-cap` — the reducer adds `state-cap`, the one cap
+  only it can see, and a single `RESOURCE_REFUSALS` set decides skip or
+  abort. Deciding by matching the error message text was the alternative and
+  is what the refusal kind exists to avoid.
+
+  One residual, pinned by a test rather than left to be rediscovered.
+  `structure` refusals — writing through a scalar, appending onto a
+  non-array — depend on accumulated state exactly as the size cap does, and
+  reproduce the same loss when a `del` follows one. They stay on the skip
+  side because this amendment ratifies resource caps only. PARADIGM's
+  doctrine rule is what covers them, and it is now stated there explicitly
+  rather than left implicit in the worked example: no destructive op whose
+  safety depends on a preceding op succeeding, unless both sit in the same
+  entry with the destructive one second.
+
+  Every control was shown failing first. Pre-fix the near-cap rollover left
+  neither `/history/2026-08-29` nor `/today`, and the prefix property's
+  shrunk counterexample was the bare `[{"op":"del","path":"/today"}]`. The
+  controls that pin unchanged behavior cannot fail pre-fix by construction,
+  so each is mutation-checked instead: adding `grammar` to
+  `RESOURCE_REFUSALS` fails the author-error property, adding `structure`
+  fails the residual's test, removing `depth-cap` fails the depth control,
+  turning the abort back into a `continue` fails the rollover control and the
+  prefix property, raising `stateFull` for every resource refusal fails the
+  depth control, and dropping the aborted entry from `foldedEventCount` fails
+  the watermark assertion.
