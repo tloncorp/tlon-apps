@@ -85,6 +85,28 @@ try {
       failed = true;
     }
   }
+  // The emitted version must match the source constant. It silently read 0
+  // for a while: the emitter regexed the BUILT artifact, minification
+  // removed the spaces its pattern required, and a `?? '0'` fallback turned
+  // the miss into a plausible-looking number.
+  {
+    const srcVersion = readFileSync(
+      join(packageRoot, 'src', 'version.ts'),
+      'utf8'
+    ).match(/SHELL_VERSION\s*=\s*(\d+)/)?.[1];
+    // artifactStrings is a post-build emit into the real dist, not into
+    // the temp dirs this check builds for comparison.
+    const emitted = readFileSync(
+      join(packageRoot, 'dist', 'artifactStrings.js'),
+      'utf8'
+    ).match(/shellArtifactVersion = (\d+)/)?.[1];
+    if (!srcVersion || emitted !== srcVersion) {
+      console.error(
+        `determinism check: artifactStrings reports shell version ${emitted}, source says ${srcVersion}`
+      );
+      failed = true;
+    }
+  }
   if (js.includes('import(')) {
     console.error(
       'determinism check: artifact contains a dynamic import — the sandbox forbids them'

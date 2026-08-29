@@ -12,7 +12,24 @@ const distDir = join(fileURLToPath(import.meta.url), '..', '..', 'dist');
 
 const js = readFileSync(join(distDir, 'surface-shell.js'), 'utf8');
 const css = readFileSync(join(distDir, 'surface-shell.css'), 'utf8');
-const version = js.match(/SHELL_VERSION = (\d+)/)?.[1] ?? '0';
+// Read the version from its SOURCE, not by regexing the built artifact.
+// Regexing dist was always the wrong authority and minification exposed
+// it: `SHELL_VERSION = 1` becomes `SHELL_VERSION=1`, the pattern missed,
+// and the `?? '0'` fallback reported version 0 — a failure that looked
+// like a value, silently, to everything gating on the constant.
+const versionSource = readFileSync(
+  join(fileURLToPath(import.meta.url), '..', '..', 'src', 'version.ts'),
+  'utf8'
+);
+const versionMatch = versionSource.match(/SHELL_VERSION\s*=\s*(\d+)/);
+if (!versionMatch) {
+  // No fallback: an unreadable version is a build failure, not a zero.
+  console.error(
+    'emit-artifact-module: could not read SHELL_VERSION from src/version.ts'
+  );
+  process.exit(1);
+}
+const version = versionMatch[1];
 
 writeFileSync(
   join(distDir, 'artifactStrings.js'),
