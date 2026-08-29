@@ -2621,3 +2621,92 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   (`data-field-named-location`, `modal-with-an-open-function`); a bare
   `open(` with nothing binding the name, and `window.open` in a bundle that
   DOES bind `open`, both still fail.
+
+- **D94: a structural refusal aborts its entry too — the split was never
+  about resources, so the set is no longer named for them.** D91 moved
+  cap-refused ops onto the abort side and pinned `structure` — writing
+  through a scalar, appending onto a non-array — on the skip side as a known
+  residual, because that amendment ratified resource caps only. The residual
+  was the same bug. `/history` holding a scalar refuses the rollover's
+  archiving `set` at any size at all, the `del /today` after it still
+  applied, and the day was destroyed exactly as it was at the cap. The
+  amendment's purpose is that a destructive op must not run after the op
+  guarding it was refused; whether the guard failed for size or for shape is
+  not something the destroyed day can tell apart. `structure` moves to the
+  abort side. `grammar` is now alone on the skip side.
+
+  With three members the name `RESOURCE_REFUSALS` had stopped describing
+  them, and a set named for a category it no longer holds is worse than no
+  name — the legibility of the distinction was the point of D91's single
+  classification. It is `STATE_REFUSALS` now: **the refusals state makes, as
+  opposed to the one the op makes about itself.** `grammar` means this is not
+  a well-formed op — a bad or over-long pointer, a forbidden segment,
+  `$actor` misuse, a value that is not surface JSON — so nothing was ever
+  asked of state, the refusal is identical against every state, and the rest
+  of a mostly correct entry still applies. The three in the set mean the op is
+  well formed and is exactly what the author meant, and state cannot take the
+  write: its shape has no such path, or the result is more than state may
+  hold.
+
+  **The criterion, stated so the next kind has an obvious home: which of the
+  two was wrong — the op, or the state it was applied to?** It is
+  deliberately not "could the author have seen it coming". D91 already made
+  that call for `depth-cap`, which is computable from the op alone and would
+  sort with `grammar` on a detectability test; it aborts because of what it
+  *means*. Adopting detectability as the criterion now would have to move
+  `depth-cap` back, and a `del` after a depth-refused `set` destroys data the
+  same way. The doc comment says which test is in force and names `depth-cap`
+  as the member that fails the other one, so the judgment is visible rather
+  than inferred.
+
+  Determinism was re-checked rather than assumed, because it is the condition
+  for touching the reducer at all. A structural refusal is a function of the
+  folded state and the op; the folded state is a pure function of the post log
+  (sorted by sequence number then blob index, unsequenced posts never fold);
+  so it is no less determined than a cap, and every client aborts at the same
+  op of the same entry. It reads no clock, no allocator, nothing client-local.
+  Two property tests hold it: shuffling a log containing a structurally
+  aborted entry converges on the identical reduction, and folding that log in
+  two batches lands in the same place as folding it whole.
+
+  `stateFull` stays size-cap-only, and the reasoning survived the widening —
+  it is the flag a host repairs by snapshotting and pruning, which is what
+  "dashboard full" asks for, and pruning neither makes a path shallower nor
+  turns a scalar into an object. Raising it for a structural refusal would
+  send a host to a repair that cannot work. `abortedEventCount` reports all
+  three; it is what a host reads to learn its last entry landed only in part.
+
+  Shown failing first. Against the pre-change reducer the rollover into a
+  scalar `/history` left `state.today` as `undefined` — the day gone — and
+  the new prefix property shrank to the bare `[{"op":"del","path":"/today"}]`,
+  the same counterexample D91's cap property produced. After the change both
+  pass and `/today` is untouched. Mutation-checked both ways: taking
+  `structure` back out of `STATE_REFUSALS` fails all three new tests, adding
+  `grammar` to it fails the two author-error controls and the `$actor` case,
+  removing `depth-cap` fails the depth control, and raising `stateFull` for
+  every member of the set fails the depth and structure controls.
+
+  **One thing found in the same place the third kind was hiding, and it is
+  not a fourth refusal — it is a shape mismatch that is not a refusal at
+  all.** `del /a/b` where `/a` holds a scalar returns success with
+  `changed: false`, while `del /a/b` where `/a` holds an array returns a
+  `structure` refusal. Both mean "there is nothing at that path". Before this
+  change the two were indistinguishable in effect, since a skipped op and a
+  no-op both continue the entry; now one aborts the entry and the other does
+  not. The divergence is in the safe direction — it refuses too much, never
+  too little — so it is a false abort rather than a loss, and it is pinned by
+  a test marked unratified rather than ruled on here. If it is ever taken up,
+  §7's own rule that "`del` on a missing path is a no-op" says the array
+  branch is the odd one out.
+
+  Downstream nothing shifted: the full `packages/api` suite, the shared
+  hydration and adapter suites, the app's surface view-state suite, and the
+  whole `tlon-skill` unit suite (which covers `surface snapshot`, the publish
+  migration fold, and the gate's fold smoke) are green with no assertion
+  changed outside the reducer's own tests. The gate's per-action fold is
+  strictly better off: it now leaves a prefix rather than a subsequence, and
+  its once-vs-twice idempotency comparison is unaffected because both folds
+  abort at the same op. One pre-existing gap is worth naming because this
+  widening makes it likelier to matter: `surface state` prints `stateFull`
+  but never `abortedEventCount`, so a structurally aborted entry is reported
+  to a host as nothing at all.

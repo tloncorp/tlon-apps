@@ -488,7 +488,8 @@ describe('state cap', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* Resource refusals abort the entry; author errors do not (§7)         */
+/* State refuses a well-formed op: the entry aborts. A malformed op does */
+/* not stop the entry (§7).                                              */
 /* ------------------------------------------------------------------ */
 
 const STATE_CAP = 128 * 1024;
@@ -515,6 +516,28 @@ function nearCapSnapshotPost(headroom: number) {
   return post(HOST, [snapshot(nearCapState(headroom), 0)]);
 }
 
+/**
+ * The same shape with `/history` holding a scalar instead of the archive —
+ * the state a rollover meets when an earlier op put the wrong thing there.
+ * Nothing is near the cap here: only the shape refuses the write.
+ */
+function badShapeSnapshotPost(today: JsonObject) {
+  return post(HOST, [snapshot({ history: 'archived elsewhere', today }, 0)]);
+}
+
+/** Did the rollover's archiving `set` land? */
+function archivedDate(state: JsonObject): boolean {
+  const history = state.history;
+  if (
+    typeof history !== 'object' ||
+    history === null ||
+    Array.isArray(history)
+  ) {
+    return false;
+  }
+  return (history as JsonObject)[ROLLOVER_DATE] !== undefined;
+}
+
 /** `set /history/<date>` with a copy of `/today`, then `del /today`. */
 function rolloverEvent(archive: Json) {
   return hostEvent([
@@ -523,7 +546,7 @@ function rolloverEvent(archive: Json) {
   ]);
 }
 
-describe('resource refusals abort the entry (§7)', () => {
+describe('state refusals abort the entry (§7)', () => {
   // The negative control. Pre-amendment the archiving `set` was refused for
   // the state cap and the `del` still applied, so the day's data was neither
   // archived nor still in `/today` — PARADIGM's "fully idempotent, gracefully
@@ -570,7 +593,7 @@ describe('resource refusals abort the entry (§7)', () => {
     expect(result.abortedEventCount).toBe(0);
   });
 
-  test('the depth cap aborts too: both caps are resource refusals', () => {
+  test('the depth cap aborts too: state cannot hold the result', () => {
     nextSeq = 1;
     // 12 path segments (the pointer maximum, so the path itself is legal)
     // carrying a value nested 5 deep: 17 containers against a depth cap of
@@ -595,7 +618,7 @@ describe('resource refusals abort the entry (§7)', () => {
     expect(result.stateFull).toBe(false);
   });
 
-  test('an author error skips its own op and the entry continues (§7)', () => {
+  test('a malformed op skips itself and the entry continues (§7)', () => {
     nextSeq = 1;
     const result = expectReduced(
       reduce([
@@ -612,25 +635,112 @@ describe('resource refusals abort the entry (§7)', () => {
     expect(result.abortedEventCount).toBe(0);
   });
 
-  // Known residual, pinned deliberately: a write through a scalar depends on
-  // accumulated state exactly as the size cap does, but the amendment covers
-  // resource caps only, so it stays on the skip side. PARADIGM's doctrine
-  // rule is what covers it.
-  test('a structural refusal stays on the skip side', () => {
-    nextSeq = 1;
-    const result = expectReduced(
-      reduce([
-        post(HOST, [
+  // Pinned, and NOT ratified — the same asymmetry the `structure` residual was
+  // pinned for, one layer down. `del /x/y` means "there is nothing at that
+  // path" both times, but `applyOp` calls it a no-op success below a scalar
+  // and a `structure` refusal below an array. Before the widening the two were
+  // indistinguishable (skip and no-op both continue the entry); now one aborts
+  // and one does not. The abort is the safe direction — it refuses too much,
+  // never too little — so this is a false abort, not a data loss. If it ever
+  // gets a ruling, the plan's own "`del` on a missing path is a no-op" says
+  // the array branch is the odd one out.
+  test('two spellings of a missing del path diverge (unratified)', () => {
+    const entry = (holder: Json) => [
+      post(
+        HOST,
+        [
           hostEvent([
-            { op: 'set', path: '/scalar', value: 5 },
-            { op: 'set', path: '/scalar/under', value: 1 }, // write through 5
-            { op: 'del', path: '/scalar' },
+            { op: 'set', path: '/holder', value: holder },
+            { op: 'del', path: '/holder/inner' },
+            { op: 'set', path: '/after', value: 'ran' },
           ]),
-        ]),
-      ])
+        ],
+        { sequenceNum: 1 }
+      ),
+    ];
+
+    const belowScalar = expectReduced(reduce(entry(5)));
+    expect(belowScalar.state.after).toBe('ran');
+    expect(belowScalar.abortedEventCount).toBe(0);
+
+    const belowArray = expectReduced(reduce(entry([1])));
+    expect(belowArray.state.after).toBeUndefined();
+    expect(belowArray.abortedEventCount).toBe(1);
+  });
+
+  test('a structural refusal aborts too: it loses the same day the same way', () => {
+    // The third kind, ruled onto the abort side after the amendment landed.
+    // Nothing about this entry is wrong — it is the rollover, verbatim. The
+    // state it met is the wrong shape: `/history` holds a scalar, so the
+    // archiving `set` has nowhere to write. Continuing to the `del` destroys
+    // the day exactly as the near-cap rollover did.
+    nextSeq = 1;
+    const today = { [MEMBER]: { r: 'ok' } };
+    const result = expectReduced(
+      reduce([badShapeSnapshotPost(today), post(HOST, [rolloverEvent(today)])])
     );
-    expect(result.state.scalar).toBeUndefined();
-    expect(result.abortedEventCount).toBe(0);
+
+    // the invariant, unchanged: the archive lands, or the day survives to be
+    // archived later. "Neither" is the day destroyed.
+    expect(archivedDate(result.state)).toBe(false);
+    expect(result.state.today).toEqual(today);
+    expect(result.abortedEventCount).toBe(1);
+    // not "dashboard full": pruning state never makes `/history` an object,
+    // so the flag a host repairs by snapshotting stays down.
+    expect(result.stateFull).toBe(false);
+  });
+
+  test('property: a structural refusal leaves exactly the prefix that applied', () => {
+    // Same shape as the cap property below, with a shape mismatch as the
+    // refusal: the abort must give structure the same prefix guarantee.
+    const trailingOp = fc.constantFrom<Json>(
+      { op: 'del', path: '/today' },
+      { op: 'del', path: '/history' },
+      { op: 'set', path: '/today', value: 'clobbered' },
+      { op: 'del', path: '/marks' }
+    );
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 5 }),
+        fc.array(trailingOp, { minLength: 1, maxLength: 6 }),
+        (leadingCount, trailing) => {
+          const leading = Array.from({ length: leadingCount }, (_, i) => ({
+            op: 'set',
+            path: `/marks/m${i}`,
+            value: i,
+          }));
+          const today = { [MEMBER]: { r: 'ok' } };
+          // refused whatever the leading ops did: `/history` is a scalar
+          const throughScalar = {
+            op: 'set',
+            path: `/history/${ROLLOVER_DATE}`,
+            value: today,
+          };
+
+          nextSeq = 1;
+          const full = expectReduced(
+            reduce([
+              badShapeSnapshotPost(today),
+              post(HOST, [hostEvent([...leading, throughScalar, ...trailing])]),
+            ])
+          );
+
+          nextSeq = 1;
+          const prefixOnly = expectReduced(
+            reduce([
+              badShapeSnapshotPost(today),
+              post(HOST, [hostEvent(leading)]),
+            ])
+          );
+
+          expect(full.state).toEqual(prefixOnly.state);
+          expect(full.stateFull).toBe(false);
+          expect(full.abortedEventCount).toBe(1);
+          // the destructive trailing ops never ran
+          expect(full.state.today).toEqual(today);
+        }
+      )
+    );
   });
 
   test('property: a cap refusal leaves exactly the prefix that applied', () => {
@@ -765,6 +875,45 @@ describe('resource refusals abort the entry (§7)', () => {
 
     // and a client that folds the log in two batches lands in the same place
     // as one that folds it whole: the state is a function of the post set.
+    const late = reduceSurface({
+      spec: spec(),
+      hostShip: HOST,
+      posts: [...posts.slice(2), ...posts.slice(0, 2)],
+    });
+    expect(late).toEqual(reference);
+  });
+
+  test('property: clients converge on a structurally aborted entry too', () => {
+    // A structural refusal reads accumulated state, so it is worth showing
+    // separately that it is still a function of the log: the shape `/history`
+    // has is itself a pure function of the posts that folded before.
+    nextSeq = 1;
+    const today = { [MEMBER]: { r: 'ok' } };
+    const posts = [
+      badShapeSnapshotPost(today),
+      post(MEMBER, [invoke('vote')]),
+      post(HOST, [rolloverEvent(today)]),
+      post(OTHER, [invoke('vote')]),
+      post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'after' }])]),
+    ];
+    const reference = reduceSurface({ spec: spec(), hostShip: HOST, posts });
+    expect(expectReduced(reference).abortedEventCount).toBe(1);
+    expect(expectReduced(reference).state.today).toEqual(today);
+
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray(posts, {
+          minLength: posts.length,
+          maxLength: posts.length,
+        }),
+        (shuffled) => {
+          expect(
+            reduceSurface({ spec: spec(), hostShip: HOST, posts: shuffled })
+          ).toEqual(reference);
+        }
+      )
+    );
+
     const late = reduceSurface({
       spec: spec(),
       hostShip: HOST,

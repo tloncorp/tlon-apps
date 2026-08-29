@@ -203,9 +203,10 @@ function substituteActorInValue(value: Json, actor: string): Json {
  * - `depth-cap` — the op is well formed and the shape admits it; the result
  *                 would simply nest past the JSON depth cap.
  *
- * `depth-cap` is a *resource* refusal — a limit on what state may hold — and
- * the other two are not. The consequence of that split lives in the reducer,
- * the only place that folds a sequence of ops.
+ * `grammar` says the op is not a well-formed op. The other two say the op is
+ * well formed and state cannot take the write — a distinction that costs
+ * nothing here and decides skip-or-abort in the reducer, the only place that
+ * folds a sequence of ops (see `STATE_REFUSALS` there).
  */
 export type OpRefusal = 'grammar' | 'structure' | 'depth-cap';
 

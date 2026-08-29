@@ -131,29 +131,34 @@ and no `append` anywhere. It degrades gracefully: a missed rollover just
 stretches "this session".
 
 **Both ops go in one host event, in that order, and that is load-bearing.**
-The `del` is safe only because the `set` before it succeeded. Near the 128 KB
-live-state cap the archiving `set` is exactly the op that gets refused — it
-grows state, while the `del` shrinks it — and an entry that carried on past
-the refusal would clear the day without ever archiving it. The reducer will
-not let that happen: an op refused by a cap (size or depth) refuses every
-remaining op in the same entry, so the clear is unreachable unless the
-archive landed. State after an entry is always a **prefix** of that entry's
-ops, never a subsequence with a hole in the middle. Split the two ops across
-two host events and the protection is gone — the second event is its own
-entry and applies on its own.
+The `del` is safe only because the `set` before it succeeded. The archiving
+`set` is the op that fails, and it fails two ways: near the 128 KB live-state
+cap, because it grows state while the `del` shrinks it; and at any size at
+all if `/history` is holding something other than an object, because then
+there is nowhere to write. An entry that carried on past either refusal would
+clear the day without ever archiving it. The reducer will not let that
+happen: **when state refuses a well-formed op — its shape has no such path,
+or the result is more than state may hold — every remaining op in that entry
+is refused too**, so the clear is unreachable unless the archive landed.
+State after an entry is always a **prefix** of that entry's ops, never a
+subsequence with a hole in the middle. Split the two ops across two host
+events and the protection is gone — the second event is its own entry and
+applies on its own.
 
-That is the mechanism. The rule to write against is softer and covers more
-ground: **no destructive op whose safety depends on a preceding op
-succeeding — unless both sit in the same entry with the destructive one
-second.** The caps are enforced. Nothing is enforced for an op that fails
-because state has a shape you did not expect: writing through a scalar is
-skipped and the entry carries on. Order every entry so the destructive op is
-last, and its failure mode is a rollover that did not happen — recoverable —
-rather than data that is gone.
+That is the mechanism, and it covers both ways the guard can fail. The rule
+to write against is softer and covers more ground: **no destructive op whose
+safety depends on a preceding op succeeding — unless both sit in the same
+entry with the destructive one second.** What the reducer does not protect is
+a guard that is *malformed* rather than refused — a typo'd path, a `$actor`
+in a host op, a forbidden segment. That op is skipped and the entry carries
+on, because an op that never worked on any client in any state is not
+evidence that state grew or drifted out from under you. Order every entry so
+the destructive op is last, and lint before you post.
 
-When a rollover does stop at the cap, the surface shows "dashboard full" and
-the day is still sitting in `/today`. Snapshot, prune, post the rollover
-again.
+When a rollover does stop, the day is still sitting in `/today`. At the cap
+the surface shows "dashboard full": snapshot, prune, post the rollover again.
+A shape mismatch raises no banner — the fold just reports an aborted entry —
+so repair the shape with a host op and post the rollover again.
 
 Host events are honored only from the channel host ship, and they cannot use
 `$actor` (the op is skipped). They are how the bot corrects data, closes a
@@ -161,15 +166,17 @@ poll, archives a period, or prunes state.
 
 ### Failures are silent
 
-An op with a bad path, a `$actor` misuse, or a write through a non-object is
-skipped — that op alone, with a debug log nobody reads. The remaining ops in
-the entry still apply. A typo in an action path is not an error, it is an
-action that quietly does nothing. Lint, then fold, then preview.
+An op with a bad path, a `$actor` misuse, or a forbidden segment is skipped —
+that op alone, with a debug log nobody reads. The remaining ops in the entry
+still apply. A typo in an action path is not an error, it is an action that
+quietly does nothing. Lint, then fold, then preview.
 
-The one refusal that does not work this way is a cap. An op refused for the
-live-state cap or the depth cap takes the rest of its entry with it (§12),
-because that op was going to work and only the size of the state stopped it.
-Silent either way — the difference is what it leaves behind.
+The refusals that do not work this way are the ones **state** makes rather
+than the op: a write through a non-object, an `append` onto something that is
+not an array, the live-state cap, the depth cap. Any of those takes the rest
+of its entry with it (§12), because the op was well formed and going to work,
+and only the state it met stopped it. Silent either way — the difference is
+what it leaves behind.
 
 ### Keep action ids literal: the handler table
 
@@ -433,9 +440,10 @@ persistently broken app reports once, not once per render.
 
 Four different failures: a spec over cap is an **invalid definition** and
 the surface refuses to render at all; an event or snapshot over cap degrades
-to an unknown entry and is skipped **whole**; a single bad op is skipped
-alone while the rest of its entry applies; and an op refused by the
-live-state or depth cap takes the rest of its entry with it.
+to an unknown entry and is skipped **whole**; a single **malformed** op is
+skipped alone while the rest of its entry applies; and an op that **state**
+refuses — the live-state cap, the depth cap, or a shape with no such path —
+takes the rest of its entry with it.
 
 | thing                           | cap                          |
 | ------------------------------- | ---------------------------- |
@@ -455,10 +463,13 @@ live-state or depth cap takes the rest of its entry with it.
 
 The live-state cap is the one you will actually hit: any op whose result
 would exceed 128 KB is **refused** — state is unchanged, the surface shows
-"dashboard full", and **the rest of that entry does not apply either** (the
-depth cap behaves the same way; see "Host-is-the-clock" above for why). A
-later entry that only shrinks state still applies, since a `del` can never
-be refused for size. The repair is a host snapshot plus a prune, not a bigger
+"dashboard full", and **the rest of that entry does not apply either**. The
+depth cap and a shape mismatch abort the entry the same way and for the same
+reason (see "Host-is-the-clock" above), but neither shows "dashboard full":
+that banner means the one failure a host repairs by pruning, and pruning
+neither makes a path shallower nor turns a scalar into an object. A later
+entry that only shrinks state still applies, since a `del` can never be
+refused for size. The repair is a host snapshot plus a prune, not a bigger
 cap.
 
 Design for it: keep state to the log and derive the rest. A `history` keyed

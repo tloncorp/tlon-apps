@@ -39,25 +39,39 @@ const logger = createDevLogger('surfaceReducer', false);
 type FoldRefusal = OpRefusal | 'state-cap';
 
 /**
- * The refusals that abort the rest of the entry (§7). Everything else skips
- * the single op and lets the entry continue.
+ * The refusals state makes, as opposed to the one the op makes about itself.
+ * These abort the rest of the entry (§7); `grammar` alone skips the single
+ * op and lets the entry continue.
  *
- * The split is not about severity, it is about what the refusal tells you.
- * A `grammar` or `structure` refusal is the author's: the op is wrong as
- * written, it would be refused identically on every client, and the rest of
- * a mostly correct entry is still worth applying. A *resource* refusal is
- * the environment's: the op is exactly what the author meant and the only
- * reason it did not land is that state has grown into a cap. Continuing past
- * one applies ops whose meaning depended on it — the "archive, then clear"
- * rollover clearing without archiving — so the entry stops instead, leaving
- * state at the prefix that did apply.
+ * The criterion is not severity, and not whether the author could have seen
+ * it coming — it is which of the two things was wrong. `grammar` means this
+ * is not a well-formed op: a malformed or over-long pointer, a forbidden
+ * segment, `$actor` misuse, a value that is not surface JSON. Nothing was
+ * ever asked of state, the refusal is identical against every state, and the
+ * rest of a mostly correct entry is still worth applying. The three here
+ * mean the op is well formed and is exactly what the author meant, and
+ * *state cannot take the write*: its shape has no such path (`structure`),
+ * or the result would be more than state may hold (`depth-cap`,
+ * `state-cap`). A later op in the same entry was written on the assumption
+ * that this one landed — the "archive, then clear" rollover clearing
+ * without archiving — so the entry stops, leaving state at the prefix that
+ * did apply.
+ *
+ * A fourth kind goes on this side if the op it refuses is one a reader would
+ * still call correct, and on the skip side if the op is malformed as
+ * written. `depth-cap` is the one member that is computable from the op
+ * alone, so a "could the author see it in the entry?" test would sort it
+ * with `grammar`; it is here anyway, because what it means is "state cannot
+ * hold this", and a `del` after a depth-refused `set` destroys data exactly
+ * as it does after a size-refused one.
  *
  * Deterministic, and that is load-bearing: state is a pure function of the
- * post log, both caps are pure functions of state and the op, so every
- * client reaches the cap at the same op of the same entry. Nothing here
- * reads a clock, an allocator, or anything else client-local.
+ * post log, and all three are pure functions of state and the op — so every
+ * client refuses at the same op of the same entry. Nothing here reads a
+ * clock, an allocator, or anything else client-local.
  */
-const RESOURCE_REFUSALS: ReadonlySet<FoldRefusal> = new Set([
+const STATE_REFUSALS: ReadonlySet<FoldRefusal> = new Set([
+  'structure',
   'depth-cap',
   'state-cap',
 ]);
@@ -136,20 +150,21 @@ export interface SurfaceReductionReduced {
   /**
    * True when at least one op was refused for exceeding the reduced-state
    * size cap — and only that cap, because it is the one a host can repair by
-   * snapshotting and pruning, which is what "dashboard full" asks for. A
-   * depth refusal is also a resource refusal but is not fixed by pruning, so
-   * it does not raise this flag; `abortedEventCount` is what reports it.
+   * snapshotting and pruning, which is what "dashboard full" asks for. The
+   * other two `STATE_REFUSALS` are not repairable that way — pruning does not
+   * make a path shallower, and it never turns a scalar into an object — so
+   * neither raises this flag; `abortedEventCount` is what reports them.
    */
   stateFull: boolean;
   foldedEventCount: number;
   skippedEventCount: number;
   /**
-   * Entries that stopped early because a resource cap refused one of their
-   * ops (§7). The state is the prefix of such an entry that did apply, so a
-   * host that reads a non-zero count knows its last entry landed only in
-   * part and must be re-posted after the cap is dealt with. Aborted entries
-   * still count as folded and still advance `newestFoldedSeq`: they were
-   * processed to a deterministic conclusion.
+   * Entries that stopped early because state refused one of their ops (§7).
+   * The state is the prefix of such an entry that did apply, so a host that
+   * reads a non-zero count knows its last entry landed only in part and must
+   * be re-posted once the refusal is dealt with. Aborted entries still count
+   * as folded and still advance `newestFoldedSeq`: they were processed to a
+   * deterministic conclusion.
    */
   abortedEventCount: number;
 }
@@ -320,13 +335,13 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       if (outcome.refusal === 'state-cap') {
         stateFull = true;
       }
-      if (!RESOURCE_REFUSALS.has(outcome.refusal)) {
-        // Author error: this op alone is void, the entry continues (§7).
+      if (!STATE_REFUSALS.has(outcome.refusal)) {
+        // Malformed op: this op alone is void, the entry continues (§7).
         logger.log('skipping op', op.op, op.path, outcome.error);
         continue;
       }
-      // Resource refusal: the ops after this one were written on the
-      // assumption that it landed, so none of them apply (§7).
+      // State refused a well-formed op: the ops after this one were written
+      // on the assumption that it landed, so none of them apply (§7).
       logger.log('aborting entry at op', op.op, op.path, outcome.error);
       abortedEventCount++;
       break;
