@@ -27,11 +27,19 @@ import { createRoot } from 'react-dom/client';
 
 import App from './app';
 import { isElectron } from './electron-bridge';
-import { analyticsClient } from './logic/analytics';
+import { analyticsClient, captureAnalyticsEvent } from './logic/analytics';
+import { installHostCspViolationListener } from './logic/hostCspViolations';
 import { initSentry } from './sentry';
 import './styles/index.css';
 
 initSentry();
+
+// The host-page frame-src policy reaches production as a <meta>, which
+// cannot carry report-uri, so this listener is the only violation signal
+// that exists once the policy enforces. Installed before the app mounts
+// because the frames it governs are created by the app.
+// See ../../hostCsp.ts and ./logic/hostCspViolations.ts.
+installHostCspViolationListener(captureAnalyticsEvent);
 
 const logger = createDevLogger('main.tsx', false);
 

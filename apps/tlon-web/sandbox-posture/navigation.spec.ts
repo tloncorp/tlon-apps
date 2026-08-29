@@ -8,6 +8,7 @@ import {
   SURFACE_SANDBOX_IFRAME_FLAGS,
   buildSandboxDocument,
 } from '../../../packages/surface-shell/src/sandbox/document';
+import { HOST_CSP_POLICY } from '../hostCsp';
 
 /**
  * SELF-NAVIGATION posture.
@@ -279,6 +280,27 @@ const HOST_CONFIGS: HostConfig[] = [
     delivery: 'meta',
     policy: () => `frame-src ${attackerOrigin}`,
   },
+
+  // Config C: the shipped shape, not a stand-in for it. Every config
+  // above measures a hand-written policy of the RIGHT KIND; this one
+  // imports HOST_CSP_POLICY from hostCsp.ts and delivers it by the
+  // `<meta>` the build injects, which is the only way a policy reaches
+  // production through the %docket glob. Nothing else in this repo
+  // measures the actual string against an actual attacker, and the
+  // difference is not cosmetic: `frame-src 'self' https://tlon.network`
+  // is a longer source list than any of the configs above, so "an
+  // allowlist blocks" and "OUR allowlist blocks" are separate claims.
+  //
+  // This row is also why this file has no dependency on
+  // ENFORCE_HOST_CSP. The suite builds its own host pages, so the flag
+  // cannot change what it measures; what the flag decides is whether
+  // index.html carries this policy, and THAT is asserted in
+  // hostCsp.test.ts against the real build.
+  {
+    id: 'C/meta/shipped-policy',
+    delivery: 'meta',
+    policy: () => HOST_CSP_POLICY,
+  },
 ];
 
 function hostUrlFor(config: HostConfig): string {
@@ -521,6 +543,12 @@ const EXPECTED: Record<
     srcdocLoads: true,
     navigation: 'NOT-BLOCKED',
     note: 'control for the meta delivery path',
+  },
+  // the shipped policy, in the shipped delivery, against a live attacker
+  'C/meta/shipped-policy': {
+    srcdocLoads: true,
+    navigation: 'BLOCKED-PREFLIGHT',
+    note: 'HOST_CSP_POLICY as injected into index.html: blocks, and the sandbox frame still loads',
   },
 };
 

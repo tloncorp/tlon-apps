@@ -2710,3 +2710,138 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   widening makes it likelier to matter: `surface state` prints `stateFull`
   but never `abortedEventCount`, so a structurally aborted entry is reported
   to a host as nothing at all.
+
+- **D95: `blockedURI` is attacker-chosen, so the listener reads two of its
+  members and hashes the rest — and the bound is two bounds, in an order
+  that matters.** Once the host policy enforces, `report-uri` is
+  unavailable in a `<meta>` (CSP3 §3.3, the same clause that excludes
+  Report-Only), so there is no server-side record of a refusal anywhere and
+  `SecurityPolicyViolationEvent` is the only signal left.
+  `src/logic/hostCspViolations.ts` is that listener, installed by main.tsx
+  before the app mounts.
+
+  **Sanitisation is by construction, not by redaction.** The blocked URL is
+  parsed and only `protocol` and `host` are ever READ; `pathname`, `search`
+  and `hash` — where an exfiltration payload would sit — are not stripped,
+  they are never reached. The host is lowercased, restricted to
+  `[a-z0-9.:[\]-]` with any other character rewritten, truncated at 64, and
+  both the rewrite and the truncation are reported as flags so a sanitised
+  value is never mistaken for a faithful one. Scheme, directive and
+  disposition are each mapped onto a fixed set or reported as `other` /
+  `unknown` — the engine's own strings never pass through. The full raw
+  value survives only as a 32-bit FNV-1a hash, which is the dedupe key: it
+  says "the same URL again" without saying what the URL was.
+
+  **The residual is stated rather than papered over.** `blockedHost` is
+  still up to 64 bundle-influenced characters, so the channel into
+  telemetry is not zero — it is bounded at 5 × 64 constrained characters
+  per page load. It is kept because it is the field that makes the signal
+  actionable at all: the point of a violation report is to learn WHICH
+  origin nobody allowlisted, and a design that emitted only hashes would be
+  unable to answer the question it exists to answer.
+
+  **Two bounds, and the order is the load-bearing part.** A hard cap of 5
+  emitted events per page load is checked FIRST; only under the cap is a
+  violation deduped against the ones already emitted. Deduping first would
+  let a bundle looping over DISTINCT URLs grow the dedupe set forever — the
+  set only ever gains an entry when an event is emitted, so it inherits the
+  cap. Suppressed violations increment `dropped` rather than emitting, so
+  suppression is visible without costing another event.
+
+  **Measured both ways, in the dev harness and not only in a unit test.**
+  20 identical violations produce `emitted: 1, dropped: 19`; 20 distinct
+  ones produce `emitted: 5, dropped: 15`; framing an allowlisted origin
+  produces `emitted: 0`. The last is the mechanism control — without it a
+  clean Report-Only run would be indistinguishable from a dead listener.
+  The observed record for a real enforced violation, verbatim:
+
+      { "bound": 5, "emitted": 1, "dropped": 19, "enforcing": true,
+        "records": [ { "seq": 1, "directive": "frame-src",
+          "disposition": "enforce", "policy": "host-frame-src",
+          "blockedKind": "origin", "blockedScheme": "https",
+          "blockedHost": "csp-probe.invalid", "blockedHostTruncated": false,
+          "blockedHostRewritten": false, "blockedUriHash": "8612bbb4",
+          "enforcing": true } ] }
+
+  The frame was `https://csp-probe.invalid/exfil-marker-4c1d9b?stolen=exfil-marker-4c1d9b#exfil-marker-4c1d9b`,
+  and the marker appears nowhere in the serialised snapshot.
+
+- **D96: "the posture suite under enforcement" was not a claim that suite
+  could make, in either direction, until a shipped-policy row existed.**
+  The flip was gated on the sandbox-posture matrix passing "under
+  enforcement", on the premise that the existing matrix had been measured
+  with `ENFORCE_HOST_CSP` off. The premise does not hold: the suite builds
+  its own host pages on its own HTTP servers and never reads the flag, so
+  turning it on cannot change a single cell. The gate as written was
+  therefore satisfiable by a run that proved nothing new.
+
+  What the seven existing configurations did measure was that a `frame-src`
+  allowlist OF THE RIGHT KIND blocks — `'none'`, `'self'`, and
+  `https://example.com`. None of them was the string this app ships, and
+  `frame-src 'self' https://tlon.network` is a longer source list than any
+  of them. "An allowlist blocks" and "OUR allowlist, in OUR delivery,
+  blocks" are different claims, and only the second is about what ships.
+
+  So an eighth configuration was added, `C/meta/shipped-policy`: it imports
+  `HOST_CSP_POLICY` from hostCsp.ts and delivers it through the same
+  `<meta>` the build injects, against the same live attacker HTTP server
+  that logs its own hits. That makes the phrase mean something. Measured
+  159/159 on chromium, firefox and webkit, all five self-navigation vectors
+  at BLOCKED-PREFLIGHT with `attackerServerHits=0` and `committed=false` on
+  every engine, while the srcdoc sandbox frame still loaded. What the flag
+  actually decides — whether index.html carries the policy at all — is a
+  different fact and is asserted in `hostCsp.test.ts`, against both branches
+  of the flag, plus by grepping the real build output.
+
+  **Two runs, because they are two claims.** The posture matrix proves the
+  policy BLOCKS; it says nothing about whether the allowlist is COMPLETE,
+  because it never loads the app. Completeness came from the full Playwright
+  e2e suite under Report-Only: 31.2 minutes, 72 passed / 2 failed (unrelated
+  UI strict-mode flake) / 6 skipped, with the ship fixtures draining the
+  in-page collector per test. 101 app pages drained, 101 carried a live
+  collector, every one `emitted: 0, dropped: 0`. The zero is not vacuous:
+  `e2e/host-csp.spec.ts` ran inside that same suite and made the same
+  listener fire on a real violation, so the instrument was demonstrably
+  alive in the environment that produced the zeroes. `ENFORCE_HOST_CSP` is
+  now `true`, and the enforcing `<meta>` is present in the built
+  `dist/index.html`.
+
+  **The collector records every page it drained, including the clean ones**,
+  for the same reason: an empty log cannot distinguish "nothing violated"
+  from "nothing was ever looked at". Recorded gaps rather than assumed
+  absence: the 6 skips were the ~bus protocol-mismatch pair, invite-service
+  (needs ~mug), media-viewer (needs S3 credentials) and production-smoke;
+  and ManageAccountScreen — the one FRAME_SRC_SOURCES entry a real feature
+  depends on — has no e2e coverage at all, so it is covered instead by the
+  allowlisted-origin case in host-csp.spec.ts.
+
+- **D97: the flip turns the Report-Only header OFF, because two policies
+  refusing the same frame report it twice.** `transformIndexHtml` runs on
+  the dev server too, so the moment `ENFORCE_HOST_CSP` went true, dev and
+  preview began carrying the same enforcing `<meta>` production carries.
+  Leaving the Report-Only header on would have put the page under TWO
+  policies that refuse the same frames, and the engine fires one
+  `SecurityPolicyViolationEvent` per policy — so every real violation would
+  have arrived twice, spending two of the listener's five bounded events to
+  report one fact, and it would have silently broken the "exactly one
+  bounded event" control in host-csp.spec.ts, whose obvious repair would
+  have been to loosen the assertion.
+
+  `hostCspDevHeaders` is therefore `{}` while enforcing and the Report-Only
+  header otherwise, and `hostCsp.test.ts` asserts the invariant directly:
+  injected metas plus header count is exactly 1. Verified live — the dev
+  server now returns no `Content-Security-Policy-Report-Only` and serves
+  `<meta http-equiv="Content-Security-Policy" content="frame-src 'self'
+  https://tlon.network">`. The consequence worth naming: dev now matches
+  production instead of approximating it, and the Report-Only validation
+  surface is one `ENFORCE_HOST_CSP = false` away whenever the allowlist has
+  to be re-validated against real usage.
+
+  Also corrected while here, because the three-engine run contradicted
+  them: hostCsp.ts described "four self-navigation vectors against seven
+  host configurations" and claimed that with no host CSP "every vector
+  reaches the attacker". There are five vectors and now eight
+  configurations, and under `A/no-csp` only the three the in-realm shim does
+  not reach get through — `nav-replace` and `nav-href` are BLOCKED-PREFLIGHT
+  in every configuration including the ones that deliberately allowlist the
+  attacker, which is exactly what keeps the shim from being read as policy.

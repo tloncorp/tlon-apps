@@ -1,6 +1,7 @@
 import { BrowserContext, Page, test as base } from '@playwright/test';
 
 import * as helpers from './helpers';
+import { drainHostCspViolations } from './host-csp-collector';
 import { RuntimeErrorDetector } from './runtime-error-detector';
 import shipManifest from './shipManifest.json';
 
@@ -75,7 +76,7 @@ async function performCleanup(page: Page, shipName: string) {
 
 export const testWithOptions = (options?: { installClock?: boolean }) =>
   base.extend<TestFixtures>({
-    zodSetup: async ({ browser }, use) => {
+    zodSetup: async ({ browser }, use, testInfo) => {
       const context = await browser.newContext({
         storageState: shipManifest['~zod'].authFile,
       });
@@ -112,10 +113,14 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
         });
       }
 
+      // Gate B evidence: drain the host-page CSP collector before the
+      // context goes away. See ./host-csp-collector.ts.
+      await drainHostCspViolations(context, `zod: ${testInfo.title}`);
+
       await context.close();
     },
 
-    tenSetup: async ({ browser }, use) => {
+    tenSetup: async ({ browser }, use, testInfo) => {
       const context = await browser.newContext({
         storageState: shipManifest['~ten'].authFile,
       });
@@ -151,10 +156,14 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
         });
       }
 
+      // Gate B evidence: drain the host-page CSP collector before the
+      // context goes away. See ./host-csp-collector.ts.
+      await drainHostCspViolations(context, `ten: ${testInfo.title}`);
+
       await context.close();
     },
 
-    busSetup: async ({ browser }, use) => {
+    busSetup: async ({ browser }, use, testInfo) => {
       const context = await browser.newContext({
         storageState: shipManifest['~bus'].authFile,
       });
@@ -190,6 +199,10 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
           throw error;
         });
       }
+
+      // Gate B evidence: drain the host-page CSP collector before the
+      // context goes away. See ./host-csp-collector.ts.
+      await drainHostCspViolations(context, `bus: ${testInfo.title}`);
 
       await context.close();
     },

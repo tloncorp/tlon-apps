@@ -22,14 +22,24 @@ import type { Plugin } from 'vite';
  * directive earns its own experiment.
  *
  * Measured, not assumed: apps/tlon-web/sandbox-posture/navigation.spec.ts
- * runs four self-navigation vectors against seven host configurations on
- * chromium, firefox and webkit. With no host CSP every vector reaches the
- * attacker and commits its response; under `frame-src 'none'`,
- * `'self'`, or an allowlist that excludes the attacker, every vector is
- * BLOCKED-PREFLIGHT — the attacker server records no hit at all. An
- * allowlist-the-attacker control in the same delivery mechanism still
+ * runs five self-navigation vectors against eight host configurations on
+ * chromium, firefox and webkit. Two of the five (`nav-replace`,
+ * `nav-href`) are stopped in-realm by the host's own `location` shim in
+ * EVERY configuration, including the ones that deliberately allowlist the
+ * attacker, which is what keeps the shim from being read as policy. Of
+ * the remaining three, with no host CSP every one reaches the attacker
+ * and commits its response; under `frame-src 'none'`, `'self'`, an
+ * allowlist that excludes the attacker, or HOST_CSP_POLICY itself, every
+ * one is BLOCKED-PREFLIGHT — the attacker server records no hit at all.
+ * An allowlist-the-attacker control in the same delivery mechanism still
  * navigates, which is what makes the blocking attributable to `frame-src`
  * source matching rather than to the mere presence of a policy.
+ *
+ * The eighth configuration is `C/meta/shipped-policy`: HOST_CSP_POLICY as
+ * written below, delivered by the same `<meta>` the build injects. It is
+ * separate from the generic allowlist rows on purpose — "an allowlist
+ * blocks" and "OUR allowlist, in OUR delivery, blocks" are different
+ * claims, and only the second one is about what ships.
  *
  * DELIVERY — read this before changing anything below.
  *
@@ -55,16 +65,33 @@ import type { Plugin } from 'vite';
  * the only production delivery that exists. What is wired here is
  * therefore split:
  *
- *   - REPORT-ONLY, ENABLED, dev + preview servers only. Every `pnpm dev`
- *     session and the whole Playwright e2e suite (which runs against
- *     `vite`/`vite preview`, see playwright.config.ts) loads the app under
- *     this policy. Violations surface as console
- *     `SecurityPolicyViolationEvent`s and block nothing. This is where the
- *     allowlist gets validated against real usage.
- *   - ENFORCING `<meta>`, WRITTEN BUT OFF. Flipping `ENFORCE_HOST_CSP` to
- *     `true` injects it into index.html at build time, which is the shape
- *     that ships in the glob. That flip is a deliberate posture change and
- *     is out of scope until the Report-Only run above has come back clean.
+ *   - ENFORCING `<meta>`, injected into index.html by `hostCspPlugin`.
+ *     This is what ships in the glob, and — because `transformIndexHtml`
+ *     runs on the dev server too — it is also what `pnpm dev`, `vite
+ *     preview` and the whole Playwright e2e suite now load under. Dev
+ *     matches production rather than approximating it.
+ *   - REPORT-ONLY, a response header on dev + preview, and now OFF. It
+ *     existed to give those servers a policy while production had none;
+ *     with the enforcing meta on, keeping it would put the page under two
+ *     policies that refuse the same frames. See `hostCspDevHeaders`.
+ *
+ * Both states remain reachable from the one flag, and the Report-Only
+ * validation surface is one `ENFORCE_HOST_CSP = false` away if the
+ * allowlist ever has to be re-validated against real usage.
+ *
+ * THE ONE SIGNAL THAT SURVIVES ENFORCEMENT.
+ *
+ * `report-uri` is unavailable in a `<meta>` policy for the same reason
+ * Report-Only is, so once enforcing there is no server-side record of a
+ * refusal anywhere. `SecurityPolicyViolationEvent` is all that is left,
+ * and src/logic/hostCspViolations.ts is the listener that reads it —
+ * installed by main.tsx before the app mounts, sanitising a
+ * bundle-chosen `blockedURI` down to scheme+host+hash, and bounded so a
+ * bundle violating in a loop cannot emit telemetry in a loop. It is also
+ * the instrument the Report-Only run above is measured WITH: the e2e
+ * fixtures drain it per test into test-results/host-csp-violations.jsonl
+ * (e2e/host-csp-collector.ts), which is what makes "the Report-Only run
+ * came back clean" a countable claim rather than an absence of noticing.
  */
 
 /**
@@ -106,9 +133,11 @@ import type { Plugin } from 'vite';
 export const FRAME_SRC_SOURCES = [
   // Same-origin frames. Nothing in the app frames a same-origin URL today,
   // but 'self' costs nothing against the threat being closed — the
-  // measured 'B/header/frame-src-self' configuration blocks all four
-  // self-navigation vectors pre-flight — and it keeps the policy from
-  // being the reason an ordinary same-origin embed breaks later.
+  // measured 'B/header/frame-src-self' configuration leaves all five
+  // self-navigation vectors at BLOCKED-PREFLIGHT (the three the policy
+  // governs, plus the two the in-realm shim already stopped) — and it
+  // keeps the policy from being the reason an ordinary same-origin embed
+  // breaks later.
   "'self'",
 
   // Hosting account management, framed on web by
@@ -132,20 +161,48 @@ export const FRAME_SRC_SOURCES = [
 export const HOST_CSP_POLICY = `frame-src ${FRAME_SRC_SOURCES.join(' ')}`;
 
 /**
- * THE ONE-LINE FLIP.
+ * THE ONE-LINE FLIP — now ON.
  *
  * `false` — dev and preview send `Content-Security-Policy-Report-Only`;
- * nothing is injected into index.html, so the shipped glob carries no CSP
- * and production behaviour is exactly what it is today.
+ * nothing is injected into index.html, so the shipped glob carries no CSP.
  *
- * `true` — additionally injects the enforcing `<meta http-equiv>` into
- * index.html, which is the only way a policy reaches production through
- * the glob. Do not flip this without a clean Report-Only run first: an
- * origin missing from FRAME_SRC_SOURCES becomes a broken feature, and
- * `report-uri` is not available in a meta tag, so a production
- * enforcement failure is silent.
+ * `true` — injects the enforcing `<meta http-equiv>` into index.html,
+ * which is the only way a policy reaches production through the glob, and
+ * (see `hostCspDevHeaders`) drops the now-redundant Report-Only header so
+ * the page is under exactly one policy everywhere.
+ *
+ * THE EVIDENCE THIS WAS FLIPPED ON. The requirement was a clean
+ * Report-Only run, because `report-uri` is unavailable in a meta tag and
+ * an origin missing from FRAME_SRC_SOURCES therefore becomes a silently
+ * broken feature rather than a report. Two independent runs, because
+ * "the policy blocks" and "the allowlist is complete" are different
+ * claims and neither implies the other:
+ *
+ *   - BLOCKING. sandbox-posture on chromium, firefox and webkit,
+ *     159/159, including `C/meta/shipped-policy` — this exact policy
+ *     string, delivered by this exact `<meta>`, against a live attacker
+ *     HTTP server. All five self-navigation vectors BLOCKED-PREFLIGHT
+ *     with zero attacker-server hits on all three engines, while the
+ *     srcdoc sandbox frame still loaded.
+ *   - COMPLETENESS. The full Playwright e2e suite under Report-Only,
+ *     31.2 minutes, 72 passed / 2 failed (unrelated UI flake) / 6
+ *     skipped. 101 app pages drained, 101 carried a live collector, and
+ *     every one reported emitted=0 dropped=0. The zero is not vacuous:
+ *     e2e/host-csp.spec.ts ran inside that same suite and made the same
+ *     listener fire on a real violation, so the instrument was
+ *     demonstrably alive in the environment that produced the zeroes.
+ *
+ * Coverage that run did NOT have, recorded so the next reader can judge
+ * the gap rather than assume there is none: the 6 skips were the ~bus
+ * protocol-mismatch pair, invite-service (needs ~mug), media-viewer
+ * (needs S3 credentials) and production-smoke. None of them frames
+ * anything the audit above did not already enumerate, but none of them
+ * was exercised either. ManageAccountScreen — the one entry in
+ * FRAME_SRC_SOURCES a feature actually depends on — is not covered by
+ * any e2e test, and is covered instead by the third case in
+ * e2e/host-csp.spec.ts, which frames it and requires silence.
  */
-export const ENFORCE_HOST_CSP = false;
+export const ENFORCE_HOST_CSP = true;
 
 /**
  * Injects the enforcing policy into index.html, and only when
@@ -180,11 +237,27 @@ export function hostCspPlugin(): Plugin {
 }
 
 /**
- * Report-Only headers for the dev and preview servers. Never enforcing:
- * these servers exist to surface violations, and a blocking policy here
- * would turn an allowlist gap into a failed e2e run rather than a
- * reported one.
+ * Report-Only header for the dev and preview servers — and ONLY while the
+ * enforcing `<meta>` is off.
+ *
+ * The header exists to give dev a policy in a world where production has
+ * none: with ENFORCE_HOST_CSP off, nothing is injected into index.html,
+ * so Report-Only is the only way the allowlist can be exercised at all.
+ *
+ * Once the flag is on, `transformIndexHtml` runs on the dev server too,
+ * so dev and preview already carry the same enforcing `<meta>` production
+ * carries. Sending the header as well would leave the page under TWO
+ * policies that refuse the same frames, and the engine fires one
+ * `SecurityPolicyViolationEvent` per policy — so every real violation
+ * would arrive twice, spending two of the listener's bounded five events
+ * to report one fact, and dev would stop matching production. One policy
+ * at a time, everywhere.
+ *
+ * It is never enforcing AS A HEADER either way: an enforcing header on
+ * dev could not be delivered in production (the glob serves
+ * `content-type` alone), so it would be a posture dev has and production
+ * does not.
  */
-export const hostCspDevHeaders: Record<string, string> = {
-  'Content-Security-Policy-Report-Only': HOST_CSP_POLICY,
-};
+export const hostCspDevHeaders: Record<string, string> = ENFORCE_HOST_CSP
+  ? {}
+  : { 'Content-Security-Policy-Report-Only': HOST_CSP_POLICY };
