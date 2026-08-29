@@ -83,9 +83,30 @@ function getBinaryPath() {
 const binaryPath = getBinaryPath();
 const args = process.argv.slice(2);
 
+/**
+ * Tell the binary where the surface templates are, because it cannot work
+ * it out for itself.
+ *
+ * `bun build --compile` bakes `__dirname` into the binary as a string
+ * literal — the build machine's source path — so a compiled `tlon` asks
+ * for templates under the CI runner's checkout and finds nothing. The
+ * layout makes it unfixable from inside, too: the binary ships in the
+ * platform package (`@tloncorp/tlon-skill-<target>`, which holds only
+ * `tlon` and a `package.json`), while `skills/` ships here, in the root
+ * wrapper. Nothing reachable from the binary points at this directory.
+ *
+ * This file is the one part that knows: it is plain, uncompiled JS, so its
+ * `__dirname` is real at runtime. An explicit override always wins.
+ */
+const env = { ...process.env };
+if (!env.TLON_SURFACE_TEMPLATES_DIR) {
+  const templates = join(__dirname, '..', 'skills', 'surfaces', 'templates');
+  if (existsSync(templates)) env.TLON_SURFACE_TEMPLATES_DIR = templates;
+}
+
 const result = spawnSync(binaryPath, args, {
   stdio: 'inherit',
-  env: process.env,
+  env,
 });
 
 if (result.error) {

@@ -290,8 +290,12 @@ async function storagePreflight() {
 const TEMPLATE_BUNDLE_NAMES = ['app.js', 'bundle.js', 'index.js'];
 
 function packageRoot(): string {
-  // `scripts/` sits directly under the package root in source, and the
-  // compiled binary keeps the same layout beside it.
+  // Correct when running from source, and MEANINGLESS in the compiled
+  // binary: `bun build --compile` bakes `__dirname` as a literal, so this
+  // returns the build machine's checkout path. The shipped CLI therefore
+  // gets its catalogue location from `TLON_SURFACE_TEMPLATES_DIR`, which
+  // `bin/tlon.js` sets from the wrapper package (the only place that knows
+  // where `skills/` actually landed). This stays as the source-mode path.
   return path.resolve(__dirname, '..');
 }
 

@@ -10,7 +10,8 @@
     "bin/tlon.js",
     "scripts/postinstall.js",
     "SKILL.md",
-    "references/"
+    "references/",
+    "skills/"
   ],
   "scripts": {
     "build": "node scripts/build.js",

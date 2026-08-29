@@ -177,6 +177,12 @@ Keep it a product reference, not an operating manual: anything that reads or mut
 
 The guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
 
+### `surfaces` — the surface-authoring skill
+
+`skills/surfaces/` inside `@tloncorp/tlon-skill` teaches the bot to build and revise surface channels — mini-apps published into a group — and the manifest lists it as a second path into that package (`node_modules/@tloncorp/tlon-skill/skills/surfaces`), so OpenClaw publishes it as its own `surfaces` skill alongside the CLI skill at the package root. It is co-located with the CLI rather than living here because it is inert without the `surface *` verbs that ship in the same package; keeping the two together makes skill/CLI version skew impossible. Its `templates/` exemplars travel in the same npm tarball, so a tarball missing `skills/` yields a bot with no surfaces skill at all — `packages/tlon-skill/scripts/release-utils.ts` asserts both the skill and its templates on every packed root tarball.
+
+Its deploy path differs from the product guide's: `packages/tlon-skill/**` is deliberately outside `bot-harness-deploy.yml`'s path filter, because ships resolve `@tloncorp/tlon-skill` from the registry rather than from this checkout. A content fix to the surfaces skill therefore reaches production only via an npm publish followed by a restart — merging to develop does not stand in for it.
+
 ## Documentation
 
 Full documentation: https://docs.openclaw.ai/channels/tlon

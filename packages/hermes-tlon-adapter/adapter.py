@@ -231,6 +231,7 @@ from .tlon_tool import (
     handle_tlon_tool,
     resolve_tlon_product_guide_path,
     resolve_tlon_skill_path,
+    resolve_tlon_surfaces_skill_path,
     set_diary_migration_notification_sender,
     split_tlon_command,
     start_diary_migration_discovery,
@@ -5369,6 +5370,23 @@ def register(ctx) -> None:
             ),
         )
 
+    # A third skill, from the tlon-skill package rather than the plugin tree:
+    # authoring a surface channel is a different job from running a tlon
+    # subcommand, so it is selectable on its own rather than folded into the
+    # CLI skill. An older tlon-skill install has no such directory — hence the
+    # None check, as above.
+    surfaces_path = resolve_tlon_surfaces_skill_path()
+    if surfaces_path is not None:
+        ctx.register_skill(
+            "surfaces",
+            surfaces_path,
+            description=(
+                "Building surface channels: live mini-apps in Tlon groups for "
+                "tracking, collecting, voting, counting, scheduling and "
+                "coordinating, and for changing one that already exists."
+            ),
+        )
+
     # Derived from the registration above rather than written into the hint
     # unconditionally: a deployment without the plugin tree registers no such
     # skill, and pointing the model at a skill_view that cannot resolve turns
@@ -5378,6 +5396,18 @@ def register(ctx) -> None:
         "works, rather than asking you to do something, load "
         'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
         if product_guide_path is not None
+        else ""
+    )
+
+    # Hermes plugin skills are opt-in explicit loads: they never enter the
+    # system prompt's available-skills index, so a registration nobody is told
+    # about is a skill the model never reaches for.
+    surfaces_hint = (
+        "When the user asks to track, collect, vote on, count, schedule or "
+        "coordinate something with a group, or to change a surface channel "
+        "that already exists, load skill_view(\"tlon-platform:surfaces\") "
+        "before writing any surface code. "
+        if surfaces_path is not None
         else ""
     )
 
@@ -5418,6 +5448,7 @@ def register(ctx) -> None:
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
             + product_guide_hint
+            + surfaces_hint
             + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "

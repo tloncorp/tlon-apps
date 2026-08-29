@@ -10,6 +10,7 @@
   },
   "skills": [
     "node_modules/@tloncorp/tlon-skill",
+    "node_modules/@tloncorp/tlon-skill/skills/surfaces",
     "skills/tlon-product-guide"
   ],
   "configSchema": {

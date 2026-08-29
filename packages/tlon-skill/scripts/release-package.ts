@@ -127,6 +127,7 @@ function assertRootFilesField(packageJson: RootPackageJson): void {
     'scripts/postinstall.js',
     'SKILL.md',
     'references/',
+    'skills/',
   ];
 
   for (const entry of required) {
@@ -263,6 +264,9 @@ function stageRootPackage(rootDir: string, stageDir: string): RootPackageJson {
     join(stageDir, 'references'),
     'references'
   );
+  // The whole tree, not a hand-picked subset: a surfaces skill whose
+  // templates/ did not travel loads and then cannot do its job.
+  copyRequired(join(rootDir, 'skills'), join(stageDir, 'skills'), 'skills');
   copyOptional(join(rootDir, 'README.md'), join(stageDir, 'README.md'));
   copyOptional(join(rootDir, 'LICENSE'), join(stageDir, 'LICENSE'));
 

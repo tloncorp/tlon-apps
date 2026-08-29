@@ -1688,3 +1688,85 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   template; `packages/surface-shell/fixtures/poll/` was deliberately left
   untouched, because it is the shell's own test fixture and its job is to
   exercise the shell, not to model authoring style.
+
+### Session 5 addendum: shipping the skill (D66 closure)
+
+- **D73: the compiled CLI could never find its own templates.**
+  `templatesRoot()` resolved the catalogue from `path.resolve(__dirname,
+  '..')`, under a comment asserting "the compiled binary keeps the same
+  layout beside it." It does not. `bun build --compile` bakes `__dirname`
+  into the binary as a **string literal** — verified by `strings` on
+  `dist/tlon-run`, which contains the build machine's
+  `.../packages/tlon-skill/scripts`, and by running the binary from an
+  unrelated cwd, where it still printed the build machine's path as the
+  template root. On a published build that path is the CI runner's
+  checkout and does not exist on the user's machine.
+
+  It is also structurally unfixable from inside the binary: the binary
+  ships in the **platform** package (`@tloncorp/tlon-skill-<target>`,
+  which contains only `tlon` and a `package.json`), while `skills/` ships
+  in the **root wrapper** package. Nothing reachable from the binary
+  points at the wrapper.
+
+  **Fixed in `bin/tlon.js`**, which is the one component that knows: it is
+  plain uncompiled JS, so its `__dirname` is real at runtime. It now sets
+  `TLON_SURFACE_TEMPLATES_DIR` from its own location when the directory
+  exists and no explicit override is present. Verified against a staged
+  install layout (wrapper with `skills/`, platform package with only the
+  binary): through the wrapper the catalogue resolves to the staged path;
+  calling the same binary directly still reports the baked build-machine
+  path, which is the mutation proving the wrapper is doing the work.
+
+  This mattered more than an ordinary packaging bug because `SKILL.md`'s
+  step 1 is "run `surface templates list`", and its step 1 rule is "adapt
+  the closest template — never invent from scratch". A shipped skill whose
+  first instruction returns nothing degrades every authoring run to the
+  path the doctrine explicitly forbids.
+
+  One correction to how this was first reported: the failure is **not**
+  silent. `--json` returns `"installed": false` alongside the resolved
+  `root`, and the human output says "No dashboard templates are installed
+  (looked in X)". A caller can already distinguish a broken install from
+  an empty one; the resolution was wrong, the reporting was not.
+
+- **D74: under Hermes the skill is SKILL.md and nothing else.**
+  `_serve_plugin_skill` (`tools/skills_tool.py`) ignores `skill_view`'s
+  `file_path` argument for plugin skills and serves SKILL.md only, so a
+  Hermes-hosted bot cannot reach `PARADIGM.md`, `PRIMITIVES.md`,
+  `RUBRIC.md` or `templates/**` through the skill mechanism — it needs an
+  ordinary file read. Pre-existing (the CLI skill's `references/` has the
+  same problem) and not introduced by the registration work, but it means
+  the two runtimes do not deliver the same skill: OpenClaw publishes the
+  whole directory into the SDK's discovery tree, Hermes hands over one
+  file. Compounding it, Hermes plugin skills are not listed in the system
+  prompt's `<available_skills>` index at all — they are opt-in explicit
+  loads — which is why registration also had to add a `surfaces_hint` to
+  `platform_hint`, mirroring the product guide's.
+
+  Consequence to carry into Session 6: the doctrine documents are
+  load-bearing (`PARADIGM.md` is what stops a bot writing a non-idempotent
+  `append` app), so on Hermes they must either be inlined into SKILL.md's
+  preprocessing includes or reached by file read. Do not assume a
+  registered skill means a readable skill.
+
+- **Registering a skill takes six steps, not four.** D66 listed
+  `package.json` `files`, `release-package.ts`, `openclaw.plugin.json`,
+  and `adapter.py`. Two more were found by grepping an existing skill's
+  name repo-wide: `plugin.yaml`'s `optional_env` (Hermes surfaces the
+  resolution env vars at install/config time) and `test_tlon_tool.py`
+  (which enumerates registered skills and asserts registration and hint
+  fragment together). `release-utils.ts` was a third place inside step 2 —
+  `assertRootTarball`'s allowlist would have rejected every `skills/**`
+  entry as unexpected, so a fix touching only `release-package.ts` would
+  have hard-failed the release. **The lesson is the method, not the
+  count:** grep an existing instance's name across the whole repo before
+  assuming a registration list is complete.
+
+- **Deploy asymmetry worth knowing.** `bot-harness-deploy.yml`
+  deliberately keeps `packages/tlon-skill` outside its path filter, so a
+  content fix to the surfaces skill reaches production only via an npm
+  publish and restart, not a develop merge — unlike the product guide.
+  The `openclaw.plugin.json` manifest entry *is* on that filter, so
+  merging it before publishing a tlon-skill version containing `skills/`
+  logs a benign `plugin skill path not found` warning until the publish
+  lands (the entry is skipped; the other two skills still load).

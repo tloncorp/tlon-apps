@@ -1121,3 +1121,34 @@ def resolve_tlon_product_guide_path(
     candidates.append(here.parent / "openclaw" / relative)
 
     return _first_existing(candidates)
+
+
+def resolve_tlon_surfaces_skill_path(
+    env: Mapping[str, str | None] | None = None,
+) -> Optional[Path]:
+    """Locate the surfaces authoring skill inside the tlon-skill package.
+
+    Shares ``TLON_SKILL_DIR`` with ``resolve_tlon_skill_path`` because both
+    live in the same npm package — that one at its root, this one under
+    ``skills/surfaces/``. It is a separate skill rather than part of the CLI
+    reference: it teaches authoring a surface channel, which is a different
+    job from running a tlon subcommand, and has to be selectable on its own.
+    Deployments that keep it somewhere non-standard set
+    ``TLON_SURFACES_SKILL_PATH``.
+    """
+    env = os.environ if env is None else env
+    here = Path(__file__).resolve().parent
+    relative = Path("skills") / "surfaces" / "SKILL.md"
+    candidates: list[Path] = []
+
+    explicit = str(env.get("TLON_SURFACES_SKILL_PATH") or "").strip()
+    if explicit:
+        candidates.append(Path(explicit))
+
+    skill_dir = str(env.get("TLON_SKILL_DIR") or "").strip()
+    if skill_dir:
+        candidates.append(Path(skill_dir) / relative)
+
+    candidates.append(here.parent / "tlon-skill" / relative)
+
+    return _first_existing(candidates)

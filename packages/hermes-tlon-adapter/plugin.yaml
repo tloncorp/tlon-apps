@@ -197,6 +197,12 @@ optional_env:
       registration'
     prompt: 'Tlon skill path'
     password: false
+  - name: TLON_SURFACES_SKILL_PATH
+    description:
+      'Optional path to @tloncorp/tlon-skill/skills/surfaces/SKILL.md for
+      explicit surfaces skill registration'
+    prompt: 'Tlon surfaces skill path'
+    password: false
   - name: TLON_PRODUCT_GUIDE_PATH
     description:
       'Optional path to the OpenClaw plugin''s

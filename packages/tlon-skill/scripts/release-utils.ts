@@ -273,6 +273,15 @@ export function assertRootTarball(tarballPath: string, cwd: string): void {
   if (files.includes('bin/tlon')) {
     fail(`Root tarball must not contain bin/tlon: ${tarballPath}`);
   }
+  if (!files.includes('skills/surfaces/SKILL.md')) {
+    fail(`Root tarball is missing skills/surfaces/SKILL.md: ${tarballPath}`);
+  }
+  // Asserted separately from SKILL.md: a copy that flattened the skill would
+  // still carry the doc, and a surfaces skill without its exemplars is a
+  // skill that loads and then has nothing to adapt.
+  if (!files.some((file) => file.startsWith('skills/surfaces/templates/'))) {
+    fail(`Root tarball is missing skills/surfaces/templates: ${tarballPath}`);
+  }
 
   const unexpected = files.filter((file) => {
     if (
@@ -285,7 +294,7 @@ export function assertRootTarball(tarballPath: string, cwd: string): void {
     ) {
       return false;
     }
-    return !file.startsWith('references/');
+    return !file.startsWith('references/') && !file.startsWith('skills/');
   });
 
   if (unexpected.length > 0) {
