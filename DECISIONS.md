@@ -1770,3 +1770,97 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   merging it before publishing a tlon-skill version containing `skills/`
   logs a benign `plugin skill path not found` warning until the publish
   lands (the entry is skipped; the other two skills still load).
+
+### Session 5 addendum: what the spec-propagation trace found
+
+- **D75: the D56 fix added a write-ordering dependency that did not exist
+  before. Recorded, not changed.** `handleGroupUpdate`'s `updateChannel`
+  case writes the new payload via `db.updateChannel`, then calls
+  `syncGroup(…, {force: true})` three lines later, which calls
+  `insertGroups` against a fresh `api.getGroup`. Pre-fix, `insertGroups`
+  skipped `descriptionPayload`/`surfaceSpec` and could not disturb the
+  correct write that preceded it. Post-fix it rewrites them.
+
+  **Symptom to watch for:** if `api.getGroup` ever returns pre-edit state
+  — a queue delay racing the edit fact — the forced sync can now revert a
+  correct value that the old code was structurally incapable of touching.
+  `%groups` updates its state before emitting the fact, so the scry should
+  be at-or-newer and the risk is low. No code change; this exists so that
+  a future "the republish reverted itself seconds later" report is
+  diagnosed in one step instead of re-derived.
+
+- **The live revise cycle never exercised the D56 fix.** Recorded because
+  the session report claimed it did. A running client *does* reach
+  `insertGroups` (via the forced `syncGroup` above — the premise that it
+  does not is false), but ordering makes it inert: `db.updateChannel`
+  writes the correct value first, so pre-fix and post-fix produce
+  byte-identical rows on that path. The live test proved the `r-groups`
+  edit-fact carrier works, which was never the broken part.
+
+  The fixed path is boot / full group sync on an **existing** row, and it
+  is already covered deterministically by
+  `packages/shared/src/store/surface/specConvergence.test.ts` —
+  `syncGroupFromShip` *is* `insertGroups` through the real wire payload,
+  called twice so the second hits `onConflictDoUpdate`, asserting both
+  columns in both directions (unchanged revision, bumped revision). Runs
+  in 59ms. **A live cold-start scenario would prove less than a test that
+  already runs in CI**, so it is not worth a rube cycle.
+
+  The genuinely untested path is the live one: nothing anywhere drives
+  `r-channel edit` → `toClientChannel` → `db.updateChannel`. Correct by
+  reading, unguarded by a test. Added to the fix round as non-blocking.
+
+- **D76: patching the allowlist fixed the incident and left the class
+  open — and the class already had two more live instances.** The D56 fix
+  appended `descriptionPayload` and `surfaceSpec` to `insertGroups`'
+  hand-listed `onConflictDoUpdate` columns, leaving it diverged from
+  `insertChannelsInternal`, which uses `conflictUpdateSetAll` with an
+  exclusion list and was always correct.
+
+  Verified consequence: `metaFields` (`schema.ts:40-47`) gives channels
+  `iconImageColor` and `coverImageColor`, `toClientChannel` populates
+  both, and **`insertGroups`' allowlist omits both**. An admin changing a
+  channel's icon or cover colour lands live via `db.updateChannel` and is
+  then pinned forever on every boot and group sync. Cosmetic rather than
+  functional, which is why it went unnoticed — and it is the identical
+  defect, which is why it matters.
+
+  There are three whole-row writers of `channels` (`insertGroups`,
+  `insertChannelsInternal`, `updateChannel`), no writers outside
+  `queries.ts`, no raw SQL, and no data-modifying migration. No fourth
+  writer lurking. No test anywhere would catch a new schema column being
+  added and not added to the allowlist; that absence is the defect's
+  enabling condition.
+
+  **Ruling — both mechanisms, in the fix round, not as an immediate
+  patch:**
+  1. Switch `insertGroups` to `conflictUpdateSetAll` with an exclusion
+     list derived by an **explicit audit** of which columns are
+     sync-authoritative versus client-local. The exclusion list must be
+     reasoned, not copied from `insertChannelsInternal` — inverting the
+     default from opt-in to opt-out is only safe if every excluded column
+     is deliberately excluded.
+  2. Add a `getTableColumns($channels)` pin test asserting **total
+     coverage** — every column classified as either updated or explicitly
+     excluded, so a newly added column fails loudly rather than silently
+     joining the pinned set.
+  3. The colour columns are fixed by (1); verify with a
+     spec-convergence-style test extended to cover them, so the fix is
+     demonstrated and not merely asserted.
+
+- **The class-versus-incident distinction paid for itself twice in one
+  investigation, and is now the fix round's organising principle.** The
+  report said "D56 fixed"; the shape check found the class open; the class
+  being open meant two more live instances nobody had looked for.
+
+  Finding 2 of the correctness review (`duplicatesTolerated` treated as a
+  change because `decideRevision` compares a validated previous spec
+  against a raw candidate) has the **identical structure**: three
+  comparison sites patched one at a time, schema divergence intact
+  underneath. That is why it gets the same ruling as this one — fix the
+  divergence, not the third comparison.
+
+  **Every High finding in this review has an incident fix and a class fix,
+  and the class fix is the deliverable.** The session that runs the fix
+  round should be briefed in exactly those terms; a round that closes
+  fourteen incidents and leaves four classes open has bought very little.
