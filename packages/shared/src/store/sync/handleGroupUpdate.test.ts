@@ -287,3 +287,129 @@ test('addChannel propagates group sync failures for normal channels', async () =
     getGroup.mockRestore();
   }
 });
+
+/**
+ * The live metadata-edit path, which nothing else covers. A channel edit
+ * arrives as an `r-channel` `edit` fact on `/v1/groups`; the api layer turns
+ * it into an `updateChannel` update via the real `toClientChannel`, and the
+ * handler writes it with `db.updateChannel`. Everything a surface channel
+ * needs rides in the channel's `meta.description` cell — the verbatim
+ * `descriptionPayload` and the `surfaceSpec` inside it — so if any link in
+ * that chain dropped them, a republished dashboard would only reach clients
+ * at their next boot.
+ *
+ * The raw wire event is fed through `toV1GroupsUpdate` rather than a
+ * hand-built `GroupUpdate`, because `toClientChannel` is where the payload
+ * would be lost.
+ *
+ * `api.getGroup` deliberately answers with a channel-less group. The handler
+ * follows its write with a forced `syncGroup`, and after the D76 change that
+ * re-sync rewrites the same columns (D75) — so a scry that echoed the edit
+ * would make this test pass even if `db.updateChannel` wrote nothing. An
+ * empty `channels` skips `insertGroups`' channel upsert entirely, leaving the
+ * fact-carried write as the only thing that touched the row.
+ */
+test('an r-channel edit fact carries the description payload and surface spec into the channel row', async () => {
+  const groupId = '~bus/test-group';
+  const channelId = 'chat/~bus/example';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  const spec = {
+    version: 1,
+    surfaceId: 'srf-live',
+    specRevision: 3,
+    bundle: {
+      assetRef: 'https://storage.example/live',
+      sha256: 'c'.repeat(64),
+      size: 128,
+      shellVersion: 1,
+    },
+    initialState: {},
+    actions: {},
+  };
+  const description = api.StructuredChannelDescriptionPayload.encode({
+    description: 'Edited dashboard',
+    surfaceSpec: spec as never,
+  }) as string;
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+  // The row as it stood before the edit: an ordinary channel, no payload.
+  await client.insert(schema.channels).values({
+    id: channelId,
+    type: 'chat',
+    groupId,
+    title: 'Before',
+  });
+
+  const getGroup = vi.spyOn(api, 'getGroup').mockResolvedValue({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+    channels: [],
+  } as unknown as Awaited<ReturnType<typeof api.getGroup>>);
+  const getUnreads = vi
+    .spyOn(api, 'getGroupAndChannelUnreads')
+    .mockResolvedValue({
+      channelUnreads: [],
+      groupUnreads: [],
+      threadActivity: [],
+    } as unknown as Awaited<ReturnType<typeof api.getGroupAndChannelUnreads>>);
+
+  try {
+    const update = api.toV1GroupsUpdate({
+      flag: groupId,
+      'r-group': {
+        channel: {
+          nest: channelId,
+          'r-channel': {
+            edit: {
+              join: true,
+              added: 1,
+              readers: [],
+              zone: 'default',
+              meta: {
+                title: 'After',
+                description,
+                image: '#aabbcc',
+                cover: '#ddeeff',
+              },
+            },
+          },
+        },
+      },
+    } as never);
+
+    expect(update?.type).toBe('updateChannel');
+
+    await batchEffects('test:r-channel-edit', async (ctx) => {
+      await handleGroupUpdate(update!, ctx);
+    });
+  } finally {
+    getUnreads.mockRestore();
+    getGroup.mockRestore();
+  }
+
+  const rows = await client.query.channels.findMany({
+    where: $.eq(schema.channels.id, channelId),
+  });
+  const row = rows[0];
+  expect(row?.title).toBe('After');
+  expect(row?.description).toBe('Edited dashboard');
+  expect(row?.descriptionPayload).toBe(description);
+  expect(
+    api.StructuredChannelDescriptionPayload.surfaceSpec(
+      api.StructuredChannelDescriptionPayload.decode(row?.descriptionPayload)
+    )?.specRevision
+  ).toBe(3);
+  expect(row?.surfaceSpec).not.toBeNull();
+  expect(row?.iconImageColor).toBe('#aabbcc');
+  expect(row?.coverImageColor).toBe('#ddeeff');
+});

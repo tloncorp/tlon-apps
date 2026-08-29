@@ -1542,6 +1542,39 @@ export const insertMembers = createWriteQuery(
   ['groups', 'chatMembers']
 );
 
+/**
+ * Channel columns a full `%groups` payload must NOT write when it updates an
+ * existing row. Everything else in `channels` is refreshed from the payload;
+ * see the comment at the `onConflictDoUpdate` in `insertGroups` for how a
+ * column earns a place here, and `insertGroupsChannelColumns.test.ts` for the
+ * assertion that every column is classified one way or the other.
+ *
+ * Exported for that test only.
+ */
+export const channelConflictExclusions = [
+  // Client-local state %groups has no view of
+  'lastViewedAt',
+  'syncedAt',
+  'remoteUpdatedAt',
+  'order',
+  'postCount',
+  'unreadCount',
+  'firstUnreadPostId',
+  'lastPostId',
+  'lastPostAt',
+  'lastPostSequenceNum',
+  // DM/contact bookkeeping; group channels never carry these
+  'contactId',
+  'isDmInvite',
+  'isNewMatchedContact',
+  'isPendingChannel',
+  // Owned by `reconcileJoinedGroupChannels`, not by a group payload
+  'currentUserIsMember',
+  // Present on the wire but dropped by `toClientChannel`, so writing it from
+  // the payload would null it rather than refresh it
+  'addedToGroupAt',
+] as const;
+
 export const insertGroups = createWriteQuery(
   'insertGroups',
   async (
@@ -1596,34 +1629,52 @@ export const insertGroups = createWriteQuery(
 
           // First insert/update the channels.
           //
-          // `descriptionPayload` and `surfaceSpec` are the raw description
-          // cell and the app definition inside it. They must refresh here
-          // alongside the fields derived from the same cell: this is the
-          // only write that carries channel metadata on a boot or a full
-          // group sync, so leaving them out pins an existing row's spec to
-          // whatever it held when the row was created. A surface channel
-          // then keeps rendering a superseded bundle indefinitely — the
-          // description cell is authoritative (plan §3), and its CONTENT is
-          // the change signal, so a republish that reuses `specRevision`
-          // has to land exactly like one that bumps it.
+          // This is the only write that carries channel metadata on a boot or
+          // a full group sync, so whatever it leaves out of its
+          // conflict-update set is pinned on an existing row forever. It used
+          // to hand-list the columns to update, which made "pinned" the
+          // default for anything nobody remembered to add — that is how
+          // `descriptionPayload`/`surfaceSpec` (D56) and then
+          // `iconImageColor`/`coverImageColor` (D76) each ended up frozen at
+          // their creation-time values. The set is now derived from the
+          // schema, so a new column is refreshed unless it is deliberately
+          // named below, and `channelConflictExclusions` is pinned by a test
+          // against `getTableColumns($channels)` so adding a column without
+          // classifying it fails loudly.
+          //
+          // The exclusion list is NOT `insertChannelsInternal`'s. Two things
+          // put a column on it, and only one of them is "some other writer
+          // owns this":
+          //
+          //  1. Client-local state %groups knows nothing about — read
+          //     position, unread counts, last-post pointers, DM bookkeeping.
+          //     Refreshing those from a group payload would clobber them.
+          //  2. Columns the group payload does not actually carry.
+          //     `toClientChannel` never populates `addedToGroupAt` (the
+          //     wire's `added` is dropped), and drizzle emits a literal
+          //     `null` for any column absent from the insert values — so
+          //     naming such a column does not refresh it, it erases it. The
+          //     old hand-list named `addedToGroupAt` and `isPendingChannel`
+          //     and was quietly nulling both on every sync.
+          //
+          // `currentUserIsMember` is excluded for a third, sharper reason:
+          // `reconcileJoinedGroupChannels` is the documented single source of
+          // truth for it, and `agentGroupOnboarding` relies on this write not
+          // touching it.
+          //
+          // What stays in: everything derived from the channel's `meta` cell
+          // — title, description, icon/cover (image and colour alike), the
+          // verbatim `descriptionPayload` and the `surfaceSpec` inside it —
+          // plus `type`, `groupId` and `currentUserIsHost`, which %groups
+          // defines. The description cell is authoritative (plan §3) and its
+          // CONTENT is the change signal, so a republish that reuses
+          // `specRevision` has to land exactly like one that bumps it.
           await txCtx.db
             .insert($channels)
             .values(group.channels)
             .onConflictDoUpdate({
               target: [$channels.id],
-              set: conflictUpdateSet(
-                $channels.iconImage,
-                $channels.coverImage,
-                $channels.title,
-                $channels.description,
-                $channels.descriptionPayload,
-                $channels.surfaceSpec,
-                $channels.addedToGroupAt,
-                $channels.type,
-                $channels.isPendingChannel,
-                $channels.contentConfiguration,
-                $channels.currentUserIsHost
-              ),
+              set: conflictUpdateSetAll($channels, channelConflictExclusions),
             });
 
           const channels = await txCtx.db.query.channels.findMany({
@@ -6858,7 +6909,7 @@ function allQueryColumns<T extends Subquery>(
   return subquery._.selectedFields;
 }
 
-function conflictUpdateSetAll(table: Table, exclude?: string[]) {
+function conflictUpdateSetAll(table: Table, exclude?: readonly string[]) {
   const columns = getTableColumns(table);
   return conflictUpdateSet(
     ...Object.entries(columns)
