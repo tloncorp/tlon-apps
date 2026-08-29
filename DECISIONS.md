@@ -1864,3 +1864,263 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   and the class fix is the deliverable.** The session that runs the fix
   round should be briefed in exactly those terms; a round that closes
   fourteen incidents and leaves four classes open has bought very little.
+
+### Fix round: `insertGroups` channel conflict-update set (D76 execution)
+
+- **D77: the per-column audit, and what it found that the D76 ruling did
+  not anticipate.** `insertGroups` now uses
+  `conflictUpdateSetAll($channels, channelConflictExclusions)`. The
+  exclusion list was derived column by column from
+  `getTableColumns($channels)`, **not** copied from
+  `insertChannelsInternal` — cloning its four exclusions would have
+  reproduced the same defect sign-flipped.
+
+  The audit turned up a second, independent reason a column belongs on the
+  exclusion list, which the ruling did not have in view. Drizzle's
+  `buildInsertQuery` (`node_modules/drizzle-orm/sqlite-core/dialect.js`
+  L286-336) emits **every** column of the table in the INSERT, substituting
+  a literal `null` for any key absent from the values object (or the
+  column's declared default, e.g. `isDmInvite`'s `false`). So
+  `excluded.<col>` is null for anything the payload does not carry, and
+  naming such a column in the conflict-update set does not refresh it — **it
+  erases it**.
+
+  `toClientChannel` (`packages/api/src/client/groupsApi.ts` ~2005) carries
+  only 13 of the table's 29 columns. Two columns the old hand-list named —
+  `addedToGroupAt` and `isPendingChannel` — are not among them, which means
+  the pre-fix code was **nulling both on every boot and every group sync**.
+  Demonstrated, not inferred: the new
+  `specConvergence.test.ts` case "a group sync preserves channel columns
+  the payload does not carry" failed pre-fix with
+  `expected null to be 1700000000000`. `addedToGroupAt` matters slightly —
+  `channelActions.ts` L421 re-encodes the wire's `added` from this column
+  (`currentChannel?.addedToGroupAt ?? … ?? Date.now()`), so an erased value
+  is silently replaced with "now" on the next metadata edit.
+  `isPendingChannel` is DM-only, so nulling it on group channels was
+  harmless in practice. Both are now excluded, which is a fix, not a
+  regression.
+
+  The classification, all 29 columns:
+
+  | Column | Call | Why |
+  | --- | --- | --- |
+  | `id` | update (no-op) | The conflict target; `set id = excluded.id` is provably a self-assignment. Left in the derived set rather than excluded so the exclusion list reads as "things deliberately held back". |
+  | `type` | update | `getChannelType(id)`; %groups defines it. |
+  | `groupId` | update | %groups defines which group a channel is in. **Behaviour change**: the old hand-list omitted it, so the mapping was pinned. Every non-test caller carries it (all reach `insertGroups` via `toClientChannel(s)` or a full DB row), and `insertGroups` already reconciles group membership by deleting non-payload channels for the group, so authoritative reassignment is consistent with the surrounding write. |
+  | `iconImage` | update | From `meta.image`. |
+  | `iconImageColor` | update | Same `meta.image` field, routed by `toClientMeta`'s `isColor`. **The D76 incident.** |
+  | `coverImage` | update | From `meta.cover`. |
+  | `coverImageColor` | update | Same field. **The D76 incident.** |
+  | `title` | update | From `meta.title`. |
+  | `description` | update | Decoded from `meta.description`. |
+  | `contentConfiguration` | update | Decoded from the same cell. |
+  | `descriptionPayload` | update | The verbatim cell (D56). |
+  | `surfaceSpec` | update | The app definition inside it (D56). |
+  | `currentUserIsHost` | update | Derived from the channel id's host vs the current ship. |
+  | `currentUserIsMember` | **exclude** | `reconcileJoinedGroupChannels` is the documented "single source of truth for group-channel membership" (`queries.ts` ~3468), driven by %groups' `active-channels`. `toClientChannel`'s value is a *different, weaker* signal — readers ∩ roles, i.e. read permission, not active membership. `handleGroupUpdate`'s `updateChannel` case already strips it for that reason, and `agentGroupOnboarding.ts` (`adoptNotebook`, `ensureChatChannel`) and `channelActions.ts` L161 both document *depending* on this write not touching it. Including it would have been the single riskiest call in the audit. |
+  | `addedToGroupAt` | **exclude** | Not carried (see above); naming it nulls it. |
+  | `isPendingChannel` | **exclude** | Not carried; DM/pending-channel bookkeeping owned by `postActions`. |
+  | `contactId` | **exclude** | DM identity; %groups carries no contact for a group channel. |
+  | `isDmInvite` | **exclude** | DM invite state (`chatApi`, `dmActions`, `sync.ts` L1879). Has `default(false)`, so `excluded.is_dm_invite` is `0`, not null — a group sync would flip a true invite to false. |
+  | `isNewMatchedContact` | **exclude** | Contact-discovery flag; no %groups analogue. |
+  | `lastViewedAt` | **exclude** | Local read position (`channelActions.ts` L708). |
+  | `syncedAt` | **exclude** | Local sync bookkeeping. (Note: `channels.syncedAt` currently has **no writer at all**; only `groups.syncedAt` is written. Excluded on principle regardless.) |
+  | `remoteUpdatedAt` | **exclude** | Sourced from unreads `recency`, not from a group payload. Also currently unwritten. |
+  | `order` | **exclude** | `posts_order`, written from `%channels` init (`insertChannelOrder`) and local post actions. |
+  | `postCount` | **exclude** | Derived locally. |
+  | `unreadCount` | **exclude** | From `%activity`. |
+  | `firstUnreadPostId` | **exclude** | From `%activity`. |
+  | `lastPostId` | **exclude** | `setLastPosts`. |
+  | `lastPostAt` | **exclude** | `setLastPosts`. |
+  | `lastPostSequenceNum` | **exclude** | Post sync. |
+
+  13 updated + 16 excluded = 29 = `getTableColumns($channels)`, asserted by
+  `packages/shared/src/db/insertGroupsChannelColumns.test.ts`.
+
+- **The pin test as specified is not, on its own, capable of failing on a
+  new column — and this matters.** "Assert `getTableColumns($channels)`
+  equals the union of setAll coverage and the exclusion list" is a
+  tautology when coverage is *computed* as `schema − exclusions`: a new
+  column lands in `updated`, the union is still the whole table, green. The
+  guard that actually fails is a **pinned literal list of the updated
+  columns**, so an addition shows up as a diff someone has to read and
+  re-classify. The union assertion is kept because it catches the other
+  direction — an exclusion entry that no longer names a real column, e.g.
+  after a rename — which was demonstrated separately by misspelling
+  `lastViewedAt` in the list. Both negative controls were run: a synthetic
+  `syntheticUnclassified` column added to `schema.ts` failed the pin
+  assertion (`+ "syntheticUnclassified"`), and the misspelled exclusion
+  failed the union assertion (`+ "lastVeiwedAt"`). Both mutations were
+  reverted and the file diffs confirmed empty.
+
+- **`insertChannelsInternal` is left diverged, deliberately.** It keeps its
+  own four exclusions and is not pinned. It is fed by DM/`%channels` paths
+  whose `Channel` objects carry a different subset than `toClientChannel`
+  does, so a shared list would be wrong for one of the two callers — the
+  divergence is the correct state, and the comment above the new
+  `onConflictDoUpdate` says so explicitly to stop a future reader
+  "fixing" it by cloning. **Residual, unclosed:** it is already
+  `conflictUpdateSetAll`, so its failure mode on a newly added column is
+  the *opposite* one — over-update, i.e. nulling a client-local column its
+  callers do not carry — and nothing pins it. Recorded rather than fixed;
+  expanding the guard to a second writer was outside this round's brief.
+
+- **D78: the D75 write-ordering dependency is now load-bearing enough to
+  show up in a test's setup.** No change to the D75 finding itself — it
+  stands as recorded, and this entry only sharpens it. `handleGroupUpdate`'s
+  `updateChannel` case writes the edited channel via `db.updateChannel`,
+  then calls `syncGroup(…, {force: true})` against a fresh `api.getGroup`.
+  Pre-D56 that forced sync could not disturb the columns the fact carried;
+  post-D56, and now more so post-D76, it rewrites **every** column in the
+  conflict-update set — title, description, `descriptionPayload`,
+  `surfaceSpec`, and both colours.
+
+  What this round added: the new live-path guard test
+  (`handleGroupUpdate.test.ts`, "an r-channel edit fact carries the
+  description payload and surface spec into the channel row") **cannot** let
+  `api.getGroup` echo the edit, because then the forced re-sync would make
+  the test pass even if `db.updateChannel` wrote nothing at all. It mocks a
+  channel-less group so `insertGroups` skips its channel upsert entirely.
+  That the test has to be written that way *is* the evidence that the two
+  writes are now indistinguishable from outside — which is exactly the
+  condition under which a scry returning pre-edit state would revert a
+  correct write. Symptom to expect if `%groups` ever emits a fact before
+  updating its state: a metadata edit that visibly reverts a second or two
+  later. Still judged low-risk (%groups updates state before emitting), and
+  still not worked around.
+
+- **D79: the live verification behind this fix was performed as the
+  channel's own host. Recorded as an inference, not an observation.** The
+  client used to confirm the surface-spec propagation was the host of the
+  channel it edited, not a remote member. The result is judged to
+  generalise because host-ness is not consulted anywhere on the touched
+  paths: `currentUserIsHost` is *computed* by `toClientChannel` (host of the
+  channel id vs the current ship) and *written*, never *read*, by
+  `insertGroups`, `insertChannelsInternal`, `updateChannel`, or
+  `handleGroupUpdate`'s channel cases; and the conflict-update set is a
+  static column list with no per-ship branching. Remote delivery of an
+  `r-channel` edit is pre-existing `%groups` machinery that this change does
+  not touch. **What that argument does not cover, and nobody has observed:**
+  a remote member's `toClientChannel` runs with a *different* `readers ∩
+  currentUserRoles`, which is precisely the `currentUserIsMember` value this
+  audit decided to keep excluded. That decision is defended by three
+  independent in-repo comments rather than by the live test, and the live
+  test could not have exercised it — a host is always a member. Anyone
+  revisiting the `currentUserIsMember` exclusion should treat it as
+  unobserved on the remote path.
+
+## Fix round decisions (CI: the headless preview leg and the path-filter class)
+
+- **D80: the surface preview's headless leg was wired into the one job
+  that cannot run on the branch that introduced it, and would have failed
+  if it had.** Two independent defects in a single step placement, worth
+  separating because they have different fixes.
+
+  *It never ran.* `bot-checks` is gated `needs.changes.outputs.app ==
+  'false' && needs.changes.outputs.bots == 'true'` (ci.yml:210-211).
+  `app` is an ignore-list evaluated with `predicate-quantifier: every`, so
+  any file outside the five exclusions sets `app=true` — and this branch
+  touches `packages/app/**` and `apps/tlon-web/**`. `bot-checks` is
+  therefore skipped on every commit of the branch that added the step, and
+  `test-build` (`app != 'false'`, ci.yml:102) runs instead with no browser
+  flag. Corroborated, not just read: the last 12 `ci.yml` runs all show
+  `test-build` executed and `Bot Package Checks` skipped; runs 33191369729
+  and 33190639060 (`db/quarantine-auth-failures`) show the reverse. Never
+  both, in either direction.
+
+  *It would have failed.* `pnpm --filter '@tloncorp/tlon-skill' check`
+  needs the shell's **built** artifact, and `bot-checks` had no
+  `build:surface-shell` step (the only occurrence in the workflow was in
+  `test-build`). Demonstrated by hiding `packages/surface-shell/dist` and
+  running the suite: `error: Cannot find module
+  '@tloncorp/surface-shell/artifact-strings'`, 0 pass / 1 fail / 1 error.
+
+  **Correction to the brief that ordered this fix:** it is the `pnpm test`
+  half of `check` that dies, not the typecheck. `tsc` runs
+  `moduleResolution: Node`, cannot follow an `exports` subpath at all, and
+  `surface-preview.ts` carries `@ts-expect-error` on each such import for
+  exactly that reason — so `typecheck:src` exits 0 with or without `dist/`
+  and proves nothing here. Recorded because "the typecheck catches it" is
+  a false sense of coverage that would survive the fix.
+
+- **D81: both jobs carry the leg, because the two jobs are mutually
+  exclusive and each is some PR's only job.** `test-build` runs when
+  `app != 'false'`, `bot-checks` when `app == 'false'`; no PR runs both, so
+  adding the leg twice costs one run, not two. `test-build`-only would
+  have reproduced the identical bug for the opposite diff shape — a
+  tlon-skill-only PR skips `test-build` entirely. Relaxing `bot-checks`'
+  `app == 'false'` gate was considered and rejected: the job exists only to
+  cover what `test-build` would have covered (ci.yml:194-202), and dropping
+  the gate makes its other six steps duplicate `test-build`'s repo-wide
+  equivalents on every mixed PR forever, for zero new coverage.
+
+  In `test-build` the leg is a targeted `bun test
+  ./scripts/surface-preview.test.ts` with `TLON_PREVIEW_BROWSER=1`, because
+  `pnpm test:ci` already runs the rest of that suite; in `bot-checks` the
+  env var rides on the existing `check` step. Verified locally with the
+  exact command: 24 pass in 9.11s with the flag, 23 pass + **1 skip** in
+  91ms without it. The flag is load-bearing and the step is not decorative.
+
+- **D82: the missing shell build is not a `bot-checks` bug, it is a
+  clean-checkout bug, and it had two more instances outside ci.yml.**
+  `tlon-skill-publish.yml`'s `quality` job runs the same
+  `pnpm --filter '@tloncorp/tlon-skill' check` after only `pnpm build:api`,
+  and its `build` matrix job compiles the CLI binary — which bundles
+  `scripts/main.ts` and reaches the same import. Demonstrated for the
+  build path too: with `dist/` hidden, `node scripts/build.js` fails with
+  `error: Could not resolve: "@tloncorp/surface-shell/artifact-strings"`.
+  Both got `pnpm build:surface-shell`. The release gate deliberately does
+  **not** get the headless leg: it already ran on the PR that produced the
+  tag, and a release gate is the wrong place to first discover a browser.
+
+- **D83: "classified in both path filters" is not a symmetrical edit,
+  because the two filters are opposite shapes.** `packages/surface-shell`
+  appeared in neither filter. In the `app` ignore-list, membership is the
+  **absence** of an exclusion — the shell is already classified there and
+  the correct edit is a comment saying so, since the app embeds the built
+  shell in its sandbox host and a shell-only change must run the app suite.
+  In `bots`, membership is the **presence** of an entry, so the glob was
+  added.
+
+  The `bots` entry is inert today and that is stated in the workflow rather
+  than glossed: a shell change also sets `app=true`, and `bot-checks`
+  requires `app == 'false'`, so the entry can never be the deciding
+  condition as things stand. It is there for the state one careless edit
+  away — someone excluding the shell from `app` believing it bot-only. With
+  the entry, that lands on `bot-checks`; without it, on nothing at all.
+
+- **D84: the class fix is a check that reads ci.yml and the workspace and
+  asserts every package is selected by some filter.** The defect class is
+  not "the shell was forgotten", it is "a package can exist and be
+  classified nowhere" — and the ignore-list makes that silent: exclude a
+  package from `app`, forget the positive list, and every gated job skips
+  while `CI OK` reports green over a diff nothing looked at.
+
+  `scripts/check-ci-path-filters.mjs` parses the real
+  `dorny/paths-filter` steps out of `.github/workflows/ci.yml` (patterns,
+  and `predicate-quantifier` per step), expands the real `packages:` globs
+  from `pnpm-workspace.yaml`, and for each package evaluates
+  `<package>/package.json` against every filter with paths-filter's own
+  semantics — `every` means all patterns including negations, `some` means
+  any. Zero packages may match zero filters. It hardcodes neither the
+  package list nor the filter names, so it cannot drift from what it
+  guards; unsupported glob syntax throws rather than being silently
+  mis-evaluated. Three secondary assertions ride along: a filter defined
+  but read by no job condition, a negated pattern under a `some`
+  quantifier (the pre-#6128 dead-letter bug), and a filter naming a
+  package directory that no longer exists.
+
+  Per the round's third rule it was shown failing, not just passing.
+  Dropping `packages/tlon-skill/**` from `bots` while it stays excluded
+  from `app`: *"packages/tlon-skill is not classified by any path filter
+  … so every gated job would skip and CI OK would pass without running
+  anything."* Excluding `packages/surface-shell` from `app` **without**
+  the new `bots` entry fails the same way; **with** it, it passes — which
+  is the argument for D83 made executable. Renaming a package out from
+  under a filter entry raises both the uncovered package and the stale
+  entry.
+
+  It runs in a new `ci-config-check` job with **no `needs` and no `if`**.
+  That is the whole point: a package no filter selects skips every
+  filter-gated job by construction, so a gated guard could never observe
+  it. The job is in `ci-ok`'s `needs`, so it blocks merges.

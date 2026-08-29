@@ -12,6 +12,14 @@ jobs:
   # the app suite, so we never silently skip needed tests. `bots` mirrors that
   # package list positively; it gates the bot-checks job that keeps the checks
   # only test-build used to provide (see below) running on bot-only PRs.
+  #
+  # The two filters are different shapes, so "classified" means different
+  # things in each: in the ignore-list, a package is classified by the
+  # ABSENCE of an exclusion; in a positive list, by the PRESENCE of an entry.
+  # A package excluded from `app` and named in no positive filter matches
+  # nothing, so every gated job skips and CI OK goes green over a diff
+  # nothing looked at. `ci-config-check` below runs
+  # scripts/check-ci-path-filters.mjs to make that unrepresentable.
   changes:
     runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
@@ -33,6 +41,10 @@ jobs:
           filters: |
             app:
               - '**'
+              # packages/surface-shell is deliberately NOT excluded: the app
+              # embeds the built shell in its sandbox host, so a shell-only
+              # change must run the app suite. Not excluding it IS its
+              # classification here.
               - '!packages/openclaw/**'
               - '!packages/hermes-tlon-adapter/**'
               - '!packages/tlon-bot-e2e/**'
@@ -52,6 +64,34 @@ jobs:
               - 'packages/hermes-tlon-adapter/**'
               - 'packages/tlon-bot-e2e/**'
               - 'packages/tlon-skill/**'
+              # The shell has two consumers: packages/app and tlon-skill's
+              # surface preview. Listing it here is inert today (a shell
+              # change also sets app=true, and bot-checks requires
+              # app == 'false'), and that is the point: if anyone ever
+              # excludes the shell from `app` believing it to be
+              # bot-only, bot-checks picks it up instead of nothing at all.
+              - 'packages/surface-shell/**'
+
+  # A guard on the gating itself, and the only job here with no `needs` and
+  # no `if`. That is deliberate: the defect it catches is a workspace package
+  # that no path filter selects, and such a package skips every filter-gated
+  # job by definition — so a gated guard could never see it. Cheap enough to
+  # pay for on every PR (checkout + node, no install; the script has no
+  # dependencies).
+  ci-config-check:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    name: CI Config Check
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Every workspace package is classified by a path filter
+        run: node scripts/check-ci-path-filters.mjs
 
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
@@ -102,6 +142,51 @@ jobs:
 
       - name: Run Tests
         run: pnpm test:ci
+
+      # `surface preview`'s headless leg is the only check in the repo that
+      # renders a surface bundle through the real shell in real Chromium, the
+      # way a phone renders it. It is opt-in (TLON_PREVIEW_BROWSER) so the
+      # suite stays runnable on a machine with no browser binaries, which is
+      # exactly why it needs an explicit step: `pnpm test:ci` above runs the
+      # tlon-skill suite with the leg silently skipped.
+      #
+      # It lives in BOTH this job and bot-checks. The two are mutually
+      # exclusive by construction (`app != 'false'` vs `app == 'false'`), so
+      # this is not double cost — whichever one the PR runs pays it once.
+      # Putting it only here would have left bot-only PRs (which skip
+      # test-build entirely) without it, i.e. the same bug for the opposite
+      # diff shape.
+      #
+      # The cache key matches smoke-test's and bot-checks' by coincidence,
+      # not design: apps/tlon-web's @playwright/test and packages/tlon-skill's
+      # playwright happen to resolve the same version today, so the entries
+      # share and the browser is usually already warm. If they diverge the
+      # keys diverge too and each job just downloads its own — correct, only
+      # slower.
+      - name: Get tlon-skill Playwright version
+        id: skill-playwright-version
+        run: echo "version=$(node -p
+          "require('playwright/package.json').version")" >> $GITHUB_OUTPUT
+        working-directory: ./packages/tlon-skill
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: skill-playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{
+            steps.skill-playwright-version.outputs.version }}
+
+      - name: Install Playwright Chromium
+        if: steps.skill-playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: ./packages/tlon-skill
+
+      - name: Surface preview headless capture
+        run: bun test ./scripts/surface-preview.test.ts
+        working-directory: ./packages/tlon-skill
+        env:
+          TLON_PREVIEW_BROWSER: "1"
 
       - name: tlon-skill build smoke
         run: pnpm --filter '@tloncorp/tlon-skill' build:smoke
@@ -162,12 +247,27 @@ jobs:
           pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
           pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
 
+      # tlon-skill's preview imports the shell's BUILT artifact
+      # (`@tloncorp/surface-shell/artifact-strings` resolves through the
+      # package's exports map to dist/artifactStrings.js) and its test reads
+      # dist/surface-shell.{js,css} off disk. dist/ is gitignored, so without
+      # this step the whole tlon-skill suite dies at module load on a clean
+      # checkout ("Cannot find module '@tloncorp/surface-shell/artifact-
+      # strings'"). It is the `pnpm test` half of `check` that dies, not the
+      # typecheck: tsc runs moduleResolution:Node, cannot follow an exports
+      # subpath at all, and the imports carry @ts-expect-error for that — so
+      # the typecheck is green with or without dist and proves nothing here.
+      # test-build builds the shell near the top for the same reason.
+      - name: Build surface-shell package (tlon-skill imports its dist)
+        run: pnpm build:surface-shell
+
       # `surface preview` is the only check that renders a bundle the way a
       # phone will, so its headless leg has to actually run here. It is
       # opt-in (TLON_PREVIEW_BROWSER) so the suite stays runnable on a
       # machine with no browser binaries — which meant that until this step
       # existed it ran nowhere, while a comment in the test asserted CI ran
-      # it.
+      # it. test-build carries the same leg; the two jobs are mutually
+      # exclusive, so it runs exactly once per PR either way.
       - name: Get tlon-skill Playwright version
         id: skill-playwright-version
         run: echo "version=$(node -p
@@ -210,10 +310,11 @@ jobs:
   # cancellation — including the changes job itself erroring — fails the
   # gate. `always()` (not `!cancelled()`) so a cancelled run reports a
   # failure instead of a skip, which would satisfy the required check.
-  # When adding a new filter-gated job, append it to `needs` here.
+  # When adding a new job that must block merges — filter-gated or not, like
+  # ci-config-check — append it to `needs` here.
   ci-ok:
     name: CI OK
-    needs: [changes, test-build, bot-checks]
+    needs: [changes, ci-config-check, test-build, bot-checks]
     if: ${{ always() }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
