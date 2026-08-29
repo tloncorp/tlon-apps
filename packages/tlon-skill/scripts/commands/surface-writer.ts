@@ -22,8 +22,11 @@ import {
  * Nothing in this file treats a poke as a result. `sendPost` is an untracked
  * poke — it returns once the local agent has taken the action, which says
  * nothing about whether `%channels-server` accepted it — so a written post
- * is a post that has been read back, matched on content, and confirmed to
- * still carry its surface kind.
+ * is a post that has been read back, matched on content, shown to postdate
+ * the channel's pre-write head, and confirmed to still carry its surface
+ * kind. Content without the head check is not a weaker version of this
+ * check; it is a different claim ("a post like this exists") that a silent
+ * no-op over an identical earlier post satisfies with no write at all.
  */
 
 export const DEFAULT_PAGE_SIZE = 200;
@@ -232,14 +235,85 @@ export interface PostSurfaceRecordInput {
 }
 
 /**
+ * The channel's head as it stood immediately before a write.
+ *
+ * Content alone cannot prove a write landed. Author, `sent` and blob are all
+ * things the SENDER chose — `sent` especially (D53), which is why two runs of
+ * the same command in the same millisecond carry the same one — so a post
+ * matching all three may be a post this command wrote, or a post that was
+ * already sitting there when it started. The two are told apart by
+ * host-stamped identity: the sequence number `%channels-server` assigns, or
+ * failing that the id it stamps, neither of which the sender can pick.
+ */
+interface PostHead {
+  /** the highest sequence number the channel held before the write */
+  sequenceNum: number | null;
+  /** the ids the pre-write window held, for a channel without sequencing */
+  ids: Set<string>;
+}
+
+async function readPostHead(
+  deps: SurfaceDeps,
+  channelId: string,
+  window: number
+): Promise<PostHead> {
+  const page = await deps.readPostPage({
+    channelId,
+    mode: 'newest',
+    count: window,
+  });
+  const ids = new Set<string>();
+  let sequenceNum: number | null = null;
+  for (const post of page.posts) {
+    ids.add(post.id);
+    if (
+      typeof post.sequenceNum === 'number' &&
+      (sequenceNum === null || post.sequenceNum > sequenceNum)
+    ) {
+      sequenceNum = post.sequenceNum;
+    }
+  }
+  return { sequenceNum, ids };
+}
+
+/**
+ * Whether a post is one this command's write produced.
+ *
+ * A channel that was sequenced before the write answers directly, and answers
+ * strictly: `%channels-server` hands out sequence numbers in order, so a post
+ * at or below the pre-write head was already there, and a post the host has
+ * not sequenced AT ALL is not evidence of anything the host did.
+ *
+ * The id set is for the one case that has no head to sit above — a channel
+ * with no sequenced post in it, which is an empty one. It is sound for the
+ * same reason: the baseline window is read at the SAME size as the
+ * observation window, so any post the observation can see that the baseline
+ * did not hold arrived after the baseline was taken. (A post old enough to
+ * have fallen out of the baseline window has, by then, been pushed out of the
+ * observation window too.)
+ */
+function postdatesHead(head: PostHead, post: SurfacePostRecord): boolean {
+  if (head.sequenceNum !== null) {
+    return (
+      typeof post.sequenceNum === 'number' &&
+      post.sequenceNum > head.sequenceNum
+    );
+  }
+  return !head.ids.has(post.id);
+}
+
+/**
  * Writes one surface record and confirms it landed.
  *
  * The post's id is stamped by the host at `%add` time, so a writer cannot
  * know it in advance and cannot look the post up by id. What it can do is
  * recognise its own post: same author, same `sent` value it supplied, same
- * blob bytes. Once found, the raw `essay.kind` is read straight from
- * `%channels` — a post that came back as a plain `/chat` message is a
- * failure even though every poke succeeded.
+ * blob bytes — AND a host-stamped identity above the head the channel had
+ * before the poke went out. Matching content is not proof of a write; it is
+ * proof that content like this is present, which a silent no-op over an
+ * identical earlier post satisfies without writing anything. Once found, the
+ * raw `essay.kind` is read straight from `%channels` — a post that came back
+ * as a plain `/chat` message is a failure even though every poke succeeded.
  */
 export async function postSurfaceRecord(
   deps: SurfaceDeps,
@@ -257,6 +331,8 @@ export async function postSurfaceRecord(
   const blob = buildSurfaceBlob(input.entry);
   const sentAt = deps.now();
   const author = deps.normalizeShip(deps.actingShip());
+  const window = input.matchWindow ?? 25;
+  const head = await readPostHead(deps, input.channelId, window);
 
   await deps.sendSurfacePost({
     channelId: input.channelId,
@@ -267,25 +343,33 @@ export async function postSurfaceRecord(
   });
 
   const budget = input.budget ?? deps.observationBudget;
-  const window = input.matchWindow ?? 25;
+  /** the newest matching post that was already there, if the write left none */
+  let matchedExisting: string | null = null;
   const observation = await observeUntil(deps, budget, async () => {
     const page = await deps.readPostPage({
       channelId: input.channelId,
       mode: 'newest',
       count: window,
     });
-    const match = page.posts.find(
+    const matches = page.posts.filter(
       (post) =>
         deps.normalizeShip(post.authorId) === author &&
         post.sentAt === sentAt &&
         post.blob === blob
     );
-    return match
-      ? { done: true, value: match }
-      : {
-          done: false,
-          detail: `no post by ${author} carrying this ${input.kind} record has appeared in ${input.channelId}`,
-        };
+    const match = matches.find((post) => postdatesHead(head, post));
+    if (match) {
+      matchedExisting = null;
+      return { done: true, value: match };
+    }
+    const stale = matches[0];
+    matchedExisting = stale?.id ?? null;
+    return {
+      done: false,
+      detail: stale
+        ? `${input.channelId} holds a ${input.kind} record by ${author} with exactly this content, but it is post ${stale.id}, which was already there before this write — the send left no new post behind`
+        : `no post by ${author} carrying this ${input.kind} record has appeared in ${input.channelId}`,
+    };
   });
 
   if (!observation.ok) {
@@ -298,6 +382,7 @@ export async function postSurfaceRecord(
         kind: input.kind,
         observed: observation.detail,
         attempts: observation.attempts,
+        matchedExistingPost: matchedExisting,
       }
     );
   }

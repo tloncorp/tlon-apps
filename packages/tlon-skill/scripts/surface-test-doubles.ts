@@ -242,11 +242,24 @@ export class FakeShip {
   ): FakePost {
     const list = this.posts.get(channelId) ?? [];
     this.postCounter += 1;
+    // `%channels-server` stamps sequence numbers in order, so the next one is
+    // above every sequence the channel already holds — not the list length,
+    // which a test that injects a high sequence would make go BACKWARDS. A
+    // sequence that can go backwards is not the ship's; it is a number the
+    // double made up, and a writer confirming itself against it would be
+    // confirming itself against nothing.
+    const highest = list.reduce(
+      (seq, entry) =>
+        typeof entry.sequenceNum === 'number' && entry.sequenceNum > seq
+          ? entry.sequenceNum
+          : seq,
+      0
+    );
     const record: FakePost = {
       id: post.id ?? `post-${this.postCounter}`,
       authorId: post.authorId ?? this.ship,
       sentAt: post.sentAt ?? this.now(),
-      sequenceNum: post.sequenceNum ?? list.length + 1,
+      sequenceNum: post.sequenceNum ?? highest + 1,
       isEdited: post.isEdited ?? false,
       isDeleted: post.isDeleted ?? false,
       blob: post.blob ?? null,
@@ -272,6 +285,12 @@ export class FakeShip {
     const effect = this.options.createEffect ?? 'both';
     const delay = this.options.createDelayPolls ?? 0;
     const apply = () => {
+      // D50, in the double: `ca-create` under a name `%channels` already
+      // holds is a SILENT no-op, and the poke still resolves. Nothing about
+      // the existing channel changes — not its title, not its description —
+      // so a create that lands on a taken name leaves the ship exactly as
+      // it found it while reporting nothing at all.
+      if (this.nests.has(poke.id)) return;
       if (effect === 'both' || effect === 'channels-only') {
         this.nests.set(poke.id, {
           perms: { group: effect === 'both' ? poke.group : `${this.ship}/` },

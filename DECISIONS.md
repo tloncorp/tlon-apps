@@ -2238,3 +2238,140 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   missing, and the remedy is `tlon surface snapshot <channel>`, never a
   republish and above all never a republish without `--preserve-state`,
   which unsticks the board by emptying it.
+
+- **D89: a snapshot's state and the boundary it claims are one fact, so
+  `--up-to` folds to the boundary rather than stamping a boundary on a wider
+  fold.** `surface snapshot --up-to N` reduced the whole history, accepted any
+  N no greater than the newest post, and wrote that full fold as the state for
+  N. The reducer trusts the pair and never checks it — it starts from the
+  snapshot's state and replays every event strictly above the boundary — so
+  the events between N and the newest post were in the state AND replayable.
+  Two appends and `--up-to 1` produced `["a","b"]` under a boundary of 1, and
+  the next fold returned `["a","b","b"]`, permanently, for every client.
+
+  The fix folds only the posts at or below N. Rejecting any boundary but the
+  fold watermark would also have closed the duplication, and was rejected:
+  `--up-to` earns its place — a snapshot boundary below the newest post is
+  what leaves the tail replayable, and therefore retractable, since an edit
+  only retracts an event the reducer still replays. A flag that accepts one
+  value is a flag that should not exist.
+
+  The boundary is inclusive in both directions, and both are load-bearing.
+  Folding past it double-counts; folding short of it freezes the events below
+  out, because the reducer never looks under a boundary again — an exclusive
+  filter writes `[]` under a boundary of 1 and the event at sequence 1 is gone
+  for good. One refusal is new: below the sequence at which a preserving
+  revision's own snapshot was posted, that revision has no state at all, so
+  the bounded fold returns `migration-pending` and the command says so instead
+  of writing something. Without it the record falls through to the schema and
+  the channel is told its state is too large.
+
+  Three controls, each shown failing. The duplication test fails before the
+  fix with the fold's `["a","b"]` under boundary 1 and the replayed
+  `["a","b","b"]`. Mutating `<=` to `<` fails the boundary-inclusive test.
+  Mutating the no-state-at-this-boundary guard away fails the refusal test
+  with `state-too-large` — the misleading code the guard exists to prevent.
+
+  The class was swept. `repairPendingMigration` (same file) already takes its
+  boundary from the carried state's own coverage, and `surface preview` and
+  `surface lint` pair `initialState` with a boundary of 0 while synthesising
+  their invokes at sequence 1 and above — all three fold and claim the same
+  events. One residual sits in `surface-publish.ts:foldForMigration`, out of
+  this change's scope: when a `--preserve-state` publish finds no readable
+  current definition it pairs the new definition's `initialState` — which
+  covers nothing — with a boundary at the newest post. Under a new spec whose
+  action sets `acceptStale`, an old-revision invoke below that boundary is
+  neither carried into the state nor replayable afterwards. The same situation
+  is an explicit refusal on the repair path ("reconstructing the state would
+  mean guessing at it") and a silent freeze-out here.
+- **D90: a write is confirmed by evidence the write PRODUCED, never by
+  evidence that matching state is present.** Two observations accepted
+  pre-existing state as proof of a new write, and both reported success for a
+  poke that did nothing.
+
+  `postSurfaceRecord` recognised its own post by author, `sent` and blob. All
+  three are sender-chosen — `sent` especially, which the sender supplies and
+  the host does not stamp (D53) — so a matching post already in the channel
+  satisfied every one of them. With a silent no-op send over an identical
+  earlier post, the writer returned success and the OLD post's id; a second
+  run of the same command in the same millisecond is enough to produce that
+  pair. It now reads the channel's head before poking and requires the
+  matched post to sit above it. Strictly: where the channel was sequenced at
+  all, the proof must be a `%channels-server` sequence number above the
+  pre-write maximum, and a post the host has not sequenced is not proof of
+  anything the host did. The id set is the fallback for the one case with no
+  head to sit above — a channel with nothing sequenced in it — and it is
+  sound because the baseline is read at the same window size as the
+  observation, so anything the observation sees that the baseline did not
+  hold arrived after the baseline. The failure names the offending post
+  (`details.matchedExistingPost`) rather than saying "not confirmed": "an
+  identical post is already there" and "nothing arrived" have different
+  causes.
+
+  `surface create` verified a name it had not necessarily assigned. The
+  candidate loop drew a fresh random name on its last pass and exited with it
+  unchecked, so nine names in use meant creating under a ninth name nothing
+  had looked at. The ninth-candidate path is deleted rather than repaired:
+  eight collisions in a row mean the name space is exhausted or the generator
+  is degenerate, and in neither case is a ninth draw likelier to be free —
+  only likelier to be unchecked. Exhaustion is now a clean `name-taken`
+  refusal with the drawn candidates in `details`, and nothing is poked.
+
+  Deleting that path fixes the incident, not the class: presence in both
+  agents is equally what a silent no-op onto a name taken since the
+  pre-flight check looks like, and that no-op leaves the channel it landed on
+  untouched. So the observation additionally requires `%groups` to list the
+  channel under the title THIS command poked with — a value that reaches
+  `%groups` only if `%groups` took our create. The `added` timestamp was
+  considered as a stronger host-stamped identity and rejected: comparing it
+  against a locally-read clock makes every create fail on a skewed one, which
+  is a guarantee the data cannot give. The residual is a rename landing
+  inside the poll interval of the create it renames, which reports
+  `create-unconfirmed` for a create that worked; the reverse error, reporting
+  a title the channel does not carry, is the one that leaves a caller acting
+  on a channel it does not own.
+
+  The report now carries the title READ BACK. On the create path the two are
+  equal because the observation refused to finish until they were; on the
+  reuse path they are routinely different, since `--on-collision reuse`
+  renames nothing, and the old report echoed the requested title over a
+  channel that had its own.
+
+  Two changes to the fake ship are faithfulness, not accommodation. Sequence
+  numbers are now stamped above every sequence the channel holds rather than
+  at the list length, because a sequence that can go backwards is not the
+  ship's; and `applyCreate` under a name `%channels` already holds is a
+  silent no-op that still resolves, which is D50 itself and was the one part
+  of D50 the double could not express. Both are load-bearing: reverting
+  either makes a test fail.
+
+  Every control was shown failing first. Pre-fix, the writer returned
+  `{postId: "post-1"}` with one post in the channel and nothing sent, and
+  create reported `ok:true, reused:false, title:"Potluck"` over a channel
+  stored as `"Existing 9"`. Post-fix both refuse, and each check is
+  mutation-checked separately: `postdatesHead` forced true fails the writer
+  control, restoring the ninth-candidate loop fails the loop control (with
+  `create-unconfirmed` rather than `name-taken` — the title check catches
+  what the loop bug lets through, which is what makes it the class fix), and
+  removing the title check fails the race control while the loop fix stays in
+  place.
+
+  The class was swept across every mutating call in the command set — the
+  five `deps.createChannel` / `writeGroupChannel` / `sendSurfacePost` /
+  `editSurfacePost` / `uploadBundle` sites and the four `observeUntil`
+  probes. `surface publish`'s read-back compares the raw cell against the
+  exact bytes written, which pre-existing state could satisfy, but the
+  revision bump means the cell cannot already hold what a changed publish
+  writes, and an unchanged one takes the no-change path. `uploadBundle` is
+  out of the class: `uploadFile` stamps a timestamp into every key, so the
+  URL it returns cannot be a pre-existing object's. One genuine residual
+  remains, in `retractSurfacePost`: it observes `isEdited`, which a post
+  edited by anything earlier already satisfies, so retracting an
+  already-edited post reports success whether or not the `%edit` landed. The
+  effect on the fold is right either way (the reducer skips any edited
+  surface post), and what is over-claimed is the rewritten fallback text.
+  Fixing it properly needs the host-stamped edit revision on
+  `SurfacePostRecord`, which is a `surface-common.ts` and runtime change;
+  refusing an already-edited post instead would trade a false success for a
+  false failure on the retry of a half-failed retraction, so it is filed
+  rather than guessed at.

@@ -4,6 +4,7 @@ import {
   type FakeShipOptions,
   createTestSurfaceDeps,
 } from '../surface-test-doubles';
+import type { SurfaceDeps } from './surface-common';
 import {
   isBurnedName,
   isBuntGroupFlag,
@@ -13,7 +14,12 @@ import { run } from './surface';
 
 const GROUP = '~zod/dashboards';
 
-function setup(options: FakeShipOptions & { admin?: boolean } = {}) {
+function setup(
+  options: FakeShipOptions & {
+    admin?: boolean;
+    overrides?: Partial<SurfaceDeps>;
+  } = {}
+) {
   const harness = createTestSurfaceDeps(options);
   harness.ship.addGroup(GROUP, {
     admins: ['admin'],
@@ -223,6 +229,73 @@ describe('surface create — names', () => {
     expect(code).toBe(0);
     expect(reused.json().reused).toBe(true);
     expect(reused.ship.createPokes).toHaveLength(0);
+    // Reuse renames nothing, so the report carries the channel's OWN title,
+    // not the one asked for.
+    expect(reused.json().title).toBe('Dashboard');
+  });
+
+  it('never assigns a candidate name it has not checked', async () => {
+    const harness = setup();
+    // Nine names already taken: the eight the loop draws, plus the one it
+    // used to draw ninth and never checked.
+    for (let index = 1; index <= 9; index += 1) {
+      const channel = harness.ship.addChannel(
+        GROUP,
+        `chat/~zod/dash-${String(index).padStart(4, '0')}`
+      );
+      channel.meta.title = `Existing ${index}`;
+    }
+
+    const code = await run(
+      ['create', GROUP, '--title', 'Potluck', '--json'],
+      harness.deps
+    );
+
+    expect(code).toBe(1);
+    expect(harness.json().code).toBe('name-taken');
+    // No poke at all: a name that cannot be shown free is not poked at.
+    expect(harness.ship.createPokes).toHaveLength(0);
+    expect(
+      harness.ship.groups.get(GROUP)?.channels['chat/~zod/dash-0009']?.meta
+        .title
+    ).toBe('Existing 9');
+  });
+
+  it('refuses a create that silently no-oped onto a name taken since the check', async () => {
+    const harness = setup();
+    const code = await run(
+      ['create', GROUP, '--title', 'Potluck', '--json'],
+      harness.deps
+    );
+    expect(code).toBe(0);
+    expect(harness.json().channel).toBe('chat/~zod/dash-0001');
+
+    // The same create, with the name taken between the presence check and
+    // the poke. `ca-create` no-ops silently; both agents then hold a
+    // channel of that name, which presence alone cannot tell from ours.
+    const raced = setup({
+      overrides: {
+        createChannel: async (poke) => {
+          const channel = raced.ship.addChannel(GROUP, poke.id);
+          channel.meta.title = 'Someone else’s channel';
+          raced.ship.applyCreate(poke);
+        },
+      },
+    });
+    const racedCode = await run(
+      ['create', GROUP, '--title', 'Potluck', '--json'],
+      raced.deps
+    );
+
+    expect(racedCode).toBe(1);
+    const result = raced.json();
+    expect(result.code).toBe('create-unconfirmed');
+    expect(
+      String((result.details as Record<string, unknown>).observed)
+    ).toContain('Someone else’s channel');
+    expect(
+      raced.ship.groups.get(GROUP)?.channels['chat/~zod/dash-0001']?.meta.title
+    ).toBe('Someone else’s channel');
   });
 
   it('requires a collision decision to be about an explicit name', async () => {

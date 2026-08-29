@@ -44,6 +44,9 @@ Examples:
 
 const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]*$/;
 
+/** How many random names may be drawn and checked before the create gives up. */
+const RANDOM_NAME_ATTEMPTS = 8;
+
 /** How the create is allowed to react to a name that is already in use. */
 export type CollisionPolicy = 'fail' | 'reuse';
 
@@ -267,18 +270,40 @@ export async function runSurfaceCreate(
       reused = true;
     }
   } else {
-    name = deps.randomSlug();
-    for (let attempt = 0; attempt < 8; attempt += 1) {
-      const candidate = `chat/${host}/${name}`;
+    // Every candidate that gets USED is a candidate that was checked. The
+    // loop this replaces drew a fresh name on its last pass and left the
+    // loop with it unexamined, so a run that collided eight times went on to
+    // create under a ninth name nothing had ever looked at — and a create
+    // onto a taken name is a silent no-op that still reports success.
+    //
+    // Exhaustion is a refusal rather than one more draw. Eight collisions in
+    // a row mean the name space is exhausted or the generator is degenerate,
+    // and in neither case is a ninth draw likelier to be free; it is only
+    // likelier to be unchecked.
+    const drawn: string[] = [];
+    let free: string | undefined;
+    for (let attempt = 0; attempt < RANDOM_NAME_ATTEMPTS; attempt += 1) {
+      const candidate = deps.randomSlug();
+      drawn.push(candidate);
       const presence = readChannelPresence({
-        channelId: candidate,
+        channelId: `chat/${host}/${candidate}`,
         groupId,
         nests,
         groupChannels,
       });
-      if (!presence.inChannels && !presence.inGroups) break;
-      name = deps.randomSlug();
+      if (!presence.inChannels && !presence.inGroups) {
+        free = candidate;
+        break;
+      }
     }
+    if (free === undefined) {
+      throw surfaceError(
+        'name-taken',
+        `${RANDOM_NAME_ATTEMPTS} random channel names were drawn for ${groupId} and every one of them is already in use on this ship, so nothing was created. Retry, or pass --name with a name you have chosen.`,
+        { group: groupId, attempts: drawn.length, candidates: drawn }
+      );
+    }
+    name = free;
   }
 
   const channelId = `chat/${host}/${name}`;
@@ -315,7 +340,26 @@ export async function runSurfaceCreate(
         groupChannels: currentGroupChannels,
       });
       if (presence.inChannels && presence.inGroups) {
-        return { done: true, value: presence };
+        // Presence is not proof of THIS create. Both agents holding a
+        // channel of this name is equally what a silent no-op onto a name
+        // taken since the pre-flight check looks like, and that no-op leaves
+        // the channel it landed on untouched — its title included. So the
+        // listing has to carry the title this command poked with; that title
+        // is in `%groups` only if `%groups` took our create.
+        const listedTitle = currentGroupChannels?.[channelId]?.meta?.title;
+        if (typeof listedTitle !== 'string') {
+          return {
+            done: false,
+            detail: `${groupId} lists ${channelId} but holds no readable title for it`,
+          };
+        }
+        if (!reused && listedTitle !== title) {
+          return {
+            done: false,
+            detail: `${groupId} lists ${channelId} under the title "${listedTitle}", not "${title}" — this create did not make that channel, it landed on one that was already there`,
+          };
+        }
+        return { done: true, value: { title: listedTitle } };
       }
       if (presence.inChannels) {
         return {
@@ -350,11 +394,18 @@ export async function runSurfaceCreate(
     );
   }
 
+  // The title READ BACK, never the one asked for. On the create path the two
+  // are equal because the observation refused to finish until they were; on
+  // the reuse path they are frequently different — `--on-collision reuse`
+  // renames nothing — and reporting the requested one there would be a claim
+  // about the channel that is simply false.
+  const observedTitle = observation.value.title;
+
   const report: SurfaceReport = {
     json: {
       channel: channelId,
       group: groupId,
-      title,
+      title: observedTitle,
       name,
       reused,
       observedIn: ['channels', 'groups'],
@@ -364,7 +415,7 @@ export async function runSurfaceCreate(
       reused
         ? `Reused existing channel ${channelId}`
         : `Created channel ${channelId}`,
-      `  title:    ${title}`,
+      `  title:    ${observedTitle}`,
       `  group:    ${groupId}`,
       `  observed: present in %channels and listed in ${groupId}`,
     ],

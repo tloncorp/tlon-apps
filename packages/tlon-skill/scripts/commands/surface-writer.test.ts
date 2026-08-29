@@ -73,6 +73,59 @@ describe('postSurfaceRecord', () => {
     expect(JSON.parse(post?.blob ?? '[]')[0].specRevision).toBe(2);
   });
 
+  it('refuses a matching post that was already there before the write', async () => {
+    const harness = createTestSurfaceDeps({
+      overrides: {
+        // `sent` is sender-supplied (D53), so two runs of the same command
+        // can carry the same one — a concurrent identical command, or a
+        // retry within the same millisecond.
+        now: () => 1_700_000_000_042,
+        // The poke that resolves and does nothing.
+        sendSurfacePost: async () => {},
+      },
+    });
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      sentAt: 1_700_000_000_042,
+      blob: JSON.stringify([entry()]),
+      kind: '/chat/surface/event',
+    });
+
+    const failure = await postSurfaceRecord(harness.deps, {
+      channelId: CHANNEL,
+      kind: 'event',
+      entry: entry(),
+      fallback: 'x',
+    }).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(SurfaceError);
+    expect((failure as SurfaceError).code).toBe('post-unconfirmed');
+    expect((failure as SurfaceError).details.matchedExistingPost).toBe(
+      'post-1'
+    );
+  });
+
+  it('still confirms a real write that a matching older post sits under', async () => {
+    const harness = createTestSurfaceDeps({
+      overrides: { now: () => 1_700_000_000_042 },
+    });
+    const existing = harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      sentAt: 1_700_000_000_042,
+      blob: JSON.stringify([entry()]),
+      kind: '/chat/surface/event',
+    });
+
+    const written = await postSurfaceRecord(harness.deps, {
+      channelId: CHANNEL,
+      kind: 'event',
+      entry: entry(),
+      fallback: 'x',
+    });
+    expect(written.postId).not.toBe(existing.id);
+    expect(written.sequenceNum).toBeGreaterThan(existing.sequenceNum ?? 0);
+  });
+
   it('refuses a post that came back without its surface kind', async () => {
     const harness = createTestSurfaceDeps({
       overrides: { readPostKind: async () => '/chat' },
