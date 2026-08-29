@@ -50,6 +50,10 @@ poll variant, it is a different design.
 - **`bundle` in `spec.json`.** `assetRef`, `sha256` and `size` are
   placeholders; `surface publish` computes and overwrites all three, plus
   `specRevision`. Do not hand-edit them.
+- **`state.json`** is not published and is not the starting state. It is a
+  populated example — three members who have voted — that CI renders through
+  the shell, because the starting state is empty and an empty screen
+  exercises no crew list and no sigil. Keep it in step with the app.
 
 ## Revising it later
 

@@ -51,6 +51,11 @@ maths.
   overflows every phone.
 - **Defaulted reads** (`state.today || {}`, `has(...)`). State is shared, so
   one odd entry throws the app for the whole group, not just its author.
+- **`state.json`** is not published and is not the starting state. It is a
+  populated example — three saved sessions and a session in progress — that
+  CI renders through the shell, because the starting state is empty and an
+  empty board exercises no crew list, no sigil and no chart. Keep it in step
+  with the program.
 
 ## The v0 simplification: no per-set rep entry
 

@@ -181,8 +181,8 @@
    * they should be lifting next. Nothing here is stored; the log is.
    *
    * `/today` is deliberately NOT replayed: a session in progress has not
-   * been archived by the host yet, so the weight shown is the weight to
-   * lift right now, and it only advances at rollover.
+   * been saved by the host yet, so the weight shown is the weight to lift
+   * right now, and it only advances once the host saves the session.
    */
   const progressionFor = function (state, ship) {
     const lifts = state.lifts || {};
@@ -256,6 +256,25 @@
       return null;
     }
     return (session[liftId] || {}).r === 'ok' ? 'ok' : 'fail';
+  };
+
+  /** "no sessions yet" reads better than "0 sessions" on a fresh board. */
+  const sessionCount = function (count) {
+    return count === 0 ? 'no sessions yet' : String(count) + ' sessions';
+  };
+
+  /**
+   * One line of "Squat 20 kg · Bench Press 22.5 kg". Joined rather than
+   * emitted per lift with a trailing separator, which leaves a dangling
+   * "·" at the end of every crew row.
+   */
+  const weightLine = function (order, lifts, working, unit) {
+    return order
+      .map(function (id) {
+        const label = (lifts[id] || {}).label || id;
+        return label + ' ' + formatWeight(working[id], unit);
+      })
+      .join(' · ');
   };
 
   const MARK = { ok: '✓', fail: '✗' };
@@ -406,19 +425,10 @@
                   >
                     <div data-testid=${'workout-ship-' + ship}>
                       <div>
-                        ${ship}${' — '}${String(derived.sessions)}${' sessions'}
+                        ${ship}${' — '}${sessionCount(derived.sessions)}
                       </div>
                       <div>
-                        ${order.map(function (id) {
-                          return html`<span
-                            >${' ' +
-                            (lifts[id] || {}).label +
-                            ' '}${formatWeight(
-                              derived.working[id],
-                              unit
-                            )}${' · '}</span
-                          >`;
-                        })}
+                        ${weightLine(order, lifts, derived.working, unit)}
                       </div>
                       <div>
                         ${order.map(function (id) {

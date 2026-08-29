@@ -1,0 +1,13 @@
+{
+  "question": "What should we get for lunch?",
+  "options": [
+    { "id": "pizza", "label": "Pizza" },
+    { "id": "tacos", "label": "Tacos" },
+    { "id": "salad", "label": "Salad" }
+  ],
+  "votes": {
+    "~zod": "pizza",
+    "~ten": "tacos",
+    "~mug": "pizza"
+  }
+}

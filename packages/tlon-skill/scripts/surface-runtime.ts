@@ -426,7 +426,15 @@ export function createSurfaceDeps(): SurfaceDeps {
   return {
     ...createProcessCommandDeps(),
     authenticate: async () => {
-      await ensureClient();
+      // `%groups /v1/groups` and `%channels /v4` are not optional overhead:
+      // `createChannel` is a TRACKED poke, and a tracked poke's watcher is
+      // fed by the subscription stream. With no subscriptions open the
+      // watcher can never fire, so every `surface create` created the
+      // channel on the ship and then threw `TimeoutError` 20s later —
+      // reporting failure for work that succeeded, and burning the channel
+      // name in the process (D50 makes a name single-use forever). Same
+      // list as `groups.ts`, for the same reason.
+      await ensureClient(['groups', 'channels']);
     },
     actingShip: () => getCurrentUserId(),
     observationBudget: DEFAULT_OBSERVATION_BUDGET,

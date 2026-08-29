@@ -1,0 +1,75 @@
+{
+  "program": "StrongLifts 5×5",
+  "progression": "+2.5 kg a session, +5 kg deadlift, −10% after 3 misses",
+  "unit": "kg",
+  "barWeight": 20,
+  "plateStep": 2.5,
+  "deloadAfter": 3,
+  "deloadFactor": 0.9,
+  "chartLift": "squat",
+  "historyShown": 6,
+  "liftOrder": ["squat", "bench", "row", "ohp", "deadlift"],
+  "lifts": {
+    "squat": { "label": "Squat", "scheme": "5×5", "start": 20, "inc": 2.5 },
+    "bench": {
+      "label": "Bench Press",
+      "scheme": "5×5",
+      "start": 20,
+      "inc": 2.5
+    },
+    "row": { "label": "Barbell Row", "scheme": "5×5", "start": 30, "inc": 2.5 },
+    "ohp": {
+      "label": "Overhead Press",
+      "scheme": "5×5",
+      "start": 20,
+      "inc": 2.5
+    },
+    "deadlift": { "label": "Deadlift", "scheme": "1×5", "start": 40, "inc": 5 }
+  },
+  "workouts": {
+    "A": ["squat", "bench", "row"],
+    "B": ["squat", "ohp", "deadlift"]
+  },
+  "history": {
+    "2026-08-12": {
+      "~zod": {
+        "squat": { "r": "ok" },
+        "bench": { "r": "fail" },
+        "row": { "r": "ok" }
+      },
+      "~ten": {
+        "squat": { "r": "ok" },
+        "bench": { "r": "ok" },
+        "row": { "r": "ok" }
+      }
+    },
+    "2026-08-14": {
+      "~zod": {
+        "squat": { "r": "ok" },
+        "ohp": { "r": "fail" },
+        "deadlift": { "r": "ok" }
+      },
+      "~ten": {
+        "squat": { "r": "ok" },
+        "ohp": { "r": "ok" },
+        "deadlift": { "r": "ok" }
+      }
+    },
+    "2026-08-17": {
+      "~zod": {
+        "squat": { "r": "ok" },
+        "bench": { "r": "fail" },
+        "row": { "r": "ok" }
+      },
+      "~ten": {
+        "squat": { "r": "ok" },
+        "bench": { "r": "ok" },
+        "row": { "r": "ok" }
+      }
+    }
+  },
+  "today": {
+    "~zod": { "squat": { "r": "ok" }, "ohp": { "r": "fail" } },
+    "~mug": { "squat": { "r": "ok" } }
+  }
+}
