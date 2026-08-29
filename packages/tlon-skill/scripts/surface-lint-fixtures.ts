@@ -290,6 +290,180 @@ export const SUPPLEMENTARY_FIXTURES = {
     defect: 'none — the declared escape hatch must actually work',
   } satisfies SurfaceLintFixture,
 
+  /**
+   * The chart oracle's root defect (finding 6), and the demonstration that
+   * activating controls is load-bearing.
+   *
+   * The chart is constructed responsively — the old oracle read the
+   * CONSTRUCTOR CONFIG and passed this bundle clean — and then reassigned
+   * on press. Both halves are needed to trip it: without the live-instance
+   * read there is nothing wrong in the saved config, and without the click
+   * the reassignment never runs. The `new surface.Chart(` grep still fires
+   * as a warning, which is the same rule and never the gate.
+   */
+  chartReassignedOnPress: {
+    name: 'chart-options-reassigned-on-press',
+    rule: 'chart-sizing' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      "<canvas ref=${(el) => { if (el) { held = new surface.Chart(el, { type: 'bar', data: { datasets: [] }, options: { responsive: true, maintainAspectRatio: false } }); } }}></canvas>\n          <${Button} onPress=${() => { held.options = { responsive: false, maintainAspectRatio: true }; }}>Resize<//>"
+    ).replace(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  let held = null;'
+    ),
+    spec: baseSpec(),
+    defect: 'a chart made responsive at construction and unmade on press',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * A control whose handler throws. There is no lexical form of this
+   * defect: the only way to find out is to press the button, and the DOM
+   * swallows the exception, so the gate has to watch for it.
+   */
+  handlerThrows: {
+    name: 'handler-throws-on-press',
+    rule: 'smoke-render' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      "<${Button} onPress=${() => { throw new Error('nothing to show'); }}>Details<//>"
+    ),
+    spec: baseSpec(),
+    defect: 'pressing a control throws, which only activation can see',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * The platform navigation API an audit found unmodeled: it moves the
+   * frame without ever touching `location`, so every pattern the rule had
+   * passed it clean — verified with the request leaving the frame in
+   * Chromium while the gate reported `ok`.
+   */
+  navigationApi: {
+    name: 'navigation-api',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const leave = () => window.navigation.navigate("https://example.com/menu");\n  void leave;'
+    ),
+    spec: baseSpec(),
+    defect: 'window.navigation.navigate() navigates without touching location',
+  } satisfies SurfaceLintFixture,
+
+  /** the same API in its bare spelling, with nothing binding the name */
+  bareNavigationApi: {
+    name: 'navigation-api-bare',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const leave = () => navigation.navigate("https://example.com/menu");\n  void leave;'
+    ),
+    spec: baseSpec(),
+    defect: 'navigation.navigate() reaches the same global unqualified',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * `<area href>`: rule 3 skips an `href` on `a` AND `area` as "navigation,
+   * handled by rule 5", and rule 5's anchor pattern only matched `<a`. The
+   * tag was handled by neither and passed the whole gate.
+   */
+  areaHref: {
+    name: 'area-href',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      '<map name="m"><area shape="rect" href="https://example.com/menu" /></map>'
+    ),
+    spec: baseSpec(),
+    defect: 'an <area> href is a link out that neither rule 3 nor 5 saw',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * htm's spread form supplies the attributes from an object, so no
+   * attribute NAME is in the markup and the literal patterns see only
+   * `<a `. Caught twice over now: lexically at the tail of the span, and
+   * behaviorally as an anchor in the rendered DOM.
+   */
+  spreadAnchor: {
+    name: 'spread-anchor',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      "<a ...${{ href: 'https://example.com/menu' }}>Full menu</a>"
+    ),
+    spec: baseSpec(),
+    defect: 'an anchor whose href is supplied by a spread prop',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * The imperative markup routes — `document.write`'s trick spelled
+   * without `document.write`. Whatever goes in is markup no span ever
+   * separated, so a meta refresh or an anchor inside it is invisible.
+   */
+  imperativeMarkup: {
+    name: 'imperative-markup',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const paint = (el, text) => { el.innerHTML = text; };\n  void paint;'
+    ),
+    spec: baseSpec(),
+    defect: 'innerHTML injects markup no rule scanned',
+  } satisfies SurfaceLintFixture,
+
+  /** the same route through insertAdjacentHTML */
+  insertAdjacentMarkup: {
+    name: 'insert-adjacent-markup',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const paint = (el, text) => { el.insertAdjacentHTML("beforeend", text); };\n  void paint;'
+    ),
+    spec: baseSpec(),
+    defect: 'insertAdjacentHTML injects markup no rule scanned',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * FALSE POSITIVE, now passing: a potluck with a `location` field. The
+   * bare identifier is what rule 5 used to match, and it is shadowed at
+   * runtime by `wrapBundleSource`, so nothing was ever protected by
+   * flagging it — while "location" is what a potluck, a meetup or an event
+   * app calls the place it happens.
+   */
+  locationField: {
+    name: 'data-field-named-location',
+    rule: null,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      '<${SectionHeader}>Who is bringing what<//>\n          <${ListRow}>We are meeting at ${state.location}<//>'
+    ),
+    spec: (() => {
+      const spec = baseSpec();
+      (spec.initialState as Record<string, unknown>).location =
+        'the big table by the window';
+      return spec;
+    })(),
+    defect: 'none — `location` is an ordinary field name, not a vector',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * FALSE POSITIVE, now passing: a modal with an `open` function. Both
+   * spellings the rule used to trip on are here — the declaration and the
+   * method shorthand — plus the call, which is the part that made this
+   * unavoidable for any app with a drawer.
+   */
+  modalOpen: {
+    name: 'modal-with-an-open-function',
+    rule: null,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  function open(id) { return "Showing " + id; }\n  const drawer = { open() { return open("the menu"); } };'
+    ).replace(
+      SECTION_HEADER,
+      '<${SectionHeader}>${drawer.open()}<//>\n          <${ListRow}>${open("the sign-up sheet")}<//>'
+    ),
+    spec: baseSpec(),
+    defect: "none — a declared `open` is the app's own, not window.open",
+  } satisfies SurfaceLintFixture,
+
   /** a computed invoke argument: a warning, never an error */
   computedInvoke: {
     name: 'computed-invoke',

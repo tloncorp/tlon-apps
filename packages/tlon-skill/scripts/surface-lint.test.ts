@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'bun:test';
 import { Window } from 'happy-dom';
 
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import { wrapBundleSource } from '@tloncorp/surface-shell/sandbox';
+
 import {
   ALL_FIXTURES,
   COMPLIANT_FIXTURE,
@@ -85,7 +88,11 @@ describe('machine readability', () => {
       bundleSource: fixture.bundleSource,
       spec: fixture.spec,
     });
-    const [violation] = result.violations;
+    // rule 5 has a lexical half and a behavioral half, and only the lexical
+    // one can carry a source position — the other read the rendered DOM
+    const violation = result.violations.find(
+      (entry) => entry.line !== undefined
+    )!;
     expect(violation.line).toBeGreaterThan(0);
     expect(violation.column).toBeGreaterThan(0);
     // the line really is the offending one
@@ -495,12 +502,16 @@ describe('navigation vectors', () => {
       '  const go = () => { window.location.href = "https://example.com"; };',
     ],
     [
-      'bare location',
-      '  const go = () => { location.replace("https://example.com"); };',
+      'document.location',
+      '  const go = () => { document.location.href = "https://example.com"; };',
     ],
     ['document.write', '  const go = () => document.write("<b>x</b>");'],
     ['window.open', '  const go = () => window.open("https://example.com");'],
     ['synthesized anchor', '  const go = () => document.createElement("a");'],
+    [
+      'a synthesized <area>',
+      '  const go = () => document.createElement("area");',
+    ],
   ];
   for (const [name, code] of vectors) {
     it(`rejects ${name}`, () => {
@@ -529,6 +540,145 @@ describe('navigation vectors', () => {
         (violation) => violation.rule === 'navigation-vector'
       )
     ).toBe(true);
+  });
+
+  /**
+   * The routes an audit found the rule did not model. Each is a fixture, and
+   * each fixture is held to the same "trips its own rule and no other"
+   * contract as the one-per-rule corpus.
+   */
+  const newlyModeled = [
+    SUPPLEMENTARY_FIXTURES.navigationApi,
+    SUPPLEMENTARY_FIXTURES.bareNavigationApi,
+    SUPPLEMENTARY_FIXTURES.areaHref,
+    SUPPLEMENTARY_FIXTURES.spreadAnchor,
+    SUPPLEMENTARY_FIXTURES.imperativeMarkup,
+    SUPPLEMENTARY_FIXTURES.insertAdjacentMarkup,
+  ];
+  for (const fixture of newlyModeled) {
+    it(`${fixture.name}: trips navigation-vector and nothing else (${fixture.defect})`, () => {
+      const result = lintSurfaceBundle({
+        bundleSource: fixture.bundleSource,
+        spec: fixture.spec,
+      });
+      expect(result.ok).toBe(false);
+      expect(ruleSet(result.violations)).toEqual(['navigation-vector']);
+      expect(ruleSet(result.warnings)).toEqual([]);
+    });
+  }
+
+  /**
+   * Both halves of the two markup routes are pinned separately, because
+   * either one alone would keep the fixture failing and hide the loss of
+   * the other. A lexical finding is the one that carries a source position.
+   */
+  const lexicalHalves: [string, string, string][] = [
+    [
+      '<area href>',
+      SUPPLEMENTARY_FIXTURES.areaHref.bundleSource,
+      'anchor-driven navigation',
+    ],
+    [
+      'a spread-prop anchor',
+      SUPPLEMENTARY_FIXTURES.spreadAnchor.bundleSource,
+      'spread attributes',
+    ],
+  ];
+  for (const [name, bundleSource, fragment] of lexicalHalves) {
+    it(`catches ${name} in the source too, not only in the rendered DOM`, () => {
+      const result = lintSurfaceBundle({
+        bundleSource,
+        spec: COMPLIANT_FIXTURE.spec,
+      });
+      expect(
+        result.violations.some(
+          (violation) =>
+            violation.line !== undefined && violation.message.includes(fragment)
+        )
+      ).toBe(true);
+    });
+  }
+
+  it('catches an anchor that only a press turns into a link', () => {
+    // `<a>` with no href passes the lexical patterns (there is no `href` to
+    // match) and `setAttribute` is not a route this file models, so the
+    // rendered DOM after the press is the only thing that can see this
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '<${SectionHeader}>Who is bringing what<//>',
+        '<a onClick=${(event) => { event.target.setAttribute("hre" + "f", "https://example.com/menu"); }}>Who is bringing what</a>'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['navigation-vector']);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0].message).toContain('controls activated');
+  });
+
+  it('reads an anchor out of the rendered DOM, not only out of the source', () => {
+    // the spread form carries no attribute NAME in the markup, so this is
+    // the leg that does not depend on how the anchor was spelled
+    const result = lintSurfaceBundle({
+      bundleSource: SUPPLEMENTARY_FIXTURES.spreadAnchor.bundleSource,
+      spec: SUPPLEMENTARY_FIXTURES.spreadAnchor.spec,
+    });
+    expect(
+      result.violations.some((violation) =>
+        violation.message.includes('the rendered output')
+      )
+    ).toBe(true);
+  });
+});
+
+describe('rule 5 — the false positives it used to fire on', () => {
+  it('passes an app with a data field named `location`', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.locationField;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(formatSurfaceLintResult(result)).toBe('');
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes a modal that declares its own `open`', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.modalOpen;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(formatSurfaceLintResult(result)).toBe('');
+    expect(result.ok).toBe(true);
+  });
+
+  it('still rejects a bare open() when nothing binds the name', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+        '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const go = () => open("https://example.com");\n  void go;'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['navigation-vector']);
+  });
+
+  it('still rejects window.open even when the bundle declares an `open`', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+        '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  function open(id) { return id; }\n  const go = () => window.open(open("https://example.com"));\n  void go;'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['navigation-vector']);
+  });
+
+  it('the bare `location` narrowing rests on the shim, which is still there', () => {
+    // Dropping the bare-identifier pattern is only free while the sandbox
+    // keeps shadowing that identifier. If `wrapBundleSource` stops doing
+    // this, the narrowing stops being free and this fails rather than
+    // rotting silently.
+    expect(wrapBundleSource('void 0;')).toContain('(function (location) {');
   });
 });
 
@@ -828,5 +978,121 @@ describe('the smoke render is hosted, not ambient', () => {
       (name) => [name in globals, globals[name]] as const
     );
     expect(after).toEqual(before);
+  });
+});
+
+describe('the behavioral phase presses the app’s controls', () => {
+  const WIDENED: SurfaceLintRule[] = [
+    'chart-sizing',
+    'jargon',
+    'navigation-vector',
+    'smoke-render',
+  ];
+
+  it('presses the control that invokes each declared action', () => {
+    // the compliant app wires one Button to its one declared action, and the
+    // absence of any shortfall is how the suite knows the press landed
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource,
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(result.skipped).toEqual([]);
+  });
+
+  it('finds a handler on a plain element, not only on a button', () => {
+    // a selector sweep over `button, [role=button]` would miss this, and a
+    // control the gate cannot find is a handler the gate cannot run
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '<${SectionHeader}>Who is bringing what<//>',
+        '<div onClick=${() => { throw new Error("plain element handler"); }}>Who is bringing what</div>'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['smoke-render']);
+    expect(result.violations[0].message).toContain('plain element handler');
+  });
+
+  it('catches a chart made non-responsive on press — the live instance, not the config', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.chartReassignedOnPress;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['chart-sizing']);
+    // and it is the ACTIVATED pass that saw it: the constructor config was
+    // responsive, so nothing before the press had anything to report
+    for (const violation of result.violations) {
+      expect(violation.message).toContain('controls activated');
+    }
+  });
+
+  it('catches a handler that throws, which no lexical rule can see', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.handlerThrows;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['smoke-render']);
+    expect(result.violations[0].message).toContain('nothing to show');
+  });
+
+  it('reports jargon that only a press puts on screen', () => {
+    // the term is assembled from pieces, so no string span contains it and
+    // the lexical half is blind — pressing the control is the only way to
+    // find out what this app says
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '<${SectionHeader}>Who is bringing what<//>',
+        '<div onClick=${(event) => { event.target.textContent = "No " + "scr" + "atch" + " entries yet"; }}>Who is bringing what</div>'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['jargon']);
+    expect(result.violations).toHaveLength(1);
+    expect(result.violations[0].message).toContain('controls activated');
+  });
+
+  it('skips, with the action named, when no control invokes it', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.appendTolerated;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
+    for (const skip of result.skipped) {
+      expect(skip.reason).toContain('"add-note"');
+    }
+  });
+
+  it('names the event types it did not dispatch', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '<${SectionHeader}>Who is bringing what<//>',
+        '<select onChange=${() => invoke("bring-salad")}><option>salad</option></select>'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
+    for (const skip of result.skipped) {
+      expect(skip.reason).toContain('change');
+    }
+  });
+
+  it('bounds the presses, and says so when the bound is reached', () => {
+    // a control that adds another control on every press: the budget is what
+    // makes this terminate, and running out is reported rather than swallowed
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '<${SectionHeader}>Who is bringing what<//>',
+        '<div onClick=${(event) => { const more = document.createElement("span"); more.addEventListener("click", () => {}); event.target.appendChild(more); }}>Who is bringing what</div>'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
+    for (const skip of result.skipped) {
+      expect(skip.reason).toContain('activation budget ran out');
+    }
   });
 });

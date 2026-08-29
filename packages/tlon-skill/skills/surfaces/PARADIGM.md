@@ -52,9 +52,16 @@ register one function:
 
 **The sandbox denies everything else.** No network of any kind (`fetch`,
 `XMLHttpRequest`, `WebSocket`, images, fonts, external scripts — all dead),
-no storage, no cookies, no navigation, no device access. The publish gate
-rejects the syntax before the sandbox ever has to. Do not write a fallback
-for "if the fetch fails"; there is no fetch.
+no storage, no cookies, no device access. The publish gate rejects the
+syntax before the sandbox ever has to. Do not write a fallback for "if the
+fetch fails"; there is no fetch.
+
+**Navigation is forbidden rather than denied, and the difference is yours
+to respect.** No browser feature stops a frame navigating itself, so
+`location`, `window.open`, the Navigation API, meta refresh, links out and
+hand-assembled markup are rejected by the publish gate rather than blocked
+by the platform. A surface has no links out and never sends the viewer
+anywhere.
 
 **`invoke(actionId)` returns `false`** when the viewer cannot write or the
 id is not declared in the spec. It never throws and never carries arguments.
@@ -371,9 +378,18 @@ A throw inside render replaces the entire app with the error box. The
 primitive guards this by falling back to destroy-and-rebuild; hand-rolled
 chart code does not.
 
-The publish gate checks this behaviorally: it renders your bundle and asserts
-no `<canvas>` carries `width`/`height` attributes and every live chart
-reports `responsive: true`.
+The publish gate checks this behaviorally: it renders your bundle, presses
+its controls, and reads `responsive: true` / `maintainAspectRatio: false`
+off every **live chart instance** — not off the config the chart was built
+with, so constructing responsively and then reassigning `chart.options` is
+caught too, including from a click handler.
+
+It also rejects a `<canvas>` carrying `width`/`height` in the rendered
+output. Read that one narrowly: the gate substitutes a recording stand-in
+for Chart.js, so an attribute there was put there by your bundle. **Real
+Chart.js sets `width`/`height` on the canvas itself** — that is what the
+backing store is — so "a real render has no such attributes" was never true
+and is not what the gate measures.
 
 ---
 

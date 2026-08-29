@@ -2457,3 +2457,167 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   prefix property, raising `stateFull` for every resource refusal fails the
   depth control, and dropping the aborted entry from `foldedEventCount` fails
   the watermark assertion.
+
+- **D92: a rule that only ever sees the first paint is a rule about the first
+  paint, not about the app — so the gate now presses the app's controls, and
+  the chart oracle moved onto the live instance.** `foldAndRender` called
+  `runShellFixture` and `sendState` and nothing else. `ShellFixtureRun` has
+  exposed a `click(selector)` since it was written and no caller used it, so
+  no event handler body had ever executed inside the gate. Four rules were
+  narrower than they read as a result — `chart-sizing`, `jargon`,
+  `smoke-render` and (through its new behavioral half) `navigation-vector`
+  all saw the initial render and the post-`sendState` renders and nothing
+  else.
+
+  **Finding controls by selector was rejected.** `button, [role=button], a`
+  misses `<div onClick=…>`, which htm/Preact bind exactly as readily, and a
+  control the gate cannot find is a handler the gate cannot run. Preact
+  attaches through `addEventListener`, so the gate wraps that method for the
+  duration of the phase and learns every listener the app took, on whatever
+  element. One measured wrinkle is worth recording because it looks like
+  over-engineering otherwise: `win.EventTarget.prototype.addEventListener`
+  and the `addEventListener` an element actually resolves are the SAME
+  FUNCTION on happy-dom 20 but live on two different prototype objects
+  (`el instanceof win.EventTarget` is `false`), so patching the former
+  records nothing at all. The gate walks a real element's prototype chain to
+  the object that owns the method instead.
+
+  Each pass marks a control with a `data-` attribute, calls the fixture's own
+  `click(selector)`, and reads the invoke messages that came back — which is
+  how a control is mapped to the action it drives, since the gate already
+  cross-references `invoke(actionId)` and the shell already stamps `actionId`
+  onto the outbound message. Controls that appear only after another control
+  is pressed are picked up on the next round.
+
+  **What it cannot do is reported, never passed.** Three shortfalls exist and
+  each names itself in a skip on all four widened rules: a declared action no
+  activated control invoked (named individually), controls bound only to
+  events the gate does not dispatch (`change`, `input`, `keydown` — named by
+  type), and the 64-click budget running out, which is what makes a control
+  that spawns a control terminate. The budget is a guard rather than a rule,
+  and it is tested anyway. `skipped` now carries partial coverage as well as
+  "did not run"; the reason string says which ("not fully exercised — …").
+
+  **The chart oracle (finding 6) is fixed at the root.** The recording
+  stand-in pushed `{config}` and the rule read `config.options`, so a bundle
+  that constructed with `responsive: true` and then reassigned
+  `chart.options` passed clean. The stand-in now pushes the INSTANCE and the
+  rule reads `instance.options` at check time — after the render pass and
+  after the controls have been pressed — with destroyed instances skipped,
+  since the primitive tears one down when it leaves the tree. The fixture is
+  both halves at once: it constructs responsively through the raw escape
+  hatch in a ref and unmakes it in an `onPress`, so it needs the live read
+  AND the click to be caught. Against the pre-change gate it is
+  `PASSES CLEAN`.
+
+  **The canvas-attribute leg was documented wrong, and the doc was the
+  defect.** `PARADIGM.md` (and `PRIMITIVES.md`, and plan §9) said a real
+  smoke render asserts no canvas carries `width`/`height`. Real Chart.js
+  sets exactly those: `retinaScale` assigns `canvas.height`/`canvas.width`
+  (`chart.js/dist/chunks/helpers.dataset.js:2329-2330`) and both reflect to
+  content attributes — measured independently by rendering the real workout
+  template through the real shell in Chromium. The check is sound only
+  because the gate substitutes a stand-in that never touches the backing
+  store, which makes it a statement about the gate's environment and not
+  about Chart.js. Both skill docs now say that; **plan §9 (line 388) still
+  carries the old sentence and was left alone deliberately — this round's
+  scope for that file was §5 only.**
+
+  Every control was shown failing. Running the new fixtures against
+  `HEAD`'s gate: `chart-options-reassigned-on-press` PASSES CLEAN → now
+  `chart-sizing`; `handler-throws-on-press` PASSES CLEAN → `smoke-render`;
+  a handler on a plain `<div>` PASSES CLEAN → `smoke-render`; jargon
+  assembled from pieces and written into the DOM on press PASSES CLEAN →
+  `jargon`. The compliant fixture still reports zero skips, which is the
+  assertion that the press actually landed rather than the activation
+  quietly doing nothing.
+
+- **D93: rule 5 is a lint that catches naive spellings, the docs now say so,
+  and its two commonest firings were false positives.** The gate's rule 5
+  docstring and plan §5 both called the publish gate "the PRIMARY boundary"
+  against navigation egress. It is not one and cannot become one, for two
+  reasons that are properties of the approach rather than gaps in the list:
+  the rule enumerates over a platform capability set that is open and still
+  growing, and property access is not a lexical property of source.
+  `window["loc" + "ation"]`, `globalThis["loc" + "ation"]`,
+  `Reflect.get(window, 'location')`, `document.defaultView[…]`, a getter, an
+  alias through a local, a unicode escape inside the identifier and a
+  template-literal property name all pass rule 5 clean today. Re-measured
+  against both gates on the audit's own probe batch: **1 of 18 spellings
+  caught before this round, 5 of 18 after** — the four new ones are the
+  routes below, and the thirteen that still pass are all forms of the same
+  fact, that what an expression resolves to is not readable from its text.
+  Containment on web
+  is the host page's `frame-src` allowlist pre-flight (D43, written and
+  disabled) and structurally the M4 Worker realm (D36).
+  `sandbox/document.ts:83-88` had already stated that position for the
+  in-realm hardening; rule 5 sits under the same sentence and now says so in
+  its own docstring, in plan §5, and in `PARADIGM.md` — which had told
+  generating models that the sandbox "denies … navigation", the same false
+  claim one layer down. **Two instances were left standing on purpose: plan
+  §9 (line 388) and the §11 risk table (line 425) both still read "primary
+  boundary", and both are outside this round's §5-only scope for that file.**
+
+  **The routes the audit named are now modeled**, each with a fixture that
+  trips `navigation-vector` and nothing else, each `PASSES CLEAN` against
+  `HEAD`'s gate:
+
+  - **The Navigation API** — `window.navigation.navigate()` and the bare
+    `navigation.navigate()`. The audit reproduced it end to end: a bundle
+    calling it from a click handler passed the gate with `ok: true` and zero
+    violations while the request reached the attacker origin in Chromium.
+    The sandbox-posture matrix does not probe it either, which is a
+    follow-up for that suite rather than for this file.
+  - **`<area href>`** — rule 3 skips an `href` on `a` AND `area` as
+    "navigation, handled by rule 5", and rule 5's pattern was `<a\b`, which
+    cannot match `<area`. The tag was handled by neither rule and passed the
+    whole gate.
+  - **htm spread attributes on a navigating tag** (`<a ...${{ href }}>`,
+    `<meta ...${{ httpEquiv }}>`) — no attribute NAME appears in the markup,
+    so the literal patterns see only `<a `. Reported the same way rule 3
+    reports an interpolated `src`: built at runtime, therefore unverifiable.
+  - **The imperative markup routes** — `innerHTML`/`outerHTML` assignment
+    and `insertAdjacentHTML`, which are `document.write`'s trick spelled
+    without `document.write`. Whatever goes in is markup no span ever
+    separated.
+
+  **A behavioral half was added**, and it is the better oracle of the two: it
+  reads `a[href], area[href], meta[http-equiv]` out of the rendered DOM
+  after every pass and after activation, so a navigating element
+  assembled from a spread prop, from a runtime string, or inside a click
+  handler is caught without the assembly route being one this file models.
+  The demonstration that this is a real widening rather than a second copy
+  of the lexical half: `<a>` with no `href` passes every pattern in the file
+  (there is no `href` to match), and a click handler calling
+  `setAttribute("hre" + "f", …)` on it is not a route the scan models — so
+  after the press the rendered DOM is the only thing that can see it, and it
+  does. Still not a boundary: it reaches only the paths activation managed
+  to reach, which is exactly what the new skips report.
+
+  **The two narrowings, and why they cost nothing.** The bare `location`
+  identifier is no longer matched: `wrapBundleSource` shadows it inside the
+  bundle's own scope with an inert stand-in (D45), so the bare form navigates
+  nothing in production, while `location` is what a potluck, a meetup or an
+  event app calls the place it happens. The member form — the one D45
+  measured as NOT blocked — is what the rule matches now. A test asserts
+  `wrapBundleSource` still emits `(function (location) {`, so if the shim
+  goes away the narrowing fails loudly instead of rotting. And a bare
+  `open(` no longer fires when the bundle BINDS `open` itself — a modal, an
+  accordion, a drawer — because a declared identifier is that declaration and
+  not the global; `window.open` is untouched, since a local cannot shadow a
+  property access. The same suppression covers a bound `navigation`.
+
+  Both relaxations are lexical and therefore approximate in both directions:
+  a declaration anywhere suppresses the bare form everywhere, and
+  `const open = window.open` walks past it. That is affordable here and would
+  not be in a boundary, which is the practical difference the honest label
+  makes. It is also the reason the false positives mattered more than the
+  evasions: a rule whose commonest firing is wrong trains a self-repair loop
+  to work around it, and the routes it would find while working around it are
+  the ones the rule does not model.
+
+  Shown failing both ways. The two false positives were
+  `before=navigation-vector` and are now `PASSES CLEAN`
+  (`data-field-named-location`, `modal-with-an-open-function`); a bare
+  `open(` with nothing binding the name, and `window.open` in a bundle that
+  DOES bind `open`, both still fail.

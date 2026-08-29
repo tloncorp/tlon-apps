@@ -85,19 +85,25 @@ interface ShellRun {
   root: {
     textContent: string | null;
     querySelectorAll(selector: string): ArrayLike<ShellElement>;
+    contains(node: unknown): boolean;
   };
   messages: ShellMessage[];
   sendState(state: Record<string, unknown>): void;
+  /** dispatch a click on the first element matching the selector */
+  click(selector: string): boolean;
 }
 
 interface ShellElement {
   getAttribute(name: string): string | null;
+  setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
 }
 
 interface ShellMessage {
   type: string;
   phase?: string;
   message?: string;
+  actionId?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -573,11 +579,100 @@ function checkForbiddenApis(collector: Collector, scan: ScannedBundle): void {
   }
 }
 
+/** True when any span of one of `kinds` matches `pattern`. */
+function hasMatch(
+  scan: ScannedBundle,
+  kinds: readonly SurfaceSpanKind[],
+  pattern: RegExp
+): boolean {
+  return matchSpans(scan, kinds, pattern).next().done !== true;
+}
+
 /**
- * Rule 5 — navigation vectors. On web the gate is the PRIMARY boundary
- * against navigation egress: no sandbox token or shipped CSP directive stops
- * a frame navigating itself, so a bundle that can reach `location` can make
- * a request leave the device (plan §5, D52).
+ * Does the bundle bind `name` itself?
+ *
+ * A bare identifier the bundle declares is that declaration, not the global
+ * of the same name — `function open(id)` in a modal, `const navigation = …`
+ * in a router. The bare-identifier detectors below consult this, so the
+ * rule's commonest firing stops being a false positive on ordinary app code.
+ * The qualified forms (`window.open`, `window.navigation.navigate`) are
+ * unaffected: a local declaration cannot shadow a property access.
+ *
+ * Lexical, therefore approximate in both directions — it does not scope, so
+ * a declaration anywhere suppresses the bare form everywhere, and a bundle
+ * that writes `const open = window.open` walks past it. That is the price of
+ * the false-positive class this removes, and it is affordable precisely
+ * because this rule is not a boundary (see `checkNavigationVectors`).
+ */
+function declaresBinding(scan: ScannedBundle, name: string): boolean {
+  const patterns = [
+    // function open(…) / async function* open(…)
+    new RegExp(
+      `(?<![\\w$])(?:async\\s+)?function\\s*\\*?\\s*${name}(?![\\w$])`
+    ),
+    // const/let/var open = …
+    new RegExp(`(?<![\\w$])(?:const|let|var)\\s+${name}(?![\\w$])`),
+    // { open() {…} } — method shorthand, and a class method
+    new RegExp(`(?<![\\w$.])${name}\\s*\\([^()]*\\)\\s*\\{`),
+    // { get open() {…} }
+    new RegExp(`(?<![\\w$])(?:get|set)\\s+${name}\\s*\\(`),
+    // const { open } = … / ({ open: go } = …)
+    new RegExp(`\\{[^{}]*(?<![\\w$])${name}(?![\\w$])[^{}]*\\}\\s*=`),
+  ];
+  return patterns.some((pattern) => hasMatch(scan, CODE, pattern));
+}
+
+/**
+ * The window-ish receivers a navigation global is reached through — the
+ * dotted forms only. See `checkNavigationVectors` on why enumeration is the
+ * ceiling here.
+ */
+const GLOBAL_RECEIVER = '(?:window|self|globalThis|top|parent|frames|document)';
+
+/** Members of the Navigation API that move the frame. */
+const NAVIGATION_API_MEMBERS =
+  '(?:navigate|reload|back|forward|traverseTo|updateCurrentEntry)';
+
+/** Elements whose presence in the rendered DOM is a navigation route. */
+const NAVIGATING_ELEMENTS = 'a[href], area[href], meta[http-equiv]';
+
+/**
+ * Rule 5 — navigation vectors. **A LINT, NOT A BOUNDARY.**
+ *
+ * What this is: a small set of source patterns that catch the naive and the
+ * copied-off-the-shelf spellings of "make the frame load an outside
+ * address", plus a behavioral half that reads the rendered DOM. That is
+ * worth having — a bundle is usually written by a language model, and
+ * generated code reaches for the obvious spelling — but it is the whole of
+ * the claim. Two structural reasons it can never be containment, both
+ * recorded and both reproduced against this file:
+ *
+ * - **It enumerates a capability set that is open.** Every lexical check
+ *   below is a source pattern, and the platform keeps adding navigation
+ *   surface: the Navigation API is modeled here only because an audit found
+ *   it unmodeled — and found the sandbox-posture matrix does not probe it
+ *   either — after a bundle calling `window.navigation.navigate()` from a
+ *   click handler passed this gate clean while the request left the frame in
+ *   Chromium. Keeping a list current is a maintenance liability, and a list
+ *   is never a proof.
+ * - **Property access is not a lexical property of source.**
+ *   `window["loc" + "ation"]`, `Reflect.get(window, 'location')`,
+ *   `document.defaultView[…]`, an alias through a local, a getter, a unicode
+ *   escape inside the identifier: the matcher and the JS parser disagree
+ *   about what the expression resolves to, and every one of those spellings
+ *   passes this rule clean today. Measured against this file on the audit's
+ *   own probe batch — 1 of 18 spellings caught before this leg was written,
+ *   5 of 18 after — not assumed.
+ *
+ * Where containment actually comes from on web: **pre-flight**, the host
+ * page's `frame-src` allowlist, which blocks the sandbox frame's
+ * self-navigation on chromium, firefox and webkit before the request leaves
+ * the device (D43; ships written-but-disabled behind D44's flip criteria);
+ * and **structurally**, the M4 Worker-realm migration, which removes the
+ * browsing context there is nothing here to navigate (D36, plan §5).
+ * `packages/surface-shell/src/sandbox/document.ts` already states that
+ * position for the in-realm hardening it ships; this rule is under the same
+ * sentence. Nothing in the gate substitutes for either.
  */
 function checkNavigationVectors(
   collector: Collector,
@@ -585,24 +680,67 @@ function checkNavigationVectors(
 ): void {
   const codePatterns: { pattern: RegExp; message: string }[] = [
     {
-      pattern: /(?<![\w$])location\b/,
+      // The BARE `location` identifier is deliberately NOT matched.
+      // `wrapBundleSource` (`surface-shell/src/sandbox/document.ts`) shadows
+      // it inside the bundle's own scope with an inert stand-in, so the bare
+      // form navigates nothing in production — while `location` is an
+      // ordinary field name for a potluck, a meetup or an event app, which
+      // made this the rule's commonest firing and a false one. The member
+      // form is what reaches the real, unforgeable Location (D45), and it is
+      // what the posture matrix measures as NOT blocked.
+      pattern: new RegExp(
+        `(?<![\\w$])${GLOBAL_RECEIVER}\\s*\\.\\s*location\\b`
+      ),
       message:
-        'location is a navigation vector; navigating the frame is egress the sandbox cannot block',
+        'a member `location` reaches the real Location object, which no in-realm shim can take away; navigating the frame is egress the sandbox cannot block',
     },
     {
       pattern: /(?<![\w$])document\s*\.\s*write(?:ln)?\s*\(/,
       message: 'document.write can rewrite the frame into unpinned markup',
     },
     {
-      pattern: /(?<![\w$.])open\s*\(/,
-      message: 'open() is a navigation vector',
-    },
-    {
       pattern:
         /(?<![\w$])(?:window|self|globalThis|top|parent)\s*\.\s*open\s*\(/,
       message: 'window.open is a navigation vector',
     },
+    {
+      pattern: new RegExp(
+        `(?<![\\w$])${GLOBAL_RECEIVER}\\s*\\.\\s*navigation\\s*\\.\\s*${NAVIGATION_API_MEMBERS}\\s*\\(`
+      ),
+      message:
+        'the Navigation API navigates the frame without ever touching `location`; it is egress the sandbox cannot block',
+    },
+    {
+      // The imperative markup routes: the `document.write` trick spelled
+      // without `document.write`. Whatever goes in is markup the lexical
+      // scan never separated into spans, so a meta refresh or an anchor
+      // inside it is invisible to every pattern above.
+      pattern:
+        /(?<![\w$])(?:inner|outer)HTML\s*=(?!=)|(?<![\w$])insertAdjacentHTML\s*\(/,
+      message:
+        'assigning innerHTML/outerHTML or calling insertAdjacentHTML injects markup no rule scanned; apps compose primitives and never assemble markup by hand',
+    },
   ];
+
+  // Bare-identifier detectors, suppressed when the bundle binds the name
+  // itself: `open` is a modal/accordion/drawer verb and `navigation` is a
+  // router object, and both are ordinary app vocabulary.
+  if (!declaresBinding(scan, 'open')) {
+    codePatterns.push({
+      pattern: /(?<![\w$.])open\s*\(/,
+      message:
+        'open() with no local binding of that name is window.open, a navigation vector',
+    });
+  }
+  if (!declaresBinding(scan, 'navigation')) {
+    codePatterns.push({
+      pattern: new RegExp(
+        `(?<![\\w$.])navigation\\s*\\.\\s*${NAVIGATION_API_MEMBERS}\\s*\\(`
+      ),
+      message:
+        'the Navigation API navigates the frame without ever touching `location`; it is egress the sandbox cannot block',
+    });
+  }
   for (const { pattern, message } of codePatterns) {
     for (const found of matchSpans(scan, CODE, pattern)) {
       addSourceViolation(
@@ -651,7 +789,12 @@ function checkNavigationVectors(
       message: 'meta refresh navigates the frame',
     },
     {
-      pattern: /<a\b[^>]*\bhref\b/i,
+      // `area` rides with `a` deliberately: rule 3 SKIPS an `href` on both
+      // tags as "navigation, handled by rule 5", and until this alternation
+      // existed `<area href="https://…">` was handled by neither — it passed
+      // the whole gate clean. `ANCHOR_TAGS` is the same pair, and the
+      // `createElement` detector above already used it.
+      pattern: /<(?:a|area)\b[^>]*\bhref\b/i,
       message:
         'anchor-driven navigation is forbidden; surfaces have no links out',
     },
@@ -668,6 +811,71 @@ function checkNavigationVectors(
         found.match[0]
       );
     }
+  }
+
+  // `<a ...${{ href: … }}>`: htm's spread form supplies the attributes from
+  // an object, so no attribute NAME appears in the markup and the patterns
+  // above see only `<a `. Same shape as rule 3's interpolated-attribute
+  // sweep — the template-text span stops at the `${`, so the spread is only
+  // ever visible at the tail of a span.
+  const spreadOnNavigatingTag = /<(a|area|meta)\b[^>]*\.\.\.\s*$/i;
+  for (const span of scan.spans) {
+    if (span.kind !== 'template-text') {
+      continue;
+    }
+    const match = spreadOnNavigatingTag.exec(span.text);
+    if (match === null) {
+      continue;
+    }
+    addSourceViolation(
+      collector,
+      scan,
+      'navigation-vector',
+      'error',
+      span.start + match.index,
+      `<${match[1].toLowerCase()}> is built with spread attributes, so whether it navigates cannot be read from the source`,
+      match[0]
+    );
+  }
+}
+
+/**
+ * Rule 5's behavioral half: the navigating elements the app actually put in
+ * the DOM, read after every render pass and after the controls are
+ * activated.
+ *
+ * This is the better oracle of the two. A lexical pattern asks how the
+ * markup was SPELLED; this asks what was BUILT, so an anchor assembled from
+ * a spread prop, from a runtime string, or inside a click handler is caught
+ * without the assembly route being one this file models. It is still not a
+ * boundary — the DOM it reads is happy-dom's, reached only by the paths the
+ * gate managed to activate.
+ */
+function checkNavigationInRendered(
+  collector: Collector,
+  seen: Set<string>,
+  root: ShellRun['root'],
+  when: string
+): void {
+  const nodes = root.querySelectorAll(NAVIGATING_ELEMENTS);
+  for (let index = 0; index < nodes.length; index++) {
+    const node = nodes[index];
+    const target =
+      node.getAttribute('href') ?? node.getAttribute('content') ?? '';
+    const equiv = node.getAttribute('http-equiv');
+    if (equiv !== null && equiv.trim().toLowerCase() !== 'refresh') {
+      continue;
+    }
+    const key = `nav-dom:${equiv ?? 'href'}:${target}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    collector.add({
+      rule: 'navigation-vector',
+      severity: 'error',
+      message: `the rendered output (${when}) contains an element that navigates the frame (${evidence(target)}); surfaces have no links out`,
+    });
   }
 }
 
@@ -1059,12 +1267,21 @@ function checkJargonInRendered(
 /* Behavioral phase                                                    */
 /* ------------------------------------------------------------------ */
 
-interface RecordedChart {
-  config: { options?: Record<string, unknown> };
+/**
+ * A chart the gate can interrogate. This is the LIVE INSTANCE, never the
+ * config it was constructed with: `options` is read at check time, so a
+ * bundle that constructs responsively and then reassigns `chart.options`
+ * reads as what it ended up being. Reading the saved constructor config
+ * instead is the defect this shape exists to remove — that oracle passed a
+ * bundle whose chart was non-responsive on screen.
+ */
+interface LiveChart {
+  options: unknown;
+  destroyed: boolean;
 }
 
-function createRecordingChart(recorded: RecordedChart[]): unknown {
-  return class RecordingChart {
+function createRecordingChart(live: LiveChart[]): unknown {
+  return class RecordingChart implements LiveChart {
     static defaults = {
       color: undefined as unknown,
       borderColor: undefined as unknown,
@@ -1073,19 +1290,24 @@ function createRecordingChart(recorded: RecordedChart[]): unknown {
 
     data: unknown;
     options: unknown;
+    destroyed = false;
 
     constructor(
       _canvas: unknown,
       config: { data?: unknown; options?: Record<string, unknown> }
     ) {
-      recorded.push({ config });
+      live.push(this);
       this.data = config.data;
       this.options = config.options;
     }
 
     update(): void {}
 
-    destroy(): void {}
+    // The primitive tears an instance down when it leaves the tree; a torn
+    // down chart is not on screen and must not be reported.
+    destroy(): void {
+      this.destroyed = true;
+    }
   };
 }
 
@@ -1180,15 +1402,35 @@ function renderedCopy(root: ShellRun['root']): string {
  * as an escape hatch, so the broken shape — a fixed-pixel canvas with
  * `responsive: false` — remains writable, and a `new Chart(` source grep
  * both false-positives on comments and is dodged by concatenation. What
- * cannot be dodged is the rendered DOM and the config a live chart was
- * actually constructed with, which is exactly what both early bundles got
- * wrong. The source grep survives only as a warning layer.
+ * cannot be dodged is the rendered DOM and what a live chart's options say
+ * WHEN READ, which is exactly what both early bundles got wrong. The source
+ * grep survives only as a warning layer.
+ *
+ * Two oracles, and the difference between them is load-bearing:
+ *
+ * - **The live instance.** `options.responsive` / `options.maintainAspectRatio`
+ *   are read off the chart OBJECT at check time — after the render pass and
+ *   after the declared actions' controls have been activated. It therefore
+ *   sees a chart built inside a click handler, and it sees
+ *   `chart.options = { responsive: false }` after a responsive
+ *   construction. Reading the saved constructor config instead passed both
+ *   of those clean, which is the defect this shape exists to remove.
+ * - **The canvas attributes**, which are a NARROWER claim than the doctrine
+ *   has been making. In this environment a `width`/`height` attribute on a
+ *   canvas was put there by the bundle, because the gate substitutes a
+ *   recording stand-in that never touches the backing store. Under real
+ *   Chart.js those attributes are Chart.js's OWN — `retinaScale` assigns
+ *   `canvas.width`/`canvas.height` on every responsive resize and both
+ *   reflect to content attributes, measured on the real workout template in
+ *   Chromium. So "a real smoke render asserts no canvas carries
+ *   width/height" was never true, and the claim must not be restated as a
+ *   property of Chart.js anywhere.
  */
 function checkChartSizing(
   collector: Collector,
   seen: Set<string>,
   root: ShellRun['root'],
-  recorded: RecordedChart[],
+  live: readonly LiveChart[],
   when: string
 ): void {
   // The render loop runs once per declared action, so the same broken canvas
@@ -1210,7 +1452,9 @@ function checkChartSizing(
       // `width`/`height` are reflected properties on a canvas, so this one
       // attribute read covers the markup form (`<canvas width="480">`), the
       // interpolated form, and an imperative `el.width = 480` through a ref.
-      // Both are asserted in the suite.
+      // All three are asserted in the suite. The reflection is also why a
+      // REAL Chart.js render sets them (see the header) — this leg is sound
+      // only against the recording stand-in.
       const attribute = canvas.getAttribute(dimension);
       if (attribute !== null) {
         once(
@@ -1220,8 +1464,11 @@ function checkChartSizing(
       }
     }
   }
-  for (const chart of recorded) {
-    const options = chart.config.options ?? {};
+  for (const chart of live) {
+    if (chart.destroyed) {
+      continue;
+    }
+    const options = isRecord(chart.options) ? chart.options : {};
     if (options.responsive !== true) {
       once(
         `chart-responsive:${JSON.stringify(options.responsive)}`,
@@ -1293,6 +1540,269 @@ function installDomGlobals(win: Record<string, unknown>): () => void {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Control activation                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * How many clicks one activation pass may spend. A control that adds
+ * another control on every press is otherwise unbounded, and a lint that
+ * does not terminate is worse than one that misses something — so the
+ * budget exists, and running out is REPORTED rather than swallowed.
+ */
+const MAX_ACTIVATION_CLICKS = 64;
+
+/** Temporary hook for `ShellFixtureRun.click`, which takes a selector. */
+const CONTROL_MARKER = 'data-surface-lint-control';
+
+/**
+ * The rules whose reach depends on the gate managing to run a handler. All
+ * four only ever saw the initial render and the post-`sendState` renders
+ * before activation existed: a chart built in a click handler, copy that
+ * only appears once something is pressed, an anchor assembled on press, and
+ * a handler that throws were invisible to every one of them.
+ */
+const ACTIVATION_WIDENED_RULES: readonly SurfaceLintRule[] = [
+  'navigation-vector',
+  'chart-sizing',
+  'jargon',
+  'smoke-render',
+];
+
+interface ControlRecorder {
+  /** every event target that took a listener, and the types it took */
+  bindings: Map<object, Set<string>>;
+  /** set when activation cannot run at all, with the reason */
+  unavailable: string | null;
+  restore(): void;
+}
+
+/**
+ * Records where the app bound its event listeners.
+ *
+ * Finding an app's controls by SELECTOR (`button`, `[role=button]`, …)
+ * would miss `<div onClick=…>`, which htm/Preact bind as readily as a
+ * button — and a control the gate cannot find is a handler the gate cannot
+ * run. Preact attaches through `addEventListener`, so wrapping the method
+ * on the prototype that owns it enumerates every listener the app took,
+ * whatever element it sat on.
+ *
+ * The prototype is located by walking a real element's chain rather than by
+ * reading `win.EventTarget`: on happy-dom those are two different objects
+ * that happen to share the same function, so patching the latter records
+ * nothing. Measured, and the reason this looks more indirect than it needs
+ * to be.
+ */
+function recordEventBindings(win: Record<string, unknown>): ControlRecorder {
+  const bindings = new Map<object, Set<string>>();
+  const inert = { bindings, unavailable: null as string | null, restore() {} };
+  const doc = win.document as
+    | { createElement?: (tag: string) => object }
+    | undefined;
+  if (doc === undefined || typeof doc.createElement !== 'function') {
+    return {
+      ...inert,
+      unavailable: 'the injected window exposes no document.createElement',
+    };
+  }
+  let proto = Object.getPrototypeOf(doc.createElement('div')) as Record<
+    string,
+    unknown
+  > | null;
+  while (
+    proto !== null &&
+    !Object.prototype.hasOwnProperty.call(proto, 'addEventListener')
+  ) {
+    proto = Object.getPrototypeOf(proto) as Record<string, unknown> | null;
+  }
+  if (proto === null) {
+    return {
+      ...inert,
+      unavailable:
+        "the injected DOM's elements own no addEventListener to observe",
+    };
+  }
+  const owner = proto;
+  const original = owner.addEventListener as (...args: unknown[]) => unknown;
+  owner.addEventListener = function (
+    this: object,
+    type: unknown,
+    ...rest: unknown[]
+  ) {
+    const types = bindings.get(this) ?? new Set<string>();
+    types.add(String(type));
+    bindings.set(this, types);
+    return original.call(this, type, ...rest);
+  };
+  return {
+    bindings,
+    unavailable: null,
+    restore() {
+      owner.addEventListener = original;
+    },
+  };
+}
+
+interface HandlerErrorWatch {
+  /** only errors raised while a click is in flight are attributed to it */
+  armed: boolean;
+  messages: string[];
+  restore(): void;
+}
+
+/**
+ * A throwing click handler is swallowed by the DOM's own dispatch — the
+ * exception never reaches `el.click()`'s caller — and reported as an
+ * `error` event on the window instead. Without this watch, "the app breaks
+ * when you press the button" is a defect the smoke render runs into and
+ * then discards.
+ */
+function watchHandlerErrors(win: Record<string, unknown>): HandlerErrorWatch {
+  const watch: HandlerErrorWatch = {
+    armed: false,
+    messages: [],
+    restore() {},
+  };
+  const target = win as unknown as {
+    addEventListener?: (
+      type: string,
+      listener: (event: unknown) => void
+    ) => void;
+    removeEventListener?: (
+      type: string,
+      listener: (event: unknown) => void
+    ) => void;
+  };
+  if (typeof target.addEventListener !== 'function') {
+    return watch;
+  }
+  const listener = (event: unknown) => {
+    if (!watch.armed) {
+      return;
+    }
+    const detail = event as
+      | { message?: unknown; error?: { message?: unknown } }
+      | undefined;
+    const message =
+      typeof detail?.message === 'string' && detail.message.length > 0
+        ? detail.message
+        : typeof detail?.error?.message === 'string'
+          ? detail.error.message
+          : 'an unnamed error';
+    watch.messages.push(message);
+  };
+  target.addEventListener('error', listener);
+  watch.restore = () => {
+    target.removeEventListener?.('error', listener);
+  };
+  return watch;
+}
+
+interface ActivationOutcome {
+  /** action ids an activated control actually invoked */
+  invoked: Set<string>;
+  /** event types bound to controls the gate never dispatched */
+  otherEvents: Set<string>;
+  budgetExhausted: boolean;
+}
+
+function isActivatable(candidate: object): candidate is ShellElement {
+  const element = candidate as Partial<ShellElement>;
+  return (
+    typeof element.setAttribute === 'function' &&
+    typeof element.removeAttribute === 'function'
+  );
+}
+
+/**
+ * Presses every control the app bound a click to, and reports what came
+ * back. Controls that appear only after another control is pressed are
+ * picked up on the next round, because the recorder keeps seeing bindings
+ * as they are made.
+ */
+function activateControls(
+  collector: Collector,
+  run: ShellRun,
+  recorder: ControlRecorder,
+  errors: HandlerErrorWatch,
+  reportedErrors: Set<string>,
+  when: string
+): ActivationOutcome {
+  const outcome: ActivationOutcome = {
+    invoked: new Set<string>(),
+    otherEvents: new Set<string>(),
+    budgetExhausted: false,
+  };
+  const visited = new Set<object>();
+  let budget = MAX_ACTIVATION_CLICKS;
+
+  for (;;) {
+    const pending = [...recorder.bindings.entries()].filter(
+      ([element]) =>
+        !visited.has(element) &&
+        isActivatable(element) &&
+        run.root.contains(element)
+    );
+    if (pending.length === 0) {
+      break;
+    }
+    for (const [element, types] of pending) {
+      visited.add(element);
+      if (!types.has('click')) {
+        for (const type of types) {
+          outcome.otherEvents.add(type);
+        }
+        continue;
+      }
+      if (budget <= 0) {
+        outcome.budgetExhausted = true;
+        break;
+      }
+      budget -= 1;
+      const control = element as ShellElement;
+      const before = run.messages.length;
+      control.setAttribute(CONTROL_MARKER, '');
+      errors.armed = true;
+      try {
+        run.click(`[${CONTROL_MARKER}]`);
+      } catch (error) {
+        collector.add({
+          rule: 'smoke-render',
+          severity: 'error',
+          message: `activating a control (${when}) threw: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+      } finally {
+        errors.armed = false;
+        control.removeAttribute(CONTROL_MARKER);
+      }
+      for (let index = before; index < run.messages.length; index++) {
+        const message = run.messages[index];
+        if (message.type === 'invoke' && typeof message.actionId === 'string') {
+          outcome.invoked.add(message.actionId);
+        }
+      }
+    }
+    if (outcome.budgetExhausted) {
+      break;
+    }
+  }
+
+  for (const message of errors.messages.splice(0)) {
+    if (reportedErrors.has(message)) {
+      continue;
+    }
+    reportedErrors.add(message);
+    collector.add({
+      rule: 'smoke-render',
+      severity: 'error',
+      message: `a control's handler threw (${when}): ${message}`,
+    });
+  }
+  return outcome;
+}
+
 function runBehavioralPhase(
   collector: Collector,
   input: SurfaceLintInput,
@@ -1303,9 +1813,22 @@ function runBehavioralPhase(
   const makeWindow = input.createWindow ?? (() => new Window());
   const win = makeWindow() as Record<string, unknown>;
   const restoreGlobals = installDomGlobals(win);
+  const recorder = recordEventBindings(win);
+  const errors = watchHandlerErrors(win);
   try {
-    foldAndRender(collector, input, spec, rawActions, jargonTerms, win);
+    foldAndRender(
+      collector,
+      input,
+      spec,
+      rawActions,
+      jargonTerms,
+      win,
+      recorder,
+      errors
+    );
   } finally {
+    errors.restore();
+    recorder.restore();
     restoreGlobals();
   }
 }
@@ -1316,11 +1839,16 @@ function foldAndRender(
   spec: SurfaceSpec,
   rawActions: RawAction[],
   jargonTerms: readonly string[],
-  win: unknown
+  win: unknown,
+  recorder: ControlRecorder,
+  errors: HandlerErrorWatch
 ): void {
   const hostShip = GATE_HOST_SHIP;
   const actorShip = GATE_ACTOR_SHIP;
-  const recorded: RecordedChart[] = [];
+  // Every chart the run ever built, kept for the whole phase: the oracle
+  // reads each instance's CURRENT options, so an instance must outlive the
+  // render pass that created it.
+  const live: LiveChart[] = [];
 
   let run: ShellRun;
   try {
@@ -1330,7 +1858,7 @@ function foldAndRender(
       spec,
       state: spec.initialState,
       canInvoke: true,
-      chart: createRecordingChart(recorded),
+      chart: createRecordingChart(live),
     }) as ShellRun;
   } catch (error) {
     collector.add({
@@ -1368,21 +1896,50 @@ function foldAndRender(
   };
 
   const seenBehavioral = new Set<string>();
-  drainErrors('initial state');
-  checkChartSizing(
-    collector,
-    seenBehavioral,
-    run.root,
-    recorded,
-    'initial state'
-  );
-  checkJargonInRendered(
-    collector,
-    seenBehavioral,
-    jargonTerms,
-    renderedCopy(run.root),
-    'initial state'
-  );
+  const reportedHandlerErrors = new Set<string>();
+  const invokedByControls = new Set<string>();
+  const unactivatedEvents = new Set<string>();
+  let budgetExhausted = false;
+
+  /** every behavioral read of one rendered state, in one place */
+  const inspect = (when: string) => {
+    drainErrors(when);
+    checkChartSizing(collector, seenBehavioral, run.root, live, when);
+    checkJargonInRendered(
+      collector,
+      seenBehavioral,
+      jargonTerms,
+      renderedCopy(run.root),
+      when
+    );
+    checkNavigationInRendered(collector, seenBehavioral, run.root, when);
+  };
+
+  /** press what is on screen, then look again at what pressing produced */
+  const activate = (when: string) => {
+    if (recorder.unavailable !== null) {
+      return;
+    }
+    const outcome = activateControls(
+      collector,
+      run,
+      recorder,
+      errors,
+      reportedHandlerErrors,
+      when
+    );
+    for (const actionId of outcome.invoked) {
+      invokedByControls.add(actionId);
+    }
+    for (const type of outcome.otherEvents) {
+      unactivatedEvents.add(type);
+    }
+    budgetExhausted = budgetExhausted || outcome.budgetExhausted;
+    inspect(`${when}, controls activated`);
+  };
+
+  inspect('initial state');
+  activate('initial state');
 
   const preserving = spec.preserveState === true;
   const base = preserving ? [migrationSnapshotPost(spec, hostShip)] : [];
@@ -1415,23 +1972,9 @@ function foldAndRender(
       continue;
     }
 
-    recorded.length = 0;
     run.sendState(once.state);
-    drainErrors(`after invoking "${action.id}"`);
-    checkChartSizing(
-      collector,
-      seenBehavioral,
-      run.root,
-      recorded,
-      `after invoking "${action.id}"`
-    );
-    checkJargonInRendered(
-      collector,
-      seenBehavioral,
-      jargonTerms,
-      renderedCopy(run.root),
-      `after invoking "${action.id}"`
-    );
+    inspect(`after invoking "${action.id}"`);
+    activate(`after invoking "${action.id}"`);
 
     const diverged = canonicalJson(once.state) !== canonicalJson(twice.state);
     if (diverged && !action.duplicatesTolerated) {
@@ -1450,6 +1993,65 @@ function foldAndRender(
         specPath: `actions.${action.id}`,
       });
     }
+  }
+
+  reportActivationShortfall(collector, {
+    unavailable: recorder.unavailable,
+    unreached: rawActions
+      .map((action) => action.id)
+      .filter((id) => !invokedByControls.has(id)),
+    otherEvents: [...unactivatedEvents].sort(),
+    budgetExhausted,
+  });
+}
+
+/**
+ * What the activation pass could NOT reach, said out loud.
+ *
+ * A control the gate never pressed is a handler that never ran, and every
+ * rule in `ACTIVATION_WIDENED_RULES` is silent about whatever that handler
+ * does. Reporting that as a clean pass is exactly the failure mode the
+ * gate's skip discipline exists to prevent, so it is reported as a partial
+ * skip on each affected rule instead — the rule ran, but not over
+ * everything, and the reason names what was missed.
+ */
+function reportActivationShortfall(
+  collector: Collector,
+  outcome: {
+    unavailable: string | null;
+    unreached: readonly string[];
+    otherEvents: readonly string[];
+    budgetExhausted: boolean;
+  }
+): void {
+  const shortfalls: string[] = [];
+  if (outcome.unavailable !== null) {
+    shortfalls.push(`no control could be activated: ${outcome.unavailable}`);
+  }
+  if (outcome.unreached.length > 0) {
+    shortfalls.push(
+      `no activated control invoked ${outcome.unreached
+        .map((id) => `"${id}"`)
+        .join(', ')}, so nothing was observed for ${
+        outcome.unreached.length === 1 ? 'it' : 'them'
+      }`
+    );
+  }
+  if (outcome.otherEvents.length > 0) {
+    shortfalls.push(
+      `controls bound only to ${outcome.otherEvents.join(', ')} were left alone (the gate dispatches click)`
+    );
+  }
+  if (outcome.budgetExhausted) {
+    shortfalls.push(
+      `the ${MAX_ACTIVATION_CLICKS}-click activation budget ran out`
+    );
+  }
+  if (shortfalls.length === 0) {
+    return;
+  }
+  for (const rule of ACTIVATION_WIDENED_RULES) {
+    collector.skip(rule, `not fully exercised — ${shortfalls.join('; ')}`);
   }
 }
 

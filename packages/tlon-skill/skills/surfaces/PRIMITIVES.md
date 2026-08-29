@@ -284,9 +284,13 @@ Rules:
 
 - **Never set `width`, `height`, `responsive`, or `maintainAspectRatio`, and
   never create a `<canvas>` yourself.** Two early bundles hardcoded a pixel
-  canvas and overflowed every phone. The gate checks this behaviorally after
-  rendering your bundle: no `<canvas>` may carry `width`/`height`
-  attributes, and every live chart must report `responsive: true`.
+  canvas and overflowed every phone. The gate checks this behaviorally: it
+  renders your bundle, presses its controls, and reads `responsive: true`
+  off every **live chart instance** — not off the config it was built with,
+  so reassigning `chart.options` after a responsive construction is caught
+  too. It also rejects a `<canvas>` carrying `width`/`height` in the
+  rendered output, which in the gate's stand-in environment means your
+  bundle put them there (real Chart.js sets those itself).
 - **Do not use `surface.Chart` (the raw constructor).** Chart.js degrades
   cleanly on _construction_ only: `chart.update()` with no 2D context
   **throws**, and a throw inside render replaces your whole app with the

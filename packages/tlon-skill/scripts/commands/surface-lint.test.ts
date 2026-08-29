@@ -44,11 +44,13 @@ describe('surface lint', () => {
     expect(violations.some((entry) => entry.rule === 'navigation-vector')).toBe(
       true
     );
-    expect(
-      violations.every(
-        (entry) => entry.severity === 'error' && typeof entry.line === 'number'
-      )
-    ).toBe(true);
+    expect(violations.every((entry) => entry.severity === 'error')).toBe(true);
+    // rule 5 has a behavioral half now, and a finding read off the rendered
+    // DOM has no source position to carry — as with every other behavioral
+    // rule. What the wrapper must not lose is the lexical half's position.
+    expect(violations.some((entry) => typeof entry.line === 'number')).toBe(
+      true
+    );
   });
 
   /**
