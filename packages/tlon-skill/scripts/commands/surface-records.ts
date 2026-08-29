@@ -78,7 +78,9 @@ Options:
   --up-to <n>          Sequence boundary the snapshot covers (default: the
                        newest post in the channel; not accepted while
                        repairing a missing migration snapshot, where the
-                       boundary is derived)
+                       boundary is derived). State is folded from the events
+                       at or below it, so everything above stays replayable
+                       — and retractable.
   --fallback <text>    Text pre-surface clients see
   --retract <post-id>  Retract a snapshot by editing it
   --json               Emit a machine-readable result
@@ -613,13 +615,54 @@ export async function runSurfaceSnapshot(
     upToSequenceNum = parsedBoundary;
   }
 
+  // The state and the boundary it claims have to come from the SAME events.
+  // The reducer trusts the pair and never checks it: it starts from the state
+  // and replays everything strictly above the boundary. A state folded PAST
+  // the boundary therefore holds the events above it AND leaves them
+  // replayable, so every client double-counts them on every fold, for as long
+  // as the snapshot stands. (The other direction is worse but is not reachable
+  // here: a state folded SHORT of its boundary loses those events outright,
+  // because the reducer never looks below a boundary again.)
+  //
+  // The fold above runs over the whole history, which is the right population
+  // for the default boundary and only for that one, so a lower boundary is
+  // re-folded to itself.
+  let folded = reduction;
+  if (upToSequenceNum < newest) {
+    const bounded = deps.reduce({
+      spec,
+      hostShip: resolved.hostShip,
+      posts: hydrated.posts.filter(
+        (post) =>
+          typeof post.sequenceNum === 'number' &&
+          post.sequenceNum <= upToSequenceNum
+      ),
+    });
+    if (bounded.status !== 'reduced') {
+      // The snapshot this preserving revision folds from was posted above the
+      // boundary, so at that boundary the revision has no state at all. The
+      // migration gate exists to stop a state being invented here, and a
+      // default would be inventing one.
+      throw surfaceError(
+        'usage',
+        `--up-to ${upToSequenceNum} is below the snapshot ${channelId} folds from at revision ${spec.specRevision}, so there is no state at that boundary to write.`,
+        {
+          requested: upToSequenceNum,
+          specRevision: spec.specRevision,
+          baseSnapshotSeq: reduction.baseSnapshotSeq,
+        }
+      );
+    }
+    folded = bounded;
+  }
+
   const entry = {
     type: 'surface-snapshot',
     version: 1,
     surfaceId: spec.surfaceId,
     specRevision: spec.specRevision,
     upToSequenceNum,
-    state: reduction.state,
+    state: folded.state,
   };
   assertSnapshotRecordValid(deps, entry, {
     channel: channelId,
@@ -647,7 +690,7 @@ export async function runSurfaceSnapshot(
         surfaceId: spec.surfaceId,
         specRevision: spec.specRevision,
         upToSequenceNum,
-        foldedEventCount: reduction.foldedEventCount,
+        foldedEventCount: folded.foldedEventCount,
         observed:
           'the snapshot was read back from the channel with its surface kind intact',
       },

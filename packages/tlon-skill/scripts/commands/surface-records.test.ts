@@ -411,6 +411,113 @@ describe('surface snapshot', () => {
 });
 
 /**
+ * A snapshot record is a pair: a state, and the boundary that state claims to
+ * cover. The two have to be folded from the SAME events, because the reducer
+ * trusts the pair and never checks it — it starts from the state and replays
+ * everything strictly above the boundary. Compute them from different
+ * populations and the record is permanently wrong in one of two directions:
+ * a state folded PAST the boundary keeps the events above it and leaves them
+ * replayable, so every client double-counts them on every fold, forever; a
+ * state folded SHORT of the boundary loses the events below it, because the
+ * reducer never looks below a boundary again.
+ *
+ * The appends below are what make either direction visible: a `set` is
+ * idempotent under replay, so it would hide both.
+ */
+describe('surface snapshot — the state and the boundary it claims', () => {
+  function logHarness() {
+    return setup({ spec: spec({ initialState: { log: [] } }) });
+  }
+
+  function append(harness: ReturnType<typeof setup>, value: string) {
+    return addEvent(
+      harness,
+      hostEvent([{ op: 'append', path: '/log', value }])
+    );
+  }
+
+  it('folds only what the boundary covers, so replay does not repeat it', async () => {
+    const harness = logHarness();
+    append(harness, 'a'); // sequence 1
+    append(harness, 'b'); // sequence 2
+
+    expect(
+      await run(['snapshot', CHANNEL, '--up-to', '1', '--json'], harness.deps)
+    ).toBe(0);
+    expect(harness.json().upToSequenceNum).toBe(1);
+
+    const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
+      (post) => post.kind === '/chat/surface/snapshot'
+    );
+    // A boundary of 1 covers the fold of sequence 1 and nothing else.
+    expect(JSON.parse(posted?.blob ?? '[]')[0].state).toEqual({ log: ['a'] });
+
+    // And the fold every client runs replays sequence 2 exactly once.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().state).toEqual({ log: ['a', 'b'] });
+  });
+
+  it('keeps the event at the boundary itself inside the state', async () => {
+    const harness = logHarness();
+    append(harness, 'a'); // sequence 1
+    append(harness, 'b'); // sequence 2
+    append(harness, 'c'); // sequence 3
+
+    expect(
+      await run(['snapshot', CHANNEL, '--up-to', '2', '--json'], harness.deps)
+    ).toBe(0);
+    const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
+      (post) => post.kind === '/chat/surface/snapshot'
+    );
+    expect(JSON.parse(posted?.blob ?? '[]')[0].state).toEqual({
+      log: ['a', 'b'],
+    });
+
+    // The boundary is inclusive: sequence 2 is IN the state and never
+    // replayed, sequence 3 is outside it and replayed once. A fold that
+    // stopped short of the boundary would lose 'b' for good.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().state).toEqual({ log: ['a', 'b', 'c'] });
+  });
+
+  it('refuses a boundary below the snapshot the revision folds from', async () => {
+    const harness = setup({
+      spec: spec({ initialState: { log: [] }, preserveState: true }),
+    });
+    append(harness, 'a'); // sequence 1
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/snapshot',
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: SURFACE_ID,
+          specRevision: 1,
+          upToSequenceNum: 1,
+          state: { log: ['a'] },
+        },
+      ]),
+    }); // sequence 2
+    append(harness, 'b'); // sequence 3
+
+    // Below sequence 2 the migration snapshot is not yet in the channel, so
+    // this preserving revision has no state at that boundary at all. There is
+    // nothing honest to write, and inventing one is what the migration gate
+    // exists to prevent.
+    expect(
+      await run(['snapshot', CHANNEL, '--up-to', '1', '--json'], harness.deps)
+    ).toBe(1);
+    expect(harness.json().code).toBe('usage');
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(1);
+  });
+});
+
+/**
  * `surface snapshot` at a pending revision is the REPAIR, so it has to be
  * permitted — the refusal that used to stand here forbade the only exit a
  * stranded channel has. It still may not invent state, which is what the
