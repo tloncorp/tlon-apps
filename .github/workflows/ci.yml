@@ -122,8 +122,7 @@ jobs:
   # shared-E2E suites stay in the plugin workflows only, non-blocking.
   bot-checks:
     needs: changes
-    if:
-      needs.changes.outputs.app == 'false' && needs.changes.outputs.bots ==
+    if: needs.changes.outputs.app == 'false' && needs.changes.outputs.bots ==
       'true'
     runs-on: blacksmith-4vcpu-ubuntu-2204
     name: Bot Package Checks
@@ -149,8 +148,7 @@ jobs:
               args: [--frozen-lockfile]
 
       - name: Check formatting (bot packages)
-        run:
-          pnpm exec oxfmt --check packages/openclaw packages/tlon-skill
+        run: pnpm exec oxfmt --check packages/openclaw packages/tlon-skill
           packages/tlon-bot-e2e
 
       - name: Lint OpenClaw
@@ -164,8 +162,35 @@ jobs:
           pnpm --filter '@tloncorp/tlon-bot-e2e' tsc
           pnpm --filter '@tloncorp/tlon-bot-e2e' test:unit
 
+      # `surface preview` is the only check that renders a bundle the way a
+      # phone will, so its headless leg has to actually run here. It is
+      # opt-in (TLON_PREVIEW_BROWSER) so the suite stays runnable on a
+      # machine with no browser binaries — which meant that until this step
+      # existed it ran nowhere, while a comment in the test asserted CI ran
+      # it.
+      - name: Get tlon-skill Playwright version
+        id: skill-playwright-version
+        run: echo "version=$(node -p
+          "require('playwright/package.json').version")" >> $GITHUB_OUTPUT
+        working-directory: ./packages/tlon-skill
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: skill-playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{
+            steps.skill-playwright-version.outputs.version }}
+
+      - name: Install Playwright Chromium
+        if: steps.skill-playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: ./packages/tlon-skill
+
       - name: tlon-skill typecheck, tests, and build smoke
         run: pnpm --filter '@tloncorp/tlon-skill' check
+        env:
+          TLON_PREVIEW_BROWSER: "1"
 
       - name: Run Hermes adapter unit tests
         run: ./packages/hermes-tlon-adapter/dev/test.sh
@@ -175,8 +200,7 @@ jobs:
       # a bot-only PR skips test-build, where the shared suite runs. Without
       # this step, editing a runtime's command registry could never turn it red.
       - name: Bot command drift contract
-        run:
-          pnpm --filter '@tloncorp/shared' test run
+        run: pnpm --filter '@tloncorp/shared' test run
           src/domain/runtimeCommandContract.test.ts
 
   # Merge gate: the single required status check for this repo ("CI OK" in
@@ -235,8 +259,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run:
-          echo "version=$(node -p
+        run: echo "version=$(node -p
           "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
         working-directory: ./apps/tlon-web
 
@@ -245,8 +268,7 @@ jobs:
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key:
-            playwright-${{ runner.os }}-${{
+          key: playwright-${{ runner.os }}-${{
             steps.playwright-version.outputs.version }}
 
       - name: Install Playwright Browsers
@@ -258,8 +280,7 @@ jobs:
         # rube runs `peru sync` to vendor desk deps into desk-deps/ before
         # assembling ship desks. (The parallel e2e job gets peru from the rube
         # Docker image; this smoke test runs on the bare runner.)
-        run:
-          pipx install peru || pip install --user peru || pip3 install --user
+        run: pipx install peru || pip install --user peru || pip3 install --user
           --break-system-packages peru
 
       - name: Run Production Build Smoke Test
@@ -306,8 +327,7 @@ jobs:
   # Parallel E2E Tests using Docker containers
   e2e-parallel:
     needs: changes
-    if:
-      needs.changes.outputs.app == 'true' || needs.changes.outputs.backend ==
+    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.backend ==
       'true'
     runs-on: blacksmith-16vcpu-ubuntu-2204
     name: E2E Tests (Parallel - 4 shards)
