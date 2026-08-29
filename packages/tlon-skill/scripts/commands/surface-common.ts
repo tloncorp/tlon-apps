@@ -1,0 +1,625 @@
+import type {
+  SurfaceReduction,
+  SurfaceSpec,
+  SurfaceSpecReadResult,
+} from '@tloncorp/api';
+
+import type { SurfaceLintResult } from '../surface-lint';
+import { CommandError, type CommandDeps, writeLine } from './command';
+
+/**
+ * Shared vocabulary for the `surface *` command group: the injected
+ * dependency surface, the machine-readable error type, and the pure helpers
+ * every subcommand needs.
+ *
+ * Two properties drive everything in this file.
+ *
+ * **Success is observed, never assumed.** `%channels`' local agent acks a
+ * poke that `%channels-server` went on to reject or silently no-op (D50), so
+ * no writer here treats a resolved poke as a result. Every write is followed
+ * by a read of the thing written, and the command reports what it read.
+ * `observeUntil` is the only shape a confirmation takes.
+ *
+ * **Errors are two things at once.** A bot's self-repair loop needs a stable
+ * code it can branch on; the human it is talking to needs a sentence. Every
+ * failure is a `SurfaceError` carrying both, plus structured `details` — so
+ * `--json` emits something a program consumes and the default output stays
+ * a plain-language line.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Errors                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The stable failure vocabulary. Codes are the branch points of a repair
+ * loop, so they name the *situation* rather than the call that failed:
+ * `admin-required` tells a bot to ask for a role, `storage-unavailable`
+ * tells it to ask for a bucket, and the two are never the same remedy.
+ */
+export const SURFACE_ERROR_CODES = [
+  'usage',
+  'group-not-found',
+  'admin-required',
+  'storage-unavailable',
+  'storage-no-bucket',
+  'name-taken',
+  'name-burned',
+  'create-unconfirmed',
+  'channel-not-found',
+  'spec-absent',
+  'spec-invalid',
+  'spec-version-too-new',
+  'spec-file-invalid',
+  'surface-id-changed',
+  'lint-failed',
+  'upload-failed',
+  'publish-unconfirmed',
+  'post-unconfirmed',
+  'kind-tail-lost',
+  'post-not-found',
+  'migration-pending',
+  'partial-hydration',
+  'invalid-ops',
+  'template-not-found',
+  'template-catalogue-empty',
+] as const;
+
+export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
+
+export class SurfaceError extends CommandError {
+  readonly code: SurfaceErrorCode;
+  readonly details: Record<string, unknown>;
+
+  constructor(
+    code: SurfaceErrorCode,
+    message: string,
+    details: Record<string, unknown> = {}
+  ) {
+    super(message, 1);
+    this.name = 'SurfaceError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+export function surfaceError(
+  code: SurfaceErrorCode,
+  message: string,
+  details: Record<string, unknown> = {}
+): SurfaceError {
+  return new SurfaceError(code, message, details);
+}
+
+/* ------------------------------------------------------------------ */
+/* Ship-facing shapes                                                  */
+/* ------------------------------------------------------------------ */
+
+/** `GroupMeta` as `%groups` holds it. `description` carries the payload. */
+export interface SurfaceChannelMeta {
+  title: string;
+  description: string;
+  image: string;
+  cover: string;
+}
+
+/** `GroupChannelV7` — the whole listing, so an edit rewrites nothing else. */
+export interface SurfaceGroupChannel {
+  added: number;
+  meta: SurfaceChannelMeta;
+  section: string;
+  readers: string[];
+  join: boolean;
+}
+
+/** The slice of `/v2/ui/groups/<flag>` the admin check reads. */
+export interface SurfaceAdminView {
+  admins?: string[];
+  seats?: Record<string, { roles?: string[] }>;
+}
+
+/** An entry of `%channels`' `/v3/channels` map. */
+export interface SurfaceNestEntry {
+  perms?: { group?: string; writers?: string[] };
+}
+
+/**
+ * The slice of the client post model the surface commands read. A superset
+ * of the reducer's `SurfacePostView` — `id` and `sentAt` are what let a
+ * writer find the post it just wrote, since the id is host-stamped (D53)
+ * and therefore unpredictable at write time.
+ */
+export interface SurfacePostRecord {
+  id: string;
+  authorId: string;
+  sentAt: number;
+  sequenceNum?: number | null;
+  isEdited?: boolean | null;
+  isDeleted?: boolean | null;
+  blob?: string | null;
+}
+
+export const SURFACE_KIND_TAILS = {
+  spec: 'surface/spec',
+  event: 'surface/event',
+  snapshot: 'surface/snapshot',
+} as const;
+
+export type SurfaceRecordKind = keyof typeof SURFACE_KIND_TAILS;
+export type SurfaceKindTail = (typeof SURFACE_KIND_TAILS)[SurfaceRecordKind];
+
+/** The full wire kind a surface post must carry, for the read-back check. */
+export function surfaceWireKind(kind: SurfaceRecordKind): string {
+  return `/chat/${SURFACE_KIND_TAILS[kind]}`;
+}
+
+export type SurfaceStoragePreflight =
+  | { canStore: true }
+  | { canStore: false; reason: 'no-bucket' | 'no-storage' };
+
+export type SurfaceValidation =
+  | { ok: true }
+  | { ok: false; issues: readonly string[] };
+
+export interface SurfaceTemplateSummary {
+  name: string;
+  title: string | null;
+  /** absolute paths of the files the template actually ships */
+  files: { bundle: string | null; spec: string | null; notes: string | null };
+}
+
+export interface SurfaceTemplateDetail extends SurfaceTemplateSummary {
+  spec: unknown;
+  specText: string | null;
+  notes: string | null;
+  bundleBytes: number | null;
+}
+
+export interface SurfaceTemplateStore {
+  /** absolute path of the catalogue root, whether or not it exists */
+  root(): string;
+  exists(): boolean;
+  list(): SurfaceTemplateSummary[];
+  read(name: string): SurfaceTemplateDetail | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Dependencies                                                        */
+/* ------------------------------------------------------------------ */
+
+export interface SurfaceCreateChannelPoke {
+  id: string;
+  kind: 'chat';
+  group: string;
+  name: string;
+  title: string;
+  description: string;
+  readers: string[];
+  writers: string[];
+}
+
+export interface SurfacePostPage {
+  posts: SurfacePostRecord[];
+  older: string | null;
+  totalPosts: number;
+}
+
+/**
+ * Everything a surface command touches that is not pure computation.
+ *
+ * The validators and the reducer are injected rather than imported so this
+ * module carries no `@tloncorp/api` value import (the `commands/` contract),
+ * but the intent is stronger than the contract: there is exactly ONE
+ * implementation of the spec schema, the entry schemas, the pointer grammar
+ * and the fold, and the CLI runs the same one the client runs. A
+ * reimplementation here would be a second definition of the wire format,
+ * which is the thing the shared-implementation rule exists to prevent.
+ */
+export interface SurfaceDeps extends CommandDeps {
+  authenticate(): Promise<void>;
+  actingShip(): string;
+  /** how patiently every write waits to observe itself */
+  observationBudget: ObservationBudget;
+  normalizeShip(ship: string): string;
+  now(): number;
+  sleep(ms: number): Promise<void>;
+  randomSlug(): string;
+  /**
+   * `ChannelContentConfiguration` for a surface channel — the surface
+   * collection renderer and no composer. Injected rather than spelled out
+   * here so the renderer ids have exactly one definition, in
+   * `@tloncorp/api`'s `channelContentConfig`.
+   */
+  surfaceContentConfiguration: Record<string, unknown>;
+
+  readGroupAdmin(groupId: string): Promise<SurfaceAdminView | null>;
+  readGroupChannels(
+    groupId: string
+  ): Promise<Record<string, SurfaceGroupChannel> | null>;
+  readChannelNests(): Promise<Record<string, SurfaceNestEntry>>;
+  readPostPage(input: {
+    channelId: string;
+    cursor?: string;
+    mode: 'newest' | 'older';
+    count: number;
+  }): Promise<SurfacePostPage>;
+  /** the raw `essay.kind` of a post, straight from `%channels` */
+  readPostKind(channelId: string, postId: string): Promise<string | null>;
+
+  createChannel(input: SurfaceCreateChannelPoke): Promise<void>;
+  writeGroupChannel(input: {
+    groupId: string;
+    channelId: string;
+    channel: SurfaceGroupChannel;
+  }): Promise<void>;
+  sendSurfacePost(input: {
+    channelId: string;
+    kindTail: SurfaceKindTail;
+    fallback: string;
+    blob: string;
+    sentAt: number;
+  }): Promise<void>;
+  editSurfacePost(input: {
+    channelId: string;
+    postId: string;
+    kindTail: SurfaceKindTail;
+    fallback: string;
+    blob?: string;
+    sentAt: number;
+  }): Promise<void>;
+
+  storagePreflight(): Promise<SurfaceStoragePreflight | null>;
+  /**
+   * Stores bundle bytes and returns the URL clients will fetch them from.
+   *
+   * `fileName` is the bundle's own hash, so the stored object is named by
+   * its content. It is NOT a content-addressed key in the strict sense —
+   * `uploadFile` stamps `Date.now()` into every storage key, so the same
+   * bytes uploaded twice land at two URLs. Publish therefore never
+   * re-uploads unchanged bytes, which is what makes an unchanged bundle
+   * keep an unchanged `assetRef` (and so a byte-identical republish a real
+   * no-op). See the report note on plan §9.
+   */
+  uploadBundle(input: {
+    fileName: string;
+    bytes: Uint8Array;
+    contentType: string;
+  }): Promise<{ url: string }>;
+
+  /** `StructuredChannelDescriptionPayload`, injected verbatim */
+  description: {
+    decode(encoded: string | null | undefined): Record<string, unknown>;
+    encode(payload: Record<string, unknown>): string;
+    rawSurfaceSpec(encoded: string | null | undefined): string | null;
+  };
+  /** `readSurfaceSpec` — the four-way read of a persisted spec */
+  readSpecText(raw: string | null | undefined): SurfaceSpecReadResult;
+  /** `SurfaceSpecSchema.safeParse` over an already-parsed value */
+  validateSpecValue(value: unknown): SurfaceValidation;
+  /** the blob-entry schemas, by record kind */
+  validateEntry(kind: SurfaceRecordKind, value: unknown): SurfaceValidation;
+  /** `parsePointer` — the restricted RFC 6901 grammar */
+  parsePointer(
+    path: string
+  ): { ok: true; segments: string[] } | { ok: false; error: string };
+  /** `reduceSurface` — the shared fold */
+  reduce(input: {
+    spec: SurfaceSpec;
+    hostShip: string;
+    posts: SurfacePostRecord[];
+  }): SurfaceReduction;
+  /** `SURFACE_CAPS`, for pre-flight refusals with a number in them */
+  caps: { opsPerEvent: number; bundleSize: number };
+  /** `lintSurfaceBundle` — the publish gate */
+  lint(input: { bundleSource: string; spec: unknown }): SurfaceLintResult;
+  /** `formatSurfaceLintResult` — the gate's own rendering, not a copy */
+  formatLint(result: SurfaceLintResult): string;
+
+  readTextFile(path: string): string;
+  readBinaryFile(path: string): Uint8Array;
+  sha256Hex(bytes: Uint8Array): string;
+  templates: SurfaceTemplateStore;
+}
+
+/* ------------------------------------------------------------------ */
+/* Nests                                                               */
+/* ------------------------------------------------------------------ */
+
+export interface ParsedNest {
+  kind: string;
+  host: string;
+  name: string;
+}
+
+export function parseSurfaceNest(nest: string): ParsedNest {
+  const parts = nest.split('/');
+  if (parts.length !== 3 || parts.some((part) => part.length === 0)) {
+    throw surfaceError(
+      'usage',
+      `"${nest}" is not a channel id — expected the form chat/~host/name.`,
+      { channel: nest }
+    );
+  }
+  return { kind: parts[0], host: parts[1], name: parts[2] };
+}
+
+/** The host ship of a channel, which is the only authority for host ops. */
+export function channelHostShip(channelId: string): string {
+  return parseSurfaceNest(channelId).host;
+}
+
+/* ------------------------------------------------------------------ */
+/* Canonical JSON                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Key-order-independent JSON. Content change detection compares specs, and
+ * a spec that differs only in the order its author's editor happened to
+ * serialize keys is not a change — bumping the revision for it would be the
+ * same false positive as never bumping at all, in the other direction.
+ */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value) ?? 'null';
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalJson).join(',')}]`;
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, entryValue]) => entryValue !== undefined)
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+  return `{${entries
+    .map(
+      ([key, entryValue]) =>
+        `${JSON.stringify(key)}:${canonicalJson(entryValue)}`
+    )
+    .join(',')}}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Writer disciplines                                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A surface post's blob: exactly one entry, always.
+ *
+ * The reducer stays permissive about multi-entry posts so a malformed
+ * writer cannot make two clients disagree, but that permissiveness is not a
+ * licence — it is why the rule has to live in the writer, where it can be
+ * tested, rather than being enforced downstream.
+ */
+export function buildSurfaceBlob(entry: unknown): string {
+  return JSON.stringify([entry]);
+}
+
+/* ------------------------------------------------------------------ */
+/* Observation                                                         */
+/* ------------------------------------------------------------------ */
+
+export type ObservationProbe<T> = () => Promise<
+  { done: true; value: T } | { done: false; detail: string }
+>;
+
+export type Observation<T> =
+  | { ok: true; value: T; attempts: number }
+  | { ok: false; detail: string; attempts: number };
+
+export interface ObservationBudget {
+  attempts: number;
+  intervalMs: number;
+}
+
+export const DEFAULT_OBSERVATION_BUDGET: ObservationBudget = {
+  attempts: 40,
+  intervalMs: 500,
+};
+
+/**
+ * Polls a read until it shows the thing a write was supposed to produce.
+ *
+ * The failure carries the LAST probe's detail rather than a generic
+ * timeout, because "the channel is in %channels but %groups never listed
+ * it" and "neither agent has it" are different bugs with different
+ * remedies, and a caller that only learns "not confirmed" cannot tell them
+ * apart.
+ */
+export async function observeUntil<T>(
+  deps: Pick<SurfaceDeps, 'sleep'>,
+  budget: ObservationBudget,
+  probe: ObservationProbe<T>
+): Promise<Observation<T>> {
+  let detail = 'nothing was observed';
+  for (let attempt = 1; attempt <= budget.attempts; attempt += 1) {
+    const result = await probe();
+    if (result.done) {
+      return { ok: true, value: result.value, attempts: attempt };
+    }
+    detail = result.detail;
+    if (attempt < budget.attempts) {
+      await deps.sleep(budget.intervalMs);
+    }
+  }
+  return { ok: false, detail, attempts: budget.attempts };
+}
+
+/* ------------------------------------------------------------------ */
+/* Argument parsing                                                    */
+/* ------------------------------------------------------------------ */
+
+export interface ParsedSurfaceArgs {
+  positional: string[];
+  /** repeated flags keep every occurrence, in order */
+  values: Map<string, string[]>;
+  flags: Set<string>;
+  /**
+   * Every value-bearing occurrence in argv order. Ops are order-sensitive —
+   * `--set /a … --del /a` and its reverse are different edits — and a
+   * per-flag grouping cannot express that.
+   */
+  ordered: { flag: string; values: string[] }[];
+  help: boolean;
+}
+
+export interface FlagSpec {
+  /** flags that take one value */
+  value?: readonly string[];
+  /** flags that take two values (`--set <path> <json>`) */
+  pair?: readonly string[];
+  /** flags that take no value */
+  boolean?: readonly string[];
+}
+
+/**
+ * A tiny option parser shared by the group. Deliberately strict: an unknown
+ * flag is a usage error rather than a silently ignored token, because the
+ * caller is frequently a bot assembling an argv it cannot eyeball.
+ */
+export function parseSurfaceArgs(
+  args: string[],
+  spec: FlagSpec,
+  help: string
+): ParsedSurfaceArgs {
+  const valueFlags = new Set(spec.value ?? []);
+  const pairFlags = new Set(spec.pair ?? []);
+  const booleanFlags = new Set(spec.boolean ?? []);
+  const positional: string[] = [];
+  const values = new Map<string, string[]>();
+  const flags = new Set<string>();
+  const ordered: { flag: string; values: string[] }[] = [];
+
+  const record = (flag: string, taken: string[]) => {
+    values.set(flag, [...(values.get(flag) ?? []), ...taken]);
+    ordered.push({ flag, values: taken });
+  };
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === '--help' || arg === '-h') {
+      return { positional, values, flags, ordered, help: true };
+    }
+    if (valueFlags.has(arg)) {
+      const value = args[index + 1];
+      if (value === undefined) {
+        throw usageSurfaceError(`${arg} requires a value`, help);
+      }
+      record(arg, [value]);
+      index += 1;
+      continue;
+    }
+    if (pairFlags.has(arg)) {
+      const first = args[index + 1];
+      const second = args[index + 2];
+      if (first === undefined || second === undefined) {
+        throw usageSurfaceError(`${arg} requires two values`, help);
+      }
+      record(arg, [first, second]);
+      index += 2;
+      continue;
+    }
+    if (booleanFlags.has(arg)) {
+      flags.add(arg);
+      continue;
+    }
+    if (arg.startsWith('--') || (arg.startsWith('-') && arg.length > 1)) {
+      throw usageSurfaceError(`Unknown option: ${arg}`, help);
+    }
+    positional.push(arg);
+  }
+
+  return { positional, values, flags, ordered, help: false };
+}
+
+export function usageSurfaceError(message: string, help: string): SurfaceError {
+  return surfaceError('usage', message, { help });
+}
+
+export function singleValue(
+  parsed: ParsedSurfaceArgs,
+  flag: string
+): string | undefined {
+  const found = parsed.values.get(flag);
+  if (!found) return undefined;
+  return found[found.length - 1];
+}
+
+export function requireValue(
+  parsed: ParsedSurfaceArgs,
+  flag: string,
+  help: string
+): string {
+  const found = singleValue(parsed, flag);
+  if (found === undefined) {
+    throw usageSurfaceError(`${flag} is required`, help);
+  }
+  return found;
+}
+
+/* ------------------------------------------------------------------ */
+/* Output                                                              */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Every subcommand answers in one of two registers, and both come from the
+ * same object: a JSON document for a program, and lines for a person.
+ */
+export interface SurfaceReport {
+  json: Record<string, unknown>;
+  lines: string[];
+}
+
+export function emitReport(
+  deps: SurfaceDeps,
+  report: SurfaceReport,
+  asJson: boolean
+): number {
+  if (asJson) {
+    writeLine(deps.stdout, JSON.stringify({ ok: true, ...report.json }));
+    return 0;
+  }
+  for (const line of report.lines) {
+    writeLine(deps.stdout, line);
+  }
+  return 0;
+}
+
+/**
+ * A machine-readable document on stdout, verbatim. Used where the command's
+ * own `ok` is not simply "it worked" — `surface lint` reports the gate's
+ * verdict, which is a finding rather than a status.
+ */
+export function writeSurfaceJson(
+  deps: SurfaceDeps,
+  document: Record<string, unknown>
+): void {
+  writeLine(deps.stdout, JSON.stringify(document));
+}
+
+export function readJsonFile(
+  deps: SurfaceDeps,
+  path: string,
+  label: string
+): unknown {
+  let text: string;
+  try {
+    text = deps.readTextFile(path);
+  } catch (error) {
+    throw surfaceError(
+      'usage',
+      `Could not read the ${label} at ${path}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { path }
+    );
+  }
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    throw surfaceError(
+      'spec-file-invalid',
+      `The ${label} at ${path} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { path }
+    );
+  }
+}

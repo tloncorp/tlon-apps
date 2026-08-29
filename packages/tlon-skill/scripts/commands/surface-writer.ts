@@ -1,0 +1,419 @@
+import type { SurfaceSpec } from '@tloncorp/api';
+
+import {
+  type ObservationBudget,
+  type SurfaceDeps,
+  type SurfaceGroupChannel,
+  type SurfacePostRecord,
+  type SurfaceRecordKind,
+  SURFACE_KIND_TAILS,
+  buildSurfaceBlob,
+  channelHostShip,
+  observeUntil,
+  parseSurfaceNest,
+  surfaceError,
+  surfaceWireKind,
+} from './surface-common';
+
+/**
+ * The shared writer layer for surface records, and the read that every
+ * writer here confirms itself against.
+ *
+ * Nothing in this file treats a poke as a result. `sendPost` is an untracked
+ * poke — it returns once the local agent has taken the action, which says
+ * nothing about whether `%channels-server` accepted it — so a written post
+ * is a post that has been read back, matched on content, and confirmed to
+ * still carry its surface kind.
+ */
+
+export const DEFAULT_PAGE_SIZE = 200;
+export const DEFAULT_MAX_POSTS = 5000;
+
+export interface ResolvedSurfaceChannel {
+  channelId: string;
+  groupId: string;
+  hostShip: string;
+  channel: SurfaceGroupChannel;
+}
+
+/**
+ * Locates a channel in both agents and returns its group listing.
+ *
+ * `%channels` is asked first because it is the only place that knows which
+ * group a nest belongs to; `%groups` is asked second because it is the only
+ * place that holds the description cell, which is where a surface's app
+ * definition lives. A channel present in one and not the other is the
+ * half-created state D50 describes, and it is reported as such rather than
+ * as a plain "not found".
+ */
+export async function resolveSurfaceChannel(
+  deps: SurfaceDeps,
+  channelId: string
+): Promise<ResolvedSurfaceChannel> {
+  parseSurfaceNest(channelId);
+  const nests = await deps.readChannelNests();
+  const nest = Object.prototype.hasOwnProperty.call(nests, channelId)
+    ? nests[channelId]
+    : undefined;
+  if (!nest) {
+    throw surfaceError(
+      'channel-not-found',
+      `%channels does not hold ${channelId} on this ship.`,
+      { channel: channelId }
+    );
+  }
+  const groupId = nest.perms?.group;
+  if (typeof groupId !== 'string' || !/^~[a-z-]+\/.+$/.test(groupId)) {
+    throw surfaceError(
+      'channel-not-found',
+      `%channels holds ${channelId} but it belongs to no group (its group flag is ${
+        groupId ? `"${groupId}"` : 'absent'
+      }). That is the half-created state a deleted channel leaves behind; the channel cannot be used or repaired.`,
+      { channel: channelId, groupFlag: groupId ?? null }
+    );
+  }
+  const groupChannels = await deps.readGroupChannels(groupId);
+  const channel = groupChannels
+    ? Object.prototype.hasOwnProperty.call(groupChannels, channelId)
+      ? groupChannels[channelId]
+      : undefined
+    : undefined;
+  if (!channel) {
+    throw surfaceError(
+      'channel-not-found',
+      `${groupId} does not list ${channelId}, although %channels holds it. The channel is half-created and cannot be used.`,
+      { channel: channelId, group: groupId }
+    );
+  }
+  return {
+    channelId,
+    groupId,
+    hostShip: channelHostShip(channelId),
+    channel,
+  };
+}
+
+export type SurfaceSpecRead =
+  | { status: 'valid'; spec: SurfaceSpec; raw: string }
+  | { status: 'absent' }
+  | { status: 'invalid'; raw: string }
+  | { status: 'version-too-new'; version: number; raw: string };
+
+/** The channel's app definition, read from the authoritative cell. */
+export function readChannelSpec(
+  deps: SurfaceDeps,
+  channel: SurfaceGroupChannel
+): SurfaceSpecRead {
+  const raw = deps.description.rawSurfaceSpec(channel.meta.description);
+  const result = deps.readSpecText(raw);
+  if (result.status === 'valid') {
+    return { status: 'valid', spec: result.spec, raw: raw ?? '' };
+  }
+  if (result.status === 'absent') {
+    return { status: 'absent' };
+  }
+  if (result.status === 'version-too-new') {
+    return {
+      status: 'version-too-new',
+      version: result.version,
+      raw: raw ?? '',
+    };
+  }
+  return { status: 'invalid', raw: raw ?? '' };
+}
+
+/** The spec, or a distinct error naming which of the four states it is in. */
+export function requireChannelSpec(
+  deps: SurfaceDeps,
+  resolved: ResolvedSurfaceChannel
+): SurfaceSpec {
+  const read = readChannelSpec(deps, resolved.channel);
+  if (read.status === 'valid') return read.spec;
+  if (read.status === 'absent') {
+    throw surfaceError(
+      'spec-absent',
+      `${resolved.channelId} carries no app definition — it is an ordinary channel, not a dashboard. Publish one with \`tlon surface publish\`.`,
+      { channel: resolved.channelId }
+    );
+  }
+  if (read.status === 'version-too-new') {
+    throw surfaceError(
+      'spec-version-too-new',
+      `${resolved.channelId}'s app definition declares version ${read.version}, which this build does not understand. Update the CLI.`,
+      { channel: resolved.channelId, version: read.version }
+    );
+  }
+  throw surfaceError(
+    'spec-invalid',
+    `${resolved.channelId}'s app definition is present but fails validation. It must be republished before anything can be read or written against it.`,
+    { channel: resolved.channelId }
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Hydration                                                           */
+/* ------------------------------------------------------------------ */
+
+export interface HydratedPosts {
+  posts: SurfacePostRecord[];
+  /** false when paging stopped before reaching the start of the channel */
+  complete: boolean;
+  pages: number;
+}
+
+export interface HydrateOptions {
+  pageSize?: number;
+  maxPosts?: number;
+}
+
+/**
+ * Pages a channel's posts back to its start.
+ *
+ * `complete` is reported rather than assumed because §6 makes it load
+ * bearing: a partial fold is not stale state, it is *wrong* state, so a
+ * caller that cannot reach the channel's start must refuse to present a
+ * reduction rather than present one with a caveat.
+ */
+export async function hydratePosts(
+  deps: SurfaceDeps,
+  channelId: string,
+  options: HydrateOptions = {}
+): Promise<HydratedPosts> {
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+  const maxPosts = options.maxPosts ?? DEFAULT_MAX_POSTS;
+  const posts: SurfacePostRecord[] = [];
+  let cursor: string | undefined;
+  let mode: 'newest' | 'older' = 'newest';
+  let pages = 0;
+
+  while (posts.length < maxPosts) {
+    const page = await deps.readPostPage({
+      channelId,
+      cursor,
+      mode,
+      count: pageSize,
+    });
+    pages += 1;
+    posts.push(...page.posts);
+    if (page.older === null) {
+      return { posts, complete: true, pages };
+    }
+    if (page.posts.length === 0) {
+      // A cursor that returns nothing but still claims more history is a
+      // page we cannot advance past; treating it as the end would silently
+      // fold a truncated history.
+      return { posts, complete: false, pages };
+    }
+    cursor = page.older;
+    mode = 'older';
+  }
+
+  return { posts, complete: false, pages };
+}
+
+/* ------------------------------------------------------------------ */
+/* Writing                                                             */
+/* ------------------------------------------------------------------ */
+
+export interface WrittenSurfacePost {
+  postId: string;
+  sequenceNum: number | null;
+  kind: string | null;
+  attempts: number;
+}
+
+export interface PostSurfaceRecordInput {
+  channelId: string;
+  kind: SurfaceRecordKind;
+  entry: unknown;
+  fallback: string;
+  budget?: ObservationBudget;
+  matchWindow?: number;
+}
+
+/**
+ * Writes one surface record and confirms it landed.
+ *
+ * The post's id is stamped by the host at `%add` time, so a writer cannot
+ * know it in advance and cannot look the post up by id. What it can do is
+ * recognise its own post: same author, same `sent` value it supplied, same
+ * blob bytes. Once found, the raw `essay.kind` is read straight from
+ * `%channels` — a post that came back as a plain `/chat` message is a
+ * failure even though every poke succeeded.
+ */
+export async function postSurfaceRecord(
+  deps: SurfaceDeps,
+  input: PostSurfaceRecordInput
+): Promise<WrittenSurfacePost> {
+  const validation = deps.validateEntry(input.kind, input.entry);
+  if (!validation.ok) {
+    throw surfaceError(
+      'invalid-ops',
+      `The ${input.kind} record does not satisfy its schema: ${validation.issues.join('; ')}`,
+      { kind: input.kind, issues: validation.issues }
+    );
+  }
+
+  const blob = buildSurfaceBlob(input.entry);
+  const sentAt = deps.now();
+  const author = deps.normalizeShip(deps.actingShip());
+
+  await deps.sendSurfacePost({
+    channelId: input.channelId,
+    kindTail: SURFACE_KIND_TAILS[input.kind],
+    fallback: input.fallback,
+    blob,
+    sentAt,
+  });
+
+  const budget = input.budget ?? deps.observationBudget;
+  const window = input.matchWindow ?? 25;
+  const observation = await observeUntil(deps, budget, async () => {
+    const page = await deps.readPostPage({
+      channelId: input.channelId,
+      mode: 'newest',
+      count: window,
+    });
+    const match = page.posts.find(
+      (post) =>
+        deps.normalizeShip(post.authorId) === author &&
+        post.sentAt === sentAt &&
+        post.blob === blob
+    );
+    return match
+      ? { done: true, value: match }
+      : {
+          done: false,
+          detail: `no post by ${author} carrying this ${input.kind} record has appeared in ${input.channelId}`,
+        };
+  });
+
+  if (!observation.ok) {
+    throw surfaceError(
+      'post-unconfirmed',
+      `The ${input.kind} record was poked but never appeared in ${input.channelId}: ${observation.detail}. ` +
+        'A poke that resolves is not a post that landed — %channels acks locally, and %channels-server may still have rejected it.',
+      {
+        channel: input.channelId,
+        kind: input.kind,
+        observed: observation.detail,
+        attempts: observation.attempts,
+      }
+    );
+  }
+
+  const post = observation.value;
+  const kind = await deps.readPostKind(input.channelId, post.id);
+  assertKindTail(deps, input.channelId, post.id, input.kind, kind);
+
+  return {
+    postId: post.id,
+    sequenceNum: post.sequenceNum ?? null,
+    kind,
+    attempts: observation.attempts,
+  };
+}
+
+function assertKindTail(
+  deps: SurfaceDeps,
+  channelId: string,
+  postId: string,
+  kind: SurfaceRecordKind,
+  observed: string | null
+): void {
+  const expected = surfaceWireKind(kind);
+  if (observed === expected) return;
+  throw surfaceError(
+    'kind-tail-lost',
+    `Post ${postId} in ${channelId} should carry kind ${expected} but the ship reports ${
+      observed === null ? 'no kind at all' : observed
+    }. The record will not be recognised as a surface record.`,
+    { channel: channelId, post: postId, expected, observed }
+  );
+}
+
+export interface RetractSurfacePostInput {
+  channelId: string;
+  postId: string;
+  kind: SurfaceRecordKind;
+  fallback: string;
+  budget?: ObservationBudget;
+}
+
+/**
+ * Retracts a surface record by editing it.
+ *
+ * The reducer skips any surface post marked edited (§6), so an edit is the
+ * retraction mechanism. The kind tail is passed back explicitly because the
+ * server's `%edit` arm replaces the essay wholesale WITHOUT re-checking
+ * kind: an edit that omits it silently rewrites a surface post's kind to
+ * `/chat`, which is not a retraction but a quiet mutation of the record's
+ * identity. The read-back below confirms both halves.
+ */
+export async function retractSurfacePost(
+  deps: SurfaceDeps,
+  input: RetractSurfacePostInput
+): Promise<WrittenSurfacePost> {
+  const existing = await findPostById(deps, input.channelId, input.postId);
+  if (!existing) {
+    throw surfaceError(
+      'post-not-found',
+      `No post ${input.postId} was found in ${input.channelId}.`,
+      { channel: input.channelId, post: input.postId }
+    );
+  }
+
+  await deps.editSurfacePost({
+    channelId: input.channelId,
+    postId: input.postId,
+    kindTail: SURFACE_KIND_TAILS[input.kind],
+    fallback: input.fallback,
+    sentAt: existing.sentAt,
+  });
+
+  const budget = input.budget ?? deps.observationBudget;
+  const observation = await observeUntil(deps, budget, async () => {
+    const post = await findPostById(deps, input.channelId, input.postId);
+    if (post?.isEdited) {
+      return { done: true, value: post };
+    }
+    return {
+      done: false,
+      detail: post
+        ? `post ${input.postId} is not marked edited yet`
+        : `post ${input.postId} is no longer visible in ${input.channelId}`,
+    };
+  });
+
+  if (!observation.ok) {
+    throw surfaceError(
+      'post-unconfirmed',
+      `The retraction of ${input.postId} was poked but never observed: ${observation.detail}.`,
+      {
+        channel: input.channelId,
+        post: input.postId,
+        observed: observation.detail,
+        attempts: observation.attempts,
+      }
+    );
+  }
+
+  const kind = await deps.readPostKind(input.channelId, input.postId);
+  assertKindTail(deps, input.channelId, input.postId, input.kind, kind);
+
+  return {
+    postId: input.postId,
+    sequenceNum: observation.value.sequenceNum ?? null,
+    kind,
+    attempts: observation.attempts,
+  };
+}
+
+async function findPostById(
+  deps: SurfaceDeps,
+  channelId: string,
+  postId: string
+): Promise<SurfacePostRecord | null> {
+  const hydrated = await hydratePosts(deps, channelId);
+  return hydrated.posts.find((post) => post.id === postId) ?? null;
+}

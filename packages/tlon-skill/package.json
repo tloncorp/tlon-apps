@@ -40,6 +40,7 @@
     "@urbit/aura": "^3.0.0",
     "@urbit/nockjs": "^1.6.0",
     "happy-dom": "^20.11.10",
+    "playwright": "^1.52.0",
     "typescript": "^5.9.3"
   },
   "repository": {

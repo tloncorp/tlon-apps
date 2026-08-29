@@ -7,6 +7,10 @@ Two files, one job: **the spec** (`spec.json`) declares the data and the
 complete list of things members may do; **the bundle** — one script file — is
 a pure function from state to screen. Neither can do the other's job.
 
+`PRIMITIVES.md` is the kit you draw with. `RUBRIC.md` is what you score
+`tlon surface preview`'s screenshots against once the app renders — the
+last step before publishing, and the only one that sees what a member sees.
+
 ---
 
 ## 1. The contract
@@ -266,6 +270,10 @@ works rather than what it shows, delete it.
 Empty states are where jargon leaks most. "No sessions saved yet" beats "No
 rollover has happened yet"; "Nobody has signed up yet" beats "State is
 empty".
+
+You catch the rest by reading every word in the preview screenshots —
+`RUBRIC.md` check 6. Nothing else can: the lint has a fixed denylist, and a
+denylist cannot tell whether a sentence means anything to a member.
 
 ---
 

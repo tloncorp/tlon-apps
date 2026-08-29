@@ -1280,6 +1280,9 @@ importers:
       happy-dom:
         specifier: ^20.11.10
         version: 20.11.10
+      playwright:
+        specifier: ^1.52.0
+        version: 1.52.0
       typescript:
         specifier: ~5.9.2
         version: 5.9.3

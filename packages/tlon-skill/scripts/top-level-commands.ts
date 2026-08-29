@@ -10,6 +10,7 @@ export const TOP_LEVEL_COMMANDS = [
   'notes',
   'posts',
   'settings',
+  'surface',
   'upload',
 ] as const;
 

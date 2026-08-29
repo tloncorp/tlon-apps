@@ -1,0 +1,508 @@
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as channelContentConfigModule from '@tloncorp/api/client/channelContentConfig';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as surfaceJsonPointerModule from '@tloncorp/api/client/surface/jsonPointer';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as surfaceReducerModule from '@tloncorp/api/client/surface/reducer';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as surfaceSchemasModule from '@tloncorp/api/client/surface/schemas';
+import { createHash } from 'crypto';
+
+import type {
+  ObservationBudget,
+  SurfaceCreateChannelPoke,
+  SurfaceDeps,
+  SurfaceGroupChannel,
+  SurfacePostRecord,
+  SurfaceRecordKind,
+  SurfaceStoragePreflight,
+  SurfaceTemplateDetail,
+  SurfaceTemplateStore,
+  SurfaceTemplateSummary,
+  SurfaceValidation,
+} from './commands/surface-common';
+import { formatSurfaceLintResult, lintSurfaceBundle } from './surface-lint';
+
+/**
+ * A fake ship for the `surface *` command tests.
+ *
+ * What is faked and what is not is the whole point. The two agents, their
+ * disagreements, the poke/observe gap and the storage backend are faked —
+ * they are the environment. The wire format is NOT: the spec schema, the
+ * entry schemas, the pointer grammar, the reducer and the publish gate are
+ * wired to the real implementations through the same package subpaths the
+ * runtime uses. A test that folded through a hand-written reducer would
+ * prove the command talks to itself.
+ */
+
+type ApiModule = typeof import('@tloncorp/api');
+
+const {
+  SURFACE_CAPS,
+  SurfaceEventEntrySchema,
+  SurfaceSnapshotEntrySchema,
+  SurfaceSpecMirrorEntrySchema,
+  SurfaceSpecSchema,
+  readSurfaceSpec,
+} = surfaceSchemasModule as Pick<
+  ApiModule,
+  | 'SURFACE_CAPS'
+  | 'SurfaceEventEntrySchema'
+  | 'SurfaceSnapshotEntrySchema'
+  | 'SurfaceSpecMirrorEntrySchema'
+  | 'SurfaceSpecSchema'
+  | 'readSurfaceSpec'
+>;
+const { reduceSurface } = surfaceReducerModule as Pick<
+  ApiModule,
+  'reduceSurface'
+>;
+const { parsePointer } = surfaceJsonPointerModule as Pick<
+  ApiModule,
+  'parsePointer'
+>;
+const {
+  CollectionRendererId,
+  DraftInputId,
+  PostContentRendererId,
+  StructuredChannelDescriptionPayload: SCDP,
+} = channelContentConfigModule as Pick<
+  ApiModule,
+  | 'CollectionRendererId'
+  | 'DraftInputId'
+  | 'PostContentRendererId'
+  | 'StructuredChannelDescriptionPayload'
+>;
+
+const ENTRY_SCHEMAS = {
+  event: SurfaceEventEntrySchema,
+  snapshot: SurfaceSnapshotEntrySchema,
+  spec: SurfaceSpecMirrorEntrySchema,
+} as const;
+
+function validate(
+  schema: { safeParse(value: unknown): unknown },
+  value: unknown
+): SurfaceValidation {
+  const result = schema.safeParse(value) as
+    | { success: true }
+    | {
+        success: false;
+        error: { issues?: { path?: unknown[]; message: string }[] };
+      };
+  if (result.success) return { ok: true };
+  return {
+    ok: false,
+    issues: (result.error.issues ?? []).map((issue) => issue.message),
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Fake ship                                                           */
+/* ------------------------------------------------------------------ */
+
+export interface FakeGroup {
+  admins: string[];
+  seats: Record<string, { roles?: string[] }>;
+  channels: Record<string, SurfaceGroupChannel>;
+}
+
+export interface FakePost extends SurfacePostRecord {
+  kind: string;
+}
+
+/**
+ * What a create poke actually reaches. `%channels` acking a poke that
+ * `%channels-server` never relayed on is the D50 failure, and it is only
+ * testable if the fake can be told to do exactly that.
+ */
+export type CreateEffect = 'both' | 'channels-only' | 'groups-only' | 'none';
+
+export interface FakeShipOptions {
+  ship?: string;
+  budget?: ObservationBudget;
+  createEffect?: CreateEffect;
+  /** how many observation polls pass before the create lands */
+  createDelayPolls?: number;
+  storage?: SurfaceStoragePreflight | null;
+  uploadUrlFor?: (fileName: string) => string;
+  uploadThrows?: Error;
+  /** drop the kind tail on edit, reproducing the `%edit` hazard */
+  editDropsKindTail?: boolean;
+  /** silently ignore the description write, so nothing is observable */
+  swallowDescriptionWrite?: boolean;
+  /**
+   * Store something other than what was written — a concurrent metadata
+   * edit rebuilding the description from a stale payload, which is D59's
+   * unreported consequence: the write lands, and the cell ends up holding
+   * a superseded definition.
+   */
+  rewriteDescriptionOnWrite?: (incoming: string, stored: string) => string;
+  pageSize?: number;
+}
+
+export class FakeShip {
+  readonly ship: string;
+  readonly groups = new Map<string, FakeGroup>();
+  readonly nests = new Map<string, { perms?: { group?: string } }>();
+  readonly posts = new Map<string, FakePost[]>();
+  readonly uploads: { fileName: string; bytes: Uint8Array }[] = [];
+  readonly files = new Map<string, string>();
+  readonly createPokes: SurfaceCreateChannelPoke[] = [];
+  readonly descriptionWrites: {
+    groupId: string;
+    channelId: string;
+    description: string;
+  }[] = [];
+  readonly sleeps: number[] = [];
+
+  private clock = 1_700_000_000_000;
+  private postCounter = 0;
+  private slugCounter = 0;
+  private pendingCreates: { at: number; apply: () => void }[] = [];
+  private polls = 0;
+
+  constructor(readonly options: FakeShipOptions = {}) {
+    this.ship = options.ship ?? '~zod';
+  }
+
+  now(): number {
+    this.clock += 1;
+    return this.clock;
+  }
+
+  nextSlug(): string {
+    this.slugCounter += 1;
+    return `dash-${this.slugCounter.toString().padStart(4, '0')}`;
+  }
+
+  addGroup(
+    groupId: string,
+    group: Partial<FakeGroup> & { admins?: string[] } = {}
+  ): FakeGroup {
+    const record: FakeGroup = {
+      admins: group.admins ?? ['admin'],
+      seats: group.seats ?? { [this.ship]: { roles: ['admin'] } },
+      channels: group.channels ?? {},
+    };
+    this.groups.set(groupId, record);
+    return record;
+  }
+
+  addChannel(
+    groupId: string,
+    channelId: string,
+    description = ''
+  ): SurfaceGroupChannel {
+    const group = this.groups.get(groupId);
+    if (!group) throw new Error(`no fake group ${groupId}`);
+    const channel: SurfaceGroupChannel = {
+      added: 1,
+      meta: { title: 'Dashboard', description, image: '', cover: '' },
+      section: 'default',
+      readers: [],
+      join: true,
+    };
+    group.channels[channelId] = channel;
+    this.nests.set(channelId, { perms: { group: groupId } });
+    return channel;
+  }
+
+  /** The half-created state: `%channels` holds it, `%groups` never did. */
+  burnName(channelId: string): void {
+    const host = channelId.split('/')[1];
+    this.nests.set(channelId, { perms: { group: `${host}/` } });
+  }
+
+  setChannelSpec(channelId: string, spec: unknown): void {
+    for (const group of this.groups.values()) {
+      const channel = group.channels[channelId];
+      if (!channel) continue;
+      const decoded = SCDP.decode(channel.meta.description);
+      channel.meta.description =
+        SCDP.encode({ ...decoded, surfaceSpec: spec as never }) ?? '';
+      return;
+    }
+    throw new Error(`no fake channel ${channelId}`);
+  }
+
+  channelSpecText(channelId: string): string | null {
+    for (const group of this.groups.values()) {
+      const channel = group.channels[channelId];
+      if (channel) {
+        return SCDP.rawPersistenceFields(channel.meta.description).surfaceSpec;
+      }
+    }
+    return null;
+  }
+
+  addPost(
+    channelId: string,
+    post: Partial<FakePost> & { blob?: string }
+  ): FakePost {
+    const list = this.posts.get(channelId) ?? [];
+    this.postCounter += 1;
+    const record: FakePost = {
+      id: post.id ?? `post-${this.postCounter}`,
+      authorId: post.authorId ?? this.ship,
+      sentAt: post.sentAt ?? this.now(),
+      sequenceNum: post.sequenceNum ?? list.length + 1,
+      isEdited: post.isEdited ?? false,
+      isDeleted: post.isDeleted ?? false,
+      blob: post.blob ?? null,
+      kind: post.kind ?? '/chat',
+    };
+    list.push(record);
+    this.posts.set(channelId, list);
+    return record;
+  }
+
+  /** Called once per observation poll, so a delayed create can land. */
+  private tick(): void {
+    this.polls += 1;
+    const ready = this.pendingCreates.filter((entry) => entry.at <= this.polls);
+    this.pendingCreates = this.pendingCreates.filter(
+      (entry) => entry.at > this.polls
+    );
+    for (const entry of ready) entry.apply();
+  }
+
+  applyCreate(poke: SurfaceCreateChannelPoke): void {
+    this.createPokes.push(poke);
+    const effect = this.options.createEffect ?? 'both';
+    const delay = this.options.createDelayPolls ?? 0;
+    const apply = () => {
+      if (effect === 'both' || effect === 'channels-only') {
+        this.nests.set(poke.id, {
+          perms: { group: effect === 'both' ? poke.group : `${this.ship}/` },
+        });
+      }
+      if (effect === 'both' || effect === 'groups-only') {
+        const group = this.groups.get(poke.group);
+        if (group) {
+          group.channels[poke.id] = {
+            added: 1,
+            meta: {
+              title: poke.title,
+              description: poke.description,
+              image: '',
+              cover: '',
+            },
+            section: 'default',
+            readers: poke.readers,
+            join: true,
+          };
+        }
+      }
+    };
+    if (delay > 0) {
+      this.pendingCreates.push({ at: this.polls + delay, apply });
+    } else {
+      apply();
+    }
+  }
+
+  readNests(): Record<string, { perms?: { group?: string } }> {
+    this.tick();
+    return Object.fromEntries(this.nests);
+  }
+
+  readGroupChannels(
+    groupId: string
+  ): Record<string, SurfaceGroupChannel> | null {
+    const group = this.groups.get(groupId);
+    return group ? { ...group.channels } : null;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Templates                                                           */
+/* ------------------------------------------------------------------ */
+
+export function fakeTemplateStore(
+  templates: SurfaceTemplateDetail[] | null,
+  root = '/fake/templates'
+): SurfaceTemplateStore {
+  return {
+    root: () => root,
+    exists: () => templates !== null,
+    list: (): SurfaceTemplateSummary[] =>
+      (templates ?? []).map(({ name, title, files }) => ({
+        name,
+        title,
+        files,
+      })),
+    read: (name) => (templates ?? []).find((t) => t.name === name) ?? null,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Deps                                                                */
+/* ------------------------------------------------------------------ */
+
+export interface TestSurfaceDeps {
+  deps: SurfaceDeps;
+  ship: FakeShip;
+  stdout: string[];
+  stderr: string[];
+  out(): string;
+  err(): string;
+  json(): Record<string, unknown>;
+}
+
+export function createTestSurfaceDeps(
+  options: FakeShipOptions & {
+    ship?: string;
+    templates?: SurfaceTemplateDetail[] | null;
+    overrides?: Partial<SurfaceDeps>;
+  } = {}
+): TestSurfaceDeps {
+  const ship = new FakeShip(options);
+  const stdout: string[] = [];
+  const stderr: string[] = [];
+  const pageSize = options.pageSize ?? 200;
+
+  const deps: SurfaceDeps = {
+    stdout: (text) => stdout.push(text),
+    stderr: (text) => stderr.push(text),
+    authenticate: async () => {},
+    actingShip: () => ship.ship,
+    observationBudget: options.budget ?? TEST_BUDGET,
+    normalizeShip: (name) => (name.startsWith('~') ? name : `~${name}`),
+    now: () => ship.now(),
+    sleep: async (ms) => {
+      ship.sleeps.push(ms);
+    },
+    randomSlug: () => ship.nextSlug(),
+    surfaceContentConfiguration: {
+      draftInput: DraftInputId.none,
+      defaultPostContentRenderer: PostContentRendererId.chat,
+      defaultPostCollectionRenderer: CollectionRendererId.surface,
+    },
+
+    readGroupAdmin: async (groupId) => {
+      const group = ship.groups.get(groupId);
+      return group ? { admins: group.admins, seats: group.seats } : null;
+    },
+    readGroupChannels: async (groupId) => ship.readGroupChannels(groupId),
+    readChannelNests: async () => ship.readNests(),
+    readPostPage: async ({ channelId, cursor, mode, count }) => {
+      const all = [...(ship.posts.get(channelId) ?? [])].sort(
+        (left, right) => (right.sequenceNum ?? 0) - (left.sequenceNum ?? 0)
+      );
+      const start = mode === 'newest' ? 0 : Number(cursor ?? '0');
+      const window = Math.min(count, pageSize);
+      const slice = all.slice(start, start + window);
+      const nextStart = start + slice.length;
+      return {
+        posts: slice.map(({ kind: _kind, ...post }) => post),
+        older: nextStart < all.length ? String(nextStart) : null,
+        totalPosts: all.length,
+      };
+    },
+    readPostKind: async (channelId, postId) =>
+      (ship.posts.get(channelId) ?? []).find((post) => post.id === postId)
+        ?.kind ?? null,
+
+    createChannel: async (input) => {
+      ship.applyCreate(input);
+    },
+    writeGroupChannel: async ({ groupId, channelId, channel }) => {
+      ship.descriptionWrites.push({
+        groupId,
+        channelId,
+        description: channel.meta.description,
+      });
+      if (options.swallowDescriptionWrite) return;
+      const group = ship.groups.get(groupId);
+      if (group?.channels[channelId]) {
+        const stored = options.rewriteDescriptionOnWrite
+          ? options.rewriteDescriptionOnWrite(
+              channel.meta.description,
+              group.channels[channelId].meta.description
+            )
+          : channel.meta.description;
+        group.channels[channelId] = {
+          ...channel,
+          meta: { ...channel.meta, description: stored },
+        };
+      }
+    },
+    sendSurfacePost: async ({ channelId, kindTail, blob, sentAt }) => {
+      ship.addPost(channelId, {
+        blob,
+        sentAt,
+        authorId: ship.ship,
+        kind: `/chat/${kindTail}`,
+      });
+    },
+    editSurfacePost: async ({ channelId, postId, kindTail, blob }) => {
+      const post = (ship.posts.get(channelId) ?? []).find(
+        (entry) => entry.id === postId
+      );
+      if (!post) return;
+      post.isEdited = true;
+      post.blob = blob ?? null;
+      post.kind = options.editDropsKindTail ? '/chat' : `/chat/${kindTail}`;
+    },
+
+    storagePreflight: async () =>
+      options.storage === undefined ? { canStore: true } : options.storage,
+    uploadBundle: async ({ fileName, bytes }) => {
+      if (options.uploadThrows) throw options.uploadThrows;
+      ship.uploads.push({ fileName, bytes });
+      const url = options.uploadUrlFor
+        ? options.uploadUrlFor(fileName)
+        : `https://storage.example/${fileName}`;
+      return { url };
+    },
+
+    description: {
+      decode: (encoded) => SCDP.decode(encoded) as Record<string, unknown>,
+      encode: (payload) => SCDP.encode(payload as never) ?? '',
+      rawSurfaceSpec: (encoded) =>
+        SCDP.rawPersistenceFields(encoded).surfaceSpec,
+    },
+    readSpecText: (raw) => readSurfaceSpec(raw),
+    validateSpecValue: (value) => validate(SurfaceSpecSchema, value),
+    validateEntry: (kind: SurfaceRecordKind, value) =>
+      validate(ENTRY_SCHEMAS[kind], value),
+    parsePointer: (pointerPath) => parsePointer(pointerPath),
+    reduce: (input) => reduceSurface(input),
+    caps: {
+      opsPerEvent: SURFACE_CAPS.opsPerEvent,
+      bundleSize: SURFACE_CAPS.bundleSize,
+    },
+    lint: (input) => lintSurfaceBundle(input),
+    formatLint: (result) => formatSurfaceLintResult(result),
+
+    readTextFile: (filePath) => {
+      const text = ship.files.get(filePath);
+      if (text === undefined) throw new Error(`ENOENT: ${filePath}`);
+      return text;
+    },
+    readBinaryFile: (filePath) => {
+      const text = ship.files.get(filePath);
+      if (text === undefined) throw new Error(`ENOENT: ${filePath}`);
+      return new TextEncoder().encode(text);
+    },
+    sha256Hex: (bytes) => createHash('sha256').update(bytes).digest('hex'),
+    templates: fakeTemplateStore(
+      options.templates === undefined ? [] : options.templates
+    ),
+    ...options.overrides,
+  };
+
+  return {
+    deps,
+    ship,
+    stdout,
+    stderr,
+    out: () => stdout.join(''),
+    err: () => stderr.join(''),
+    json: () => JSON.parse(stdout.join('').trim().split('\n').pop() ?? '{}'),
+  };
+}
+
+/** A fast observation budget, so a refusal test does not sleep 40 times. */
+export const TEST_BUDGET = { attempts: 3, intervalMs: 0 };

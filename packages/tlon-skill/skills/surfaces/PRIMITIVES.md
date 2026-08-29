@@ -4,6 +4,11 @@ Everything an app is allowed to draw. Read the entries for the components
 you use; do not invent components or props — the shell exposes exactly what
 is listed here, and anything else is a runtime `undefined`.
 
+Drawing with the kit is not the same as drawing something legible. Once the
+app renders, `tlon surface preview` screenshots it at phone and desktop
+width in both themes, and `RUBRIC.md` is the checklist you score those
+screenshots against.
+
 ## The `surface` global
 
 ```js
@@ -291,6 +296,10 @@ Rules:
   through `options`, and generally shouldn't.
 - A shell built without the charting library renders a labeled empty state
   instead of throwing, so a chart is always safe to include.
+- Look at the chart in the `phone-full` preview capture before you publish
+  (`RUBRIC.md` check 1). A chart is usually below the fold, so the 390×844
+  shot does not contain it — and a chart overflowing a phone is the bug
+  that motivated this primitive.
 
 ---
 
