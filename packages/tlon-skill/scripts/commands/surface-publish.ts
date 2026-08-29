@@ -4,6 +4,7 @@ import {
   type SurfaceDeps,
   type SurfacePostRecord,
   type SurfaceReport,
+  assertSnapshotRecordValid,
   canonicalJson,
   emitReport,
   observeUntil,
@@ -389,6 +390,60 @@ export async function runSurfacePublish(
     migration = await foldForMigration(deps, resolved, current, published);
   }
 
+  // Every record this command will post is assembled and validated HERE,
+  // before the description cell moves.
+  //
+  // The rule is not "check the snapshot earlier"; it is that no validation of
+  // a record this command intends to write may happen after the first write.
+  // A preserving revision makes the migration snapshot mandatory the instant
+  // the definition lands, so any record that fails validation afterwards
+  // leaves a channel demanding a snapshot nobody can post — and that is true
+  // of the mirror as much as of the snapshot, because the command stops at
+  // the first failure and the snapshot is posted second.
+  //
+  // These are the same objects posted below, not copies of them. Validating
+  // one value and writing another is the raw-versus-validated defect this
+  // file already carries two warnings about (D67, D72).
+  //
+  // What CANNOT move is everything that needs the write to have happened:
+  // the description read-back (`publish-unconfirmed`), and each post's
+  // read-back and kind-tail check (`post-unconfirmed`, `kind-tail-lost`).
+  // Those are confirmations, not validations — they cannot fail on account of
+  // anything knowable in advance, so hoisting them is not merely hard but
+  // meaningless.
+  const mirrorEntry = {
+    type: 'surface-spec-mirror',
+    version: 1,
+    surfaceId: specFile.surfaceId,
+    specRevision: decision.revision,
+    spec: published,
+  };
+  const mirrorCheck = deps.validateEntry('spec', mirrorEntry);
+  if (!mirrorCheck.ok) {
+    throw surfaceError(
+      'spec-invalid',
+      `The revision mirror for ${channelId} does not satisfy its schema: ${mirrorCheck.issues.join('; ')}. Nothing was written.`,
+      { channel: channelId, issues: mirrorCheck.issues }
+    );
+  }
+
+  const snapshotEntry = migration
+    ? {
+        type: 'surface-snapshot',
+        version: 1,
+        surfaceId: specFile.surfaceId,
+        specRevision: decision.revision,
+        upToSequenceNum: migration.upToSequenceNum,
+        state: migration.state,
+      }
+    : null;
+  if (snapshotEntry) {
+    assertSnapshotRecordValid(deps, snapshotEntry, {
+      channel: channelId,
+      specRevision: decision.revision,
+    });
+  }
+
   const nextPayload = deps.description.encode({
     ...deps.description.decode(resolved.channel.meta.description),
     surfaceSpec: published,
@@ -468,32 +523,19 @@ export async function runSurfacePublish(
     channelId,
     kind: 'spec',
     fallback: `Updated the ${publishedTitle} app.`,
-    entry: {
-      type: 'surface-spec-mirror',
-      version: 1,
-      surfaceId: specFile.surfaceId,
-      specRevision: decision.revision,
-      spec: published,
-    },
+    entry: mirrorEntry,
     budget,
   }).catch((error: unknown) => {
     throw annotatePublished(error, channelId, decision.revision);
   });
 
   let snapshot: { postId: string; upToSequenceNum: number } | null = null;
-  if (migration) {
+  if (migration && snapshotEntry) {
     const written = await postSurfaceRecord(deps, {
       channelId,
       kind: 'snapshot',
       fallback: 'Saved a checkpoint of the dashboard.',
-      entry: {
-        type: 'surface-snapshot',
-        version: 1,
-        surfaceId: specFile.surfaceId,
-        specRevision: decision.revision,
-        upToSequenceNum: migration.upToSequenceNum,
-        state: migration.state,
-      },
+      entry: snapshotEntry,
       budget,
     }).catch((error: unknown) => {
       throw annotatePublished(error, channelId, decision.revision);

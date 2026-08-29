@@ -7,6 +7,7 @@ import {
   SURFACE_CAPS,
   SurfaceActionSchema,
   SurfaceEventEntrySchema,
+  SurfaceSnapshotEntrySchema,
   SurfaceSpecSchema,
 } from '../client/surface/schemas';
 import { validSpec } from './surfaceSchemas.test';
@@ -212,5 +213,78 @@ describe('reduced state cap (reducer-enforced)', () => {
     expect(overCap.stateFull).toBe(true);
     expect((overCap.state as JsonObject).final).toBeUndefined();
     expect(jsonByteLength(overCap.state)).toBe(currentSize);
+  });
+});
+
+/**
+ * The invariant the two state caps have to satisfy together: **anything the
+ * reducer will hold, a snapshot must be able to carry.**
+ *
+ * They were set independently — the reducer refused ops above 128 KB while
+ * the snapshot schema rejected states above 64 KB — which left a legal band
+ * of live states that could be reduced and could not be written down. A
+ * preserving publish folds such a state, moves the definition, and only then
+ * discovers the snapshot will not validate: the channel lands on a revision
+ * that requires a migration snapshot nobody can post, and `--preserve-state`
+ * strands it permanently.
+ *
+ * The band is the bug, so the control is the band's absence, not either
+ * number: pin the relation, and fold a real state up to the reducer's own
+ * limit to show the snapshot schema still takes it.
+ */
+describe('reduced state and snapshot state agree', () => {
+  test('the snapshot cap is never below the reducer cap', () => {
+    expect(SURFACE_CAPS.snapshotState).toBeGreaterThanOrEqual(
+      SURFACE_CAPS.reducedState
+    );
+  });
+
+  test('a state folded to the reducer cap still validates as a snapshot', () => {
+    const spec = validSpec({ initialState: {}, actions: {} });
+    let seq = 1;
+    const hostPost = (ops: unknown[]) => ({
+      authorId: '~zod',
+      sequenceNum: seq++,
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: 'srf-0001',
+          specRevision: 3,
+          mode: 'host',
+          ops,
+        },
+      ]),
+    });
+
+    // 4 KB-ish sets to distinct keys, enough of them to fill the reducer's
+    // whole allowance. Every op is legal on its own (under the 4 KB op-value
+    // cap, one op per entry, well under the 8 KB entry cap), so nothing here
+    // depends on abusing a cap to reach the band.
+    const chunk = 'x'.repeat(4000);
+    const posts = Array.from({ length: 25 }, (_, i) =>
+      hostPost([{ op: 'set', path: `/p${i}`, value: chunk }])
+    );
+    const reduced = reduceSurface({ spec, hostShip: '~zod', posts });
+    expect(reduced.status).toBe('reduced');
+    if (reduced.status !== 'reduced') return;
+
+    // The premise: this is a state the reducer really does hold, and it sits
+    // above where the snapshot cap used to be.
+    const size = jsonByteLength(reduced.state);
+    expect(size).toBeGreaterThan(64 * 1024);
+    expect(size).toBeLessThanOrEqual(SURFACE_CAPS.reducedState);
+    expect(reduced.stateFull).toBe(false);
+
+    expect(
+      SurfaceSnapshotEntrySchema.safeParse({
+        type: 'surface-snapshot',
+        version: 1,
+        surfaceId: 'srf-0001',
+        specRevision: 3,
+        upToSequenceNum: 25,
+        state: reduced.state,
+      }).success
+    ).toBe(true);
   });
 });

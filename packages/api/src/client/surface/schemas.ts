@@ -32,7 +32,19 @@ export const SURFACE_CAPS = {
   opsPerEvent: 20,
   opValue: 4 * 1024,
   eventEntryTotal: 8 * 1024,
-  snapshotState: 64 * 1024,
+  /**
+   * Snapshot `state`, and NOT an independent number: it must never sit below
+   * `reducedState`, because a state the reducer will hold has to be a state a
+   * snapshot can carry.
+   *
+   * It was 64 KB against a 128 KB reducer, which opened a band of live states
+   * that were legal to hold and impossible to write down. A `--preserve-state`
+   * publish folds such a state, moves the definition to a preserving revision,
+   * and only then finds the snapshot will not validate — leaving a channel
+   * whose migration snapshot nobody can post, with no recovery that keeps the
+   * state. The band is the root cause; aligning the two caps closes it.
+   */
+  snapshotState: 128 * 1024,
   /** reduced in-memory state; enforced by the reducer, not a schema */
   reducedState: 128 * 1024,
   jsonDepth: SURFACE_JSON_MAX_DEPTH,

@@ -2124,3 +2124,117 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   That is the whole point: a package no filter selects skips every
   filter-gated job by construction, so a gated guard could never observe
   it. The job is in `ci-ok`'s `needs`, so it blocks merges.
+
+- **D85: the snapshot state cap is tied to the reducer's state cap, not set
+  independently.** They were 64 KB and 128 KB, which made a band of live
+  states legal to hold and impossible to write down. Publish folds such a
+  state, moves the description to a preserving revision, mirrors it, and
+  only then finds the snapshot will not validate — so the channel lands on
+  a revision that demands a migration snapshot nobody can post.
+
+  Reproduced whole before it was fixed, from eighteen ordinary host events
+  (one op each, every op inside the 4 KB op-value cap and every entry
+  inside the 8 KB entry cap): state 68,590 bytes, `stateFull: false`;
+  `publish --preserve-state` exits 1 with `{"code":"invalid-ops",
+  "message":"The snapshot record does not satisfy its schema: snapshot
+  state exceeds 65536 bytes","details":{…,"definitionPublished":true}}`;
+  the stored definition sits at `specRevision=2, preserveState=true` with
+  two mirrors and zero snapshots; `surface state` answers
+  `migration-pending`; `surface snapshot` refuses with `migration-pending`;
+  an exact retry answers `{"ok":true,…"outcome":"no-op"}` — reporting
+  success over a dead channel — and a further preserving publish refuses
+  with `migration-pending`. Every exit blocked; the only escape discards
+  the state.
+
+  The invariant is **a state the reducer will hold must be a state a
+  snapshot can carry**, so the control is the invariant rather than either
+  number: `snapshotState >= reducedState`, plus a real fold up to the
+  reducer's own limit that the snapshot schema then has to accept. At
+  128 KB a snapshot post jams to roughly 131 KB against `%channels-server`'s
+  256,000-byte `size-limit` — about half of it, still comfortable, but the
+  cap can no longer be raised freely and the next raise has to price the
+  backstop.
+
+- **D86: no validation of a record a command intends to write may happen
+  after that command's first write.** Aligning the caps closes the instance;
+  the ordering is the class. `--preserve-state` makes the migration snapshot
+  mandatory the moment the definition lands, so any record that fails
+  validation afterwards leaves the channel demanding a snapshot nobody can
+  post — and that is as true of the mirror (posted first, so its failure
+  stops the command before the snapshot) as of the snapshot itself.
+
+  Publish now assembles and validates both records before the description
+  cell moves, and posts *those objects*, not copies of them — validating one
+  value and writing another is the raw-versus-validated defect of D67/D72.
+  What stays after the write is only what needs the write to have happened:
+  the description read-back (`publish-unconfirmed`) and each post's
+  read-back and kind-tail check (`post-unconfirmed`, `kind-tail-lost`).
+  Those are confirmations, not validations — they cannot fail on account of
+  anything knowable in advance, so hoisting them is meaningless rather than
+  merely hard. The test forces the snapshot record invalid through the
+  injected validator rather than through a size, because with the caps
+  aligned no legal state can produce the failure any more and the property
+  under test is the ORDER, not the cap that exposed it. Relocating the check
+  to after the write fails it.
+
+- **D87: `surface snapshot` at a pending revision is the repair, and repair
+  reconstructs rather than defaults.** The refusal that stood there forbade
+  the only exit a stranded channel has. It was guarding something real —
+  there is no folded state at a pending revision, so a naive snapshot would
+  invent one — and the guard is kept by reconstruction, not by removal.
+
+  The state cannot come from the current revision, whose events no longer
+  fold; it comes from the definition the state was last live under, which
+  the channel already keeps as the spec-mirror posts. Three protections
+  carry the old refusal's intent: only the channel host may repair (a
+  non-host snapshot is ignored by every reducer, so a non-host "repair"
+  would report a fix that never happened); the previous definition is taken
+  only from a host-authored, schema-valid mirror (otherwise a member could
+  steer the fold that decides what the surface's state becomes); and where
+  the previous state is not reconstructable — earlier-revision events with
+  no mirror of that revision, or a previous revision itself pending — it
+  refuses instead of defaulting. `initialState` is used in exactly one case,
+  no earlier revision and no earlier-revision events, where it is the true
+  answer rather than a fallback.
+
+  The boundary is the carried state's own coverage (`newestFoldedSeq`), not
+  the newest post: events already written at the current revision sit above
+  it and go on folding, where a newest-post boundary would freeze them out
+  silently and permanently. `--up-to` is refused on the repair path for the
+  same reason. Each of these is mutation-checked — removing the host filter,
+  removing the never-fabricate guard, or taking the boundary from the newest
+  post each fails exactly one test.
+
+- **D88: every error code carries a class, and the class says who can fix
+  it.** The stranding returned `invalid-ops` — an author-error code — with
+  the author's ops valid and the definition already published. That is not a
+  cosmetic mislabel: the skill's doctrine reads an author-error code as
+  "your files are wrong, fix and retry", so a system-level refusal wearing
+  one sends the bot to regenerate a working app and republish over a channel
+  that needed repairing, not regenerating.
+
+  `SURFACE_ERROR_CLASS` is a total `Record<SurfaceErrorCode,
+  'author' | 'environment'>` beside the code list; `surfaceError` stamps
+  `details.errorClass` last, so a call site cannot relabel its own failure
+  and every `--json` document carries the class without the dispatcher
+  learning a field. The new `state-too-large` (class `environment`) is
+  raised by `assertSnapshotRecordValid`, which asks the schema rather than
+  re-reading the cap — a second copy of the number here would be a second
+  definition of the wire format — and carries the schema's own issue text,
+  so even the unreachable non-size failure cannot mislead.
+
+  Two drift controls, both shown failing. `bun test` strips types, so the
+  exhaustive `Record` is re-checked at runtime: adding a code without a
+  class fails it. And SKILL.md's table is checked against the code rather
+  than proofread — every code it names must be filed under the class the
+  CLI actually gives it, so filing `state-too-large` as `author` fails.
+  The table need not name every code; an unnamed one falls through to
+  `details.errorClass`.
+
+  SKILL.md's own doctrine was wrong in the same direction and is corrected:
+  "a command error is verified failure" is true of the command and false of
+  its effects, so the failure section now turns on `details.definitionPublished`
+  — with it, the definition is live and only the records after it are
+  missing, and the remedy is `tlon surface snapshot <channel>`, never a
+  republish and above all never a republish without `--preserve-state`,
+  which unsticks the board by emptying it.

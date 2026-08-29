@@ -382,12 +382,6 @@ describe('surface snapshot', () => {
     expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(0);
   });
 
-  it('refuses to snapshot a surface that has no state to snapshot', async () => {
-    const harness = setup({ spec: spec({ preserveState: true }) });
-    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
-    expect(harness.json().code).toBe('migration-pending');
-  });
-
   it('folds from a valid snapshot at the current revision', async () => {
     const harness = setup();
     addEvent(
@@ -413,5 +407,200 @@ describe('surface snapshot', () => {
     const result = harness.json();
     expect(result.state).toEqual({ bringing: { frozen: true } });
     expect(result.baseSnapshotSeq).toBe(1);
+  });
+});
+
+/**
+ * `surface snapshot` at a pending revision is the REPAIR, so it has to be
+ * permitted — the refusal that used to stand here forbade the only exit a
+ * stranded channel has. It still may not invent state, which is what the
+ * refusal was really protecting, so every case below is either a
+ * reconstruction from the definition the state was last live under or an
+ * honest refusal.
+ */
+describe('surface snapshot — repairing a pending migration', () => {
+  /** The mirror publish writes after every revision: the revision history. */
+  function addMirror(
+    harness: ReturnType<typeof setup>,
+    mirrored: Record<string, unknown>,
+    post: { authorId?: string } = {}
+  ) {
+    return harness.ship.addPost(CHANNEL, {
+      authorId: post.authorId ?? '~zod',
+      kind: '/chat/surface/spec',
+      blob: JSON.stringify([
+        {
+          type: 'surface-spec-mirror',
+          version: 1,
+          surfaceId: SURFACE_ID,
+          specRevision: mirrored.specRevision,
+          spec: mirrored,
+        },
+      ]),
+    });
+  }
+
+  /**
+   * A channel stranded exactly the way the finding describes: revision 1 ran
+   * normally and collected state, revision 2 landed as a preserving revision
+   * with its mirror, and the migration snapshot never got posted.
+   */
+  function stranded() {
+    const harness = setup();
+    addMirror(harness, spec());
+    addEvent(
+      harness,
+      hostEvent([{ op: 'set', path: '/bringing/~0ten', value: 'pie' }])
+    );
+    const revised = spec({
+      specRevision: 2,
+      title: 'Potluck, renamed',
+      preserveState: true,
+    });
+    addMirror(harness, revised);
+    harness.ship.setChannelSpec(CHANNEL, revised);
+    return harness;
+  }
+
+  it('repairs a stranded channel without discarding its state', async () => {
+    const harness = stranded();
+
+    // The premise: the channel really is stuck.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().status).toBe('migration-pending');
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const result = harness.json();
+    expect(result.repairedMigration).toBe(true);
+    expect(result.specRevision).toBe(2);
+    expect(result.carriedFromRevision).toBe(1);
+    expect(result.kind).toBe('/chat/surface/snapshot');
+
+    // The state that was live under revision 1 is what got carried across.
+    const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
+      (post) => post.kind === '/chat/surface/snapshot'
+    );
+    expect(JSON.parse(posted?.blob ?? '[]')[0].state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie' },
+    });
+
+    // And the channel is live again at the new revision.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const after = harness.json();
+    expect(after.status).toBe('reduced');
+    expect(after.specRevision).toBe(2);
+    expect(after.state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie' },
+    });
+  });
+
+  /**
+   * The boundary is the state's own coverage, not the newest post. A repair
+   * that claimed everything up to now would freeze out events already written
+   * at the current revision — silently, and permanently.
+   */
+  it('leaves current-revision events above the boundary it claims', async () => {
+    const harness = stranded();
+    addEvent(
+      harness,
+      hostEvent([{ op: 'set', path: '/bringing/~0bus', value: 'wine' }], 2)
+    );
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().upToSequenceNum).toBe(2);
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie', '~bus': 'wine' },
+    });
+  });
+
+  it('carries the starting state when the revision never held any', async () => {
+    const harness = setup({ spec: spec({ preserveState: true }) });
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const result = harness.json();
+    expect(result.repairedMigration).toBe(true);
+    expect(result.carriedFromRevision).toBe(null);
+    expect(result.upToSequenceNum).toBe(0);
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().state).toEqual({ bringing: { '~zod': 'bread' } });
+  });
+
+  it('refuses rather than guess when the previous definition is missing', async () => {
+    const harness = setup();
+    // Events from revision 1 exist, but nothing records what revision 1 WAS,
+    // so the state they folded to cannot be reconstructed.
+    addEvent(
+      harness,
+      hostEvent([{ op: 'set', path: '/bringing/~0ten', value: 'pie' }])
+    );
+    harness.ship.setChannelSpec(
+      CHANNEL,
+      spec({ specRevision: 2, preserveState: true })
+    );
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    expect(harness.json().code).toBe('migration-pending');
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('ignores a mirror that did not come from the host', async () => {
+    const harness = stranded();
+    // A member's mirror claiming a different revision-1 definition must not
+    // steer the fold that decides what the surface's state becomes.
+    addMirror(
+      harness,
+      spec({ initialState: { bringing: { '~ten': 'everything' } } }),
+      { authorId: '~ten' }
+    );
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
+      (post) => post.kind === '/chat/surface/snapshot'
+    );
+    expect(JSON.parse(posted?.blob ?? '[]')[0].state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie' },
+    });
+  });
+
+  it('refuses when the previous revision is itself pending', async () => {
+    const harness = setup();
+    addMirror(harness, spec({ preserveState: true }));
+    const revised = spec({ specRevision: 2, preserveState: true });
+    addMirror(harness, revised);
+    harness.ship.setChannelSpec(CHANNEL, revised);
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('migration-pending');
+    expect((result.details as Record<string, unknown>).previousRevision).toBe(
+      1
+    );
+  });
+
+  it('refuses a repair from anyone but the channel host', async () => {
+    const harness = createTestSurfaceDeps({ ship: '~ten' });
+    harness.ship.addGroup(GROUP);
+    harness.ship.addChannel(GROUP, CHANNEL);
+    harness.ship.setChannelSpec(CHANNEL, spec({ preserveState: true }));
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('migration-pending');
+    expect(String(result.message)).toContain('only its host ~zod');
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(0);
+  });
+
+  it('refuses a hand-supplied boundary on the repair path', async () => {
+    const harness = stranded();
+    expect(
+      await run(['snapshot', CHANNEL, '--up-to', '1', '--json'], harness.deps)
+    ).toBe(1);
+    expect(harness.json().code).toBe('usage');
   });
 });

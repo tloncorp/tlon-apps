@@ -22,9 +22,17 @@ Two properties govern everything below. They matter more than doing every step.
 reads the thing back before it reports, and says what it observed. A poke that
 resolves is not a write that landed — `%channels` acks locally and
 `%channels-server` can still have dropped it. So: **never tell the user
-something worked before the command confirmed it.** And when a command returns
-an error, it has _verified_ failure — it is not "maybe it went through". Say
-the thing did not happen.
+something worked before the command confirmed it.**
+
+An error means the command did not finish — it never means "maybe it went
+through". It does **not** always mean nothing happened. `surface publish` does
+several things in order, and a failure part-way leaves the earlier ones
+standing; when that happens the error's `details` carry
+`definitionPublished: true`. **Read it before you speak.** Without it, say the
+change did not happen. With it, the app definition IS live and only the
+records after it are missing — say the update went out but the board needs
+fixing, and go to `code` for what to do. Never say "nothing happened" over a
+`definitionPublished`, and never respond to one by regenerating the app.
 
 **The user never sees the machinery.** Not lint output, not violation lists,
 not `--json` documents, not rule names, not screenshot filenames, not file
@@ -84,9 +92,15 @@ language: "I don't have permission to add channels here yet."
 9. **Revise on feedback.** "Show who hasn't responded" is a new revision:
    regenerate, lint, preview, `surface publish` again. Use `--preserve-state`
    whenever the data should survive the change — the command folds the current
-   state and posts the migration snapshot in the same command, so the
-   pending window is one command wide. Without it, state resets from
-   `initialState`; that is only correct when the user wants a fresh start.
+   state and posts the migration snapshot in the same command, so on the
+   success path the pending window is one command wide. If the command fails
+   with `definitionPublished` in its details, that window is open: the board
+   is waiting on its migration snapshot, and `tlon surface snapshot <channel>`
+   posts it. Do that before anything else — do NOT republish, and above all do
+   not republish without `--preserve-state`, which unsticks the board by
+   throwing away everything in it. Without `--preserve-state`, state resets
+   from `initialState`; that is only correct when the user wants a fresh
+   start.
 
    **Adding data is not a revision.** A revision changes the app; it does not
    change what is already in state. `--preserve-state` carries the existing
@@ -145,9 +159,19 @@ language: "I don't have permission to add channels here yet."
   would silently skip. Small and boring; one entry per post.
 - `tlon surface snapshot <channel>` — compacts the history into one post at the
   channel's current revision. You do not need one after a `--preserve-state`
-  publish; that command already posted it. Reach for it when the channel's
-  history has grown long, or when state is approaching the 128 KB cap and you
-  are about to prune.
+  publish that succeeded; that command already posted it. Reach for it when the
+  channel's history has grown long, or when state is approaching the 128 KB cap
+  and you are about to prune.
+
+  It is also **the repair** when a board is stuck on `migration-pending`: run
+  it with no options and it reconstructs the missing migration snapshot from
+  the state the previous revision was last folded to, which unsticks the board
+  without discarding what members put in it. Only the channel's host can do
+  this. It refuses rather than guess where the previous state is not
+  recoverable — take that refusal at face value; there is no flag that makes it
+  work, and republishing without `--preserve-state` "fixes" it only by
+  deleting the data.
+
 - **Bad data is repaired with a host event or a retraction**
   (`--retract <post-id>` on `event` or `snapshot`, which retracts by editing —
   the reducer skips edited surface posts), never by publishing a new spec.
@@ -165,17 +189,29 @@ apart — and two commands are shaped differently on purpose: `surface lint
 --json` prints the gate's verdict (`ok`, `violations`, `warnings`, `skipped`)
 with no `code`, and `surface preview --json` prints the capture manifest.
 
-| `code`                                                                            | what to do                                                                 | what the user hears                                               |
-| --------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `admin-required`, `group-not-found`                                               | stop; nothing to retry                                                     | "I don't have permission to add channels in that group yet."      |
-| `storage-unavailable`, `storage-no-bucket`                                        | stop; the remedy belongs to whoever set the bot up                         | "This node can't host app files yet — storage needs configuring." |
-| `name-burned`, `name-taken`                                                       | pick another name, or omit `--name` for a random one                       | nothing; just proceed                                             |
-| `lint-failed`                                                                     | read `details.violations`, fix the earliest, re-lint                       | nothing until it passes                                           |
-| `spec-file-invalid`, `spec-invalid`, `invalid-ops`                                | your own file or ops are wrong; fix and retry                              | nothing                                                           |
-| `surface-id-changed`                                                              | almost always your bug — fix the spec, do not pass the override            | nothing                                                           |
-| `migration-pending`                                                               | post the snapshot at the current revision first                            | nothing                                                           |
-| `partial-hydration`                                                               | do not report state or snapshot; retry, then report the channel unreadable | "I couldn't read the whole history of that board just now."       |
-| `create-unconfirmed`, `publish-unconfirmed`, `post-unconfirmed`, `kind-tail-lost` | the write is **not** confirmed — do not claim it landed                    | "That didn't go through — let me try again."                      |
+Every failure also carries `details.errorClass`, which says **who can fix it**
+and is the first thing to read:
+
+- `author` — the files or arguments you handed the command are wrong. Change
+  them and run again. This is the only class where regenerating anything is
+  the right move.
+- `environment` — the system refused, or the channel is in a state the command
+  cannot act on. **Your files are fine.** Re-running them unchanged repeats
+  the refusal, and rewriting the app is destructive noise that hides the real
+  problem. Do the specific thing the row below names, or stop.
+
+| `code`                                                                            | class       | what to do                                                                                                                  | what the user hears                                                    |
+| --------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `admin-required`, `group-not-found`                                               | environment | stop; nothing to retry                                                                                                      | "I don't have permission to add channels in that group yet."           |
+| `storage-unavailable`, `storage-no-bucket`                                        | environment | stop; the remedy belongs to whoever set the bot up                                                                          | "This node can't host app files yet — storage needs configuring."      |
+| `name-burned`, `name-taken`                                                       | environment | pick another name, or omit `--name` for a random one                                                                        | nothing; just proceed                                                  |
+| `lint-failed`                                                                     | author      | read `details.violations`, fix the earliest, re-lint                                                                        | nothing until it passes                                                |
+| `spec-file-invalid`, `spec-invalid`, `invalid-ops`                                | author      | your own file or ops are wrong; fix and retry                                                                               | nothing                                                                |
+| `surface-id-changed`                                                              | author      | almost always your bug — fix the spec, do not pass the override                                                             | nothing                                                                |
+| `migration-pending`                                                               | environment | run `tlon surface snapshot <channel>` — that posts the missing snapshot; if it refuses too, stop and say the board is stuck | nothing, unless the repair also refuses                                |
+| `state-too-large`                                                                 | environment | the board holds more than a snapshot can carry; prune it with a host event, then retry. **Do not touch the app files**      | "That board has more in it than I can save in one go — let's trim it." |
+| `partial-hydration`                                                               | environment | do not report state or snapshot; retry, then report the channel unreadable                                                  | "I couldn't read the whole history of that board just now."            |
+| `create-unconfirmed`, `publish-unconfirmed`, `post-unconfirmed`, `kind-tail-lost` | environment | the write is **not** confirmed — do not claim it landed                                                                     | "That didn't go through — let me try again."                           |
 
 - **Never work around a gate rule.** They are load-bearing: a bundle that dodges
   the gate can still never gain capabilities, it just gets worse.

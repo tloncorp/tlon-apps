@@ -490,6 +490,131 @@ describe('surface publish — preserving state', () => {
     expect(stored.actions[firstAction].duplicatesTolerated).toBe(true);
   });
 
+  /**
+   * The stranding sequence, end to end.
+   *
+   * A live state between the old snapshot cap and the reducer's own cap was
+   * legal to hold and impossible to write down. Publish folded it, moved the
+   * definition to a preserving revision, mirrored that, and only then
+   * discovered the snapshot would not validate — leaving the channel on a
+   * revision whose migration snapshot nobody could post. Every exit was
+   * blocked: an exact retry took the no-op path, `surface snapshot` refused a
+   * pending revision, and a further preserving publish cannot migrate off a
+   * pending one either. The only escape discarded the state.
+   *
+   * Nothing here abuses a cap to reach the band: eighteen host events, one op
+   * each, every op under the 4 KB op-value cap and every entry under the 8 KB
+   * entry cap.
+   */
+  function addLargeState(harness: ReturnType<typeof setup>) {
+    for (let index = 0; index < 18; index += 1) {
+      harness.ship.addPost(CHANNEL, {
+        authorId: '~zod',
+        kind: '/chat/surface/event',
+        blob: JSON.stringify([
+          {
+            type: 'surface-event',
+            version: 1,
+            surfaceId: 'srf-potluck',
+            specRevision: 1,
+            mode: 'host',
+            ops: [
+              { op: 'set', path: `/bulk/k${index}`, value: 'x'.repeat(3800) },
+            ],
+          },
+        ]),
+      });
+    }
+  }
+
+  it('preserves a legal state that is larger than a snapshot used to hold', async () => {
+    const harness = setup();
+    // Revision 1 exists first, so the host events below are tagged with the
+    // revision they actually fold under.
+    expect(await publish(harness)).toBe(0);
+    addLargeState(harness);
+
+    // The premise: a state the reducer really holds, above where the snapshot
+    // cap used to sit and below the cap the reducer itself enforces.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const folded = harness.json();
+    expect(folded.status).toBe('reduced');
+    const size = JSON.stringify(folded.state).length;
+    expect(size).toBeGreaterThan(64 * 1024);
+    expect(size).toBeLessThan(128 * 1024);
+    expect(folded.stateFull).toBe(false);
+
+    // A title-only preserving revision — the smallest possible change.
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
+    );
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+
+    const result = harness.json();
+    expect(result.outcome).toBe('published');
+    expect(result.specRevision).toBe(2);
+    const snapshot = result.snapshot as Record<string, unknown> | null;
+    expect(snapshot).not.toBeNull();
+
+    // And the channel is usable at the new revision, not migration-pending.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const after = harness.json();
+    expect(after.status).toBe('reduced');
+    expect(after.specRevision).toBe(2);
+    expect(JSON.stringify(after.state).length).toBe(size);
+  });
+
+  /**
+   * The ordering property, independent of any cap: if the migration snapshot
+   * will not validate, the pending window must never open. The failure is
+   * forced through the validator rather than through a size, because after
+   * the caps were aligned no legal state can produce it — and the property
+   * being pinned is the ORDER, not the cap that first exposed it.
+   */
+  it('writes nothing when the migration snapshot cannot be validated', async () => {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    addLargeState(harness);
+    const writesAfterFirstPublish = harness.ship.descriptionWrites.length;
+    const postsAfterFirstPublish = (harness.ship.posts.get(CHANNEL) ?? [])
+      .length;
+
+    const real = harness.deps.validateEntry;
+    harness.deps.validateEntry = (kind, value) =>
+      kind === 'snapshot'
+        ? { ok: false, issues: ['snapshot state exceeds 65536 bytes'] }
+        : real(kind, value);
+
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
+    );
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+
+    const result = harness.json();
+    // Not an author-error code: the spec file and the ops are both fine.
+    expect(result.code).toBe('state-too-large');
+    expect((result.details as Record<string, unknown>).errorClass).toBe(
+      'environment'
+    );
+    // And nothing was published, so the error must not claim otherwise.
+    expect(
+      (result.details as Record<string, unknown>).definitionPublished
+    ).toBeUndefined();
+
+    // The description never moved, and no mirror was posted on top of it.
+    expect(harness.ship.descriptionWrites).toHaveLength(
+      writesAfterFirstPublish
+    );
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(
+      postsAfterFirstPublish
+    );
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
+    expect(stored.specRevision).toBe(1);
+    expect(stored.preserveState).toBeUndefined();
+  });
+
   it('refuses when the definition it would migrate from is itself pending', async () => {
     const harness = withHistory();
     await publish(harness, ['--preserve-state']);

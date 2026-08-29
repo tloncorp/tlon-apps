@@ -61,14 +61,76 @@ export const SURFACE_ERROR_CODES = [
   'migration-pending',
   'partial-hydration',
   'invalid-ops',
+  'state-too-large',
   'template-not-found',
   'template-catalogue-empty',
 ] as const;
 
 export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
 
+/**
+ * Which kind of thing went wrong, and therefore who can fix it.
+ *
+ * - `author` — the files or arguments this command was handed are wrong. The
+ *   caller owns them, so the remedy is to change them and run again.
+ * - `environment` — the system refused, or the channel is in a state this
+ *   command cannot act on. The caller's files are FINE; retrying them
+ *   unchanged repeats the refusal, and rewriting them is destructive noise.
+ */
+export type SurfaceErrorClass = 'author' | 'environment';
+
+/**
+ * The class of every code, kept beside the codes so the two cannot drift.
+ *
+ * This exists because a misclassified code is not a cosmetic problem: the
+ * skill's doctrine tells a bot that an author-error code means "your files
+ * are wrong, fix and retry", so a system-level refusal wearing an
+ * author-error code sends the bot to rewrite a perfectly good app and
+ * republish over a channel that needs repairing, not regenerating. That is
+ * exactly what an oversized migration snapshot did while it reported
+ * `invalid-ops`.
+ *
+ * Declared as a total `Record` so a new code cannot be added without a class
+ * — the type checker refuses the omission, and `surface-common.test.ts`
+ * refuses it again at runtime, where the CLI's own tests actually run.
+ *
+ * `spec-invalid` is `author` at both its call sites: assembling an invalid
+ * definition is the caller's file, and a channel holding an unreadable one is
+ * repaired by republishing — which is still the caller's file.
+ */
+export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
+  {
+    usage: 'author',
+    'group-not-found': 'environment',
+    'admin-required': 'environment',
+    'storage-unavailable': 'environment',
+    'storage-no-bucket': 'environment',
+    'name-taken': 'environment',
+    'name-burned': 'environment',
+    'create-unconfirmed': 'environment',
+    'channel-not-found': 'environment',
+    'spec-absent': 'environment',
+    'spec-invalid': 'author',
+    'spec-version-too-new': 'environment',
+    'spec-file-invalid': 'author',
+    'surface-id-changed': 'author',
+    'lint-failed': 'author',
+    'upload-failed': 'environment',
+    'publish-unconfirmed': 'environment',
+    'post-unconfirmed': 'environment',
+    'kind-tail-lost': 'environment',
+    'post-not-found': 'environment',
+    'migration-pending': 'environment',
+    'partial-hydration': 'environment',
+    'invalid-ops': 'author',
+    'state-too-large': 'environment',
+    'template-not-found': 'author',
+    'template-catalogue-empty': 'environment',
+  };
+
 export class SurfaceError extends CommandError {
   readonly code: SurfaceErrorCode;
+  readonly errorClass: SurfaceErrorClass;
   readonly details: Record<string, unknown>;
 
   constructor(
@@ -79,16 +141,26 @@ export class SurfaceError extends CommandError {
     super(message, 1);
     this.name = 'SurfaceError';
     this.code = code;
+    this.errorClass = SURFACE_ERROR_CLASS[code];
     this.details = details;
   }
 }
 
+/**
+ * The class rides in `details` rather than beside `code`, so every `--json`
+ * failure document carries it without the dispatcher having to learn a new
+ * field. It is written last: the classification of a code is not something a
+ * call site gets to override.
+ */
 export function surfaceError(
   code: SurfaceErrorCode,
   message: string,
   details: Record<string, unknown> = {}
 ): SurfaceError {
-  return new SurfaceError(code, message, details);
+  return new SurfaceError(code, message, {
+    ...details,
+    errorClass: SURFACE_ERROR_CLASS[code],
+  });
 }
 
 /* ------------------------------------------------------------------ */
@@ -390,6 +462,40 @@ export function canonicalJson(value: unknown): string {
  */
 export function buildSurfaceBlob(entry: unknown): string {
   return JSON.stringify([entry]);
+}
+
+/**
+ * Checks a snapshot record BEFORE anything durable moves on its account.
+ *
+ * `postSurfaceRecord` validates every record it writes, but it does so at the
+ * moment of writing — which for a preserving publish is after the definition
+ * has already moved. That ordering is what let an unwritable snapshot strand
+ * a channel, so the check has to be available to callers that need it earlier.
+ *
+ * The schema is asked rather than the cap re-read: there is one definition of
+ * how big a snapshot may be, and a second copy of the number here would be a
+ * second definition of the wire format. The code is `state-too-large` because
+ * `state` is the only field of a machine-assembled snapshot record that can
+ * fail — every other field is a literal, a spec-derived id, or a validated
+ * sequence number — and the schema's own issue text travels in `details` so
+ * even the unreachable case cannot mislead.
+ */
+export function assertSnapshotRecordValid(
+  deps: Pick<SurfaceDeps, 'validateEntry'>,
+  entry: unknown,
+  context: { channel: string; specRevision: number }
+): void {
+  const validation = deps.validateEntry('snapshot', entry);
+  if (validation.ok) return;
+  throw surfaceError(
+    'state-too-large',
+    `${context.channel} holds more state than a snapshot record may carry at revision ${context.specRevision}: ${validation.issues.join('; ')}. Prune it with a host event and try again — the app's files are not the problem.`,
+    {
+      channel: context.channel,
+      specRevision: context.specRevision,
+      issues: validation.issues,
+    }
+  );
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,7 +1,11 @@
+import type { SurfaceSpec } from '@tloncorp/api';
+
 import {
   type ParsedSurfaceArgs,
   type SurfaceDeps,
+  type SurfacePostRecord,
   type SurfaceReport,
+  assertSnapshotRecordValid,
   emitReport,
   parseSurfaceArgs,
   singleValue,
@@ -65,9 +69,16 @@ Post a snapshot of a dashboard's current state, compacting its history.
 The snapshot is written at the channel's CURRENT revision — a snapshot at
 any other revision is unusable, and there is no cross-revision selection.
 
+This is also the repair for a channel stuck waiting on a migration snapshot:
+run it with no options and the host's snapshot is reconstructed from the
+state the previous revision was last folded to, which is what unsticks the
+dashboard without discarding what members put in it.
+
 Options:
   --up-to <n>          Sequence boundary the snapshot covers (default: the
-                       newest post in the channel)
+                       newest post in the channel; not accepted while
+                       repairing a missing migration snapshot, where the
+                       boundary is derived)
   --fallback <text>    Text pre-surface clients see
   --retract <post-id>  Retract a snapshot by editing it
   --json               Emit a machine-readable result
@@ -513,16 +524,76 @@ export async function runSurfaceSnapshot(
     hostShip: resolved.hostShip,
     posts: hydrated.posts,
   });
-  if (reduction.status === 'migration-pending') {
-    throw surfaceError(
-      'migration-pending',
-      `${channelId} has no state to snapshot: its definition preserves state and the migration snapshot at revision ${spec.specRevision} has not been posted.`,
-      { channel: channelId, specRevision: spec.specRevision }
-    );
-  }
 
   const newest = newestSequenceNum(hydrated.posts);
   const requested = singleValue(parsed, '--up-to');
+
+  // A pending revision is the one state this command MUST be able to act on.
+  // It used to refuse here, which forbade the only repair a stranded channel
+  // has: the migration snapshot is missing, `surface publish` re-runs into
+  // its own no-op path, and a further preserving publish cannot migrate off a
+  // pending revision either. The refusal was protecting something real —
+  // there is no folded state at a pending revision, so a naive snapshot would
+  // invent one — and that protection is kept below by RECONSTRUCTING the
+  // state rather than defaulting to anything.
+  if (reduction.status === 'migration-pending') {
+    if (requested !== undefined) {
+      throw usageSurfaceError(
+        `${channelId} is repairing a missing migration snapshot, so its boundary is derived from the state being carried across and --up-to cannot be supplied`,
+        SURFACE_SNAPSHOT_HELP
+      );
+    }
+    const repair = repairPendingMigration(deps, resolved, spec, hydrated.posts);
+    const entry = {
+      type: 'surface-snapshot',
+      version: 1,
+      surfaceId: spec.surfaceId,
+      specRevision: spec.specRevision,
+      upToSequenceNum: repair.upToSequenceNum,
+      state: repair.state,
+    };
+    assertSnapshotRecordValid(deps, entry, {
+      channel: channelId,
+      specRevision: spec.specRevision,
+    });
+    const written = await postSurfaceRecord(deps, {
+      channelId,
+      kind: 'snapshot',
+      fallback:
+        singleValue(parsed, '--fallback') ??
+        'Restored the dashboard after an update.',
+      entry,
+      budget,
+    });
+    return emitReport(
+      deps,
+      {
+        json: {
+          channel: channelId,
+          outcome: 'posted',
+          repairedMigration: true,
+          post: written.postId,
+          kind: written.kind,
+          surfaceId: spec.surfaceId,
+          specRevision: spec.specRevision,
+          upToSequenceNum: repair.upToSequenceNum,
+          carriedFromRevision: repair.fromRevision,
+          observed:
+            'the snapshot was read back from the channel with its surface kind intact',
+        },
+        lines: [
+          `Repaired ${channelId}: posted the missing migration snapshot`,
+          `  post:     ${written.postId}`,
+          `  revision: ${spec.specRevision}`,
+          `  carried:  state from revision ${repair.fromRevision ?? 'the definition itself'}`,
+          `  covers:   sequences up to ${repair.upToSequenceNum}`,
+          `  observed: read back from the channel as ${written.kind}`,
+        ],
+      },
+      asJson
+    );
+  }
+
   let upToSequenceNum = newest;
   if (requested !== undefined) {
     const parsedBoundary = Number(requested);
@@ -542,20 +613,25 @@ export async function runSurfaceSnapshot(
     upToSequenceNum = parsedBoundary;
   }
 
+  const entry = {
+    type: 'surface-snapshot',
+    version: 1,
+    surfaceId: spec.surfaceId,
+    specRevision: spec.specRevision,
+    upToSequenceNum,
+    state: reduction.state,
+  };
+  assertSnapshotRecordValid(deps, entry, {
+    channel: channelId,
+    specRevision: spec.specRevision,
+  });
   const written = await postSurfaceRecord(deps, {
     channelId,
     kind: 'snapshot',
     fallback:
       singleValue(parsed, '--fallback') ??
       'Saved a checkpoint of the dashboard.',
-    entry: {
-      type: 'surface-snapshot',
-      version: 1,
-      surfaceId: spec.surfaceId,
-      specRevision: spec.specRevision,
-      upToSequenceNum,
-      state: reduction.state,
-    },
+    entry,
     budget,
   });
 
@@ -565,6 +641,7 @@ export async function runSurfaceSnapshot(
       json: {
         channel: channelId,
         outcome: 'posted',
+        repairedMigration: false,
         post: written.postId,
         kind: written.kind,
         surfaceId: spec.surfaceId,
@@ -583,6 +660,165 @@ export async function runSurfaceSnapshot(
       ],
     },
     asJson
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Migration repair                                                    */
+/* ------------------------------------------------------------------ */
+
+interface MigrationRepair {
+  state: Record<string, unknown>;
+  /** the boundary the reconstructed state actually covers */
+  upToSequenceNum: number;
+  /** the revision the state was carried from, or null when there was none */
+  fromRevision: number | null;
+}
+
+/**
+ * Reconstructs the state a missing migration snapshot was supposed to carry.
+ *
+ * The state cannot come from the current revision — a preserving revision has
+ * no folded state until its snapshot lands, and the previous revision's
+ * events no longer fold under it. It has to come from the definition the
+ * state was last live under, and the channel keeps one: the spec mirror posts
+ * are a verbatim revision history, which is what publish writes them for.
+ *
+ * Three protections carry over from the refusal this replaces, because the
+ * thing it was guarding against is a repair that INVENTS state:
+ *
+ * - Only the channel host may repair. A non-host's snapshot is ignored by
+ *   every reducer, so a non-host repair would report a fix that never
+ *   happened.
+ * - The previous definition is taken only from a HOST-authored, schema-valid
+ *   mirror. Anything else would let a member steer the fold that decides what
+ *   the surface's state becomes.
+ * - Where the previous state cannot be reconstructed, this refuses instead of
+ *   defaulting. `initialState` is used in exactly one case — no earlier
+ *   revision and no earlier-revision events — where it is not a default but
+ *   the true answer.
+ */
+function repairPendingMigration(
+  deps: SurfaceDeps,
+  resolved: { channelId: string; hostShip: string },
+  spec: SurfaceSpec,
+  posts: SurfacePostRecord[]
+): MigrationRepair {
+  const { channelId, hostShip } = resolved;
+  const host = deps.normalizeShip(hostShip);
+  if (deps.normalizeShip(deps.actingShip()) !== host) {
+    throw surfaceError(
+      'migration-pending',
+      `${channelId} is waiting on its migration snapshot at revision ${spec.specRevision}, and only its host ${host} can post one — a snapshot from anyone else is ignored by every client. Ask the host to run this command.`,
+      { channel: channelId, specRevision: spec.specRevision, host }
+    );
+  }
+
+  const previous = newestHostMirrorBelow(deps, posts, host, spec);
+  if (!previous) {
+    if (hasEventsBelowRevision(posts, spec)) {
+      throw surfaceError(
+        'migration-pending',
+        `${channelId} is waiting on its migration snapshot at revision ${spec.specRevision}, and the definition its state was last live under is not recoverable: the channel holds events from an earlier revision but no mirror of that revision to fold them under. Reconstructing the state would mean guessing at it.`,
+        { channel: channelId, specRevision: spec.specRevision }
+      );
+    }
+    // Nothing has ever been folded here, so the state the revision preserves
+    // is its own starting point — the same answer publish computes for a
+    // channel with no readable prior definition.
+    return {
+      state: spec.initialState as Record<string, unknown>,
+      upToSequenceNum: 0,
+      fromRevision: null,
+    };
+  }
+
+  const carried = deps.reduce({ spec: previous, hostShip, posts });
+  if (carried.status !== 'reduced') {
+    throw surfaceError(
+      'migration-pending',
+      `${channelId} is waiting on its migration snapshot at revision ${spec.specRevision}, but revision ${previous.specRevision} is waiting on one too, so there is no state to carry across. The chain of preserved state is broken and only a republish without --preserve-state can move the channel on.`,
+      {
+        channel: channelId,
+        specRevision: spec.specRevision,
+        previousRevision: previous.specRevision,
+      }
+    );
+  }
+
+  // The boundary is what the carried state actually covers, NOT the newest
+  // post. Events already written at the current revision sit above it and go
+  // on folding; a boundary at the newest post would freeze them out silently.
+  return {
+    state: carried.state as Record<string, unknown>,
+    upToSequenceNum: carried.newestFoldedSeq ?? 0,
+    fromRevision: previous.specRevision,
+  };
+}
+
+/** Every surface entry in a post's blob, or none if it does not parse. */
+function blobEntries(
+  blob: string | null | undefined
+): Record<string, unknown>[] {
+  if (typeof blob !== 'string' || blob.length === 0) return [];
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(blob);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(parsed)) return [];
+  return parsed.filter(
+    (entry): entry is Record<string, unknown> =>
+      typeof entry === 'object' && entry !== null && !Array.isArray(entry)
+  );
+}
+
+/**
+ * The highest-revision definition below the current one, from the channel's
+ * own host-authored, schema-valid mirrors.
+ */
+function newestHostMirrorBelow(
+  deps: SurfaceDeps,
+  posts: SurfacePostRecord[],
+  host: string,
+  spec: SurfaceSpec
+): SurfaceSpec | null {
+  let best: SurfaceSpec | null = null;
+  for (const post of posts) {
+    if (post.isDeleted || post.isEdited) continue;
+    if (typeof post.sequenceNum !== 'number') continue;
+    if (deps.normalizeShip(post.authorId) !== host) continue;
+    for (const entry of blobEntries(post.blob)) {
+      if (entry.type !== 'surface-spec-mirror') continue;
+      if (entry.surfaceId !== spec.surfaceId) continue;
+      if (!deps.validateEntry('spec', entry).ok) continue;
+      // Validated by SurfaceSpecMirrorEntrySchema, which embeds the spec
+      // schema, so the inner value is a spec by the same definition every
+      // client uses.
+      const mirrored = entry.spec as SurfaceSpec;
+      if (mirrored.specRevision >= spec.specRevision) continue;
+      if (best === null || mirrored.specRevision > best.specRevision) {
+        best = mirrored;
+      }
+    }
+  }
+  return best;
+}
+
+/** Any surface event tagged with a revision older than the current one. */
+function hasEventsBelowRevision(
+  posts: SurfacePostRecord[],
+  spec: SurfaceSpec
+): boolean {
+  return posts.some((post) =>
+    blobEntries(post.blob).some(
+      (entry) =>
+        entry.type === 'surface-event' &&
+        entry.surfaceId === spec.surfaceId &&
+        typeof entry.specRevision === 'number' &&
+        entry.specRevision < spec.specRevision
+    )
   );
 }
 
