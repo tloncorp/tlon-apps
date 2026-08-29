@@ -396,7 +396,19 @@ export async function runSurfacePublish(
         detail: `the channel's definition reads as "${read.status}"`,
       };
     }
-    if (canonicalJson(read.spec) !== expectedKey) {
+    // Compare the VERBATIM cell, not the validated view. `read.spec` has
+    // been through the schema, which strips unknown keys — so a gate-only
+    // marker like `duplicatesTolerated` would be present in what we wrote
+    // and absent from what we compare, and a landed write would report
+    // `publish-unconfirmed`. Content is the change signal (D59), and the
+    // raw payload is the content.
+    let readKey: string;
+    try {
+      readKey = canonicalJson(JSON.parse(read.raw));
+    } catch {
+      readKey = canonicalJson(read.spec);
+    }
+    if (readKey !== expectedKey) {
       return {
         done: false,
         detail: `the channel holds revision ${read.spec.specRevision} with bundle ${read.spec.bundle.sha256.slice(0, 12)}…, not what was written`,

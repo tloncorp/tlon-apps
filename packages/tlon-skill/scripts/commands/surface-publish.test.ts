@@ -398,6 +398,30 @@ describe('surface publish — preserving state', () => {
     expect(stored.preserveState).toBe(true);
   });
 
+  it('carries a gate-only marker through to the stored definition', async () => {
+    // `duplicatesTolerated` is NOT in SurfaceActionSchema — z.object strips
+    // unknown keys (D67). It survives only because publish writes the raw
+    // assembled object and uses the schema check purely as a check. If that
+    // ever becomes `write(schemaCheck.value)`, the marker vanishes from the
+    // published definition, and the next revise cycle re-lints a spec whose
+    // append action has lost its opt-out and fails with no recourse. This
+    // pins the write, not the validation.
+    const harness = withHistory();
+    const marked = specFile();
+    const firstAction = Object.keys(
+      (marked as { actions: Record<string, unknown> }).actions
+    )[0];
+    (marked as { actions: Record<string, Record<string, unknown>> }).actions[
+      firstAction
+    ].duplicatesTolerated = true;
+    harness.ship.files.set(SPEC_PATH, JSON.stringify(marked));
+
+    expect(await publish(harness)).toBe(0);
+
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
+    expect(stored.actions[firstAction].duplicatesTolerated).toBe(true);
+  });
+
   it('refuses when the definition it would migrate from is itself pending', async () => {
     const harness = withHistory();
     await publish(harness, ['--preserve-state']);

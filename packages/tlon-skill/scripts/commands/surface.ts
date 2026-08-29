@@ -30,6 +30,7 @@ Subcommands:
   event       Post a host update, or retract one
   state       Hydrate a dashboard and print its reduced state
   snapshot    Post a snapshot, compacting the channel's history
+  preview     Render the app as production does and screenshot it
 
 Every command that writes confirms by reading the result back and says what
 it observed. A poke that resolves is never treated as a write that landed.

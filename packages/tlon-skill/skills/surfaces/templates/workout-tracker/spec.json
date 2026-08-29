@@ -1,0 +1,132 @@
+{
+  "version": 1,
+  "surfaceId": "srf-workout",
+  "specRevision": 1,
+  "title": "StrongLifts 5×5",
+  "bundle": {
+    "assetRef": "placeholder://workout-tracker/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "program": "StrongLifts 5×5",
+    "progression": "+2.5 kg a session, +5 kg deadlift, −10% after 3 misses",
+    "unit": "kg",
+    "barWeight": 20,
+    "plateStep": 2.5,
+    "deloadAfter": 3,
+    "deloadFactor": 0.9,
+    "chartLift": "squat",
+    "historyShown": 6,
+    "liftOrder": ["squat", "bench", "row", "ohp", "deadlift"],
+    "lifts": {
+      "squat": { "label": "Squat", "scheme": "5×5", "start": 20, "inc": 2.5 },
+      "bench": {
+        "label": "Bench Press",
+        "scheme": "5×5",
+        "start": 20,
+        "inc": 2.5
+      },
+      "row": {
+        "label": "Barbell Row",
+        "scheme": "5×5",
+        "start": 30,
+        "inc": 2.5
+      },
+      "ohp": {
+        "label": "Overhead Press",
+        "scheme": "5×5",
+        "start": 20,
+        "inc": 2.5
+      },
+      "deadlift": {
+        "label": "Deadlift",
+        "scheme": "1×5",
+        "start": 40,
+        "inc": 5
+      }
+    },
+    "workouts": {
+      "A": ["squat", "bench", "row"],
+      "B": ["squat", "ohp", "deadlift"]
+    },
+    "history": {},
+    "today": {}
+  },
+  "actions": {
+    "squat-ok": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/squat", "value": { "r": "ok" } }
+      ]
+    },
+    "squat-fail": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/squat", "value": { "r": "fail" } }
+      ]
+    },
+    "bench-ok": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/bench", "value": { "r": "ok" } }
+      ]
+    },
+    "bench-fail": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/bench", "value": { "r": "fail" } }
+      ]
+    },
+    "row-ok": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/row", "value": { "r": "ok" } }
+      ]
+    },
+    "row-fail": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/row", "value": { "r": "fail" } }
+      ]
+    },
+    "ohp-ok": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/ohp", "value": { "r": "ok" } }
+      ]
+    },
+    "ohp-fail": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/today/$actor/ohp", "value": { "r": "fail" } }
+      ]
+    },
+    "deadlift-ok": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/today/$actor/deadlift",
+          "value": { "r": "ok" }
+        }
+      ]
+    },
+    "deadlift-fail": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/today/$actor/deadlift",
+          "value": { "r": "fail" }
+        }
+      ]
+    },
+    "clear-today": {
+      "acceptStale": true,
+      "ops": [{ "op": "del", "path": "/today/$actor" }]
+    }
+  },
+  "recipe": "A shared StrongLifts 5×5 board for a small crew lifting the same program. State holds only the log — one outcome per member per lift for the session in progress, plus finished sessions keyed by date. Working weight, the A/B alternation, miss streaks, the deload and the chart are all derived at render time, because the op language has no arithmetic. Members log 'All reps' or 'Missed' per lift; nobody enters reps or weights by hand, which is a deliberate v0 simplification. The channel host is responsible for saving the session in progress under its date and clearing it, on whatever cadence the crew trains; without that the session in progress grows without end."
+}
