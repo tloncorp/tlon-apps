@@ -516,6 +516,7 @@ export type GroupPrivacy = ApiGroupPrivacy;
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
+  blob: text('blob'),
   privacy: text('privacy').$type<GroupPrivacy>(),
   haveInvite: boolean('have_invite'),
   haveRequestedInvite: boolean('have_requested_invite'),

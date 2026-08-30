@@ -1,5 +1,5 @@
 import { StructuredChannelDescriptionPayload as SCDP } from '@tloncorp/api';
-import { toClientGroupsV7 } from '@tloncorp/api';
+import { toClientGroups } from '@tloncorp/api';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import { expect, test } from 'vitest';
 
@@ -100,7 +100,7 @@ function groupPayload(
       sections: {},
       'section-order': [],
     },
-  } as unknown as Record<string, ub.GroupV7>;
+  } as unknown as Record<string, ub.GroupV11>;
 }
 
 /**
@@ -112,7 +112,7 @@ async function syncGroupFromShip(
   art: ChannelArt = {}
 ) {
   await db.insertGroups({
-    groups: toClientGroupsV7(groupPayload(spec, art), true),
+    groups: toClientGroups(groupPayload(spec, art), true),
   });
 }
 

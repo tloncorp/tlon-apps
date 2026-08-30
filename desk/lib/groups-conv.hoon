@@ -5,6 +5,154 @@
 ::
 =,  gv
 |%
+++  v11
+  |%
+  ++  group
+    =>
+      |%
+      ++  drop-seats
+        |=  [=group:v11:gv our=ship]
+        ^-  group:v11:gv
+        =.  seats.group
+          =/  our-seat=seat:v9:gv
+            (~(gut by seats.group) our *seat:v9:gv)
+          =/  seats-number=@ud  ~(wyt by seats.group)
+          ?:  (lte seats-number 15)
+            seats.group  :: keep all members if 15 or fewer
+          =/  other-ships=(list [ship seat:v9:gv])
+            ~(tap by (~(del by seats.group) our))
+          =/  keep-ships=(list [ship seat:v9:gv])
+            :-  [our our-seat]
+            (scag 14 other-ships)  :: take first 14 other ships
+          (~(gas by *(map ship seat:v9:gv)) keep-ships)
+        group
+      --
+    |%
+    ++  group-ui
+      |=  [=net:v11:gv =group:v11:gv]
+      ^-  group-ui:v11:gv
+      =/  init=?
+        ?:  ?=(%pub -.net)  &
+        !=(time.net *@da)
+      :*  group
+          init
+          ~(wyt by seats.group)
+      ==
+    ++  v9
+      =<  group
+      |%
+      ++  group
+        |=  =group:v11:gv
+        ^-  group:v9:gv
+        :*  meta.group
+          ::
+            admissions.group
+            seats.group
+          ::
+            roles.group
+            admins.group
+          ::
+            channels.group
+            active-channels.group
+          ::
+            sections.group
+            section-order.group
+          ::
+            flagged-content.group
+        ==
+      ::
+      ++  group-ui
+        |=  [=net:v11:gv =group:v11:gv]
+        ^-  group-ui:v9:gv
+        =/  init=?
+          ?:  ?=(%pub -.net)  &
+          !=(time.net *@da)
+        :*  (^group group)
+            init
+            ~(wyt by seats.group)
+        ==
+      --
+    ++  v7
+      =<  group
+      |%
+      ++  group
+        |=  =group:v11:gv
+        ^-  group:v7:gv
+        %-  v7:group:^v9
+        (v9:^group group)
+      ::
+      ++  group-ui
+        |=  [=net:v11:gv =group:v11:gv]
+        ^-  group-ui:v7:gv
+        =/  init=?
+          ?:  ?=(%pub -.net)  &
+          !=(time.net *@da)
+        :*  (^group group)
+            init
+            ~(wyt by seats.group)
+        ==
+      --
+    ++  v5
+      =<  group
+      |%
+      ++  group
+        |=  =group:v11:gv
+        ^-  group:v5:gv
+        %-  v5:group:^v9
+        (v9:^group group)
+      ::
+      ++  group-ui
+        |=  [=net:v11:gv =group:v11:gv]
+        ^-  group-ui:v5:gv
+        =/  init=?
+          ?:  ?=(%pub -.net)  &
+          !=(time.net *@da)
+        :*  (^group group)
+            init
+            ~(wyt by seats.group)
+        ==
+      --
+    ++  v2
+      =<  group
+      |%
+      ++  group
+        |=  =group:v11:gv
+        ^-  group:v2:gv
+        %-  v2:group:^v9
+        (v9:^group group)
+      ::
+      ++  group-ui
+        |=  [=status:neg =net:v11:gv =group:v11:gv]
+        ^-  group-ui:v2:gv
+        ?.  ?=(%sub -.net)
+          [(^group group) `[%chi ~]]
+        =/  saga=(unit saga:e)
+          ?+  status  ~
+            %match  `[%chi ~]
+            %clash  `[%lev ~]
+          ==
+        [(^group group) saga]
+      --
+    --
+  ++  r-group
+    |%
+    ++  v10
+      |=  =r-group:v11:gv
+      ^-  (unit r-group:v10:gv)
+      ?+  -.r-group  `r-group
+        %blob    ~
+        %create  `[%create (v9:group group.r-group)]
+      ==
+    ++  v9
+      |=  =r-group:v11:gv
+      ^-  (unit r-group:v9:gv)
+      ?+  -.r-group  `r-group
+        %blob            ~
+        %active-channel  ~
+        %create          `[%create (v9:group group.r-group)]
+      ==
+    --
+  --
 ++  v10
   |%
   ++  foreign
@@ -70,6 +218,26 @@
           init
           ~(wyt by seats.group)
       ==
+    ++  v11
+      |=  =group:v9:gv
+      ^-  group:v11:gv
+      :*  meta.group
+          ~
+        ::
+          admissions.group
+          seats.group
+        ::
+          roles.group
+          admins.group
+        ::
+          channels.group
+          active-channels.group
+        ::
+          sections.group
+          section-order.group
+        ::
+          flagged-content.group
+      ==
     ++  v7
       =<  group
       |%
@@ -134,6 +302,33 @@
           ==
         [(^group group) saga]
       --
+    --
+  ++  net
+    |%
+    ++  v11
+      |=  =net:v9:gv
+      ^-  net:v11:gv
+      =*  log-mp  ((mp time u-group:v9:gv) lte)
+      ?:  ?=(%sub -.net)  net
+      :-  %pub
+      ^-  log:v11:gv
+      (urn:log-mp log.net v11:u-group)
+    --
+  ++  u-group
+    |%
+    ++  v11
+      |=  [=time =u-group:v9:gv]
+      ^-  u-group:v11:gv
+      ?:  ?=([%create *] u-group)
+        [%create (v11:group group.u-group)]
+      u-group
+    --
+  ++  net-group
+    |%
+    ++  v11
+      |=  [=net:v9:gv =group:v9:gv]
+      ^-  [net:v11:gv group:v11:gv]
+      [(v11:^net net) (v11:^group group)]
     --
   ++  r-group
     |%

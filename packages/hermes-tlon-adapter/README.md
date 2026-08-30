@@ -146,7 +146,7 @@ Restart the Hermes gateway after changing these.
 
 **Tlon Messenger (owner install)**
 
--   Settings → Experimental Features → **Enable bot context lens panel**
+-   Context Lens is enabled by default; there is no feature flag to turn on.
 -   Leave **Context lens gateway URL** and **Context lens gateway token** blank. Those are the old direct HTTP stream to a local harness gateway (web-only). They are not required for durable `%steward` records and will not fix a missing steward.
 
 **Ships**
@@ -158,7 +158,7 @@ Restart the Hermes gateway after changing these.
 :steward &steward-action-1 [%trust-bot ~your-bot-ship]
 ```
 
-3. Test with a **new** bot reply. Historical messages do not gain badges retroactively.
+3. Test with a **new** bot reply. Historical messages do not gain the Context Lens info action retroactively.
 
 **Data path**
 

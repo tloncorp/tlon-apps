@@ -3,19 +3,29 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable } from '@tloncorp/ui';
 import { useRef, useState } from 'react';
+import { Platform } from 'react-native';
 import { XStack } from 'tamagui';
 
 import { useTelemetry } from '../../../hooks/useTelemetry';
+import { ContextLensButton } from '../Channel/ContextLens/ContextLensButton';
 import { triggerHaptic } from '../../utils';
 import { BotFeedbackSheet } from './BotFeedbackSheet';
 
 export function BotFeedbackRow({
   post,
   currentUserId,
+  onPressBotRun,
+  visible = true,
 }: {
   post: db.Post;
   currentUserId: string;
+  onPressBotRun?: (post: db.Post) => void;
+  visible?: boolean;
 }) {
+  const isWeb = Platform.OS === 'web';
+  // Rating feedback only applies to the user's Tlon-hosted bot; other owned
+  // bots mount this row solely for the Context Lens action.
+  const canRate = api.isBotUserIdForUser(post.authorId, currentUserId);
   const telemetry = useTelemetry();
   const messageId = store.getBotReplyMessageId(post);
   const { data: feedback } = store.useBotReplyFeedback(messageId);
@@ -93,36 +103,59 @@ export function BotFeedbackRow({
 
   return (
     <>
-      <XStack gap="$2xs" paddingLeft="$4xl" paddingBottom="$m">
-        {(['up', 'down'] as const).map((rating) => {
-          const selected = feedback?.rating === rating;
-          return (
-            <Pressable
-              key={rating}
-              onPress={(event) => {
-                event.stopPropagation();
-                void handleRating(rating);
-              }}
-              disabled={changing}
-              width={24}
-              height={24}
-              hitSlop={6}
-              alignItems="center"
-              justifyContent="center"
-              borderRadius="$m"
-              backgroundColor={selected ? '$positiveBackground' : 'unset'}
-              pressStyle={{ backgroundColor: '$secondaryBackground' }}
-              hoverStyle={{ backgroundColor: '$secondaryBackground' }}
-              testID={rating === 'up' ? 'BotFeedbackUp' : 'BotFeedbackDown'}
-            >
-              <Icon
-                type={rating === 'up' ? 'ThumbsUp' : 'ThumbsDown'}
-                customSize={[18, 18]}
-                color={selected ? '$positiveActionText' : '$tertiaryText'}
-              />
-            </Pressable>
-          );
-        })}
+      <XStack
+        gap={isWeb ? '$2xs' : '$s'}
+        alignItems="center"
+        height={isWeb ? 20 : undefined}
+        paddingBottom={isWeb ? undefined : '$m'}
+      >
+        {visible && <ContextLensButton post={post} onPress={onPressBotRun} />}
+        {visible &&
+          canRate &&
+          (['up', 'down'] as const).map((rating) => {
+            const selected = feedback?.rating === rating;
+            return (
+              <Pressable
+                key={rating}
+                onPress={(event) => {
+                  event.stopPropagation();
+                  void handleRating(rating);
+                }}
+                disabled={changing}
+                cursor="pointer"
+                accessibilityLabel={
+                  rating === 'up'
+                    ? 'Rate bot reply positively'
+                    : 'Rate bot reply negatively'
+                }
+                accessibilityRole="button"
+                width={isWeb ? 20 : 24}
+                height={isWeb ? 20 : 24}
+                hitSlop={6}
+                alignItems="center"
+                justifyContent="center"
+                borderRadius="$xs"
+                backgroundColor={selected ? '$positiveBackground' : 'unset'}
+                pressStyle={{
+                  backgroundColor: selected
+                    ? '$positiveBorder'
+                    : '$activeBorder',
+                }}
+                hoverStyle={{
+                  backgroundColor: selected
+                    ? '$positiveBorder'
+                    : '$activeBorder',
+                }}
+                testID={rating === 'up' ? 'BotFeedbackUp' : 'BotFeedbackDown'}
+              >
+                <Icon
+                  type={rating === 'up' ? 'ThumbsUp' : 'ThumbsDown'}
+                  customSize={isWeb ? [14, 14] : [18, 18]}
+                  color={selected ? '$positiveActionText' : '$tertiaryText'}
+                />
+              </Pressable>
+            );
+          })}
       </XStack>
       <BotFeedbackSheet
         open={sheetOpen}

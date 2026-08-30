@@ -151,6 +151,11 @@ export const tlonPlugin = createChatChannelPlugin({
 
         hints.push(
           '',
+          'When the owner changes or cancels recurring work, reconcile the complete set of cron jobs for that same user intent.',
+          '- List all jobs, including disabled jobs, and inspect every job whose name, description, or payload matches the requested subject. Do not stop after the first broad match.',
+          '- Update or remove every obsolete declaration so no duplicate or related job keeps the superseded cadence or behavior. If the intended scope is genuinely ambiguous, ask before changing jobs.',
+          '- List the jobs again after writing and only claim completion after verifying that no matching job retains the old cadence or behavior.',
+          '',
           'Tlon gallery channels (heap/~host/name) are for collecting images, links, and media.',
           '- When you were triggered from a gallery post, your normal reply is posted as a comment on that post. Use action=send only when you intend to create a separate NEW top-level gallery item.',
           '- To post to a gallery: use action=send, to=heap/~host/name, message=<text or URL>',
@@ -276,6 +281,9 @@ export const tlonPlugin = createChatChannelPlugin({
     },
     ...createRuntimeOutboundDelegates({
       getRuntime: loadTlonChannelRuntime,
+      sendPayload: {
+        resolve: (runtime) => runtime.tlonRuntimeOutbound.sendPayload,
+      },
       sendText: { resolve: (runtime) => runtime.tlonRuntimeOutbound.sendText },
       sendMedia: {
         resolve: (runtime) => runtime.tlonRuntimeOutbound.sendMedia,

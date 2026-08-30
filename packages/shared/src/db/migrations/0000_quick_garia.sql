@@ -314,6 +314,7 @@ CREATE TABLE `groups` (
 	`cover_image_color` text,
 	`title` text,
 	`description` text,
+	`blob` text,
 	`privacy` text,
 	`have_invite` integer,
 	`have_requested_invite` integer,

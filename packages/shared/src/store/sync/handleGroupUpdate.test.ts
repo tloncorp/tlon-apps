@@ -298,7 +298,7 @@ test('addChannel propagates group sync failures for normal channels', async () =
  * that chain dropped them, a republished dashboard would only reach clients
  * at their next boot.
  *
- * The raw wire event is fed through `toV1GroupsUpdate` rather than a
+ * The raw wire event is fed through `toGroupsUpdate` rather than a
  * hand-built `GroupUpdate`, because `toClientChannel` is where the payload
  * would be lost.
  *
@@ -364,7 +364,7 @@ test('an r-channel edit fact carries the description payload and surface spec in
     } as unknown as Awaited<ReturnType<typeof api.getGroupAndChannelUnreads>>);
 
   try {
-    const update = api.toV1GroupsUpdate({
+    const update = api.toGroupsUpdate({
       flag: groupId,
       'r-group': {
         channel: {
@@ -412,4 +412,83 @@ test('an r-channel edit fact carries the description payload and surface spec in
   expect(row?.surfaceSpec).not.toBeNull();
   expect(row?.iconImageColor).toBe('#aabbcc');
   expect(row?.coverImageColor).toBe('#ddeeff');
+});
+
+test('editGroupBlob writes and clears the group blob column', async () => {
+  const groupId = '~bus/blob-group';
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  await client.insert(schema.groups).values({
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  });
+
+  const blob = '{"custom":"payload"}';
+  await batchEffects('test:editGroupBlob', async (ctx) => {
+    await handleGroupUpdate({ type: 'editGroupBlob', groupId, blob }, ctx);
+  });
+
+  let group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBe(blob);
+
+  await batchEffects('test:editGroupBlob-clear', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'editGroupBlob', groupId, blob: null },
+      ctx
+    );
+  });
+
+  group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBeNull();
+});
+
+// Omitting the blob key must not clear a stored blob; an explicit null must.
+test('addGroup preserves the blob on blob-less upserts and clears on null', async () => {
+  const groupId = '~bus/blob-upsert-group';
+  const base = {
+    id: groupId,
+    currentUserIsMember: true,
+    currentUserIsHost: false,
+    hostUserId: '~bus',
+  };
+
+  const client = getClient();
+  if (!client) throw new Error('test db client not initialized');
+
+  const blob = '{"custom":"payload"}';
+  await batchEffects('test:addGroup-blob', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'addGroup', group: { ...base, blob } },
+      ctx
+    );
+  });
+
+  // blob-less upsert leaves it alone
+  await batchEffects('test:addGroup-no-blob', async (ctx) => {
+    await handleGroupUpdate({ type: 'addGroup', group: { ...base } }, ctx);
+  });
+  let group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBe(blob);
+
+  // explicit null clears
+  await batchEffects('test:addGroup-null-blob', async (ctx) => {
+    await handleGroupUpdate(
+      { type: 'addGroup', group: { ...base, blob: null } },
+      ctx
+    );
+  });
+  group = await client.query.groups.findFirst({
+    where: $.eq(schema.groups.id, groupId),
+  });
+  expect(group?.blob).toBeNull();
 });

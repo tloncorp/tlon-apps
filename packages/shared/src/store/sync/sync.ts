@@ -1099,6 +1099,9 @@ export async function handleGroupUpdate(
     case 'editGroup':
       await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
       break;
+    case 'editGroupBlob':
+      await db.updateGroup({ id: update.groupId, blob: update.blob }, ctx);
+      break;
     case 'deleteGroup':
       await db.deletePinnedItem({ itemId: update.groupId }, ctx);
       await db.deleteGroup(update.groupId, ctx);

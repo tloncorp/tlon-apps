@@ -14,12 +14,14 @@ describe('botHomeGroupHasDefaultTitle', () => {
     }
   );
 
-  it.each(['Home Automation', 'Research Group', "Dan's Tlonbot"])(
-    'preserves the customized title %s',
-    (title) => {
-      expect(botHomeGroupHasDefaultTitle(groupWithTitle(title))).toBe(false);
-    }
-  );
+  it.each([
+    'Home Automation',
+    'Research Group',
+    "Dan's Tlonbot",
+    "Dan's Research Bot",
+  ])('preserves the customized title %s', (title) => {
+    expect(botHomeGroupHasDefaultTitle(groupWithTitle(title))).toBe(false);
+  });
 
   it('recognizes the exact title generated from the previous nickname', () => {
     for (const title of ["Alice's Group", "Alice's Tlonbot"]) {
