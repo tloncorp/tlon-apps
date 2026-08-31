@@ -65,11 +65,23 @@ export const ActionIdSchema = z
 
 export type ActionId = z.infer<typeof ActionIdSchema>;
 
+/**
+ * Wraps a schema in a byte-size check without losing its inferred type.
+ *
+ * The explicit return annotation is load-bearing. `superRefine` is declared as
+ * `ZodEffects<this, Output, Input>`, and on a value whose type is still the
+ * unresolved generic `T`, TypeScript reads `Output`/`Input` off the constraint
+ * `z.ZodTypeAny` — i.e. `ZodType<any, ZodTypeDef, any>`. Without the
+ * annotation these helpers return `ZodEffects<T, any, any>`, so `z.infer` of
+ * anything they produce is `any`, and any union containing such a member
+ * collapses to `any` for every consumer. Restating the parameters here keeps
+ * the wrapped schema's own output and input.
+ */
 function sizeCapped<T extends z.ZodTypeAny>(
   schema: T,
   maxBytes: number,
   label: string
-) {
+): z.ZodEffects<T, z.output<T>, z.input<T>> {
   return schema.superRefine((value: Json, ctx: z.RefinementCtx) => {
     if (jsonByteLength(value) > maxBytes) {
       ctx.addIssue({
@@ -234,7 +246,10 @@ const surfaceEntryBase = {
   specRevision: z.number().int().nonnegative(),
 };
 
-function entrySizeCapped<T extends z.ZodTypeAny>(schema: T) {
+/** Same type-preservation requirement as `sizeCapped`; see its comment. */
+function entrySizeCapped<T extends z.ZodTypeAny>(
+  schema: T
+): z.ZodEffects<T, z.output<T>, z.input<T>> {
   return schema.superRefine((entry: Json, ctx: z.RefinementCtx) => {
     if (jsonByteLength(entry) > SURFACE_CAPS.eventEntryTotal) {
       ctx.addIssue({

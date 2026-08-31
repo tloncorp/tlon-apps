@@ -67,11 +67,11 @@ describe('spec caps', () => {
 
   test('recipe: 8 KB accepted, one byte over rejected', () => {
     const { at, over } = padToCap(SURFACE_CAPS.recipe, (pad) => ({ pad }));
-    expect(SurfaceSpecSchema.safeParse(validSpec({ recipe: at })).success).toBe(
-      true
-    );
     expect(
-      SurfaceSpecSchema.safeParse(validSpec({ recipe: over })).success
+      SurfaceSpecSchema.safeParse(validSpec({ recipe: at as Json })).success
+    ).toBe(true);
+    expect(
+      SurfaceSpecSchema.safeParse(validSpec({ recipe: over as Json })).success
     ).toBe(false);
   });
 

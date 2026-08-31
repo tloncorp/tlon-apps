@@ -811,6 +811,29 @@ export const PostBlobDataEntrySchema = z.union(postBlobDataEntryDefinitions);
 export type PostBlobDataEntry = z.infer<typeof PostBlobDataEntrySchema>;
 export type UnknownPostBlobDataEntry = { type: 'unknown' };
 
+/**
+ * Every consumer of a post blob discriminates on `entry.type`, so this union
+ * has to stay a union of string literals. Two ways an added member breaks
+ * that, both of them silent:
+ *
+ * - a member whose inferred output is `any` (the usual cause: a generic
+ *   `schema.superRefine(...)` wrapper without an explicit return annotation —
+ *   see `sizeCapped` in ./surface/schemas). `any` is contagious in a union, so
+ *   ONE such member makes the whole of `PostBlobDataEntry` `any`;
+ * - a member that widens `type` to `string`.
+ *
+ * Either turns `entry.type === '...'` into a no-op narrowing everywhere,
+ * downstream and in other packages, with nothing reported at the definition
+ * site. The assertion below fails to compile in that case: a degraded
+ * discriminant makes `string extends PostBlobDataEntry['type']` true, which
+ * hands `AssertTrue` a `false` its constraint rejects.
+ */
+type AssertTrue<T extends true> = T;
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _PostBlobDataEntryStaysDiscriminated = AssertTrue<
+  string extends PostBlobDataEntry['type'] ? false : true
+>;
+
 function parseRawPostBlobData(blob: string): unknown[] | null {
   try {
     const parsed = JSON.parse(blob);
