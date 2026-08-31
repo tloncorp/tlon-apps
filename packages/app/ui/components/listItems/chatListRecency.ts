@@ -20,7 +20,10 @@ export function getGroupRecencyOverride(
   const latestNotesActivityAt = Math.max(
     0,
     ...(chat.group.channels ?? [])
-      .filter((channel) => channel.type === 'notes')
+      .filter(
+        (channel) =>
+          channel.type === 'notes' && channel.currentUserIsMember === true
+      )
       .map((channel) => channel.unread?.updatedAt ?? 0)
   );
 

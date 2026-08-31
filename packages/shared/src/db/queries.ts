@@ -1403,7 +1403,10 @@ export const getChats = createReadQuery(
       const latestNotesActivityAt = Math.max(
         0,
         ...g.channels
-          .filter((channel) => channel.type === 'notes')
+          .filter(
+            (channel) =>
+              channel.type === 'notes' && channel.currentUserIsMember === true
+          )
           .map((channel) => channel.unread?.updatedAt ?? 0)
       );
 

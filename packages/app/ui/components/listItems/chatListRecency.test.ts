@@ -13,7 +13,7 @@ function makeGroupChat({
   notesActivityAt?: number;
   timestamp?: number;
   isPending?: boolean;
-} = {}): db.Chat {
+} = {}): Extract<db.Chat, { type: 'group' }> {
   return {
     id: '~zod/test-group',
     type: 'group',
@@ -29,6 +29,7 @@ function makeGroupChat({
         {
           id: 'notes/~zod/test-notebook',
           type: 'notes',
+          currentUserIsMember: true,
           unread: {
             channelId: 'notes/~zod/test-notebook',
             updatedAt: notesActivityAt,
@@ -67,6 +68,13 @@ describe('getGroupRecencyOverride', () => {
   test('keeps the post presentation for pinned groups', () => {
     const chat = makeGroupChat();
     chat.pin = { itemId: chat.id } as db.Pin;
+
+    expect(getGroupRecencyOverride(chat)).toBeNull();
+  });
+
+  test('ignores stale activity from a left Notes channel', () => {
+    const chat = makeGroupChat();
+    chat.group.channels![0].currentUserIsMember = false;
 
     expect(getGroupRecencyOverride(chat)).toBeNull();
   });

@@ -245,7 +245,12 @@ describe('getChats group recency workaround', () => {
       groups: [testGroup(recentGroupId, 200), testGroup(notesGroupId, 100)],
     });
     await queries.insertChannels([
-      { id: notesChannelId, type: 'notes', groupId: notesGroupId },
+      {
+        id: notesChannelId,
+        type: 'notes',
+        groupId: notesGroupId,
+        currentUserIsMember: true,
+      },
     ]);
     await queries.insertChannelUnreads([
       makeChannelUnread({ channelId: notesChannelId, updatedAt: 300 }),
@@ -256,6 +261,33 @@ describe('getChats group recency workaround', () => {
       .map((chat) => chat.id);
 
     expect(groupIds).toEqual([notesGroupId, recentGroupId]);
+  });
+
+  test('ignores stale Notes summaries after leaving a notebook', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const leftNotesGroupId = '~zod/left-notes';
+    const leftNotesChannelId = 'notes/~zod/left-notes';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(leftNotesGroupId, 100)],
+    });
+    await queries.insertChannels([
+      {
+        id: leftNotesChannelId,
+        type: 'notes',
+        groupId: leftNotesGroupId,
+        currentUserIsMember: false,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: leftNotesChannelId, updatedAt: 300 }),
+    ]);
+
+    const groupIds = (await queries.getChats()).unpinned
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([recentGroupId, leftNotesGroupId]);
   });
 });
 
