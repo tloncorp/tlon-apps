@@ -1,6 +1,0 @@
-{
-  "worktree": {
-    "baseRef": "fresh",
-    "include": [".env.local"]
-  }
-}
