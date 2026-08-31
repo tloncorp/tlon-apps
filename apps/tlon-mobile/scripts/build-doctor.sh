@@ -7,10 +7,10 @@
 #      skips the entire native build when a build with a matching fingerprint
 #      exists. Requires being logged in to EAS; when logged out the cache is
 #      silently skipped.
-#   2. ccache — caches C/C++/ObjC compilation for rebuilds within one worktree.
-#      Hits require the same build-product paths, so a fresh worktree never hits.
-#      Requires ccache installed and apple.ccacheEnabled in
-#      ios/Podfile.properties.json.
+#   2. Native compilation caching is stim's job, not this script's. Run
+#      `stim doctor` for it: it checks the Xcode compilation cache, the Metro
+#      cache store, the build-cache provider, and whether this checkout
+#      fingerprints like a fresh worktree.
 
 set -u
 
@@ -74,37 +74,6 @@ else
   fi
 fi
 
-# --- ccache (cold builds) ------------------------------------------------------
-echo
-echo "ccache (speeds up native rebuilds within a worktree):"
-
-if command -v ccache > /dev/null 2>&1; then
-  ok "ccache $(ccache --version | head -1 | awk '{print $3}') installed"
-
-  MAX_SIZE="$(ccache -s 2>/dev/null | grep -i 'cache size' | head -1 | sed 's/.*\/ *//;s/(.*//' | tr -d ' ')"
-  ok "ccache stats: $(ccache -s 2>/dev/null | grep -E 'Hits:' | head -1 | sed 's/^ *//')${MAX_SIZE:+ (max $MAX_SIZE)}"
-
-  # ccache grows to max_size. If that ceiling exceeds free disk, a few cold
-  # builds can fill the volume.
-  MAX_GB="$(ccache -p 2>/dev/null | grep -E '^\(?.*max_size' | sed 's/.*= *//;s/ *GB//' | tr -d ' ')"
-  FREE_GB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2{printf "%.0f", $4/1048576}')"
-  if [ -n "${MAX_GB:-}" ] && [ -n "${FREE_GB:-}" ] \
-    && [ "${MAX_GB%%.*}" -gt "$FREE_GB" ] 2>/dev/null; then
-    warn "ccache max_size (${MAX_GB}GB) exceeds free disk (${FREE_GB}GB)" \
-      "ccache -M ${FREE_GB}G   # or a smaller ceiling"
-  fi
-
-  if grep -q '"apple.ccacheEnabled": *"true"' "$MOBILE_DIR/ios/Podfile.properties.json" 2>/dev/null; then
-    ok "apple.ccacheEnabled=true in ios/Podfile.properties.json"
-  else
-    warn "apple.ccacheEnabled not enabled in ios/Podfile.properties.json" \
-      'add "apple.ccacheEnabled": "true" and re-run pod install'
-  fi
-
-else
-  warn "ccache not installed — native rebuilds recompile everything" "brew install ccache"
-fi
-
 # --- iOS ----------------------------------------------------------------------
 echo
 echo "iOS:"
@@ -156,7 +125,7 @@ AVAIL_KB="$(df -Pk "$HOME" 2>/dev/null | awk 'NR==2 {print $4}')"
 if [ -z "$AVAIL_KB" ]; then
   warn "could not determine free disk space"
 elif [ $((AVAIL_KB / 1048576)) -lt 30 ]; then
-  warn "only $((AVAIL_KB / 1048576))GB free — DerivedData + simulators + ccache need room" "clear old DerivedData: rm -rf ~/Library/Developer/Xcode/DerivedData"
+  warn "only $((AVAIL_KB / 1048576))GB free — DerivedData + simulators + build caches need room" "clear old DerivedData: rm -rf ~/Library/Developer/Xcode/DerivedData"
 else
   ok "$((AVAIL_KB / 1048576))GB free"
 fi
