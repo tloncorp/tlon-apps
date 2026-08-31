@@ -1,20 +1,23 @@
 # Bot message journey observability
 
 This instrumentation traces a hosted bot DM from the owner's backend, through
-the bot moon and OpenClaw, and back to the owner's backend. It is content-free:
-event attributes contain routing metadata and canonical message IDs, but never
-message or reply text.
+the bot moon and OpenClaw, and back to the owner's backend. For group replies,
+it also confirms persistence at the group host and, when the owner has the
+channel locally, at the bot moon's owner. It is content-free: event attributes
+contain routing metadata and canonical message IDs, but never message or reply
+text.
 
 The stateless `journey` module in the `%steward` Gall agent subscribes to the
-local `%chat` v4 feed and synchronously reads `%contacts` for each DM message.
-It emits a stage only when the relevant profile already has a `bot-info` text
-field whose JSON says
+local `%chat` v4 and `%channels` v4 feeds and synchronously reads `%contacts`
+for candidate messages. It emits a stage only when the relevant profile
+already has a `bot-info` text field whose JSON says
 `"harness":"openclaw"`. On an owner ship, that is the child moon's profile; on
 a bot moon receiving owner input or persisting its own reply, it is the moon's
-self-profile. A missing marker or any other harness emits nothing, so human DMs
-never enter the bot delivery alert population. This intentionally assumes the
-contact is already present; the observer stores no pending state and performs
-no retry.
+self-profile. For a group persistence event, it is the message author's
+profile. A missing marker, malformed marker, or any other harness emits
+nothing, so human messages never enter the bot delivery alert population. This
+intentionally assumes the contact is already present; the observer stores no
+pending state and performs no retry.
 
 Context Lens is not part of the correlation contract. The inbound Tlon message
 ID joins the input stages and OpenClaw turn; the outbound Tlon message ID joins
@@ -37,12 +40,15 @@ Schema version: `1`.
 | `moon_reply_enqueued` | OpenClaw turn recorder | `input_message_id`, `run_id`, `output_message_id` | The moon API accepted the outgoing message and returned its canonical ID. This is not proof of owner delivery. |
 | `moon_reply_persisted` | moon `%steward` journey module | `output_message_id` | The marked OpenClaw moon's `%chat` feed observed its locally authored DM reply to its owner. |
 | `owner_reply_persisted` | owner `%steward` journey module | `output_message_id` | The owner observed a remote reply from a child moon marked as an OpenClaw bot. |
+| `group_host_reply_persisted` | group host `%steward` journey module | `output_message_id` | The group host's `%channels` feed observed a top-level post or reply authored by a moon marked as an OpenClaw bot. |
+| `owner_group_reply_persisted` | owner `%steward` journey module | `output_message_id` | The bot moon's owner observed that OpenClaw-authored post or reply in its local `%channels` replica. This stage exists only when the owner has the channel locally. |
 
-The backend stages currently define the owner/moon SLO for DMs. OpenClaw also
-emits turn and dispatch stages for group-channel turns. Dispatch events use the
-actual outbound target kind (`dm`, `group_channel`, or `notebook`),
-which can differ from the turn's inbound destination. Non-DM persistence has a
-different topology and is not part of this alert.
+Dispatch events use the actual outbound target kind (`dm`, `group_channel`, or
+`notebook`), which can differ from the turn's inbound destination. Group posts
+and replies use their canonical `author/id` as `output_message_id`, matching the
+ID returned to OpenClaw. If the owner is also the group host, `%steward` emits
+both group persistence stages. Edits, reactions, and notebook updates do not
+emit these group stages.
 
 ## Grafana alert
 
@@ -113,3 +119,10 @@ Earlier gaps can use the same pattern with deadlines appropriate to each
 boundary: join `owner_input_accepted` to `moon_input_persisted`, or
 `plugin_input_selected` to `turn_started`, on `input_message_id`; join
 `moon_reply_enqueued` to `moon_reply_persisted` on `output_message_id`.
+
+For group replies, join a `moon_reply_enqueued` event whose
+`destination_kind` is `group_channel` to `group_host_reply_persisted` on
+`output_message_id`. That is the primary backend-delivery check: the group host
+is authoritative for the channel. `owner_group_reply_persisted` provides an
+additional owner-side replica check, but should only drive a separate alert
+where the owner is expected to have that channel locally.
