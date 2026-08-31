@@ -4,7 +4,7 @@ import {
   type FakeShipOptions,
   createTestSurfaceDeps,
 } from '../surface-test-doubles';
-import type { SurfaceDeps } from './surface-common';
+import type { SurfaceDeps, SurfaceGroupChannel } from './surface-common';
 import {
   isBurnedName,
   isBuntGroupFlag,
@@ -99,6 +99,10 @@ describe('surface create — presence predicates', () => {
 describe('surface create — observing both agents', () => {
   it('succeeds only once %channels holds it AND %groups lists it', async () => {
     const harness = setup();
+    // A sibling channel, so the group has a baseline stamp to be newer than.
+    // Without one the dating check has nothing to compare against and every
+    // create passes it vacuously, in either direction.
+    const sibling = harness.ship.addChannel(GROUP, 'chat/~zod/sibling');
     const code = await run(
       ['create', GROUP, '--title', 'Potluck', '--json'],
       harness.deps
@@ -108,6 +112,7 @@ describe('surface create — observing both agents', () => {
     const result = harness.json();
     expect(result.ok).toBe(true);
     expect(result.observedIn).toEqual(['channels', 'groups']);
+    expect(Number(result.listedAt)).toBeGreaterThan(sibling.added);
     const channelId = result.channel as string;
     expect(harness.ship.nests.has(channelId)).toBe(true);
     expect(harness.ship.groups.get(GROUP)?.channels[channelId]).toBeDefined();
@@ -177,7 +182,7 @@ describe('surface create — names', () => {
     const harness = setup();
     await run(['create', GROUP, '--title', 'Potluck', '--json'], harness.deps);
     expect(harness.json().channel).toBe('chat/~zod/dash-0001');
-    expect(harness.json().reused).toBe(false);
+    expect(harness.json().disposition).toBe('created-unverified');
   });
 
   it('refuses a burned name without poking', async () => {
@@ -227,7 +232,9 @@ describe('surface create — names', () => {
       reused.deps
     );
     expect(code).toBe(0);
-    expect(reused.json().reused).toBe(true);
+    // Reuse is the one disposition this command CAN show: it poked nothing,
+    // and it read the channel it is reporting on both before and after.
+    expect(reused.json().disposition).toBe('reused');
     expect(reused.ship.createPokes).toHaveLength(0);
     // Reuse renames nothing, so the report carries the channel's OWN title,
     // not the one asked for.
@@ -261,33 +268,18 @@ describe('surface create — names', () => {
     ).toBe('Existing 9');
   });
 
-  it('refuses a create that silently no-oped onto a name taken since the check', async () => {
-    const harness = setup();
+  it('refuses a racer that kept a different title — the listing is not ours', async () => {
+    // A refutation, not a verification: %groups holds the title of the create
+    // it actually took, so a title that is not the one we poked with proves
+    // the listing is someone else's. The converse does not follow, which is
+    // what the next test is about.
+    const raced = setup({ raceCreate: { title: 'Someone else’s channel' } });
     const code = await run(
-      ['create', GROUP, '--title', 'Potluck', '--json'],
-      harness.deps
-    );
-    expect(code).toBe(0);
-    expect(harness.json().channel).toBe('chat/~zod/dash-0001');
-
-    // The same create, with the name taken between the presence check and
-    // the poke. `ca-create` no-ops silently; both agents then hold a
-    // channel of that name, which presence alone cannot tell from ours.
-    const raced = setup({
-      overrides: {
-        createChannel: async (poke) => {
-          const channel = raced.ship.addChannel(GROUP, poke.id);
-          channel.meta.title = 'Someone else’s channel';
-          raced.ship.applyCreate(poke);
-        },
-      },
-    });
-    const racedCode = await run(
       ['create', GROUP, '--title', 'Potluck', '--json'],
       raced.deps
     );
 
-    expect(racedCode).toBe(1);
+    expect(code).toBe(1);
     const result = raced.json();
     expect(result.code).toBe('create-unconfirmed');
     expect(
@@ -296,6 +288,83 @@ describe('surface create — names', () => {
     expect(
       raced.ship.groups.get(GROUP)?.channels['chat/~zod/dash-0001']?.meta.title
     ).toBe('Someone else’s channel');
+  });
+
+  it('refuses a listing stamped no later than the one it saw before poking', async () => {
+    // The other race: the channel was already listed on the group host and
+    // this ship's %groups copy had not caught up, so the pre-flight saw a
+    // free name. `added` is stamped by the group host, so the listing dates
+    // itself — at or below the newest stamp we held, it cannot be ours.
+    const stale = setup({ raceCreate: { addedBeforeBaseline: true } });
+    stale.ship.addChannel(GROUP, 'chat/~zod/other');
+
+    const code = await run(
+      ['create', GROUP, '--title', 'Potluck', '--json'],
+      stale.deps
+    );
+
+    expect(code).toBe(1);
+    const result = stale.json();
+    expect(result.code).toBe('create-unconfirmed');
+    expect(
+      String((result.details as Record<string, unknown>).observed)
+    ).toContain('not newer than');
+  });
+
+  it('refuses a listing that carries no host stamp at all', async () => {
+    // `added` is not optional anywhere the group channel is defined, so a
+    // listing without one is a malformed read rather than an old ship. With
+    // no stamp there is nothing to date the listing by, and an undatable
+    // listing is treated the way an unreadable title already is: refused.
+    const unstamped: ReturnType<typeof setup> = setup({
+      overrides: {
+        readGroupChannels: async (groupId) => {
+          const listing = unstamped.ship.readGroupChannels(groupId);
+          if (!listing) return null;
+          return Object.fromEntries(
+            Object.entries(listing).map(([id, { added: _added, ...rest }]) => [
+              id,
+              rest as SurfaceGroupChannel,
+            ])
+          );
+        },
+      },
+    });
+
+    const code = await run(
+      ['create', GROUP, '--title', 'Potluck', '--json'],
+      unstamped.deps
+    );
+
+    expect(code).toBe(1);
+    expect(unstamped.json().code).toBe('create-unconfirmed');
+    expect(
+      String((unstamped.json().details as Record<string, unknown>).observed)
+    ).toContain('no added time');
+  });
+
+  it('does not claim a create it cannot prove — a same-title racer is indistinguishable', async () => {
+    // THE case. The winner took the name between the presence check and the
+    // poke, under the SAME title, and %groups stamped its listing after
+    // everything this command had seen — so both refutations come up empty
+    // and the ship looks exactly as it would if the poke had landed.
+    //
+    // Nothing either agent stamps says WHICH poke produced a listing, and a
+    // no-oped `ca-create` leaves no trace at all, so no evidence exists to
+    // separate this from a create of our own. The command must therefore not
+    // report that it created anything.
+    const raced = setup({ raceCreate: {} });
+    const code = await run(
+      ['create', GROUP, '--title', 'Potluck', '--json'],
+      raced.deps
+    );
+
+    expect(code).toBe(0);
+    const result = raced.json();
+    // `reused: false` was exactly the false ownership claim — "not reused"
+    // reads as "made by me", and here it would be a lie. Nothing may say it.
+    expect(result.reused).toBeUndefined();
+    expect(result.disposition).toBe('created-unverified');
   });
 
   it('requires a collision decision to be about an explicit name', async () => {
@@ -408,9 +477,13 @@ describe('surface create — what it writes', () => {
     });
   });
 
-  it('says what it observed in the human report', async () => {
+  it('says what it observed in the human report, and what it cannot show', async () => {
     const harness = setup();
     await run(['create', GROUP, '--title', 'Potluck'], harness.deps);
     expect(harness.out()).toContain('present in %channels and listed in');
+    expect(harness.out()).toContain('not proof');
+    // "Created channel X" is a claim of authorship, and authorship is the one
+    // thing no read of either agent can establish.
+    expect(harness.out()).not.toContain('Created channel');
   });
 });

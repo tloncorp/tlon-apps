@@ -124,6 +124,20 @@ export interface FakeShipOptions {
   createEffect?: CreateEffect;
   /** how many observation polls pass before the create lands */
   createDelayPolls?: number;
+  /**
+   * A concurrent creator that takes the name between the pre-flight presence
+   * check and this command's poke. The winner's channel appears in both
+   * agents, `ca-create` then no-ops on ours, and every poke still resolves —
+   * the race the title predicate was invented to catch and cannot.
+   *
+   * `title` defaults to the title OUR poke carried, which is the case that
+   * matters: a racer who picked a different title is refutable, a racer who
+   * picked the same one is not. `addedBeforeBaseline` backdates the winner's
+   * host stamp to the newest one the command read at pre-flight, standing in
+   * for the other race — a listing that was already there and that this
+   * ship's copy of `%groups` had not caught up with.
+   */
+  raceCreate?: { title?: string; addedBeforeBaseline?: boolean };
   storage?: SurfaceStoragePreflight | null;
   uploadUrlFor?: (fileName: string) => string;
   uploadThrows?: Error;
@@ -161,6 +175,19 @@ export class FakeShip {
   private slugCounter = 0;
   private pendingCreates: { at: number; apply: () => void }[] = [];
   private polls = 0;
+  /**
+   * The GROUP HOST's clock, which is what stamps `added` on a listing.
+   *
+   * `%groups` overwrites whatever a create poke carried with its own `now`
+   * (`se-c-channel`: `=. added.chan now.bowl`), keeps it across later edits,
+   * and every subscriber stores the host's value verbatim — so the stamps a
+   * ship can read for one group all come from one strictly-advancing clock.
+   * The double advances it the same way. A fixed `added` (this was `1` for
+   * every channel) would let a create "confirm" itself against a number
+   * nothing ever moves, which is a check that cannot fail.
+   */
+  private addedClock = 0;
+  private raced = false;
 
   constructor(readonly options: FakeShipOptions = {}) {
     this.ship = options.ship ?? '~zod';
@@ -174,6 +201,20 @@ export class FakeShip {
   nextSlug(): string {
     this.slugCounter += 1;
     return `dash-${this.slugCounter.toString().padStart(4, '0')}`;
+  }
+
+  /** The stamp a group add gets. Strictly increasing, like `now.bowl`. */
+  nextAdded(): number {
+    this.addedClock += 1;
+    return this.addedClock;
+  }
+
+  /** The newest stamp a group's listing currently holds. */
+  newestAdded(groupId: string): number {
+    return Object.values(this.groups.get(groupId)?.channels ?? {}).reduce(
+      (newest, channel) => (channel.added > newest ? channel.added : newest),
+      0
+    );
   }
 
   addGroup(
@@ -197,7 +238,7 @@ export class FakeShip {
     const group = this.groups.get(groupId);
     if (!group) throw new Error(`no fake group ${groupId}`);
     const channel: SurfaceGroupChannel = {
-      added: 1,
+      added: this.nextAdded(),
       meta: { title: 'Dashboard', description, image: '', cover: '' },
       section: 'default',
       readers: [],
@@ -280,8 +321,39 @@ export class FakeShip {
     for (const entry of ready) entry.apply();
   }
 
+  /**
+   * A concurrent creator taking the name in the gap between the pre-flight
+   * presence check and this poke's effect.
+   *
+   * It lands FIRST, so the poke that follows meets a name `%channels`
+   * already holds and no-ops exactly as `ca-create` does. `%groups` stamps
+   * the winner's listing with its own clock, so by default the winner's
+   * `added` is NEWER than anything the command saw at pre-flight — the race
+   * no baseline can refute. `addedBeforeBaseline` puts it exactly ON the
+   * newest stamp the command read instead, which is the other race: a
+   * listing that already existed and that this ship had not yet caught up
+   * with. Equal rather than lower on purpose — `now.bowl` advances between
+   * events, so a listing sharing a stamp we already saw was written by an
+   * event we already saw, and a check written `>=` would call it ours.
+   */
+  private applyRace(
+    poke: SurfaceCreateChannelPoke,
+    race: { title?: string; addedBeforeBaseline?: boolean }
+  ): void {
+    if (!this.groups.has(poke.group)) return;
+    const baseline = this.newestAdded(poke.group);
+    const channel = this.addChannel(poke.group, poke.id);
+    channel.meta.title = race.title ?? poke.title;
+    if (race.addedBeforeBaseline) channel.added = baseline;
+  }
+
   applyCreate(poke: SurfaceCreateChannelPoke): void {
     this.createPokes.push(poke);
+    const race = this.options.raceCreate;
+    if (race && !this.raced) {
+      this.raced = true;
+      this.applyRace(poke, race);
+    }
     const effect = this.options.createEffect ?? 'both';
     const delay = this.options.createDelayPolls ?? 0;
     const apply = () => {
@@ -300,7 +372,7 @@ export class FakeShip {
         const group = this.groups.get(poke.group);
         if (group) {
           group.channels[poke.id] = {
-            added: 1,
+            added: this.nextAdded(),
             meta: {
               title: poke.title,
               description: poke.description,
