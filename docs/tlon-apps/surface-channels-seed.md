@@ -87,6 +87,52 @@ byte, exactly as it would against a real bucket.
 A second server on **:4322** exists only as somewhere for the hostile
 navigation probes to try to escape to.
 
+## 2a. Publishing with no S3 (dev storage)
+
+The seed puts _rendering_ on screen, but it writes each fixture's `assetRef`
+by hand — it never goes through `surface publish`'s upload. Publishing needs
+somewhere to PUT a bundle, and without one `tlon surface publish` stops at
+`storage-unavailable`.
+
+The same server takes uploads at `PUT /<sha256>.js`, so you can point the
+CLI at it. If you do not want the nine fixtures, run the storage half alone:
+
+```bash
+pnpm seed:storage            # :4321 by default; --port and --out to change
+```
+
+Then, in the shell you run the CLI from:
+
+```bash
+export TLON_SURFACE_DEV_STORAGE=http://127.0.0.1:4321
+tlon surface create '~zod/surface-seed' --title 'My dashboard'
+tlon surface publish chat/~zod/dash-xxxx --bundle ./app.js --spec ./spec.json
+```
+
+Publish prints `DEV STORAGE ENGAGED` and the URL it minted, on stderr, every
+time — you should never have to guess which storage a bundle went to.
+
+Three things about that variable, all deliberate:
+
+- **Nothing falls back to it.** With it unset, a ship that cannot store
+  uploads still fails `storage-unavailable`, exactly as before. Dev storage
+  is never reached because real storage was missing, only because you named
+  it.
+- **Naming it is not enough.** The store and the ship must both be loopback.
+  Set it and point the CLI at a real ship and you get a refusal, not a
+  surprise `127.0.0.1` `assetRef` in a channel other people read.
+- **The key is the bundle's own hash, and the store enforces that.** It
+  refuses any key that is not `<sha256>.js`. It does _not_ check that the
+  body hashes to the name — real S3 does not either, and the client's
+  verification is what that is for: overwrite an object and the dashboard
+  goes to "can't load this dashboard right now" rather than running the new
+  bytes.
+
+Note this is _stricter_ than production, where `uploadFile` builds every key
+as `<ship>/<@da-now>-<name>`. Production is content-**named**, not
+content-addressed; the dev store is content-addressed. Do not read a green
+run here as evidence about production key stability.
+
 ### If the seed refuses to run
 
 If it stops with a message about a channel that "exists in %channels but is

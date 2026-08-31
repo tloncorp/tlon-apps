@@ -24,17 +24,19 @@ import { createHash, randomBytes } from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { ensureClient } from './api-client';
+import { ensureClient, getConfig } from './api-client';
 import {
   DEFAULT_OBSERVATION_BUDGET,
   type SurfaceDeps,
   SurfaceGroupChannel,
   SurfacePostRecord,
   SurfaceRecordKind,
+  type SurfaceStoragePreflight,
   SurfaceTemplateDetail,
   SurfaceTemplateStore,
   SurfaceTemplateSummary,
   SurfaceValidation,
+  surfaceError,
 } from './commands/surface-common';
 import { shipCanStoreUploads } from './commands/upload';
 import { normalizeShip } from './notes-migrate';
@@ -283,6 +285,181 @@ async function storagePreflight() {
   }
 }
 
+/**
+ * `Blob` over the exact bytes, without copying and without tripping the
+ * `ArrayBufferLike`/`ArrayBuffer` narrowing TS applies to a typed array's
+ * `.buffer`.
+ */
+function bytesAsBlob(bytes: Uint8Array, contentType: string): Blob {
+  return new Blob(
+    [
+      new Uint8Array(
+        bytes.buffer as ArrayBuffer,
+        bytes.byteOffset,
+        bytes.byteLength
+      ),
+    ],
+    { type: contentType }
+  );
+}
+
+async function uploadBundleToShipStorage(input: {
+  fileName: string;
+  bytes: Uint8Array;
+  contentType: string;
+}): Promise<{ url: string }> {
+  const result = await apiUploadFile({
+    blob: bytesAsBlob(input.bytes, input.contentType),
+    contentType: input.contentType,
+    fileName: input.fileName,
+    ...(isTlonHostingForced()
+      ? { hostedDetection: 'assume-hosted' as const }
+      : {}),
+  });
+  return { url: result.url };
+}
+
+/* ------------------------------------------------------------------ */
+/* Dev storage                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Names a local bundle store — `pnpm seed:storage`, or the server
+ * `pnpm seed:surfaces` already runs — and makes `surface publish` store
+ * bundles there instead of through the ship's S3-compatible storage. It is
+ * what lets the publish loop run against the fakeships, where there is no
+ * bucket to provision and provisioning one is an out-of-repo human step.
+ *
+ * This variable is the ONLY way in, and there is no fallback in either
+ * direction:
+ *
+ *  - Unset, nothing changes. A ship with no storage still fails
+ *    `storage-unavailable` exactly as before — dev storage is never reached
+ *    *because* real storage was missing, only because someone named it.
+ *  - Set, it is not enough. Both the store and the ship the CLI is talking
+ *    to must be loopback, and a mismatch is a refusal, not a quiet fallback
+ *    to real storage. So a variable left in a shell profile cannot follow a
+ *    developer onto a real ship and put a `127.0.0.1` `assetRef` into a
+ *    channel other people read.
+ *
+ * Engagement is announced on stderr on first use, naming the store and the
+ * ship, so a publisher reading the command's output can never be unsure
+ * which storage they hit. stderr rather than stdout because `--json` owns
+ * stdout.
+ */
+const DEV_STORAGE_ENV = 'TLON_SURFACE_DEV_STORAGE';
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+
+function isLoopbackUrl(raw: string): boolean {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(raw).hostname);
+  } catch {
+    return false;
+  }
+}
+
+function devStorageOrigin(configured: string): string {
+  let url: URL;
+  try {
+    url = new URL(configured);
+  } catch {
+    throw surfaceError(
+      'storage-unavailable',
+      `${DEV_STORAGE_ENV} is set to "${configured}", which is not a URL. Set it to the dev store's origin (for example http://127.0.0.1:4321), or unset it to publish through the ship's own storage.`,
+      { devStorage: configured }
+    );
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw surfaceError(
+      'storage-unavailable',
+      `${DEV_STORAGE_ENV} is set to "${configured}", whose scheme is not http(s).`,
+      { devStorage: configured }
+    );
+  }
+  if (!LOOPBACK_HOSTS.has(url.hostname)) {
+    throw surfaceError(
+      'storage-unavailable',
+      `${DEV_STORAGE_ENV} points at ${url.hostname}, which is not loopback. Dev storage is a local stand-in; pointing it at a real host would put an unreviewed bucket behind every bundle this CLI publishes.`,
+      { devStorage: configured }
+    );
+  }
+  return url.origin;
+}
+
+interface DevStorage {
+  storagePreflight(): Promise<SurfaceStoragePreflight>;
+  uploadBundle(input: {
+    fileName: string;
+    bytes: Uint8Array;
+    contentType: string;
+  }): Promise<{ url: string }>;
+}
+
+/**
+ * Reads the environment. Returns null when dev storage was not asked for —
+ * every validation is deferred to first use, because `createSurfaceDeps`
+ * runs before the command does and a bad variable must not turn
+ * `surface --help` into a crash.
+ */
+function createDevStorage(): DevStorage | null {
+  const configured = (process.env[DEV_STORAGE_ENV] ?? '').trim();
+  if (!configured) return null;
+
+  let announced = false;
+
+  function engage(): string {
+    const origin = devStorageOrigin(configured);
+    const shipUrl = getConfig().url;
+    if (!isLoopbackUrl(shipUrl)) {
+      throw surfaceError(
+        'storage-unavailable',
+        `${DEV_STORAGE_ENV} is set, but this CLI is talking to ${shipUrl}, which is not a local ship. Dev storage is refused rather than used against a real ship: an assetRef on ${origin} resolves for nobody but you. Unset ${DEV_STORAGE_ENV} to publish through this ship's own storage.`,
+        { devStorage: origin, ship: shipUrl }
+      );
+    }
+    if (!announced) {
+      announced = true;
+      process.stderr.write(
+        `DEV STORAGE ENGAGED — ${DEV_STORAGE_ENV}=${origin}\n` +
+          `  Bundles are stored there, NOT in ${shipUrl}'s remote storage.\n`
+      );
+    }
+    return origin;
+  }
+
+  return {
+    storagePreflight: async () => {
+      engage();
+      return { canStore: true };
+    },
+    uploadBundle: async ({ fileName, bytes, contentType }) => {
+      const origin = engage();
+      // The key is `fileName` verbatim — `bundleFileName(sha256)`, the
+      // bundle's own hash. The dev store refuses any other shape, so a
+      // publish path that started minting timestamped keys would fail here
+      // rather than quietly produce two URLs for identical bytes.
+      const target = `${origin}/${fileName}`;
+      const response = await fetch(target, {
+        method: 'PUT',
+        headers: { 'content-type': contentType },
+        body: bytesAsBlob(bytes, contentType),
+      });
+      if (!response.ok) {
+        throw new Error(
+          `dev storage at ${origin} refused ${fileName}: ${response.status} ${await response.text()}`
+        );
+      }
+      const payload = (await response.json()) as { url?: unknown };
+      if (typeof payload.url !== 'string' || payload.url.length === 0) {
+        throw new Error(`dev storage at ${origin} returned no URL`);
+      }
+      process.stderr.write(`  stored ${fileName} -> ${payload.url}\n`);
+      return { url: payload.url };
+    },
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* Templates                                                           */
 /* ------------------------------------------------------------------ */
@@ -427,6 +604,7 @@ function randomSlug(): string {
 /* ------------------------------------------------------------------ */
 
 export function createSurfaceDeps(): SurfaceDeps {
+  const devStorage = createDevStorage();
   return {
     ...createProcessCommandDeps(),
     authenticate: async () => {
@@ -517,28 +695,16 @@ export function createSurfaceDeps(): SurfaceDeps {
       });
     },
 
-    storagePreflight,
-    uploadBundle: async ({ fileName, bytes, contentType }) => {
-      const blob = new Blob(
-        [
-          new Uint8Array(
-            bytes.buffer as ArrayBuffer,
-            bytes.byteOffset,
-            bytes.byteLength
-          ),
-        ],
-        { type: contentType }
-      );
-      const result = await apiUploadFile({
-        blob,
-        contentType,
-        fileName,
-        ...(isTlonHostingForced()
-          ? { hostedDetection: 'assume-hosted' as const }
-          : {}),
-      });
-      return { url: result.url };
-    },
+    // Dev storage replaces BOTH halves or neither. Replacing only the
+    // upload would leave publish gated on a preflight that reads a bucket
+    // nothing is going to be written to; replacing only the preflight would
+    // pass the gate and then upload to storage that isn't there.
+    storagePreflight: devStorage
+      ? devStorage.storagePreflight
+      : storagePreflight,
+    uploadBundle: devStorage
+      ? devStorage.uploadBundle
+      : uploadBundleToShipStorage,
 
     description: {
       decode: (encoded) => SCDP.decode(encoded) as Record<string, unknown>,

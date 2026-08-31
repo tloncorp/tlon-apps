@@ -54,7 +54,8 @@
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
     "watch-migrations": "pnpm generate:migration --watch",
-    "seed:surfaces": "vite-node --config seed/vite.config.ts seed/surfaces.ts --"
+    "seed:surfaces": "vite-node --config seed/vite.config.ts seed/surfaces.ts --",
+    "seed:storage": "vite-node --config seed/vite.config.ts seed/devStorage.ts --"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
