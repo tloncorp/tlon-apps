@@ -148,6 +148,63 @@ Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
 
+## react-native-keyboard-controller@1.22.0
+
+Local patch:
+`patches/react-native-keyboard-controller@1.22.0.patch`
+
+Why:
+On iOS, `KeyboardChatScrollView` implements composer growth through
+`extraContentPadding`, which updates the scroll view's `contentInset`. When
+`keyboardLiftBehavior="whenAtEnd"` decides not to move a user who is browsing
+older messages, upstream returns without re-emitting the current
+`contentOffset`. `ScrollViewWithBottomPadding` also omits `contentOffset` when
+its numeric target has not changed. UIKit can therefore adjust the offset while
+applying the inset by itself, producing a one-frame flash or jump when a
+multiline chat composer first grows.
+
+What it does:
+- Re-publishes the currently observed offset when an
+  `extraContentPadding` change should not shift the content.
+- Emits that offset whenever bottom padding changes, even if its numeric value
+  is unchanged, so Reanimated sends the new `contentInset` and a
+  `contentOffset` that preserves position in the same animated-props commit.
+
+The app still owns the product behavior: it reports the floating composer
+height to LegendList and uses `whenAtEnd` only on iOS. Android keeps its
+existing `always` lift behavior.
+
+Upstream:
+- repo: `kirillzyusko/react-native-keyboard-controller`
+- related discussion:
+  [#1333](https://github.com/kirillzyusko/react-native-keyboard-controller/discussions/1333)
+  covers layout shifts involving `whenAtEnd` and `extraContentPadding`
+- related open fixes
+  [#1605](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1605)
+  and
+  [#1609](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1609)
+  address different animated-padding and Reanimated 4.6 failures
+- as of August 31, 2026, upstream release `1.22.4` still has the same
+  no-shift and unchanged-offset behavior; no exact upstream fix has shipped
+
+Validation:
+- Run `corepack pnpm install --frozen-lockfile` to confirm the patch applies
+  and its lockfile hash is current.
+- Rebuild the iOS app. With the keyboard open, grow and shrink the multiline
+  composer while browsing history; the same visible message should retain its
+  vertical position without flashing.
+- Repeat at the end of the conversation; the latest message should remain
+  anchored above the composer.
+- Exercise emoji keyboard changes, momentum scrolling, and leaving/reopening
+  the conversation to check for stale inset or offset state.
+- Rebuild Android and confirm composer growth and keyboard dismissal retain
+  the existing end-anchor behavior.
+
+Removal:
+Remove this patch after an upstream release commits `contentInset` together
+with a preserving `contentOffset` for no-shift `extraContentPadding` changes,
+then repeat the mid-history and at-end simulator checks without the patch.
+
 ## react-native-reanimated@4.5.0
 
 Why:
