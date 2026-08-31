@@ -3,9 +3,11 @@ import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import { Platform } from 'react-native';
+import { useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  useConversationComposerHeight,
   useConversationScrollEndAnchor,
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
@@ -443,6 +445,9 @@ const ConversationPostListAttempt = React.forwardRef<
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
+    const composerContentInset = useSharedValue(0);
+    const { register: registerConversationComposerHeight } =
+      useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
     const scrollViewNativeID = useConversationScrollViewNativeID();
     const insets = useSafeAreaInsets();
@@ -450,6 +455,21 @@ const ConversationPostListAttempt = React.forwardRef<
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
+    const reportConversationComposerHeight = React.useCallback(
+      (height: number) => {
+        composerContentInset.set(height);
+        listRef.current?.reportContentInset({ bottom: height });
+      },
+      [composerContentInset]
+    );
+    React.useLayoutEffect(() => {
+      if (Platform.OS !== 'ios') {
+        return;
+      }
+      return registerConversationComposerHeight(
+        reportConversationComposerHeight
+      );
+    }, [registerConversationComposerHeight, reportConversationComposerHeight]);
     const anchorTarget = useConversationAnchorTarget({
       anchor,
       anchorIndex,
@@ -603,7 +623,12 @@ const ConversationPostListAttempt = React.forwardRef<
         contentInsetAdjustmentBehavior={
           Platform.OS === 'ios' ? 'never' : undefined
         }
-        keyboardLiftBehavior="always"
+        contentInsetEndAdjustment={
+          Platform.OS === 'ios' ? composerContentInset : undefined
+        }
+        // Preserve older messages while browsing history, but keep the latest
+        // message anchored as the keyboard or composer grows at the end.
+        keyboardLiftBehavior={Platform.OS === 'ios' ? 'whenAtEnd' : 'always'}
         // Android already resizes the window for the keyboard. Applying the
         // list's keyboard lift as well double-counts that height and makes an
         // end-anchor land below the last message when a post is sent.
