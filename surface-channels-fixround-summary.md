@@ -129,7 +129,9 @@ set decides at one place in the fold loop.
 implementing it revealed three refusal kinds, not two. A `structure`
 refusal — writing through a scalar, appending onto a non-array — is
 state-dependent exactly as a cap is and reproduces the identical loss. It
-now aborts. The set was renamed `RESOURCE_REFUSALS` → `STATE_REFUSALS`,
+now aborts. The set was renamed `RESOURCE_REFUSALS` → `STATE_REFUSALS`
+(and has since been **deleted** — see D98: every refusal aborts, so the set
+could never be false),
 because "resource" stopped describing its members, and §7 states the
 criterion rather than the list so the next kind has a home without another
 ruling.

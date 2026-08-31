@@ -2638,7 +2638,8 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   With three members the name `RESOURCE_REFUSALS` had stopped describing
   them, and a set named for a category it no longer holds is worse than no
   name — the legibility of the distinction was the point of D91's single
-  classification. It is `STATE_REFUSALS` now: **the refusals state makes, as
+  classification. It was `STATE_REFUSALS` at the time — **superseded by D98:
+  the set is deleted and every refusal aborts.** As written then: **the refusals state makes, as
   opposed to the one the op makes about itself.** `grammar` means this is not
   a well-formed op — a bad or over-long pointer, a forbidden segment,
   `$actor` misuse, a value that is not surface JSON — so nothing was ever
@@ -2681,7 +2682,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   the new prefix property shrank to the bare `[{"op":"del","path":"/today"}]`,
   the same counterexample D91's cap property produced. After the change both
   pass and `/today` is untouched. Mutation-checked both ways: taking
-  `structure` back out of `STATE_REFUSALS` fails all three new tests, adding
+  `structure` back out of `STATE_REFUSALS` (as it then was; see D98) fails all three new tests, adding
   `grammar` to it fails the two author-error controls and the `$actor` case,
   removing `depth-cap` fails the depth control, and raising `stateFull` for
   every member of the set fails the depth and structure controls.
@@ -2845,3 +2846,134 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   not reach get through — `nav-replace` and `nav-href` are BLOCKED-PREFLIGHT
   in every configuration including the ones that deliberately allowlist the
   attacker, which is exactly what keeps the shim from being read as policy.
+
+## Post-review dispositions (both re-verification passes)
+
+Two independent reviews ran over the fix round — correctness (external) and
+containment (internal, because the external reviewer's provider refuses that
+subject matter). 26 findings. These are the rulings and what they cost.
+
+- **D98: every refusal aborts its entry; the skip/abort criterion is
+  withdrawn.** D91 and D94 split refusals by *which thing was wrong — the op,
+  or the state it was applied to*. That is coherent as a taxonomy and
+  incoherent as a safety rule, and a review reproduced why: a path missing
+  its leading `/` is a `grammar` refusal, so it skipped, and a following
+  `del /today` still applied. **That is the archive-then-clear data loss the
+  amendment exists to prevent**, reached through a malformed op rather than a
+  well-formed one.
+
+  Dependency safety does not track blame. Whether the ops after a refusal are
+  safe depends on whether they depended on the refused one, which is true
+  regardless of whose fault it was.
+
+  `STATE_REFUSALS` is **deleted**, not emptied — a predicate that cannot be
+  false is the same defect class as a guard that cannot fail. The refusal
+  kinds survive for error messages and for `stateFull`; both type docs now
+  record that they drive no control flow, and why.
+
+  Accepted costs, both stated in the plan and PARADIGM: `del /list/0` is
+  silent rather than an error, and a mostly-correct entry with one typo'd
+  path now stops instead of applying its remainder. The second is the whole
+  point.
+
+  Supersedes the criterion in D91/D94. Those entries are annotated in place.
+
+- **D99: `surface create` cannot prove it made the channel, and now says so.**
+  D68's title check was introduced as the class fix on the reasoning that a
+  title only reaches `%groups` if `%groups` took our create. The title is
+  caller-chosen data, and a same-title race returned `ok`/`reused: false` for
+  a channel the command did not make.
+
+  What the backend can and cannot give, read from the Hoon rather than
+  inferred: `groups.hoon` stamps `added` with the group host's own clock and
+  overwrites whatever the poke carried, and subscribers store that value
+  verbatim — so all `added` values for a group come from **one** clock, which
+  retires the earlier objection that comparing them reads a local clock. But
+  a colliding `%add` returns with **no state change and no update emitted**,
+  and `ca-create` on an existing nest slogs and returns. A no-oped create
+  leaves no trace anywhere, and nothing in either agent names the poking
+  client — while the racer's listing is stamped by that same host clock just
+  after our baseline. So `added > baseline` is satisfied by our create and
+  theirs alike.
+
+  **A baseline over `added` dates a listing; it cannot attribute one.** There
+  is no host-stamped evidence of authorship available, so the honest output
+  is to stop claiming it. `reused: false` is gone, replaced by
+  `disposition: created-unverified | reused` plus the host stamp, and a human
+  report that leads with "Poked a create for …" and an `unproven:` line. Two
+  falsifiers remain, neither promoted to a verifier.
+
+  This is the shape to prefer when a guarantee is unobtainable: refuse to
+  assert it, rather than assert a weaker thing that reads like it.
+
+- **D100: the gate's chart oracle has a limit that cannot be closed, so it is
+  documented instead.** A handler reassigning `chart.options` in a microtask
+  or timer passes clean. There is no synchronous microtask drain; one drain
+  is one tick against a chain the app chooses (a 3-deep chain was measured
+  passing); timers are a different scheduler. The general form: an oracle
+  reading a mutable object at a chosen instant is evaded by writing after it,
+  and the gate's instant is finite while the app's turn is not.
+
+  `LiveChart`'s claim is narrowed from "what it ended up being" to "as of
+  that read", and a fixture pins the miss so it cannot be quietly
+  re-described as closed. Acceptable because this is a **quality** rule: a
+  chart that resizes badly one tick later is a bad chart, not a containment
+  failure.
+
+### Found, flagged, not fixed (post-review)
+
+- **Publish's primary preserving path still snapshots over aborted entries**
+  without complaint, while its retry path and `surface snapshot` now refuse.
+  Closing it means a fourth control on a second command, on a path where
+  refusing blocks the migration entirely.
+- **A non-host republishing over a stranded channel** now exits 1 naming the
+  host instead of falsely reporting `no-op`. Correct, but a behaviour change
+  beyond "post the missing snapshot".
+- **Bracket-form property access** (`el["innerHTML"]`, `window["location"]`)
+  stays open in the gate. It is the property-access class, not the
+  enumeration class, and cannot be closed lexically.
+- **`onchange`/`oninput` handlers are not observed** by the activation phase.
+  Only `onclick` is wrapped. The docstring says so rather than implying the
+  property route is closed.
+- **The ninth-name test's final assertion cannot fail** — the title it checks
+  stays put under the bug and under the fix, since a poke onto a taken name
+  no-ops either way. The real control is the `createPokes` assertion beside
+  it. Left in place, reported.
+- **Six CLI-build sites maintained by memory.** Two gitignored build
+  prerequisites (`api/dist`, `surface-shell/dist`) are hand-repeated across
+  six places; every site remembered the older one and four forgot the newer.
+  The recommendation on record is to converge the two duplicate
+  `bun build scripts/main.ts --compile` invocations into one and preflight
+  the artifact there, rather than build a static guard across YAML, shell and
+  TypeScript.
+
+### The pattern this round is actually about
+
+**Seven guards that could not fail, or could not fail for the reason they
+claimed.** Four were written by the fix round itself, as the evidence that
+its fixes worked. The species vary and are worth distinguishing, because they
+need different defences:
+
+1. **Computed from itself** — the pin test whose coverage was `schema −
+   exclusions`, so a new column always landed in "updated".
+2. **Satisfiable without the subject** — a CI gate the flag under test could
+   not affect.
+3. **Tests the implementation, not the requirement** — `surface create`'s
+   control used a *different* title than the collision case it existed to
+   catch.
+4. **Claims a mechanism it does not exercise** — the "two batches"
+   convergence test folded once; the reducer has no incremental interface at
+   all, so the claim was never implementable.
+5. **The double cannot express the defect** — `applyCreate` could not model
+   D50's silent no-op; the fake stamped every channel `added: 1`, so a create
+   could confirm itself against a number nothing moves.
+6. **True under the bug and under the fix** — the ninth-name title assertion.
+7. **Made vacuous by a later fix** — a pre-existing test that reached its
+   assertion through the very case `foldForMigration` now refuses, and would
+   have kept passing for an unrelated reason.
+
+The rule "no control without a demonstration that it can fail" is necessary
+and was not sufficient: nobody applied it to the demonstrations. (5) is the
+one to weight going forward — a test double that cannot express a defect
+silently bounds what the whole suite can find, and neither review would have
+caught it from the test code alone.
