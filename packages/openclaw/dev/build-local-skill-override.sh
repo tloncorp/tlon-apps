@@ -50,34 +50,58 @@ ln -s "$TLON_SKILL_DIR" "$TARGET"
 # bin/tlon is gitignored in tlon-skill, so writing it through the bind mount won't
 # pollute the host working tree.
 #
-# Why the source build is opt-in: `bun build --compile` writes a temp file and
-# renames it onto --outfile. On VirtioFS bind mounts (Docker Desktop) the temp
-# lands at the host realpath while --outfile is the mount path, and the
-# cross-namespace rename fails with ENOENT. The npm-installed skill already
-# ships a working prebuilt binary, so source-from-build is only needed when
-# actively editing tlon-skill — set TLON_SKILL_FROM_SOURCE=1 for that.
+# Why the source build is opt-in: the published @tloncorp/tlon-skill is only as
+# current as the last release, so anything added since (e.g. the `surface *`
+# group, absent from 0.5.0) is missing from the prebuilt binary. Set
+# TLON_SKILL_FROM_SOURCE=1 when the container must run CLI code from the mounted
+# checkout rather than from npm.
+#
+# The build never writes its --outfile onto the bind mount. `bun build --compile`
+# emits a temp file next to --outfile and renames it into place, and that rename
+# was previously reported to fail with ENOENT on VirtioFS bind mounts (Docker
+# Desktop), where the temp lands at the host realpath while --outfile is the
+# mount path. That failure does NOT reproduce on OrbStack's fuseblk mount, so it
+# is backend-specific rather than universal — which is exactly why the fix is to
+# stop depending on the rename at all: compiling to a container-local path and
+# copying the finished binary across is a plain write, correct on every backend
+# instead of only the ones where the rename happens to work. It also leaves
+# npm/<arch>/tlon in the mounted checkout untouched — bin/tlon is the only host
+# file written.
 ARCH_KEY=$(node -e 'console.log(process.platform + "-" + process.arch)')
 echo "==> Container platform-arch: $ARCH_KEY"
 
 if [ -n "${TLON_SKILL_FROM_SOURCE:-}" ] && [ -f "$TLON_SKILL_DIR/scripts/main.ts" ] && command -v bun >/dev/null 2>&1; then
   # Build from source so local edits to tlon-skill scripts/*.ts show up in the CLI.
   # bun --compile bundles all deps into the binary; the host's node_modules (bind
-  # mounted) is reused since tlon-skill's deps are pure JS. Note: may fail on
-  # VirtioFS (see above) — fall back by unsetting TLON_SKILL_FROM_SOURCE.
+  # mounted) is reused since tlon-skill's deps are pure JS.
   echo "==> Rebuilding tlon-skill from source for $ARCH_KEY (TLON_SKILL_FROM_SOURCE set)..."
   if [ ! -d "$TLON_SKILL_DIR/node_modules" ]; then
     echo "==> Installing tlon-skill deps (bun install)..."
     (cd "$TLON_SKILL_DIR" && bun install --frozen-lockfile 2>/dev/null || bun install)
   fi
-  (cd "$TLON_SKILL_DIR" && node scripts/build-all.js --target="$ARCH_KEY")
-  BUILT="$TLON_SKILL_DIR/npm/$ARCH_KEY/tlon"
-  if [ ! -f "$BUILT" ]; then
-    echo "ERROR: build-all.js did not produce $BUILT"
+  case "$ARCH_KEY" in
+    linux-x64) BUN_TARGET=bun-linux-x64 ;;
+    linux-arm64) BUN_TARGET=bun-linux-arm64 ;;
+    darwin-x64) BUN_TARGET=bun-darwin-x64 ;;
+    darwin-arm64) BUN_TARGET=bun-darwin-arm64 ;;
+    *) echo "ERROR: unsupported platform-arch for a source build: $ARCH_KEY"; exit 1 ;;
+  esac
+  # Mirrors scripts/build-all.js, which cannot be used here because its
+  # --outfile is inside the checkout (see the rename note above).
+  SKILL_VERSION=$(node -e "console.log(require('$TLON_SKILL_DIR/package.json').version)")
+  BUILD_DIR=$(mktemp -d /tmp/tlon-skill-build.XXXXXX)
+  trap 'rm -rf "$BUILD_DIR"' EXIT
+  (cd "$TLON_SKILL_DIR" && bun build scripts/main.ts --compile \
+    --target="$BUN_TARGET" \
+    --outfile "$BUILD_DIR/tlon" \
+    --define __VERSION__="\"$SKILL_VERSION-src\"")
+  if [ ! -f "$BUILD_DIR/tlon" ]; then
+    echo "ERROR: bun build did not produce $BUILD_DIR/tlon"
     exit 1
   fi
-  cp "$BUILT" "$TLON_SKILL_DIR/bin/tlon"
+  cp "$BUILD_DIR/tlon" "$TLON_SKILL_DIR/bin/tlon"
   chmod +x "$TLON_SKILL_DIR/bin/tlon"
-  echo "==> Built $TLON_SKILL_DIR/bin/tlon from source"
+  echo "==> Built $TLON_SKILL_DIR/bin/tlon from source ($SKILL_VERSION-src, $BUN_TARGET)"
 else
   if [ -f "$TLON_SKILL_DIR/scripts/main.ts" ]; then
     echo "==> Using prebuilt tlon-skill binary (set TLON_SKILL_FROM_SOURCE=1 to rebuild from local source)."

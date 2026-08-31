@@ -1,0 +1,74 @@
+# Session 6a — the real bot driving the real skill against the local rube
+# fakeships.
+#
+#   docker compose -f docker-compose.surfaces-6a.yml --env-file ../.env.surfaces-6a up --build
+#
+# A STANDALONE stack, not an override of docker-compose.yml. That file names
+# `env_file: ../.env`, which points at a REAL ship; compose merges `env_file`
+# by appending, so an override layered on top of it would still read the real
+# credentials. This file names only ../.env.surfaces-6a, so there is no
+# arrangement of flags in which this stack can reach a real ship.
+#
+# It differs from docker-compose.yml in exactly three ways:
+#   - the ships service (borrowed from docker-compose.test.yml) so TLON_URL
+#     resolves inside the compose network instead of to a hosted ship;
+#   - env_file, per the note above;
+#   - nothing else. Same Dockerfile, same entrypoint, same mounts, so what 6a
+#     exercises is the dev container, not a special one.
+#
+# To bring up just the bot container (no piers to download) — enough for
+# `tlon surface preview`, which needs no ship at all:
+#
+#   docker compose -f docker-compose.surfaces-6a.yml --env-file ../.env.surfaces-6a up --build --no-deps openclaw
+
+# An explicit project name, because compose otherwise derives it from the
+# containing DIRECTORY — "dev" — which docker-compose.yml and
+# docker-compose.test.yml also live in. Without this, bringing 6a up recreates
+# whatever `dev-openclaw-1` those stacks left behind, silently replacing a
+# container that may be pointed at a real ship. Named separately, 6a's
+# containers and volumes cannot collide with theirs.
+name: openclaw-surfaces-6a
+
+services:
+  # Both fakezod ships plus ~mug in one container (they share a fake ames).
+  # Extended rather than copied so the pinned pier generation, the vere pin
+  # and the download-verify logic stay in one place.
+  ships:
+    extends:
+      file: docker-compose.test.yml
+      service: ships
+
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env.surfaces-6a
+    environment:
+      - MODEL=${MODEL:-openrouter/openai/gpt-5.6-luna}
+      # Inside the container the checkout is always mounted here; the host
+      # absolute path from the env file must not leak in.
+      - TLON_APPS_DIR=/workspace/tlon-apps
+      - TLON_SKILL_DIR=/workspace/tlon-apps/packages/tlon-skill
+    ports:
+      - "${OPENCLAW_GATEWAY_PORT:-18790}:18789"
+    depends_on:
+      - ships
+    volumes:
+      - ..:/workspace/openclaw-tlon
+      - openclaw-6a-tlon-modules:/workspace/tlon/node_modules
+      - ${TLONBOT_DIR:-../../../../tlonbot}:/workspace/tlonbot
+      - ${TLON_APPS_DIR:-../../..}:/workspace/tlon-apps
+      - openclaw-6a-state:/root/.openclaw
+      # Where `tlon surface preview` writes its capture matrix, so the PNGs
+      # survive the container and can be read from the host.
+      - ./surfaces-6a-out:/workspace/surfaces-6a-out
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# Separate volumes from docker-compose.yml's: 6a must not inherit the state of
+# a dev container that has been talking to a real ship.
+volumes:
+  ships-data:
+  openclaw-6a-state:
+  openclaw-6a-tlon-modules:

@@ -1,0 +1,4 @@
+# `tlon surface preview` writes its capture matrix here (bind-mounted
+# into the 6a container). Screenshots are evidence, not source.
+*
+!.gitignore
