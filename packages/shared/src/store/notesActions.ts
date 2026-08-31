@@ -552,33 +552,44 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
-  // queued like any other snapshot write, so a concurrent refresh can't
-  // land its older copy on top of this baseline
-  const baseline = await queueNotebookSnapshot(notebookFlag, async () => {
-    const { snapshot } = await fetchNotesNotebookSnapshot(notebookFlag);
-    await db.saveNotesNotebookSnapshot(snapshot);
-    return snapshot;
-  });
+  // The baseline, the create, and the write-through of its response are one
+  // queued unit. Every snapshot writer fetches and saves inside its own unit,
+  // so a refresh slotting in between the create and the write-through would
+  // fetch a pre-create list and then save it over the new row —
+  // `saveNotesNotebookSnapshot` drops notes its response omits, and the
+  // revision guard only protects rows that response also carries.
+  const { baseline, note: appliedNote } = await queueNotebookSnapshot(
+    notebookFlag,
+    async () => {
+      const { snapshot } = await fetchNotesNotebookSnapshot(notebookFlag);
+      await db.saveNotesNotebookSnapshot(snapshot);
 
-  const created = await api.notes.createNote({
-    flag: notebookFlag,
-    folder: folderId,
-    title,
-    body,
-  });
-  if (created) {
-    // The write response comes from the notebook host and is authoritative.
-    // Do not immediately confirm it through getNote: for remote notebooks that
-    // read hits the local replica, which can legitimately lag the response.
-    const note = {
-      ...api.toClientNotesNote(notebookFlag, created),
-      notebookId: created.notebookId ?? baseline.notebook.notebookId,
-      folderId: created.folderId ?? folderId,
-      bodyMd: created.bodyMd ?? body,
-      revision: created.revision ?? 0,
-    };
-    await db.upsertNotesNote(note);
-    return note;
+      const created = await api.notes.createNote({
+        flag: notebookFlag,
+        folder: folderId,
+        title,
+        body,
+      });
+      if (!created) {
+        return { baseline: snapshot, note: null };
+      }
+      // The write response comes from the notebook host and is authoritative.
+      // Do not immediately confirm it through getNote: for remote notebooks
+      // that read hits the local replica, which can legitimately lag the
+      // response.
+      const note = {
+        ...api.toClientNotesNote(notebookFlag, created),
+        notebookId: created.notebookId ?? snapshot.notebook.notebookId,
+        folderId: created.folderId ?? folderId,
+        bodyMd: created.bodyMd ?? body,
+        revision: created.revision ?? 0,
+      };
+      await db.upsertNotesNote(note);
+      return { baseline: snapshot, note };
+    }
+  );
+  if (appliedNote) {
+    return appliedNote;
   }
 
   // Older hosts return no applied note. Only that compatibility path needs to
@@ -1096,8 +1107,18 @@ export async function deleteNotebookNote({
   notebookFlag: string;
   noteId: number;
 }) {
-  await api.notes.deleteNote({ flag: notebookFlag, noteId });
-  await db.deleteNotesNote({ notebookFlag, noteId });
+  // The remote delete and the local one form a queued unit. Every snapshot
+  // writer fetches and saves inside its own unit, so without this a refresh
+  // that fetched before the delete saves its pre-delete copy afterwards and
+  // resurrects the note: `saveNotesNotebookSnapshot` replaces the notebook's
+  // notes wholesale, and its revision guard only protects rows the incoming
+  // snapshot also carries, never one that exists only locally.
+  await queueNotebookSnapshot(notebookFlag, async () => {
+    await api.notes.deleteNote({ flag: notebookFlag, noteId });
+    await db.deleteNotesNote({ notebookFlag, noteId });
+  });
+  // takes its own slot — `queueNotebookSnapshot` is not re-entrant, so the
+  // confirmation poll must not run inside the unit above
   const confirmed = await syncNotesNotebookUntil(
     notebookFlag,
     (snapshot) => !findSnapshotNote(snapshot, noteId)
@@ -1114,17 +1135,22 @@ export async function deleteNotebookFolder({
   notebookFlag: string;
   folder: db.NotesFolder;
 }) {
-  const folders = await db.getNotesFolders({ notebookFlag });
-  const folderIds = Array.from(
-    collectDescendantFolderIds(folders, folder.folderId)
-  );
+  // Queued like deleteNotebookNote. The descendant lookup joins the unit so
+  // the ids can't come from a copy a concurrent refresh is about to replace.
+  const folderIds = await queueNotebookSnapshot(notebookFlag, async () => {
+    const folders = await db.getNotesFolders({ notebookFlag });
+    const ids = Array.from(
+      collectDescendantFolderIds(folders, folder.folderId)
+    );
 
-  await api.notes.deleteFolder({
-    flag: notebookFlag,
-    folderId: folder.folderId,
-    recursive: true,
+    await api.notes.deleteFolder({
+      flag: notebookFlag,
+      folderId: folder.folderId,
+      recursive: true,
+    });
+    await db.deleteNotesFolders({ notebookFlag, folderIds: ids });
+    return ids;
   });
-  await db.deleteNotesFolders({ notebookFlag, folderIds });
   const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
     folderIds.every(
       (folderId) =>

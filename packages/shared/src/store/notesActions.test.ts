@@ -1701,3 +1701,105 @@ test('note-edit activity for an unstored note counts as a creation', async () =>
   await warmNotesNotebookSnapshot(notebookFlag);
   expect(api.notes.getNotebook).toHaveBeenCalled();
 });
+
+test('createNotebookNote keeps its new note when a refresh overlaps the create', async () => {
+  const createdNote = makeNote('Created note');
+  // The host applies the create before it answers. Each list resolves with
+  // what the host held when the call was *made*, so a fetch issued before the
+  // create can't retroactively pick the new note up.
+  let hostNotes: api.NotesNote[] = [];
+  const pendingLists: (() => void)[] = [];
+  let refresh: Promise<unknown> | null = null;
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(() => {
+    const asOfCall = hostNotes;
+    return new Promise((resolve) => pendingLists.push(() => resolve(asOfCall)));
+  });
+  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
+    // a periodic warm lands mid-create; unqueued it would fetch the
+    // pre-create list here and save it over the row we're about to write
+    refresh = syncNotesNotebook(notebookFlag);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hostNotes = [makeApiNotesNote(createdNote)];
+    return {
+      id: createdNote.noteId,
+      notebookId: createdNote.notebookId,
+      folderId: createdNote.folderId ?? undefined,
+      title: createdNote.title,
+      bodyMd: createdNote.bodyMd,
+      revision: createdNote.revision,
+    };
+  });
+
+  const creation = createNotebookNote({
+    notebookFlag,
+    folderId: rootFolder.folderId,
+    title: createdNote.title,
+    body: createdNote.bodyMd,
+  });
+  await vi.waitFor(() => expect(pendingLists).toHaveLength(1));
+  pendingLists[0]();
+  await creation;
+
+  // let the overlapping refresh finish with whatever it fetched
+  await vi.waitFor(() => expect(pendingLists).toHaveLength(2));
+  pendingLists[1]();
+  await refresh;
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
+});
+
+test('deleteNotebookNote holds the queue across the remote and local delete', async () => {
+  const note = makeNote('Doomed note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  let releaseDelete: () => void = () => {};
+  let markDeleteStarted: () => void = () => {};
+  const deleteStarted = new Promise<void>((resolve) => {
+    markDeleteStarted = resolve;
+  });
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'deleteNote').mockImplementation(() => {
+    markDeleteStarted();
+    return new Promise((resolve) => {
+      releaseDelete = () => resolve(undefined);
+    });
+  });
+
+  const deletion = deleteNotebookNote({ notebookFlag, noteId: note.noteId });
+  await deleteStarted;
+
+  // a refresh raised while the delete is in flight must wait: were it to fetch
+  // now it would read the note as still present and save that copy back after
+  // the local delete
+  const refresh = syncNotesNotebook(notebookFlag);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(api.notes.listNotes).not.toHaveBeenCalled();
+
+  releaseDelete();
+  await deletion;
+  await refresh;
+
+  expect(api.notes.listNotes).toHaveBeenCalled();
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toBeNull();
+});
