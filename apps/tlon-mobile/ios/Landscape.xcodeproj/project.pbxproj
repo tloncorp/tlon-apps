@@ -237,9 +237,9 @@
 		D3715FF62E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
 		D3715FF72E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
 		D3715FF82E5B6FCB00570A4C /* ChangesAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */; };
+		DB6184A12F2D000100000001 /* TlonMessageMenuLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6184A12F2D000100000002 /* TlonMessageMenuLayoutTests.swift */; };
 		DDB000022FCB000000000001 /* HeaderIcons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DDB000012FCB000000000001 /* HeaderIcons.xcassets */; };
 		DDB000032FCB000000000001 /* HeaderIcons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DDB000012FCB000000000001 /* HeaderIcons.xcassets */; };
-		DB6184A12F2D000100000001 /* TlonMessageMenuLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB6184A12F2D000100000002 /* TlonMessageMenuLayoutTests.swift */; };
 		E757508CA162BD3456643B33 /* Pods_Landscape.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 79BDD5DCE15A385BB361AED1 /* Pods_Landscape.framework */; };
 		F901307AF87F28F061D5E649 /* Pods_Landscape_preview.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C87F249B7EFCDBC3E54B1447 /* Pods_Landscape_preview.framework */; };
 /* End PBXBuildFile section */
@@ -396,8 +396,8 @@
 		D3715FE72E5B6CAB00570A4C /* ChangesLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesLoader.swift; sourceTree = "<group>"; };
 		D3715FED2E5B6E1800570A4C /* Changes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Changes.swift; sourceTree = "<group>"; };
 		D3715FF32E5B6FC700570A4C /* ChangesAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesAPI.swift; sourceTree = "<group>"; };
-		DDB000012FCB000000000001 /* HeaderIcons.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = HeaderIcons.xcassets; path = Landscape/HeaderIcons.xcassets; sourceTree = "<group>"; };
 		DB6184A12F2D000100000002 /* TlonMessageMenuLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TlonMessageMenuLayoutTests.swift; sourceTree = "<group>"; };
+		DDB000012FCB000000000001 /* HeaderIcons.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = HeaderIcons.xcassets; path = Landscape/HeaderIcons.xcassets; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		EE042EA448A634B1DCCA2092 /* Pods-Landscape-preview.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Landscape-preview.debug.xcconfig"; path = "Target Support Files/Pods-Landscape-preview/Pods-Landscape-preview.debug.xcconfig"; sourceTree = "<group>"; };
 		F61ADD28CFDBC6EFBD36E3DA /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Landscape/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
@@ -1818,7 +1818,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 9.4.2;
+				MARKETING_VERSION = 9.4.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -1856,7 +1856,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 9.4.2;
+				MARKETING_VERSION = 9.4.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -2088,7 +2088,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 9.4.2;
+				MARKETING_VERSION = 9.4.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
@@ -2131,7 +2131,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 9.4.2;
+				MARKETING_VERSION = 9.4.3;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",

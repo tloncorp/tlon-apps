@@ -426,20 +426,75 @@ const ImageInputPreviewLoadingFrame = styled(View, {
   justifyContent: 'center',
 });
 
-export const ToggleGroupInput = ({
+export type ToggleGroupInputOption<T extends string> = {
+  value: T;
+  label: ReactNode | ((selected: boolean) => ReactNode);
+  accessibilityLabel?: string;
+};
+
+export const ToggleGroupInput = <T extends string>({
   options,
   value,
   onChange,
+  variant = 'divided',
+  disabled = false,
 }: {
-  options: { value: string; label: string | React.ReactNode }[];
-  value: string;
-  onChange: (value: string) => void;
+  options: ToggleGroupInputOption<T>[];
+  value: T;
+  onChange: (value: T) => void;
+  variant?: 'divided' | 'inset';
+  disabled?: boolean;
 }) => {
   const { backgroundType } = useContext(FieldContext);
   const [defaultColor, selectedColor] =
     backgroundType === 'primary'
       ? ['$background', '$secondaryBackground']
       : ['$secondaryBackground', '$background'];
+
+  const renderLabel = (
+    label: ToggleGroupInputOption<T>['label'],
+    selected: boolean
+  ) => (typeof label === 'function' ? label(selected) : label);
+
+  if (variant === 'inset') {
+    return (
+      <InputFrame
+        height="auto"
+        minHeight={48}
+        padding={4}
+        gap={0}
+        backgroundColor="$secondaryBackground"
+      >
+        {options.map((option) => {
+          const selected = value === option.value;
+          return (
+            <Pressable
+              key={option.value}
+              flex={1}
+              height={40}
+              borderRadius="$m"
+              borderWidth={1}
+              borderColor={selected ? '$border' : 'transparent'}
+              backgroundColor={selected ? '$background' : 'transparent'}
+              alignItems="center"
+              justifyContent="center"
+              disabled={disabled}
+              onPress={() => onChange(option.value)}
+              pressStyle={{ opacity: 0.7 }}
+              accessibilityRole="button"
+              accessibilityState={{ selected, disabled }}
+              accessibilityLabel={
+                option.accessibilityLabel ??
+                (typeof option.label === 'string' ? option.label : undefined)
+              }
+            >
+              {renderLabel(option.label, selected)}
+            </Pressable>
+          );
+        })}
+      </InputFrame>
+    );
+  }
 
   return (
     <InputFrame paddingHorizontal={0}>
@@ -451,30 +506,38 @@ export const ToggleGroupInput = ({
         }}
       >
         <XStack minWidth="100%">
-          {options.map((tab, index) => (
-            <Button.Frame
-              flex={1}
-              minWidth={75}
-              intent="secondary"
-              size="medium"
-              fill="outline"
-              key={tab.value}
-              onPress={() => onChange(tab.value)}
-              padding="$xl"
-              borderWidth={0}
-              borderRadius={0}
-              borderRightWidth={index !== options.length - 1 ? 1 : 0}
-              backgroundColor={
-                value === tab.value ? selectedColor : defaultColor
-              }
-            >
-              {typeof tab.label === 'string' ? (
-                <Button.Text textAlign="center">{tab.label}</Button.Text>
-              ) : (
-                tab.label
-              )}
-            </Button.Frame>
-          ))}
+          {options.map((option, index) => {
+            const selected = value === option.value;
+            return (
+              <Button.Frame
+                flex={1}
+                minWidth={75}
+                intent="secondary"
+                size="medium"
+                fill="outline"
+                key={option.value}
+                disabled={disabled}
+                onPress={() => onChange(option.value)}
+                padding="$xl"
+                borderWidth={0}
+                borderRadius={0}
+                borderRightWidth={index !== options.length - 1 ? 1 : 0}
+                backgroundColor={selected ? selectedColor : defaultColor}
+                accessibilityRole="button"
+                accessibilityState={{ selected, disabled }}
+                accessibilityLabel={
+                  option.accessibilityLabel ??
+                  (typeof option.label === 'string' ? option.label : undefined)
+                }
+              >
+                {typeof option.label === 'string' ? (
+                  <Button.Text textAlign="center">{option.label}</Button.Text>
+                ) : (
+                  renderLabel(option.label, selected)
+                )}
+              </Button.Frame>
+            );
+          })}
         </XStack>
       </ScrollView>
     </InputFrame>

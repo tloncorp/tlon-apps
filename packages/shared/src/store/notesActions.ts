@@ -131,7 +131,7 @@ async function fetchNotesNotebookSnapshot(
       db.getNotesMembers({ notebookFlag: flag }),
     ]);
     currentUserRole = existingNotebook
-      ? existingNotebook.currentUserRole ?? null
+      ? (existingNotebook.currentUserRole ?? null)
       : undefined;
     dbMembers = existingMembers;
   }
@@ -552,19 +552,51 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
-  const note = await createAndFindNewItem({
-    notebookFlag,
-    getItems: (snapshot) => snapshot.notes,
-    getId: (note) => note.noteId,
-    create: () =>
-      api.notes.createNote({
-        flag: notebookFlag,
-        folder: folderId,
-        title,
-        body,
-      }),
-    findFallback: (notes) => notes.find((note) => note.title === title),
+  // queued like any other snapshot write, so a concurrent refresh can't
+  // land its older copy on top of this baseline
+  const baseline = await queueNotebookSnapshot(notebookFlag, async () => {
+    const { snapshot } = await fetchNotesNotebookSnapshot(notebookFlag);
+    await db.saveNotesNotebookSnapshot(snapshot);
+    return snapshot;
   });
+
+  const created = await api.notes.createNote({
+    flag: notebookFlag,
+    folder: folderId,
+    title,
+    body,
+  });
+  if (created) {
+    // The write response comes from the notebook host and is authoritative.
+    // Do not immediately confirm it through getNote: for remote notebooks that
+    // read hits the local replica, which can legitimately lag the response.
+    const note = {
+      ...api.toClientNotesNote(notebookFlag, created),
+      notebookId: created.notebookId ?? baseline.notebook.notebookId,
+      folderId: created.folderId ?? folderId,
+      bodyMd: created.bodyMd ?? body,
+      revision: created.revision ?? 0,
+    };
+    await db.upsertNotesNote(note);
+    return note;
+  }
+
+  // Older hosts return no applied note. Only that compatibility path needs to
+  // discover the new id by comparing a fresh list against the baseline.
+  const beforeIds = new Set(baseline.notes.map((note) => note.noteId));
+  const note = await syncNotesNotebookUntil<db.NotesNote>(
+    notebookFlag,
+    (snapshot) => {
+      const newNotes = snapshot.notes.filter(
+        (candidate) => !beforeIds.has(candidate.noteId)
+      );
+      return (
+        newNotes.find((candidate) => candidate.title === title) ??
+        newNotes[0] ??
+        null
+      );
+    }
+  );
 
   if (!note) {
     return null;
@@ -1207,7 +1239,7 @@ async function syncNotesNotebookUntil<T>(
     snapshot: NotesNotebookSnapshot
   ) => ReadyValue<T> | Promise<ReadyValue<T>>,
   options?: SyncNotesNotebookOptions
-) {
+): Promise<T | null> {
   let readyValue: T | null = null;
   try {
     await withRetry(async () => {
@@ -1317,8 +1349,8 @@ function notebookForSnapshot(
     currentUserRole:
       preservedCurrentUserRole !== undefined
         ? preservedCurrentUserRole
-        : currentMember?.role ??
-          (notebook.host === currentUserId ? ('owner' as const) : null),
+        : (currentMember?.role ??
+          (notebook.host === currentUserId ? ('owner' as const) : null)),
   };
 }
 
@@ -1351,7 +1383,7 @@ function noteForSnapshot(
       note.notebookId ?? existingNote?.notebookId ?? notebook.notebookId,
     folderId: note.folderId ?? existingNote?.folderId ?? notebook.rootFolderId,
     title: note.title,
-    slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
+    slug: note.slug === undefined ? (existingNote?.slug ?? null) : note.slug,
     bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
     createdBy: note.createdBy ?? existingNote?.createdBy ?? null,
     createdAt: note.createdAt ?? existingNote?.createdAt ?? null,

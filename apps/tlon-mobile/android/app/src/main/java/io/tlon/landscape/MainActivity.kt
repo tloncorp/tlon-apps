@@ -18,6 +18,7 @@ import com.facebook.react.defaults.DefaultReactActivityDelegate
 import expo.modules.ReactActivityDelegateWrapper
 import expo.modules.constants.ConstantsService
 import io.branch.rnbranch.RNBranchModule
+import io.tlon.landscape.notifications.NotificationPresentationState
 import org.json.JSONObject
 
 class MainActivity : ReactActivity() {
@@ -73,10 +74,12 @@ class MainActivity : ReactActivity() {
 
   override fun onResume() {
     super.onResume()
+    NotificationPresentationState.setAppIsForeground(true)
     captureLifecycleEvent("App Resumed")
   }
 
   override fun onPause() {
+    NotificationPresentationState.setAppIsForeground(false)
     captureLifecycleEvent("App Paused")
     super.onPause()
   }

@@ -64,6 +64,8 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
+  TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',
   VideoUploadStarted = 'Video Upload Started',
   VideoUploadFailed = 'Video Upload Failed',
@@ -140,6 +142,10 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
+  /**
+   * Fires once when the owner first opens the generated onboarding entry.
+   */
+  AgentEntryFirstOpened = 'Agent Entry First Opened',
   NoteCreated = 'Note Created',
   NoteSaved = 'Note Saved',
   NoteMoved = 'Note Moved',
@@ -230,6 +236,39 @@ export enum AnalyticsEvent {
   ErrorThemeUpdate = 'Error Updating Theme Setting',
   ErrorApi = 'API Error',
   ErrorFetchLinkMetadata = 'Error Fetching Link Metadata',
+}
+
+export type TlonbotReplyFeedbackRating = 'up' | 'down';
+
+export interface TlonbotReplyFeedbackConversationExcerptItem {
+  authorType: 'user' | 'bot' | 'other';
+  sentAt: number;
+  text: string;
+}
+
+export interface TlonbotReplyFeedbackCommon {
+  feedbackId: string;
+  revision: number;
+  clientEventAt: number;
+  messageId: string;
+  botShip: string;
+  replySentAt: number;
+  isThreadReply: boolean;
+  channelType: string | null;
+  isBotDm: boolean;
+}
+
+export interface TlonbotReplyFeedbackChanged extends TlonbotReplyFeedbackCommon {
+  action: 'set' | 'clear';
+  rating?: TlonbotReplyFeedbackRating;
+}
+
+export interface TlonbotReplyFeedbackDetailsSubmitted extends TlonbotReplyFeedbackCommon {
+  rating: TlonbotReplyFeedbackRating;
+  categories: string[];
+  details: string;
+  replyText: string;
+  conversationExcerpt: TlonbotReplyFeedbackConversationExcerptItem[];
 }
 
 export interface AnalyticsDigest {

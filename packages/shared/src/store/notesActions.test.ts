@@ -212,6 +212,7 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
   vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
+    return null;
   });
 
   const note = await createNotebookNote({
@@ -221,6 +222,90 @@ test('createNotebookNote uses a fresh baseline before finding the created note',
   });
 
   expect(note?.noteId).toBe(createdNote.noteId);
+});
+
+test('createNotebookNote immediately persists the authoritative create response', async () => {
+  const createdNote = makeNotesNote(5, rootFolder.folderId, 'Created note', {
+    bodyMd: 'authoritative body',
+    revision: 3,
+  });
+  const concurrentNote = makeNotesNote(
+    6,
+    rootFolder.folderId,
+    'Collaborator note'
+  );
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
+    await db.upsertNotesNote(concurrentNote);
+    return {
+      id: createdNote.noteId,
+      notebookId: createdNote.notebookId,
+      folderId: createdNote.folderId,
+      title: createdNote.title,
+      bodyMd: createdNote.bodyMd,
+      revision: createdNote.revision,
+    };
+  });
+  const getNote = vi.spyOn(api.notes, 'getNote');
+
+  await expect(
+    createNotebookNote({
+      notebookFlag,
+      folderId: rootFolder.folderId,
+      title: createdNote.title,
+      body: createdNote.bodyMd,
+    })
+  ).resolves.toMatchObject({
+    noteId: createdNote.noteId,
+    bodyMd: createdNote.bodyMd,
+    revision: createdNote.revision,
+  });
+  expect(api.notes.listNotes).toHaveBeenCalledTimes(1);
+  expect(getNote).not.toHaveBeenCalled();
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: concurrentNote.noteId })
+  ).resolves.toMatchObject({ noteId: concurrentNote.noteId });
+});
+
+test('createNotebookNote does not discard a host response while the replica lags', async () => {
+  const createdNote = makeNotesNote(5, rootFolder.folderId, 'Created note');
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue({
+    id: createdNote.noteId,
+    notebookId: createdNote.notebookId,
+    folderId: createdNote.folderId ?? undefined,
+    title: createdNote.title,
+    bodyMd: createdNote.bodyMd,
+    revision: createdNote.revision,
+  });
+  const getNote = vi
+    .spyOn(api.notes, 'getNote')
+    .mockRejectedValue(new api.BadResponseError(404, ''));
+
+  await expect(
+    createNotebookNote({
+      notebookFlag,
+      folderId: rootFolder.folderId,
+      title: createdNote.title,
+    })
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
+  expect(getNote).not.toHaveBeenCalled();
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
 });
 
 test('createNotebookNote does not return an existing note when create sync times out', async () => {
@@ -240,7 +325,7 @@ test('createNotebookNote does not return an existing note when create sync times
     makeApiNotesNote(existingNote),
   ]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'createNote').mockResolvedValue(undefined);
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue(null);
 
   const note = await createNotebookNote({
     notebookFlag,
@@ -277,6 +362,7 @@ test('createNotebookNote hydrates created note details when list notes omit them
     .mockResolvedValue(makeApiNotesNote(createdNote));
   vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
     created = true;
+    return null;
   });
 
   const note = await createNotebookNote({
@@ -370,6 +456,7 @@ test('saveNotebookNote persists host stamps from write-response payloads', async
     id: note.noteId,
     title: 'Renamed by host payload',
     bodyMd: 'updated body',
+    folderId: rootFolder.folderId + 7,
     revision: note.revision + 1,
     updatedAt: hostStamp + 1,
     updatedBy: '~zod',
@@ -1029,6 +1116,7 @@ test('rename-only save adopts a raced remote body from the payload', async () =>
     id: note.noteId,
     title: 'Renamed locally',
     bodyMd: remoteBody,
+    folderId: note.folderId,
     revision: note.revision + 1,
     updatedAt: (note.updatedAt ?? 0) + 100,
     updatedBy: '~zod',
@@ -1106,6 +1194,45 @@ test('updateNotesNote is revision-monotonic in a single atomic write', async () 
     bodyMd: 'fresh body',
     revision: 6,
   });
+});
+
+test('upsertNotesNote does not replace a newer stored note', async () => {
+  const note = makeNote('Guarded upsert');
+  const current = { ...note, revision: 5, updatedAt: 1_000 };
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [current],
+    members: [],
+  });
+
+  await db.upsertNotesNote({
+    ...note,
+    title: 'Stale revision',
+    revision: 4,
+    updatedAt: 2_000,
+  });
+  await db.upsertNotesNote({
+    ...note,
+    title: 'Stale timestamp',
+    revision: 5,
+    updatedAt: 500,
+  });
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject(current);
+
+  const fresh = {
+    ...note,
+    title: 'Fresh timestamp',
+    revision: 5,
+    updatedAt: 2_000,
+  };
+  await db.upsertNotesNote(fresh);
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject(fresh);
 });
 
 test('adoptNotebookNoteRemote keeps newer same-revision metadata', async () => {

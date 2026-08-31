@@ -23,6 +23,8 @@ Migration assumes **one Tlon account per gateway process**. The diary-discovery 
 
 When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that file as the explicit plugin skill `tlon-platform:tlon`. The model-facing tool and platform hint point at `skill_view("tlon-platform:tlon")`, which works the same way in dev and production because the skill registration travels with the plugin. Set `TLON_SKILL_PATH` when the skill file lives somewhere non-standard.
 
+A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Tlon Messenger is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
+
 If you explicitly want the skill to appear in Hermes' normal skill index as bare `tlon`, add the directory containing the skill to `skills.external_dirs` in the Hermes profile config. That is optional install-time configuration, not required for the plugin-owned default path.
 
 ## Docker Dev Loop
@@ -110,6 +112,8 @@ TLON_SSE_READ_TIMEOUT_SECONDS=60
 TLON_SSE_STALE_THRESHOLD_SECONDS=180 # 0 disables staleness detection (probes continue)
 TLON_SSE_WATCHDOG_INTERVAL_SECONDS=30
 TLON_SKILL_PATH=/path/to/tlon-skill/SKILL.md # optional explicit plugin-skill path
+TLON_PRODUCT_GUIDE_PATH=/path/to/openclaw/skills/tlon-product-guide/SKILL.md # optional
+TLON_PLUGIN_DIR=/path/to/openclaw               # optional, finds bundled skills
 TLON_GATEWAY_STATUS=true
 TLON_GATEWAY_STATUS_OWNER=~friend # optional override; defaults to TLON_OWNER_SHIP
 TLON_CONTEXT_LENS=true # off by default; durable bot-run records via %steward
@@ -140,7 +144,7 @@ Restart the Hermes gateway after changing these.
 
 **Tlon Messenger (owner install)**
 
--   Settings → Experimental Features → **Enable bot context lens panel**
+-   Context Lens is enabled by default; there is no feature flag to turn on.
 -   Leave **Context lens gateway URL** and **Context lens gateway token** blank. Those are the old direct HTTP stream to a local harness gateway (web-only). They are not required for durable `%steward` records and will not fix a missing steward.
 
 **Ships**
@@ -152,7 +156,7 @@ Restart the Hermes gateway after changing these.
 :steward &steward-action-1 [%trust-bot ~your-bot-ship]
 ```
 
-3. Test with a **new** bot reply. Historical messages do not gain badges retroactively.
+3. Test with a **new** bot reply. Historical messages do not gain the Context Lens info action retroactively.
 
 **Data path**
 
@@ -288,7 +292,7 @@ The model can block an abusive DM sender with `[BLOCK_USER: ~ship | reason]`. Ex
 The seven keys above are the full "dashboard edit works" set. Everything else Tlon-related is either process env with no settings-store counterpart, or process env that only _seeds_ a settings key's default:
 
 -   **Env that seeds a settings default (edit the settings key to override it at runtime, not just the env):** `TLON_AUTO_DISCOVER` → `autoDiscoverChannels`; `TLON_GROUP_INVITE_ALLOWLIST` → `groupInviteAllowlist`; `TLON_OWNER_LISTEN`/`TLON_OWNER_LISTEN_DEFAULT`/`TLON_OWNER_LISTEN_DISABLED_CHANNELS`/`TLON_OWNER_LISTEN_ENABLED_CHANNELS` → the `ownerListen*` keys; `TLON_CHANNELS` → `groupChannels` (with a limit: a `groupChannels` edit can add or remove settings-managed channels, but can **never remove** a channel that came from `TLON_CHANNELS` — those stay monitored for the life of the process).
--   **Env-only, dashboard-invisible (no settings-store counterpart at all — a dashboard edit here genuinely does nothing):** notably `TLON_FREE_RESPONSE_CHANNELS` (unmentioned-message dispatch in named channels has no settings key on either harness), plus `TLON_ALLOWED_USERS`, `TLON_ALLOW_ALL_USERS`, `TLON_DM_ALLOWLIST` (the env var — distinct from the `dmAllowlist` settings key above), `TLON_REQUIRE_MENTION`, `TLON_BOT_MENTIONS`, `TLON_KNOWN_BOT_USERS`, `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`, `TLON_HOME_CHANNEL`, `TLON_CONTEXT_MESSAGES`, `TLON_REACTION_LEVEL`, `TLON_REPLY_IN_THREAD`, `TLON_CLI`/`TLON_CLI_TIMEOUT`, `TLON_HOSTING`, `TLON_SKILL_PATH`, `TLON_SSE_READ_TIMEOUT_SECONDS`, `TLON_SSE_STALE_THRESHOLD_SECONDS`, `TLON_SSE_WATCHDOG_INTERVAL_SECONDS`, `BRAVE_SEARCH_API_KEY`/`BRAVE_API_KEY`, the `TLON_TELEMETRY*` vars, the `TLON_GATEWAY_STATUS*` vars, and the connection credentials (`TLON_NODE_URL`, `TLON_NODE_ID`, `TLON_OWNER_SHIP`, and the `TLON_ACCESS_CODE`/`TLON_COOKIE` auth pair —
+-   **Env-only, dashboard-invisible (no settings-store counterpart at all — a dashboard edit here genuinely does nothing):** notably `TLON_FREE_RESPONSE_CHANNELS` (unmentioned-message dispatch in named channels has no settings key on either harness), plus `TLON_ALLOWED_USERS`, `TLON_ALLOW_ALL_USERS`, `TLON_DM_ALLOWLIST` (the env var — distinct from the `dmAllowlist` settings key above), `TLON_REQUIRE_MENTION`, `TLON_BOT_MENTIONS`, `TLON_KNOWN_BOT_USERS`, `TLON_MAX_CONSECUTIVE_BOT_RESPONSES`, `TLON_HOME_CHANNEL`, `TLON_CONTEXT_MESSAGES`, `TLON_REACTION_LEVEL`, `TLON_REPLY_IN_THREAD`, `TLON_CLI`/`TLON_CLI_TIMEOUT`, `TLON_HOSTING`, `TLON_SKILL_PATH`, `TLON_PRODUCT_GUIDE_PATH`, `TLON_PLUGIN_DIR`, `TLON_SSE_READ_TIMEOUT_SECONDS`, `TLON_SSE_STALE_THRESHOLD_SECONDS`, `TLON_SSE_WATCHDOG_INTERVAL_SECONDS`, `BRAVE_SEARCH_API_KEY`/`BRAVE_API_KEY`, the `TLON_TELEMETRY*` vars, the `TLON_GATEWAY_STATUS*` vars, and the connection credentials (`TLON_NODE_URL`, `TLON_NODE_ID`, `TLON_OWNER_SHIP`, and the `TLON_ACCESS_CODE`/`TLON_COOKIE` auth pair —
     one of the two is required, not both; each also accepts the older `TLON_SHIP_*`/`TLON_URL`/`TLON_SHIP`/`TLON_CODE`/`URBIT_*` aliases listed under [Configuration](#configuration)).
 
 ## Debug commands
@@ -296,7 +300,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 `/tlon` is the owner-only debug namespace (intercepted deterministically, like `/owner-listen`):
 
 -   `/tlon version` — what's running (below). `/tlon-version` is a legacy alias for the same output.
--   `/tlon status storage` — image-upload diagnostic: node URL, whether it looks hosted, the `TLON_HOSTING` override, storage service, S3 credentials, `%genuine` reachability, and the resolved upload path. (Mirrors the decision in `@tloncorp/api`'s `uploadFile`.)
+-   `/tlon status storage` — image-upload diagnostic: node URL, whether it looks hosted, the `TLON_HOSTING` override, storage service, S3 credentials, the current bucket, `%genuine` reachability, and the resolved upload path. (Mirrors the decision in `@tloncorp/api`'s `uploadFile`, and the `tlon` CLI's upload pre-flight.)
 -   `/tlon status binary` — identifies the exact `tlon` CLI the adapter runs: version, a sha256 content hash (two builds of the same version are distinguishable), size, and build time. Use it to confirm a deploy actually shipped a fresh binary.
 -   `/tlon status telemetry [test]` — telemetry status; `test` sends and flushes a probe event (see [Telemetry](#telemetry)).
 
@@ -306,6 +310,7 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 
 ```
 *Harness*: **Hermes**
+*Harness Version*: **0.17.0 (2026.6.19)**
 *Adapter Version*: **0.1.0**
 *Tlon Skill*: **0.3.2**
 *Fingerprint*: **fp1:3f9a2c1b8d02**
@@ -313,12 +318,19 @@ The seven keys above are the full "dashboard edit works" set. Everything else Tl
 ```
 
 -   **Harness** — always `Hermes`; identifies which bot framework is running this node at a glance.
+-   **Harness Version** — the running Hermes Agent's own version, read from its `__version__` and `__release_date__` constants (the same source its `/version` command uses), with the installed distribution's metadata as a fallback. Reads `unknown` when the host reports neither, so the row is never dropped and the reply stays line-for-line comparable with OpenClaw's.
 -   **Adapter Version** — semver from this package's `package.json`, bumped at releases.
 -   **Tlon Skill** — version of the packaged `@tloncorp/tlon-skill` CLI (first line of `tlon --version`).
 -   **Fingerprint** — sha256 over the runtime files (non-test `*.py`, `plugin.yaml`, `prompts/`), so copied or hand-patched installs are still identifiable. To match a fingerprint to a commit, recompute it at a candidate checkout: `python3 -c "import version; print(version.content_fingerprint())"` from this directory.
 -   **Source** — git branch, short commit, and dirty state, resolved at command time when the install is a git checkout (the dev loop's symlinked monorepo always is). Reads `no git checkout` otherwise.
 
 Nothing is generated or checked in; identity is resolved at runtime. The same summary is logged at gateway startup.
+
+## Bot info
+
+At connect (and on reconnect catch-up) the adapter publishes the bot's identity — harness, adapter version, Hermes version — in the bot's own contact profile under `bot-info`, compare-then-poke (`bot_info.py`). Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this adapter publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+
+The registry in `commands.py` is the single source of truth for command detection, and holds shared usage constants for `/owner-listen`, `/channel-access`, and `/migrate`; the remaining commands carry their usage text in their handlers. `fixtures/commands.json` is its committed token list — a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's Hermes list, so adding or removing a command here fails until the client list changes too; the six host-core entries that list also suggests are audit-pinned constants outside that relation. `/tlon-version` is handled but deliberately absent from the fixture (legacy alias of `/tlon version`). **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
 
 ## Telemetry
 
@@ -353,6 +365,16 @@ When a deployment shows nothing in PostHog, work through the built-in diagnostic
 4. **`TLON_TELEMETRY_DEBUG=true`** — logs every capture/identify enqueue at info level plus the posthog SDK's internal debug output, and elevates repeated delivery failures from debug to warning.
 
 Delivery failures are also surfaced without debug mode: the adapter hooks the SDK's `on_error` callback and warns on the first failed batch (`[tlon] telemetry delivery to PostHog failed …`).
+
+## Outbound Media
+
+Hermes has no in-process outbound-media path: `TlonAdapter.send()` is text-only, so the only way a bot emits an image is the model running two CLI commands — `tlon upload <direct-image-url>`, then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> ... --image <url>`). The fail-loud contract lives in the CLI (`@tloncorp/tlon-skill`); this package contributes:
+
+-   **Timeouts.** `tlon_tool.media_command_timeout` raises the per-call CLI timeout for media commands (`upload` → 300s, an `--image` send → 75s) so the CLI's own 120s/30s fetch budgets expire first and the model sees the contract error instead of `tlon CLI timed out`.
+-   **Guidance.** Never claim an image was delivered unless the upload (when used) and the send both returned success; if `tlon upload` reports the ship cannot store uploads (self-hosted moons have no storage), pass the direct https URL to `--image` instead of retrying.
+-   **No silent drops.** The standalone/cron send path refuses a call carrying `media_files` instead of delivering the text and discarding the media.
+
+Image URLs must be public https end to end. `/tlon status storage` reports the resolved upload path, including the `Current bucket` the S3 leg needs.
 
 ## Reactions
 

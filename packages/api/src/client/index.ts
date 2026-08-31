@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export * from './agentProtocol';
 export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
@@ -65,6 +66,7 @@ export {
   getTlawnLLMAuthStatus,
   startTlawnLLMAuth,
   getTlawnLLMAuthFlow,
+  completeTlawnLLMAuth,
   disconnectTlawnLLMAuth,
   startTlawnOAuth,
   deleteTlawnOAuthGrant,

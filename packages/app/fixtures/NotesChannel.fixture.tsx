@@ -83,6 +83,12 @@ const notes = [
     'Meeting notes',
     'A second root note so the list has mixed root and nested content.'
   ),
+  makeNote(
+    8,
+    1,
+    'A long note title that should wrap onto the next line instead of getting cut off on narrow screens',
+    'Long note title fixture body.'
+  ),
 ];
 const emptyFolders = [folders[0]];
 const emptyNotes: db.NotesNote[] = [];
@@ -443,6 +449,7 @@ export default {
   'Contents List': <NotebookContentsListFixture />,
   'Folder Contents': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
+  'Long Title': <NotesEditorFixture noteId={8} />,
   'Table Preview': <NotesEditorFixture noteId={5} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

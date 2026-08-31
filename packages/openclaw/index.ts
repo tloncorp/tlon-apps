@@ -4,11 +4,13 @@ import { fileURLToPath } from 'node:url';
 import { defineBundledChannelEntry } from 'openclaw/plugin-sdk/channel-entry-contract';
 import { type OpenClawPluginApi } from 'openclaw/plugin-sdk/core';
 import {
+  emitDiagnosticEvent,
   onDiagnosticEvent,
   onInternalDiagnosticEvent,
 } from 'openclaw/plugin-sdk/diagnostic-runtime';
 
 import { tlonPlugin } from './src/channel.js';
+import { registerTlonCommands } from './src/commands-registry.js';
 import { publishContextLensEvent } from './src/context-lens-events.js';
 import { registerContextLensRoutes } from './src/context-lens-routes.js';
 import { initContextLensShipSync } from './src/context-lens-ship-sync.js';
@@ -34,14 +36,29 @@ import {
   shouldInstallTlonDiagnosticSubscriptions,
 } from './src/diagnostic-subscriptions.js';
 import { notifyDiaryMigrationDiscovery } from './src/diary-migration-discovery.js';
+import { suppressTlonFallbackNotice } from './src/fallback-notice-delivery.js';
 import { registerGatewayStatusHooks } from './src/gateway-status-registration.js';
+import { createMigrateCommandHandler } from './src/migrate-command.js';
 import {
-  createMigrateCommandHandler,
-  routeMigrateCommand,
-} from './src/migrate-command.js';
-import { resolveBridgeForCommand } from './src/monitor/command-auth.js';
+  clearCronJobForSession,
+  cronJobForSession,
+  isMcpCallToolName,
+  isMcpDescribeToolName,
+  isMcpListUpstreamsToolName,
+  mayCallDescribedReadOnlyMcpTool,
+  mayDescribeMcpTool,
+  rememberCronJobForSession,
+  rememberDescribedReadOnlyMcpTool,
+  rememberMcpUpstreams,
+} from './src/mcp-readonly-policy.js';
+import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
+import {
+  agentOnboardingCronProviderIds,
+  handleAgentOnboardingCronChanged,
+  handleAgentOnboardingMessageSent,
+  isAgentOnboardingCronJob,
+} from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
-import { handleOwnerListenCommand } from './src/owner-listen-command.js';
 import { setTlonRuntime } from './src/runtime.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
@@ -68,12 +85,16 @@ import {
   createTlonToolExecutor,
   summarizeTlonCommand,
 } from './src/tlon-tool-command.js';
+import { buildTlonToolDiagnosticRecord } from './src/tlon-tool-diagnostics.js';
 import {
   formatToolTraceEvent,
   liveToolTraceContentsEnabled,
   shouldLogAfterToolTrace,
 } from './src/tool-trace.js';
-import { recordActiveTlonTurnToolCall } from './src/turn-recorder.js';
+import {
+  recordActiveTlonTurnToolCall,
+  recordTlonAgentRunTrace,
+} from './src/turn-recorder.js';
 import { resolveTlonAccount } from './src/types.js';
 import {
   formatTlonVersionIdentity,
@@ -341,7 +362,7 @@ function shouldReportHarnessDebug(event: DiagnosticCandidate, type: string) {
   return (
     Boolean(
       stringField(event, 'sessionKey') ??
-        stringAttribute(attributes, 'sessionKey')
+      stringAttribute(attributes, 'sessionKey')
     ) &&
     (level === 'warn' || level === 'warning' || level === 'error')
   );
@@ -845,6 +866,24 @@ export default defineBundledChannelEntry({
     exportName: 'setTlonRuntime',
   },
   registerFull(api) {
+    // The forced first run crosses process restarts, so its dedupe claim must
+    // live in OpenClaw's plugin state rather than only in module memory.
+    try {
+      setAgentOnboardingRunStore(
+        api.runtime.state.openKeyedStore({
+          namespace: 'agent-onboarding-first-runs',
+          maxEntries: 500,
+        })
+      );
+    } catch (error) {
+      // Older compatible hosts may not expose durable plugin state. Preserve
+      // the existing in-memory behavior instead of preventing plugin startup.
+      setAgentOnboardingRunStore(null);
+      api.logger.warn(
+        `[tlon] durable onboarding run state unavailable: ${String(error)}`
+      );
+    }
+
     // ── Gateway-status liveness integration ───────────────────
     //
     // registerFull is NOT a once-per-process call: OpenClaw invokes it once
@@ -889,33 +928,6 @@ export default defineBundledChannelEntry({
     });
     void resolveTlonSkillVersion().then((version) => {
       api.logger.info(`[tlon] Tlon skill version: ${version}`);
-    });
-
-    // Register /tlon-version command
-    api.registerCommand({
-      name: 'tlon-version',
-      description: 'Show Tlon plugin version.',
-      handler: async () => {
-        return renderTlonVersion();
-      },
-    });
-
-    api.registerCommand({
-      name: 'tlon',
-      description: 'Tlon plugin diagnostics. Usage: /tlon version',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const args = (ctx.args ?? '').trim().toLowerCase();
-        if (args !== 'version') {
-          return { text: 'Usage: /tlon version' };
-        }
-
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return renderTlonVersion();
-      },
     });
 
     const contextLensRoutesEnabled = registerContextLensRoutes(api);
@@ -973,7 +985,8 @@ export default defineBundledChannelEntry({
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'",
+        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
+        'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
       parameters: {
         type: 'object',
         properties: {
@@ -996,14 +1009,42 @@ export default defineBundledChannelEntry({
     const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
-    api.on('before_tool_call', (event, ctx) => {
+    api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
       const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const isBlocked = isOwnerOnlyTool && role === 'user';
-      const blockReason = isBlocked
-        ? `The ${event.toolName} tool is not available.`
+      const blocksNonOwner = isOwnerOnlyTool && role === 'user';
+      const isMcpDescribe = isMcpDescribeToolName(event.toolName);
+      const isMcpCall = isMcpCallToolName(event.toolName);
+      const isMcpTool = isMcpDescribe || isMcpCall;
+      const cronJobId = isMcpTool
+        ? cronJobForSession(ctx.sessionKey)
         : undefined;
+      const isOnboardingCron =
+        isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
+      const allowedProviderIds = isOnboardingCron
+        ? await agentOnboardingCronProviderIds(cronJobId)
+        : [];
+      const blocksOnboardingMcp =
+        isOnboardingCron &&
+        ((isMcpDescribe &&
+          !mayDescribeMcpTool(
+            ctx.sessionKey,
+            event.params,
+            allowedProviderIds
+          )) ||
+          (isMcpCall &&
+            !mayCallDescribedReadOnlyMcpTool(
+              ctx.sessionKey,
+              event.params,
+              allowedProviderIds
+            )));
+      const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const blockReason = blocksOnboardingMcp
+        ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
+        : blocksNonOwner
+          ? `The ${event.toolName} tool is not available.`
+          : undefined;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
@@ -1057,7 +1098,7 @@ export default defineBundledChannelEntry({
         );
       }
 
-      if (!isOwnerOnlyTool) {
+      if (!isOwnerOnlyTool && !blocksOnboardingMcp) {
         return undefined;
       }
 
@@ -1105,9 +1146,40 @@ export default defineBundledChannelEntry({
       return undefined;
     });
 
-    api.on('after_tool_call', (event, ctx) => {
+    api.on('after_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
-      recordActiveTlonTurnToolCall();
+      const tlonCommandContext =
+        event.toolName === 'tlon' && typeof event.params.command === 'string'
+          ? summarizeTlonCommand(event.params.command)
+          : undefined;
+      const observesMcpCatalog =
+        isMcpListUpstreamsToolName(event.toolName) ||
+        isMcpDescribeToolName(event.toolName);
+      if (
+        observesMcpCatalog &&
+        (await isAgentOnboardingCronJob(cronJobForSession(ctx.sessionKey)))
+      ) {
+        const allowedProviderIds = await agentOnboardingCronProviderIds(
+          cronJobForSession(ctx.sessionKey)
+        );
+        if (isMcpListUpstreamsToolName(event.toolName)) {
+          rememberMcpUpstreams(ctx.sessionKey, event.result);
+        } else {
+          rememberDescribedReadOnlyMcpTool(
+            ctx.sessionKey,
+            event.params,
+            event.result,
+            allowedProviderIds
+          );
+        }
+      }
+      recordActiveTlonTurnToolCall({
+        toolName: event.toolName,
+        errorMessage:
+          typeof event.error === 'string' && event.error.trim()
+            ? event.error
+            : undefined,
+      });
       if (logToolTraceContents && shouldLogAfterToolTrace(event)) {
         api.logger.info(
           formatToolTraceEvent({
@@ -1130,16 +1202,23 @@ export default defineBundledChannelEntry({
         sourceEventName: event.toolName,
         sessionKey: ctx.sessionKey,
         run: () => {
+          if (tlonCommandContext) {
+            emitDiagnosticEvent({
+              type: 'log.record',
+              ...buildTlonToolDiagnosticRecord(tlonCommandContext, {
+                ...event,
+                toolCallId,
+                runId: ctx.runId,
+                sessionId: ctx.sessionId,
+              }),
+            });
+          }
           recordToolCall({
             sessionKey: ctx.sessionKey,
             toolName: event.toolName,
             durationMs: event.durationMs,
             error: event.error,
-            context:
-              event.toolName === 'tlon' &&
-              typeof event.params.command === 'string'
-                ? summarizeTlonCommand(event.params.command)
-                : undefined,
+            context: tlonCommandContext,
           });
         },
       });
@@ -1254,6 +1333,13 @@ export default defineBundledChannelEntry({
           );
         }
       }
+      try {
+        await handleAgentOnboardingCronChanged(event);
+      } catch (error) {
+        api.logger.warn(
+          `[tlon] Agent onboarding observer failed (cron_changed:${event.action}): ${String(error)}`
+        );
+      }
     });
 
     if (shouldInstallTlonDiagnosticSubscriptions(api.registrationMode)) {
@@ -1261,6 +1347,13 @@ export default defineBundledChannelEntry({
         installTelemetryDiagnosticObservers(api);
       api.on('gateway_stop', unsubscribeDiagnosticEvents);
     }
+
+    // OpenClaw records fallback transitions as lifecycle diagnostics and also
+    // emits a separate user-facing status payload. Keep the diagnostics, but
+    // hide that operational payload on Tlon when the fallback produced a real
+    // answer. Terminal provider failures are not marked as fallback notices
+    // and continue through the normal delivery path.
+    api.on('reply_payload_sending', suppressTlonFallbackNotice);
 
     // ── Route diagnostics ───────────────────────────────────────────────
     // Fires for every outbound send OpenClaw routes — the primary streamed
@@ -1289,7 +1382,8 @@ export default defineBundledChannelEntry({
           const targetKind =
             parsedTarget?.kind === 'dm'
               ? 'dm'
-              : parsedTarget?.kind === 'channel'
+              : parsedTarget?.kind === 'channel' ||
+                  parsedTarget?.kind === 'notebook'
                 ? 'group'
                 : 'unknown';
 
@@ -1314,6 +1408,16 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      void handleAgentOnboardingMessageSent(
+        event,
+        {},
+        ctx.runId,
+        ctx.accountId
+      ).catch((error) => {
+        api.logger.error(
+          `[tlon] agent onboarding delivery completion failed: ${String(error)}`
+        );
+      });
       safeTelemetryObserver({
         logger: api.logger,
         telemetrySource: 'message_sent',
@@ -1369,6 +1473,7 @@ export default defineBundledChannelEntry({
       runId?: string;
     }) => {
       if (ctx.trigger === 'cron') {
+        rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
           jobId: ctx.jobId,
           runId: ctx.runId,
@@ -1387,10 +1492,21 @@ export default defineBundledChannelEntry({
               jobId: ctx.jobId,
             }),
         });
+      } else if (ctx.trigger) {
+        // Main-session cron runs share a session key with later owner turns.
+        // An explicit non-cron boundary must drop the old job attribution
+        // before any interactive MCP tool call is checked against it.
+        clearCronJobForSession(ctx.sessionKey);
       }
       ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('agent_turn_prepare', (_event, ctx) => {
+      // Cron has no active Tlon turn recorder, so its output trace stays nullable.
+      if (ctx.trigger !== 'cron') {
+        recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
+      }
+      onCronAgentHook(ctx);
+    });
     api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end
@@ -1398,6 +1514,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
+      clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       if (!contextLensEnabled) {
         return;
       }
@@ -1407,139 +1524,13 @@ export default defineBundledChannelEntry({
     });
 
     // ── Slash commands for approval & admin ────────────────────────────
-    api.registerCommand({
-      name: 'allow',
-      description: 'Allow a pending DM/channel/group request',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return {
-          text: await result.bridge.handleAction(
-            'approve',
-            ctx.args?.trim() || undefined
-          ),
-        };
-      },
-    });
-
-    api.registerCommand({
-      name: 'reject',
-      description: 'Reject a pending DM/channel/group request',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return {
-          text: await result.bridge.handleAction(
-            'deny',
-            ctx.args?.trim() || undefined
-          ),
-        };
-      },
-    });
-
-    api.registerCommand({
-      name: 'ban',
-      description: 'Ban a ship and deny its pending request',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return {
-          text: await result.bridge.handleAction(
-            'block',
-            ctx.args?.trim() || undefined
-          ),
-        };
-      },
-    });
-
-    api.registerCommand({
-      name: 'pending',
-      description: 'List pending approval requests',
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return await result.bridge.getPendingApprovalsReply();
-      },
-    });
-
-    api.registerCommand({
-      name: 'banned',
-      description: 'List banned ships',
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        return { text: await result.bridge.getBlockedList() };
-      },
-    });
-
-    api.registerCommand({
-      name: 'unban',
-      description: 'Unban a ship (e.g. /unban ~sampel-palnet)',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        const ship = ctx.args?.trim();
-        if (!ship) {
-          return { text: 'Usage: /unban ~ship-name' };
-        }
-        return { text: await result.bridge.handleUnblock(ship) };
-      },
-    });
-
-    api.registerCommand({
-      name: 'owner-listen',
-      description:
-        'Control whether the bot listens for the owner without @-mention in owned channels. ' +
-        'Usage: /owner-listen [on|off|status|list] [<channel-nest>]; ' +
-        '/owner-listen all [on|off] for the global kill switch.',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        const result = resolveBridgeForCommand(ctx);
-        if ('error' in result) {
-          return { text: result.error };
-        }
-        const text = await handleOwnerListenCommand(
-          result.bridge,
-          ctx.args,
-          ctx.from
-        );
-        return { text };
-      },
-    });
-
-    api.registerCommand({
-      name: 'migrate',
-      description:
-        'Run or clean up a diary-to-notes migration. Usage: ' +
-        '/migrate <diary-nest> [--allow-write-widening] | ' +
-        '/migrate cleanup <notes-nest>',
-      acceptsArgs: true,
-      handler: async (ctx) => {
-        return {
-          text: await routeMigrateCommand(
-            ctx,
-            ctx.args,
-            handleMigrateCommand,
-            api.config
-          ),
-        };
-      },
+    // All plugin commands live in one table (commands-registry.ts) that both
+    // registers the handlers and serializes as fixtures/commands.json, the
+    // token list the Tlon client's drift contract pins its static list against.
+    registerTlonCommands(api, {
+      renderTlonVersion,
+      handleMigrateCommand,
+      config: api.config,
     });
   },
 });

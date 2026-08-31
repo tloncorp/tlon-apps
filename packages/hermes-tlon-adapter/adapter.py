@@ -76,6 +76,14 @@ from .channel_access import (
     parse_channel_rules,
 )
 from .cite import resolve_cites
+from .bot_info import (
+    BOT_INFO_CONTACT_MARK,
+    build_bot_info_json,
+    build_bot_info_poke,
+    extract_bot_info_value,
+    resolve_harness_version,
+)
+from .commands import command_detection_regex, is_adapter_command, is_core_command
 from .history import (
     MessageCache,
     build_channel_context,
@@ -190,6 +198,7 @@ from .tlon_api import (
     TlonStreamStaleError,
     ChannelReactsSnapshot,
     TlonTerminalActionError,
+    extract_inline_message_text,
     format_post_id,
     normalize_ship,
     parse_channel_reacts_snapshot,
@@ -220,6 +229,7 @@ from .tlon_tool import (
     check_tlon_tool_requirements,
     diary_target_blocked_message,
     handle_tlon_tool,
+    resolve_tlon_product_guide_path,
     resolve_tlon_skill_path,
     set_diary_migration_notification_sender,
     split_tlon_command,
@@ -230,6 +240,14 @@ from .tlon_tool import (
 logger = logging.getLogger(__name__)
 
 RECONNECT_BACKOFF_SECONDS = (2, 5, 10, 30, 60)
+# A transient poke failure would otherwise leave a healthy long-lived bot
+# unidentified until an unrelated reconnect or a restart, so the write is
+# retried in place. Reads are never retried: a failed read skips entirely.
+BOT_INFO_PUBLISH_ATTEMPTS = 3
+BOT_INFO_PUBLISH_BACKOFF_SECONDS = (2, 8)
+# Distinguishes "not resolved yet" from a resolved-but-absent host version, so
+# a missing version is looked up once rather than on every publish.
+_UNSET_HARNESS_VERSION = object()
 CITE_RESOLUTION_BUDGET_SECONDS = 5.0
 RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000
 # Window in which a repeated retry request for the same lensId is a no-op
@@ -341,7 +359,8 @@ def _is_dm_chat_id(chat_id: str) -> bool:
 
 # `/tlon ...` debug namespace. Does not match `/tlon-version` (legacy alias)
 # because "-" is neither whitespace nor end-of-string after "tlon".
-_TLON_COMMAND_RE = re.compile(r"^/tlon(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_TLON_COMMAND_RE = command_detection_regex("tlon")
 _HOSTED_URL_SUFFIXES = ("tlon.network", ".test.tlon.systems")
 
 
@@ -559,11 +578,15 @@ def format_storage_status(
     hosting_forced: bool,
     service: str,
     has_s3_creds: bool,
+    current_bucket: str,
     genuine_reachable: bool,
+    config_known: bool = True,
 ) -> str:
     """Diagnostic for image uploads — mirrors the decision in
     @tloncorp/api uploadFile so an operator can see why a push would route
-    where it does."""
+    where it does. ``config_known=False`` means the configuration scry
+    failed: bucket/service facts are indeterminate, and the diagnostic must
+    say so rather than render a confident false verdict."""
     is_hosted = hosting_forced or url_hosted
     use_memex = is_hosted and (service == "presigned-url" or not has_s3_creds)
     if use_memex:
@@ -572,8 +595,15 @@ def format_storage_status(
             if genuine_reachable
             else "memex — would FAIL: no %genuine token"
         )
-    elif has_s3_creds:
+    elif has_s3_creds and current_bucket:
         path = "S3 (custom credentials)"
+    elif has_s3_creds and not config_known:
+        path = "unknown — storage configuration scry failed"
+    elif has_s3_creds:
+        # uploadFile does not check the bucket itself — it lets the S3 PUT
+        # fail. The CLI pre-flight is deliberately stricter, so the diagnostic
+        # names the missing bucket rather than promising a working upload.
+        path = "would FAIL: no storage bucket selected"
     else:
         path = "would FAIL: no storage credentials configured"
     rows = [
@@ -582,6 +612,7 @@ def format_storage_status(
         ("TLON_HOSTING", "set" if hosting_forced else "unset"),
         ("Storage service", service or "unknown"),
         ("Custom S3 creds", "yes" if has_s3_creds else "no"),
+        ("Current bucket", current_bucket or ("unknown" if not config_known else "none")),
         ("%genuine token", "reachable" if genuine_reachable else "unavailable"),
         ("Upload path", path),
     ]
@@ -615,6 +646,10 @@ _LENS_TRIGGER_MAP = {
     "reaction": "reaction",
     "mention": "mention",
     "owner-listen": "owner-listen",
+    # Owner-initiated no-mention engagement, same class as owner-listen; the
+    # shared taxonomy has no dedicated trigger for it (OpenClaw maps its
+    # 'owner-command' engagement reason onto 'owner-listen' the same way).
+    "owner-command": "owner-listen",
     "owner-blob": "owner-blob",
     "participated-thread": "thread",
     "retry": "retry",
@@ -634,7 +669,7 @@ def _lens_trigger(dispatch_reason: str, *, is_dm: bool) -> str:
 
 
 def _lens_run_kind(dispatch_reason: str) -> str:
-    if dispatch_reason in ("owner-listen", "owner-blob"):
+    if dispatch_reason in ("owner-listen", "owner-command", "owner-blob"):
         return "owner_listen"
     return "conversation"
 
@@ -987,6 +1022,7 @@ class TlonAdapter(BasePlatformAdapter):
         self._mention_matcher = self._build_mention_matcher()
         self._bot_nickname: str = ""
         self._bot_avatar: str = ""
+        self._harness_version_cache: Any = _UNSET_HARNESS_VERSION
         self._participated_threads: set[str] = set()
         self._known_bot_ships: set[str] = set()
         self._known_bot_consecutive_by_channel: dict[str, int] = {}
@@ -1059,6 +1095,7 @@ class TlonAdapter(BasePlatformAdapter):
                     source=source,
                     fingerprint=fingerprint,
                     cli_version=cli_version,
+                    harness_version=self._harness_version(),
                     markdown=False,
                 ).replace("\n", " | "),
             )
@@ -1066,7 +1103,11 @@ class TlonAdapter(BasePlatformAdapter):
                 {"adapterVersion": adapter_version, "adapterFingerprint": fingerprint}
             )
             set_active_telemetry(self._telemetry)
-            await self._load_bot_profile()
+            self_contact = await self._load_bot_profile()
+            # Publish the bot's identity claim now that the SSE client is live
+            # and the current self-contact is in hand (enables
+            # compare-before-poke idempotence).
+            await self._publish_bot_info(self_contact)
             settings_loaded = await self._load_settings_state()
             self._nudge_settings_ready = settings_loaded
             if not settings_loaded:
@@ -2197,6 +2238,10 @@ class TlonAdapter(BasePlatformAdapter):
             content=original.get("messageContent"),
             blob=blob,
             author_is_bot=bool(original.get("authorIsBot")),
+            # Approval replays are always non-owner messages, so the command
+            # override can never fire for them; set the field anyway so the
+            # reconstruction stays faithful to a fresh parse.
+            inline_text=extract_inline_message_text(original.get("messageContent")),
         )
         retry_seed = self._build_retry_seed(message, text)
         if is_dm:
@@ -2356,6 +2401,7 @@ class TlonAdapter(BasePlatformAdapter):
             source=await git_source(),
             fingerprint=content_fingerprint(),
             cli_version=await self._cli_version(),
+            harness_version=self._harness_version(),
         )
 
     async def _cli_version(self) -> str:
@@ -2421,8 +2467,10 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _storage_status_reply(self) -> str:
         service = "unknown"
+        current_bucket = ""
         has_s3_creds = False
         genuine_reachable = False
+        config_known = False
         if self._sse is not None:
             try:
                 config = await self._sse.scry("/storage/configuration")
@@ -2430,6 +2478,8 @@ class TlonAdapter(BasePlatformAdapter):
                 configuration = update.get("configuration") if isinstance(update, dict) else None
                 if isinstance(configuration, dict):
                     service = str(configuration.get("service") or "unknown")
+                    current_bucket = str(configuration.get("currentBucket") or "")
+                    config_known = True
             except Exception as exc:
                 logger.debug("[tlon] storage configuration scry failed: %s", exc)
             try:
@@ -2455,8 +2505,60 @@ class TlonAdapter(BasePlatformAdapter):
             hosting_forced=self.tlon_config.hosting,
             service=service,
             has_s3_creds=has_s3_creds,
+            current_bucket=current_bucket,
             genuine_reachable=genuine_reachable,
+            config_known=config_known,
         )
+
+    def _inline_command(
+        self, message: TlonIncomingMessage
+    ) -> Optional[str]:
+        """The bare command the owner typed inline, or None.
+
+        The parser renders story blocks ahead of the typed text — "[quoted
+        message]", "[image: …]" — and heap parsing prepends the title, any of
+        which would hide a command from every downstream verbatim guard
+        (which all key on a leading slash). So the command is re-derived from
+        the parser's inline-only rendering. Matches core commands AND the
+        adapter's own registry commands: when this fires for a registry
+        command, the control-command dispatcher (same detection regexes) is
+        guaranteed to consume it, so a quoted /pending works like a quoted
+        /help. Owner-gated: for anyone else the decorated text is the
+        message, unchanged.
+        """
+        if not self._is_owner(message.user_id):
+            return None
+        inline = self._typed_inline_text(message)
+        if not inline:
+            return None
+        if is_core_command(inline) or is_adapter_command(inline):
+            return inline
+        return None
+
+    def _typed_inline_text(self, message: TlonIncomingMessage) -> str:
+        """The mention-stripped inline-only rendering: what the sender
+        actually typed, with a leading bot mention removed. Empty for
+        synthetic events."""
+        inline = (message.inline_text or "").strip()
+        if inline and self._mention_matcher.mentioned(inline):
+            inline = self._mention_matcher.strip_leading(inline)
+        return inline
+
+    def _command_dispatch_override(
+        self, message: TlonIncomingMessage
+    ) -> Optional[str]:
+        """The authoritative command fact for a dispatch, or None.
+
+        Slash commands are a chat-channel and DM surface only (mirroring the
+        OpenClaw plugin's chat/ constraint): heap and diary channels stay
+        conversational, so a heap title or header block whose rendered text
+        begins with "/help" must never be classified as a command. Everything
+        downstream consumes this fact — it is never re-derived from rendered
+        text, which block rendering can forge in either direction.
+        """
+        if message.chat_type != "dm" and not message.chat_id.startswith("chat/"):
+            return None
+        return self._inline_command(message)
 
     async def _maybe_handle_control_command(
         self,
@@ -2569,17 +2671,84 @@ class TlonAdapter(BasePlatformAdapter):
         if not result.success:
             logger.warning("[tlon] control command reply failed: %s", result.error)
 
-    async def _load_bot_profile(self) -> None:
+    async def _load_bot_profile(self) -> Optional[dict[str, Any]]:
+        """Fetch and apply the self contact; return the raw map so callers
+        can compare the published bot-info value before poking.
+
+        Returns None when the read did not produce a contact map — callers
+        must treat that as "current value unknown", never as "key absent"."""
         if self._sse is None:
-            return
+            return None
         try:
             profile = await self._sse.scry("/contacts/v1/self.json")
         except Exception as exc:
             logger.debug("[tlon] could not fetch self profile: %s", exc)
-            return
+            return None
         if not isinstance(profile, dict):
-            return
+            return None
         self._apply_self_contact(profile)
+        return profile
+
+    async def _publish_bot_info(
+        self, self_contact: Optional[Mapping[str, Any]]
+    ) -> None:
+        """Publish the bot's identity claim in its own contact profile:
+        compare the current ``bot-info`` value against the computed claim and
+        poke only on difference. Non-fatal — the client falls back to treating
+        the bot as unidentified until the next successful publish."""
+        if self._sse is None:
+            return
+        if self_contact is None:
+            # The self-contact read failed: the current value is unknown, so
+            # there is nothing to compare against. Poking blind here would
+            # defeat compare-then-poke exactly when the ship is unhealthy.
+            logger.debug("[tlon] skipping bot info publish: self contact unread")
+            return
+        try:
+            desired = build_bot_info_json(
+                plugin_version(), self._harness_version()
+            )
+            if extract_bot_info_value(self_contact) == desired:
+                return
+            payload = build_bot_info_poke(desired)
+            for attempt in range(1, BOT_INFO_PUBLISH_ATTEMPTS + 1):
+                try:
+                    await self._sse.poke("contacts", BOT_INFO_CONTACT_MARK, payload)
+                    logger.info("[tlon] published bot info")
+                    return
+                except Exception as exc:
+                    if attempt >= BOT_INFO_PUBLISH_ATTEMPTS:
+                        raise
+                    logger.debug(
+                        "[tlon] bot info publish attempt %d failed: %s",
+                        attempt,
+                        exc,
+                    )
+                    await asyncio.sleep(
+                        BOT_INFO_PUBLISH_BACKOFF_SECONDS[
+                            min(
+                                attempt - 1,
+                                len(BOT_INFO_PUBLISH_BACKOFF_SECONDS) - 1,
+                            )
+                        ]
+                    )
+        except Exception as exc:
+            logger.warning("[tlon] could not publish bot info: %s", exc)
+
+    def _harness_version(self) -> Optional[str]:
+        """Resolved once per process: a function-local import reads Python's
+        already-cached module, so deferring the read buys no freshness — an
+        edit to the host's constants needs a restart either way."""
+        if self._harness_version_cache is _UNSET_HARNESS_VERSION:
+            self._harness_version_cache = resolve_harness_version()
+        return self._harness_version_cache
+
+    async def _clear_bot_info(self) -> None:
+        """Clear the published claim (rollback/retirement procedure): contact
+        keys die only by explicit null."""
+        if self._sse is None:
+            return
+        await self._sse.poke("contacts", BOT_INFO_CONTACT_MARK, build_bot_info_poke(None))
 
     def _apply_self_contact(self, contact: Any) -> None:
         """Reconcile bot nickname/avatar state from a self contact map.
@@ -2751,8 +2920,11 @@ class TlonAdapter(BasePlatformAdapter):
                                 "[tlon] reconnect invite catch-up failed: %s", exc
                             )
                         # Contacts facts do not replay either; catch up on renames
-                        # (or clears) missed while disconnected.
-                        await self._load_bot_profile()
+                        # (or clears) missed while disconnected, and re-check the
+                        # published identity claim (e.g. a version bump that has
+                        # not been published yet).
+                        self_contact = await self._load_bot_profile()
+                        await self._publish_bot_info(self_contact)
                     except BaseException:
                         await self._close_sse(graceful=False)
                         raise
@@ -3405,6 +3577,9 @@ class TlonAdapter(BasePlatformAdapter):
             if is_mentioned
             else message.text.strip()
         )
+        inline_command = self._command_dispatch_override(message)
+        if inline_command is not None:
+            clean_text = inline_command
 
         if await self._maybe_handle_control_command(
             message, clean_text, ctx_nest=message.chat_id
@@ -3415,6 +3590,15 @@ class TlonAdapter(BasePlatformAdapter):
         is_authorized = self._user_authorized(
             message.user_id, is_dm=False, nest=message.chat_id
         )
+        # Core commands (/help /status /new ...) are dispatched by the Hermes
+        # gateway, not the adapter's pre-gate registry dispatcher, so without
+        # this fact a bare owner core command dies at the attention gate in
+        # any channel owner-listen does not cover — the same silent-ignore
+        # trap the registry commands escape via _maybe_handle_control_command.
+        # The fact comes from the inline-derived override, never from the
+        # rendered text: a heap title or header block rendering as "/help"
+        # must not gain command reach.
+        is_owner_command = inline_command is not None
         is_owner_listen = self._is_owner(message.user_id) and owner_listen_active(
             self._owner_listen,
             message.chat_id,
@@ -3430,6 +3614,7 @@ class TlonAdapter(BasePlatformAdapter):
                 is_authorized=is_authorized,
                 has_text=bool(clean_text or message.blob),
                 is_mentioned=is_mentioned,
+                is_owner_command=is_owner_command,
                 is_owner_listen=is_owner_listen,
                 is_owner_blob=is_owner_blob,
                 is_free_response=is_free_response,
@@ -3447,11 +3632,12 @@ class TlonAdapter(BasePlatformAdapter):
             return
         if not self._passes_group_loop_safety(message):
             return
+        is_command = inline_command is not None
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
-            message, clean_text
+            message, clean_text, is_command=is_command
         )
         dispatch_text = await self._with_group_context(
-            message, dispatch_text, decision.reason
+            message, dispatch_text, decision.reason, is_command=is_command
         )
         await self._dispatch_message(
             replace(message, text=dispatch_text),
@@ -3461,6 +3647,7 @@ class TlonAdapter(BasePlatformAdapter):
             prepared_media=prepared_media,
             pending_nudge=nudge_hook.inject_context,
             retry_seed=self._build_retry_seed(message, sanitized_text),
+            is_command_dispatch=is_command,
         )
 
     async def _handle_dm_event(
@@ -3494,11 +3681,13 @@ class TlonAdapter(BasePlatformAdapter):
         )
         if message.author_id == normalize_ship(self.tlon_config.ship_name):
             return
+        inline_command = self._command_dispatch_override(message)
+        dm_text = inline_command if inline_command is not None else message.text
         if await self._maybe_handle_control_command(
-            message, message.text.strip(), ctx_nest=None
+            message, dm_text.strip(), ctx_nest=None
         ):
             return
-        sanitized_text = strip_block_directives(message.text)
+        sanitized_text = strip_block_directives(dm_text)
         if not self._user_authorized(message.user_id, is_dm=True):
             if _is_patp(message.user_id):
                 await self._queue_dm_approval(message, sanitized_text)
@@ -3511,10 +3700,19 @@ class TlonAdapter(BasePlatformAdapter):
             logger.info("[tlon] ignoring DM from blocked ship")
             return
         retry_seed = self._build_retry_seed(message, sanitized_text)
+        is_command = inline_command is not None
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
-            message, message.text
+            message, dm_text, is_command=is_command
         )
-        if nudge_hook.inject_context and nudge_hook.pending is not None:
+        if (
+            nudge_hook.inject_context
+            and nudge_hook.pending is not None
+            # A core command must reach the gateway verbatim (see
+            # _dispatch_message). The nudge accounting already happened in
+            # _observe_nudge_owner_message, and the context only matters for
+            # a model turn, which a command dispatch never starts.
+            and not is_command
+        ):
             dispatch_text = _nudge_reply_context(nudge_hook.pending, dispatch_text)
         await self._dispatch_message(
             replace(message, text=dispatch_text),
@@ -3522,6 +3720,7 @@ class TlonAdapter(BasePlatformAdapter):
             prepared_media=prepared_media,
             pending_nudge=nudge_hook.inject_context,
             retry_seed=retry_seed,
+            is_command_dispatch=is_command,
         )
 
     async def _handle_dm_invites(self, ships: list) -> None:
@@ -3858,7 +4057,16 @@ class TlonAdapter(BasePlatformAdapter):
         self,
         message: TlonIncomingMessage,
         text: str,
+        *,
+        is_command: bool = False,
     ) -> tuple[str, PreparedMedia]:
+        # A core command must reach the gateway verbatim: a cite or media
+        # prefix would displace the leading slash the gateway's command
+        # classifier looks for. The fact is threaded from the handler's
+        # inline-derived override — never re-derived from rendered text,
+        # which block rendering can forge.
+        if is_command:
+            return text, PreparedMedia()
         cite_block = ""
         if self._sse is not None and message.content:
             partial: list[str] = []
@@ -3904,8 +4112,17 @@ class TlonAdapter(BasePlatformAdapter):
         message: TlonIncomingMessage,
         clean_text: str,
         reason: str,
+        *,
+        is_command: bool = False,
     ) -> str:
         """Prepend recent channel or thread history so group replies have context."""
+        # Never wrap a core command: the gateway classifies commands with
+        # MessageEvent.text.startswith("/") (pinned core's is_command), so
+        # prepended history would silently turn /new, /stop, etc. into an
+        # ordinary model prompt. A command needs no conversational context.
+        # The fact is threaded from the handler's inline-derived override.
+        if is_command:
+            return clean_text
         limit = self.tlon_config.context_messages
         if limit <= 0 or self._sse is None:
             return clean_text
@@ -3996,6 +4213,11 @@ class TlonAdapter(BasePlatformAdapter):
         retry_seed: dict[str, Any] | None = None,
         retry_of: str | None = None,
         skip_authorization: bool = False,
+        # Threaded from the handler's inline-derived override (see
+        # _command_dispatch_override); defaults False so callers that never
+        # carry commands (synthetic reactions, approval replays of non-owner
+        # messages) get ordinary decoration.
+        is_command_dispatch: bool = False,
     ) -> None:
         # Owner-requested retries re-run a message from an already-authorized
         # sender, so they skip the inbound authorization gate (the owner vetted
@@ -4028,7 +4250,19 @@ class TlonAdapter(BasePlatformAdapter):
                 self._reaction_reply_targets.popitem(last=False)
 
         notes_key = self._reaction_conversation_key(message.chat_type, message.chat_id)
-        pending_notes = tuple(self._pending_reaction_notes.get(notes_key, ()))
+        # A core command must reach the gateway verbatim: its command
+        # classifier is text.startswith("/") and its args parser takes
+        # everything after the token, so a reaction-note prefix would hide
+        # the command and an id-marker suffix would pollute its arguments.
+        # Notes are not peeked for a command, so they stay queued for the
+        # next conversational dispatch. The fact arrives as a parameter —
+        # re-deriving it from message.text here would let a heap title or
+        # header block that renders as "/help" skip decoration.
+        pending_notes = (
+            ()
+            if is_command_dispatch
+            else tuple(self._pending_reaction_notes.get(notes_key, ()))
+        )
         dispatch_text = message.text
         if pending_notes:
             dispatch_text = (
@@ -4037,7 +4271,10 @@ class TlonAdapter(BasePlatformAdapter):
                 + "\n\n"
                 + dispatch_text
             )
-        if self.tlon_config.reaction_level in {"minimal", "extensive"}:
+        if not is_command_dispatch and self.tlon_config.reaction_level in {
+            "minimal",
+            "extensive",
+        }:
             target_id = message.reactable_target_id or message.message_id
             marker = (
                 "reacted message id"
@@ -4047,6 +4284,23 @@ class TlonAdapter(BasePlatformAdapter):
             dispatch_text += f"\n\n[{marker}: {target_id}]"
             if message.reply_to_message_id:
                 dispatch_text += f"\n[thread root: {message.reply_to_message_id}]"
+
+        # Final boundary, anti-forgery only: the gateway's command classifier
+        # is text.startswith("/"), and a heap title or header block can forge
+        # that position — so a slash-leading dispatch is defused with a
+        # leading newline (invisible to the model) unless the sender genuinely
+        # TYPED leading slash text, in a channel type where commands belong
+        # (chat/DM). A typed command outside the popup's six — including the
+        # ~40 unsuggested core commands, from any sender — passes through
+        # untouched: hermes core's slash-access policy remains the
+        # authorization ceiling, exactly as before this change.
+        if not is_command_dispatch and dispatch_text.startswith("/"):
+            typed_slash = self._typed_inline_text(message).startswith("/")
+            in_scope = message.chat_type == "dm" or message.chat_id.startswith(
+                "chat/"
+            )
+            if not (typed_slash and in_scope):
+                dispatch_text = "\n" + dispatch_text
 
         self._telemetry.start_reply(
             message.chat_id,
@@ -4292,15 +4546,22 @@ class TlonAdapter(BasePlatformAdapter):
             raw={"lensRetry": retry_of},
             content=dispatch.message_content,
             blob=dispatch.blob_field,
+            # Recomputed from the carried story so the command fact survives
+            # retry reconstruction (a /new <tail> turn can retry).
+            inline_text=extract_inline_message_text(dispatch.message_content),
         )
         # Re-run media/context prep exactly like a fresh inbound message; the
         # seed carried clean (pre-enrichment) text so this doesn't double-wrap.
         retry_seed = self._build_retry_seed(message, dispatch.message_text)
+        inline_command = self._command_dispatch_override(message)
+        is_command = inline_command is not None
         dispatch_text, prepared_media = await self._prepare_dispatch_payload(
-            message, dispatch.message_text
+            message, dispatch.message_text, is_command=is_command
         )
         if not is_dm:
-            dispatch_text = await self._with_group_context(message, dispatch_text, "retry")
+            dispatch_text = await self._with_group_context(
+                message, dispatch_text, "retry", is_command=is_command
+            )
         await self._dispatch_message(
             replace(message, text=dispatch_text),
             is_dm=is_dm,
@@ -4309,6 +4570,7 @@ class TlonAdapter(BasePlatformAdapter):
             prepared_media=prepared_media,
             retry_seed=retry_seed,
             retry_of=retry_of,
+            is_command_dispatch=is_command,
             skip_authorization=True,
         )
 
@@ -4985,7 +5247,19 @@ async def _standalone_send(
     media_files: Optional[list[str]] = None,
     force_document: bool = False,
 ) -> Dict[str, Any]:
-    del media_files, force_document
+    del force_document
+    if media_files:
+        # The standalone/cron send path is text-only (TlonCLI.send_message takes
+        # no image argument). Dropping the media and delivering the text alone
+        # would report success for a message the recipient never sees in full —
+        # the exact fabricated-delivery failure this path must not have.
+        return {
+            "error": (
+                "tlon standalone send: media attachments are not supported on "
+                "this path — upload the image with `tlon upload` and send it "
+                "with `tlon posts send <target> [caption] --image <url>`"
+            )
+        }
     extra = getattr(pconfig, "extra", {}) or {}
     tlon = TlonConfig.from_env(extra)
     if not tlon.is_complete():
@@ -5078,6 +5352,35 @@ def register(ctx) -> None:
             description="Tlon CLI command guide for the Hermes tlon tool.",
         )
 
+    # Registered separately from the CLI skill above, not merged into it: this
+    # one carries no commands and answers "what is Tlon Messenger / how does
+    # this feature work", so it has to be selectable on its own. It ships in
+    # the OpenClaw plugin tree, which a Hermes deployment may not have — hence
+    # the None check rather than a hard requirement.
+    product_guide_path = resolve_tlon_product_guide_path()
+    if product_guide_path is not None:
+        ctx.register_skill(
+            "tlon-product-guide",
+            product_guide_path,
+            description=(
+                "Tlon Messenger product guide: what Tlon, Urbit, Tlon Messenger "
+                "and Tlonbot are, how features work, and how to walk a user "
+                "through a task in the app."
+            ),
+        )
+
+    # Derived from the registration above rather than written into the hint
+    # unconditionally: a deployment without the plugin tree registers no such
+    # skill, and pointing the model at a skill_view that cannot resolve turns
+    # every product question into a failed tool call.
+    product_guide_hint = (
+        "When the user asks what Tlon Messenger is or how one of its features "
+        "works, rather than asking you to do something, load "
+        'skill_view("tlon-platform:tlon-product-guide") and answer from it. '
+        if product_guide_path is not None
+        else ""
+    )
+
     ctx.register_platform(
         name="tlon",
         label="Tlon",
@@ -5114,7 +5417,8 @@ def register(ctx) -> None:
             "For Tlon reads and administration, use the tlon tool; if unsure, "
             "load skill_view(\"tlon-platform:tlon\") or run a tlon subcommand "
             "with --help. "
-            "When a user asks you to create a Tlon group for them, use "
+            + product_guide_hint
+            + "When a user asks you to create a Tlon group for them, use "
             "groups create-owned with --owner set to that user's ship so they "
             "are invited and made admin. "
             "To reply to the current conversation, just write your reply and "
@@ -5132,6 +5436,11 @@ def register(ctx) -> None:
             "<post-id>. To send an image anywhere — including the "
             "current conversation — first 'tlon upload <direct-image-url>', then "
             "'tlon posts send <target> [caption] --image <uploaded-url>'. "
+            "--image takes only a public https URL (upload itself also accepts "
+            "local paths and http sources); never claim an image was posted "
+            "unless every command returned success — if upload reports the ship "
+            "cannot store uploads, pass the direct https image URL to --image "
+            "instead. "
             "The platform adapter directly handles owner chat commands for "
             "access and configuration: /owner-listen (no-mention listening), "
             "/channel-access (per-channel open access), /pending, /allow, "
