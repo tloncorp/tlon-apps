@@ -3009,3 +3009,389 @@ species"; the session prompt inherited "six". Species 8 existed only in the
 peer report and had never been written here. Corrected above. The lesson is
 the same one D92/D93 exist for — an audit that lives only in a session
 transcript is an audit that will be lost, and this project has now lost two.)
+
+## Session 6a — harness repair, hardening, and the bot loop's preconditions
+
+- **D101: the publish loop gets a repo-owned dev storage path, selected
+  explicitly and never by fallback.** The unnumbered Session-5 ruling
+  (`DECISIONS.md:1644`) gave two acceptable outcomes: the CLI grows a
+  documented dev-storage story, or the plan says plainly the loop is
+  unrunnable locally. This takes the first. The seed's bundle server, which
+  already stood in for remote storage when *serving*, now takes uploads at
+  `PUT /<sha256>.js`; `pnpm seed:storage` runs it without seeding nine
+  fixtures.
+
+  Selection is `TLON_SURFACE_DEV_STORAGE`, and there is no fallback in either
+  direction. Unset, the real storage functions are untouched and a
+  storage-less ship still fails `storage-unavailable` — dev storage is never
+  reached *because* real storage was missing, only because someone named it.
+  Set, it replaces both the preflight and the upload or neither: replacing
+  only the upload would gate publish on a bucket nothing writes to, and
+  replacing only the preflight would pass the gate and upload nowhere.
+  Naming it is still not sufficient — see D109.
+
+  **The store is content-addressed, and that is a divergence from production,
+  not parity with it.** It enforces the key shape `<64 hex>.js` and refuses
+  anything else, so a regression to a timestamped key fails at publish rather
+  than quietly minting two URLs for identical bytes. Production has no such
+  property: `uploadFile` builds `<ship>/<@da-now>-<name>`
+  (`storageApi.ts:209`), which `bundleFileName`'s own comment calls
+  content-NAMED. The dev store is *stricter* than what it stands in for, so a
+  green dev run is not evidence about production key stability. Recorded
+  rather than left to be inferred, because plan §76 asserts content-addressed
+  naming that production does not implement.
+
+  It deliberately does **not** bind key to bytes. Real S3 does not either;
+  doing so would make storage a party to trust, contra §3's "storage is
+  transport, not trust", and would make the tampered-bundle case
+  inexpressible — which is the case the client's hash verification exists
+  for, and the negative control here.
+
+- **D102: `insertGroups` keeps the classified exclusion list; the
+  payload-key derivation is refuted.** Drizzle admits the derivation
+  mechanically (`sqlite-core/dialect.js:59-74`), but it is unsound here for
+  three reasons. (1) The relevant predicate is `value === undefined`, not key
+  absence (`dialect.js:307`) — `toClientChannel` always emits a
+  `contentConfiguration` key whose value is often `undefined`, so
+  `Object.keys` computes the wrong set; over the recorded fixture the payload
+  carries 14 keys but 13 defined values, which reconciles D77's "13 of 29"
+  with the structural count. (2) "Carries" is not "is authoritative for": the
+  sync payload carries `currentUserIsMember`, which `agentGroupOnboarding`
+  depends on this write *not* touching, while a DB-read group carries all 29
+  — so a derived set would vary by caller. (3) It is a multi-row insert with
+  one `set` clause, and the fixture's `~fabled-faster/new-york` batch has 8
+  of 12 channels carrying `description` and 4 not; union erases, intersection
+  pins.
+
+  Decisively, a differential experiment showed the derivation breaks
+  convergence. The `meta` cell is a snapshot, so an admin clearing a
+  description sends a payload without one and **the null-fill is the correct
+  clear**. Under the derivation `description` stayed `'original'`; under the
+  classified list it went `null`. The existing 99-test suite passed under the
+  derivation — only `description` and `contentConfiguration` diverge and
+  neither was covered — which is itself why the parity test below was needed.
+
+  Landed instead: a null-fill parity test that seeds all 29 columns with
+  distinct non-null values, **verifies the seed populated** (guarding the
+  "double cannot express the defect" species), syncs a real payload through
+  the real `insertGroups`, and asserts byte-equality via raw SQL for every
+  column the encoder can never populate. The preserved set is derived by
+  running the real encoder over a corpus, **not** from
+  `channelConflictExclusions` — so it is not computed from itself, which is
+  what made the previous pin test species-1 vacuous. Control: with
+  `addedToGroupAt` removed from the exclusions *and* the pin list amended to
+  accept it — what a developer following the pin test would do — the pin test
+  passes and only the parity test fails.
+
+- **D103: type-level drift guards go per generic-helper application site,
+  not per exported union.** `entrySizeCapped` wraps a union member, so its
+  degradation is contagious and any union-level guard catches it.
+  `sizeCapped` wraps *fields* — `initialState`, `recipe`, snapshot `state` —
+  so degrading it leaves every union a proper union while three fields become
+  `any`, which no union guard can see. Demonstrated by stripping its
+  annotation and observing only the four field-level assertions fail. Not
+  hypothetical: `d5c41acdc5`'s own message records those fields *were* `any`
+  in production.
+
+  Vocabulary is `AssertTrue`/`AssertFalse`/`IsAny` in
+  `packages/api/src/client/typeAssertions.ts` plus `@ts-expect-error`,
+  enforced by `tsc --noEmit` (`pnpm -r tsc`, `ci.yml:141`), not by vitest.
+  **Correction to a working assumption made during the session:**
+  `expectTypeOf` was rejected on convention and dependency grounds, not on
+  enforceability — contrary to what was briefed, expect-type encodes failure
+  as a type error and *would* have been caught by plain `tsc`. Probed rather
+  than assumed.
+
+- **D104: the primary preserving publish refuses over an aborted fold, and
+  every escape hatch names what it waived.** Supersedes the "Found, flagged,
+  not fixed" bullet at `DECISIONS.md:2925-2928`, which recorded the asymmetry
+  as a deliberate open choice and **should be read as struck**.
+
+  The premise that made that choice look defensible was wrong in its second
+  clause. Refusing does not block the migration: `foldForMigration` runs
+  before `writeGroupChannel`, so the refusal leaves the channel exactly as it
+  was — at a revision that still folds, with the aborted entries still
+  visible to `surface state` and still re-postable. It cannot re-open the
+  stranding, because nothing has been written when it fires. And the loss it
+  permitted is *worse* on this path than on the two that refused: the frozen
+  entries are tagged with the revision being left behind, and a revision that
+  no longer folds cannot have its lost ops re-posted at all. Measured
+  pre-fix: exit 0, `"outcome": "published"`, two entries frozen under
+  boundary 23, and afterwards the fold reports **zero** aborts.
+
+  All three snapshot-writing paths — standalone `surface snapshot` (both its
+  ordinary and its migration-repair branch), the publish retry, and the
+  primary preserving publish — now funnel through one
+  `assertNoAbortedEntries`, and `surface publish` carries the same
+  `--allow-aborted-events` flag. The retry path's remedy, which used to send
+  the publisher to a *different command*, now names the flag on the command
+  they are already running: a refusal that can only be lifted from somewhere
+  else teaches a repair loop to try commands rather than read them.
+
+  The escape hatch leaves an audit trail (D99): `abortedEventCount` is
+  **replaced** by `abortedSequenceNums`, not joined by it — a count is
+  `.length`, and two representations of one fact are free to drift. The flag
+  is the last moment anything can name these entries, since the snapshot it
+  permits puts them under the boundary and every later fold reports a clean
+  history. The array carries the same determinism obligation as every other
+  reduction field and is pinned by a shuffle property; a count could not have
+  carried that obligation, because there was no ordering to get wrong.
+
+  Accepted cost: the refusal is pre-channel-write but **not pre-upload**.
+  Bundles are content-named, so an orphaned upload is idempotent litter;
+  hoisting the check above the upload would need the revision number before
+  `assetRef` exists.
+
+  Client-side gap, not closed: `packages/shared/src/store/surface/hydration.ts`
+  propagates `stateFull` but has never propagated the abort field, so the
+  in-app client shows nothing when a host's entry stops early. The CLI is the
+  only place it surfaces.
+
+- **D105: the doctrine is delivered by the CLI, conditionally.** D74 offered
+  two remedies — inline into SKILL.md's preprocessing includes, or reach by
+  ordinary file read. This takes a third, an *extension* rather than
+  something D74 asked for: `tlon surface doctrine|primitives|rubric` print
+  `PARADIGM.md`, `PRIMITIVES.md` and `RUBRIC.md` from the installed package,
+  and SKILL.md points at commands instead of file paths. `templates/**`, the
+  fourth item on D74's unreachable list, was already covered by
+  `surface templates show`.
+
+  **The claim this earns is narrower than "reachable by construction"**: the
+  doctrine stops depending on a second, runtime-dependent mechanism and
+  inherits the same single precondition as the rest of the skill — that the
+  bot may invoke the `surface` command group. That precondition was not
+  satisfied when the work was done; see D106.
+
+  Location follows D73, **with a correction to how that trap was stated**:
+  `bun build --compile` does not merely bake the build machine's path, it
+  bakes the *entrypoint's* directory for every module in the bundle, so a
+  `__dirname`-relative lookup correct from source can be wrong by a directory
+  in the binary. Measured: a two-level computation from `scripts/commands/`
+  resolved to `packages/skills/surfaces`. Resolution therefore searches
+  upward rather than counting, and the controls run against the compiled
+  binary in a staged install layout, because source mode masks the whole
+  defect class. Nothing is embedded, so there is no stale-copy drift; the two
+  things that *can* diverge — the shipped file set and the command's
+  rendering — each carry a control demonstrated failing.
+
+  A missing document and an empty one both refuse. Printing nothing at exit 0
+  is the silent degradation these commands exist to end.
+
+- **D106: `surface` is admitted to the model-facing tool allowlist as a whole
+  command group, gated by telemetry rather than a second per-subcommand
+  guard.** The subcommands do span a real risk range — `lint`, `preview`,
+  `templates` and the documentation commands touch no ship and no
+  credentials, while `publish` writes the description cell that decides what
+  code clients execute. That range does not justify a second gate, for three
+  reasons.
+
+  (1) **The cell is already reachable from the same allowlist.**
+  `channels update --description` re-encodes it as
+  `{description, channelContentConfiguration}` and drops a `surfaceSpec` it
+  did not write, so the bot can already destroy a published app's trust root
+  with no gate, no confirmation, and telemetry that reads as a benign edit.
+  Refusing `publish` would have left the capability and removed the
+  disciplined path to it. (2) The residual that is genuinely new — minting
+  the pointer rather than clobbering it — is bounded by the group admin role
+  the bot must already hold to `groups ban` or `channels delete` in the same
+  group. (3) SECURITY.md §13 already restricts the whole `tlon` tool to owner
+  and internal sessions at the `before_tool_call` hook.
+
+  A plugin-side enumeration of surface subcommands was also rejected: the
+  guard is duplicated per runtime because the skill package publishes no
+  source, so a copy can only drift, and drift *there* refuses commands that
+  exist — a hazard demonstrated in the same session by the concurrent
+  addition of `doctrine`/`primitives`/`rubric`.
+
+  What the risk range earned is telemetry: `publish` → `admin`,
+  `create`/`event`/`snapshot` → `write`, `state` → `read`, local-only →
+  `utility`. Without it every surface command classified as
+  `surface.list`/`utility`, making `publish` indistinguishable from printing
+  a markdown file — the same hazard found once before when `migrate-apply`
+  hid behind the read-only `migrate-plan`.
+
+  The tool *description* is part of the gate, not decoration: a guard that
+  admits a command the model is never told about changes nothing.
+
+- **D107: the dev container provisions its own Chromium and builds the CLI
+  from the checkout.** `surface preview` could not run for two independent
+  reasons: the container hydrated `tlon` from `@tloncorp/tlon-skill@0.5.0`,
+  published 2026-08-07, three weeks before the `surface` group existed (the
+  CLI answered `Unknown command: surface`), and `node:22-bookworm-slim`
+  carries no Chromium.
+
+  `TLON_PLAYWRIGHT_MODULE` is required, not defensive. Measured: a
+  `bun build --compile` binary **does** resolve a runtime bare specifier, but
+  resolves it **against the process CWD** — and the bot runs `tlon` from a
+  workspace with no `node_modules/playwright` above it. The from-source build
+  compiles to a container-local path and copies onto the bind mount rather
+  than letting bun's temp-file-plus-rename land there; the rename failure
+  that made source builds opt-in is Docker-Desktop/VirtioFS-specific and does
+  not reproduce on OrbStack, so the fix removes the dependency on the rename
+  rather than betting on the backend.
+
+  The positive claim asserts exit 0, empty `shellErrors`, and cross-cell
+  content divergence — **not** file existence, because a deliberately
+  throwing `render()` also writes all 12 PNGs and exits 1, its cells
+  rendering an error card. Cost: the dev image grows 871MB → 2.11GB.
+
+- **D108: the 6a container reaches the fakeships over host networking, so the
+  dev-storage guard needs no exception.** D101's guard fired inside the
+  container, which reached its ship as `http://ships:8080`. Rather than teach
+  the guard a non-loopback exception, the container runs `network_mode: host`
+  and talks to the host's already-running rube fakeships. The condition is
+  then not waived but **satisfied**.
+
+  Decisive: `startBundleServer` binds `127.0.0.1` and mints
+  `http://127.0.0.1:<port>/<sha256>.js` as the assetRef *no matter who
+  uploads*. On a bridge network the container gets `ECONNREFUSED` on its own
+  assetRef, so an allowlist would have loosened two clauses and still
+  produced an incoherent artifact. Rejected: a host allowlist; inferring "is
+  a fakeship" (no reliable signal over eyre — an elaborate approximation of a
+  guarantee); shared-private-network (does not distinguish a real ship on
+  one); an in-container port forwarder (manufactures a loopback fiction and
+  makes the engagement banner uninformative about which ship was hit); a
+  boolean skip flag.
+
+  Costs accepted and documented rather than discovered: 6a's "cannot reach a
+  real ship" property is now enforced by its env file rather than by the
+  network; the gateway binds 18789 on the host, so 6a cannot run beside a dev
+  container holding that port; verified on OrbStack, and Docker Desktop for
+  Mac will not work.
+
+  **D101's guard had no tests when it landed** — `TLON_SURFACE_DEV_STORAGE`
+  appeared in three files and none was a test, so its security property was
+  unverified. It now has six, including the real-ship refusal as an
+  executable negative control: the *same fakeship at the host's LAN address*
+  is still refused, which shows the guard tracks whether readers can resolve
+  the assetRef rather than whether the ship is real.
+
+- **D109: the raw-to-raw comparison becomes a convention, checked.** D72
+  states a rule about a *pair* of values, and rules about pairs are the ones
+  a codebase forgets, because each site looks reasonable alone. Its
+  enforcement was two long comments protecting two lines, and the 17-site
+  audit meant to generalise them was never written down and is lost — D92/D93
+  were created as the remedy for exactly this and were not applied to it.
+
+  **One helper.** `canonicalJson` now lives alone in
+  `scripts/surface-canonical-json.ts`, a leaf module (`surface-common.ts`
+  already type-imports `surface-lint`, so a value import back would be a
+  cycle). It had already diverged: the `surface-lint` copy emitted a bare
+  `undefined` token where the other dropped the key, and a **third** copy in
+  `packages/shared/seed/surfaces.ts:802` emits `null` for the same input. The
+  surviving semantics are the only defensible ones, since every comparison it
+  serves has JSON text on at least one side. The lint copy's call site was
+  proven reachable-clean by a differential probe over the real fixture
+  corpus, not by inspection.
+
+  **One check.** `scripts/surface-comparison-convention.ts` parses every
+  `scripts/**/surface*.ts` with the TypeScript API and refuses three shapes:
+  `JSON.stringify` pairs, calls to or imports of structural-equality helpers,
+  and any second definition of the canonical helper. It runs as a bun test,
+  **not** an oxlint rule, for CI-parity reasons that are not close: `ci.yml`
+  runs `pnpm -r lint` and `tlon-skill` has no `lint` script, so an oxlint
+  rule would not run over this package at all. Discovery is by naming
+  convention so new surface sources enrol themselves — the failure mode that
+  lost the audit. No suppression comment: an escape hatch on a one-call
+  convention is what gets reached for instead of the convention.
+
+  Site list, migrated once: `surface-publish.ts:87,483,514` already correct;
+  `surface-common.ts:437` and `surface-lint.ts:1365` migrated (duplicate
+  helpers); `surface-lint.ts:2196` already correct in shape;
+  `surface-preview.ts:361` migrated from a `JSON.stringify` pair; 14 other
+  scoped files clean. Out of package and **not** migrated:
+  `shared/seed/surfaces.ts:802` (third copy, third semantics, compares
+  reducer state not specs) and `app/.../useBotSettingsDraft.ts:59` (fourth
+  copy, semantically identical, different domain).
+
+  **The rule gets a control, not just the convention.** Two specs differing
+  only in an undeclared key compare EQUAL once both sides are validated, and
+  mutating publish's confirmation to validate both sides makes publish exit 0
+  — reporting success for a write that landed a different definition. Exactly
+  one test flipped under that mutation: the false-EQUAL direction had no
+  prior coverage, because the existing `decideRevision` test hand-simulates
+  the stripping with an object rest-spread rather than running the schema.
+
+  Not covered, stated plainly: key-by-key comparison loops, `===` between two
+  spec-typed values, a field comparison standing in for a whole-spec one,
+  `*.test.ts`, and anything outside this package. Swept by hand at migration
+  time; the only hits were in unrelated domains.
+
+- **D110: a fakeship's desk is a pinned artifact, and a develop merge
+  silently unpins it.** `surface publish` failed with
+  `gall: poke cast fail :groups [a=%json b=%group-action-5]` after uploading
+  successfully. The ships were booted 2026-08-28 with the branch at
+  `207e09504c`, whose desk has no `mar/group/action-5.hoon` and whose client
+  poked `group-action-4` — a matched pair. The develop merge `4a1adc4f28`
+  brought in `ecdae8f47d`, which adds the v5 mark **and** flips
+  `groupsApi.ts` to it in one commit. The client advanced; the running ships
+  did not.
+
+  Nothing regressed and no earlier claim was inflated: `dash-dxs2r4uc` still
+  hydrates at revision 4 from a sequence-11 snapshot, published through the
+  CLI before the merge. Established differentially — an identical payload
+  (sha256 `e1b1f7e3…`) NACKs under `group-action-5` and ACKs, with a landed
+  180→1303 char write, under `group-action-4`; garbage JSON produces the same
+  cast failure as valid JSON, so shape is not the discriminator; and the
+  mark-set difference between the ship's desk and the assembled HEAD desk is
+  7 marks, of which exactly one is client-poked.
+
+  **Rule:** any merge that lands `desk/**` obsoletes a running rube
+  environment. The desk stamp on the ship (`<pier>/groups/commit.txt`) and
+  the branch's `desk/` are a pair to be checked, not assumed. Rube's own
+  stale-desk guard exists but runs only at startup, so it cannot catch a
+  merge landed into a *live* environment. A cheap preflight — compare
+  `commit.txt` against `git rev-parse --short HEAD` — turns a mark-cast
+  failure deep inside a write path into a one-line startup warning.
+
+  Incidental: `~|  commit` in `groups.hoon` stamps the desk's short SHA into
+  every nacked poke's stack trace, so a single deliberately-bad poke asks a
+  running ship "which commit is your desk?" without mounts or filesystem
+  access. Worth adding to the QA crib.
+
+### Carried forward from 6a, unclosed
+
+- **The image handoff is still unverified — step 8's stated STOP gate.**
+  Three harness breaks were repaired (D106, D107) and `surface preview` now
+  produces a real capture matrix in the container, but **nobody has yet
+  observed a preview PNG reaching the model's context.** The capability
+  exists in OpenClaw core (`read` returns image content blocks, PNG sniffed
+  by magic bytes) and the plugin permits `read` for owner sessions, but
+  nothing in the plugin's loop wires it up: the `tlon` tool returns text on
+  every path, and the only image injection is inbound Tlon posts at dispatch
+  time. SKILL.md now names the capability and warns about the two silent
+  placeholder strings, but the mechanism has never been exercised end to end.
+- **Hermes is unverified in two places, of different sizes.** *Scheduling:*
+  the countdown disposition rests on scheduled host events, and the cron
+  surface was verified OpenClaw-side only — nothing has been observed about
+  Hermes, neither that it works nor that it does not. *Doctrine delivery:*
+  D105's reachability was verified as a property against the compiled binary,
+  not by executing the Hermes adapter, which 6a put out of scope.
+- **`channels update --description` silently unpublishes a surface app.** It
+  rewrites the description cell and drops the `surfaceSpec` it did not write.
+  Pre-existing, ungated, and telemetrically indistinguishable from a benign
+  edit. The tool description now warns against it; the hazard remains.
+- **The publish gate is cwd-dependent.** Run from the repo root, every bundle
+  — including the gate's own `COMPLIANT_FIXTURE`, which the unit tests assert
+  passes clean — fails `smoke-render` with "Attempting to define property on
+  object that is not extensible", because bun takes JSX config from the cwd's
+  tsconfig and the root one lacks `jsxImportSource`. **Neither shipped
+  template is covered by a gate test**, so a template that stopped passing
+  its own gate would ship silently.
+- **`packages/tlon-skill` is outside oxlint's CI reach.** `ci.yml` runs
+  `pnpm -r lint` and the package has no `lint` script, so every repo-wide
+  rule — `import/no-cycle` included — is unenforced there.
+- **`surface-preview.ts:733` still hands the bot a relative file path**
+  (`PREVIEW_RUBRIC_PATH = 'skills/surfaces/RUBRIC.md'`) in its manifest — the
+  same D74 defect in a different place. SKILL.md covers model behaviour; the
+  manifest field does not.
+- **`~zod`'s `%groups` scry surface is half-broken** independently of the
+  mark: `groups/v0|v1|v2/groups*.json` 404 and `groups/init/v1.json` 500, so
+  `tlon groups list` fails, while `groups/v2/groups/~zod/surface-seed` and
+  `channels/v3/channels.json` answer. May share a cause with D110; unchecked.
+- **`~bus` is not running.** Any step-8 plan assuming three ships needs
+  adjusting.
+- **The `dev` compose project name is shared.** `docker-compose.yml` and
+  `docker-compose.test.yml` both derive the project name from the `dev`
+  directory and silently recreate each other's `dev-openclaw-1`. The 6a stack
+  carries an explicit name; those two still collide.
