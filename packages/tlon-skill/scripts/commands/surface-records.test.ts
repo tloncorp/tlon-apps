@@ -749,7 +749,54 @@ describe('surface snapshot — repairing a pending migration', () => {
     ).toBe(0);
     const allowed = harness.json();
     expect(allowed.repairedMigration).toBe(true);
-    expect(allowed.abortedEventCount).toBe(1);
+    expect(allowed.abortedSequenceNums).toEqual([2]);
+  });
+
+  /**
+   * The same refusal on the repair branch, with more than one abort, so what
+   * the flag waives is enumerated rather than counted — and at sequences that
+   * are neither adjacent nor at the ends of the history, so an enumeration
+   * that is off by one, that reports every folded entry, or that reports the
+   * first abort only, all read differently from `[11, 17]`.
+   */
+  it('names every aborted sequence the flag waives through, on the repair branch', async () => {
+    const harness = setup();
+    addMirror(harness, spec());
+    const abortingOps = (dish: string) => [
+      { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+      { op: 'set', path: '/bringing/~0bus', value: dish },
+    ];
+    const at = (sequenceNum: number, ops: unknown[]) =>
+      harness.ship.addPost(CHANNEL, {
+        authorId: '~zod',
+        sequenceNum,
+        blob: JSON.stringify([hostEvent(ops)]),
+        kind: '/chat/surface/event',
+      });
+    at(5, [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }]);
+    at(11, abortingOps('never-applies-a'));
+    at(12, [{ op: 'set', path: '/bringing/~0wes', value: 'cake' }]);
+    at(17, abortingOps('never-applies-b'));
+    at(23, [{ op: 'set', path: '/bringing/~0nec', value: 'soup' }]);
+
+    const revised = spec({ specRevision: 2, preserveState: true });
+    addMirror(harness, revised);
+    harness.ship.setChannelSpec(CHANNEL, revised);
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const refused = harness.json();
+    expect(String(refused.message)).toContain('entries at sequences 11, 17');
+    expect(
+      (refused.details as Record<string, unknown>).abortedSequenceNums
+    ).toEqual([11, 17]);
+
+    expect(
+      await run(
+        ['snapshot', CHANNEL, '--allow-aborted-events', '--json'],
+        harness.deps
+      )
+    ).toBe(0);
+    expect(harness.json().abortedSequenceNums).toEqual([11, 17]);
   });
 });
 
@@ -785,7 +832,7 @@ describe('surface — an entry that stopped early', () => {
     return harness;
   }
 
-  it('reports the count rather than folding it into a success', async () => {
+  it('names the entry rather than folding it into a success', async () => {
     const harness = abortedHarness();
     expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
     const result = harness.json();
@@ -793,13 +840,13 @@ describe('surface — an entry that stopped early', () => {
     expect(result.state).toEqual({ bringing: { '~zod': 'bread' } });
     expect(result.foldedEventCount).toBe(1);
     expect(result.skippedEventCount).toBe(0);
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toEqual([1]);
   });
 
   it('says so in the plain report as well as the JSON one', async () => {
     const harness = abortedHarness();
     expect(await run(['state', CHANNEL], harness.deps)).toBe(0);
-    expect(harness.out()).toContain('1 entry stopped early');
+    expect(harness.out()).toContain('1 entry at sequence 1 stopped early');
   });
 
   it('refuses to snapshot over it, and says how to proceed', async () => {
@@ -808,9 +855,9 @@ describe('surface — an entry that stopped early', () => {
     const result = harness.json();
     expect(result.code).toBe('usage');
     expect(String(result.message)).toContain('--allow-aborted-events');
-    expect((result.details as Record<string, unknown>).abortedEventCount).toBe(
-      1
-    );
+    expect(
+      (result.details as Record<string, unknown>).abortedSequenceNums
+    ).toEqual([1]);
     expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(1);
   });
 
@@ -823,7 +870,7 @@ describe('surface — an entry that stopped early', () => {
       )
     ).toBe(0);
     const result = harness.json();
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toEqual([1]);
 
     const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
       (post) => post.kind === '/chat/surface/snapshot'
@@ -838,7 +885,7 @@ describe('surface — an entry that stopped early', () => {
     expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
     const after = harness.json();
     expect(after.baseSnapshotSeq).toBe(1);
-    expect(after.abortedEventCount).toBe(0);
+    expect(after.abortedSequenceNums).toEqual([]);
   });
 
   it('leaves a clean fold alone', async () => {
@@ -848,6 +895,88 @@ describe('surface — an entry that stopped early', () => {
       hostEvent([{ op: 'set', path: '/bringing/~0ten', value: 'pie' }])
     );
     expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
-    expect(harness.json().abortedEventCount).toBe(0);
+    expect(harness.json().abortedSequenceNums).toEqual([]);
+  });
+
+  /**
+   * The audit trail, on the ordinary snapshot branch.
+   *
+   * Two aborts, at sequences that are neither adjacent to each other nor at
+   * either end of the history, with clean entries before, between and after
+   * them. A count cannot distinguish those from any other two; `[11, 17]` can
+   * be wrong, which is what makes asserting it worth anything. This is also
+   * the last moment anything names them: the snapshot the flag permits puts
+   * both under the boundary, and the fold after it reports a clean history.
+   */
+  function multipleAbortsHarness() {
+    const harness = setup();
+    const abortingOps = (dish: string) => [
+      { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+      { op: 'set', path: '/bringing/~0bus', value: dish },
+    ];
+    const at = (sequenceNum: number, ops: unknown[]) =>
+      harness.ship.addPost(CHANNEL, {
+        authorId: '~zod',
+        sequenceNum,
+        blob: JSON.stringify([hostEvent(ops)]),
+        kind: '/chat/surface/event',
+      });
+    at(5, [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }]);
+    at(11, abortingOps('never-applies-a'));
+    at(12, [{ op: 'set', path: '/bringing/~0wes', value: 'cake' }]);
+    at(17, abortingOps('never-applies-b'));
+    at(23, [{ op: 'set', path: '/bringing/~0nec', value: 'soup' }]);
+    return harness;
+  }
+
+  it('names every aborted sequence in the fold report', async () => {
+    const harness = multipleAbortsHarness();
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const result = harness.json();
+    // The premise: two entries stopped, and the ops after each refusal did
+    // not apply — `~bus` is missing from a state holding every clean entry.
+    expect(result.state).toEqual({
+      bringing: {
+        '~zod': 'bread',
+        '~ten': 'pie',
+        '~wes': 'cake',
+        '~nec': 'soup',
+      },
+    });
+    expect(result.abortedSequenceNums).toEqual([11, 17]);
+
+    expect(await run(['state', CHANNEL], harness.deps)).toBe(0);
+    expect(harness.out()).toContain(
+      '2 entries at sequences 11, 17 stopped early'
+    );
+  });
+
+  it('names every aborted sequence the flag waives through', async () => {
+    const harness = multipleAbortsHarness();
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const refused = harness.json();
+    expect(String(refused.message)).toContain('entries at sequences 11, 17');
+    expect(
+      (refused.details as Record<string, unknown>).abortedSequenceNums
+    ).toEqual([11, 17]);
+
+    expect(
+      await run(
+        ['snapshot', CHANNEL, '--allow-aborted-events', '--json'],
+        harness.deps
+      )
+    ).toBe(0);
+    expect(harness.json().abortedSequenceNums).toEqual([11, 17]);
+
+    // And in the human report, which is the only place a person reading the
+    // terminal will ever see them.
+    const plain = multipleAbortsHarness();
+    expect(
+      await run(['snapshot', CHANNEL, '--allow-aborted-events'], plain.deps)
+    ).toBe(0);
+    expect(plain.out()).toContain(
+      '2 entries at sequences 11, 17 stopped early and were checkpointed anyway'
+    );
   });
 });

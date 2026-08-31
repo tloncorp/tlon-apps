@@ -443,8 +443,10 @@ export async function runSurfaceState(
       // An aborted entry is a host's own write that half-landed, and it is
       // invisible in every other number here: it counts as folded, it is not
       // skipped, and only a `state-cap` refusal raises `stateFull`. Reporting
-      // the fold without it tells a host its last update succeeded.
-      abortedEventCount: reduction.abortedEventCount,
+      // the fold without it tells a host its last update succeeded. The
+      // sequence numbers rather than a count, because the repair is to go and
+      // look at those posts.
+      abortedSequenceNums: reduction.abortedSequenceNums,
       posts: hydrated.posts.length,
     },
     lines: [
@@ -456,11 +458,11 @@ export async function runSurfaceState(
           ? 'the starting state'
           : `snapshot at sequence ${reduction.baseSnapshotSeq}`
       }`,
-      ...(reduction.abortedEventCount > 0
+      ...(reduction.abortedSequenceNums.length > 0
         ? [
-            `  ${reduction.abortedEventCount} entr${
-              reduction.abortedEventCount === 1 ? 'y' : 'ies'
-            } stopped early: state refused an op, so the ops written after it never applied`,
+            `  ${reduction.abortedSequenceNums.length} ${describeAbortedEntries(
+              reduction.abortedSequenceNums
+            )} stopped early: state refused an op, so the ops written after it never applied`,
           ]
         : []),
       ...(reduction.stateFull
@@ -608,7 +610,7 @@ export async function runSurfaceSnapshot(
           specRevision: spec.specRevision,
           upToSequenceNum: repair.upToSequenceNum,
           carriedFromRevision: repair.fromRevision,
-          abortedEventCount: repair.abortedEventCount,
+          abortedSequenceNums: repair.abortedSequenceNums,
           observed:
             'the snapshot was read back from the channel with its surface kind intact',
         },
@@ -618,6 +620,7 @@ export async function runSurfaceSnapshot(
           `  revision: ${spec.specRevision}`,
           `  carried:  state from revision ${repair.fromRevision ?? 'the definition itself'}`,
           `  covers:   sequences up to ${repair.upToSequenceNum}`,
+          ...abortedWaivedLines(repair.abortedSequenceNums),
           `  observed: read back from the channel as ${written.kind}`,
         ],
       },
@@ -726,7 +729,7 @@ export async function runSurfaceSnapshot(
         specRevision: spec.specRevision,
         upToSequenceNum,
         foldedEventCount: folded.foldedEventCount,
-        abortedEventCount: folded.abortedEventCount,
+        abortedSequenceNums: folded.abortedSequenceNums,
         observed:
           'the snapshot was read back from the channel with its surface kind intact',
       },
@@ -735,6 +738,7 @@ export async function runSurfaceSnapshot(
         `  post:     ${written.postId}`,
         `  revision: ${spec.specRevision}`,
         `  covers:   sequences up to ${upToSequenceNum}`,
+        ...abortedWaivedLines(folded.abortedSequenceNums),
         `  observed: read back from the channel as ${written.kind}`,
       ],
     },
@@ -752,20 +756,52 @@ export interface MigrationRepair {
   upToSequenceNum: number;
   /** the revision the state was carried from, or null when there was none */
   fromRevision: number | null;
-  /** entries in the carried fold that stopped early (§7) */
-  abortedEventCount: number;
+  /** sequence numbers of entries in the carried fold that stopped early (§7) */
+  abortedSequenceNums: number[];
 }
 
 export interface MigrationRepairOptions {
   /**
    * Reconstruct from a fold that contains an aborted entry anyway. The caller
-   * owns the escape hatch, because it owns the argument that opens it — and a
-   * caller with no such argument passes `false` and reports the remedy that
-   * does.
+   * owns the escape hatch, because it owns the argument that opens it.
    */
   allowAborted: boolean;
   /** what to tell the caller it can do instead of refusing */
   abortRemedy?: string;
+  /** the help text the refusal carries, so the flag is taught in context */
+  abortHelp?: string;
+}
+
+/**
+ * "entry at sequence 11" / "entries at sequences 11, 17".
+ *
+ * One spelling, so every place an abort is mentioned — the fold report, the
+ * refusal, the line that records a waiver — names the same posts the same way
+ * and a reader can go straight to them.
+ */
+export function describeAbortedEntries(sequenceNums: number[]): string {
+  return sequenceNums.length === 1
+    ? `entry at sequence ${sequenceNums[0]}`
+    : `entries at sequences ${sequenceNums.join(', ')}`;
+}
+
+/**
+ * The line a command prints when `--allow-aborted-events` let it write anyway.
+ *
+ * An escape hatch leaves an audit trail, not a silence (D99): the flag makes
+ * this the last moment anything can name these entries, because the snapshot
+ * that follows puts them under the boundary and every later fold reports a
+ * clean history. Naming them in the output is the only record that survives.
+ */
+export function abortedWaivedLines(sequenceNums: number[]): string[] {
+  if (sequenceNums.length === 0) return [];
+  return [
+    `  aborted:  ${sequenceNums.length} ${describeAbortedEntries(
+      sequenceNums
+    )} stopped early and ${
+      sequenceNums.length === 1 ? 'was' : 'were'
+    } checkpointed anyway; the ops written after each refusal are not in this state and no later fold reports them`,
+  ];
 }
 
 /**
@@ -778,27 +814,36 @@ export interface MigrationRepairOptions {
  * entry is finalized as history that succeeded, and both the ops that were
  * lost and the fact that they were lost are unrecoverable.
  *
+ * All three snapshot-writing paths come through here — standalone `surface
+ * snapshot`, the migration repair, and the primary preserving publish — and
+ * every one of them checks BEFORE it writes anything, which is what makes a
+ * refusal safe on the publish paths: it cannot itself strand a channel.
+ *
  * The escape hatch is named for exactly the thing it accepts rather than being
- * a general `--force`, and this refusal carries the command's own help so the
- * flag is in front of whoever hit it. A repair loop that retries with every
- * flag it can find is the failure mode a general one has.
+ * a general `--force`, and this refusal carries the calling command's own help
+ * so the flag is in front of whoever hit it. A repair loop that retries with
+ * every flag it can find is the failure mode a general one has.
  */
-function assertNoAbortedEntries(
-  folded: { abortedEventCount: number },
+export function assertNoAbortedEntries(
+  folded: { abortedSequenceNums: number[] },
   context: {
     channel: string;
     specRevision: number;
     allowed: boolean;
     remedy?: string;
+    help?: string;
   }
 ): void {
-  const count = folded.abortedEventCount;
+  const aborted = folded.abortedSequenceNums;
+  const count = aborted.length;
   if (context.allowed || count === 0) return;
   throw surfaceError(
     'usage',
     `${context.channel} folds ${count} ${
       count === 1 ? 'entry that stopped' : 'entries that stopped'
-    } early at revision ${context.specRevision}: state refused an op, so the ops written after it never applied and this fold is that entry's partial prefix. A snapshot of it freezes the prefix AND puts the failed ${
+    } early at revision ${context.specRevision} — ${describeAbortedEntries(
+      aborted
+    )}: state refused an op, so the ops written after it never applied and this fold is that entry's partial prefix. A snapshot of it freezes the prefix AND puts the failed ${
       count === 1 ? 'entry' : 'entries'
     } under the boundary, where no later fold reaches ${
       count === 1 ? 'it' : 'them'
@@ -809,8 +854,8 @@ function assertNoAbortedEntries(
     {
       channel: context.channel,
       specRevision: context.specRevision,
-      abortedEventCount: count,
-      help: SURFACE_SNAPSHOT_HELP,
+      abortedSequenceNums: aborted,
+      help: context.help ?? SURFACE_SNAPSHOT_HELP,
     }
   );
 }
@@ -882,7 +927,7 @@ export function repairPendingMigration(
       state: spec.initialState as Record<string, unknown>,
       upToSequenceNum: 0,
       fromRevision: null,
-      abortedEventCount: 0,
+      abortedSequenceNums: [],
     };
   }
 
@@ -908,6 +953,7 @@ export function repairPendingMigration(
     specRevision: spec.specRevision,
     allowed: options.allowAborted,
     remedy: options.abortRemedy,
+    help: options.abortHelp,
   });
 
   // The boundary is what the carried state actually covers, NOT the newest
@@ -917,7 +963,7 @@ export function repairPendingMigration(
     state: carried.state as Record<string, unknown>,
     upToSequenceNum: carried.newestFoldedSeq ?? 0,
     fromRevision: previous.specRevision,
-    abortedEventCount: carried.abortedEventCount,
+    abortedSequenceNums: carried.abortedSequenceNums,
   };
 }
 

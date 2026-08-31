@@ -133,21 +133,33 @@ export interface SurfaceReductionReduced {
    * snapshotting and pruning, which is what "dashboard full" asks for. No
    * other refusal is repairable that way: pruning does not make a path
    * shallower, it never turns a scalar into an object, and it certainly does
-   * not put a leading `/` on a malformed path. `abortedEventCount` is what
+   * not put a leading `/` on a malformed path. `abortedSequenceNums` is what
    * reports those.
    */
   stateFull: boolean;
   foldedEventCount: number;
   skippedEventCount: number;
   /**
-   * Entries that stopped early because one of their ops was refused (§7) —
-   * every refusal, not a subset. The state is the prefix of such an entry
-   * that did apply, so a host that reads a non-zero count knows its last
-   * entry landed only in part and must be re-posted once the refusal is dealt
-   * with. Aborted entries still count as folded and still advance
-   * `newestFoldedSeq`: they were processed to a deterministic conclusion.
+   * The `sequenceNum` of every entry that stopped early because one of its ops
+   * was refused (§7) — every refusal, not a subset — in ascending order.
+   *
+   * The state is the prefix of such an entry that did apply, so a host reading
+   * a non-empty list knows its last entry landed only in part and must be
+   * re-posted once the refusal is dealt with. Aborted entries still count as
+   * folded and still advance `newestFoldedSeq`: they were processed to a
+   * deterministic conclusion.
+   *
+   * One element per aborted ENTRY, not per post, so `.length` is exactly the
+   * count this replaced: a post whose blob carries two entries that both stop
+   * early contributes its sequence number twice.
+   *
+   * This is the sequence numbers rather than a count because every consumer
+   * that reports an abort has to say WHICH post to go and look at — and a
+   * count carrying an escape hatch through (`--allow-aborted-events`) leaves
+   * no audit trail of what it waved past. A count is `.length`; keeping both
+   * would be two representations of one fact, free to drift.
    */
-  abortedEventCount: number;
+  abortedSequenceNums: number[];
 }
 
 export interface SurfaceReductionPending {
@@ -258,7 +270,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
   let stateFull = false;
   let foldedEventCount = 0;
   let skippedEventCount = 0;
-  let abortedEventCount = 0;
+  const abortedSequenceNums: number[] = [];
   let newestFoldedSeq: number | null = snapshot
     ? snapshot.upToSequenceNum
     : null;
@@ -322,7 +334,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       // `stateFull` and below for the log line, and nowhere else — do not
       // reintroduce a kind-based branch here.
       logger.log('aborting entry at op', op.op, op.path, outcome.error);
-      abortedEventCount++;
+      abortedSequenceNums.push(sequenceNum);
       break;
     }
     foldedEventCount++;
@@ -338,6 +350,6 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
     stateFull,
     foldedEventCount,
     skippedEventCount,
-    abortedEventCount,
+    abortedSequenceNums,
   };
 }

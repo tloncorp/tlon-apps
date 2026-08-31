@@ -23,6 +23,9 @@ import {
   resolveSurfaceChannel,
 } from './surface-writer';
 import {
+  ALLOW_ABORTED_FLAG,
+  abortedWaivedLines,
+  assertNoAbortedEntries,
   hasSurfaceStateRecords,
   newestSequenceNum,
   repairPendingMigration,
@@ -53,6 +56,13 @@ Options:
   --allow-surface-id-change
                         Permit a surfaceId different from the channel's
                         current one (this orphans all existing state)
+  ${ALLOW_ABORTED_FLAG}
+                        Preserve state even though an entry in the fold
+                        stopped early. The migration snapshot is that entry's
+                        partial prefix, and the entry ends up under the
+                        boundary tagged with a revision that no longer folds,
+                        so the ops it lost can never be re-posted — check
+                        \`tlon surface state\` first
   --json                Emit a machine-readable result
   -h, --help            Show this help
 
@@ -188,6 +198,7 @@ export async function runSurfacePublish(
         '--preserve-state',
         '--reupload',
         '--allow-surface-id-change',
+        ALLOW_ABORTED_FLAG,
       ],
     },
     SURFACE_PUBLISH_HELP
@@ -211,6 +222,7 @@ export async function runSurfacePublish(
   const bundlePath = requireValue(parsed, '--bundle', SURFACE_PUBLISH_HELP);
   const specPath = requireValue(parsed, '--spec', SURFACE_PUBLISH_HELP);
   const budget = deps.observationBudget;
+  const allowAborted = parsed.flags.has(ALLOW_ABORTED_FLAG);
 
   await deps.authenticate();
   const resolved = await resolveSurfaceChannel(deps, channelId);
@@ -359,7 +371,13 @@ export async function runSurfacePublish(
     // otherwise writes nothing is in `repairMissingMigrationSnapshot`.
     const repaired =
       preserveState && current
-        ? await repairMissingMigrationSnapshot(deps, resolved, current, budget)
+        ? await repairMissingMigrationSnapshot(
+            deps,
+            resolved,
+            current,
+            budget,
+            allowAborted
+          )
         : null;
     const report: SurfaceReport = {
       json: {
@@ -385,6 +403,7 @@ export async function runSurfacePublish(
             `  carried:  state from revision ${
               repaired.carriedFromRevision ?? 'the definition itself'
             }`,
+            ...abortedWaivedLines(repaired.abortedSequenceNums),
             '  observed: read back from the channel as a snapshot record',
           ]
         : [
@@ -403,13 +422,18 @@ export async function runSurfacePublish(
   // A preserving revision needs the state it is preserving, folded before
   // the definition changes underneath it. A fold over a truncated history
   // would be frozen into the snapshot permanently, so an incomplete
-  // hydration refuses rather than snapshots.
+  // hydration refuses rather than snapshots — and so does a fold that stopped
+  // early, which is the same loss reached from the other side.
   let migration: {
     state: Record<string, unknown>;
     upToSequenceNum: number;
+    abortedSequenceNums: number[];
   } | null = null;
   if (preserveState) {
-    migration = await foldForMigration(deps, resolved, current, published);
+    migration = await foldForMigration(deps, resolved, current, published, {
+      allowAborted,
+      specRevision: decision.revision,
+    });
   }
 
   // Every record this command will post is assembled and validated HERE,
@@ -551,7 +575,11 @@ export async function runSurfacePublish(
     throw annotatePublished(error, channelId, decision.revision);
   });
 
-  let snapshot: { postId: string; upToSequenceNum: number } | null = null;
+  let snapshot: {
+    postId: string;
+    upToSequenceNum: number;
+    abortedSequenceNums: number[];
+  } | null = null;
   if (migration && snapshotEntry) {
     const written = await postSurfaceRecord(deps, {
       channelId,
@@ -565,6 +593,7 @@ export async function runSurfacePublish(
     snapshot = {
       postId: written.postId,
       upToSequenceNum: migration.upToSequenceNum,
+      abortedSequenceNums: migration.abortedSequenceNums,
     };
   }
 
@@ -601,6 +630,7 @@ export async function runSurfacePublish(
       ...(snapshot
         ? [
             `  snapshot: post ${snapshot.postId} at sequence ${snapshot.upToSequenceNum}`,
+            ...abortedWaivedLines(snapshot.abortedSequenceNums),
           ]
         : []),
       ...(lint.warnings.length > 0
@@ -632,19 +662,23 @@ export async function runSurfacePublish(
  *   the short read is the reason nothing was found.
  * - **Only the host may repair.** Every reducer ignores a non-host snapshot,
  *   so a repair from anyone else reports a fix that never happened.
- * - **No aborted entry may be finalized.** `repairPendingMigration` refuses
- *   that; this caller has no flag to lift the refusal with, so it names the
- *   command that does.
+ * - **No aborted entry may be finalized without the flag.**
+ *   `repairPendingMigration` refuses that, and publish now carries the same
+ *   named flag the other two paths do, so the caller who hit the refusal opts
+ *   in from the command they were already running instead of being sent to a
+ *   different one.
  */
 async function repairMissingMigrationSnapshot(
   deps: SurfaceDeps,
   resolved: ResolvedSurfaceChannel,
   current: SurfaceSpec,
-  budget: ObservationBudget
+  budget: ObservationBudget,
+  allowAborted: boolean
 ): Promise<{
   postId: string;
   upToSequenceNum: number;
   carriedFromRevision: number | null;
+  abortedSequenceNums: number[];
 } | null> {
   const hydrated = await hydratePosts(deps, resolved.channelId);
   const reduction = deps.reduce({
@@ -671,8 +705,9 @@ async function repairMissingMigrationSnapshot(
     current,
     hydrated.posts,
     {
-      allowAborted: false,
-      abortRemedy: `Re-post what was lost, or run \`tlon surface snapshot ${resolved.channelId} --allow-aborted-events\` to checkpoint the prefix as it stands.`,
+      allowAborted,
+      abortRemedy: abortRemedy(resolved.channelId),
+      abortHelp: SURFACE_PUBLISH_HELP,
     }
   );
   const entry = {
@@ -698,7 +733,19 @@ async function repairMissingMigrationSnapshot(
     postId: written.postId,
     upToSequenceNum: repair.upToSequenceNum,
     carriedFromRevision: repair.fromRevision,
+    abortedSequenceNums: repair.abortedSequenceNums,
   };
+}
+
+/**
+ * What a publisher who hit the abort refusal can do about it.
+ *
+ * The flag is named on the command they ran. Sending them to a different
+ * command to lift a refusal this one raised is how a repair loop learns to
+ * try commands rather than to read them.
+ */
+function abortRemedy(channelId: string): string {
+  return `Check \`tlon surface state ${channelId}\` and re-post what was lost, or pass ${ALLOW_ABORTED_FLAG} to publish over the prefix as it stands.`;
 }
 
 function annotatePublished(
@@ -789,12 +836,34 @@ async function uploadBundle(
   }
 }
 
+/**
+ * The state a preserving revision carries across, folded under the definition
+ * it is leaving.
+ *
+ * This is the PRIMARY snapshot-writing path — the one a host takes on an
+ * ordinary revise — and it used to be the only one of the three that wrote
+ * over a fold that stopped early without saying so. The two entries in the
+ * comment on `assertNoAbortedEntries` describe the loss; it is worse here than
+ * anywhere else, because the entries this freezes are tagged with the revision
+ * being left behind, and a revision that no longer folds cannot have its lost
+ * ops re-posted at all.
+ *
+ * Refusing here cannot itself strand the channel, which is what made the
+ * asymmetry look defensible: the check runs before the description write, so a
+ * refusal leaves the channel exactly as it was, at a revision that still folds,
+ * with the aborted entries still visible to `surface state`.
+ */
 async function foldForMigration(
   deps: SurfaceDeps,
   resolved: { channelId: string; hostShip: string },
   current: SurfaceSpec | null,
-  published: Record<string, unknown>
-): Promise<{ state: Record<string, unknown>; upToSequenceNum: number }> {
+  published: Record<string, unknown>,
+  options: { allowAborted: boolean; specRevision: number }
+): Promise<{
+  state: Record<string, unknown>;
+  upToSequenceNum: number;
+  abortedSequenceNums: number[];
+}> {
   const hydrated = await hydratePosts(deps, resolved.channelId);
   if (!hydrated.complete) {
     throw surfaceError(
@@ -836,6 +905,7 @@ async function foldForMigration(
           ? (initialState as Record<string, unknown>)
           : {},
       upToSequenceNum: 0,
+      abortedSequenceNums: [],
     };
   }
 
@@ -852,5 +922,16 @@ async function foldForMigration(
       { channel: resolved.channelId, specRevision: current.specRevision }
     );
   }
-  return { state: reduction.state, upToSequenceNum };
+  assertNoAbortedEntries(reduction, {
+    channel: resolved.channelId,
+    specRevision: options.specRevision,
+    allowed: options.allowAborted,
+    remedy: abortRemedy(resolved.channelId),
+    help: SURFACE_PUBLISH_HELP,
+  });
+  return {
+    state: reduction.state,
+    upToSequenceNum,
+    abortedSequenceNums: reduction.abortedSequenceNums,
+  };
 }

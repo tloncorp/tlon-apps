@@ -775,6 +775,183 @@ describe('surface publish — preserving over a definition it cannot read', () =
 });
 
 /**
+ * The asymmetry this block exists for.
+ *
+ * `surface snapshot` refuses to write over a fold that stopped early, and so
+ * does the repair `surface publish` reaches on its retry path. The PRIMARY
+ * preserving publish — the path a host actually takes — folded the same
+ * history and snapshotted it without a word. The entries it froze are tagged
+ * with a revision that no longer folds, so nobody can re-post them: the same
+ * loss the other two paths refuse to cause, reached by the ordinary route.
+ *
+ * The fold is checked before the definition moves, so refusing here cannot
+ * strand the channel the way a mid-publish failure can: nothing has been
+ * written when the refusal is raised.
+ */
+describe('surface publish — the primary preserving path and aborted entries', () => {
+  /**
+   * Two entries that stop early, at sequences 11 and 17 — neither adjacent to
+   * each other nor at either end of the history, with clean entries before,
+   * between and after them. An enumeration that is off by one, or that reports
+   * every folded entry, or that reports none, all read differently from
+   * `[11, 17]`.
+   *
+   * `/bringing/~zod` holds the string "bread", so writing THROUGH it is a
+   * `structure` refusal. The second op of each aborting entry is perfectly
+   * good and never applies, which is what makes the abort observable in the
+   * folded state rather than only in a counter.
+   */
+  function abortingOps(dish: string) {
+    return [
+      { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+      { op: 'set', path: '/bringing/~0bus', value: dish },
+    ];
+  }
+
+  function withAbortedHistory(harness: ReturnType<typeof setup>) {
+    const event = (sequenceNum: number, ops: unknown[]) =>
+      harness.ship.addPost(CHANNEL, {
+        authorId: '~zod',
+        kind: '/chat/surface/event',
+        sequenceNum,
+        blob: JSON.stringify([
+          {
+            type: 'surface-event',
+            version: 1,
+            surfaceId: 'srf-potluck',
+            specRevision: 1,
+            mode: 'host',
+            ops,
+          },
+        ]),
+      });
+    event(5, [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }]);
+    event(11, abortingOps('never-applies-a'));
+    event(12, [{ op: 'set', path: '/bringing/~0wes', value: 'cake' }]);
+    event(17, abortingOps('never-applies-b'));
+    event(23, [{ op: 'set', path: '/bringing/~0nec', value: 'soup' }]);
+  }
+
+  /** Revision 1 published, then the history above written under it. */
+  async function withAborts() {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    withAbortedHistory(harness);
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck v2' }))
+    );
+    return harness;
+  }
+
+  /**
+   * The premise, before anything is asserted about refusals: the double really
+   * does produce two aborted entries, at the two sequences chosen, and the ops
+   * written after each refusal really did not apply — `~bus` is absent from a
+   * state that has every clean entry in it.
+   */
+  it('the fixture aborts exactly twice, at 11 and 17', async () => {
+    const harness = await withAborts();
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const folded = harness.json();
+    expect(folded.state).toEqual({
+      bringing: {
+        '~zod': 'bread',
+        '~ten': 'pie',
+        '~wes': 'cake',
+        '~nec': 'soup',
+      },
+    });
+    expect(folded.abortedSequenceNums).toEqual([11, 17]);
+  });
+
+  it('refuses rather than freeze the prefix, and teaches the flag', async () => {
+    const harness = await withAborts();
+    const writes = harness.ship.descriptionWrites.length;
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('usage');
+    expect(String(result.message)).toContain('--allow-aborted-events');
+
+    // Pre-write, so the refusal cannot itself strand the channel: the
+    // definition never moved and no snapshot was posted.
+    expect(harness.ship.descriptionWrites).toHaveLength(writes);
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(0);
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().specRevision).toBe(1);
+  });
+
+  /**
+   * The refusal names the posts, so the host reading it can go and look at
+   * them, and it teaches the flag on the command they actually ran rather
+   * than sending them to a different one.
+   */
+  it('names the aborted sequences in the refusal', async () => {
+    const harness = await withAborts();
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    const result = harness.json();
+    expect(String(result.message)).toContain('entries at sequences 11, 17');
+    expect(String(result.message)).toContain(`tlon surface state ${CHANNEL}`);
+    expect(String(result.message)).toContain(
+      'pass --allow-aborted-events to publish over the prefix as it stands'
+    );
+    expect(
+      (result.details as Record<string, unknown>).abortedSequenceNums
+    ).toEqual([11, 17]);
+  });
+
+  /**
+   * The escape hatch leaves an audit trail, not a silence (D99). The flag is
+   * the last moment anything can name these entries: the snapshot it permits
+   * puts both under the boundary, and every fold after it reports a clean
+   * history — which the tail of this test demonstrates rather than asserts by
+   * assumption.
+   */
+  it('enumerates what the flag waived through, in JSON and in the report', async () => {
+    const harness = await withAborts();
+    expect(
+      await publish(harness, ['--preserve-state', '--allow-aborted-events'])
+    ).toBe(0);
+    const result = harness.json();
+    expect(result.outcome).toBe('published');
+    const snapshot = result.snapshot as Record<string, unknown> | null;
+    expect(snapshot?.abortedSequenceNums).toEqual([11, 17]);
+
+    const plain = await withAborts();
+    expect(
+      await run(
+        [
+          'publish',
+          CHANNEL,
+          '--bundle',
+          BUNDLE_PATH,
+          '--spec',
+          SPEC_PATH,
+          '--preserve-state',
+          '--allow-aborted-events',
+        ],
+        plain.deps
+      )
+    ).toBe(0);
+    expect(plain.out()).toContain(
+      '2 entries at sequences 11, 17 stopped early and were checkpointed anyway'
+    );
+
+    // What the flag bought, and what it cost: the channel is live at the new
+    // revision, and nothing reports the loss any more.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const after = harness.json();
+    expect(after.specRevision).toBe(2);
+    expect(after.abortedSequenceNums).toEqual([]);
+  });
+});
+
+/**
  * The description write is not transactional with the posts that follow it, so
  * a preserving publish can land its definition and its mirror and then fail
  * before the migration snapshot — a crash, a dropped connection, a rejected
@@ -808,8 +985,15 @@ describe('surface publish — an exact retry over a stranded channel', () => {
     });
   }
 
-  /** Revision 2 published and mirrored; its migration snapshot never landed. */
-  async function stranded(ops?: unknown[]) {
+  /**
+   * Revision 2 published and mirrored; its migration snapshot never landed.
+   *
+   * `strandExtra` exists because the primary preserving path now refuses over
+   * an aborted fold: a channel cannot be stranded WITH one unless the publish
+   * that stranded it waived the aborts on the way past. That is the only route
+   * to this state, and it is the one the retry-path tests take.
+   */
+  async function stranded(ops?: unknown[], strandExtra: string[] = []) {
     const harness = setup();
     expect(await publish(harness)).toBe(0);
     withEvent(harness, ops);
@@ -825,7 +1009,9 @@ describe('surface publish — an exact retry over a stranded channel', () => {
       if (input.kindTail === 'surface/snapshot') return;
       return send(input);
     };
-    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    expect(await publish(harness, ['--preserve-state', ...strandExtra])).toBe(
+      1
+    );
     expect(harness.json().code).toBe('post-unconfirmed');
     harness.deps.sendSurfacePost = send;
 
@@ -937,28 +1123,54 @@ describe('surface publish — an exact retry over a stranded channel', () => {
     ).toHaveLength(0);
   });
 
-  it('refuses to finalize an aborted entry, and names the command that can', async () => {
+  it('refuses to finalize an aborted entry, and teaches the flag', async () => {
     // The state being carried across would be the partial prefix of an entry
     // that stopped early, so this repair would freeze the prefix and put the
-    // failed entry under the boundary. Publish has no flag to accept that
-    // with, so it refuses and names the command that does rather than deciding
-    // on the host's behalf.
-    const harness = await stranded([
-      { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
-      { op: 'set', path: '/bringing/~0ten', value: 'pie' },
-    ]);
+    // failed entry under the boundary. The refusal teaches the flag on the
+    // command the host is already running rather than deciding on their
+    // behalf — or sending them to a different command to lift a refusal this
+    // one raised.
+    const harness = await stranded(
+      [
+        { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+        { op: 'set', path: '/bringing/~0ten', value: 'pie' },
+      ],
+      ['--allow-aborted-events']
+    );
 
     expect(await publish(harness, ['--preserve-state'])).toBe(1);
     const result = harness.json();
     expect(result.code).toBe('usage');
+    expect(String(result.message)).toContain('entry at sequence 2');
     expect(String(result.message)).toContain(
-      `tlon surface snapshot ${CHANNEL} --allow-aborted-events`
+      'pass --allow-aborted-events to publish over the prefix as it stands'
     );
+    expect(
+      (result.details as Record<string, unknown>).abortedSequenceNums
+    ).toEqual([2]);
     expect(
       (harness.ship.posts.get(CHANNEL) ?? []).filter(
         (post) => post.kind === '/chat/surface/snapshot'
       )
     ).toHaveLength(0);
+  });
+
+  it('repairs under the flag, and names what it waived through', async () => {
+    const harness = await stranded(
+      [
+        { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+        { op: 'set', path: '/bringing/~0ten', value: 'pie' },
+      ],
+      ['--allow-aborted-events']
+    );
+
+    expect(
+      await publish(harness, ['--preserve-state', '--allow-aborted-events'])
+    ).toBe(0);
+    const result = harness.json();
+    expect(result.outcome).toBe('migration-repaired');
+    const snapshot = result.snapshot as Record<string, unknown> | null;
+    expect(snapshot?.abortedSequenceNums).toEqual([2]);
   });
 
   it('still reports a no-op when a short read already proves the channel healthy', async () => {

@@ -250,7 +250,7 @@ describe('adversarial events (§4.3)', () => {
     expect(result.state.votes).toEqual({});
     // every refusal aborts the rest of its entry (§7)
     expect(result.state.title).toBe('initial');
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toHaveLength(1);
   });
 
   test('edited surface posts are retracted wholesale', () => {
@@ -573,7 +573,7 @@ describe('every refusal aborts the entry (§7)', () => {
     expect(archived).toBe(false);
     expect(result.state.today).toEqual(today);
     expect(result.stateFull).toBe(true);
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toHaveLength(1);
     // an aborted entry is still folded: it moved state and the watermark
     expect(result.foldedEventCount).toBe(1);
     expect(result.newestFoldedSeq).toBe(2);
@@ -592,7 +592,7 @@ describe('every refusal aborts the entry (§7)', () => {
     });
     expect(result.state.today).toBeUndefined();
     expect(result.stateFull).toBe(false);
-    expect(result.abortedEventCount).toBe(0);
+    expect(result.abortedSequenceNums).toHaveLength(0);
   });
 
   test('the depth cap aborts too: state cannot hold the result', () => {
@@ -615,7 +615,7 @@ describe('every refusal aborts the entry (§7)', () => {
       ])
     );
     expect(result.state.keep).toBe('before');
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toHaveLength(1);
     // depth is not "dashboard full" — pruning state does not fix it
     expect(result.stateFull).toBe(false);
   });
@@ -638,7 +638,7 @@ describe('every refusal aborts the entry (§7)', () => {
       ])
     );
     expect(result.state.keep).toBe('before');
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toHaveLength(1);
     // a malformed op is not "dashboard full" either
     expect(result.stateFull).toBe(false);
   });
@@ -669,7 +669,7 @@ describe('every refusal aborts the entry (§7)', () => {
     // archived later. "Neither" is the day destroyed.
     expect(archivedDate(result.state)).toBe(false);
     expect(result.state.today).toEqual(today);
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toHaveLength(1);
     expect(result.stateFull).toBe(false);
   });
 
@@ -695,12 +695,12 @@ describe('every refusal aborts the entry (§7)', () => {
 
     const belowScalar = expectReduced(reduce(entry(5)));
     expect(belowScalar.state.after).toBe('ran');
-    expect(belowScalar.abortedEventCount).toBe(0);
+    expect(belowScalar.abortedSequenceNums).toHaveLength(0);
 
     const belowArray = expectReduced(reduce(entry([1])));
     expect(belowArray.state.after).toBe('ran');
     expect(belowArray.state.holder).toEqual([1]);
-    expect(belowArray.abortedEventCount).toBe(0);
+    expect(belowArray.abortedSequenceNums).toHaveLength(0);
   });
 
   test('a structural refusal aborts too: it loses the same day the same way', () => {
@@ -719,7 +719,7 @@ describe('every refusal aborts the entry (§7)', () => {
     // archived later. "Neither" is the day destroyed.
     expect(archivedDate(result.state)).toBe(false);
     expect(result.state.today).toEqual(today);
-    expect(result.abortedEventCount).toBe(1);
+    expect(result.abortedSequenceNums).toHaveLength(1);
     // not "dashboard full": pruning state never makes `/history` an object,
     // so the flag a host repairs by snapshotting stays down.
     expect(result.stateFull).toBe(false);
@@ -770,7 +770,7 @@ describe('every refusal aborts the entry (§7)', () => {
 
           expect(full.state).toEqual(prefixOnly.state);
           expect(full.stateFull).toBe(false);
-          expect(full.abortedEventCount).toBe(1);
+          expect(full.abortedSequenceNums).toHaveLength(1);
           // the destructive trailing ops never ran
           expect(full.state.today).toEqual(today);
         }
@@ -822,7 +822,7 @@ describe('every refusal aborts the entry (§7)', () => {
 
           expect(full.state).toEqual(prefixOnly.state);
           expect(full.stateFull).toBe(true);
-          expect(full.abortedEventCount).toBe(1);
+          expect(full.abortedSequenceNums).toHaveLength(1);
           // the destructive trailing ops never ran
           expect(full.state.today).toEqual({ [MEMBER]: { r: 'ok' } });
         }
@@ -884,7 +884,7 @@ describe('every refusal aborts the entry (§7)', () => {
           for (let i = 0; i < trailingCount; i++) {
             expect(marks[`tail${i}`]).toBeUndefined();
           }
-          expect(full.abortedEventCount).toBe(1);
+          expect(full.abortedSequenceNums).toHaveLength(1);
         }
       )
     );
@@ -902,7 +902,7 @@ describe('every refusal aborts the entry (§7)', () => {
       post(HOST, [hostEvent([{ op: 'del', path: '/today' }])]),
     ];
     const reference = reduceSurface({ spec: spec(), hostShip: HOST, posts });
-    expect(expectReduced(reference).abortedEventCount).toBe(1);
+    expect(expectReduced(reference).abortedSequenceNums).toHaveLength(1);
 
     fc.assert(
       fc.property(
@@ -933,7 +933,7 @@ describe('every refusal aborts the entry (§7)', () => {
       post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'after' }])]),
     ];
     const reference = reduceSurface({ spec: spec(), hostShip: HOST, posts });
-    expect(expectReduced(reference).abortedEventCount).toBe(1);
+    expect(expectReduced(reference).abortedSequenceNums).toHaveLength(1);
     expect(expectReduced(reference).state.today).toEqual(today);
 
     fc.assert(
@@ -978,7 +978,7 @@ describe('every refusal aborts the entry (§7)', () => {
     const whole = expectReduced(
       reduceSurface({ spec: spec(), hostShip: HOST, posts })
     );
-    expect(whole.abortedEventCount).toBe(1);
+    expect(whole.abortedSequenceNums).toHaveLength(1);
     expect(whole.state.log).toEqual(['rolled']);
     expect(whole.state.today).toEqual(today);
 
@@ -986,7 +986,7 @@ describe('every refusal aborts the entry (§7)', () => {
     const firstBatch = expectReduced(
       reduceSurface({ spec: spec(), hostShip: HOST, posts: posts.slice(0, 2) })
     );
-    expect(firstBatch.abortedEventCount).toBe(1);
+    expect(firstBatch.abortedSequenceNums).toHaveLength(1);
     expect(firstBatch.newestFoldedSeq).toBe(2);
 
     // batch 2: that state written down, and only the posts it does not cover
@@ -1004,6 +1004,61 @@ describe('every refusal aborts the entry (§7)', () => {
       })
     );
     expect(compacted.state).toEqual(whole.state);
+  });
+
+  /**
+   * The audit trail `--allow-aborted-events` prints in the CLI is this array,
+   * so it carries the same determinism obligation every other reduction field
+   * does: a pure function of the SORTED log, identical on every client
+   * whatever order the posts arrived in — including the order of the array
+   * itself, which is what makes it readable as "go and look at 11, then 17".
+   *
+   * The sequences are non-adjacent and away from both ends of the history,
+   * with clean entries before, between and after. An off-by-one, a "report
+   * every folded entry", a "report the first one only", and an order that
+   * follows arrival rather than sequence all read differently from [11, 17].
+   */
+  test('property: the aborted sequences are the same array in any input order', () => {
+    nextSeq = 1;
+    const aborting = () =>
+      hostEvent([
+        // `/title` holds a string, so there is nowhere to write through it
+        { op: 'set', path: '/title/inner', value: 'nowhere' },
+        { op: 'set', path: '/never', value: 'applied' },
+      ]);
+    const clean = (value: string) =>
+      hostEvent([{ op: 'set', path: '/subtitle', value }]);
+    const posts = [
+      post(HOST, [clean('a')], { sequenceNum: 5 }),
+      post(HOST, [aborting()], { sequenceNum: 11 }),
+      post(HOST, [clean('b')], { sequenceNum: 12 }),
+      post(HOST, [aborting()], { sequenceNum: 17 }),
+      post(HOST, [clean('c')], { sequenceNum: 23 }),
+    ];
+
+    const reference = expectReduced(
+      reduceSurface({ spec: spec(), hostShip: HOST, posts })
+    );
+    // The premise: both entries really did stop, and the op after each
+    // refusal really did not apply.
+    expect(reference.abortedSequenceNums).toEqual([11, 17]);
+    expect(reference.state.never).toBeUndefined();
+    expect(reference.state.subtitle).toBe('c');
+
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray(posts, {
+          minLength: posts.length,
+          maxLength: posts.length,
+        }),
+        (shuffled) => {
+          const result = expectReduced(
+            reduceSurface({ spec: spec(), hostShip: HOST, posts: shuffled })
+          );
+          expect(result.abortedSequenceNums).toEqual([11, 17]);
+        }
+      )
+    );
   });
 });
 
