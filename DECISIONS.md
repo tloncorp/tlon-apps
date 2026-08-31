@@ -3371,9 +3371,51 @@ transcript is an audit that will be lost, and this project has now lost two.)
   resolves with `sha256` equal to both the storage key and the spec's pinned
   hash. The publish loop is proven on the fakeships.
 
+- **D111: the image handoff into luna's context is verified, and its
+  silent-failure mode is named.** OpenClaw core's `read` tool returns a PNG as
+  an image content block, and an owner-role Tlon DM session receives it. A
+  synthetic card carrying an unguessable 16-hex token *and* an independent
+  square count was read back with the count exact in both arms and the token
+  exact in the differential arm, from PNGs whose sha256s were asserted
+  different before the result was believed. In the first arm the model
+  misread the leading character (`f` as `£`) while getting the count right —
+  which is itself the evidence, because a text leak would have been
+  byte-perfect.
+
+  The negative control names its fulcrum: `model.input.includes("image")` in
+  `transform-messages.ts`. Pointing `MODEL` at a catalogued text-only model
+  returned `(tool image omitted: model does not support images)` and no
+  token; the model was then restored.
+
+  On a real `surface preview` capture (2560x1800, downscaled by `read` to
+  2000x1406) the model reported every option label, count, turnout line, ship
+  and pill exactly, including a per-voter mapping obtainable only by
+  replaying the manifest's invokes. **Correction to a premise briefed during
+  the session:** `read` resizes at 2000, not the 1200 of
+  `image-sanitization.ts`, which serves the embedded-agent path rather than
+  read-to-session.
+
+  **The failure mode to guard.** `openclaw models list` reports
+  `openrouter/openai/gpt-5.6-luna` as `input: text`, because the cached
+  OpenRouter catalog carries only `...-luna-pro`. Runtime disagrees today,
+  but if it ever agreed, every preview would arrive as a placeholder string
+  **with no error raised** — and the loop would score its rubric against text
+  saying the image was omitted. Any run that scores previews must assert the
+  absence of the four placeholder strings before trusting a score.
+
+  Weaker than the rest, stated plainly: the real-preview arm used a
+  pre-existing capture rather than one generated in the same run, and only
+  `desktop-populated-light` was tested — the phone form factors and dark
+  variants have a smaller legibility budget and are untested.
+
+  Operational note: the `--ship` flag resolves through a cached credential
+  store that on this machine holds a REAL ship. Drive fakeship work with
+  `TLON_URL`/`TLON_SHIP`/`TLON_CODE` env vars instead.
+
 ### Carried forward from 6a, unclosed
 
-- **The image handoff is still unverified — step 8's stated STOP gate.**
+- **(CLOSED by D111 — the image handoff is verified.)** Retained for the
+  reasoning that made it a gate:
   Three harness breaks were repaired (D106, D107) and `surface preview` now
   produces a real capture matrix in the container, but **nobody has yet
   observed a preview PNG reaching the model's context.** The capability
