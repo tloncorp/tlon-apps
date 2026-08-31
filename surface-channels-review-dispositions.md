@@ -48,19 +48,40 @@ guard exists for "every place that builds the CLI first builds its
 dependencies" — four locations found by hand is the signature of a missing
 mechanical check.
 
-### A3. OpenClaw CI is red, and it is **not** ours — **not our fix**
+### A3. OpenClaw CI is red — **it was ours, and it is fixed**
 
-Three TS errors in `packages/openclaw/src/monitor/agent-onboarding.ts`,
-which is byte-identical to develop's. Proven by reverting our `api`,
-`shared` and `tlon-skill` to develop's versions: identical errors.
+**This entry originally said the breakage was develop's. That was wrong.**
 
-Broken on develop since `caa9d3fd82` (8/27). The last successful OpenClaw
-CI run on develop was **8/12** — 19 days earlier — so nothing has run that
-workflow since it broke. Our PR is the first.
+Three TS errors in `packages/openclaw/src/monitor/agent-onboarding.ts`, a
+file byte-identical to develop's. The original revert test reverted our
+`api`/`shared`/`tlon-skill` sources and got identical errors — but it never
+rebuilt `packages/api`, and openclaw resolves `@tloncorp/api` through
+`types: ./dist/index.d.ts`, not `src`. So it typechecked against a stale
+build containing our changes. The test could not have produced a different
+answer, which is the same defect class this whole round is about.
 
-**Proposal:** report it to whoever owns that file rather than fixing it
-inside a surface-channels PR. Flag separately that a workflow going 19 days
-without running is the same class of problem step 7 was about.
+Redone with a rebuild: reverting api makes the errors vanish, restoring ours
+brings them back, deterministic both directions.
+
+**Cause:** two generic helpers in `packages/api/src/client/surface/schemas.ts`
+returned `ZodEffects<T, any, any>`. Zod declares
+`superRefine(): ZodEffects<this, Output, Input>`, and called on an
+unresolved generic `T extends z.ZodTypeAny` TypeScript reads Output/Input off
+the constraint — which is `ZodType<any, ..., any>`. So `SurfaceEventEntry`
+was `any`, and `any` is contagious in a union: `PostBlobDataEntry` became
+`any`, every `entry.type === '...'` narrowing downstream became a no-op, and
+`TS7006` two packages away was simply the first place `noImplicitAny` could
+speak up.
+
+Fixed by two return annotations (`z.ZodEffects<T, z.output<T>, z.input<T>>`),
+plus a drift guard at the definition site. It was silently widening our own
+types too: `SurfaceSnapshotEntry.state` and `SurfaceSpec.recipe` were both
+`any`.
+
+**What survives from the original entry:** `OpenClaw Plugin CI` had not run
+successfully on develop since 8/12, so nothing had exercised that workflow
+in 19 days. That gap is real and worth its own look — it is why a type error
+introduced by us surfaced only when our branch finally ran CI.
 
 ---
 
