@@ -63,6 +63,24 @@ export function shellErrorCategory(phase: string): ShellErrorCategory {
 export type ShellTheme = 'light' | 'dark';
 
 /**
+ * Props shared by the web and native sandbox hosts. Declared here, in a
+ * platform-neutral module, rather than in `SurfaceSandboxHost.tsx`: the
+ * native host is `SurfaceSandboxHost.native.tsx`, and a `./SurfaceSandboxHost`
+ * import inside it resolves back to itself under React Native's platform
+ * extensions, so it cannot pull the type from the web file.
+ */
+export interface SurfaceSandboxHostProps {
+  /** the fully assembled sandbox document (CSP meta + shell + bundle) */
+  document: string;
+  spec: SurfaceSpec;
+  state: JsonObject;
+  theme: ShellTheme;
+  canInvoke: boolean;
+  onInvoke: (actionId: string) => void;
+  onShellError?: (phase: string, message: string) => void;
+}
+
+/**
  * The identity of a sandbox session: the exact bundle bytes and the exact
  * spec revision the sandbox was initialized with. A session cannot be
  * *updated* onto a new revision — `spec` is captured at construction, is

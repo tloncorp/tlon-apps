@@ -1,4 +1,3 @@
-import type { JsonObject, SurfaceSpec } from '@tloncorp/api';
 // the /debug subpath keeps this module off the shared barrel, which drags
 // expo-modules-core into node tests
 import { createDevLogger } from '@tloncorp/shared/debug';
@@ -7,22 +6,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   SandboxSession,
-  ShellTheme,
+  type SurfaceSandboxHostProps,
   createSandboxSession,
 } from './sandboxSession';
 
-const logger = createDevLogger('surfaceSandboxHost', false);
+export type { SurfaceSandboxHostProps };
 
-export interface SurfaceSandboxHostProps {
-  /** the fully assembled sandbox document (CSP meta + shell + bundle) */
-  document: string;
-  spec: SurfaceSpec;
-  state: JsonObject;
-  theme: ShellTheme;
-  canInvoke: boolean;
-  onInvoke: (actionId: string) => void;
-  onShellError?: (phase: string, message: string) => void;
-}
+const logger = createDevLogger('surfaceSandboxHost', false);
 
 /**
  * Web sandbox host: a sandboxed srcdoc iframe running the shell artifact

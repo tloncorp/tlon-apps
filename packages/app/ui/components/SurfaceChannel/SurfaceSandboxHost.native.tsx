@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { WebView } from 'react-native-webview';
 
-import type { SurfaceSandboxHostProps } from './SurfaceSandboxHost';
+import type { SurfaceSandboxHostProps } from './sandboxSession';
 import { SandboxSession, createSandboxSession } from './sandboxSession';
 
 /**
