@@ -68,6 +68,19 @@ describe('browser credential handoff', () => {
   });
 
   it.each([
+    'http://localhost:3000/s/payload.signature',
+    'http://127.0.0.1:3000/s/payload.signature',
+  ])('rejects a loopback viewer URL: %s', async (viewerUrl) => {
+    const request = vi.fn();
+    vi.stubGlobal('fetch', request);
+
+    await expect(beginBrowserCredentialHandoff(viewerUrl)).rejects.toThrow(
+      'not from a trusted Tlon host'
+    );
+    expect(request).not.toHaveBeenCalled();
+  });
+
+  it.each([
     'https://browser-session-us-east5-cluster1.tlon.network/s/payload.signature',
     'https://browser-session-ovh-test-1.test.tlon.systems/s/payload.signature',
   ])('accepts a cluster-specific viewer host: %s', async (viewerUrl) => {
@@ -138,5 +151,33 @@ describe('browser credential handoff', () => {
       code: '123456',
       submit: true,
     });
+  });
+
+  it('reports when the browser filled a form without submitting it', async () => {
+    const request = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, submitted: false }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    vi.stubGlobal('fetch', request);
+
+    await expect(
+      submitBrowserCredentials(
+        {
+          fillUrl:
+            'https://browser-session-ovh1.tlon.network/credential-fills/handoff',
+          origin: 'https://example.com',
+          expiresAt: Date.now() + 60_000,
+          kind: 'password',
+          hasUsername: true,
+        },
+        {
+          username: 'person@example.com',
+          password: 'keep-in-form',
+          submit: true,
+        }
+      )
+    ).resolves.toEqual({ submitted: false });
   });
 });

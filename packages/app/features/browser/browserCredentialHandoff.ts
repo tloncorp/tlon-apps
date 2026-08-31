@@ -22,20 +22,13 @@ export type BrowserCredentialValues =
   | { username?: string; password: string; submit?: boolean }
   | { code: string; submit?: boolean };
 
-function isLocalViewer(url: URL): boolean {
-  return (
-    url.protocol === 'http:' &&
-    (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
-  );
-}
-
 function parseViewerUrl(viewerUrl: string): { url: URL; capability: string } {
   const url = new URL(viewerUrl);
   const trustedHostedViewer =
     url.protocol === 'https:' &&
     (PRODUCTION_VIEWER_HOST.test(url.hostname) ||
       TEST_VIEWER_HOST.test(url.hostname));
-  if (!trustedHostedViewer && !isLocalViewer(url)) {
+  if (!trustedHostedViewer) {
     throw new Error('This browser login link is not from a trusted Tlon host.');
   }
   if (url.username || url.password) {
