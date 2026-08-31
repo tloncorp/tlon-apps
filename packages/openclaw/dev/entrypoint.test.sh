@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.8.1}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"

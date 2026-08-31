@@ -5,7 +5,7 @@ import {
   extensionForMime,
   normalizeMimeType,
 } from 'openclaw/plugin-sdk/media-mime';
-import { readResponseWithLimit } from 'openclaw/plugin-sdk/response-limit-runtime';
+import { readResponseWithLimit } from 'openclaw/plugin-sdk/media-runtime';
 import { fetchWithSsrFGuard } from 'openclaw/plugin-sdk/ssrf-runtime';
 
 import { getDefaultSsrFPolicy } from './context.js';

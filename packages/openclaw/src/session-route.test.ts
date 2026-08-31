@@ -71,30 +71,54 @@ describe('resolveTlonOutboundSessionRoute', () => {
   });
 });
 
-describe('tlonPlugin messaging surface (explicit-target wiring)', () => {
+describe('tlonPlugin messaging surface (target-resolver wiring)', () => {
   const messaging = tlonPlugin.messaging;
 
   it('declares tlon as an explicit target prefix', () => {
     expect(messaging?.targetPrefixes).toContain('tlon');
   });
 
-  it('parseExplicitTarget returns a canonical DM target', () => {
-    expect(messaging?.parseExplicitTarget?.({ raw: 'tlon:~ship' })).toEqual({
-      to: '~ship',
-      chatType: 'direct',
-    });
+  it('normalizes and classifies a canonical DM target', async () => {
+    expect(messaging?.normalizeTarget?.('tlon:~ship')).toBe('~ship');
+    expect(messaging?.inferTargetChatType?.({ to: '~ship' })).toBe('direct');
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg,
+        accountId: 'default',
+        input: 'tlon:~ship',
+        normalized: '~ship',
+        preferredKind: 'user',
+      })
+    ).resolves.toMatchObject({ to: '~ship', kind: 'user' });
   });
 
-  it('parseExplicitTarget returns a canonical group target', () => {
-    expect(
-      messaging?.parseExplicitTarget?.({ raw: 'tlon:chat/~host/general' })
-    ).toEqual({ to: 'chat/~host/general', chatType: 'group' });
+  it('normalizes and classifies a canonical group target', async () => {
+    const target = 'chat/~host/general';
+    expect(messaging?.normalizeTarget?.(`tlon:${target}`)).toBe(target);
+    expect(messaging?.inferTargetChatType?.({ to: target })).toBe('group');
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg,
+        accountId: 'default',
+        input: `tlon:${target}`,
+        normalized: target,
+        preferredKind: 'group',
+      })
+    ).resolves.toMatchObject({ to: target, kind: 'group' });
   });
 
-  it('parseExplicitTarget returns null for a non-Tlon target', () => {
-    expect(
-      messaging?.parseExplicitTarget?.({ raw: 'not a target!!' })
-    ).toBeNull();
+  it('rejects a non-Tlon target', async () => {
+    expect(messaging?.targetResolver?.looksLikeId?.('not a target!!')).toBe(
+      false
+    );
+    await expect(
+      messaging?.targetResolver?.resolveTarget?.({
+        cfg,
+        accountId: 'default',
+        input: 'not a target!!',
+        normalized: 'not a target!!',
+      })
+    ).resolves.toBeNull();
   });
 
   it('wires resolveOutboundSessionRoute', () => {

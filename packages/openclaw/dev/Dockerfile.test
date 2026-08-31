@@ -7,17 +7,15 @@ RUN npm install -g pnpm@11.9.0
 # while the focused gateway-status lane selects affected cores by build arg.
 # Keep this default in lockstep with DEFAULT_CORE_VERSION in
 # test/cases/08-gateway-status.test.ts (08 asserts installed == requested).
-# Bumping both to 2026.6.11/2026.7.1 promotes 08 from a smoke test to the full
-# prewarm regression guard on the existing shared E2E lane — no matrix lane needed.
-ARG OPENCLAW_CORE_VERSION=2026.5.28
+# A prewarming default runs 08 as the full regression guard on the existing
+# shared E2E lane — no matrix lane needed.
+ARG OPENCLAW_CORE_VERSION=2026.8.1
 RUN npm install -g "openclaw@${OPENCLAW_CORE_VERSION}"
 ENV OPENCLAW_CORE_VERSION=${OPENCLAW_CORE_VERSION}
 RUN echo "[tlon-e2e-build] openclaw-core-version=${OPENCLAW_CORE_VERSION}"
 
-# Install the Brave web-search plugin at build time. openclaw@2026.5.28
-# rejects tools.web.search.provider "brave" (set by entrypoint.test.sh when
-# BRAVE_API_KEY is present) unless the plugin is installed. Production
-# installs the same package before gateway start (tlonbot entrypoint);
+# Install the Brave web-search plugin at build time. Production installs the
+# same package before gateway start (tlonbot entrypoint);
 # baking it here keeps container startup off the npm registry. The install
 # ledger lives in ~/.openclaw/plugins/, which entrypoint.test.sh's config
 # rewrite does not touch.

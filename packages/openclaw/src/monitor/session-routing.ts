@@ -1,6 +1,6 @@
 import { resolvePinnedMainDmOwnerFromAllowlist } from 'openclaw/plugin-sdk/conversation-runtime';
 import type { OpenClawConfig, PluginRuntime } from 'openclaw/plugin-sdk/core';
-import { runPreparedInboundReplyTurn } from 'openclaw/plugin-sdk/inbound-reply-dispatch';
+import { runPreparedInboundReply } from 'openclaw/plugin-sdk/inbound-reply-dispatch';
 import {
   type ResolvedAgentRoute,
   resolveInboundLastRouteSessionKey,
@@ -232,7 +232,7 @@ type RecordInboundParams = Parameters<
   SessionRecorder['recordInboundSession']
 >[0];
 type PreparedTurnCtxPayload = Parameters<
-  typeof runPreparedInboundReplyTurn
+  typeof runPreparedInboundReply
 >[0]['ctxPayload'];
 
 /**
@@ -334,7 +334,7 @@ export function routeUpdateWillSkipByPin(
  * The monitor's "build ctx → record route → dispatch" boundary (this is where
  * the original webchat-leak bug lived). Builds the Tlon route record, then runs
  * the turn through the SDK's prepared channel-turn kernel
- * (`runPreparedInboundReplyTurn`), which owns the record-before-dispatch
+ * (`runPreparedInboundReply`), which owns the record-before-dispatch
  * ordering shared by every in-tree channel.
  *
  * The kernel's own route write is fail-closed (a record failure aborts
@@ -433,7 +433,7 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     }
   };
 
-  const turn = await runPreparedInboundReplyTurn<T>({
+  const turn = await runPreparedInboundReply<T>({
     channel: 'tlon',
     accountId: params.route.accountId,
     routeSessionKey: params.route.sessionKey,
@@ -479,6 +479,11 @@ export async function recordTlonRouteAndDispatch<T>(params: {
     messageId: params.messageId,
     runDispatch: params.dispatch,
   });
+  if (!turn.dispatched) {
+    throw new Error(
+      `Prepared Tlon inbound reply was not dispatched (${turn.admission.kind})`
+    );
+  }
   return turn.dispatchResult;
 }
 

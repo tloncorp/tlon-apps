@@ -1,12 +1,12 @@
 import { describeAccountSnapshot } from 'openclaw/plugin-sdk/account-helpers';
 import { createHybridChannelConfigAdapter } from 'openclaw/plugin-sdk/channel-config-helpers';
+import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/channel-outbound';
 import type { ChannelPlugin } from 'openclaw/plugin-sdk/core';
 import {
   DEFAULT_ACCOUNT_ID,
   createChatChannelPlugin,
 } from 'openclaw/plugin-sdk/core';
 import { createLazyRuntimeModule } from 'openclaw/plugin-sdk/lazy-runtime';
-import { createRuntimeOutboundDelegates } from 'openclaw/plugin-sdk/outbound-runtime';
 import { createLegacyPrivateNetworkDoctorContract } from 'openclaw/plugin-sdk/ssrf-runtime';
 import {
   createComputedAccountStatusAdapter,
@@ -127,18 +127,26 @@ export const tlonPlugin = createChatChannelPlugin({
         }
         return parsed.nest;
       },
-      parseExplicitTarget: ({ raw }) => {
-        const parsed = parseTlonTarget(raw);
-        if (!parsed) {
-          return null;
-        }
-        return parsed.kind === 'dm'
-          ? { to: parsed.ship, chatType: 'direct' }
-          : { to: parsed.nest, chatType: 'group' };
+      inferTargetChatType: ({ to }) => {
+        const parsed = parseTlonTarget(to);
+        return parsed?.kind === 'dm' ? 'direct' : parsed ? 'group' : undefined;
       },
       targetResolver: {
         looksLikeId: (target) => Boolean(parseTlonTarget(target)),
         hint: formatTargetHint(),
+        resolveTarget: async ({ input, normalized }) => {
+          const parsed = parseTlonTarget(normalized) ?? parseTlonTarget(input);
+          if (!parsed) {
+            return null;
+          }
+          const to = parsed.kind === 'dm' ? parsed.ship : parsed.nest;
+          return {
+            to,
+            kind: parsed.kind === 'dm' ? 'user' : 'group',
+            display: to,
+            source: to === normalized ? 'normalized' : 'directory',
+          };
+        },
       },
       resolveOutboundSessionRoute: (params) =>
         resolveTlonOutboundSessionRoute(params),
