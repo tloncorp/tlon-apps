@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Foreigns } from '../urbit/foreigns.js';
 import {
   type GroupInviteDeps,
+  clearErroredMarkers,
   createCatchUpRunner,
   parseForeignsSnapshot,
   processPendingForeigns,
@@ -176,7 +177,25 @@ describe('processPendingForeigns', () => {
     expect(deps.queueApproval).toHaveBeenCalledTimes(1);
   });
 
-  it('clears the processed marker when an auto-accepted join later errors', async () => {
+  it('reconsiders an auto-accepted join that later errored, on the sweep', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+    });
+    const foreigns = makeForeign('~host/garden', '~owner', {
+      progress: 'error',
+    });
+
+    // The catch-up sequence: sweep the errored markers, then process.
+    clearErroredMarkers(foreigns, deps.processedGroupInvites);
+    await processPendingForeigns(foreigns, deps);
+
+    // The accept poke acked but the backend join failed; the sweep makes the
+    // flag a live decision again rather than suppressed until restart.
+    expect(deps.acceptInvite).toHaveBeenCalledWith('~host/garden');
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+  });
+
+  it('leaves an errored marked flag suppressed on the live path (no sweep)', async () => {
     const deps = makeDeps({
       processedGroupInvites: new Set(['~host/garden']),
     });
@@ -186,29 +205,42 @@ describe('processPendingForeigns', () => {
       deps
     );
 
-    // The accept poke acked but the backend join failed; the flag has to be
-    // a live decision again rather than stay suppressed until restart.
-    expect(deps.acceptInvite).toHaveBeenCalledWith('~host/garden');
+    // A persistently-failing join emits a fresh error fact per attempt;
+    // retrying on each would poke %groups at its own failure rate. Live facts
+    // leave the marker; only the reconciliation sweep clears it.
+    expect(deps.acceptInvite).not.toHaveBeenCalled();
     expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
   });
 
-  it('clears the processed marker on an error even with no valid invite', async () => {
-    const deps = makeDeps({
-      processedGroupInvites: new Set(['~host/garden']),
-    });
+  it('clears the marker on an error even with no valid invite', () => {
+    const processed = new Set(['~host/garden']);
 
-    await processPendingForeigns(
+    clearErroredMarkers(
       makeForeign('~host/garden', '~owner', {
         progress: 'error',
         valid: false,
       }),
-      deps
+      processed
     );
 
-    // The loop exits at the invites check, but the flag must be actionable
-    // again for the observation that carries a valid invite.
-    expect(deps.processedGroupInvites.has('~host/garden')).toBe(false);
-    expect(deps.acceptInvite).not.toHaveBeenCalled();
+    // The processor would exit at the invites check, but the flag must be
+    // actionable again for the observation that carries a valid invite.
+    expect(processed.has('~host/garden')).toBe(false);
+  });
+
+  it('clears only errored flags in the sweep', () => {
+    const processed = new Set(['~host/garden', '~host/kitchen']);
+
+    clearErroredMarkers(
+      {
+        ...makeForeign('~host/garden', '~owner', { progress: 'error' }),
+        ...makeForeign('~host/kitchen', '~owner', { progress: 'join' }),
+      },
+      processed
+    );
+
+    expect(processed.has('~host/garden')).toBe(false);
+    expect(processed.has('~host/kitchen')).toBe(true);
   });
 
   it('re-decides and re-marks a confirmed-blocked flag when the join errors', async () => {
@@ -217,11 +249,12 @@ describe('processPendingForeigns', () => {
       allowlist: () => ['~inviter'],
       fetchBlockedShips: vi.fn().mockResolvedValue(['~inviter']),
     });
+    const foreigns = makeForeign('~host/garden', '~inviter', {
+      progress: 'error',
+    });
 
-    await processPendingForeigns(
-      makeForeign('~host/garden', '~inviter', { progress: 'error' }),
-      deps
-    );
+    clearErroredMarkers(foreigns, deps.processedGroupInvites);
+    await processPendingForeigns(foreigns, deps);
 
     // Bounded cost: one batch-memoized block-list read, no owner card.
     expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);

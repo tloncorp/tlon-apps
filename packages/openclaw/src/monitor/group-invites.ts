@@ -37,6 +37,30 @@ export function parseForeignsSnapshot(raw: unknown): Foreigns {
   throw new Error('Malformed foreigns snapshot: expected a flag→foreign map');
 }
 
+/**
+ * Un-suppress joins that errored after their accept acked, so the next
+ * processor run reconsiders them.
+ *
+ * Called only from the reconciliation sweeps (post-connect and the 2-minute
+ * catch-up), never on live facts: a persistently-failing backend join emits a
+ * fresh error fact per attempt, so a live-path clear would retry at whatever
+ * rate %groups can fail — an unbounded join-poke loop. Sweep-only clearing
+ * bounds the retry cadence to one attempt per sweep.
+ */
+export function clearErroredMarkers(
+  foreigns: Foreigns,
+  processedGroupInvites: Set<string>
+): void {
+  if (!foreigns || typeof foreigns !== 'object') {
+    return;
+  }
+  for (const [groupFlag, foreign] of Object.entries(foreigns)) {
+    if (foreign.progress === 'error') {
+      processedGroupInvites.delete(groupFlag);
+    }
+  }
+}
+
 export async function processPendingForeigns(
   foreigns: Foreigns,
   deps: GroupInviteDeps
@@ -55,13 +79,6 @@ export async function processPendingForeigns(
     (blockedShipsOnce ??= deps.fetchBlockedShips());
 
   for (const [groupFlag, foreign] of Object.entries(foreigns)) {
-    // The local join acked but the backend join failed, so the flag is
-    // actionable again; clearing before the marker check is what lets a flag
-    // marked by the accept (or by the confirmed-blocked branch) fall through
-    // to the error handling below.
-    if (foreign.progress === 'error') {
-      deps.processedGroupInvites.delete(groupFlag);
-    }
     if (deps.processedGroupInvites.has(groupFlag)) {
       continue;
     }

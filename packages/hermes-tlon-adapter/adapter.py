@@ -2174,9 +2174,14 @@ class TlonAdapter(BasePlatformAdapter):
         if ship not in self._settings_dm_allowlist:
             return
         self._settings_dm_allowlist.discard(ship)
-        await self._persist_settings_entry(
+        persisted = await self._persist_settings_entry(
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
         )
+        if not persisted:
+            # Memory must not claim a revocation the store still grants:
+            # restoring the entry keeps a retried /ban re-attempting the write
+            # instead of early-returning on the absent ship.
+            self._settings_dm_allowlist.add(ship)
 
     async def _handle_approval_command(
         self,
@@ -3980,12 +3985,6 @@ class TlonAdapter(BasePlatformAdapter):
 
     async def _handle_foreigns(self, payload: Any) -> None:
         """Process the %groups foreigns map (live sub or catch-up scry)."""
-        for flag in error_progress_flags(payload):
-            # The accept-invite CLI call acked but the backend join failed, so
-            # the flag is actionable again; discarding before the marker check
-            # is what lets a flag marked by the accept (or by the
-            # confirmed-blocked branch) reach a fresh decision.
-            self._processed_group_invites.discard(flag)
         for invite in parse_foreigns(payload):
             flag = invite["groupFlag"]
             if flag in self._processed_group_invites:
@@ -4260,6 +4259,13 @@ class TlonAdapter(BasePlatformAdapter):
         if not isinstance(foreigns, dict):
             logger.debug("[tlon] group-invite catch-up returned no foreigns map")
             return False
+        for flag in error_progress_flags(foreigns):
+            # A join that acked but errored on the backend becomes actionable
+            # again — but only on the catch-up sweep, never on live facts: a
+            # persistently-failing join emits a fresh error fact per attempt,
+            # so a live-path discard would retry at %groups' error-emission
+            # rate. Sweep-only clearing bounds retries to one per (re)connect.
+            self._processed_group_invites.discard(flag)
         await self._handle_foreigns(foreigns)
         return True
 

@@ -169,6 +169,7 @@ import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   type GroupInviteDeps,
   createCatchUpRunner,
+  clearErroredMarkers,
   parseForeignsSnapshot,
   processPendingForeigns,
 } from './group-invites.js';
@@ -1672,6 +1673,10 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
         runtime.log?.(`[tlon] Removed ${normalizedShip} from dmAllowlist`);
       } catch (err) {
+        // Memory must not claim a revocation the store still grants: restoring
+        // the entry keeps a retried /ban re-attempting the write instead of
+        // early-returning on the absent ship.
+        effectiveDmAllowlist = [...effectiveDmAllowlist, normalizedShip];
         runtime.error?.(`[tlon] Failed to update dmAllowlist: ${String(err)}`);
       }
     }
@@ -5518,6 +5523,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             const foreigns = parseForeignsSnapshot(
               await api.scry('/groups/v1/foreigns.json')
             );
+            // Sweep-only: clearing errored markers on live facts would retry
+            // a persistently-failing join at %groups' error-emission rate.
+            clearErroredMarkers(foreigns, processedGroupInvites);
             await processPendingForeigns(foreigns, groupInviteDeps);
           } catch (err) {
             runtime.error?.(

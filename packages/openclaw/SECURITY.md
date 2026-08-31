@@ -87,9 +87,12 @@ Suppression invariants: queued invites are never marked in the in-process
 dedup set (it records only auto-accept success and confirmed-blocked); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
-reminder cadence. A `progress: 'error'` fact clears the dedup marker, so a join
-that acked locally but failed on the backend becomes actionable again. Catch-up
-rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
+reminder cadence. The reconciliation sweeps (connect and the 2-minute poll)
+clear the dedup marker for a join whose `progress` reached `error`, so a join
+that acked locally but failed on the backend becomes actionable again at a
+bounded cadence — live error facts leave the marker, because a persistently
+failing join would otherwise retry at %groups' own error-emission rate.
+Catch-up rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
 declines the invite on the ship (`%groups` `invite-decline`), and banning the
 inviter blocks the ship, revokes its DM grant, and then declines the same way —
 in both cases a decline the client could not submit keeps the request pending

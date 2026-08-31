@@ -1568,7 +1568,7 @@ class AdapterApprovalTests(unittest.TestCase):
         payload[flag]["progress"] = "error"
         return payload
 
-    def test_join_error_after_an_accept_ack_resurfaces_the_invite(self):
+    def test_join_error_after_an_accept_ack_resurfaces_on_catchup(self):
         adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
         adapter._sse.payloads["/chat/blocked"] = []
         adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
@@ -1578,8 +1578,12 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertIn("~host/projects", adapter._processed_group_invites)
 
         # The accept-invite CLI call acked, but the backend join ended in
-        # error — the invite is a live decision again.
-        asyncio.run(adapter._handle_foreigns(self.errored_foreigns("~host/projects", "~ten")))
+        # error — the reconciliation sweep makes it a live decision again.
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "foreigns": self.errored_foreigns("~host/projects", "~ten"),
+            "groups": {},
+        }
+        self.assertTrue(asyncio.run(adapter._process_pending_group_invites()))
 
         accepts = [
             cmd
@@ -1588,15 +1592,37 @@ class AdapterApprovalTests(unittest.TestCase):
         ]
         self.assertEqual(len(accepts), 2)
 
+    def test_join_error_on_the_live_path_stays_suppressed(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
+        adapter._sse.payloads["/chat/blocked"] = []
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", []
+        )
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+
+        # A persistently-failing join emits a fresh error fact per attempt;
+        # retrying on each would re-poke %groups at its own failure rate, so
+        # live facts leave the marker and only the sweep clears it.
+        asyncio.run(adapter._handle_foreigns(self.errored_foreigns("~host/projects", "~ten")))
+
+        accepts = [
+            cmd
+            for cmd in adapter._cli.commands
+            if cmd == ("groups", "accept-invite", "~host/projects")
+        ]
+        self.assertEqual(len(accepts), 1)
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+
     def test_join_error_clears_the_marker_without_a_valid_invite(self):
         adapter = self.make_adapter()
         adapter._processed_group_invites.add("~host/projects")
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "foreigns": {"~host/projects": {"progress": "error", "invites": []}},
+            "groups": {},
+        }
 
-        asyncio.run(
-            adapter._handle_foreigns(
-                {"~host/projects": {"progress": "error", "invites": []}}
-            )
-        )
+        self.assertTrue(asyncio.run(adapter._process_pending_group_invites()))
 
         # parse_foreigns yields nothing for this shape, so no decision runs
         # now; the flag still has to be actionable when an invite reappears.
@@ -1611,14 +1637,35 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertIn("~host/projects", adapter._processed_group_invites)
         self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
 
-        asyncio.run(adapter._handle_foreigns(self.errored_foreigns("~host/projects", "~ten")))
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "foreigns": self.errored_foreigns("~host/projects", "~ten"),
+            "groups": {},
+        }
+        self.assertTrue(asyncio.run(adapter._process_pending_group_invites()))
 
-        # The re-decision costs one more block-list read and re-marks; the
-        # owner is never carded for a confirmed-blocked inviter.
+        # The sweep re-decision costs one more block-list read and re-marks;
+        # the owner is never carded for a confirmed-blocked inviter.
         self.assertIn("~host/projects", adapter._processed_group_invites)
         self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 2)
         self.assertEqual(adapter._pending_approvals, [])
         self.assertEqual(adapter._cli.notifications(), [])
+
+    def test_failed_dm_allowlist_persist_restores_the_entry(self):
+        adapter = self.make_adapter()
+        adapter._settings_dm_allowlist.add("~ten")
+        results = iter([False, True])
+
+        async def fake_persist(key, value):
+            return next(results)
+
+        with patch.object(adapter, "_persist_settings_entry", fake_persist):
+            # Memory must not claim a revocation the store still grants, or
+            # the retry's early return would strand the persisted entry.
+            asyncio.run(adapter._remove_from_dm_allowlist("~ten"))
+            self.assertIn("~ten", adapter._settings_dm_allowlist)
+
+            asyncio.run(adapter._remove_from_dm_allowlist("~ten"))
+            self.assertNotIn("~ten", adapter._settings_dm_allowlist)
 
     def test_failed_notify_persists_undelivered_and_retries_past_cooldown(self):
         adapter = self.make_adapter()
