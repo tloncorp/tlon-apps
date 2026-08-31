@@ -1648,15 +1648,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
 
-    // Helper to remove ship from dmAllowlist in both memory and settings store
-    async function removeFromDmAllowlist(ship: string): Promise<void> {
+    // Helper to remove ship from dmAllowlist in both memory and settings store.
+    // Returns false when the settings write failed (the in-memory entry is
+    // restored so a retry re-attempts the write).
+    async function removeFromDmAllowlist(ship: string): Promise<boolean> {
       const normalizedShip = normalizeShip(ship);
       const before = effectiveDmAllowlist.length;
       effectiveDmAllowlist = effectiveDmAllowlist.filter(
         (s) => s !== normalizedShip
       );
       if (effectiveDmAllowlist.length === before) {
-        return; // Ship wasn't on the list
+        return true; // Ship wasn't on the list — nothing to revoke
       }
       try {
         await api!.poke({
@@ -1678,7 +1680,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // early-returning on the absent ship.
         effectiveDmAllowlist = [...effectiveDmAllowlist, normalizedShip];
         runtime.error?.(`[tlon] Failed to update dmAllowlist: ${String(err)}`);
+        return false;
       }
+      return true;
     }
 
     // Helper to update channelRules in settings store
@@ -2122,6 +2126,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           // The record is the invite's suppression, so dropping it after a
           // failed block re-queues and re-DMs on the next observation.
           return `Could not block ${approval.requestingShip}: block failed. Request stays pending, try again.`;
+        }
+        if (result.outcome === 'revoke-failed') {
+          // The in-memory entry was restored by the helper; the retained
+          // record is what lets a retry re-attempt the settings write.
+          return `Blocked ${approval.requestingShip}, but could not revoke its DM access. Request stays pending, try again.`;
         }
         if (result.outcome === 'decline-failed') {
           capturePluginError('group_invite_decline', result.error, {

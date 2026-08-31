@@ -95,9 +95,9 @@ failing join would otherwise retry at %groups' own error-emission rate.
 Catch-up rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
 declines the invite on the ship (`%groups` `invite-decline`), and banning the
 inviter blocks the ship, revokes its DM grant, and then declines the same way —
-in both cases a decline the client could not submit keeps the request pending
-(a poke resolves on the channel PUT alone, so a later `%groups` nack is
-log-only and does not retain the record).
+a block, DM-revocation write, or decline the client could not submit keeps the
+request pending (a poke resolves on the channel PUT alone, so a later `%groups`
+nack is log-only and does not retain the record).
 
 **Why This Matters:**
 Malicious actors could invite the bot to groups containing:

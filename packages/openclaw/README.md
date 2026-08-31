@@ -119,7 +119,7 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 
 -   **approve**: Allow the interaction and add to allowlist. Original message is processed.
 -   **deny**: Reject silently. Ship can try again later. For a group invite this also declines the invite on the ship.
--   **block**: Permanently block using Tlon's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block or a decline the client could not submit keeps the request pending so you can retry.
+-   **block**: Permanently block using Tlon's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block, `dmAllowlist` write, or decline the client could not submit keeps the request pending so you can retry.
 
 ### Admin Commands
 

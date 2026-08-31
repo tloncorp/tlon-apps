@@ -2169,10 +2169,11 @@ class TlonAdapter(BasePlatformAdapter):
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
         )
 
-    async def _remove_from_dm_allowlist(self, ship: str) -> None:
+    async def _remove_from_dm_allowlist(self, ship: str) -> bool:
+        """Revoke the DM grant; False when the settings write failed."""
         ship = normalize_ship(ship)
         if ship not in self._settings_dm_allowlist:
-            return
+            return True
         self._settings_dm_allowlist.discard(ship)
         persisted = await self._persist_settings_entry(
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
@@ -2182,6 +2183,8 @@ class TlonAdapter(BasePlatformAdapter):
             # restoring the entry keeps a retried /ban re-attempting the write
             # instead of early-returning on the absent ship.
             self._settings_dm_allowlist.add(ship)
+            return False
+        return True
 
     async def _handle_approval_command(
         self,
@@ -2296,7 +2299,15 @@ class TlonAdapter(BasePlatformAdapter):
             # Ahead of the decline: a block-OK/decline-failed partial ban keeps
             # the record for a retry, and until that retry lands the DM grant
             # would be a live authorization the owner believes is gone.
-            await self._remove_from_dm_allowlist(ship)
+            revoked = await self._remove_from_dm_allowlist(ship)
+            if not revoked and approval_type(approval) == "group":
+                # Completing anyway would drop the only record through which a
+                # retry can re-attempt the failed revocation write; dm/channel
+                # bans stay best-effort like their block leg.
+                return (
+                    f"Blocked {ship}, but could not revoke DM access. "
+                    "Request stays pending."
+                )
             if approval_type(approval) == "group":
                 # A ban must also decline the invite: the inviter may have been
                 # allowlisted since the request queued, and auto-accept does not

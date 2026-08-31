@@ -473,8 +473,11 @@ export function mergeApprovalDeliveryState(
 export type BanActionDeps = {
   /** False on submission failure (see blockShip). */
   blockShip: (ship: string) => Promise<boolean>;
-  /** Persists the revocation. */
-  removeFromDmAllowlist: (ship: string) => Promise<void>;
+  /**
+   * Persists the revocation; false when the write failed (the caller's
+   * in-memory entry is restored so a retry can re-attempt it).
+   */
+  removeFromDmAllowlist: (ship: string) => Promise<boolean>;
   /**
    * Rejects on *submission* failure only: the poke resolves from the channel
    * PUT's status and a later %groups nack is log-only, so this carries no
@@ -486,6 +489,7 @@ export type BanActionDeps = {
 export type BanActionResult =
   | { outcome: 'done' }
   | { outcome: 'block-failed' }
+  | { outcome: 'revoke-failed' }
   | { outcome: 'decline-failed'; error: unknown };
 
 /**
@@ -506,7 +510,13 @@ export async function runBanAction(
   if (!blocked && approval.type === 'group') {
     return { outcome: 'block-failed' };
   }
-  await deps.removeFromDmAllowlist(approval.requestingShip);
+  const revoked = await deps.removeFromDmAllowlist(approval.requestingShip);
+  if (!revoked && approval.type === 'group') {
+    // Completing anyway would drop the only record through which a retry can
+    // re-attempt the failed revocation write; dm/channel bans stay best-effort
+    // like their block leg.
+    return { outcome: 'revoke-failed' };
+  }
   if (approval.type === 'group' && approval.groupFlag) {
     try {
       await deps.declineInvite(approval.groupFlag);

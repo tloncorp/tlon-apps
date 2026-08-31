@@ -1456,6 +1456,46 @@ class AdapterApprovalTests(unittest.TestCase):
             ("groups", "reject-invite", "~host/projects"), adapter._cli.commands
         )
 
+    def test_group_ban_with_failed_revocation_keeps_request_pending(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        adapter._settings_dm_allowlist = {"~ten"}
+        working_poke = adapter._sse.poke
+
+        async def failing_allowlist_write(app, mark, json_payload):
+            entry = (json_payload or {}).get("put-entry", {})
+            if entry.get("entry-key") == "dmAllowlist":
+                raise ConnectionError("settings poke failed")
+            return await working_poke(app, mark, json_payload)
+
+        adapter._sse.poke = failing_allowlist_write
+
+        self.dispatches(
+            adapter, dm_event(f"/ban {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        # The revocation write failed: the entry is restored, the decline was
+        # never attempted, and the record stays for a retry.
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertIn("could not revoke DM access", adapter._cli.messages[-1][1])
+        self.assertIn("~ten", adapter._settings_dm_allowlist)
+        self.assertNotIn(
+            ("groups", "reject-invite", "~host/projects"), adapter._cli.commands
+        )
+
+        # The retry re-attempts the write, then declines and clears the record.
+        adapter._sse.poke = working_poke
+        self.dispatches(
+            adapter,
+            dm_event(f"/ban {request_id}", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._settings_dm_allowlist, set())
+        self.assertEqual(adapter._sse.settings_writes("dmAllowlist")[-1], [])
+
     def test_group_ban_with_failed_decline_keeps_request_pending(self):
         adapter = self.make_adapter()
         asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))

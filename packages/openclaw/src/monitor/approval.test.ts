@@ -1498,6 +1498,7 @@ describe('runBanAction', () => {
       }),
       removeFromDmAllowlist: vi.fn(async () => {
         calls.push('removeFromDmAllowlist');
+        return true;
       }),
       declineInvite: vi.fn(async () => {
         calls.push('decline');
@@ -1527,6 +1528,29 @@ describe('runBanAction', () => {
     expect(result).toEqual({ outcome: 'block-failed' });
     expect(deps.removeFromDmAllowlist).not.toHaveBeenCalled();
     expect(deps.declineInvite).not.toHaveBeenCalled();
+  });
+
+  it('keeps a group ban pending when the revocation write fails', async () => {
+    const { deps } = makeDeps({
+      removeFromDmAllowlist: vi.fn(async () => false),
+    });
+
+    const result = await runBanAction(approval(), deps);
+
+    // Completing would drop the only record through which a retry can
+    // re-attempt the failed settings write (the helper restored the entry).
+    expect(result).toEqual({ outcome: 'revoke-failed' });
+    expect(deps.declineInvite).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a failed revocation for a dm ban (best-effort, like its block leg)', async () => {
+    const { deps } = makeDeps({
+      removeFromDmAllowlist: vi.fn(async () => false),
+    });
+
+    const result = await runBanAction(approval({ type: 'dm' }), deps);
+
+    expect(result).toEqual({ outcome: 'done' });
   });
 
   it('has already revoked the DM grant when the decline cannot be submitted', async () => {
