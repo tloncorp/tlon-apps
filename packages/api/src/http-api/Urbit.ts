@@ -139,7 +139,11 @@ export class Urbit {
   /**
    * Custom fetch implementation to use.
    */
-  fetchFn: typeof fetch = (...args) => fetch(...args);
+  // A bare call signature, so the class also checks under runtimes whose
+  // global fetch carries extra properties (bun's adds `preconnect`).
+  fetchFn: (...args: Parameters<typeof fetch>) => Promise<Response> = (
+    ...args
+  ) => fetch(...args);
 
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {

@@ -23,9 +23,7 @@ mkdir -p ./rube/dist
 rm -f "${EXPECTED_OUTPUTS[@]}"
 find ./rube -maxdepth 1 -name 'tsconfig.*.tsbuildinfo' -delete
 
-pnpm exec tsc-files \
-  --project ./tsconfig.rube.json \
-  "${ENTRYPOINTS[@]}"
+pnpm exec tsc --project ./tsconfig.rube.json
 
 for output in "${EXPECTED_OUTPUTS[@]}"; do
   if [ ! -f "$output" ]; then

@@ -222,7 +222,7 @@ async function waitForReadiness() {
   // Note: __dirname will be rube/dist when compiled, so we need to go up two levels
   const shipManifest = require('../../e2e/shipManifest.json');
   const includeOptional = process.env.INCLUDE_OPTIONAL_SHIPS === 'true';
-  const shipUrls = Object.values(shipManifest)
+  const shipUrls = (Object.values(shipManifest) as Ship[])
     .filter((ship: Ship) => {
       // Skip if marked as skipSetup
       if (ship.skipSetup) return false;

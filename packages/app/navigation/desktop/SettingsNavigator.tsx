@@ -8,6 +8,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform } from 'react-native';
 
+import { SettingsDrawerParamList } from '../types';
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
 import { BotApiKeySettingsScreen } from '../../features/settings/BotApiKeySettingsScreen';
@@ -35,7 +36,7 @@ import {
   useHasExpectedBotDm,
 } from '../../utils/botSettings';
 
-const SettingsDrawer = createDrawerNavigator();
+const SettingsDrawer = createDrawerNavigator<SettingsDrawerParamList>();
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const { navigate } = props.navigation;

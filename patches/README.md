@@ -342,3 +342,34 @@ intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated
 so that change is unnecessary here and the lazy-host fix alone restores paste.
 Android image paste is a separate, still-open limitation (the context-menu path
 only reads `item.uri`) and is not patched here.
+
+## @tamagui/build@2.4.2
+
+Local patch:
+- `patches/@tamagui__build@2.4.2.patch`
+
+Why:
+`packages/ui` builds with `tamagui-build --skip-types`. TypeScript 7 (the native
+compiler) ships no `ts.sys`, but `tamagui-build.js` builds a module-level
+`formatHost` that reads `ts.sys.getCurrentDirectory` and `ts.sys.newLine` as the
+file loads. That throws `Cannot read properties of undefined (reading
+'getCurrentDirectory')` before `--skip-types` is even considered, so
+`pnpm build:packages` cannot get past `@tloncorp/ui`.
+
+What it does:
+Guards both reads with optional chaining and a fallback (`process.cwd()` and
+`'\n'`). `formatHost` is only consumed by `reportDiagnostics`, which
+`--skip-types` never reaches, so this restores the JS-only build without
+changing behavior when `ts.sys` is present.
+
+Upstream:
+- fix submitted: [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+- still present in `@tamagui/build@2.7.7`, the latest release at time of writing
+
+Validation:
+- `pnpm build:packages` completes, emitting `packages/ui/dist`
+
+Removal:
+Remove once [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+(or an equivalent guard) ships in a released `@tamagui/build`.
+

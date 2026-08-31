@@ -56,7 +56,7 @@ export interface FetchEventSourceInit extends RequestInit {
   openWhenHidden?: boolean;
 
   /** The Fetch function to use. Defaults to window.fetch */
-  fetch?: typeof fetch;
+  fetch?: (...args: Parameters<typeof fetch>) => Promise<Response>;
 
   /** How many millisedonds to wait for bytes before timing out */
   responseTimeout?: number;

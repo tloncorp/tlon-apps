@@ -3,19 +3,21 @@ import { IpcRendererEvent, contextBridge, ipcRenderer } from 'electron';
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld('electronAPI', {
-  setUrbitShip: (shipUrl) => ipcRenderer.invoke('set-urbit-ship', shipUrl),
+  setUrbitShip: (shipUrl: string) =>
+    ipcRenderer.invoke('set-urbit-ship', shipUrl),
   getVersion: () => ipcRenderer.invoke('get-version'),
-  loginToShip: (shipUrl, accessCode) =>
+  loginToShip: (shipUrl: string, accessCode: string) =>
     ipcRenderer.invoke('login-to-ship', { shipUrl, accessCode }),
 
-  storeAuthInfo: (authInfo) => ipcRenderer.invoke('store-auth-info', authInfo),
+  storeAuthInfo: (authInfo: unknown) =>
+    ipcRenderer.invoke('store-auth-info', authInfo),
   getAuthInfo: () => ipcRenderer.invoke('get-auth-info'),
   clearAuthInfo: () => ipcRenderer.invoke('clear-auth-info'),
 
   // Notification functions
-  showNotification: (options) =>
+  showNotification: (options: unknown) =>
     ipcRenderer.invoke('show-notification', options),
-  onNotificationClicked: (callback) => {
+  onNotificationClicked: (callback: (data: unknown) => void) => {
     const handler = (_event: IpcRendererEvent, data: any) => callback(data);
     ipcRenderer.on('notification-clicked', handler);
     return () => {

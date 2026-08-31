@@ -7,7 +7,7 @@ import { Portal, View, YStack } from 'tamagui';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { useIsWindowNarrow } from '../Emoji';
 import SlashCommandPopup, {
-  type SlashCommandPopupRef,
+  type SlashCommandController,
 } from '../SlashCommandPopup';
 
 function InputSlashCommandPopupInternal(
@@ -29,7 +29,7 @@ function InputSlashCommandPopupInternal(
     onSelectSlashCommand: (option: SlashCommandOption) => void;
     onDismiss?: () => void;
   }>,
-  ref: SlashCommandPopupRef
+  ref: React.ForwardedRef<SlashCommandController>
 ) {
   const isNarrow = useIsWindowNarrow();
   const insets = useSafeAreaInsets();

@@ -23,7 +23,10 @@ import { Controller, useForm } from 'react-hook-form';
 import { useOnboardingHelpers } from '../../hooks/useOnboardingHelpers';
 import type { OnboardingStackParamList } from '../../types';
 
-type Props = NativeStackScreenProps<OnboardingStackParamList, 'TlonLogin'>;
+type Props = NativeStackScreenProps<
+  OnboardingStackParamList,
+  'TlonLoginLegacy'
+>;
 
 type FormData = {
   email: string;
