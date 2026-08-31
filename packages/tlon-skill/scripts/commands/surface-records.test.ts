@@ -710,4 +710,144 @@ describe('surface snapshot — repairing a pending migration', () => {
     ).toBe(1);
     expect(harness.json().code).toBe('usage');
   });
+
+  /**
+   * The repair reconstructs the previous revision's fold, so it inherits that
+   * fold's aborted entries — and freezing a prefix is exactly as destructive
+   * here as on the ordinary path. The channel really is stranded, so the
+   * refusal has to leave a way through, and it is the same named flag.
+   */
+  it('refuses to repair over an aborted fold, and takes the same flag', async () => {
+    const harness = setup();
+    addMirror(harness, spec());
+    addEvent(
+      harness,
+      hostEvent([
+        { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+        { op: 'set', path: '/bringing/~0ten', value: 'pie' },
+      ])
+    );
+    const revised = spec({ specRevision: 2, preserveState: true });
+    addMirror(harness, revised);
+    harness.ship.setChannelSpec(CHANNEL, revised);
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const refused = harness.json();
+    expect(refused.code).toBe('usage');
+    expect(String(refused.message)).toContain('--allow-aborted-events');
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(0);
+
+    expect(
+      await run(
+        ['snapshot', CHANNEL, '--allow-aborted-events', '--json'],
+        harness.deps
+      )
+    ).toBe(0);
+    const allowed = harness.json();
+    expect(allowed.repairedMigration).toBe(true);
+    expect(allowed.abortedEventCount).toBe(1);
+  });
+});
+
+/**
+ * An entry that stopped early is a host's own failed write: state refused one
+ * of its ops, so every op after that one never applied and the state is that
+ * entry's partial prefix. Two things follow, and the reducer supplies neither.
+ *
+ * It has to be VISIBLE — a host that is told "folded 1, skipped 0" over a
+ * half-applied entry has been told the write succeeded.
+ *
+ * And it must not be CHECKPOINTED by accident. A snapshot pairs the prefix
+ * with a boundary that covers the aborted entry, so every later fold starts
+ * above it: the entry is finalized as history that succeeded, and both the
+ * lost ops and the fact that they were lost are gone for good.
+ */
+describe('surface — an entry that stopped early', () => {
+  /**
+   * `/bringing/~0zod` holds the string "bread", so writing through it is a
+   * `structure` refusal — state cannot take the write, whatever the reducer
+   * does about malformed ops. The second op is the one that proves the abort:
+   * it is perfectly good, and it does not apply.
+   */
+  function abortedHarness() {
+    const harness = setup();
+    addEvent(
+      harness,
+      hostEvent([
+        { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+        { op: 'set', path: '/bringing/~0ten', value: 'pie' },
+      ])
+    );
+    return harness;
+  }
+
+  it('reports the count rather than folding it into a success', async () => {
+    const harness = abortedHarness();
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const result = harness.json();
+    // The premise: the entry really did stop at its first op.
+    expect(result.state).toEqual({ bringing: { '~zod': 'bread' } });
+    expect(result.foldedEventCount).toBe(1);
+    expect(result.skippedEventCount).toBe(0);
+    expect(result.abortedEventCount).toBe(1);
+  });
+
+  it('says so in the plain report as well as the JSON one', async () => {
+    const harness = abortedHarness();
+    expect(await run(['state', CHANNEL], harness.deps)).toBe(0);
+    expect(harness.out()).toContain('1 entry stopped early');
+  });
+
+  it('refuses to snapshot over it, and says how to proceed', async () => {
+    const harness = abortedHarness();
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('usage');
+    expect(String(result.message)).toContain('--allow-aborted-events');
+    expect((result.details as Record<string, unknown>).abortedEventCount).toBe(
+      1
+    );
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(1);
+  });
+
+  it('finalizes the prefix only when the flag says to, and says it did', async () => {
+    const harness = abortedHarness();
+    expect(
+      await run(
+        ['snapshot', CHANNEL, '--allow-aborted-events', '--json'],
+        harness.deps
+      )
+    ).toBe(0);
+    const result = harness.json();
+    expect(result.abortedEventCount).toBe(1);
+
+    const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
+      (post) => post.kind === '/chat/surface/snapshot'
+    );
+    expect(JSON.parse(posted?.blob ?? '[]')[0].state).toEqual({
+      bringing: { '~zod': 'bread' },
+    });
+
+    // And this is what the refusal is protecting against: from here on the
+    // failed entry is under the boundary, so no fold ever reaches it again
+    // and nothing reports that anything went wrong.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const after = harness.json();
+    expect(after.baseSnapshotSeq).toBe(1);
+    expect(after.abortedEventCount).toBe(0);
+  });
+
+  it('leaves a clean fold alone', async () => {
+    const harness = setup();
+    addEvent(
+      harness,
+      hostEvent([{ op: 'set', path: '/bringing/~0ten', value: 'pie' }])
+    );
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().abortedEventCount).toBe(0);
+  });
 });

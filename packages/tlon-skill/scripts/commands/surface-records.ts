@@ -19,7 +19,6 @@ import {
   resolveSurfaceChannel,
   retractSurfacePost,
 } from './surface-writer';
-import { newestSequenceNum } from './surface-publish';
 
 export const SURFACE_EVENT_HELP = `Usage: tlon surface event <channel> [ops...] [--json]
        tlon surface event <channel> --retract <post-id> [--json]
@@ -61,6 +60,9 @@ Options:
   --json           Emit a machine-readable result
   -h, --help       Show this help`;
 
+/** The one spelling of the escape hatch: parser, help text and refusal. */
+export const ALLOW_ABORTED_FLAG = '--allow-aborted-events';
+
 export const SURFACE_SNAPSHOT_HELP = `Usage: tlon surface snapshot <channel> [--up-to <n>] [--json]
        tlon surface snapshot <channel> --retract <post-id> [--json]
 
@@ -81,6 +83,12 @@ Options:
                        boundary is derived). State is folded from the events
                        at or below it, so everything above stays replayable
                        — and retractable.
+  ${ALLOW_ABORTED_FLAG}
+                       Snapshot even though an entry in the fold stopped
+                       early. Its state is that entry's partial prefix, and
+                       the boundary covers the entry, so the failed write is
+                       finalized as history — check \`tlon surface state\`
+                       first and re-post what was lost
   --fallback <text>    Text pre-surface clients see
   --retract <post-id>  Retract a snapshot by editing it
   --json               Emit a machine-readable result
@@ -432,6 +440,11 @@ export async function runSurfaceState(
       stateFull: reduction.stateFull,
       foldedEventCount: reduction.foldedEventCount,
       skippedEventCount: reduction.skippedEventCount,
+      // An aborted entry is a host's own write that half-landed, and it is
+      // invisible in every other number here: it counts as folded, it is not
+      // skipped, and only a `state-cap` refusal raises `stateFull`. Reporting
+      // the fold without it tells a host its last update succeeded.
+      abortedEventCount: reduction.abortedEventCount,
       posts: hydrated.posts.length,
     },
     lines: [
@@ -443,6 +456,13 @@ export async function runSurfaceState(
           ? 'the starting state'
           : `snapshot at sequence ${reduction.baseSnapshotSeq}`
       }`,
+      ...(reduction.abortedEventCount > 0
+        ? [
+            `  ${reduction.abortedEventCount} entr${
+              reduction.abortedEventCount === 1 ? 'y' : 'ies'
+            } stopped early: state refused an op, so the ops written after it never applied`,
+          ]
+        : []),
       ...(reduction.stateFull
         ? ['  the state cap was hit; some ops were refused']
         : []),
@@ -464,7 +484,7 @@ export async function runSurfaceSnapshot(
     args,
     {
       value: ['--up-to', '--fallback', '--retract', '--max-posts'],
-      boolean: ['--json'],
+      boolean: ['--json', ALLOW_ABORTED_FLAG],
     },
     SURFACE_SNAPSHOT_HELP
   );
@@ -545,7 +565,15 @@ export async function runSurfaceSnapshot(
         SURFACE_SNAPSHOT_HELP
       );
     }
-    const repair = repairPendingMigration(deps, resolved, spec, hydrated.posts);
+    const repair = repairPendingMigration(
+      deps,
+      resolved,
+      spec,
+      hydrated.posts,
+      {
+        allowAborted: parsed.flags.has(ALLOW_ABORTED_FLAG),
+      }
+    );
     const entry = {
       type: 'surface-snapshot',
       version: 1,
@@ -580,6 +608,7 @@ export async function runSurfaceSnapshot(
           specRevision: spec.specRevision,
           upToSequenceNum: repair.upToSequenceNum,
           carriedFromRevision: repair.fromRevision,
+          abortedEventCount: repair.abortedEventCount,
           observed:
             'the snapshot was read back from the channel with its surface kind intact',
         },
@@ -656,6 +685,12 @@ export async function runSurfaceSnapshot(
     folded = bounded;
   }
 
+  assertNoAbortedEntries(folded, {
+    channel: channelId,
+    specRevision: spec.specRevision,
+    allowed: parsed.flags.has(ALLOW_ABORTED_FLAG),
+  });
+
   const entry = {
     type: 'surface-snapshot',
     version: 1,
@@ -691,6 +726,7 @@ export async function runSurfaceSnapshot(
         specRevision: spec.specRevision,
         upToSequenceNum,
         foldedEventCount: folded.foldedEventCount,
+        abortedEventCount: folded.abortedEventCount,
         observed:
           'the snapshot was read back from the channel with its surface kind intact',
       },
@@ -710,12 +746,84 @@ export async function runSurfaceSnapshot(
 /* Migration repair                                                    */
 /* ------------------------------------------------------------------ */
 
-interface MigrationRepair {
+export interface MigrationRepair {
   state: Record<string, unknown>;
   /** the boundary the reconstructed state actually covers */
   upToSequenceNum: number;
   /** the revision the state was carried from, or null when there was none */
   fromRevision: number | null;
+  /** entries in the carried fold that stopped early (§7) */
+  abortedEventCount: number;
+}
+
+export interface MigrationRepairOptions {
+  /**
+   * Reconstruct from a fold that contains an aborted entry anyway. The caller
+   * owns the escape hatch, because it owns the argument that opens it — and a
+   * caller with no such argument passes `false` and reports the remedy that
+   * does.
+   */
+  allowAborted: boolean;
+  /** what to tell the caller it can do instead of refusing */
+  abortRemedy?: string;
+}
+
+/**
+ * Refuses to write a snapshot over a fold that stopped early.
+ *
+ * An aborted entry leaves state at that entry's PREFIX: the reducer stops at
+ * the refused op, so every op written after it — written on the assumption
+ * that it landed — never applies. A snapshot pairs that prefix with a boundary
+ * that covers the entry, and from then on every fold starts above it. The
+ * entry is finalized as history that succeeded, and both the ops that were
+ * lost and the fact that they were lost are unrecoverable.
+ *
+ * The escape hatch is named for exactly the thing it accepts rather than being
+ * a general `--force`, and this refusal carries the command's own help so the
+ * flag is in front of whoever hit it. A repair loop that retries with every
+ * flag it can find is the failure mode a general one has.
+ */
+function assertNoAbortedEntries(
+  folded: { abortedEventCount: number },
+  context: {
+    channel: string;
+    specRevision: number;
+    allowed: boolean;
+    remedy?: string;
+  }
+): void {
+  const count = folded.abortedEventCount;
+  if (context.allowed || count === 0) return;
+  throw surfaceError(
+    'usage',
+    `${context.channel} folds ${count} ${
+      count === 1 ? 'entry that stopped' : 'entries that stopped'
+    } early at revision ${context.specRevision}: state refused an op, so the ops written after it never applied and this fold is that entry's partial prefix. A snapshot of it freezes the prefix AND puts the failed ${
+      count === 1 ? 'entry' : 'entries'
+    } under the boundary, where no later fold reaches ${
+      count === 1 ? 'it' : 'them'
+    } again. ${
+      context.remedy ??
+      `Check \`tlon surface state\`, re-post what was lost, or pass ${ALLOW_ABORTED_FLAG} to checkpoint the prefix as it stands.`
+    }`,
+    {
+      channel: context.channel,
+      specRevision: context.specRevision,
+      abortedEventCount: count,
+      help: SURFACE_SNAPSHOT_HELP,
+    }
+  );
+}
+
+/** The greatest sequence number in a post set, or 0 when there is none. */
+export function newestSequenceNum(posts: SurfacePostRecord[]): number {
+  let newest = 0;
+  for (const post of posts) {
+    if (typeof post.sequenceNum === 'number' && post.sequenceNum > newest) {
+      newest = post.sequenceNum;
+    }
+  }
+  return newest;
 }
 
 /**
@@ -741,11 +849,12 @@ interface MigrationRepair {
  *   revision and no earlier-revision events — where it is not a default but
  *   the true answer.
  */
-function repairPendingMigration(
+export function repairPendingMigration(
   deps: SurfaceDeps,
   resolved: { channelId: string; hostShip: string },
   spec: SurfaceSpec,
-  posts: SurfacePostRecord[]
+  posts: SurfacePostRecord[],
+  options: MigrationRepairOptions
 ): MigrationRepair {
   const { channelId, hostShip } = resolved;
   const host = deps.normalizeShip(hostShip);
@@ -773,6 +882,7 @@ function repairPendingMigration(
       state: spec.initialState as Record<string, unknown>,
       upToSequenceNum: 0,
       fromRevision: null,
+      abortedEventCount: 0,
     };
   }
 
@@ -789,6 +899,17 @@ function repairPendingMigration(
     );
   }
 
+  // The carried fold inherits the previous revision's aborted entries, and
+  // freezing a partial prefix is exactly as destructive here as on the
+  // ordinary path — more so, because those entries are tagged with a revision
+  // that no longer folds, so nobody can re-post them.
+  assertNoAbortedEntries(carried, {
+    channel: channelId,
+    specRevision: spec.specRevision,
+    allowed: options.allowAborted,
+    remedy: options.abortRemedy,
+  });
+
   // The boundary is what the carried state actually covers, NOT the newest
   // post. Events already written at the current revision sit above it and go
   // on folding; a boundary at the newest post would freeze them out silently.
@@ -796,6 +917,7 @@ function repairPendingMigration(
     state: carried.state as Record<string, unknown>,
     upToSequenceNum: carried.newestFoldedSeq ?? 0,
     fromRevision: previous.specRevision,
+    abortedEventCount: carried.abortedEventCount,
   };
 }
 
@@ -847,6 +969,35 @@ function newestHostMirrorBelow(
     }
   }
   return best;
+}
+
+/**
+ * Whether the channel holds any state-bearing record for a surface.
+ *
+ * The sibling below asks the same question of a channel whose definition can
+ * be READ, so it can compare revisions. This one is for the case where it
+ * cannot: any event or snapshot naming this surface was written under a
+ * definition that is gone, so there is state behind it and no way to fold it.
+ *
+ * Retracted records do not count. An edited surface post contributes nothing
+ * to any fold, so there is no state behind it to guess at — refusing on one
+ * would refuse a channel whose surface history has already been withdrawn.
+ */
+export function hasSurfaceStateRecords(
+  posts: SurfacePostRecord[],
+  surfaceId: unknown
+): boolean {
+  return posts.some(
+    (post) =>
+      !post.isDeleted &&
+      !post.isEdited &&
+      blobEntries(post.blob).some(
+        (entry) =>
+          (entry.type === 'surface-event' ||
+            entry.type === 'surface-snapshot') &&
+          entry.surfaceId === surfaceId
+      )
+  );
 }
 
 /** Any surface event tagged with a revision older than the current one. */

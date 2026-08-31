@@ -616,15 +616,42 @@ describe('surface publish — preserving state', () => {
   });
 
   it('refuses when the definition it would migrate from is itself pending', async () => {
-    const harness = withHistory();
-    await publish(harness, ['--preserve-state']);
-    // The revision-1 snapshot exists; retract it by hand so the surface is
+    // Revision 1 lands first: this test is about migrating off a PENDING
+    // revision, so the definition being migrated from has to be one the
+    // command can read. (It used to reach this through a preserving first
+    // publish over an unreadable definition — the case immediately below,
+    // which now refuses for a different reason and would have made this
+    // assertion pass without ever exercising what it names.)
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/event',
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: 'srf-potluck',
+          specRevision: 1,
+          mode: 'host',
+          ops: [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }],
+        },
+      ]),
+    });
+
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck v2' }))
+    );
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+
+    // The revision-2 snapshot exists; retract it by hand so the surface is
     // migration-pending, then try to migrate off it.
-    const posts = harness.ship.posts.get(CHANNEL) ?? [];
-    const snapshotPost = posts.find(
+    const snapshotPost = (harness.ship.posts.get(CHANNEL) ?? []).find(
       (post) => post.kind === '/chat/surface/snapshot'
     );
-    if (snapshotPost) snapshotPost.isEdited = true;
+    expect(snapshotPost).toBeDefined();
+    snapshotPost!.isEdited = true;
 
     harness.ship.files.set(
       SPEC_PATH,
@@ -632,5 +659,323 @@ describe('surface publish — preserving state', () => {
     );
     expect(await publish(harness, ['--preserve-state'])).toBe(1);
     expect(harness.json().code).toBe('migration-pending');
+  });
+});
+
+/**
+ * A preserving publish over a channel whose definition cannot be read.
+ *
+ * There is nothing to fold the channel's existing events under — that is what
+ * "no readable definition" means — so there is no state to carry across, and
+ * the two answers that do not involve reading one are both wrong. Freezing
+ * (pair `initialState` with the newest sequence) tells every later fold that
+ * the events below it are already incorporated, and they are not: they are
+ * gone, unreplayable and unretractable. Replaying (pair `initialState` with
+ * boundary 0) runs events written for one definition against a different one.
+ *
+ * `surface snapshot`'s repair path already refuses precisely this — "the
+ * channel holds events from an earlier revision but no mirror of that revision
+ * to fold them under. Reconstructing the state would mean guessing at it" —
+ * and the two paths facing the same situation must not disagree.
+ */
+describe('surface publish — preserving over a definition it cannot read', () => {
+  function hostEventBlob(sequenceTag = 1) {
+    return JSON.stringify([
+      {
+        type: 'surface-event',
+        version: 1,
+        surfaceId: 'srf-potluck',
+        specRevision: sequenceTag,
+        mode: 'host',
+        ops: [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }],
+      },
+    ]);
+  }
+
+  it('refuses rather than freeze the events it cannot fold', async () => {
+    const harness = setup();
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/event',
+      blob: hostEventBlob(),
+    });
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('migration-pending');
+    expect(String(result.message)).toContain('guessing at it');
+
+    // Nothing moved: no definition was written, and no snapshot claiming to
+    // cover that event was posted.
+    expect(harness.ship.descriptionWrites).toHaveLength(0);
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(1);
+  });
+
+  it('refuses over an existing snapshot it cannot read the definition of', async () => {
+    const harness = setup();
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/snapshot',
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: 'srf-potluck',
+          specRevision: 1,
+          upToSequenceNum: 0,
+          state: { bringing: { '~ten': 'pie' } },
+        },
+      ]),
+    });
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    expect(harness.json().code).toBe('migration-pending');
+  });
+
+  it('carries the starting state when there is no surface history at all', async () => {
+    const harness = setup();
+    // Ordinary chat, not surface records: nothing here folds, so the new
+    // definition's own starting point is the true answer rather than a
+    // default — the same answer the repair path gives in the same situation.
+    harness.ship.addPost(CHANNEL, { authorId: '~zod', kind: '/chat' });
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    const snapshot = blobEntries(harness).find(
+      (entry) => (entry as { type?: string }).type === 'surface-snapshot'
+    ) as Record<string, unknown> | undefined;
+    expect(snapshot).toBeDefined();
+    expect(snapshot?.state).toEqual({ bringing: { '~zod': 'bread' } });
+    // The boundary is what the state covers, which is nothing — not the
+    // newest post in the channel. A boundary of 1 would claim the chat post's
+    // sequence, and any surface event that arrived at it would be frozen out.
+    expect(snapshot?.upToSequenceNum).toBe(0);
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().status).toBe('reduced');
+  });
+
+  it('does not count a retracted record as history it must fold', async () => {
+    const harness = setup();
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/event',
+      blob: hostEventBlob(),
+      isEdited: true,
+    });
+
+    // An edited surface post is retracted: every reducer drops it, so there
+    // is no folded state behind it to guess at and no reason to refuse.
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    const snapshot = blobEntries(harness).find(
+      (entry) => (entry as { type?: string }).type === 'surface-snapshot'
+    ) as Record<string, unknown> | undefined;
+    expect(snapshot?.state).toEqual({ bringing: { '~zod': 'bread' } });
+    expect(snapshot?.upToSequenceNum).toBe(0);
+  });
+});
+
+/**
+ * The description write is not transactional with the posts that follow it, so
+ * a preserving publish can land its definition and its mirror and then fail
+ * before the migration snapshot — a crash, a dropped connection, a rejected
+ * poke, anything at all. What that leaves is a channel on a preserving
+ * revision with no snapshot at it: `surface state` says `migration-pending`
+ * and shows no state, and every client renders the same.
+ *
+ * The exact retry an automated caller makes next used to take the
+ * byte-identical no-op path, which runs BEFORE anything checks the channel's
+ * health, and report `{ok: true, changed: false, outcome: "no-op"}`. The loop
+ * reads success and stops, on a dashboard nobody can use.
+ */
+describe('surface publish — an exact retry over a stranded channel', () => {
+  function withEvent(
+    harness: ReturnType<typeof setup>,
+    ops: unknown[] = [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }]
+  ) {
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/event',
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: 'srf-potluck',
+          specRevision: 1,
+          mode: 'host',
+          ops,
+        },
+      ]),
+    });
+  }
+
+  /** Revision 2 published and mirrored; its migration snapshot never landed. */
+  async function stranded(ops?: unknown[]) {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    withEvent(harness, ops);
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck v2' }))
+    );
+
+    // The poke for the snapshot resolves and nothing lands — the D50 shape,
+    // and the same thing a crash between the two writes leaves behind.
+    const send = harness.deps.sendSurfacePost;
+    harness.deps.sendSurfacePost = async (input) => {
+      if (input.kindTail === 'surface/snapshot') return;
+      return send(input);
+    };
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    expect(harness.json().code).toBe('post-unconfirmed');
+    harness.deps.sendSurfacePost = send;
+
+    // The premise: the definition moved, the mirror landed, and the channel
+    // is unusable.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().status).toBe('migration-pending');
+    return harness;
+  }
+
+  /**
+   * A channel whose history cannot be paged back to its start: the newest
+   * page comes back, and every page after it is empty while still claiming
+   * there is more.
+   */
+  function truncateHistory(harness: ReturnType<typeof setup>) {
+    const readPage = harness.deps.readPostPage;
+    harness.deps.readPostPage = async (input) => {
+      const page = await readPage(input);
+      if (input.mode === 'newest') {
+        return { ...page, posts: page.posts.slice(0, 1), older: 'truncated' };
+      }
+      return { posts: [], older: 'truncated', totalPosts: page.totalPosts };
+    };
+  }
+
+  it('posts the missing snapshot instead of reporting success over it', async () => {
+    const harness = await stranded();
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    const result = harness.json();
+    expect(result.outcome).toBe('migration-repaired');
+    expect(result.changed).toBe(false);
+    expect(result.specRevision).toBe(2);
+    const snapshot = result.snapshot as Record<string, unknown> | null;
+    expect(snapshot).not.toBeNull();
+    expect(snapshot?.carriedFromRevision).toBe(1);
+
+    // And the channel is live again, holding what revision 1 folded to.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const after = harness.json();
+    expect(after.status).toBe('reduced');
+    expect(after.specRevision).toBe(2);
+    expect(after.state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie' },
+    });
+  });
+
+  it('leaves a healthy channel an ordinary no-op', async () => {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    withEvent(harness);
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck v2' }))
+    );
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    const posts = (harness.ship.posts.get(CHANNEL) ?? []).length;
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    const result = harness.json();
+    expect(result.outcome).toBe('no-op');
+    // A second snapshot at the same revision is not a repair, it is noise the
+    // fold has to arbitrate.
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(posts);
+    expect(harness.ship.descriptionWrites).toHaveLength(2);
+  });
+
+  it('is still a plain no-op when the revision preserves nothing', async () => {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    const posts = (harness.ship.posts.get(CHANNEL) ?? []).length;
+
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().outcome).toBe('no-op');
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(posts);
+  });
+
+  it('refuses the repair from anyone but the channel host', async () => {
+    const harness = await stranded();
+    // Only the host's snapshot is honoured by the fold, so a repair from
+    // anyone else would report a fix that no client will ever see.
+    harness.deps.actingShip = () => '~ten';
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('migration-pending');
+    expect(String(result.message)).toContain('only its host ~zod');
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('refuses when the history it would fold cannot be read to its start', async () => {
+    const harness = await stranded();
+    // A repair folded over a truncated history freezes the wrong state
+    // permanently — and "no-op, all is well" over a channel that may be
+    // stranded is the claim this whole path exists to stop making.
+    truncateHistory(harness);
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    expect(harness.json().code).toBe('partial-hydration');
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('refuses to finalize an aborted entry, and names the command that can', async () => {
+    // The state being carried across would be the partial prefix of an entry
+    // that stopped early, so this repair would freeze the prefix and put the
+    // failed entry under the boundary. Publish has no flag to accept that
+    // with, so it refuses and names the command that does rather than deciding
+    // on the host's behalf.
+    const harness = await stranded([
+      { op: 'set', path: '/bringing/~0zod/loaf', value: 'sourdough' },
+      { op: 'set', path: '/bringing/~0ten', value: 'pie' },
+    ]);
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('usage');
+    expect(String(result.message)).toContain(
+      `tlon surface snapshot ${CHANNEL} --allow-aborted-events`
+    );
+    expect(
+      (harness.ship.posts.get(CHANNEL) ?? []).filter(
+        (post) => post.kind === '/chat/surface/snapshot'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('still reports a no-op when a short read already proves the channel healthy', async () => {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    withEvent(harness);
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck v2' }))
+    );
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    // A snapshot at the current revision is conclusive wherever it is found,
+    // so a history that cannot be paged to its start is no reason to refuse a
+    // republish of a channel that is demonstrably fine.
+    truncateHistory(harness);
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    expect(harness.json().outcome).toBe('no-op');
   });
 });

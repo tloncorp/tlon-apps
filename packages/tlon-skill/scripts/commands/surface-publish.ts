@@ -1,8 +1,8 @@
 import type { SurfaceSpec } from '@tloncorp/api';
 
 import {
+  type ObservationBudget,
   type SurfaceDeps,
-  type SurfacePostRecord,
   type SurfaceReport,
   assertSnapshotRecordValid,
   canonicalJson,
@@ -16,11 +16,17 @@ import {
   usageSurfaceError,
 } from './surface-common';
 import {
+  type ResolvedSurfaceChannel,
   postSurfaceRecord,
   hydratePosts,
   readChannelSpec,
   resolveSurfaceChannel,
 } from './surface-writer';
+import {
+  hasSurfaceStateRecords,
+  newestSequenceNum,
+  repairPendingMigration,
+} from './surface-records';
 
 export const SURFACE_PUBLISH_HELP = `Usage: tlon surface publish <channel> --bundle <path> --spec <path> [options]
 
@@ -127,16 +133,6 @@ export function decideRevision(
  */
 export function bundleFileName(sha256: string): string {
   return `${sha256}.js`;
-}
-
-export function newestSequenceNum(posts: SurfacePostRecord[]): number {
-  let newest = 0;
-  for (const post of posts) {
-    if (typeof post.sequenceNum === 'number' && post.sequenceNum > newest) {
-      newest = post.sequenceNum;
-    }
-  }
-  return newest;
 }
 
 interface SpecFileFields {
@@ -350,30 +346,56 @@ export async function runSurfacePublish(
     // skip (the caller is told exactly what it republished and what the
     // channel still holds), so a repair loop can tell "already published"
     // apart from "published just now".
+    //
+    // Byte-identical content is not the same claim as a usable channel. The
+    // definition write and the posts that follow it are not one transaction,
+    // so any failure between them — a crash, a dropped connection, a poke
+    // `%channels-server` rejected — leaves a preserving revision whose
+    // migration snapshot never landed, and every client renders
+    // migration-pending. The exact retry that follows arrives HERE, ahead of
+    // anything that looks at the channel's health, so reporting `ok` ends an
+    // automated repair loop on a dashboard nobody can use. Finishing the
+    // publish is the answer; what makes that safe to do on a path that
+    // otherwise writes nothing is in `repairMissingMigrationSnapshot`.
+    const repaired =
+      preserveState && current
+        ? await repairMissingMigrationSnapshot(deps, resolved, current, budget)
+        : null;
     const report: SurfaceReport = {
       json: {
         channel: channelId,
         group: resolved.groupId,
         changed: false,
-        outcome: 'no-op',
+        outcome: repaired ? 'migration-repaired' : 'no-op',
         specRevision: decision.revision,
         previousRevision: decision.previousRevision,
         sha256,
         size,
         assetRef,
         uploaded,
-        observed:
-          'the published definition is byte-identical to the one the channel already holds',
+        snapshot: repaired,
+        observed: repaired
+          ? 'the definition was already published; the migration snapshot it was missing was posted and read back'
+          : 'the published definition is byte-identical to the one the channel already holds',
       },
-      lines: [
-        `No change: ${channelId} already holds this exact app.`,
-        `  revision: ${decision.revision} (unchanged)`,
-        `  sha256:   ${sha256}`,
-        `  bundle:   ${assetRef}`,
-        uploaded
-          ? '  bundle re-uploaded on request; the definition was not rewritten'
-          : '  nothing was uploaded, written, or posted',
-      ],
+      lines: repaired
+        ? [
+            `No change to the app, but ${channelId} was missing its migration snapshot at revision ${decision.revision}.`,
+            `  snapshot: post ${repaired.postId} at sequence ${repaired.upToSequenceNum}`,
+            `  carried:  state from revision ${
+              repaired.carriedFromRevision ?? 'the definition itself'
+            }`,
+            '  observed: read back from the channel as a snapshot record',
+          ]
+        : [
+            `No change: ${channelId} already holds this exact app.`,
+            `  revision: ${decision.revision} (unchanged)`,
+            `  sha256:   ${sha256}`,
+            `  bundle:   ${assetRef}`,
+            uploaded
+              ? '  bundle re-uploaded on request; the definition was not rewritten'
+              : '  nothing was uploaded, written, or posted',
+          ],
     };
     return emitReport(deps, report, asJson);
   }
@@ -589,6 +611,96 @@ export async function runSurfacePublish(
   return emitReport(deps, report, asJson);
 }
 
+/**
+ * Finishes a preserving publish that a previous run left half-done.
+ *
+ * Returns null when there is nothing to finish, which is the ordinary case: a
+ * republish over a healthy channel stays the no-op it has always been. It
+ * writes only when the channel is genuinely stranded, and only under the three
+ * conditions that already govern the same repair in `surface snapshot` —
+ * inherited from it rather than re-decided here, because a second answer to
+ * "may this state be reconstructed?" is a second definition of the migration
+ * rules:
+ *
+ * - **The reducer decides that it is stranded.** `migration-pending` is the
+ *   answer every client computes; anything else, and the snapshot is present
+ *   and this path writes nothing.
+ * - **The history must be readable to its start.** A repair folded over a
+ *   truncated history freezes the wrong state permanently. A snapshot FOUND in
+ *   a short read is still conclusive — it is positive evidence, and the state
+ *   it proves healthy is never used here — so incompleteness only refuses when
+ *   the short read is the reason nothing was found.
+ * - **Only the host may repair.** Every reducer ignores a non-host snapshot,
+ *   so a repair from anyone else reports a fix that never happened.
+ * - **No aborted entry may be finalized.** `repairPendingMigration` refuses
+ *   that; this caller has no flag to lift the refusal with, so it names the
+ *   command that does.
+ */
+async function repairMissingMigrationSnapshot(
+  deps: SurfaceDeps,
+  resolved: ResolvedSurfaceChannel,
+  current: SurfaceSpec,
+  budget: ObservationBudget
+): Promise<{
+  postId: string;
+  upToSequenceNum: number;
+  carriedFromRevision: number | null;
+} | null> {
+  const hydrated = await hydratePosts(deps, resolved.channelId);
+  const reduction = deps.reduce({
+    spec: current,
+    hostShip: resolved.hostShip,
+    posts: hydrated.posts,
+  });
+  if (reduction.status !== 'migration-pending') return null;
+  if (!hydrated.complete) {
+    throw surfaceError(
+      'partial-hydration',
+      `${resolved.channelId} holds this exact definition already but has no migration snapshot at revision ${current.specRevision}, and only part of its history could be read — so neither the snapshot's absence nor the state it would carry can be established. Reporting a no-op here would report success over a channel that may be unusable.`,
+      {
+        channel: resolved.channelId,
+        specRevision: current.specRevision,
+        pages: hydrated.pages,
+      }
+    );
+  }
+
+  const repair = repairPendingMigration(
+    deps,
+    resolved,
+    current,
+    hydrated.posts,
+    {
+      allowAborted: false,
+      abortRemedy: `Re-post what was lost, or run \`tlon surface snapshot ${resolved.channelId} --allow-aborted-events\` to checkpoint the prefix as it stands.`,
+    }
+  );
+  const entry = {
+    type: 'surface-snapshot',
+    version: 1,
+    surfaceId: current.surfaceId,
+    specRevision: current.specRevision,
+    upToSequenceNum: repair.upToSequenceNum,
+    state: repair.state,
+  };
+  assertSnapshotRecordValid(deps, entry, {
+    channel: resolved.channelId,
+    specRevision: current.specRevision,
+  });
+  const written = await postSurfaceRecord(deps, {
+    channelId: resolved.channelId,
+    kind: 'snapshot',
+    fallback: 'Restored the dashboard after an update.',
+    entry,
+    budget,
+  });
+  return {
+    postId: written.postId,
+    upToSequenceNum: repair.upToSequenceNum,
+    carriedFromRevision: repair.fromRevision,
+  };
+}
+
 function annotatePublished(
   error: unknown,
   channelId: string,
@@ -691,13 +803,30 @@ async function foldForMigration(
       { channel: resolved.channelId, pages: hydrated.pages }
     );
   }
-  const upToSequenceNum = newestSequenceNum(hydrated.posts);
-
   if (!current) {
-    // Nothing to carry across: the channel had no readable definition, so
-    // the preserved state is the new definition's own starting point. The
-    // snapshot still has to exist, or the surface renders migration-pending
-    // forever.
+    // No readable definition means no way to fold what the channel already
+    // holds, so there is no state to carry across — and both ways of
+    // pretending otherwise destroy something. Pairing `initialState` with the
+    // newest sequence FREEZES the existing events: the reducer treats
+    // everything at or below the boundary as already incorporated, so they are
+    // gone — not folded, not replayable, not even retractable. Pairing it with
+    // boundary 0 replays them instead, against a definition they were never
+    // written for.
+    //
+    // `surface snapshot`'s repair refuses the same situation in the same
+    // words. The two paths facing one situation must not disagree about
+    // whether a state nobody can compute may be reconstructed anyway.
+    if (hasSurfaceStateRecords(hydrated.posts, published.surfaceId)) {
+      throw surfaceError(
+        'migration-pending',
+        `${resolved.channelId} holds surface records but no readable definition to fold them under, so the state --preserve-state would carry across cannot be reconstructed — doing it would mean guessing at it. Republish the definition those records were written for, or publish without --preserve-state to start this revision from its own initial state.`,
+        { channel: resolved.channelId }
+      );
+    }
+    // Nothing has ever folded here, so the new definition's own starting point
+    // is the true answer rather than a default — and it covers no sequence at
+    // all, which is what the boundary has to say. The snapshot still has to
+    // exist, or the surface renders migration-pending forever.
     const initialState = published.initialState;
     return {
       state:
@@ -706,10 +835,11 @@ async function foldForMigration(
         !Array.isArray(initialState)
           ? (initialState as Record<string, unknown>)
           : {},
-      upToSequenceNum,
+      upToSequenceNum: 0,
     };
   }
 
+  const upToSequenceNum = newestSequenceNum(hydrated.posts);
   const reduction = deps.reduce({
     spec: current,
     hostShip: resolved.hostShip,
