@@ -13,7 +13,7 @@ export type GroupRecencyOverride = {
 export function getGroupRecencyOverride(
   chat: db.Chat
 ): GroupRecencyOverride | null {
-  if (chat.type !== 'group' || chat.isPending) {
+  if (chat.type !== 'group' || chat.isPending || chat.pin) {
     return null;
   }
 

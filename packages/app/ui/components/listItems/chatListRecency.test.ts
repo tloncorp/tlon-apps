@@ -63,4 +63,11 @@ describe('getGroupRecencyOverride', () => {
       getGroupRecencyOverride(makeGroupChat({ timestamp: 300 }))
     ).toBeNull();
   });
+
+  test('keeps the post presentation for pinned groups', () => {
+    const chat = makeGroupChat();
+    chat.pin = { itemId: chat.id } as db.Pin;
+
+    expect(getGroupRecencyOverride(chat)).toBeNull();
+  });
 });
