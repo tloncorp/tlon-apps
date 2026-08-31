@@ -71,7 +71,6 @@ onFlowComplete:
 
 # set a nickname
 - assertVisible: Sampel Palnet
-- evalScript: ${output.operationStart = Date.now()}
 - tapOn: Sampel Palnet
 - inputText: E2E Tester
 - assertVisible: Next
@@ -87,6 +86,13 @@ onFlowComplete:
     text: Next
     retryTapIfNoChange: true
 
+# Measure only the time spent waiting for Hosting to ready the node. The
+# notification screens above and the bot interaction below are separate work.
+- extendedWaitUntil:
+    visible: We're setting you up
+    timeout: 30000
+- evalScript: ${output.nodeReadyStartedAt = Date.now()}
+
 # Wait for the deterministic onboarding rail. TLONBOARD deliberately selects
 # ships carrying the current plugin, so fallback bootstrap chatter is a test
 # failure rather than an alternate path.
@@ -94,6 +100,7 @@ onFlowComplete:
     visible:
       id: A2UIChoice-agent-daily-digest
     timeout: 600000
+- evalScript: ${output.initialRailVisibleAt = Date.now()}
 
 # Complete the new on-rails Tlonbot setup conversation.
 - tapOn:
@@ -113,6 +120,7 @@ onFlowComplete:
     visible:
       id: A2UIMcpConnectComplete
     timeout: 600000
+- evalScript: ${output.starterReadyAt = Date.now()}
 - tapOn:
     id: A2UIMcpConnectComplete
 
@@ -147,5 +155,4 @@ onFlowComplete:
 - assertVisible: Open hardware Digest
 - assertVisible: Getting Started
 
-- evalScript: ${output.operationEnd = Date.now()}
 - evalScript: ${output.didComplete = true}
