@@ -4,12 +4,11 @@ import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { LoadingSpinner } from '@tloncorp/ui';
 import React, { useEffect, useRef, useState } from 'react';
-import { View } from 'tamagui';
 
 import { AGENT_SHIP_OVERRIDE } from '../../../../lib/envVars';
 import { getDefaultBotName } from '../botName';
+import { TlonBotSetupPaneView } from '../TlonBotSetupPaneView';
 import { PromiseTimeoutError, withTimeout } from './promiseTimeout';
 
 const logger = createDevLogger('AgentOnboardingSequence', false);
@@ -18,6 +17,10 @@ const wait = (ms: number) =>
 const LANDING_CONSUMPTION_TIMEOUT_MS = 10_000;
 const FURNISH_ATTEMPT_TIMEOUT_MS = 30_000;
 const BOT_NAME_SYNC_TIMEOUT_MS = 8_000;
+const HANDOFF_MESSAGES = [
+  'Your Tlonbot is ready. Finishing the chat setup now.',
+  'Opening your private Tlonbot group.',
+];
 
 async function waitForLandingConsumption(isCancelled: () => boolean) {
   const deadline = Date.now() + LANDING_CONSUMPTION_TIMEOUT_MS;
@@ -287,8 +290,9 @@ export function AgentOnboardingSequence(props: {
   if (useFallback) return <>{props.fallback}</>;
 
   return (
-    <View flex={1} alignItems="center" justifyContent="center">
-      <LoadingSpinner color="$secondaryText" />
-    </View>
+    <TlonBotSetupPaneView
+      title="Opening your Tlonbot chat..."
+      messages={HANDOFF_MESSAGES}
+    />
   );
 }
