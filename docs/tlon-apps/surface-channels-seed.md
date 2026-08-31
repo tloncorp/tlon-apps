@@ -140,6 +140,112 @@ not listed in the group", that ship's channel names are burned — see
 [Known backend traps](#known-backend-traps). Stop and restart
 `./start-playwright-dev.sh`, which nukes ship state, and seed again.
 
+## 2b. Running the bot in the loop (session 6a)
+
+Everything above is a human at a CLI. To put the OpenClaw bot in the same
+loop — the model choosing a template, adapting it, linting, previewing and
+publishing — the bot's dev container has to reach these ships and this
+store. It runs with **`network_mode: host`**, and that is the whole design.
+
+### The topology, and why
+
+The container talks to the fakeships **already running on this host** — the
+piers `./start-playwright-dev.sh` boots and `pnpm seed:surfaces` seeds — at
+the ports pinned in `apps/tlon-web/e2e/shipManifest.json` (`~zod` 35453,
+`~ten` 38473). It does **not** boot its own `ships` service, and
+`docker-compose.surfaces-6a.yml` no longer declares one. Three reasons:
+
+1. **The corpus is here.** Every fixture in §3 lives in the host piers. A
+   `ships` service downloads pristine `rube-*-group-blob` archives with none
+   of it, and no desk fix applied to the host piers reaches them. It also
+   costs ~1 GB of downloads per cold start.
+2. **The store binds loopback and mints loopback.** `startBundleServer`
+   listens on `127.0.0.1` and returns `http://127.0.0.1:<port>/<sha256>.js`
+   as the `assetRef` no matter who PUT to it. That single URL has to resolve
+   for the publishing container, for the ships' web clients and for the
+   browser doing rendered verification. On a bridge network the container
+   gets `ECONNREFUSED` on its own `assetRef`; under host networking all
+   three resolve the same `127.0.0.1`.
+3. **The dev-storage guard stays intact.** §2a's rule — store _and_ ship
+   must both be loopback — is not waived for the container. Under host
+   networking it is simply true: the ship the CLI talks to genuinely is a
+   process on this machine. Reaching the ships as `http://ships:8080` or via
+   `host.docker.internal` would each require loosening that guard, and
+   loosening it is how a stale shell variable follows someone onto a real
+   ship.
+
+The costs, stated plainly. Host networking puts the container in the host's
+network namespace, so 6a's "cannot reach a real ship" property is enforced
+by its env file and **not** by the network. The gateway binds **18789 on the
+host** (`--port 18789` is hardcoded in `dev/entrypoint.sh`), so
+`OPENCLAW_GATEWAY_PORT` no longer applies and 6a cannot run beside a dev
+container holding that port. And this is verified on **OrbStack**, where a
+`--network host` container reaches the macOS host's loopback services;
+Docker Desktop for Mac joins the Linux VM's namespace instead and will not
+see them. On Linux it is native.
+
+### Rebuilding `packages/openclaw/.env.surfaces-6a`
+
+That file is **gitignored** (`packages/openclaw/.gitignore` covers `.env*`)
+because it holds ship codes and a provider key, so this is its record.
+Recreate it with:
+
+```bash
+TLON_URL=http://127.0.0.1:35453          # ~zod httpPort, from shipManifest.json
+TLON_SHIP=~zod
+TLON_CODE=lidlut-tabwed-pillex-ridrup
+TLON_OWNER_SHIP=~ten                     # the human who DMs the bot
+TLON_OWNER_URL=http://127.0.0.1:38473    # ~ten httpPort
+TLON_DM_ALLOWLIST=~ten
+
+TLON_SURFACE_DEV_STORAGE=http://127.0.0.1:4323
+
+MODEL=openrouter/openai/gpt-5.6-luna     # provider-qualified; `luna` alone is
+                                         # the harness's model KEY, not a MODEL
+OPENROUTER_API_KEY=<your key>
+
+TLON_APPS_DIR=<absolute path to this checkout>
+TLON_SKILL_FROM_SOURCE=1                 # the published 0.5.0 binary predates
+                                         # the whole `surface` command group
+```
+
+Deliberately absent: `OPENCLAW_GATEWAY_PORT` and `ZOD_PORT`/`TEN_PORT`/
+`MUG_PORT` (no effect under host networking / belonged to the removed
+`ships` service), `BRAVE_API_KEY` (not part of the authoring loop),
+`TLON_TELEMETRY_*` (a fakeship run must not report into production
+PostHog), and `TEST_STORAGE_*` (real S3 — pointing this stack at a bucket is
+a different decision, not the fallback).
+
+### Bringing it up
+
+```bash
+# 1. ships (once) — this also seeds the fixtures
+./start-playwright-dev.sh
+pnpm --filter @tloncorp/shared seed:surfaces
+
+# 2. the bundle store, on the port the env file names. Nothing starts it for
+#    you and nothing falls back if it is missing.
+pnpm --filter @tloncorp/shared seed:storage -- --port 4323 --out /tmp/devstore
+
+# 3. the bot
+cd packages/openclaw/dev
+docker compose -f docker-compose.surfaces-6a.yml \
+  --env-file ../.env.surfaces-6a up --build
+```
+
+To check the wiring without the bot, run a one-off container against the
+same config:
+
+```bash
+docker compose -f docker-compose.surfaces-6a.yml --env-file ../.env.surfaces-6a \
+  run --rm --entrypoint bash openclaw -c \
+  'cd /workspace/tlon-apps/packages/tlon-skill && bun run scripts/main.ts surface templates'
+```
+
+A publish from inside the container prints `DEV STORAGE ENGAGED` naming
+`http://127.0.0.1:4323` and the host ship, then `stored <sha256>.js -> …`.
+Fetch that URL from the host and its sha256 must equal the key.
+
 ---
 
 ## 3. The fixtures

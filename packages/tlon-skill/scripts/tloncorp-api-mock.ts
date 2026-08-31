@@ -19,7 +19,8 @@
  * The export shape here is the superset of what the mocked import graphs
  * pull in by value: `api-client.ts` (Urbit, client, configureClient,
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
- * posts, invites), and the notes runtimes (notesV1 et al.).
+ * posts, invites), `surface-runtime.ts` (channel and post writes, uploads),
+ * and the notes runtimes (notesV1 et al.).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 import { mock } from 'bun:test';
@@ -142,6 +143,12 @@ mock.module('@tloncorp/api', () => ({
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
   toUrbitStory: (content: unknown) => content ?? [],
   updateChannel: async () => undefined,
+  // surface-runtime.ts value imports. Named here only so the module can be
+  // imported under the mock: `surface-runtime.test.ts` exercises the
+  // dev-storage guard, which reaches none of these.
+  createChannel: async () => undefined,
+  editPost: async () => undefined,
+  uploadFile: async () => ({ url: '' }),
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   notesV1: mockedNotesV1,
