@@ -171,6 +171,26 @@ export const openclawDriver: BotDriver = {
       );
     }
     const target = `linux-${mappedArch}`;
+
+    // build-all.js bundles scripts/main.ts, which reaches surface-preview.ts
+    // and its `@tloncorp/surface-shell/artifact-strings` import — an exports
+    // subpath that resolves to the shell package's gitignored dist/. On a
+    // clean checkout (every CI run) `bun build --compile` stops at "Could not
+    // resolve" before emitting anything, so the CLI build below has the same
+    // prerequisite the api build above does. Same reason ci.yml's bot-checks,
+    // both tlon-skill-publish jobs and the Hermes e2e entrypoint build it.
+    console.log('==> Building @tloncorp/surface-shell...');
+    const shellBuild = await runCommand(
+      'pnpm',
+      ['--filter', '@tloncorp/surface-shell', 'build'],
+      { cwd: ctx.repoRoot, env }
+    );
+    if (shellBuild.exitCode !== 0) {
+      throw new Error(
+        `pnpm --filter @tloncorp/surface-shell build failed (exit ${shellBuild.exitCode}):\n${shellBuild.stderr}`
+      );
+    }
+
     console.log(`==> Building workspace tlon CLI for ${target}...`);
     const skillBuild = await runCommand(
       'node',

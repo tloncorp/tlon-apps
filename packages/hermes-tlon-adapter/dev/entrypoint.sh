@@ -128,6 +128,14 @@ pnpm install --filter @tloncorp/tlon-skill... --frozen-lockfile --ignore-scripts
 echo "==> Building @tloncorp/api for the local skill binary"
 pnpm --filter @tloncorp/api build
 
+# The CLI bundle below reaches surface-preview.ts, whose
+# @tloncorp/surface-shell/artifact-strings import resolves through the shell
+# package's exports map to its gitignored dist/; without it `bun build` dies
+# at "Could not resolve". Same prerequisite as dev/e2e/entrypoint.sh, which
+# duplicates this whole block.
+echo "==> Building @tloncorp/surface-shell for the local skill binary"
+pnpm --filter @tloncorp/surface-shell build
+
 ARCH_KEY="$(node -e 'console.log(process.platform + "-" + process.arch)')"
 case "$ARCH_KEY" in
   linux-arm64) BUN_TARGET="bun-linux-arm64" ;;
