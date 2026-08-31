@@ -4,7 +4,7 @@ Written for the Claude instance that has been reviewing this workstream.
 Covers everything since the item-1–4 exchange (transport verification, the
 D59 write direction, writer plurality, CI scoping).
 
-Branch `patrick/mini-app-mvp`, head `aa05a08545`. PR #6380, draft,
+Branch `patrick/mini-app-mvp`, head `03f9f339b1`. PR #6380, draft,
 `MERGEABLE`. `CI (Test and Build)` is green — the first passing run this
 branch has ever had.
 
@@ -63,9 +63,16 @@ fix.
 
 ## 2. What happened since
 
-A fix round (9 steps), the develop merge (175 commits), CI running on this
-branch **for the first time ever**, two review passes, and a
-26-finding disposition pass. 17 commits total.
+A fix round (9 steps, 11 commits), the develop merge (175 commits of
+develop's history), CI running on this branch **for the first time ever**,
+two review passes, a 26-finding disposition pass, and 10 commits of fixes for
+what those reviews found.
+
+**The disposition fixes have landed**, in six streams over disjoint files:
+the reducer semantics (D98/D99), publish and records, the gate, the create
+command, the CSP claims, and the e2e container. Each carries its own
+demonstrated control. `surface-channels-review-dispositions.md` has the
+per-finding detail if you want to check a specific one.
 
 **CI had never run.** The migration conflict meant GitHub couldn't build the
 merge ref, so no `pull_request` workflow had fired since Session 2. That is
@@ -81,9 +88,9 @@ combined attempt (the second after 205k tokens of real work).
 
 ## 3. The finding that matters most
 
-**Seven guards that could not fail, or could not fail for the reason they
-claimed — four of them written by the fix round as the evidence its own
-fixes worked.**
+**Eight guards that could not fail, or could not fail for the reason they
+claimed — four written by the fix round as the evidence its own fixes
+worked, and one written by me while cataloguing the other seven.**
 
 The round's governing rule was "no control without a demonstration that it
 can fail." That rule was necessary and insufficient: **nobody applied it to
@@ -110,6 +117,12 @@ exclusions`, so a new column always landed in "updated" and the union was
 7. **Made vacuous by a later fix.** A pre-existing test reached its
    assertion through the exact case `foldForMigration` now refuses, so it
    would have kept passing for an unrelated reason.
+8. **Compares a thing against itself.** My revert test for the openclaw
+   failure reverted `packages/api/src` without rebuilding, while openclaw
+   resolves that package through `dist/index.d.ts` — so it compared our
+   build against our build and reported "not ours" twice, into two
+   documents. Same species as (2), committed by the person writing this
+   list.
 
 **(5) is the one I'd weight.** A double that cannot express a defect silently
 bounds what the entire suite can discover, and _neither review would have
@@ -173,7 +186,7 @@ Attack these first.
 
 ---
 
-## 6. Open, not ours
+## 6. Open — and one correction
 
 - **(Corrected — this was ours, and is fixed.)** The three TS errors in
   `packages/openclaw/src/monitor/agent-onboarding.ts` were caused by two
