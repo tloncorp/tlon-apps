@@ -626,8 +626,35 @@ function declaresBinding(scan: ScannedBundle, name: string): boolean {
  * The window-ish receivers a navigation global is reached through — the
  * dotted forms only. See `checkNavigationVectors` on why enumeration is the
  * ceiling here.
+ *
+ * ONE list, used by every receiver-shaped detector in the rule. It used to
+ * be two: `location` read this list while `open` carried a hardcoded shorter
+ * one, so `frames.open(…)` — and `frames` is `window`, so that is
+ * `window.open` — walked past a rule that stopped `frames.location` cold.
+ * Two lists in one function disagree the moment either is extended, which is
+ * the failure this constant now exists to prevent.
+ *
+ * The last three are DOM-reached windows rather than globals:
+ * `el.ownerDocument`, `document.defaultView` and `iframe.contentWindow` are
+ * how ref-driven code arrives at the same objects, and none of them was
+ * modeled. They are still a list, and still an incomplete one.
  */
-const GLOBAL_RECEIVER = '(?:window|self|globalThis|top|parent|frames|document)';
+const GLOBAL_RECEIVER =
+  '(?:window|self|globalThis|top|parent|frames|document|ownerDocument|defaultView|contentWindow)';
+
+/**
+ * Any JS assignment operator, and never a comparison: `=`, `+=`, `||=`,
+ * `??=`, `**=`, … but not `==`, `===`, `!=` or `>=`.
+ *
+ * Spelled generally on purpose. The markup-injection detector below used to
+ * demand a BARE `=`, which let `el.innerHTML += markup` past — and
+ * accumulating markup in a loop is the main reason to reach for `innerHTML`
+ * at all, so the miss was on the commonest spelling rather than an exotic
+ * one. Enumerating the compound operators one at a time would rot the same
+ * way; matching the operator class does not.
+ */
+const ASSIGNMENT_OPERATOR =
+  '(?:\\*\\*|<<|>>>|>>|\\|\\||&&|\\?\\?|[-+*/%&|^])?=(?!=)';
 
 /** Members of the Navigation API that move the frame. */
 const NAVIGATION_API_MEMBERS =
@@ -664,6 +691,15 @@ const NAVIGATING_ELEMENTS = 'a[href], area[href], meta[http-equiv]';
  *   own probe batch — 1 of 18 spellings caught before this leg was written,
  *   5 of 18 after — not assumed.
  *
+ * Both reasons keep applying to the widenings this round made. Three
+ * spellings that passed clean were closed — `innerHTML +=` and its compound
+ * siblings, `frames.open(…)`, and `location`/`open` reached through
+ * `ownerDocument` / `defaultView` / `contentWindow` — and closing them
+ * lengthened a list rather than replacing one. The BRACKET forms of the
+ * same reads (`el["innerHTML"] = …`, `document.defaultView["location"]`)
+ * still pass, and are deliberately left: they are the second reason above,
+ * not the first, and no amount of pattern work reaches them.
+ *
  * Where containment actually comes from on web: **pre-flight**, the host
  * page's `frame-src` allowlist, which blocks the sandbox frame's
  * self-navigation on chromium, firefox and webkit before the request leaves
@@ -699,9 +735,11 @@ function checkNavigationVectors(
       message: 'document.write can rewrite the frame into unpinned markup',
     },
     {
-      pattern:
-        /(?<![\w$])(?:window|self|globalThis|top|parent)\s*\.\s*open\s*\(/,
-      message: 'window.open is a navigation vector',
+      pattern: new RegExp(
+        `(?<![\\w$])${GLOBAL_RECEIVER}\\s*\\.\\s*open\\s*\\(`
+      ),
+      message:
+        "a window-ish `open()` is a navigation vector; on `document` it is `document.write`'s stream form, which rewrites the frame into unpinned markup",
     },
     {
       pattern: new RegExp(
@@ -715,8 +753,15 @@ function checkNavigationVectors(
       // without `document.write`. Whatever goes in is markup the lexical
       // scan never separated into spans, so a meta refresh or an anchor
       // inside it is invisible to every pattern above.
-      pattern:
-        /(?<![\w$])(?:inner|outer)HTML\s*=(?!=)|(?<![\w$])insertAdjacentHTML\s*\(/,
+      //
+      // Any assignment operator, not a bare `=`: `innerHTML += row` is how
+      // markup actually gets accumulated. Reading the property is untouched
+      // — `a.innerHTML === b.innerHTML` injects nothing — which is what the
+      // negative lookahead inside `ASSIGNMENT_OPERATOR` protects.
+      pattern: new RegExp(
+        `(?<![\\w$])(?:inner|outer)HTML\\s*${ASSIGNMENT_OPERATOR}` +
+          `|(?<![\\w$])insertAdjacentHTML\\s*\\(`
+      ),
       message:
         'assigning innerHTML/outerHTML or calling insertAdjacentHTML injects markup no rule scanned; apps compose primitives and never assemble markup by hand',
     },
@@ -1271,9 +1316,15 @@ function checkJargonInRendered(
  * A chart the gate can interrogate. This is the LIVE INSTANCE, never the
  * config it was constructed with: `options` is read at check time, so a
  * bundle that constructs responsively and then reassigns `chart.options`
- * reads as what it ended up being. Reading the saved constructor config
- * instead is the defect this shape exists to remove — that oracle passed a
- * bundle whose chart was non-responsive on screen.
+ * reads as what it ended up being AS OF THAT READ. Reading the saved
+ * constructor config instead is the defect this shape exists to remove —
+ * that oracle passed a bundle whose chart was non-responsive on screen.
+ *
+ * "As of that read" is the whole of the claim, and it is load-bearing: the
+ * reads all happen on the gate's synchronous stack, so a reassignment the
+ * app defers to a microtask or a timer lands after the last one and is not
+ * seen. `checkChartSizing` carries the measurement and why draining does
+ * not fix it.
  */
 interface LiveChart {
   options: unknown;
@@ -1425,6 +1476,37 @@ function renderedCopy(root: ShellRun['root']): string {
  *   Chromium. So "a real smoke render asserts no canvas carries
  *   width/height" was never true, and the claim must not be restated as a
  *   property of Chart.js anywhere.
+ *
+ * **The live read happens at ONE INSTANT, on the synchronous stack, and
+ * that is evadable.** `lintSurfaceBundle` is synchronous end to end, so
+ * every `inspect()` runs inside it: microtasks queued by a handler flush
+ * only after the gate has returned its result, and timers never run at all.
+ * A handler that reassigns `chart.options` inside `Promise.resolve().then(…)`
+ * or `setTimeout(…, 0)` therefore passes clean — both measured against this
+ * file, alongside the synchronous reassignment and the in-place
+ * `options.responsive = false`, which are caught.
+ *
+ * This is NOT fixed by draining microtasks before the last inspection, and
+ * the gate deliberately does not pretend otherwise:
+ *
+ * - There is no synchronous microtask drain in JS. Draining means awaiting,
+ *   which means `lintSurfaceBundle` becomes async — an API break across its
+ *   four synchronous callers.
+ * - One drain is one tick. A `.then().then().then()` chain needs as many,
+ *   and the chain length is the app's to choose, so "drain until quiet" is
+ *   not a terminating loop against a promise that re-queues itself.
+ * - Timers are a different scheduler and a drain does nothing for them, so
+ *   the commonest deferral spelling of all would still walk past.
+ *
+ * The general statement, which no amount of scheduling work reaches: an
+ * oracle that READS a mutable object at a chosen moment is evaded by
+ * WRITING to it after that moment, and the gate's moment is finite while
+ * the app's turn is not. What this rule can honestly claim is that the
+ * chart was correctly sized as of the last press the gate made. That is a
+ * coverage limit on a QUALITY rule — a chart that resizes itself badly one
+ * tick later is a bad chart, not an escape from the sandbox — and it is
+ * pinned by a fixture (`chartReassignedInMicrotask`) that asserts the miss,
+ * so closing it later cannot happen silently.
  */
 function checkChartSizing(
   collector: Collector,
@@ -1592,6 +1674,23 @@ interface ControlRecorder {
  * that happen to share the same function, so patching the latter records
  * nothing. Measured, and the reason this looks more indirect than it needs
  * to be.
+ *
+ * `addEventListener` is not the only way to take a click. `el.onclick = fn`
+ * is an accessor on `HTMLElement.prototype` that stores the handler without
+ * ever calling `addEventListener` — measured on happy-dom — so an element
+ * bound that way was invisible to the recorder, never pressed, and never
+ * reported. The setter is wrapped too, which puts the property route into
+ * the SAME bindings map: it is then pressed when it sits inside the rendered
+ * root, and counted as unreachable by `activateControls` when it does not.
+ * A sweep of the rendered DOM for elements whose `onclick` reads back as a
+ * function would have pressed the first group without ever noticing the
+ * second, which is the silent miss this whole leg exists to remove.
+ *
+ * Only `onclick` is wrapped. The other handler properties (`onchange`,
+ * `oninput`, …) are NOT observed, so an element bound only through one of
+ * them is missed entirely rather than reported — the gate dispatches click
+ * and nothing else, so `otherEvents` could name them but never press them.
+ * That is a hole, it is the enumeration kind, and it is not closed here.
  */
 function recordEventBindings(win: Record<string, unknown>): ControlRecorder {
   const bindings = new Map<object, Set<string>>();
@@ -1623,23 +1722,80 @@ function recordEventBindings(win: Record<string, unknown>): ControlRecorder {
     };
   }
   const owner = proto;
+  const record = (target: object, type: string) => {
+    const types = bindings.get(target) ?? new Set<string>();
+    types.add(type);
+    bindings.set(target, types);
+  };
   const original = owner.addEventListener as (...args: unknown[]) => unknown;
   owner.addEventListener = function (
     this: object,
     type: unknown,
     ...rest: unknown[]
   ) {
-    const types = bindings.get(this) ?? new Set<string>();
-    types.add(String(type));
-    bindings.set(this, types);
+    record(this, String(type));
     return original.call(this, type, ...rest);
   };
+  const restoreOnClick = wrapOnClickSetter(doc as object, record);
   return {
     bindings,
     unavailable: null,
     restore() {
       owner.addEventListener = original;
+      restoreOnClick();
     },
+  };
+}
+
+/**
+ * Wraps the `onclick` accessor so an `el.onclick = fn` binding is recorded
+ * alongside the `addEventListener` ones, and puts the original descriptor
+ * back afterwards.
+ *
+ * A DOM that does not define the accessor needs no wrapping and gets none:
+ * there, `el.onclick = fn` writes an ordinary own property that dispatch
+ * never consults, so there is no handler to miss.
+ *
+ * Deliberately NOT guarded against a non-configurable descriptor. WebIDL
+ * requires interface members to be configurable, and this only ever runs
+ * against the injected window, so the guard would protect against nothing
+ * reachable — and it could not be given a fixture that trips it.
+ */
+function wrapOnClickSetter(
+  doc: object,
+  record: (target: object, type: string) => void
+): () => void {
+  const create = (doc as { createElement?: (tag: string) => object })
+    .createElement;
+  if (typeof create !== 'function') {
+    return () => {};
+  }
+  let proto = Object.getPrototypeOf(create.call(doc, 'div')) as object | null;
+  let descriptor: PropertyDescriptor | undefined;
+  while (proto !== null) {
+    descriptor = Object.getOwnPropertyDescriptor(proto, 'onclick');
+    if (descriptor !== undefined) {
+      break;
+    }
+    proto = Object.getPrototypeOf(proto) as object | null;
+  }
+  if (proto === null || descriptor?.set === undefined) {
+    return () => {};
+  }
+  const owner = proto;
+  const saved = descriptor;
+  const originalSet = descriptor.set;
+  Object.defineProperty(owner, 'onclick', {
+    ...saved,
+    set(this: object, value: unknown) {
+      if (typeof value === 'function') {
+        record(this, 'click');
+      }
+      originalSet.call(this, value);
+    },
+  });
+  return () => {
+    Object.defineProperty(owner, 'onclick', saved);
   };
 }
 
@@ -1703,6 +1859,17 @@ interface ActivationOutcome {
   invoked: Set<string>;
   /** event types bound to controls the gate never dispatched */
   otherEvents: Set<string>;
+  /**
+   * controls the recorder saw but the pending filter dropped — bound on
+   * something that is not an element, or outside the rendered root
+   *
+   * Kept as the targets themselves, not a count: activation runs once per
+   * rendered state, so the same unreachable control is dropped again on
+   * every pass and a count would report one control as many.
+   */
+  outsideRoot: Set<object>;
+  /** controls the gate marked and clicked, where the click landed on nothing */
+  undispatched: Set<object>;
   budgetExhausted: boolean;
 }
 
@@ -1726,28 +1893,44 @@ function activateControls(
   recorder: ControlRecorder,
   errors: HandlerErrorWatch,
   reportedErrors: Set<string>,
+  /**
+   * every control that has been inside the rendered root on ANY pass of the
+   * whole phase, not just this one — a control pressed on the initial state
+   * and then detached by a later re-render was already exercised, and must
+   * not be reported as one the gate could not reach
+   */
+  everReachable: Set<object>,
   when: string
 ): ActivationOutcome {
   const outcome: ActivationOutcome = {
     invoked: new Set<string>(),
     otherEvents: new Set<string>(),
+    outsideRoot: new Set<object>(),
+    undispatched: new Set<object>(),
     budgetExhausted: false,
   };
   const visited = new Set<object>();
   let budget = MAX_ACTIVATION_CLICKS;
 
+  /**
+   * Reachable means: an element (so the marker can go on it) that is inside
+   * the tree the gate renders into. A listener on `document`, on `window`,
+   * or on an element the app kept detached fails this, and used to be
+   * dropped here with no accounting at all.
+   */
+  const reachable = (element: object) =>
+    isActivatable(element) && run.root.contains(element);
+
   for (;;) {
     const pending = [...recorder.bindings.entries()].filter(
-      ([element]) =>
-        !visited.has(element) &&
-        isActivatable(element) &&
-        run.root.contains(element)
+      ([element]) => !visited.has(element) && reachable(element)
     );
     if (pending.length === 0) {
       break;
     }
     for (const [element, types] of pending) {
       visited.add(element);
+      everReachable.add(element);
       if (!types.has('click')) {
         for (const type of types) {
           outcome.otherEvents.add(type);
@@ -1764,7 +1947,14 @@ function activateControls(
       control.setAttribute(CONTROL_MARKER, '');
       errors.armed = true;
       try {
-        run.click(`[${CONTROL_MARKER}]`);
+        // `run.click` resolves the marker with `root.querySelector`, which
+        // searches DESCENDANTS. A listener taken on the root itself passes
+        // `contains` (a node contains itself), gets marked, spends budget —
+        // and matches nothing, so no press happens. The return value used
+        // to be discarded, which is what made that silent.
+        if (!run.click(`[${CONTROL_MARKER}]`)) {
+          outcome.undispatched.add(element);
+        }
       } catch (error) {
         collector.add({
           rule: 'smoke-render',
@@ -1786,6 +1976,20 @@ function activateControls(
     }
     if (outcome.budgetExhausted) {
       break;
+    }
+  }
+
+  // Counted once the loop has finished, and only for bindings that have
+  // NEVER been inside the rendered root. Two false reports this avoids: an
+  // element bound while detached and attached by a later press, which
+  // becomes pending on the next round; and one pressed on an earlier
+  // rendered state that a re-render has since detached, which is why the
+  // set is the phase's and not this pass's. Bindings left unvisited by an
+  // exhausted budget are reachable, so they fall out here and are reported
+  // as the budget shortfall instead.
+  for (const [element] of recorder.bindings) {
+    if (!everReachable.has(element) && !reachable(element)) {
+      outcome.outsideRoot.add(element);
     }
   }
 
@@ -1899,6 +2103,12 @@ function foldAndRender(
   const reportedHandlerErrors = new Set<string>();
   const invokedByControls = new Set<string>();
   const unactivatedEvents = new Set<string>();
+  // Unions across every activation pass, keyed on the control itself, so a
+  // control that is unreachable in all of them is one shortfall and not one
+  // per rendered state.
+  const controlsOutsideRoot = new Set<object>();
+  const controlsUndispatched = new Set<object>();
+  const everReachable = new Set<object>();
   let budgetExhausted = false;
 
   /** every behavioral read of one rendered state, in one place */
@@ -1926,6 +2136,7 @@ function foldAndRender(
       recorder,
       errors,
       reportedHandlerErrors,
+      everReachable,
       when
     );
     for (const actionId of outcome.invoked) {
@@ -1933,6 +2144,12 @@ function foldAndRender(
     }
     for (const type of outcome.otherEvents) {
       unactivatedEvents.add(type);
+    }
+    for (const control of outcome.outsideRoot) {
+      controlsOutsideRoot.add(control);
+    }
+    for (const control of outcome.undispatched) {
+      controlsUndispatched.add(control);
     }
     budgetExhausted = budgetExhausted || outcome.budgetExhausted;
     inspect(`${when}, controls activated`);
@@ -2001,8 +2218,15 @@ function foldAndRender(
       .map((action) => action.id)
       .filter((id) => !invokedByControls.has(id)),
     otherEvents: [...unactivatedEvents].sort(),
+    outsideRoot: controlsOutsideRoot.size,
+    undispatched: controlsUndispatched.size,
     budgetExhausted,
   });
+}
+
+/** `1 control` / `2 controls` — shortfall reasons are read by people. */
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
 
 /**
@@ -2014,6 +2238,35 @@ function foldAndRender(
  * gate's skip discipline exists to prevent, so it is reported as a partial
  * skip on each affected rule instead — the rule ran, but not over
  * everything, and the reason names what was missed.
+ *
+ * **What this used to claim, and why it was false.** Shortfalls were
+ * derived only from the declared ACTIONS — the ids no activated control
+ * invoked. A control is not an action, and the two come apart whenever some
+ * OTHER control invokes everything the spec declares: three routes then
+ * reached nothing at all while all four widened rules reported clean with
+ * zero skips, each verified against this file.
+ *
+ * - a listener taken on `document` (event delegation) — recorded, then
+ *   dropped by the reachability filter because the rendered root does not
+ *   contain the document;
+ * - a listener taken on the rendered root itself — reachable, marked, budget
+ *   spent, and then clicked through `root.querySelector`, which never
+ *   matches the root;
+ * - `el.onclick = fn`, which never calls `addEventListener`, so the recorder
+ *   did not see the element at all.
+ *
+ * The first two are now counted where they are dropped and reported here.
+ * The third is recorded at the setter (`wrapOnClickSetter`) and therefore
+ * pressed, or counted with the other two when it sits outside the root.
+ *
+ * **What silence here does and does not mean.** No shortfall means: every
+ * control the recorder saw was pressed, and every declared action was
+ * invoked by one of them. It does NOT mean the app has controls — an app
+ * that binds nothing has nothing to activate, and reports nothing, which is
+ * the honest answer rather than a hole. Nor does it mean every control was
+ * FOUND: a handler property other than `onclick` is not observed at all
+ * (see `recordEventBindings`), so it is missing from both the presses and
+ * this accounting.
  */
 function reportActivationShortfall(
   collector: Collector,
@@ -2021,6 +2274,10 @@ function reportActivationShortfall(
     unavailable: string | null;
     unreached: readonly string[];
     otherEvents: readonly string[];
+    /** controls bound outside the tree the gate renders into */
+    outsideRoot: number;
+    /** controls the click dispatcher could not deliver to */
+    undispatched: number;
     budgetExhausted: boolean;
   }
 ): void {
@@ -2040,6 +2297,16 @@ function reportActivationShortfall(
   if (outcome.otherEvents.length > 0) {
     shortfalls.push(
       `controls bound only to ${outcome.otherEvents.join(', ')} were left alone (the gate dispatches click)`
+    );
+  }
+  if (outcome.outsideRoot > 0) {
+    shortfalls.push(
+      `${plural(outcome.outsideRoot, 'control')} bound outside the rendered output (a delegated listener on the document, or a detached element) could not be pressed`
+    );
+  }
+  if (outcome.undispatched > 0) {
+    shortfalls.push(
+      `${plural(outcome.undispatched, 'control')} took a click the gate could not dispatch to (a listener on the rendered root itself)`
     );
   }
   if (outcome.budgetExhausted) {

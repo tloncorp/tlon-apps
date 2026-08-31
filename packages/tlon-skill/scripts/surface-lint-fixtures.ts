@@ -102,6 +102,18 @@ function mutateBundle(from: string, to: string): string {
 
 const SECTION_HEADER = '<${SectionHeader}>Who is bringing what<//>';
 
+/**
+ * A jargon term (D55) assembled from pieces, as a source EXPRESSION.
+ *
+ * No string span of the bundle contains "scratch", so the lexical half of
+ * rule 12 is blind to it and only a handler that actually runs can put it
+ * on screen. That makes it the right defect to hide behind a control the
+ * gate may or may not reach: if the gate reports it, the control was
+ * pressed; if the gate reports nothing, it was not — and from the outside
+ * the two are otherwise indistinguishable.
+ */
+const DEFERRED_JARGON = '"No " + "scr" + "atch" + " entries yet"';
+
 export const COMPLIANT_FIXTURE: SurfaceLintFixture = {
   name: 'compliant',
   rule: null,
@@ -422,6 +434,73 @@ export const SUPPLEMENTARY_FIXTURES = {
   } satisfies SurfaceLintFixture,
 
   /**
+   * The same markup route with the operator markup is actually accumulated
+   * with. The pattern demanded a BARE `=`, so `+=` — the reason to reach
+   * for `innerHTML` in the first place, since it is how a loop appends
+   * rows — walked past a rule that stopped the plain assignment cold.
+   */
+  compoundMarkupAssignment: {
+    name: 'compound-markup-assignment',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const addRow = (el, text) => { el.innerHTML += text; };\n  void addRow;'
+    ),
+    spec: baseSpec(),
+    defect: 'innerHTML += accumulates markup no rule scanned',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * `window.frames === window`, so this is `window.open`. The rule stopped
+   * `frames.location` because that detector read the shared receiver list,
+   * and let `frames.open` through because the `open` detector carried a
+   * shorter hardcoded one. Two lists in one function.
+   */
+  framesOpen: {
+    name: 'frames-open',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const go = () => frames.open("https://example.com/menu");\n  void go;'
+    ),
+    spec: baseSpec(),
+    defect: 'frames.open is window.open through a receiver the list omitted',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * The window reached through the DOM rather than through a global.
+   * `ownerDocument`, `defaultView` and `contentWindow` are how ref-driven
+   * code arrives at the same Location, and none was in the receiver list.
+   */
+  ownerDocumentLocation: {
+    name: 'owner-document-location',
+    rule: 'navigation-vector' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const go = (el) => el.ownerDocument.location.replace("https://example.com/menu");\n  void go;'
+    ),
+    spec: baseSpec(),
+    defect: 'a ref reaches the real Location through el.ownerDocument',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * FALSE POSITIVE the widened operator must not introduce: READING
+   * `innerHTML` injects nothing, and comparing two of them is not an
+   * assignment at all. This is what the `(?!=)` in `ASSIGNMENT_OPERATOR`
+   * protects, and without it the widening would fire on every `===`.
+   */
+  markupComparison: {
+    name: 'markup-comparison',
+    rule: null,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const same = (a, b) => a.innerHTML === b.innerHTML;\n  void same;'
+    ),
+    spec: baseSpec(),
+    defect: 'none — reading innerHTML is not injecting markup',
+  } satisfies SurfaceLintFixture,
+
+  /**
    * FALSE POSITIVE, now passing: a potluck with a `location` field. The
    * bare identifier is what rule 5 used to match, and it is shadowed at
    * runtime by `wrapBundleSource`, so nothing was ever protected by
@@ -474,6 +553,97 @@ export const SUPPLEMENTARY_FIXTURES = {
     ),
     spec: baseSpec(),
     defect: 'none — a computed invoke id is unverifiable, not wrong',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * The three routes where activation used to reach nothing while every
+   * widened rule reported clean with ZERO skips.
+   *
+   * All three keep the baseline's Button, so the one declared action IS
+   * invoked and the action-shaped shortfall stays silent — which is exactly
+   * the condition under which a control the gate never pressed was
+   * invisible. Each carries a real defect behind the unreachable control,
+   * assembled from pieces so no string span holds it and only running the
+   * handler can put it on screen.
+   */
+
+  /**
+   * `el.onclick = fn` never calls `addEventListener`, so the recorder did
+   * not see the element and the gate never pressed it. Recorded at the
+   * property setter now, so the press lands and the defect is REPORTED —
+   * not merely accounted for.
+   */
+  onClickProperty: {
+    name: 'control-bound-through-the-onclick-property',
+    rule: 'jargon' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      `<div ref=\${(el) => { if (el) { el.onclick = () => { el.textContent = ${DEFERRED_JARGON}; }; } }}>Who is bringing what</div>`
+    ),
+    spec: baseSpec(),
+    defect: 'a control bound by property, which addEventListener never sees',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * A delegated listener on `document`. The recorder sees it; the pending
+   * filter then drops it, because the rendered root does not contain the
+   * document. The gate cannot press it and does not pretend to — it says
+   * so, which is the whole change.
+   */
+  delegatedOnDocument: {
+    name: 'control-delegated-onto-the-document',
+    rule: null,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      '<div class="tile">Who is bringing what</div>'
+    ).replace(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      `  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  document.addEventListener("click", (e) => { if (e.target.className === "tile") { e.target.textContent = ${DEFERRED_JARGON}; } });`
+    ),
+    spec: baseSpec(),
+    defect: 'a delegated listener the gate cannot reach, and must report',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * A listener on the shell root itself. It survives `contains` — a node
+   * contains itself — is marked, and spends budget; then the click resolves
+   * the marker with `root.querySelector`, which searches descendants and
+   * never matches the root. The handler only fires when the root is the
+   * target, so nothing bubbling into it stands in for the press.
+   */
+  boundOnTheRoot: {
+    name: 'control-bound-on-the-shell-root',
+    rule: null,
+    bundleSource: mutateBundle(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      `  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  const shellRoot = document.querySelector(".tsh-root");\n  if (shellRoot) { shellRoot.addEventListener("click", (e) => { if (e.target === e.currentTarget) { e.target.textContent = ${DEFERRED_JARGON}; } }); }`
+    ),
+    spec: baseSpec(),
+    defect: 'a root listener the click dispatcher cannot deliver to',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * A DOCUMENTED GAP, pinned so it cannot be quietly re-described as
+   * closed: the same reassignment as `chartReassignedOnPress`, deferred one
+   * microtask. Every `inspect()` runs on the gate's synchronous stack, so
+   * the microtask flushes after the result is already returned and this
+   * passes clean. A timer passes for the same reason. `checkChartSizing`
+   * carries why draining is neither available nor sufficient; if that ever
+   * changes, this fixture fails and the doc has to be rewritten with it.
+   */
+  chartReassignedInMicrotask: {
+    name: 'chart-options-reassigned-in-a-microtask',
+    rule: null,
+    bundleSource: mutateBundle(
+      SECTION_HEADER,
+      "<canvas ref=${(el) => { if (el) { held = new surface.Chart(el, { type: 'bar', data: { datasets: [] }, options: { responsive: true, maintainAspectRatio: false } }); } }}></canvas>\n          <${Button} onPress=${() => { Promise.resolve().then(() => { held.options = { responsive: false, maintainAspectRatio: true }; }); }}>Resize<//>"
+    ).replace(
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;',
+      '  const { Card, ListRow, Button, Stat, SectionHeader } = primitives;\n  let held = null;'
+    ),
+    spec: baseSpec(),
+    defect:
+      'NOT CAUGHT — a reassignment deferred past the gate’s synchronous stack',
   } satisfies SurfaceLintFixture,
 };
 

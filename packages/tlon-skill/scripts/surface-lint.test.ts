@@ -512,6 +512,38 @@ describe('navigation vectors', () => {
       'a synthesized <area>',
       '  const go = () => document.createElement("area");',
     ],
+    // One receiver list, exercised through each receiver it gained. Each of
+    // these passed the whole gate clean before the two lists were merged.
+    ['frames.open', '  const go = () => frames.open("https://example.com");'],
+    [
+      'document.open',
+      '  const go = () => document.open("text/html", "replace");',
+    ],
+    [
+      'location through el.ownerDocument',
+      '  const go = (el) => el.ownerDocument.location.replace("https://example.com");',
+    ],
+    [
+      'location through document.defaultView',
+      '  const go = () => { document.defaultView.location.href = "https://example.com"; };',
+    ],
+    [
+      'location through iframe.contentWindow',
+      '  const go = (f) => { f.contentWindow.location.href = "https://example.com"; };',
+    ],
+    // The markup route with every operator markup is actually built with.
+    [
+      'innerHTML +=',
+      '  const addRow = (el, t) => { el.innerHTML += t; };\n  void addRow;',
+    ],
+    [
+      'innerHTML ||=',
+      '  const seed = (el, t) => { el.innerHTML ||= t; };\n  void seed;',
+    ],
+    [
+      'outerHTML ??=',
+      '  const seed = (el, t) => { el.outerHTML ??= t; };\n  void seed;',
+    ],
   ];
   for (const [name, code] of vectors) {
     it(`rejects ${name}`, () => {
@@ -554,6 +586,9 @@ describe('navigation vectors', () => {
     SUPPLEMENTARY_FIXTURES.spreadAnchor,
     SUPPLEMENTARY_FIXTURES.imperativeMarkup,
     SUPPLEMENTARY_FIXTURES.insertAdjacentMarkup,
+    SUPPLEMENTARY_FIXTURES.compoundMarkupAssignment,
+    SUPPLEMENTARY_FIXTURES.framesOpen,
+    SUPPLEMENTARY_FIXTURES.ownerDocumentLocation,
   ];
   for (const fixture of newlyModeled) {
     it(`${fixture.name}: trips navigation-vector and nothing else (${fixture.defect})`, () => {
@@ -598,6 +633,18 @@ describe('navigation vectors', () => {
       ).toBe(true);
     });
   }
+
+  it('does not fire on READING innerHTML, which injects nothing', () => {
+    // the widened operator has to admit `+=` without admitting `===`, and
+    // a comparison of two innerHTMLs is the shape that would break first
+    const fixture = SUPPLEMENTARY_FIXTURES.markupComparison;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(formatSurfaceLintResult(result)).toBe('');
+    expect(result.ok).toBe(true);
+  });
 
   it('catches an anchor that only a press turns into a link', () => {
     // `<a>` with no href passes the lexical patterns (there is no `href` to
@@ -1027,6 +1074,39 @@ describe('the behavioral phase presses the app’s controls', () => {
     }
   });
 
+  /**
+   * A DOCUMENTED GAP, pinned rather than papered over.
+   *
+   * The live-instance oracle reads on the gate's synchronous stack, so a
+   * reassignment the handler defers to a microtask lands after the result
+   * has already been returned. Draining is not the fix: it needs `await`,
+   * which would make `lintSurfaceBundle` async across four synchronous
+   * callers; one drain is one tick against a chain the app chooses the
+   * length of; and timers are a different scheduler a drain never touches.
+   * `checkChartSizing` says all of that. This test is what stops the doc
+   * and the code drifting apart — if the miss is ever closed, it fails.
+   */
+  it('does NOT catch a chart reassigned off the synchronous stack (known gap)', () => {
+    const deferred = SUPPLEMENTARY_FIXTURES.chartReassignedInMicrotask;
+    const deferredResult = lintSurfaceBundle({
+      bundleSource: deferred.bundleSource,
+      spec: deferred.spec,
+    });
+    expect(ruleSet(deferredResult.violations)).toEqual([]);
+    expect(deferredResult.skipped).toEqual([]);
+    // the source grep still warns, which is the same rule and never the gate
+    expect(ruleSet(deferredResult.warnings)).toEqual(['chart-sizing']);
+
+    // and the ONLY difference from the caught case is the deferral: the same
+    // reassignment made synchronously is reported
+    const immediate = SUPPLEMENTARY_FIXTURES.chartReassignedOnPress;
+    const immediateResult = lintSurfaceBundle({
+      bundleSource: immediate.bundleSource,
+      spec: immediate.spec,
+    });
+    expect(ruleSet(immediateResult.violations)).toEqual(['chart-sizing']);
+  });
+
   it('catches a handler that throws, which no lexical rule can see', () => {
     const fixture = SUPPLEMENTARY_FIXTURES.handlerThrows;
     const result = lintSurfaceBundle({
@@ -1077,6 +1157,103 @@ describe('the behavioral phase presses the app’s controls', () => {
     expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
     for (const skip of result.skipped) {
       expect(skip.reason).toContain('change');
+    }
+  });
+
+  /**
+   * The three routes where activation used to reach nothing while all four
+   * widened rules reported clean with ZERO skips. Each keeps the baseline's
+   * Button, so the one declared action IS invoked and the action-shaped
+   * shortfall stays silent — which is the condition that made a control the
+   * gate never pressed invisible. The defect behind each control is jargon
+   * assembled from pieces, so it exists but no lexical rule can see it.
+   */
+  it('presses a control bound through the onclick property, and reports what it does', () => {
+    // `el.onclick = fn` never calls addEventListener; before the setter was
+    // wrapped the recorder did not know this element existed
+    const fixture = SUPPLEMENTARY_FIXTURES.onClickProperty;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['jargon']);
+    expect(result.violations).toHaveLength(1);
+    // it is the ACTIVATED pass that saw it — nothing before the press said this
+    expect(result.violations[0].message).toContain('controls activated');
+    // and having pressed it, there is nothing left to report as missed
+    expect(result.skipped).toEqual([]);
+  });
+
+  it('reports a control delegated onto the document instead of dropping it', () => {
+    // recorded, then dropped by the reachability filter because the rendered
+    // root does not contain the document. The gate cannot press it; the
+    // change is that it no longer passes clean while pretending otherwise.
+    const fixture = SUPPLEMENTARY_FIXTURES.delegatedOnDocument;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(result.violations).toEqual([]);
+    expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
+    for (const skip of result.skipped) {
+      expect(skip.reason).toContain('1 control');
+      expect(skip.reason).toContain('outside the rendered output');
+    }
+  });
+
+  it('reports a control bound on the shell root, whose click lands on nothing', () => {
+    // it survives `contains` (a node contains itself), is marked, and spends
+    // budget — then `root.querySelector` searches descendants and never
+    // matches the root, so `click` returns false and no press happens
+    const fixture = SUPPLEMENTARY_FIXTURES.boundOnTheRoot;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(result.violations).toEqual([]);
+    expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
+    for (const skip of result.skipped) {
+      expect(skip.reason).toContain('1 control');
+      expect(skip.reason).toContain('could not dispatch to');
+    }
+  });
+
+  it('does not report a control it pressed and a later re-render removed', () => {
+    // This control exists only while `bringing` has one entry, so invoking
+    // the declared action renders it away. It IS pressed on the initial
+    // state — the jargon it writes is the proof — and it IS outside the
+    // rendered root by the time the last pass sweeps. Reachability is
+    // therefore tracked across the whole phase and not per pass: asking
+    // only "is it reachable now" reports a control that was fully
+    // exercised, and a shortfall nobody can act on is worse than none.
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource.replace(
+        '<${SectionHeader}>Who is bringing what<//>',
+        '${names.length === 1 ? html`<div onClick=${(event) => { event.currentTarget.textContent = "No " + "scr" + "atch" + " entries yet"; }}>Who is bringing what</div>` : null}'
+      ),
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['jargon']);
+    expect(result.violations[0].message).toContain('controls activated');
+    for (const skip of result.skipped) {
+      expect(skip.reason).not.toContain('outside the rendered output');
+    }
+  });
+
+  it('counts one unreachable control once, not once per rendered state', () => {
+    // activation runs per rendered state, so the same dropped binding is seen
+    // again on every pass; three actions means four passes
+    const spec = JSON.parse(
+      JSON.stringify(SUPPLEMENTARY_FIXTURES.delegatedOnDocument.spec)
+    );
+    spec.actions['bring-bread'] = spec.actions['bring-salad'];
+    spec.actions['bring-pie'] = spec.actions['bring-salad'];
+    const result = lintSurfaceBundle({
+      bundleSource: SUPPLEMENTARY_FIXTURES.delegatedOnDocument.bundleSource,
+      spec,
+    });
+    for (const skip of result.skipped) {
+      expect(skip.reason).toContain('1 control bound outside');
     }
   });
 
