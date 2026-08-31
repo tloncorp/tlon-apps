@@ -4,7 +4,14 @@ Findings from both re-verification passes (Sol: correctness; Claude:
 containment), plus the two CI failures from the first run.
 
 Ordering is by disposition, not by source. Each entry says what I propose
-and why. **Nothing here is actioned yet.**
+and why. **All of these were actioned** across `202c98e7bc..d5c41acdc5` —
+B1 → D98 (`202c98e7bc`), A1 (`7fe9c2ce01`), D3/D4 → D100 (`37f0410087`),
+D1 → D99 (`8a4b41c852`), C4 (`88eaeededa`), A2 (`0813cea52b`), A3
+(`d5c41acdc5`); B2 was taken and folded into D98 rather than given a number
+of its own. Read entries below as the record of what was decided, not as a
+queue. (This line said "Nothing here is actioned yet" until Session 6a's
+orientation caught it — a reader taking it at face value would have redone
+landed work.)
 
 Counts: 6 correctness findings, 18 containment findings, 2 CI failures.
 Five of the six correctness findings were reproduced with executable

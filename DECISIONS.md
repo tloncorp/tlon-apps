@@ -1693,7 +1693,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
 
 - **D73: the compiled CLI could never find its own templates.**
   `templatesRoot()` resolved the catalogue from `path.resolve(__dirname,
-  '..')`, under a comment asserting "the compiled binary keeps the same
+'..')`, under a comment asserting "the compiled binary keeps the same
   layout beside it." It does not. `bun build --compile` bakes `__dirname`
   into the binary as a **string literal** — verified by `strings` on
   `dist/tlon-run`, which contains the build machine's
@@ -1766,7 +1766,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   deliberately keeps `packages/tlon-skill` outside its path filter, so a
   content fix to the surfaces skill reaches production only via an npm
   publish and restart, not a develop merge — unlike the product guide.
-  The `openclaw.plugin.json` manifest entry *is* on that filter, so
+  The `openclaw.plugin.json` manifest entry _is_ on that filter, so
   merging it before publishing a tlon-skill version containing `skills/`
   logs a benign `plugin skill path not found` warning until the publish
   lands (the entry is skipped; the other two skills still load).
@@ -1790,7 +1790,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   diagnosed in one step instead of re-derived.
 
 - **The live revise cycle never exercised the D56 fix.** Recorded because
-  the session report claimed it did. A running client *does* reach
+  the session report claimed it did. A running client _does_ reach
   `insertGroups` (via the forced `syncGroup` above — the premise that it
   does not is false), but ordering makes it inert: `db.updateChannel`
   writes the correct value first, so pre-fix and post-fix produce
@@ -1800,7 +1800,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   The fixed path is boot / full group sync on an **existing** row, and it
   is already covered deterministically by
   `packages/shared/src/store/surface/specConvergence.test.ts` —
-  `syncGroupFromShip` *is* `insertGroups` through the real wire payload,
+  `syncGroupFromShip` _is_ `insertGroups` through the real wire payload,
   called twice so the second hits `onConflictDoUpdate`, asserting both
   columns in both directions (unchanged revision, bumped revision). Runs
   in 59ms. **A live cold-start scenario would prove less than a test that
@@ -1902,37 +1902,37 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
 
   The classification, all 29 columns:
 
-  | Column | Call | Why |
-  | --- | --- | --- |
-  | `id` | update (no-op) | The conflict target; `set id = excluded.id` is provably a self-assignment. Left in the derived set rather than excluded so the exclusion list reads as "things deliberately held back". |
-  | `type` | update | `getChannelType(id)`; %groups defines it. |
-  | `groupId` | update | %groups defines which group a channel is in. **Behaviour change**: the old hand-list omitted it, so the mapping was pinned. Every non-test caller carries it (all reach `insertGroups` via `toClientChannel(s)` or a full DB row), and `insertGroups` already reconciles group membership by deleting non-payload channels for the group, so authoritative reassignment is consistent with the surrounding write. |
-  | `iconImage` | update | From `meta.image`. |
-  | `iconImageColor` | update | Same `meta.image` field, routed by `toClientMeta`'s `isColor`. **The D76 incident.** |
-  | `coverImage` | update | From `meta.cover`. |
-  | `coverImageColor` | update | Same field. **The D76 incident.** |
-  | `title` | update | From `meta.title`. |
-  | `description` | update | Decoded from `meta.description`. |
-  | `contentConfiguration` | update | Decoded from the same cell. |
-  | `descriptionPayload` | update | The verbatim cell (D56). |
-  | `surfaceSpec` | update | The app definition inside it (D56). |
-  | `currentUserIsHost` | update | Derived from the channel id's host vs the current ship. |
-  | `currentUserIsMember` | **exclude** | `reconcileJoinedGroupChannels` is the documented "single source of truth for group-channel membership" (`queries.ts` ~3468), driven by %groups' `active-channels`. `toClientChannel`'s value is a *different, weaker* signal — readers ∩ roles, i.e. read permission, not active membership. `handleGroupUpdate`'s `updateChannel` case already strips it for that reason, and `agentGroupOnboarding.ts` (`adoptNotebook`, `ensureChatChannel`) and `channelActions.ts` L161 both document *depending* on this write not touching it. Including it would have been the single riskiest call in the audit. |
-  | `addedToGroupAt` | **exclude** | Not carried (see above); naming it nulls it. |
-  | `isPendingChannel` | **exclude** | Not carried; DM/pending-channel bookkeeping owned by `postActions`. |
-  | `contactId` | **exclude** | DM identity; %groups carries no contact for a group channel. |
-  | `isDmInvite` | **exclude** | DM invite state (`chatApi`, `dmActions`, `sync.ts` L1879). Has `default(false)`, so `excluded.is_dm_invite` is `0`, not null — a group sync would flip a true invite to false. |
-  | `isNewMatchedContact` | **exclude** | Contact-discovery flag; no %groups analogue. |
-  | `lastViewedAt` | **exclude** | Local read position (`channelActions.ts` L708). |
-  | `syncedAt` | **exclude** | Local sync bookkeeping. (Note: `channels.syncedAt` currently has **no writer at all**; only `groups.syncedAt` is written. Excluded on principle regardless.) |
-  | `remoteUpdatedAt` | **exclude** | Sourced from unreads `recency`, not from a group payload. Also currently unwritten. |
-  | `order` | **exclude** | `posts_order`, written from `%channels` init (`insertChannelOrder`) and local post actions. |
-  | `postCount` | **exclude** | Derived locally. |
-  | `unreadCount` | **exclude** | From `%activity`. |
-  | `firstUnreadPostId` | **exclude** | From `%activity`. |
-  | `lastPostId` | **exclude** | `setLastPosts`. |
-  | `lastPostAt` | **exclude** | `setLastPosts`. |
-  | `lastPostSequenceNum` | **exclude** | Post sync. |
+  | Column                 | Call           | Why                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | ---------------------- | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+  | `id`                   | update (no-op) | The conflict target; `set id = excluded.id` is provably a self-assignment. Left in the derived set rather than excluded so the exclusion list reads as "things deliberately held back".                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | `type`                 | update         | `getChannelType(id)`; %groups defines it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+  | `groupId`              | update         | %groups defines which group a channel is in. **Behaviour change**: the old hand-list omitted it, so the mapping was pinned. Every non-test caller carries it (all reach `insertGroups` via `toClientChannel(s)` or a full DB row), and `insertGroups` already reconciles group membership by deleting non-payload channels for the group, so authoritative reassignment is consistent with the surrounding write.                                                                                                                                                                                         |
+  | `iconImage`            | update         | From `meta.image`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | `iconImageColor`       | update         | Same `meta.image` field, routed by `toClientMeta`'s `isColor`. **The D76 incident.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+  | `coverImage`           | update         | From `meta.cover`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | `coverImageColor`      | update         | Same field. **The D76 incident.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+  | `title`                | update         | From `meta.title`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+  | `description`          | update         | Decoded from `meta.description`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+  | `contentConfiguration` | update         | Decoded from the same cell.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+  | `descriptionPayload`   | update         | The verbatim cell (D56).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+  | `surfaceSpec`          | update         | The app definition inside it (D56).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | `currentUserIsHost`    | update         | Derived from the channel id's host vs the current ship.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+  | `currentUserIsMember`  | **exclude**    | `reconcileJoinedGroupChannels` is the documented "single source of truth for group-channel membership" (`queries.ts` ~3468), driven by %groups' `active-channels`. `toClientChannel`'s value is a _different, weaker_ signal — readers ∩ roles, i.e. read permission, not active membership. `handleGroupUpdate`'s `updateChannel` case already strips it for that reason, and `agentGroupOnboarding.ts` (`adoptNotebook`, `ensureChatChannel`) and `channelActions.ts` L161 both document _depending_ on this write not touching it. Including it would have been the single riskiest call in the audit. |
+  | `addedToGroupAt`       | **exclude**    | Not carried (see above); naming it nulls it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+  | `isPendingChannel`     | **exclude**    | Not carried; DM/pending-channel bookkeeping owned by `postActions`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | `contactId`            | **exclude**    | DM identity; %groups carries no contact for a group channel.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+  | `isDmInvite`           | **exclude**    | DM invite state (`chatApi`, `dmActions`, `sync.ts` L1879). Has `default(false)`, so `excluded.is_dm_invite` is `0`, not null — a group sync would flip a true invite to false.                                                                                                                                                                                                                                                                                                                                                                                                                            |
+  | `isNewMatchedContact`  | **exclude**    | Contact-discovery flag; no %groups analogue.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+  | `lastViewedAt`         | **exclude**    | Local read position (`channelActions.ts` L708).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | `syncedAt`             | **exclude**    | Local sync bookkeeping. (Note: `channels.syncedAt` currently has **no writer at all**; only `groups.syncedAt` is written. Excluded on principle regardless.)                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+  | `remoteUpdatedAt`      | **exclude**    | Sourced from unreads `recency`, not from a group payload. Also currently unwritten.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+  | `order`                | **exclude**    | `posts_order`, written from `%channels` init (`insertChannelOrder`) and local post actions.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+  | `postCount`            | **exclude**    | Derived locally.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+  | `unreadCount`          | **exclude**    | From `%activity`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+  | `firstUnreadPostId`    | **exclude**    | From `%activity`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+  | `lastPostId`           | **exclude**    | `setLastPosts`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | `lastPostAt`           | **exclude**    | `setLastPosts`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+  | `lastPostSequenceNum`  | **exclude**    | Post sync.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 
   13 updated + 16 excluded = 29 = `getTableColumns($channels)`, asserted by
   `packages/shared/src/db/insertGroupsChannelColumns.test.ts`.
@@ -1940,7 +1940,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
 - **The pin test as specified is not, on its own, capable of failing on a
   new column — and this matters.** "Assert `getTableColumns($channels)`
   equals the union of setAll coverage and the exclusion list" is a
-  tautology when coverage is *computed* as `schema − exclusions`: a new
+  tautology when coverage is _computed_ as `schema − exclusions`: a new
   column lands in `updated`, the union is still the whole table, green. The
   guard that actually fails is a **pinned literal list of the updated
   columns**, so an addition shows up as a diff someone has to read and
@@ -1961,7 +1961,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   `onConflictDoUpdate` says so explicitly to stop a future reader
   "fixing" it by cloning. **Residual, unclosed:** it is already
   `conflictUpdateSetAll`, so its failure mode on a newly added column is
-  the *opposite* one — over-update, i.e. nulling a client-local column its
+  the _opposite_ one — over-update, i.e. nulling a client-local column its
   callers do not carry — and nothing pins it. Recorded rather than fixed;
   expanding the guard to a second writer was outside this round's brief.
 
@@ -1981,7 +1981,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   `api.getGroup` echo the edit, because then the forced re-sync would make
   the test pass even if `db.updateChannel` wrote nothing at all. It mocks a
   channel-less group so `insertGroups` skips its channel upsert entirely.
-  That the test has to be written that way *is* the evidence that the two
+  That the test has to be written that way _is_ the evidence that the two
   writes are now indistinguishable from outside — which is exactly the
   condition under which a scry returning pre-edit state would revert a
   correct write. Symptom to expect if `%groups` ever emits a fact before
@@ -1994,15 +1994,15 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   client used to confirm the surface-spec propagation was the host of the
   channel it edited, not a remote member. The result is judged to
   generalise because host-ness is not consulted anywhere on the touched
-  paths: `currentUserIsHost` is *computed* by `toClientChannel` (host of the
-  channel id vs the current ship) and *written*, never *read*, by
+  paths: `currentUserIsHost` is _computed_ by `toClientChannel` (host of the
+  channel id vs the current ship) and _written_, never _read_, by
   `insertGroups`, `insertChannelsInternal`, `updateChannel`, or
   `handleGroupUpdate`'s channel cases; and the conflict-update set is a
   static column list with no per-ship branching. Remote delivery of an
   `r-channel` edit is pre-existing `%groups` machinery that this change does
   not touch. **What that argument does not cover, and nobody has observed:**
-  a remote member's `toClientChannel` runs with a *different* `readers ∩
-  currentUserRoles`, which is precisely the `currentUserIsMember` value this
+  a remote member's `toClientChannel` runs with a _different_ `readers ∩
+currentUserRoles`, which is precisely the `currentUserIsMember` value this
   audit decided to keep excluded. That decision is defended by three
   independent in-repo comments rather than by the live test, and the live
   test could not have exercised it — a host is always a member. Anyone
@@ -2016,8 +2016,8 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   if it had.** Two independent defects in a single step placement, worth
   separating because they have different fixes.
 
-  *It never ran.* `bot-checks` is gated `needs.changes.outputs.app ==
-  'false' && needs.changes.outputs.bots == 'true'` (ci.yml:210-211).
+  _It never ran._ `bot-checks` is gated `needs.changes.outputs.app ==
+'false' && needs.changes.outputs.bots == 'true'` (ci.yml:210-211).
   `app` is an ignore-list evaluated with `predicate-quantifier: every`, so
   any file outside the five exclusions sets `app=true` — and this branch
   touches `packages/app/**` and `apps/tlon-web/**`. `bot-checks` is
@@ -2028,12 +2028,12 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   and 33190639060 (`db/quarantine-auth-failures`) show the reverse. Never
   both, in either direction.
 
-  *It would have failed.* `pnpm --filter '@tloncorp/tlon-skill' check`
+  _It would have failed._ `pnpm --filter '@tloncorp/tlon-skill' check`
   needs the shell's **built** artifact, and `bot-checks` had no
   `build:surface-shell` step (the only occurrence in the workflow was in
   `test-build`). Demonstrated by hiding `packages/surface-shell/dist` and
   running the suite: `error: Cannot find module
-  '@tloncorp/surface-shell/artifact-strings'`, 0 pass / 1 fail / 1 error.
+'@tloncorp/surface-shell/artifact-strings'`, 0 pass / 1 fail / 1 error.
 
   **Correction to the brief that ordered this fix:** it is the `pnpm test`
   half of `check` that dies, not the typecheck. `tsc` runs
@@ -2055,7 +2055,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   equivalents on every mixed PR forever, for zero new coverage.
 
   In `test-build` the leg is a targeted `bun test
-  ./scripts/surface-preview.test.ts` with `TLON_PREVIEW_BROWSER=1`, because
+./scripts/surface-preview.test.ts` with `TLON_PREVIEW_BROWSER=1`, because
   `pnpm test:ci` already runs the rest of that suite; in `bot-checks` the
   env var rides on the existing `check` step. Verified locally with the
   exact command: 24 pass in 9.11s with the flag, 23 pass + **1 skip** in
@@ -2112,9 +2112,9 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
 
   Per the round's third rule it was shown failing, not just passing.
   Dropping `packages/tlon-skill/**` from `bots` while it stays excluded
-  from `app`: *"packages/tlon-skill is not classified by any path filter
+  from `app`: _"packages/tlon-skill is not classified by any path filter
   … so every gated job would skip and CI OK would pass without running
-  anything."* Excluding `packages/surface-shell` from `app` **without**
+  anything."_ Excluding `packages/surface-shell` from `app` **without**
   the new `bots` entry fails the same way; **with** it, it passes — which
   is the argument for D83 made executable. Renaming a package out from
   under a filter entry raises both the uncovered package and the stale
@@ -2136,8 +2136,8 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   (one op each, every op inside the 4 KB op-value cap and every entry
   inside the 8 KB entry cap): state 68,590 bytes, `stateFull: false`;
   `publish --preserve-state` exits 1 with `{"code":"invalid-ops",
-  "message":"The snapshot record does not satisfy its schema: snapshot
-  state exceeds 65536 bytes","details":{…,"definitionPublished":true}}`;
+"message":"The snapshot record does not satisfy its schema: snapshot
+state exceeds 65536 bytes","details":{…,"definitionPublished":true}}`;
   the stored definition sits at `specRevision=2, preserveState=true` with
   two mirrors and zero snapshots; `surface state` answers
   `migration-pending`; `surface snapshot` refuses with `migration-pending`;
@@ -2164,7 +2164,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   stops the command before the snapshot) as of the snapshot itself.
 
   Publish now assembles and validates both records before the description
-  cell moves, and posts *those objects*, not copies of them — validating one
+  cell moves, and posts _those objects_, not copies of them — validating one
   value and writing another is the raw-versus-validated defect of D67/D72.
   What stays after the write is only what needs the write to have happened:
   the description read-back (`publish-unconfirmed`) and each post's
@@ -2214,7 +2214,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   that needed repairing, not regenerating.
 
   `SURFACE_ERROR_CLASS` is a total `Record<SurfaceErrorCode,
-  'author' | 'environment'>` beside the code list; `surfaceError` stamps
+'author' | 'environment'>` beside the code list; `surfaceError` stamps
   `details.errorClass` last, so a call site cannot relabel its own failure
   and every `--json` document carries the class without the dispatcher
   learning a field. The new `state-too-large` (class `environment`) is
@@ -2284,6 +2284,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   neither carried into the state nor replayable afterwards. The same situation
   is an explicit refusal on the repair path ("reconstructing the state would
   mean guessing at it") and a silent freeze-out here.
+
 - **D90: a write is confirmed by evidence the write PRODUCED, never by
   evidence that matching state is present.** Two observations accepted
   pre-existing state as proof of a new write, and both reported success for a
@@ -2377,7 +2378,15 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   rather than guessed at.
 
 - **D91: an op refused by a resource cap aborts the rest of its entry; an op
-  the author got wrong does not.** §7 had one rule for every per-op refusal —
+  the author got wrong does not.** **Superseded by D98: the skip/abort
+  criterion is withdrawn entirely and every refusal now aborts. The incident
+  and the prefix-versus-subsequence reasoning below still stand; the
+  classification built on top of them does not — read the rest of this entry
+  as the history of a rule that no longer holds.** (D98 claimed both D91 and
+  D94 were "annotated in place"; D94 was, this entry was not, and the
+  omission was found in Session 6a's orientation pass. Recorded here because
+  a superseding entry that misreports its own bookkeeping is the same defect
+  class as a guard that cannot fail.) §7 had one rule for every per-op refusal —
   skip that op, apply the rest — and PARADIGM built the host-is-the-clock
   rollover on top of it, calling it fully idempotent and gracefully
   degrading. The two combine into data loss at the 128 KB live-state cap:
@@ -2654,7 +2663,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   deliberately not "could the author have seen it coming". D91 already made
   that call for `depth-cap`, which is computable from the op alone and would
   sort with `grammar` on a detectability test; it aborts because of what it
-  *means*. Adopting detectability as the criterion now would have to move
+  _means_. Adopting detectability as the criterion now would have to move
   `depth-cap` back, and a `del` after a depth-refused `set` destroys data the
   same way. The doc comment says which test is in force and names `depth-cap`
   as the member that fails the other one, so the judgment is visible rather
@@ -2833,7 +2842,7 @@ invoke('vote-pizza'), … }` — looked up per item, rendering a **disabled**
   injected metas plus header count is exactly 1. Verified live — the dev
   server now returns no `Content-Security-Policy-Report-Only` and serves
   `<meta http-equiv="Content-Security-Policy" content="frame-src 'self'
-  https://tlon.network">`. The consequence worth naming: dev now matches
+https://tlon.network">`. The consequence worth naming: dev now matches
   production instead of approximating it, and the Report-Only validation
   surface is one `ENFORCE_HOST_CSP = false` away whenever the allowlist has
   to be re-validated against real usage.
@@ -2854,8 +2863,8 @@ containment (internal, because the external reviewer's provider refuses that
 subject matter). 26 findings. These are the rulings and what they cost.
 
 - **D98: every refusal aborts its entry; the skip/abort criterion is
-  withdrawn.** D91 and D94 split refusals by *which thing was wrong — the op,
-  or the state it was applied to*. That is coherent as a taxonomy and
+  withdrawn.** D91 and D94 split refusals by _which thing was wrong — the op,
+  or the state it was applied to_. That is coherent as a taxonomy and
   incoherent as a safety rule, and a review reproduced why: a path missing
   its leading `/` is a `grammar` refusal, so it skipped, and a following
   `del /today` still applied. **That is the archive-then-clear data loss the
@@ -2949,17 +2958,18 @@ subject matter). 26 findings. These are the rulings and what they cost.
 
 ### The pattern this round is actually about
 
-**Seven guards that could not fail, or could not fail for the reason they
+**Eight guards that could not fail, or could not fail for the reason they
 claimed.** Four were written by the fix round itself, as the evidence that
-its fixes worked. The species vary and are worth distinguishing, because they
+its fixes worked, and one by the author of this list while cataloguing the
+other seven. The species vary and are worth distinguishing, because they
 need different defences:
 
 1. **Computed from itself** — the pin test whose coverage was `schema −
-   exclusions`, so a new column always landed in "updated".
+exclusions`, so a new column always landed in "updated".
 2. **Satisfiable without the subject** — a CI gate the flag under test could
    not affect.
 3. **Tests the implementation, not the requirement** — `surface create`'s
-   control used a *different* title than the collision case it existed to
+   control used a _different_ title than the collision case it existed to
    catch.
 4. **Claims a mechanism it does not exercise** — the "two batches"
    convergence test folded once; the reducer has no incremental interface at
@@ -2971,9 +2981,31 @@ need different defences:
 7. **Made vacuous by a later fix** — a pre-existing test that reached its
    assertion through the very case `foldForMigration` now refuses, and would
    have kept passing for an unrelated reason.
+8. **Compares a thing against itself** — the revert test for the openclaw
+   type failure reverted `packages/api/src` without rebuilding, while
+   openclaw resolves that package through `dist/index.d.ts`. It therefore
+   compared our build against our build, and reported "not ours" twice, into
+   two documents. Structurally the same as (2) — satisfiable without the
+   subject — but worth its own name because the shape recurs: a
+   **differential experiment whose arms did not differ**. Committed by the
+   author of this list, mid-round, in a round about controls that cannot
+   fail.
 
 The rule "no control without a demonstration that it can fail" is necessary
 and was not sufficient: nobody applied it to the demonstrations. (5) is the
 one to weight going forward — a test double that cannot express a defect
 silently bounds what the whole suite can find, and neither review would have
 caught it from the test code alone.
+
+The defence against (8) is mechanical and belongs in the process rules: any
+differential experiment — revert, A/B, before/after — must **hash the
+artifact actually consumed in both arms and assert the hashes differ**
+before its result is reported. "I changed the source" is not evidence the
+compared thing changed.
+
+(Bookkeeping, Session 6a: this list was headed "Seven" and enumerated seven
+while the peer report enumerated eight and separately called them "six
+species"; the session prompt inherited "six". Species 8 existed only in the
+peer report and had never been written here. Corrected above. The lesson is
+the same one D92/D93 exist for — an audit that lives only in a session
+transcript is an audit that will be lost, and this project has now lost two.)
