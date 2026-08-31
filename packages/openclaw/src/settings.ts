@@ -432,6 +432,59 @@ function isChannelRulesObject(
   return true;
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * Validate and sanitize one raw pendingApprovals entry; undefined drops it.
+ *
+ * Two tiers. The operational locators are load-bearing, not decoration:
+ * approval execution gates on a truthy `groupFlag`/`channelNest` and then
+ * removes the record either way, so a record that lost its locator would
+ * report success to the owner while doing nothing — drop the whole record.
+ * Cosmetic and delivery fields are shed individually instead (dropping the bad
+ * part beats throwing away good state — see parseBlockedShips). Unknown fields
+ * are carried through: hermes stamps its own delivery fields onto the shared
+ * record and they must round-trip.
+ */
+function sanitizePendingApproval(
+  obj: Record<string, unknown>
+): PendingApproval | undefined {
+  if (
+    typeof obj.id !== 'string' ||
+    (obj.type !== 'dm' && obj.type !== 'channel' && obj.type !== 'group') ||
+    typeof obj.requestingShip !== 'string' ||
+    typeof obj.timestamp !== 'number'
+  ) {
+    return undefined;
+  }
+  if (obj.type === 'group' && !isNonEmptyString(obj.groupFlag)) {
+    return undefined;
+  }
+  if (obj.type === 'channel' && !isNonEmptyString(obj.channelNest)) {
+    return undefined;
+  }
+
+  const sanitized: Record<string, unknown> = { ...obj };
+  for (const field of [
+    'groupTitle',
+    'messagePreview',
+    'notificationMessageId',
+  ]) {
+    if (field in sanitized && typeof sanitized[field] !== 'string') {
+      delete sanitized[field];
+    }
+  }
+  if (
+    'notifyAttemptAt' in sanitized &&
+    typeof sanitized.notifyAttemptAt !== 'number'
+  ) {
+    delete sanitized.notifyAttemptAt;
+  }
+  return sanitized as unknown as PendingApproval;
+}
+
 /**
  * Parse pendingApprovals - handles both JSON string and array formats.
  * Settings-store stores complex objects as JSON strings.
@@ -457,23 +510,19 @@ function parsePendingApprovals(value: unknown): PendingApproval[] | undefined {
   }
 
   // Filter to valid, unexpired PendingApproval objects.
-  return parsed.filter((item): item is PendingApproval => {
+  return parsed.flatMap((item) => {
     if (!item || typeof item !== 'object') {
-      return false;
+      return [];
     }
-    const obj = item as Record<string, unknown>;
-    const valid =
-      typeof obj.id === 'string' &&
-      (obj.type === 'dm' || obj.type === 'channel' || obj.type === 'group') &&
-      typeof obj.requestingShip === 'string' &&
-      typeof obj.timestamp === 'number';
-
-    const approval = obj as PendingApproval;
-    return (
-      valid &&
-      hasUsableOriginalMessage(approval) &&
-      !isPendingApprovalExpired(approval)
-    );
+    const approval = sanitizePendingApproval(item as Record<string, unknown>);
+    if (
+      !approval ||
+      !hasUsableOriginalMessage(approval) ||
+      isPendingApprovalExpired(approval)
+    ) {
+      return [];
+    }
+    return [approval];
   });
 }
 

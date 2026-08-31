@@ -176,6 +176,75 @@ describe('processPendingForeigns', () => {
     expect(deps.queueApproval).toHaveBeenCalledTimes(1);
   });
 
+  it('clears the processed marker when an auto-accepted join later errors', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+    });
+
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~owner', { progress: 'error' }),
+      deps
+    );
+
+    // The accept poke acked but the backend join failed; the flag has to be
+    // a live decision again rather than stay suppressed until restart.
+    expect(deps.acceptInvite).toHaveBeenCalledWith('~host/garden');
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+  });
+
+  it('clears the processed marker on an error even with no valid invite', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+    });
+
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~owner', {
+        progress: 'error',
+        valid: false,
+      }),
+      deps
+    );
+
+    // The loop exits at the invites check, but the flag must be actionable
+    // again for the observation that carries a valid invite.
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(false);
+    expect(deps.acceptInvite).not.toHaveBeenCalled();
+  });
+
+  it('re-decides and re-marks a confirmed-blocked flag when the join errors', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+      allowlist: () => ['~inviter'],
+      fetchBlockedShips: vi.fn().mockResolvedValue(['~inviter']),
+    });
+
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~inviter', { progress: 'error' }),
+      deps
+    );
+
+    // Bounded cost: one batch-memoized block-list read, no owner card.
+    expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+    expect(deps.queueApproval).not.toHaveBeenCalled();
+  });
+
+  it('queues with no title when the invite preview title is not a string', async () => {
+    const deps = makeDeps();
+    const foreigns = makeForeign('~host/group', '~stranger');
+    // Remote-inviter-controlled and only type-asserted on the way in.
+    (
+      foreigns['~host/group'].invites[0].preview!.meta as { title: unknown }
+    ).title = 7;
+
+    await processPendingForeigns(foreigns, deps);
+
+    expect(deps.queueApproval).toHaveBeenCalledWith({
+      requestingShip: '~stranger',
+      groupFlag: '~host/group',
+    });
+  });
+
   it('stays silent for foreigners without invites (previews/joins-in-progress)', async () => {
     const foreigns: Foreigns = {
       '~host/group': {

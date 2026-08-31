@@ -1202,6 +1202,72 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(len(adapter._cli.notifications()), 1)
 
+    def test_delivered_group_reobservation_costs_no_blocked_scry(self):
+        adapter = self.make_adapter()
+        clock = FakeClock()
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+
+        # A backlog re-observed at boot/reconnect must not pay a 30s-worst-case
+        # scry per already-notified group.
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS * 3)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_group_reobservation_within_cooldown_costs_no_blocked_scry(self):
+        adapter = self.make_adapter()
+        adapter._cli = FailingCLI(("posts", "send"))
+        clock = FakeClock()
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertNotIn("notificationDeliveredAt", adapter._pending_approvals[0])
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS - 1_000)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+        self.assertEqual(len(adapter._cli.notifications()), 1)
+
+    def test_blocked_group_inviter_without_a_record_is_still_ignored(self):
+        adapter = self.make_adapter()
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+
+    def test_past_cooldown_group_renotify_still_consults_the_block_list(self):
+        adapter = self.make_adapter()
+        clock = FakeClock()
+        adapter._pending_approvals = [
+            {
+                "id": "g1234",
+                "type": "group",
+                "requestingShip": "~ten",
+                "groupFlag": "~host/projects",
+                "timestamp": clock.now_ms(),
+                "lastNotifiedAt": clock.now_ms(),
+            }
+        ]
+        # Blocked after the record was queued: the past-cooldown retry is about
+        # to DM, so the block list still gates it.
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+
+        clock.advance_ms(adapter_mod.RENOTIFY_COOLDOWN_MS)
+        with patch.object(adapter_mod.time, "time", clock.time):
+            asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+
+        self.assertEqual(adapter._cli.notifications(), [])
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+
     def test_connect_scry_catches_missed_group_invites(self):
         adapter = self.make_adapter()
         adapter._sse.payloads["/groups-ui/v7/init"] = {
@@ -1211,6 +1277,33 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertTrue(asyncio.run(adapter._process_pending_group_invites()))
 
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(adapter._pending_approvals[0]["groupFlag"], "~host/projects")
+
+    def test_allowlist_deleted_during_an_outage_stops_catchup_auto_accept(self):
+        adapter = self.make_adapter()
+        # Authorized before the outage; the owner deleted the key while the bot
+        # was disconnected, so no settings event ever arrived.
+        adapter._settings_group_invite_allowlist = {"~ten"}
+        adapter._sse.payloads["/settings/all"] = {"all": {"moltbot": {"tlon": {}}}}
+        # Readable and empty: with the stale allowlist still in force this
+        # invite would auto-accept, so the pin is not vacuous.
+        adapter._sse.payloads["/chat/blocked"] = []
+        adapter._sse.payloads["/groups-ui/v7/init"] = {
+            "foreigns": self.foreigns("~host/projects", "~ten"),
+            "groups": {},
+        }
+
+        async def reconnect():
+            self.assertTrue(await adapter._load_settings_state())
+            self.assertTrue(await adapter._process_pending_group_invites())
+
+        asyncio.run(reconnect())
+
+        self.assertEqual(adapter._settings_group_invite_allowlist, set())
+        self.assertNotIn(
+            ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
+        )
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertEqual(adapter._pending_approvals[0]["groupFlag"], "~host/projects")
 
@@ -1367,6 +1460,7 @@ class AdapterApprovalTests(unittest.TestCase):
         adapter = self.make_adapter()
         asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
         request_id = adapter._pending_approvals[0]["id"]
+        adapter._settings_dm_allowlist = {"~ten"}
         cli = FailingCLI(("groups", "reject-invite"))
         adapter._cli = cli
 
@@ -1376,6 +1470,10 @@ class AdapterApprovalTests(unittest.TestCase):
 
         self.assertEqual(len(adapter._pending_approvals), 1)
         self.assertIn("stays pending", cli.messages[-1][1])
+        # A partial ban still revokes the DM grant: until the retry lands it
+        # would be a live authorization the owner believes is gone.
+        self.assertEqual(adapter._settings_dm_allowlist, set())
+        self.assertEqual(adapter._sse.settings_writes("dmAllowlist")[-1], [])
 
         # The first /ban DID block the ship, and %chat's block poke nacks on
         # an already-blocked one — the retry must skip the re-block and still
@@ -1402,6 +1500,37 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertIn(
             ("groups", "reject-invite", "~host/projects"), cli.commands
         )
+
+    def test_ban_retry_during_blocked_list_outage_still_declines(self):
+        adapter = self.make_adapter()
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        request_id = adapter._pending_approvals[0]["id"]
+        cli = FailingCLI(("groups", "reject-invite"))
+        adapter._cli = cli
+
+        self.dispatches(
+            adapter, dm_event(f"/ban {request_id}", author="~mug", whom="~mug"), dm=True
+        )
+
+        self.assertEqual(len(adapter._pending_approvals), 1)
+        self.assertEqual(len(adapter._sse.pokes_for("chat-block-ship")), 1)
+
+        # /chat/blocked stays unmapped, so the scry raises and the fail-open
+        # pre-check reads "not blocked": the retry re-pokes the block. %chat
+        # nacks that poke for an already-blocked ship, but the poke call itself
+        # still resolves — the nack arrives later on the stream and is only
+        # logged (test_tlon_api.test_nack_also_pops_entry) — so the retry
+        # reaches the decline rather than wedging until the scry recovers.
+        cli.failures = 0
+        self.dispatches(
+            adapter,
+            dm_event(f"/ban {request_id}", author="~mug", whom="~mug", msg_id="cmd-2"),
+            dm=True,
+        )
+
+        self.assertEqual(len(adapter._sse.pokes_for("chat-block-ship")), 2)
+        self.assertIn(("groups", "reject-invite", "~host/projects"), cli.commands)
+        self.assertEqual(adapter._pending_approvals, [])
 
     def test_group_invite_no_owner_is_ignored(self):
         adapter = self.make_adapter({"owner_ship": ""})
@@ -1432,6 +1561,64 @@ class AdapterApprovalTests(unittest.TestCase):
         self.assertIn(
             ("groups", "accept-invite", "~host/projects"), adapter._cli.commands
         )
+
+    @staticmethod
+    def errored_foreigns(flag, from_ship):
+        payload = AdapterApprovalTests.foreigns(flag, from_ship)
+        payload[flag]["progress"] = "error"
+        return payload
+
+    def test_join_error_after_an_accept_ack_resurfaces_the_invite(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
+        adapter._sse.payloads["/chat/blocked"] = []
+        adapter._sse.payloads["/groups-ui/v7/init"] = self.init_with_channels(
+            "~host/projects", []
+        )
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+
+        # The accept-invite CLI call acked, but the backend join ended in
+        # error — the invite is a live decision again.
+        asyncio.run(adapter._handle_foreigns(self.errored_foreigns("~host/projects", "~ten")))
+
+        accepts = [
+            cmd
+            for cmd in adapter._cli.commands
+            if cmd == ("groups", "accept-invite", "~host/projects")
+        ]
+        self.assertEqual(len(accepts), 2)
+
+    def test_join_error_clears_the_marker_without_a_valid_invite(self):
+        adapter = self.make_adapter()
+        adapter._processed_group_invites.add("~host/projects")
+
+        asyncio.run(
+            adapter._handle_foreigns(
+                {"~host/projects": {"progress": "error", "invites": []}}
+            )
+        )
+
+        # parse_foreigns yields nothing for this shape, so no decision runs
+        # now; the flag still has to be actionable when an invite reappears.
+        self.assertNotIn("~host/projects", adapter._processed_group_invites)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
+
+    def test_join_error_on_a_blocked_marked_flag_rechecks_and_remarks(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~ten"})
+        adapter._sse.payloads["/chat/blocked"] = ["~ten"]
+        asyncio.run(adapter._handle_foreigns(self.foreigns("~host/projects", "~ten")))
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 1)
+
+        asyncio.run(adapter._handle_foreigns(self.errored_foreigns("~host/projects", "~ten")))
+
+        # The re-decision costs one more block-list read and re-marks; the
+        # owner is never carded for a confirmed-blocked inviter.
+        self.assertIn("~host/projects", adapter._processed_group_invites)
+        self.assertEqual(adapter._sse.scries.count("/chat/blocked"), 2)
+        self.assertEqual(adapter._pending_approvals, [])
+        self.assertEqual(adapter._cli.notifications(), [])
 
     def test_failed_notify_persists_undelivered_and_retries_past_cooldown(self):
         adapter = self.make_adapter()

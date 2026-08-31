@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { buildPendingApprovalsResponse } from './monitor/approval.js';
 import {
   APPROVAL_TTL_MS,
   DM_INVITE_PREVIEW,
@@ -170,12 +171,14 @@ describe('Settings: parseSettingsResponse', () => {
               id: 'expired',
               type: 'channel',
               requestingShip: '~old',
+              channelNest: 'chat/~host/general',
               timestamp: now - APPROVAL_TTL_MS - 1,
             },
             {
               id: 'fresh',
               type: 'channel',
               requestingShip: '~new',
+              channelNest: 'chat/~host/general',
               timestamp: now,
               originalMessage: {
                 messageId: '170.000',
@@ -202,6 +205,7 @@ describe('Settings: parseSettingsResponse', () => {
               id: 'stale-channel',
               type: 'channel',
               requestingShip: '~old',
+              channelNest: 'chat/~host/general',
               timestamp: now,
             },
             {
@@ -215,6 +219,7 @@ describe('Settings: parseSettingsResponse', () => {
               id: 'fresh-channel',
               type: 'channel',
               requestingShip: '~new',
+              channelNest: 'chat/~host/general',
               timestamp: now,
               originalMessage: {
                 messageId: '170.000',
@@ -254,6 +259,114 @@ describe('Settings: parseSettingsResponse', () => {
         notificationMessageId: '170141184507',
         notifyAttemptAt: 2_000,
       });
+    });
+
+    it("round-trips the other runtime's delivery fields", () => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              timestamp: Date.now(),
+              // hermes-private stamps: this runtime never reads them but must
+              // not strip them, or a shared record loses its retry state.
+              notificationDeliveredAt: 1_700_000_000_000,
+              lastNotifiedAt: 1_700_000_000_000,
+            },
+          ]),
+        },
+      });
+
+      expect(result.pendingApprovals?.[0]).toMatchObject({
+        notificationDeliveredAt: 1_700_000_000_000,
+        lastNotifiedAt: 1_700_000_000_000,
+      });
+    });
+
+    it.each([
+      { type: 'group' as const, locator: 'groupFlag' },
+      { type: 'channel' as const, locator: 'channelNest' },
+    ])(
+      'drops a $type record whose $locator is missing or mistyped',
+      ({ type, locator }) => {
+        const base = {
+          id: 'x1234',
+          type,
+          requestingShip: '~inviter',
+          timestamp: Date.now(),
+          originalMessage: {
+            messageId: '170.000',
+            messageText: 'hi',
+            timestamp: Date.now(),
+          },
+        };
+
+        for (const bad of [undefined, 7, '', null, ['~host/group']]) {
+          const result = parseSettingsResponse({
+            tlon: {
+              pendingApprovals: JSON.stringify([{ ...base, [locator]: bad }]),
+            },
+          });
+          // Execution gates on a truthy locator and removes the record either
+          // way, so a locator-less record would report success while the
+          // approval never happened.
+          expect(result.pendingApprovals).toEqual([]);
+        }
+      }
+    );
+
+    it.each([
+      { field: 'groupTitle', bad: 7 },
+      { field: 'messagePreview', bad: { text: 'hi' } },
+      { field: 'notificationMessageId', bad: 170141184507 },
+      { field: 'notifyAttemptAt', bad: '2000' },
+    ])('drops only a mistyped $field, keeping the record', ({ field, bad }) => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              timestamp: Date.now(),
+              [field]: bad,
+            },
+          ]),
+        },
+      });
+
+      expect(result.pendingApprovals).toHaveLength(1);
+      expect(result.pendingApprovals?.[0]).not.toHaveProperty(field);
+      expect(result.pendingApprovals?.[0]?.id).toBe('g1234');
+    });
+
+    it('renders a sanitized record in /pending without throwing', () => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              groupTitle: 7,
+              timestamp: Date.now(),
+            },
+          ]),
+        },
+      });
+
+      // truncate() would throw a TypeError on a numeric title.
+      const response = buildPendingApprovalsResponse(
+        result.pendingApprovals ?? [],
+        undefined,
+        () => undefined
+      );
+      expect(response.text).toContain('~host/group');
     });
   });
 });

@@ -104,7 +104,7 @@ The approval system lets you control who can interact with your bot. When `owner
 
 -   **DM requests** from ships not on your `dmAllowlist`
 -   **Channel mentions** from ships not authorized for that channel
--   **Group invites** from ships not on your `groupInviteAllowlist` (owner invites and allowlisted, non-blocked ships are auto-accepted). Pending invites are reconciled at connect and on a 2-minute poll, failed owner notifications are retried, delivered ones are never re-sent, and rejecting declines the invite on the ship — see SECURITY.md for the invariants.
+-   **Group invites** from ships not on your `groupInviteAllowlist` (owner invites and allowlisted, non-blocked ships are auto-accepted). Pending invites are reconciled at connect and on a 2-minute poll, failed owner notifications are retried, delivered ones are never re-sent, and rejecting or blocking declines the invite on the ship — see SECURITY.md for the invariants.
 
 ### Usage
 
@@ -119,7 +119,7 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 
 -   **approve**: Allow the interaction and add to allowlist. Original message is processed.
 -   **deny**: Reject silently. Ship can try again later. For a group invite this also declines the invite on the ship.
--   **block**: Permanently block using Tlon's native blocking.
+-   **block**: Permanently block using Tlon's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block or a decline the client could not submit keeps the request pending so you can retry.
 
 ### Admin Commands
 

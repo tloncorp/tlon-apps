@@ -144,6 +144,7 @@ import {
   normalizeNotificationId,
   pruneExpired,
   removePendingApproval,
+  runBanAction,
 } from './approval.js';
 import {
   handleChannelReaction,
@@ -2098,13 +2099,36 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             break;
         }
       } else if (action === 'block') {
-        const blocked = await blockShip(approval.requestingShip);
-        if (!blocked && approval.type === 'group') {
+        const result = await runBanAction(approval, {
+          blockShip,
+          removeFromDmAllowlist,
+          declineInvite: async (groupFlag) => {
+            await api!.poke({
+              app: 'groups',
+              mark: 'invite-decline',
+              json: groupFlag,
+            });
+            runtime.log?.(
+              `[tlon] Declined group invite ${groupFlag} after ban`
+            );
+          },
+        });
+        if (result.outcome === 'block-failed') {
           // The record is the invite's suppression, so dropping it after a
           // failed block re-queues and re-DMs on the next observation.
           return `Could not block ${approval.requestingShip}: block failed. Request stays pending, try again.`;
         }
-        await removeFromDmAllowlist(approval.requestingShip);
+        if (result.outcome === 'decline-failed') {
+          capturePluginError('group_invite_decline', result.error, {
+            errorKind: 'ban_decline_failed',
+          });
+          runtime.error?.(
+            `[tlon] Failed to decline group invite ${approval.groupFlag} after ban: ${String(result.error)}`
+          );
+          // The ban landed but the invite is still on the ship; keep the
+          // record so the owner can retry the decline.
+          return `Blocked ${approval.requestingShip}, but could not submit the decline for ${approval.groupFlag}. Request stays pending, try again.`;
+        }
       } else if (
         action === 'deny' &&
         approval.type === 'group' &&

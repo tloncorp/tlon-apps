@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   APPROVAL_TTL_MS,
   type ApprovalQueueContext,
+  type BanActionDeps,
   type DisplayContext,
   type PendingApproval,
   RENOTIFY_COOLDOWN_MS,
@@ -24,6 +25,7 @@ import {
   mergeApprovalDeliveryState,
   normalizeNotificationId,
   removePendingApproval,
+  runBanAction,
 } from './approval.js';
 
 // ---------------------------------------------------------------------------
@@ -1472,5 +1474,83 @@ describe('mergeApprovalDeliveryState', () => {
     );
 
     expect(merged).toEqual([]);
+  });
+});
+
+describe('runBanAction', () => {
+  const approval = (
+    overrides: Partial<PendingApproval> = {}
+  ): PendingApproval => ({
+    id: 'g5f6e',
+    type: 'group',
+    requestingShip: '~inviter',
+    groupFlag: '~host/garden',
+    timestamp: 1_000,
+    ...overrides,
+  });
+
+  const makeDeps = (overrides: Partial<BanActionDeps> = {}) => {
+    const calls: string[] = [];
+    const deps = {
+      blockShip: vi.fn(async () => {
+        calls.push('block');
+        return true;
+      }),
+      removeFromDmAllowlist: vi.fn(async () => {
+        calls.push('removeFromDmAllowlist');
+      }),
+      declineInvite: vi.fn(async () => {
+        calls.push('decline');
+      }),
+      ...overrides,
+    };
+    return { deps, calls };
+  };
+
+  it('blocks, revokes the DM grant, then declines the invite', async () => {
+    const { deps, calls } = makeDeps();
+
+    const result = await runBanAction(approval(), deps);
+
+    expect(result).toEqual({ outcome: 'done' });
+    expect(calls).toEqual(['block', 'removeFromDmAllowlist', 'decline']);
+    expect(deps.declineInvite).toHaveBeenCalledWith('~host/garden');
+  });
+
+  it('keeps the record and skips both follow-ups when the block fails', async () => {
+    const { deps } = makeDeps({ blockShip: vi.fn(async () => false) });
+
+    const result = await runBanAction(approval(), deps);
+
+    // The record is the invite's suppression: dropping it after a failed
+    // block would re-queue and re-DM on the next observation.
+    expect(result).toEqual({ outcome: 'block-failed' });
+    expect(deps.removeFromDmAllowlist).not.toHaveBeenCalled();
+    expect(deps.declineInvite).not.toHaveBeenCalled();
+  });
+
+  it('has already revoked the DM grant when the decline cannot be submitted', async () => {
+    const error = new Error('poke failed');
+    const { deps, calls } = makeDeps({
+      declineInvite: vi.fn(async () => {
+        throw error;
+      }),
+    });
+
+    const result = await runBanAction(approval(), deps);
+
+    expect(result).toEqual({ outcome: 'decline-failed', error });
+    expect(calls).toEqual(['block', 'removeFromDmAllowlist']);
+  });
+
+  it('never declines for a dm or channel ban', async () => {
+    for (const type of ['dm', 'channel'] as const) {
+      const { deps, calls } = makeDeps();
+
+      const result = await runBanAction(approval({ type }), deps);
+
+      expect(result).toEqual({ outcome: 'done' });
+      expect(calls).toEqual(['block', 'removeFromDmAllowlist']);
+    }
   });
 });

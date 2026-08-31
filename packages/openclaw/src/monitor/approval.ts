@@ -467,6 +467,57 @@ export function mergeApprovalDeliveryState(
 }
 
 // ============================================================================
+// Ban Action (runBanAction)
+// ============================================================================
+
+export type BanActionDeps = {
+  /** False on submission failure (see blockShip). */
+  blockShip: (ship: string) => Promise<boolean>;
+  /** Persists the revocation. */
+  removeFromDmAllowlist: (ship: string) => Promise<void>;
+  /**
+   * Rejects on *submission* failure only: the poke resolves from the channel
+   * PUT's status and a later %groups nack is log-only, so this carries no
+   * stronger delivery guarantee than the deny branch's decline.
+   */
+  declineInvite: (groupFlag: string) => Promise<void>;
+};
+
+export type BanActionResult =
+  | { outcome: 'done' }
+  | { outcome: 'block-failed' }
+  | { outcome: 'decline-failed'; error: unknown };
+
+/**
+ * The /ban side effects in their required order: block the ship, revoke its DM
+ * grant, then decline the group invite.
+ *
+ * The DM revocation runs before the decline so that a block-OK/decline-failed
+ * partial ban has still taken the ship's DM access away — that outcome keeps
+ * the approval record for a retry, and leaving the grant in place until the
+ * retry succeeded would be a live authorization the owner believes is gone.
+ * `done` is the only outcome that may remove the record.
+ */
+export async function runBanAction(
+  approval: PendingApproval,
+  deps: BanActionDeps
+): Promise<BanActionResult> {
+  const blocked = await deps.blockShip(approval.requestingShip);
+  if (!blocked && approval.type === 'group') {
+    return { outcome: 'block-failed' };
+  }
+  await deps.removeFromDmAllowlist(approval.requestingShip);
+  if (approval.type === 'group' && approval.groupFlag) {
+    try {
+      await deps.declineInvite(approval.groupFlag);
+    } catch (error) {
+      return { outcome: 'decline-failed', error };
+    }
+  }
+  return { outcome: 'done' };
+}
+
+// ============================================================================
 // Approval Request A2UI
 // ============================================================================
 

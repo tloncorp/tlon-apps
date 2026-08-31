@@ -231,6 +231,40 @@ class ForeignsTests(unittest.TestCase):
         self.assertEqual(approval.parse_foreigns(None), [])
         self.assertEqual(approval.parse_foreigns([]), [])
 
+    def test_error_progress_flags_lists_only_errored_foreigns(self):
+        errored = foreign("~bus")
+        errored["progress"] = "error"
+        joining = foreign("~ten")
+        joining["progress"] = "join"
+        payload = {
+            "~host/errored": errored,
+            "~host/joining": joining,
+            "~host/plain": foreign("~wet"),
+        }
+
+        self.assertEqual(
+            approval.error_progress_flags(payload), ["~host/errored"]
+        )
+
+    def test_error_progress_flags_covers_foreigns_parse_drops(self):
+        # parse_foreigns yields nothing for these, but the flags still have to
+        # become actionable again.
+        payload = {
+            "~host/noinvites": {"progress": "error", "invites": []},
+            "~host/invalid": {"progress": "error", "invites": [{"valid": False}]},
+        }
+
+        self.assertEqual(approval.parse_foreigns(payload), [])
+        self.assertEqual(
+            sorted(approval.error_progress_flags(payload)),
+            ["~host/invalid", "~host/noinvites"],
+        )
+
+    def test_error_progress_flags_tolerates_malformed_payloads(self):
+        self.assertEqual(approval.error_progress_flags(None), [])
+        self.assertEqual(approval.error_progress_flags([]), [])
+        self.assertEqual(approval.error_progress_flags({"~host/g": "junk"}), [])
+
 
 class CommandParseTests(unittest.TestCase):
     def test_commands_parse(self):
