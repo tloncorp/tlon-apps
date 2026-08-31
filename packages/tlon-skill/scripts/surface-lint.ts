@@ -25,6 +25,7 @@ import {
   matchSpans,
   scanBundle,
 } from './surface-bundle-scan';
+import { canonicalJson } from './surface-canonical-json';
 
 /**
  * The surface-channels publish gate (plan §9).
@@ -1362,20 +1363,6 @@ function createRecordingChart(live: LiveChart[]): unknown {
   };
 }
 
-function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value) ?? 'undefined';
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(',')}]`;
-  }
-  const record = value as Record<string, unknown>;
-  return `{${Object.keys(record)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
-    .join(',')}}`;
-}
-
 interface SurfacePostLike {
   authorId: string;
   sequenceNum: number;
@@ -2193,6 +2180,14 @@ function foldAndRender(
     inspect(`after invoking "${action.id}"`);
     activate(`after invoking "${action.id}"`);
 
+    // The shared helper (D72), not a private copy. The copy that used to live
+    // here differed on exactly one input: it emitted a bare `undefined` token
+    // for an `undefined`-valued key instead of dropping it. Reducer state
+    // cannot hold one — it starts as schema-validated `initialState` (parsed
+    // JSON, so no `undefined` anywhere) and `del` removes the key outright
+    // (`delete copy[key]` in the shared jsonPointer) rather than blanking it —
+    // so the two agree on every value this line can see, and the surviving
+    // helper is the one whose output matches a JSON round trip.
     const diverged = canonicalJson(once.state) !== canonicalJson(twice.state);
     if (diverged && !action.duplicatesTolerated) {
       collector.add({

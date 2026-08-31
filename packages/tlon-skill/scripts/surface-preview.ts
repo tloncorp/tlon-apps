@@ -19,6 +19,8 @@ import * as shellSandboxModule from '@tloncorp/surface-shell/sandbox';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { canonicalJson } from './surface-canonical-json';
+
 /**
  * `surface preview` (plan §9, step 6): render a surface app THE WAY
  * PRODUCTION RENDERS IT and screenshot it, so the authoring bot can look at
@@ -357,8 +359,13 @@ export function foldPopulatedState(
   return {
     state: reduction.state,
     invokes,
+    // Through the one comparison helper (D72), not a raw `JSON.stringify`
+    // pair: two states that differ only in key order are the same state, and
+    // reporting "the actions changed something" because the reducer rebuilt an
+    // object in a different order would send the author hunting a change that
+    // is not there.
     unchanged:
-      JSON.stringify(reduction.state) === JSON.stringify(spec.initialState),
+      canonicalJson(reduction.state) === canonicalJson(spec.initialState),
   };
 }
 

@@ -1,5 +1,13 @@
+// The REAL schema, through a subpath: `bunfig.toml` preloads a process-wide
+// mock of the `@tloncorp/api` root that does not carry the surface exports, and
+// the whole point of the block at the bottom of this file is that the stripping
+// is done by the schema production uses, not by a stand-in that would strip
+// whatever the test wanted it to.
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as surfaceSchemasModule from '@tloncorp/api/client/surface/schemas';
 import { describe, expect, it } from 'bun:test';
 
+import { canonicalJson } from '../surface-canonical-json';
 import { COMPLIANT_FIXTURE, RULE_FIXTURES } from '../surface-lint-fixtures';
 import {
   type FakeShipOptions,
@@ -7,6 +15,11 @@ import {
 } from '../surface-test-doubles';
 import { run } from './surface';
 import { decideRevision, specContentKey } from './surface-publish';
+
+const { SurfaceSpecSchema } = surfaceSchemasModule as Pick<
+  typeof import('@tloncorp/api'),
+  'SurfaceSpecSchema'
+>;
 
 const GROUP = '~zod/dashboards';
 const CHANNEL = 'chat/~zod/dash-0001';
@@ -1189,5 +1202,142 @@ describe('surface publish — an exact retry over a stranded channel', () => {
 
     expect(await publish(harness, ['--preserve-state'])).toBe(0);
     expect(harness.json().outcome).toBe('no-op');
+  });
+});
+
+/**
+ * The control on the RULE, not on the check that enforces it.
+ *
+ * `surface-comparison-convention.test.ts` proves the convention is followed.
+ * That is worth nothing unless following it prevents something, and nothing in
+ * a convention check can establish that — so this block demonstrates the defect
+ * D72 describes, using the real `SurfaceSpecSchema`.
+ *
+ * The mechanism is `z.object`'s strip-unknown-keys behaviour, and it is the
+ * fulcrum every assertion here turns on: declaring `x-gate-marker` in
+ * `SurfaceSpecSchema`, or switching the schema to `.passthrough()`, would make
+ * the validated views differ and turn the "compares equal" assertions red. The
+ * key is chosen to be one nobody will ever declare, so the fulcrum can only be
+ * moved deliberately.
+ */
+describe('D72 — why the comparison has to be raw-to-raw', () => {
+  const BASE = {
+    version: 1,
+    surfaceId: 'srf-d72',
+    specRevision: 1,
+    bundle: {
+      assetRef: 'https://storage.example/app.js',
+      sha256: 'a'.repeat(64),
+      size: 10,
+      shellVersion: 1,
+    },
+    initialState: {},
+    actions: {
+      vote: { ops: [{ op: 'set', path: '/votes/$actor', value: 'yes' }] },
+    },
+  } as const;
+
+  const raw = (marker: string): Record<string, unknown> =>
+    structuredClone({ ...BASE, 'x-gate-marker': marker }) as Record<
+      string,
+      unknown
+    >;
+
+  const validated = (spec: Record<string, unknown>): Record<string, unknown> =>
+    SurfaceSpecSchema.parse(spec) as unknown as Record<string, unknown>;
+
+  it('the schema really does strip the key the two specs differ in', () => {
+    // Without this the block would be vacuous in the worst way: two specs
+    // differing in a key the schema KEEPS would compare unequal on both sides
+    // and every assertion below would pass while proving nothing.
+    const parsed = validated(raw('alpha'));
+    expect('x-gate-marker' in parsed).toBe(false);
+    expect(canonicalJson(raw('alpha'))).not.toBe(canonicalJson(raw('omega')));
+  });
+
+  it('two different definitions compare EQUAL once both sides are validated', () => {
+    // The defect. A gate that read both sides through the schema would report
+    // "no change" for a definition that changed, and "confirmed" for a write
+    // that landed something else.
+    expect(canonicalJson(validated(raw('alpha')))).toBe(
+      canonicalJson(validated(raw('omega')))
+    );
+    expect(specContentKey(validated(raw('alpha')))).toBe(
+      specContentKey(validated(raw('omega')))
+    );
+  });
+
+  it('the raw cells tell them apart, and decideRevision therefore bumps', () => {
+    expect(specContentKey(raw('alpha'))).not.toBe(specContentKey(raw('omega')));
+    expect(
+      decideRevision(
+        {
+          spec: validated(raw('alpha')) as never,
+          raw: JSON.stringify(raw('alpha')),
+        },
+        raw('omega')
+      )
+    ).toEqual({ changed: true, revision: 2, previousRevision: 1 });
+  });
+
+  it('strips inside an action too, which is where the marker used to live', () => {
+    const withMarker = (value: string) => {
+      const spec = structuredClone(BASE) as Record<string, unknown>;
+      (spec.actions as Record<string, Record<string, unknown>>).vote[
+        'x-gate-marker'
+      ] = value;
+      return spec;
+    };
+    expect(
+      'x-gate-marker' in
+        (
+          validated(withMarker('alpha')).actions as Record<
+            string,
+            Record<string, unknown>
+          >
+        ).vote
+    ).toBe(false);
+    expect(canonicalJson(withMarker('alpha'))).not.toBe(
+      canonicalJson(withMarker('omega'))
+    );
+    expect(canonicalJson(validated(withMarker('alpha')))).toBe(
+      canonicalJson(validated(withMarker('omega')))
+    );
+  });
+
+  it('publish refuses to confirm a write the ship stripped on the way in', async () => {
+    // End to end, at the site the rule protects. The ship stores a
+    // schema-validated copy of what was written — the shape any middlebox that
+    // "cleans up" a payload would produce — so the definition on the channel is
+    // NOT the definition publish assembled.
+    const marked = { ...specFile(), 'x-gate-marker': 'alpha' };
+    const harness = setup({
+      spec: marked,
+      rewriteDescriptionOnWrite: (incoming) => {
+        const payload = JSON.parse(incoming) as Record<string, unknown>;
+        payload.surfaceSpec = SurfaceSpecSchema.parse(payload.surfaceSpec);
+        return JSON.stringify(payload);
+      },
+    });
+
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('publish-unconfirmed');
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(0);
+
+    // Both arms of the counterfactual, on the actual bytes: the raw cells
+    // differ (which is why the refusal happened) and the validated views do
+    // not (which is why a validated comparison would have reported success and
+    // gone on to mirror a definition the channel does not hold).
+    const written = JSON.parse(harness.ship.descriptionWrites[0].description)
+      .surfaceSpec as Record<string, unknown>;
+    const stored = JSON.parse(
+      harness.ship.channelSpecText(CHANNEL) ?? '{}'
+    ) as Record<string, unknown>;
+    expect(written['x-gate-marker']).toBe('alpha');
+    expect(canonicalJson(written)).not.toBe(canonicalJson(stored));
+    expect(canonicalJson(validated(written))).toBe(
+      canonicalJson(validated(stored))
+    );
   });
 });

@@ -425,34 +425,6 @@ export function channelHostShip(channelId: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Canonical JSON                                                      */
-/* ------------------------------------------------------------------ */
-
-/**
- * Key-order-independent JSON. Content change detection compares specs, and
- * a spec that differs only in the order its author's editor happened to
- * serialize keys is not a change — bumping the revision for it would be the
- * same false positive as never bumping at all, in the other direction.
- */
-export function canonicalJson(value: unknown): string {
-  if (value === null || typeof value !== 'object') {
-    return JSON.stringify(value) ?? 'null';
-  }
-  if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(',')}]`;
-  }
-  const entries = Object.entries(value as Record<string, unknown>)
-    .filter(([, entryValue]) => entryValue !== undefined)
-    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
-  return `{${entries
-    .map(
-      ([key, entryValue]) =>
-        `${JSON.stringify(key)}:${canonicalJson(entryValue)}`
-    )
-    .join(',')}}`;
-}
-
-/* ------------------------------------------------------------------ */
 /* Writer disciplines                                                  */
 /* ------------------------------------------------------------------ */
 

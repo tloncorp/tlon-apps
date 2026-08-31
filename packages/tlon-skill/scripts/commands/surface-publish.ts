@@ -1,11 +1,11 @@
 import type { SurfaceSpec } from '@tloncorp/api';
 
+import { canonicalJson } from '../surface-canonical-json';
 import {
   type ObservationBudget,
   type SurfaceDeps,
   type SurfaceReport,
   assertSnapshotRecordValid,
-  canonicalJson,
   emitReport,
   observeUntil,
   parseSurfaceArgs,

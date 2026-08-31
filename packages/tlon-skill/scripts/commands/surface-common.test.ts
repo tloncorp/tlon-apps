@@ -10,7 +10,6 @@ import {
   type SurfaceErrorCode,
   assertSnapshotRecordValid,
   buildSurfaceBlob,
-  canonicalJson,
   channelHostShip,
   observeUntil,
   parseSurfaceArgs,
@@ -22,26 +21,9 @@ import {
 
 const HELP = 'usage: test';
 
-describe('canonicalJson', () => {
-  it('is insensitive to key order at every depth', () => {
-    expect(canonicalJson({ b: { d: 1, c: 2 }, a: [3, { f: 4, e: 5 }] })).toBe(
-      canonicalJson({ a: [3, { e: 5, f: 4 }], b: { c: 2, d: 1 } })
-    );
-  });
-
-  it('is sensitive to array order, which is meaning', () => {
-    expect(canonicalJson([1, 2])).not.toBe(canonicalJson([2, 1]));
-  });
-
-  it('drops undefined the way JSON.stringify does', () => {
-    expect(canonicalJson({ a: 1, b: undefined })).toBe(canonicalJson({ a: 1 }));
-  });
-
-  it('distinguishes values a loose comparison would merge', () => {
-    expect(canonicalJson({ a: 1 })).not.toBe(canonicalJson({ a: '1' }));
-    expect(canonicalJson({ a: null })).not.toBe(canonicalJson({}));
-  });
-});
+// `canonicalJson` moved to scripts/surface-canonical-json.ts, a leaf module, so
+// the one comparison helper D72 depends on has an obviously canonical home
+// rather than a line in this file's vocabulary. Its tests moved with it.
 
 describe('surface blobs', () => {
   it('always writes exactly one entry', () => {
