@@ -18,9 +18,10 @@ import {
  *
  * This file covers the other half: that the flag is wired to the only
  * production delivery there is, that the policy stays the one narrow
- * directive it claims to be, and that the dev/preview delivery stays
- * Report-Only. Those are the three ways this mechanism could quietly
- * stop being what its documentation says it is.
+ * directive it claims to be, and that whichever way the flag is set the
+ * page ends up under exactly ONE policy — never an enforcing header,
+ * never a meta and a header at once. Those are the three ways this
+ * mechanism could quietly stop being what its documentation says it is.
  */
 
 type TransformResult = {

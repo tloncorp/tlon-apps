@@ -17,7 +17,10 @@ import { ENFORCE_HOST_CSP, HOST_CSP_POLICY } from '../../hostCsp';
  * survives into that world. It fires on the Document for enforced and
  * Report-Only policies alike, so this one listener is both the
  * production canary and the instrument the Report-Only dev/preview run is
- * measured with.
+ * measured with. How much of a canary it actually is has two limits worth
+ * reading before relying on it — a bundle can spend the bound, and a
+ * user can opt out of the sink. See "HOW MUCH IT MAY SAY" and "WHO
+ * ACTUALLY RECEIVES IT" below.
  *
  * WHAT IT MAY SAY
  *
@@ -40,13 +43,30 @@ import { ENFORCE_HOST_CSP, HOST_CSP_POLICY } from '../../hostCsp';
  *     a correlation and dedupe token, not a value to read back: it says
  *     "the same URL again" without saying what the URL was.
  *
- * Residual, stated rather than papered over: `blockedHost` is still up to
- * HOST_LABEL_MAX characters a bundle can influence, so the channel into
- * telemetry is not zero. It is bounded — at most
- * HOST_CSP_VIOLATION_BOUND events per page load, so at most
- * HOST_CSP_VIOLATION_BOUND × HOST_LABEL_MAX constrained characters — and
- * it is the field that makes the signal actionable at all: the point of a
- * violation report is to learn WHICH origin nobody allowlisted.
+ * Residuals, stated rather than papered over. TWO fields are
+ * attacker-influenced, not one:
+ *
+ *   - `blockedHost` is up to HOST_LABEL_MAX characters a bundle can
+ *     choose, so the channel into telemetry is not zero. It is bounded —
+ *     at most HOST_CSP_VIOLATION_BOUND events per page load, so at most
+ *     HOST_CSP_VIOLATION_BOUND × HOST_LABEL_MAX constrained characters —
+ *     and it is the field that makes the signal actionable at all: the
+ *     point of a violation report is to learn WHICH origin nobody
+ *     allowlisted.
+ *   - `blockedUriHash` is a SECOND channel, and the easy one to miss
+ *     because it reads as a redaction. FNV-1a is not a preimage barrier
+ *     at 32 bits: a bundle that wants a particular value can simply
+ *     search for a URL that hashes to it. So the hash is four more
+ *     attacker-chosen bytes per event on top of the host label, and the
+ *     residual above undercounts by exactly that much. Where an engine
+ *     reports only the origin those bits are largely redundant with
+ *     `blockedHost`; where it reports more — and nothing here depends on
+ *     which it does — they are 32 bits derived from the path and query
+ *     that nothing else in this module will look at.
+ *
+ * Both channels are bounded by the SAME cap, so the ceiling on what one
+ * page load can carry out is HOST_CSP_VIOLATION_BOUND × (HOST_LABEL_MAX
+ * constrained characters + 4 bytes).
  *
  * HOW MUCH IT MAY SAY
  *
@@ -63,6 +83,30 @@ import { ENFORCE_HOST_CSP, HOST_CSP_POLICY } from '../../hostCsp';
  * the dedupe set forever. Suppressed violations are counted in `dropped`
  * rather than emitted, so an operator reading the page can still tell
  * that suppression happened without that costing another event.
+ *
+ * What the cap COSTS, since it is a trade and not a free win: it is
+ * spendable by the party it watches. A bundle that emits
+ * HOST_CSP_VIOLATION_BOUND junk violations early in a page load leaves
+ * every later one `dropped`, so it can arrange for its real violation to
+ * be counted rather than described. Enforcement is untouched — the engine
+ * refuses the frame whether or not anything is listening, and blocking
+ * never depended on this module — but the one signal that survives
+ * enforcement is degradable in a way the block is not. `dropped` is the
+ * tell that it happened; it does not say what was lost. Raising the bound
+ * trades that away against the exfiltration ceiling above, which is why
+ * it is a constant and not a knob.
+ *
+ * WHO ACTUALLY RECEIVES IT
+ *
+ * Only opted-in users. The install site passes `captureAnalyticsEvent`
+ * (src/main.tsx), which calls `posthog.capture`, and posthog-js returns
+ * from `capture` without doing anything while the client is opted out —
+ * the state useTelemetry/PrivacyScreen put it in via
+ * `opt_out_capturing()`, and the fallback for a non-hosted user with no
+ * telemetry setting. HOST_CSP_VIOLATION_GLOBAL below is installed for
+ * everyone regardless, which is what the e2e drain reads and what a
+ * support flow could read off a live page, but for an opted-out user
+ * nothing here reaches an operator.
  */
 
 /** PostHog event name. */

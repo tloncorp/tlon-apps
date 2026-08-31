@@ -156,11 +156,12 @@ export default ({ mode }: { mode: string }) => {
           plugins: [reactNativeWeb()],
         },
       }),
-      // Host-page frame-src policy. Injects the enforcing <meta> only when
-      // hostCsp.ts sets ENFORCE_HOST_CSP; today it is off and this is a
-      // no-op on the built HTML. Scoped to this branch because it is the
-      // one that produces the glob that ships (see hostCsp.ts on why the
-      // glob is the only production delivery path).
+      // Host-page frame-src policy. Injects the enforcing <meta> when
+      // hostCsp.ts sets ENFORCE_HOST_CSP, which it does today — so the
+      // built index.html, and therefore the shipped glob, carries the
+      // policy. Scoped to this branch because it is the one that produces
+      // the glob that ships (see hostCsp.ts on why the glob is the only
+      // production delivery path).
       hostCspPlugin(),
       // Sentry source map upload - only enabled in CI
       sentryVitePlugin({
@@ -269,13 +270,22 @@ export default ({ mode }: { mode: string }) => {
     server: {
       host: 'localhost',
       port,
-      // Report-Only frame-src. Report-Only is a header-only mechanism
-      // (CSP3 §3.3 forbids it in <meta>), and production serves this app
-      // from a glob whose response headers we do not control, so the dev
-      // and preview servers are the only places it can be delivered at
-      // all. The whole Playwright suite runs against these servers (see
-      // playwright.config.ts), which is what makes them a real validation
-      // surface rather than a gesture.
+      // Host-page frame-src for dev. This object is EMPTY today, because
+      // ENFORCE_HOST_CSP is on: `transformIndexHtml` runs on the dev
+      // server too, so dev already carries the same enforcing <meta>
+      // production carries, and a Report-Only header on top would put the
+      // page under two policies refusing the same frames.
+      //
+      // Flip the flag off and this fills with
+      // `Content-Security-Policy-Report-Only` instead, while the <meta>
+      // disappears — the two are mutually exclusive by construction (see
+      // `hostCspDevHeaders` in hostCsp.ts). Report-Only is header-only
+      // (CSP3 §3.3 forbids it in <meta>) and production serves this app
+      // from a glob whose response headers we do not control, so these
+      // servers are the only place it can be delivered at all. The whole
+      // Playwright suite runs against them (see playwright.config.ts),
+      // which is what makes that mode a real validation surface rather
+      // than a gesture.
       headers: hostCspDevHeaders,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
       //      empty path segments from urls: http-party/node-http-proxy#1420.
@@ -286,7 +296,8 @@ export default ({ mode }: { mode: string }) => {
     },
     preview: {
       // `pnpm serve`, which is how USE_PRODUCTION_BUILD e2e runs serve the
-      // real build output. Same Report-Only policy as the dev server.
+      // real build output. Same delivery as the dev server above — empty
+      // while the enforcing <meta> is on, Report-Only when it is off.
       headers: hostCspDevHeaders,
       proxy: urbitProxy,
     },

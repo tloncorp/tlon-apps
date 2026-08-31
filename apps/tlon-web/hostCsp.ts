@@ -75,11 +75,19 @@ import type { Plugin } from 'vite';
  *     with the enforcing meta on, keeping it would put the page under two
  *     policies that refuse the same frames. See `hostCspDevHeaders`.
  *
- * Both states remain reachable from the one flag, and the Report-Only
- * validation surface is one `ENFORCE_HOST_CSP = false` away if the
- * allowlist ever has to be re-validated against real usage.
+ * Both states remain reachable from the one flag, but only ONE AT A TIME,
+ * and that is a real limitation rather than a detail. Setting
+ * `ENFORCE_HOST_CSP = false` to get Report-Only back also removes the
+ * enforcing `<meta>`, because the same flag gates both — so a candidate
+ * widening of FRAME_SRC_SOURCES cannot be validated under Report-Only
+ * while the current policy is still enforcing. The build that measures is
+ * the build that has stopped protecting. With one directive and two
+ * sources that is a cheap trade (flip, measure, flip back, ship). It
+ * stops being cheap if the policy grows enough that re-validating it
+ * becomes routine, and at that point the two deliveries need separate
+ * flags.
  *
- * THE ONE SIGNAL THAT SURVIVES ENFORCEMENT.
+ * THE ONE SIGNAL THAT SURVIVES ENFORCEMENT — FOR OPTED-IN USERS.
  *
  * `report-uri` is unavailable in a `<meta>` policy for the same reason
  * Report-Only is, so once enforcing there is no server-side record of a
@@ -92,35 +100,77 @@ import type { Plugin } from 'vite';
  * fixtures drain it per test into test-results/host-csp-violations.jsonl
  * (e2e/host-csp-collector.ts), which is what makes "the Report-Only run
  * came back clean" a countable claim rather than an absence of noticing.
+ *
+ * The qualifier in the heading is load-bearing. main.tsx installs the
+ * listener with `captureAnalyticsEvent`, which calls `posthog.capture`,
+ * and posthog-js returns from `capture` without doing anything while the
+ * client is opted out — the state useTelemetry/PrivacyScreen put it in
+ * via `opt_out_capturing()`, and the fallback for a non-hosted user with
+ * no telemetry setting. The in-page `__hostCspViolations` snapshot is
+ * installed for everyone and is what the e2e drain reads, but for an
+ * opted-out user nothing here reaches an operator. So this is the only
+ * signal that survives enforcement, and it is not a signal that reaches
+ * us from every install.
  */
 
 /**
  * Origins allowed to be framed BY the host page.
  *
- * This list is the whole audit. Every nested browsing context the web
- * build can create was enumerated; exactly one of them navigates to a
- * URL, and it is the single entry below. The rest are recorded here so a
- * future reader does not have to redo the sweep:
+ * Every nested browsing context IN THIS REPO'S OWN SOURCE was enumerated;
+ * exactly one of them navigates to a URL, and it is the single entry
+ * below. The rest are recorded here so a future reader does not have to
+ * redo the sweep. Anchors are symbol names, not line numbers: the first
+ * version of this list used line numbers and one of them had rotted by
+ * ninety-three lines before anybody noticed.
  *
- *   - packages/app/ui/components/SurfaceChannel/SurfaceSandboxHost.tsx:103
- *     — the mini-app sandbox. `srcdoc`, `sandbox="allow-scripts"`, with
- *     its own `default-src 'none'` meta CSP. navigation.spec.ts measures
- *     `srcdocLoads: true` under `frame-src 'none'` on chromium, firefox
- *     and webkit, so it needs no entry; `frame-src` never evaluates a
- *     srcdoc document, which is exactly why this policy can be strict.
+ *   - The `<iframe>` in SurfaceSandboxHost.tsx (packages/app/ui/components/
+ *     SurfaceChannel/) — the mini-app sandbox. `srcdoc`,
+ *     `sandbox="allow-scripts"`, with its own `default-src 'none'` meta
+ *     CSP. navigation.spec.ts measures `srcdocLoads: true` under
+ *     `frame-src 'none'` on chromium, firefox and webkit, so it needs no
+ *     entry; `frame-src` never evaluates a srcdoc document, which is
+ *     exactly why this policy can be strict.
  *   - The message/gallery/notebook composer, via `@10play/tentap-editor`'s
- *     `RichText` (packages/app/ui/components/MessageInput/index.tsx:199)
- *     onto the `react-native-webview` → `@10play/react-native-web-webview`
- *     alias (apps/tlon-web/reactNativeWebPlugin.ts:82). The call site
- *     passes `customSource: editorHtml`, a prebuilt local HTML string, and
- *     never sets `DEV`, so the shim takes its `html` branch and renders
+ *     `RichText` (packages/app/ui/components/MessageInput/, whose
+ *     `useEditorBridge` call supplies the source) onto the
+ *     `react-native-webview` → `@10play/react-native-web-webview` alias in
+ *     apps/tlon-web/reactNativeWebPlugin.ts. The call site passes
+ *     `customSource: editorHtml`, a prebuilt local HTML string, and never
+ *     sets `DEV`, so the shim takes its `html` branch and renders
  *     `srcDoc`. Exempt for the same reason.
- *   - packages/app/features/settings/ManageAccountScreen.tsx:102 — a
- *     `<WebView source={{uri}}>` alongside the iframe below. Dead on web
- *     (`useWebView()` returns null there), and the web shim implements
- *     only `source.html`, so a `{uri}` source renders an iframe with
- *     neither `src` nor `srcdoc`. It stays on its initial about:blank and
- *     never issues a navigation request.
+ *   - The `<WebView source={{uri}}>` in ManageAccountScreen.tsx
+ *     (packages/app/features/settings/), alongside the iframe that is the
+ *     entry below. Dead on web (`useWebView()` returns null there), and
+ *     the web shim implements only `source.html`, so a `{uri}` source
+ *     renders an iframe with neither `src` nor `srcdoc`. It stays on its
+ *     initial about:blank and never issues a navigation request.
+ *
+ * NOT our source, and the reason the claim above is scoped to our source:
+ * bundled dependencies create frames too, and they are not exhaustively
+ * enumerable from this file. The pinned Sentry SDK creates two, and it
+ * ships ENABLED in production — `VITE_SENTRY_DSN` is passed from secrets
+ * by .github/workflows/deploy.yml and by both canary workflows, and
+ * src/sentry.ts feeds it to `Sentry.init` for every non-dev build:
+ *
+ *   - `supportsNativeFetch` in @sentry/core (build/esm/utils/supports.js)
+ *   - `getNativeImplementation` in @sentry-internal/browser-utils
+ *
+ * Both do the same thing — `createElement('iframe')`, hidden, appended to
+ * `head`, a native off `contentWindow`, removed — and neither sets `src`
+ * or `srcdoc`. Each therefore takes the initial `about:blank`, which
+ * `frame-src` never evaluates, exactly as with the WebView row above.
+ * They are recorded, not allowlisted: the completeness argument this list
+ * makes is about origins that get FETCHED, and a src-less frame fetches
+ * nothing.
+ *
+ * The dependency half of the sweep is a point-in-time fact about pinned
+ * versions rather than a standing property, and src-less is not something
+ * third-party frames can be assumed to be — `@firebase/database`'s
+ * long-poll transport sets a real `src`, and is present in node_modules
+ * while being absent from this build. Redo it by grepping a build rather
+ * than node_modules: `dist/assets/*.js` for `createElement("iframe")` and
+ * `jsx("iframe"`. On the build this paragraph was written against that
+ * returned exactly five — the three rows above and the two Sentry probes.
  *
  * Not frames at all, and so not governed here: the `window.open` /
  * `Linking.openURL` call sites (link taps in posts, the Notes publish
@@ -140,20 +190,42 @@ export const FRAME_SRC_SOURCES = [
   // breaks later.
   "'self'",
 
-  // Hosting account management, framed on web by
-  // packages/app/features/settings/ManageAccountScreen.tsx:94. The URL is
-  // the hardcoded constant MANAGE_ACCOUNT_URL
-  // ('https://tlon.network/account') at that file's line 14 — one value,
-  // no per-environment variation, no env var behind it.
+  // Hosting account management, framed on web by the
+  // `<iframe src={MANAGE_ACCOUNT_URL}>` in
+  // packages/app/features/settings/ManageAccountScreen.tsx.
+  // MANAGE_ACCOUNT_URL is a hardcoded constant in that same file,
+  // 'https://tlon.network/account' — one value, no per-environment
+  // variation, no env var behind it.
+  //
+  // Two residuals ride on this entry, stated because nothing that runs
+  // covers either:
+  //
+  //   - A source matches an ORIGIN and nothing below it.
+  //     `https://tlon.network` matches no subdomain, while the app does
+  //     use `*.tlon.network` elsewhere (ship URLs, the invite provider).
+  //     If /account ever answers with a redirect to a subdomain,
+  //     `frame-src` refuses the redirect target and account management
+  //     breaks with no error anywhere in the UI.
+  //   - Nothing exercises the real response. The only coverage is the
+  //     third case in e2e/host-csp.spec.ts, which aborts the request at
+  //     the network layer on purpose — CSP is evaluated in the renderer
+  //     BEFORE the request is issued, so that case proves the preflight
+  //     ADMITS this origin and deliberately never learns what
+  //     tlon.network returns.
+  //
+  // Together those mean the redirect case would surface only as a
+  // SecurityPolicyViolationEvent — i.e. through the bounded, opt-in
+  // listener in src/logic/hostCspViolations.ts.
   'https://tlon.network',
 
   // LATENT, deliberately not enabled: PostHog's Toolbar opens an overlay
-  // frame at `ui_host` ('https://eu.posthog.com',
-  // packages/app/utils/posthog.web.ts:33). Nothing in this repo calls
-  // `posthog.loadToolbar` or handles the `?__posthog=` token flow, so the
-  // frame cannot occur today and an entry would widen the policy for a
-  // feature that is not wired up. Recorded because it is the one origin
-  // that would appear if staff toolbar access were ever turned on.
+  // frame at the `ui_host` given to `posthog.init`
+  // ('https://eu.posthog.com', packages/app/utils/posthog.web.ts). Nothing
+  // in this repo calls `posthog.loadToolbar` or handles the `?__posthog=`
+  // token flow, so the frame cannot occur today and an entry would widen
+  // the policy for a feature that is not wired up. Recorded because it is
+  // the one origin that would appear if staff toolbar access were ever
+  // turned on.
   // 'https://eu.posthog.com',
 ] as const;
 
