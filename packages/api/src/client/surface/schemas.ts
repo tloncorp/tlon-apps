@@ -9,6 +9,7 @@ import {
   jsonByteLength,
 } from './json';
 import { SurfaceOp } from './jsonPointer';
+import type { AssertFalse, IsAny } from '../typeAssertions';
 
 /**
  * Zod schemas for the surface wire format: the `surfaceSpec` channel
@@ -314,6 +315,57 @@ export const SurfaceSpecMirrorEntrySchema = z.object({
 
 export type SurfaceSpecMirrorEntry = z.infer<
   typeof SurfaceSpecMirrorEntrySchema
+>;
+
+/**
+ * Drift guards for the two generic helpers above.
+ *
+ * `sizeCapped` and `entrySizeCapped` both wrap an unresolved generic `T`, so
+ * both degrade to `ZodEffects<T, any, any>` the moment their explicit return
+ * annotation is removed or paraphrased. What that costs depends on where the
+ * helper was applied, and the two shapes need separate assertions:
+ *
+ * - applied to a whole union member (`entrySizeCapped` around
+ *   `SurfaceEventEntrySchema`), the `any` is contagious: `SurfaceEventEntry`
+ *   becomes `any`, and so does every union containing it, `PostBlobDataEntry`
+ *   included. That is what d5c41acdc5 fixed. `packages/api` typechecked clean
+ *   throughout; it surfaced two packages away in `packages/openclaw` as
+ *   `TS7006: Parameter 'providerId' implicitly has an 'any' type`, the first
+ *   place `noImplicitAny` could speak up.
+ * - applied to a FIELD (`sizeCapped` around `initialState`, `recipe`,
+ *   snapshot `state`), the `any` stays put and no union collapses. Nothing
+ *   about `PostBlobDataEntry` changes, so a union-level guard cannot see it —
+ *   verified, not assumed: stripping `sizeCapped`'s annotation fails only the
+ *   four assertions below and leaves every union guard green. These are the
+ *   silent widenings d5c41acdc5 also repaired (`SurfaceSnapshotEntry.state`
+ *   and `SurfaceSpec.recipe` were both `any`).
+ *
+ * Hence one assertion per applied site rather than one per exported union.
+ * Narrowing assertions (the other half of the contract) need value-level code
+ * and live in `src/__tests__/surfaceTypeContracts.test-d.ts`.
+ */
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _SurfaceEventEntryIsNotAny = AssertFalse<IsAny<SurfaceEventEntry>>;
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _SurfaceSpecInitialStateIsNotAny = AssertFalse<
+  IsAny<SurfaceSpec['initialState']>
+>;
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _SurfaceSpecRecipeIsNotAny = AssertFalse<IsAny<SurfaceSpec['recipe']>>;
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _SurfaceSnapshotStateIsNotAny = AssertFalse<
+  IsAny<SurfaceSnapshotEntry['state']>
+>;
+/**
+ * The fourth `sizeCapped` site. Asserted on the SCHEMA's inferred output, not
+ * on `Extract<SurfaceOp, { op: 'set' }>['value']`: `SurfaceOpSchema` is
+ * `as unknown as z.ZodType<SurfaceOp>`, and that cast restores `Json` from the
+ * hand-written type no matter what the helper inferred, so a guard phrased
+ * against `SurfaceOp` could not fail and would only look like a check.
+ */
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _SurfaceOpValueIsNotAny = AssertFalse<
+  IsAny<z.infer<typeof SurfaceOpValueSchema>>
 >;
 
 /**

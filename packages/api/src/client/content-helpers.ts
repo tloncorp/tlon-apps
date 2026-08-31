@@ -32,6 +32,7 @@ import {
   SurfaceSnapshotEntrySchema,
   SurfaceSpecMirrorEntrySchema,
 } from './surface/schemas';
+import type { AssertFalse, AssertTrue, IsAny } from './typeAssertions';
 
 export * from './agentProtocol';
 export * from './a2ui';
@@ -824,11 +825,20 @@ export type UnknownPostBlobDataEntry = { type: 'unknown' };
  *
  * Either turns `entry.type === '...'` into a no-op narrowing everywhere,
  * downstream and in other packages, with nothing reported at the definition
- * site. The assertion below fails to compile in that case: a degraded
- * discriminant makes `string extends PostBlobDataEntry['type']` true, which
- * hands `AssertTrue` a `false` its constraint rejects.
+ * site. The assertions below fail to compile in that case.
+ *
+ * Both are needed, and neither subsumes the other. The `IsAny` one names the
+ * contagion directly. The `string extends ...` one also catches the case where
+ * every member is a real type but one of them declares `type: z.string()`,
+ * which widens the discriminant without any `any` in sight.
+ *
+ * They live HERE rather than in a test file so that `tsconfig.build.json`
+ * (which excludes `src/__tests__`) checks them too. The narrowing assertions
+ * that pair with them need value-level code and live in
+ * `src/__tests__/surfaceTypeContracts.test-d.ts`.
  */
-type AssertTrue<T extends true> = T;
+// oxlint-disable-next-line no-unused-vars -- the declaration IS the check
+type _PostBlobDataEntryIsNotAny = AssertFalse<IsAny<PostBlobDataEntry>>;
 // oxlint-disable-next-line no-unused-vars -- the declaration IS the check
 type _PostBlobDataEntryStaysDiscriminated = AssertTrue<
   string extends PostBlobDataEntry['type'] ? false : true
