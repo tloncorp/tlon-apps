@@ -19,9 +19,12 @@ import {
  *   segments; no `__proto__`/`constructor`/`prototype` segments; the empty
  *   pointer is not a valid op target.
  * - `set` creates missing intermediate objects (never arrays); `del` on a
- *   missing path is a no-op; `append` requires an existing array target.
+ *   missing path is a no-op — below a scalar, below an array, or below
+ *   nothing at all; `append` requires an existing array target.
  * - Writes never index into arrays: every traversed container must be a
  *   plain object, except `append`'s final target, which must be an array.
+ *   `set` and `append` refuse; `del` has nothing to delete and says so by
+ *   doing nothing.
  * - `$actor` is permitted only when an actor is supplied (spec-declared
  *   action ops): as a whole path segment, or as an exact string value.
  *   With no actor (host ops), any `$actor` use invalidates the op.
@@ -190,9 +193,9 @@ function substituteActorInValue(value: Json, actor: string): Json {
 }
 
 /**
- * Why an op was refused. The reason travels with the failure because the
- * reducer's continue-or-abort decision turns on it, and re-deriving it from
- * the message text would be a decision made by string matching.
+ * Why an op was refused, for the message and for the reducer's `stateFull`
+ * flag. It does **not** decide what the fold does next: every refusal aborts
+ * the rest of its entry (§7), whatever kind it is.
  *
  * - `grammar`   — the op is malformed on its face: a bad pointer, an over-long
  *                 or over-segmented path, a forbidden segment, `$actor`
@@ -203,10 +206,12 @@ function substituteActorInValue(value: Json, actor: string): Json {
  * - `depth-cap` — the op is well formed and the shape admits it; the result
  *                 would simply nest past the JSON depth cap.
  *
- * `grammar` says the op is not a well-formed op. The other two say the op is
- * well formed and state cannot take the write — a distinction that costs
- * nothing here and decides skip-or-abort in the reducer, the only place that
- * folds a sequence of ops (see `STATE_REFUSALS` there).
+ * The reducer once sorted these into skip and abort by asking which of the op
+ * and the state was wrong. That criterion was withdrawn: a `set` whose path
+ * is missing its leading `/` is a `grammar` refusal, so it skipped, and the
+ * `del` written to run only if it succeeded still ran. Whether the ops after
+ * a refusal depended on it is not a question about who is to blame for the
+ * refusal. Adding a kind here therefore does not require deciding a side.
  */
 export type OpRefusal = 'grammar' | 'structure' | 'depth-cap';
 
@@ -279,10 +284,14 @@ function delAtPath(root: JsonObject, segments: readonly string[]): WriteResult {
     return null; // no-op: missing path
   }
   if (!isPlainObjectValue(existing)) {
-    if (Array.isArray(existing)) {
-      return { error: `cannot write through array at segment: ${key}` };
-    }
-    return null; // path cannot exist below a scalar: no-op
+    // A path below a non-object cannot exist, and a scalar and an array are
+    // the same answer to the same question — §7's "`del` on a missing path is
+    // a no-op" covers both. The array branch used to refuse instead, which
+    // once every refusal aborts would stop an entry over a `del` that had
+    // nothing to delete. Accepted cost: `del /list/0` — an array index, which
+    // §7 does not admit as a write target — is now silent rather than an
+    // error. `set` still refuses to write through an array.
+    return null;
   }
   const result = delAtPath(existing, segments.slice(1));
   if (result === null || 'error' in result) {

@@ -35,46 +35,26 @@ const logger = createDevLogger('surfaceReducer', false);
  * The refusals one folded op can produce: `applyOp`'s own, plus the one cap
  * only the reducer can check, because only the reducer holds the whole
  * reduced state.
+ *
+ * The kind carries the message and raises `stateFull`. It deliberately does
+ * **not** decide what the fold does next: every refusal aborts the rest of
+ * its entry (§7), so there is no set of abort-kinds here to add a member to,
+ * and a new kind needs no ruling on which side it belongs.
+ *
+ * The withdrawn criterion sorted refusals by which of the op and the state
+ * was wrong, skipping `grammar` alone. It was reproduced losing data: a `set`
+ * whose path is missing its leading `/` is a `grammar` refusal, so it skipped
+ * and the `del /today` after it — written to run only once the archiving
+ * `set` had landed — still cleared the day. Dependency does not track blame.
+ * What matters is whether the ops after a refusal were written assuming it
+ * landed, and that is true however the refusal came about.
+ *
+ * Determinism is what lets the fold abort at all: state is a pure function of
+ * the post log, and every refusal is a pure function of state and the op, so
+ * every client aborts at the same op of the same entry. Nothing in the
+ * decision reads a clock, an allocator, or anything else client-local.
  */
 type FoldRefusal = OpRefusal | 'state-cap';
-
-/**
- * The refusals state makes, as opposed to the one the op makes about itself.
- * These abort the rest of the entry (§7); `grammar` alone skips the single
- * op and lets the entry continue.
- *
- * The criterion is not severity, and not whether the author could have seen
- * it coming — it is which of the two things was wrong. `grammar` means this
- * is not a well-formed op: a malformed or over-long pointer, a forbidden
- * segment, `$actor` misuse, a value that is not surface JSON. Nothing was
- * ever asked of state, the refusal is identical against every state, and the
- * rest of a mostly correct entry is still worth applying. The three here
- * mean the op is well formed and is exactly what the author meant, and
- * *state cannot take the write*: its shape has no such path (`structure`),
- * or the result would be more than state may hold (`depth-cap`,
- * `state-cap`). A later op in the same entry was written on the assumption
- * that this one landed — the "archive, then clear" rollover clearing
- * without archiving — so the entry stops, leaving state at the prefix that
- * did apply.
- *
- * A fourth kind goes on this side if the op it refuses is one a reader would
- * still call correct, and on the skip side if the op is malformed as
- * written. `depth-cap` is the one member that is computable from the op
- * alone, so a "could the author see it in the entry?" test would sort it
- * with `grammar`; it is here anyway, because what it means is "state cannot
- * hold this", and a `del` after a depth-refused `set` destroys data exactly
- * as it does after a size-refused one.
- *
- * Deterministic, and that is load-bearing: state is a pure function of the
- * post log, and all three are pure functions of state and the op — so every
- * client refuses at the same op of the same entry. Nothing here reads a
- * clock, an allocator, or anything else client-local.
- */
-const STATE_REFUSALS: ReadonlySet<FoldRefusal> = new Set([
-  'structure',
-  'depth-cap',
-  'state-cap',
-]);
 
 type FoldOutcome =
   | { ok: true; state: JsonObject }
@@ -150,21 +130,22 @@ export interface SurfaceReductionReduced {
   /**
    * True when at least one op was refused for exceeding the reduced-state
    * size cap — and only that cap, because it is the one a host can repair by
-   * snapshotting and pruning, which is what "dashboard full" asks for. The
-   * other two `STATE_REFUSALS` are not repairable that way — pruning does not
-   * make a path shallower, and it never turns a scalar into an object — so
-   * neither raises this flag; `abortedEventCount` is what reports them.
+   * snapshotting and pruning, which is what "dashboard full" asks for. No
+   * other refusal is repairable that way: pruning does not make a path
+   * shallower, it never turns a scalar into an object, and it certainly does
+   * not put a leading `/` on a malformed path. `abortedEventCount` is what
+   * reports those.
    */
   stateFull: boolean;
   foldedEventCount: number;
   skippedEventCount: number;
   /**
-   * Entries that stopped early because state refused one of their ops (§7).
-   * The state is the prefix of such an entry that did apply, so a host that
-   * reads a non-zero count knows its last entry landed only in part and must
-   * be re-posted once the refusal is dealt with. Aborted entries still count
-   * as folded and still advance `newestFoldedSeq`: they were processed to a
-   * deterministic conclusion.
+   * Entries that stopped early because one of their ops was refused (§7) —
+   * every refusal, not a subset. The state is the prefix of such an entry
+   * that did apply, so a host that reads a non-zero count knows its last
+   * entry landed only in part and must be re-posted once the refusal is dealt
+   * with. Aborted entries still count as folded and still advance
+   * `newestFoldedSeq`: they were processed to a deterministic conclusion.
    */
   abortedEventCount: number;
 }
@@ -335,13 +316,11 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       if (outcome.refusal === 'state-cap') {
         stateFull = true;
       }
-      if (!STATE_REFUSALS.has(outcome.refusal)) {
-        // Malformed op: this op alone is void, the entry continues (§7).
-        logger.log('skipping op', op.op, op.path, outcome.error);
-        continue;
-      }
-      // State refused a well-formed op: the ops after this one were written
-      // on the assumption that it landed, so none of them apply (§7).
+      // EVERY refusal aborts (§7): the ops after this one were written on the
+      // assumption that it landed, and whether that is so has nothing to do
+      // with why it was refused. `outcome.refusal` is read above for
+      // `stateFull` and below for the log line, and nowhere else — do not
+      // reintroduce a kind-based branch here.
       logger.log('aborting entry at op', op.op, op.path, outcome.error);
       abortedEventCount++;
       break;

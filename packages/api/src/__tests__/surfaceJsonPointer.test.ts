@@ -195,8 +195,19 @@ describe('applyOp del', () => {
     expect(result).toEqual({ ok: true, state: { a: { c: 2 } }, changed: true });
   });
 
-  test('is a no-op on missing paths, including below scalars', () => {
-    for (const state of [{}, { a: 5 }, { a: { x: 1 } }] as JsonObject[]) {
+  test('is a no-op on every missing path, below scalars and arrays alike', () => {
+    // A path that cannot exist is a path that cannot exist, whatever is
+    // sitting in the way. The array branch used to be a `structure` refusal,
+    // which after every refusal became an abort would have stopped the entry
+    // over a `del` that had nothing to delete.
+    const states = [
+      {},
+      { a: 5 },
+      { a: { x: 1 } },
+      { a: [1, 2] },
+      { a: [{ b: 1 }] },
+    ] as JsonObject[];
+    for (const state of states) {
       const result = applyOp(state, { op: 'del', path: '/a/b' });
       expect(result.ok).toBe(true);
       if (result.ok) {
@@ -211,10 +222,27 @@ describe('applyOp del', () => {
     expect(result).toMatchObject({ ok: true, changed: false });
   });
 
-  test('fails writing through arrays', () => {
-    expect(applyOp({ a: [{ b: 1 }] }, { op: 'del', path: '/a/0/b' }).ok).toBe(
-      false
-    );
+  test('deleting an array element is silent, not an error', () => {
+    // The accepted cost of the uniform no-op: §7 does not admit an array
+    // index as a write target, and `del /a/0` now says nothing rather than
+    // refusing. `set` still refuses to write through an array, so the
+    // asymmetry is only in `del`.
+    const state: JsonObject = { a: [{ b: 1 }] };
+    expect(applyOp(state, { op: 'del', path: '/a/0' })).toEqual({
+      ok: true,
+      state,
+      changed: false,
+    });
+    expect(applyOp(state, { op: 'del', path: '/a/0/b' })).toEqual({
+      ok: true,
+      state,
+      changed: false,
+    });
+    expect(applyOp(state, { op: 'set', path: '/a/0/b', value: 2 })).toEqual({
+      ok: false,
+      refusal: 'structure',
+      error: 'cannot write through non-object at segment: a',
+    });
   });
 });
 

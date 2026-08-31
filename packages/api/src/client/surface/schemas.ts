@@ -15,8 +15,9 @@ import { SurfaceOp } from './jsonPointer';
  * description payload and the surface post blob entries. Caps (§7 of the
  * plan) are enforced here at parse; a violation fails validation, which for
  * blob entries means the whole entry degrades to `{ type: 'unknown' }`.
- * Pointer path grammar is deliberately NOT validated here — a bad path
- * invalidates only that op at reduce time, never the containing entry.
+ * Pointer path grammar is deliberately NOT validated here — a bad path is
+ * refused at reduce time, where (like every refusal) it aborts the rest of
+ * its entry rather than degrading the entry to unknown.
  */
 
 /** §7 caps. KB = 1024 bytes; sizes measure UTF-8 JSON serialization. */

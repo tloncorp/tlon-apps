@@ -236,20 +236,21 @@ describe('adversarial events (§4.3)', () => {
     expect(result.skippedEventCount).toBe(1);
   });
 
-  test('$actor in host ops invalidates the op', () => {
+  test('$actor in host ops invalidates the op and stops the entry', () => {
     nextSeq = 1;
     const posts = [
       post(HOST, [
         hostEvent([
           { op: 'set', path: '/votes/$actor', value: 'x' },
-          { op: 'set', path: '/title', value: 'still applies' },
+          { op: 'set', path: '/title', value: 'never reached' },
         ]),
       ]),
     ];
     const result = expectReduced(reduce(posts));
     expect(result.state.votes).toEqual({});
-    // remaining ops in the entry still apply in order (§7)
-    expect(result.state.title).toBe('still applies');
+    // every refusal aborts the rest of its entry (§7)
+    expect(result.state.title).toBe('initial');
+    expect(result.abortedEventCount).toBe(1);
   });
 
   test('edited surface posts are retracted wholesale', () => {
@@ -488,8 +489,9 @@ describe('state cap', () => {
 });
 
 /* ------------------------------------------------------------------ */
-/* State refuses a well-formed op: the entry aborts. A malformed op does */
-/* not stop the entry (§7).                                              */
+/* An op is refused: every remaining op in that entry is refused too,    */
+/* whatever the refusal was about (§7). State after an entry is always a */
+/* prefix of its ops, never a subsequence with a hole in it.             */
 /* ------------------------------------------------------------------ */
 
 const STATE_CAP = 128 * 1024;
@@ -546,7 +548,7 @@ function rolloverEvent(archive: Json) {
   ]);
 }
 
-describe('state refusals abort the entry (§7)', () => {
+describe('every refusal aborts the entry (§7)', () => {
   // The negative control. Pre-amendment the archiving `set` was refused for
   // the state cap and the `del` still applied, so the day's data was neither
   // archived nor still in `/today` — PARADIGM's "fully idempotent, gracefully
@@ -618,7 +620,11 @@ describe('state refusals abort the entry (§7)', () => {
     expect(result.stateFull).toBe(false);
   });
 
-  test('a malformed op skips itself and the entry continues (§7)', () => {
+  test('a malformed op aborts the rest of its entry too (§7)', () => {
+    // The withdrawn criterion let this one through: `$actor` in a host op is
+    // a `grammar` refusal, the op alone was voided, and the `del` after it
+    // ran. Dependency does not track blame — the `del` was written on the
+    // assumption that the op before it landed either way.
     nextSeq = 1;
     const result = expectReduced(
       reduce([
@@ -631,20 +637,48 @@ describe('state refusals abort the entry (§7)', () => {
         ]),
       ])
     );
-    expect(result.state.keep).toBeUndefined();
-    expect(result.abortedEventCount).toBe(0);
+    expect(result.state.keep).toBe('before');
+    expect(result.abortedEventCount).toBe(1);
+    // a malformed op is not "dashboard full" either
+    expect(result.stateFull).toBe(false);
   });
 
-  // Pinned, and NOT ratified — the same asymmetry the `structure` residual was
-  // pinned for, one layer down. `del /x/y` means "there is nothing at that
-  // path" both times, but `applyOp` calls it a no-op success below a scalar
-  // and a `structure` refusal below an array. Before the widening the two were
-  // indistinguishable (skip and no-op both continue the entry); now one aborts
-  // and one does not. The abort is the safe direction — it refuses too much,
-  // never too little — so this is a false abort, not a data loss. If it ever
-  // gets a ruling, the plan's own "`del` on a missing path is a no-op" says
-  // the array branch is the odd one out.
-  test('two spellings of a missing del path diverge (unratified)', () => {
+  // The reason the skip-or-abort criterion was withdrawn. This is the same
+  // archive-then-clear data loss as the near-cap and bad-shape rollovers
+  // above, reached through a malformed op instead of a well-formed one: a
+  // path missing its leading `/` is a `grammar` refusal, so under the old
+  // criterion it skipped and the `del` still cleared the day that was never
+  // archived.
+  test('a rollover whose archiving op is malformed still keeps the day', () => {
+    nextSeq = 1;
+    const today = { [MEMBER]: { r: 'ok' } };
+    const result = expectReduced(
+      reduce([
+        post(HOST, [snapshot({ history: {}, today }, 0)]),
+        post(HOST, [
+          hostEvent([
+            // no leading slash: malformed, not a refusal state made
+            { op: 'set', path: `history/${ROLLOVER_DATE}`, value: today },
+            { op: 'del', path: '/today' },
+          ]),
+        ]),
+      ])
+    );
+
+    // the invariant, unchanged: the archive lands, or the day survives to be
+    // archived later. "Neither" is the day destroyed.
+    expect(archivedDate(result.state)).toBe(false);
+    expect(result.state.today).toEqual(today);
+    expect(result.abortedEventCount).toBe(1);
+    expect(result.stateFull).toBe(false);
+  });
+
+  // Ruling 2: `del` through a non-object is uniformly a no-op. `del /x/y`
+  // means "there is nothing at that path" whether `/x` holds a scalar or an
+  // array, so both spellings continue the entry. The accepted cost is that
+  // `del /list/0` — deleting an array element, which §7 does not admit as a
+  // write target — is now silent rather than an error.
+  test('both spellings of a missing del path are no-ops', () => {
     const entry = (holder: Json) => [
       post(
         HOST,
@@ -664,8 +698,9 @@ describe('state refusals abort the entry (§7)', () => {
     expect(belowScalar.abortedEventCount).toBe(0);
 
     const belowArray = expectReduced(reduce(entry([1])));
-    expect(belowArray.state.after).toBeUndefined();
-    expect(belowArray.abortedEventCount).toBe(1);
+    expect(belowArray.state.after).toBe('ran');
+    expect(belowArray.state.holder).toEqual([1]);
+    expect(belowArray.abortedEventCount).toBe(0);
   });
 
   test('a structural refusal aborts too: it loses the same day the same way', () => {
@@ -795,10 +830,12 @@ describe('state refusals abort the entry (§7)', () => {
     );
   });
 
-  test('property: an author error never stops the ops after it', () => {
-    // Same generator shape, an invalid op instead of a refused one. These are
-    // wrong on every client at every fold position, so skipping just them
-    // lets a mostly correct entry apply — the §7 rule, unchanged.
+  test('property: an author error stops the ops after it as well', () => {
+    // Same generator shape, a malformed op instead of a refused one. The
+    // withdrawn criterion continued the entry here, on the reasoning that
+    // nothing was ever asked of state. It is the wrong question: whether the
+    // ops after this one depended on it has nothing to do with whose fault
+    // the refusal was, so a malformed op leaves the same prefix.
     const invalidOp = fc.constantFrom<Json>(
       { op: 'set', path: 'no-leading-slash', value: 1 },
       { op: 'set', path: '/votes/$actor', value: 1 }, // $actor in a host op
@@ -826,20 +863,28 @@ describe('state refusals abort the entry (§7)', () => {
           }));
 
           nextSeq = 1;
-          const result = expectReduced(
+          const full = expectReduced(
             reduce([
               post(HOST, [hostEvent([...leading, invalid, ...trailing])]),
             ])
           );
 
-          const marks = result.state.marks as JsonObject;
+          nextSeq = 1;
+          const prefixOnly = expectReduced(
+            reduce([post(HOST, [hostEvent(leading)])])
+          );
+
+          // prefix, not subsequence — the same guarantee the cap and shape
+          // properties above assert, now for a malformed op too
+          expect(full.state).toEqual(prefixOnly.state);
+          const marks = (full.state.marks ?? {}) as JsonObject;
           for (let i = 0; i < leadingCount; i++) {
             expect(marks[`lead${i}`]).toBe(i);
           }
           for (let i = 0; i < trailingCount; i++) {
-            expect(marks[`tail${i}`]).toBe(i);
+            expect(marks[`tail${i}`]).toBeUndefined();
           }
-          expect(result.abortedEventCount).toBe(0);
+          expect(full.abortedEventCount).toBe(1);
         }
       )
     );
@@ -872,15 +917,6 @@ describe('state refusals abort the entry (§7)', () => {
         }
       )
     );
-
-    // and a client that folds the log in two batches lands in the same place
-    // as one that folds it whole: the state is a function of the post set.
-    const late = reduceSurface({
-      spec: spec(),
-      hostShip: HOST,
-      posts: [...posts.slice(2), ...posts.slice(0, 2)],
-    });
-    expect(late).toEqual(reference);
   });
 
   test('property: clients converge on a structurally aborted entry too', () => {
@@ -913,13 +949,61 @@ describe('state refusals abort the entry (§7)', () => {
         }
       )
     );
+  });
 
-    const late = reduceSurface({
-      spec: spec(),
-      hostShip: HOST,
-      posts: [...posts.slice(2), ...posts.slice(0, 2)],
-    });
-    expect(late).toEqual(reference);
+  test("compaction at the watermark never replays an aborted entry's prefix", () => {
+    // The only two-batch fold the reducer has an interface for: a host folds
+    // the log so far, writes the result down as a snapshot at
+    // `newestFoldedSeq`, and prunes everything the snapshot covers. The
+    // aborted entry's leading `append` has to land exactly once across that
+    // boundary — which is what "an aborted entry still advances the
+    // watermark" buys, and an `append` is the op that shows it, since
+    // replaying an idempotent `set` looks identical either way.
+    nextSeq = 1;
+    const today = { [MEMBER]: { r: 'ok' } };
+    const posts = [
+      // `/history` holds a scalar, so the rollover's archiving `set` is
+      // refused however the entry got here
+      post(HOST, [snapshot({ history: 'elsewhere', today, log: [] }, 0)]),
+      post(HOST, [
+        hostEvent([
+          { op: 'append', path: '/log', value: 'rolled' }, // lands
+          { op: 'set', path: `/history/${ROLLOVER_DATE}`, value: today }, // refused
+          { op: 'del', path: '/today' }, // never runs
+        ]),
+      ]),
+      post(OTHER, [invoke('vote')]),
+    ];
+
+    const whole = expectReduced(
+      reduceSurface({ spec: spec(), hostShip: HOST, posts })
+    );
+    expect(whole.abortedEventCount).toBe(1);
+    expect(whole.state.log).toEqual(['rolled']);
+    expect(whole.state.today).toEqual(today);
+
+    // batch 1: the log through the aborted entry
+    const firstBatch = expectReduced(
+      reduceSurface({ spec: spec(), hostShip: HOST, posts: posts.slice(0, 2) })
+    );
+    expect(firstBatch.abortedEventCount).toBe(1);
+    expect(firstBatch.newestFoldedSeq).toBe(2);
+
+    // batch 2: that state written down, and only the posts it does not cover
+    const watermark = firstBatch.newestFoldedSeq ?? -Infinity;
+    const compacted = expectReduced(
+      reduceSurface({
+        spec: spec(),
+        hostShip: HOST,
+        posts: [
+          post(HOST, [snapshot(firstBatch.state, watermark)], {
+            sequenceNum: 100,
+          }),
+          ...posts.filter((p) => (p.sequenceNum as number) > watermark),
+        ],
+      })
+    );
+    expect(compacted.state).toEqual(whole.state);
   });
 });
 

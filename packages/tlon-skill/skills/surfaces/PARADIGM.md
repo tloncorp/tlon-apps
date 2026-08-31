@@ -132,51 +132,62 @@ stretches "this session".
 
 **Both ops go in one host event, in that order, and that is load-bearing.**
 The `del` is safe only because the `set` before it succeeded. The archiving
-`set` is the op that fails, and it fails two ways: near the 128 KB live-state
-cap, because it grows state while the `del` shrinks it; and at any size at
-all if `/history` is holding something other than an object, because then
-there is nowhere to write. An entry that carried on past either refusal would
-clear the day without ever archiving it. The reducer will not let that
-happen: **when state refuses a well-formed op — its shape has no such path,
-or the result is more than state may hold — every remaining op in that entry
-is refused too**, so the clear is unreachable unless the archive landed.
+`set` is the op that fails, and it fails three ways: near the 128 KB
+live-state cap, because it grows state while the `del` shrinks it; at any
+size at all if `/history` is holding something other than an object, because
+then there is nowhere to write; and at any size at all if you simply mistyped
+the path. An entry that carried on past any of those would clear the day
+without ever archiving it. The reducer will not let that happen: **when an op
+is refused, every remaining op in that entry is refused too** — whatever it
+was refused for — so the clear is unreachable unless the archive landed.
 State after an entry is always a **prefix** of that entry's ops, never a
 subsequence with a hole in the middle. Split the two ops across two host
 events and the protection is gone — the second event is its own entry and
 applies on its own.
 
-That is the mechanism, and it covers both ways the guard can fail. The rule
-to write against is softer and covers more ground: **no destructive op whose
-safety depends on a preceding op succeeding — unless both sit in the same
-entry with the destructive one second.** What the reducer does not protect is
-a guard that is *malformed* rather than refused — a typo'd path, a `$actor`
-in a host op, a forbidden segment. That op is skipped and the entry carries
-on, because an op that never worked on any client in any state is not
-evidence that state grew or drifted out from under you. Order every entry so
-the destructive op is last, and lint before you post.
+That is the mechanism, and it covers every way the guard can fail, including
+a guard that was never well formed to begin with. A typo'd path, a `$actor`
+in a host op, a forbidden segment: the op is refused like any other and the
+entry stops there. The reducer does not ask whose fault a refusal was before
+deciding whether the ops after it were written expecting it to land.
+
+So the doctrine rule below is belt-and-braces rather than your only
+protection — write to it anyway, because it is what keeps an entry
+*readable* as a unit: **no destructive op whose safety depends on a preceding
+op succeeding — unless both sit in the same entry with the destructive one
+second.** Order every entry so the destructive op is last, and lint before
+you post.
 
 When a rollover does stop, the day is still sitting in `/today`. At the cap
 the surface shows "dashboard full": snapshot, prune, post the rollover again.
-A shape mismatch raises no banner — the fold just reports an aborted entry —
-so repair the shape with a host op and post the rollover again.
+A shape mismatch or a bad path raises no banner — the fold just reports an
+aborted entry — so repair the op or the shape with a host op and post the
+rollover again.
 
 Host events are honored only from the channel host ship, and they cannot use
-`$actor` (the op is skipped). They are how the bot corrects data, closes a
-poll, archives a period, or prunes state.
+`$actor` (the op is refused, and takes the rest of its entry with it). They
+are how the bot corrects data, closes a poll, archives a period, or prunes
+state.
 
 ### Failures are silent
 
-An op with a bad path, a `$actor` misuse, or a forbidden segment is skipped —
-that op alone, with a debug log nobody reads. The remaining ops in the entry
-still apply. A typo in an action path is not an error, it is an action that
-quietly does nothing. Lint, then fold, then preview.
+An op with a bad path, a `$actor` misuse, or a forbidden segment is refused —
+with a debug log nobody reads. So is an op **state** turns down: a write
+through a non-object, an `append` onto something that is not an array, the
+live-state cap, the depth cap. Every one of them takes the rest of its entry
+with it (§12). A typo in an action path is not an error, it is an action that
+quietly does nothing — and quietly does nothing to the ops written after it
+in the same entry. Lint, then fold, then preview.
 
-The refusals that do not work this way are the ones **state** makes rather
-than the op: a write through a non-object, an `append` onto something that is
-not an array, the live-state cap, the depth cap. Any of those takes the rest
-of its entry with it (§12), because the op was well formed and going to work,
-and only the state it met stopped it. Silent either way — the difference is
-what it leaves behind.
+Two things are not refusals and stay silent in a different way. A `del` on a
+path that is not there does nothing and the entry carries on — that is the
+op succeeding at deleting nothing, however the path fails to exist, below a
+scalar or below an array alike. And a whole entry over cap never reaches the
+fold at all: it degrades to an unknown entry and is skipped in one piece.
+
+The fold reports a count of aborted entries, so `surface snapshot` and the
+records commands can tell you an entry landed only in part. Nothing surfaces
+it to the app.
 
 ### Keep action ids literal: the handler table
 
@@ -438,12 +449,12 @@ persistently broken app reports once, not once per render.
 
 ## 12. Caps
 
-Four different failures: a spec over cap is an **invalid definition** and
+Three different failures: a spec over cap is an **invalid definition** and
 the surface refuses to render at all; an event or snapshot over cap degrades
-to an unknown entry and is skipped **whole**; a single **malformed** op is
-skipped alone while the rest of its entry applies; and an op that **state**
-refuses — the live-state cap, the depth cap, or a shape with no such path —
-takes the rest of its entry with it.
+to an unknown entry and is skipped **whole**; and a single op that is refused
+for any reason at all — malformed on its face, or turned down by state (the
+live-state cap, the depth cap, a shape with no such path) — takes the rest of
+its entry with it.
 
 | thing                           | cap                          |
 | ------------------------------- | ---------------------------- |
@@ -463,14 +474,14 @@ takes the rest of its entry with it.
 
 The live-state cap is the one you will actually hit: any op whose result
 would exceed 128 KB is **refused** — state is unchanged, the surface shows
-"dashboard full", and **the rest of that entry does not apply either**. The
-depth cap and a shape mismatch abort the entry the same way and for the same
-reason (see "Host-is-the-clock" above), but neither shows "dashboard full":
-that banner means the one failure a host repairs by pruning, and pruning
-neither makes a path shallower nor turns a scalar into an object. A later
-entry that only shrinks state still applies, since a `del` can never be
-refused for size. The repair is a host snapshot plus a prune, not a bigger
-cap.
+"dashboard full", and **the rest of that entry does not apply either**. Every
+other refusal aborts the entry the same way and for the same reason (see
+"Host-is-the-clock" above), but none of them shows "dashboard full": that
+banner means the one failure a host repairs by pruning, and pruning neither
+makes a path shallower, nor turns a scalar into an object, nor puts a leading
+`/` on a mistyped path. A later entry that only shrinks state still applies,
+since a `del` can never be refused for size. The repair is a host snapshot
+plus a prune, not a bigger cap.
 
 Design for it: keep state to the log and derive the rest. A `history` keyed
 by date with a bounded number of members is fine; one entry per tap forever
