@@ -20,6 +20,31 @@ export const ALLOWED_TLON_COMMANDS = [
   'notebook',
   'posts',
   'settings',
+  // The dashboard-channel authoring group, admitted whole. Its subcommands
+  // are not uniform: `lint`, `preview`, `templates` and the three document
+  // printers touch no ship and no credentials, while `publish` rewrites the
+  // channel description cell — the trust root for the code every client then
+  // executes.
+  //
+  // Admitted whole anyway, for two reasons. First, the cell is already
+  // reachable: `channels update --description` re-encodes it from this same
+  // list, and does so destructively, dropping a `surfaceSpec` it did not
+  // write. What `publish` adds over that is not reach but a publish gate,
+  // schema validation and a read-back confirmation — so gating `publish`
+  // alone would leave the capability and remove the discipline. Second, the
+  // residual that IS new — minting the pointer, not just clobbering it — is
+  // bounded by group admin, which the bot must already hold to run `groups
+  // ban`, `channels delete` or `expose show` in the same group.
+  //
+  // What the spread does earn is telemetry that tells the operations apart;
+  // that lives in `tlon-tool-command.ts`, not in a second gate here.
+  //
+  // Deliberately NOT enumerated per subcommand: this guard is duplicated per
+  // runtime because the skill package publishes no source (see
+  // `checkBlockedMigrationOperation`), so a copy of the CLI's subcommand list
+  // could only drift, and drift here refuses commands that exist. The CLI's
+  // own dispatcher already refuses an unknown `surface` subcommand by name.
+  'surface',
   'upload',
   'help',
   'version',

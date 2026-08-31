@@ -19,6 +19,13 @@ describe('tlon tool guard', () => {
     it('keeps notebook allowed for skill-level removal guidance', () => {
       expect(isAllowedTlonSubcommand('notebook')).toBe(true);
     });
+
+    // The refusal text is model-facing: it is the only place a bot that
+    // guessed wrong learns which command groups exist. Enforcement is proved
+    // through the executor in tlon-tool-command.test.ts; this pins the copy.
+    it('names surface in the refusal message it shows the model', () => {
+      expect(formatAllowedTlonSubcommands()).toContain('surface');
+    });
   });
 
   describe('blocks non-club dms send/reply', () => {
