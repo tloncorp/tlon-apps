@@ -567,38 +567,40 @@ export interface NotesNotebookCounts {
 export const getNotesCountsByNotebook = createReadQuery(
   'getNotesCountsByNotebook',
   async (ctx: QueryCtx): Promise<Record<string, NotesNotebookCounts>> => {
-    const [notebooks, noteCounts, folderCounts] = await Promise.all([
-      ctx.db.select({ id: $notesNotebooks.id }).from($notesNotebooks),
-      ctx.db
-        .select({
-          notebookFlag: $notesNotes.notebookFlag,
-          count: count(),
-        })
-        .from($notesNotes)
-        .groupBy($notesNotes.notebookFlag),
-      ctx.db
-        .select({
-          notebookFlag: $notesFolders.notebookFlag,
-          count: count(),
-        })
-        .from($notesFolders)
-        .where(isNotNull($notesFolders.parentFolderId))
-        .groupBy($notesFolders.notebookFlag),
-    ]);
+    // One statement rather than three reads. `saveNotesNotebookSnapshot`
+    // replaces each table wholesale inside a transaction, and plain reads
+    // aren't gated against it — `enqueueTransaction` only serializes
+    // transactions against each other — so separate reads can land between
+    // that save's DELETE and its re-INSERT and report a combination that
+    // never existed. Under the global `staleTime: Infinity` such a value then
+    // sticks until the next invalidation. Driving both counts off
+    // `notesNotebooks` also keeps an empty notebook reporting zeroes rather
+    // than dropping out of the result entirely.
+    const rows = await ctx.db
+      .select({
+        notebookFlag: $notesNotebooks.id,
+        noteCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($notesNotes)
+          .where(eq($notesNotes.notebookFlag, $notesNotebooks.id))}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($notesFolders)
+          .where(
+            and(
+              eq($notesFolders.notebookFlag, $notesNotebooks.id),
+              isNotNull($notesFolders.parentFolderId)
+            )
+          )}`,
+      })
+      .from($notesNotebooks);
 
     const counts: Record<string, NotesNotebookCounts> = {};
-    for (const notebook of notebooks) {
-      counts[notebook.id] = { noteCount: 0, folderCount: 0 };
-    }
-    for (const row of noteCounts) {
-      if (counts[row.notebookFlag]) {
-        counts[row.notebookFlag].noteCount = row.count;
-      }
-    }
-    for (const row of folderCounts) {
-      if (counts[row.notebookFlag]) {
-        counts[row.notebookFlag].folderCount = row.count;
-      }
+    for (const row of rows) {
+      counts[row.notebookFlag] = {
+        noteCount: row.noteCount,
+        folderCount: row.folderCount,
+      };
     }
     return counts;
   },
