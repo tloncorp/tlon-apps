@@ -43,7 +43,6 @@ patchedDependencies:
   expo-image-manipulator: patches/expo-image-manipulator@57.0.1.patch
   expo-background-task: patches/expo-background-task@57.0.1.patch
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
-  react-native@0.86.0: patches/react-native@0.86.0.patch
 
 allowUnusedPatches: false
 
@@ -73,7 +72,7 @@ overrides:
   react: 19.2.3
   react-dom: 19.2.3
   react-test-renderer: 19.2.3
-  react-native: 0.86.0
+  react-native: 0.86.3
   "@types/react": ~19.2.0
   react-native-reanimated: 4.5.0
   react-native-gesture-handler: ~2.32.0
