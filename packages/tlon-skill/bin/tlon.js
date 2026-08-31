@@ -84,8 +84,8 @@ const binaryPath = getBinaryPath();
 const args = process.argv.slice(2);
 
 /**
- * Tell the binary where the surface templates are, because it cannot work
- * it out for itself.
+ * Tell the binary where the surface templates and skill documents are,
+ * because it cannot work either out for itself.
  *
  * `bun build --compile` bakes `__dirname` into the binary as a string
  * literal — the build machine's source path — so a compiled `tlon` asks
@@ -99,9 +99,17 @@ const args = process.argv.slice(2);
  * `__dirname` is real at runtime. An explicit override always wins.
  */
 const env = { ...process.env };
+const surfacesSkill = join(__dirname, '..', 'skills', 'surfaces');
 if (!env.TLON_SURFACE_TEMPLATES_DIR) {
-  const templates = join(__dirname, '..', 'skills', 'surfaces', 'templates');
+  const templates = join(surfacesSkill, 'templates');
   if (existsSync(templates)) env.TLON_SURFACE_TEMPLATES_DIR = templates;
+}
+// The skill's documents (PARADIGM/PRIMITIVES/RUBRIC), which `tlon surface
+// doctrine|primitives|rubric` print. A separate variable from the catalogue
+// above: that one names where templates are, and pointing it at a scratch
+// directory must not also move the doctrine.
+if (!env.TLON_SURFACE_SKILL_DIR && existsSync(surfacesSkill)) {
+  env.TLON_SURFACE_SKILL_DIR = surfacesSkill;
 }
 
 const result = spawnSync(binaryPath, args, {

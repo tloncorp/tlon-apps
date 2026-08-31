@@ -51,9 +51,10 @@ language: "I don't have permission to add channels here yet."
 2. **Ask at most one clarifying question**, and only if the template genuinely
    forks on the answer (e.g. poll options). Default everything else. The user
    asked for an outcome, not a requirements interview.
-3. **Read `PARADIGM.md` before writing any code.** It is short and every rule
-   in it exists because something broke without it. Read the relevant
-   `PRIMITIVES.md` entries for the components you'll use.
+3. **Run `tlon surface doctrine` before writing any code.** It prints the
+   paradigm — short, and every rule in it exists because something broke
+   without it. `tlon surface primitives` prints the component catalog; read
+   the entries for the components you'll use.
 4. **Adapt the bundle and `spec.json`.** The bundle is **JavaScript** — one
    plain script, no `import`/`export`, no markup, no build step. Call it
    `app.js`. An `.html` file containing markup would not run at all: the shell
@@ -70,8 +71,30 @@ language: "I don't have permission to add channels here yet."
    the way production renders it and writes twelve PNGs plus a `manifest.json`:
    phone / phone-full / desktop, each in light and dark, each in the empty state
    and in a state produced by folding every declared action through the real
-   reducer. **Open the images and score them against `RUBRIC.md`** — nothing
-   here is automated, and this is the only check that sees what a member sees.
+   reducer. **Open the images and score them against `tlon surface rubric`** —
+   nothing here is automated, and this is the only check that sees what a
+   member sees.
+
+   **How to open them:** the command prints absolute paths; read each one with
+   your file-reading tool, which recognizes a PNG and returns the picture
+   itself rather than its bytes as text. Read them one at a time, phone first.
+   If your runtime has no way to turn a local file into an image you can look
+   at, **the rubric step cannot be performed** — say so and publish on lint and
+   fold alone; do not score screenshots you have not seen.
+
+   Two failures look like success and are not. If what comes back is either of
+   these placeholders, **no image reached you**:
+
+   ```
+   [Current model does not support images. The image will be omitted from this request.]
+   [Image omitted: could not be resized below the inline image size limit.]
+   ```
+
+   Report those cells as unscored and say why. Never write a score over a
+   placeholder — a confabulated rubric pass is worse than an admitted gap.
+   (Captures are taken at 2× and are downscaled before you see them, so judge
+   layout, overflow, contrast and copy, not hairline detail.)
+
    Then repair and re-run. **Two repair rounds, at most.** If a finding survives
    both, publish anyway and tell the user plainly what is still rough ("the
    chart is a bit tight on a phone") — a third round on the same finding means
@@ -79,6 +102,7 @@ language: "I don't have permission to add channels here yet."
    Preview is an optional capability: where headless Chromium is not
    provisioned the command says so, and you publish on lint and fold alone. Do
    not retry it, and do not treat its absence as a failure of the app.
+
 7. **Publish.** `tlon surface create <group-id> --title "…"` the first time,
    then `tlon surface publish <channel> --bundle app.js --spec spec.json`. The
    revision number is derived from content — you never supply it — so a changed
@@ -111,8 +135,8 @@ language: "I don't have permission to add channels here yet."
    `tlon surface event <channel>` with an op appending the choice to
    `/options`. Publish the revision alone and you will tell the user it was
    added while they look at the old three. Confirm with
-   `tlon surface state <channel>` before you say it landed. See
-   `PARADIGM.md` §13.
+   `tlon surface state <channel>` before you say it landed. See §13 of
+   `tlon surface doctrine`.
 
 ## Rules that are never optional
 
@@ -124,8 +148,8 @@ language: "I don't have permission to add channels here yet."
 - **`append` means "duplicates are acceptable."** Double-taps, retries, and two
   devices all produce real duplicate posts, and nothing downstream can tell
   them apart. For anything periodic or counted, use the host-is-the-clock
-  pattern from `PARADIGM.md` instead. The gate folds every action twice and
-  fails any whose second fold changes state.
+  pattern from `tlon surface doctrine` instead. The gate folds every action
+  twice and fails any whose second fold changes state.
 - **`render` never reads the clock and never knows who is viewing.** Derive
   everything from state. Dates only exist where a host event wrote them.
 - **Money, weights, scores: integers only** (cents, grams, tenths). Float
@@ -137,9 +161,9 @@ language: "I don't have permission to add channels here yet."
   plain `~zod`. Reading it back in `render`, the state key is plain.
 - **Use the words the user's domain uses.** The gate's jargon rule is a
   six-word denylist; it cannot tell whether a sentence means anything to a
-  member. The vocabulary table in `PARADIGM.md` has replacements, the templates
-  model the register, and `RUBRIC.md` check 6 is where you actually catch it —
-  by reading every word in the screenshots.
+  member. The vocabulary table in `tlon surface doctrine` has replacements, the
+  templates model the register, and check 6 of `tlon surface rubric` is where
+  you actually catch it — by reading every word in the screenshots.
 - **Charts go through the chart primitive.** Never construct a raw fixed-size
   canvas; it overflows phones, and the gate rejects it behaviorally.
 
@@ -178,7 +202,7 @@ language: "I don't have permission to add channels here yet."
   Spec revisions are for UI and action changes.
 - The generation context you publish rides along in the spec (`recipe`). On
   revision requests, read it back instead of re-deriving intent. It is
-  member-visible: `PARADIGM.md` §14 says what may go in it.
+  member-visible: §14 of `tlon surface doctrine` says what may go in it.
 
 ## When things fail
 
@@ -221,11 +245,25 @@ and is the first thing to read:
   Read `surface state`, find which events produced it, and correct with a host
   event.
 
-## Files in this skill
+## The rest of this skill, and how to read it
 
-- `PARADIGM.md` — the contract and doctrine. Read before writing code.
-- `PRIMITIVES.md` — the component catalog. Read entries for what you use.
-- `RUBRIC.md` — the seven checks you score `surface preview`'s screenshots
+This file is the whole of the skill you were handed — the other documents are
+**printed by the CLI**, not opened as files. Some runtimes publish the skill's
+whole directory to you; others hand over this file alone, and a file path is
+only readable on one of them. The commands work on both, so use them and do
+not go looking for the paths:
+
+- `tlon surface doctrine` — the contract and doctrine (`PARADIGM.md`). Read it
+  before writing code. Numbered sections; this file cites them by number.
+- `tlon surface primitives` — the component catalog (`PRIMITIVES.md`). Read the
+  entries for what you use; anything not listed is a runtime `undefined`.
+- `tlon surface rubric` — the checks you score `surface preview`'s screenshots
   against, and the things that are preview's artifact rather than the app's.
-- `templates/<name>/` — `app.js`, `spec.json`, `NOTES.md` per template. Load
-  exactly the one you're adapting.
+- `tlon surface templates list` / `show <name>` — the exemplars, with the
+  `NOTES.md` that says what to customize. The command is the catalogue; there
+  is no directory to browse.
+
+Each takes `--json` if you would rather have the text as a field than as
+output. If one of them says the document is not installed, that is a broken
+install and not something to work around: say so, and do not proceed to write
+an app without the doctrine.

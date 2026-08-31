@@ -56,6 +56,9 @@ describe('surface dispatcher', () => {
       'state',
       'snapshot',
       'preview',
+      'doctrine',
+      'primitives',
+      'rubric',
     ]);
   });
 });

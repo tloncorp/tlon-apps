@@ -7,6 +7,7 @@ import {
 } from './command';
 import { SurfaceError, type SurfaceDeps } from './surface-common';
 import { runSurfaceCreate } from './surface-create';
+import { runSurfaceDocument } from './surface-docs';
 import { runSurfaceLint } from './surface-lint';
 import { runSurfacePreview } from './surface-preview';
 import { runSurfacePublish } from './surface-publish';
@@ -32,6 +33,13 @@ Subcommands:
   snapshot    Post a snapshot, compacting the channel's history
   preview     Render the app as production does and screenshot it
 
+The authoring skill's own documents, printed from the installed package, so
+reading them does not depend on the runtime's skill mechanism:
+
+  doctrine    PARADIGM.md — the contract, read before writing any app code
+  primitives  PRIMITIVES.md — the component catalog
+  rubric      RUBRIC.md — the checks you score preview's screenshots against
+
 Every command that writes confirms by reading the result back and says what
 it observed. A poke that resolves is never treated as a write that landed.
 
@@ -51,6 +59,9 @@ export const SURFACE_SUBCOMMANDS = [
   'state',
   'snapshot',
   'preview',
+  'doctrine',
+  'primitives',
+  'rubric',
 ] as const;
 
 /**
@@ -119,6 +130,10 @@ export async function run(args: string[], deps: SurfaceDeps): Promise<number> {
         return await runSurfaceSnapshot(rest, deps);
       case 'preview':
         return await runSurfacePreview(rest, deps);
+      case 'doctrine':
+      case 'primitives':
+      case 'rubric':
+        return await runSurfaceDocument(subcommand, rest, deps);
       default:
         writeLine(deps.stderr, `Unknown surface subcommand: ${subcommand}`);
         writeLine(deps.stderr, '');

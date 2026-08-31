@@ -64,6 +64,7 @@ export const SURFACE_ERROR_CODES = [
   'state-too-large',
   'template-not-found',
   'template-catalogue-empty',
+  'doctrine-unavailable',
 ] as const;
 
 export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
@@ -126,6 +127,9 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     'state-too-large': 'environment',
     'template-not-found': 'author',
     'template-catalogue-empty': 'environment',
+    // The install does not carry the document the bot asked for: its own
+    // files are irrelevant to the failure, and no rewrite of them fixes it.
+    'doctrine-unavailable': 'environment',
   };
 
 export class SurfaceError extends CommandError {

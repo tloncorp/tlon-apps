@@ -282,6 +282,17 @@ export function assertRootTarball(tarballPath: string, cwd: string): void {
   if (!files.some((file) => file.startsWith('skills/surfaces/templates/'))) {
     fail(`Root tarball is missing skills/surfaces/templates: ${tarballPath}`);
   }
+  // `tlon surface doctrine|primitives|rubric` read these three out of the
+  // installed package. A tarball without them ships a CLI whose doctrine
+  // commands refuse — the runtime-independent delivery of the doctrine
+  // failing quietly, at the packaging step.
+  for (const document of ['PARADIGM.md', 'PRIMITIVES.md', 'RUBRIC.md']) {
+    if (!files.includes(`skills/surfaces/${document}`)) {
+      fail(
+        `Root tarball is missing skills/surfaces/${document}: ${tarballPath}`
+      );
+    }
+  }
 
   const unexpected = files.filter((file) => {
     if (
