@@ -32,9 +32,9 @@ import {
 // are authoritative for the actual emitted surfaces.
 const AGENT_ONBOARDING_GROUP_INTRO =
   `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
-  'I can keep you informed, help you learn, or follow a ' +
-  'question over time.';
-const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
+  'Let’s set up one useful recurring task. I’ll ask a few questions, then ' +
+  'show you the plan.';
+const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What should I do for you regularly?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
   'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
@@ -53,41 +53,16 @@ const PURPOSE_PICKER_OPTIONS = [
   {
     id: 'agent-daily-digest',
     label: 'A daily digest',
-    description:
-      'A short summary of anything you care about, posted every morning.',
-    icon: 'ChannelNotebooks',
-    accent: 'blue',
   },
   {
     id: 'agent-learning',
     label: 'Learn something',
-    description: 'One idea each morning, taking your topics in turn.',
-    icon: 'Clock',
-    accent: 'green',
   },
   {
     id: 'agent-research',
     label: 'Research',
-    description: 'A source-backed briefing that follows meaningful new work.',
-    icon: 'Search',
-    accent: 'indigo',
   },
 ] as const;
-const DIGEST_PURPOSE = {
-  id: 'agent-daily-digest',
-  label: 'A daily digest',
-  scheduleHour: 8,
-  topicsPrompt:
-    'A daily digest—great. What should I keep an eye on? Pick any that fit.',
-  topics: [
-    'Nootropics',
-    'Longevity',
-    'Psychedelics',
-    'Open hardware',
-    'Gene editing',
-    'Space weather',
-  ],
-} as const;
 
 const owner: db.Contact = {
   ...emptyContact,
@@ -191,63 +166,70 @@ const purposePicker = makeA2UI('onboarding-purpose-fixture', [
   },
   {
     id: 'choices',
-    component: 'Choice',
+    component: 'SmallChoice',
     options: PURPOSE_PICKER_OPTIONS.map((option) => ({
       id: option.id,
       label: option.label,
-      description: option.description,
-      icon: option.icon,
-      accent: option.accent,
-      action: action(option.label),
     })),
-  } as A2UI.Component,
-]);
-
-const digestPurpose = DIGEST_PURPOSE;
-const topics = [...digestPurpose.topics];
-
-const topicsPicker = makeA2UI('onboarding-topics-fixture', [
-  {
-    id: 'root',
-    component: 'Column',
-    children: ['prompt', 'topics'],
-  },
-  {
-    id: 'prompt',
-    component: 'Text',
-    text: digestPurpose.topicsPrompt,
-  },
-  {
-    id: 'topics',
-    component: 'SmallChoice',
-    options: topics.map((topic) => ({
-      id: topic.toLowerCase(),
-      label: topic,
-    })),
-    submitLabel: 'That’s it',
-    freeTextPlaceholder: 'Add your own…',
+    submitLabel: 'Continue',
+    freeTextPlaceholder: 'Describe your own…',
     action: {
       event: {
-        name: 'tlon.provisionAgent',
-        context: {
-          groupId,
-          purposeId: digestPurpose.id,
-          purpose: digestPurpose.label,
-          topics,
-          scheduleHour: digestPurpose.scheduleHour,
-          scheduleMinute: 0,
-          notebookNest: updatesNotebook.id,
-          notebookTitle: updatesNotebook.title,
-        },
+        name: 'tlon.sendMessage',
+        context: { text: 'I want help with:' },
       },
     },
   } as A2UI.Component,
 ]);
 
+const taskPlanSurface = makeA2UI('onboarding-task-plan-fixture', [
+  {
+    id: 'root',
+    component: 'Column',
+    children: ['summary', 'confirm'],
+  },
+  {
+    id: 'summary',
+    component: 'Text',
+    text:
+      'Battery research brief · every weekday at 8:30 AM · one concise, ' +
+      'source-backed note covering material results from the last seven days.',
+  },
+  {
+    id: 'confirm',
+    component: 'Button',
+    child: 'confirm-label',
+    variant: 'primary',
+    action: {
+      event: {
+        name: 'tlon.provisionAgent',
+        context: {
+          groupId,
+          purposeId: 'agent-research',
+          purpose: 'Research',
+          topics: ['Battery materials'],
+          scheduleHour: 8,
+          scheduleMinute: 30,
+          scheduleExpression: '30 8 * * 1-5',
+          scheduleDescription: 'every weekday at 8:30 AM',
+          taskPrompt:
+            'Track material battery research from primary sources. Include ' +
+            'only results published in the last seven days, explain practical ' +
+            'implications, and link each source.',
+        },
+      },
+    },
+  } as A2UI.Component,
+  {
+    id: 'confirm-label',
+    component: 'Text',
+    text: 'Create this task',
+  },
+]);
+
 const acknowledgement =
-  'Open hardware and Space weather—got it. Every morning I’ll write a fresh ' +
-  'digest in Updates, this group’s notebook. After this first entry, new ones ' +
-  'arrive at 8:00 AM.';
+  'Got it. I’ll publish each result in Updates, this group’s notebook. After ' +
+  'this first entry, the task will run every weekday at 8:30 AM.';
 const firstEntryPending =
   'I’ll be back in a few seconds with your tailored post.';
 const firstEntryReady =
@@ -256,7 +238,7 @@ const firstEntryReady =
 const servicesPitch =
   'Connect your docs and notes and your morning digest can cover your own ' +
   'projects, not just the news.';
-const servicesMessage = `${servicesPitch}\n\nConnect anything you’d like, or tap Done to continue.`;
+const servicesMessage = `${servicesPitch}\n\nPick anything you’d like, or tap Done to continue.`;
 const servicesComponent: A2UI.McpConnect = {
   id: 'providers',
   component: 'McpConnect',
@@ -366,85 +348,113 @@ const transcript = [
     author: tlonbot,
     text:
       `${AGENT_ONBOARDING_GROUP_INTRO}\n\n` +
-      `${AGENT_ONBOARDING_PURPOSE_PROMPT} Reply “A daily digest”, “Learn something”, or “Research”.`,
+      `${AGENT_ONBOARDING_PURPOSE_PROMPT} Choose “A daily digest”, “Learn something”, “Research”, or add your own idea.`,
     a2ui: purposePicker,
     minute: 1,
   }),
   transcriptPost({
     id: 'onboarding-03-purpose-reply',
     author: owner,
-    text: 'A daily digest',
+    text: 'I want help with: Research',
     minute: 3,
   }),
   transcriptPost({
-    id: 'onboarding-04-topics',
+    id: 'onboarding-04-focus-question',
     author: tlonbot,
-    text: `${digestPurpose.topicsPrompt} ${topics.join(', ')}.`,
-    a2ui: topicsPicker,
+    text: 'What field should I follow, and what would make an update worth including?',
     minute: 4,
   }),
   transcriptPost({
-    id: 'onboarding-05-topics-reply',
+    id: 'onboarding-05-focus-reply',
     author: owner,
-    text: 'Open hardware, Space weather',
+    text:
+      'Battery materials. Only primary-source results from the last week, ' +
+      'with practical implications.',
     minute: 5,
   }),
   transcriptPost({
-    id: 'onboarding-06-ack',
+    id: 'onboarding-06-schedule-question',
     author: tlonbot,
-    text: acknowledgement,
+    text: 'How often should I publish it, and at what time?',
     minute: 6,
   }),
   transcriptPost({
-    id: 'onboarding-07-first-entry-pending',
-    author: tlonbot,
-    text: firstEntryPending,
+    id: 'onboarding-07-schedule-reply',
+    author: owner,
+    text: 'Weekdays at 8:30 in the morning.',
     minute: 7,
   }),
   transcriptPost({
-    id: 'onboarding-08-note-ready',
+    id: 'onboarding-08-plan',
     author: tlonbot,
-    text: firstEntryReady,
+    text:
+      'Battery research brief, every weekday at 8:30 AM, as one concise ' +
+      'source-backed note. Tap Create this task to confirm.',
+    a2ui: taskPlanSurface,
     minute: 8,
   }),
   transcriptPost({
-    id: 'onboarding-09-services',
-    author: tlonbot,
-    text: servicesMessage,
-    a2ui: servicesSurface,
+    id: 'onboarding-09-plan-confirmed',
+    author: owner,
+    text: 'Battery materials',
     minute: 9,
   }),
   transcriptPost({
-    id: 'onboarding-10-app-tour',
+    id: 'onboarding-10-ack',
     author: tlonbot,
-    text: `${AGENT_ONBOARDING_APP_TOUR_PROMPT} Yes or no.`,
-    a2ui: appTourSurface,
+    text: acknowledgement,
     minute: 10,
   }),
   transcriptPost({
-    id: 'onboarding-11-app-tour-yes',
-    author: owner,
-    text: 'Yes',
+    id: 'onboarding-11-first-entry-pending',
+    author: tlonbot,
+    text: firstEntryPending,
     minute: 11,
   }),
   transcriptPost({
-    id: 'onboarding-12-bot-tour',
+    id: 'onboarding-12-note-ready',
     author: tlonbot,
-    text: `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT} Yes or no.`,
-    a2ui: botTourSurface,
+    text: firstEntryReady,
     minute: 12,
   }),
   transcriptPost({
-    id: 'onboarding-13-bot-tour-yes',
-    author: owner,
-    text: 'Yes',
+    id: 'onboarding-13-services',
+    author: tlonbot,
+    text: servicesMessage,
+    a2ui: servicesSurface,
     minute: 13,
   }),
   transcriptPost({
-    id: 'onboarding-14-bot-tour-complete',
+    id: 'onboarding-14-app-tour',
+    author: tlonbot,
+    text: `${AGENT_ONBOARDING_APP_TOUR_PROMPT} Yes or no.`,
+    a2ui: appTourSurface,
+    minute: 14,
+  }),
+  transcriptPost({
+    id: 'onboarding-15-app-tour-yes',
+    author: owner,
+    text: 'Yes',
+    minute: 15,
+  }),
+  transcriptPost({
+    id: 'onboarding-16-bot-tour',
+    author: tlonbot,
+    text: `${AGENT_ONBOARDING_APP_TOUR_EXPLANATION}\n\n${AGENT_ONBOARDING_BOT_TOUR_PROMPT} Yes or no.`,
+    a2ui: botTourSurface,
+    minute: 16,
+  }),
+  transcriptPost({
+    id: 'onboarding-17-bot-tour-yes',
+    author: owner,
+    text: 'Yes',
+    minute: 17,
+  }),
+  transcriptPost({
+    id: 'onboarding-18-bot-tour-complete',
     author: tlonbot,
     text: AGENT_ONBOARDING_BOT_TOUR_EXPLANATION,
-    minute: 14,
+    minute: 18,
   }),
 ];
 
@@ -616,8 +626,9 @@ function McpServicesPreview() {
 }
 
 export default {
-  'Durable purpose selection': <OnboardingTranscript through={1} />,
-  'Durable topic selection': <OnboardingTranscript through={3} />,
+  'Agent-driven task starter': <OnboardingTranscript through={1} />,
+  'Agent narrowing interview': <OnboardingTranscript through={6} />,
+  'Owner-confirmable task plan': <OnboardingTranscript through={7} />,
   'Conversation combined opening': <OnboardingConversation through={1} />,
   'Conversation topic selection': <OnboardingConversation />,
   'Completed topic selection': <OnboardingTranscript through={4} />,

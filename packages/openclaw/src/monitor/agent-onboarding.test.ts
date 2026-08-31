@@ -864,7 +864,7 @@ describe('agent onboarding requests', () => {
     expect(A2UI.validateBlobEntry(services)).toBe(true);
   });
 
-  it('labels the topic submit action Done', () => {
+  it('labels the legacy topic submit action Done', () => {
     const topics = agentOnboardingTesting.buildTopicsPickerSurface(
       '~ten/group',
       {
@@ -1272,7 +1272,9 @@ describe('agent onboarding requests', () => {
     });
     const sendPost = vi.fn(async (post: { story: unknown }) => {
       events.push('post');
-      expect(JSON.stringify(post.story)).toContain('What can I help you with?');
+      expect(JSON.stringify(post.story)).toContain(
+        'What should I do for you regularly?'
+      );
       return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
     });
 
@@ -1356,10 +1358,10 @@ describe('agent onboarding requests', () => {
       'Welcome! This is your private group with me, your Tlonbot.'
     );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'I can keep you informed, help you learn, or follow a question over time.'
+      'set up one useful recurring task'
     );
     expect(JSON.stringify(firstGroup[0]?.story)).toContain(
-      'What can I help you with?'
+      'What should I do for you regularly?'
     );
     expect(parsePostBlob(firstGroup[0]?.blob)).toEqual(
       expect.arrayContaining([
@@ -1369,7 +1371,7 @@ describe('agent onboarding requests', () => {
         }),
         expect.objectContaining({
           type: 'tlon-agent-post-marker',
-          key: 'purpose-picker',
+          key: 'task-interview',
         }),
       ])
     );
@@ -1377,7 +1379,7 @@ describe('agent onboarding requests', () => {
     const additionalGroup = await promptFor();
     expect(additionalGroup).toHaveLength(1);
     expect(JSON.stringify(additionalGroup[0]?.story)).toContain(
-      'What can I help you with?'
+      'What should I do for you regularly?'
     );
     expect(
       JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))
@@ -1429,7 +1431,7 @@ describe('agent onboarding requests', () => {
     ).toBe(false);
   });
 
-  it('posts each picker as a durable channel message', async () => {
+  it('hands the starter selection to the model with a free-text option', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
       sent.push(post);
@@ -1470,6 +1472,20 @@ describe('agent onboarding requests', () => {
     expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain(
       'the cards are only starts'
     );
+    const starterA2UI = parsePostBlob(sent[0].blob).find(
+      (entry) => entry.type === 'a2ui'
+    );
+    expect(starterA2UI).toMatchObject({ storyMode: 'fallback' });
+    expect(JSON.stringify(starterA2UI)).toContain('SmallChoice');
+    expect(JSON.stringify(starterA2UI)).toContain('Describe your own…');
+    expect(JSON.stringify(starterA2UI)).toContain('I want help with:');
+    expect(parsePostBlob(sent[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'task-interview',
+      })
+    );
+
     history.push(
       {
         author: '~bot',
@@ -1479,56 +1495,22 @@ describe('agent onboarding requests', () => {
       },
       {
         author: '~ten',
-        content: 'A daily digest',
+        content: 'I want help with: A daily digest',
         timestamp: 3,
       }
     );
 
-    await handleAgentOnboardingRequest(
-      { ...base, rawText: 'A daily digest', blob: undefined },
-      { fetchHistory: vi.fn(async () => history), sendPost }
-    );
-    expect(sent).toHaveLength(2);
-    const topicsA2UI = parsePostBlob(sent[1].blob).find(
-      (entry) => entry.type === 'a2ui'
-    );
-    expect(topicsA2UI).toMatchObject({ storyMode: 'fallback' });
-    expect(JSON.stringify(topicsA2UI)).toContain(
-      'What should I keep an eye on?'
-    );
-    expect(JSON.stringify(topicsA2UI)).not.toContain(
-      'tell me here in the chat'
-    );
-    expect(JSON.stringify(topicsA2UI)).toContain('tlon.provisionAgent');
-    history.push(
-      {
-        author: '~bot',
-        content: 'topics',
-        timestamp: 4,
-        blob: sent[1].blob,
-      },
-      {
-        author: '~ten',
-        content: 'Open hardware, Space weather',
-        timestamp: 5,
-      }
-    );
-
-    await handleAgentOnboardingRequest(
-      {
-        ...base,
-        rawText: 'Open hardware, Space weather',
-        blob: undefined,
-      },
-      { fetchHistory: vi.fn(async () => history), sendPost }
-    );
-    // Topic confirmation is a client-owned provision action because only the
-    // client knows the device timezone. A raw-text recovery must never revive
-    // the retired timezone prompt or button.
-    expect(sent).toHaveLength(2);
-    expect(JSON.stringify(sent)).not.toContain('timezone-picker');
-    expect(JSON.stringify(sent)).not.toContain('Use my current timezone');
-    expect(JSON.stringify(sent)).not.toContain('One last detail');
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          ...base,
+          rawText: 'I want help with: A daily digest',
+          blob: undefined,
+        },
+        { fetchHistory: vi.fn(async () => history), sendPost }
+      )
+    ).resolves.toBe(false);
+    expect(sent).toHaveLength(1);
   });
 
   it('shows thinking and paces the combined onboarding opening', async () => {
@@ -1591,7 +1573,7 @@ describe('agent onboarding requests', () => {
     expect(events[0]).toBe('thinking:start');
     expect(events.at(-1)).toBe('thinking:stop');
     expect(events.filter((e) => e.startsWith('post:'))).toEqual([
-      'post:intro+purpose-picker',
+      'post:intro+task-interview',
     ]);
 
     // Every post is preceded by a pause, and the pause is composed rather than
@@ -1747,7 +1729,7 @@ describe('agent onboarding requests', () => {
     expect(stopThinking).toHaveBeenCalledOnce();
   });
 
-  it('consumes picker replies from production-shaped history before model dispatch', async () => {
+  it('passes model-led starter replies through production-shaped history', async () => {
     const sent: Array<{ story: unknown; blob?: string }> = [];
     const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
       sent.push(post);
@@ -1819,11 +1801,8 @@ describe('agent onboarding requests', () => {
         },
         { sendPost }
       )
-    ).resolves.toBe(true);
-    expect(sent).toHaveLength(2);
-    expect(JSON.stringify(parsePostBlob(sent[1].blob))).toContain(
-      'tlon.provisionAgent'
-    );
+    ).resolves.toBe(false);
+    expect(sent).toHaveLength(1);
   });
 
   it.each([
@@ -2140,6 +2119,38 @@ describe('primary onboarding cron slot', () => {
     expect(prompt).not.toContain('tlon notes');
     expect(prompt).toContain('order items by urgency');
     expect(prompt).toContain('concise and scannable');
+  });
+
+  it('uses the model-authored task and ordinary cron schedule when present', async () => {
+    const interviewPlan = {
+      ...provision,
+      taskPrompt:
+        'Track material battery research from primary sources. Include only results published in the last seven days and explain practical implications.',
+      scheduleExpression: '30 8 * * 1-5',
+      scheduleDescription: 'every weekday at 8:30 AM',
+    };
+    const prompt = agentOnboardingTesting.buildRecurringPrompt(interviewPlan);
+    expect(prompt).toContain(interviewPlan.taskPrompt);
+    expect(prompt).toContain('Use the current run date and time');
+    expect(prompt).toContain('one self-contained Markdown note');
+
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      interviewPlan,
+      'chat/~ten/group/general'
+    );
+    expect(harness.getJobs()[0]).toMatchObject({
+      schedule: {
+        kind: 'cron',
+        expr: '30 8 * * 1-5',
+        tz: 'America/New_York',
+      },
+      payload: { message: expect.stringContaining(interviewPlan.taskPrompt) },
+    });
+    expect(agentOnboardingTesting.scheduleConfirmation(interviewPlan)).toBe(
+      'After this first entry, the task will run every weekday at 8:30 AM.'
+    );
   });
 
   it('keeps research updates narrow, sourced, and honest about freshness', () => {

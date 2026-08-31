@@ -178,9 +178,9 @@ const TLAWN_HOME_GROUP_WELCOME_MESSAGE =
   'too—we can all chat together.';
 const AGENT_ONBOARDING_GROUP_INTRO =
   `${TLAWN_HOME_GROUP_WELCOME_MESSAGE}\n\n` +
-  'I can keep you informed, help you learn, or follow a ' +
-  'question over time.';
-const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What can I help you with?';
+  'Let’s set up one useful recurring task. I’ll ask a few questions, then ' +
+  'show you the plan.';
+const AGENT_ONBOARDING_PURPOSE_PROMPT = 'What should I do for you regularly?';
 const AGENT_ONBOARDING_APP_TOUR_PROMPT =
   'Want me to tell you more about what you can do here?';
 const AGENT_ONBOARDING_APP_TOUR_EXPLANATION =
@@ -792,37 +792,44 @@ async function postIntro(
     }
     return;
   }
-
   const needsIntro = !hasPostMarker(history, context.botShip, 'intro');
-  const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
-  const pickerPosted = await postOnce(
-    context,
-    history,
-    'purpose-picker',
-    async () => {
-      const prompt = needsIntro
-        ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
-        : AGENT_ONBOARDING_PURPOSE_PROMPT;
-      return {
-        text: purposePickerFallbackText(prompt),
-        blob: appendToPostBlob(
-          undefined,
-          buildPurposePickerSurface(context.groupId!, prompt)
-        ),
-        entries: needsIntro
-          ? [
-              {
-                type: 'tlon-agent-post-marker' as const,
-                version: 1 as const,
-                key: 'intro',
-              },
-            ]
-          : undefined,
-      };
-    },
-    deps,
-    presentation
-  );
+  const hadPicker =
+    hasPostMarker(history, context.botShip, 'task-interview') ||
+    // Do not insert the new interview into an in-flight deterministic setup.
+    hasPostMarker(history, context.botShip, 'purpose-picker');
+  const pickerPosted = hadPicker
+    ? false
+    : await postOnce(
+        context,
+        history,
+        // This marker deliberately differs from the compatibility
+        // coordinator's `purpose-picker`. Replies to new interviews continue
+        // to the ordinary agent/model instead of entering a hard-coded chain.
+        'task-interview',
+        async () => {
+          const prompt = needsIntro
+            ? `${AGENT_ONBOARDING_GROUP_INTRO}\n\n${AGENT_ONBOARDING_PURPOSE_PROMPT}`
+            : AGENT_ONBOARDING_PURPOSE_PROMPT;
+          return {
+            text: purposePickerFallbackText(prompt),
+            blob: appendToPostBlob(
+              undefined,
+              buildPurposePickerSurface(context.groupId!, prompt)
+            ),
+            entries: needsIntro
+              ? [
+                  {
+                    type: 'tlon-agent-post-marker' as const,
+                    version: 1 as const,
+                    key: 'intro',
+                  },
+                ]
+              : undefined,
+          };
+        },
+        deps,
+        presentation
+      );
   if (!hadPicker && pickerPosted) {
     if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
@@ -1213,10 +1220,9 @@ async function provision(
       });
     }
 
-    const acknowledgement =
-      `${formatTopicList(request.topics)}—got it. ` +
-      `${provisionCadence(request.purposeId, notebookName)} ` +
-      `${scheduleConfirmation(request)}`;
+    const acknowledgement = request.taskPrompt
+      ? `Got it. I’ll publish each result in ${notebookName}, this group’s notebook. ${scheduleConfirmation(request)}`
+      : `${formatTopicList(request.topics)}—got it. ${provisionCadence(request.purposeId, notebookName)} ${scheduleConfirmation(request)}`;
     await postOnce(
       context,
       history,
@@ -2595,7 +2601,9 @@ async function upsertPrimaryJobOnce(
     enabled: true,
     schedule: {
       kind: 'cron',
-      expr: `${request.scheduleMinute} ${request.scheduleHour} * * *`,
+      expr:
+        request.scheduleExpression ??
+        `${request.scheduleMinute} ${request.scheduleHour} * * *`,
       tz: request.timezone,
     },
     sessionTarget: 'isolated',
@@ -2812,6 +2820,9 @@ function buildRecurringPrompt(
   providerIds: readonly string[] = []
 ) {
   const providerGuidance = buildProviderGuidance(providerIds);
+  if (request.taskPrompt) {
+    return `Carry out this recurring task: ${request.taskPrompt.trim()} Use the current run date and time when deciding what is relevant. Search the web when the task depends on current or externally verifiable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
+  }
   if (request.purposeId === 'agent-learning') {
     return `Build one entry in a progressive learning series. The topics are: ${request.topics.join(', ')}. Cover exactly one topic; never combine or force connections between topics. Rotate through the list over time, using the current date to vary the topic. Put that topic in the note title. Explain one useful idea for that topic with concrete examples. Keep it concise, search the web for reliable information, and cite useful sources.${providerGuidance} Produce one self-contained Markdown note with a concise title as its first heading. Return only the finished note. The coordinator will publish your final response exactly once.`;
   }
@@ -2837,7 +2848,7 @@ function purposePickerFallbackText(prompt: string) {
   const labels = AGENT_ONBOARDING_PURPOSE_OPTIONS.map(
     (option) => `“${option.label}”`
   ).join(', ');
-  return `${prompt} Reply ${labels}.`;
+  return `${prompt} Choose ${labels}, or add your own idea.`;
 }
 
 function buildPurposePickerSurface(
@@ -2854,15 +2865,19 @@ function buildPurposePickerSurface(
       { id: 'prompt', component: 'Text', text: prompt },
       {
         id: 'choices',
-        component: 'Choice',
+        component: 'SmallChoice',
         options: AGENT_ONBOARDING_PURPOSE_OPTIONS.map((option) => ({
           id: option.id,
           label: option.label,
-          description: option.description,
-          icon: option.icon,
-          accent: option.accent,
-          action: choiceAction(option.label),
         })),
+        submitLabel: 'Continue',
+        freeTextPlaceholder: 'Describe your own…',
+        action: {
+          event: {
+            name: A2UI.action.sendMessage,
+            context: { text: 'I want help with:' },
+          },
+        },
       },
     ])
   );
@@ -2937,6 +2952,9 @@ function provisionCadence(
  * Distinguish the immediate forced entry from the recurring schedule.
  */
 function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
+  if (request.scheduleDescription) {
+    return `After this first entry, the task will run ${request.scheduleDescription}.`;
+  }
   const hour = request.scheduleHour % 12 === 0 ? 12 : request.scheduleHour % 12;
   const meridiem = request.scheduleHour < 12 ? 'AM' : 'PM';
   const minute = String(request.scheduleMinute).padStart(2, '0');

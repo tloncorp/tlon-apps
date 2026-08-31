@@ -74,6 +74,9 @@ function provisionMatchesPlan(
     provision.timezone === plan.timezone &&
     provision.scheduleHour === plan.scheduleHour &&
     provision.scheduleMinute === plan.scheduleMinute &&
+    provision.taskPrompt === plan.taskPrompt &&
+    provision.scheduleExpression === plan.scheduleExpression &&
+    provision.scheduleDescription === plan.scheduleDescription &&
     provision.notebookNest === notebookNest &&
     provision.notebookTitle === notebookTitle &&
     provision.topics.length === plan.topics.length &&
@@ -246,6 +249,13 @@ export function StaticChatMessage({
         timezone: plan.timezone,
         scheduleHour: plan.scheduleHour,
         scheduleMinute: plan.scheduleMinute,
+        ...(plan.taskPrompt ? { taskPrompt: plan.taskPrompt } : {}),
+        ...(plan.scheduleExpression
+          ? { scheduleExpression: plan.scheduleExpression }
+          : {}),
+        ...(plan.scheduleDescription
+          ? { scheduleDescription: plan.scheduleDescription }
+          : {}),
         notebookNest: notebooks[0].id,
         notebookTitle,
       } satisfies PostBlobDataEntryAgentProvision;

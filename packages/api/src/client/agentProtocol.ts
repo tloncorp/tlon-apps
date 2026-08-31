@@ -13,6 +13,9 @@ export const AGENT_PROTOCOL_LIMITS = {
   purposeLength: 200,
   topicLength: 200,
   topicCount: 12,
+  taskPromptLength: 4000,
+  scheduleExpressionLength: 200,
+  scheduleDescriptionLength: 200,
   timezoneLength: 100,
   notebookNestLength: 512,
   notebookTitleLength: 200,
@@ -53,6 +56,30 @@ export const AgentProvisionActionContextSchema = z.object({
     .max(AGENT_PROTOCOL_LIMITS.topicCount),
   scheduleHour: z.number().int().min(0).max(23),
   scheduleMinute: z.number().int().min(0).max(59),
+  /**
+   * Model-authored task details for interview-driven onboarding. The legacy
+   * purpose/topic fields remain required so older clients and group naming
+   * continue to work; this prompt is authoritative when present.
+   */
+  taskPrompt: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.taskPromptLength
+  ).optional(),
+  /** Five-field cron expression for ordinary time-based schedules. */
+  scheduleExpression: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.scheduleExpressionLength
+  )
+    .refine((value) => {
+      const fields = value.trim().split(/\s+/);
+      return (
+        fields.length === 5 &&
+        fields.every((field) => /^[0-9*/,-]+$/.test(field))
+      );
+    })
+    .optional(),
+  /** Human-readable cadence used in the confirmation message. */
+  scheduleDescription: agentProtocolString(
+    AGENT_PROTOCOL_LIMITS.scheduleDescriptionLength
+  ).optional(),
 });
 
 export const AgentProviderIdSchema = agentProtocolString(

@@ -218,6 +218,9 @@ describe('post blob helpers', () => {
         timezone: 'America/New_York',
         scheduleHour: 9,
         scheduleMinute: 30,
+        taskPrompt: 'Summarize primary-source Urbit and AI updates.',
+        scheduleExpression: '30 9 * * 1-5',
+        scheduleDescription: 'every weekday at 9:30 AM',
         notebookNest: 'notes/~zod/test-updates',
         notebookTitle: 'Updates',
       },
@@ -267,6 +270,26 @@ describe('post blob helpers', () => {
             timezone: 'America/New_York',
             scheduleHour: 25,
             scheduleMinute: 0,
+            notebookNest: 'notes/~zod/test-updates',
+          },
+        ])
+      )
+    ).toEqual([{ type: 'unknown' }]);
+    expect(
+      parsePostBlob(
+        JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-1',
+            groupId: '~zod/test',
+            purposeId: 'agent-research',
+            purpose: 'Research',
+            topics: ['Urbit'],
+            timezone: 'America/New_York',
+            scheduleHour: 9,
+            scheduleMinute: 0,
+            scheduleExpression: 'not a valid cron expression',
             notebookNest: 'notes/~zod/test-updates',
           },
         ])

@@ -500,6 +500,8 @@ export function McpConnectMenu({
       borderRadius="$xl"
       backgroundColor="$secondaryBackground"
     >
+      {/* Reserve the visible providers plus the usual “See all” row while
+          queries load so the conversation does not jump when they resolve. */}
       <YStack
         width="100%"
         minHeight={loading ? (component.maxVisible + 1) * 56 : undefined}
