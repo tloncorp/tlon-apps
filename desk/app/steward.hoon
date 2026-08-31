@@ -10,7 +10,8 @@
 ::    journey observer has no protocol; %steward-action-1 carries only
 ::    cross-cutting config (the shared owner).
 ::
-/-  s=steward, a=activity, av=activity-ver, c=chat, co=contacts, cv=chat-ver, st=story
+/-  s=steward, a=activity, av=activity-ver, c=chat, ch=channels, co=contacts
+/-  cv=chat-ver, chv=channels-ver, st=story
 /-  sl=steward-lens, sg=steward-gateway
 /+  default-agent, verb, dbug, logs, utils=channel-utils
 |%
@@ -50,7 +51,7 @@
   ++  on-init
     ^-  (quip card _this)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [~[watch-activity:cor watch-journey-chat:cor] this]
+    [~[watch-activity:cor watch-journey-chat:cor watch-journey-channels:cor] this]
   ++  on-save  !>(state)
   ++  on-load
     |=  ole=vase
@@ -60,8 +61,16 @@
     ::  silently wipe.
     ::
     =.  state  !<(state-0 ole)
-    ?:  (~(has by wex.bowl) [/journey/chat our.bowl %chat])  [~ this]
-    [~[watch-journey-chat:cor] this]
+    =/  cards=(list card)  ~
+    =.  cards
+      ?:  (~(has by wex.bowl) [/journey/chat our.bowl %chat])
+        cards
+      [watch-journey-chat:cor cards]
+    =.  cards
+      ?:  (~(has by wex.bowl) [/journey/channels our.bowl %channels])
+        cards
+      [watch-journey-channels:cor cards]
+    [cards this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -197,6 +206,22 @@
       ((slog 'steward: journey chat watch nacked' u.p.sign) cor)
     ==
   ::
+      [%journey %channels ~]
+    ?+    -.sign  cor
+        %fact
+      ?.  =(%channel-response-5 p.cage.sign)  cor
+      =/  response=r-channels:v10:chv
+        !<(r-channels:v10:chv q.cage.sign)
+      (jo-observe-channel:jo-core response)
+    ::
+        %kick
+      (emit watch-journey-channels)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey channels watch nacked' u.p.sign) cor)
+    ==
+  ::
       [%journey %logs ~]
     ?+  -.sign  cor
         %poke-ack
@@ -228,11 +253,15 @@
 ++  watch-journey-chat
   ^-  card
   [%pass /journey/chat %agent [our.bowl %chat] %watch /v4]
-::  |jo-core: content-free backend journey telemetry for OpenClaw DMs
 ::
-::  this module is deliberately stateless. a DM is eligible only when the
-::  relevant %contacts profile already contains bot-info JSON identifying an
-::  OpenClaw harness. missing or malformed markers fail closed.
+++  watch-journey-channels
+  ^-  card
+  [%pass /journey/channels %agent [our.bowl %channels] %watch /v4]
+::  |jo-core: content-free backend journey telemetry for OpenClaw messages
+::
+::  this module is deliberately stateless. a DM or group post is eligible only
+::  when the relevant %contacts profile already contains bot-info JSON
+::  identifying an OpenClaw harness. missing or malformed markers fail closed.
 ::
 ++  jo-core
   |%
@@ -291,13 +320,41 @@
       %del-react  ~
     ==
   ::
+  ++  jo-channel-message
+    |=  response=r-channels:v10:chv
+    ^-  (unit [nest=nest:ch id=id:c author=ship])
+    =*  nest  nest.response
+    =*  r-channel  r-channel.response
+    ?.  ?=(%post -.r-channel)  ~
+    =*  r-post  r-post.r-channel
+    ?-  -.r-post
+      %set
+        ?:  ?=(%| -.post.r-post)  ~
+        =/  post=post:v10:chv  +.post.r-post
+        =/  author=ship  (get-author-ship:utils author.post)
+        `[nest [author id.r-channel] author]
+      %reply
+        =*  r-reply  r-reply.r-post
+        ?.  ?=(%set -.r-reply)  ~
+        ?:  ?=(%| -.reply.r-reply)  ~
+        =/  reply=reply:v10:chv  +.reply.r-reply
+        =/  author=ship  (get-author-ship:utils author.reply)
+        `[nest [author id.r-post] author]
+      %reacts  ~
+      %essay   ~
+    ==
+  ::
   ++  jo-log
-    |=  [stage=@t =id:c owner=ship bot=ship]
+    |=  [stage=@t =id:c owner=ship bot=ship destination=@t]
     ^+  cor
     =/  message-id=@t
       (rap 3 (scot %p p.id) '/' (scot %ud q.id) ~)
     =/  id-key=@t
-      ?:  ?|(=(stage 'moon_reply_persisted') =(stage 'owner_reply_persisted'))
+      ?:  ?|  =(stage 'moon_reply_persisted')
+              =(stage 'owner_reply_persisted')
+              =(stage 'group_host_reply_persisted')
+              =(stage 'owner_group_reply_persisted')
+          ==
         'tlon.message_journey.output_message_id'
       'tlon.message_journey.input_message_id'
     =/  data=log-data:logs
@@ -307,7 +364,7 @@
           id-key^s+message-id
           'tlon.message_journey.owner_ship'^s+(scot %p owner)
           'tlon.message_journey.bot_ship'^s+(scot %p bot)
-          'tlon.message_journey.destination_kind'^s+'dm'
+          'tlon.message_journey.destination_kind'^s+destination
           'tlon.message_journey.source'^s+'steward/journey'
       ==
     =/  body=@t  (cat 3 'tlon.message_journey.' stage)
@@ -329,16 +386,33 @@
     ?:  =(author-ship our.bowl)
       ?:  peer-is-child
         ?.  (jo-is-openclaw peer)  cor
-        (jo-log 'owner_input_accepted' id.u.msg our.bowl peer)
+        (jo-log 'owner_input_accepted' id.u.msg our.bowl peer 'dm')
       ?.  peer-is-owner  cor
       ?.  (jo-is-openclaw our.bowl)  cor
-      (jo-log 'moon_reply_persisted' id.u.msg peer our.bowl)
+      (jo-log 'moon_reply_persisted' id.u.msg peer our.bowl 'dm')
     ?:  peer-is-child
       ?.  (jo-is-openclaw peer)  cor
-      (jo-log 'owner_reply_persisted' id.u.msg our.bowl peer)
+      (jo-log 'owner_reply_persisted' id.u.msg our.bowl peer 'dm')
     ?.  peer-is-owner  cor
     ?.  (jo-is-openclaw our.bowl)  cor
-    (jo-log 'moon_input_persisted' id.u.msg peer our.bowl)
+    (jo-log 'moon_input_persisted' id.u.msg peer our.bowl 'dm')
+  ::
+  ++  jo-observe-channel
+    |=  response=r-channels:v10:chv
+    ^+  cor
+    ?~  msg=(jo-channel-message response)  cor
+    =/  bot=ship  author.u.msg
+    =/  owner=ship  (sein:title our.bowl now.bowl bot)
+    =/  host=ship  ship.nest.u.msg
+    ?.  ?|(=(our.bowl host) =(our.bowl owner))  cor
+    ?.  (jo-is-openclaw bot)  cor
+    =.  cor
+      ?:  =(our.bowl host)
+        (jo-log 'group_host_reply_persisted' id.u.msg owner bot 'group_channel')
+      cor
+    ?:  =(our.bowl owner)
+      (jo-log 'owner_group_reply_persisted' id.u.msg owner bot 'group_channel')
+    cor
   --
 ::  |le-core: lens module
 ::
