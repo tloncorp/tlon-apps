@@ -329,8 +329,8 @@ export function createContextLensShipSync(opts: {
 
 /**
  * Wire ship sync to the lens event stream. Returns true when active, false
- * when the lens is disabled or no owner resolves (no contextLens.owner and
- * no ownerShip).
+ * when the lens is disabled, no owner resolves (no contextLens.owner and no
+ * ownerShip), or more than one account could run a monitor.
  */
 export function initContextLensShipSync(api: {
   config: OpenClawConfig;
@@ -340,9 +340,7 @@ export function initContextLensShipSync(api: {
   // NAMED account, resolving the default slot here could capture a
   // top-level contextLens.owner fallback and later reconfigure %steward's
   // SHARED owner to a ship that account never named — re-fanning its
-  // prompts (and edit rights) there. With several runnable accounts the
-  // default slot remains the shared-transport owner, matching the other
-  // single-transport gates.
+  // prompts (and edit rights) there.
   const runnable = listRunnableTlonAccountIds(api.config);
   const accountId = runnable.length === 1 ? runnable[0] : undefined;
   // Retire any previous listener BEFORE a disabled/no-owner return: a
@@ -361,6 +359,24 @@ export function initContextLensShipSync(api: {
     previous.retire();
     return previous.flush().catch(() => {});
   };
+  if (runnable.length > 1) {
+    // The transport slot is UNKEYED: every monitor publishes its own bound
+    // poke to it (see monitor/index.ts), so the last one to start wins and
+    // nothing identifies whose ship it reaches. Sending the default
+    // account's owner through a named account's transport would point THAT
+    // bot's %steward at a ship its account never named, fanning its prompt
+    // mirror there and authorizing it to edit. Gateway status disables
+    // itself over the same slot ambiguity (isGatewayStatusEligible).
+    //
+    // Retire, but assert nothing: a correction would ride the same
+    // ambiguous transport. Each monitor's own prompt sync re-configures its
+    // ship's owner on connect, which IS correctly scoped to one account.
+    void retirePrevious();
+    api.logger.info(
+      `[tlon] Context lens ship sync disabled: ${runnable.length} runnable Tlon accounts share one transport slot`
+    );
+    return false;
+  }
 
   /**
    * Retire the previous sync and, once its in-flight work settles,

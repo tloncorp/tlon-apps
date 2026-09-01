@@ -699,6 +699,74 @@ describe('initContextLensShipSync retirement', () => {
     }
   });
 
+  it('disables itself when several accounts share the transport slot', async () => {
+    const pokes: RecordedPoke[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    slot.set(makeParams(pokes));
+    const singleAccount = {
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner: '~bus',
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    };
+    const infos: string[] = [];
+    const multiAccount = {
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner: '~bus',
+            },
+            accounts: {
+              hosted: {
+                ship: '~sampel-palnet',
+                url: 'https://other.example.com',
+                code: 'code-456',
+                ownerShip: '~dev',
+              },
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: { info: (m: string) => infos.push(m), warn: () => {} },
+    };
+    try {
+      expect(initContextLensShipSync(singleAccount)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      pokes.length = 0;
+
+      // Two runnable accounts now share the one unkeyed transport slot, so
+      // there is no way to tell whose ship a poke reaches: asserting the
+      // default account's owner could point the OTHER bot's %steward at it.
+      expect(initContextLensShipSync(multiAccount)).toBe(false);
+      publishContextLensEvent('final', makeLens({ status: 'completed' }));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      // The previous sync is retired (no run poke) and nothing is asserted.
+      expect(pokes).toEqual([]);
+      expect(infos.join('\n')).toContain('share one transport slot');
+    } finally {
+      slot.set(previousParams);
+    }
+  });
+
   it('asserts a replacement owner without waiting for a lens event', async () => {
     const pokes: RecordedPoke[] = [];
     const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
