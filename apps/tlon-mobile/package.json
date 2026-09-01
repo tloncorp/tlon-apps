@@ -12,7 +12,8 @@
       },
       "android": {
         "buildFromSource": [
-          "expo-background-task"
+          "expo-background-task",
+          "expo-notifications"
         ]
       }
     }

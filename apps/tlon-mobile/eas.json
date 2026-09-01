@@ -128,9 +128,8 @@
     "production": {
       "android": {
         "applicationId": "io.tlon.groups",
-        "releaseStatus": "draft",
-        "track": "internal",
-        "changesNotSentForReview": true
+        "releaseStatus": "completed",
+        "track": "internal"
       },
       "ios": {
         "ascAppId": "6451392109",

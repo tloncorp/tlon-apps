@@ -17,6 +17,7 @@ import {
   setAgentOnboardingRunStore,
 } from './agent-onboarding-run-store.js';
 import {
+  agentOnboardingCronChannelNest,
   agentOnboardingCronProviderIds,
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
@@ -199,7 +200,7 @@ function provisionRequest(
 function servicesCard(timestamp = 2) {
   return {
     author: '~bot',
-    content: 'Connect anything you’d like, or tap Done to continue.',
+    content: 'Pick anything you’d like, or tap Done to continue.',
     timestamp,
     blob: appendToPostBlob(undefined, {
       type: 'tlon-agent-post-marker' as const,
@@ -599,6 +600,9 @@ describe('durable onboarding cron authorization', () => {
     await expect(
       agentOnboardingCronProviderIds('edited-description-job')
     ).resolves.toEqual(['gmail']);
+    await expect(
+      agentOnboardingCronChannelNest('edited-description-job')
+    ).resolves.toBe('chat/~ten/group/general');
   });
 
   it('does not classify an unrelated MCP-enabled Tlon cron as onboarding', async () => {
@@ -770,6 +774,31 @@ describe('agent onboarding requests', () => {
     });
     expect(servicesComponents.find(({ id }) => id === 'done')).toBeUndefined();
     expect(A2UI.validateBlobEntry(services)).toBe(true);
+  });
+
+  it('labels the topic submit action Done', () => {
+    const topics = agentOnboardingTesting.buildTopicsPickerSurface(
+      '~ten/group',
+      {
+        id: 'agent-daily-digest',
+        label: 'A daily digest',
+        scheduleHour: 8,
+        topicsPrompt: 'What should I keep an eye on?',
+      },
+      ['AI', 'Climate']
+    );
+    const update = topics?.messages.find(
+      (message) => 'updateComponents' in message
+    );
+    const components =
+      update && 'updateComponents' in update
+        ? update.updateComponents.components
+        : [];
+
+    expect(components.find(({ id }) => id === 'topics')).toMatchObject({
+      component: 'SmallChoice',
+      submitLabel: 'Done',
+    });
   });
 
   it('waits for Done on the services card before offering the app tour', async () => {
@@ -3069,6 +3098,9 @@ describe('provision coordinator ordering', () => {
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
     expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain(
       'tap Done to continue'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).not.toContain(
+      'Connect anything'
     );
   });
 

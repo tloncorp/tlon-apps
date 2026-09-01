@@ -885,6 +885,65 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertFalse(adapter._auto_accept_dm_invites)
         self.assertEqual(adapter._settings_default_authorized_ships, set())
 
+    def test_group_invite_allowlist_reverts_to_env_default_when_key_is_absent(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._settings_group_invite_allowlist = {"~ten"}  # simulate a prior load
+        adapter._sse = FakeSSE(
+            payloads={"/settings/all": {"all": {"moltbot": {"tlon": {}}}}}
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        # A deletion missed while disconnected must not leave the revoked
+        # inviter authorized in memory.
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~zod"})
+
+    def test_group_invite_allowlist_reverts_to_env_default_on_a_non_list_value(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._settings_group_invite_allowlist = {"~ten"}
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {"moltbot": {"tlon": {"groupInviteAllowlist": "~ten"}}}
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~zod"})
+
+    def test_group_invite_allowlist_list_overrides_env_and_drops_non_strings(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {
+                        "moltbot": {"tlon": {"groupInviteAllowlist": [7, "~ten"]}}
+                    }
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        # Non-string entries are dropped, not coerced into an authorization.
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~ten"})
+
+    def test_group_invite_allowlist_empty_list_overrides_the_env_default(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {"moltbot": {"tlon": {"groupInviteAllowlist": []}}}
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(adapter._settings_group_invite_allowlist, set())
+
     def test_settings_event_del_entry_reverts_new_keys(self):
         adapter = self.make_adapter({"auto_discover": "true"})
 
@@ -1392,6 +1451,30 @@ class AdapterOwnerListenTests(unittest.TestCase):
             },
         )
         self.assertFalse(adapter._owner_listen.enabled)
+
+    def test_settings_del_entry_reverts_group_invite_allowlist_to_env_default(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("groupInviteAllowlist", ["~ten"])
+        )
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~ten"})
+
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "del-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "groupInviteAllowlist",
+                    }
+                }
+            },
+        )
+
+        # del-alone and del-then-reconnect must land on the same set.
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~zod"})
 
     def test_settings_event_updates_monitored_group_channels(self):
         adapter = self.make_adapter({})

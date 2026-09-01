@@ -392,6 +392,11 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
+    const scrollContentBottomInset =
+      Platform.OS === 'ios' &&
+      collectionLayoutType === 'compact-list-bottom-to-top'
+        ? 0
+        : contentInsets.bottom;
     const standaloneBottomSafeArea =
       composerBottomInset > 0 ? 0 : insets.bottom;
     const scrollButtonBottom =
@@ -411,13 +416,13 @@ const Scroller = forwardRef(
               paddingBottom:
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
-                contentInsets.bottom,
+                scrollContentBottomInset,
             };
           }
           return {
             flexGrow: 1,
             paddingTop: contentInsets.top,
-            paddingBottom: contentInsets.bottom,
+            paddingBottom: scrollContentBottomInset,
           };
         }
 
@@ -426,7 +431,7 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               paddingTop: contentInsets.top,
-              paddingBottom: contentInsets.bottom,
+              paddingBottom: scrollContentBottomInset,
             };
           }
 
@@ -438,7 +443,7 @@ const Scroller = forwardRef(
               paddingBottom:
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
-                contentInsets.bottom,
+                scrollContentBottomInset,
             };
           }
 
@@ -450,7 +455,7 @@ const Scroller = forwardRef(
               paddingBottom:
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
-                contentInsets.bottom,
+                scrollContentBottomInset,
             };
           }
         }
@@ -458,9 +463,9 @@ const Scroller = forwardRef(
         standaloneBottomSafeArea,
         visiblePosts?.length,
         collectionLayoutType,
-        contentInsets.bottom,
         contentInsets.top,
         rootVerticalPadding,
+        scrollContentBottomInset,
       ])
     ) as StyleProp<ViewStyle>;
 

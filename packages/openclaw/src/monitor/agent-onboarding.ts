@@ -306,6 +306,9 @@ const primaryJobIds = sharedMap<string, true>('agentOnboarding.primaryJobIds');
 const primaryJobProviderIds = sharedMap<string, string[]>(
   'agentOnboarding.primaryJobProviderIds'
 );
+const primaryJobChannelNests = sharedMap<string, string>(
+  'agentOnboarding.primaryJobChannelNests'
+);
 
 function onboardingAccountId(context: AgentOnboardingScanContext) {
   return context.accountId ?? context.botShip;
@@ -335,6 +338,7 @@ export async function isAgentOnboardingCronJob(jobId: string | undefined) {
   if (durable) {
     primaryJobIds.set(jobId, true);
     primaryJobProviderIds.set(jobId, [...(durable.providerIds ?? [])]);
+    primaryJobChannelNests.set(jobId, durable.channelNest);
     return true;
   }
   const cron = getTlonCronService();
@@ -358,6 +362,18 @@ export async function agentOnboardingCronProviderIds(
     (await lookupAgentOnboardingRunByJobId(jobId))?.providerIds ?? [];
   primaryJobProviderIds.set(jobId, [...providerIds]);
   return providerIds;
+}
+
+export async function agentOnboardingCronChannelNest(
+  jobId: string | undefined
+) {
+  if (!jobId) return undefined;
+  const cached = primaryJobChannelNests.get(jobId);
+  if (cached) return cached;
+  const channelNest = (await lookupAgentOnboardingRunByJobId(jobId))
+    ?.channelNest;
+  if (channelNest) primaryJobChannelNests.set(jobId, channelNest);
+  return channelNest;
 }
 
 export function parseAgentOnboardingRequest(
@@ -1717,7 +1733,7 @@ async function postFirstRunServices(
     history,
     'services-card',
     async () => {
-      const message = `${servicesPitch(correlation.purposeId)}\n\nConnect anything you’d like, or tap Done to continue.`;
+      const message = `${servicesPitch(correlation.purposeId)}\n\nPick anything you’d like, or tap Done to continue.`;
       return {
         text: message,
         blob: appendToPostBlob(
@@ -2527,6 +2543,7 @@ async function upsertPrimaryJobOnce(
   }
   primaryJobIds.set(job.id, true);
   primaryJobProviderIds.set(job.id, [...providerIds]);
+  primaryJobChannelNests.set(job.id, failureChatNest);
   return job.id;
 }
 
@@ -2874,7 +2891,7 @@ function buildTopicsPickerSurface(
         id: 'topics',
         component: 'SmallChoice',
         options: topics.map((label) => ({ id: label.toLowerCase(), label })),
-        submitLabel: 'That’s it',
+        submitLabel: 'Done',
         freeTextPlaceholder: 'Add your own…',
         action: {
           event: {
@@ -2963,6 +2980,7 @@ function buildTourChoiceSurface(surfaceId: string, prompt: string) {
 }
 
 export const agentOnboardingTesting = {
+  buildTopicsPickerSurface,
   buildTourChoiceSurface,
   buildRecurringPrompt,
   buildServicesSurface,

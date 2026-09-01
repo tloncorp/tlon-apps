@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 
 type UseCurrentChatsResult = ReturnType<typeof store.useCurrentChats>['data'];
 
+export function getChatTimestampsSignature(chats: db.Chat[]): string {
+  return chats.map((chat) => chat.timestamp).join('|');
+}
+
 /**
  * Memoizes the chat list structure based on relevant changes
  * (list lengths, unread counts) to prevent unnecessary recalculations
@@ -32,6 +36,11 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
       // lastPostAt all unchanged — key on the order itself.
       unpinnedOrder: chats.unpinned.map((c) => c.id).join('|'),
       pendingOrder: chats.pending.map((c) => c.id).join('|'),
+      // Recency can advance without changing order, count, or lastPostAt.
+      // Include it so Notes-driven row presentation sees the new relations.
+      pinnedTimestamps: getChatTimestampsSignature(chats.pinned),
+      unpinnedTimestamps: getChatTimestampsSignature(chats.unpinned),
+      pendingTimestamps: getChatTimestampsSignature(chats.pending),
       pinnedUnreadCount: chats.pinned.reduce(
         (acc, chat) => acc + (chat.unreadCount ?? 0),
         0
