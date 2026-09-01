@@ -30,6 +30,7 @@ export type FileReadRevision = {
 };
 
 type ReadTargetState = {
+  anchorGroups: string[][];
   anchors: string[];
   empty: boolean;
   failed: boolean;
@@ -300,15 +301,30 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
     ([, target]) => !target.failed
   );
   const normalizedReply = normalizeForComparison(reply);
+  const basenameCounts = new Map<string, number>();
+  for (const [targetKey] of successfulTargets) {
+    if (targetKey === UNKNOWN_TARGET) continue;
+    const targetName = targetKey.split('/').at(-1) ?? targetKey;
+    const normalizedTargetName = normalizeForComparison(targetName);
+    basenameCounts.set(
+      normalizedTargetName,
+      (basenameCounts.get(normalizedTargetName) ?? 0) + 1
+    );
+  }
   const relevantTargetKeys = new Set<string>();
   if (state.lastSuccessfulTarget) {
     relevantTargetKeys.add(state.lastSuccessfulTarget);
   }
   for (const [targetKey, target] of successfulTargets) {
     const targetName = targetKey.split('/').at(-1) ?? targetKey;
+    const normalizedTargetName = normalizeForComparison(targetName);
+    const targetIsNamed =
+      targetKey !== UNKNOWN_TARGET &&
+      (normalizedReply.includes(normalizeForComparison(targetKey)) ||
+        ((basenameCounts.get(normalizedTargetName) ?? 0) === 1 &&
+          normalizedReply.includes(normalizedTargetName)));
     if (
-      (targetKey !== UNKNOWN_TARGET &&
-        normalizedReply.includes(normalizeForComparison(targetName))) ||
+      targetIsNamed ||
       containsRepresentativeReadContent(reply, target.anchors)
     ) {
       relevantTargetKeys.add(targetKey);
@@ -402,7 +418,9 @@ function allTargetContentIsRepresented(
     targets.length > 0 &&
     targets.every(([targetKey, target]) => {
       if (!target.empty) {
-        return containsRepresentativeReadContent(reply, target.anchors);
+        return target.anchorGroups.every((anchors) =>
+          containsRepresentativeReadContent(reply, anchors)
+        );
       }
       return acknowledgedEmptyTargets.has(targetKey);
     })
@@ -490,6 +508,7 @@ export function createFileReadCompletionGuard(options?: {
         const targetKey = readTarget(input.params) ?? UNKNOWN_TARGET;
         const target = targets.get(targetKey);
         targets.set(targetKey, {
+          anchorGroups: target?.anchorGroups ?? [],
           anchors: target?.anchors ?? [],
           empty: target?.empty ?? false,
           failed: true,
@@ -513,9 +532,21 @@ export function createFileReadCompletionGuard(options?: {
       const targets = new Map(existing?.targets ?? []);
       const targetKey = readTarget(input.params) ?? UNKNOWN_TARGET;
       const existingTarget = targets.get(targetKey);
+      const chunkAnchors = contentAnchors(text);
       const anchors = Array.from(
-        new Set([...contentAnchors(text), ...(existingTarget?.anchors ?? [])])
+        new Set([...chunkAnchors, ...(existingTarget?.anchors ?? [])])
       ).slice(0, MAX_ANCHORS_PER_RUN);
+      const anchorGroups = [...(existingTarget?.anchorGroups ?? [])];
+      if (
+        chunkAnchors.length > 0 &&
+        !anchorGroups.some(
+          (group) =>
+            group.length === chunkAnchors.length &&
+            group.every((anchor, index) => anchor === chunkAnchors[index])
+        )
+      ) {
+        anchorGroups.push(chunkAnchors);
+      }
       const offset = readOffset(input.params);
       const resultWasTruncated = TRUNCATION_MARKER.test(text);
       const continuedFromExpectedOffset =
@@ -531,6 +562,7 @@ export function createFileReadCompletionGuard(options?: {
           ? existingTarget.nextOffset
           : null;
       targets.set(targetKey, {
+        anchorGroups,
         anchors,
         empty:
           (existingTarget?.empty ?? true) &&

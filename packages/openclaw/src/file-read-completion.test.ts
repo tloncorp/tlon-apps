@@ -600,6 +600,33 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('requires representative content from every continued read chunk', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'continued-coverage',
+        'header one\nheader two\nheader three\nheader four\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'continued-coverage',
+        'tail one\ntail two\ntail three\ntail four',
+        '/tmp/report.txt',
+        21
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'continued-coverage',
+        lastAssistantMessage:
+          'Here are the requested file contents:\ntail one\ntail two\ntail three\ntail four',
+      })
+    ).not.toBeNull();
+  });
+
   it('normalizes equivalent paths when tracking a continuation', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
@@ -739,6 +766,32 @@ describe('file read completion guard', () => {
           'Here are the requested contents:\nschema1\nschema2\nschema3\nschema4',
       })
     ).not.toBeNull();
+  });
+
+  it('does not select an earlier target from an ambiguous basename alone', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'same-basename',
+        'template one\ntemplate two\ntemplate three\ntemplate four',
+        '/templates/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'same-basename',
+        'export one\nexport two\nexport three\nexport four',
+        '/exports/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'same-basename',
+        lastAssistantMessage:
+          'Here are the requested report.txt contents:\nexport one\nexport two\nexport three\nexport four',
+      })
+    ).toBeNull();
   });
 
   it('does not select an auxiliary JSON target from shared structural anchors', () => {
