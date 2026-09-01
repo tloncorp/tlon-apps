@@ -484,15 +484,27 @@ export async function readEffectivePrompts(
  * Returns ok=false when any write failed — callers must then skip seeding,
  * or the failed entry's stale file content would overwrite the stored edit
  * on the ship.
+ *
+ * `aborted` stops the pass on teardown, and is checked between the temp
+ * write and the rename as well as per file: the workspace is SHARED, so a
+ * replacement monitor for a different bot can clean and repopulate it while
+ * we sit in writeFile. Renaming after that publishes our text under its
+ * ownership stamp, which no later cleanup can recognize as foreign.
  */
 export async function applyPromptsToWorkspace(opts: {
   workspaceDir: string;
   prompts: Record<string, string>;
   logger?: PromptSyncLogger;
+  aborted?: () => boolean;
 }): Promise<{ applied: PromptFileName[]; ok: boolean }> {
   const applied: PromptFileName[] = [];
   let ok = true;
   for (const [name, text] of Object.entries(opts.prompts)) {
+    if (opts.aborted?.()) {
+      // Not ok: the desired set was not fully applied, so no caller may
+      // treat the workspace as matching the ship's stored state.
+      return { applied, ok: false };
+    }
     if (!isAllowedPromptName(name) || !isPromptTextWithinCap(text)) {
       continue;
     }
@@ -533,6 +545,12 @@ export async function applyPromptsToWorkspace(opts: {
       const tmpPath = `${filePath}.${randomUUID()}.tmp`;
       try {
         await fs.writeFile(tmpPath, text, { encoding: 'utf8', flag: 'wx' });
+        if (opts.aborted?.()) {
+          // The rename is the publish step; dropping the temp file leaves
+          // the workspace exactly as the replacement left it.
+          await fs.unlink(tmpPath).catch(() => {});
+          return { applied, ok: false };
+        }
         await fs.rename(tmpPath, filePath);
       } catch (error) {
         await fs.unlink(tmpPath).catch(() => {});
@@ -977,7 +995,13 @@ export function createPromptSync(opts: {
       workspaceDir,
       prompts: desired,
       logger,
+      aborted,
     });
+    if (aborted()) {
+      // Bail before the bookkeeping below: its config writes are refused
+      // for a torn-down monitor anyway, and `applied` is a partial list.
+      return;
+    }
     if (applied.length > 0) {
       logger.log(
         `[tlon] Applied ship-stored prompts to workspace: ${applied.join(', ')}`
@@ -1170,6 +1194,7 @@ export function createPromptSync(opts: {
       workspaceDir,
       prompts: { [edit.name]: edit.text },
       logger,
+      aborted,
     });
     if (!ok) {
       // Nothing applied; the stored edit remains on the ship and the next

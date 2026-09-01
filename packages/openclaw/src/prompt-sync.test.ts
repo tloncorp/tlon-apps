@@ -745,6 +745,57 @@ describe('createPromptSync retries and teardown', () => {
   });
 });
 
+describe('applyPromptsToWorkspace teardown', () => {
+  it('does not publish the rename once torn down mid-write', async () => {
+    // The workspace is shared: a replacement monitor for a different bot
+    // can clean and repopulate it while we sit in writeFile, and renaming
+    // after that publishes our text under its ownership stamp — which no
+    // later cleanup can recognize as foreign.
+    let aborted = false;
+    const writeFileSpy = vi
+      .spyOn(fs.promises, 'writeFile')
+      .mockImplementation(async (file, data, options) => {
+        aborted = true;
+        fs.writeFileSync(file as fs.PathLike, data as string, options as never);
+      });
+    try {
+      const result = await applyPromptsToWorkspace({
+        workspaceDir: tmpDir,
+        prompts: { 'SOUL.md': 'our private text' },
+        logger,
+        aborted: () => aborted,
+      });
+      expect(result.ok).toBe(false);
+      expect(result.applied).toEqual([]);
+      expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
+      // The abandoned temp file is cleaned up rather than left behind.
+      expect(fs.readdirSync(tmpDir)).toEqual([]);
+    } finally {
+      writeFileSpy.mockRestore();
+    }
+  });
+
+  it('stops before the next file when teardown lands between writes', async () => {
+    const order: string[] = [];
+    let aborted = false;
+    const result = await applyPromptsToWorkspace({
+      workspaceDir: tmpDir,
+      prompts: { 'AGENTS.md': 'first', 'SOUL.md': 'second' },
+      logger,
+      aborted: () => {
+        order.push('checked');
+        // Torn down after the first file is published.
+        const stop = aborted;
+        aborted = order.length >= 2;
+        return stop;
+      },
+    });
+    expect(result.applied).toEqual(['AGENTS.md']);
+    expect(result.ok).toBe(false);
+    expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
+  });
+});
+
 describe('createPromptSync abort during foreign cleanup', () => {
   it('does not apply prompts when teardown lands mid-cleanup', async () => {
     // A replacement monitor may already have written the workspace for a
@@ -785,13 +836,13 @@ describe('createPromptSync abort during foreign cleanup', () => {
 });
 
 describe('createPromptSync abort after in-flight apply', () => {
-  it('handleFact applies the file but never persists once torn down', async () => {
+  it('handleFact publishes nothing once torn down mid-write', async () => {
     const controller = new AbortController();
     const core = makeCore();
     // prompt-sync and this test share the node:fs promises singleton, so
     // aborting from inside the apply's writeFile deterministically lands
-    // the teardown between the workspace apply and the config write —
-    // exercising the post-apply guard.
+    // the teardown between the temp write and the rename that publishes
+    // it — exercising the guard in applyPromptsToWorkspace.
     const writeFileSpy = vi
       .spyOn(fs.promises, 'writeFile')
       .mockImplementation(async (file, data) => {
@@ -817,12 +868,14 @@ describe('createPromptSync abort after in-flight apply', () => {
           prompt: { text: 'mid-flight', updated: '~x' },
         },
       });
-      // The edit reached the file, and its provenance was recorded BEFORE
-      // the apply (so a later authority can recognize the leftover as this
-      // ship's) — but no restart write happened for the torn-down monitor.
-      expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
-        'mid-flight'
-      );
+      // Nothing lands on the shared workspace: a replacement monitor for
+      // another bot may already own it, and the rename would publish our
+      // text under its ownership stamp. The provenance write that ran
+      // BEFORE the apply is harmless on its own — it records text no file
+      // carries, and the next reconcile re-applies or cleans it — while no
+      // restart write happened for the torn-down monitor.
+      expect(fs.existsSync(path.join(tmpDir, 'SOUL.md'))).toBe(false);
+      expect(fs.readdirSync(tmpDir)).toEqual([]);
       expect(core.config.mutateConfigFile).toHaveBeenCalledTimes(1);
       expect(core.config.mutateConfigFile).toHaveBeenCalledWith(
         expect.objectContaining({
