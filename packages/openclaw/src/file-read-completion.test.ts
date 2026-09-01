@@ -1006,6 +1006,34 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('binds collective emptiness to the conjunctive subject', () => {
+    const guard = createFileReadCompletionGuard();
+    for (const name of ['a.txt', 'b.txt', 'c.txt']) {
+      guard.recordToolResult(successfulRead('three-empty', '', `/tmp/${name}`));
+    }
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'three-empty',
+        lastAssistantMessage:
+          'a.txt still needs checking, but b.txt and c.txt are empty.',
+      })
+    ).not.toBeNull();
+  });
+
+  it('replaces short empty-target names only at reference delimiters', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('short-empty', '', '/tmp/a'));
+    guard.recordToolResult(successfulRead('short-empty', '', '/tmp/data'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'short-empty',
+        lastAssistantMessage: '/tmp/a is empty; /tmp/data is empty.',
+      })
+    ).toBeNull();
+  });
+
   it('treats a gerund result sentence as substantive', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('gerund-result'));
@@ -1088,6 +1116,30 @@ describe('file read completion guard', () => {
         lastAssistantMessage: 'Reading the failed file again now.',
       })
     ).toBeNull();
+  });
+
+  it('does not let an unrelated failed read suppress successful-target correction', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'failed-auxiliary',
+      toolName: 'read',
+      params: { path: '/tmp/schema.txt' },
+      error: 'permission denied',
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'failed-auxiliary',
+        'report one\nreport two\nreport three\nreport four',
+        '/tmp/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'failed-auxiliary',
+        lastAssistantMessage: 'Opening report.txt now.',
+      })
+    ).not.toBeNull();
   });
 
   it('clears a read failure after a successful retry of the same target', () => {

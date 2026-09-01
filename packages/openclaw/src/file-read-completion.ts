@@ -149,6 +149,25 @@ function containsDelimitedReference(value: string, reference: string): boolean {
   ).test(value);
 }
 
+function replaceDelimitedReference(
+  value: string,
+  reference: string,
+  replacement: string
+): string {
+  if (!reference) return value;
+  const escaped = reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const referenceChars = reference.includes('/')
+    ? '\\p{L}\\p{N}._/-'
+    : '\\p{L}\\p{N}._-';
+  return value.replace(
+    new RegExp(
+      `(^|[^${referenceChars}])${escaped}(?=$|[^${referenceChars}])`,
+      'gu'
+    ),
+    (_match, prefix: string) => `${prefix}${replacement}`
+  );
+}
+
 function contentAnchors(text: string): string[] {
   const candidates = text
     .split(/\r?\n/)
@@ -300,11 +319,59 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   );
 }
 
-function hasFailedTarget(state: RunState): boolean {
-  return [...state.targets.values()].some((target) => target.failed);
+type TrackedTarget = [string, ReadTargetState];
+
+function targetBasenameCounts(targets: TrackedTarget[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const [targetKey] of targets) {
+    if (targetKey === UNKNOWN_TARGET) continue;
+    const targetName = targetKey.split('/').at(-1) ?? targetKey;
+    const normalizedTargetName = normalizeForComparison(targetName);
+    counts.set(
+      normalizedTargetName,
+      (counts.get(normalizedTargetName) ?? 0) + 1
+    );
+  }
+  return counts;
 }
 
-type TrackedTarget = [string, ReadTargetState];
+function targetIsNamed(
+  normalizedReply: string,
+  targetKey: string,
+  basenameCounts: Map<string, number>
+): boolean {
+  if (targetKey === UNKNOWN_TARGET) return false;
+  const targetName = targetKey.split('/').at(-1) ?? targetKey;
+  const normalizedTargetName = normalizeForComparison(targetName);
+  return (
+    containsDelimitedReference(
+      normalizedReply,
+      normalizeForComparison(targetKey)
+    ) ||
+    ((basenameCounts.get(normalizedTargetName) ?? 0) === 1 &&
+      containsDelimitedReference(normalizedReply, normalizedTargetName))
+  );
+}
+
+function hasRelevantFailedTarget(reply: string, state: RunState): boolean {
+  const targets = [...state.targets.entries()];
+  const failedTargets = targets.filter(([, target]) => target.failed);
+  if (failedTargets.length === 0) return false;
+  if (!targets.some(([, target]) => !target.failed)) return true;
+  if (failedTargets.some(([targetKey]) => targetKey === UNKNOWN_TARGET)) {
+    return true;
+  }
+  if (/\b(?:failed|could\s+not|couldn't|unable\s+to)\b/i.test(reply)) {
+    return true;
+  }
+  const normalizedReply = normalizeForComparison(reply);
+  const basenameCounts = targetBasenameCounts(targets);
+  return failedTargets.some(
+    ([targetKey, target]) =>
+      targetIsNamed(normalizedReply, targetKey, basenameCounts) ||
+      containsRepresentativeReadContent(reply, target.anchors)
+  );
+}
 
 function hasTruncatedTarget(targets: TrackedTarget[]): boolean {
   return targets.some(([, target]) => target.truncated);
@@ -319,33 +386,14 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
     ([, target]) => !target.failed
   );
   const normalizedReply = normalizeForComparison(reply);
-  const basenameCounts = new Map<string, number>();
-  for (const [targetKey] of successfulTargets) {
-    if (targetKey === UNKNOWN_TARGET) continue;
-    const targetName = targetKey.split('/').at(-1) ?? targetKey;
-    const normalizedTargetName = normalizeForComparison(targetName);
-    basenameCounts.set(
-      normalizedTargetName,
-      (basenameCounts.get(normalizedTargetName) ?? 0) + 1
-    );
-  }
+  const basenameCounts = targetBasenameCounts(successfulTargets);
   const relevantTargetKeys = new Set<string>();
   if (state.lastSuccessfulTarget) {
     relevantTargetKeys.add(state.lastSuccessfulTarget);
   }
   for (const [targetKey, target] of successfulTargets) {
-    const targetName = targetKey.split('/').at(-1) ?? targetKey;
-    const normalizedTargetName = normalizeForComparison(targetName);
-    const targetIsNamed =
-      targetKey !== UNKNOWN_TARGET &&
-      (containsDelimitedReference(
-        normalizedReply,
-        normalizeForComparison(targetKey)
-      ) ||
-        ((basenameCounts.get(normalizedTargetName) ?? 0) === 1 &&
-          containsDelimitedReference(normalizedReply, normalizedTargetName)));
     if (
-      targetIsNamed ||
+      targetIsNamed(normalizedReply, targetKey, basenameCounts) ||
       containsRepresentativeReadContent(reply, target.anchors)
     ) {
       relevantTargetKeys.add(targetKey);
@@ -395,7 +443,8 @@ function acknowledgedEmptyTargetKeys(
         if (targetKey === UNKNOWN_TARGET) return;
         const placeholder = `tlonemptytarget${index}`;
         placeholders.set(targetKey, placeholder);
-        replyWithPlaceholders = replyWithPlaceholders.replaceAll(
+        replyWithPlaceholders = replaceDelimitedReference(
+          replyWithPlaceholders,
           reference,
           placeholder
         );
@@ -419,7 +468,11 @@ function acknowledgedEmptyTargetKeys(
               clause
             );
           if (!collectiveResult) return false;
-          const subject = clause.slice(0, collectiveResult.index);
+          const subject =
+            clause
+              .slice(0, collectiveResult.index)
+              .split(/\b(?:although|but|however|though|whereas|while|yet)\b/i)
+              .at(-1) ?? '';
           return subject.includes(placeholder);
         })
       ) {
@@ -654,7 +707,7 @@ export function createFileReadCompletionGuard(options?: {
       const existing = runs.get(runId);
       if (
         !existing ||
-        hasFailedTarget(existing) ||
+        hasRelevantFailedTarget(input.content ?? '', existing) ||
         !replyCompletesTrackedRead(input.content ?? '', existing)
       )
         return;
@@ -674,7 +727,7 @@ export function createFileReadCompletionGuard(options?: {
       if (
         !state ||
         state.deliveredViaMessageTool ||
-        hasFailedTarget(state) ||
+        hasRelevantFailedTarget(reply, state) ||
         state.revisionAttempts >= MAX_REVISION_ATTEMPTS
       )
         return null;
