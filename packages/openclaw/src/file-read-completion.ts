@@ -56,8 +56,10 @@ const UNKNOWN_TARGET = '\0unknown-read-target';
 const PROGRESS_VERBS =
   '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|analyz(?:e|ing)|summari[sz](?:e|ing)|review(?:ing)?|process(?:ing)?|pars(?:e|ing)|scan(?:ning)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
 const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
+const PROGRESS_SUBJECT = "(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?";
+const PROGRESS_CLAUSE = `${PROGRESS_SUBJECT}${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}`;
 const PROGRESS_ONLY = new RegExp(
-  `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
+  `^(?:(?:okay|sure)[,!.]?\\s*)?${PROGRESS_CLAUSE}(?:[,;:]\\s*(?:(?:then|and)\\s+)?${PROGRESS_CLAUSE})*[.!…]*$`,
   'i'
 );
 const COMPLETION_PREFIX =
@@ -129,6 +131,15 @@ function normalizeForComparison(value: string): string {
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
+}
+
+function containsDelimitedReference(value: string, reference: string): boolean {
+  if (!reference) return false;
+  const escaped = reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(
+    `(?:^|[^\\p{L}\\p{N}._/-])${escaped}(?=$|[^\\p{L}\\p{N}._/-])`,
+    'u'
+  ).test(value);
 }
 
 function contentAnchors(text: string): string[] {
@@ -320,9 +331,12 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
     const normalizedTargetName = normalizeForComparison(targetName);
     const targetIsNamed =
       targetKey !== UNKNOWN_TARGET &&
-      (normalizedReply.includes(normalizeForComparison(targetKey)) ||
+      (containsDelimitedReference(
+        normalizedReply,
+        normalizeForComparison(targetKey)
+      ) ||
         ((basenameCounts.get(normalizedTargetName) ?? 0) === 1 &&
-          normalizedReply.includes(normalizedTargetName)));
+          containsDelimitedReference(normalizedReply, normalizedTargetName)));
     if (
       targetIsNamed ||
       containsRepresentativeReadContent(reply, target.anchors)
@@ -533,10 +547,18 @@ export function createFileReadCompletionGuard(options?: {
       const targetKey = readTarget(input.params) ?? UNKNOWN_TARGET;
       const existingTarget = targets.get(targetKey);
       const chunkAnchors = contentAnchors(text);
+      const offset = readOffset(input.params);
+      const startsFreshVersion =
+        existingTarget != null && !existingTarget.truncated && offset === 0;
       const anchors = Array.from(
-        new Set([...chunkAnchors, ...(existingTarget?.anchors ?? [])])
+        new Set([
+          ...chunkAnchors,
+          ...(startsFreshVersion ? [] : (existingTarget?.anchors ?? [])),
+        ])
       ).slice(0, MAX_ANCHORS_PER_RUN);
-      const anchorGroups = [...(existingTarget?.anchorGroups ?? [])];
+      const anchorGroups = [
+        ...(startsFreshVersion ? [] : (existingTarget?.anchorGroups ?? [])),
+      ];
       if (
         chunkAnchors.length > 0 &&
         !anchorGroups.some(
@@ -547,7 +569,6 @@ export function createFileReadCompletionGuard(options?: {
       ) {
         anchorGroups.push(chunkAnchors);
       }
-      const offset = readOffset(input.params);
       const resultWasTruncated = TRUNCATION_MARKER.test(text);
       const continuedFromExpectedOffset =
         existingTarget?.truncated === true &&

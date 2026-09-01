@@ -40,6 +40,7 @@ describe('file read completion guard', () => {
     "I'll analyze the file now.",
     "I'll summarize the file now.",
     "I'll summarise the file now.",
+    "I'll read the file now, then summarize it.",
     'Reviewing the CSV now.',
     'Processing the data now.',
     'Parsing the file now.',
@@ -790,6 +791,64 @@ describe('file read completion guard', () => {
         runId: 'same-basename',
         lastAssistantMessage:
           'Here are the requested report.txt contents:\nexport one\nexport two\nexport three\nexport four',
+      })
+    ).toBeNull();
+  });
+
+  it('does not select an earlier target whose name prefixes the requested path', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'prefix-target',
+        'old one\nold two\nold three\nold four',
+        '/tmp/report'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'prefix-target',
+        'new one\nnew two\nnew three\nnew four',
+        '/tmp/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'prefix-target',
+        lastAssistantMessage:
+          'Here are the requested /tmp/report.txt contents:\nnew one\nnew two\nnew three\nnew four',
+      })
+    ).toBeNull();
+  });
+
+  it('resets stale anchors when an offset-zero reread establishes a fresh version', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'fresh-version',
+        'old one\nold two\nold three\nold four',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult({
+      runId: 'fresh-version',
+      toolName: 'write',
+      params: { path: '/tmp/report.txt' },
+      result: { content: [{ type: 'text', text: 'updated' }] },
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'fresh-version',
+        'new one\nnew two\nnew three\nnew four',
+        '/tmp/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'fresh-version',
+        lastAssistantMessage:
+          'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
       })
     ).toBeNull();
   });
