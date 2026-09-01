@@ -37,7 +37,7 @@
     "postinstall": "node scripts/generate-version.js",
     "prebuild": "node scripts/generate-version.js",
     "tsc": "tsc --noEmit",
-    "test": "vitest run src/ && node --test dev/preflight-assertions.test.mjs dev/surfaces-witness.test.mjs dev/surfaces-desk-preflight.test.mjs dev/surfaces-score.test.mjs",
+    "test": "vitest run src/ && node --test dev/preflight-assertions.test.mjs dev/surfaces-witness.test.mjs dev/surfaces-desk-preflight.test.mjs dev/surfaces-score.test.mjs dev/tlon-cli-digest.test.mjs",
     "test:all": "vitest run && vitest run --config vitest.integration.config.ts",
     "test:integration": "bash ./test/run.sh",
     "test:integration:shared": "pnpm --dir ../tlon-bot-e2e test:e2e:openclaw:all",

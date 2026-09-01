@@ -6,6 +6,10 @@ set -euo pipefail
 # build-local-api-override.sh. The bind-mounted /workspace/openclaw-tlon is
 # not on plugins.load.paths, so overriding there would be a no-op.
 PLUGIN_DIR="${PLUGIN_DIR:-/workspace/tlon}"
+# Resolved from this script rather than from PLUGIN_DIR: the entrypoint copies
+# dev/ into /workspace/tlon and runs it from there, so the digest module travels
+# with the script that calls it.
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Build from the in-monorepo package so workspace/hoisted deps resolve
 # (@tloncorp/api symlink + @urbit/* at the monorepo root). Compose sets this
 # explicitly; the default mirrors it for standalone invocations.
@@ -153,6 +157,40 @@ echo "==>       Edits to them on the host need a container restart to take effec
 ARCH_KEY=$(node -e 'console.log(process.platform + "-" + process.arch)')
 echo "==> Container platform-arch: $ARCH_KEY"
 
+# bun is installed at ~/.bun/bin in the container image and is NOT on the
+# default PATH, so `command -v bun` fails under `docker exec` even though bun is
+# right there. That is not a hypothetical: it is why the source build silently
+# did not happen and a measurement was nearly taken against a stale binary.
+if ! command -v bun >/dev/null 2>&1 && [ -x "$HOME/.bun/bin/bun" ]; then
+  PATH="$HOME/.bun/bin:$PATH"
+  export PATH
+fi
+
+# Asking for a source build and not getting one is an ERROR, not a fallback.
+# The prebuilt binary is the last release, so it contains none of this branch's
+# work — and the old message ("set TLON_SKILL_FROM_SOURCE=1 to rebuild from
+# local source") read as though the operator had not asked, when the operator
+# had asked and the tool could not comply. Reporting an environment failure as
+# an operator choice is the same confusion `gate-harness-unavailable` exists to
+# prevent one layer down: say which it is, and refuse rather than substituting
+# something that looks like what was requested.
+if [ -n "${TLON_SKILL_FROM_SOURCE:-}" ]; then
+  if [ ! -f "$TLON_SKILL_DIR/scripts/main.ts" ]; then
+    echo "ERROR: TLON_SKILL_FROM_SOURCE is set but $TLON_SKILL_DIR/scripts/main.ts" >&2
+    echo "       does not exist, so there is nothing to build from. Refusing to" >&2
+    echo "       substitute the prebuilt binary, which does not carry this branch." >&2
+    exit 1
+  fi
+  if ! command -v bun >/dev/null 2>&1; then
+    echo "ERROR: TLON_SKILL_FROM_SOURCE is set but bun is not on PATH, so the" >&2
+    echo "       source build cannot run. PATH=$PATH" >&2
+    echo "       Refusing to substitute the prebuilt binary, which does not carry" >&2
+    echo "       this branch's work — a run taken against it would measure the" >&2
+    echo "       last release and say nothing about the branch." >&2
+    exit 1
+  fi
+fi
+
 if [ -n "${TLON_SKILL_FROM_SOURCE:-}" ] && [ -f "$TLON_SKILL_DIR/scripts/main.ts" ] && command -v bun >/dev/null 2>&1; then
   # Build from source so local edits to tlon-skill scripts/*.ts show up in the CLI.
   # bun --compile bundles all deps into the binary; the host's node_modules (bind
@@ -185,6 +223,15 @@ if [ -n "${TLON_SKILL_FROM_SOURCE:-}" ] && [ -f "$TLON_SKILL_DIR/scripts/main.ts
   cp "$BUILD_DIR/tlon" "$TLON_SKILL_DIR/bin/tlon"
   chmod +x "$TLON_SKILL_DIR/bin/tlon"
   echo "==> Built $TLON_SKILL_DIR/bin/tlon from source ($SKILL_VERSION-src, $BUN_TARGET)"
+  # Stamp what was just compiled, so a later run can tell whether this binary
+  # still holds the branch's work. Only this path writes the stamp: the
+  # prebuilt path below deletes it, because a stamp claiming a source build
+  # that did not happen is worse than no stamp. See dev/tlon-cli-digest.mjs.
+  node "$SCRIPT_DIR/tlon-cli-digest.mjs" --write \
+    --skill-dir "$TLON_SKILL_DIR" \
+    --version "$SKILL_VERSION-src" \
+    --target "$BUN_TARGET" \
+    --platform-arch "$ARCH_KEY"
 else
   if [ -f "$TLON_SKILL_DIR/scripts/main.ts" ]; then
     echo "==> Using prebuilt tlon-skill binary (set TLON_SKILL_FROM_SOURCE=1 to rebuild from local source)."
@@ -213,6 +260,11 @@ else
       process.exit(0);
     }
   ' || true)
+  # Whatever this branch does, it is not a source build, so any stamp left by an
+  # earlier source build now describes a binary that is no longer here. Clear it
+  # before the overwrite rather than after, so an interrupted hydrate cannot
+  # leave the old certificate standing over the new binary.
+  node "$SCRIPT_DIR/tlon-cli-digest.mjs" --skill-dir "$TLON_SKILL_DIR" --clear
   if [ -n "$HYDRATED" ] && [ -f "$HYDRATED" ]; then
     cp "$HYDRATED" "$TLON_SKILL_DIR/bin/tlon"
     chmod +x "$TLON_SKILL_DIR/bin/tlon"

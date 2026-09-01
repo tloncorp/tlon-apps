@@ -7,6 +7,18 @@
  *   1. the RUNTIME model accepts image input   (D111)
  *   2. the model's system prompt lists the `surfaces` skill   (D112)
  *
+ * and two about the CLI the bot drives, which do not need the probe turn:
+ *
+ *   3. that CLI honours the write fence   (D135, `assertFenced`)
+ *   4. that CLI was COMPILED FROM the sources on this branch
+ *      (`assertCliBuiltFromSource`, dev/tlon-cli-digest.mjs)
+ *
+ * 3 and 4 are separate assertions because they cannot substitute for each
+ * other: the fence predates today's binary, so a months-stale CLI passes all
+ * three fence probes without containing a line of the work about to be
+ * measured. One asks whether the CLI has a mechanism; the other asks whether it
+ * is the code in question.
+ *
  * Both are answered by ONE probe turn driven down the same path a measurement
  * run uses — a DM from the owner ship through the Tlon channel plugin. Nothing
  * cheaper is faithful: image support depends on the message origin as well as
@@ -32,6 +44,7 @@ import {
   checkSystemPromptListsSkills,
 } from './preflight-assertions.mjs';
 import { renderProbeCard } from './preflight-card.mjs';
+import { binaryPath, checkCliCurrent } from './tlon-cli-digest.mjs';
 
 const DEV_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(DEV_DIR, '..', '..', '..');
@@ -42,6 +55,8 @@ const REQUIRED_SKILLS = ['surfaces', 'tlon'];
 /** Where the container sees dev/surfaces-6a-out (see the compose file's mounts). */
 const CONTAINER_OUT = '/workspace/surfaces-6a-out';
 const HOST_OUT = join(DEV_DIR, 'surfaces-6a-out');
+/** This worktree's tlon-skill, which the compose file bind-mounts as TLON_SKILL_DIR. */
+const HOST_SKILL_DIR = join(REPO_ROOT, 'packages', 'tlon-skill');
 
 const args = process.argv.slice(2);
 const asJson = args.includes('--json');
@@ -244,23 +259,25 @@ function extractTurn(trajectory, marker) {
  * a CLI that failed on everything; with it, a binary that lacks the fence
  * produces the same ordinary failure three times and is caught.
  */
+function containerEnv(containerId, name) {
+  try {
+    return sh('docker', [
+      'exec',
+      containerId,
+      'sh',
+      '-c',
+      `printf %s "$${name}"`,
+    ]).trim();
+  } catch {
+    return '';
+  }
+}
+
 function assertFenced(container) {
   const notes = [];
   const failures = [];
 
-  const env = (name) => {
-    try {
-      return sh('docker', [
-        'exec',
-        container.id,
-        'sh',
-        '-c',
-        `printf %s "$${name}"`,
-      ]).trim();
-    } catch {
-      return '';
-    }
-  };
+  const env = (name) => containerEnv(container.id, name);
 
   const scopePath = env('TLON_SURFACE_SCOPE_FILE');
   if (scopePath === '') {
@@ -344,6 +361,75 @@ function assertFenced(container) {
   return { ok: failures.length === 0, notes, failures };
 }
 
+/**
+ * The CLI the bot invokes contains the sources this branch holds.
+ *
+ * `assertFenced` above cannot answer this and never could: the write fence
+ * already existed when the current binary was compiled, so a binary a dozen
+ * commits stale refuses a malformed scope file exactly as a fresh one does and
+ * passes all three probes. A guard that verifies a mechanism says nothing about
+ * whether the code under measurement is present — D135's instrument/actor scope
+ * hole, one level up.
+ *
+ * The comparison is the desk preflight's: digest the compiled sources, compare
+ * against what the build recorded, name the files that moved. Two halves,
+ * neither sufficient alone:
+ *
+ *   - the SOURCE digest, recomputed on the host from this worktree and compared
+ *     against the stamp `build-local-skill-override.sh` wrote next to the
+ *     binary. This catches the ordinary case — the sources moved on after the
+ *     build.
+ *   - the BINARY hash, taken INSIDE the container, of the file at
+ *     `$TLON_SKILL_DIR/bin/tlon` — the exact path the bot's tool call resolves.
+ *     The stamp is a host file, so a match is also what proves the two are one
+ *     bind-mounted file rather than an assumption that they are. And a stamp is
+ *     a certificate: this is what stops one outliving the binary it describes,
+ *     which the prebuilt-npm hydrate path would otherwise arrange by
+ *     overwriting bin/tlon.
+ */
+function assertCliBuiltFromSource(container) {
+  const notes = [];
+  const failures = [];
+
+  const skillDir = containerEnv(container.id, 'TLON_SKILL_DIR');
+  if (skillDir === '') {
+    failures.push('TLON_SKILL_DIR is not set, so the CLI cannot be located.');
+    return { ok: false, notes, failures };
+  }
+  const cli = `${skillDir}/bin/tlon`;
+  notes.push(`container CLI: ${cli}`);
+  notes.push(`host sources:  ${HOST_SKILL_DIR}`);
+
+  let observed;
+  try {
+    observed = sh('docker', ['exec', container.id, 'sha256sum', cli])
+      .trim()
+      .split(/\s+/)[0];
+  } catch (error) {
+    failures.push(
+      `could not hash ${cli} inside the container, so the binary the bot invokes cannot be ` +
+        `identified: ${error.message}`
+    );
+    return { ok: false, notes, failures };
+  }
+
+  const report = checkCliCurrent({
+    skillDir: HOST_SKILL_DIR,
+    observedBinarySha256: observed,
+  });
+  notes.push(...report.notes);
+  failures.push(...report.failures);
+  if (report.status === 'binary-moved') {
+    // Distinguish the two ways this fires, since the remedies differ.
+    notes.push(
+      `the container's CLI and ${binaryPath(HOST_SKILL_DIR)} are expected to be the same ` +
+        'bind-mounted file; if they are not, TLON_APPS_DIR points at a different checkout ' +
+        'than this worktree.'
+    );
+  }
+  return { ok: report.ok, status: report.status, notes, failures };
+}
+
 async function main() {
   const startedAt = Date.now();
   const container = resolveContainer();
@@ -352,6 +438,7 @@ async function main() {
   );
 
   const fenced = assertFenced(container);
+  const built = assertCliBuiltFromSource(container);
 
   const token = Array.from({ length: 16 }, () =>
     String(Math.floor(Math.random() * 10))
@@ -415,7 +502,7 @@ async function main() {
   });
 
   const result = {
-    ok: vision.ok && skills.ok && fenced.ok,
+    ok: vision.ok && skills.ok && fenced.ok && built.ok,
     container: {
       id: container.id,
       created: container.created,
@@ -431,6 +518,7 @@ async function main() {
       'model-accepts-images': vision,
       'system-prompt-lists-skills': skills,
       'container-is-write-fenced': fenced,
+      'cli-built-from-this-source': built,
     },
   };
 
