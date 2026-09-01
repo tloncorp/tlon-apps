@@ -59,6 +59,8 @@ const PROGRESS_ONLY = new RegExp(
   `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
   'i'
 );
+const COMPLETION_PREFIX =
+  /^(?:(?:i(?:'ve| have)\s+(?:(?:finished|completed)\s+)?read(?:ing)?|i\s+(?:finished|completed)\s+reading|(?:i(?:'m| am)\s+)?done\s+reading)|(?:the\s+)?file\s+(?:has\s+been|was)\s+read)\b/i;
 const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
 const EMPTY_RESULT_ACKNOWLEDGMENT =
@@ -245,9 +247,16 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   const normalized = trimmed.replace(/[’‘]/g, "'");
   if (/^NO_REPLY$/i.test(normalized)) return true;
   const progressCandidate = unwrapProgressMarkdown(normalized);
+  const completionPrefix = COMPLETION_PREFIX.exec(progressCandidate);
+  const completionOnly =
+    completionPrefix != null &&
+    !SUBSTANTIVE_PROGRESS_TAIL.test(
+      progressCandidate.slice(completionPrefix[0].length)
+    );
   return (
     (PROGRESS_ONLY.test(progressCandidate) &&
       !SUBSTANTIVE_PROGRESS_TAIL.test(progressCandidate)) ||
+    completionOnly ||
     isEmptyDeliveryClaim(normalized)
   );
 }
@@ -321,11 +330,25 @@ function acknowledgedEmptyTargetKeys(
     const clauses = replyWithPlaceholders.split(/[;.!?\n]+/);
     for (const [targetKey, placeholder] of placeholders) {
       if (
-        clauses.some(
-          (clause) =>
-            clause.includes(placeholder) &&
-            EMPTY_RESULT_ACKNOWLEDGMENT.test(clause)
-        )
+        clauses.some((clause) => {
+          const escapedPlaceholder = placeholder.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            '\\$&'
+          );
+          const directResult = new RegExp(
+            `\\b${escapedPlaceholder}\\b\\s+(?:(?:is|was)\\s+empty|(?:contains?|has)\\s+0[- ]?bytes?|contains?\\s+no\\s+(?:content|data|text))\\b`,
+            'i'
+          );
+          if (directResult.test(clause)) return true;
+
+          const collectiveResult =
+            /\b(?:are|were)\s+empty\b|\b(?:contain|have)\s+0[- ]?bytes?\b|\bcontain\s+no\s+(?:content|data|text)\b/i.exec(
+              clause
+            );
+          if (!collectiveResult) return false;
+          const subject = clause.slice(0, collectiveResult.index);
+          return subject.includes(placeholder);
+        })
       ) {
         acknowledgedEmptyTargets.add(targetKey);
       }

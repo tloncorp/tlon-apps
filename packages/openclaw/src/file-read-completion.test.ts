@@ -49,6 +49,11 @@ describe('file read completion guard', () => {
     '- Opening the CSV now.',
     '> Reading the file now.',
     'NO_REPLY',
+    "I've read the file.",
+    'I have finished reading the file.',
+    'I finished reading the file.',
+    'Done reading the file.',
+    'The file has been read.',
   ])('recognizes formatted or silent incomplete output: %s', (reply) => {
     expect(isIncompleteFileDeliveryReply(reply)).toBe(true);
   });
@@ -71,6 +76,7 @@ describe('file read completion guard', () => {
   it.each([
     'The CSV contains 31 daily rows and peaks on August 20.',
     'Reading the file, I found 31 rows and a peak on August 20.',
+    "I've read the file and found 31 rows with an August 20 peak.",
     `${CSV}\n`,
     'I could not read the file because permission was denied.',
   ])('does not flag a substantive final reply: %s', (reply) => {
@@ -695,6 +701,12 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'two-empty',
         lastAssistantMessage: 'a.txt is empty; Opening b.txt now.',
+      })
+    ).not.toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'two-empty',
+        lastAssistantMessage: 'a.txt still needs checking, but b.txt is empty.',
       })
     ).not.toBeNull();
     expect(
