@@ -4616,3 +4616,595 @@ transcript is an audit that will be lost, and this project has now lost two.)
   nowhere — two members can briefly disagree and neither is wrong. "Closed" as
   a stored fact is a host event and nothing else. The test: *does this change
   what is IN the board, or what is ON the screen?*
+
+### The aged-board revision (Part I.5)
+
+- **D149: the strongest single observation in the programme, on the least
+  friendly app, with the confound recorded before the run.**
+  `chat/~zod/dash-ezw1rkiq` — `srf-chess-leaderboard`, a 6a.5-era board sitting
+  at revision 3 for weeks, in `~zod/surface-seed`. Nothing in this session's
+  context produced it.
+
+  **Request:** _"In the Surface seed group's chess leaderboard, add each
+  player's current streak of wins to their row."_ Imperative and
+  group-qualified, both decided by the verdict run rather than chosen here —
+  interrogative phrasing produced a byte-identical no-op there against the same
+  witness and target, and an app named without its group was published to a
+  same-named board elsewhere.
+
+  **Preflight: ABSENT on all four surfaces.** Both pattern sets passed their
+  two-sided self-test, and the negative that matters was
+  `"Running total: 1 points · 1 game"` — it contains *Running*, so a witness
+  reaching for a bare `run` would have refused a request the board genuinely
+  does not satisfy. The action negatives are the whole live action map
+  (`report-win`/`draw`/`loss`), which are the near-misses a witness reaching
+  for `win` would have matched.
+
+  **The confound, recorded in the request record BEFORE the run and committed
+  before the result was known.** This session added a `leaderboard` TEMPLATE
+  hours earlier and the bot can read it. So regeneration was the CHEAP path — a
+  close template sitting in the skill — while the board itself was the thing the
+  loop had to go and read. That inverts the verdict run's condition, where four
+  of six edits were on apps the loop had generated minutes before from templates
+  it had just read.
+
+  **Result: a purely additive local edit.**
+
+  |                   |                                                 |
+  | ----------------- | ----------------------------------------------- |
+  | line survival     | **100%** — all 64 original lines kept, 4 added  |
+  | word survival     | **100%** — all 326 original words kept          |
+  | actions           | 3 → 3, all kept by id, none dropped, none added |
+  | surfaceId         | unchanged; revision 3 → 4                       |
+  | time to published | 180s                                            |
+
+  The diff adds a `resultsByPlayer` accumulator inside the EXISTING `add`
+  closure — reusing the iteration already there rather than adding a pass — and
+  one render line computing the trailing run with a reduce that resets to zero
+  on a non-win. **It declared no new action**, which is what the doctrine
+  prescribes for a derived value and what the witness's deliberately
+  hypothetical `actionPositive` anticipated: a correct implementation of a
+  streak has no action at all.
+
+  **And the app works**, checked because D140 is the standing reason not to
+  stop at the diff: the painted render shows `~zod` (one win) at
+  `Current win streak: 1` and `~ten` (one draw) at `0`; twelve cells, no shell
+  errors, no unprobed cells, no machine defects; gate clean.
+
+  **The fence's permit path is now exercised live.** The binding flowed from
+  the preflight's `binding.json` into the container's scope file — channel,
+  pre-state sha, and `~zod/surface-seed` alone — and the bot published to the
+  bound channel and nowhere else. Its refuse path was exercised separately
+  (four fake-ship controls, plus a live out-of-scope publish that refused naming
+  both). D131's "the fence is not a stop-work order" arm is no longer only a
+  unit test.
+
+  **What this is not.** It is n=1. The behaviour is additive and small, and a
+  structural change against an aged board might behave differently — the
+  verdict run's one no-op and the kanban's poor design choice both came from
+  harder requests than this. What it does settle is the specific residual D130
+  left open: the loop's edit behaviour is not an artefact of revising apps it
+  had just written, because here it edited a stranger while a tempting
+  regeneration target sat in its own skill directory.
+
+## Session 6c — closing out M2
+
+### Provisioning, closed
+
+- **D150: both M0 provisioning items were satisfied by production
+  infrastructure the whole time, and were carried as "the hard dependency" for
+  four sessions without anyone probing them.**
+  The moon's storage write is provided by memex's design — a moon's uploads
+  resolve to the parent planet's storage, and `tlawn.py` already sets
+  `%presigned-url` and `TLON_HOSTING=1`. The moon **is an admin of the user's
+  personal group** at onboarding; verified live on a hosted ship by Patrick,
+  2026-09-01.
+
+  The dev-storage stub and the seed's role grant were stand-ins **for
+  fakeships**, never for production. That distinction is the whole error: a
+  local workaround was read as evidence that the real thing was missing, and
+  the reading was repeated in every report from Session 5 onward — including
+  6b's *"the moon→storage grant and the admin role — unchanged and still the
+  hard dependency"* — without one probe against a hosted ship. The cost of the
+  probe was a question to someone with a hosted ship. The cost of not asking
+  was four sessions of a blocking item that was never blocking.
+
+  Generalisable, and the reason this is a decision and not a status update: a
+  dependency inherited from a prior session's report is inherited as a CLAIM,
+  not as evidence. It gets a probe the first time it is load-bearing, or it
+  gets labelled as unverified. This project has a rule for guards — exercise
+  the mechanism through the path the real actor uses — and this is the same
+  rule pointed at an assumption instead of an assertion.
+
+- **D151: the D149 record was written to a path that did not exist, and the
+  commit that claimed it did not contain it.** `d1803fb194` is titled *"docs:
+  the aged-board revision"* and contains the session report's §7 — but
+  `git show HEAD:DECISIONS.md` ended at D148, and `grep -c D149 DECISIONS.md`
+  returned 0. The 70 lines had gone to an untracked
+  `packages/tlon-skill/DECISIONS.md`, created silently by a relative path
+  resolving under a `cd` that persisted from an earlier command. Recorded, not
+  merely fixed, because the failure is invisible by construction: writing a
+  file always succeeds, and the session that wrote it reports success. The
+  check is `grep` from the repo root against the tracked file, and it costs
+  nothing.
+
+- **D152: the cwd-dependent gate failure stays recorded as unreproduced, with
+  its symptom named so a recurrence is diagnosed rather than rediscovered.**
+  The class was fixed — a gate failure caused by the environment now reports
+  `gate-harness-unavailable` and tells the author *"Your files are not
+  implicated — do not rewrite the app. This is the gate's environment, not the
+  bundle"* — but the cause was never reproduced after a `dist` rebuild, and is
+  not claimed. **The symptom to watch for:** the gate failing for a template
+  that passes from the package directory but not from the repo root, with
+  `Attempting to define property on object that is not extensible`. If that
+  returns, it is this, and the first thing to check is which `dist` the run
+  resolved.
+
+- **D153: `surface publish` uploads through the same hosted helper the CLI's
+  image upload uses; there is no second upload path to fail on a hosted moon.**
+  `surface-publish.ts:1017` → `deps.uploadBundle` → `uploadBundleToShipStorage`
+  (`surface-runtime.ts:308-322`) → `uploadFile` from `@tloncorp/api`. The CLI's
+  image upload reaches the identical helper by
+  `upload.ts:329` → `deps.uploadApi.uploadFile` → the same
+  `packages/api/src/client/storageApi.ts:195`. Both pass
+  `hostedDetection: 'assume-hosted'` when `TLON_HOSTING` is set, and the helper
+  forces the memex branch (`storageApi.ts:221-225`), which PUTs to a presigned
+  URL and never constructs an S3 client. So the production moon's lack of S3
+  credentials — by design — is not a problem publish has to solve, and the
+  `assetRef` is the public URL clients fetch. Checked by reading because the
+  claim is about which function is called, and reading is the direct evidence
+  for that; what reading does NOT establish is that a hosted moon's publish
+  succeeds end to end, which needs the first rollout ring.
+
+### The CI wedge, root-caused and the earlier belief corrected
+
+- **D154: the browser tests did not wedge on repeated `chromium.launch()`; they
+  wedged on an untimed `page.close()`, and the trigger is mixing `Bun.spawn`
+  with an in-process browser in one bun process.**
+  The recorded belief going in — carried from the templates suite, where seven
+  in-process browser passes were fixed by one subprocess per template — was
+  that Chromium exhausts after several sequential launches. **That is refuted
+  for `surface-preview.test.ts`**, by measurement rather than argument: three
+  sequential in-process launches pass 3/3 in 26s with the determinism control
+  filtered out. A tracing proxy around the launcher located the hang inside
+  `page.close()` — Playwright's `Page.close()` is `this._channel.close()`, a
+  raw protocol call with **no timeout**
+  (`playwright-core/lib/client/page.js:509-522`) — so a browser that stops
+  answering hangs forever and bun's 120s deadline is the only thing that ends
+  it.
+
+  | sequence | result |
+  | --- | --- |
+  | 3 in-process launches, no spawn | PASS ×3 |
+  | spawn, then 1 in-process launch | PASS |
+  | in-process launch → 4 spawns → in-process launch | FAIL 2/2 |
+
+  The mechanism inside Bun/Playwright is **not** claimed: it is consistent with
+  `Bun.spawn` perturbing the fd bookkeeping Playwright's pipe transport depends
+  on, and that was not proven.
+
+  **Why it hid for two green runs.** The file already contained a spawn arm —
+  the determinism control's private `captureInSubprocess` — sitting between two
+  in-process browser tests. So the file had carried the pattern since that
+  control was written and passed on luck; it reproduces locally 2/2, and was
+  never CI-only. Nobody had run that file by itself.
+
+  The fix routes all four browser tests through one shared
+  `previewInSubprocess()` and collapses the private spawn helper into it, so
+  the mix cannot be reintroduced by a browser test appended later. Three
+  consecutive full runs of the exact CI invocation: `89 pass, 0 fail, 379
+  expect()` at 142.17s / 141.99s / 142.65s. Mutation-checked — pointing the
+  "finds nothing in the poll fixture" arm at `DEFECTIVE_BUNDLE` fails it with
+  the full 74-line defect diff, so the subprocess path really drives a browser
+  and the manifest survives the process boundary.
+
+  **Two general lessons, both cheap and both earned here.** First, a diagnosis
+  inherited from a similar-looking failure is a hypothesis, not a cause; this
+  one survived a session only because nothing had tested it. Second, a test
+  file that passes in a suite and has never been run alone has not been
+  measured — the isolation run is the cheapest experiment available and it
+  reproduced on the first try.
+
+### The `ListRow` secondary slot
+
+- **D155: `secondary` takes NODES and owns the supporting cluster's rhythm,
+  because in three of the five three-line rows the third element is not text.**
+  The obvious design — a single muted text line, with anything further left
+  hand-rolled — is unavailable: habit-tracker's facepile, workout-tracker's
+  deload badges and leaderboard's `Progress` bar are the third child, and
+  `secondary` renders AFTER `children`, so leaving them in `children` floats
+  them above the supporting text. The "two equal-weight lines rebuilds the
+  problem" objection does not apply, because the missing hierarchy is
+  title-vs-supporting, not supporting-vs-supporting: "3 of 4 today" and
+  "✓ · ✓" are peers and should render as peers. Styling reuses the existing
+  `--text-s` / `--color-text-secondary` / `--line-s` / `--space-2xs` set; the
+  muted type is set on the container, so `Avatar`, `Badge` and `Progress` keep
+  their own color and size.
+
+  Thirteen sites across eight templates; `poll` was already correct and is
+  untouched.
+
+  **The exception is written into `PRIMITIVES.md`, not left to a comment.**
+  `kanban`'s card puts three wrapping move-buttons in `secondary` rather than
+  `right`, because in the trailing slot they take most of a phone's width and
+  crush the content column to a word a line. A comment in the one template that
+  does it is the wrong instrument — the bot copies template code far more
+  readily than it obeys a comment — so the rule now lives where the bot reads
+  rules: controls go in `right`; a wrapping cluster of three or more is the
+  exception; **and the fact that a `Button` in `secondary` keeps its own color
+  and therefore looks fine is exactly why the rule has to be stated rather than
+  left to the eye.**
+
+### The rubric sheet binds the spec, not only the bytes
+
+- **D156: a rubric sheet now binds `(surfaceId, bundleSha256, specSha256)`, an
+  artifact without the spec hash is refused outright, and 17 existing publish
+  tests broke — which is the evidence that the hole was live rather than
+  theoretical.** Each of those 17 was a spec-only change (a title rename, a
+  `preserveState` flip, an added undeclared key) passing on a stale sheet. The
+  plan had carried this as a known residual since Session 6b.
+
+  **No lenient path, and the argument is sharper than "be strict":** the
+  lenient path's bypass is `delete sheet.specSha256`. A binding an author can
+  satisfy by REMOVING a line is not a binding. There is also nothing honest to
+  migrate to — the field is a claim about what the scorer was looking at, so
+  filling it in from the current spec would be the tool asserting the very
+  thing it exists to verify.
+
+  **D72 (raw-to-raw) is honoured and proved, not asserted.** The hash is
+  `sha256(canonicalJson(spec))` over the VERBATIM parsed spec at all three
+  ends, never the validated view — `canonicalJson` (D109) preserves every own
+  enumerable key and erases only key order and `undefined` values, neither of
+  which can reach a channel description cell. So every difference it hides is
+  one no reader could observe, and every difference a reader could observe
+  moves the hash. The distinction is executable against the real
+  `SurfaceSpecSchema`: `surfaceSpecHash(raw_with_undeclared_key) !==
+  surfaceSpecHash(raw)` while `surfaceSpecHash(parse(a)) ===
+  surfaceSpecHash(parse(b))`. If anyone moves the hash onto the validated view,
+  that assertion is what fails.
+
+  Two mutations, both verified applied: deleting the spec comparison fails
+  exactly six tests across publish and fork and nothing else; accepting a
+  missing hash fails exactly the four compatibility tests. The positive
+  controls are deliberately separate so a refuse-everything guard cannot pass
+  — including one asserting that key REORDERING does not invalidate a sheet.
+
+  **This is not fork-local.** `requireCompletedRubric` is shared, so publish now
+  refuses a spec-only revision on a stale sheet exactly as fork does.
+
+- **D157: the sheet binds the STATE the captures opened on as well, stamped
+  unconditionally, and compared as a state rather than as a flag.**
+  `surface preview --state <file>` renders the twelve cells from a supplied
+  state, and nothing bound it — so a sheet could name the right bundle and the
+  right spec while its images came from a starting state the spec never
+  produces. Reachable through the bot's own documented workflow rather than a
+  corner case: `RUBRIC.md:301` instructs the scorer to do *"a separate
+  `--state` run against the example board"*, and `countdown/NOTES.md:170` says
+  the `--state` run is *"the only run that exercises 'Passed'"*. The sheet a
+  human actually fills in for `countdown` was the unbound one.
+
+  Three details earn their place:
+
+  **`stateSha256` is stamped unconditionally, not only for an override.** If it
+  were absent in the ordinary case, "no override happened" and "the field was
+  deleted" would be the same shape — the satisfiable-by-omission hole the
+  binding exists to close, reintroduced by the binding itself.
+
+  **The comparison is on the state, not on `stateSource`.** An override that IS
+  the spec's own `initialState` passes, because those are the same pixels. A
+  cheaper "refuse any override sheet" would pass the negative test and fail
+  that one, which is exactly why that arm exists.
+
+  **One hasher, not two.** `surfaceSpecHash` generalised to
+  `surfaceCanonicalHash` and renamed at all six call sites: what is hashed
+  differs per call site, how it is hashed does not.
+
+  Mutations, both verified applied: deleting the state comparison fails exactly
+  the three comparison-dependent controls; accepting a missing `stateSha256`
+  fails exactly the four provenance-required tests.
+
+  **The eval probe is a reader, not a gate, and is tolerant on purpose.**
+  `surfaces-eval-probe.ts` validates historical rubric recordings that predate
+  these fields. Regenerating recorded evidence to satisfy a new check would
+  destroy the record, and reporting a historical artifact as `rubric-incomplete`
+  would be an author-classed error for something no author did. It now filters
+  exactly those three complaints and reports `predatesBindings`, while a sheet
+  that also left cells blank is still incomplete. The comment says why this is
+  correct here and a loophole in publish, so nobody later "fixes" it into
+  strictness.
+
+  **The residual, named rather than buried.** Under `--preserve-state` the
+  channel never reads the new `initialState`, so the useful preview is the
+  `--state` run against live state — and that sheet is now refused, meaning a
+  preserving revision's sheet certifies the board the app OPENS on, which is a
+  board nobody will ever see. Binding to the carried state instead was
+  considered and rejected: that state is a property of the channel, not of the
+  write, and it moves whenever a member acts, so the guard would refuse correct
+  work. The uniform rule has a remedy (one extra plain preview run); the
+  alternative has none. But the residual is the same species as the defects
+  this session exists to fix — a human scoring images that do not correspond to
+  what ships — and the real answer is to score the `--state` run and bind it to
+  a state the channel PROVABLY held, verifiable by folding the post log. That
+  is machinery, not a paragraph, and it is the top candidate for next session.
+
+### The transition graph — the class fix for rubric check 7
+
+- **D158: `surface preview` now walks the reachable-state graph, and kanban-v2 —
+  the app check 7 passed — draws the mandatory-checkpoint defect from a closed
+  4096-state walk in ~2.1s.**
+
+  Check 7 had passed three defects, and D140 named the common structure: every
+  one is about what happens when you PRESS something, and check 7 is scored from
+  a still image. The preview matrix renders states and never transitions.
+
+  **The design, and why it costs so little.** Edges come from the real client
+  reducer; the browser is used only to learn which controls a state renders.
+  Actions are parameterless, so a transition is a pure function
+  `state + actionId --reduceSurface--> state'`. The edge set out of a state is
+  **the actions the controls rendered in THAT state actually invoke** — not the
+  declared action list. That single distinction is the whole difference from
+  what the gate already did: `surface-lint.ts` does a depth-1 STAR walk
+  (initial, then each declared action folded once from initial), so a control
+  that appears two presses in is indistinguishable from one that appears never.
+  The walk runs in happy-dom through the same fixture runner the gate uses, so
+  none of it is browser-gated.
+
+  `activateControls` and its recorder were EXTRACTED from `surface-lint.ts`
+  (506 lines moved, one behavioural change: a `Collector` argument became an
+  `onProblem` callback), not reimplemented. A parallel copy would have been the
+  defect this pass exists to find, in the pass itself.
+
+  **Mandatory checkpoint = dominance, computed on PROJECTED graphs, and the
+  soundness argument was checked rather than assumed.** For pointer p with
+  projection π, every explored edge S→T contributes π(S)→π(T), so the image of
+  any real path is a walk in the projection. If u dominates v in the projection
+  and some real path reached π(S)=v touching no u-valued state, its image is a
+  walk to v avoiding u — contradicting dominance. Dominance transfers **because
+  the projection over-approximates paths.**
+
+  **Two ways to break that, one of which nobody had named.** Truncation is the
+  obvious one: a truncated walk projects FEWER edges, and a missing edge is
+  exactly the bypass — so findings are gated on `closed`, and a truncated run
+  prints checkpoints as observations that assert nothing. The second was found
+  while building it: **value-domain overflow drops values, so some states
+  project to nothing and their edges vanish — an UNDER-approximation, the one
+  direction that is unsound.** Overflowed projections are skipped. The same
+  reasoning caught a third case: a handler calling `invoke()` twice produces a
+  state a one-fold-per-press walk has no node for, so multi-invoke presses are
+  counted, become a shortfall, and a shortfall makes the graph not-closed.
+
+  **The controls, in both directions.**
+  `kanban-v2` (vendored as a tracked fixture, since the verdict-run artifacts
+  are gitignored evidence that exist on one machine) draws
+  `"done" at /tasks/*/status is reachable only through "doing", then "blocked"`.
+  All 24 of its declared actions are reachable: **the defect is the ORDER, not
+  a missing control**, which is exactly what a still cannot show.
+
+  The unreachable-action control had to be BUILT. The prompt assigned it to the
+  6a.5 inert expense app, which ships `actions: {}` with zero `invoke(` sites —
+  so "every declared action no control reaches" is the empty set and the
+  control would pass vacuously, and worse, that app is structurally identical
+  to the shipped `countdown` template under this pass. Any rule firing on it
+  fires on a template. Built instead: a sheet whose `reopen` button renders
+  only when `/closed` is true and nothing ever sets `/closed`. Its positive
+  twin changes one condition, and **its edges all originate at depth 2** —
+  which is the point, since the gate's depth-1 walk cannot see a control two
+  presses in.
+
+  Nine templates draw nothing and **eight of nine close**, so that result is an
+  assertion rather than a truncation dodge. `kanban` writes `/claims/$actor` on
+  every move, so its space is 24577 states; it truncates and therefore asserts
+  nothing, said plainly. A test pins that **at most one** template may truncate,
+  so a change making everything truncate — which would make the clean result
+  vacuous — fails.
+
+  The synthetic negative controls did their job the hard way: the first
+  bypass-graph assertion ("no checkpoint at all") FAILED, correctly — Doing
+  really is still mandatory on that graph — and the assertion was fixed rather
+  than the code, with a third graph added as the true zero-finding control. In
+  the other direction a scorer that flags everything is asserted to FAIL the
+  clean-template check, so "the templates draw nothing" is a property of the
+  templates and not of an empty report.
+
+  **What it cannot see, printed on every run including clean ones:** whether the
+  reachable states are the states the REQUEST implies (nothing here has access
+  to the request — check 7 stays a human check, now scored against a
+  reachability report instead of a still); anything a control does that is not
+  `invoke`; a second member (every press is one ship); the other theme and the
+  read-only screen; anything the host does via `--host-ops`; and whether a
+  reachable screen is any good — reachable and legible are different questions.
+
+- **D159: D136.6 is ruled — neither side was wrong, and the thing that forced
+  them into contradiction was lint's depth-1 blindness.**
+  The skip rule treats an unpressed control as a MEASUREMENT gap (four rules are
+  silent about a handler that never ran, and calling that a clean pass is the
+  failure the skip discipline exists to prevent). The template test treats any
+  skip as a defect of the app, which is a fair bar for a golden exemplar. Both
+  are right. What neither states is that lint activates at depth 1 only, so
+  "reachable in two presses" and "unreachable" are the same observation to it.
+
+  With the graph, the three cases separate: a control gated on a MEMBER action
+  is reached, pressed and scored — **no skip**; a control gated on a HOST event
+  is reached once the walk is seeded with host ops; and a control **no reachable
+  state renders** is a real `unreachable-action` violation rather than a skip.
+  The spare-cost-slots pattern becomes buildable as a template under an
+  UNCHANGED `skipped: []` assertion — nothing had to be relaxed, which is what
+  says the ruling is right rather than merely decisive.
+
+  **The gate was NOT rewired onto the graph, deliberately.** Every behavioural
+  rule inspects each rendered state, so a gate on the real graph would inspect
+  4096 states on a board like D140's, on every publish. That is a different
+  gate. Instead both signals now say which question they answer, and the precise
+  fact was written into the gate's own doc: lint's star walk renders states **no
+  member can reach**, so an action invoked only from one of those counts as
+  reached by lint and unreached by the walk. **Neither set contains the other.**
+  Lint's is a fact about the gate's coverage; the walk's is a fact about the app.
+
+  **Honest caveat on the host-event leg:** D70 built the `--host-ops` flag on
+  `surface preview`, but templates ship `app.js`, `spec.json`, `NOTES.md` and
+  `state.json` and carry no host-ops seed. That leg needs a per-template seed
+  file that does not exist yet. No current template uses the pattern, so nothing
+  is blocked; the member-gated leg, which is the one that resolves the
+  contradiction, needs nothing new.
+
+### The CLI the bot invokes, and whether it contains the work being measured
+
+- **D160: the harness now refuses to measure a CLI compiled from different
+  sources than the worktree holds — and when the guard was first run, the
+  answer was DIFFERS.**
+  The bot drives `packages/tlon-skill/bin/tlon`, a `bun --compile` binary built
+  by `build-local-skill-override.sh`. It is compiled from source at build time,
+  not run from source at invocation. Today's binary predated **16 compiled
+  `.ts` files, 13 of them in the traced import closure** — including
+  `surface-transitions.ts`, `surface-activation.ts`, `surface-rubric-artifact.ts`
+  and every `commands/surface-*.ts`. A live run would have measured a CLI
+  containing none of this session's work, and nothing would have said so.
+
+  **This is D135's hole one level up, and the fence probe provably cannot close
+  it.** `assertFenced` proves the write fence is real by probing a malformed
+  scope file, an absent one, and a no-scope control. The fence already existed
+  when this binary was built, so a stale binary passes all three. The guard
+  verified the instrument and said nothing about whether the actor carried the
+  work. That is the same sentence written about 6a.5's stale-binary guard, and
+  it recurred because the remedy was again scoped to one artifact.
+
+  **Built on the precedent already in the repo, not a new idiom.**
+  `surfaces-desk-preflight.mjs` solves the identical problem for the Hoon desk:
+  digest a source tree, compare it to what is deployed, refuse with a named
+  remedy. Same shape here — the build stamps a content digest sidecar next to
+  the binary; the preflight recomputes and refuses on mismatch, naming the
+  drifted files.
+
+  Three details that decide whether it works:
+
+  **Contents, never mtimes.** mtime is not a real discriminator (D138): a
+  checkout produces old mtimes on new content.
+
+  **`skills/**` is EXCLUDED.** Templates, `SKILL.md`, `PRIMITIVES.md` and
+  `RUBRIC.md` are read from `TLON_SKILL_DIR` at runtime as data, not compiled
+  in. If a template edit demanded a rebuild the guard would cry wolf during
+  ordinary work, and a guard that cries wolf gets disabled. It has its own
+  control: editing all three doctrine files and a template together leaves the
+  digest byte-identical.
+
+  **The stamp names the binary as well as the sources**, because a certificate
+  can outlive its artifact. The hash is taken INSIDE the container at the exact
+  path the bot's tool call resolves — the project's own rule turned on the
+  guard itself — which also asserts the bind-mount identity instead of assuming
+  it. And the prebuilt/npm path DELETES any standing stamp before overwriting
+  the binary, so an interrupted hydrate cannot leave an old certificate over new
+  bytes.
+
+  The file set was **traced, not assumed**: 61 files reachable from `main.ts`,
+  zero of them `*.test.ts`, no unresolved specifiers. The shipped glob is
+  deliberately broader than the closure by 11 files, because the two failure
+  modes are not symmetric — an over-broad set costs a rebuild nobody needed, an
+  under-broad set is a silent blind spot of exactly the kind this exists to
+  close.
+
+  **Known gap, recorded rather than closed:** `@tloncorp/api` and
+  `@tloncorp/surface-shell` are compiled into the binary and are outside the
+  digest — `packages/api`'s subpath exports resolve to `src/**/*.ts`, and the
+  closure pulls 8 such subpaths plus 4 from surface-shell, which this session
+  modified. Drift there still goes unreported. The obvious next widening, and
+  it needs `packages/api`'s `dist`-vs-`src` split decided first.
+
+- **D161: check 7's sheet entry carries a machine-stamped reachability line,
+  and a walk that did not finish cannot be mistaken for one that found
+  nothing.** Three markers, weakest claim first: `not walked:` (never ran),
+  `not measured:` (a bound was spent, OR a control could not be pressed — a
+  shortfall is a missing edge, and a missing edge is the one thing dominance
+  cannot survive, so it disarms the citation exactly as truncation does), and
+  `measured:` (a closed walk only, and only then may it report "nothing").
+
+  Stamped unconditionally and required by the validator, for the reason D157
+  gives: optional is precisely how "we did not walk it" and "we walked it and
+  it was fine" become one emission. `buildRubricTemplate` takes it as a
+  REQUIRED argument and derives the line itself, so a forgetful caller is a
+  compile error rather than a publish-time refusal.
+
+  The marker list is a fixed enumeration checked the way `stateSource` and
+  `verdict` already are — deliberately not the keyword heuristic this file
+  refuses elsewhere: **a stamp can be checked for having come from the machine;
+  a note cannot be checked for being a good note.** And the validator does not
+  import `surface-transitions.ts` — publish must not pull in happy-dom and the
+  reducer to validate a text file, so the citation builder takes a structural
+  input the report already satisfies.
+
+- **D162: the pre-binding tolerance list is a hand-maintained mirror of "fields
+  added to `RubricArtifact` since these recordings were made", and nothing makes
+  growing the artifact fail loudly — which is how it broke within a day of being
+  written.** D157 gave `surfaces-eval-probe.ts` a scoped tolerance for rubric
+  sheets recorded before the new bindings, because it reads historical
+  recordings rather than gating a write. Hours later, and by a different hand,
+  check 7 gained a required `reachability` citation (D161). The tolerance list
+  did not grow with it, so that one complaint survived the filter and
+  `dev/surfaces-score.test.mjs`'s `NEGATIVE CONTROL — the clean run scores as
+  clean` began failing: every axis passed except `rubric`, on a fixture whose
+  sheet carries `bundleSha256` and none of `specSha256` / `stateSha256` /
+  `stateSource` / `reachability`.
+
+  **A framing this file briefly carried, corrected here rather than quietly
+  deleted:** the failure was first read as one reader having been taught an
+  exception the other had not. That is wrong. `surfaces-score.mjs` does not
+  validate anything — it spawns the probe as a subprocess and renders its JSON,
+  so the tolerance was single-sourced by construction and there was never a
+  second copy to keep in step. The real defect is a list that must be extended
+  by hand every time the artifact it mirrors gains a field, with no mechanism
+  tying the two together.
+
+  **The remedy is named and NOT built**, deliberately: a check that the probe's
+  tolerance list covers every artifact field absent from the recordings would
+  close it, and that is a new mechanism rather than the one-line fix that was
+  blocking a push. Recorded as the thing to build the next time the artifact
+  grows — because the failure mode is a **fabricated author-error on four
+  historical sheets**, which is exactly the class of error this project refuses
+  to emit.
+
+  Two things found on the way, both worth keeping. The earlier tolerance edit
+  had also dropped `problems` from the emitted rubric object, and the scoreboard
+  renders that as the axis's detail line — so every failing rubric axis would
+  have reported a failure with nothing said about why. And `dev/surfaces-score.mjs`
+  contains two `\u0000` bytes as deliberate hash field separators, so `file`
+  calls it binary and plain `grep` prints **nothing at all** rather than no
+  matches; `grep -a` works. That silently swallowed a search during this
+  investigation and will swallow the next one.
+
+  The reason any of it surfaced is that this project builds negative controls:
+  nothing else in the suite would have noticed a clean run quietly scoring one
+  failure. A guard asserting that a clean thing stays clean is the cheapest
+  instrument here, and it has now paid twice in one session.
+
+- **D163: asking for a source build and not getting one was reported as though
+  the operator had not asked — and that is how the binary went stale.**
+  `build-local-skill-override.sh` guarded its source path on
+  `command -v bun`. In the container bun lives at `~/.bun/bin` and is **not on
+  the default PATH**, so under `docker exec` the check fails while bun sits
+  right there. The script then fell through to the prebuilt npm binary and
+  printed *"Using prebuilt tlon-skill binary (set TLON_SKILL_FROM_SOURCE=1 to
+  rebuild from local source)"* — with `TLON_SKILL_FROM_SOURCE=1` already set.
+
+  Found by running it: the first rebuild attempt of this session took the
+  prebuilt path and replaced a stale-but-branch-derived binary with the last
+  RELEASE, which carries none of the surfaces work at all. The message made
+  that read like a choice nobody had made.
+
+  Two changes, and the second is the one that matters. The script now finds
+  `$HOME/.bun/bin/bun` when bun is not on PATH. And **a requested source build
+  that cannot run is an ERROR with a non-zero exit, never a silent
+  substitution** — because the prebuilt binary is the last release, so a run
+  taken against it measures something that says nothing about the branch.
+  Reporting an environment failure as an operator choice is the same confusion
+  `gate-harness-unavailable` exists to prevent one layer down: say which it is,
+  and refuse rather than substituting something that looks like what was asked
+  for.
+
+  Controls, both directions, on the real container: with bun hidden and
+  `TLON_SKILL_FROM_SOURCE=1` set it exits 1 naming PATH and refusing; with the
+  default PATH it now finds bun and builds from source unaided. The rebuild is
+  byte-identical across two independent runs (binary `9cbc22d03571`, digest
+  `a276f35bfce3`), so the build is deterministic as well as current.
+
+  D160's guard then verified on the real tree rather than a copy: CURRENT after
+  the rebuild, STALE naming `scripts/surface-runtime.ts` when one source is
+  touched, CURRENT again on revert.
