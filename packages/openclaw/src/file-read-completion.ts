@@ -44,7 +44,7 @@ type ReadTargetState = {
 };
 
 type RunState = {
-  deliveredSessionKey: string | null;
+  messageDelivery: { content: string; sessionKey: string } | null;
   lastSuccessfulTarget: string | null;
   revisionAttempts: number;
   targets: Map<string, ReadTargetState>;
@@ -708,7 +708,7 @@ export function createFileReadCompletionGuard(options?: {
         }
         touch(runId, {
           ...existing,
-          deliveredSessionKey: null,
+          messageDelivery: null,
           lastSuccessfulTarget: invalidatedTargets.includes(
             existing.lastSuccessfulTarget ?? ''
           )
@@ -740,7 +740,7 @@ export function createFileReadCompletionGuard(options?: {
           truncated: target?.truncated ?? false,
         });
         touch(runId, {
-          deliveredSessionKey: existing?.deliveredSessionKey ?? null,
+          messageDelivery: existing?.messageDelivery ?? null,
           lastSuccessfulTarget: existing?.lastSuccessfulTarget ?? null,
           revisionAttempts: existing?.revisionAttempts ?? 0,
           targets,
@@ -815,7 +815,7 @@ export function createFileReadCompletionGuard(options?: {
       touch(runId, {
         // Any successful read after a message-tool delivery adds new work.
         // Only a later qualifying delivery may suppress final correction.
-        deliveredSessionKey: null,
+        messageDelivery: null,
         lastSuccessfulTarget: targetKey,
         revisionAttempts: existing?.revisionAttempts ?? 0,
         targets,
@@ -827,14 +827,10 @@ export function createFileReadCompletionGuard(options?: {
       const sessionKey = input.sessionKey?.trim();
       if (!runId || !sessionKey || !input.success) return;
       const existing = runs.get(runId);
-      if (
-        !existing ||
-        hasRelevantFailedTarget(input.content ?? '', existing) ||
-        !replyCompletesTrackedRead(input.content ?? '', existing)
-      )
+      if (!existing || hasRelevantFailedTarget(input.content ?? '', existing))
         return;
       touch(runId, {
-        deliveredSessionKey: sessionKey,
+        messageDelivery: { content: input.content ?? '', sessionKey },
         lastSuccessfulTarget: existing.lastSuccessfulTarget,
         revisionAttempts: existing.revisionAttempts,
         targets: new Map(existing.targets),
@@ -846,18 +842,22 @@ export function createFileReadCompletionGuard(options?: {
       const reply = input.lastAssistantMessage ?? '';
       if (!runId) return null;
       const state = runs.get(runId);
+      const userRequest = lastUserRequest(input.messages);
       if (
         !state ||
-        (state.deliveredSessionKey != null &&
-          state.deliveredSessionKey === input.sessionKey?.trim()) ||
+        (state.messageDelivery != null &&
+          state.messageDelivery.sessionKey === input.sessionKey?.trim() &&
+          replyCompletesTrackedRead(
+            state.messageDelivery.content,
+            state,
+            userRequest
+          )) ||
         hasRelevantFailedTarget(reply, state) ||
         state.revisionAttempts >= MAX_REVISION_ATTEMPTS
       )
         return null;
       const targets = relevantTargets(reply, state);
-      if (
-        replyCompletesTrackedRead(reply, state, lastUserRequest(input.messages))
-      ) {
+      if (replyCompletesTrackedRead(reply, state, userRequest)) {
         return null;
       }
 

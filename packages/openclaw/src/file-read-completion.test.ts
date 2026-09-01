@@ -449,6 +449,39 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it('credits a bounded message-tool delivery after checking user intent', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'bounded-message-delivery',
+      toolName: 'read',
+      params: { path: '/tmp/report.txt', limit: 3 },
+      result: {
+        content: [
+          {
+            type: 'text',
+            text: 'first line\nsecond line\nthird line\n[Showing lines 1-3 of 40]',
+          },
+        ],
+      },
+    });
+    guard.recordMessageDelivery({
+      content:
+        'The first three lines are:\nfirst line\nsecond line\nthird line',
+      runId: 'bounded-message-delivery',
+      sessionKey: 'session:source',
+      success: true,
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'bounded-message-delivery',
+        lastAssistantMessage: 'NO_REPLY',
+        messages: [{ role: 'user', content: 'Show the first three lines.' }],
+        sessionKey: 'session:source',
+      })
+    ).toBeNull();
+  });
+
   it('still revises after a message-tool progress update', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('message-tool-progress'));
