@@ -137,10 +137,27 @@ agent-device click @e12 --session <name>
 A session stays bound to the device it first selected. `agent-device close
 --session <name>` releases it.
 
-Some flows need a signed-in app. `.env.local` carries `DEFAULT_SHIP_LOGIN_URL`
-and `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, and the "Have an account? Log in" ->
-"Or configure self hosted" screen arrives with both fields already filled, so
-the sign-in is one tap on `Connect`.
+## Signing in
+
+Some flows need a signed-in app, and the phone or email paths send a 2FA code
+that an unattended run cannot read. Sign in to a test ship instead. Put its URL
+and access code in `apps/tlon-mobile/.env.local`:
+
+```bash
+DEFAULT_SHIP_LOGIN_URL=https://your-ship.tlon.network
+DEFAULT_SHIP_LOGIN_ACCESS_CODE=<the ship's +code>
+```
+
+A dev build then opens "Have an account? Log in" -> "Or configure self hosted"
+with both fields filled and `Connect` already enabled, so the sign-in is one
+press. Both gates are dev-only: `__DEV__`, and both variables non-empty.
+
+`app.config.ts` copies these variables into `extra` for any build, so keep a
+real access code out of release builds.
+
+A `+code` sign-in produces an `authType: 'self'` session. It gets an agent into
+the app; it does not exercise the hosting-account flows such as node status,
+revival, or bot config.
 
 ## Repository facts worth knowing
 
