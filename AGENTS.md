@@ -11,8 +11,8 @@ defaults and should not be inferred from memory.
 
 Before running the mobile app on a simulator or emulator, read
 `docs/tlon-apps/mobile-agent-loop.md`. It covers the worktree, the sign-in that
-needs no 2FA code, the Android variant this app needs, and the CocoaPods repair
-that a warm worktree depends on.
+needs no 2FA code, the Android variant this app needs, and the facts about this
+repository that a build depends on.
 
 # Tlon Messenger backend
 The backend of the Tlon Messenger app is hosted on the Urbit platform.

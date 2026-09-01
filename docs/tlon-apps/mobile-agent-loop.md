@@ -31,29 +31,8 @@ npx skills add callstack/agent-device
 
 Run `stim doctor` from `apps/tlon-mobile`. It inspects the **main checkout**
 even when it runs from a linked worktree, because a warm worktree is a copy of
-that checkout. Fix everything it labels `costs time` before creating one.
-
-Two findings show up on this repository often:
-
-- **Stale CocoaPods state**, when `ios/Pods/Manifest.lock` and `ios/Podfile.lock`
-  disagree.
-- **Broken symlinks under `ios/Pods`**, which a warm worktree copies and which
-  fail during compilation.
-
-Both are fixed the same way. Do not use `pod install --clean-install`: it fails
-here with `you've changed the version of the dependency hermes-engine`, and the
-`pod update` it suggests rewrites a tracked lockfile.
-
-```bash
-cd apps/tlon-mobile/ios && rm -rf Pods && pod install
-```
-
-CocoaPods needs a newer Ruby than the system one, plus a UTF-8 locale:
-
-```bash
-export PATH="$HOME/.rvm/rubies/ruby-3.3.4/bin:$PATH"
-export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
-```
+that checkout, and it prints the exact command for each finding. Fix everything
+it labels `costs time` before creating one.
 
 ## The loop
 
@@ -62,7 +41,6 @@ cd apps/tlon-mobile
 stim worktree create <name> --carry-ignored   # prints the new absolute path
 cd <printed-path>/apps/tlon-mobile
 
-cd ios && pod install && cd ..                # only when Stim says the Pods disagree
 stim start
 stim ios
 stim logs --errors                            # exit code 0 is the pass condition
@@ -72,12 +50,6 @@ stim logs --errors                            # exit code 0 is the pass conditio
 worktree usable: `.env.local`, `node_modules`, `packages/editor/dist`, and
 `ios/Pods` all come across, so there is no install step and no package to build
 by hand. Without it you get a cold worktree and pay for all of them.
-
-`Podfile.lock` is tracked and comes from the branch, while `ios/Pods` is
-gitignored and comes from the copy, so the two can disagree. Stim says so when
-it happens, and prints the same `pod install` remedy. Run it before building:
-`xcodebuild` otherwise fails with `sandbox is not in sync` only after every pod
-has compiled.
 
 A JavaScript or TypeScript edit needs no rebuild. Fast Refresh applies it, and
 `stim logs --since 30s --level error` shows what it broke. Run `stim ios` again
@@ -179,10 +151,6 @@ revival, or bot config.
   one, name it in `expo.autolinking.buildFromSource` in
   `apps/tlon-mobile/package.json` first, which makes gradle compile that module
   from source.
-- **`pod install` leaves `Podfile.lock` clean.** react-native 0.86.3 resolves
-  hermesc through `$(PODS_ROOT)`, so the checksum no longer embeds the checkout
-  path and every checkout fingerprints the same. A hermes checksum diff after
-  `pod install` means the version moved back.
 
 ## What the loop costs
 
