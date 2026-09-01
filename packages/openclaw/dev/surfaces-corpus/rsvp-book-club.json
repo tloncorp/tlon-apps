@@ -1,0 +1,11 @@
+{
+  "id": "rsvp-book-club",
+  "request": "RSVP for the book club meetup",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "rsvp",
+    "why": "The canonical $actor set-pattern app. 6a published this one and later revisions landed on the same board."
+  }
+}

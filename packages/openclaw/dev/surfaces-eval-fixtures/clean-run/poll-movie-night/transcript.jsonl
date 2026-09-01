@@ -1,0 +1,21 @@
+{"type":"message","timestamp":"2026-09-01T12:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"fixture prompt"}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:44.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"read","arguments":{"path":"~/.openclaw/plugin-skills/tlon-skill/skills/surfaces/SKILL.md"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:51.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface templates list"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:58.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface doctrine"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:05.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface lint app.js spec.json --json"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:36.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface preview app.js spec.json --out surface-preview"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:43.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface publish chat/~zod/dash-fixture --bundle app.js --spec spec.json --rubric surface-preview/rubric.json"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:45.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:47.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:49.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:51.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:53.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:55.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:57.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:59.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:02:01.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:02:03.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:02:05.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:02:07.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:02:11.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"posts send chat/~zod/general \"it is live\""}}]}}
+{"type":"message","timestamp":"2026-09-01T12:02:14.000Z","message":{"role":"assistant","content":[{"type":"text","text":"It is up."}]}}

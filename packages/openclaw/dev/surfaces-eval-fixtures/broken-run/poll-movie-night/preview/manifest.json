@@ -1,0 +1,162 @@
+{
+  "surfaceId": "srf-poll",
+  "specRevision": 1,
+  "title": "Lunch poll",
+  "shellVersion": 1,
+  "bundleSha256": "f7286238ce30a384431e9c292a4eeb3d55bbf9abb959c600c87b7692a856a9f1",
+  "actions": [
+    "vote-pizza",
+    "vote-tacos",
+    "vote-salad"
+  ],
+  "actors": [
+    "~zod",
+    "~ten",
+    "~palfun-foslup"
+  ],
+  "now": 1735689600000,
+  "timeDisplayRefreshSeconds": null,
+  "rubric": "skills/surfaces/RUBRIC.md",
+  "rubricTemplate": "preview/rubric.template.json",
+  "defects": [],
+  "unprobedCells": [],
+  "notChecked": [
+    "whether any copy means anything, or answers what was asked (rubric checks 4, 5 and 7 are entirely yours)",
+    "colour, contrast or dark-theme readability (check 3) — no colour is measured anywhere in this pass",
+    "whether a tappable thing LOOKS tappable, or whether a bare count is really the control (check 2 is only measured as geometry)",
+    "the rubric’s wider vocabulary list — \"state\", \"action\", \"event\", \"host\", \"fold\", \"sandbox\", \"bundle\" are legitimate words in a real app’s own domain, so only the gate’s six unambiguous terms are matched",
+    "vertical crowding, spacing inside a control, or anything a chart draws that is not text",
+    "whether the populated state resembles anything a real group would produce"
+  ],
+  "populated": {
+    "invokes": [
+      {
+        "actionId": "vote-pizza",
+        "actor": "~zod"
+      },
+      {
+        "actionId": "vote-tacos",
+        "actor": "~ten"
+      },
+      {
+        "actionId": "vote-salad",
+        "actor": "~palfun-foslup"
+      },
+      {
+        "actionId": "vote-pizza",
+        "actor": "~ten"
+      },
+      {
+        "actionId": "vote-tacos",
+        "actor": "~palfun-foslup"
+      },
+      {
+        "actionId": "vote-salad",
+        "actor": "~zod"
+      }
+    ],
+    "hostOps": [],
+    "hostOpsSource": null,
+    "abortedSequenceNums": [],
+    "unchanged": false
+  },
+  "shots": [
+    {
+      "viewport": "phone",
+      "theme": "light",
+      "state": "initial",
+      "width": 390,
+      "height": 844,
+      "path": "preview/phone-initial-light.png"
+    },
+    {
+      "viewport": "phone",
+      "theme": "dark",
+      "state": "initial",
+      "width": 390,
+      "height": 844,
+      "path": "preview/phone-initial-dark.png"
+    },
+    {
+      "viewport": "phone",
+      "theme": "light",
+      "state": "populated",
+      "width": 390,
+      "height": 844,
+      "path": "preview/phone-populated-light.png"
+    },
+    {
+      "viewport": "phone",
+      "theme": "dark",
+      "state": "populated",
+      "width": 390,
+      "height": 844,
+      "path": "preview/phone-populated-dark.png"
+    },
+    {
+      "viewport": "phone-full",
+      "theme": "light",
+      "state": "initial",
+      "width": 390,
+      "height": 2000,
+      "path": "preview/phone-full-initial-light.png"
+    },
+    {
+      "viewport": "phone-full",
+      "theme": "dark",
+      "state": "initial",
+      "width": 390,
+      "height": 2000,
+      "path": "preview/phone-full-initial-dark.png"
+    },
+    {
+      "viewport": "phone-full",
+      "theme": "light",
+      "state": "populated",
+      "width": 390,
+      "height": 2000,
+      "path": "preview/phone-full-populated-light.png"
+    },
+    {
+      "viewport": "phone-full",
+      "theme": "dark",
+      "state": "populated",
+      "width": 390,
+      "height": 2000,
+      "path": "preview/phone-full-populated-dark.png"
+    },
+    {
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "initial",
+      "width": 1280,
+      "height": 900,
+      "path": "preview/desktop-initial-light.png"
+    },
+    {
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "initial",
+      "width": 1280,
+      "height": 900,
+      "path": "preview/desktop-initial-dark.png"
+    },
+    {
+      "viewport": "desktop",
+      "theme": "light",
+      "state": "populated",
+      "width": 1280,
+      "height": 900,
+      "path": "preview/desktop-populated-light.png"
+    },
+    {
+      "viewport": "desktop",
+      "theme": "dark",
+      "state": "populated",
+      "width": 1280,
+      "height": 900,
+      "path": "preview/desktop-populated-dark.png"
+    }
+  ],
+  "shellErrors": []
+}

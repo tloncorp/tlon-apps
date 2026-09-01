@@ -1,0 +1,578 @@
+{
+  "version": 1,
+  "label": "smoke-local",
+  "generatedAt": "2026-09-01T19:16:06.223Z",
+  "note": "The three-request local smoke subset from session 6b's harness build. NOT the M2 exit measurement: no bot ran, so every routing and publish cell is unscored, 30 of 33 requests were never issued, and the budget row reflects local CLI stages rather than a bot turn (routing and generation, the two phases the verdict run found expensive, are absent by construction). It is here so the first bot-harness corpus run has something to be compared against, and so a later reader can see what the harness reported on the day it was built. The corpus run's scoreboard replaces it.",
+  "corpus": {
+    "dir": "/Users/patrick/workspace/homestead-tlon-skill-testing-strategy-phase-3/packages/openclaw/dev/surfaces-corpus",
+    "sha256": "fca6b43eb09489f668bb89747fd863f9cb7bb2eb8fba66143896e06f808fa2bb",
+    "requests": 33,
+    "inScope": 27,
+    "outOfScope": 6
+  },
+  "totals": {
+    "outcomes": {
+      "pass": 0,
+      "partial": 0,
+      "fail": 2,
+      "cap-killed": 0,
+      "contradiction": 0,
+      "unscored": 1,
+      "missing": 30
+    },
+    "axes": {
+      "routing": {
+        "pass": 0,
+        "fail": 0,
+        "unscored": 33,
+        "n/a": 0
+      },
+      "lint": {
+        "pass": 2,
+        "fail": 0,
+        "unscored": 30,
+        "n/a": 1
+      },
+      "fold": {
+        "pass": 2,
+        "fail": 0,
+        "unscored": 30,
+        "n/a": 1
+      },
+      "gate": {
+        "pass": 2,
+        "fail": 0,
+        "unscored": 30,
+        "n/a": 1
+      },
+      "preview": {
+        "pass": 1,
+        "fail": 1,
+        "unscored": 30,
+        "n/a": 1
+      },
+      "rubric": {
+        "pass": 0,
+        "fail": 2,
+        "unscored": 30,
+        "n/a": 1
+      },
+      "screenshotRubric": {
+        "pass": 0,
+        "fail": 0,
+        "unscored": 32,
+        "n/a": 1
+      },
+      "publish": {
+        "pass": 0,
+        "fail": 0,
+        "unscored": 32,
+        "n/a": 1
+      },
+      "budget": {
+        "pass": 2,
+        "fail": 0,
+        "unscored": 31,
+        "n/a": 0
+      }
+    }
+  },
+  "contradictions": [],
+  "requests": [
+    {
+      "id": "countdown-album-drop",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "countdown-launch-day",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "countdown-lease-expiry",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "expense-airbnb-four-ways",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "expense-beach-trip",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "expense-ski-house",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "habit-chore-rotation",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "habit-physio-daily",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "habit-writing-30-days",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "kanban-podcast-pipeline",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "kanban-site-redesign-blocked",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "kanban-zine-project",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "leaderboard-chess",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "leaderboard-fantasy-streaks",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "leaderboard-ping-pong-ladder",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "oos-add-member",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "oos-meeting-notes-post",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "oos-poll-lookup",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "oos-remind-landlord",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "oos-summarise-yesterday",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "oos-weather-saturday",
+      "outcome": "unscored",
+      "axes": {
+        "routing": "unscored",
+        "lint": "n/a",
+        "fold": "n/a",
+        "gate": "n/a",
+        "preview": "n/a",
+        "rubric": "n/a",
+        "publish": "n/a",
+        "screenshotRubric": "n/a",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "poll-movie-night",
+      "outcome": "fail",
+      "axes": {
+        "routing": "unscored",
+        "lint": "pass",
+        "fold": "pass",
+        "gate": "pass",
+        "preview": "pass",
+        "rubric": "fail",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "pass"
+      }
+    },
+    {
+      "id": "poll-offsite-city",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "poll-standup-time",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "potluck-bringing-what",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "potluck-game-night-vegetarian",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "potluck-thanksgiving-categories",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "rsvp-barbecue-headcount",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "rsvp-book-club",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "rsvp-open-house",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "workout-5x5-lifts",
+      "outcome": "fail",
+      "axes": {
+        "routing": "unscored",
+        "lint": "pass",
+        "fold": "pass",
+        "gate": "pass",
+        "preview": "fail",
+        "rubric": "fail",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "pass"
+      }
+    },
+    {
+      "id": "workout-climbing-sessions",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    },
+    {
+      "id": "workout-marathon-log",
+      "outcome": "missing",
+      "axes": {
+        "routing": "unscored",
+        "lint": "unscored",
+        "fold": "unscored",
+        "gate": "unscored",
+        "preview": "unscored",
+        "rubric": "unscored",
+        "publish": "unscored",
+        "screenshotRubric": "unscored",
+        "budget": "unscored"
+      }
+    }
+  ]
+}

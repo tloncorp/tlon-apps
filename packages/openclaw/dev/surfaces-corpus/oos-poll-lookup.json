@@ -1,0 +1,12 @@
+{
+  "id": "oos-poll-lookup",
+  "request": "what was the result of that poll in the thread last week?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": false,
+    "template": null,
+    "awayTo": "message history — `tlon messages search` / `tlon messages channel`, answered in one chat reply",
+    "why": "A lookup about something that already happened. Nothing is created and nothing is kept up to date. It carries the word \"poll\" on purpose: poll-movie-night is the same word in the opposite direction, and a routing change that only makes the word magnetic will pass one and fail the other."
+  },
+  "pairedWith": "poll-movie-night"
+}

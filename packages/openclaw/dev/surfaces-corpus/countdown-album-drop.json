@@ -1,0 +1,10 @@
+{
+  "id": "countdown-album-drop",
+  "request": "countdown to the album drop on march 3rd",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "countdown",
+    "why": "A date supplied in the sentence. The date must land in state as a host-written value at creation, never be parsed at render time."
+  }
+}

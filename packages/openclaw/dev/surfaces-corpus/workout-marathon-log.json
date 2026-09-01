@@ -1,0 +1,10 @@
+{
+  "id": "workout-marathon-log",
+  "request": "can we keep a running log of everyone's runs for the marathon build-up?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "workout-tracker",
+    "why": "Same shape as the 5×5 tracker with a different exercise set. \"running log\" is a phrase that reads as append-forever; the correct app keys by member and by day, so this is also a probe of the append-duplicates rule."
+  }
+}

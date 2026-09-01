@@ -1,0 +1,10 @@
+{
+  "id": "rsvp-open-house",
+  "request": "need a headcount for the studio open house, plus ones included",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "rsvp",
+    "why": "RSVP with a count per member rather than a yes/no. Included because \"plus ones\" is the smallest push past the set-a-flag pattern and needs a per-member value, not a per-member marker."
+  }
+}

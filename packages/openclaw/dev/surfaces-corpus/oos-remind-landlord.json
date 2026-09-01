@@ -1,0 +1,12 @@
+{
+  "id": "oos-remind-landlord",
+  "request": "remind me to email the landlord tomorrow",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": false,
+    "template": null,
+    "awayTo": "a reminder mechanism, or a plain reply saying there is none",
+    "why": "Single-person, time-triggered, nothing for a group to interact with. It is the closest thing in the corpus to countdown-* and differs on both counts: no group, and the mechanism has to fire rather than display."
+  },
+  "pairedWith": "countdown-lease-expiry"
+}

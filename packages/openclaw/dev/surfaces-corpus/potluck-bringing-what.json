@@ -1,0 +1,11 @@
+{
+  "id": "potluck-bringing-what",
+  "request": "can we track who's bringing what to the potluck?",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "potluck",
+    "why": "Category-keyed signups. 6a published this one; its bundle is the leftover the kanban revision later tried to publish onto the wrong channel, so this record has an unusually well-documented history."
+  }
+}

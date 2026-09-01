@@ -1,0 +1,11 @@
+{
+  "id": "oos-add-member",
+  "request": "can you add ~sampel-palnet to the group?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": false,
+    "template": null,
+    "awayTo": "group administration — `tlon groups`",
+    "why": "Group admin. Included because it is adjacent to surface work — publishing needs the same admin role — and a run that reads \"group\" plus a ship name as coordination has over-triggered."
+  }
+}

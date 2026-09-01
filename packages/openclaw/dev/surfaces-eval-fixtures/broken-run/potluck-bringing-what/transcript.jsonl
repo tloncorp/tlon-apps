@@ -1,0 +1,17 @@
+{"type":"message","timestamp":"2026-09-01T12:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"fixture prompt"}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:44.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"read","arguments":{"path":"~/.openclaw/plugin-skills/tlon-skill/skills/surfaces/SKILL.md"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:51.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface lint app.js spec.json"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:58.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface publish chat/~zod/dash-fixture"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:00.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:02.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:04.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:06.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:08.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:10.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:12.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:14.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:16.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:18.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:20.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:22.000Z","message":{"role":"assistant","content":[{"type":"image","mimeType":"image/png"}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:25.000Z","message":{"role":"assistant","content":[{"type":"text","text":"It is up."}]}}

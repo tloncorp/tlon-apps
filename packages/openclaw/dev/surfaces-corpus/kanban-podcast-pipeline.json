@@ -1,0 +1,10 @@
+{
+  "id": "kanban-podcast-pipeline",
+  "request": "board for the podcast episodes — ideas, recording, edited, published",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "kanban",
+    "why": "Four named columns supplied in the sentence. Column ids must be stable across revisions, which is the template's documented obligation."
+  }
+}

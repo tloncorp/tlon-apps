@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "_fixture": "SYNTHETIC. Every observation and verdict below was written by the fixture generator, not read off a capture. It exists so the harness tests can exercise the complete-sheet path; nothing here is evidence about any app.",
+  "surfaceId": "srf-poll",
+  "bundleSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "cells": {
+    "phone-initial-light": "synthetic fixture observation 1 for phone-initial-light — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-initial-dark": "synthetic fixture observation 2 for phone-initial-dark — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-populated-light": "synthetic fixture observation 3 for phone-populated-light — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-populated-dark": "synthetic fixture observation 4 for phone-populated-dark — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-full-initial-light": "synthetic fixture observation 5 for phone-full-initial-light — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-full-initial-dark": "synthetic fixture observation 6 for phone-full-initial-dark — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-full-populated-light": "synthetic fixture observation 7 for phone-full-populated-light — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "phone-full-populated-dark": "synthetic fixture observation 8 for phone-full-populated-dark — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "desktop-initial-light": "synthetic fixture observation 9 for desktop-initial-light — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "desktop-initial-dark": "synthetic fixture observation 10 for desktop-initial-dark — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "desktop-populated-light": "synthetic fixture observation 11 for desktop-populated-light — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at",
+    "desktop-populated-dark": "synthetic fixture observation 12 for desktop-populated-dark — this sheet exists to exercise the validator, not to describe a screenshot anybody looked at"
+  },
+  "checks": {
+    "overflow": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for overflow"
+    },
+    "tap-targets": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for tap-targets"
+    },
+    "themes": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for themes"
+    },
+    "empty-state": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for empty-state"
+    },
+    "populated-scannable": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for populated-scannable"
+    },
+    "no-jargon": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for no-jargon"
+    },
+    "answers-the-request": {
+      "verdict": "pass",
+      "cell": "phone-populated-light",
+      "note": "synthetic fixture verdict for answers-the-request"
+    }
+  }
+}

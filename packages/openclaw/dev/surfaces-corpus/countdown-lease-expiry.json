@@ -1,0 +1,11 @@
+{
+  "id": "countdown-lease-expiry",
+  "request": "how many days until the lease is up? stick it somewhere we can all see",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "countdown",
+    "why": "\"how many days until X\" is a question a chat message could answer once, and the second clause is what makes it a surface: the user asks for it to stay visible and stay correct."
+  },
+  "notes": "Deliberately built as the mirror of oos-weather-saturday. The first clause of both is a one-shot question; only this one asks for the answer to be kept."
+}

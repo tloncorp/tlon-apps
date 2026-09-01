@@ -1,0 +1,14 @@
+{
+  "channel": "chat/~zod/dash-fixture",
+  "group": "~zod/surface-fixtures",
+  "changed": true,
+  "outcome": "published",
+  "specRevision": 1,
+  "previousRevision": null,
+  "uploaded": true,
+  "preserveState": false,
+  "byteIdentical": false,
+  "observed": "the channel description was read back and carries exactly this definition",
+  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "size": 4321
+}

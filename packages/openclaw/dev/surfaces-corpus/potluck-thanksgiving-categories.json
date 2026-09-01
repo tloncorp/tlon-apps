@@ -1,0 +1,10 @@
+{
+  "id": "potluck-thanksgiving-categories",
+  "request": "signup sheet for thanksgiving — mains, sides, desserts, drinks",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "potluck",
+    "why": "Explicit categories supplied in the sentence, so the clarifying question the skill allows is not needed. A run that asks one anyway is spending a turn it measurably cannot afford."
+  }
+}

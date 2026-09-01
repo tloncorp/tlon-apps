@@ -1,0 +1,13 @@
+{
+  "id": "expense-beach-trip",
+  "request": "who owes what for the beach trip",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "expense-split",
+    "why": "The second of 6a's two reproducible routing failures — it never reached the surfaces skill at all. Like poll-movie-night, it is in the corpus as a named regression rather than as a fresh case."
+  },
+  "pairedWith": "poll-movie-night",
+  "notes": "This request also produced the app that shipped inert twice: published with no member action, so nobody could add an expense. The expense-split template is specified as the counter-exemplar, and rubric check 8 is what catches a repeat."
+}

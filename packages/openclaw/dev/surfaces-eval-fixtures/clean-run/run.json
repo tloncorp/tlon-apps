@@ -1,0 +1,8 @@
+{
+  "label": "fixture-clean",
+  "note": "The both-directions half of the harness negative control: a run whose evidence is internally consistent and whose app passes. Without it, \"the broken run scored broken\" is compatible with a scorer that scores everything broken.",
+  "issuedRequests": [
+    "poll-movie-night",
+    "oos-weather-saturday"
+  ]
+}

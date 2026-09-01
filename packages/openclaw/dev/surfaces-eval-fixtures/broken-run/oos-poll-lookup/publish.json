@@ -1,0 +1,14 @@
+{
+  "channel": "chat/~zod/dash-lookup",
+  "group": "~zod/surface-fixtures",
+  "changed": true,
+  "outcome": "published",
+  "specRevision": 1,
+  "previousRevision": null,
+  "uploaded": true,
+  "preserveState": false,
+  "byteIdentical": false,
+  "observed": "the channel description was read back and carries exactly this definition",
+  "sha256": "871ec34c1a35a991db65f42ed79ef0bc327d4fca9b6e8aeb6a2289a6fc7ed2aa",
+  "size": 4824
+}

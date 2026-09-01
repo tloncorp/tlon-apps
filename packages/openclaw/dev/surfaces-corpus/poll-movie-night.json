@@ -1,0 +1,13 @@
+{
+  "id": "poll-movie-night",
+  "request": "poll for Friday movie night — three options",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "poll",
+    "why": "A poll is the canonical surface. This exact sentence routed AWAY twice in 6a on two independent samples, which is why it is first in the corpus: it is the regression the SKILL.md description rewrite was aimed at, and the corpus is where that fix is either confirmed or not."
+  },
+  "pairedWith": "oos-poll-lookup",
+  "notes": "Paired with oos-poll-lookup, which carries the same trigger word and must route away. Holding the word constant across the pair is what stops a routing improvement from being read off a change that just made \"poll\" magnetic."
+}

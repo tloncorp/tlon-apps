@@ -1,0 +1,11 @@
+{
+  "id": "expense-airbnb-four-ways",
+  "request": "split the airbnb four ways and show who still owes me",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "expense-split",
+    "why": "An even split with a per-member settled marker. \"still owes me\" is a derived view from the perspective of one member, and render never knows who is viewing — so the app has to show every pair, not \"you\"."
+  },
+  "notes": "The render-never-knows-the-viewer rule is easy to violate here and invisible to the gate, because an app that says \"you owe\" renders perfectly well. Rubric check 7."
+}
