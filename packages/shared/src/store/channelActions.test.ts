@@ -9,6 +9,7 @@ import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import {
   canGroupHostBuckets,
   createChannel,
+  deleteChannel,
   joinGroupChannel,
   leaveGroupChannel,
   markChannelRead,
@@ -812,4 +813,62 @@ test('markChannelRead decrements group count and notify count for notifying mess
     notifyCount: 1,
     updatedAt: 100,
   });
+});
+
+// The optimistic delete cascades through the Bucket's foreign keys, so a
+// refused delete has to put back more than the channel row.
+test('deleteChannel restores a Bucket manifest and its uploads when the host refuses', async () => {
+  const bucketChannelId = 'buckets/~sampel-palnet/files';
+  await insertGroupAndChannel({
+    id: bucketChannelId,
+    group: bucketGroupId,
+    type: 'buckets',
+  });
+  await db.replaceBucketEntries({
+    channelId: bucketChannelId,
+    revision: 7,
+    entries: [
+      {
+        id: 1,
+        parentId: null,
+        name: 'notes.txt',
+        kind: 'file',
+        createdBy: '~zod',
+        createdAt: 1,
+        updatedBy: '~zod',
+        updatedAt: 1,
+        file: {
+          mime: 'text/plain',
+          size: 12,
+          checksum: null,
+          objectKey: 'object-1',
+          status: 'ready',
+        },
+      },
+    ] as unknown as Parameters<typeof db.replaceBucketEntries>[0]['entries'],
+  });
+  await db.upsertBucketUpload({
+    id: 'local-upload-1',
+    channelId: bucketChannelId,
+    parentId: null,
+    name: 'pending.txt',
+    size: 4,
+    progress: 40,
+    state: 'uploading',
+    sessionId: '0vsession',
+    startedAt: 1,
+  });
+
+  vi.spyOn(api, 'sendBucketsAction').mockRejectedValue(
+    new Error('the host refused')
+  );
+  vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+  await deleteChannel({ channelId: bucketChannelId, groupId: bucketGroupId });
+
+  const restored = await db.getBucket({ channelId: bucketChannelId });
+  expect(restored?.revision).toBe(7);
+  expect(restored?.entries.map((entry) => entry.name)).toEqual(['notes.txt']);
+  const uploads = await db.getBucketUploads({ channelId: bucketChannelId });
+  expect(uploads.map((upload) => upload.sessionId)).toEqual(['0vsession']);
 });

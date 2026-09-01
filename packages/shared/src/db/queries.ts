@@ -2093,6 +2093,40 @@ export const deleteBucket = createWriteQuery(
   ['buckets', 'bucketEntries']
 );
 
+/**
+ * Put back what an optimistic channel delete took with it.
+ *
+ * Deleting a channel row cascades through the Bucket's foreign keys, so a
+ * delete the server then refuses would otherwise leave the restored channel
+ * with an empty manifest and no record of the uploads that were running.
+ * Existing rows win: by the time a rollback runs, the subscription may
+ * already have written something newer than this snapshot.
+ */
+export const restoreBucket = createWriteQuery(
+  'restoreBucket',
+  async (
+    {
+      bucket,
+      entries,
+      uploads,
+    }: {
+      bucket: typeof $buckets.$inferInsert;
+      entries: (typeof $bucketEntries.$inferInsert)[];
+      uploads: (typeof $bucketUploads.$inferInsert)[];
+    },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db.insert($buckets).values(bucket).onConflictDoNothing();
+    if (entries.length) {
+      await ctx.db.insert($bucketEntries).values(entries).onConflictDoNothing();
+    }
+    if (uploads.length) {
+      await ctx.db.insert($bucketUploads).values(uploads).onConflictDoNothing();
+    }
+  },
+  ['buckets', 'bucketEntries', 'bucketUploads']
+);
+
 export const upsertBucketUpload = createWriteQuery(
   'upsertBucketUpload',
   async (upload: typeof $bucketUploads.$inferInsert, ctx: QueryCtx) => {

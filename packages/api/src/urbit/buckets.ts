@@ -199,9 +199,24 @@ export type BucketsUploadGrant = {
   expiresAt: string;
 };
 
+/**
+ * One object a delete unlinked, and the grant to remove it from storage.
+ *
+ * The host answers a delete with the whole set it removed rather than the
+ * requester asking per entry beforehand, so a file published between reading
+ * the manifest and the delete landing is still reachable to clean up.
+ */
+export type BucketsDeleteGrant = {
+  token: string;
+  entryId: number;
+  object: string;
+  expiresAt: string;
+};
+
 export type BucketsResponseBody =
   | { ok: null }
   | { grant: BucketsGrant }
+  | { deleted: BucketsDeleteGrant[] }
   | { upload: BucketsUploadGrant }
   | { token: BucketsReadToken }
   | { pending: null }

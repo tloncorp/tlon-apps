@@ -1899,6 +1899,19 @@
   =/  ids=(set @ud)  (descendants st id)
   ?.  ?|(recursive =(1 ~(wyt in ids)))
     (answer [%error %invalid-input 'folder is not empty'])
+  ::  Answer with a grant for every object being unlinked, rather than leaving
+  ::  the requester to ask for them one at a time beforehand. What it saw and
+  ::  what we remove are not the same set once anyone else is writing, and the
+  ::  difference is exactly the file whose bytes nothing would be left to
+  ::  reach. Minting is local, so the whole subtree costs one event.
+  =/  grants=(list delete-grant:b)
+    (delete-grants st ids (add now.bowl object-window))
+  =.  object-capabilities
+    %-  ~(gas by object-capabilities)
+    %+  turn  grants
+    |=  gra=delete-grant:b
+    [token.gra [%delete flag `entry-id.gra actor expires-at.gra]]
+  =.  cor  (answer [%deleted grants])
   =.  entries.st
     %-  ~(rep in ids)
     |=  [key=@ud acc=_entries.st]
@@ -1918,6 +1931,27 @@
         ==
     ==
   (commit-update flag st [%entries-deleted ~(tap in ids)] actor)
+::
+::  +delete-grants: a delete grant for every ready object among .ids.
+::
+::  Each token mixes in the entry id: +eny is one value per event, so tokens
+::  minted from it alone would be N copies of the same token.
+::
+::  The capability each one authorizes is derived from the grant at the call
+::  site rather than built here, so the two cannot describe different objects.
+::
+++  delete-grants
+  |=  [st=bucket-state:b ids=(set @ud) expiry=@da]
+  ^-  (list delete-grant:b)
+  %+  murn  ~(tap in ids)
+  |=  eid=@ud
+  ^-  (unit delete-grant:b)
+  ?~  got=(~(get by entries.st) eid)  ~
+  =/  ent=entry:b  u.got
+  ?.  ?=(%file -.kind.ent)  ~
+  =/  fil=file:b  +.kind.ent
+  ?.  =(%ready status.fil)  ~
+  `[(scot %uv `@uv`(shas eid eny.bowl)) eid object-key.fil expiry]
 ::
 ::  +commit-update: bump the revision, stamp attribution on the bucket, and
 ::  broadcast. The actor is passed in rather than read from src.bowl, which on
