@@ -3468,3 +3468,192 @@ transcript is an audit that will be lost, and this project has now lost two.)
   `docker-compose.test.yml` both derive the project name from the `dev`
   directory and silently recreate each other's `dev-openclaw-1`. The 6a stack
   carries an explicit name; those two still collide.
+
+## Session 6a.5 — fixing the loop, then re-running the measurement
+
+- **D112: a plugin's own skills cannot be delivered by symlinking the package
+  into the plugin.** Core resolves each `skills[]` entry in
+  `openclaw.plugin.json` against the plugin root and drops any whose
+  **realpath** leaves it, and separately requires each `SKILL.md` to be a
+  regular file by `lstat`. `dev/build-local-skill-override.sh` mirrored the
+  `@tloncorp/api` override — a plain symlink to the bind-mounted checkout — so
+  both declared skills were silently dropped on **every** turn, in both build
+  modes, since the manifest started declaring them. Not conditional on the 6a
+  setup: `docker-compose.yml` is affected too, so the real dev bot ran with no
+  `tlon` and no `surfaces` skill and `SKILL.md`'s links into `references/`
+  dead. The only signal was two `warn` lines per turn; the visible symptom was
+  the bot answering a surface request with a markdown table and making no tool
+  calls. **The rule: a symlink is right for a dependency consumed by Node's
+  resolver, which follows links, and wrong for one consumed by a
+  path-containment check, which rejects them.** The two overrides in `dev/` sit
+  side by side and are not symmetric.
+
+- **D113: the run-timeout default was a second hand-maintained copy of a
+  production constant, not a stale config value.** The 6a.5 brief's diagnosis
+  — a stale `runTimeoutMs` the dev entrypoint re-copies — is wrong, and the
+  artifacts say so: `tlonbot/openclaw.json` has no `channels.tlon.lifecycle`
+  and no `agents.defaults.timeoutSeconds`, and neither does the config written
+  into the container. Nothing was copied because nothing was set.
+
+  The 120s came from `DEFAULT_RUN_TIMEOUT_MS` in
+  `packages/openclaw/src/monitor/dispatch-timeouts.ts`, applied precisely when
+  the key is absent. Production never reaches that branch, because
+  `tlawn.py` **writes** `runTimeoutMs` (300_000, migrating anything still on
+  120_000/240_000). **So the drift class is not "a config value went stale". It
+  is one value with two hand-maintained definitions in two repositories, only
+  one of which is ever exercised** — ours was free to rot for exactly as long
+  as nobody measured against it. 6a is that drift realized: four runs at
+  117.0/116.4/109.7/99.2s and one killed at 122.7s, all read as a loop
+  scraping its ceiling, against a deployed ceiling 2.5x larger.
+
+  The gap that let it survive is worth naming separately: the pre-existing test
+  passed `runTimeoutMs` in explicitly and so never exercised the default, while
+  the compaction test one case below *does* cover its own absent-key path.
+
+  Confirmed in the container rather than from the edit — recreated, source and
+  dist both `300_000`, the line 6a logged as `timeoutMs=120000` now reading
+  `300000`, and the kill point moved to **300.104s**. **The Hermes timeout
+  column is unverified**; nothing executed the Hermes adapter.
+
+- **D114: `channels update`/`rename` refuse to unpublish a surface app without
+  saying so.** `updateChannelMeta` rebuilt the description cell from the two
+  fields it knew, so any metadata edit replaced the payload wholesale —
+  measured pre-fix, the write emitted `{"description":"Beach fund"}` and
+  nothing else. `rename` shares that path, so a title-only edit was
+  unpublishing too. Both now refuse on a channel carrying a `surfaceSpec`
+  unless `--allow-unpublish` is passed, and when it is, the command names the
+  app it destroyed. The gate keys on **presence, not schema validity** — an
+  unreadable definition is still a definition the write erases.
+
+  Consequence worth naming: there is now no CLI path to retitle a dashboard,
+  since `surface publish` does not write `meta.title`. That never worked —
+  renaming destroyed the app — so nothing functional was removed.
+
+  **Residuals:** this gates the CLI only, since the cell is ordinary
+  group-channel metadata other clients can write; and it refuses rather than
+  repairs, where `StructuredChannelDescriptionPayload.applyMetadataEdit` would
+  preserve the spec and every unknown key losslessly and retire the flag.
+
+- **D115: `channels info` may not report `(none)` over a payload.** The cell has
+  three states, not two, and all three rendered identically. In 6a's revision
+  phase the bot ran `channels info` looking for the app and was told there was
+  nothing there while the spec sat in that field.
+
+- **D116: doctrine may not instruct a capability that does not exist — with a
+  stated limit.** A test parses `SKILL.md` and `PARADIGM.md` for every
+  `surface <sub>` reference and asserts each exists in the registry, with a
+  non-vacuity floor on the scan's yield. **Scope, because it is easy to
+  overclaim: this would NOT have caught the incident that prompted it.** The
+  offending instruction — *"read it back instead of re-deriving intent"* —
+  named no subcommand. The check closes the adjacent class; "instructs a read,
+  names no reader" remains uncovered by anything.
+
+- **D117: what wins skill routing is the tool schema, not the skill
+  description.** Two 6a requests bypassed the surfaces skill although its
+  description named both phrasings. Read from the container's own record: the
+  skill index is 5,610 chars for fifteen skills, `surfaces` getting 749,
+  against **25,834 chars of tool schema**, of which `message` alone is 5,942
+  with 108 properties. For "poll", the winner was those parameters — a
+  directly-callable tool advertising nine `poll*` fields outranks a skill whose
+  description costs a `read` to act on. For "who owes what", the winner was the
+  sentence's shape as a question plus the description's own closing exclusion,
+  which disclaimed exactly that phrasing. Verified with the competitor held
+  constant **and proven constant** (message's schema hashes byte-identical
+  across the change; only the surfaces block moved, 749 → 1283), in both
+  directions, plus an adjacent lookup sharing the new vocabulary that still
+  routes elsewhere — the check against a description that claims everything and
+  therefore routes nothing.
+
+- **D118: the announce loop was core's, and the model was right.** 28/28
+  rejections. The model's reasoning recorded that `"poll"` was not in the enum
+  it was given; **that belief is true** — hash-verified, the enum is
+  `["send","react","delete","reply"]`. So core's error instructs an action its
+  own schema withholds: unsatisfiable by construction. Three defects in one
+  tool: poll *parameters* are advertised whenever the action list is not
+  exactly `["send"]`, ungated by any capability (unlike presentation and
+  delivery-pin in the same function); `hasPollCreationParams` reads
+  `pollDurationHours: 1` — the value a field-filling model supplies for a
+  schema whose `minimum` is 1 — as explicit intent; and the error is
+  unsatisfiable. Core is a separate product and out of scope; the
+  accommodation is doctrinal (announce via `posts send`, nest from
+  `channels all`). The plugin-side alternative was **declined**: the schema
+  contribution is scoped `current-channel` and would strip Discord's working
+  poll params from Tlon-sourced turns.
+
+- **D119: the rubric is enforced by refusal, not by doctrine.** 6a scored the
+  rubric zero times across six runs that reached preview; `surface rubric` ran
+  in three of them and changed nothing. `surface publish` now requires
+  `--rubric`: one observation per capture cell, one verdict per check citing a
+  cell. **Twelve and seven, not one or the other** — the measured failure was
+  cells never opened, but a repair only ever comes out of a check. The
+  validator checks completeness and identity, never content: a keyword
+  heuristic is one synonym from useless and a length rule rejects accurate
+  short notes. One structural rule compares strings to each other rather than
+  judging them — twelve identical observations are refused. The sheet is bound
+  to the bundle's sha256, so a repair round costs a full re-preview and
+  re-score, deliberately.
+
+  **Its exact limit, observed live on the first enforced run set:** completeness
+  cannot distinguish a looked-at cell from a written-about one. One run opened
+  11 of 12 captures and wrote an observation for the twelfth anyway.
+
+- **D120: a failed definition lookup is a failed publish.** The prompt asked to
+  remove a generic-file fallback; **there is none in the CLI** — that was the
+  model reaching for files in its own working directory. What existed was
+  worse: the `surfaceId` guard is `if (current && …)` and `current` is null on
+  both "never published" and "published, unreadable", so on a channel whose
+  definition had stopped validating the guard did not run at all. Reproduced:
+  the potluck bundle published onto the kanban channel at revision 1, exit 0,
+  `"ok": true`, orphaning the board's records. 6a's cross-app attempt was
+  refused only because that channel happened to hold a *readable* definition.
+  Publishing over an unreadable definition now refuses; the guard is now a line
+  that always runs.
+
+- **D121: the machine defect pass is a mechanical floor, and says so.** Preview
+  measures viewport overflow, tap-target geometry and jargon over rendered text
+  across all twelve cells and prints a concrete defect list — because 6a's one
+  run that repaired against visual feedback did so when a tool handed it a list
+  of concrete defects. It prints what it did **not** check on every run
+  including clean ones; a cell the probe could not measure is reported as
+  unmeasured, never as clean; and defects do not change preview's exit code,
+  since that answers "did the preview run". Thresholds are grounded in the
+  shell's own values rather than invented.
+
+- **D122: two harness preflights, and why they had to be unskippable.**
+  `surfaces-run.sh` is the only documented way to send a measurement prompt and
+  runs both preflights first with no skip flag — a preflight nobody invokes is
+  the same defect one level up. They assert the runtime model accepts image
+  input (D111's catalog trap) and that the system prompt lists the `surfaces`
+  skill (D112's discriminating assertion, since file existence proves nothing
+  when the bug is that existing things are rejected). Both are demonstrated
+  failing against **recorded real** bad conditions rather than mocks. The
+  refusal path initially exited 0 — `if ! node …; then status=$?` captures the
+  negated status — found by demonstrating the refusal rather than reading it.
+
+### The 6a.5 measurement, and what it does and does not settle
+
+- **The doctrine change took.** Read-back went from 0/8 turns to **5/5**;
+  `recipe` returned in 5/5 against 1/8 by accident. Line survival went from
+  25–48% to **97–98%**. Announce went from 0/28 to 2/2. Unrecoverable failures
+  went from 2 to 0. The rubric went from four sentences across six runs to
+  48 cell observations and 28 check notes across four publishes.
+
+- **The 2×2 has an empty regeneration column — and it still does not settle the
+  format question.** Four of the five revision requests were **already
+  satisfied** before the run, because 6a's own revisions had landed them; the
+  loop was rarely put in a position where regenerating was tempting. The
+  regeneration cell is empty on five observations, **none of which were
+  forced**. The strongest single data point is the kanban rename: a genuinely
+  new requirement, a one-line edit that changed a column's label while keeping
+  its `id`, so all twelve `move-*-doing` actions and every card key stayed
+  valid.
+
+- **The rigorous loop fits the deployed budget.** 100–130s measured against
+  300s, model latency 80–106s of it — roughly half the 200–250s modelled. 6a's
+  "the loop cannot afford to be more rigorous than it is" was a statement about
+  the 120s dev artefact, not about production.
+
+- **Question C is answered "did not recur", with a caveat that matters.**
+  Nothing failed in this session, so the truthful-lifecycle path was never
+  re-exercised under stress. Establishing whether the wrong-picture outcome was
+  cap-coupled needs a run that is *made* to fail.
