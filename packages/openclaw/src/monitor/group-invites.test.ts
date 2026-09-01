@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Foreigns } from '../urbit/foreigns.js';
 import {
   type GroupInviteDeps,
+  clearErroredMarkers,
   createCatchUpRunner,
   parseForeignsSnapshot,
   processPendingForeigns,
@@ -174,6 +175,107 @@ describe('processPendingForeigns', () => {
     );
 
     expect(deps.queueApproval).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconsiders an auto-accepted join that later errored, on the sweep', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+    });
+    const foreigns = makeForeign('~host/garden', '~owner', {
+      progress: 'error',
+    });
+
+    // The catch-up sequence: sweep the errored markers, then process.
+    clearErroredMarkers(foreigns, deps.processedGroupInvites);
+    await processPendingForeigns(foreigns, deps);
+
+    // The accept poke acked but the backend join failed; the sweep makes the
+    // flag a live decision again rather than suppressed until restart.
+    expect(deps.acceptInvite).toHaveBeenCalledWith('~host/garden');
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+  });
+
+  it('leaves an errored marked flag suppressed on the live path (no sweep)', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+    });
+
+    await processPendingForeigns(
+      makeForeign('~host/garden', '~owner', { progress: 'error' }),
+      deps
+    );
+
+    // A persistently-failing join emits a fresh error fact per attempt;
+    // retrying on each would poke %groups at its own failure rate. Live facts
+    // leave the marker; only the reconciliation sweep clears it.
+    expect(deps.acceptInvite).not.toHaveBeenCalled();
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+  });
+
+  it('clears the marker on an error even with no valid invite', () => {
+    const processed = new Set(['~host/garden']);
+
+    clearErroredMarkers(
+      makeForeign('~host/garden', '~owner', {
+        progress: 'error',
+        valid: false,
+      }),
+      processed
+    );
+
+    // The processor would exit at the invites check, but the flag must be
+    // actionable again for the observation that carries a valid invite.
+    expect(processed.has('~host/garden')).toBe(false);
+  });
+
+  it('clears only errored flags in the sweep', () => {
+    const processed = new Set(['~host/garden', '~host/kitchen']);
+
+    clearErroredMarkers(
+      {
+        ...makeForeign('~host/garden', '~owner', { progress: 'error' }),
+        ...makeForeign('~host/kitchen', '~owner', { progress: 'join' }),
+      },
+      processed
+    );
+
+    expect(processed.has('~host/garden')).toBe(false);
+    expect(processed.has('~host/kitchen')).toBe(true);
+  });
+
+  it('re-decides and re-marks a confirmed-blocked flag when the join errors', async () => {
+    const deps = makeDeps({
+      processedGroupInvites: new Set(['~host/garden']),
+      allowlist: () => ['~inviter'],
+      fetchBlockedShips: vi.fn().mockResolvedValue(['~inviter']),
+    });
+    const foreigns = makeForeign('~host/garden', '~inviter', {
+      progress: 'error',
+    });
+
+    clearErroredMarkers(foreigns, deps.processedGroupInvites);
+    await processPendingForeigns(foreigns, deps);
+
+    // Bounded cost: one batch-memoized block-list read, no owner card.
+    expect(deps.fetchBlockedShips).toHaveBeenCalledTimes(1);
+    expect(deps.processedGroupInvites.has('~host/garden')).toBe(true);
+    expect(deps.queueApproval).not.toHaveBeenCalled();
+  });
+
+  it('queues with no title when the invite preview title is not a string', async () => {
+    const deps = makeDeps();
+    const foreigns = makeForeign('~host/group', '~stranger');
+    // Remote-inviter-controlled and only type-asserted on the way in.
+    (
+      foreigns['~host/group'].invites[0].preview!.meta as { title: unknown }
+    ).title = 7;
+
+    await processPendingForeigns(foreigns, deps);
+
+    expect(deps.queueApproval).toHaveBeenCalledWith({
+      requestingShip: '~stranger',
+      groupFlag: '~host/group',
+    });
   });
 
   it('stays silent for foreigners without invites (previews/joins-in-progress)', async () => {

@@ -271,6 +271,22 @@ def parse_foreigns(payload: Any) -> list[dict[str, str]]:
     return invites
 
 
+def error_progress_flags(payload: Any) -> list[str]:
+    """Group flags in a %groups foreigns map whose join ended in an error.
+
+    Kept separate from ``parse_foreigns`` because a foreign whose invite list
+    is empty or invalid yields nothing there, and the errored flag still has to
+    become actionable again.
+    """
+    if not isinstance(payload, Mapping):
+        return []
+    return [
+        str(flag)
+        for flag, foreign in payload.items()
+        if isinstance(foreign, Mapping) and foreign.get("progress") == "error"
+    ]
+
+
 def parse_dm_allowlist(value: Any) -> set[str]:
     if not isinstance(value, list):
         return set()

@@ -37,6 +37,30 @@ export function parseForeignsSnapshot(raw: unknown): Foreigns {
   throw new Error('Malformed foreigns snapshot: expected a flag→foreign map');
 }
 
+/**
+ * Un-suppress joins that errored after their accept acked, so the next
+ * processor run reconsiders them.
+ *
+ * Called only from the reconciliation sweeps (post-connect and the 2-minute
+ * catch-up), never on live facts: a persistently-failing backend join emits a
+ * fresh error fact per attempt, so a live-path clear would retry at whatever
+ * rate %groups can fail — an unbounded join-poke loop. Sweep-only clearing
+ * bounds the retry cadence to one attempt per sweep.
+ */
+export function clearErroredMarkers(
+  foreigns: Foreigns,
+  processedGroupInvites: Set<string>
+): void {
+  if (!foreigns || typeof foreigns !== 'object') {
+    return;
+  }
+  for (const [groupFlag, foreign] of Object.entries(foreigns)) {
+    if (foreign.progress === 'error') {
+      processedGroupInvites.delete(groupFlag);
+    }
+  }
+}
+
 export async function processPendingForeigns(
   foreigns: Foreigns,
   deps: GroupInviteDeps
@@ -121,11 +145,17 @@ export async function processPendingForeigns(
     }
 
     if (decision.action === 'queue') {
+      // The preview title is remote-inviter-controlled and never crosses the
+      // settings parser, so its type is asserted, not checked: a non-string
+      // would reach the record and throw at first-notify time.
+      const previewTitle = validInvite.preview?.meta?.title;
       // Do NOT mark processed — suppression/retry live in the approval record.
       await deps.queueApproval({
         requestingShip: inviterShip,
         groupFlag,
-        groupTitle: validInvite.preview?.meta?.title,
+        ...(typeof previewTitle === 'string'
+          ? { groupTitle: previewTitle }
+          : {}),
       });
       continue;
     }

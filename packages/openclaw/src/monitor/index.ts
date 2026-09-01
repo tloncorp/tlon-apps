@@ -144,6 +144,7 @@ import {
   normalizeNotificationId,
   pruneExpired,
   removePendingApproval,
+  runBanAction,
 } from './approval.js';
 import {
   handleChannelReaction,
@@ -168,6 +169,7 @@ import { dmReactionReplyParentId } from './dm-reactions.js';
 import {
   type GroupInviteDeps,
   createCatchUpRunner,
+  clearErroredMarkers,
   parseForeignsSnapshot,
   processPendingForeigns,
 } from './group-invites.js';
@@ -1646,15 +1648,17 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
 
-    // Helper to remove ship from dmAllowlist in both memory and settings store
-    async function removeFromDmAllowlist(ship: string): Promise<void> {
+    // Helper to remove ship from dmAllowlist in both memory and settings store.
+    // Returns false when the settings write failed (the in-memory entry is
+    // restored so a retry re-attempts the write).
+    async function removeFromDmAllowlist(ship: string): Promise<boolean> {
       const normalizedShip = normalizeShip(ship);
       const before = effectiveDmAllowlist.length;
       effectiveDmAllowlist = effectiveDmAllowlist.filter(
         (s) => s !== normalizedShip
       );
       if (effectiveDmAllowlist.length === before) {
-        return; // Ship wasn't on the list
+        return true; // Ship wasn't on the list — nothing to revoke
       }
       try {
         await api!.poke({
@@ -1671,8 +1675,14 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         });
         runtime.log?.(`[tlon] Removed ${normalizedShip} from dmAllowlist`);
       } catch (err) {
+        // Memory must not claim a revocation the store still grants: restoring
+        // the entry keeps a retried /ban re-attempting the write instead of
+        // early-returning on the absent ship.
+        effectiveDmAllowlist = [...effectiveDmAllowlist, normalizedShip];
         runtime.error?.(`[tlon] Failed to update dmAllowlist: ${String(err)}`);
+        return false;
       }
+      return true;
     }
 
     // Helper to update channelRules in settings store
@@ -2098,13 +2108,41 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             break;
         }
       } else if (action === 'block') {
-        const blocked = await blockShip(approval.requestingShip);
-        if (!blocked && approval.type === 'group') {
+        const result = await runBanAction(approval, {
+          blockShip,
+          removeFromDmAllowlist,
+          declineInvite: async (groupFlag) => {
+            await api!.poke({
+              app: 'groups',
+              mark: 'invite-decline',
+              json: groupFlag,
+            });
+            runtime.log?.(
+              `[tlon] Declined group invite ${groupFlag} after ban`
+            );
+          },
+        });
+        if (result.outcome === 'block-failed') {
           // The record is the invite's suppression, so dropping it after a
           // failed block re-queues and re-DMs on the next observation.
           return `Could not block ${approval.requestingShip}: block failed. Request stays pending, try again.`;
         }
-        await removeFromDmAllowlist(approval.requestingShip);
+        if (result.outcome === 'revoke-failed') {
+          // The in-memory entry was restored by the helper; the retained
+          // record is what lets a retry re-attempt the settings write.
+          return `Blocked ${approval.requestingShip}, but could not revoke its DM access. Request stays pending, try again.`;
+        }
+        if (result.outcome === 'decline-failed') {
+          capturePluginError('group_invite_decline', result.error, {
+            errorKind: 'ban_decline_failed',
+          });
+          runtime.error?.(
+            `[tlon] Failed to decline group invite ${approval.groupFlag} after ban: ${String(result.error)}`
+          );
+          // The ban landed but the invite is still on the ship; keep the
+          // record so the owner can retry the decline.
+          return `Blocked ${approval.requestingShip}, but could not submit the decline for ${approval.groupFlag}. Request stays pending, try again.`;
+        }
       } else if (
         action === 'deny' &&
         approval.type === 'group' &&
@@ -5494,6 +5532,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             const foreigns = parseForeignsSnapshot(
               await api.scry('/groups/v1/foreigns.json')
             );
+            // Sweep-only: clearing errored markers on live facts would retry
+            // a persistently-failing join at %groups' error-emission rate.
+            clearErroredMarkers(foreigns, processedGroupInvites);
             await processPendingForeigns(foreigns, groupInviteDeps);
           } catch (err) {
             runtime.error?.(

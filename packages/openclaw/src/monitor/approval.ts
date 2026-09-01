@@ -467,6 +467,67 @@ export function mergeApprovalDeliveryState(
 }
 
 // ============================================================================
+// Ban Action (runBanAction)
+// ============================================================================
+
+export type BanActionDeps = {
+  /** False on submission failure (see blockShip). */
+  blockShip: (ship: string) => Promise<boolean>;
+  /**
+   * Persists the revocation; false when the write failed (the caller's
+   * in-memory entry is restored so a retry can re-attempt it).
+   */
+  removeFromDmAllowlist: (ship: string) => Promise<boolean>;
+  /**
+   * Rejects on *submission* failure only: the poke resolves from the channel
+   * PUT's status and a later %groups nack is log-only, so this carries no
+   * stronger delivery guarantee than the deny branch's decline.
+   */
+  declineInvite: (groupFlag: string) => Promise<void>;
+};
+
+export type BanActionResult =
+  | { outcome: 'done' }
+  | { outcome: 'block-failed' }
+  | { outcome: 'revoke-failed' }
+  | { outcome: 'decline-failed'; error: unknown };
+
+/**
+ * The /ban side effects in their required order: block the ship, revoke its DM
+ * grant, then decline the group invite.
+ *
+ * The DM revocation runs before the decline so that a block-OK/decline-failed
+ * partial ban has still taken the ship's DM access away — that outcome keeps
+ * the approval record for a retry, and leaving the grant in place until the
+ * retry succeeded would be a live authorization the owner believes is gone.
+ * `done` is the only outcome that may remove the record.
+ */
+export async function runBanAction(
+  approval: PendingApproval,
+  deps: BanActionDeps
+): Promise<BanActionResult> {
+  const blocked = await deps.blockShip(approval.requestingShip);
+  if (!blocked && approval.type === 'group') {
+    return { outcome: 'block-failed' };
+  }
+  const revoked = await deps.removeFromDmAllowlist(approval.requestingShip);
+  if (!revoked && approval.type === 'group') {
+    // Completing anyway would drop the only record through which a retry can
+    // re-attempt the failed revocation write; dm/channel bans stay best-effort
+    // like their block leg.
+    return { outcome: 'revoke-failed' };
+  }
+  if (approval.type === 'group' && approval.groupFlag) {
+    try {
+      await deps.declineInvite(approval.groupFlag);
+    } catch (error) {
+      return { outcome: 'decline-failed', error };
+    }
+  }
+  return { outcome: 'done' };
+}
+
+// ============================================================================
 // Approval Request A2UI
 // ============================================================================
 

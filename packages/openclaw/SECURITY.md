@@ -87,9 +87,17 @@ Suppression invariants: queued invites are never marked in the in-process
 dedup set (it records only auto-accept success and confirmed-blocked); the
 persisted approval record suppresses re-notification once delivered, gates
 retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
-reminder cadence. Catch-up rescries foreigns at connect and on the 2-minute
-poll, and rejecting a group request declines the invite on the ship
-(`%groups` `invite-decline`) — a failed decline keeps the request pending.
+reminder cadence. The reconciliation sweeps (connect and the 2-minute poll)
+clear the dedup marker for a join whose `progress` reached `error`, so a join
+that acked locally but failed on the backend becomes actionable again at a
+bounded cadence — live error facts leave the marker, because a persistently
+failing join would otherwise retry at %groups' own error-emission rate.
+Catch-up rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
+declines the invite on the ship (`%groups` `invite-decline`), and banning the
+inviter blocks the ship, revokes its DM grant, and then declines the same way —
+a block, DM-revocation write, or decline the client could not submit keeps the
+request pending (a poke resolves on the channel PUT alone, so a later `%groups`
+nack is log-only and does not retain the record).
 
 **Why This Matters:**
 Malicious actors could invite the bot to groups containing:
@@ -204,7 +212,10 @@ _Note: Not currently enforced — future enhancement._
 | `dmAllowlist`          | Must be array of strings                |
 | `groupInviteAllowlist` | Must be array of strings                |
 | `channelRules`         | Must match schema (mode + allowedShips) |
+| `pendingApprovals`     | Per-record sanitization (see below)     |
 | Boolean settings       | Must be actual booleans                 |
+
+**`pendingApprovals` sanitization:** `id`, `type`, `requestingShip` and `timestamp` must type-check, and a `group`/`channel` record must carry a non-empty-string `groupFlag`/`channelNest` — otherwise the whole record is dropped, because approval execution gates on a truthy locator and then removes the record either way (a locator-less record would report success while doing nothing). A present-but-mistyped `groupTitle`, `messagePreview`, `notificationMessageId` (non-string) or `notifyAttemptAt` (non-number) drops only that field. Unknown fields round-trip untouched — the hermes runtime writes its own delivery stamps onto the same shared record.
 
 **Hot-Reload Safety:**
 

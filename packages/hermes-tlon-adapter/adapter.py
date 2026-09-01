@@ -48,6 +48,7 @@ from .approval import (
     build_approval_card,
     build_pending_approvals_response,
     create_pending_approval,
+    error_progress_flags,
     find_approval,
     find_duplicate,
     format_approval_request,
@@ -1040,8 +1041,8 @@ class TlonAdapter(BasePlatformAdapter):
         self._settings_loaded = False
         self._pending_approvals: list[dict[str, Any]] = []
         self._settings_dm_allowlist: set[str] = set()
-        self._settings_group_invite_allowlist: set[str] = set(
-            self.tlon_config.group_invite_allowlist
+        self._settings_group_invite_allowlist: set[str] = (
+            self._env_group_invite_allowlist()
         )
         self._channel_rules: dict[str, dict[str, Any]] = {}
         self._processed_dm_invites: set[str] = set()
@@ -1268,6 +1269,22 @@ class TlonAdapter(BasePlatformAdapter):
             default_all=self.tlon_config.owner_listen_default == "all",
         )
 
+    def _env_group_invite_allowlist(self) -> set[str]:
+        return set(self.tlon_config.group_invite_allowlist)
+
+    def _resolve_group_invite_allowlist(self, value: Any) -> set[str]:
+        """Resolve a %settings groupInviteAllowlist value to the live set.
+
+        A list — including an empty one — is an owner-authored override, parsed
+        strictly so malformed entries cannot broaden authorization. Anything
+        else (key absent, deleted, or malformed) is not an override and reverts
+        to the env default, matching openclaw's
+        ``settings.groupInviteAllowlist ?? account.groupInviteAllowlist``.
+        """
+        if not isinstance(value, list):
+            return self._env_group_invite_allowlist()
+        return parse_ship_list(value)
+
     def _is_owner(self, ship: str) -> bool:
         owner = self.tlon_config.owner_ship
         return bool(owner) and normalize_ship(ship) == owner
@@ -1376,10 +1393,11 @@ class TlonAdapter(BasePlatformAdapter):
             self._settings_dm_allowlist = parse_dm_allowlist(
                 bucket.get(SETTINGS_KEY_DM_ALLOWLIST)
             )
-            if SETTINGS_KEY_GROUP_INVITE_ALLOWLIST in bucket:
-                self._settings_group_invite_allowlist = parse_dm_allowlist(
+            self._settings_group_invite_allowlist = (
+                self._resolve_group_invite_allowlist(
                     bucket.get(SETTINGS_KEY_GROUP_INVITE_ALLOWLIST)
                 )
+            )
             self._channel_rules = parse_channel_rules(bucket.get(SETTINGS_KEY_CHANNEL_RULES))
             self._settings_default_authorized_ships = parse_ship_list(
                 bucket.get(SETTINGS_KEY_DEFAULT_AUTHORIZED_SHIPS)
@@ -1583,7 +1601,9 @@ class TlonAdapter(BasePlatformAdapter):
             self._settings_dm_allowlist = parse_dm_allowlist(event.value)
             return
         if event.key == SETTINGS_KEY_GROUP_INVITE_ALLOWLIST:
-            self._settings_group_invite_allowlist = parse_dm_allowlist(event.value)
+            self._settings_group_invite_allowlist = (
+                self._resolve_group_invite_allowlist(event.value)
+            )
             return
         if event.key == SETTINGS_KEY_CHANNEL_RULES:
             self._channel_rules = parse_channel_rules(event.value)
@@ -1833,6 +1853,43 @@ class TlonAdapter(BasePlatformAdapter):
             await self._load_settings_state()
         now_ms = time.time() * 1000.0
         self._pending_approvals = prune_expired(self._pending_approvals, now_ms)
+        # Groups dedup on the flag alone, so the no-op exits can be taken from a
+        # direct lookup — no candidate needed. DM/channel dedup needs the built
+        # candidate and so stays behind the scry.
+        existing = (
+            find_duplicate(
+                self._pending_approvals,
+                {"type": "group", "groupFlag": group_flag},
+            )
+            if approval_kind == "group"
+            else None
+        )
+        if existing is not None:
+            # Delivered => never re-DM while the record lives; undelivered
+            # (including legacy lastNotifiedAt-only records) re-notifies
+            # under the cooldown until a send lands. Persisted JSON can
+            # carry a junk marker, so only a real stamp suppresses.
+            delivered = existing.get("notificationDeliveredAt")
+            if (
+                isinstance(delivered, (int, float))
+                and not isinstance(delivered, bool)
+                and math.isfinite(delivered)
+            ):
+                return
+            try:
+                last_notified = float(existing.get("lastNotifiedAt"))
+            except (TypeError, ValueError):
+                last_notified = 0.0
+            if not math.isfinite(last_notified):
+                # An inf stamp reads as "attempted in the future" and would
+                # suppress every retry for the record's whole life.
+                last_notified = 0.0
+            if now_ms - last_notified < RENOTIFY_COOLDOWN_MS:
+                return
+        # Every path past here sends the owner a DM or creates a record, so the
+        # blocked-list scry runs only when an action is imminent — a no-op
+        # re-observation of a suppressed group approval must not cost a 30s-
+        # worst-case scry per observation.
         if await self._is_ship_blocked(requesting_ship):
             logger.info(
                 "[tlon] ignoring request from blocked ship %s", requesting_ship
@@ -1849,30 +1906,10 @@ class TlonAdapter(BasePlatformAdapter):
             message_preview=message_preview,
             original_message=original_message,
         )
-        existing = find_duplicate(self._pending_approvals, candidate)
+        if approval_kind != "group":
+            existing = find_duplicate(self._pending_approvals, candidate)
         if existing is not None:
             if approval_kind == "group":
-                # Delivered => never re-DM while the record lives; undelivered
-                # (including legacy lastNotifiedAt-only records) re-notifies
-                # under the cooldown until a send lands. Persisted JSON can
-                # carry a junk marker, so only a real stamp suppresses.
-                delivered = existing.get("notificationDeliveredAt")
-                if (
-                    isinstance(delivered, (int, float))
-                    and not isinstance(delivered, bool)
-                    and math.isfinite(delivered)
-                ):
-                    return
-                try:
-                    last_notified = float(existing.get("lastNotifiedAt"))
-                except (TypeError, ValueError):
-                    last_notified = 0.0
-                if not math.isfinite(last_notified):
-                    # An inf stamp reads as "attempted in the future" and would
-                    # suppress every retry for the record's whole life.
-                    last_notified = 0.0
-                if now_ms - last_notified < RENOTIFY_COOLDOWN_MS:
-                    return
                 updated = dict(existing)
                 updated["lastNotifiedAt"] = int(now_ms)
                 if await self._notify_owner_approval(updated):
@@ -2132,14 +2169,22 @@ class TlonAdapter(BasePlatformAdapter):
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
         )
 
-    async def _remove_from_dm_allowlist(self, ship: str) -> None:
+    async def _remove_from_dm_allowlist(self, ship: str) -> bool:
+        """Revoke the DM grant; False when the settings write failed."""
         ship = normalize_ship(ship)
         if ship not in self._settings_dm_allowlist:
-            return
+            return True
         self._settings_dm_allowlist.discard(ship)
-        await self._persist_settings_entry(
+        persisted = await self._persist_settings_entry(
             SETTINGS_KEY_DM_ALLOWLIST, sorted(self._settings_dm_allowlist)
         )
+        if not persisted:
+            # Memory must not claim a revocation the store still grants:
+            # restoring the entry keeps a retried /ban re-attempting the write
+            # instead of early-returning on the absent ship.
+            self._settings_dm_allowlist.add(ship)
+            return False
+        return True
 
     async def _handle_approval_command(
         self,
@@ -2235,8 +2280,12 @@ class TlonAdapter(BasePlatformAdapter):
                         "Request stays pending."
                     )
         elif action == "ban":
-            # %chat's block poke nacks when the ship is already blocked, so a
-            # /ban retried after a failed decline must not re-poke it.
+            # %chat nacks the block poke for an already-blocked ship, but pokes
+            # are fire-and-forget: the nack lands later on the stream and is
+            # only logged, so _block_ship still reports success. This pre-check
+            # only saves the redundant re-poke — a /ban retried after a failed
+            # decline reaches the decline with or without it, including while
+            # the (fail-open) blocked-list scry is down.
             blocked = normalize_ship(ship) in await self._blocked_ships_list()
             if not blocked:
                 blocked = await self._block_ship(ship)
@@ -2245,6 +2294,18 @@ class TlonAdapter(BasePlatformAdapter):
                 # failed block re-queues and re-DMs on the next observation.
                 return (
                     f"Could not block {ship}: block failed. "
+                    "Request stays pending."
+                )
+            # Ahead of the decline: a block-OK/decline-failed partial ban keeps
+            # the record for a retry, and until that retry lands the DM grant
+            # would be a live authorization the owner believes is gone.
+            revoked = await self._remove_from_dm_allowlist(ship)
+            if not revoked and approval_type(approval) == "group":
+                # Completing anyway would drop the only record through which a
+                # retry can re-attempt the failed revocation write; dm/channel
+                # bans stay best-effort like their block leg.
+                return (
+                    f"Blocked {ship}, but could not revoke DM access. "
                     "Request stays pending."
                 )
             if approval_type(approval) == "group":
@@ -2258,7 +2319,6 @@ class TlonAdapter(BasePlatformAdapter):
                         f"Blocked {ship}, but could not decline the invite. "
                         "Request stays pending."
                     )
-            await self._remove_from_dm_allowlist(ship)
         elif action == "reject" and approval_type(approval) == "group":
             # Reject must decline on the ship, or the next observation of the
             # still-pending invite would re-queue it.
@@ -4210,6 +4270,13 @@ class TlonAdapter(BasePlatformAdapter):
         if not isinstance(foreigns, dict):
             logger.debug("[tlon] group-invite catch-up returned no foreigns map")
             return False
+        for flag in error_progress_flags(foreigns):
+            # A join that acked but errored on the backend becomes actionable
+            # again — but only on the catch-up sweep, never on live facts: a
+            # persistently-failing join emits a fresh error fact per attempt,
+            # so a live-path discard would retry at %groups' error-emission
+            # rate. Sweep-only clearing bounds retries to one per (re)connect.
+            self._processed_group_invites.discard(flag)
         await self._handle_foreigns(foreigns)
         return True
 
