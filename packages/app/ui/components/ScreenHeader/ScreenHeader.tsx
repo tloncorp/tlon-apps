@@ -471,7 +471,10 @@ function HeaderAnimatedTitle({
   const spinnerSize = isAndroid ? 10 : 8;
   const spinnerBorderWidth = 1;
   const spinnerGap = 6;
-  const loadingRowWidth = loadingTextMaxWidth + spinnerSize + spinnerGap;
+  const loadingAccessoryWidth = spinnerSize + spinnerGap;
+  const loadingRowWidth =
+    loadingTextMaxWidth +
+    loadingAccessoryWidth * (leftAlignLoadingText ? 1 : 2);
 
   useEffect(() => {
     if (isLoading) {
@@ -515,7 +518,9 @@ function HeaderAnimatedTitle({
       transform: [
         {
           translateX:
-            !leftAlignLoadingText && loadingRowWidth ? -loadingRowWidth / 2 : 0,
+            !isAndroid && !leftAlignLoadingText && loadingRowWidth
+              ? -loadingRowWidth / 2
+              : 0,
         },
         { translateY: loadingTranslateY.value },
       ],
@@ -541,6 +546,32 @@ function HeaderAnimatedTitle({
       justifyContent="center"
       overflow="visible"
     >
+      {isAndroid ? (
+        // Android's native title host clips overflow to the measured child
+        // width, so reserve the loading row's intrinsic width in layout.
+        <View
+          aria-hidden
+          height={0}
+          maxWidth={loadingRowWidth}
+          flexDirection="row"
+          opacity={0}
+          overflow="hidden"
+          pointerEvents="none"
+        >
+          <View width={spinnerSize} marginRight={spinnerGap} />
+          <Text
+            size="$label/s"
+            trimmed={false}
+            numberOfLines={1}
+            maxWidth={loadingTextMaxWidth}
+          >
+            {loadingText}
+          </Text>
+          {!leftAlignLoadingText ? (
+            <View width={loadingAccessoryWidth} />
+          ) : null}
+        </View>
+      ) : null}
       <Text
         size="$label/2xl"
         color="$primaryText"
@@ -555,8 +586,9 @@ function HeaderAnimatedTitle({
           {
             position: 'absolute',
             top: 36,
-            left: leftAlignLoadingText ? 0 : '50%',
-            width: loadingRowWidth,
+            left: isAndroid || leftAlignLoadingText ? 0 : '50%',
+            right: isAndroid ? 0 : undefined,
+            width: isAndroid ? undefined : loadingRowWidth,
             height: 16,
             flexDirection: 'row',
             alignItems: 'center',
@@ -601,6 +633,11 @@ function HeaderAnimatedTitle({
         >
           {loadingText}
         </Text>
+        {!leftAlignLoadingText ? (
+          // Mirror the leading spinner and gap so the text itself, rather
+          // than the spinner-and-text group, stays horizontally centered.
+          <View width={loadingAccessoryWidth} />
+        ) : null}
       </Animated.View>
     </View>
   );
