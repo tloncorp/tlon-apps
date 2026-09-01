@@ -164,15 +164,18 @@ applying the inset by itself, producing a one-frame flash or jump when a
 multiline chat composer first grows.
 
 What it does:
-- Re-publishes the currently observed offset when an
-  `extraContentPadding` change should not shift the content.
+- On iOS Fabric, re-publishes the currently observed offset when an
+  `extraContentPadding` change should not shift the content. The guard keeps
+  the workaround out of Android, web, and the legacy iOS architecture.
 - Emits that offset whenever bottom padding changes, even if its numeric value
   is unchanged, so Reanimated sends the new `contentInset` and a
   `contentOffset` that preserves position in the same animated-props commit.
 
 The app still owns the product behavior: it reports the floating composer
-height to LegendList and uses `whenAtEnd` only on iOS. Android keeps its
-existing `always` lift behavior.
+height to LegendList and uses the shared `whenAtEnd` policy on both platforms.
+Android freezes keyboard-controller's inset path because `adjustResize`
+already shrinks its viewport; iOS supplies the composer inset and performs the
+offset-preserving commit.
 
 Upstream:
 - repo: `kirillzyusko/react-native-keyboard-controller`

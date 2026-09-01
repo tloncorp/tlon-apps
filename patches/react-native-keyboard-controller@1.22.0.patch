@@ -1,14 +1,16 @@
 diff --git a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 --- a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 +++ b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
-@@ -129,6 +129,11 @@ function useExtraContentPadding(options: UseExtraContentPaddingOptions): void {
+@@ -129,6 +129,13 @@ function useExtraContentPadding(options: UseExtraContentPaddingOptions): void {
        }
 
        if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
-+        // On iOS, changing contentInset can move contentOffset even when the
-+        // caller requested no lift. Re-emit the current offset so both values
-+        // land in the same animated-props commit.
-+        scrollToTarget(scroll.value);
++        if (contentOffsetY && IS_FABRIC) {
++          // On iOS Fabric, changing contentInset can move contentOffset even
++          // when the caller requested no lift. Re-emit the current offset so
++          // both values land in the same animated-props commit.
++          scrollToTarget(scroll.value);
++        }
 +
          return;
        }
@@ -51,28 +53,32 @@ diff --git a/src/components/ScrollViewWithBottomPadding/index.tsx b/src/componen
 diff --git a/lib/module/components/KeyboardChatScrollView/useExtraContentPadding/index.js b/lib/module/components/KeyboardChatScrollView/useExtraContentPadding/index.js
 --- a/lib/module/components/KeyboardChatScrollView/useExtraContentPadding/index.js
 +++ b/lib/module/components/KeyboardChatScrollView/useExtraContentPadding/index.js
-@@ -76,6 +76,10 @@ function useExtraContentPadding(options) {
+@@ -76,6 +76,12 @@ function useExtraContentPadding(options) {
        return;
      }
      if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
-+      // On iOS, changing contentInset can move contentOffset even when the
-+      // caller requested no lift. Re-emit the current offset so both values
-+      // land in the same animated-props commit.
-+      scrollToTarget(scroll.value);
++      if (contentOffsetY && IS_FABRIC) {
++        // On iOS Fabric, changing contentInset can move contentOffset even
++        // when the caller requested no lift. Re-emit the current offset so
++        // both values land in the same animated-props commit.
++        scrollToTarget(scroll.value);
++      }
        return;
      }
      if (inverted) {
 diff --git a/lib/commonjs/components/KeyboardChatScrollView/useExtraContentPadding/index.js b/lib/commonjs/components/KeyboardChatScrollView/useExtraContentPadding/index.js
 --- a/lib/commonjs/components/KeyboardChatScrollView/useExtraContentPadding/index.js
 +++ b/lib/commonjs/components/KeyboardChatScrollView/useExtraContentPadding/index.js
-@@ -82,6 +82,10 @@ function useExtraContentPadding(options) {
+@@ -82,6 +82,12 @@ function useExtraContentPadding(options) {
        return;
      }
      if (!(0, _helpers.shouldShiftContent)(keyboardLiftBehavior, atEnd)) {
-+      // On iOS, changing contentInset can move contentOffset even when the
-+      // caller requested no lift. Re-emit the current offset so both values
-+      // land in the same animated-props commit.
-+      scrollToTarget(scroll.value);
++      if (contentOffsetY && _architecture.IS_FABRIC) {
++        // On iOS Fabric, changing contentInset can move contentOffset even
++        // when the caller requested no lift. Re-emit the current offset so
++        // both values land in the same animated-props commit.
++        scrollToTarget(scroll.value);
++      }
        return;
      }
      if (inverted) {
