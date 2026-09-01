@@ -1,14 +1,20 @@
 ---
 name: surfaces
 description: >
-  Build and maintain live mini-apps ("surfaces") in Tlon groups: polls, RSVPs,
-  signup sheets, trackers, leaderboards, countdowns, expense splits, kanban
-  boards, workout logs. Use when the user asks to track, collect, vote on,
-  count, schedule, or coordinate anything with the group — they will say
-  "can we track who's bringing what," not "build me a dashboard." Also use for
-  any change to an existing surface ("add a maybe option", "show who hasn't
-  responded"). Do NOT use for ordinary messages, notes, or one-off questions a
-  chat message answers.
+  Build and maintain live mini-apps ("surfaces") in Tlon groups: polls, votes,
+  RSVPs, signup sheets, trackers, leaderboards, countdowns, expense splits and
+  who-owes-what tallies, kanban boards, workout logs. Use when the user asks to
+  poll, vote, track, collect, count, split, settle up, schedule, or coordinate
+  anything with the group — they will say "poll for Friday movie night",
+  "who owes what for the beach trip", "can we track who's bringing what", not
+  "build me a dashboard". A surface is how Tlon does polls and splits: this
+  channel has no native poll — the message tool's action enum contains no
+  "poll" and its poll* parameters are rejected here — so a poll, a vote, a
+  tally or a "who owes what" is a surface, including when the numbers still
+  have to be worked out from what people report. Also use for any change to an
+  existing surface ("add a maybe option", "show who hasn't responded"). Do NOT
+  use for ordinary messages or notes, or for a one-off question that a single
+  chat message answers and nobody needs kept up to date.
 ---
 
 # Building surfaces
@@ -113,6 +119,22 @@ language: "I don't have permission to add channels here yet."
 8. **Announce in chat** — one short message in a real chat channel saying what
    the surface does and where it is. Surface channels are excluded from unread
    badges and activity summaries, so nothing else tells the group it exists.
+
+   Send it with `tlon posts send <chat-nest> "…" --bot`, where `<chat-nest>` is
+   a `chat/~host/name` the group already has — take it from `tlon channels all`
+   and never guess. A group id (`~zod/surface-seed`) is not a channel; posting
+   to one fails with a raw Hoon stack trace rather than a readable error.
+
+   Do **not** announce with the `message` tool: its schema carries poll
+   parameters this channel cannot honour, and it rejects `action: "send"`
+   whenever any of them is set — which is every call, because a model that
+   fills in each optional field supplies `pollDurationHours: 1` for a field
+   whose schema says `minimum: 1`. The rejection tells you to use
+   `action: "poll"`, and `"poll"` is not in the enum you were given, so the
+   retry cannot succeed: in session 6a this cost 28 attempts, 28 rejections,
+   and one turn killed on the clock. If you land there anyway, stop after the
+   first rejection and use `tlon posts send`.
+
 9. **Revise on feedback. Read the app back first.**
    `tlon surface show <channel> --bundle-out app.js --json` returns the
    definition the channel actually holds — including the `recipe` recording
