@@ -61,13 +61,23 @@ it labels `costs time` before creating one.
 
 ```bash
 cd apps/tlon-mobile
-stim worktree create <name> --carry-ignored   # prints the new absolute path
-cd <printed-path>/apps/tlon-mobile
+stim worktree create <name> --carry-ignored --base origin/develop
+cd <printed-path>/apps/tlon-mobile           # the path the command printed
 
+git checkout -b <your-branch>                # Stim leaves you on worktree-<name>
 stim start
 stim ios
-stim logs --errors                            # exit code 0 is the pass condition
+stim logs --errors                            # exit code 0 is the pass condition,
+                                              # and "No matching log records" on
+                                              # stderr is what a pass looks like
 ```
+
+`stim worktree create` puts you on a branch called `worktree-<name>`. That branch
+is Stim's, not a pull request branch, and it outlives the worktree: creating a
+worktree of the same name later stops with `the branch worktree-<name> already
+exists`, and `git branch -D worktree-<name>` clears it. A create that fails
+partway can leave the branch behind too, so delete it before retrying, or the
+retry attaches to it and `--base` is ignored.
 
 `--carry-ignored` clones every gitignored path, which is what makes the
 worktree usable: `.env.local`, `node_modules`, `packages/editor/dist`, and
@@ -78,8 +88,26 @@ A JavaScript or TypeScript edit needs no rebuild. Fast Refresh applies it, and
 `stim logs --since 30s --level error` shows what it broke. Run `stim ios` again
 only after a native input changes.
 
+To prove a change reached the screen, take a screenshot of the device Stim
+named in its summary:
+
+```bash
+xcrun simctl io <udid> screenshot ios.png
+adb -s <serial> exec-out screencap -p > android.png
+```
+
+Wait first. Stim's `ready: bundle loaded, stable for 3s` describes the process,
+not the first paint: a screenshot taken the moment `stim ios` returns `OK` shows
+a spinner, and this app needs roughly another minute to render its first screen.
+When a label is too long for the screen, read the text rather than trusting the
+picture -- `adb shell uiautomator dump` on Android, or `agent-device snapshot`
+on either platform.
+
 Finish a session with `stim stop`, which shuts the dev server and the device
 down but keeps the worktree.
+
+This repository formats with `oxfmt`, through `pnpm format` at the root. Running
+prettier over a file rewrites it wholesale and buries the change.
 
 Run `stim worktree remove` once the pull request merges. It deletes the
 worktree, the branch Stim created for it when that branch has no unique
@@ -98,6 +126,11 @@ carry the command that clears them. Name the variant the repo's own
 ```bash
 stim android --variant productionDebug
 ```
+
+Two worktrees on the same commit have the same native fingerprint, so the second
+one to ask does not compile: it waits for the first and installs that artifact.
+Expect `waited 6m51s for .../looptest1's build -> installed from cache` on an
+Android build that looks stuck. It is the cache working, not a hang.
 
 ## Driving the UI
 
