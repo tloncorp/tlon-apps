@@ -55,9 +55,9 @@ type CronObservabilityOptions = {
   observer?: TlonCronOtelObserver;
 };
 
-// OpenClaw 2026.5.28 predates event-driven `on-exit` schedules, while this
-// plugin's peer range also permits newer hosts that expose them. Keep the
-// pinned SDK for development and add only the newer runtime projection here.
+// The plugin's peer range permits newer hosts that may extend cron schedule
+// shapes. Keep the pinned SDK for development and add only the known runtime
+// projection here.
 // The command and cwd are intentionally never included in telemetry.
 type ForwardCompatibleCronSchedule =
   | NonNullable<PluginHookGatewayCronJob['schedule']>

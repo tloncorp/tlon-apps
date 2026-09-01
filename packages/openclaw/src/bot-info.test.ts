@@ -22,7 +22,7 @@ import { defaultSleep } from './sleep.js';
 
 const infoValue = buildBotInfoJson({
   version: '0.19.0',
-  harnessVersion: '2026.5.28',
+  harnessVersion: '2026.7.1',
 });
 
 describe('buildBotInfoJson', () => {
@@ -31,13 +31,13 @@ describe('buildBotInfoJson', () => {
       v: 1,
       harness: 'openclaw',
       version: '0.19.0',
-      harnessVersion: '2026.5.28',
+      harnessVersion: '2026.7.1',
     });
   });
 
   it('is byte-stable, so compare-then-poke does not false-positive', () => {
     expect(
-      buildBotInfoJson({ version: '0.19.0', harnessVersion: '2026.5.28' })
+      buildBotInfoJson({ version: '0.19.0', harnessVersion: '2026.7.1' })
     ).toBe(infoValue);
   });
 

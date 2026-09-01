@@ -137,7 +137,7 @@ The owner can send these commands via DM:
 
 ```
 Harness: OpenClaw
-Harness Version: 2026.5.28
+Harness Version: 2026.7.1
 Adapter Version: 0.4.3
 Tlon Skill: 0.3.2
 Fingerprint: fp1:8aa23ca2bc8d

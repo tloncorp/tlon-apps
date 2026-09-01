@@ -42,7 +42,7 @@ function makeJob(overrides: Partial<HookCronJob> = {}): HookCronJob {
 function makeOnExitJob(overrides: Partial<HookCronJob> = {}): HookCronJob {
   return {
     ...makeJob(overrides),
-    // The pinned 2026.5.28 SDK does not include this newer runtime shape.
+    // Keep this fixture independent of the exact SDK schedule union.
     schedule: {
       kind: 'on-exit',
       command: 'secret watcher command --token sensitive',

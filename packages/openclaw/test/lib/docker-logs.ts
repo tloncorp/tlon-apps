@@ -148,7 +148,7 @@ export interface GatewayRestartPreflight {
 
 /**
  * Side-effect-free probe of the gateway's restart/reload gate counters via
- * the `gateway.restart.preflight` RPC (present in OpenClaw core 2026.5.28+).
+ * the `gateway.restart.preflight` RPC available in supported OpenClaw cores.
  * These are exactly the counters `waitForActiveWorkBeforeChannelReload`
  * evaluates before honoring a config-driven channel reload, so
  * `counts.totalActive === 0` means a config mutation will reload promptly

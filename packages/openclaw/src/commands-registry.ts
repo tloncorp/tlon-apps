@@ -228,7 +228,7 @@ export function buildCommandTokensJson(): string {
 
 // OpenClaw CORE commands the client's popup offers alongside the registry
 // tokens. Audit-pinned constant mirroring the client's OPENCLAW_CORE_COMMANDS
-// (same audit pin, core 2026.5.28): the keys "help", "status", "new", and
+// (same audit pin, core 2026.7.1): the keys "help", "status", "new", and
 // "model" (textAlias "/model", tier "essential", ungated) in core's builtin
 // command registry, which core dispatches itself once a message reaches it. The plugin neither registers nor dispatches them, but
 // bare owner engagement (isRegisteredCommandText) must let them through, so

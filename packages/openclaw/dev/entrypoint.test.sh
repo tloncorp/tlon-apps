@@ -16,7 +16,7 @@ echo "==> OPENCLAW_STATE_DIR=$OPENCLAW_STATE_DIR"
 echo "==> User: $(whoami)"
 echo "==> Working directory: $(pwd)"
 
-requested_core_version="${OPENCLAW_CORE_VERSION:-2026.5.28}"
+requested_core_version="${OPENCLAW_CORE_VERSION:-2026.7.1}"
 installed_core_version="$(node -e 'const fs=require("node:fs"); console.log(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).version)' "$(npm root -g)/openclaw/package.json")"
 if [ "$installed_core_version" != "$requested_core_version" ]; then
   echo "FATAL: requested OpenClaw core $requested_core_version but installed $installed_core_version"
@@ -298,7 +298,7 @@ if [ ! -d "/workspace/tlonbot/image-search" ] && [ -n "$BRAVE_API_KEY" ] && [ -n
     && mv "$CONFIG_DIR/openclaw.json.tmp" "$CONFIG_DIR/openclaw.json"
 fi
 
-# Patch in Brave API key for web search if available. openclaw 2026.5.28
+# Patch in Brave API key for web search if available. OpenClaw
 # only accepts provider "brave" when the brave plugin (installed at image
 # build time, see Dockerfile.test) is allowed and enabled; the config was
 # rewritten from scratch above, so re-assert both here (mirrors production).
