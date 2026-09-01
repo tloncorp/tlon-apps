@@ -1,11 +1,7 @@
 import type { BucketsSnapshot } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
-import {
-  bucketResponseHasRevisionGap,
-  findUploadShadowEntryIds,
-  removeEntryFromBucketSnapshot,
-} from './bucketUploadReconciliation';
+import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 
 const snapshot = {
   flag: { host: '~zod', name: 'project-files' },
@@ -52,51 +48,22 @@ describe('findUploadShadowEntryIds', () => {
 
   it('hides nothing for an upload that has no entry yet', () => {
     expect(findUploadShadowEntryIds([{}])).toEqual(new Set());
-  });
-});
-
-describe('removeEntryFromBucketSnapshot', () => {
-  it('optimistically removes an entry', () => {
-    const next = removeEntryFromBucketSnapshot(snapshot, 10);
-    expect(next.state.entries).toEqual([]);
+    // The stored column is null rather than absent once a row exists.
+    expect(findUploadShadowEntryIds([{ serverEntryId: null }])).toEqual(
+      new Set()
+    );
   });
 
-  it('leaves unrelated entries alone', () => {
-    const next = removeEntryFromBucketSnapshot(snapshot, 999);
-    expect(next.state.entries).toHaveLength(1);
-  });
-});
-
-describe('bucketResponseHasRevisionGap', () => {
-  it('requests a refresh when an update skips a revision', () => {
+  // A completed row is kept only so the aggregate progress bar keeps its
+  // denominator; it is no longer standing in for anything. Suppressing on it
+  // hid the entry the upload had just published, so a file vanished the
+  // moment it succeeded and reappeared on reload, when the row was swept.
+  it('stops hiding the entry once the upload has completed', () => {
     expect(
-      bucketResponseHasRevisionGap(snapshot, {
-        type: 'update',
-        flag: snapshot.flag,
-        revision: 4,
-        update: { type: 'entries-deleted', ids: [10] },
-      })
-    ).toBe(true);
-  });
-
-  it('accepts the next revision', () => {
+      findUploadShadowEntryIds([{ serverEntryId: 10, state: 'completed' }])
+    ).toEqual(new Set());
     expect(
-      bucketResponseHasRevisionGap(snapshot, {
-        type: 'update',
-        flag: snapshot.flag,
-        revision: 3,
-        update: { type: 'entries-deleted', ids: [10] },
-      })
-    ).toBe(false);
-  });
-
-  it('accepts a replacement snapshot at any revision', () => {
-    expect(
-      bucketResponseHasRevisionGap(snapshot, {
-        type: 'snapshot',
-        flag: snapshot.flag,
-        state: snapshot.state,
-      })
-    ).toBe(false);
+      findUploadShadowEntryIds([{ serverEntryId: 10, state: 'uploading' }])
+    ).toEqual(new Set([10]));
   });
 });

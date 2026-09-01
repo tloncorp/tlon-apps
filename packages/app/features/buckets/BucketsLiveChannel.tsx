@@ -161,10 +161,7 @@ export function BucketsLiveChannel({
   useHideChannelHeader(embedded && (previewItem !== null || searchOpen));
   const [mediaLibraryPermissionStatus, requestMediaLibraryPermission] =
     ImagePicker.useMediaLibraryPermissions();
-  const entries = useMemo(
-    () => live.snapshot?.state.entries ?? [],
-    [live.snapshot?.state.entries]
-  );
+  const entries = useMemo(() => live.entries, [live.entries]);
   const entriesById = useMemo(
     () => new Map(entries.map((entry) => [entry.id, entry])),
     [entries]
@@ -186,7 +183,10 @@ export function BucketsLiveChannel({
     () => entries.filter((entry) => !suppressedIds.has(entry.id)),
     [entries, suppressedIds]
   );
-  const rootLabel = live.snapshot?.state.bucket.title ?? 'Bucket';
+  // The Bucket's title is its channel's, which %groups maintains -- so it is
+  // read from the channel rather than kept a second time alongside the
+  // manifest.
+  const rootLabel = providedChannel?.title ?? 'Bucket';
   const activeFolderCandidate =
     activeFolderId === null ? undefined : entriesById.get(activeFolderId);
   const activeFolder =
@@ -198,10 +198,10 @@ export function BucketsLiveChannel({
   // goBack cannot leave -- it reads the parent off the folder that is gone.
   useEffect(() => {
     if (activeFolderId === null || activeFolder) return;
-    if (live.loading || !live.snapshot) return;
+    if (live.loading) return;
     setActiveFolderId(null);
     setSelectedItemId(null);
-  }, [activeFolder, activeFolderId, live.loading, live.snapshot]);
+  }, [activeFolder, activeFolderId, live.loading]);
   const rootFolders = serverEntries.filter(
     (entry) => entry.kind === 'folder' && entry.parentId === null
   );
@@ -257,15 +257,9 @@ export function BucketsLiveChannel({
       setOperationError(cause instanceof Error ? cause.message : String(cause));
       return;
     }
-    // The write landed. A failed re-read afterwards is a stale view, not a
-    // failed operation, and reporting it as one invites a retry -- which for
-    // folder creation makes a second folder of the same name, since the host
-    // permits duplicates. The subscription reconciles us either way.
-    try {
-      await live.refresh();
-    } catch {
-      // Deliberately silent.
-    }
+    // Nothing to re-read. The host publishes the change, the subscription
+    // reduces it, and the query refreshes -- so a successful write can no
+    // longer be reported as a failure because a follow-up scry failed.
   };
 
   const loadPreview = async (item: BucketItem) => {

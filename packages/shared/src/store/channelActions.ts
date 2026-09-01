@@ -487,12 +487,21 @@ export async function deleteChannel({
   );
 
   const deletedChannel = await db.getChannel({ id: channelId });
+  const bucketFlag = api.parseBucketsChannelId(channelId);
+  // Deleting a channel clears its Bucket's manifest and in-flight uploads with
+  // it, so the optimistic delete below takes those too. Held here so a refused
+  // delete can put back more than the channel row: without them the restored
+  // Bucket comes back empty and its uploads lose the session ids that make
+  // them cancellable, until a reconnect supplies a fresh snapshot.
+  const deletedBucket = bucketFlag ? await db.getBucket({ channelId }) : null;
+  const deletedUploads = bucketFlag
+    ? await db.getBucketUploads({ channelId })
+    : [];
 
   // optimistic update
   await db.deleteChannels([channelId]);
 
   try {
-    const bucketFlag = api.parseBucketsChannelId(channelId);
     if (bucketFlag) {
       await api.sendBucketsAction({ type: 'delete-bucket', flag: bucketFlag });
     } else {
@@ -503,6 +512,10 @@ export async function deleteChannel({
     // rollback optimistic update
     if (deletedChannel) {
       await db.insertChannels([deletedChannel]);
+    }
+    if (deletedBucket) {
+      const { entries, ...bucket } = deletedBucket;
+      await db.restoreBucket({ bucket, entries, uploads: deletedUploads });
     }
     return;
   }

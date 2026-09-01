@@ -283,34 +283,19 @@ export async function requestBucketReadToken(
   return mint;
 }
 
-export async function subscribeToBuckets(
+/**
+ * The one %buckets subscription, opened where every other agent's is.
+ *
+ * Sync reduces what arrives here into the database and panes read it back, so
+ * there is one consumer rather than one per mount -- which is what a pane
+ * opening its own subscription and reducing privately cost us: two
+ * subscriptions to the same path, and a per-mount unsubscribe racing the
+ * replacement id Airlock allocates when a subscription is kicked. Neither the
+ * fan-out nor the disposal survived that change; holding either in a module
+ * variable would outlive the client it was opened on.
+ */
+export function subscribeToBuckets(
   handler: (response: BucketsResponse) => void
 ) {
-  let activeSubscriptionId: number | null = null;
-  // Airlock reallocates the id when a subscription is kicked and re-established,
-  // and that can happen while our own unsubscribe is in flight. Without this
-  // flag the callback would publish a replacement the disposer has already run
-  // past, leaving it live for good -- decoding every Bucket snapshot on a
-  // subscription nobody is listening to.
-  let disposed = false;
-  const subscriptionId = await subscribe<BucketsResponse>(
-    { app: BUCKETS_APP, path: '/v1' },
-    handler,
-    {
-      onSubscriptionId: (id) => {
-        activeSubscriptionId = id;
-        if (disposed) {
-          void unsubscribe(id).catch(() => undefined);
-        }
-      },
-    }
-  );
-  activeSubscriptionId ??= subscriptionId;
-
-  return () => {
-    disposed = true;
-    return activeSubscriptionId === null
-      ? Promise.resolve()
-      : unsubscribe(activeSubscriptionId);
-  };
+  return subscribe<BucketsResponse>({ app: BUCKETS_APP, path: '/v1' }, handler);
 }

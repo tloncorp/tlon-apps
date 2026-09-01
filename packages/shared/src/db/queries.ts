@@ -1,5 +1,6 @@
 import {
   ACTIVITY_SOURCE_PAGESIZE,
+  type BucketsEntry,
   ChannelInit,
   getCurrentUserId,
 } from '@tloncorp/api';
@@ -69,6 +70,9 @@ import {
   botReplyFeedback as $botReplyFeedback,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
+  bucketEntries as $bucketEntries,
+  bucketUploads as $bucketUploads,
+  buckets as $buckets,
   channelWriters as $channelWriters,
   channels as $channels,
   chatMemberGroupRoles as $chatMemberGroupRoles,
@@ -1968,6 +1972,239 @@ export const getContextLensBotsInChat = createReadQuery(
   ['contextLensRuns', 'chatMembers']
 );
 
+type BucketEntryRow = typeof $bucketEntries.$inferInsert;
+
+function toBucketEntryRow(
+  channelId: string,
+  entry: BucketsEntry
+): BucketEntryRow {
+  return {
+    channelId,
+    entryId: entry.id,
+    parentId: entry.parentId,
+    name: entry.name,
+    kind: entry.kind,
+    createdBy: entry.createdBy,
+    createdAt: entry.createdAt,
+    updatedBy: entry.updatedBy,
+    updatedAt: entry.updatedAt,
+    mime: entry.kind === 'file' ? entry.file.mime : null,
+    size: entry.kind === 'file' ? entry.file.size : null,
+    checksum: entry.kind === 'file' ? entry.file.checksum : null,
+    objectKey: entry.kind === 'file' ? entry.file.objectKey : null,
+    status: entry.kind === 'file' ? entry.file.status : null,
+  };
+}
+
+/**
+ * Replace a Bucket's manifest wholesale.
+ *
+ * For a snapshot, which carries the whole thing: anything not in it is gone,
+ * so the entries are deleted and rewritten rather than merged.
+ */
+export const replaceBucketEntries = createWriteQuery(
+  'replaceBucketEntries',
+  async (
+    {
+      channelId,
+      entries,
+      revision,
+    }: { channelId: string; entries: BucketsEntry[]; revision: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+    await ctx.db
+      .delete($bucketEntries)
+      .where(eq($bucketEntries.channelId, channelId));
+    if (entries.length === 0) return;
+    await ctx.db
+      .insert($bucketEntries)
+      .values(entries.map((entry) => toBucketEntryRow(channelId, entry)));
+  },
+  ['buckets', 'bucketEntries']
+);
+
+/** Upsert one entry, from a create or an update. */
+export const upsertBucketEntry = createWriteQuery(
+  'upsertBucketEntry',
+  async (
+    {
+      channelId,
+      entry,
+      revision,
+    }: { channelId: string; entry: BucketsEntry; revision: number },
+    ctx: QueryCtx
+  ) => {
+    const row = toBucketEntryRow(channelId, entry);
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+    await ctx.db
+      .insert($bucketEntries)
+      .values(row)
+      .onConflictDoUpdate({
+        target: [$bucketEntries.channelId, $bucketEntries.entryId],
+        set: row,
+      });
+  },
+  ['buckets', 'bucketEntries']
+);
+
+export const deleteBucketEntries = createWriteQuery(
+  'deleteBucketEntries',
+  async (
+    {
+      channelId,
+      entryIds,
+      revision,
+    }: { channelId: string; entryIds: number[]; revision: number },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .insert($buckets)
+      .values({ channelId, revision })
+      .onConflictDoUpdate({ target: $buckets.channelId, set: { revision } });
+    if (entryIds.length === 0) return;
+    await ctx.db
+      .delete($bucketEntries)
+      .where(
+        and(
+          eq($bucketEntries.channelId, channelId),
+          inArray($bucketEntries.entryId, entryIds)
+        )
+      );
+  },
+  ['buckets', 'bucketEntries']
+);
+
+/** Forget a Bucket we no longer hold. */
+export const deleteBucket = createWriteQuery(
+  'deleteBucket',
+  async (channelId: string, ctx: QueryCtx) => {
+    await ctx.db
+      .delete($bucketEntries)
+      .where(eq($bucketEntries.channelId, channelId));
+    await ctx.db.delete($buckets).where(eq($buckets.channelId, channelId));
+  },
+  ['buckets', 'bucketEntries']
+);
+
+/**
+ * Put back what an optimistic channel delete took with it.
+ *
+ * Deleting a channel clears its Bucket's rows too, so a delete the server
+ * then refuses would otherwise leave the restored channel with an empty
+ * manifest and no record of the uploads that were running.
+ * Existing rows win: by the time a rollback runs, the subscription may
+ * already have written something newer than this snapshot.
+ */
+export const restoreBucket = createWriteQuery(
+  'restoreBucket',
+  async (
+    {
+      bucket,
+      entries,
+      uploads,
+    }: {
+      bucket: typeof $buckets.$inferInsert;
+      entries: (typeof $bucketEntries.$inferInsert)[];
+      uploads: (typeof $bucketUploads.$inferInsert)[];
+    },
+    ctx: QueryCtx
+  ) => {
+    await ctx.db.insert($buckets).values(bucket).onConflictDoNothing();
+    if (entries.length) {
+      await ctx.db.insert($bucketEntries).values(entries).onConflictDoNothing();
+    }
+    if (uploads.length) {
+      await ctx.db.insert($bucketUploads).values(uploads).onConflictDoNothing();
+    }
+  },
+  ['buckets', 'bucketEntries', 'bucketUploads']
+);
+
+export const upsertBucketUpload = createWriteQuery(
+  'upsertBucketUpload',
+  async (upload: typeof $bucketUploads.$inferInsert, ctx: QueryCtx) => {
+    await ctx.db
+      .insert($bucketUploads)
+      .values(upload)
+      .onConflictDoUpdate({ target: $bucketUploads.id, set: upload });
+  },
+  ['bucketUploads']
+);
+
+export const updateBucketUpload = createWriteQuery(
+  'updateBucketUpload',
+  async (
+    {
+      id,
+      ...patch
+    }: { id: string } & Partial<typeof $bucketUploads.$inferInsert>,
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .update($bucketUploads)
+      .set(patch)
+      .where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+export const deleteBucketUpload = createWriteQuery(
+  'deleteBucketUpload',
+  async (id: string, ctx: QueryCtx) => {
+    await ctx.db.delete($bucketUploads).where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+export const getBucketUploads = createReadQuery(
+  'getBucketUploads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.bucketUploads.findMany({
+      where: eq($bucketUploads.channelId, channelId),
+      orderBy: asc($bucketUploads.startedAt),
+    });
+  },
+  ['bucketUploads']
+);
+
+/**
+ * Every upload row, whichever Bucket it belongs to.
+ *
+ * Read once at startup: a row with no transfer behind it is one this process
+ * did not start, so its bytes are unreachable and its host session wants
+ * cancelling.
+ */
+export const getAllBucketUploads = createReadQuery(
+  'getAllBucketUploads',
+  async (_: undefined, ctx: QueryCtx) => {
+    return ctx.db.query.bucketUploads.findMany({});
+  },
+  ['bucketUploads']
+);
+
+/** One Bucket's manifest, or null if this ship does not hold it. */
+export const getBucket = createReadQuery(
+  'getBucket',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    const bucket = await ctx.db.query.buckets.findFirst({
+      where: eq($buckets.channelId, channelId),
+    });
+    if (!bucket) return null;
+    const entries = await ctx.db.query.bucketEntries.findMany({
+      where: eq($bucketEntries.channelId, channelId),
+    });
+    return { ...bucket, entries };
+  },
+  ['buckets', 'bucketEntries']
+);
+
 export const insertChannelPerms = createWriteQuery(
   'insertChannelPerms',
   async (channelsInit: Omit<ChannelInit, 'order'>[], ctx: QueryCtx) => {
@@ -3005,10 +3242,27 @@ export const deleteChannels = createWriteQuery(
     await ctx.db
       .delete($chatMembers)
       .where(inArray($chatMembers.chatId, channels));
+    // A Bucket's rows are keyed by channel but not foreign-keyed to it, so
+    // they are cleared here rather than by a cascade -- which fires or not
+    // depending on a PRAGMA the drivers do not agree on.
+    await ctx.db
+      .delete($bucketEntries)
+      .where(inArray($bucketEntries.channelId, channels));
+    await ctx.db
+      .delete($bucketUploads)
+      .where(inArray($bucketUploads.channelId, channels));
+    await ctx.db.delete($buckets).where(inArray($buckets.channelId, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
-  ['channels', 'posts', 'chatMembers']
+  [
+    'channels',
+    'posts',
+    'chatMembers',
+    'buckets',
+    'bucketEntries',
+    'bucketUploads',
+  ]
 );
 
 export const addNavSectionToGroup = createWriteQuery(

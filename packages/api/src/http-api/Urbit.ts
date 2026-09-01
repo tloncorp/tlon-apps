@@ -823,15 +823,14 @@ export class Urbit {
    * @param handlers Handlers to deal with various events of the subscription
    */
   async subscribe(params: SubscriptionRequestInterface): Promise<number> {
-    const { app, path, ship, resubOnQuit, err, event, quit, onSubscriptionId } =
-      {
-        err: () => {},
-        event: () => {},
-        quit: () => {},
-        resubOnQuit: true,
-        ...params,
-        ship: desig(params.ship ?? this.nodeId ?? ''),
-      };
+    const { app, path, ship, resubOnQuit, err, event, quit } = {
+      err: () => {},
+      event: () => {},
+      quit: () => {},
+      resubOnQuit: true,
+      ...params,
+      ship: desig(params.ship ?? this.nodeId ?? ''),
+    };
 
     if (this.lastEventId === 0) {
       this.emit('status-update', { status: 'opening' });
@@ -852,7 +851,6 @@ export class Urbit {
       err,
       event,
       quit,
-      onSubscriptionId,
     });
 
     this.emit('subscription', {
@@ -862,10 +860,6 @@ export class Urbit {
       status: 'open',
     });
 
-    // Publish the replacement id as soon as it is allocated. A consumer may
-    // unmount while the resubscribe request is still in flight and must still
-    // be able to unsubscribe the replacement rather than the obsolete id.
-    onSubscriptionId?.(message.id);
     await this.sendJSONtoChannel(message);
 
     return message.id;

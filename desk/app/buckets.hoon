@@ -1433,6 +1433,14 @@
   =/  headers=(list [@t @t])  (broker-headers u.body)
   =/  bound=upload-session:b
     ?~(reservation ses ses(reservation reservation))
+  ::  A grant with no reservation behind it is not one we can act on: finish
+  ::  and cancel both call storage against the reservation, so handing this
+  ::  URL out would take the bytes and then have no way to settle or release
+  ::  them -- the entry never publishes and the quota sits until it lapses.
+  ::  Checked on the bound session rather than on the answer, so a retry
+  ::  against the reservation we already hold need not repeat it.
+  ?~  reservation.bound
+    (fail-upload ses 'storage granted no reservation to settle against')
   =.  sessions  (~(put by sessions) id.ses bound)
   =?  reservations  ?=(^ reservation)
     (~(put by reservations) u.reservation id.ses)

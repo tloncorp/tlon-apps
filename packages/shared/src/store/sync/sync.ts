@@ -1688,33 +1688,76 @@ export const handleSettingsUpdate = async (
 };
 
 /**
- * Keep a Bucket's writer roles current, the way %channels does its own.
+ * The one place %buckets responses are applied.
  *
- * A Bucket's writers live in %buckets, not %groups, so nothing else can
- * supply them. Init carries them at startup; this carries them afterwards --
- * for a Bucket created while the app is running, and for one whose writers
- * are edited. Without it a live-added Bucket sits with no writer roles at
- * all, and the settings form cannot tell that from "no writers", so saving
- * unrelated metadata submits set-writers [] and opens the Bucket to every
- * reader.
+ * A Bucket's manifest and its writer roles arrive only here -- no other agent
+ * models either -- so this reduces them into the database and views read what
+ * has been reduced. Panes used to hold their own copy of the snapshot and
+ * reduce into it, which meant two subscriptions to the same firehose, state
+ * that died when a pane unmounted, and no shared view between two panes on
+ * the same Bucket.
  *
- * A snapshot and a %writers update both carry the whole set, so both are
- * simply written through.
+ * A snapshot carries the whole manifest, so it replaces; the entry arms carry
+ * one entry, so they upsert.
  */
 export const handleBucketsUpdate = async (
   response: api.BucketsResponse,
   ctx: QueryCtx
 ) => {
   const channelId = api.formatBucketsChannelId(response.flag);
-  const writers =
-    response.type === 'snapshot'
-      ? response.state.writers
-      : response.update.type === 'writers-updated'
-        ? response.update.writers
-        : null;
-  if (writers === null) {
+
+  if (response.type === 'snapshot') {
+    await db.replaceBucketEntries(
+      {
+        channelId,
+        entries: response.state.entries,
+        revision: response.state.revision,
+      },
+      ctx
+    );
+    await writeBucketWriters(channelId, response.state.writers, ctx);
     return;
   }
+
+  const { revision, update } = response;
+  switch (update.type) {
+    case 'bucket-deleted':
+      await db.deleteBucket(channelId, ctx);
+      return;
+    case 'writers-updated':
+      await writeBucketWriters(channelId, update.writers, ctx);
+      return;
+    case 'entry-created':
+    case 'entry-updated':
+      await db.upsertBucketEntry(
+        { channelId, entry: update.entry, revision },
+        ctx
+      );
+      return;
+    case 'entries-deleted':
+      await db.deleteBucketEntries(
+        { channelId, entryIds: update.ids, revision },
+        ctx
+      );
+      return;
+    // Metadata lives on the channel, which %groups already maintains.
+    case 'bucket-created':
+    case 'bucket-updated':
+      return;
+  }
+};
+
+/**
+ * Writers are a channel column, as they are for every channel type.
+ *
+ * Empty is meaningful rather than absent -- it is what "any reader may write"
+ * looks like -- so it is written through as given.
+ */
+async function writeBucketWriters(
+  channelId: string,
+  writers: string[],
+  ctx: QueryCtx
+) {
   await db.updateChannel(
     {
       id: channelId,
@@ -1722,7 +1765,7 @@ export const handleBucketsUpdate = async (
     },
     ctx
   );
-};
+}
 
 export const handleChannelsUpdate = async (
   update: api.ChannelsUpdate,

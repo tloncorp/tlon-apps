@@ -209,17 +209,38 @@ test('requestBucketReadToken mints one on a cold start', async () => {
   });
 });
 
-test('subscribeToBuckets unsubscribes the replacement id after a reset', async () => {
-  vi.mocked(subscribe).mockImplementationOnce(
-    async (_endpoint, _onUpdate, options) => {
-      options?.onSubscriptionId?.(7);
-      options?.onSubscriptionId?.(19);
-      return 7;
-    }
-  );
+// Sync is the only consumer, so this is a subscription and nothing else: no
+// module-level state to hold a dead client's subscription id after a logout,
+// and no cached rejection for a retry to await instead of retrying.
+test('subscribeToBuckets subscribes and never unsubscribes', async () => {
+  let deliver: ((response: unknown) => void) | undefined;
+  vi.mocked(subscribe).mockImplementation(async (_endpoint, onUpdate) => {
+    deliver = onUpdate as (response: unknown) => void;
+    return 7;
+  });
 
-  const stop = await subscribeToBuckets(vi.fn());
-  await stop();
+  const handler = vi.fn();
+  await subscribeToBuckets(handler);
 
-  expect(unsubscribe).toHaveBeenCalledWith(19);
+  expect(vi.mocked(subscribe)).toHaveBeenCalledTimes(1);
+  expect(vi.mocked(subscribe).mock.calls[0][0]).toEqual({
+    app: 'buckets',
+    path: '/v1',
+  });
+
+  deliver?.({ type: 'snapshot' });
+  expect(handler).toHaveBeenCalledWith({ type: 'snapshot' });
+  expect(unsubscribe).not.toHaveBeenCalled();
+});
+
+// A failed subscribe is the caller's to retry. Memoizing the promise made the
+// first failure permanent: every later call awaited the rejection instead of
+// opening a subscription.
+test('subscribeToBuckets retries after a failed subscribe', async () => {
+  vi.mocked(subscribe).mockRejectedValueOnce(new Error('client not ready'));
+  await expect(subscribeToBuckets(vi.fn())).rejects.toThrow('client not ready');
+
+  vi.mocked(subscribe).mockResolvedValueOnce(9);
+  await expect(subscribeToBuckets(vi.fn())).resolves.toBe(9);
+  expect(vi.mocked(subscribe)).toHaveBeenCalledTimes(2);
 });

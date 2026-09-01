@@ -29,23 +29,3 @@ export function calculateBucketUploadProgress(
       items.length
   );
 }
-
-export function completeBucketUploadInBatch(
-  items: readonly BucketUploadBatchItem[],
-  id: string
-) {
-  const next = items.map((item) =>
-    item.id === id
-      ? { ...item, progress: 100, state: 'completed' as const }
-      : item
-  );
-  return next.every((item) => item.state === 'completed') ? [] : next;
-}
-
-export function removeBucketUploadFromBatch(
-  items: readonly BucketUploadBatchItem[],
-  id: string
-) {
-  const next = items.filter((item) => item.id !== id);
-  return next.every((item) => item.state === 'completed') ? [] : next;
-}
