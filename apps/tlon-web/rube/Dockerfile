@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 # E2E Test Container for Tlon Web
 # Node version pinned to match .nvmrc
-FROM node:22.22.0-bookworm
+FROM node:22.22.3-bookworm
 
 # Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
