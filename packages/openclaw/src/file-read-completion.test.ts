@@ -37,6 +37,11 @@ describe('file read completion guard', () => {
     'Displaying the requested file now.',
     'Showing the records now.',
     'Printing the summary now.',
+    "I'll analyze the file now.",
+    'Reviewing the CSV now.',
+    'Processing the data now.',
+    'Parsing the file now.',
+    'Scanning the records now.',
     'That’s the complete revised v0.1.1 text displayed inline.',
     'Here are the requested contents:',
     'The file contents are below.',
@@ -289,6 +294,32 @@ describe('file read completion guard', () => {
         runId: 'run-summary',
         lastAssistantMessage:
           'The file has 31 rows. Pollen levels rise sharply in the final week.',
+      })
+    ).toBeNull();
+  });
+
+  it('accepts a noun-subject result sentence after a read acknowledgment', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('acknowledged-summary'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'acknowledged-summary',
+        lastAssistantMessage:
+          "I've read the file. The title is Quarterly Report.",
+      })
+    ).toBeNull();
+  });
+
+  it('accepts a requested extract under a singular delivery heading', () => {
+    const guard = createFileReadCompletionGuard();
+    const lastRow = CSV.split('\n').at(-1) ?? '';
+    guard.recordToolResult(successfulRead('requested-extract'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'requested-extract',
+        lastAssistantMessage: `Here is the requested content: ${lastRow}`,
       })
     ).toBeNull();
   });
@@ -713,6 +744,24 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'two-empty',
         lastAssistantMessage: 'Both a.txt and b.txt are empty.',
+      })
+    ).toBeNull();
+  });
+
+  it('preserves distinct empty targets that share a basename', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('same-basename-empty', '', '/tmp/a/config.json')
+    );
+    guard.recordToolResult(
+      successfulRead('same-basename-empty', '', '/tmp/b/config.json')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'same-basename-empty',
+        lastAssistantMessage:
+          '/tmp/a/config.json and /tmp/b/config.json are empty.',
       })
     ).toBeNull();
   });

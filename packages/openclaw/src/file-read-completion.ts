@@ -53,7 +53,7 @@ const MAX_REVISION_ATTEMPTS = 2;
 const UNKNOWN_TARGET = '\0unknown-read-target';
 
 const PROGRESS_VERBS =
-  '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
+  '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|analyz(?:e|ing)|review(?:ing)?|process(?:ing)?|pars(?:e|ing)|scan(?:ning)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
 const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
 const PROGRESS_ONLY = new RegExp(
   `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
@@ -63,6 +63,8 @@ const COMPLETION_PREFIX =
   /^(?:(?:i(?:'ve| have)\s+(?:(?:finished|completed)\s+)?read(?:ing)?|i\s+(?:finished|completed)\s+reading|(?:i(?:'m| am)\s+)?done\s+reading)|(?:the\s+)?file\s+(?:has\s+been|was)\s+read)\b/i;
 const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
+const FULL_FILE_DELIVERY_CLAIM =
+  /\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents\s+(?:are|is)\s+(?:below|above|here))\b/i;
 const EMPTY_RESULT_ACKNOWLEDGMENT =
   /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was|are|were)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
@@ -248,11 +250,27 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   if (/^NO_REPLY$/i.test(normalized)) return true;
   const progressCandidate = unwrapProgressMarkdown(normalized);
   const completionPrefix = COMPLETION_PREFIX.exec(progressCandidate);
+  const completionTail = completionPrefix
+    ? progressCandidate.slice(completionPrefix[0].length)
+    : '';
+  const laterSentences = completionTail
+    .split(/[.!?]\s+/)
+    .slice(1)
+    .map((sentence) => unwrapProgressMarkdown(sentence))
+    .filter(Boolean);
+  const hasVisibleResultSentence = laterSentences.some((sentence) => {
+    const wordCount = sentence.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
+    return (
+      wordCount >= 3 &&
+      !PROGRESS_ONLY.test(sentence) &&
+      !COMPLETION_PREFIX.test(sentence) &&
+      !isEmptyDeliveryClaim(sentence)
+    );
+  });
   const completionOnly =
     completionPrefix != null &&
-    !SUBSTANTIVE_PROGRESS_TAIL.test(
-      progressCandidate.slice(completionPrefix[0].length)
-    );
+    !SUBSTANTIVE_PROGRESS_TAIL.test(completionTail) &&
+    !hasVisibleResultSentence;
   return (
     (PROGRESS_ONLY.test(progressCandidate) &&
       !SUBSTANTIVE_PROGRESS_TAIL.test(progressCandidate)) ||
@@ -314,16 +332,32 @@ function acknowledgedEmptyTargetKeys(
   } else if (emptyTargets.length > 0) {
     let replyWithPlaceholders = normalizedReply;
     const placeholders = new Map<string, string>();
+    const basenameCounts = new Map<string, number>();
+    for (const [targetKey] of emptyTargets) {
+      const targetName = targetKey.split(/[\\/]/).at(-1) ?? targetKey;
+      const normalizedTargetName = normalizeForComparison(targetName);
+      basenameCounts.set(
+        normalizedTargetName,
+        (basenameCounts.get(normalizedTargetName) ?? 0) + 1
+      );
+    }
     [...emptyTargets]
-      .sort(([left], [right]) => right.length - left.length)
-      .forEach(([targetKey], index) => {
-        if (targetKey === UNKNOWN_TARGET) return;
+      .map(([targetKey], index) => {
         const targetName = targetKey.split(/[\\/]/).at(-1) ?? targetKey;
         const normalizedTargetName = normalizeForComparison(targetName);
+        const reference =
+          (basenameCounts.get(normalizedTargetName) ?? 0) > 1
+            ? normalizeForComparison(targetKey)
+            : normalizedTargetName;
+        return { index, reference, targetKey };
+      })
+      .sort((left, right) => right.reference.length - left.reference.length)
+      .forEach(({ index, reference, targetKey }) => {
+        if (targetKey === UNKNOWN_TARGET) return;
         const placeholder = `tlonemptytarget${index}`;
         placeholders.set(targetKey, placeholder);
         replyWithPlaceholders = replyWithPlaceholders.replaceAll(
-          normalizedTargetName,
+          reference,
           placeholder
         );
       });
@@ -395,7 +429,7 @@ function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
       (allEmptyTargetsAreAcknowledged &&
         !isIncompleteFileDeliveryReply(reply) &&
         !(
-          EMPTY_DELIVERY_CLAIM.test(reply) &&
+          FULL_FILE_DELIVERY_CLAIM.test(reply) &&
           anyTargetContentIsRepresented(reply, targets)
         )))
   );
