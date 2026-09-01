@@ -9,11 +9,18 @@ const CSV = `date,pollen_count,notes
 2026-08-01,42,low
 2026-08-02,117,high`;
 
-function successfulRead(runId: string, text: string = CSV, path?: string) {
+function successfulRead(
+  runId: string,
+  text: string = CSV,
+  path?: string,
+  offset?: number
+) {
   return {
     runId,
     toolName: 'read',
-    ...(path ? { params: { path } } : {}),
+    ...(path
+      ? { params: { path, ...(offset == null ? {} : { offset }) } }
+      : {}),
     result: { content: [{ type: 'text', text }] },
   };
 }
@@ -391,7 +398,7 @@ describe('file read completion guard', () => {
       )
     );
     guard.recordToolResult(
-      successfulRead('continued', 'final chunk', '/tmp/report.txt')
+      successfulRead('continued', 'final chunk', '/tmp/report.txt', 21)
     );
 
     expect(
@@ -401,6 +408,27 @@ describe('file read completion guard', () => {
           'Here are the requested contents:\nfirst chunk\nfinal chunk',
       })
     ).toBeNull();
+  });
+
+  it('does not clear truncation when the same path is reread at the same offset', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'same-offset',
+        'first chunk\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead('same-offset', 'first chunk', '/tmp/report.txt')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'same-offset',
+        lastAssistantMessage: 'first chunk',
+      })?.retry.instruction
+    ).toContain('Continue reading');
   });
 
   it('preserves summaries and transformations instead of demanding a dump', () => {
@@ -418,13 +446,13 @@ describe('file read completion guard', () => {
     expect(revision?.retry.instruction).toContain('perform that instead');
   });
 
-  it('keeps enough anchors from a later read', () => {
+  it('requires representative content from every successful read target', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
-      successfulRead('later-target', 'a1\na2\na3\na4\na5\na6')
+      successfulRead('later-target', 'a1\na2\na3\na4\na5\na6', '/tmp/a.txt')
     );
     guard.recordToolResult(
-      successfulRead('later-target', 'b1\nb2\nb3\nb4\nb5\nb6')
+      successfulRead('later-target', 'b1\nb2\nb3\nb4\nb5\nb6', '/tmp/b.txt')
     );
 
     expect(
@@ -432,6 +460,13 @@ describe('file read completion guard', () => {
         runId: 'later-target',
         lastAssistantMessage:
           'Here are the requested contents:\nb1\nb2\nb3\nb4\nb5\nb6',
+      })
+    ).not.toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'later-target',
+        lastAssistantMessage:
+          'Here are the requested contents:\na1\na2\na3\na4\na5\na6\nb1\nb2\nb3\nb4\nb5\nb6',
       })
     ).toBeNull();
   });
@@ -480,7 +515,7 @@ describe('file read completion guard', () => {
         })
       ).toBeNull();
     }
-    expect(guard.trackedRunCount()).toBe(0);
+    expect(guard.trackedRunCount()).toBe(2);
   });
 
   it('suppresses correction when a later read fails', () => {
@@ -505,9 +540,12 @@ describe('file read completion guard', () => {
     guard.recordToolResult({
       runId: 'failed-then-success',
       toolName: 'read',
+      params: { path: '/tmp/a.txt' },
       error: 'permission denied',
     });
-    guard.recordToolResult(successfulRead('failed-then-success'));
+    guard.recordToolResult(
+      successfulRead('failed-then-success', CSV, '/tmp/b.txt')
+    );
 
     expect(
       guard.beforeFinalize({
@@ -515,6 +553,26 @@ describe('file read completion guard', () => {
         lastAssistantMessage: 'Reading the failed file again now.',
       })
     ).toBeNull();
+  });
+
+  it('clears a read failure after a successful retry of the same target', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'same-target-retry',
+      toolName: 'read',
+      params: { path: '/tmp/a.txt' },
+      error: 'permission denied',
+    });
+    guard.recordToolResult(
+      successfulRead('same-target-retry', CSV, '/tmp/a.txt')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'same-target-retry',
+        lastAssistantMessage: 'Opening the file now.',
+      })
+    ).not.toBeNull();
   });
 
   it('does not treat an opaque non-text read result as an empty file', () => {
@@ -533,7 +591,7 @@ describe('file read completion guard', () => {
         lastAssistantMessage: 'Opening the file now.',
       })
     ).toBeNull();
-    expect(guard.trackedRunCount()).toBe(0);
+    expect(guard.trackedRunCount()).toBe(1);
   });
 
   it('clears completed runs and bounds missed cleanup', () => {

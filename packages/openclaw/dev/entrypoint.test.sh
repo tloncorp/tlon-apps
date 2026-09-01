@@ -209,7 +209,10 @@ cat > "$CONFIG_DIR/openclaw.json" << EOF
     },
     "entries": {
       "tlon": {
-        "enabled": true
+        "enabled": true,
+        "hooks": {
+          "allowConversationAccess": true
+        }
       }
     }
   },

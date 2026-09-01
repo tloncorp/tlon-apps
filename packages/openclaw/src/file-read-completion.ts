@@ -21,14 +21,17 @@ export type FileReadRevision = {
   };
 };
 
-type RunState = {
+type ReadTargetState = {
   anchors: string[];
   empty: boolean;
   failed: boolean;
-  revisionAttempts: number;
+  lastOffset: number;
   truncated: boolean;
-  truncatedTargets: string[];
-  unknownTruncation: boolean;
+};
+
+type RunState = {
+  revisionAttempts: number;
+  targets: Map<string, ReadTargetState>;
 };
 
 const DEFAULT_MAX_TRACKED_RUNS = 128;
@@ -36,6 +39,7 @@ const MAX_ANCHORS_PER_RUN = 12;
 const MAX_ANCHOR_LENGTH = 180;
 const MAX_SUSPICIOUS_REPLY_LENGTH = 600;
 const MAX_REVISION_ATTEMPTS = 2;
+const UNKNOWN_TARGET = '\0unknown-read-target';
 
 const PROGRESS_VERBS =
   '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
@@ -136,6 +140,14 @@ function readTarget(params: unknown): string | null {
   return value?.trim() || null;
 }
 
+function readOffset(params: unknown): number {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) return 0;
+  const offset = (params as { offset?: unknown }).offset;
+  return typeof offset === 'number' && Number.isFinite(offset) && offset >= 0
+    ? offset
+    : 0;
+}
+
 function isDeferredSameLineTail(tail: string): boolean {
   return /^(?:see|shown?|pasted?|printed?|displayed?)\b[^\n]{0,80}\b(?:below|above|next|soon)\b[.!…]*$|^(?:i(?:'ll| will)|let me)\b[^\n]{0,100}\b(?:below|above|next|soon)\b[.!…]*$/i.test(
     tail
@@ -214,15 +226,55 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   );
 }
 
+function hasFailedTarget(state: RunState): boolean {
+  return [...state.targets.values()].some((target) => target.failed);
+}
+
+function hasTruncatedTarget(state: RunState): boolean {
+  return [...state.targets.values()].some((target) => target.truncated);
+}
+
+function allSuccessfulTargetsAreEmpty(state: RunState): boolean {
+  const targets = [...state.targets.values()].filter(
+    (target) => !target.failed
+  );
+  return targets.length > 0 && targets.every((target) => target.empty);
+}
+
+function allTargetContentIsRepresented(
+  reply: string,
+  state: RunState
+): boolean {
+  const targets = [...state.targets.values()].filter(
+    (target) => !target.failed && target.anchors.length > 0
+  );
+  return (
+    targets.length > 0 &&
+    targets.every((target) =>
+      containsRepresentativeReadContent(reply, target.anchors)
+    )
+  );
+}
+
+function anyTargetContentIsRepresented(
+  reply: string,
+  state: RunState
+): boolean {
+  return [...state.targets.values()].some(
+    (target) =>
+      !target.failed && matchedReadContentCount(reply, target.anchors) > 0
+  );
+}
+
 function revisionInstruction(state: RunState, attempt: number): string {
   const finalAttempt =
     attempt === MAX_REVISION_ATTEMPTS
       ? ' This is the final correction attempt.'
       : '';
-  if (state.truncated) {
+  if (hasTruncatedTarget(state)) {
     return `A read tool returned only part of the requested file, and your draft did not complete the original request.${finalAttempt} Continue reading from the appropriate offset as needed, then answer the user's original request using the complete result. Preserve any requested summary, transformation, or privacy constraint; do not dump raw contents unless the user asked for them. Do not send another progress-only update or claim delivery without visible output.`;
   }
-  if (state.empty) {
+  if (allSuccessfulTargetsAreEmpty(state)) {
     return `A read tool successfully returned an empty file, but your draft only announces work or claims delivery.${finalAttempt} Replace it with a final answer that plainly says the file is empty and responds to the user's original request. Do not call read again or send another progress update.`;
   }
   return `A read tool already succeeded in this turn, but your draft only announces work or claims delivery without completing the user's original request.${finalAttempt} Replace the draft with a final answer based on the existing read result. If the user asked to see the contents, include them; if they asked for a summary, transformation, or inspection, perform that instead. Preserve any privacy or formatting constraint. Do not call read again, send another progress update, or claim output is visible when it is not. If the request truly cannot be completed, state the concrete limitation.`;
@@ -236,7 +288,6 @@ export function createFileReadCompletionGuard(options?: {
     options?.maxTrackedRuns ?? DEFAULT_MAX_TRACKED_RUNS
   );
   const runs = new Map<string, RunState>();
-  const failedRuns = new Set<string>();
 
   function touch(runId: string, state: RunState): void {
     runs.delete(runId);
@@ -259,45 +310,62 @@ export function createFileReadCompletionGuard(options?: {
         toolResultIsError(input.result) ||
         resultHasNonTextContent(input.result)
       ) {
-        // A failure for any read target makes a global completion correction
-        // unsafe. Keep that fact sticky so an unrelated later success cannot
-        // make us tell the model not to retry the failed read.
-        runs.delete(runId);
-        failedRuns.delete(runId);
-        failedRuns.add(runId);
-        while (failedRuns.size > maxTrackedRuns) {
-          const oldest = failedRuns.values().next().value;
-          if (typeof oldest !== 'string') break;
-          failedRuns.delete(oldest);
-        }
+        const existing = runs.get(runId);
+        const targets = new Map(existing?.targets ?? []);
+        const targetKey = readTarget(input.params) ?? UNKNOWN_TARGET;
+        const target = targets.get(targetKey);
+        targets.set(targetKey, {
+          anchors: target?.anchors ?? [],
+          empty: target?.empty ?? false,
+          failed: true,
+          lastOffset: Math.max(
+            target?.lastOffset ?? 0,
+            readOffset(input.params)
+          ),
+          truncated: target?.truncated ?? false,
+        });
+        touch(runId, {
+          revisionAttempts: existing?.revisionAttempts ?? 0,
+          targets,
+        });
         return;
       }
       const text = resultText(input.result);
 
       const existing = runs.get(runId);
+      const targets = new Map(existing?.targets ?? []);
+      const targetKey = readTarget(input.params) ?? UNKNOWN_TARGET;
+      const existingTarget = targets.get(targetKey);
       const anchors = Array.from(
-        new Set([...contentAnchors(text), ...(existing?.anchors ?? [])])
+        new Set([...contentAnchors(text), ...(existingTarget?.anchors ?? [])])
       ).slice(0, MAX_ANCHORS_PER_RUN);
-      const target = readTarget(input.params);
+      const offset = readOffset(input.params);
       const resultWasTruncated = TRUNCATION_MARKER.test(text);
-      const truncatedTargets = new Set(existing?.truncatedTargets ?? []);
-      let unknownTruncation = existing?.unknownTruncation ?? false;
-      if (resultWasTruncated) {
-        if (target) truncatedTargets.add(target);
-        else unknownTruncation = true;
-      } else if (target) {
-        // A marker-free follow-up for the same path reached the remainder.
-        // Reads of another path do not clear this target's outstanding state.
-        truncatedTargets.delete(target);
-      }
-      touch(runId, {
+      const continuedPastPriorChunk =
+        existingTarget?.truncated === true &&
+        offset > existingTarget.lastOffset;
+      targets.set(targetKey, {
         anchors,
-        empty: anchors.length === 0 && !text.trim(),
-        failed: failedRuns.has(runId) || (existing?.failed ?? false),
+        empty:
+          (existingTarget?.empty ?? true) &&
+          anchors.length === 0 &&
+          !text.trim(),
+        // A successful retry resolves only this target's prior failure. Other
+        // target failures remain outstanding and keep correction suppressed.
+        failed:
+          targetKey === UNKNOWN_TARGET && existingTarget?.failed === true
+            ? true
+            : false,
+        lastOffset: Math.max(existingTarget?.lastOffset ?? 0, offset),
+        // A marker-free reread at the same offset is not proof that the caller
+        // continued to EOF. Only forward progress clears prior truncation.
+        truncated:
+          resultWasTruncated ||
+          (existingTarget?.truncated === true && !continuedPastPriorChunk),
+      });
+      touch(runId, {
         revisionAttempts: existing?.revisionAttempts ?? 0,
-        truncated: unknownTruncation || truncatedTargets.size > 0,
-        truncatedTargets: [...truncatedTargets],
-        unknownTruncation,
+        targets,
       });
     },
 
@@ -308,17 +376,17 @@ export function createFileReadCompletionGuard(options?: {
       const state = runs.get(runId);
       if (
         !state ||
-        state.failed ||
+        hasFailedTarget(state) ||
         state.revisionAttempts >= MAX_REVISION_ATTEMPTS
       )
         return null;
       if (
-        !state.truncated &&
-        (containsRepresentativeReadContent(reply, state.anchors) ||
+        !hasTruncatedTarget(state) &&
+        (allTargetContentIsRepresented(reply, state) ||
           (!isIncompleteFileDeliveryReply(reply) &&
             !(
               EMPTY_DELIVERY_CLAIM.test(reply) &&
-              matchedReadContentCount(reply, state.anchors) > 0
+              anyTargetContentIsRepresented(reply, state)
             )))
       ) {
         return null;
@@ -341,7 +409,6 @@ export function createFileReadCompletionGuard(options?: {
       const key = runId?.trim();
       if (key) {
         runs.delete(key);
-        failedRuns.delete(key);
       }
     },
 
