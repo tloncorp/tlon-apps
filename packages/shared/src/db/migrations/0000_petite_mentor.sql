@@ -67,6 +67,33 @@ CREATE TABLE `bot_reply_feedback` (
 --> statement-breakpoint
 CREATE INDEX `bot_reply_feedback_post_id_index` ON `bot_reply_feedback` (`post_id`);--> statement-breakpoint
 CREATE INDEX `bot_reply_feedback_submitted_at_index` ON `bot_reply_feedback` (`submitted_at`);--> statement-breakpoint
+CREATE TABLE `bucket_entries` (
+	`channel_id` text NOT NULL,
+	`entry_id` integer NOT NULL,
+	`parent_id` integer,
+	`name` text NOT NULL,
+	`kind` text NOT NULL,
+	`created_by` text NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_by` text NOT NULL,
+	`updated_at` integer NOT NULL,
+	`mime` text,
+	`size` integer,
+	`checksum` text,
+	`object_key` text,
+	`status` text,
+	PRIMARY KEY(`channel_id`, `entry_id`),
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `bucket_entries_channel_id_index` ON `bucket_entries` (`channel_id`);--> statement-breakpoint
+CREATE INDEX `bucket_entries_parent_index` ON `bucket_entries` (`channel_id`,`parent_id`);--> statement-breakpoint
+CREATE TABLE `buckets` (
+	`channel_id` text PRIMARY KEY NOT NULL,
+	`revision` integer DEFAULT 0 NOT NULL,
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `channel_readers` (
 	`channel_id` text NOT NULL,
 	`role_id` text NOT NULL,

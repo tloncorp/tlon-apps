@@ -163,6 +163,112 @@ test('hydrates Bucket writers from a live subscription update', async () => {
   expect(edited?.writerRoles?.map((r) => r.roleId)).toEqual(['editor']);
 });
 
+// A Bucket's manifest arrives only through this subscription, so the database
+// is where it lands and views read it from there.
+test('reduces a Bucket manifest into the database', async () => {
+  const channelId = 'buckets/~zod/files';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const folder = {
+    id: 1,
+    parentId: null,
+    name: 'plans',
+    kind: 'folder' as const,
+    createdBy: '~zod',
+    createdAt: 1,
+    updatedBy: '~zod',
+    updatedAt: 1,
+  };
+  const file = {
+    id: 2,
+    parentId: 1,
+    name: 'q3.pdf',
+    kind: 'file' as const,
+    createdBy: '~zod',
+    createdAt: 2,
+    updatedBy: '~zod',
+    updatedAt: 2,
+    file: {
+      mime: 'application/pdf',
+      size: 42,
+      checksum: null,
+      objectKey: 'object-2',
+      status: 'ready' as const,
+    },
+  };
+
+  const send = (response: unknown) =>
+    batchEffects('test:buckets', (ctx) =>
+      handleBucketsUpdate(response as api.BucketsResponse, ctx)
+    );
+
+  // A snapshot carries the whole manifest.
+  await send({
+    type: 'snapshot',
+    flag: { host: '~zod', name: 'files' },
+    state: {
+      bucket: {
+        id: 1,
+        title: 'Files',
+        createdBy: '~zod',
+        createdAt: 1,
+        updatedBy: '~zod',
+        updatedAt: 1,
+      },
+      group: { host: '~zod', name: 'group' },
+      writers: ['admin'],
+      entries: [folder, file],
+      revision: 4,
+    },
+  });
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(4);
+  expect(stored?.entries.map((entry) => entry.entryId).sort()).toEqual([1, 2]);
+  // A file's fields come along; a folder leaves them null.
+  const storedFile = stored?.entries.find((entry) => entry.entryId === 2);
+  expect(storedFile?.objectKey).toBe('object-2');
+  expect(storedFile?.status).toBe('ready');
+  const storedFolder = stored?.entries.find((entry) => entry.entryId === 1);
+  expect(storedFolder?.objectKey).toBeNull();
+
+  // An entry update replaces just that entry.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 5,
+    update: {
+      type: 'entry-updated',
+      id: 2,
+      entry: { ...file, name: 'q3-final.pdf' },
+    },
+  });
+  const renamed = await db.getBucket({ channelId });
+  expect(renamed?.revision).toBe(5);
+  expect(renamed?.entries.find((e) => e.entryId === 2)?.name).toBe(
+    'q3-final.pdf'
+  );
+
+  // A delete removes it, and the rest stay.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 6,
+    update: { type: 'entries-deleted', ids: [2] },
+  });
+  const pruned = await db.getBucket({ channelId });
+  expect(pruned?.entries.map((entry) => entry.entryId)).toEqual([1]);
+
+  // Losing the Bucket forgets it entirely.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 7,
+    update: { type: 'bucket-deleted' },
+  });
+  expect(await db.getBucket({ channelId })).toBeNull();
+});
+
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
   '~solfer-magfed',

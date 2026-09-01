@@ -830,6 +830,79 @@ export const channelReaderRelations = relations(channelReaders, ({ one }) => {
   };
 });
 
+/**
+ * One Bucket's manifest, and the revision it is at.
+ *
+ * A Bucket's contents live here for the same reason posts do: the app-wide
+ * %buckets subscription is the only thing that receives them, and a view
+ * should read what has been received rather than fetch and hold its own copy.
+ * Everything else about a Bucket is already a channel, so this is the
+ * revision and nothing more.
+ */
+export const buckets = sqliteTable('buckets', {
+  channelId: text('channel_id')
+    .primaryKey()
+    .references(() => channels.id, { onDelete: 'cascade' }),
+  revision: integer('revision').notNull().default(0),
+});
+
+export const bucketsRelations = relations(buckets, ({ one, many }) => ({
+  channel: one(channels, {
+    fields: [buckets.channelId],
+    references: [channels.id],
+  }),
+  entries: many(bucketEntries),
+}));
+
+/**
+ * Entries are per-Bucket, so the key is the pair.
+ *
+ * `entryId` is only unique within its own Bucket -- which is why a view
+ * holding one Bucket's entries while pointed at another could act on the
+ * wrong one.
+ */
+export const bucketEntries = sqliteTable(
+  'bucket_entries',
+  {
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    entryId: integer('entry_id').notNull(),
+    parentId: integer('parent_id'),
+    name: text('name').notNull(),
+    kind: text('kind').$type<'folder' | 'file'>().notNull(),
+    createdBy: text('created_by').notNull(),
+    createdAt: integer('created_at').notNull(),
+    updatedBy: text('updated_by').notNull(),
+    updatedAt: integer('updated_at').notNull(),
+    // File-only, and null on a folder.
+    mime: text('mime'),
+    size: integer('size'),
+    checksum: text('checksum'),
+    objectKey: text('object_key'),
+    status: text('status').$type<'pending' | 'ready' | 'failed'>(),
+  },
+  (table) => {
+    return {
+      pk: primaryKey({ columns: [table.channelId, table.entryId] }),
+      channelIdIndex: index('bucket_entries_channel_id_index').on(
+        table.channelId
+      ),
+      parentIndex: index('bucket_entries_parent_index').on(
+        table.channelId,
+        table.parentId
+      ),
+    };
+  }
+);
+
+export const bucketEntriesRelations = relations(bucketEntries, ({ one }) => ({
+  bucket: one(buckets, {
+    fields: [bucketEntries.channelId],
+    references: [buckets.channelId],
+  }),
+}));
+
 export const channelWriters = sqliteTable(
   'channel_writers',
   {
