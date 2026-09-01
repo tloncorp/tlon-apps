@@ -797,10 +797,7 @@ describe('initContextLensShipSync retirement', () => {
         return undefined;
       },
     });
-    const apiFor = (
-      owner: string,
-      accounts?: Record<string, unknown>
-    ) => ({
+    const apiFor = (owner: string, accounts?: Record<string, unknown>) => ({
       config: {
         channels: {
           tlon: {

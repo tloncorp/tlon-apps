@@ -1554,7 +1554,10 @@ describe('UrbitSSEClient', () => {
       const putIds = mockUrbitFetch.mock.calls
         .filter((call) => call[0].init?.method === 'PUT')
         .flatMap((call) => JSON.parse(call[0].init?.body as string))
-        .map((entry: { id: number; action: string }) => `${entry.action}:${entry.id}`);
+        .map(
+          (entry: { id: number; action: string }) =>
+            `${entry.action}:${entry.id}`
+        );
       // Only the original sub 2 send and the replacement sub 3 send: the
       // abandoned loop must not re-send for an id whose handlers are gone,
       // since that send's ack would report the watch live.
