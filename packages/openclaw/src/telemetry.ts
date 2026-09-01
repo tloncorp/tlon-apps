@@ -627,7 +627,8 @@ export type TlonPluginErrorSource =
   | 'foreigns_subscription'
   | 'steward_subscription'
   | 'settings_refresh'
-  | 'sse_stream';
+  | 'sse_stream'
+  | 'approval_notification';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;

@@ -201,7 +201,7 @@ Unknown ships are not silently dropped — they queue for owner approval:
 -   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect and after every SSE reconnect, so invites that arrived while the gateway was down are not lost). An already-allowlisted ship (env allowlists or the `dmAllowlist` settings key) auto-accepts natively without queuing when `autoAcceptDmInvites` is on; with it off (the default), the invite is left pending in Tlon rather than re-queued as a fresh approval. Only the owner's invite bypasses the toggle — see [Settings-Key Parity](#settings-key-parity-dashboard--openclaw) below
 -   a **DM message** from an unapproved ship in an accepted conversation queues with the message preview and is replayed after approval
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
--   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls the group's channels into the monitored set so the bot is addressable there. Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept; rejection leaves the invite untouched in Tlon.
+-   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls its channels into the monitored set, while rejection declines the invite on the ship (`tlon groups reject-invite`, staying pending if that call fails). Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect and after every SSE reconnect; an undelivered owner notification is re-sent on later observations (no periodic timer, at most every 10 minutes), and a delivered request is never re-notified while it lives. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept.
 
 The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. `/pending` renders the same per-item View buttons on its card. Old clients fall back to the text, as does any card that fails validation — the notification itself always goes out.
 
@@ -212,7 +212,7 @@ Owner commands (deterministic, never wake the model):
 ```
 /pending                  list pending requests
 /allow <id>               approve (accepts the DM/group invite if needed, grants access, replays the message)
-/reject <id>              drop the request; a pending DM/group invite is left untouched
+/reject <id>              drop the request; a pending group invite is declined on the ship, a DM invite is left untouched
 /ban <id|~ship>           block natively via %chat (and clear pending requests from that ship)
 /unban ~ship              unblock
 /banned                   list blocked ships

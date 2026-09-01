@@ -83,6 +83,14 @@ inviter is silently ignored directly (never carded); only an unknown lookup
 falls through to the approval path.
 ```
 
+Suppression invariants: queued invites are never marked in the in-process
+dedup set (it records only auto-accept success and confirmed-blocked); the
+persisted approval record suppresses re-notification once delivered, gates
+retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
+reminder cadence. Catch-up rescries foreigns at connect and on the 2-minute
+poll, and rejecting a group request declines the invite on the ship
+(`%groups` `invite-decline`) — a failed decline keeps the request pending.
+
 **Why This Matters:**
 Malicious actors could invite the bot to groups containing:
 

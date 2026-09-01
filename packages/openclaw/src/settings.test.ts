@@ -232,6 +232,29 @@ describe('Settings: parseSettingsResponse', () => {
         'fresh-channel',
       ]);
     });
+
+    it('round-trips delivery/cooldown fields without stripping them', () => {
+      const result = parseSettingsResponse({
+        tlon: {
+          pendingApprovals: JSON.stringify([
+            {
+              id: 'g1234',
+              type: 'group',
+              requestingShip: '~inviter',
+              groupFlag: '~host/group',
+              timestamp: Date.now(),
+              notificationMessageId: '170141184507',
+              notifyAttemptAt: 2_000,
+            },
+          ]),
+        },
+      });
+
+      expect(result.pendingApprovals?.[0]).toMatchObject({
+        notificationMessageId: '170141184507',
+        notifyAttemptAt: 2_000,
+      });
+    });
   });
 });
 
