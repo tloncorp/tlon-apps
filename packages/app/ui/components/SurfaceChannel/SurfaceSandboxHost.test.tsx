@@ -72,6 +72,7 @@ function Harness(props: {
       state={props.state}
       theme="light"
       canInvoke
+      now={Date.UTC(2025, 0, 1, 0, 0, 0)}
       onInvoke={(actionId) =>
         props.stamped.push({ actionId, specRevision: stampRevision })
       }

@@ -33,6 +33,7 @@ export function lintJsonDocument(
 ): Record<string, unknown> {
   return {
     ok: result.ok,
+    environment: result.environment,
     violations: result.violations,
     warnings: result.warnings,
     skipped: result.skipped,
@@ -91,6 +92,17 @@ export async function runSurfaceLint(
   const bundleSource = readBundleSource(deps, bundlePath);
   const spec = readJsonFile(deps, specPath, 'spec');
   const result = deps.lint({ bundleSource, spec });
+
+  // Before any verdict: did the gate itself run? A harness that cannot render
+  // a known-good bundle has nothing to say about this one, and saying it
+  // anyway sends a repair loop to rewrite a correct app.
+  if (result.environment !== null) {
+    throw surfaceError(
+      'gate-harness-unavailable',
+      `The publish gate could not run: its own known-good bundle failed to render (${result.environment}). Your files are not implicated — do not rewrite the app. This is the gate's environment, not the bundle.`,
+      { bundle: bundlePath, spec: specPath, problem: result.environment }
+    );
+  }
 
   if (asJson) {
     writeSurfaceJson(deps, {

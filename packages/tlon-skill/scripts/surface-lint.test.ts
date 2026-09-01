@@ -328,6 +328,7 @@ describe('skipping is explicit, never a silent pass', () => {
       'action-idempotency',
       'chart-sizing',
       'smoke-render',
+      'time-display',
     ]);
     for (const skip of result.skipped) {
       expect(skip.reason).toContain('module syntax');
@@ -342,7 +343,7 @@ describe('skipping is explicit, never a silent pass', () => {
       bundleSource: fixture.bundleSource,
       spec: fixture.spec,
     });
-    expect(result.skipped).toHaveLength(3);
+    expect(result.skipped).toHaveLength(4);
     for (const skip of result.skipped) {
       expect(skip.reason).toContain('schema');
     }
@@ -1015,7 +1016,14 @@ describe('the behavioral fold really folds', () => {
 });
 
 describe('the smoke render is hosted, not ambient', () => {
-  it('uses the injected window factory', () => {
+  /**
+   * Two windows, both from the factory: one for the gate's own canary and one
+   * for the caller's bundle. They are separate on purpose — a canary that
+   * mounted its shell root into the document the real run then renders into
+   * would change what the activation pass sees, and a control that perturbs
+   * its subject is not a control.
+   */
+  it('uses the injected window factory, once per window it needs', () => {
     let built = 0;
     const result = lintSurfaceBundle({
       bundleSource: COMPLIANT_FIXTURE.bundleSource,
@@ -1025,8 +1033,34 @@ describe('the smoke render is hosted, not ambient', () => {
         return new Window();
       },
     });
-    expect(built).toBe(1);
+    expect(built).toBe(2);
     expect(result.ok).toBe(true);
+    expect(result.environment).toBeNull();
+  });
+
+  /**
+   * The environment classification, exercised: a window the harness cannot
+   * render into must produce an `environment` reading and NO violations —
+   * because a violation is an author error, and this codebase's own doctrine
+   * tells a bot that an author error means "rewrite the app". The cwd-
+   * dependent JSX-runtime mismatch that motivated this reported a correct,
+   * shipped template as a `smoke-render` violation.
+   */
+  it('reports a harness it cannot render in as environment, not as a violation', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource,
+      spec: COMPLIANT_FIXTURE.spec,
+      // a window with no document at all: the harness cannot mount in it
+      createWindow: () => ({}) as unknown as Window,
+    });
+    expect(result.environment).not.toBeNull();
+    expect(result.violations).toEqual([]);
+    expect(result.skipped.map((skip) => skip.rule).sort()).toEqual([
+      'action-idempotency',
+      'chart-sizing',
+      'smoke-render',
+      'time-display',
+    ]);
   });
 
   it('leaves the process globals exactly as it found them', () => {
@@ -1353,7 +1387,8 @@ describe('rule 15 — zero member actions is warned about, not refused', () => {
     expect(result.warnings[0].specPath).toBe('actions');
     // The message has to teach the opt-out; a warning nobody can act on is
     // noise that gets tuned out.
-    expect(result.warnings[0].message).toContain('memberInteraction: "none"');
+    expect(result.warnings[0].message).toContain('"mode": "none"');
+    expect(result.warnings[0].message).toContain('"because"');
     // And it must actually reach the publisher's eyes.
     expect(formatSurfaceLintResult(result)).toContain(
       'warning member-interaction actions:'
@@ -1388,14 +1423,154 @@ describe('rule 15 — zero member actions is warned about, not refused', () => {
   });
 
   it('does not accept a marker that says something else', () => {
-    // `memberInteraction` is an enum with one legal value on purpose. A
-    // truthy-but-wrong value is an undeclared app, not a declared one.
-    for (const value of ['None', 'members', true, 1, null]) {
+    // `mode` is an enum with one legal value on purpose. A truthy-but-wrong
+    // value is an undeclared app, not a declared one — and so is the bare
+    // string the marker used to be, which is what makes this an upgrade rather
+    // than a rename.
+    for (const value of [
+      'none',
+      'None',
+      'members',
+      true,
+      1,
+      null,
+      { mode: 'None', because: 'x' },
+      { mode: 'members', because: 'x' },
+    ]) {
       const result = lintSurfaceBundle({
         bundleSource: fixture.bundleSource,
         spec: { ...BEACH_TRIP_SPLIT_SPEC, memberInteraction: value },
       });
       expect(ruleSet(result.warnings)).toEqual(['member-interaction']);
     }
+  });
+
+  /**
+   * The reason the marker costs a sentence.
+   *
+   * The first app ever to carry `memberInteraction` was the app this rule was
+   * written to catch: the same expense split, shipped inert a SECOND time, one
+   * session after the failure was named — declared this time, so the warning
+   * never fired. The marker was in the first spec written, before any lint
+   * ran, copied out of the doctrine's example. A marker that costs nothing to
+   * write gets written.
+   *
+   * `because` cannot be checked by a machine and is not trying to be. What it
+   * does is make an author who cannot name the host event notice that they
+   * cannot, while they are typing.
+   */
+  it('a bare marker with no reason silences nothing, and says what is missing', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: { ...BEACH_TRIP_SPLIT_SPEC, memberInteraction: { mode: 'none' } },
+    });
+    expect(ruleSet(result.warnings)).toEqual(['member-interaction']);
+    expect(result.warnings[0].specPath).toBe('memberInteraction');
+    expect(result.warnings[0].message).toContain('no "because"');
+    expect(result.warnings[0].message).toContain('Name the host event');
+  });
+
+  it('an empty or whitespace reason is not a reason', () => {
+    for (const because of ['', '   ', '\n']) {
+      const result = lintSurfaceBundle({
+        bundleSource: fixture.bundleSource,
+        spec: {
+          ...BEACH_TRIP_SPLIT_SPEC,
+          memberInteraction: { mode: 'none', because },
+        },
+      });
+      expect(ruleSet(result.warnings)).toEqual(['member-interaction']);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* rule 16 — time                                                      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Two legs, and the suite is arranged so neither can be mistaken for the
+ * other. The lexical leg refuses the clock BY NAME; the behavioral leg
+ * compares two renders a day apart. Each has a fixture the other cannot see,
+ * which is the whole argument for keeping both.
+ */
+describe('rule 16 — time is a host input, never an ambient one', () => {
+  it('refuses a clock read whose painted value never changes', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.ambientDateRead;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['time-display']);
+    expect(result.violations[0].message).toContain('Date is forbidden');
+    // and the line, so a repair loop knows where to look
+    expect(result.violations[0].line).toBeGreaterThan(0);
+  });
+
+  /**
+   * The reason the lexical leg is not redundant, stated as an assertion: this
+   * bundle's painted output is IDENTICAL at both clock readings, so the
+   * differential probe reports nothing about it. Only the name gives it away.
+   */
+  it('catches it where the behavioral probe is blind by construction', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.ambientDateRead;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      // declaring the flag removes any chance the behavioral leg is what fired
+      spec: {
+        ...(fixture.spec as object),
+        timeDisplay: { refreshSeconds: 60 },
+      },
+    });
+    expect(ruleSet(result.violations)).toEqual(['time-display']);
+    expect(result.violations.every((v) => v.message.includes('Date'))).toBe(
+      true
+    );
+    // the behavioral leg's own finding is a WARNING and is not what we caught
+    expect(result.violations.every((v) => v.severity === 'error')).toBe(true);
+  });
+
+  it('refuses a self-scheduled repaint', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.ambientTimer;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual(['time-display']);
+    expect(result.violations[0].message).toContain('setTimeout/setInterval');
+  });
+
+  /**
+   * Comments are not code. Five shipped templates carry a line saying "this
+   * app never calls `Date`", and a rule that fired on those would make its own
+   * doctrine unwritable.
+   */
+  it('does not fire on the word in a comment', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: `// this app never calls Date, and never sets an interval\n${COMPLIANT_FIXTURE.bundleSource}`,
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(ruleSet(result.violations)).toEqual([]);
+  });
+
+  it('accepts a clock-derived screen that declares the flag', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.timeDisplayDeclared;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('warns when the flag is declared by a screen that never moves', () => {
+    const fixture = SUPPLEMENTARY_FIXTURES.timeDisplayDeclaredButStatic;
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    expect(result.ok).toBe(true);
+    expect(ruleSet(result.warnings)).toEqual(['time-display']);
+    expect(result.warnings[0].specPath).toBe('timeDisplay');
   });
 });

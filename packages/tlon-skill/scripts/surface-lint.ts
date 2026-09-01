@@ -90,6 +90,8 @@ interface ShellRun {
   };
   messages: ShellMessage[];
   sendState(state: Record<string, unknown>): void;
+  /** deliver a new host-supplied timestamp and repaint */
+  sendNow(now: number): void;
   /** dispatch a click on the first element matching the selector */
   click(selector: string): boolean;
 }
@@ -138,6 +140,9 @@ export const SURFACE_LINT_RULES = [
   // middle would renumber every rule after it. Ordering is a repair-priority
   // signal, and a warning is never the first thing to repair.
   'member-interaction',
+  // Appended for the same reason `member-interaction` was: the numbers in
+  // this list are cited by name elsewhere, so new rules go on the end.
+  'time-display',
 ] as const;
 
 export type SurfaceLintRule = (typeof SURFACE_LINT_RULES)[number];
@@ -166,6 +171,25 @@ export interface SurfaceLintSkip {
 export interface SurfaceLintResult {
   /** false when any `error` violation was reported */
   ok: boolean;
+  /**
+   * Set when the GATE ITSELF could not run — the harness could not render a
+   * known-good bundle, so nothing the behavioral phase would have said about
+   * the caller's app is worth anything.
+   *
+   * It exists because the alternative was measured and is worse than useless.
+   * Run from the repo root rather than from `packages/tlon-skill`, bun
+   * resolves a different tsconfig, preact's JSX runtime mismatches, and the
+   * SHIPPED poll template fails with `render threw (initial state):
+   * TypeError: Attempting to define property on object that is not
+   * extensible` — reported as a `smoke-render` VIOLATION, i.e. as an author
+   * error. This codebase's own error-class doctrine tells a bot that an author
+   * error means "your files are wrong, rewrite and retry", so a correct app
+   * gets regenerated because of the directory the tool was invoked from.
+   *
+   * Non-null means: report an ENVIRONMENT failure, change nothing about the
+   * app, and do not treat any behavioral finding as a verdict.
+   */
+  environment: string | null;
   /** severity `error`, in rule order then source order */
   violations: SurfaceLintViolation[];
   /** severity `warning`; never affects `ok` */
@@ -294,6 +318,29 @@ const REFERENCE_ATTRIBUTES = [
  */
 export const GATE_HOST_SHIP = '~zod';
 export const GATE_ACTOR_SHIP = '~sampel-palnet';
+
+/**
+ * The host-supplied `now` the behavioral phase renders at: 2025-01-01T00:00:00Z,
+ * the same instant `surface preview` captures at.
+ *
+ * FIXED, because every judgement in the behavioral phase is a comparison of two
+ * renders (idempotency compares folds, activation compares before and after a
+ * press), and a clock that moved between them would put a difference into every
+ * one of those comparisons that has nothing to do with the app.
+ */
+export const GATE_NOW = Date.UTC(2025, 0, 1, 0, 0, 0);
+
+/**
+ * The offset the time-display probe advances `now` by: one day.
+ *
+ * A day rather than a second because the probe asks "does this screen depend
+ * on the clock at all", and an app that renders a DATE — the commonest shape,
+ * and the one a countdown has — changes over a day and not over a second. It
+ * is deliberately not a year: a target date the host wrote is usually weeks
+ * out, and an offset that jumps past every deadline in the fixture would make
+ * a countdown and a finished countdown look like the same finding.
+ */
+export const GATE_NOW_PROBE_OFFSET_MS = 24 * 60 * 60 * 1000;
 
 const EVIDENCE_MAX_LENGTH = 120;
 
@@ -543,6 +590,71 @@ function checkExternalReferences(
       'importScripts loads code from outside the bundle',
       found.match[0]
     );
+  }
+}
+
+/**
+ * Rule 16, lexical leg — the ambient clock, refused by name.
+ *
+ * `PARADIGM.md` §3 has said "No `Date`, no `Date.now()`, no
+ * `setTimeout`/`setInterval`" since the paradigm was written, and until this
+ * rule existed nothing enforced it: a bundle containing `Date.now() > 0 ? 0 :
+ * 1` passed the gate clean, and so would one whose whole screen was a
+ * per-viewer wall clock. A doctrine that asserts a guarantee nothing checks is
+ * worse than one that admits the gap, because authors calibrate on it.
+ *
+ * The rule's other leg (`checkTimeDisplay`) is BEHAVIORAL and answers a
+ * different question — does the painted output move when the host-supplied
+ * clock does. Neither leg subsumes the other, and both are needed: the
+ * behavioral leg cannot see a `Date` read whose painted result is stable over
+ * a day, or one that never reaches the screen at all; this leg cannot see a
+ * screen that moves with `context.now` without naming any banned identifier.
+ * Same two-leg shape as rule 12 (jargon), for the same reason.
+ *
+ * **What it cannot catch, stated so nobody over-trusts it.** It is lexical, so
+ * an aliased global (`const D = globalThis['Da' + 'te']`) walks past it, as
+ * does any clock reached through a computed member expression. It does not ban
+ * `Intl.DateTimeFormat`, which formats a host-supplied timestamp without
+ * reading a clock — and which still renders per the VIEWER's timezone, so it
+ * is a per-viewer display choice the same way theme is. Between the two legs
+ * the ordinary ways of reading a clock are refused; a determined evasion is
+ * not, and never was the claim.
+ */
+function checkAmbientTime(collector: Collector, scan: ScannedBundle): void {
+  const patterns: { pattern: RegExp; message: string }[] = [
+    {
+      pattern: /(?<![\w$])Date\b/,
+      message:
+        'Date is forbidden: the sandbox clock is the VIEWER’s, so "today", "overdue" and elapsed time differ per member and the divergence is silent. Read the host-supplied clock from render’s second argument (`render(state, context)` → `context.now`) and declare timeDisplay, or use a date the host wrote into state',
+    },
+    {
+      pattern: /(?<![\w$])(setTimeout|setInterval)\s*\(/,
+      message:
+        'setTimeout/setInterval are forbidden: a surface repaints when the host sends it something, never on a timer it started itself. A screen that must stay current declares timeDisplay and the host resends `now`',
+    },
+    {
+      pattern: /(?<![\w$])(requestAnimationFrame|requestIdleCallback)\s*\(/,
+      message:
+        'requestAnimationFrame/requestIdleCallback are forbidden: render is a pure function of (state, context) called by the harness, and scheduling your own repaint is app-local state by another name',
+    },
+    {
+      pattern: /(?<![\w$])performance\s*\.\s*now\s*\(/,
+      message:
+        'performance.now() is forbidden: it is the viewer’s clock with a different origin, and elapsed time is not something a surface may derive',
+    },
+  ];
+  for (const { pattern, message } of patterns) {
+    for (const found of matchSpans(scan, CODE, pattern)) {
+      addSourceViolation(
+        collector,
+        scan,
+        'time-display',
+        'error',
+        found.offset,
+        message,
+        found.match[0]
+      );
+    }
   }
 }
 
@@ -1074,7 +1186,8 @@ function readRawActions(spec: unknown): RawAction[] {
 }
 
 /**
- * The value `memberInteraction` takes when an app is display-only by design.
+ * The value `memberInteraction.mode` takes when an app is display-only by
+ * design.
  *
  * An enum with one legal value, not a boolean, and the distinction is the
  * naming argument. A boolean (`displayOnly: true`) creates a third state the
@@ -1082,11 +1195,38 @@ function readRawActions(spec: unknown): RawAction[] {
  * spec asserting members can act and declaring nothing they can do — and it
  * describes the SCREEN, which is wrong: a display-only surface still changes,
  * from host events (a countdown ticks, a schedule advances). What is empty is
- * the MEMBER's half of the action map, and that is what this names. Absent
- * means undeclared, which is the case the warning is about; `'none'` means
- * declared inert.
+ * the MEMBER's half of the action map, and that is what this names.
  */
 const MEMBER_INTERACTION_NONE = 'none';
+
+/**
+ * Whether the spec declares itself display-only, in the form that counts.
+ *
+ * A bare marker does not. The first app to carry `memberInteraction` was the
+ * expense split this rule was written to catch, declared inert and shipped
+ * inert one session after the failure was named — the marker copied out of the
+ * doctrine's snippet before any lint ran. So the marker costs a sentence, and
+ * a marker without one silences nothing: the warning still fires, and it says
+ * what is missing.
+ */
+function declaresDisplayOnly(spec: Record<string, unknown>): {
+  marked: boolean;
+  because: string | null;
+} {
+  const marker = spec.memberInteraction;
+  if (!isRecord(marker)) return { marked: false, because: null };
+  if (marker.mode !== MEMBER_INTERACTION_NONE) {
+    return { marked: false, because: null };
+  }
+  const because = marker.because;
+  return {
+    marked: true,
+    because:
+      typeof because === 'string' && because.trim() !== ''
+        ? because.trim()
+        : null,
+  };
+}
 
 /**
  * Rule 15 — an inert app is a declared choice, not a silent one.
@@ -1111,17 +1251,19 @@ function checkMemberInteraction(collector: Collector, spec: unknown): void {
   // A non-object spec has a `spec-schema` violation of its own; this rule has
   // nothing to add to it.
   if (!isRecord(spec)) return;
-  const declared = spec.memberInteraction === MEMBER_INTERACTION_NONE;
   const actionCount = isRecord(spec.actions)
     ? Object.keys(spec.actions).length
     : 0;
-  if (actionCount > 0 || declared) return;
+  if (actionCount > 0) return;
+  const { marked, because } = declaresDisplayOnly(spec);
+  if (marked && because !== null) return;
   collector.add({
     rule: 'member-interaction',
     severity: 'warning',
-    message:
-      'the spec declares no actions, so no member can change anything on this surface. If that is the app — a countdown, a schedule, a read-only summary — declare memberInteraction: "none" and this warning goes away. If it is not, the app is missing the action its request asked for.',
-    specPath: 'actions',
+    message: marked
+      ? 'the spec declares memberInteraction.mode "none" but gives no "because", so nothing on the record says what moves this app\'s state instead. Name the host event — "the bot posts the day\'s rollover each morning", "the launch date is fixed at creation". If you cannot name one, the app is not display-only and it is missing the action its request asked for.'
+      : 'the spec declares no actions, so no member can change anything on this surface. If that is the app — a countdown, a schedule, a read-only summary — declare memberInteraction: {"mode": "none", "because": "<what moves the state instead>"} and this warning goes away. If it is not, the app is missing the action its request asked for.',
+    specPath: marked ? 'memberInteraction' : 'actions',
   });
 }
 
@@ -2052,14 +2194,99 @@ function activateControls(
   return outcome;
 }
 
+/**
+ * A known-good bundle, kept as small as it can be while still exercising the
+ * whole path the gate's behavioral phase depends on: registration, the htm
+ * template tag, a primitive component, and one render into the DOM.
+ *
+ * It is the gate's control on itself. If THIS cannot render, the harness is
+ * broken and every behavioral finding about the caller's bundle is noise.
+ */
+const HARNESS_CANARY_BUNDLE = `(function () {
+  const { html, primitives } = surface;
+  const { Card } = primitives;
+  surface.register({
+    render(state) {
+      return html\`<\${Card} title="canary">\${String(state.ok)}<//>\`;
+    },
+  });
+})();`;
+
+const HARNESS_CANARY_SPEC = {
+  surfaceId: 'srf-gate-canary',
+  specRevision: 1,
+  title: 'canary',
+  actions: {},
+};
+
+/**
+ * Render the canary and report why the harness is unusable, or null.
+ *
+ * Deliberately conservative: it reports a problem only when the KNOWN-GOOD
+ * bundle fails, which no change to the caller's files can cause and no change
+ * to the caller's files can fix.
+ */
+function harnessProblem(win: unknown): string | null {
+  try {
+    const run = runShellFixture({
+      window: win,
+      bundleSource: HARNESS_CANARY_BUNDLE,
+      spec: HARNESS_CANARY_SPEC,
+      state: { ok: true },
+      canInvoke: true,
+      now: GATE_NOW,
+    }) as ShellRun;
+    const failure = run.messages.find(
+      (message) => message.type === 'error' && message.phase !== 'bridge'
+    );
+    if (failure) {
+      return `${failure.phase}: ${failure.message ?? ''}`.trim();
+    }
+    if ((run.root.textContent ?? '').includes('canary') === false) {
+      return 'the canary bundle registered but painted nothing';
+    }
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+}
+
 function runBehavioralPhase(
   collector: Collector,
   input: SurfaceLintInput,
   spec: SurfaceSpec,
   rawActions: RawAction[],
   jargonTerms: readonly string[]
-): void {
+): string | null {
   const makeWindow = input.createWindow ?? (() => new Window());
+
+  /**
+   * The gate's control on itself, FIRST and in its OWN window: if a
+   * known-good bundle cannot render here, the harness is broken and nothing
+   * this phase would say about the caller's bundle is a fact about the
+   * caller's bundle. Reported as an environment failure rather than as a
+   * violation, because a violation tells a repair loop to rewrite files that
+   * are fine.
+   *
+   * A separate window is load-bearing, not tidiness. Sharing one leaves the
+   * canary's mounted shell root in the document the real run then renders
+   * into, and the activation pass — which decides whether a control is inside
+   * "the rendered output" by containment — starts attributing the caller's
+   * controls to the wrong root. Measured: it turned one shortfall reason into
+   * a different one. A control that perturbs its subject is not a control.
+   */
+  const canaryWindow = makeWindow() as Record<string, unknown>;
+  const restoreCanaryGlobals = installDomGlobals(canaryWindow);
+  let problem: string | null;
+  try {
+    problem = harnessProblem(canaryWindow);
+  } finally {
+    restoreCanaryGlobals();
+  }
+  if (problem !== null) {
+    return problem;
+  }
+
   const win = makeWindow() as Record<string, unknown>;
   const restoreGlobals = installDomGlobals(win);
   const recorder = recordEventBindings(win);
@@ -2075,10 +2302,75 @@ function runBehavioralPhase(
       recorder,
       errors
     );
+    return null;
   } finally {
     errors.restore();
     recorder.restore();
     restoreGlobals();
+  }
+}
+
+/**
+ * Rule 16 — the time-display declaration matches what the app actually paints.
+ *
+ * Asked BEHAVIORALLY, not by reading the source: render the initial state at
+ * `GATE_NOW`, render it again a day later, and compare the painted copy. The
+ * shell's `now` is the only thing that moved, so a difference is the app
+ * deriving something from the clock and nothing else. A regex over the bundle
+ * would answer a different question — `context.now` can be destructured,
+ * aliased, passed to a helper, or named anything at all, and a bundle can
+ * mention it in dead code it never renders.
+ *
+ * Two findings, and the asymmetry is deliberate.
+ *
+ * - **Paints time, declares nothing: an ERROR.** The host only runs a refresh
+ *   timer for a spec that declares `timeDisplay`, so this app's screen is
+ *   frozen at whatever `now` it was opened with. That is not a cosmetic
+ *   shortfall: a countdown that stops counting reads as broken, and — worse
+ *   for this gate — the twelve preview cells a reviewer scored are a snapshot
+ *   of a screen that will not stay true, so the sheet they signed is about an
+ *   app nobody will see.
+ * - **Declares it, paints nothing: a WARNING.** The cost is a timer that
+ *   repaints an unchanged screen, which is waste and not a defect, and the
+ *   probe can be wrong in this direction: an app whose clock-derived text
+ *   happens not to change across one day (a target three months out rendered
+ *   to the month) is time-displaying and looks static here. An error would
+ *   refuse a correct app on the strength of a probe that admits it cannot see
+ *   everything.
+ *
+ * Restores `GATE_NOW` before returning, so everything downstream renders at
+ * the gate's canonical clock.
+ */
+function checkTimeDisplay(
+  collector: Collector,
+  spec: SurfaceSpec,
+  run: ShellRun
+): void {
+  const declared = spec.timeDisplay !== undefined;
+  const atNow = renderedCopy(run.root);
+  run.sendNow(GATE_NOW + GATE_NOW_PROBE_OFFSET_MS);
+  const aDayLater = renderedCopy(run.root);
+  run.sendNow(GATE_NOW);
+  const paintsTime = atNow !== aDayLater;
+
+  if (paintsTime && !declared) {
+    collector.add({
+      rule: 'time-display',
+      severity: 'error',
+      message:
+        'the screen changes when the host-supplied `now` advances by a day, but the spec declares no timeDisplay — so the host never sends a fresh `now` and this app is frozen at whatever clock it was opened with. Declare timeDisplay: { refreshSeconds: <n> }, or derive the screen from state only',
+      specPath: 'timeDisplay',
+    });
+    return;
+  }
+  if (!paintsTime && declared) {
+    collector.add({
+      rule: 'time-display',
+      severity: 'warning',
+      message:
+        'the spec declares timeDisplay, but advancing the host-supplied `now` by a day changed nothing on screen, so the refresh timer would repaint an identical screen forever. Drop timeDisplay unless the app really does derive something from `now` that this probe cannot see over one day',
+      specPath: 'timeDisplay',
+    });
   }
 }
 
@@ -2107,6 +2399,10 @@ function foldAndRender(
       spec,
       state: spec.initialState,
       canInvoke: true,
+      // The gate is a host, so it supplies the clock like one — fixed, so
+      // every comparison below is a comparison of the app and not of the time
+      // between two lines of this function.
+      now: GATE_NOW,
       chart: createRecordingChart(live),
     }) as ShellRun;
   } catch (error) {
@@ -2117,6 +2413,10 @@ function foldAndRender(
         error instanceof Error ? error.message : String(error)
       }`,
     });
+    collector.skip(
+      'time-display',
+      'the bundle never evaluated, so nothing was rendered to compare across two clock readings'
+    );
     return;
   }
 
@@ -2201,6 +2501,7 @@ function foldAndRender(
   };
 
   inspect('initial state');
+  checkTimeDisplay(collector, spec, run);
   activate('initial state');
 
   const preserving = spec.preserveState === true;
@@ -2417,6 +2718,10 @@ export function lintSurfaceBundle(input: SurfaceLintInput): SurfaceLintResult {
   checkForbiddenApis(collector, scan);
   checkNavigationVectors(collector, scan);
   checkEntryPoint(collector, scan);
+  // Rule 16's lexical leg. It runs in the static phase, so a bundle that
+  // cannot be evaluated at all still gets told it reads the clock — the
+  // behavioral leg is skipped in that case and would otherwise say nothing.
+  checkAmbientTime(collector, scan);
 
   const rawActions = readRawActions(input.spec);
   checkActionCrossReference(
@@ -2431,10 +2736,16 @@ export function lintSurfaceBundle(input: SurfaceLintInput): SurfaceLintResult {
   checkChartSourceGrep(collector, scan);
   checkJargonLexically(collector, scan, jargonTerms);
 
+  let environment: string | null = null;
   const behavioralRules: SurfaceLintRule[] = [
     'chart-sizing',
     'smoke-render',
     'action-idempotency',
+    // The time-display probe is two renders and a comparison, so it lives or
+    // dies with the behavioral phase like the other three. Listed here rather
+    // than left off: a rule that silently does not run is the vacuous kind of
+    // check this file's skip discipline exists to prevent.
+    'time-display',
   ];
   const moduleSyntaxFailed = collector.violations.some(
     (violation) => violation.rule === 'module-syntax'
@@ -2451,7 +2762,18 @@ export function lintSurfaceBundle(input: SurfaceLintInput): SurfaceLintResult {
       );
     }
   } else {
-    runBehavioralPhase(collector, input, spec, rawActions, jargonTerms);
+    environment = runBehavioralPhase(
+      collector,
+      input,
+      spec,
+      rawActions,
+      jargonTerms
+    );
+    if (environment !== null) {
+      for (const rule of behavioralRules) {
+        collector.skip(rule, `the gate's own harness could not render`);
+      }
+    }
   }
 
   const all = sortViolations(collector.violations);
@@ -2459,6 +2781,7 @@ export function lintSurfaceBundle(input: SurfaceLintInput): SurfaceLintResult {
   const warnings = all.filter((entry) => entry.severity === 'warning');
   return {
     ok: violations.length === 0,
+    environment,
     violations,
     warnings,
     skipped: collector.skipped,

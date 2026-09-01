@@ -1,12 +1,15 @@
 import {
   PREVIEW_ACTORS,
+  PREVIEW_FIXED_NOW,
   PREVIEW_FULL_HEIGHT,
   PREVIEW_RUBRIC_PATH,
   PREVIEW_RUBRIC_TEMPLATE_FILE,
+  type PreviewHostOps,
   type PreviewOutcome,
   type PreviewRequest,
   PreviewError,
   PreviewUnavailableError,
+  parseHostOps,
   renderSurfacePreview,
 } from '../surface-preview';
 import {
@@ -63,10 +66,37 @@ Options:
   --scale <n>         device scale factor (default: 2)
   --full-height <px>  height of the fold-free phone cell (default: ${PREVIEW_FULL_HEIGHT})
   --rounds <n>        fold rounds per declared action (default: 2)
+  --host-ops <file>   host events to fold alongside the actions (see below)
+  --state <file>      render this state instead of the spec's initialState
   --no-populated      capture the initial state only
   --read-only         render as a member who cannot act (canInvoke false)
   --json              print the manifest as JSON instead of a report
   --help, -h          show this help
+
+--host-ops takes a JSON array of host events, each the same \`mode: 'host'\`
+op list \`tlon surface event\` posts:
+
+  [
+    { "at": "before", "note": "two finished sessions",
+      "ops": [{ "op": "set", "path": "/history/2025-01-06", "value": {} }] },
+    { "at": "after", "note": "the nightly rollover",
+      "ops": [{ "op": "del", "path": "/today" }] }
+  ]
+
+They fold through the same reducer under the same rules — host authorship,
+current revision, the same caps — with "before" ahead of the invoked actions
+and "after" behind them ("after" is the default). Without them a
+host-is-the-clock app previews as its pre-rollover half only: everything a
+rollover produces is invisible in all twelve cells.
+
+--state takes a JSON object — a channel's current state (\`tlon surface state
+--json\`) or the \`state.json\` a template ships — and renders it in place of the
+spec's \`initialState\`. The twelve cells then become: "initial" = the app on
+that state, "populated" = that state with every action (and any host ops)
+folded through it. The manifest says which happened.
+
+Every cell renders at a FIXED host-supplied \`now\` (${PREVIEW_FIXED_NOW}), so an
+app that displays time produces byte-identical captures on every run.
 
 It then runs a machine-checked defect pass over every rendered cell —
 viewport overflow from layout metrics, tap-target geometry, and the jargon
@@ -76,7 +106,8 @@ the screen answers what was asked, or anything about colour; it prints what
 it did not check on every run, including clean ones.
 
 Finally it writes ${PREVIEW_RUBRIC_TEMPLATE_FILE} into the output directory: the
-scoring sheet, pre-keyed for all twelve cells and all seven checks and
+scoring sheet, pre-keyed for all twelve cells and every check that applies
+to this spec, and
 stamped with this bundle's sha256. Fill it in and pass it to
 \`surface publish --rubric <file>\`, which refuses to publish without it.
 
@@ -105,6 +136,8 @@ export interface SurfacePreviewDeps extends CommandDeps {
 interface ParsedArgs {
   bundle: string;
   spec: string;
+  hostOps: string | null;
+  state: string | null;
   outDir: string;
   settleMs: number;
   deviceScaleFactor: number;
@@ -144,6 +177,8 @@ export function parseSurfacePreviewArgs(args: string[]): ParsedArgs {
   let includePopulated = true;
   let canInvoke = true;
   let json = false;
+  let hostOps: string | null = null;
+  let state: string | null = null;
 
   for (let index = 0; index < args.length; index++) {
     const arg = args[index];
@@ -168,6 +203,22 @@ export function parseSurfacePreviewArgs(args: string[]): ParsedArgs {
       case '--rounds':
         foldRounds = positiveFlag('--rounds', args[++index]);
         break;
+      case '--host-ops': {
+        const value = args[++index];
+        if (value === undefined) {
+          throw usageError('--host-ops needs a file', SURFACE_PREVIEW_HELP);
+        }
+        hostOps = value;
+        break;
+      }
+      case '--state': {
+        const value = args[++index];
+        if (value === undefined) {
+          throw usageError('--state needs a file', SURFACE_PREVIEW_HELP);
+        }
+        state = value;
+        break;
+      }
       case '--no-populated':
         includePopulated = false;
         break;
@@ -201,6 +252,8 @@ export function parseSurfacePreviewArgs(args: string[]): ParsedArgs {
   return {
     bundle: positional[0],
     spec: positional[1],
+    hostOps,
+    state,
     outDir,
     settleMs,
     deviceScaleFactor,
@@ -305,6 +358,52 @@ function report(deps: SurfacePreviewDeps, outcome: PreviewOutcome): void {
       `  populated state: ${outcome.populated.invokes.length} invoke(s) folded as ${manifest.actors.join(', ')}`
     );
   }
+
+  if (outcome.populated.hostOps.length > 0) {
+    const before = outcome.populated.hostOps.filter(
+      (entry) => entry.at === 'before'
+    ).length;
+    const after = outcome.populated.hostOps.length - before;
+    writeLine(
+      deps.stdout,
+      `  host events: ${before} before and ${after} after the actions, from ${manifest.populated.hostOpsSource}`
+    );
+    for (const entry of outcome.populated.hostOps) {
+      writeLine(
+        deps.stdout,
+        `    ${entry.at.padEnd(6)} ${entry.opCount} op(s)${entry.note === undefined ? '' : ` — ${entry.note}`}`
+      );
+    }
+  }
+
+  // An aborted entry left the state PART applied (§7), so the populated cells
+  // show a half-finished event. Printed before the paths, because a reviewer
+  // who scores those images without knowing this is scoring a state no
+  // channel would ever hold.
+  if (outcome.populated.abortedSequenceNums.length > 0) {
+    writeLine(
+      deps.stdout,
+      `  ${outcome.populated.abortedSequenceNums.length} folded entr(ies) were ABORTED part-way by the reducer` +
+        ` (sequence ${outcome.populated.abortedSequenceNums.join(', ')}); the populated state is partly applied`
+    );
+  }
+
+  if (manifest.stateSource === 'override') {
+    // Loud, because a capture of a substituted state must never be
+    // indistinguishable from a capture of the spec's own starting point.
+    writeLine(
+      deps.stdout,
+      "  state: a SUPPLIED state stands in for the spec's initialState, so" +
+        ' "initial" is the app on that state and "populated" is it folded'
+    );
+  }
+  writeLine(
+    deps.stdout,
+    `  rendered at a fixed host now: ${new Date(manifest.now).toISOString()}` +
+      (manifest.timeDisplayRefreshSeconds === null
+        ? ''
+        : ` (spec declares timeDisplay every ${manifest.timeDisplayRefreshSeconds}s)`)
+  );
   writeLine(deps.stdout);
 
   let viewport: string | null = null;
@@ -332,7 +431,8 @@ function report(deps: SurfacePreviewDeps, outcome: PreviewOutcome): void {
   );
   writeLine(
     deps.stdout,
-    "twelve cells and the seven checks, and stamped with this bundle's hash),"
+    'twelve cells and every check that applies to this spec, and stamped with' +
+      " this bundle's hash),"
   );
   writeLine(
     deps.stdout,
@@ -387,6 +487,50 @@ export const run: CommandRunner<SurfacePreviewDeps> = async (args, deps) => {
       );
     }
 
+    let hostOps: PreviewHostOps | undefined;
+    if (parsed.hostOps !== null) {
+      const hostOpsText = read(deps, parsed.hostOps, 'host ops');
+      let hostOpsRaw: unknown;
+      try {
+        hostOpsRaw = JSON.parse(hostOpsText);
+      } catch (error) {
+        throw commandError(
+          `${parsed.hostOps} is not valid JSON: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+      try {
+        hostOps = parseHostOps(hostOpsRaw, parsed.hostOps);
+      } catch (error) {
+        if (error instanceof PreviewError) {
+          throw commandError(error.message);
+        }
+        throw error;
+      }
+    }
+
+    let stateOverride: PreviewRequest['stateOverride'];
+    if (parsed.state !== null) {
+      const stateText = read(deps, parsed.state, 'state');
+      let raw: unknown;
+      try {
+        raw = JSON.parse(stateText);
+      } catch (error) {
+        throw commandError(
+          `${parsed.state} is not valid JSON: ${
+            error instanceof Error ? error.message : String(error)
+          }`
+        );
+      }
+      if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+        throw commandError(
+          `${parsed.state} does not hold a JSON object, so it cannot be a surface state`
+        );
+      }
+      stateOverride = raw as PreviewRequest['stateOverride'];
+    }
+
     let outcome: PreviewOutcome;
     try {
       outcome = await deps.render({
@@ -394,6 +538,8 @@ export const run: CommandRunner<SurfacePreviewDeps> = async (args, deps) => {
         bundleSha256,
         spec,
         outDir: parsed.outDir,
+        ...(hostOps === undefined ? {} : { hostOps }),
+        ...(stateOverride === undefined ? {} : { stateOverride }),
         includePopulated: parsed.includePopulated,
         canInvoke: parsed.canInvoke,
         deviceScaleFactor: parsed.deviceScaleFactor,

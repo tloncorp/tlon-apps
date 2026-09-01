@@ -8,7 +8,7 @@ import {
 } from '@tloncorp/surface-shell/artifact-strings';
 import { buildSandboxDocument } from '@tloncorp/surface-shell/sandbox';
 import * as store from '@tloncorp/shared';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useThemeName } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -39,6 +39,8 @@ export function SurfaceSandboxContainer({
   const canInvoke = useCanWrite(channel, currentUserId);
   const themeName = useThemeName();
   const theme = shellThemeFromThemeName(themeName);
+
+  const now = useHostClock(spec.timeDisplay?.refreshSeconds ?? null);
 
   const sendInvoke = useCallback(
     (actionId: string) => {
@@ -90,7 +92,44 @@ export function SurfaceSandboxContainer({
       state={state}
       theme={theme}
       canInvoke={canInvoke}
+      now={now}
       onInvoke={sendInvoke}
     />
   );
+}
+
+/**
+ * The host's clock, and the ONLY clock a surface app ever sees.
+ *
+ * The shell reads no time of its own: it holds whatever `now` the host last
+ * sent and hands it to `render` as a display input. So the cadence question —
+ * does this screen need to keep moving? — is answered HERE, from the spec's
+ * `timeDisplay` declaration, and not by a timer the sandbox started for
+ * itself.
+ *
+ * `refreshSeconds` null means the spec declares nothing, so this returns one
+ * fixed reading taken at mount and never ticks. That is the right default and
+ * not a degraded one: a screen derived from state alone is correct forever,
+ * and repainting it on a timer would burn a wakeup per minute per open
+ * channel to produce identical pixels.
+ *
+ * Why the declaration gates the timer rather than the app just asking: the
+ * publish gate has to be able to SEE that this app's screen moves with the
+ * clock (rule 16), because the twelve preview cells a reviewer scored are a
+ * snapshot taken at one fixed `now`. An app that ticks without declaring it is
+ * an app whose scoring sheet is about a screen nobody will see.
+ */
+function useHostClock(refreshSeconds: number | null): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (refreshSeconds === null) {
+      return;
+    }
+    // Re-read at mount too: a screen that has been backgrounded for an hour
+    // is showing an hour-old clock, and the declaration says that matters.
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), refreshSeconds * 1000);
+    return () => clearInterval(timer);
+  }, [refreshSeconds]);
+  return now;
 }

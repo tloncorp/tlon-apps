@@ -47,9 +47,17 @@ import { buildRubricTemplate } from './surface-rubric-artifact';
  *   `@tloncorp/surface-shell/artifact-strings` — the same embedded artifact
  *   `packages/app` ships, not a dev build.
  * - `reduceSurface` from `@tloncorp/api` — the populated state is folded by
- *   the real reducer from the spec's own declared actions. A hand-written
- *   state object would prove nothing about whether the app's actions
- *   produce something legible, so there isn't one.
+ *   the real reducer from the spec's own declared actions, and (D70) from
+ *   any host events `--host-ops` supplies. A hand-written state object would
+ *   prove nothing about whether the app's actions produce something legible,
+ *   so there isn't one; the host-ops path is the same reducer taking the same
+ *   `mode: 'host'` events the bot posts on a real channel, not a second way
+ *   in.
+ *
+ * Time is an input, and a FIXED one. Every cell's `init` carries
+ * `PREVIEW_FIXED_NOW`, so an app whose screen depends on the clock renders
+ * identically on every run — see that constant. Nothing here reads
+ * `Date.now()`.
  *
  * The bridge is the real protocol too: the host page waits for the shell's
  * `ready` and answers with an `init` message that is validated against the
@@ -69,10 +77,11 @@ import { buildRubricTemplate } from './surface-rubric-artifact';
 
 type ApiModule = typeof import('@tloncorp/api');
 
-const { SurfaceSpecSchema } = surfaceSchemasModule as Pick<
-  ApiModule,
-  'SurfaceSpecSchema'
->;
+const { SurfaceSpecSchema, SurfaceEventEntrySchema } =
+  surfaceSchemasModule as Pick<
+    ApiModule,
+    'SurfaceSpecSchema' | 'SurfaceEventEntrySchema'
+  >;
 const { reduceSurface } = surfaceReducerModule as Pick<
   ApiModule,
   'reduceSurface'
@@ -313,12 +322,169 @@ function migrationSnapshotPost(spec: SurfaceSpec): SurfacePostLike {
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Host operations (D70)                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One host event, as a `--host-ops` file writes it.
+ *
+ * The gap this closes (D70): `foldPopulatedState` folds DECLARED ACTIONS
+ * only, and there is no action for "and then the host posted the rollover".
+ * Every host-is-the-clock app therefore previewed as its pre-rollover half —
+ * the workout tracker's chart card and past-sessions card were empty in all
+ * twelve cells, which are exactly the elements preview exists to inspect.
+ *
+ * This is not a second reducer and not a state file. It is a list of the
+ * same `mode: 'host'` events the bot posts with `tlon surface event`, folded
+ * by the same reducer, subject to the same rules — host authorship, current
+ * revision, the same op grammar, the same caps, the same abort-on-refusal.
+ * A host op preview accepts is a host op production would accept, which is
+ * the only version of this feature worth having: the alternative (hand a
+ * state object to the renderer) would preview a state no sequence of real
+ * events can produce.
+ */
+export interface PreviewHostOpEntry {
+  /** the raw ops, exactly as a `surface-event` `mode: 'host'` entry carries */
+  ops: unknown[];
+  /**
+   * Where this entry folds relative to the invoked actions. Default `after`,
+   * which is D70's word and the rollover case: members log, then the host
+   * archives.
+   *
+   * `before` exists because the fullest screen usually needs both halves at
+   * once. The workout tracker's chart reads `/history`, which only a host
+   * event writes, and its session card reads `/today`, which only member
+   * invokes write — so seeding history `before` and letting the crew fill
+   * today gives one capture with both populated. Folding everything `after`
+   * would archive and clear the very session the actions just logged, and the
+   * card the reviewer is meant to score would be empty again for a new
+   * reason.
+   */
+  at?: 'before' | 'after';
+  /** the author's words for what this event is; echoed into the manifest */
+  note?: string;
+}
+
+export interface PreviewHostOps {
+  entries: PreviewHostOpEntry[];
+  /** where the entries came from, for the manifest */
+  source: string;
+}
+
+/**
+ * Parse a `--host-ops` file into entries, refusing anything the reducer
+ * would silently skip.
+ *
+ * The refusals are the point. `parsePostBlob` degrades an entry that fails
+ * `SurfaceEventEntrySchema` to `{ type: 'unknown' }` and the reducer walks
+ * straight past it — correct for hostile channel content, useless for a file
+ * the author just wrote, because the capture would come back looking exactly
+ * like one where the ops were fine and did nothing. So each entry is
+ * validated HERE against the same schema the reducer will apply, and a
+ * failure is an error the author reads rather than an empty card they have
+ * to explain.
+ */
+export function parseHostOps(raw: unknown, source: string): PreviewHostOps {
+  if (!Array.isArray(raw)) {
+    throw new PreviewError(
+      `${source} must hold a JSON array of host events, each { "ops": [...], "at": "before" | "after" }`
+    );
+  }
+  const entries: PreviewHostOpEntry[] = [];
+  raw.forEach((value, index) => {
+    const where = `${source}[${index}]`;
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      throw new PreviewError(`${where} is not a host event object`);
+    }
+    const entry = value as Record<string, unknown>;
+    if (!Array.isArray(entry.ops)) {
+      throw new PreviewError(`${where}.ops must be an array of ops`);
+    }
+    const at = entry.at ?? 'after';
+    if (at !== 'before' && at !== 'after') {
+      throw new PreviewError(`${where}.at must be "before" or "after"`);
+    }
+    if (entry.note !== undefined && typeof entry.note !== 'string') {
+      throw new PreviewError(`${where}.note must be a string`);
+    }
+    entries.push({
+      ops: entry.ops,
+      at,
+      ...(entry.note === undefined ? {} : { note: entry.note }),
+    });
+  });
+  return { entries, source };
+}
+
+/**
+ * The `surface-event` entry a host op becomes. Split out so the validation
+ * below and the post built for the fold are provably the same object.
+ */
+function hostEventEntry(spec: SurfaceSpec, entry: PreviewHostOpEntry): unknown {
+  return {
+    type: 'surface-event',
+    version: 1,
+    surfaceId: spec.surfaceId,
+    specRevision: spec.specRevision,
+    mode: 'host',
+    ops: entry.ops,
+  };
+}
+
+function hostOpPost(
+  spec: SurfaceSpec,
+  entry: PreviewHostOpEntry,
+  sequenceNum: number
+): SurfacePostLike {
+  return {
+    // The fold's host ship, and the reducer checks it: a host event authored
+    // by anyone else is skipped, here exactly as on a channel.
+    authorId: PREVIEW_HOST_SHIP,
+    sequenceNum,
+    blob: JSON.stringify([hostEventEntry(spec, entry)]),
+  };
+}
+
+function validateHostOps(spec: SurfaceSpec, hostOps: PreviewHostOps): void {
+  hostOps.entries.forEach((entry, index) => {
+    const parsed = SurfaceEventEntrySchema.safeParse(
+      hostEventEntry(spec, entry)
+    );
+    if (!parsed.success) {
+      const detail = parsed.error.issues
+        .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+        .join('; ');
+      throw new PreviewError(
+        `${hostOps.source}[${index}] is not a host event the reducer would fold: ${detail}`
+      );
+    }
+  });
+}
+
 export interface PopulatedFold {
   state: JsonObject;
   /** every invoke that was folded, in fold order */
   invokes: { actionId: string; actor: string }[];
+  /** every host event that was folded, in fold order */
+  hostOps: { at: 'before' | 'after'; opCount: number; note?: string }[];
+  /**
+   * True when the fold ran the restore pass — every constructive action once
+   * per actor, after the rounds — because the spec mixes destructive and
+   * constructive actions. Reported so the extra invokes in `invokes` are
+   * attributable to the tool rather than read as the app's own doing.
+   */
+  restoredAfterDestructive: boolean;
   /** true when the fold produced state identical to `initialState` */
   unchanged: boolean;
+  /**
+   * Sequence numbers of entries the reducer aborted part-way through — the
+   * commonest way a hand-written host-ops file is wrong (a path that does not
+   * exist yet, a `set` under a missing parent). Reported rather than absorbed:
+   * an aborted host event leaves a partly-applied state, and a capture of a
+   * partly-applied state must never look like a capture of a clean one.
+   */
+  abortedSequenceNums: number[];
   /** set when the reducer refused to produce a state at all */
   problem?: string;
 }
@@ -334,37 +500,115 @@ export const PREVIEW_FOLD_ROUNDS = 2;
  * over every action is what fills a crew list, a tally, a chart series —
  * i.e. what makes the populated screenshot a fair test of "is this
  * scannable". The rounds are what make a repeat visible at all.
+ *
+ * `hostOps` (D70) folds host events around the invokes — `before` first, then
+ * every invoke, then `after` — as real `mode: 'host'` posts through the same
+ * reducer, so a host-is-the-clock app can preview the half only the host can
+ * produce.
  */
 export function foldPopulatedState(
   spec: SurfaceSpec,
-  options: { rounds?: number; actors?: readonly string[] } = {}
+  options: {
+    rounds?: number;
+    actors?: readonly string[];
+    hostOps?: PreviewHostOps;
+  } = {}
 ): PopulatedFold {
   const rounds = Math.max(1, options.rounds ?? PREVIEW_FOLD_ROUNDS);
   const actors = options.actors ?? PREVIEW_ACTORS;
   const actionIds = Object.keys(spec.actions);
+  const hostOps = options.hostOps ?? { entries: [], source: '(none)' };
+  if (hostOps.entries.length > 0) {
+    validateHostOps(spec, hostOps);
+  }
 
   const preserving = spec.preserveState === true;
   const posts: SurfacePostLike[] = preserving
     ? [migrationSnapshotPost(spec)]
     : [];
   const invokes: { actionId: string; actor: string }[] = [];
+  const foldedHostOps: PopulatedFold['hostOps'] = [];
 
   let sequenceNum = 1;
+  const foldHostOps = (at: 'before' | 'after') => {
+    for (const entry of hostOps.entries) {
+      if ((entry.at ?? 'after') !== at) {
+        continue;
+      }
+      posts.push(hostOpPost(spec, entry, sequenceNum));
+      foldedHostOps.push({
+        at,
+        opCount: entry.ops.length,
+        ...(entry.note === undefined ? {} : { note: entry.note }),
+      });
+      sequenceNum++;
+    }
+  };
+
+  const invoke = (actionId: string, actor: string) => {
+    posts.push(invokePost(spec, actionId, actor, sequenceNum));
+    invokes.push({ actionId, actor });
+    sequenceNum++;
+  };
+
+  foldHostOps('before');
   for (let round = 0; round < rounds; round++) {
     actionIds.forEach((actionId, index) => {
-      const actor = actors[(index + round) % actors.length];
-      posts.push(invokePost(spec, actionId, actor, sequenceNum));
-      invokes.push({ actionId, actor });
-      sequenceNum++;
+      invoke(actionId, actors[(index + round) % actors.length]);
     });
   }
+  /**
+   * The restore pass — every constructive action, once per actor, after the
+   * rounds.
+   *
+   * Actions fold in DECLARATION ORDER against a rotating crew, so whichever
+   * action is declared last lands last on a determinate actor. When that
+   * action is destructive (`del /entries/$actor`, "clear my entry", "leave
+   * trip") that member is deleted from the state every populated cell renders,
+   * and the reviewer scores a board with a real member-shaped hole in it for a
+   * reason that has nothing to do with the app. A template author hit exactly
+   * this and worked around it by declaring the reset FIRST — a coping strategy
+   * against tool behaviour, not a property of good specs.
+   *
+   * Ordering destructive actions first within a round does not fix it: the
+   * rotation means round N's `del` lands on the actor round N-1's constructive
+   * actions just wrote for, and the hole moves rather than closing. Covering
+   * every actor is what makes the guarantee unconditional.
+   *
+   * It runs ONLY when the spec declares both a destructive and a constructive
+   * action, so a spec without a `del` folds exactly as it did before — and no
+   * declared action is dropped from the fold, which the "not fully exercised"
+   * discipline would otherwise report as a hole of its own.
+   */
+  const destructive = (actionId: string) =>
+    (spec.actions[actionId]?.ops ?? []).some((op) => op.op === 'del');
+  const constructive = actionIds.filter((actionId) => !destructive(actionId));
+  const restored =
+    constructive.length > 0 && constructive.length < actionIds.length;
+  if (restored) {
+    for (const actor of actors) {
+      for (const actionId of constructive) {
+        invoke(actionId, actor);
+      }
+    }
+  }
+  foldHostOps('after');
 
-  if (actionIds.length === 0) {
+  // A spec with no actions is still worth folding when host ops were
+  // supplied: a display-only app (`memberInteraction.mode: 'none'`) moves by
+  // host event and nothing else, so host ops are the ONLY way its populated
+  // cell is ever populated. Reporting "nothing can populate it" there would
+  // be the old limitation restated after it was fixed.
+  if (actionIds.length === 0 && hostOps.entries.length === 0) {
     return {
       state: spec.initialState,
       invokes: [],
+      hostOps: [],
+      restoredAfterDestructive: false,
+      abortedSequenceNums: [],
       unchanged: true,
-      problem: 'the spec declares no actions, so nothing can populate it',
+      problem:
+        'the spec declares no actions and no host ops were supplied, so nothing can populate it',
     };
   }
 
@@ -373,6 +617,9 @@ export function foldPopulatedState(
     return {
       state: spec.initialState,
       invokes,
+      hostOps: foldedHostOps,
+      restoredAfterDestructive: restored,
+      abortedSequenceNums: [],
       unchanged: true,
       problem: `the reducer returned ${reduction.status}; captured initialState instead`,
     };
@@ -381,6 +628,9 @@ export function foldPopulatedState(
   return {
     state: reduction.state,
     invokes,
+    hostOps: foldedHostOps,
+    restoredAfterDestructive: restored,
+    abortedSequenceNums: reduction.abortedSequenceNums,
     // Through the one comparison helper (D72), not a raw `JSON.stringify`
     // pair: two states that differ only in key order are the same state, and
     // reporting "the actions changed something" because the reducer rebuilt an
@@ -402,7 +652,30 @@ export interface PreviewInitMessage {
   state: JsonObject;
   theme: PreviewTheme;
   canInvoke: boolean;
+  now: number;
 }
+
+/**
+ * The `now` every capture is taken at: 2025-01-01T00:00:00Z.
+ *
+ * FIXED, and that is the whole feature. `render`'s second argument is a
+ * host-supplied timestamp, so an app that shows time is a pure function of
+ * (state, now) — which makes its painted output reproducible if and only if
+ * the host supplies the same `now` twice. Preview, the publish gate's smoke
+ * render and the preflight witness therefore all inject this constant, and
+ * two runs an hour apart produce byte-identical PNGs.
+ *
+ * Reaching for `Date.now()` here instead would cost exactly that: the
+ * screenshot a reviewer scored and the screenshot the next run produces would
+ * differ for a reason that has nothing to do with the app, and every
+ * byte-comparison downstream (the hash the rubric sheet is bound to, the CI
+ * render job) would be comparing two different questions.
+ *
+ * A round midnight UTC rather than a random instant, because template authors
+ * read it: "the countdown says 14 days" is checkable against a target date in
+ * the fixture, and an offset of 37 minutes past the hour is not.
+ */
+export const PREVIEW_FIXED_NOW = Date.UTC(2025, 0, 1, 0, 0, 0);
 
 /**
  * The `init` the host answers `ready` with — the same message
@@ -416,6 +689,7 @@ export function buildInitMessage(options: {
   state: JsonObject;
   theme: PreviewTheme;
   canInvoke: boolean;
+  now?: number;
 }): PreviewInitMessage {
   const message: PreviewInitMessage = {
     type: 'init',
@@ -424,6 +698,7 @@ export function buildInitMessage(options: {
     state: options.state,
     theme: options.theme,
     canInvoke: options.canInvoke,
+    now: options.now ?? PREVIEW_FIXED_NOW,
   };
   const parsed = HostToShellMessageSchema.safeParse(message);
   if (!parsed.success) {
@@ -672,6 +947,8 @@ export interface CaptureOptions {
   fullHeight: number;
   /** quiet period after `ready` before the shutter, in ms */
   settleMs: number;
+  /** the fixed host-supplied timestamp every cell renders at */
+  now: number;
   launcher: PreviewLauncher;
 }
 
@@ -710,6 +987,7 @@ export async function capturePreview(
         state,
         theme: cell.theme,
         canInvoke: options.canInvoke,
+        now: options.now,
       });
       const context = await browser.newContext({
         viewport: { width: cell.viewport.width, height: cell.viewport.height },
@@ -799,6 +1077,35 @@ export interface PreviewRequest {
   fullHeight?: number;
   settleMs?: number;
   foldRounds?: number;
+  /**
+   * Host events folded around the invoked actions (D70). Parse a file with
+   * `parseHostOps` and pass the result; the fold validates each entry against
+   * the reducer's own schema before folding it.
+   */
+  hostOps?: PreviewHostOps;
+  /**
+   * The host-supplied `now` every cell renders at. Defaults to
+   * `PREVIEW_FIXED_NOW`, and a caller that overrides it should be injecting
+   * another FIXED value — never `Date.now()`, which is what makes captures
+   * stop being comparable.
+   */
+  now?: number;
+  /**
+   * A state to render in place of the spec's `initialState` — the channel's
+   * current reduced state (`tlon surface state --json`), or the `state.json`
+   * a template ships as "what CI renders".
+   *
+   * The substitution is total and happens BEFORE the fold, so the twelve cells
+   * become: `initial` = the app on that state, `populated` = that state with
+   * every declared action (and any host ops) folded through it. Same
+   * substitution `dev/surfaces-render-probe.ts` makes for the preflight
+   * witness, so the two agree by construction rather than by resemblance.
+   *
+   * Reported as `stateSource` in the manifest, because a capture of a
+   * substituted state must never be indistinguishable from a capture of the
+   * spec's own starting point.
+   */
+  stateOverride?: JsonObject;
   launcher?: PreviewLauncher;
 }
 
@@ -811,11 +1118,33 @@ export interface PreviewManifest {
   bundleSha256: string;
   actions: string[];
   actors: string[];
+  /**
+   * The host-supplied timestamp every cell rendered at, and the declared
+   * refresh cadence if the spec has one.
+   *
+   * Recorded because it is part of what the twelve images ARE: a reviewer
+   * scoring "14 days left" has to be able to check that against the `now` the
+   * capture was taken at, and a later run that produced different pixels has
+   * to be diagnosable as "a different clock" rather than "a different app".
+   */
+  now: number;
+  timeDisplayRefreshSeconds: number | null;
+  /**
+   * `spec-initial-state` or `override`, naming which starting point the twelve
+   * cells were rendered from.
+   */
+  stateSource: 'spec-initial-state' | 'override';
   rubric: string;
   /** the pre-filled scoring sheet, written next to the screenshots */
   rubricTemplate: string;
   populated: {
     invokes: { actionId: string; actor: string }[];
+    hostOps: { at: 'before' | 'after'; opCount: number; note?: string }[];
+    /** true when the fold added a restore pass after a destructive action */
+    restoredAfterDestructive: boolean;
+    /** where the host ops came from, or null when none were supplied */
+    hostOpsSource: string | null;
+    abortedSequenceNums: number[];
     unchanged: boolean;
     problem?: string;
   };
@@ -905,7 +1234,18 @@ export async function renderSurfacePreview(
   const spec = validateSpec(request.spec);
   const document = assemblePreviewDocument(request.bundleSource);
 
-  const populated = foldPopulatedState(spec, { rounds: request.foldRounds });
+  const now = request.now ?? PREVIEW_FIXED_NOW;
+  // Substituted into the SPEC, so the fold and the `initial` cell see the same
+  // starting point and nothing downstream has to know which happened.
+  const stateSource =
+    request.stateOverride === undefined ? 'spec-initial-state' : 'override';
+  if (request.stateOverride !== undefined) {
+    spec.initialState = request.stateOverride;
+  }
+  const populated = foldPopulatedState(spec, {
+    rounds: request.foldRounds,
+    ...(request.hostOps === undefined ? {} : { hostOps: request.hostOps }),
+  });
   const includePopulated = request.includePopulated !== false;
   const states: { name: PreviewStateName; state: JsonObject }[] = [
     { name: 'initial', state: spec.initialState },
@@ -928,6 +1268,7 @@ export async function renderSurfacePreview(
     deviceScaleFactor: request.deviceScaleFactor ?? 2,
     fullHeight,
     settleMs: request.settleMs ?? 500,
+    now,
     launcher,
   });
 
@@ -951,6 +1292,9 @@ export async function renderSurfacePreview(
     bundleSha256: request.bundleSha256,
     actions: Object.keys(spec.actions),
     actors: [...PREVIEW_ACTORS],
+    now,
+    timeDisplayRefreshSeconds: spec.timeDisplay?.refreshSeconds ?? null,
+    stateSource,
     rubric: PREVIEW_RUBRIC_PATH,
     rubricTemplate: join(outDir, PREVIEW_RUBRIC_TEMPLATE_FILE),
     defects: groupDefects(defects),
@@ -958,6 +1302,10 @@ export async function renderSurfacePreview(
     notChecked: [...PREVIEW_DEFECTS_NOT_CHECKED],
     populated: {
       invokes: populated.invokes,
+      hostOps: populated.hostOps,
+      restoredAfterDestructive: populated.restoredAfterDestructive,
+      hostOpsSource: request.hostOps?.source ?? null,
+      abortedSequenceNums: populated.abortedSequenceNums,
       unchanged: populated.unchanged,
       ...(populated.problem === undefined
         ? {}
@@ -989,6 +1337,7 @@ export async function renderSurfacePreview(
     buildRubricTemplate({
       surfaceId: spec.surfaceId,
       bundleSha256: request.bundleSha256,
+      spec,
     })
   );
 

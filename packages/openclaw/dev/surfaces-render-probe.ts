@@ -72,6 +72,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
+  PREVIEW_FIXED_NOW,
   cellId,
   renderSurfacePreview,
 } from '../../tlon-skill/scripts/surface-preview';
@@ -81,6 +82,7 @@ export const RENDER_PROBE_NOT_SEEN = [
   'anything reachable only by interacting — the probe reads a settled render and never clicks',
   'anything shown only to a member who cannot act; every cell renders with canInvoke true',
   'anything a host `surface event` would have to deliver before it appears',
+  'anything the app would only paint at a different clock reading; every cell renders at one fixed host `now`',
   'anything painted into a canvas, an image, or a CSS pseudo-element rather than into text nodes',
   'anything the app renders outside `.tsh-root`, which the in-frame probe does not read',
 ];
@@ -164,6 +166,13 @@ export async function probeRender(args: Args): Promise<RenderProbeResult> {
     // scored against; a shorter settle here would measure a different render
     // from the one the rubric sees.
     settleMs: 500,
+    // The same FIXED host `now` `surface preview` injects, passed explicitly
+    // rather than left to the default. This probe's whole job is to answer
+    // "does the app already paint X?", and the answer has to be a property of
+    // the app: an ambient clock would make the same channel answer differently
+    // on two consecutive runs, and the preflight that reads this would call
+    // that a behaviour change.
+    now: PREVIEW_FIXED_NOW,
     // Screenshots are a by-product for this consumer — a human checking the
     // evidence wants to be able to LOOK at the cell whose text is quoted — but
     // they are not what is read, so they need not be retina.

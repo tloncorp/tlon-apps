@@ -37,6 +37,9 @@ const SPEC = {
   actions: { vote: { ops: [] } },
 };
 
+/** A fixed host clock, so every asserted `init` below is byte-stable. */
+const FIXED_NOW = Date.UTC(2025, 0, 1, 0, 0, 0);
+
 function setup(overrides: { canInvoke?: boolean } = {}) {
   const posts: string[] = [];
   const onInvoke = vi.fn();
@@ -46,6 +49,7 @@ function setup(overrides: { canInvoke?: boolean } = {}) {
     initialState: { votes: {} },
     theme: 'light',
     canInvoke: overrides.canInvoke ?? true,
+    now: FIXED_NOW,
     post: (serialized) => posts.push(serialized),
     onInvoke,
     onShellError,
@@ -79,6 +83,7 @@ test('ready triggers init with current spec, state, theme, permission', () => {
       state: { votes: {} },
       theme: 'light',
       canInvoke: true,
+      now: FIXED_NOW,
     },
   ]);
 });
@@ -106,6 +111,24 @@ test('updates before ready fold into the eventual init; after ready they post', 
   expect(sent().at(-1)).toEqual({ type: 'theme', theme: 'light' });
   session.updatePermission(true);
   expect(sent().at(-1)).toEqual({ type: 'permission', canInvoke: true });
+  session.updateNow(FIXED_NOW + 60_000);
+  expect(sent().at(-1)).toEqual({ type: 'now', now: FIXED_NOW + 60_000 });
+});
+
+/**
+ * `now` folds into the eventual `init` exactly as state, theme and permission
+ * do — a clock reading taken before the sandbox was ready is still the clock
+ * reading the first render should see, and posting a `now` into a sandbox that
+ * has not said `ready` would be a message with nowhere to land.
+ */
+test('a now update before ready folds into the init rather than posting', () => {
+  const { session, sent } = setup();
+  session.updateNow(FIXED_NOW + 3_600_000);
+  expect(sent()).toEqual([]);
+  session.handleInbound(ready);
+  expect(sent()).toEqual([
+    expect.objectContaining({ type: 'init', now: FIXED_NOW + 3_600_000 }),
+  ]);
 });
 
 test('a matching-revision invoke passes only the actionId through', () => {

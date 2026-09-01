@@ -151,19 +151,158 @@ describe('SurfaceSpecSchema', () => {
     // — it still vanishes, which is what the marker would do undeclared.
     const parsed = SurfaceSpecSchema.parse({
       ...validSpec({ actions: {} }),
-      memberInteraction: 'none',
+      memberInteraction: {
+        mode: 'none',
+        because: 'the launch date is fixed at creation',
+      },
       stillUnknown: true,
     });
-    expect(parsed.memberInteraction).toBe('none');
+    expect(parsed.memberInteraction).toEqual({
+      mode: 'none',
+      because: 'the launch date is fixed at creation',
+    });
     expect(parsed).not.toHaveProperty('stillUnknown');
   });
 
-  test('rejects a memberInteraction that is not "none"', () => {
-    // One legal value, so the near-misses a model would reach for are the
-    // cases worth pinning: a capitalised variant, a plausible-but-undeclared
-    // word, and the boolean this deliberately is not.
-    for (const value of ['None', 'members', true, 1, null]) {
-      const spec = { ...validSpec(), memberInteraction: value as never };
+  test('a spec survives validation carrying timeDisplay', () => {
+    // Declared for the same reason `duplicatesTolerated` and
+    // `memberInteraction` are: `z.object` strips what it does not declare, so
+    // an undeclared marker is present in a written spec and absent from the
+    // validated read-back of that same spec, and every comparison of the two
+    // sees a difference that is not there. The unknown key beside it is the
+    // contrast — it still vanishes.
+    const parsed = SurfaceSpecSchema.parse({
+      ...validSpec(),
+      timeDisplay: { refreshSeconds: 60 },
+      stillUnknown: true,
+    });
+    expect(parsed.timeDisplay).toEqual({ refreshSeconds: 60 });
+    expect(parsed).not.toHaveProperty('stillUnknown');
+  });
+
+  test('rejects a refresh cadence that is not a usable one', () => {
+    // Bounded at both ends: below 1s no viewer can read the difference, above
+    // a day it is a reason to reopen the screen rather than a timer. The
+    // non-integer and the negative are the shapes a model reaches for.
+    for (const refreshSeconds of [0, -1, 0.5, 86401, '60', null]) {
+      const spec = {
+        ...validSpec(),
+        timeDisplay: { refreshSeconds } as never,
+      };
+      expect(SurfaceSpecSchema.safeParse(spec).success).toBe(false);
+    }
+  });
+
+  test('rejects a memberInteraction whose mode is not "none"', () => {
+    // One legal mode, so the near-misses a model would reach for are the cases
+    // worth pinning: a capitalised variant, a plausible-but-undeclared word,
+    // and the boolean this deliberately is not.
+    for (const mode of ['None', 'members', true, 1, null]) {
+      const spec = {
+        ...validSpec(),
+        memberInteraction: { mode, because: 'x' } as never,
+      };
+      expect(SurfaceSpecSchema.safeParse(spec).success).toBe(false);
+    }
+  });
+
+  test('rejects the bare marker the field used to be', () => {
+    // The upgrade, pinned. The marker's first outing was a bare `'none'`
+    // copied out of the doctrine before any lint ran, on the exact app the
+    // rule existed to catch. A schema that still accepted the bare string
+    // would leave that path open beside the new one.
+    const spec = { ...validSpec(), memberInteraction: 'none' as never };
+    expect(SurfaceSpecSchema.safeParse(spec).success).toBe(false);
+  });
+
+  test('a forked spec survives validation carrying its lineage', () => {
+    // The third field declared for the same reason (D67, D72). Fork wrote
+    // `provenance` from the day it shipped and was safe only because every
+    // comparison on its write path happens to be raw-to-raw — a property of
+    // those call sites, not of the field. Declaring it also makes lineage
+    // readable off a validated spec, which is what the fork affordance in the
+    // client needs in order to display anything.
+    const provenance = {
+      surfaceId: 'srf-source',
+      specRevision: 3,
+      sha256: 'a'.repeat(64),
+      mode: 'copy' as const,
+    };
+    const parsed = SurfaceSpecSchema.parse({
+      ...validSpec(),
+      provenance,
+      stillUnknown: true,
+    });
+    expect(parsed.provenance).toEqual(provenance);
+    expect(parsed).not.toHaveProperty('stillUnknown');
+  });
+
+  test('the source channel is optional, and omitted stays omitted', () => {
+    // Naming the source nest tells every member of the forker's group that a
+    // channel by that name exists somewhere. Opt-in, so a schema that supplied
+    // a default or required the field would make the disclosure automatic.
+    const withChannel = SurfaceSpecSchema.parse({
+      ...validSpec(),
+      provenance: {
+        surfaceId: 'srf-source',
+        specRevision: 1,
+        sha256: 'b'.repeat(64),
+        channel: 'chat/~zod/dash-0001',
+        mode: 'regenerated',
+      },
+    });
+    expect(withChannel.provenance?.channel).toBe('chat/~zod/dash-0001');
+    const without = SurfaceSpecSchema.parse({
+      ...validSpec(),
+      provenance: {
+        surfaceId: 'srf-source',
+        specRevision: 1,
+        sha256: 'b'.repeat(64),
+        mode: 'copy',
+      },
+    });
+    expect(without.provenance).not.toHaveProperty('channel');
+  });
+
+  test('rejects lineage that is not a lineage', () => {
+    // It is a claim and nothing verifies it, which is exactly why its SHAPE
+    // has to be enforced: an unverifiable field with an unconstrained shape is
+    // a place to put arbitrary member-visible text.
+    for (const provenance of [
+      {
+        surfaceId: 'srf-source',
+        specRevision: 1,
+        sha256: 'short',
+        mode: 'copy',
+      },
+      { surfaceId: '', specRevision: 1, sha256: 'c'.repeat(64), mode: 'copy' },
+      {
+        surfaceId: 'srf-source',
+        specRevision: 0,
+        sha256: 'c'.repeat(64),
+        mode: 'copy',
+      },
+      {
+        surfaceId: 'srf-source',
+        specRevision: 1,
+        sha256: 'c'.repeat(64),
+        mode: 'forked',
+      },
+      { surfaceId: 'srf-source', specRevision: 1, sha256: 'c'.repeat(64) },
+      'srf-source',
+    ]) {
+      const spec = { ...validSpec(), provenance: provenance as never };
+      expect(SurfaceSpecSchema.safeParse(spec).success).toBe(false);
+    }
+  });
+
+  test('rejects a marker with no reason, or an empty one', () => {
+    for (const marker of [
+      { mode: 'none' },
+      { mode: 'none', because: '' },
+      { mode: 'none', because: 42 },
+    ]) {
+      const spec = { ...validSpec(), memberInteraction: marker as never };
       expect(SurfaceSpecSchema.safeParse(spec).success).toBe(false);
     }
   });

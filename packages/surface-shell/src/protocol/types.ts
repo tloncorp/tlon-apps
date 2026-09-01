@@ -1,8 +1,8 @@
 /**
  * The bridge protocol (plan §5): the complete message vocabulary between
  * host and shell, deliberately narrow. App code sees none of this — its
- * whole capability surface is `render(state)` in and `invoke(actionId)`
- * out; no message type here may widen that.
+ * whole capability surface is `render(state, context)` in and
+ * `invoke(actionId)` out; no message type here may widen that.
  *
  * This module is dependency-free: it is the in-sandbox source of truth for
  * shapes. The zod schemas in ./schemas.ts (host-facing) are built over
@@ -57,6 +57,26 @@ export interface ShellSurfaceSpec {
 
 export type ShellTheme = 'light' | 'dark';
 
+/**
+ * The second argument to `render`. Time as an EXPLICIT, DISPLAY-ONLY,
+ * PER-VIEWER input — the same class as theme, and deliberately not the same
+ * class as state.
+ *
+ * `now` is epoch milliseconds supplied by the HOST. The shell never reads a
+ * clock to produce it and never advances it on its own; it holds the last
+ * value the host sent and hands it to `render`. That is what makes a capture
+ * reproducible: a host that injects a fixed `now` gets byte-identical output
+ * from the same bundle and the same state, forever.
+ *
+ * `null` when the host has supplied nothing — an older host, or a capture
+ * harness that deliberately declines to. An app that reads `now` must render
+ * something sane for `null`; the paradigm's rule is that the clock is an
+ * input you are GIVEN, never one you can go and take.
+ */
+export interface SurfaceRenderContext {
+  now: number | null;
+}
+
 /** host → shell */
 export type HostInitMessage = {
   type: 'init';
@@ -65,17 +85,34 @@ export type HostInitMessage = {
   state: JsonObject;
   theme: ShellTheme;
   canInvoke: boolean;
+  /**
+   * Optional and additive: a host that sends nothing leaves `context.now`
+   * null, and every bundle written before this field existed ignores the
+   * second render argument entirely. That is why this is not a protocol
+   * break — see `SHELL_VERSION`'s comment.
+   */
+  now?: number;
 };
 
 export type HostStateMessage = { type: 'state'; state: JsonObject };
 export type HostThemeMessage = { type: 'theme'; theme: ShellTheme };
 export type HostPermissionMessage = { type: 'permission'; canInvoke: boolean };
 
+/**
+ * A new host-supplied timestamp. The host decides when to send one — on an
+ * interval for a spec that declares `timeDisplay`, never for one that does
+ * not — so the cadence is the host's policy and is visible to the publish
+ * gate as a spec field, rather than being a timer the shell started for
+ * itself.
+ */
+export type HostNowMessage = { type: 'now'; now: number };
+
 export type HostToShellMessage =
   | HostInitMessage
   | HostStateMessage
   | HostThemeMessage
-  | HostPermissionMessage;
+  | HostPermissionMessage
+  | HostNowMessage;
 
 /** shell → host */
 export type ShellReadyMessage = {

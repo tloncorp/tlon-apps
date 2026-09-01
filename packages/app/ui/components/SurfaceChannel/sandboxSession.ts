@@ -76,6 +76,13 @@ export interface SurfaceSandboxHostProps {
   state: JsonObject;
   theme: ShellTheme;
   canInvoke: boolean;
+  /**
+   * The host-supplied clock, in epoch milliseconds — the second argument the
+   * shell hands `render`. The sandbox has no clock of its own, so this is the
+   * only time information an app ever sees, and the host is what decides how
+   * often it moves (see `SurfaceSandboxContainer`).
+   */
+  now: number;
   onInvoke: (actionId: string) => void;
   onShellError?: (phase: string, message: string) => void;
 }
@@ -104,6 +111,8 @@ export interface SandboxSessionOptions {
   initialState: JsonObject;
   theme: ShellTheme;
   canInvoke: boolean;
+  /** the host-supplied clock the first render sees */
+  now: number;
   /** deliver one serialized host→shell message into the sandbox */
   post: (serialized: string) => void;
   /** a validated, revision-cross-checked invoke — actionId only */
@@ -118,6 +127,12 @@ export interface SandboxSession {
   updateState(state: JsonObject): void;
   updateTheme(theme: ShellTheme): void;
   updatePermission(canInvoke: boolean): void;
+  /**
+   * Push a fresh host clock reading. The shell repaints on it and nothing
+   * else changes — `now` is a display input, never state, and no value of it
+   * can reach a write.
+   */
+  updateNow(now: number): void;
   isReady(): boolean;
 }
 
@@ -128,6 +143,7 @@ export function createSandboxSession(
   let state = options.initialState;
   let theme = options.theme;
   let canInvoke = options.canInvoke;
+  let now = options.now;
   let ready = false;
   let telemetryReports = 0;
 
@@ -147,6 +163,7 @@ export function createSandboxSession(
       state,
       theme,
       canInvoke,
+      now,
     });
   }
 
@@ -253,6 +270,12 @@ export function createSandboxSession(
       canInvoke = nextCanInvoke;
       if (ready) {
         post({ type: 'permission', canInvoke: nextCanInvoke });
+      }
+    },
+    updateNow(nextNow: number) {
+      now = nextNow;
+      if (ready) {
+        post({ type: 'now', now: nextNow });
       }
     },
     isReady() {

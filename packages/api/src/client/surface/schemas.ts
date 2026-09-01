@@ -29,6 +29,13 @@ export const SURFACE_CAPS = {
   specTotal: 32 * 1024,
   initialState: 8 * 1024,
   recipe: 8 * 1024,
+  /**
+   * The lineage block `surface fork` writes. Small by construction — two ids,
+   * a revision, a hash and a mode — so the cap is a bound on abuse rather than
+   * on legitimate content: nothing correct comes near 1KB, and a spec near
+   * `specTotal` must not be pushed over it by a field nobody chose to add.
+   */
+  provenance: 1024,
   actionsPerSpec: 64,
   /** ops per action and per host event */
   opsPerEvent: 20,
@@ -174,19 +181,78 @@ export const SurfaceSpecSchema = z
      * a read-only summary whose state moves only from host events — rather
      * than by omission. The reducer never reads it.
      *
-     * An enum with one legal value rather than a boolean, for two reasons.
-     * `displayOnly: false` over an empty action map would be a spec asserting
-     * members can act while declaring nothing they can do, a third state the
-     * schema cannot refuse. And the claim is about the MEMBER's half of the
-     * action map, not about the screen — a display-only surface still changes,
-     * from host events.
+     * `mode` is an enum with one legal value rather than a boolean, for two
+     * reasons. `displayOnly: false` over an empty action map would be a spec
+     * asserting members can act while declaring nothing they can do, a third
+     * state the schema cannot refuse. And the claim is about the MEMBER's half
+     * of the action map, not about the screen — a display-only surface still
+     * changes, from host events.
      *
-     * Declared here for the reason `duplicatesTolerated` is: `z.object`
-     * strips what it does not declare, so an undeclared marker is present in a
+     * ── Why the marker costs a sentence ────────────────────────────────
+     *
+     * It started as a bare `'none'` and the first app to carry it was the
+     * exact app the rule was written to catch: an expense split nobody can add
+     * an expense to, shipped inert a second time, one session after being
+     * named — declared this time, so the warning never fired. The marker had
+     * been copied out of the doctrine's example before any lint ran, from a
+     * snippet that sat eleven lines below the paragraph explaining that this
+     * app shape is the wrong reason to reach for it.
+     *
+     * A marker that costs nothing to write gets written. `because` is not
+     * decoration and it is not machine-checkable: it is the sentence the
+     * rubric's eighth check is scored against, and its job is to make an
+     * author who cannot name the host event that moves the state notice that
+     * they cannot, at the moment they are typing rather than two sessions
+     * later.
+     *
+     * Declared here for the reason `duplicatesTolerated` is: `z.object` strips
+     * what it does not declare, so an undeclared marker is present in a
      * written spec and absent from the validated read-back of that same spec,
      * and every comparison of the two sees a difference that is not there.
      */
-    memberInteraction: z.enum(['none']).optional(),
+    memberInteraction: z
+      .object({
+        mode: z.literal('none'),
+        /** what moves this app's state instead, in the author's own words */
+        because: z.string().min(1),
+      })
+      .optional(),
+    /**
+     * The time-display declaration: this app's screen depends on the
+     * host-supplied `now`, and the host should keep sending fresh ones every
+     * `refreshSeconds` while a viewer has it open.
+     *
+     * The reducer never reads it — nothing here can reach a write. That is
+     * the whole point of the flag being on the DISPLAY side: a state
+     * transition that depends on time ("closed once the date passes") is
+     * still a host event and nothing else, and no value of this field will
+     * ever make it otherwise.
+     *
+     * It exists as a spec field rather than as something inferred from the
+     * bundle for two reasons. The host has to know whether to run a timer at
+     * all, and reading that off the bundle would mean parsing app code in the
+     * render path. And the publish gate has to be able to SEE it: an app
+     * whose screen moves with the clock while its spec says nothing is an app
+     * whose reviewers scored a screenshot that will not stay true, which is
+     * what the `time-display` rule refuses.
+     *
+     * Declared here (not left as an unknown key) for the reason
+     * `duplicatesTolerated` and `memberInteraction` are: `z.object` strips
+     * what it does not declare, so an undeclared marker is present in a
+     * written spec and absent from the validated read-back of that same spec,
+     * and every comparison of the two sees a difference that is not there.
+     */
+    timeDisplay: z
+      .object({
+        /**
+         * Seconds between host `now` refreshes. Bounded below at 1 (a busier
+         * timer than one repaint a second buys nothing a viewer can read) and
+         * above at a day, which is the longest cadence that is still a timer
+         * rather than a reason to reopen the screen.
+         */
+        refreshSeconds: z.number().int().min(1).max(86400),
+      })
+      .optional(),
     actions: z
       .record(ActionIdSchema, SurfaceActionSchema)
       .superRefine((actions, ctx) => {
@@ -198,6 +264,41 @@ export const SurfaceSpecSchema = z
         }
       }),
     recipe: sizeCapped(JsonSchema, SURFACE_CAPS.recipe, 'recipe').optional(),
+    /**
+     * Where this app was copied from. Written by `surface fork`.
+     *
+     * **A CLAIM, never an attestation.** The forker writes every field of it
+     * and nothing verifies any of them: a `sha256` here is the source bundle's
+     * hash as the forker read it, not a hash anything re-checked, and
+     * `surfaceId` names a surface the reader may not be able to see. Treat it
+     * as attribution and lineage, never as trust. `bundle.sha256` is the only
+     * hash in a spec that a client enforces.
+     *
+     * Declared here for the third time for the same reason (D67, D72): a key
+     * the schema does not declare is present in a written spec and absent from
+     * the validated read-back of that same spec, so every comparison of the
+     * two sees a difference that is not there. Fork wrote this key from the
+     * day it shipped and was safe only because every comparison on its write
+     * path happens to be raw-to-raw — which is a property of today's call
+     * sites, not of the field. Declaring it also makes lineage readable off a
+     * validated spec, which the §9 fork affordance needs in order to display
+     * anything at all.
+     *
+     * `channel` is optional ON PURPOSE: naming the source nest tells every
+     * member of the forker's group that a channel by that name exists
+     * somewhere, which is a disclosure the forker should have to opt into.
+     */
+    provenance: sizeCapped(
+      z.object({
+        surfaceId: z.string().min(1),
+        specRevision: z.number().int().positive(),
+        sha256: z.string().regex(/^[0-9a-f]{64}$/),
+        channel: z.string().min(1).optional(),
+        mode: z.enum(['copy', 'regenerated']),
+      }),
+      SURFACE_CAPS.provenance,
+      'provenance'
+    ).optional(),
   })
   .superRefine((spec, ctx) => {
     if (jsonByteLength(spec as Json) > SURFACE_CAPS.specTotal) {

@@ -13,10 +13,15 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as surfaceReducerModule from '@tloncorp/api/client/surface/reducer';
+
 import type { PreviewCellObservation } from './surface-preview-defects';
 import {
   PREVIEW_ACTORS,
+  PREVIEW_FIXED_NOW,
   PREVIEW_FULL_HEIGHT,
+  PREVIEW_HOST_SHIP,
   PREVIEW_RUBRIC_TEMPLATE_FILE,
   type PreviewBrowser,
   type PreviewContext,
@@ -29,6 +34,8 @@ import {
   buildPreviewHostPage,
   cellId,
   foldPopulatedState,
+  loadChromium,
+  parseHostOps,
   previewMatrix,
   previewViewports,
   renderSurfacePreview,
@@ -38,6 +45,14 @@ import { RUBRIC_CELL_IDS } from './surface-rubric-artifact';
 // bun test runs from the package root
 const repoRoot = join(process.cwd(), '..', '..');
 const shellRoot = join(repoRoot, 'packages', 'surface-shell');
+
+const { reduceSurface } = surfaceReducerModule as {
+  reduceSurface(input: {
+    spec: SurfaceSpec;
+    hostShip: string;
+    posts: { authorId: string; sequenceNum: number; blob: string }[];
+  }): { status: string; state?: Record<string, unknown> };
+};
 
 const { buildSandboxDocument } = shellSandboxModule as {
   buildSandboxDocument(options: {
@@ -237,6 +252,465 @@ describe('foldPopulatedState', () => {
     const folded = foldPopulatedState({ ...pollSpec(), preserveState: true });
     expect(folded.problem).toBeUndefined();
     expect(Object.keys(folded.state.votes as object)).not.toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* preserveState conformance (D69)                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * **This is not a two-implementation conformance suite, because there is only
+ * one implementation.** `surface-preview.ts` imports `reduceSurface` from
+ * `@tloncorp/api/client/surface/reducer` and folds with it; there is no second
+ * fold in the CLI to hold against the client's. A suite that ran the same
+ * fixtures through `foldPopulatedState` and through `reduceSurface` and
+ * asserted the two agreed would be asserting that a function equals itself —
+ * green forever, including on the day somebody replaces the import with a
+ * hand-rolled fold that gets `preserveState` wrong.
+ *
+ * So the honest test is the one that fails IF PREVIEW EVER FORKS. Three
+ * assertions, each with a different fulcrum:
+ *
+ *  1. **the import** — the renderer reads the shared reducer's module. Fulcrum:
+ *     the import statement. Delete it, or point it at a local copy, and this
+ *     fails.
+ *  2. **the migration gate is the reducer's** — preview's populated state for a
+ *     preserving spec exists only because the stand-in snapshot satisfies the
+ *     reducer's own §4.4/§6 rules. Fulcrum: the stand-in's author and
+ *     revision. Break either and the reducer answers `migration-pending`,
+ *     which is what preview would have to report rather than a state.
+ *  3. **D69's divergence, as a checked statement** — preview's preserving fold
+ *     is the NEW `initialState`, where production carries the OLD state. The
+ *     capture is knowingly optimistic, and this pins that the optimism is the
+ *     documented one and not a bug that drifted in.
+ */
+describe('preview folds with the client reducer, not a copy of it', () => {
+  const rendererSource = readFileSync(
+    join(process.cwd(), 'scripts', 'surface-preview.ts'),
+    'utf8'
+  );
+
+  /**
+   * Whitespace-collapsed and quote-normalized: the formatter rewraps these
+   * declarations and rewrites their quotes as the file grows, and a pin that
+   * broke on either would be a pin people learn to edit rather than read.
+   */
+  const flat = rendererSource.replace(/\s+/g, ' ').replace(/"/g, "'");
+
+  it('imports the shared reducer rather than defining a fold', () => {
+    expect(flat).toContain(
+      "import * as surfaceReducerModule from '@tloncorp/api/client/surface/reducer'"
+    );
+    expect(flat).toContain('const { reduceSurface } = surfaceReducerModule');
+    // and calls it — an import nothing uses is the same as no import
+    expect(flat).toContain(
+      'reduceSurface({ spec, hostShip: PREVIEW_HOST_SHIP, posts })'
+    );
+  });
+
+  /**
+   * The stand-in snapshot is a real `surface-snapshot` entry subject to every
+   * rule the reducer applies to one. Each mutation below is a rule: authored
+   * by a non-host, tagged at the wrong revision, or absent entirely. All three
+   * must produce `migration-pending` from the reducer — which is what proves
+   * preview's populated state is the reducer accepting a valid snapshot, and
+   * not preview waving the migration gate past.
+   */
+  it('gets its preserving state from the reducer accepting the stand-in, not from bypassing it', () => {
+    const spec = { ...pollSpec(), preserveState: true };
+    const actionIds = Object.keys(spec.actions);
+    const invokes = actionIds.map((actionId, index) => ({
+      authorId: PREVIEW_ACTORS[index % PREVIEW_ACTORS.length],
+      sequenceNum: index + 1,
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: spec.surfaceId,
+          specRevision: spec.specRevision,
+          mode: 'invoke',
+          actionId,
+        },
+      ]),
+    }));
+    const snapshot = (overrides: Record<string, unknown>) => ({
+      authorId: PREVIEW_HOST_SHIP,
+      sequenceNum: 0,
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: spec.surfaceId,
+          specRevision: spec.specRevision,
+          upToSequenceNum: 0,
+          state: spec.initialState,
+        },
+      ]),
+      ...overrides,
+    });
+
+    // no snapshot at all
+    expect(
+      reduceSurface({
+        spec,
+        hostShip: PREVIEW_HOST_SHIP,
+        posts: invokes,
+      }).status
+    ).toBe('migration-pending');
+
+    // authored by someone who is not the host
+    expect(
+      reduceSurface({
+        spec,
+        hostShip: PREVIEW_HOST_SHIP,
+        posts: [snapshot({ authorId: '~ten' }), ...invokes],
+      }).status
+    ).toBe('migration-pending');
+
+    // tagged at a revision that is not this one
+    expect(
+      reduceSurface({
+        spec,
+        hostShip: PREVIEW_HOST_SHIP,
+        posts: [
+          {
+            authorId: PREVIEW_HOST_SHIP,
+            sequenceNum: 0,
+            blob: JSON.stringify([
+              {
+                type: 'surface-snapshot',
+                version: 1,
+                surfaceId: spec.surfaceId,
+                specRevision: spec.specRevision + 1,
+                upToSequenceNum: 0,
+                state: spec.initialState,
+              },
+            ]),
+          },
+          ...invokes,
+        ],
+      }).status
+    ).toBe('migration-pending');
+
+    // and with the stand-in as preview actually posts it, a state
+    expect(
+      reduceSurface({
+        spec,
+        hostShip: PREVIEW_HOST_SHIP,
+        posts: [snapshot({}), ...invokes],
+      }).status
+    ).toBe('reduced');
+    expect(foldPopulatedState(spec).problem).toBeUndefined();
+  });
+
+  /**
+   * D69, as an assertion rather than a paragraph.
+   *
+   * `surface publish --preserve-state` folds the channel's history against the
+   * OLD spec and snapshots that, so the new `initialState` is dead on arrival
+   * in production. Preview cannot see a channel, so it stands in a snapshot of
+   * the NEW `initialState` — and the populated capture of a preserving
+   * revision is therefore knowingly optimistic. The two states below are what
+   * that costs: same spec, one carried state, one fresh one, and they are not
+   * the same screen.
+   */
+  it('previews a preserving revision from the new initialState, which production discards', () => {
+    const base = pollSpec();
+    const spec = {
+      ...base,
+      preserveState: true,
+      initialState: { ...base.initialState, votes: {} },
+    } as SurfaceSpec;
+
+    // what production carries: the state the channel already had
+    const carried = { votes: { '~sampel-palnet': 'tacos' } };
+    const production = reduceSurface({
+      spec,
+      hostShip: PREVIEW_HOST_SHIP,
+      posts: [
+        {
+          authorId: PREVIEW_HOST_SHIP,
+          sequenceNum: 0,
+          blob: JSON.stringify([
+            {
+              type: 'surface-snapshot',
+              version: 1,
+              surfaceId: spec.surfaceId,
+              specRevision: spec.specRevision,
+              upToSequenceNum: 0,
+              state: carried,
+            },
+          ]),
+        },
+      ],
+    });
+
+    // what preview shows: the new initialState, folded
+    const previewed = foldPopulatedState(spec, { rounds: 1 });
+
+    expect(production.status).toBe('reduced');
+    expect(
+      (production as { state: Record<string, unknown> }).state.votes
+    ).toEqual(carried.votes);
+    expect(previewed.state.votes).not.toEqual(carried.votes);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* host ops (D70)                                                      */
+/* ------------------------------------------------------------------ */
+
+describe('foldPopulatedState with host ops', () => {
+  /** A spec whose chart-shaped half only a host event can ever write. */
+  function rolloverSpec(): SurfaceSpec {
+    const base = pollSpec();
+    return {
+      ...base,
+      initialState: { ...base.initialState, history: {}, today: {} },
+    } as SurfaceSpec;
+  }
+
+  const archive = {
+    ops: [{ op: 'set', path: '/history/2025-01-06', value: { done: 3 } }],
+    at: 'before' as const,
+    note: 'a finished session',
+  };
+
+  it('folds host events the reducer accepts, and reports them', () => {
+    const folded = foldPopulatedState(rolloverSpec(), {
+      hostOps: { entries: [archive], source: 'host-ops.json' },
+    });
+    expect(folded.problem).toBeUndefined();
+    expect(folded.state.history).toEqual({ '2025-01-06': { done: 3 } });
+    expect(folded.hostOps).toEqual([
+      { at: 'before', opCount: 1, note: 'a finished session' },
+    ]);
+  });
+
+  /**
+   * The ordering is the whole reason `at` exists. `/history` is written by the
+   * host and `votes` by the members; folding the archive `before` leaves both
+   * populated in one capture, and folding a clearing op `after` shows the
+   * post-rollover half. A file that could only say "after" would archive and
+   * clear the very state the actions just produced.
+   */
+  it('folds before-entries ahead of the invokes and after-entries behind them', () => {
+    const clear = {
+      ops: [{ op: 'set', path: '/votes', value: {} }],
+      at: 'after' as const,
+    };
+    const both = foldPopulatedState(rolloverSpec(), {
+      hostOps: { entries: [archive, clear], source: 'host-ops.json' },
+    });
+    // the `after` op ran last, so it wins over everything the invokes wrote
+    expect(both.state.votes).toEqual({});
+    expect(both.state.history).toEqual({ '2025-01-06': { done: 3 } });
+
+    const beforeOnly = foldPopulatedState(rolloverSpec(), {
+      hostOps: { entries: [{ ...clear, at: 'before' as const }], source: 'x' },
+    });
+    // the same op ahead of the invokes is overwritten by them
+    expect(Object.keys(beforeOnly.state.votes as object)).not.toHaveLength(0);
+  });
+
+  /**
+   * A display-only app (`memberInteraction.mode: 'none'`) has no actions at
+   * all, so host ops are the ONLY thing that can ever populate its capture.
+   * Before D70 this reported "nothing can populate it" and rendered the empty
+   * state twice.
+   */
+  it('populates a spec with no declared actions at all', () => {
+    const spec = { ...rolloverSpec(), actions: {} } as SurfaceSpec;
+    const folded = foldPopulatedState(spec, {
+      hostOps: { entries: [archive], source: 'host-ops.json' },
+    });
+    expect(folded.problem).toBeUndefined();
+    expect(folded.state.history).toEqual({ '2025-01-06': { done: 3 } });
+    expect(folded.unchanged).toBe(false);
+  });
+
+  it('still reports a spec with neither actions nor host ops', () => {
+    const folded = foldPopulatedState({
+      ...pollSpec(),
+      actions: {},
+    } as SurfaceSpec);
+    expect(folded.problem).toContain('nothing can populate it');
+  });
+
+  /**
+   * The reducer aborts an entry at its first refused op (§7) and folds on, so
+   * an unfoldable host op would otherwise produce a capture that looks exactly
+   * like a clean one. Reported instead — a partly applied state must never
+   * render the same as a whole one.
+   */
+  it('reports an entry the reducer aborted part-way', () => {
+    const folded = foldPopulatedState(rolloverSpec(), {
+      hostOps: {
+        entries: [
+          {
+            ops: [
+              { op: 'set', path: '/history/a', value: 1 },
+              // a path missing its leading `/` — a grammar refusal, the
+              // reducer's own worked example of an entry that aborts
+              { op: 'set', path: 'history/mid', value: 2 },
+              { op: 'set', path: '/history/b', value: 3 },
+            ],
+            at: 'before',
+          },
+        ],
+        source: 'host-ops.json',
+      },
+    });
+    expect(folded.abortedSequenceNums).not.toHaveLength(0);
+    // the prefix landed, the rest did not — which is what "partly applied" is
+    expect((folded.state.history as Record<string, unknown>).a).toBe(1);
+    expect((folded.state.history as Record<string, unknown>).b).toBeUndefined();
+  });
+
+  /**
+   * `parsePostBlob` degrades an entry that fails its schema to
+   * `{ type: 'unknown' }` and the reducer walks straight past it — correct for
+   * hostile channel content, and exactly wrong for a file the author just
+   * wrote, because the capture would come back looking like one where the ops
+   * were fine and simply did nothing.
+   */
+  it('refuses a host event the reducer would silently skip', () => {
+    expect(() =>
+      foldPopulatedState(rolloverSpec(), {
+        hostOps: {
+          entries: [{ ops: [{ op: 'nope', path: '/history' }], at: 'after' }],
+          source: 'host-ops.json',
+        },
+      })
+    ).toThrow(/not a host event the reducer would fold/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* the destructive-action hole                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Actions fold in declaration order against a rotating crew, so whichever
+ * action is declared last lands last on a determinate actor. When that action
+ * is destructive, that member is erased from the state every populated cell
+ * renders — a real member-shaped hole in the screenshots for a reason that has
+ * nothing to do with the app. A template author hit this and worked around it
+ * by declaring the reset first, which is a coping strategy against tool
+ * behaviour rather than a property of good specs.
+ */
+describe('foldPopulatedState and destructive actions', () => {
+  /** log-a, log-b, then a reset — the shape that produced the hole. */
+  function resetLastSpec(): SurfaceSpec {
+    const base = pollSpec();
+    return {
+      ...base,
+      initialState: { ...base.initialState, entries: {} },
+      actions: {
+        'log-a': { ops: [{ op: 'set', path: '/entries/$actor', value: 'a' }] },
+        'log-b': { ops: [{ op: 'set', path: '/entries/$actor', value: 'b' }] },
+        'clear-mine': { ops: [{ op: 'del', path: '/entries/$actor' }] },
+      },
+    } as unknown as SurfaceSpec;
+  }
+
+  it('leaves no actor missing from the populated state', () => {
+    const folded = foldPopulatedState(resetLastSpec());
+    expect(folded.restoredAfterDestructive).toBe(true);
+    expect(Object.keys(folded.state.entries as object).sort()).toEqual(
+      [...PREVIEW_ACTORS].sort()
+    );
+  });
+
+  /**
+   * The control for the line above: without the restore pass, the fold DOES
+   * erase a member. Reconstructed here by folding only the rounds — same
+   * reducer, same rotation, same posts, minus the pass — so the assertion is
+   * measuring the pass and not the fixture.
+   */
+  it('would erase one without the restore pass', () => {
+    const spec = resetLastSpec();
+    const actionIds = Object.keys(spec.actions);
+    const posts: { authorId: string; sequenceNum: number; blob: string }[] = [];
+    let sequenceNum = 1;
+    for (let round = 0; round < 2; round++) {
+      actionIds.forEach((actionId, index) => {
+        posts.push({
+          authorId: PREVIEW_ACTORS[(index + round) % PREVIEW_ACTORS.length],
+          sequenceNum: sequenceNum++,
+          blob: JSON.stringify([
+            {
+              type: 'surface-event',
+              version: 1,
+              surfaceId: spec.surfaceId,
+              specRevision: spec.specRevision,
+              mode: 'invoke',
+              actionId,
+            },
+          ]),
+        });
+      });
+    }
+    const reduction = reduceSurface({
+      spec,
+      hostShip: PREVIEW_HOST_SHIP,
+      posts,
+    });
+    expect(reduction.status).toBe('reduced');
+    const entries = (reduction.state as Record<string, unknown>)
+      .entries as object;
+    expect(Object.keys(entries).length).toBeLessThan(PREVIEW_ACTORS.length);
+  });
+
+  it('does not run the pass for a spec with no destructive action', () => {
+    const folded = foldPopulatedState(pollSpec());
+    expect(folded.restoredAfterDestructive).toBe(false);
+    // and the invoke count is exactly what it was before the pass existed
+    expect(folded.invokes).toHaveLength(4);
+  });
+
+  /**
+   * A spec whose every action is a `del` has nothing to restore WITH, so the
+   * pass must not run and must not claim to have. The populated cell is
+   * legitimately empty there, and saying otherwise would be worse than the
+   * hole.
+   */
+  it('does not run the pass when every action is destructive', () => {
+    const base = resetLastSpec();
+    const folded = foldPopulatedState({
+      ...base,
+      actions: { 'clear-mine': base.actions['clear-mine'] },
+    } as SurfaceSpec);
+    expect(folded.restoredAfterDestructive).toBe(false);
+  });
+});
+
+describe('parseHostOps', () => {
+  it('accepts a list of entries and defaults placement to after', () => {
+    const parsed = parseHostOps(
+      [{ ops: [{ op: 'del', path: '/today' }] }],
+      'host-ops.json'
+    );
+    expect(parsed.entries).toHaveLength(1);
+    expect(parsed.entries[0].at).toBe('after');
+    expect(parsed.source).toBe('host-ops.json');
+  });
+
+  it('refuses shapes it cannot fold, naming where', () => {
+    expect(() => parseHostOps({ ops: [] }, 'f.json')).toThrow(
+      /must hold a JSON array/
+    );
+    expect(() => parseHostOps([null], 'f.json')).toThrow(
+      /f\.json\[0\] is not a host event object/
+    );
+    expect(() => parseHostOps([{}], 'f.json')).toThrow(/f\.json\[0\]\.ops/);
+    expect(() => parseHostOps([{ ops: [], at: 'later' }], 'f.json')).toThrow(
+      /must be "before" or "after"/
+    );
+    expect(() => parseHostOps([{ ops: [], note: 7 }], 'f.json')).toThrow(
+      /note must be a string/
+    );
   });
 });
 
@@ -459,6 +933,66 @@ describe('renderSurfacePreview', () => {
     expect(manifest.shellErrors).toEqual([]);
   });
 
+  /**
+   * `--state`: the twelve cells become "the app on this state" and "that, with
+   * everything folded through it". The manifest says which happened, for the
+   * same reason `stateSource` exists on the preflight witness — a capture of a
+   * substituted state must never be indistinguishable from a capture of the
+   * spec's own starting point.
+   */
+  it('renders a supplied state in place of initialState, and says so', async () => {
+    const { launcher, pages } = fakeLauncher();
+    const outcome = await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
+      bundleSource: pollBundle(),
+      spec: pollSpec(),
+      outDir: outDir(),
+      stateOverride: { votes: { '~sampel-palnet': 'tacos' } },
+      launcher,
+    });
+    expect(outcome.manifest.stateSource).toBe('override');
+    const init = JSON.parse(pages[0].mounted!.init as string);
+    expect(init.state).toEqual({ votes: { '~sampel-palnet': 'tacos' } });
+    // and the fold ran on top of it rather than on the spec's own start
+    expect(Object.keys(outcome.populated.state.votes as object)).toContain(
+      '~sampel-palnet'
+    );
+  });
+
+  it('reports the spec’s own starting point when no state is supplied', async () => {
+    const { launcher } = fakeLauncher();
+    const outcome = await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
+      bundleSource: pollBundle(),
+      spec: pollSpec(),
+      outDir: outDir(),
+      launcher,
+    });
+    expect(outcome.manifest.stateSource).toBe('spec-initial-state');
+  });
+
+  /**
+   * The fixed clock reaches the bridge, and reaches the manifest. Both halves
+   * matter: the first is what makes a capture reproducible, the second is what
+   * lets a reviewer check "14 days left" against the instant it was taken at.
+   */
+  it('injects the fixed host clock into every init, and records it', async () => {
+    const { launcher, pages } = fakeLauncher();
+    const outcome = await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
+      bundleSource: pollBundle(),
+      spec: pollSpec(),
+      outDir: outDir(),
+      launcher,
+    });
+    expect(outcome.manifest.now).toBe(PREVIEW_FIXED_NOW);
+    for (const page of pages) {
+      expect(JSON.parse(page.mounted!.init as string).now).toBe(
+        PREVIEW_FIXED_NOW
+      );
+    }
+  });
+
   it('mounts the production document and posts a themed init per cell', async () => {
     const { launcher, pages } = fakeLauncher();
     const bundleSource = pollBundle();
@@ -587,6 +1121,179 @@ describe('headless capture', () => {
       }
     },
     120_000
+  );
+
+  /* ---------------------------------------------------------------- */
+  /* the determinism control                                           */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * **The control, with both arms, in separate processes.**
+   *
+   * The claim: a host-supplied `now` makes a clock-dependent app's captures
+   * reproducible across preview RUNS. Both arms run here, over the same twelve
+   * cells, separated by more than a second of real wall time:
+   *
+   *  - **injected** (`CLOCK_FROM_CONTEXT_BUNDLE`) — renders `context.now`,
+   *    which preview pins to `PREVIEW_FIXED_NOW`. Two runs must produce
+   *    byte-identical PNGs.
+   *  - **ambient** (`CLOCK_FROM_DATE_BUNDLE`) — renders `Date.now()` inside
+   *    the bundle, the pattern PARADIGM §3 bans and the only way an app could
+   *    show the time before `context.now` existed. Two runs must produce
+   *    DIFFERENT PNGs.
+   *
+   * The ambient arm is what makes this a control rather than an assertion:
+   * without it, "the captures matched" is equally consistent with a fixture
+   * that never rendered the clock, a screenshot pipeline that writes the same
+   * bytes regardless, and a comparison that always returns true.
+   *
+   * **Each run is its own process, and that is load-bearing.** The first
+   * version of this test called `renderSurfacePreview` four times in one
+   * process and PASSED with `PREVIEW_FIXED_NOW` mutated to `Date.now()` —
+   * because a module-level constant is evaluated once per process, so both
+   * in-process runs read the same wall clock and the mutation was invisible.
+   * A control that cannot see that mutation is not measuring what it claims.
+   * Separate processes are also what a "preview run" actually is.
+   */
+  const WALL_CLOCK_GAP_MS = 1_100;
+
+  /** The sanctioned shape: time arrives as an argument. */
+  const CLOCK_FROM_CONTEXT_BUNDLE = `(function () {
+    const { html, primitives } = surface;
+    const { Card, Stat } = primitives;
+    surface.register({
+      render(state, context) {
+        const seconds = context.now === null
+          ? 'none'
+          : String(Math.floor(context.now / 1000));
+        return html\`<\${Card} title="Clock"><\${Stat} value=\${seconds} label="seconds" /><//>\`;
+      },
+    });
+  })();`;
+
+  /** The banned shape, here ONLY as the control's negative arm. */
+  const CLOCK_FROM_DATE_BUNDLE = `(function () {
+    const { html, primitives } = surface;
+    const { Card, Stat } = primitives;
+    surface.register({
+      render(state) {
+        const seconds = String(Math.floor(Date.now() / 1000));
+        return html\`<\${Card} title="Clock"><\${Stat} value=\${seconds} label="seconds" /><//>\`;
+      },
+    });
+  })();`;
+
+  const CLOCK_SPEC = {
+    version: 1,
+    surfaceId: 'srf-clock-control',
+    specRevision: 1,
+    title: 'Clock',
+    bundle: {
+      assetRef: 'fixture://clock/app.js',
+      sha256: '0'.repeat(64),
+      size: 1024,
+      shellVersion: 1,
+    },
+    initialState: { touched: {} },
+    actions: {
+      tick: { ops: [{ op: 'set', path: '/touched/$actor', value: true }] },
+    },
+  };
+
+  /**
+   * One preview run, in its own `bun` process, reporting a sha256 per cell.
+   *
+   * The runner is written to a temp file rather than passed with `bun -e` so
+   * the source is on disk if a failure has to be diagnosed, and it imports the
+   * renderer by absolute path so it resolves from anywhere.
+   */
+  async function captureInSubprocess(
+    bundleSource: string
+  ): Promise<Record<string, string>> {
+    const dir = outDir();
+    const bundlePath = join(dir, 'app.js');
+    const runnerPath = join(dir, 'run-preview.ts');
+    writeFileSync(bundlePath, bundleSource);
+    writeFileSync(
+      runnerPath,
+      [
+        `import { createHash } from 'node:crypto';`,
+        `import { readFileSync } from 'node:fs';`,
+        `import { cellId, renderSurfacePreview } from ${JSON.stringify(
+          join(process.cwd(), 'scripts', 'surface-preview.ts')
+        )};`,
+        `const outcome = await renderSurfacePreview({`,
+        `  bundleSource: readFileSync(${JSON.stringify(bundlePath)}, 'utf8'),`,
+        `  bundleSha256: '0'.repeat(64),`,
+        `  spec: ${JSON.stringify(CLOCK_SPEC)},`,
+        `  outDir: ${JSON.stringify(dir)},`,
+        `  deviceScaleFactor: 1,`,
+        `});`,
+        `if (outcome.manifest.shellErrors.length > 0) {`,
+        `  throw new Error(JSON.stringify(outcome.manifest.shellErrors));`,
+        `}`,
+        `const digests = {};`,
+        `for (const shot of outcome.shots) {`,
+        `  digests[cellId(shot.cell)] = createHash('sha256')`,
+        `    .update(readFileSync(shot.path))`,
+        `    .digest('hex');`,
+        `}`,
+        `process.stdout.write(JSON.stringify(digests));`,
+        ``,
+      ].join('\n')
+    );
+    const proc = Bun.spawn(['bun', 'run', runnerPath], {
+      cwd: process.cwd(),
+      stdout: 'pipe',
+      stderr: 'pipe',
+    });
+    const [stdout, stderr, code] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+    if (code !== 0) {
+      throw new Error(`preview subprocess exited ${code}: ${stderr}`);
+    }
+    return JSON.parse(stdout) as Record<string, string>;
+  }
+
+  browserTest(
+    'two runs at different wall times: identical under injected now, different without it',
+    async () => {
+      // arm 1 — the injected clock
+      const injectedFirst = await captureInSubprocess(
+        CLOCK_FROM_CONTEXT_BUNDLE
+      );
+      await new Promise((resolve) => setTimeout(resolve, WALL_CLOCK_GAP_MS));
+      const injectedSecond = await captureInSubprocess(
+        CLOCK_FROM_CONTEXT_BUNDLE
+      );
+
+      // arm 2 — the ambient clock, the same two runs
+      const ambientFirst = await captureInSubprocess(CLOCK_FROM_DATE_BUNDLE);
+      await new Promise((resolve) => setTimeout(resolve, WALL_CLOCK_GAP_MS));
+      const ambientSecond = await captureInSubprocess(CLOCK_FROM_DATE_BUNDLE);
+
+      const cells = Object.keys(injectedFirst).sort();
+      expect(cells).toHaveLength(12);
+      expect(Object.keys(ambientFirst).sort()).toEqual(cells);
+
+      for (const cell of cells) {
+        expect(injectedSecond[cell], `injected ${cell}`).toBe(
+          injectedFirst[cell]
+        );
+      }
+
+      // and the arm that has to disagree, or the one above proves nothing
+      const changed = cells.filter(
+        (cell) => ambientSecond[cell] !== ambientFirst[cell]
+      );
+      expect(changed, 'ambient captures must differ across runs').toEqual(
+        cells
+      );
+    },
+    600_000
   );
 });
 

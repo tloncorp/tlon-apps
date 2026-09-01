@@ -29,8 +29,15 @@ function manifest(overrides: Partial<PreviewManifest> = {}): PreviewManifest {
     defects: [],
     unprobedCells: [],
     notChecked: ['whether any copy means anything'],
+    now: Date.UTC(2025, 0, 1, 0, 0, 0),
+    timeDisplayRefreshSeconds: null,
+    stateSource: 'spec-initial-state' as const,
     populated: {
       invokes: [{ actionId: 'vote-pizza', actor: '~zod' }],
+      hostOps: [],
+      restoredAfterDestructive: false,
+      hostOpsSource: null,
+      abortedSequenceNums: [],
       unchanged: false,
     },
     shots: [
@@ -100,7 +107,14 @@ function makeDeps(
           manifestPath: '/out/manifest.json',
           rubricTemplatePath: '/out/rubric.template.json',
           shots: [],
-          populated: { state: {}, invokes: [], unchanged: false },
+          populated: {
+            state: {},
+            invokes: [],
+            hostOps: [],
+            restoredAfterDestructive: false,
+            abortedSequenceNums: [],
+            unchanged: false,
+          },
         };
       }),
   };
@@ -257,7 +271,14 @@ describe('surface preview', () => {
         manifestPath: '/out/manifest.json',
         rubricTemplatePath: '/out/rubric.template.json',
         shots: [],
-        populated: { state: {}, invokes: [], unchanged: false },
+        populated: {
+          state: {},
+          invokes: [],
+          hostOps: [],
+          restoredAfterDestructive: false,
+          abortedSequenceNums: [],
+          unchanged: false,
+        },
       }),
     });
     expect(await run(['app.js', 'spec.json'], deps)).toBe(1);
@@ -272,7 +293,14 @@ describe('surface preview', () => {
         manifestPath: '/out/manifest.json',
         rubricTemplatePath: '/out/rubric.template.json',
         shots: [],
-        populated: { state: {}, invokes: [], unchanged: true },
+        populated: {
+          state: {},
+          invokes: [],
+          hostOps: [],
+          restoredAfterDestructive: false,
+          abortedSequenceNums: [],
+          unchanged: true,
+        },
       }),
     });
     await run(['app.js', 'spec.json'], deps);
@@ -325,7 +353,14 @@ describe('surface preview — the machine defect list', () => {
         manifestPath: '/out/manifest.json',
         rubricTemplatePath: '/out/rubric.template.json',
         shots: [],
-        populated: { state: {}, invokes: [], unchanged: false },
+        populated: {
+          state: {},
+          invokes: [],
+          hostOps: [],
+          restoredAfterDestructive: false,
+          abortedSequenceNums: [],
+          unchanged: false,
+        },
       }),
     });
     await run(['app.js', 'spec.json'], deps);
@@ -361,7 +396,14 @@ describe('surface preview — the machine defect list', () => {
         manifestPath: '/out/manifest.json',
         rubricTemplatePath: '/out/rubric.template.json',
         shots: [],
-        populated: { state: {}, invokes: [], unchanged: false },
+        populated: {
+          state: {},
+          invokes: [],
+          hostOps: [],
+          restoredAfterDestructive: false,
+          abortedSequenceNums: [],
+          unchanged: false,
+        },
       }),
     });
     await run(['app.js', 'spec.json'], deps);

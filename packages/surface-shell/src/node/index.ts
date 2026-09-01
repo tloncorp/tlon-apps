@@ -31,6 +31,8 @@ export interface ShellFixtureRun {
   sendState(state: JsonObject): void;
   setPermission(canInvoke: boolean): void;
   setTheme(theme: ShellTheme): void;
+  /** deliver a new host-supplied timestamp and repaint */
+  sendNow(now: number): void;
   /** dispatch a click on the first element matching the selector */
   click(selector: string): boolean;
 }
@@ -44,6 +46,13 @@ export function runShellFixture(options: {
   state: JsonObject;
   theme?: ShellTheme;
   canInvoke?: boolean;
+  /**
+   * The host-supplied timestamp for the initial render. Omit for `null` —
+   * which is what a caller that has nothing to say about time should do,
+   * rather than reaching for the wall clock and making its own output
+   * irreproducible.
+   */
+  now?: number;
   /** optional vendored Chart constructor to expose as surface.Chart */
   chart?: unknown;
 }): ShellFixtureRun {
@@ -84,6 +93,7 @@ export function runShellFixture(options: {
     state: options.state,
     theme: options.theme ?? 'light',
     canInvoke: options.canInvoke ?? true,
+    ...(options.now === undefined ? {} : { now: options.now }),
   });
 
   return {
@@ -111,6 +121,9 @@ export function runShellFixture(options: {
     },
     setTheme(theme) {
       deliver({ type: 'theme', theme });
+    },
+    sendNow(now) {
+      deliver({ type: 'now', now });
     },
     click(selector) {
       const el = root.querySelector(selector) as HTMLElement | null;

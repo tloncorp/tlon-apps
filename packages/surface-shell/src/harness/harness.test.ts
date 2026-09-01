@@ -211,3 +211,85 @@ test('the api is exposed as globalThis.surface for bundles', () => {
   const { shell } = setup();
   expect((window as Window & { surface?: SurfaceApi }).surface).toBe(shell.api);
 });
+
+/* ------------------------------------------------------------------ */
+/* The render context: host-supplied time, and no other kind           */
+/* ------------------------------------------------------------------ */
+
+/** Paints the clock reading it was handed, and nothing else. */
+function clockApp(api: SurfaceApi) {
+  return {
+    render(_state: Record<string, unknown>, context: { now: number | null }) {
+      return api.html`<div class="app-label">${
+        context.now === null ? 'no clock' : String(context.now)
+      }</div>`;
+    },
+  };
+}
+
+const FIXED_NOW = Date.UTC(2025, 0, 1, 0, 0, 0);
+
+test('render is handed the host-supplied now as a second argument', () => {
+  const { host, shell } = setup();
+  shell.api.register(clockApp(shell.api));
+  host.send(init({ now: FIXED_NOW }));
+  expect(shell.root.textContent).toBe(String(FIXED_NOW));
+});
+
+/**
+ * The additive half of the contract. An `init` from a host that predates this
+ * field must still render, and the app must be able to tell "no clock" from a
+ * real reading — not be handed a plausible-looking zero or, worse, a clock the
+ * shell went and read for itself.
+ */
+test('an init with no now leaves context.now null rather than inventing one', () => {
+  const { host, shell } = setup();
+  shell.api.register(clockApp(shell.api));
+  host.send(init());
+  expect(shell.root.textContent).toBe('no clock');
+});
+
+test('a now message repaints with the new reading', () => {
+  const { host, shell } = setup();
+  shell.api.register(clockApp(shell.api));
+  host.send(init({ now: FIXED_NOW }));
+  host.send({ type: 'now', now: FIXED_NOW + 60_000 });
+  expect(shell.root.textContent).toBe(String(FIXED_NOW + 60_000));
+});
+
+/**
+ * The property the whole determinism story rests on: between two `now`
+ * messages the shell's clock does not move. If it advanced on its own — a
+ * `Date.now()` fallback, an interval that ticked the value forward — a capture
+ * harness could inject a fixed `now` and still get different pixels, and every
+ * byte-comparison downstream would be comparing two different questions.
+ */
+test('the shell never advances now on its own', async () => {
+  const { host, shell } = setup();
+  shell.api.register(clockApp(shell.api));
+  host.send(init({ now: FIXED_NOW }));
+  const first = shell.root.textContent;
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  // any repaint at all: a state update, which is the commonest one
+  host.send({ type: 'state', state: { label: 'moved' } });
+  expect(shell.root.textContent).toBe(first);
+});
+
+/**
+ * `now` is a DISPLAY input, so it must not be reachable as state. A bundle
+ * that read it off `state` would be reading something the reducer folded, and
+ * a value the reducer folded is a value a write produced — which is exactly
+ * the blur this whole design refuses.
+ */
+test('now does not leak into the state the app renders from', () => {
+  const { host, shell } = setup();
+  let seenState: Record<string, unknown> | null = null;
+  shell.api.register({
+    render(state: Record<string, unknown>) {
+      seenState = state;
+      return shell.api.html`<div />`;
+    },
+  });
+  host.send(init({ now: FIXED_NOW }));
+  expect(seenState).toEqual({ label: 'first' });
+});

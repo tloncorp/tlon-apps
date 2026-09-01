@@ -21,6 +21,16 @@ import {
 
 export const ShellThemeSchema = z.enum(['light', 'dark']);
 
+/**
+ * A host-supplied timestamp: finite epoch milliseconds.
+ *
+ * `z.number()` alone admits `NaN` and `Infinity`, both of which format as
+ * garbage on a viewer's screen rather than failing anywhere a developer would
+ * see. `.finite()` is the same refusal the in-sandbox guard makes, so the two
+ * validators agree (`protocol.test.ts` holds them in agreement).
+ */
+export const HostNowSchema = z.number().finite();
+
 const jsonObjectSchema = z.record(z.string(), z.unknown());
 
 /**
@@ -54,10 +64,13 @@ export const HostToShellMessageSchema = z.discriminatedUnion('type', [
     state: jsonObjectSchema,
     theme: ShellThemeSchema,
     canInvoke: z.boolean(),
+    // Optional and additive; absent means `context.now` is null.
+    now: HostNowSchema.optional(),
   }),
   z.object({ type: z.literal('state'), state: jsonObjectSchema }),
   z.object({ type: z.literal('theme'), theme: ShellThemeSchema }),
   z.object({ type: z.literal('permission'), canInvoke: z.boolean() }),
+  z.object({ type: z.literal('now'), now: HostNowSchema }),
 ]);
 
 /** shell → host (strict: the host's inbound direction) */

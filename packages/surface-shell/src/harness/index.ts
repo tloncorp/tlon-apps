@@ -17,6 +17,7 @@ import {
   PROTOCOL_VERSION,
   ShellSurfaceSpec,
   ShellToHostMessage,
+  SurfaceRenderContext,
 } from '../protocol/types';
 import { SHELL_VERSION } from '../version';
 import { BridgeTransport, detectTransport } from './transport';
@@ -36,8 +37,16 @@ import { BridgeTransport, detectTransport } from './transport';
  */
 
 export interface SurfaceApp {
-  /** pure view of the reduced state; must not keep its own app state */
-  render(state: JsonObject): ComponentChild;
+  /**
+   * Pure view of the reduced state; must not keep its own app state.
+   *
+   * `context` is the second, DISPLAY-ONLY input: `context.now` is the
+   * timestamp the host supplied, or null when it supplied none. It is passed
+   * on every render and is not part of state — nothing an app derives from it
+   * can ever be written back, because writes go through `invoke` and an
+   * action's ops are fixed in the spec.
+   */
+  render(state: JsonObject, context: SurfaceRenderContext): ComponentChild;
 }
 
 export interface SurfaceApi {
@@ -100,6 +109,13 @@ export function createSurfaceShell(options: {
   let spec: ShellSurfaceSpec | null = null;
   let state: JsonObject | null = null;
   let canInvoke = false;
+  /**
+   * The last timestamp the HOST supplied, and the only time value that
+   * exists in here. Nothing in this module reads a clock: there is no
+   * `Date.now()` fallback and no timer that advances this on its own, which
+   * is exactly what makes a render reproducible under an injected `now`.
+   */
+  let hostNow: number | null = null;
   let initialized = false;
   // edge-triggered error reporting: one report per failure streak
   let lastRenderFailed = false;
@@ -121,7 +137,10 @@ export function createSurfaceShell(options: {
       return;
     }
     try {
-      const tree = app.render(state);
+      // A fresh context object per render, so a bundle that stashed one
+      // cannot watch `now` change behind its own back — the value it was
+      // handed is the value that render was for.
+      const tree = app.render(state, { now: hostNow });
       render(tree, root);
       lastRenderFailed = false;
     } catch (error) {
@@ -147,6 +166,7 @@ export function createSurfaceShell(options: {
     spec = message.spec;
     state = message.state;
     canInvoke = message.canInvoke;
+    hostNow = message.now === undefined ? null : message.now;
     initialized = true;
     applyTheme(message.theme);
     renderNow();
@@ -170,6 +190,13 @@ export function createSurfaceShell(options: {
         break;
       case 'permission':
         canInvoke = data.canInvoke;
+        renderNow();
+        break;
+      case 'now':
+        // The host decides the cadence — on an interval for a spec that
+        // declares `timeDisplay`, never for one that does not. The shell just
+        // takes what it is given and repaints.
+        hostNow = data.now;
         renderNow();
         break;
     }

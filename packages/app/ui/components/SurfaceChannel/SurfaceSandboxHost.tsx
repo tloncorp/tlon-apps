@@ -109,6 +109,7 @@ export function SurfaceSandboxHost(props: SurfaceSandboxHostProps) {
     state: props.state,
     theme: props.theme,
     canInvoke: props.canInvoke,
+    now: props.now,
     onInvoke: props.onInvoke,
     onShellError: props.onShellError,
   });
@@ -141,6 +142,7 @@ export function SurfaceSandboxHost(props: SurfaceSandboxHostProps) {
       initialState: latest.current.state,
       theme: latest.current.theme,
       canInvoke: latest.current.canInvoke,
+      now: latest.current.now,
       post: (serialized) => {
         iframe.contentWindow?.postMessage(serialized, '*');
       },
@@ -175,6 +177,10 @@ export function SurfaceSandboxHost(props: SurfaceSandboxHostProps) {
     latest.current.canInvoke = props.canInvoke;
     sessionRef.current?.updatePermission(props.canInvoke);
   }, [props.canInvoke]);
+  useEffect(() => {
+    latest.current.now = props.now;
+    sessionRef.current?.updateNow(props.now);
+  }, [props.now]);
 
   if (navigatedAway) {
     // unmounting the element destroys the browsing context, which is the

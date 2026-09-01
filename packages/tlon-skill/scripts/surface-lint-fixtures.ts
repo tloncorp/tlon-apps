@@ -112,6 +112,29 @@ function mutateBundle(from: string, to: string): string {
 
 const SECTION_HEADER = '<${SectionHeader}>Who is bringing what<//>';
 
+const COMPLIANT_STAT =
+  '<${Stat} value=${String(names.length)} label="signed up" />';
+
+/**
+ * The baseline with one number derived from the host-supplied clock.
+ *
+ * `render(state, context)` and a `Stat` whose value moves with `context.now`
+ * — nothing else about the app changes. That is what makes rule 16's fixture
+ * attributable: the gate renders it twice a day apart, and the only thing
+ * that can differ between those two renders is this line.
+ *
+ * The arithmetic is integers on purpose (PARADIGM §5), and the value is a
+ * day count rather than a formatted date so the fixture does not depend on
+ * the test machine's locale.
+ */
+const TIME_DISPLAY_BUNDLE = mutateBundle(
+  'render(state) {',
+  'render(state, context) {'
+).replace(
+  COMPLIANT_STAT,
+  '<${Stat} value=${String(Math.floor((context.now || 0) / 86400000))} label="days since 1970" />'
+);
+
 /**
  * A jargon term (D55) assembled from pieces, as a source EXPRESSION.
  *
@@ -427,6 +450,17 @@ export const RULE_FIXTURES: SurfaceLintFixture[] = [
     defect:
       'a published expense split with actions: {} — no member can add an expense, and nothing said so',
   },
+  {
+    name: 'time-display',
+    rule: 'time-display',
+    // The baseline plus one clock-derived number, and a spec that says
+    // nothing about time — so the host never sends a fresh `now` and this
+    // screen is frozen at whatever clock it was opened with.
+    bundleSource: TIME_DISPLAY_BUNDLE,
+    spec: baseSpec(),
+    defect:
+      'a screen that moves with the host-supplied clock, published against a spec with no timeDisplay',
+  },
 ];
 
 /**
@@ -477,8 +511,79 @@ export const SUPPLEMENTARY_FIXTURES = {
     name: 'member-interaction-declared',
     rule: null,
     bundleSource: BEACH_TRIP_SPLIT_BUNDLE,
-    spec: { ...BEACH_TRIP_SPLIT_SPEC, memberInteraction: 'none' },
+    spec: {
+      ...BEACH_TRIP_SPLIT_SPEC,
+      memberInteraction: {
+        mode: 'none',
+        because: 'the launch date is fixed at creation and nothing moves it',
+      },
+    },
     defect: 'none — the declared display-only marker must actually work',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * Rule 16's LEXICAL leg: a clock read the behavioral leg cannot see.
+   *
+   * The value painted is `Date.now() > 0 ? 'yes' : 'no'`, which is stable
+   * across any two clock readings — so advancing the host `now` by a day
+   * changes nothing on screen and the differential probe reports clean. This
+   * is the exact shape a separate agent confirmed passed the gate before this
+   * leg existed, and it is why the two legs are both needed.
+   */
+  ambientDateRead: {
+    name: 'ambient-date-read',
+    rule: 'time-display' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      COMPLIANT_STAT,
+      "<${Stat} value=${Date.now() > 0 ? 'yes' : 'no'} label=\"has a clock\" />"
+    ),
+    spec: baseSpec(),
+    defect: "a bundle that reads the viewer's clock and paints a stable value",
+  } satisfies SurfaceLintFixture,
+
+  /** The same leg, for the self-scheduled repaint half of §3. */
+  ambientTimer: {
+    name: 'ambient-timer',
+    rule: 'time-display' as SurfaceLintRule,
+    bundleSource: mutateBundle(
+      'const { html, primitives, invoke, canInvoke } = surface;',
+      'const { html, primitives, invoke, canInvoke } = surface;\n  setInterval(function () {}, 60000);'
+    ),
+    spec: baseSpec(),
+    defect: 'a bundle that starts its own repaint timer',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * Rule 16's declared leg: the same clock-derived screen, declared.
+   *
+   * The pair differs in exactly one spec key, so the violation is
+   * attributable to the declaration and to nothing else about the app.
+   */
+  timeDisplayDeclared: {
+    name: 'time-display-declared',
+    rule: null,
+    bundleSource: TIME_DISPLAY_BUNDLE,
+    spec: { ...baseSpec(), timeDisplay: { refreshSeconds: 60 } },
+    defect: 'none — the declared time-display flag must actually work',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * The other direction: a declaration nothing on screen needs.
+   *
+   * A warning rather than an error, because the probe can be wrong here — an
+   * app whose clock-derived text does not change across one day is
+   * time-displaying and looks static to it — and refusing a correct app on
+   * the strength of a check that admits it cannot see everything is the wrong
+   * trade. The cost of being wrong the other way is a timer that repaints an
+   * identical screen.
+   */
+  timeDisplayDeclaredButStatic: {
+    name: 'time-display-declared-but-static',
+    rule: 'time-display' as SurfaceLintRule,
+    severity: 'warning' as const,
+    bundleSource: COMPLIANT_BUNDLE,
+    spec: { ...baseSpec(), timeDisplay: { refreshSeconds: 60 } },
+    defect: 'timeDisplay declared by an app whose screen never reads the clock',
   } satisfies SurfaceLintFixture,
 
   /**
