@@ -88,6 +88,57 @@ services:
       # absolute path from the env file must not leak in.
       - TLON_APPS_DIR=/workspace/tlon-apps
       - TLON_SKILL_DIR=/workspace/tlon-apps/packages/tlon-skill
+      # ── Bound how long one run can poison its session ──────────────────
+      #
+      # 6a.5 hit a capped run whose session write lock stayed held for ~17
+      # minutes; the next owner DM died with SessionWriteLockTimeoutError. A
+      # measurement session with nine-plus prompts cannot absorb that.
+      #
+      # This is CORE's lock, not ours, and it is not patched. Core resolves the
+      # hold as
+      #
+      #   maxHoldMs = min(MAX_TIMER, max(300_000, timeoutMs + 120_000))
+      #
+      # and takes an env override ahead of config
+      # (session-write-lock-*.js: readPositiveMsEnv → config → fallback).
+      #
+      # Where 1_020_000 came from — the derivation the 6a.5 notes left open —
+      # is not the run timeout. The embedded attempt passes
+      # `timeoutMs: compactionTimeoutMs`, and core's EMBEDDED_COMPACTION_TIMEOUT_MS
+      # is 900_000 (attempt.tool-run-context-*.js). 900_000 + 120_000 = 1_020_000,
+      # exactly the observed value. So the seventeen minutes is core budgeting
+      # for a worst-case CONTEXT COMPACTION, not for a run.
+      #
+      # 420_000 is that same formula evaluated at THIS stack's actual run
+      # timeout (300_000 + 120_000) rather than at the compaction ceiling. It is
+      # therefore not an invented number: it is what core would compute if the
+      # fallback were derived from the timeout this stack really runs under.
+      #
+      # Why not lower. The lock is held ACROSS the attempt, so a value under the
+      # 300s run cap would have the watchdog yank the lock out from under a
+      # legitimate, still-running turn — trading a stall for interleaved session
+      # writes, which is worse. 420_000 is 2.4x the longest turn 6a.5 measured
+      # (129.6s) and leaves the full 120s grace on top of the cap, so no live
+      # run in this stack can reach it. The change makes the watchdog fire
+      # sooner on DEAD runs, not at all on live ones.
+      #
+      # Both release paths read this value, which is why the env var is the
+      # whole fix: the in-process watchdog compares held-for against
+      # `metadata.maxHoldMs`, and a later contender compares the lock file's
+      # recorded `payload.maxHoldMs` (staleReason `hold-exceeded`). The payload
+      # is stamped at acquire time, so this must be set on the openclaw process
+      # — here — and it only takes effect on a recreate.
+      #
+      # Residual risk, stated rather than hidden: if a turn ever does need a
+      # real context compaction lasting more than seven minutes, the watchdog
+      # will release mid-compaction. Nothing in 6a.5's numbers comes near that,
+      # and sessions are reset with /new between prompts. If a run needs it,
+      # raise this line or drop it — it is tracked here precisely so that is a
+      # visible decision rather than an ambient one.
+      #
+      # NOT in ../.env.surfaces-6a: that file is gitignored, and a setting the
+      # next person cannot see is a setting that silently stops applying.
+      - OPENCLAW_SESSION_WRITE_LOCK_MAX_HOLD_MS=420000
     volumes:
       - ..:/workspace/openclaw-tlon
       - openclaw-6a-tlon-modules:/workspace/tlon/node_modules

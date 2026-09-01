@@ -1,0 +1,42 @@
+{
+  "id": "control-running-total-climbing",
+  "channel": "chat/~zod/dash-lihku4fx",
+  "note": "NEGATIVE CONTROL, the other candidate target named for the same 6a.5 request. Byte-identical witness to control-running-total-chess. The preflight must REFUSE it too.",
+  "request": "show a running total per person",
+  "behaviour": "the board shows, for each member individually, an accumulated figure over that members whole history — not just their current-period entry and not just a group total",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "running\\s+totals?",
+      "total\\s+per\\s+(person|member|player|climber)",
+      "(cumulative|overall|season|all-?time)\\s+(total|score|points|tally)",
+      "\\bpts\\b",
+      "\\btally\\b",
+      "per-?person\\s+(total|score|count)"
+    ],
+    "renderPositive": "Running total: 1 points · 1 game1 pts",
+    "renderPositiveSource": "painted text of chat/~zod/dash-ezw1rkiq, cell phone-initial-light, read 2026-09-01",
+    "renderNegatives": [
+      "Report a gameAdd a winWinAdd a drawDrawAdd a lossLoss",
+      "1 win = 1 point · ½ point for a draw",
+      "This sessionAdd your climb to this monthLog a session",
+      "2sessions loggedSeptember 2026"
+    ],
+    "renderNegativesSource": "painted text of BOTH targets, verbatim: the first two from chat/~zod/dash-ezw1rkiq, the last two from chat/~zod/dash-lihku4fx. These are the spans on each board that are near a number and near a person but are NOT a running total — the affordance row and the footer.",
+    "actionPatterns": [
+      "total",
+      "tally",
+      "score",
+      "points",
+      "cumulative",
+      "running"
+    ],
+    "actionPositive": "add-points {\"ops\":[{\"op\":\"add\",\"path\":\"/totals/$actor\",\"value\":1}]}",
+    "actionPositiveSource": "HYPOTHETICAL — neither board stores a total; both derive it in the render, which is exactly why an action-map-only check would report absence on a board that plainly shows one. Shaped like the surrounding real actions.",
+    "actionNegatives": [
+      "report-win {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/today/$actor\",\"value\":\"win\"}]}",
+      "log-session {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/current/$actor\",\"value\":true}]}"
+    ],
+    "actionNegativesSource": "verbatim from both targets own action maps (tlon surface show, 2026-09-01)"
+  }
+}

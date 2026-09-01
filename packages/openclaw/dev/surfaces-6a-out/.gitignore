@@ -2,3 +2,20 @@
 # into the 6a container). Screenshots are evidence, not source.
 *
 !.gitignore
+
+# Two exceptions, and they are exceptions for a reason.
+#
+# The clean seed's run log is the RECORD of which group and which channels a
+# measurement ran against. 6a.5's generations landed on boards an earlier run
+# had built and nobody could tell afterwards, because nothing had written down
+# what was there before. A record that lives only on the machine that produced
+# it does not answer that for a reader, so these two small text files are
+# tracked while the megabytes of PNGs around them are not.
+#
+# Everything else here — the twelve-cell capture matrices, the fetched bundles,
+# the per-request assertion dumps — stays evidence: large, regenerable, and
+# quoted into the session report rather than committed.
+!verdict-run/
+verdict-run/*
+!verdict-run/seed.json
+!verdict-run/seed.md

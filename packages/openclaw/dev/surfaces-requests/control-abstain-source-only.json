@@ -1,0 +1,36 @@
+{
+  "id": "control-abstain-source-only",
+  "channel": "chat/~zod/dash-qxifi5qq",
+  "note": "ABSTAIN CONTROL (source-only). The poll bundle contains an empty-options branch that renders \"No movies yet / This poll has no choices to vote on.\" — real code, on a real published app, that never paints at any state this probe can reach, because the poll always has three options. A source grep would call this SATISFIED and a render-only check would call it ABSENT; both would be overclaiming. The preflight must ABSTAIN with reason `source-only`.",
+  "request": "tell people when the poll has no choices to vote on yet",
+  "behaviour": "the board shows an explicit empty state when its option list is empty, rather than a blank card",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "no\\s+movies\\s+yet",
+      "no\\s+choices\\s+to\\s+vote",
+      "nothing\\s+to\\s+vote\\s+on",
+      "no\\s+options\\s+(yet|to)"
+    ],
+    "renderPositive": "No movies yetThis poll has no choices to vote on.",
+    "renderPositiveSource": "the poll bundle source itself, verbatim — this control exists precisely because that string is in the source and on no screen",
+    "renderNegatives": [
+      "Nobody has voted yetTap Vote beside a movie to put your name down.",
+      "Turnout3votes so far",
+      "What should we watch for Friday movie night?"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-qxifi5qq, verbatim. The first is the load-bearing near-miss: it is the OTHER empty state on the same board, and a pattern like /yet/ or /nobody/ would confuse the two.",
+    "actionPatterns": [
+      "empty",
+      "no-?choices",
+      "no-?options",
+      "placeholder"
+    ],
+    "actionPositive": "show-empty-state {\"ops\":[{\"op\":\"set\",\"path\":\"/emptyMessage\",\"value\":\"No movies yet\"}]}",
+    "actionPositiveSource": "HYPOTHETICAL — an empty state is render behaviour and no real app declares an action for it; shaped like the surrounding real actions",
+    "actionNegatives": [
+      "vote-dune {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"dune\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from the target own action map"
+  }
+}
