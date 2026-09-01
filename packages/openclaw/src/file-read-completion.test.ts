@@ -38,6 +38,8 @@ describe('file read completion guard', () => {
     'Showing the records now.',
     'Printing the summary now.',
     "I'll analyze the file now.",
+    "I'll summarize the file now.",
+    "I'll summarise the file now.",
     'Reviewing the CSV now.',
     'Processing the data now.',
     'Parsing the file now.',

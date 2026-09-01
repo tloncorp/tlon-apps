@@ -53,7 +53,7 @@ const MAX_REVISION_ATTEMPTS = 2;
 const UNKNOWN_TARGET = '\0unknown-read-target';
 
 const PROGRESS_VERBS =
-  '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|analyz(?:e|ing)|review(?:ing)?|process(?:ing)?|pars(?:e|ing)|scan(?:ning)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
+  '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|analyz(?:e|ing)|summari[sz](?:e|ing)|review(?:ing)?|process(?:ing)?|pars(?:e|ing)|scan(?:ning)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
 const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
 const PROGRESS_ONLY = new RegExp(
   `^(?:(?:okay|sure)[,!.]?\\s*)?(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}[.!…]*$`,
