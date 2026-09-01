@@ -1,13 +1,22 @@
 # Surface Channels v0 — Session 6b
 
-Branch `patrick/mini-app-mvp`, PR #6380 (draft). CI green at `cfc03257ae`
-(9/9 checks) before this session's work.
+Branch `patrick/mini-app-mvp`, PR #6380 (draft). CI was green at `cfc03257ae`
+(9/9 checks) before this session's work; eight commits are pushed on top,
+head `691c73fbb5`. A parked-workstream docs commit from another session
+(`a030b159da`) landed on the branch mid-run and this work stacks on it.
 
-Decisions **D130–D148** appended.
+Verification at the pushed head: typecheck clean across all packages;
+`tlon-skill` 1,569 tests with only the four known local `media-guard` bun
+artifacts failing; `api` 1,121/1,121; `surface-shell` 101/101; `openclaw` dev
+suite 79/79; nine of nine templates gate-clean and machine-pass clean through
+real Chromium; formatting clean repo-wide.
+
+Decisions **D130–D149** appended.
 
 Split-review-ready: §1 is the verdict entry, §2 the five conditions, §3 the
-preview and time work, §4 the templates, §5 fork, §6 the eval harness, §7 what
-this session did not close. **The one thing worth reading if you read nothing
+preview and time work, §4 the templates (and §4.1, what was NOT done there),
+§5 fork, §6 the eval harness, §7 the one live measurement, §8 what this session
+did not close. **The one thing worth reading if you read nothing
 else is §2.5**, where a guard written in this session was caught being vacuous
 within an hour, by running it.
 
@@ -212,6 +221,49 @@ finishes in ten seconds), and removing the fix fails the new leg naming
 
 **The kanban case is §4's real finding and it is in D140**, above.
 
+**A display-only template broke two suites that had never seen one** (D148),
+and both breakages were the same assumption. `surface-templates.test.ts`
+required every `state.json` to name a ship; the shell-side suite required every
+template to render buttons and a member crew. Both were written when every
+template had member actions; both are false of a countdown by design. Waived in
+each, granted ONLY by the `memberInteraction` declaration — an app that merely
+happens to have no actions still has to show buttons and people, because that
+is also exactly what a forgotten action looks like.
+
+Where the general assertion is waived the shell-side suite asserts a STRONGER
+one rather than skipping: zero controls, zero declared actions, zero invokes,
+and an identical screen to a read-only viewer, because a display-only app that
+fired an invoke would be lying about itself.
+
+**Worth recording how that was found.** Both template authors reported green
+and both were right about the suite they ran; the shell-side suite was last run
+before `countdown` existed. It surfaced only in a full cross-package
+verification, after the commits were already made.
+
+Writing the last two also closed four pieces of doctrine debt (D148):
+`surface templates show` was printing `actions: (none declared)` for a
+display-only app while withholding the `because` sentence — showing an
+inspecting bot exactly the ambiguity D133's marker exists to remove, at the
+moment it decides what to copy; `PARADIGM.md` §3 over-claimed reproducibility
+(cell-to-cell byte equality within one run flakes about one cell in sixty, and
+the claim now says compare a cell against itself across runs, which is what
+D144's control does); §2's host-is-the-clock section assumed a schedule
+throughout, when lazy rollover is the shape a bot can actually deliver; and §5's
+float ban appeared to forbid what `Progress` requires.
+
+### 4.1 What was NOT done here, stated plainly
+
+The templates were authored, gated, previewed and scored **locally**. The live
+loop Part III specifies — create → lint → preview → publish → interact from a
+second ship → one revise cycle, on the fakeships with the write fence
+active — **was not run for the nine templates.** The infrastructure for it is
+in place and verified (container recreated and fenced, CLI rebuilt from source,
+desk preflight passing on all 641 files), but the runs themselves have not
+happened, so no template in this session has been published to a channel.
+
+§7 is the one live measurement that did run, and it is worth reading before
+§8: it answers the residual D130 left open.
+
 ---
 
 ## 5. `surface fork`
@@ -264,7 +316,51 @@ The full corpus run is the M2 exit measurement and is not this session's.
 
 ---
 
-## 7. Notes for what remains of M2
+## 7. The aged-board revision (Part I.5)
+
+The one live measurement in this session, and it answers the residual D130
+left open (D149).
+
+`chat/~zod/dash-ezw1rkiq` — a 6a.5-era chess leaderboard at revision 3 for
+weeks, which nothing in this session's context produced. Asked, imperatively
+and group-qualified, to add each player's current win streak. Preflight ABSENT
+on all four surfaces, both witness sets passing their two-sided self-test; the
+negative that mattered was `"Running total: 1 points · 1 game"`, which contains
+*Running*, so a witness reaching for a bare `run` would have refused a request
+the board genuinely does not satisfy.
+
+**The confound was recorded in the request record and committed before the
+result was known**, because stating it afterwards would be worth much less:
+this session added a `leaderboard` TEMPLATE hours earlier and the bot can read
+it, so regeneration was the CHEAP path while the board was the stranger. That
+inverts the verdict run's condition, where four of six edits were on apps the
+loop had generated minutes before from templates it had just read.
+
+**A purely additive local edit: 100% line survival and 100% word survival** —
+all 64 original lines and all 326 original words kept, four lines added, all
+three action ids kept, same surfaceId, revision 3 → 4, 180s to published.
+
+The diff adds an accumulator inside the existing closure rather than a second
+pass, and computes the trailing run in one render line. **It declared no new
+action** — correct for a derived value, and what the witness's deliberately
+hypothetical action positive anticipated.
+
+**And the app works**, checked because D140 is the standing reason not to stop
+at the diff: `~zod` (one win) paints `Current win streak: 1`, `~ten` (one draw)
+paints `0`; no shell errors, no unprobed cells, no machine defects, gate clean.
+
+**The fence's permit path is now live**, not only a unit test — the binding
+flowed from the preflight into the container's scope file and the bot published
+to the bound channel and nowhere else.
+
+**What it is not:** n=1, and an additive request. The verdict run's one no-op
+and the kanban's poor design choice both came from harder requests. What it
+settles is narrow and real — the loop's edit behaviour is not an artefact of
+revising apps it had just written.
+
+---
+
+## 8. Notes for what remains of M2
 
 **The corpus run**, in the bot harness, outside a build session.
 `surfaces-eval-run.sh` makes it a loop rather than 33 improvisations, and its
