@@ -27,6 +27,7 @@ import {
   type PreviewContext,
   type PreviewFrame,
   type PreviewLauncher,
+  type PreviewManifest,
   type PreviewPage,
   type SurfaceSpec,
   assemblePreviewDocument,
@@ -1102,19 +1103,110 @@ describe('renderSurfacePreview', () => {
  */
 const browserTest = process.env.TLON_PREVIEW_BROWSER === '1' ? it : it.skip;
 
+/**
+ * One preview run, in its own `bun` process, reporting the manifest it wrote
+ * and a sha256 per captured cell.
+ *
+ * **Every browser test in this file goes through here, and that is not a style
+ * choice.** In-process Playwright and `Bun.spawn` do not survive each other in
+ * one process: once a process has driven a browser AND spawned a subprocess,
+ * a later in-process browser session wedges part-way through the twelve cells
+ * inside `page.close()` — a protocol call Playwright puts no timeout on — and
+ * the test dies on its own deadline with nothing to read.
+ *
+ * Measured rather than taken on report. Filtered to the three tests that used
+ * to drive a browser in-process, this file passes; add the determinism
+ * control's four subprocesses back and it hangs, at a different cell each
+ * time. CI saw it as a 120s timeout on a head whose only diff from a green one
+ * was a JSON fixture and a report.
+ *
+ * The determinism control needs separate processes for its own reasons (see
+ * below), so spawning for ALL of them removes the interaction rather than
+ * ordering around it — a new browser test added to the bottom of the file
+ * cannot reintroduce it. `surface-templates.test.ts` renders every shipped
+ * template the same way.
+ *
+ * The runner is written to a temp file rather than passed with `bun -e` so the
+ * source is on disk if a failure has to be diagnosed, and it imports the
+ * renderer by absolute path so it resolves from anywhere.
+ */
+async function previewInSubprocess(request: {
+  bundleSource: string;
+  bundleSha256: string;
+  spec: unknown;
+  deviceScaleFactor?: number;
+}): Promise<{
+  manifest: PreviewManifest;
+  /** sha256 of each captured PNG, keyed by cell id */
+  digests: Record<string, string>;
+  outDir: string;
+}> {
+  const dir = outDir();
+  const bundlePath = join(dir, 'app.js');
+  const runnerPath = join(dir, 'run-preview.ts');
+  writeFileSync(bundlePath, request.bundleSource);
+  writeFileSync(
+    runnerPath,
+    [
+      `import { createHash } from 'node:crypto';`,
+      `import { readFileSync } from 'node:fs';`,
+      `import { cellId, renderSurfacePreview } from ${JSON.stringify(
+        join(process.cwd(), 'scripts', 'surface-preview.ts')
+      )};`,
+      `const outcome = await renderSurfacePreview({`,
+      `  bundleSource: readFileSync(${JSON.stringify(bundlePath)}, 'utf8'),`,
+      `  bundleSha256: ${JSON.stringify(request.bundleSha256)},`,
+      `  spec: ${JSON.stringify(request.spec)},`,
+      `  outDir: ${JSON.stringify(dir)},`,
+      ...(request.deviceScaleFactor === undefined
+        ? []
+        : [`  deviceScaleFactor: ${request.deviceScaleFactor},`]),
+      `});`,
+      `const digests = {};`,
+      `for (const shot of outcome.shots) {`,
+      `  digests[cellId(shot.cell)] = createHash('sha256')`,
+      `    .update(readFileSync(shot.path))`,
+      `    .digest('hex');`,
+      `}`,
+      `process.stdout.write(`,
+      `  JSON.stringify({ manifest: outcome.manifest, digests })`,
+      `);`,
+      ``,
+    ].join('\n')
+  );
+  const proc = Bun.spawn(['bun', 'run', runnerPath], {
+    cwd: process.cwd(),
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) {
+    throw new Error(`preview subprocess exited ${code}: ${stderr}`);
+  }
+  const reported = JSON.parse(stdout) as {
+    manifest: PreviewManifest;
+    digests: Record<string, string>;
+  };
+  return { ...reported, outDir: dir };
+}
+
 describe('headless capture', () => {
   browserTest(
     'renders the poll fixture through real chromium',
     async () => {
-      const dir = outDir();
-      const outcome = await renderSurfacePreview({
+      const { manifest } = await previewInSubprocess({
         bundleSource: pollBundle(),
         bundleSha256: '0'.repeat(64),
         spec: pollSpec(),
-        outDir: dir,
       });
-      expect(outcome.manifest.shellErrors).toEqual([]);
-      for (const shot of outcome.shots) {
+      expect(manifest.shellErrors).toEqual([]);
+      // a loop over an empty list would pass while capturing nothing
+      expect(manifest.shots).toHaveLength(12);
+      for (const shot of manifest.shots) {
         expect(existsSync(shot.path)).toBe(true);
         // a PNG, not a zero-byte placeholder
         expect(readFileSync(shot.path).byteLength).toBeGreaterThan(1000);
@@ -1201,79 +1293,37 @@ describe('headless capture', () => {
   };
 
   /**
-   * One preview run, in its own `bun` process, reporting a sha256 per cell.
+   * One run of the clock fixture, reporting a sha256 per cell.
    *
-   * The runner is written to a temp file rather than passed with `bun -e` so
-   * the source is on disk if a failure has to be diagnosed, and it imports the
-   * renderer by absolute path so it resolves from anywhere.
+   * A blank capture would hash identically on both arms and make the control
+   * vacuous, so a run that reported a shell error fails here rather than
+   * contributing digests.
    */
-  async function captureInSubprocess(
+  async function captureClock(
     bundleSource: string
   ): Promise<Record<string, string>> {
-    const dir = outDir();
-    const bundlePath = join(dir, 'app.js');
-    const runnerPath = join(dir, 'run-preview.ts');
-    writeFileSync(bundlePath, bundleSource);
-    writeFileSync(
-      runnerPath,
-      [
-        `import { createHash } from 'node:crypto';`,
-        `import { readFileSync } from 'node:fs';`,
-        `import { cellId, renderSurfacePreview } from ${JSON.stringify(
-          join(process.cwd(), 'scripts', 'surface-preview.ts')
-        )};`,
-        `const outcome = await renderSurfacePreview({`,
-        `  bundleSource: readFileSync(${JSON.stringify(bundlePath)}, 'utf8'),`,
-        `  bundleSha256: '0'.repeat(64),`,
-        `  spec: ${JSON.stringify(CLOCK_SPEC)},`,
-        `  outDir: ${JSON.stringify(dir)},`,
-        `  deviceScaleFactor: 1,`,
-        `});`,
-        `if (outcome.manifest.shellErrors.length > 0) {`,
-        `  throw new Error(JSON.stringify(outcome.manifest.shellErrors));`,
-        `}`,
-        `const digests = {};`,
-        `for (const shot of outcome.shots) {`,
-        `  digests[cellId(shot.cell)] = createHash('sha256')`,
-        `    .update(readFileSync(shot.path))`,
-        `    .digest('hex');`,
-        `}`,
-        `process.stdout.write(JSON.stringify(digests));`,
-        ``,
-      ].join('\n')
-    );
-    const proc = Bun.spawn(['bun', 'run', runnerPath], {
-      cwd: process.cwd(),
-      stdout: 'pipe',
-      stderr: 'pipe',
+    const { manifest, digests } = await previewInSubprocess({
+      bundleSource,
+      bundleSha256: '0'.repeat(64),
+      spec: CLOCK_SPEC,
+      deviceScaleFactor: 1,
     });
-    const [stdout, stderr, code] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
-    if (code !== 0) {
-      throw new Error(`preview subprocess exited ${code}: ${stderr}`);
-    }
-    return JSON.parse(stdout) as Record<string, string>;
+    expect(manifest.shellErrors).toEqual([]);
+    return digests;
   }
 
   browserTest(
     'two runs at different wall times: identical under injected now, different without it',
     async () => {
       // arm 1 — the injected clock
-      const injectedFirst = await captureInSubprocess(
-        CLOCK_FROM_CONTEXT_BUNDLE
-      );
+      const injectedFirst = await captureClock(CLOCK_FROM_CONTEXT_BUNDLE);
       await new Promise((resolve) => setTimeout(resolve, WALL_CLOCK_GAP_MS));
-      const injectedSecond = await captureInSubprocess(
-        CLOCK_FROM_CONTEXT_BUNDLE
-      );
+      const injectedSecond = await captureClock(CLOCK_FROM_CONTEXT_BUNDLE);
 
       // arm 2 — the ambient clock, the same two runs
-      const ambientFirst = await captureInSubprocess(CLOCK_FROM_DATE_BUNDLE);
+      const ambientFirst = await captureClock(CLOCK_FROM_DATE_BUNDLE);
       await new Promise((resolve) => setTimeout(resolve, WALL_CLOCK_GAP_MS));
-      const ambientSecond = await captureInSubprocess(CLOCK_FROM_DATE_BUNDLE);
+      const ambientSecond = await captureClock(CLOCK_FROM_DATE_BUNDLE);
 
       const cells = Object.keys(injectedFirst).sort();
       expect(cells).toHaveLength(12);
@@ -1528,17 +1578,16 @@ describe('headless capture — the defect pass against a real browser', () => {
   browserTest(
     'finds the crowding, the overflow and the jargon in a bad bundle',
     async () => {
-      const outcome = await renderSurfacePreview({
+      const { manifest } = await previewInSubprocess({
         bundleSource: DEFECTIVE_BUNDLE,
         bundleSha256: '1'.repeat(64),
         spec: defectiveSpec(),
-        outDir: outDir(),
       });
       // The probe reached the sandbox at all — an opaque-origin srcdoc frame
       // the host page cannot touch. If this ever regresses, every cell goes
       // unprobed and the pass reports a clean bill of health.
-      expect(outcome.manifest.unprobedCells).toEqual([]);
-      const messages = outcome.manifest.defects.map(
+      expect(manifest.unprobedCells).toEqual([]);
+      const messages = manifest.defects.map(
         (defect) => `${defect.check}: ${defect.message}`
       );
       expect(messages.join('\n')).toContain('past the right edge');
@@ -1551,14 +1600,13 @@ describe('headless capture — the defect pass against a real browser', () => {
   browserTest(
     'finds nothing in the poll fixture, measured the same way',
     async () => {
-      const outcome = await renderSurfacePreview({
+      const { manifest } = await previewInSubprocess({
         bundleSource: pollBundle(),
         bundleSha256: '2'.repeat(64),
         spec: pollSpec(),
-        outDir: outDir(),
       });
-      expect(outcome.manifest.unprobedCells).toEqual([]);
-      expect(outcome.manifest.defects).toEqual([]);
+      expect(manifest.unprobedCells).toEqual([]);
+      expect(manifest.defects).toEqual([]);
     },
     120_000
   );
