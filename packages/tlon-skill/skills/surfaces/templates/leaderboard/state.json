@@ -1,0 +1,41 @@
+{
+  "ladder": "Friday table tennis",
+  "roundOrder": ["r1", "r2", "r3", "r4", "r5"],
+  "rounds": {
+    "r1": { "label": "Week 1" },
+    "r2": { "label": "Week 2" },
+    "r3": { "label": "Week 3" },
+    "r4": { "label": "Week 4" },
+    "r5": { "label": "Week 5" }
+  },
+  "results": {
+    "r1": {
+      "~zod": "won",
+      "~ten": "lost",
+      "~palfun-foslup": "won",
+      "~sampel-palnet": "lost"
+    },
+    "r2": {
+      "~zod": "won",
+      "~ten": "won",
+      "~palfun-foslup": "lost"
+    },
+    "r3": {
+      "~zod": "lost",
+      "~ten": "won",
+      "~palfun-foslup": "won",
+      "~sampel-palnet": "won"
+    },
+    "r4": {
+      "~zod": "won",
+      "~ten": "lost",
+      "~sampel-palnet": "lost"
+    },
+    "r5": {
+      "~zod": "won",
+      "~ten": "won",
+      "~palfun-foslup": "lost",
+      "~sampel-palnet": "won"
+    }
+  }
+}

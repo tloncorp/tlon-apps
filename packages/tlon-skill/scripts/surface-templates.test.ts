@@ -2,6 +2,9 @@ import { describe, expect, it } from 'bun:test';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { createHash } from 'crypto';
+import { tmpdir } from 'os';
+
 import { lintSurfaceBundle } from './surface-lint';
 
 /**
@@ -76,11 +79,132 @@ describe('shipped surface templates', () => {
         // `state.json` is what the shell-side render job draws: a populated
         // example, because a template's own initialState is empty and an
         // empty screen exercises no crew list, avatar or chart.
+        //
+        // The ship requirement is waived for a DECLARED display-only app, and
+        // the waiver is narrow on purpose. A countdown has no per-member state
+        // to hold, so requiring a ship in its example would push it to invent
+        // people — which is the same pressure the `memberInteraction` marker
+        // exists to relieve, applied by a test instead of by a lint. Only the
+        // marker earns the waiver: an app that merely happens to have no
+        // actions still has to show somebody, because "no actions" is also
+        // what a forgotten action looks like.
         const statePath = path.join(dir, 'state.json');
         expect(fs.existsSync(statePath)).toBe(true);
         const state = JSON.parse(fs.readFileSync(statePath, 'utf-8'));
-        expect(JSON.stringify(state)).toMatch(/~[a-z]+/);
+        const spec = JSON.parse(
+          fs.readFileSync(path.join(dir, 'spec.json'), 'utf-8')
+        );
+        if (spec?.memberInteraction?.mode !== 'none') {
+          expect(JSON.stringify(state)).toMatch(/~[a-z]+/);
+        }
       });
     });
+  }
+});
+
+/**
+ * Every shipped template, through real Chromium, scored by the machine pass.
+ *
+ * The gate above reads the bundle and the spec. It cannot see geometry, and
+ * geometry is where a template's defects live: `workout-tracker` shipped with
+ * "All reps" and "Missed" 0px apart on the same row — under the 6px tap-target
+ * minimum, in all twelve cells — and it lints clean, passes the checks above,
+ * and passes the shell-side render test. THREE separate agents authoring other
+ * templates found it independently, each by running preview by hand, because
+ * `workout-tracker` is the template whose idiom a new author copies first.
+ *
+ * So the defect pass runs over every template here. This is the leg that
+ * catches a template teaching a geometric mistake to everything copied from
+ * it, and its absence is why that one shipped.
+ *
+ * **One template per SUBPROCESS, and that is not a style choice.** Several
+ * sequential `chromium.launch()` calls in one process wedge in this
+ * environment — the launch never returns and Playwright times out at 180s.
+ * Measured here rather than taken on report: seven templates in one process
+ * failed on `leaderboard`, and `leaderboard` alone passes in under ten
+ * seconds. The determinism control in `surface-preview.test.ts` spawns
+ * subprocesses for the same reason, and this reuses its shape.
+ *
+ * Browser-gated the same way that file is: opt-in via TLON_PREVIEW_BROWSER so
+ * the suite stays runnable without browser binaries, and CI sets it after
+ * installing Chromium.
+ */
+const browserTest = process.env.TLON_PREVIEW_BROWSER === '1' ? it : it.skip;
+
+/** Renders one template in its own process and returns what the pass found. */
+async function machinePassInSubprocess(name: string): Promise<{
+  shellErrors: unknown[];
+  unprobedCells: unknown[];
+  defects: unknown[];
+}> {
+  const dir = path.join(TEMPLATES_ROOT, name);
+  const statePath = path.join(dir, 'state.json');
+  const outDir = fs.mkdtempSync(path.join(tmpdir(), `tpl-${name}-`));
+  const runnerPath = path.join(outDir, 'run.ts');
+  fs.writeFileSync(
+    runnerPath,
+    [
+      `import { createHash } from 'node:crypto';`,
+      `import { readFileSync } from 'node:fs';`,
+      `import { renderSurfacePreview } from ${JSON.stringify(
+        path.join(process.cwd(), 'scripts', 'surface-preview.ts')
+      )};`,
+      `const source = readFileSync(${JSON.stringify(
+        path.join(dir, 'app.js')
+      )}, 'utf8');`,
+      `const outcome = await renderSurfacePreview({`,
+      `  bundleSource: source,`,
+      `  bundleSha256: createHash('sha256').update(source).digest('hex'),`,
+      `  spec: JSON.parse(readFileSync(${JSON.stringify(
+        path.join(dir, 'spec.json')
+      )}, 'utf8')),`,
+      // The populated example, not the mechanical fold: `state.json` is what
+      // the shell-side render job draws, and it is the board a reviewer would
+      // actually be looking at.
+      fs.existsSync(statePath)
+        ? `  stateOverride: JSON.parse(readFileSync(${JSON.stringify(
+            statePath
+          )}, 'utf8')),`
+        : ``,
+      `  outDir: ${JSON.stringify(outDir)},`,
+      `});`,
+      `process.stdout.write(JSON.stringify({`,
+      `  shellErrors: outcome.manifest.shellErrors ?? [],`,
+      `  unprobedCells: outcome.manifest.unprobedCells ?? [],`,
+      `  defects: outcome.manifest.defects ?? [],`,
+      `}));`,
+      ``,
+    ].join('\n')
+  );
+  const proc = Bun.spawn(['bun', 'run', runnerPath], {
+    cwd: process.cwd(),
+    stdout: 'pipe',
+    stderr: 'pipe',
+  });
+  const [stdout, stderr, code] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (code !== 0) {
+    throw new Error(`${name}: preview subprocess exited ${code}: ${stderr}`);
+  }
+  return JSON.parse(stdout);
+}
+
+describe('shipped surface templates — the machine pass', () => {
+  for (const name of names) {
+    browserTest(
+      `${name} paints without a machine-checked defect`,
+      async () => {
+        const outcome = await machinePassInSubprocess(name);
+        // Shell errors first: a template that threw has no geometry worth
+        // reporting, and "no defects" over a blank page is the vacuous pass.
+        expect(outcome.shellErrors).toEqual([]);
+        expect(outcome.unprobedCells).toEqual([]);
+        expect(outcome.defects).toEqual([]);
+      },
+      180_000
+    );
   }
 });

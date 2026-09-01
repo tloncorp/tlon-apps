@@ -1,0 +1,48 @@
+{
+  "board": "Zine tasks",
+  "taskOrder": [
+    "theme",
+    "pitches",
+    "interviews",
+    "layout",
+    "proof",
+    "print"
+  ],
+  "tasks": {
+    "theme": {
+      "label": "Choose the issue theme",
+      "note": "Agree on the central idea",
+      "status": "done"
+    },
+    "pitches": {
+      "label": "Collect contributor pitches",
+      "note": "Gather ideas and assignments",
+      "status": "done"
+    },
+    "interviews": {
+      "label": "Interviews and reporting",
+      "note": "Finish the source material",
+      "status": "doing"
+    },
+    "layout": {
+      "label": "Lay out the pages",
+      "note": "Assemble text and images",
+      "status": "blocked"
+    },
+    "proof": {
+      "label": "Proofread the issue",
+      "note": "Final copy and fact check",
+      "status": "todo"
+    },
+    "print": {
+      "label": "Send to print",
+      "note": "Prepare files and place the order",
+      "status": "todo"
+    }
+  },
+  "claims": {
+    "~zod": "layout",
+    "~ten": "pitches",
+    "~palfun-foslup": "interviews"
+  }
+}

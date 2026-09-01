@@ -366,7 +366,7 @@
             return html`
               <${ListRow}
                 right=${html`
-                  <div>
+                  <div style="display: flex; gap: var(--space-m)">
                     <${Button}
                       tone="positive"
                       disabled=${!canInvoke() || !log.ok}

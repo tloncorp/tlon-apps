@@ -182,8 +182,15 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
         working-directory: ./packages/tlon-skill
 
+      # Two files, one browser gate. surface-preview.test.ts covers the
+      # renderer; surface-templates.test.ts runs the machine defect pass over
+      # every SHIPPED TEMPLATE, which is the leg that was missing — the gate
+      # cannot see geometry, and `workout-tracker` shipped with a tap-target
+      # defect in all twelve cells that three separate agents each found by
+      # hand.
       - name: Surface preview headless capture
         run: bun test ./scripts/surface-preview.test.ts
+          ./scripts/surface-templates.test.ts
         working-directory: ./packages/tlon-skill
         env:
           TLON_PREVIEW_BROWSER: "1"

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "surfaceId": "srf-leaderboard",
+  "specRevision": 1,
+  "title": "Friday table tennis",
+  "bundle": {
+    "assetRef": "placeholder://leaderboard/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "ladder": "Friday table tennis",
+    "roundOrder": ["r1", "r2", "r3", "r4", "r5"],
+    "rounds": {
+      "r1": { "label": "Week 1" },
+      "r2": { "label": "Week 2" },
+      "r3": { "label": "Week 3" },
+      "r4": { "label": "Week 4" },
+      "r5": { "label": "Week 5" }
+    },
+    "results": {}
+  },
+  "actions": {
+    "won-r1": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r1/$actor", "value": "won" }]
+    },
+    "lost-r1": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r1/$actor", "value": "lost" }]
+    },
+    "won-r2": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r2/$actor", "value": "won" }]
+    },
+    "lost-r2": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r2/$actor", "value": "lost" }]
+    },
+    "won-r3": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r3/$actor", "value": "won" }]
+    },
+    "lost-r3": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r3/$actor", "value": "lost" }]
+    },
+    "won-r4": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r4/$actor", "value": "won" }]
+    },
+    "lost-r4": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r4/$actor", "value": "lost" }]
+    },
+    "won-r5": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r5/$actor", "value": "won" }]
+    },
+    "lost-r5": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/results/r5/$actor", "value": "lost" }]
+    }
+  },
+  "recipe": "A standings table for a small group playing the same game over a listed set of rounds. Each member says how they got on in a round — won or lost — and that one word per member per round is everything the board stores. Wins, losses, the run somebody is on, their best run, their position and their win rate are all counted out of that log every time the board is drawn, so a wrong result is fixed by pressing the other button rather than by unwinding a total. A round somebody sat out counts as neither a win nor a loss and does not break a run. Win rates are held as whole basis points and only turned into a percentage for display. Positions are by wins, then by fewest losses, then alphabetically, and players level on both counts share a position. Results are self-reported: this is a board for a group that trusts each other, not a referee."
+}

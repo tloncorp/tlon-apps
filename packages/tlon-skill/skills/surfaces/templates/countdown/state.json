@@ -1,0 +1,28 @@
+{
+  "event": "Cabin weekend",
+  "detail": "Cars leave from the church car park.",
+  "targetLabel": "Friday 3 January, 4:30pm",
+  "targetMs": 1735921800000,
+  "startedMs": 1733443200000,
+  "stepOrder": ["deposit", "headcount", "food"],
+  "steps": {
+    "deposit": {
+      "label": "Cabin deposit due",
+      "when": "Friday 13 December",
+      "atMs": 1734048000000,
+      "owner": "~zod"
+    },
+    "headcount": {
+      "label": "Head count to the cabin",
+      "when": "Friday 27 December",
+      "atMs": 1735257600000,
+      "owner": "~ten"
+    },
+    "food": {
+      "label": "Food order in",
+      "when": "Wednesday 1 January, midday",
+      "atMs": 1735732800000,
+      "owner": "~palfun-foslup"
+    }
+  }
+}

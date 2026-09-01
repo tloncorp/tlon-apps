@@ -1,0 +1,22 @@
+{
+  "trip": "Beach house weekend",
+  "currency": "$",
+  "itemOrder": ["house", "van", "food", "ferry"],
+  "items": {
+    "house": { "label": "Beach house, two nights", "cents": 48000 },
+    "van": { "label": "Van rental", "cents": 21500 },
+    "food": { "label": "Groceries", "cents": 8425 },
+    "ferry": { "label": "Ferry tickets", "cents": 6650 }
+  },
+  "paidBy": {
+    "house": "~zod",
+    "van": "~ten",
+    "food": "~palfun-foslup"
+  },
+  "crew": {
+    "~zod": true,
+    "~ten": true,
+    "~palfun-foslup": true,
+    "~sampel-palnet": true
+  }
+}

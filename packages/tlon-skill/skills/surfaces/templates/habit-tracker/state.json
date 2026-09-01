@@ -1,0 +1,58 @@
+{
+  "board": "Daily habits",
+  "daysShown": 7,
+  "habitOrder": ["water", "move", "read", "lights"],
+  "habits": {
+    "water": { "label": "Drink water", "detail": "Two litres" },
+    "move": { "label": "Move", "detail": "Twenty minutes, anything" },
+    "read": { "label": "Read", "detail": "Ten pages" },
+    "lights": { "label": "Lights out", "detail": "Before eleven" }
+  },
+  "history": {
+    "2026-08-27": {
+      "~zod": { "water": true, "move": true, "read": true, "lights": true },
+      "~ten": { "water": true, "read": true },
+      "~palfun-foslup": { "water": true, "move": true, "lights": true }
+    },
+    "2026-08-28": {
+      "~zod": { "water": true, "move": true, "read": true },
+      "~ten": { "water": true, "move": true, "read": true, "lights": true },
+      "~palfun-foslup": { "water": true }
+    },
+    "2026-08-29": {
+      "~zod": { "water": true, "move": true, "read": true, "lights": true },
+      "~ten": { "water": true, "move": true, "read": true, "lights": true },
+      "~palfun-foslup": { "water": true, "read": true }
+    },
+    "2026-08-30": {
+      "~zod": { "water": true, "move": true, "read": true, "lights": true },
+      "~ten": { "water": true, "move": true },
+      "~palfun-foslup": {
+        "water": true,
+        "move": true,
+        "read": true,
+        "lights": true
+      }
+    },
+    "2026-08-31": {
+      "~zod": { "water": true, "move": true, "read": true, "lights": true },
+      "~ten": { "read": true },
+      "~palfun-foslup": {
+        "water": true,
+        "move": true,
+        "read": true,
+        "lights": true
+      }
+    }
+  },
+  "today": {
+    "~zod": { "water": true, "move": true },
+    "~ten": { "water": true },
+    "~palfun-foslup": {
+      "water": true,
+      "move": true,
+      "read": true,
+      "lights": true
+    }
+  }
+}

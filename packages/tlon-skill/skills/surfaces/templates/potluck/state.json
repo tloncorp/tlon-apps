@@ -1,0 +1,22 @@
+{
+  "occasion": "Saturday potluck",
+  "when": "Saturday 14 March, 6pm",
+  "where": "The big table, back garden",
+  "markLabel": "Vegetarian",
+  "markQuestion": "Is yours vegetarian?",
+  "courseOrder": ["mains", "sides", "drinks", "dessert"],
+  "courses": {
+    "mains": { "label": "Mains", "want": 4 },
+    "sides": { "label": "Sides", "want": 4 },
+    "drinks": { "label": "Drinks", "want": 3 },
+    "dessert": { "label": "Dessert", "want": 3 }
+  },
+  "bringing": {
+    "~zod": { "course": "mains" },
+    "~ten": { "course": "mains", "veg": true },
+    "~mug": { "course": "sides", "veg": true },
+    "~palfun-foslup": { "course": "drinks" },
+    "~sampel-palnet": { "course": "dessert" },
+    "~wicdev-wisryt": { "veg": true }
+  }
+}
