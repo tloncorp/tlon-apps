@@ -209,6 +209,29 @@ function readTarget(params: unknown): string | null {
   return path.normalize(trimmed.replace(/\\/g, '/'));
 }
 
+function mutationTargets(toolName: string, params: unknown): string[] | null {
+  const directTarget = readTarget(params);
+  if (directTarget) return [directTarget];
+  if (toolName !== 'apply_patch') return null;
+
+  const patchText =
+    typeof params === 'string'
+      ? params
+      : params && typeof params === 'object' && !Array.isArray(params)
+        ? Object.values(params as Record<string, unknown>).find(
+            (value): value is string =>
+              typeof value === 'string' && value.includes('*** Begin Patch')
+          )
+        : null;
+  if (!patchText) return null;
+
+  const targets = Array.from(
+    patchText.matchAll(/^\*\*\* (?:(?:Update|Delete) File:|Move to:) (.+)$/gm),
+    (match) => path.normalize(match[1]!.trim().replace(/\\/g, '/'))
+  );
+  return targets.length > 0 ? Array.from(new Set(targets)) : null;
+}
+
 function readOffset(params: unknown): number {
   if (!params || typeof params !== 'object' || Array.isArray(params)) return 0;
   const offset = (params as { offset?: unknown }).offset;
@@ -294,7 +317,9 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
     ? progressCandidate.slice(completionPrefix[0].length)
     : '';
   const laterSentences = completionTail
-    .split(/(?:[.!?]\s+|[,;:]\s*(?:and\s+)?)/i)
+    .split(
+      /(?:[.!?]\s+|[,;:]\s*(?:and\s+)?|\s+and\s+(?=(?:the|this|that|it|they|there)\b))/i
+    )
     .slice(1)
     .map((sentence) => unwrapProgressMarkdown(sentence))
     .filter(Boolean);
@@ -580,10 +605,21 @@ export function createFileReadCompletionGuard(options?: {
         )
           return;
         const existing = runs.get(runId);
-        const targetKey = readTarget(input.params);
-        if (!existing || !targetKey || !existing.targets.has(targetKey)) return;
+        if (!existing) return;
+        const changedTargets = mutationTargets(input.toolName, input.params);
+        // A successful patch with an unrecognized payload may have changed any
+        // previously read file. Discard all evidence rather than carrying stale
+        // anchors or truncation state into the assistant's final response.
+        if (!changedTargets) {
+          runs.delete(runId);
+          return;
+        }
+        const invalidatedTargets = changedTargets.filter((targetKey) =>
+          existing.targets.has(targetKey)
+        );
+        if (invalidatedTargets.length === 0) return;
         const targets = new Map(existing.targets);
-        targets.delete(targetKey);
+        for (const targetKey of invalidatedTargets) targets.delete(targetKey);
         if (targets.size === 0) {
           runs.delete(runId);
           return;
@@ -591,10 +627,11 @@ export function createFileReadCompletionGuard(options?: {
         touch(runId, {
           ...existing,
           deliveredViaMessageTool: false,
-          lastSuccessfulTarget:
-            existing.lastSuccessfulTarget === targetKey
-              ? null
-              : existing.lastSuccessfulTarget,
+          lastSuccessfulTarget: invalidatedTargets.includes(
+            existing.lastSuccessfulTarget ?? ''
+          )
+            ? null
+            : existing.lastSuccessfulTarget,
           targets,
         });
         return;

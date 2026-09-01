@@ -340,7 +340,7 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
-  it.each([', and', ':'])(
+  it.each([', and', ':', ' and'])(
     'accepts a result joined to the read acknowledgment with %s',
     (separator) => {
       const guard = createFileReadCompletionGuard();
@@ -880,6 +880,41 @@ describe('file read completion guard', () => {
     expect(
       guard.beforeFinalize({
         runId: 'mutated-truncation',
+        lastAssistantMessage:
+          'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
+      })
+    ).toBeNull();
+  });
+
+  it('invalidates truncated read evidence after apply_patch', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'patched-truncation',
+        'old one\nold two\nold three\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult({
+      runId: 'patched-truncation',
+      toolName: 'apply_patch',
+      params: {
+        patch:
+          '*** Begin Patch\n*** Update File: /tmp/report.txt\n@@\n-old one\n+new one\n*** End Patch',
+      },
+      result: { content: [{ type: 'text', text: 'Done!' }] },
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'patched-truncation',
+        'new one\nnew two\nnew three\nnew four',
+        '/tmp/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'patched-truncation',
         lastAssistantMessage:
           'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
       })
