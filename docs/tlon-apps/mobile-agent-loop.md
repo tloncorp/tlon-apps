@@ -165,14 +165,11 @@ revival, or bot config.
   `better-sqlite3`.
 - **pnpm runs scripts through `${TLON_SHELL-/bin/bash}`** (`pnpm-workspace.yaml`),
   so several scripts need `bash`. On Windows, point `TLON_SHELL` at Git bash.
-- **The EAS build cache is already configured**: `app.config.ts` sets
-  `buildCacheProvider: 'eas'`. It answers only while `eas-cli` is installed and
-  logged in — `stim doctor` reports both, and a logged-out machine silently
-  compiles everything from source. `TLON_EAS_CACHE_DISABLED=1` turns it off.
-- **The Metro shared cache store is opt-in**, behind
-  `TLON_METRO_SHARED_CACHE_ENABLED=1` (`metro.config.js`). It matters only for
-  Metro runs Stim does not host; under `stim start` the store Stim appends is
-  used whether this one is on or off.
+- **This app configures no build cache of its own.** Stim keys its cache on the
+  native fingerprint, shares artifacts across worktrees, appends its own Metro
+  store, and ignores the paths a native build never reads, so there is no
+  `buildCacheProvider`, no shared Metro store and no `.fingerprintignore` here.
+  `stim doctor` reports what it applies.
 - **`tailwind.json` and `tailwind.css`** in `apps/tlon-mobile` are stale
   leftovers. Nothing in the app reads them, and a worktree without them builds.
 - **Expo modules ship as prebuilt Android artifacts.** `./gradlew projects`
