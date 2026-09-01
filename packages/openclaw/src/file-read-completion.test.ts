@@ -330,6 +330,7 @@ describe('file read completion guard', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('message-tool-delivery'));
     guard.recordMessageDelivery({
+      content: `Here are the requested contents:\n${CSV}`,
       runId: 'message-tool-delivery',
       success: true,
     });
@@ -346,6 +347,7 @@ describe('file read completion guard', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('failed-message-tool-delivery'));
     guard.recordMessageDelivery({
+      content: `Here are the requested contents:\n${CSV}`,
       runId: 'failed-message-tool-delivery',
       success: false,
     });
@@ -353,6 +355,23 @@ describe('file read completion guard', () => {
     expect(
       guard.beforeFinalize({
         runId: 'failed-message-tool-delivery',
+        lastAssistantMessage: 'NO_REPLY',
+      })
+    ).not.toBeNull();
+  });
+
+  it('still revises after a message-tool progress update', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('message-tool-progress'));
+    guard.recordMessageDelivery({
+      content: 'Opening the CSV now.',
+      runId: 'message-tool-progress',
+      success: true,
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'message-tool-progress',
         lastAssistantMessage: 'NO_REPLY',
       })
     ).not.toBeNull();

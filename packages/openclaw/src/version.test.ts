@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { describe, expect, it } from 'vitest';
 
 import { formatTlonVersionIdentity } from './version.js';
@@ -14,5 +16,22 @@ describe('formatTlonVersionIdentity', () => {
     });
 
     expect(output.split('\n')).toContain(test.expected);
+  });
+
+  it('documents conversation-hook access in the normal installation config', () => {
+    const readme = readFileSync(
+      new URL('../README.md', import.meta.url),
+      'utf8'
+    );
+    const installation = readme.slice(
+      readme.indexOf('## Installation'),
+      readme.indexOf('## Telemetry')
+    );
+
+    expect(installation).toContain('plugins:');
+    expect(installation).toContain('allowConversationAccess: true');
+    expect(installation).toContain(
+      '`plugins.entries.tlon.hooks.allowConversationAccess: true` is required'
+    );
   });
 });

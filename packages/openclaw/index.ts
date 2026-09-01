@@ -1431,6 +1431,7 @@ export default defineBundledChannelEntry({
       // message-tool delivery for this run. Do not revise a deliberate
       // NO_REPLY source final into a duplicate file response.
       fileReadCompletion.recordMessageDelivery({
+        content: event.content,
         runId: event.runId ?? ctx.runId,
         success: event.success,
       });

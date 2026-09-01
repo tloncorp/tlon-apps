@@ -14,6 +14,7 @@ export type FileReadFinalizeInput = {
 };
 
 export type FileReadMessageDelivery = {
+  content?: string;
   runId?: string;
   success: boolean;
 };
@@ -320,6 +321,19 @@ function anyTargetContentIsRepresented(
   );
 }
 
+function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
+  const targets = relevantTargets(reply, state);
+  return (
+    !hasTruncatedTarget(targets) &&
+    (allTargetContentIsRepresented(reply, targets) ||
+      (!isIncompleteFileDeliveryReply(reply) &&
+        !(
+          EMPTY_DELIVERY_CLAIM.test(reply) &&
+          anyTargetContentIsRepresented(reply, targets)
+        )))
+  );
+}
+
 function revisionInstruction(
   targets: TrackedTarget[],
   attempt: number
@@ -445,11 +459,17 @@ export function createFileReadCompletionGuard(options?: {
       const runId = input.runId?.trim();
       if (!runId || !input.success) return;
       const existing = runs.get(runId);
+      if (
+        !existing ||
+        hasFailedTarget(existing) ||
+        !replyCompletesTrackedRead(input.content ?? '', existing)
+      )
+        return;
       touch(runId, {
         deliveredViaMessageTool: true,
-        lastSuccessfulTarget: existing?.lastSuccessfulTarget ?? null,
-        revisionAttempts: existing?.revisionAttempts ?? 0,
-        targets: new Map(existing?.targets ?? []),
+        lastSuccessfulTarget: existing.lastSuccessfulTarget,
+        revisionAttempts: existing.revisionAttempts,
+        targets: new Map(existing.targets),
       });
     },
 
@@ -466,15 +486,7 @@ export function createFileReadCompletionGuard(options?: {
       )
         return null;
       const targets = relevantTargets(reply, state);
-      if (
-        !hasTruncatedTarget(targets) &&
-        (allTargetContentIsRepresented(reply, targets) ||
-          (!isIncompleteFileDeliveryReply(reply) &&
-            !(
-              EMPTY_DELIVERY_CLAIM.test(reply) &&
-              anyTargetContentIsRepresented(reply, targets)
-            )))
-      ) {
+      if (replyCompletesTrackedRead(reply, state)) {
         return null;
       }
 

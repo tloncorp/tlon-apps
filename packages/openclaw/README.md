@@ -21,6 +21,15 @@ Tlon/Urbit channel plugin for [OpenClaw](https://github.com/openclaw/openclaw). 
 This plugin is included with OpenClaw. Enable it in your config:
 
 ```yaml
+plugins:
+    entries:
+        tlon:
+            enabled: true
+            # Required for the file-read completion guard's
+            # before_agent_finalize conversation hook.
+            hooks:
+                allowConversationAccess: true
+
 channels:
     tlon:
         enabled: true
@@ -29,9 +38,20 @@ channels:
         code: 'your-access-code'
 ```
 
+`plugins.entries.tlon.hooks.allowConversationAccess: true` is required for
+installed npm or path-loaded copies. OpenClaw otherwise blocks the conversation
+hook that prevents progress-only file-read replies.
+
 ### Full Configuration Example
 
 ```yaml
+plugins:
+    entries:
+        tlon:
+            enabled: true
+            hooks:
+                allowConversationAccess: true
+
 channels:
     tlon:
         enabled: true
