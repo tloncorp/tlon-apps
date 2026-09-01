@@ -55,16 +55,16 @@ A JavaScript or TypeScript edit needs no rebuild. Fast Refresh applies it, and
 `stim logs --since 30s --level error` shows what it broke. Run `stim ios` again
 only after a native input changes.
 
-Finish with `stim stop`. Ask before `stim worktree remove`: it deletes the
-worktree and its simulator.
+Finish a session with `stim stop`, which shuts the dev server and the device
+down but keeps the worktree.
+
+Run `stim worktree remove` once the pull request merges. It deletes the
+worktree, the branch Stim created for it when that branch has no unique
+commits, and the simulator or emulator it owns -- tens of gigabytes that
+otherwise sit there until someone notices. Ask the user first, and never reach
+for `--force`, which also discards uncommitted and untracked files.
 
 ## Android
-
-`ANDROID_HOME` must be exported (`stim doctor` checks it):
-
-```bash
-export ANDROID_HOME="$HOME/Library/Android/sdk"
-```
 
 The app builds two product flavors, `production` (`io.tlon.groups`) and
 `preview` (`io.tlon.groups.preview`), so `assembleDebug` leaves two APKs and
