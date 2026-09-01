@@ -1,0 +1,42 @@
+{
+  "id": "cand-poll-answered",
+  "channel": "chat/~zod/dash-p21bxr23",
+  "note": "The verdict-run prompt's LITERAL render-only candidate for the poll. Issued to the preflight first, unmodified, so the instrument rules on a live candidate rather than only on the recorded controls. If it refuses, the request is replaced (rev-poll-leader) and the refusal is the evidence.",
+  "request": "on the movie night poll, show how many people have answered",
+  "behaviour": "the board states how many members have answered, as a count of respondents rather than only the per-option tallies",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "turnout",
+      "\\d+\\s*(votes?|people|members|responses?)\\s*(so far|cast|in|counted|total)",
+      "(how many|number of)\\s+(people|members|have)",
+      "\\d+\\s*(of|/)\\s*\\d+\\s*(voted|answered|responded)",
+      "responses?\\b",
+      "\\d+\\s*(people|members)\\s+(have\\s+)?(voted|answered|responded)"
+    ],
+    "renderPositive": "Turnout2votes so far",
+    "renderPositiveSource": "painted text of chat/~zod/dash-p21bxr23, cell phone-initial-light, read 2026-09-01 by dev/surfaces-render-probe.ts at the channel's live reduced state. This is the target's OWN output: if the pattern set is right, this request is already satisfied and the preflight must say so.",
+    "renderNegatives": [
+      "What should we watch on Friday?",
+      "Dune 1VoteWhiplash 0VoteArrival 1Vote",
+      "one vote each — change yours any time",
+      "Who has voted~tenArrival~zodDune"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-p21bxr23, verbatim, same read. `Dune 1Vote` is the load-bearing one: an earlier draft used /\\d+\\s*(votes?|people|members)/ with no trailing qualifier, which matched `1Vote` — a per-option tally, not a respondent count — and would have called any poll on earth already-satisfied.",
+    "actionPatterns": [
+      "turnout",
+      "head-?count",
+      "tally-?count",
+      "respondents?",
+      "answered"
+    ],
+    "actionPositive": "count-turnout {\"ops\":[{\"op\":\"set\",\"path\":\"/turnout/$actor\",\"value\":true}]}",
+    "actionPositiveSource": "HYPOTHETICAL — no app in this run's corpus stores a respondent count as an action, because on this target the count is derived in the render. Shaped like the surrounding real actions and labelled so a reader does not mistake it for a measured fixture.",
+    "actionNegatives": [
+      "vote-dune {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"dune\"}]}",
+      "vote-whiplash {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"whiplash\"}]}",
+      "vote-arrival {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"arrival\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from chat/~zod/dash-p21bxr23's own action map (tlon surface show, 2026-09-01)"
+  }
+}

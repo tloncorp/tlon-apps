@@ -87,16 +87,37 @@ said a word, because a screenshot of a board nobody can touch looks exactly
 like a screenshot of a board somebody can.
 
 So the gate now **warns** on an empty action map. It is a warning, not a
-refusal: display-only is allowed, it just has to be on purpose. Declare it
-and the warning goes away:
+refusal: display-only is allowed, it just has to be on purpose.
+
+**Before you reach for the marker, answer this: who changes this board, and
+how?** If any part of the answer is a member — someone adds a cost, marks a
+dish, claims a slot, casts a vote — then the app is missing that action and
+the marker is the wrong fix. Silencing the warning does not give anyone a
+button.
+
+A worked counter-example, because this is the case that has now shipped
+three times. "Who owes what for the trip" is **not** display-only. Somebody
+has to add an expense, and if the answer is "the organizer types it in
+chat and I republish", that is an app that does not work — the whole point
+is that the board changes without you. It needs an action.
+
+Display-only means the state moves **only** from host events you post on a
+schedule: a countdown, a rota that rolls over nightly, a summary of
+something outside the group. If you cannot name the host event that moves
+it, it is not display-only.
+
+Only then:
 
 ```json
-{ "surfaceId": "srf-launch", "memberInteraction": "none", "actions": {} }
+{
+  "surfaceId": "srf-launch-countdown",
+  "memberInteraction": "none",
+  "actions": {}
+}
 ```
 
 Same shape as `duplicatesTolerated` below — an optional marker that turns a
-default-suspicious spec into a declared one. If you cannot honestly write
-it, the app is missing an action.
+default-suspicious spec into a declared one.
 
 ### The default: idempotent `set` keyed by `$actor`
 
