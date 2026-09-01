@@ -36,6 +36,26 @@ describe.each(names)('template %s', (name) => {
     );
   };
 
+  /**
+   * Whether this template declares itself display-only.
+   *
+   * A countdown has no member actions, therefore no buttons and no
+   * per-member state, and the assertions below about controls and crew are
+   * false of it by design rather than broken. The waiver is granted ONLY by
+   * the declaration: an app that merely happens to have no actions still has
+   * to show buttons and people, because "no actions" is also exactly what a
+   * forgotten action looks like — which is the failure the marker exists to
+   * tell apart, and it has shipped three times.
+   */
+  const displayOnly = () => {
+    const marker = (
+      loadTemplate(name).spec as unknown as {
+        memberInteraction?: { mode?: string };
+      }
+    ).memberInteraction;
+    return marker?.mode === 'none';
+  };
+
   function run(options: { canInvoke?: boolean; populated?: boolean } = {}) {
     const template = loadTemplate(name);
     return runShellFixture({
@@ -56,7 +76,15 @@ describe.each(names)('template %s', (name) => {
     // what a template should produce.
     expect(shell.root.querySelector('.tsh-broken')).toBeNull();
     expect((shell.root.textContent ?? '').trim().length).toBeGreaterThan(0);
-    expect(shell.root.querySelectorAll('button').length).toBeGreaterThan(0);
+    const buttons = shell.root.querySelectorAll('button');
+    if (displayOnly()) {
+      // Not merely "no assertion": a declared display-only app must have NO
+      // controls, which is a stronger claim than the one made of every other
+      // template and is the claim its declaration actually makes.
+      expect(buttons.length).toBe(0);
+    } else {
+      expect(buttons.length).toBeGreaterThan(0);
+    }
   });
 
   test('renders a populated crew, with a sigil for every member', () => {
@@ -67,6 +95,12 @@ describe.each(names)('template %s', (name) => {
     const shell = run();
     expect(shell.errors()).toHaveLength(0);
     expect(shell.root.querySelector('.tsh-broken')).toBeNull();
+    if (displayOnly()) {
+      // Its populated state is host-written and may name nobody. Requiring a
+      // crew here would push a countdown to invent people to satisfy a test,
+      // which is the same pressure the marker exists to relieve.
+      return;
+    }
 
     const ships = new Set<string>();
     const collect = (value: unknown) => {
@@ -107,6 +141,15 @@ describe.each(names)('template %s', (name) => {
     const shell = run();
     const declared = new Set(declaredActions());
     const buttons = Array.from(shell.root.querySelectorAll('button'));
+    if (displayOnly()) {
+      // The whole claim, and it is checkable: nothing to press, so nothing
+      // can be invoked. A display-only app that fired an invoke would be
+      // lying about itself.
+      expect(buttons.length).toBe(0);
+      expect(declared.size).toBe(0);
+      expect(shell.invokes()).toHaveLength(0);
+      return;
+    }
 
     for (const button of buttons) {
       button.click();
@@ -123,6 +166,14 @@ describe.each(names)('template %s', (name) => {
   test('a read-only viewer sees the same screen with the controls off', () => {
     const shell = run({ canInvoke: false });
     const buttons = Array.from(shell.root.querySelectorAll('button'));
+    if (displayOnly()) {
+      // Every viewer of a display-only app is already read-only, so the
+      // screen must not change at all between the two.
+      expect(buttons.length).toBe(0);
+      expect(shell.root.textContent).toBe(run().root.textContent);
+      expect(shell.errors()).toHaveLength(0);
+      return;
+    }
     expect(buttons.length).toBeGreaterThan(0);
     expect(buttons.every((button) => button.disabled)).toBe(true);
 

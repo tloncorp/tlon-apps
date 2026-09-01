@@ -4593,6 +4593,23 @@ transcript is an audit that will be lost, and this project has now lost two.)
   forbid what `Progress` requires: a proportion handed to a primitive is
   geometry, not a derived value — divide for the bar, never for the label.
 
+  **A display-only template broke two suites that had never seen one, and
+  both breakages were the same assumption.** `surface-templates.test.ts`
+  required every `state.json` to name a ship;
+  `packages/surface-shell/test/templates.test.ts` required every template to
+  render buttons and a member crew. Both were written when every template had
+  member actions, and both are false of a countdown by design. Waived in each,
+  granted ONLY by the declaration, and the shell-side waiver asserts the
+  STRONGER claim rather than skipping: a declared display-only app must have
+  exactly zero controls, declare zero actions, fire zero invokes, and paint an
+  identical screen to a read-only viewer — because a display-only app that
+  fired an invoke would be lying about itself.
+
+  Worth recording how it was found: both template authors reported their work
+  green, and both were right about the suite they ran. The shell-side suite was
+  last run before `countdown` existed. It surfaced only in a full cross-package
+  verification after the commits were already made.
+
   **The line `countdown` draws, which is the one worth keeping:** a date that
   has gone by is something a board may SHOW; it is not something a board may
   WRITE. "Passed" is derived at paint time, per-viewer like the theme, recorded
