@@ -4,6 +4,8 @@ import {
   getMissingNotificationTargetRecovery,
   getNotificationRouteCategory,
   groupInvitePreviewRouteStack,
+  notificationResponseKey,
+  takeNotificationResponse,
 } from '../hooks/useNotificationListener';
 import { parseNotificationPayload } from '../lib/notificationPayload';
 import {
@@ -513,5 +515,51 @@ describe('foreground notification presentation', () => {
         viewedChannelId: '~sampel-palnet',
       })
     ).toBe(false);
+  });
+});
+
+
+describe('replayed notification responses (TLON-6424)', () => {
+  const notificationWith = (data: Record<string, unknown>, identifier = 'uid-1') =>
+    ({
+      date: 1,
+      request: {
+        identifier,
+        content: { data },
+        trigger: null,
+      },
+    }) as never;
+
+  it('gives a replayed response the same key as the original', () => {
+    const payload = { type: 'channelNotification', channelId: 'chat/~zod/product' };
+    expect(notificationResponseKey(notificationWith(payload))).toBe(
+      notificationResponseKey(notificationWith(payload))
+    );
+  });
+
+  it('gives a different notification a different key, even when the identifier repeats', () => {
+    // `google.message_id` falls back to a reused int id when the payload has no
+    // uid, so the identifier alone cannot separate two taps.
+    const first = notificationWith({ uid: 'a', channelId: 'chat/~zod/product' }, '7');
+    const second = notificationWith({ uid: 'b', channelId: 'chat/~zod/product' }, '7');
+    expect(notificationResponseKey(first)).not.toBe(notificationResponseKey(second));
+  });
+
+  it('handles a response once and refuses the replay', () => {
+    const handled = new Set<string>();
+    const key = notificationResponseKey(notificationWith({ uid: 'a' }));
+    expect(takeNotificationResponse(key, handled)).toBe(true);
+    expect(takeNotificationResponse(key, handled)).toBe(false);
+    expect(takeNotificationResponse(key, handled)).toBe(false);
+  });
+
+  it('still handles a genuinely new tap after one was handled', () => {
+    const handled = new Set<string>();
+    expect(
+      takeNotificationResponse(notificationResponseKey(notificationWith({ uid: 'a' })), handled)
+    ).toBe(true);
+    expect(
+      takeNotificationResponse(notificationResponseKey(notificationWith({ uid: 'b' })), handled)
+    ).toBe(true);
   });
 });

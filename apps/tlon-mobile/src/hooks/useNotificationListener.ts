@@ -52,6 +52,35 @@ import {
 
 const logger = createDevLogger('useNotificationListener', false);
 
+// expo-notifications buffers a tap that arrives before JS is ready and replays
+// it to every listener registering afterwards, without ever emptying that
+// buffer (Android `NotificationManager.pendingNotificationResponsesFromExtras`).
+// A process started from a tap therefore re-delivers the same response whenever
+// a listener re-registers, so the app routes to that channel on every open
+// until the process dies.
+const handledNotificationResponseKeys = new Set<string>();
+
+export function notificationResponseKey(notification: Notification): string {
+  let payloadKey: string;
+  try {
+    payloadKey = JSON.stringify(pickPlatformPayload(notification)) ?? 'null';
+  } catch {
+    payloadKey = 'unserializable';
+  }
+  return `${notification.request.identifier}::${payloadKey}`;
+}
+
+export function takeNotificationResponse(
+  key: string,
+  handled: Set<string> = handledNotificationResponseKeys
+): boolean {
+  if (handled.has(key)) {
+    return false;
+  }
+  handled.add(key);
+  return true;
+}
+
 const notificationSyncCtx = {
   priority: SyncPriority.High + 1,
   retry: true,
@@ -175,6 +204,14 @@ export default function useNotificationListener() {
   useEffect(() => {
     if (notificationResponse != null) {
       try {
+        if (
+          !takeNotificationResponse(
+            notificationResponseKey(notificationResponse.notification)
+          )
+        ) {
+          return;
+        }
+
         const data = payloadFromNotification(notificationResponse.notification);
 
         // If the NSE caught an error, it puts it in a list under
