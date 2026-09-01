@@ -112,7 +112,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
                     });
                     navigation.navigate('PasteInviteLink');
                   }}
-                  label="Join with an invite"
+                  label="Join with an invite [loop test 2]"
                 />
               </YStack>
             )}
