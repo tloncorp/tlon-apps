@@ -751,6 +751,27 @@ export const useChannelSearchResults = (
   });
 };
 
+/**
+ * One Bucket's manifest, as reduced from the %buckets subscription.
+ *
+ * Invalidated by the tables the reducer writes, so an update arriving on that
+ * subscription refreshes every pane looking at the Bucket -- rather than each
+ * pane holding a copy it reduced itself.
+ */
+export const useBucket = (options: { channelId?: string }) => {
+  const { channelId } = options;
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['bucket', useKeyFromQueryDeps(db.getBucket), channelId],
+    queryFn: () => {
+      if (!channelId) {
+        throw new Error('missing channel id');
+      }
+      return db.getBucket({ channelId });
+    },
+  });
+};
+
 export const useChannel = (options: { id?: string }) => {
   const { id } = options;
   return useQuery({

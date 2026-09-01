@@ -1,11 +1,7 @@
 import type { BucketsSnapshot } from '@tloncorp/api';
 import { describe, expect, it } from 'vitest';
 
-import {
-  bucketResponseHasRevisionGap,
-  findUploadShadowEntryIds,
-  removeEntryFromBucketSnapshot,
-} from './bucketUploadReconciliation';
+import { findUploadShadowEntryIds } from './bucketUploadReconciliation';
 
 const snapshot = {
   flag: { host: '~zod', name: 'project-files' },
@@ -52,51 +48,5 @@ describe('findUploadShadowEntryIds', () => {
 
   it('hides nothing for an upload that has no entry yet', () => {
     expect(findUploadShadowEntryIds([{}])).toEqual(new Set());
-  });
-});
-
-describe('removeEntryFromBucketSnapshot', () => {
-  it('optimistically removes an entry', () => {
-    const next = removeEntryFromBucketSnapshot(snapshot, 10);
-    expect(next.state.entries).toEqual([]);
-  });
-
-  it('leaves unrelated entries alone', () => {
-    const next = removeEntryFromBucketSnapshot(snapshot, 999);
-    expect(next.state.entries).toHaveLength(1);
-  });
-});
-
-describe('bucketResponseHasRevisionGap', () => {
-  it('requests a refresh when an update skips a revision', () => {
-    expect(
-      bucketResponseHasRevisionGap(snapshot, {
-        type: 'update',
-        flag: snapshot.flag,
-        revision: 4,
-        update: { type: 'entries-deleted', ids: [10] },
-      })
-    ).toBe(true);
-  });
-
-  it('accepts the next revision', () => {
-    expect(
-      bucketResponseHasRevisionGap(snapshot, {
-        type: 'update',
-        flag: snapshot.flag,
-        revision: 3,
-        update: { type: 'entries-deleted', ids: [10] },
-      })
-    ).toBe(false);
-  });
-
-  it('accepts a replacement snapshot at any revision', () => {
-    expect(
-      bucketResponseHasRevisionGap(snapshot, {
-        type: 'snapshot',
-        flag: snapshot.flag,
-        state: snapshot.state,
-      })
-    ).toBe(false);
   });
 });

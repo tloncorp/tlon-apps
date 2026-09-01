@@ -1,16 +1,5 @@
 import type { BucketsResponse, BucketsSnapshot } from '@tloncorp/api';
 
-export function bucketResponseHasRevisionGap(
-  snapshot: BucketsSnapshot | null,
-  response: BucketsResponse
-) {
-  return (
-    response.type === 'update' &&
-    snapshot !== null &&
-    response.revision > snapshot.state.revision + 1
-  );
-}
-
 /**
  * Server entries that an optimistic upload row is already standing in for.
  *
@@ -28,17 +17,4 @@ export function findUploadShadowEntryIds(
       .map((upload) => upload.serverEntryId)
       .filter((id): id is number => id !== undefined)
   );
-}
-
-export function removeEntryFromBucketSnapshot(
-  snapshot: BucketsSnapshot,
-  entryId: number
-): BucketsSnapshot {
-  return {
-    ...snapshot,
-    state: {
-      ...snapshot.state,
-      entries: snapshot.state.entries.filter((entry) => entry.id !== entryId),
-    },
-  };
 }

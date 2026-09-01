@@ -7,7 +7,6 @@ import {
   BucketsSnapshot,
   bucketsFlagKey,
   formatBucketsChannelId,
-  getBucket,
   getBucketReadToken,
   getCurrentUserId,
   requestBucketReadToken,
@@ -16,7 +15,6 @@ import {
   requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
-  subscribeToBuckets,
 } from '@tloncorp/api';
 import {
   BucketsBrokerError,
@@ -25,6 +23,7 @@ import {
   isBucketObjectAlreadyDeleted,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { useBucket } from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { BucketItem, BucketUploadCandidate } from '../../ui';
@@ -35,10 +34,7 @@ import {
 } from '../../utils/bucketUploadProgress';
 import type { BucketUploadBatchItem } from '../../utils/bucketUploadProgress';
 import { deletePrivateBucketFiles } from './bucketDeletion';
-import {
-  bucketResponseHasRevisionGap,
-  removeEntryFromBucketSnapshot,
-} from './bucketUploadReconciliation';
+import {} from './bucketUploadReconciliation';
 import { createBucketUploadTask } from './bucketUploadTask';
 import type { BucketUploadTask } from './bucketUploadTask.types';
 
@@ -56,6 +52,42 @@ type LocalUpload = {
   state: 'queued' | 'uploading' | 'failed';
 };
 
+type StoredBucketEntry = NonNullable<
+  Awaited<ReturnType<typeof db.getBucket>>
+>['entries'][number];
+
+/**
+ * A stored row as the entry shape everything downstream already speaks.
+ *
+ * The file columns are null on a folder, which is what distinguishes the two
+ * once they share a table.
+ */
+function toBucketsEntry(row: StoredBucketEntry): BucketsEntry {
+  const base = {
+    id: row.entryId,
+    parentId: row.parentId,
+    name: row.name,
+    createdBy: row.createdBy,
+    createdAt: row.createdAt,
+    updatedBy: row.updatedBy,
+    updatedAt: row.updatedAt,
+  };
+  if (row.kind === 'folder') {
+    return { ...base, kind: 'folder' };
+  }
+  return {
+    ...base,
+    kind: 'file',
+    file: {
+      mime: row.mime ?? 'application/octet-stream',
+      size: row.size ?? 0,
+      checksum: row.checksum ?? null,
+      objectKey: row.objectKey ?? '',
+      status: row.status ?? 'pending',
+    },
+  };
+}
+
 function matchesFlag(left: BucketsFlag, right: BucketsFlag) {
   return bucketsFlagKey(left) === bucketsFlagKey(right);
 }
@@ -68,53 +100,6 @@ function upsertEntry(entries: BucketsEntry[], entry: BucketsEntry) {
   return entries.map((candidate) =>
     candidate.id === entry.id ? entry : candidate
   );
-}
-
-function reduceBucketResponse(
-  current: BucketsSnapshot | null,
-  response: BucketsResponse
-): BucketsSnapshot | null {
-  if (response.type === 'snapshot') {
-    return { flag: response.flag, state: response.state };
-  }
-  if (!current || response.revision <= current.state.revision) {
-    return current;
-  }
-
-  const update = response.update;
-  if (update.type === 'bucket-deleted') return null;
-
-  let entries = current.state.entries;
-  let bucket = current.state.bucket;
-  let writers = current.state.writers;
-
-  switch (update.type) {
-    case 'bucket-created':
-    case 'bucket-updated':
-      bucket = update.bucket;
-      break;
-    case 'writers-updated':
-      writers = update.writers;
-      break;
-    case 'entry-created':
-    case 'entry-updated':
-      entries = upsertEntry(entries, update.entry);
-      break;
-    case 'entries-deleted':
-      entries = entries.filter((entry) => !update.ids.includes(entry.id));
-      break;
-  }
-
-  return {
-    ...current,
-    state: {
-      ...current.state,
-      bucket,
-      entries,
-      revision: response.revision,
-      writers,
-    },
-  };
 }
 
 function errorMessage(cause: unknown) {
@@ -130,14 +115,23 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     () => ({ host: requestedFlag.host, name: requestedFlag.name }),
     [requestedFlag.host, requestedFlag.name]
   );
-  const flagKey = bucketsFlagKey(flag);
-  const [snapshot, setSnapshot] = useState<BucketsSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
+  const channelId = useMemo(() => formatBucketsChannelId(flag), [flag]);
+  // Read, not held. The app-wide %buckets subscription reduces every response
+  // into the database, so a pane reads what has been reduced -- rather than
+  // opening its own subscription and reducing into private state, which meant
+  // two subscriptions to one firehose and no shared view between two panes on
+  // the same Bucket.
+  const { data: bucket, isLoading: loading } = useBucket({ channelId });
+  const entries = useMemo<BucketsEntry[]>(
+    () => (bucket?.entries ?? []).map(toBucketsEntry),
+    [bucket?.entries]
+  );
+  const entriesRef = useRef<BucketsEntry[]>([]);
+  entriesRef.current = entries;
   const [error, setError] = useState<string | null>(null);
   const [uploads, setUploads] = useState<LocalUpload[]>([]);
   const uploadsRef = useRef<LocalUpload[]>([]);
   const [uploadBatch, setUploadBatch] = useState<BucketUploadBatchItem[]>([]);
-  const snapshotRef = useRef<BucketsSnapshot | null>(null);
   const tasksRef = useRef(new Map<string, BucketUploadTask>());
   const cancelledRef = useRef(new Set<string>());
 
@@ -176,112 +170,19 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   // refreshes instead, and a replacement snapshot arrives whole. Matching the
   // fact alone left the row standing in exactly those cases, and a row holding
   // a published serverEntryId hides the real file and makes Retry delete it.
-  const reconcileUploads = useCallback(
-    (next: BucketsSnapshot | null) => {
-      if (!next) return;
-      const published = new Set(next.state.entries.map((entry) => entry.id));
-      uploadsRef.current
-        .filter(
-          (upload) =>
-            upload.serverEntryId !== undefined &&
-            published.has(upload.serverEntryId)
-        )
-        .forEach((upload) => retireUpload(upload.id, 'completed'));
-    },
-    [retireUpload]
-  );
-
-  const commitSnapshot = useCallback((next: BucketsSnapshot | null) => {
-    snapshotRef.current = next;
-    setSnapshot(next);
-    if (next) {
-      const channelId = formatBucketsChannelId(next.flag);
-      // Writers only: %groups owns the channel's reader roles and the
-      // groups sync already writes them, so mirroring them from here would
-      // only add a second copy that can go stale.
-      void db.updateChannel({
-        id: channelId,
-        writerRoles: next.state.writers.map((roleId) => ({
-          channelId,
-          roleId,
-        })),
-      });
-    }
-  }, []);
-
-  // Reads one bucket rather than filtering the whole list. /v1/buckets renders
-  // every bucket's entire manifest, and this runs after every upload, every
-  // cancel and every missed update -- so uploading twenty files re-read
-  // everything on the ship twenty times to learn about twenty entries.
-  const refresh = useCallback(async () => {
-    const next = await getBucket(flag);
-    const current = snapshotRef.current;
-    // Revisions are monotonic only within one Bucket incarnation. Deleting
-    // and recreating the same flag allocates a new bucket id at revision 0.
-    if (
-      next &&
-      current &&
-      matchesFlag(next.flag, current.flag) &&
-      next.state.bucket.id === current.state.bucket.id &&
-      next.state.revision <= current.state.revision
-    ) {
-      return current;
-    }
-    if (!next && !current) return null;
-    commitSnapshot(next);
-    return next;
-  }, [commitSnapshot, flag]);
-
+  // An upload row stands until its entry is in the manifest. The manifest now
+  // arrives through the query, so this runs when that changes rather than on
+  // each subscription response.
   useEffect(() => {
-    let active = true;
-    let stopSubscription: (() => Promise<void>) | undefined;
-    const start = async () => {
-      try {
-        stopSubscription = await subscribeToBuckets((response) => {
-          if (!active || !matchesFlag(response.flag, flag)) return;
-          if (bucketResponseHasRevisionGap(snapshotRef.current, response)) {
-            void refresh()
-              .then((next) => {
-                if (active) setError(null);
-                reconcileUploads(next);
-              })
-              .catch((cause) => {
-                if (active) setError(errorMessage(cause));
-              });
-            return;
-          }
-          const next = reduceBucketResponse(snapshotRef.current, response);
-          commitSnapshot(next);
-          reconcileUploads(next);
-          // A gap refresh that failed once left its message up for the rest of
-          // the mount. Taking a response for this Bucket is proof we are
-          // synchronized again, so the banner should go with it.
-          setError(null);
-          setLoading(false);
-        });
-        if (!active) {
-          await stopSubscription();
-          return;
-        }
-        const next = await refresh();
-        if (active) {
-          setLoading(false);
-          setError(next ? null : `Bucket ${flagKey} was not found`);
-        }
-      } catch (cause) {
-        if (active) {
-          setError(errorMessage(cause));
-          setLoading(false);
-        }
-      }
-    };
-
-    void start();
-    return () => {
-      active = false;
-      if (stopSubscription) void stopSubscription();
-    };
-  }, [commitSnapshot, flag, flagKey, reconcileUploads, refresh]);
+    const published = new Set(entries.map((entry) => entry.id));
+    uploadsRef.current
+      .filter(
+        (upload) =>
+          upload.serverEntryId !== undefined &&
+          published.has(upload.serverEntryId)
+      )
+      .forEach((upload) => retireUpload(upload.id, 'completed'));
+  }, [entries, retireUpload]);
 
   const updateLocalUpload = useCallback(
     (id: string, patch: Partial<LocalUpload>) => {
@@ -324,8 +225,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           throw new Error('The file size could not be determined');
         }
         const mimeType = candidate.mimeType ?? 'application/octet-stream';
-        const current = snapshotRef.current ?? (await refresh());
-        if (!current) throw new Error(`Bucket ${flagKey} was not found`);
 
         updateLocalUpload(id, {
           error: undefined,
@@ -449,7 +348,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
       }
     },
-    [flag, flagKey, refresh, updateLocalUpload]
+    [flag, updateLocalUpload]
   );
 
   const addUploads = useCallback(
@@ -502,11 +401,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       tasksRef.current.delete(id);
 
       retireUpload(id, 'removed');
-      if (serverEntryId !== undefined && snapshotRef.current) {
-        commitSnapshot(
-          removeEntryFromBucketSnapshot(snapshotRef.current, serverEntryId)
-        );
-      }
+      // No optimistic removal: the host publishes entries-deleted, the
+      // reducer applies it, and the query refreshes. That is the same path
+      // every other channel type takes, and it cannot disagree with the
+      // server the way a local edit can.
 
       if (sessionId) {
         await sendBucketsAction({
@@ -524,9 +422,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           recursive: false,
         }).catch(() => undefined);
       }
-      void refresh();
     },
-    [commitSnapshot, flag, refresh, retireUpload, uploads]
+    [flag, retireUpload, uploads]
   );
 
   const retryUpload = useCallback(
@@ -535,14 +432,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       if (!upload) return;
       cancelledRef.current.delete(id);
       if (upload.serverEntryId !== undefined) {
-        if (snapshotRef.current) {
-          commitSnapshot(
-            removeEntryFromBucketSnapshot(
-              snapshotRef.current,
-              upload.serverEntryId
-            )
-          );
-        }
         await sendBucketsAction({
           type: 'delete-entry',
           flag,
@@ -570,7 +459,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       void runUpload(next);
     },
-    [commitSnapshot, flag, runUpload, setCurrentUploads, uploads]
+    [flag, runUpload, setCurrentUploads, uploads]
   );
 
   const localItems = useMemo<BucketItem[]>(
@@ -591,7 +480,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         uploadProgress: upload.progress,
         uploadState: upload.state,
       })),
-    [snapshot?.state.bucket.updatedBy, uploads]
+    [uploads]
   );
   const uploadAggregateProgress = useMemo(
     () =>
@@ -614,14 +503,14 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     moveEntry: (id: number, parentId: number | null) =>
       sendBucketsAction({ type: 'move-entry', flag, id, parentId }),
     deleteEntry: async (id: number, recursive: boolean) => {
-      const current = snapshotRef.current;
-      const root = current?.state.entries.find((entry) => entry.id === id);
+      const current = entriesRef.current;
+      const root = current.find((entry) => entry.id === id);
       const ids = new Set<number>([id]);
-      if (root?.kind === 'folder' && recursive && current) {
+      if (root?.kind === 'folder' && recursive) {
         let changed = true;
         while (changed) {
           changed = false;
-          current.state.entries.forEach((entry) => {
+          current.forEach((entry) => {
             if (entry.parentId !== null && ids.has(entry.parentId)) {
               if (!ids.has(entry.id)) changed = true;
               ids.add(entry.id);
@@ -641,7 +530,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       await Promise.all(doomedUploads.map((upload) => cancelUpload(upload.id)));
 
-      const privateFiles = current?.state.entries.filter(
+      const privateFiles = current.filter(
         (entry): entry is BucketsFileEntry =>
           ids.has(entry.id) &&
           entry.kind === 'file' &&
@@ -665,19 +554,6 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           });
           return issued.token;
         },
-        onManifestDelete: (deletedId) => {
-          const latest = snapshotRef.current;
-          if (!latest) return;
-          commitSnapshot({
-            ...latest,
-            state: {
-              ...latest.state,
-              entries: latest.state.entries.filter(
-                (entry) => entry.id !== deletedId
-              ),
-            },
-          });
-        },
       });
       if (
         root?.kind === 'file' &&
@@ -691,9 +567,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     loading,
     localItems,
     readUrl: async (id: number) => {
-      const entry = snapshotRef.current?.state.entries.find(
-        (candidate) => candidate.id === id
-      );
+      const entry = entriesRef.current.find((candidate) => candidate.id === id);
       if (!entry || entry.kind !== 'file' || entry.file.status !== 'ready') {
         throw new Error('This file is not ready to open');
       }
@@ -727,9 +601,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         return (await openWith(minted.token)).readUrl;
       }
     },
-    refresh,
     retryUpload,
-    snapshot,
+    // The manifest as read, plus the revision it is at. No `snapshot`: there
+    // is no private copy of one any more.
+    entries,
+    revision: bucket?.revision ?? 0,
     uploadAggregateProgress,
     uploads,
   };
