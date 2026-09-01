@@ -473,6 +473,27 @@ function allTargetsAreEmpty(targets: TrackedTarget[]): boolean {
   return targets.length > 0 && targets.every(([, target]) => target.empty);
 }
 
+function claimsNonEmptyTargetIsEmpty(
+  reply: string,
+  targets: TrackedTarget[]
+): boolean {
+  const nonEmptyTargets = targets.filter(([, target]) => !target.empty);
+  if (nonEmptyTargets.length === 0) return false;
+  if (targets.length === 1) return EMPTY_RESULT_ACKNOWLEDGMENT.test(reply);
+
+  const normalizedReply = normalizeForComparison(reply);
+  const basenameCounts = targetBasenameCounts(targets);
+  return normalizedReply
+    .split(/[;.!?\n]+/)
+    .some(
+      (clause) =>
+        EMPTY_RESULT_ACKNOWLEDGMENT.test(clause) &&
+        nonEmptyTargets.some(([targetKey]) =>
+          targetIsNamed(clause, targetKey, basenameCounts)
+        )
+    );
+}
+
 function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
   const successfulTargets = [...state.targets.entries()].filter(
     ([, target]) => !target.failed
@@ -608,6 +629,7 @@ function replyCompletesTrackedRead(
   userRequest = ''
 ): boolean {
   const targets = relevantTargets(reply, state);
+  if (claimsNonEmptyTargetIsEmpty(reply, targets)) return false;
   const acknowledgedEmptyTargets = acknowledgedEmptyTargetKeys(reply, targets);
   const allEmptyTargetsAreAcknowledged = targets.every(
     ([targetKey, target]) =>
@@ -779,9 +801,8 @@ export function createFileReadCompletionGuard(options?: {
       const resultWasTruncated = TRUNCATION_MARKER.test(text);
       const continuedFromExpectedOffset =
         existingTarget?.truncated === true &&
-        (existingTarget.nextOffset !== null
-          ? offset === existingTarget.nextOffset
-          : offset > existingTarget.lastOffset);
+        existingTarget.nextOffset !== null &&
+        offset === existingTarget.nextOffset;
       const nextOffset = resultWasTruncated
         ? existingTarget?.truncated === true && !continuedFromExpectedOffset
           ? existingTarget.nextOffset

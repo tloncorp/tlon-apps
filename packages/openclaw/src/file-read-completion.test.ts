@@ -393,6 +393,18 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('rejects an empty-file claim after a non-empty read', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('false-empty'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'false-empty',
+        lastAssistantMessage: 'The file is empty.',
+      })
+    ).not.toBeNull();
+  });
+
   it('does not treat an empty filename in a progress update as an empty-file result', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('empty-name', '', '/tmp/empty.txt'));
@@ -804,6 +816,32 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'skipped-continuation',
         lastAssistantMessage: 'first chunk\nlast line',
+      })?.retry.instruction
+    ).toContain('Continue reading');
+  });
+
+  it('does not infer a continuation offset from a generic truncation marker', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'generic-truncation',
+        'first chunk\n[Truncated output: original character count 4000]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'generic-truncation',
+        'final chunk',
+        '/tmp/report.txt',
+        2000
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'generic-truncation',
+        lastAssistantMessage: 'first chunk\nfinal chunk',
       })?.retry.instruction
     ).toContain('Continue reading');
   });
