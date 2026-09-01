@@ -3657,3 +3657,151 @@ transcript is an audit that will be lost, and this project has now lost two.)
   Nothing failed in this session, so the truthful-lifecycle path was never
   re-exercised under stress. Establishing whether the wrong-picture outcome was
   cap-coupled needs a run that is *made* to fail.
+
+## The verdict run — the forced revision sample
+
+- **D123: a failed template lookup is a failed lookup.** `readTemplateSummary`
+  fell through to `readdirSync(dir).filter('.js')[0]` when a template directory
+  carried none of the expected names — an arbitrary file, ordered by the
+  filesystem, in the field a real bundle occupies. It returned a *different*
+  file in two different directories, which is the whole objection. Removed
+  rather than better-guarded (D120's rule one level down); `show` names the
+  template, the expected names and the found ones, while `list` stays tolerant
+  and marks the directory incomplete.
+
+- **D124: an inert app is a declared choice, not a silent one — and the
+  declaration became the defect.** Both 6a.5 "who owes what" apps shipped with
+  `actions: {}` and every gate rule passed, because a screenshot of a board
+  nobody can touch looks exactly like one somebody can. Rule 15 warns unless
+  the spec declares `memberInteraction: 'none'` — an enum with one legal value,
+  because `displayOnly: false` over an empty map is a third state the schema
+  cannot refuse, and because the claim is about the MEMBER's half of the map
+  rather than the screen. Declared in `SurfaceSpecSchema` following
+  `duplicatesTolerated`, since `z.object` strips what it does not declare.
+
+  **Measured outcome, the same session: the rule did not fire, because the
+  escape hatch was reached before the warning was.** The verdict run's expense
+  app declared the marker in its first spec write, pre-lint, copied from
+  PARADIGM's example — which sat eleven lines below the paragraph naming that
+  exact app shape as the wrong reason to use it, with the honesty test after
+  the copyable JSON. Rubric check 7 passed the result.
+
+  **The generalisable finding: adding a warning creates a way to silence it,
+  and doctrine that teaches the hatch is read before the rule that motivates
+  it.** A rule of this shape wants designing hatch-first. The doctrine now puts
+  the test before the marker and works "who owes what" through as a named
+  counter-example.
+
+- **D125: a lint script CI cannot reach is not a guard.** `pnpm -r lint`
+  silently skips a package with no `lint` script, so for three sessions every
+  repo-wide rule — `import/no-cycle` included — was unenforced in
+  `packages/tlon-skill`. Adding it is half the fix: `pnpm -r lint` runs in
+  `test-build`, and the package is an explicit exclusion in ci.yml's `app`
+  filter, so a tlon-skill-only PR skips that job entirely. It therefore also
+  runs from the package's own `check`, which `bot-checks` invokes on exactly
+  those PRs. Both claims are asserted, the second by spawning the real linter
+  over a real import cycle with the package as cwd — a script resolving the
+  wrong config runs, passes, and enforces nothing.
+
+- **D126: measurements get virgin fixtures, and the baseline is written down
+  before they do.** The seeder mints one fresh group and, before creating it,
+  enumerates everything already on the ship — 1 prior group, 26 dashboards, by
+  nest — into a tracked log, so contamination is a set difference a reader
+  computes rather than a claim. It refuses a second run without `--new-run`
+  (names are single-use forever, D50), and throws when a non-empty baseline
+  annotates nothing: its first invocation read every prior dashboard as
+  not-a-dashboard, and a baseline reporting zero contaminants whether or not
+  any exist is worse than none.
+
+- **D127: a revision request is proved unsatisfied before it is issued, on four
+  surfaces, and the render is one of them.** 6a.5 failed because four of five
+  requests were already satisfied — and an action-map check would have passed
+  every one: on the RSVP board the declared actions are
+  `rsvp-coming`/`maybe`/`absent`, none of which provides "list who has not
+  responded", while the board paints it from a derived array. So the render is
+  read as the SCREEN (`renderSurfacePreview` unmodified, twelve cells, at the
+  channel's live reduced state), never as the source. Source may only ABSTAIN:
+  a bundle can name a concept it never paints and paint one it never names.
+  Exactly one lattice row passes; PRESENT and ABSTAIN both refuse, and a
+  refused request is replaced.
+
+  The witness survives a two-sided self-test first — a positive it must match,
+  negatives quoted verbatim from the target's own output it must not — or
+  nothing is read off the ship. It caught a real authoring error: `absent`
+  matched the live `rsvp-absent` action, where absent means *can't make it*, a
+  response rather than a non-response. **Stated limit:** this proves a pattern
+  set separates two named strings, never that it is the right set.
+
+  Demonstrated as a minimal pair — byte-identical witnesses, identical request
+  text, only the channel differing — so the flip is a property of the apps
+  rather than of pattern-tuning.
+
+- **D128: the sentence is bound to the record; the TARGET is not, and that is
+  a hole.** `surfaces-run.sh --request <id>` sends `record.request` verbatim so
+  a preflight cleared against one phrasing cannot precede a different one going
+  down the wire. **It does not bind the channel.** In the verdict run a
+  revision asserted against the run's own potluck published to a same-named
+  board in the off-limits seed group; the preflight exited 0, the CLI exited 0,
+  and the loop's report — "existing signups were preserved" — was true of what
+  it did and silently wrong about which board, because it never named the
+  channel. Mid-run mitigation was to group-qualify the remaining sentences,
+  which worked. **The structural fix — assert the published channel equals the
+  asserted one — is not built.**
+
+- **D129: the bounded session lock, fully derived.**
+  `OPENCLAW_SESSION_WRITE_LOCK_MAX_HOLD_MS=420000` in the tracked compose file.
+  6a.5's seventeen minutes is explained: the embedded attempt passes
+  `timeoutMs: compactionTimeoutMs` and `EMBEDDED_COMPACTION_TIMEOUT_MS` is
+  900_000, so `900_000 + 120_000` — core budgeting for a worst-case context
+  compaction, not for a run. 420_000 is core's own formula at this stack's
+  actual 300s run timeout. Not lower: the lock is held across the attempt, so a
+  value under the cap would force-release a live turn, trading a stall for
+  interleaved session writes. **Exercised:** a run killed by the 300s cap
+  released in ~100s, and the live lock payload was captured carrying
+  `maxHoldMs: 420000`.
+
+### The measurement, and what it does and does not settle
+
+- **The discriminator fired.** Seven forced revision turns — every one
+  preflight-asserted unsatisfied, against 0 of 4 in 6a and 0 of 5 in 6a.5.
+  **Six local edits, one no-op, zero regenerations.** Line survival 73.5–100%,
+  word survival 94–100%, ids preserved on every edit, and the structural case
+  inserted a column between two others with four member-moved cards surviving
+  in place. On the narrow question of whether the format supports editing
+  rather than replacing, this sample answers yes.
+
+- **What it does not settle, and this is the part to weigh.** The three
+  failures in the run are not format questions. Twice the loop picked the wrong
+  app from two same-named candidates, once writing to an off-limits fixture.
+  Twice it answered a request instead of acting on it — once at generation
+  time with the skill's own matching phrasing already in context. **Every guard
+  now in place is blind to all four**: lint passed, the rubric was complete,
+  publish read back, the preflight exited 0. A loop that edits beautifully and
+  edits the wrong board is not obviously better than one that regenerates the
+  right one.
+
+- **Grammar decided the mechanism.** Interrogative phrasing produced a no-op
+  with a byte-identical bundle; imperative phrasing, same witness and same
+  target, produced a 7-line local edit. The no-op was investigated as an
+  instrument failure first, as required, and the preflight held — so what
+  varied was request interpretation, not revision capability.
+
+- **The rubric's stated limit got worse, not better.** Ten of ten sheets
+  complete and sha-bound; **five of ten opened all twelve captures**, against 1
+  of 4 in 6a.5. Two turns substituted an image-tool description for opening the
+  PNGs, a path the doctrine does not contemplate. Completeness is checkable;
+  looking is not.
+
+- **Nine of nine authoring turns spent a repair round on the same rule.** The
+  gate refuses `spec-schema` for `specRevision` and `bundle.*` — precisely the
+  fields `surface publish --help` says it owns and overwrites. Nobody exceeded
+  the budget; everybody paid the round.
+
+- **Machine defects: zero across every preview in the session.** The pass is
+  demonstrably live (a deliberately bad bundle draws five), so these are real
+  zeros — but no repair round in the run came from it.
+
+- **Timing re-read.** Median turn ~160s with one killed at 300s, against
+  6a.5's reported 100–130s. Five turns exceeded 6a.5's longest. Generation from
+  nothing costs roughly twice what revising an existing board costs, and 6a.5
+  measured mostly the latter.
