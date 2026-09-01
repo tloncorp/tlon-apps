@@ -3395,6 +3395,15 @@ transcript is an audit that will be lost, and this project has now lost two.)
   `image-sanitization.ts`, which serves the embedded-agent path rather than
   read-to-session.
 
+  **Corrected 6a.5:** this entry says "the four placeholder strings"; core
+  carries **six** distinct literals, and any guard must use the superset — a
+  placeholder the list misses is a silent pass. More importantly, **the
+  placeholder scan alone is not sufficient**: substitution happens in the
+  provider transform *downstream* of the session write, so a stored turn still
+  contains an `image` block even when no image reached the model. The
+  placeholder was visible here only because that model narrated its own
+  blindness. A token read back from the image is the load-bearing check.
+
   **The failure mode to guard.** `openclaw models list` reports
   `openrouter/openai/gpt-5.6-luna` as `input: text`, because the cached
   OpenRouter catalog carries only `...-luna-pro`. Runtime disagrees today,
