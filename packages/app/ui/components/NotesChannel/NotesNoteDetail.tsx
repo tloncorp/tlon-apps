@@ -9,6 +9,7 @@ import {
   normalizeNotebookNoteTitle,
   saveNotebookNote,
   trackEvent,
+  withRetry,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -28,7 +29,6 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import {
-  Input,
   ScrollView,
   TextArea,
   XStack,
@@ -37,6 +37,7 @@ import {
   isWeb,
 } from 'tamagui';
 
+import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -54,6 +55,21 @@ import { trackNotesActionError } from './notesTelemetry';
 import { formatNoteDate, getFolderPath } from './notesTree';
 
 type SaveState = 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+export type NotesNoteSaveFieldIntent = 'preserve' | 'set';
+
+type NotesNoteQueuedSaveResult = {
+  updated: db.NotesNote | null | undefined;
+  effectiveTitle: string;
+  effectiveBody: string;
+  titleIntent: NotesNoteSaveFieldIntent;
+  bodyIntent: NotesNoteSaveFieldIntent;
+};
+
+type NotesNoteSaveChain = {
+  promise: Promise<NotesNoteQueuedSaveResult | null>;
+  requestedTitle: string;
+  requestedBody: string;
+};
 
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
@@ -69,11 +85,16 @@ const DRAFT_SNAPSHOT_TTL_MS = 120_000;
 export type NotesNoteDraftSnapshot = {
   notebookFlag: string;
   noteId: number;
+  baseRevision: number;
+  baseTitle: string;
+  baseBody: string;
   title: string;
   body: string;
   isDirty: boolean;
   updatedAt: number;
 };
+
+type NotesNoteDraftOwner = object;
 
 const draftStashKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
@@ -81,36 +102,150 @@ const draftSnapshotKey = (notebookFlag: string, noteId: number) =>
   `${notebookFlag}/${noteId}`;
 const notePreviewModes = new Map<string, boolean>();
 const notesNoteDraftSnapshots = new Map<string, NotesNoteDraftSnapshot>();
+const notesNoteDraftSnapshotOwners = new Map<string, NotesNoteDraftOwner>();
+const notesNoteDraftStashOwners = new Map<string, NotesNoteDraftOwner>();
+const notesNoteSaveChains = new Map<string, NotesNoteSaveChain>();
+const pendingNotesNoteSaveCounts = new Map<string, number>();
+const pendingNotesNoteSaveListeners = new Set<() => void>();
+let pendingNotesNoteSaveEpoch = 0;
 
-function rememberNotesNoteDraftSnapshot(snapshot: NotesNoteDraftSnapshot) {
-  notesNoteDraftSnapshots.set(
-    draftSnapshotKey(snapshot.notebookFlag, snapshot.noteId),
-    snapshot
+export function deriveNotesNoteSaveFieldIntent({
+  hasPredecessor,
+  matchesPredecessorRequest,
+  differsFromBase,
+}: {
+  hasPredecessor: boolean;
+  matchesPredecessorRequest: boolean;
+  differsFromBase: boolean;
+}): NotesNoteSaveFieldIntent {
+  if (hasPredecessor) {
+    return matchesPredecessorRequest ? 'preserve' : 'set';
+  }
+  return differsFromBase ? 'set' : 'preserve';
+}
+
+function emitPendingNotesNoteSaveChange() {
+  pendingNotesNoteSaveEpoch += 1;
+  pendingNotesNoteSaveListeners.forEach((listener) => listener());
+}
+
+function subscribeToPendingNotesNoteSaves(listener: () => void) {
+  pendingNotesNoteSaveListeners.add(listener);
+  return () => pendingNotesNoteSaveListeners.delete(listener);
+}
+
+function getPendingNotesNoteSaveEpoch() {
+  return pendingNotesNoteSaveEpoch;
+}
+
+function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+  return (
+    (pendingNotesNoteSaveCounts.get(draftSnapshotKey(notebookFlag, noteId)) ??
+      0) > 0
   );
 }
 
-function clearNotesNoteDraftSnapshot(notebookFlag: string, noteId: number) {
-  notesNoteDraftSnapshots.delete(draftSnapshotKey(notebookFlag, noteId));
+function markPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  pendingNotesNoteSaveCounts.set(
+    key,
+    (pendingNotesNoteSaveCounts.get(key) ?? 0) + 1
+  );
+  emitPendingNotesNoteSaveChange();
 }
 
-function clearMatchingNotesNoteDraftSnapshot({
-  notebookFlag,
-  noteId,
-  title,
-  body,
-}: {
-  notebookFlag: string;
-  noteId: number;
-  title: string;
-  body: string;
-}) {
+function finishPendingNotesNoteSave(notebookFlag: string, noteId: number) {
   const key = draftSnapshotKey(notebookFlag, noteId);
   const snapshot = notesNoteDraftSnapshots.get(key);
-  if (!snapshot || snapshot.title !== title || snapshot.body !== body) {
+  if (snapshot) {
+    notesNoteDraftSnapshots.set(key, { ...snapshot, updatedAt: Date.now() });
+  }
+  const remaining = (pendingNotesNoteSaveCounts.get(key) ?? 1) - 1;
+  if (remaining > 0) {
+    pendingNotesNoteSaveCounts.set(key, remaining);
+  } else {
+    pendingNotesNoteSaveCounts.delete(key);
+  }
+  emitPendingNotesNoteSaveChange();
+}
+
+function rememberNotesNoteDraftSnapshot(
+  snapshot: NotesNoteDraftSnapshot,
+  owner: NotesNoteDraftOwner
+) {
+  const key = draftSnapshotKey(snapshot.notebookFlag, snapshot.noteId);
+  const existing = notesNoteDraftSnapshots.get(key);
+  if (
+    !snapshot.isDirty &&
+    existing &&
+    notesNoteDraftSnapshotOwners.get(key) !== owner
+  ) {
     return;
   }
+  notesNoteDraftSnapshots.set(key, snapshot);
+  notesNoteDraftSnapshotOwners.set(key, owner);
+}
 
+function claimNotesNoteDraftRecovery(
+  notebookFlag: string,
+  noteId: number,
+  owner: NotesNoteDraftOwner
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  notesNoteDraftSnapshotOwners.set(key, owner);
+  notesNoteDraftStashOwners.set(key, owner);
+}
+
+function clearNotesNoteDraftSnapshot(
+  notebookFlag: string,
+  noteId: number,
+  owner?: NotesNoteDraftOwner
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  if (owner && notesNoteDraftSnapshotOwners.get(key) !== owner) return;
   notesNoteDraftSnapshots.delete(key);
+  notesNoteDraftSnapshotOwners.delete(key);
+}
+
+function rebaseNotesNoteDraftSnapshot(
+  notebookFlag: string,
+  noteId: number,
+  result: NotesNoteQueuedSaveResult
+) {
+  const key = draftSnapshotKey(notebookFlag, noteId);
+  const snapshot = notesNoteDraftSnapshots.get(key);
+  if (!snapshot) return;
+
+  const nextTitle =
+    result.titleIntent === 'preserve' &&
+    normalizeNotebookNoteTitle(snapshot.title) ===
+      normalizeNotebookNoteTitle(result.effectiveTitle)
+      ? (result.updated?.title ?? snapshot.title)
+      : snapshot.title;
+  const nextBody =
+    result.bodyIntent === 'preserve' && snapshot.body === result.effectiveBody
+      ? (result.updated?.bodyMd ?? snapshot.body)
+      : snapshot.body;
+  const nextSnapshot = {
+    ...snapshot,
+    baseRevision: result.updated?.revision ?? snapshot.baseRevision,
+    baseTitle: result.updated?.title ?? snapshot.baseTitle,
+    baseBody: result.updated?.bodyMd ?? snapshot.baseBody,
+    title: nextTitle,
+    body: nextBody,
+    isDirty: Boolean(
+      result.updated &&
+      (normalizeNotebookNoteTitle(nextTitle) !== result.updated.title ||
+        nextBody !== result.updated.bodyMd)
+    ),
+    updatedAt: Date.now(),
+  };
+  if (!nextSnapshot.isDirty) {
+    notesNoteDraftSnapshots.delete(key);
+    notesNoteDraftSnapshotOwners.delete(key);
+    return;
+  }
+  notesNoteDraftSnapshots.set(key, nextSnapshot);
 }
 
 export function getNotesNoteDraftSnapshot(
@@ -120,8 +255,12 @@ export function getNotesNoteDraftSnapshot(
   const key = draftSnapshotKey(notebookFlag, noteId);
   const snapshot = notesNoteDraftSnapshots.get(key);
   if (!snapshot) return null;
-  if (Date.now() - snapshot.updatedAt > DRAFT_SNAPSHOT_TTL_MS) {
+  if (
+    !hasPendingNotesNoteSave(notebookFlag, noteId) &&
+    Date.now() - snapshot.updatedAt > DRAFT_SNAPSHOT_TTL_MS
+  ) {
     notesNoteDraftSnapshots.delete(key);
+    notesNoteDraftSnapshotOwners.delete(key);
     return null;
   }
   return snapshot;
@@ -136,7 +275,7 @@ function getNotePreviewModeKey(
 }
 
 function getStoredNotePreviewMode(key: string | null) {
-  return key ? notePreviewModes.get(key) ?? true : true;
+  return key ? (notePreviewModes.get(key) ?? true) : true;
 }
 
 function useNotePreviewMode(
@@ -202,12 +341,14 @@ function estimateBodyInputHeight(body: string, inputWidth: number) {
 function clearDraftStash(
   notebookFlag: string,
   noteId: number,
-  ifMatches?: { title: string; body: string }
+  ifMatches?: { title: string; body: string },
+  owner?: NotesNoteDraftOwner
 ) {
   void db.notesNoteDrafts.setValue((stashes) => {
     const key = draftStashKey(notebookFlag, noteId);
     const stash = stashes[key];
     if (!stash) return stashes;
+    if (owner && notesNoteDraftStashOwners.get(key) !== owner) return stashes;
     if (
       ifMatches &&
       (stash.title !== ifMatches.title || stash.body !== ifMatches.body)
@@ -216,7 +357,53 @@ function clearDraftStash(
     }
     const next = { ...stashes };
     delete next[key];
+    notesNoteDraftStashOwners.delete(key);
     return next;
+  });
+}
+
+// Advance durable recovery data using the payload this queued request
+// actually executed with. A field changed after execution began no longer
+// matches that effective payload and is therefore preserved as a new draft.
+function rebaseNotesNoteDraftStash(
+  notebookFlag: string,
+  noteId: number,
+  result: NotesNoteQueuedSaveResult
+) {
+  if (!result.updated) return;
+  const updated = result.updated;
+  void db.notesNoteDrafts.setValue((stashes) => {
+    const key = draftStashKey(notebookFlag, noteId);
+    const stash = stashes[key];
+    if (!stash) return stashes;
+    const nextTitle =
+      result.titleIntent === 'preserve' &&
+      normalizeNotebookNoteTitle(stash.title) ===
+        normalizeNotebookNoteTitle(result.effectiveTitle)
+        ? updated.title
+        : stash.title;
+    const nextBody =
+      result.bodyIntent === 'preserve' && stash.body === result.effectiveBody
+        ? updated.bodyMd
+        : stash.body;
+    if (
+      normalizeNotebookNoteTitle(nextTitle) === updated.title &&
+      nextBody === updated.bodyMd
+    ) {
+      const next = { ...stashes };
+      delete next[key];
+      notesNoteDraftStashOwners.delete(key);
+      return next;
+    }
+    return {
+      ...stashes,
+      [key]: {
+        ...stash,
+        title: nextTitle,
+        body: nextBody,
+        baseRevision: updated.revision,
+      },
+    };
   });
 }
 
@@ -248,6 +435,11 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  useSyncExternalStore(
+    subscribeToPendingNotesNoteSaves,
+    getPendingNotesNoteSaveEpoch,
+    getPendingNotesNoteSaveEpoch
+  );
   // The host's copy of the note after a save hit a genuine revision
   // conflict. While set, autosave is suspended and the banner offers the
   // user the resolution (keep mine / use theirs) — a blind retry can never
@@ -262,6 +454,16 @@ export function NotesNoteDetail({
   );
   const titleDraftRef = useRef(titleDraft);
   const bodyDraftRef = useRef(bodyDraft);
+  const selectedNoteKey =
+    notebookFlag && noteId !== null
+      ? draftSnapshotKey(notebookFlag, noteId)
+      : null;
+  const selectedNoteKeyRef = useRef(selectedNoteKey);
+  const draftOwnerRef = useRef<NotesNoteDraftOwner>({});
+  useLayoutEffect(() => {
+    if (selectedNoteKeyRef.current === selectedNoteKey) return;
+    selectedNoteKeyRef.current = selectedNoteKey;
+  }, [selectedNoteKey]);
   const titleInputRef = useRef<TextInputRef>(null);
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
@@ -293,22 +495,116 @@ export function NotesNoteDetail({
   const selectedNote =
     noteId === null
       ? null
-      : notes.find((note) => note.noteId === noteId) ?? null;
+      : (notes.find((note) => note.noteId === noteId) ?? null);
   const selectedNoteRowId = selectedNote?.id ?? null;
+  const selectedNoteSavePending = Boolean(
+    notebookFlag &&
+    selectedNote &&
+    hasPendingNotesNoteSave(notebookFlag, selectedNote.noteId)
+  );
+  const isCurrentNote = useCallback(
+    (flag: string, targetNoteId: number) =>
+      selectedNoteKeyRef.current === draftSnapshotKey(flag, targetNoteId),
+    []
+  );
+  const selectedNoteCreatedBy = selectedNote?.createdBy ?? null;
 
   useEffect(() => {
-    if (selectedNoteRowId !== null) {
-      trackEvent(AnalyticsEvent.NoteOpened);
+    if (selectedNoteRowId === null) {
+      return;
     }
+    trackEvent(AnalyticsEvent.NoteOpened);
   }, [selectedNoteRowId]);
+
+  useEffect(() => {
+    if (selectedNoteRowId === null || !notebookFlag || noteId === null) {
+      return;
+    }
+    // Activation for agent onboarding. The plugin reports that it posted the
+    // first entry; only the client knows whether the owner opened one. Counted
+    // once per group and persisted, so it survives a restart and doesn't
+    // re-fire on every note view.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const currentUserId = api.getCurrentUserId();
+        const channel = await db.getChannel({ id: `notes/${notebookFlag}` });
+        const groupId = channel?.groupId;
+        if (!groupId) return;
+        const group = await db.getGroup({ id: groupId });
+        if (group?.hostUserId !== currentUserId) return;
+        const agents = await db.agentGroupAgents.getValue(true);
+        const agentShip = agents[groupId];
+        if (
+          !agentShip ||
+          !selectedNoteCreatedBy ||
+          selectedNoteCreatedBy.replace(/^~/, '') !==
+            agentShip.replace(/^~/, '')
+        ) {
+          return;
+        }
+        const claimKey = `${currentUserId}:${groupId}`;
+        const existingClaims = await db.agentEntryFirstOpened.getValue(true);
+        if (existingClaims[claimKey]) return;
+        const matched = await withRetry(
+          async () => {
+            if (cancelled) throw new Error('Note closed');
+            const chatPosts = (
+              await Promise.all(
+                group.channels
+                  .filter((candidate) => candidate.type === 'chat')
+                  .map((candidate) =>
+                    db.getChanPosts({ channelId: candidate.id })
+                  )
+              )
+            ).flat();
+            const match = matchAgentOnboardingFirstEntryNote(
+              chatPosts,
+              agentShip,
+              notebookFlag,
+              noteId
+            );
+            if (match === 'absent') {
+              throw new Error('First-entry marker not synced');
+            }
+            return match === 'match';
+          },
+          {
+            numOfAttempts: 10,
+            startingDelay: 500,
+            timeMultiple: 1.7,
+            maxDelay: 5_000,
+            retry: () => !cancelled,
+          }
+        );
+        if (cancelled || !matched) return;
+        let claimed = false;
+        await db.agentEntryFirstOpened.setValue((current) => {
+          if (current[claimKey]) return current;
+          claimed = true;
+          return {
+            ...current,
+            [claimKey]: true,
+          };
+        });
+        if (!claimed) return;
+        trackEvent(AnalyticsEvent.AgentEntryFirstOpened, { groupId });
+      } catch {
+        // Never let activation reporting interfere with reading a note.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [noteId, selectedNoteRowId, selectedNoteCreatedBy, notebookFlag]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
     selectedNote &&
-      draftBase &&
-      draftsMatchSelectedNote &&
-      (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
-        bodyDraft !== draftBase.bodyMd)
+    draftBase &&
+    draftsMatchSelectedNote &&
+    (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
+      bodyDraft !== draftBase.bodyMd)
   );
   const previewState = useMemo(() => {
     // Markdown conversion is too expensive to run per keystroke; only
@@ -380,7 +676,11 @@ export function NotesNoteDetail({
         !draftsMatchSelectedNote
       ) {
         if (notebookFlag && selectedNote) {
-          clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
+          clearNotesNoteDraftSnapshot(
+            notebookFlag,
+            selectedNote.noteId,
+            draftOwnerRef.current
+          );
         }
         onDraftChange?.(null);
         return;
@@ -392,16 +692,23 @@ export function NotesNoteDetail({
       const snapshot: NotesNoteDraftSnapshot = {
         notebookFlag,
         noteId: selectedNote.noteId,
+        baseRevision: draftBase.revision,
+        baseTitle: draftBase.title,
+        baseBody: draftBase.bodyMd,
         title: titleDraft,
         body,
         isDirty: dirty,
         updatedAt: Date.now(),
       };
 
-      if (dirty) {
-        rememberNotesNoteDraftSnapshot(snapshot);
+      if (dirty || selectedNoteSavePending) {
+        rememberNotesNoteDraftSnapshot(snapshot, draftOwnerRef.current);
       } else {
-        clearNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId);
+        clearNotesNoteDraftSnapshot(
+          notebookFlag,
+          selectedNote.noteId,
+          draftOwnerRef.current
+        );
       }
       onDraftChange?.(snapshot);
     },
@@ -411,6 +718,7 @@ export function NotesNoteDetail({
       notebookFlag,
       onDraftChange,
       selectedNote,
+      selectedNoteSavePending,
       titleDraft,
     ]
   );
@@ -456,7 +764,7 @@ export function NotesNoteDetail({
   // was in flight. A remote edit that lands while dirty keeps the stale base
   // revision, so the next save fails the revision check instead of silently
   // overwriting the remote work.
-  useEffect(() => {
+  useLayoutEffect(() => {
     const sameNote = (selectedNote?.id ?? null) === (draftBase?.id ?? null);
     // Never adopt a row that trails the base's revision: right after a save
     // or a conflict resolution the reactive row lags the persisted write by
@@ -467,21 +775,103 @@ export function NotesNoteDetail({
       selectedNote != null &&
       draftBase != null &&
       selectedNote.revision < draftBase.revision;
-    if (sameNote && (isDirty || selectedNote === draftBase || rowTrailsBase)) {
+    const draftsMatchSelectedRow = Boolean(
+      sameNote &&
+      selectedNote &&
+      normalizeNotebookNoteTitle(titleDraft) === selectedNote.title &&
+      bodyDraft === selectedNote.bodyMd
+    );
+    if (
+      sameNote &&
+      isDirty &&
+      draftsMatchSelectedRow &&
+      !rowTrailsBase &&
+      !selectedNoteSavePending &&
+      !conflictNote &&
+      notebookFlag &&
+      selectedNote
+    ) {
+      preserveScrollOffset();
+      setDraftBase(selectedNote);
+      setSaveState('saved');
+      clearNotesNoteDraftSnapshot(
+        notebookFlag,
+        selectedNote.noteId,
+        draftOwnerRef.current
+      );
+      clearDraftStash(
+        notebookFlag,
+        selectedNote.noteId,
+        { title: titleDraft, body: bodyDraft },
+        draftOwnerRef.current
+      );
+      return;
+    }
+    if (
+      sameNote &&
+      (isDirty ||
+        selectedNote === draftBase ||
+        rowTrailsBase ||
+        selectedNoteSavePending ||
+        conflictNote)
+    ) {
       return;
     }
     if (sameNote) {
       preserveScrollOffset();
     }
-    setDraftBase(selectedNote ?? null);
-    setTitleDraft(selectedNote?.title ?? '');
-    setBodyDraft(selectedNote?.bodyMd ?? '');
+    const snapshot =
+      !sameNote && notebookFlag && selectedNote
+        ? getNotesNoteDraftSnapshot(notebookFlag, selectedNote.noteId)
+        : null;
+    const restoreSnapshot = Boolean(
+      snapshot &&
+      selectedNote &&
+      (snapshot.baseRevision === selectedNote.revision ||
+        selectedNoteSavePending)
+    );
+    const restoredBase =
+      restoreSnapshot &&
+      snapshot &&
+      selectedNote &&
+      snapshot.baseRevision !== selectedNote.revision
+        ? {
+            ...selectedNote,
+            revision: snapshot.baseRevision,
+            title: snapshot.baseTitle,
+            bodyMd: snapshot.baseBody,
+          }
+        : selectedNote;
+    setDraftBase(restoredBase ?? null);
+    setTitleDraft(
+      restoreSnapshot && snapshot ? snapshot.title : (selectedNote?.title ?? '')
+    );
+    setBodyDraft(
+      restoreSnapshot && snapshot ? snapshot.body : (selectedNote?.bodyMd ?? '')
+    );
+    if (restoreSnapshot && snapshot && notebookFlag && selectedNote) {
+      claimNotesNoteDraftRecovery(
+        notebookFlag,
+        selectedNote.noteId,
+        draftOwnerRef.current
+      );
+    }
     if (!sameNote) {
       setSaveState('idle');
       setError(null);
       setConflictNote(null);
     }
-  }, [draftBase, isDirty, preserveScrollOffset, selectedNote]);
+  }, [
+    bodyDraft,
+    conflictNote,
+    draftBase,
+    isDirty,
+    notebookFlag,
+    preserveScrollOffset,
+    selectedNote,
+    selectedNoteSavePending,
+    titleDraft,
+  ]);
 
   useEffect(() => {
     if (!autoFocusTitle) {
@@ -520,31 +910,87 @@ export function NotesNoteDetail({
     setPreviewMode,
   ]);
 
-  // All saves go through one chain so each rebases onto the revision the
-  // previous save produced instead of racing the backend revision check.
-  const saveChainRef = useRef<Promise<db.NotesNote | null>>(
-    Promise.resolve(null)
-  );
+  // Saves are queued per note outside the component so unmounting and rapidly
+  // reopening an editor cannot start a concurrent write from the same base.
   const runSave = useCallback(
     (flag: string, base: db.NotesNote, title: string, body: string) => {
-      const next = saveChainRef.current
-        .catch(() => null)
-        .then((prevSaved) =>
-          saveNotebookNote({
+      markPendingNotesNoteSave(flag, base.noteId);
+      const key = draftSnapshotKey(flag, base.noteId);
+      const predecessor = notesNoteSaveChains.get(key) ?? null;
+      // A queued request only reasserts a field when it changes what the
+      // chain already wants. Comparing requested values preserves a remote
+      // authoritative field without mistaking a revert of our own pending
+      // edit for an untouched field.
+      const titleIntent = deriveNotesNoteSaveFieldIntent({
+        hasPredecessor: predecessor !== null,
+        matchesPredecessorRequest: Boolean(
+          predecessor &&
+          normalizeNotebookNoteTitle(title) ===
+            normalizeNotebookNoteTitle(predecessor.requestedTitle)
+        ),
+        differsFromBase: normalizeNotebookNoteTitle(title) !== base.title,
+      });
+      const bodyIntent = deriveNotesNoteSaveFieldIntent({
+        hasPredecessor: predecessor !== null,
+        matchesPredecessorRequest: Boolean(
+          predecessor && body === predecessor.requestedBody
+        ),
+        differsFromBase: body !== base.bodyMd,
+      });
+
+      const next = (predecessor?.promise ?? Promise.resolve(null)).then(
+        (previousResult) => {
+          const prevSaved = previousResult?.updated;
+          const authoritativeBase =
+            prevSaved && prevSaved.id === base.id ? prevSaved : null;
+          const effectiveTitle =
+            titleIntent === 'preserve' && authoritativeBase
+              ? authoritativeBase.title
+              : title;
+          const effectiveBody =
+            bodyIntent === 'preserve' && authoritativeBase
+              ? authoritativeBase.bodyMd
+              : body;
+          return saveNotebookNote({
             notebookFlag: flag,
-            note: prevSaved && prevSaved.id === base.id ? prevSaved : base,
-            title,
-            body,
-          })
-        );
-      saveChainRef.current = next.then(
-        (updated) => updated ?? null,
+            note: authoritativeBase ?? base,
+            title: effectiveTitle,
+            body: effectiveBody,
+          }).then((updated) => ({
+            updated,
+            effectiveTitle,
+            effectiveBody,
+            titleIntent,
+            bodyIntent,
+          }));
+        }
+      );
+      const settled = next.then(
+        (result) => result,
         () => null
       );
+      const chain: NotesNoteSaveChain = {
+        promise: settled,
+        // Keep the request rather than the effective payload: the next
+        // request should describe a new desired state relative to what this
+        // request asked for, even when this one preserved an authoritative
+        // value from its predecessor.
+        requestedTitle: title,
+        requestedBody: body,
+      };
+      notesNoteSaveChains.set(key, chain);
+      void settled.then(() => {
+        if (notesNoteSaveChains.get(key) === chain) {
+          notesNoteSaveChains.delete(key);
+        }
+      });
       return next;
     },
     []
   );
+  const finishSave = useCallback((flag: string, targetNoteId: number) => {
+    finishPendingNotesNoteSave(flag, targetNoteId);
+  }, []);
 
   // Save target for flushes that run outside the React data flow (unmount
   // cleanup, AppState changes). Synced in an effect so a selection-change
@@ -569,19 +1015,14 @@ export function NotesNoteDetail({
   // newly-selected note with the old note's content, so drop it instead.
   const reportConflict = useCallback(
     (flag: string, conflict: NotesNoteConflictError) => {
-      const ctx = flushCtxRef.current;
-      if (
-        !ctx ||
-        ctx.flag !== flag ||
-        ctx.base?.noteId !== conflict.remoteNote.noteId
-      ) {
+      if (!isCurrentNote(flag, conflict.remoteNote.noteId)) {
         return;
       }
       setConflictNote(conflict.remoteNote);
       setError(conflict.message);
       setSaveState('error');
     },
-    []
+    [isCurrentNote]
   );
 
   // Counterpart to reportConflict: a save that SUCCEEDS for the current
@@ -590,14 +1031,60 @@ export function NotesNoteDetail({
   // resolution) can reject and re-arm the banner after the resolution
   // cleared it; without this, the banner sticks and autosave stays
   // suspended even though the rebased save landed.
-  const clearConflict = useCallback((flag: string, noteId: number) => {
-    const ctx = flushCtxRef.current;
-    if (!ctx || ctx.flag !== flag || ctx.base?.noteId !== noteId) {
-      return;
-    }
-    setConflictNote(null);
-    setError(null);
-  }, []);
+  const clearConflict = useCallback(
+    (flag: string, noteId: number) => {
+      if (!isCurrentNote(flag, noteId)) {
+        return;
+      }
+      setConflictNote(null);
+      setError(null);
+    },
+    [isCurrentNote]
+  );
+
+  const handleSuccessfulSave = useCallback(
+    ({
+      flag,
+      base,
+      result,
+    }: {
+      flag: string;
+      base: db.NotesNote;
+      result: NotesNoteQueuedSaveResult;
+    }) => {
+      if (result.updated) {
+        rebaseNotesNoteDraftSnapshot(flag, base.noteId, result);
+        rebaseNotesNoteDraftStash(flag, base.noteId, result);
+      }
+      if (!result.updated || !isCurrentNote(flag, base.noteId)) return;
+
+      // Same-note completions advance the base without replacing edits made
+      // after this request was captured. Untouched fields adopt the
+      // authoritative result, including concurrent changes returned by the
+      // preceding save in the queue.
+      setDraftBase(result.updated);
+      if (
+        result.titleIntent === 'preserve' &&
+        normalizeNotebookNoteTitle(titleDraftRef.current) ===
+          normalizeNotebookNoteTitle(result.effectiveTitle) &&
+        result.updated.title !== titleDraftRef.current
+      ) {
+        setTitleDraft(result.updated.title);
+        titleDraftRef.current = result.updated.title;
+      }
+      if (
+        result.bodyIntent === 'preserve' &&
+        bodyDraftRef.current === result.effectiveBody &&
+        result.updated.bodyMd !== bodyDraftRef.current
+      ) {
+        setBodyDraft(result.updated.bodyMd);
+        bodyDraftRef.current = result.updated.bodyMd;
+      }
+      setSaveState('saved');
+      clearConflict(flag, base.noteId);
+    },
+    [clearConflict, isCurrentNote]
+  );
 
   const saveSelectedNote = useCallback(
     async (baseOverride?: db.NotesNote) => {
@@ -611,54 +1098,32 @@ export function NotesNoteDetail({
       preserveScrollOffset();
       setSaveState('saving');
       setError(null);
-      rememberNotesNoteDraftSnapshot({
-        notebookFlag,
-        noteId: base.noteId,
-        title: titleDraft,
-        body: bodyToSave,
-        isDirty: true,
-        updatedAt: Date.now(),
-      });
+      rememberNotesNoteDraftSnapshot(
+        {
+          notebookFlag,
+          noteId: base.noteId,
+          baseRevision: base.revision,
+          baseTitle: base.title,
+          baseBody: base.bodyMd,
+          title: titleDraft,
+          body: bodyToSave,
+          isDirty: true,
+          updatedAt: Date.now(),
+        },
+        draftOwnerRef.current
+      );
       try {
-        const updated = await runSave(
+        const result = await runSave(
           notebookFlag,
           base,
           titleDraft,
           bodyToSave
         );
-        // Rebase onto the saved revision; keystrokes typed during the save
-        // leave the drafts dirty against it, so the next cycle saves them.
-        if (updated) {
-          setDraftBase(updated);
-          // A save we did NOT rename in can come back with a different
-          // title: another client renamed, and the response payload's
-          // authoritative note carried it into `updated`. The untouched
-          // title draft still holds the old title — left alone it reads as
-          // a local edit and the next autosave would rename the host note
-          // BACK, silently undoing the other client's rename. Rebase it,
-          // but only when the user had no rename in flight (title matched
-          // the base going in) and didn't touch it during the save.
-          if (
-            normalizeNotebookNoteTitle(titleDraft) === base.title &&
-            titleDraftRef.current === titleDraft &&
-            updated.title !== titleDraft
-          ) {
-            setTitleDraft(updated.title);
-            titleDraftRef.current = updated.title;
-          }
-        }
-        clearDraftStash(notebookFlag, base.noteId, {
-          title: titleDraft,
-          body: bodyToSave,
+        handleSuccessfulSave({
+          flag: notebookFlag,
+          base,
+          result,
         });
-        clearMatchingNotesNoteDraftSnapshot({
-          notebookFlag,
-          noteId: base.noteId,
-          title: titleDraft,
-          body: bodyToSave,
-        });
-        setSaveState('saved');
-        clearConflict(notebookFlag, base.noteId);
         return true;
       } catch (e) {
         const message = errorMessage(e, 'Failed to save note');
@@ -673,18 +1138,21 @@ export function NotesNoteDetail({
         // an autosave that rejects after the user switched notes must not
         // mark the newly-selected note as failed. (reportConflict applies
         // the same guard for conflicts.)
-        const ctx = flushCtxRef.current;
-        if (ctx?.flag === notebookFlag && ctx.base?.noteId === base.noteId) {
+        if (isCurrentNote(notebookFlag, base.noteId)) {
           setSaveState('error');
           setError(message);
         }
         return false;
+      } finally {
+        finishSave(notebookFlag, base.noteId);
       }
     },
     [
       canEdit,
-      clearConflict,
       draftBase,
+      finishSave,
+      handleSuccessfulSave,
+      isCurrentNote,
       notebookFlag,
       preserveScrollOffset,
       reportConflict,
@@ -755,7 +1223,11 @@ export function NotesNoteDetail({
     // very content the user just chose to throw away.
     titleDraftRef.current = adopted.title;
     bodyDraftRef.current = adopted.bodyMd;
-    flushCtxRef.current = { flag: notebookFlag, base: adopted, canEdit };
+    flushCtxRef.current = {
+      flag: notebookFlag,
+      base: adopted,
+      canEdit,
+    };
     // Persist the host's copy locally so the reactive row catches up with
     // the adoption instead of reloading the stale pre-conflict content
     // over it. (The draft-loading effect also skips rows that trail the
@@ -802,44 +1274,27 @@ export function NotesNoteDetail({
     if (!dirty) return;
     const { flag, base } = ctx;
     preserveScrollOffset();
-    rememberNotesNoteDraftSnapshot({
-      notebookFlag: flag,
-      noteId: base.noteId,
-      title: titleToSave,
-      body: bodyToSave,
-      isDirty: true,
-      updatedAt: Date.now(),
-    });
+    rememberNotesNoteDraftSnapshot(
+      {
+        notebookFlag: flag,
+        noteId: base.noteId,
+        baseRevision: base.revision,
+        baseTitle: base.title,
+        baseBody: base.bodyMd,
+        title: titleToSave,
+        body: bodyToSave,
+        isDirty: true,
+        updatedAt: Date.now(),
+      },
+      draftOwnerRef.current
+    );
     runSave(flag, base, titleToSave, bodyToSave)
-      .then((updated) => {
-        clearDraftStash(flag, base.noteId, {
-          title: titleToSave,
-          body: bodyToSave,
+      .then((result) => {
+        handleSuccessfulSave({
+          flag,
+          base,
+          result,
         });
-        clearMatchingNotesNoteDraftSnapshot({
-          notebookFlag: flag,
-          noteId: base.noteId,
-          title: titleToSave,
-          body: bodyToSave,
-        });
-        // No-ops after unmount; while mounted (background flush) rebase so
-        // the next cycle doesn't re-send a stale revision.
-        if (updated) {
-          setDraftBase(updated);
-          // Same untouched-title rebase as the foreground save path: a
-          // remote rename carried back by the payload must not leave the
-          // stale title draft looking like a local edit.
-          if (
-            normalizeNotebookNoteTitle(titleToSave) === base.title &&
-            titleDraftRef.current === titleToSave &&
-            updated.title !== titleToSave
-          ) {
-            setTitleDraft(updated.title);
-            titleDraftRef.current = updated.title;
-          }
-        }
-        setSaveState('saved');
-        clearConflict(flag, base.noteId);
       })
       .catch((e) => {
         // No-ops after unmount; while mounted, surface a conflict so the
@@ -854,13 +1309,20 @@ export function NotesNoteDetail({
         // is still in the editor, show the error so autosave/user retries.
         // After unmount the durable stash carries the edits, and the
         // stash-restore pass surfaces a conflict if the note moved on.
-        const ctx = flushCtxRef.current;
-        if (ctx?.flag === flag && ctx.base?.noteId === base.noteId) {
+        if (isCurrentNote(flag, base.noteId)) {
           setSaveState('error');
           setError(errorMessage(e, 'Failed to save note'));
         }
-      });
-  }, [clearConflict, preserveScrollOffset, reportConflict, runSave]);
+      })
+      .finally(() => finishSave(flag, base.noteId));
+  }, [
+    finishSave,
+    handleSuccessfulSave,
+    isCurrentNote,
+    preserveScrollOffset,
+    reportConflict,
+    runSave,
+  ]);
 
   // Flush unsaved work when switching notes or unmounting — the poke
   // outlives the component.
@@ -902,27 +1364,46 @@ export function NotesNoteDetail({
     // restore them as ordinary drafts whose autosave silently overwrites
     // the remote work the conflict was protecting.
     if (conflictNote) return;
-    if (!isDirty) {
+    if (!isDirty && !selectedNoteSavePending) {
       if (stashRestoreCheckedRef.current === stashRestoreKey) {
-        clearDraftStash(notebookFlag, draftBase.noteId);
+        clearDraftStash(
+          notebookFlag,
+          draftBase.noteId,
+          undefined,
+          draftOwnerRef.current
+        );
       }
       return;
     }
-    void db.notesNoteDrafts.setValue((stashes) => ({
-      ...stashes,
-      [draftStashKey(notebookFlag, draftBase.noteId)]: {
-        title: titleDraft,
-        body: bodyDraft,
-        baseRevision: draftBase.revision,
-        stashedAt: Date.now(),
-      },
-    }));
+    const key = draftStashKey(notebookFlag, draftBase.noteId);
+    const owner = draftOwnerRef.current;
+    void db.notesNoteDrafts.setValue((stashes) => {
+      if (
+        !isDirty &&
+        selectedNoteSavePending &&
+        stashes[key] &&
+        notesNoteDraftStashOwners.get(key) !== owner
+      ) {
+        return stashes;
+      }
+      notesNoteDraftStashOwners.set(key, owner);
+      return {
+        ...stashes,
+        [key]: {
+          title: titleDraft,
+          body: bodyDraft,
+          baseRevision: draftBase.revision,
+          stashedAt: Date.now(),
+        },
+      };
+    });
   }, [
     bodyDraft,
     conflictNote,
     draftBase,
     isDirty,
     notebookFlag,
+    selectedNoteSavePending,
     stashRestoreKey,
     titleDraft,
   ]);
@@ -931,13 +1412,23 @@ export function NotesNoteDetail({
   // editor is clean and the row is still at the stash's base revision —
   // then pushing the restored draft can't clobber anyone's newer work.
   useEffect(() => {
-    if (!notebookFlag || !draftBase || isDirty || !stashRestoreKey) return;
+    if (
+      !notebookFlag ||
+      !draftBase ||
+      isDirty ||
+      selectedNoteSavePending ||
+      !stashRestoreKey
+    ) {
+      return;
+    }
     if (stashRestoreCheckedRef.current === stashRestoreKey) return;
     stashRestoreCheckedRef.current = stashRestoreKey;
     let cancelled = false;
     void db.notesNoteDrafts.getValue().then((stashes) => {
-      const stash = stashes[draftStashKey(notebookFlag, draftBase.noteId)];
+      const key = draftStashKey(notebookFlag, draftBase.noteId);
+      const stash = stashes[key];
       if (cancelled || !stash) return;
+      notesNoteDraftStashOwners.set(key, draftOwnerRef.current);
       if (stash.baseRevision !== draftBase.revision) {
         if (
           stash.title === draftBase.title &&
@@ -972,7 +1463,13 @@ export function NotesNoteDetail({
     return () => {
       cancelled = true;
     };
-  }, [draftBase, isDirty, notebookFlag, stashRestoreKey]);
+  }, [
+    draftBase,
+    isDirty,
+    notebookFlag,
+    selectedNoteSavePending,
+    stashRestoreKey,
+  ]);
 
   const togglePreview = useCallback(() => {
     setPreviewMode(!isPreviewing);
@@ -1177,24 +1674,18 @@ export function NotesNoteDetail({
             ) : null}
             <XStack alignItems="center" gap="$s">
               {isPreviewing ? (
-                <Input
+                <Text
                   flex={1}
-                  width="100%"
-                  value={titleDraft}
-                  placeholder="Untitled"
-                  placeholderTextColor="$tertiaryText"
+                  minWidth={0}
                   fontSize={24}
-                  height={34}
                   minHeight={34}
+                  lineHeight={34}
                   fontWeight="400"
-                  borderColor="transparent"
-                  borderWidth={0}
-                  backgroundColor="transparent"
-                  paddingHorizontal={0}
-                  paddingVertical={0}
-                  disabled
+                  color={titleDraft ? '$primaryText' : '$tertiaryText'}
                   testID="NotesTitleDisplay"
-                />
+                >
+                  {titleDraft || 'Untitled'}
+                </Text>
               ) : (
                 <TextInput
                   ref={titleInputRef}

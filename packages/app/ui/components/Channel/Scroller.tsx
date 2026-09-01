@@ -43,11 +43,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
 
 import { useLivePost } from '../../../hooks/useLivePost';
-import type { RenderItemType } from '../../contexts/componentsKits';
+import { useCurrentUserId } from '../../contexts/appDataContext';
+import type {
+  A2UIActionCompletion,
+  RenderItemType,
+} from '../../contexts/componentsKits';
 import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
+import { getA2UIActionCompletions } from '../ChatMessage/a2uiActionCompletion';
 import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
@@ -60,6 +65,7 @@ import {
   PostWithNeighbors,
 } from './PostList';
 import { getPostListScopeKey } from './PostList/postListInitialization';
+import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
 const logger = createDevLogger('scroller', false);
@@ -156,6 +162,7 @@ const Scroller = forwardRef(
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
+    const currentUserId = useCurrentUserId();
     const collectionConfig = useMemo(
       () => configurationFromChannel(channel),
       [channel]
@@ -249,16 +256,33 @@ const Scroller = forwardRef(
 
     const theme = useTheme();
 
+    const visiblePosts = useMemo(
+      () =>
+        posts?.filter((post) =>
+          isVisibleChannelPost(post, currentUserId, channel.id)
+        ),
+      [channel.id, currentUserId, posts]
+    );
+
     const postsWithNeighbors: PostWithNeighbors[] | undefined = useMemo(
       () =>
-        posts?.map((post, postIndex, posts) => {
+        visiblePosts?.map((post, postIndex, posts) => {
           return {
             post,
             previous: postIndex > 0 ? posts[postIndex - 1] : null,
             next: postIndex + 1 < posts.length ? posts[postIndex + 1] : null,
           };
         }),
-      [posts]
+      [visiblePosts]
+    );
+    const a2uiActionCompletions = useMemo(
+      () =>
+        getA2UIActionCompletions(
+          visiblePosts ?? [],
+          currentUserId,
+          !anchorToEnd
+        ),
+      [anchorToEnd, currentUserId, visiblePosts]
     );
 
     const style = useMemo(() => {
@@ -292,6 +316,7 @@ const Scroller = forwardRef(
           (anchor?.type === 'selected' && anchor.postId === post.id) ||
           highlightPostId === post.id ||
           contextLensSelectedPostId === post.id;
+        const a2uiActionCompletion = a2uiActionCompletions[index];
 
         return (
           <ScrollerItem
@@ -330,6 +355,7 @@ const Scroller = forwardRef(
             itemWidth={itemWidth}
             columnCount={columns}
             previousPost={previous}
+            a2uiActionCompletion={a2uiActionCompletion}
             {...rest}
           />
         );
@@ -356,6 +382,7 @@ const Scroller = forwardRef(
         collectionLayout.itemAspectRatio,
         columns,
         itemWidth,
+        a2uiActionCompletions,
         setActiveMessage,
         setEditingPost,
         debugMessageJson,
@@ -365,6 +392,11 @@ const Scroller = forwardRef(
     const insets = useSafeAreaInsets();
     const rootVerticalPadding = getTokens().space.l.val;
     const composerBottomInset = contentInsets.bottom;
+    const scrollContentBottomInset =
+      Platform.OS === 'ios' &&
+      collectionLayoutType === 'compact-list-bottom-to-top'
+        ? 0
+        : contentInsets.bottom;
     const standaloneBottomSafeArea =
       composerBottomInset > 0 ? 0 : insets.bottom;
     const scrollButtonBottom =
@@ -373,7 +405,7 @@ const Scroller = forwardRef(
         : getTokens().space.m.val;
     const contentContainerStyle = useStyle(
       useMemo(() => {
-        if (!posts?.length) {
+        if (!visiblePosts?.length) {
           if (
             collectionLayoutType === 'comfy-list-top-to-bottom' ||
             collectionLayoutType === 'grid'
@@ -384,13 +416,13 @@ const Scroller = forwardRef(
               paddingBottom:
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
-                contentInsets.bottom,
+                scrollContentBottomInset,
             };
           }
           return {
             flexGrow: 1,
             paddingTop: contentInsets.top,
-            paddingBottom: contentInsets.bottom,
+            paddingBottom: scrollContentBottomInset,
           };
         }
 
@@ -399,7 +431,7 @@ const Scroller = forwardRef(
             return {
               paddingHorizontal: '$m',
               paddingTop: contentInsets.top,
-              paddingBottom: contentInsets.bottom,
+              paddingBottom: scrollContentBottomInset,
             };
           }
 
@@ -411,7 +443,7 @@ const Scroller = forwardRef(
               paddingBottom:
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
-                contentInsets.bottom,
+                scrollContentBottomInset,
             };
           }
 
@@ -423,17 +455,17 @@ const Scroller = forwardRef(
               paddingBottom:
                 standaloneBottomSafeArea +
                 rootVerticalPadding +
-                contentInsets.bottom,
+                scrollContentBottomInset,
             };
           }
         }
       }, [
         standaloneBottomSafeArea,
-        posts?.length,
+        visiblePosts?.length,
         collectionLayoutType,
-        contentInsets.bottom,
         contentInsets.top,
         rootVerticalPadding,
+        scrollContentBottomInset,
       ])
     ) as StyleProp<ViewStyle>;
 
@@ -763,6 +795,7 @@ const BaseScrollerItem = ({
   itemWidth,
   columnCount,
   previousPost,
+  a2uiActionCompletion,
 }: {
   showUnreadDivider: boolean;
   showAuthor: boolean;
@@ -793,6 +826,7 @@ const BaseScrollerItem = ({
   itemWidth?: number;
   columnCount: number;
   previousPost?: db.Post | null;
+  a2uiActionCompletion?: A2UIActionCompletion;
 }) => {
   const post = useLivePost(item);
 
@@ -884,6 +918,7 @@ const BaseScrollerItem = ({
           isHighlighted={isSelected}
           displayDebugMode={displayDebugMode}
           post={post}
+          a2uiActionCompletion={a2uiActionCompletion}
           setViewReactionsPost={setViewReactionsPost}
           onPressBotRun={onPressBotRun}
           showAuthor={showAuthorLive}
@@ -920,6 +955,8 @@ const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
     prev.showUnreadDivider === next.showUnreadDivider &&
     prev.unreadCount === next.unreadCount &&
     prev.isLastPostOfBlock === next.isLastPostOfBlock &&
+    prev.a2uiActionCompletion?.sentMessageText ===
+      next.a2uiActionCompletion?.sentMessageText &&
     prev.previousPost?.id === next.previousPost?.id &&
     prev.showReplies === next.showReplies &&
     prev.onPressReplies === next.onPressReplies &&

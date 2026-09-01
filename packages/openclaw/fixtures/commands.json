@@ -1,0 +1,12 @@
+[
+  "/tlon-version",
+  "/tlon",
+  "/allow",
+  "/reject",
+  "/ban",
+  "/pending",
+  "/banned",
+  "/unban",
+  "/owner-listen",
+  "/migrate"
+]

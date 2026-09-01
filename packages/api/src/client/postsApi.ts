@@ -658,6 +658,8 @@ export const getChangedPosts = async ({
   endCursor,
   afterTime,
 }: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
+  // %chat exposes DM and club updates through its global changes-since feed,
+  // not a per-conversation, cursor-bounded changed-posts endpoint.
   if (!isGroupChannelId(channelId)) {
     throw new Error(
       `invalid channel id  ${channelId}:
@@ -997,7 +999,7 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupId,

@@ -170,7 +170,7 @@ tlon groups reject-invite ~host/group-slug
 
 ## Development
 
-Use the Node version in `.tool-versions` and Bun `1.3.4`.
+Use the Node version in `.tool-versions` and Bun `1.3.14`.
 
 ```bash
 npm ci

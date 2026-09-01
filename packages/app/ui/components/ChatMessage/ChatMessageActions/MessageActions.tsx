@@ -155,8 +155,8 @@ export function useMessageActionModel({
   const { data: ownedBotShips } = store.useContextLensBotShips();
   const showViewBotRun = Boolean(
     contextLensAvailable &&
-      onViewBotRun &&
-      getOwnContextLensStamp(post, ownedBotShips ?? [])
+    onViewBotRun &&
+    getOwnContextLensStamp(post, ownedBotShips ?? [])
   );
 
   const contentKey = messageContentKey(post);
@@ -500,7 +500,7 @@ async function prependMentionToDraft(
   const existingDocContent = draft?.content ?? [];
   const [firstBlock, ...restBlocks] = existingDocContent;
   const firstParagraphContent =
-    firstBlock?.type === 'paragraph' ? firstBlock.content ?? [] : [];
+    firstBlock?.type === 'paragraph' ? (firstBlock.content ?? []) : [];
 
   const nextFirstParagraph: JSONContent = {
     type: 'paragraph',

@@ -22,6 +22,7 @@ import { beforeAll, beforeEach, describe, expect, test } from 'vitest';
 import {
   type TestFixtures,
   getFixtures,
+  getGatewayRestartPreflight,
   registerEngagingTurn,
   requireFixtureGroup,
   waitFor,
@@ -36,6 +37,28 @@ describe('blobs', () => {
   });
 
   beforeEach(async () => {
+    // A test's trailing model call can still be in flight when its assertion
+    // returns (awaitModelCall resolves on the FIRST recorded call). Resetting
+    // the fake model then would clear the script and its allowExtraCalls
+    // allowance out from under the active run, recreating the 400 error path
+    // this file guards against (TLON-6287). Wait for the runtime to go idle
+    // before resetting. Skipped in dev mode (run-dev.sh), which sets no
+    // TEST_COMPOSE_FILE and never runs the gateway-status reload sequence.
+    const composeFile = process.env.TEST_COMPOSE_FILE ?? '';
+    if (composeFile) {
+      const deadline = Date.now() + 15_000;
+      let preflight = getGatewayRestartPreflight(composeFile, 10_000);
+      while (preflight.counts.totalActive > 0 && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        preflight = getGatewayRestartPreflight(composeFile, 10_000);
+      }
+      if (preflight.counts.totalActive > 0) {
+        throw new Error(
+          `Runtime not idle before fake-model reset — prior test's run still ` +
+            `active: ${JSON.stringify(preflight.counts)} (${preflight.summary})`
+        );
+      }
+    }
     await fakeModel.reset();
   });
 
@@ -127,9 +150,17 @@ describe('blobs', () => {
   test('voice memo blob in a DM reaches the model with transcription', async () => {
     const key = 'blob-dm-voice';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [
-      { kind: 'text', content: 'got the voice memo' },
-    ]);
+    // All scripts in this file absorb one extra model call ({ allowExtraCalls: 1 }).
+    // An exhausted-script 400 drives the runtime's error/abort path, which leaks
+    // the reload-gate's reply/embedded-run accounting and starves the config
+    // reload that 08-gateway-status depends on (TLON-6287). blob-ch-reply
+    // deliberately produces two calls (parent mention + thread reply) against a
+    // one-step script; the others can produce a trailing turn.
+    await fakeModel.script(
+      key,
+      [{ kind: 'text', content: 'got the voice memo' }],
+      { allowExtraCalls: 1 }
+    );
 
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
@@ -144,7 +175,9 @@ describe('blobs', () => {
   test('file blob in a DM reaches the model with filename', async () => {
     const key = 'blob-dm-file';
     const filenameToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [{ kind: 'text', content: 'got the file' }]);
+    await fakeModel.script(key, [{ kind: 'text', content: 'got the file' }], {
+      allowExtraCalls: 1,
+    });
 
     await fixtures.userState.sendPost({
       channelId: fixtures.botShip,
@@ -160,7 +193,9 @@ describe('blobs', () => {
     const key = 'blob-dm-reply';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
     const parentMarker = `parent-${transcriptionToken}`;
-    await fakeModel.script(key, [{ kind: 'text', content: 'got the reply' }]);
+    await fakeModel.script(key, [{ kind: 'text', content: 'got the reply' }], {
+      allowExtraCalls: 1,
+    });
 
     // Parent post is a thread anchor only (NO blob). Owner DMs always engage
     // the model, so the parent gets its OWN key — otherwise it would inherit
@@ -219,9 +254,11 @@ describe('blobs', () => {
     const nest = fixtures.group.chatChannel;
     const key = 'blob-ch-voice';
     const transcriptionToken = `${key}-${Date.now().toString(36)}`;
-    await fakeModel.script(key, [
-      { kind: 'text', content: 'got the channel voice memo' },
-    ]);
+    await fakeModel.script(
+      key,
+      [{ kind: 'text', content: 'got the channel voice memo' }],
+      { allowExtraCalls: 1 }
+    );
 
     await fixtures.userState.sendPost({
       channelId: nest,
@@ -243,9 +280,11 @@ describe('blobs', () => {
     const key = 'blob-ch-reply';
     const filenameToken = `${key}-${Date.now().toString(36)}`;
     const parentMarker = `parent-${filenameToken}`;
-    await fakeModel.script(key, [
-      { kind: 'text', content: 'got the channel reply' },
-    ]);
+    await fakeModel.script(
+      key,
+      [{ kind: 'text', content: 'got the channel reply' }],
+      { allowExtraCalls: 1 }
+    );
 
     await fixtures.userState.sendPost({
       channelId: nest,

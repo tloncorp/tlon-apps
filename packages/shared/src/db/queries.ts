@@ -5,6 +5,12 @@ import {
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
 import {
+  type PostBlobDataEntryA2UISelection,
+  type PostBlobDataEntryAgentProviderConfig,
+  type PostBlobDataEntryAgentProvision,
+  parsePostBlob,
+} from '@tloncorp/api';
+import {
   SourceActivityEvents,
   interleaveActivityEvents,
   toSourceActivityEvents,
@@ -29,6 +35,7 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
@@ -59,6 +66,7 @@ import {
   activityEvents as $activityEvents,
   attestations as $attestations,
   baseUnreads as $baseUnreads,
+  botReplyFeedback as $botReplyFeedback,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
@@ -99,6 +107,7 @@ import {
   ActivityEvent,
   Attestation,
   BaseUnread,
+  BotReplyFeedback,
   ChangesResult,
   Channel,
   ChannelUnread,
@@ -206,6 +215,85 @@ export const getSettings = createReadQuery(
     });
   },
   ['settings']
+);
+
+export const getBotReplyFeedback = createReadQuery(
+  'getBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return (
+      (await ctx.db.query.botReplyFeedback.findFirst({
+        where: eq($botReplyFeedback.messageId, messageId),
+      })) ?? null
+    );
+  },
+  ['botReplyFeedback']
+);
+
+export const upsertBotReplyFeedback = createWriteQuery(
+  'upsertBotReplyFeedback',
+  async (entry: BotReplyFeedback, ctx: QueryCtx) => {
+    return ctx.db.insert($botReplyFeedback).values(entry).onConflictDoUpdate({
+      target: $botReplyFeedback.messageId,
+      set: entry,
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const deleteBotReplyFeedback = createWriteQuery(
+  'deleteBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($botReplyFeedback)
+      .where(eq($botReplyFeedback.messageId, messageId));
+  },
+  ['botReplyFeedback']
+);
+
+export const replaceBotReplyFeedback = createWriteQuery(
+  'replaceBotReplyFeedback',
+  async (entries: BotReplyFeedback[], ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db.delete($botReplyFeedback);
+      if (entries.length > 0) {
+        await txCtx.db.insert($botReplyFeedback).values(entries);
+      }
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const getBotReplyConversationExcerptPosts = createReadQuery(
+  'getBotReplyConversationExcerptPosts',
+  async (
+    {
+      channelId,
+      parentId,
+      sentAt,
+      limit,
+    }: {
+      channelId: string;
+      parentId: string | null;
+      sentAt: number;
+      limit: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    const conversationCondition = parentId
+      ? or(eq($posts.id, parentId), eq($posts.parentId, parentId))
+      : isNull($posts.parentId);
+    const rows = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.sentAt, sentAt),
+        conversationCondition
+      ),
+      orderBy: desc($posts.sentAt),
+      limit,
+    });
+    return rows.reverse();
+  },
+  ['posts']
 );
 
 export const getGroupPreviews = createReadQuery(
@@ -584,6 +672,28 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
     });
   },
   ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+);
+
+/** Persist one authoritative note without replacing concurrent notebook data. */
+export const upsertNotesNote = createWriteQuery(
+  'upsertNotesNote',
+  async (note: NotesNote, ctx: QueryCtx) => {
+    await ctx.db
+      .insert($notesNotes)
+      .values(note)
+      .onConflictDoUpdate({
+        target: $notesNotes.id,
+        set: conflictUpdateSetAll($notesNotes),
+        setWhere: or(
+          lt($notesNotes.revision, note.revision),
+          and(
+            eq($notesNotes.revision, note.revision),
+            lte(sql`coalesce(${$notesNotes.updatedAt}, 0)`, note.updatedAt ?? 0)
+          )
+        ),
+      });
+  },
+  ['notesNotes']
 );
 
 // Revision-monotonic note write. When the update carries a `revision`, the
@@ -1253,6 +1363,7 @@ export const getChats = createReadQuery(
           orderBy: [desc($channels.lastPostAt)],
           with: {
             lastPost: true,
+            unread: true,
           },
         },
         // Just need the first 4 members for avatar display
@@ -1283,25 +1394,39 @@ export const getChats = createReadQuery(
       },
     });
 
-    const groupChats: Chat[] = groups.map((g) => ({
-      id: g.id,
-      type: 'group',
-      pin: g.pin,
-      timestamp: g.haveInvite
-        ? g.unread?.updatedAt ?? 0
-        : // whichever is newer: the latest post, or the activity summary's
-          // recency — activity that isn't a post (e.g. a note in a notebook
-          // channel) also reorders the sidebar
-          Math.max(g.lastPostAt ?? 0, g.unread?.updatedAt ?? 0),
-      volumeSettings: g.volumeSettings,
-      unreadCount: g.unread?.count ?? 0,
-      group: g,
-      isPending:
-        g.haveInvite === true ||
-        !!g.joinStatus ||
-        g.haveRequestedInvite ||
-        false,
-    }));
+    const groupChats: Chat[] = groups.map((g) => {
+      // Temporary client-side workaround for TLON-6417. Group activity
+      // recency includes membership and other events that should not reorder
+      // the chat list. Keep the old post-based ordering, plus the narrower
+      // Notes source recency, until the backend provides a sidebar-specific
+      // recency value.
+      const latestNotesActivityAt = Math.max(
+        0,
+        ...g.channels
+          .filter(
+            (channel) =>
+              channel.type === 'notes' && channel.currentUserIsMember === true
+          )
+          .map((channel) => channel.unread?.updatedAt ?? 0)
+      );
+
+      return {
+        id: g.id,
+        type: 'group',
+        pin: g.pin,
+        timestamp: g.haveInvite
+          ? (g.unread?.updatedAt ?? 0)
+          : Math.max(g.lastPostAt ?? 0, latestNotesActivityAt),
+        volumeSettings: g.volumeSettings,
+        unreadCount: g.unread?.count ?? 0,
+        group: g,
+        isPending:
+          g.haveInvite === true ||
+          !!g.joinStatus ||
+          g.haveRequestedInvite ||
+          false,
+      };
+    });
 
     const channelChats: Chat[] = channels.map((c) => ({
       id: c.id,
@@ -1412,6 +1537,9 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
+                // only overwrite when the source carried a blob; omitting
+                // the key must not clear a stored one
+                ...(group.blob !== undefined ? [$groups.blob] : []),
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
@@ -4460,6 +4588,160 @@ export const getChanPosts = createReadQuery(
   ['posts']
 );
 
+/**
+ * Durable A2UI selection entries in a channel, scoped to one author.
+ *
+ * A one-shot A2UI control is consumed iff a live post by the viewer carries a
+ * `tlon-a2ui-selection` entry matching the source post, surface, and component
+ * ids, so consumption survives remount, restart, and other devices. The
+ * author scope is load-bearing: without it, any channel member could post a
+ * matching blob to lock or fake-answer someone else's control.
+ */
+export const getA2UISelections = createReadQuery(
+  'getA2UISelections',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<PostBlobDataEntryA2UISelection[]> => {
+    const rows = await ctx.db
+      .select({ blob: $posts.blob })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          // Cheap prefilter; parsePostBlob below is the real check.
+          like($posts.blob, '%tlon-a2ui-selection%'),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+        )
+      )
+      // Controls use the first matching entry, so a successful retry must
+      // supersede an older failed attempt for the same component.
+      .orderBy(desc($posts.receivedAt), desc($posts.id));
+    return rows.flatMap((row) =>
+      row.blob
+        ? parsePostBlob(row.blob).filter(
+            (entry): entry is PostBlobDataEntryA2UISelection =>
+              entry.type === 'tlon-a2ui-selection'
+          )
+        : []
+    );
+  },
+  ['posts']
+);
+
+type AgentProtocolReceipt<T> = {
+  entry: T;
+  postId: string;
+  receivedAt: number;
+  sequenceNum: number | null;
+  selection?: PostBlobDataEntryA2UISelection;
+};
+
+export type AgentA2UIProtocolReceipts = {
+  provision?: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>;
+  provisions: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>[];
+  providerConfig?: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>;
+  providerConfigs: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>[];
+};
+
+/**
+ * Latest owner-authored agent protocol receipts across the whole channel.
+ *
+ * These actions can sit beyond the currently rendered post page. Returning
+ * their post position lets a surface count only receipts that followed it.
+ */
+export const getAgentA2UIProtocolReceipts = createReadQuery(
+  'getAgentA2UIProtocolReceipts',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<AgentA2UIProtocolReceipts> => {
+    const rows = await ctx.db
+      .select({
+        id: $posts.id,
+        receivedAt: $posts.receivedAt,
+        sequenceNum: $posts.sequenceNum,
+        blob: $posts.blob,
+      })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          or(
+            like($posts.blob, '%tlon-agent-provision%'),
+            like($posts.blob, '%tlon-agent-provider-config%')
+          ),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      );
+
+    rows.sort((a, b) => {
+      const aSequence =
+        typeof a.sequenceNum === 'number' && a.sequenceNum > 0
+          ? a.sequenceNum
+          : null;
+      const bSequence =
+        typeof b.sequenceNum === 'number' && b.sequenceNum > 0
+          ? b.sequenceNum
+          : null;
+      if (aSequence !== null && bSequence !== null) {
+        return aSequence - bSequence || a.id.localeCompare(b.id);
+      }
+      // Optimistic/unsequenced receipts follow server-ordered history and use
+      // local receipt time only among themselves until the host sequences them.
+      if (aSequence !== null) return -1;
+      if (bSequence !== null) return 1;
+      return a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
+    });
+
+    const receipts: AgentA2UIProtocolReceipts = {
+      provisions: [],
+      providerConfigs: [],
+    };
+    for (const row of rows) {
+      if (!row.blob) continue;
+      const entries = parsePostBlob(row.blob);
+      const selection = entries.find(
+        (entry): entry is PostBlobDataEntryA2UISelection =>
+          entry.type === 'tlon-a2ui-selection'
+      );
+      for (const entry of entries) {
+        if (entry.type === 'tlon-agent-provision') {
+          const receipt = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+            selection,
+          };
+          receipts.provision = receipt;
+          receipts.provisions.push(receipt);
+        } else if (entry.type === 'tlon-agent-provider-config') {
+          const receipt = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+            selection,
+          };
+          receipts.providerConfig = receipt;
+          receipts.providerConfigs.push(receipt);
+        }
+      }
+    }
+    return receipts;
+  },
+  ['posts']
+);
+
 export const getPost = createReadQuery(
   'getPost',
   async ({ postId }: { postId: string }, ctx: QueryCtx) => {
@@ -5323,99 +5605,125 @@ export const insertContact = createWriteQuery(
   ['contacts']
 );
 
-export const insertContacts = createWriteQuery(
-  'insertContacts',
-  async (contactsData: Contact[], ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    if (contactsData.length === 0) {
-      return;
-    }
+async function writeContacts(
+  contactsData: Contact[],
+  ctx: QueryCtx,
+  // `fillMissingOnly` writes rows we don't have and leaves the ones we do
+  // alone. It exists for sources that are not authoritative — a snapshot of an
+  // earlier sync, whose fields may already have been superseded by a live
+  // update (see loadCachedContacts).
+  { fillMissingOnly }: { fillMissingOnly: boolean }
+) {
+  const currentUserId = getCurrentUserId();
+  if (contactsData.length === 0) {
+    return;
+  }
 
-    const contactGroups = contactsData.flatMap(
-      (contact) => contact.pinnedGroups || []
-    );
+  const contactGroups = contactsData.flatMap(
+    (contact) => contact.pinnedGroups || []
+  );
 
-    const contactAttestations = contactsData.flatMap(
-      (contact) =>
-        contact.attestations?.filter(
-          (a) => a.attestation && a.contactId !== currentUserId
-        ) || []
-    );
+  const contactAttestations = contactsData.flatMap(
+    (contact) =>
+      contact.attestations?.filter(
+        (a) => a.attestation && a.contactId !== currentUserId
+      ) || []
+  );
 
-    const targetGroups = contactGroups.map((g): Group => {
-      const { host: hostUserId } = parseGroupId(g.groupId);
-      return {
-        id: g.groupId,
-        hostUserId,
-        privacy: g.group?.privacy,
-        currentUserIsMember: false,
-        currentUserIsHost: currentUserId === hostUserId,
-      };
-    });
+  const targetGroups = contactGroups.map((g): Group => {
+    const { host: hostUserId } = parseGroupId(g.groupId);
+    return {
+      id: g.groupId,
+      hostUserId,
+      privacy: g.group?.privacy,
+      currentUserIsMember: false,
+      currentUserIsHost: currentUserId === hostUserId,
+    };
+  });
 
-    await withTransactionCtx(ctx, async (txCtx) => {
-      // Batch size to avoid SQLite variable limits
-      const BATCH_SIZE = 100;
+  await withTransactionCtx(ctx, async (txCtx) => {
+    // Batch size to avoid SQLite variable limits
+    const BATCH_SIZE = 100;
 
-      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
-        const batch = contactsData.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+      const batch = contactsData.slice(i, i + BATCH_SIZE);
 
-        await txCtx.db
-          .insert($contacts)
-          .values(batch)
-          .onConflictDoUpdate({
+      const insert = txCtx.db.insert($contacts).values(batch);
+      await (fillMissingOnly
+        ? insert.onConflictDoNothing()
+        : insert.onConflictDoUpdate({
             target: $contacts.id,
             set: conflictUpdateSetAll($contacts, ['isBlocked']),
-          });
-      }
+          }));
+    }
 
-      if (targetGroups.length) {
-        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
-          const batch = targetGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
-        }
+    if (targetGroups.length) {
+      for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+        const batch = targetGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
       }
-      // TODO: Remove stale pinned groups
-      if (contactGroups.length) {
-        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
-          const batch = contactGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactGroups)
-            .values(batch)
-            .onConflictDoNothing();
-        }
+    }
+    // TODO: Remove stale pinned groups
+    if (contactGroups.length) {
+      for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+        const batch = contactGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactGroups)
+          .values(batch)
+          .onConflictDoNothing();
       }
+    }
 
-      // clear existing
+    // clear existing — skipped for a non-authoritative source, which cannot
+    // tell an attestation that is gone from one it simply never captured.
+    if (!fillMissingOnly) {
       await txCtx.db
         .delete($attestations)
         .where(not(eq($attestations.contactId, currentUserId)));
+    }
 
-      if (contactAttestations.length) {
-        const attestationsToInsert = contactAttestations.map(
-          (a) => a.attestation as Attestation
-        );
-        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
-          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($attestations)
-            .values(batch)
-            .onConflictDoUpdate({
+    if (contactAttestations.length) {
+      const attestationsToInsert = contactAttestations.map(
+        (a) => a.attestation as Attestation
+      );
+      for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+        const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+        const insert = txCtx.db.insert($attestations).values(batch);
+        await (fillMissingOnly
+          ? insert.onConflictDoNothing()
+          : insert.onConflictDoUpdate({
               target: $attestations.id,
               set: conflictUpdateSetAll($attestations),
-            });
-        }
-
-        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
-          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactAttestations)
-            .values(batch)
-            .onConflictDoNothing();
-        }
+            }));
       }
-    });
-  },
+
+      for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+        const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(batch)
+          .onConflictDoNothing();
+      }
+    }
+  });
+}
+
+export const insertContacts = createWriteQuery(
+  'insertContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: false }),
+  (contacts) =>
+    contacts.length
+      ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
+      : []
+);
+
+// Contacts from a source that may be out of date: rows we lack are inserted,
+// rows we already hold are left as they are.
+export const insertMissingContacts = createWriteQuery(
+  'insertMissingContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: true }),
   (contacts) =>
     contacts.length
       ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']

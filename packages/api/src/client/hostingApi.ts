@@ -305,7 +305,9 @@ const parseTlawnLLMAuthFlowResponse = (
   if (
     !flow ||
     typeof flow.id !== 'string' ||
-    (flow.provider !== 'openai' && flow.provider !== 'anthropic') ||
+    !['openai', 'anthropic', 'xai'].includes(
+      typeof flow.provider === 'string' ? flow.provider : ''
+    ) ||
     ![
       'awaiting_browser',
       'awaiting_token',
@@ -361,7 +363,7 @@ const parseTlawnLLMAuthStatus = (value: unknown): TlawnLLMAuthStatus => {
   const validModels =
     modelGroups === undefined ||
     (isJsonObject(modelGroups) &&
-      (['openai', 'anthropic'] as const).every((provider) => {
+      (['openai', 'anthropic', 'xai'] as const).every((provider) => {
         const models = modelGroups[provider];
         return (
           models === undefined ||
@@ -446,6 +448,18 @@ export async function getTlawnLLMAuthFlow(
   const response = await hostingFetch<Record<string, unknown>>(
     `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/flow/${encodeURIComponent(flowId)}`,
     { cache: 'no-store' }
+  );
+  return parseTlawnLLMAuthFlowResponse(response);
+}
+
+export async function completeTlawnLLMAuth(
+  ship: string,
+  flowId: string,
+  token: string
+): Promise<TlawnLLMAuthFlowResponse> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/complete`,
+    jsonInit('POST', { flowId, token })
   );
   return parseTlawnLLMAuthFlowResponse(response);
 }
@@ -1221,7 +1235,7 @@ export const getNodeStatus = async (
     throw new Error('Hosting API call failed');
   }
 
-  const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
+  const nodeStatus = result.status ? (result.status.phase ?? 'Unknown') : null;
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
   const showWayfinding = result.ship?.showWayfinding ?? false;

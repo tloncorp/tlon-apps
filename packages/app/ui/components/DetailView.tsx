@@ -79,6 +79,7 @@ export const DetailView = ({
   }, [isChat]);
 
   const shouldShowThinkingState = useShouldShowThinkingState(channel);
+  const latestPost = resolvedPosts?.[resolvedPosts.length - 1];
   // Computing presence is channel-scoped, so this shows bots thinking
   // anywhere in the channel, not just in this thread. The ideal end state is
   // thread-scoped presence contexts (e.g. /channel/chat/~host/name/thread/<id>)
@@ -86,9 +87,20 @@ export const DetailView = ({
   const listBottomComponent = useMemo(
     () =>
       shouldShowThinkingState ? (
-        <ThinkingState conversationId={channel.id} channelType={channel.type} />
+        <ThinkingState
+          conversationId={channel.id}
+          channelType={channel.type}
+          latestPostId={latestPost?.id}
+          latestPostAuthorId={latestPost?.authorId}
+        />
       ) : undefined,
-    [shouldShowThinkingState, channel.id, channel.type]
+    [
+      shouldShowThinkingState,
+      channel.id,
+      channel.type,
+      latestPost?.authorId,
+      latestPost?.id,
+    ]
   );
 
   const listHeaderComponent = useMemo(() => {
@@ -140,7 +152,7 @@ export const DetailView = ({
         onGoToBotRun={onGoToBotRun}
         highlightPostId={highlightPostId}
         firstUnreadId={
-          initialPostUnread?.count ?? 0 > 0
+          (initialPostUnread?.count ?? 0 > 0)
             ? initialPostUnread?.firstUnreadPostId
             : null
         }

@@ -23,6 +23,11 @@ import {
   resetActivityFetchers,
 } from '../../store/useActivityFetchers';
 import { persistUnreads } from '../activityActions';
+import {
+  getPostIdFromBotReplyMessageId,
+  setCachedBotReplyFeedback,
+  toCachedBotReplyFeedback,
+} from '../botReplyFeedback';
 import { createBatchHandler, createHandler } from '../bufferedSubscription';
 import * as LocalCache from '../cachedData';
 import { addContacts, updateContactMetadata } from '../contactActions';
@@ -511,6 +516,10 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   await db.dismissedPinnedPostBannerIds.setValue(
     result.dismissedPinnedPostBannerIds
   );
+  await db.replaceBotReplyFeedback(
+    result.botReplyFeedback.map(toCachedBotReplyFeedback)
+  );
+  await queryClient.invalidateQueries({ queryKey: ['botReplyFeedback'] });
 
   if (result.pendingMemberDismissals?.length) {
     await db.insertPendingMemberDismissals({
@@ -1074,6 +1083,9 @@ export async function handleGroupUpdate(
     case 'editGroup':
       await db.updateGroup({ id: update.groupId, ...update.meta }, ctx);
       break;
+    case 'editGroupBlob':
+      await db.updateGroup({ id: update.groupId, blob: update.blob }, ctx);
+      break;
     case 'deleteGroup':
       await db.deletePinnedItem({ itemId: update.groupId }, ctx);
       await db.deleteGroup(update.groupId, ctx);
@@ -1627,6 +1639,20 @@ export const handleSettingsUpdate = async (
         }
         return current.filter((postId) => postId !== update.postId);
       });
+      break;
+    case 'botReplyFeedback':
+      if (update.entry) {
+        const cachedEntry = {
+          messageId: update.messageId,
+          postId: getPostIdFromBotReplyMessageId(update.messageId),
+          ...update.entry,
+        };
+        await db.upsertBotReplyFeedback(cachedEntry, ctx);
+        setCachedBotReplyFeedback(update.messageId, cachedEntry);
+      } else {
+        await db.deleteBotReplyFeedback(update.messageId, ctx);
+        setCachedBotReplyFeedback(update.messageId, null);
+      }
       break;
   }
 };

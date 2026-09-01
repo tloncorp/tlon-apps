@@ -17,7 +17,10 @@ import {
   createRuntimeContext,
   runtimeContextForJson,
 } from '../runtime/context.js';
-import { collectRuntimeDiagnostics } from '../runtime/diagnostics.js';
+import {
+  collectRuntimeDiagnostics,
+  writeDiagnosticsArtifacts,
+} from '../runtime/diagnostics.js';
 import { loadTlonBotE2eEnvFile } from '../runtime/env.js';
 import {
   type RuntimePortOverrides,
@@ -168,6 +171,20 @@ async function runDriverRuntime(args: {
       console.error('\n==> Runtime diagnostics\n');
       console.error(diagnostics);
     }
+    try {
+      const outDir = await writeDiagnosticsArtifacts(
+        ctx,
+        compose,
+        path.join(packageDir, 'diagnostics'),
+        diagnostics
+      );
+      console.error(`==> Diagnostics written to ${outDir}`);
+    } catch (writeError) {
+      console.error(
+        `==> Failed to write diagnostics artifacts: ` +
+          `${writeError instanceof Error ? writeError.message : writeError}`
+      );
+    }
     throw error;
   } finally {
     if (!args.keepStack) {
@@ -181,7 +198,7 @@ async function runDriverRuntime(args: {
         console.error('\n==> Compose teardown failed during cleanup\n');
         console.error(
           cleanupError instanceof Error
-            ? cleanupError.stack ?? cleanupError.message
+            ? (cleanupError.stack ?? cleanupError.message)
             : cleanupError
         );
       }
@@ -527,6 +544,8 @@ function flag(value: string | undefined): boolean {
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.stack ?? error.message : error);
+  console.error(
+    error instanceof Error ? (error.stack ?? error.message) : error
+  );
   process.exit(1);
 });
