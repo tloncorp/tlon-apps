@@ -1,3 +1,4 @@
+import { locateOwnerShipConfig } from './owner-ship-config.js';
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
   checkBlockedDiaryOperation,
@@ -312,10 +313,78 @@ export function checkBlockedTlonOperation(
   return send ? { message: send, reason: 'send_operation' } : null;
 }
 
+const HELP_TOKENS = new Set(['-h', '--help']);
+
+/**
+ * The shared owner-injection predicate (the Hermes adapter implements the same
+ * truth table): a bare `groups invite-link`, with no credential flag in either
+ * form, no `--self`, and no help token. Anything else runs on the bot's own
+ * credentials, exactly as the model wrote it.
+ */
+export function shouldInjectOwnerCredentials(args: string[]): boolean {
+  for (const arg of args) {
+    const equalsIndex = arg.indexOf('=');
+    const flag = equalsIndex >= 0 ? arg.slice(0, equalsIndex) : arg;
+    if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) return false;
+  }
+
+  const subIdx = findTlonSubcommandIndex(args);
+  if (subIdx < 0) return false;
+  const commandArgs = args.slice(subIdx);
+  if (commandArgs[0]?.toLowerCase() !== 'groups') return false;
+  if (commandArgs[1]?.toLowerCase() !== 'invite-link') return false;
+
+  return !commandArgs.some((arg) => arg === '--self' || HELP_TOKENS.has(arg));
+}
+
+const OWNER_INVITE_LINK_SELF_HINT =
+  "Add --self to retrieve this bot's own invite link instead.";
+
+/**
+ * `--ship <owner>`, never `--config <path>`: ship-only resolution validates the
+ * file's ship and its cookie-derived ship against the requested owner, so a
+ * stale owner-named file holding bot credentials hard-fails instead of quietly
+ * minting a bot-attributed link. Missing provisioning is a tool error for the
+ * same reason — never a silent fall back to the bot's own credentials.
+ */
+function ownerInviteLinkPrefixArgs(
+  deps: TlonToolExecutorDeps
+): string[] | { error: string } {
+  const ownerShip = deps.ownerShip?.trim();
+  if (!ownerShip) {
+    return {
+      error:
+        "Retrieving the owner's invite link requires a configured owner ship. " +
+        OWNER_INVITE_LINK_SELF_HINT,
+    };
+  }
+
+  const location = locateOwnerShipConfig(ownerShip, deps);
+  if (location.kind === 'no-skill-dir') {
+    return {
+      error:
+        `Retrieving the invite link as ${ownerShip} requires TLON_SKILL_DIR so the owner credential file can be located. ` +
+        OWNER_INVITE_LINK_SELF_HINT,
+    };
+  }
+  if (location.kind === 'no-config-file') {
+    return {
+      error:
+        `Retrieving the invite link as ${ownerShip} requires owner credentials at ${location.configPath}. ` +
+        OWNER_INVITE_LINK_SELF_HINT,
+    };
+  }
+  return ['--ship', ownerShip];
+}
+
 export type TlonToolExecutorDeps = {
   runCommand: (args: string[]) => Promise<string>;
   notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
   logError?: (message: string) => void;
+  /** Configured owner ship, already normalized to `~ship`. */
+  ownerShip?: string;
+  env?: NodeJS.ProcessEnv;
+  fileExists?: (path: string) => boolean;
 };
 
 export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
@@ -363,7 +432,19 @@ export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
         };
       }
 
-      const output = await deps.runCommand(args);
+      let commandArgs = args;
+      if (shouldInjectOwnerCredentials(args)) {
+        const prefixArgs = ownerInviteLinkPrefixArgs(deps);
+        if (!Array.isArray(prefixArgs)) {
+          return {
+            content: [{ type: 'text' as const, text: prefixArgs.error }],
+            details: { error: true },
+          };
+        }
+        commandArgs = [...prefixArgs, ...args];
+      }
+
+      const output = await deps.runCommand(commandArgs);
       return {
         content: [{ type: 'text' as const, text: output }],
         details: undefined,

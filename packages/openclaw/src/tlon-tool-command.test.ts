@@ -150,6 +150,111 @@ describe('tlon tool execution', () => {
   });
 });
 
+describe('owner credential injection for groups invite-link', () => {
+  const SKILL_DIR = '/srv/tlon-skill';
+  const OWNER_CONFIG = '/srv/tlon-skill/ships/owner.json';
+
+  function makeExecutor(
+    overrides: {
+      ownerShip?: string;
+      env?: NodeJS.ProcessEnv;
+      fileExists?: (path: string) => boolean;
+    } = {}
+  ) {
+    const runCommand = vi.fn(async () => 'https://invite.tlon.io/0vabc');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+      ownerShip: '~owner',
+      env: { TLON_SKILL_DIR: SKILL_DIR } as NodeJS.ProcessEnv,
+      fileExists: (path: string) => path === OWNER_CONFIG,
+      ...overrides,
+    });
+    return { execute, runCommand };
+  }
+
+  it('runs a bare invite-link as the owner via --ship', async () => {
+    // --ship, not --config: ship-only resolution validates the file's ship and
+    // cookie against the owner, so a stale owner-named file cannot mint a
+    // bot-attributed link.
+    const { execute, runCommand } = makeExecutor();
+
+    const result = await execute('inject', {
+      command: 'groups invite-link ~host/book-club',
+    });
+
+    expect(runCommand).toHaveBeenCalledWith([
+      '--ship',
+      '~owner',
+      'groups',
+      'invite-link',
+      '~host/book-club',
+    ]);
+    expect(result.details).toBeUndefined();
+  });
+
+  it.each([
+    ['--self', 'groups invite-link ~host/book-club --self'],
+    ['-h', 'groups invite-link -h'],
+    ['--help', 'groups invite-link --help'],
+    ['separate-value --config', '--config /tmp/x.json groups invite-link ~h/g'],
+    ['=-form --config', '--config=/tmp/x.json groups invite-link ~h/g'],
+    ['separate-value --ship', '--ship ~other groups invite-link ~h/g'],
+    ['=-form --ship', '--ship=~other groups invite-link ~h/g'],
+    ['separate-value --url', '--url https://x groups invite-link ~h/g'],
+    [
+      '=-form --code',
+      '--code=sampel-ticlyt-migfun-falmel groups invite-link ~h/g',
+    ],
+    ['=-form --cookie', '--cookie=urbauth-~zod=0v groups invite-link ~h/g'],
+  ])('leaves the command untouched with %s', async (_label, command) => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('skip', { command });
+
+    const [args] = runCommand.mock.calls[0] as unknown as [string[]];
+    expect(args).toEqual(command.split(' '));
+  });
+
+  it('leaves other subcommands untouched', async () => {
+    const { execute, runCommand } = makeExecutor();
+
+    await execute('other', { command: 'groups info ~host/book-club' });
+    await execute('other', { command: 'groups list' });
+    await execute('other', { command: 'contacts self' });
+
+    for (const [args] of runCommand.mock.calls as unknown as [string[]][]) {
+      expect(args).not.toContain('--ship');
+    }
+  });
+
+  it('errors instead of silently using bot credentials when provisioning is missing', async () => {
+    const noSkillDir = makeExecutor({ env: {} as NodeJS.ProcessEnv });
+    const missingSkillDir = await noSkillDir.execute('no-dir', {
+      command: 'groups invite-link ~host/book-club',
+    });
+    expect(missingSkillDir.details).toEqual({ error: true });
+    expect(missingSkillDir.content[0]?.text).toContain('TLON_SKILL_DIR');
+    expect(noSkillDir.runCommand).not.toHaveBeenCalled();
+
+    const noFile = makeExecutor({ fileExists: () => false });
+    const missingFile = await noFile.execute('no-file', {
+      command: 'groups invite-link ~host/book-club',
+    });
+    expect(missingFile.details).toEqual({ error: true });
+    expect(missingFile.content[0]?.text).toContain(OWNER_CONFIG);
+    expect(noFile.runCommand).not.toHaveBeenCalled();
+
+    const noOwner = makeExecutor({ ownerShip: undefined });
+    const missingOwner = await noOwner.execute('no-owner', {
+      command: 'groups invite-link ~host/book-club',
+    });
+    expect(missingOwner.details).toEqual({ error: true });
+    expect(missingOwner.content[0]?.text).toContain('--self');
+    expect(noOwner.runCommand).not.toHaveBeenCalled();
+  });
+});
+
 describe('checkBlockedTlonOperation', () => {
   it('blocks migration writes after a separate --config prefix', () => {
     expect(

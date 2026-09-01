@@ -1,10 +1,7 @@
 import { BadResponseError } from '@tloncorp/api';
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
-import {
-  __resetApiClientForTests,
-  getCredentialResolution,
-} from './api-client';
+import { __resetApiClientForTests } from './api-client';
 import {
   INVITE_LINK_DEADLINE_MS,
   createInviteLinkDeps,
@@ -38,10 +35,6 @@ const ENV_KEYS = [
   'TLON_SKILL_DIR',
   'TLON_CACHE_DIR',
   'OPENCLAW_CONFIG',
-  'TLON_OWNER_SHIP',
-  'TLON_OWNER_URL',
-  'TLON_PLANET_CODE',
-  'URBIT_PLANET_CODE',
 ];
 
 let savedEnv: Record<string, string | undefined> = {};
@@ -178,19 +171,22 @@ describe('invite-link runtime deadline', () => {
     expect(INVITE_LINK_DEADLINE_MS).toBe(25_000);
   });
 
-  it('completes a --self retrieval within the deadline', async () => {
-    mockedScry.impl = async (...args: unknown[]) => {
-      const endpoint = args[0] as { app: string; path: string };
-      if (endpoint.app === 'groups') return PUBLIC_GROUP;
-      return 'https://tlon.network/lure/0vabc';
-    };
+  it('completes a retrieval within the deadline, bare and with --self', async () => {
+    for (const args of [[FLAG], [FLAG, '--self']]) {
+      __resetApiClientForTests();
+      mockedScry.impl = async (...scryArgs: unknown[]) => {
+        const endpoint = scryArgs[0] as { app: string; path: string };
+        if (endpoint.app === 'groups') return PUBLIC_GROUP;
+        return 'https://tlon.network/lure/0vabc';
+      };
 
-    const { result, written } = await suppressCliOutput(() =>
-      runInviteLinkCommand([FLAG, '--self'], { deadlineMs: 1_000 })
-    );
+      const { result, written } = await suppressCliOutput(() =>
+        runInviteLinkCommand(args, { deadlineMs: 1_000 })
+      );
 
-    expect(result).toBe(0);
-    expect(written.join('')).toContain('https://invite.tlon.io/0vabc');
+      expect(result).toBe(0);
+      expect(written.join('')).toContain('https://invite.tlon.io/0vabc');
+    }
   });
 
   it('rejects when the flow exceeds the deadline', async () => {
@@ -202,42 +198,9 @@ describe('invite-link runtime deadline', () => {
     mockedSubscribeOnce.impl = () => new Promise(() => {});
 
     await expect(
-      runInviteLinkCommand([FLAG, '--self'], { deadlineMs: 20 })
+      runInviteLinkCommand([FLAG], { deadlineMs: 20 })
     ).rejects.toMatchObject({
       message: 'Invite link retrieval timed out after 20ms.',
     });
-  });
-});
-
-describe('invite-link runtime owner routing', () => {
-  it('applies owner overrides by default and acts as the owner ship', async () => {
-    // Ambient bot credentials (~zod) are primed by beforeEach; the owner
-    // env triple must win without --self, end to end through the real
-    // api-client override/resolution lifecycle.
-    process.env.TLON_OWNER_SHIP = '~ten';
-    process.env.TLON_OWNER_URL = 'https://ten.tlon.network';
-    process.env.TLON_PLANET_CODE = 'lapseg-nolmel-riswen-hopryc';
-
-    const scriedAsShips: string[] = [];
-    mockedScry.impl = async (...args: unknown[]) => {
-      const { app } = args[0] as { app: string };
-      scriedAsShips.push(
-        getCredentialResolution().config.ship.replace(/^~/, '')
-      );
-      if (app === 'groups') return PUBLIC_GROUP;
-      if (app === 'reel') return 'https://tlon.network/lure/0vowner';
-      return undefined;
-    };
-
-    const { result, written } = await suppressCliOutput(() =>
-      runInviteLinkCommand([FLAG])
-    );
-
-    expect(result).toBe(0);
-    expect(written.join('')).toBe('https://invite.tlon.io/0vowner\n');
-    const resolved = getCredentialResolution();
-    expect(resolved.config.ship.replace(/^~/, '')).toBe('ten');
-    expect(resolved.config.url).toBe('https://ten.tlon.network');
-    expect(new Set(scriedAsShips)).toEqual(new Set(['ten']));
   });
 });

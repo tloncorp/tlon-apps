@@ -1614,16 +1614,13 @@ export const NOTES_CONTENT_UNSUPPORTED_CASES: CliCase[] = [
 ];
 
 // Black-box credential-routing cases for `groups invite-link` — deterministic
-// and pre-network (the hermetic env carries no owner variables).
+// and pre-network (the hermetic env carries no credentials at all).
 export const INVITE_LINK_CREDENTIAL_CASES: CliCase[] = [
-  {
-    name: 'groups invite-link fails without owner credentials',
-    args: ['groups', 'invite-link', '~zod/test'],
-    expectedExitCode: 1,
-    stdout: '',
-    stderrIncludes: ['TLON_OWNER_SHIP', 'OPENCLAW_CONFIG', '--self'],
-    stderrExcludes: ['Usage:', ...STACK_PATTERNS],
-  },
+  authRequiredCase('groups invite-link reaches normal resolution', [
+    'groups',
+    'invite-link',
+    '~zod/test',
+  ]),
   authRequiredCase('groups invite-link --self reaches normal resolution', [
     'groups',
     'invite-link',

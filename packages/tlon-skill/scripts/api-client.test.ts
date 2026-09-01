@@ -5,7 +5,9 @@ import {
   type EnsureClientDeps,
   __resetApiClientForTests,
   ensureClient,
+  validateConfiguredCookie,
 } from './api-client';
+import { mockedScry } from './tloncorp-api-mock';
 
 function resolution(
   overrides: Omit<Partial<CredentialResolution>, 'config'> & {
@@ -37,6 +39,7 @@ function makeDeps(
 ) {
   const configureCalls: unknown[] = [];
   const cacheWrites: Array<{ url: string; ship: string; cookie: string }> = [];
+  const subscriptionSetups: unknown[] = [];
 
   const deps: EnsureClientDeps = {
     resolve: () => resolved,
@@ -50,10 +53,12 @@ function makeDeps(
     cacheCookie: (url, ship, cookie) => {
       cacheWrites.push({ url, ship, cookie });
     },
-    setupSubscriptions: async () => {},
+    setupSubscriptions: async (subs) => {
+      subscriptionSetups.push(subs);
+    },
   };
 
-  return { deps, configureCalls, cacheWrites };
+  return { deps, configureCalls, cacheWrites, subscriptionSetups };
 }
 
 const originalConsoleError = console.error;
@@ -123,6 +128,38 @@ describe('ensureClient auth/cache policy', () => {
 
     expect(configureCalls).toHaveLength(1);
     expect(cacheWrites).toEqual([]);
+  });
+
+  it('never hands the cookie-validation client a code to reauth with', async () => {
+    // With getCode present, the api layer silently re-logs-in on a 403 during
+    // validation, swapping in a fresh cookie without setting didFreshAuth —
+    // bypassing the identity check. Fallback code may appear only in the
+    // explicit (checked) second configureClient call.
+    const resolved = resolution({
+      config: { cookie: 'urbauth-~zod=0v-cookie', code: 'fallback-code' },
+      authKind: 'cookie',
+      fallbackCode: 'fallback-code',
+      mayWriteAuthCache: true,
+    });
+
+    const valid = makeDeps(resolved, { cookieValid: true });
+    await ensureClient([], valid.deps);
+    expect(valid.configureCalls).toHaveLength(1);
+    expect(
+      (valid.configureCalls[0] as { getCode?: unknown }).getCode
+    ).toBeUndefined();
+
+    __resetApiClientForTests();
+
+    const expired = makeDeps(resolved, { cookieValid: false });
+    await ensureClient([], expired.deps);
+    expect(expired.configureCalls).toHaveLength(2);
+    expect(
+      (expired.configureCalls[0] as { getCode?: unknown }).getCode
+    ).toBeUndefined();
+    expect(
+      (expired.configureCalls[1] as { getCode?: unknown }).getCode
+    ).toBeDefined();
   });
 
   it('uses fallback code after a provided cookie expires and caches the fresh cookie', async () => {
@@ -268,6 +305,69 @@ describe('ensureClient auth/cache policy', () => {
     }
   });
 
+  it('rejects a fresh code login that authenticates as another ship', async () => {
+    // A ship-config file (or env triple) naming one ship but holding another's
+    // code would otherwise act, and cache, under the wrong identity.
+    const resolved = resolution({
+      config: { ship: 'ten', code: 'code' },
+      authKind: 'code',
+      mayWriteAuthCache: true,
+    });
+    const { deps, cacheWrites, subscriptionSetups } = makeDeps(resolved, {
+      freshCookie: 'urbauth-~zod=0v-bot',
+    });
+
+    await expect(ensureClient([], deps)).rejects.toThrow(
+      'Authentication identity mismatch: credentials for ~ten authenticated as ~zod'
+    );
+    expect(cacheWrites).toEqual([]);
+    expect(subscriptionSetups).toEqual([]);
+  });
+
+  it('rejects a cookie-to-code fallback that authenticates as another ship', async () => {
+    // The check keys on the fresh-auth event, not the resolver's authKind, so
+    // the fallback path is covered as well as a direct code login.
+    const resolved = resolution({
+      config: {
+        ship: 'ten',
+        cookie: 'urbauth-~ten=0v-cookie',
+        code: 'fallback-code',
+      },
+      authKind: 'cookie',
+      fallbackCode: 'fallback-code',
+      mayWriteAuthCache: true,
+    });
+    const { deps, configureCalls, cacheWrites, subscriptionSetups } = makeDeps(
+      resolved,
+      { cookieValid: false, freshCookie: 'urbauth-~zod=0v-bot' }
+    );
+
+    await expect(ensureClient([], deps)).rejects.toThrow(
+      'credentials for ~ten authenticated as ~zod'
+    );
+    expect(configureCalls).toHaveLength(2);
+    expect(cacheWrites).toEqual([]);
+    expect(subscriptionSetups).toEqual([]);
+  });
+
+  it('leaves valid provided-cookie flows unchecked', async () => {
+    // No fresh authentication happened, so the identity check does not run —
+    // provided cookies keep the resolver's own ship/cookie consistency rules.
+    const resolved = resolution({
+      config: { ship: 'ten', cookie: 'urbauth-~zod=0v-cookie' },
+      authKind: 'cookie',
+      mayWriteAuthCache: false,
+    });
+    const { deps, cacheWrites, subscriptionSetups } = makeDeps(resolved, {
+      cookieValid: true,
+    });
+
+    await ensureClient(['groups'], deps);
+
+    expect(cacheWrites).toEqual([]);
+    expect(subscriptionSetups).toEqual([['groups']]);
+  });
+
   it('reset hook clears initialized state for isolated tests', async () => {
     const first = makeDeps(
       resolution({
@@ -291,5 +391,42 @@ describe('ensureClient auth/cache policy', () => {
 
     expect(first.configureCalls).toHaveLength(1);
     expect(second.configureCalls).toHaveLength(1);
+  });
+});
+
+describe('validateConfiguredCookie classification', () => {
+  const originalScry = mockedScry.impl;
+  afterEach(() => {
+    mockedScry.impl = originalScry;
+  });
+
+  const failingWith = (error: unknown) => {
+    mockedScry.impl = async () => {
+      throw error;
+    };
+  };
+
+  it('accepts a cookie when the probe scry succeeds', async () => {
+    mockedScry.impl = async () => ({});
+    expect(await validateConfiguredCookie()).toBe(true);
+  });
+
+  it('rejects on 401 and 403 auth failures', async () => {
+    failingWith({ status: 401, message: 'HTTP 401' });
+    expect(await validateConfiguredCookie()).toBe(false);
+    failingWith({ status: 403, message: 'HTTP 403' });
+    expect(await validateConfiguredCookie()).toBe(false);
+  });
+
+  it('rejects when the codeless client cannot reauthenticate', async () => {
+    // The api layer's failed 403-reauth surfaces as this error because the
+    // validation client deliberately carries no code.
+    failingWith(new Error('Unable to authenticate with urbit'));
+    expect(await validateConfiguredCookie()).toBe(false);
+  });
+
+  it('presumes validity on transient non-auth failures', async () => {
+    failingWith(new Error('fetch failed'));
+    expect(await validateConfiguredCookie()).toBe(true);
   });
 });

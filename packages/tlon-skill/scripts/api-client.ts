@@ -24,6 +24,7 @@ import {
   type UrbitConfig,
   getCachePath,
   normalizeShipName,
+  parseShipFromCookie,
   readCachedEntryForShip,
   readCachedShipCandidates,
   resolveCredentials,
@@ -77,10 +78,6 @@ export function setCliCredentialOverrides(
   cliCredentialOverrides = overrides;
   cachedConfig = null;
   cachedResolution = null;
-}
-
-export function hasCliCredentialOverrides(): boolean {
-  return cliCredentialOverrides !== null;
 }
 
 export function getCredentialResolution(): CredentialResolution {
@@ -196,15 +193,25 @@ function createCookieClient(cfg: UrbitConfig, cookie: string): Urbit {
   return urbit;
 }
 
-async function validateConfiguredCookie(): Promise<boolean> {
+export async function validateConfiguredCookie(): Promise<boolean> {
   try {
     await scry({ app: 'hood', path: '/kiln/pikes' });
     return true;
   } catch (err: any) {
-    const is401 =
+    // 401/403 mean the cookie no longer authenticates. The validation client
+    // carries no code, so a 403 surfaces as the api layer's failed-reauth
+    // error ('Unable to authenticate with urbit') rather than silently
+    // re-logging in; both shapes route to the explicit fallback path, which
+    // performs the fresh-auth identity check. Other errors (network,
+    // transient) leave the cookie presumed valid, as before.
+    const message = typeof err?.message === 'string' ? err.message : '';
+    const isAuthFailure =
       err?.status === 401 ||
-      (typeof err?.message === 'string' && err.message.includes('401'));
-    return !is401;
+      err?.status === 403 ||
+      message.includes('401') ||
+      message.includes('403') ||
+      message.includes('Unable to authenticate');
+    return !isAuthFailure;
   }
 }
 
@@ -279,6 +286,31 @@ function cookieValidationError(resolution: CredentialResolution): Error {
 }
 
 /**
+ * A fresh authentication must prove the identity it claimed: the ship named in
+ * the issued cookie has to be the ship the credentials asked for. Credentials
+ * that authenticate as someone else — a ship-config file naming one ship but
+ * holding another's code, a moved URL — would otherwise act under the wrong
+ * identity, and cache a cookie under a ship name it does not belong to.
+ */
+function assertFreshAuthIdentity(
+  requestedShip: string,
+  cookie: string | undefined
+): void {
+  if (!cookie) return;
+  const cookieShip = parseShipFromCookie(cookie);
+  if (
+    cookieShip &&
+    normalizeShipName(cookieShip) === normalizeShipName(requestedShip)
+  ) {
+    return;
+  }
+  throw new Error(
+    `Authentication identity mismatch: credentials for ${preSig(requestedShip)} ` +
+      `authenticated as ${cookieShip ? preSig(cookieShip) : 'an unidentified ship'}.`
+  );
+}
+
+/**
  * Ensure @tloncorp/api client is configured, connected, and subscribed.
  * Pass required subscription apps to minimize connection overhead.
  */
@@ -297,13 +329,15 @@ export async function ensureClient(
     let didFreshAuth = false;
 
     if (cfg.cookie) {
+      // The validation client gets NO code on purpose: the api layer reauths
+      // silently on a 403 when getCode is present, which would swap in a
+      // fresh cookie without setting didFreshAuth — bypassing the identity
+      // check below. Fallback authentication happens only in the explicit
+      // branch underneath, which sets didFreshAuth and is checked.
       await deps.configureClient({
         shipName: cfg.ship,
         shipUrl: cfg.url,
         client: deps.createCookieClient(cfg, cfg.cookie),
-        getCode: resolution.fallbackCode
-          ? async () => resolution.fallbackCode as string
-          : undefined,
       });
 
       const cookieValid = await deps.validateCookie();
@@ -331,18 +365,26 @@ export async function ensureClient(
       throw new Error('No cookie or code available for authentication');
     }
 
-    if (didFreshAuth && resolution.mayWriteAuthCache) {
-      const freshCookie = deps.getAuthenticatedCookie();
-      if (freshCookie) {
-        deps.cacheCookie(cfg.url, cfg.ship, freshCookie);
-        // Only for a human at a terminal. Programmatic callers pipe stderr —
-        // OpenClaw relays it straight into an owner DM on failure — where
-        // advice about shortening the next shell invocation is noise.
-        if (process.stderr.isTTY) {
-          console.error(
-            `Note: Credentials cached for ${preSig(cfg.ship)}. Next time run: tlon --ship ${preSig(cfg.ship)} <command>`
-          );
-        }
+    // Checked the moment configureClient returns, before the cookie can be
+    // cached (a mismatched cookie stored under the requested ship's cache key
+    // would be loaded by a later `--ship <that ship>`) and before any
+    // subscription opens under the wrong identity.
+    const freshCookie = didFreshAuth
+      ? deps.getAuthenticatedCookie()
+      : undefined;
+    if (didFreshAuth) {
+      assertFreshAuthIdentity(cfg.ship, freshCookie);
+    }
+
+    if (didFreshAuth && resolution.mayWriteAuthCache && freshCookie) {
+      deps.cacheCookie(cfg.url, cfg.ship, freshCookie);
+      // Only for a human at a terminal. Programmatic callers pipe stderr —
+      // OpenClaw relays it straight into an owner DM on failure — where
+      // advice about shortening the next shell invocation is noise.
+      if (process.stderr.isTTY) {
+        console.error(
+          `Note: Credentials cached for ${preSig(cfg.ship)}. Next time run: tlon --ship ${preSig(cfg.ship)} <command>`
+        );
       }
     }
 

@@ -256,8 +256,8 @@ tlon groups delete ~host/slug                            # Delete (host only)
 tlon groups update ~host/slug --title "..." [--description "..."]
 
 # Invite links (Lure)
-tlon groups invite-link ~host/slug                       # Retrieve the group's invite link (owner's link by default)
-tlon groups invite-link ~host/slug --self                # Retrieve the current ship's own invite link
+tlon groups invite-link ~host/slug                       # Retrieve the group's invite link (under a bot harness: the owner's)
+tlon groups invite-link ~host/slug --self                # Use the current credentials instead of the owner's
 
 # Members (shown with nicknames when available)
 tlon groups invite ~host/slug ~ship1 ~ship2              # Invite members
@@ -318,9 +318,10 @@ Join behavior:
 Invite link behavior (`invite-link`):
 
 -   Prints the canonical Lure URL (`https://invite.tlon.io/<token>`), minting one through the invite service if the group has none yet. Never compose or guess invite URLs — always retrieve them with this command.
--   On Tlon-hosted deployments the link is retrieved as the **owner** by default, so the invite attributes to the owner rather than the bot. Use `--self` for the bot's own link; explicit credential flags (`--config`, `--url`, ...) always win over owner resolution.
+-   The link belongs to whichever ship the command runs as: that ship becomes the inviter of record, and the recipient's onboarding attributes the invite to it.
+-   Under a bot harness (the OpenClaw plugin or the Hermes adapter) the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
+-   Run directly (a terminal, a self-hosted setup) it uses the current credentials like every other command — there is no owner to resolve.
 -   For private/secret groups the acting ship must be the host or an admin — the command refuses otherwise, because a non-admin's link would not deliver the group invite on redemption.
--   Self-hosted setups have no owner credentials; use `--self` or explicit credential flags there.
 
 ### Hooks
 

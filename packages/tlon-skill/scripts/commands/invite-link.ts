@@ -1,6 +1,5 @@
 import { valid } from '@urbit/aura';
 
-import type { CliCredentialOverrides } from '../credential-resolver';
 import {
   type CommandDeps,
   commandError,
@@ -14,7 +13,6 @@ import {
   type RawGroupForAdminVerification,
   actingShipCanAdminister,
 } from './groups-verification';
-import type { OwnerCredentialsResolution } from './owner-credentials';
 
 export const IN_FLIGHT_AWAIT_TIMEOUT_MS = 8_000;
 export const MINT_AWAIT_TIMEOUT_MS = 15_000;
@@ -25,29 +23,21 @@ Retrieve the Lure invite link for a group, minting one through the invite
 service if the group has none yet. Prints exactly one line on success: the
 canonical invite URL (https://invite.tlon.io/<token>).
 
-By default the link is retrieved as the bot's owner, not the bot: the ship
-that retrieves/mints the link becomes the inviter of record, so recipients
-onboard attributed to the owner. Owner credentials are resolved from
-TLON_OWNER_SHIP or channels.tlon.ownerShip in OPENCLAW_CONFIG (or the
-standard openclaw config paths), then
-$TLON_SKILL_DIR/ships/<owner>.json or TLON_OWNER_URL with
-TLON_PLANET_CODE/URBIT_PLANET_CODE (Tlon-hosted deployments only).
+The link is retrieved as whichever ship the current credentials resolve to,
+and that ship becomes the inviter of record. Bot harnesses run this command
+as the owner by default, so recipients onboard attributed to the owner rather
+than the bot.
 
 Options:
-  --self         Retrieve the current ship's own link instead of the owner's
+  --self         Use the current credentials (the default; meaningful under
+                 bot harnesses, which otherwise act as the owner)
   -h, --help     Show this help
 
-Explicit credential flags (--config/--url/--ship/--code/--cookie) always win
-over owner resolution. Private/secret groups require the acting ship to be
-the host or an admin — a non-admin's link would not deliver the group invite
-on redemption. Self-hosted setups have no owner credentials: use --self or
-explicit credential flags there.`;
+Private/secret groups require the acting ship to be the host or an admin — a
+non-admin's link would not deliver the group invite on redemption.`;
 
 export interface InviteLinkDeps extends CommandDeps {
-  hasExplicitCredentialOverrides: () => boolean;
   getResolvedShip: () => string;
-  resolveOwner: (currentShip: string | null) => OwnerCredentialsResolution;
-  applyCredentialOverrides: (overrides: CliCredentialOverrides) => void;
   authenticate: () => Promise<void>;
   scryRawGroup: (flag: string) => Promise<RawGroupForAdminVerification>;
   scryIdUrl: (flag: string) => Promise<string>;
@@ -144,30 +134,6 @@ function isMembershipFailure(error: unknown): boolean {
   );
 }
 
-function resolveActingShip(self: boolean, deps: InviteLinkDeps): string {
-  if (self || deps.hasExplicitCredentialOverrides()) {
-    return deps.getResolvedShip();
-  }
-
-  let currentShip: string | null = null;
-  try {
-    currentShip = deps.getResolvedShip();
-  } catch {
-    currentShip = null;
-  }
-
-  const owner = deps.resolveOwner(currentShip);
-  if (owner.kind === 'error') {
-    throw commandError(owner.message);
-  }
-  if (owner.kind === 'self') {
-    return currentShip as string;
-  }
-
-  deps.applyCredentialOverrides(owner.overrides);
-  return owner.ownerShip;
-}
-
 function assertCanInvite(
   rawGroup: RawGroupForAdminVerification,
   actingShip: string,
@@ -255,7 +221,10 @@ export async function run(
       return writeHelp(deps, INVITE_LINK_HELP);
     }
 
-    const actingShip = resolveActingShip(parsed.self, deps);
+    // Whatever the normal resolver lands on. `--self` is an explicit no-op
+    // here: bot harnesses inject owner credentials for the bare form, and the
+    // flag is how a command string opts back out of that injection.
+    const actingShip = deps.getResolvedShip();
 
     await deps.authenticate();
 

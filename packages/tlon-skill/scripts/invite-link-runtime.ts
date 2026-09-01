@@ -7,19 +7,11 @@ import {
 } from '@tloncorp/api';
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import { extractNormalizedInviteLink } from '@tloncorp/api/client/deeplinks';
-import * as fs from 'fs';
-import * as os from 'os';
 
-import {
-  ensureClient,
-  getCredentialResolution,
-  hasCliCredentialOverrides,
-  setCliCredentialOverrides,
-} from './api-client';
+import { ensureClient, getCredentialResolution } from './api-client';
 import { commandError } from './commands/command';
 import type { RawGroupForAdminVerification } from './commands/groups-verification';
 import { type InviteLinkDeps, run } from './commands/invite-link';
-import { resolveOwnerCredentials } from './commands/owner-credentials';
 
 // Global deadline for the whole flow. Kept inside the harness kill timers at
 // their default settings (Hermes 30s, OpenClaw 45s); operators who lower
@@ -30,18 +22,7 @@ export function createInviteLinkDeps(): InviteLinkDeps {
   return {
     stdout: (text) => process.stdout.write(text),
     stderr: (text) => process.stderr.write(text),
-    hasExplicitCredentialOverrides: hasCliCredentialOverrides,
     getResolvedShip: () => getCredentialResolution().config.ship,
-    resolveOwner: (currentShip) =>
-      resolveOwnerCredentials({
-        env: process.env,
-        fileExists: (filePath) => fs.existsSync(filePath),
-        readFile: (filePath) => fs.readFileSync(filePath, 'utf-8'),
-        homeDir: os.homedir(),
-        currentShip,
-      }),
-    applyCredentialOverrides: (overrides) =>
-      setCliCredentialOverrides(overrides),
     authenticate: async () => {
       await ensureClient([]);
     },

@@ -1456,9 +1456,11 @@ async function main() {
 
   validateGroupsArgs(args);
 
-  // invite-link resolves its own credentials — the acting ship is the owner
-  // by default — so it dispatches before the family-wide ensureClient, which
-  // would bind the client singleton to the bot ship first.
+  // invite-link owns its whole flow: a global deadline around a single
+  // authenticate-then-act sequence. Dispatching before the family-wide
+  // ensureClient keeps that flow intact (and its subscriptions unopened).
+  // Which ship it acts as is the resolver's answer — owner selection belongs
+  // to the bot harnesses, which inject credentials before invoking the CLI.
   if (command === 'invite-link') {
     process.exit(await runInviteLinkCommand(args.slice(1)));
   }

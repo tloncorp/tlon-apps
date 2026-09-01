@@ -1,7 +1,6 @@
 import { BadResponseError } from '@tloncorp/api';
 import { describe, expect, it } from 'bun:test';
 
-import type { CliCredentialOverrides } from '../credential-resolver';
 import type { RawGroupForAdminVerification } from './groups-verification';
 import {
   INVITE_LINK_HELP,
@@ -10,7 +9,6 @@ import {
   MINT_AWAIT_TIMEOUT_MS,
   run,
 } from './invite-link';
-import type { OwnerCredentialsResolution } from './owner-credentials';
 
 const FLAG = '~zod/test';
 const MINTED_URL = 'https://tlon.network/lure/0vminted';
@@ -18,12 +16,6 @@ const VALID_TOKEN_URL = 'https://tlon.network/lure/0vabc.def';
 const LEGACY_TOKEN_URL = 'https://tlon.network/lure/~sampel/old-name';
 const IN_FLIGHT_NONCE_URL =
   'https://tlon.network/lure/~2026.3.13..12.00.00..1234';
-
-const DEFAULT_OWNER_OVERRIDES: OwnerCredentialsResolution = {
-  kind: 'overrides',
-  overrides: { kind: 'ship', ship: 'ten' },
-  ownerShip: 'ten',
-};
 
 type AwaitOutcome = { ok: true; url: string } | { ok: false; error: unknown };
 
@@ -40,10 +32,8 @@ function publicGroup(
 
 function makeDeps(
   options: {
-    explicitOverrides?: boolean;
     resolvedShip?: string;
     resolvedShipError?: Error;
-    ownerResolution?: OwnerCredentialsResolution;
     groupPayload?: RawGroupForAdminVerification;
     scryRawGroupError?: unknown;
     idUrl?: string;
@@ -55,10 +45,7 @@ function makeDeps(
   const stderr: string[] = [];
   const sequence: string[] = [];
   const calls = {
-    hasExplicitCredentialOverrides: 0,
     getResolvedShip: 0,
-    resolveOwner: [] as Array<string | null>,
-    applyCredentialOverrides: [] as CliCredentialOverrides[],
     authenticate: 0,
     scryRawGroup: [] as string[],
     enableGrouper: [] as string[],
@@ -71,24 +58,11 @@ function makeDeps(
   const deps: InviteLinkDeps = {
     stdout: (text) => stdout.push(text),
     stderr: (text) => stderr.push(text),
-    hasExplicitCredentialOverrides: () => {
-      calls.hasExplicitCredentialOverrides += 1;
-      return options.explicitOverrides ?? false;
-    },
     getResolvedShip: () => {
       calls.getResolvedShip += 1;
       sequence.push('getResolvedShip');
       if (options.resolvedShipError) throw options.resolvedShipError;
-      return options.resolvedShip ?? 'zod';
-    },
-    resolveOwner: (currentShip) => {
-      calls.resolveOwner.push(currentShip);
-      sequence.push('resolveOwner');
-      return options.ownerResolution ?? DEFAULT_OWNER_OVERRIDES;
-    },
-    applyCredentialOverrides: (overrides) => {
-      calls.applyCredentialOverrides.push(overrides);
-      sequence.push('applyCredentialOverrides');
+      return options.resolvedShip ?? 'ten';
     },
     authenticate: async () => {
       calls.authenticate += 1;
@@ -141,7 +115,7 @@ function makeDeps(
 }
 
 describe('invite-link help and usage', () => {
-  it('prints help without authenticating or resolving owner credentials', async () => {
+  it('prints help without authenticating or resolving credentials', async () => {
     for (const arg of ['--help', '-h']) {
       const context = makeDeps();
 
@@ -151,13 +125,11 @@ describe('invite-link help and usage', () => {
       expect(context.stdout()).toBe(`${INVITE_LINK_HELP}\n`);
       expect(context.stderr()).toBe('');
       expect(context.calls.authenticate).toBe(0);
-      expect(context.calls.resolveOwner).toEqual([]);
       expect(context.calls.getResolvedShip).toBe(0);
-      expect(context.calls.applyCredentialOverrides).toEqual([]);
     }
   });
 
-  it('fails missing or malformed flags before auth or owner resolution', async () => {
+  it('fails missing or malformed flags before auth or credential resolution', async () => {
     const cases: string[][] = [
       [],
       ['not-a-flag'],
@@ -177,7 +149,7 @@ describe('invite-link help and usage', () => {
       expect(context.stdout()).toBe('');
       expect(context.stderr()).toContain('Usage: tlon groups invite-link');
       expect(context.calls.authenticate).toBe(0);
-      expect(context.calls.resolveOwner).toEqual([]);
+      expect(context.calls.getResolvedShip).toBe(0);
       expect(context.calls.scryRawGroup).toEqual([]);
     }
   });
@@ -473,94 +445,45 @@ describe('invite-link membership and privacy', () => {
 });
 
 describe('invite-link credential routing', () => {
-  it('does not consult owner resolution with --self', async () => {
-    const context = makeDeps({ idUrl: VALID_TOKEN_URL });
+  it('acts as whatever ship the resolver returns, before authenticating', async () => {
+    const context = makeDeps({ resolvedShip: 'zod', idUrl: VALID_TOKEN_URL });
 
-    const exitCode = await run([FLAG, '--self'], context.deps);
+    const exitCode = await run([FLAG], context.deps);
 
     expect(exitCode).toBe(0);
-    expect(context.calls.resolveOwner).toEqual([]);
-    expect(context.calls.applyCredentialOverrides).toEqual([]);
+    expect(context.calls.getResolvedShip).toBe(1);
     expect(context.stderr()).toBe(`Invite link for ${FLAG} as ~zod\n`);
-  });
-
-  it('does not consult owner resolution with explicit credential overrides', async () => {
-    const context = makeDeps({
-      explicitOverrides: true,
-      idUrl: VALID_TOKEN_URL,
-    });
-
-    const exitCode = await run([FLAG], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.resolveOwner).toEqual([]);
-    expect(context.calls.applyCredentialOverrides).toEqual([]);
-    expect(context.stderr()).toContain('as ~zod');
-  });
-
-  it('surfaces the owner resolution error and exits 1', async () => {
-    const context = makeDeps({
-      ownerResolution: {
-        kind: 'error',
-        message: 'no owner credentials on this box',
-      },
-    });
-
-    const exitCode = await run([FLAG], context.deps);
-
-    expect(exitCode).toBe(1);
-    expect(context.stdout()).toBe('');
-    expect(context.stderr()).toContain('no owner credentials on this box');
-    expect(context.calls.authenticate).toBe(0);
-    expect(context.calls.applyCredentialOverrides).toEqual([]);
-  });
-
-  it('applies owner overrides before authenticating', async () => {
-    const context = makeDeps({ idUrl: VALID_TOKEN_URL });
-
-    const exitCode = await run([FLAG], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.resolveOwner).toEqual(['zod']);
-    expect(context.calls.applyCredentialOverrides).toEqual([
-      { kind: 'ship', ship: 'ten' },
-    ]);
-    const resolveIdx = context.sequence.indexOf('resolveOwner');
-    const applyIdx = context.sequence.indexOf('applyCredentialOverrides');
+    const shipIdx = context.sequence.indexOf('getResolvedShip');
     const authIdx = context.sequence.indexOf('authenticate');
-    expect(resolveIdx).toBeLessThan(applyIdx);
-    expect(applyIdx).toBeLessThan(authIdx);
-    expect(context.stderr()).toContain('as ~ten');
+    expect(shipIdx).toBeGreaterThanOrEqual(0);
+    expect(shipIdx).toBeLessThan(authIdx);
   });
 
-  it('proceeds with the normal resolver when the owner is the current ship', async () => {
-    const context = makeDeps({
-      resolvedShip: 'ten',
-      ownerResolution: { kind: 'self' },
-      idUrl: VALID_TOKEN_URL,
-    });
+  it('treats --self as a no-op on the current credentials', async () => {
+    // Harnesses inject owner credentials for the bare form; --self is how a
+    // command string opts out, and the CLI itself must do nothing extra.
+    const bare = makeDeps({ resolvedShip: 'zod', idUrl: VALID_TOKEN_URL });
+    const selfFlag = makeDeps({ resolvedShip: 'zod', idUrl: VALID_TOKEN_URL });
 
-    const exitCode = await run([FLAG], context.deps);
+    expect(await run([FLAG], bare.deps)).toBe(0);
+    expect(await run([FLAG, '--self'], selfFlag.deps)).toBe(0);
 
-    expect(exitCode).toBe(0);
-    expect(context.calls.resolveOwner).toEqual(['ten']);
-    expect(context.calls.applyCredentialOverrides).toEqual([]);
-    expect(context.stderr()).toBe(`Invite link for ${FLAG} as ~ten\n`);
+    expect(selfFlag.stdout()).toBe(bare.stdout());
+    expect(selfFlag.stderr()).toBe(bare.stderr());
+    expect(selfFlag.sequence).toEqual(bare.sequence);
   });
 
-  it('passes null to owner resolution when no credentials resolve', async () => {
+  it('surfaces a credential resolution failure and never authenticates', async () => {
     const context = makeDeps({
       resolvedShipError: new Error('Missing Urbit config'),
-      idUrl: VALID_TOKEN_URL,
     });
 
-    const exitCode = await run([FLAG], context.deps);
-
-    expect(exitCode).toBe(0);
-    expect(context.calls.resolveOwner).toEqual([null]);
-    expect(context.calls.applyCredentialOverrides).toEqual([
-      { kind: 'ship', ship: 'ten' },
-    ]);
+    await expect(run([FLAG], context.deps)).rejects.toThrow(
+      'Missing Urbit config'
+    );
+    expect(context.stdout()).toBe('');
+    expect(context.calls.authenticate).toBe(0);
+    expect(context.calls.scryRawGroup).toEqual([]);
   });
 });
 

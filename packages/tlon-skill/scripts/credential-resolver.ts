@@ -459,6 +459,16 @@ function parseCacheFile(
     );
   }
 
+  // The cookie itself names the ship it authenticates as. Without this, a
+  // cache file could serve another ship's cookie under this ship's name — the
+  // read-side counterpart to the write-side identity check in api-client.
+  const cookieShip = parseShipFromCookie(data.cookie);
+  if (!cookieShip || normalizeShipName(cookieShip) !== storedShip) {
+    throw cacheError(
+      `${filePath} cookie ship ${withSig(cookieShip ?? 'unknown')} does not match stored ship ${withSig(storedShip)}`
+    );
+  }
+
   if (expected?.url && data.url !== expected.url) {
     throw cacheError(
       `${filePath} stored URL ${data.url} does not match requested URL ${expected.url}`
