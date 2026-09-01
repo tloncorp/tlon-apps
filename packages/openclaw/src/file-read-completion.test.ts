@@ -566,6 +566,32 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it('does not require continuation of a truncated auxiliary read', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'truncated-auxiliary',
+        'schema header\n[Showing lines 1-20 of 200]',
+        '/tmp/schema.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'truncated-auxiliary',
+        'b1\nb2\nb3\nb4\nb5\nb6',
+        '/tmp/requested.csv'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'truncated-auxiliary',
+        lastAssistantMessage:
+          'Here are the requested contents:\nb1\nb2\nb3\nb4\nb5\nb6',
+      })
+    ).toBeNull();
+  });
+
   it('requires an explicit acknowledgment for an empty target in multi-file delivery', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(

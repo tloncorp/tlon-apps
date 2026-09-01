@@ -247,27 +247,21 @@ function hasFailedTarget(state: RunState): boolean {
   return [...state.targets.values()].some((target) => target.failed);
 }
 
-function hasTruncatedTarget(state: RunState): boolean {
-  return [...state.targets.values()].some((target) => target.truncated);
+type TrackedTarget = [string, ReadTargetState];
+
+function hasTruncatedTarget(targets: TrackedTarget[]): boolean {
+  return targets.some(([, target]) => target.truncated);
 }
 
-function allSuccessfulTargetsAreEmpty(state: RunState): boolean {
-  const targets = [...state.targets.values()].filter(
-    (target) => !target.failed
-  );
-  return targets.length > 0 && targets.every((target) => target.empty);
+function allTargetsAreEmpty(targets: TrackedTarget[]): boolean {
+  return targets.length > 0 && targets.every(([, target]) => target.empty);
 }
 
-function allTargetContentIsRepresented(
-  reply: string,
-  state: RunState
-): boolean {
+function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
   const successfulTargets = [...state.targets.entries()].filter(
     ([, target]) => !target.failed
   );
   const normalizedReply = normalizeForComparison(reply);
-  const emptyResultIsAcknowledged =
-    /\b(?:empty|0 bytes|contains? no (?:content|data|text))\b/i.test(reply);
   const relevantTargetKeys = new Set<string>();
   if (state.lastSuccessfulTarget) {
     relevantTargetKeys.add(state.lastSuccessfulTarget);
@@ -285,6 +279,16 @@ function allTargetContentIsRepresented(
   const targets = successfulTargets.filter(([targetKey]) =>
     relevantTargetKeys.has(targetKey)
   );
+  return targets;
+}
+
+function allTargetContentIsRepresented(
+  reply: string,
+  targets: TrackedTarget[]
+): boolean {
+  const normalizedReply = normalizeForComparison(reply);
+  const emptyResultIsAcknowledged =
+    /\b(?:empty|0 bytes|contains? no (?:content|data|text))\b/i.test(reply);
   return (
     targets.length > 0 &&
     targets.every(([targetKey, target]) => {
@@ -301,23 +305,25 @@ function allTargetContentIsRepresented(
 
 function anyTargetContentIsRepresented(
   reply: string,
-  state: RunState
+  targets: TrackedTarget[]
 ): boolean {
-  return [...state.targets.values()].some(
-    (target) =>
-      !target.failed && matchedReadContentCount(reply, target.anchors) > 0
+  return targets.some(
+    ([, target]) => matchedReadContentCount(reply, target.anchors) > 0
   );
 }
 
-function revisionInstruction(state: RunState, attempt: number): string {
+function revisionInstruction(
+  targets: TrackedTarget[],
+  attempt: number
+): string {
   const finalAttempt =
     attempt === MAX_REVISION_ATTEMPTS
       ? ' This is the final correction attempt.'
       : '';
-  if (hasTruncatedTarget(state)) {
+  if (hasTruncatedTarget(targets)) {
     return `A read tool returned only part of the requested file, and your draft did not complete the original request.${finalAttempt} Continue reading from the appropriate offset as needed, then answer the user's original request using the complete result. Preserve any requested summary, transformation, or privacy constraint; do not dump raw contents unless the user asked for them. Do not send another progress-only update or claim delivery without visible output.`;
   }
-  if (allSuccessfulTargetsAreEmpty(state)) {
+  if (allTargetsAreEmpty(targets)) {
     return `A read tool successfully returned an empty file, but your draft only announces work or claims delivery.${finalAttempt} Replace it with a final answer that plainly says the file is empty and responds to the user's original request. Do not call read again or send another progress update.`;
   }
   return `A read tool already succeeded in this turn, but your draft only announces work or claims delivery without completing the user's original request.${finalAttempt} Replace the draft with a final answer based on the existing read result. If the user asked to see the contents, include them; if they asked for a summary, transformation, or inspection, perform that instead. Preserve any privacy or formatting constraint. Do not call read again, send another progress update, or claim output is visible when it is not. If the request truly cannot be completed, state the concrete limitation.`;
@@ -436,13 +442,14 @@ export function createFileReadCompletionGuard(options?: {
         state.revisionAttempts >= MAX_REVISION_ATTEMPTS
       )
         return null;
+      const targets = relevantTargets(reply, state);
       if (
-        !hasTruncatedTarget(state) &&
-        (allTargetContentIsRepresented(reply, state) ||
+        !hasTruncatedTarget(targets) &&
+        (allTargetContentIsRepresented(reply, targets) ||
           (!isIncompleteFileDeliveryReply(reply) &&
             !(
               EMPTY_DELIVERY_CLAIM.test(reply) &&
-              anyTargetContentIsRepresented(reply, state)
+              anyTargetContentIsRepresented(reply, targets)
             )))
       ) {
         return null;
@@ -454,7 +461,7 @@ export function createFileReadCompletionGuard(options?: {
         action: 'revise',
         reason: 'successful file read was not delivered in the draft reply',
         retry: {
-          instruction: revisionInstruction(state, attempt),
+          instruction: revisionInstruction(targets, attempt),
           idempotencyKey: `tlon:file-read-completion:${runId}:${attempt}`,
           maxAttempts: MAX_REVISION_ATTEMPTS,
         },
