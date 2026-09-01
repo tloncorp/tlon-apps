@@ -16,4 +16,7 @@ describe('isA2UISendMessageActionConsumed', () => {
       isA2UISendMessageActionConsumed(send('A daily digest'), 'Research')
     ).toBe(false);
   });
+  it('does not consume empty probe actions', () => {
+    expect(isA2UISendMessageActionConsumed(send(''), 'Research')).toBe(false);
+  });
 });
