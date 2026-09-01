@@ -31,6 +31,7 @@ import {
   SurfaceGroupChannel,
   SurfacePostRecord,
   SurfaceRecordKind,
+  type SurfaceAssetFetch,
   type SurfaceStoragePreflight,
   SurfaceTemplateDetail,
   SurfaceTemplateStore,
@@ -317,6 +318,73 @@ async function uploadBundleToShipStorage(input: {
       : {}),
   });
   return { url: result.url };
+}
+
+/**
+ * Reads a published bundle back out of storage.
+ *
+ * A plain GET, deliberately: the client does exactly this
+ * (`useSurfaceBundle`'s `fetchBundleText`) and for the same reason — the
+ * sha256 in the channel's definition is the authority, so the transport has
+ * no trust to earn. The caller hashes what comes back and refuses on
+ * mismatch; nothing here decides whether the bytes are the right ones.
+ *
+ * `Content-Length` is checked before the body is buffered, mirroring the
+ * client's pre-buffer short-circuit. The header is advisory — absent, or a
+ * lie — so it can only ever short-circuit, and it is deliberately the ONLY
+ * size check here: the authoritative measurement is the caller's, over the
+ * bytes it actually holds, and a second copy of the cap in this function
+ * would make the caller's copy unreachable in production and leave it
+ * exercised only by the test double.
+ *
+ * Known gap, the same one the client documents: a body that omits or
+ * under-reports its length is still buffered once before the caller refuses
+ * it. Closing it needs streaming enforcement, which neither side has yet.
+ */
+async function fetchSurfaceAsset(input: {
+  url: string;
+  maxBytes: number;
+}): Promise<SurfaceAssetFetch> {
+  let response: Response;
+  try {
+    response = await fetch(input.url);
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'fetch-failed',
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+  if (!response.ok) {
+    return {
+      ok: false,
+      reason: 'fetch-failed',
+      detail:
+        `storage answered ${response.status} ${response.statusText}`.trim(),
+    };
+  }
+  const declared = response.headers.get('content-length');
+  if (declared !== null) {
+    const declaredBytes = Number(declared);
+    if (Number.isFinite(declaredBytes) && declaredBytes > input.maxBytes) {
+      return {
+        ok: false,
+        reason: 'oversize',
+        detail: `storage declared ${declaredBytes} bytes, over the ${input.maxBytes}-byte cap`,
+      };
+    }
+  }
+  let bytes: Uint8Array;
+  try {
+    bytes = new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    return {
+      ok: false,
+      reason: 'fetch-failed',
+      detail: error instanceof Error ? error.message : String(error),
+    };
+  }
+  return { ok: true, bytes };
 }
 
 /* ------------------------------------------------------------------ */
@@ -725,8 +793,13 @@ export function createSurfaceDeps(): SurfaceDeps {
     lint: (input) => lintSurfaceBundle(input),
     formatLint: (result) => formatSurfaceLintResult(result),
 
+    fetchAsset: fetchSurfaceAsset,
     readTextFile: (filePath: string) => fs.readFileSync(filePath, 'utf-8'),
     readBinaryFile: (filePath: string) => fs.readFileSync(filePath),
+    writeBinaryFile: (filePath: string, bytes: Uint8Array) => {
+      fs.mkdirSync(path.dirname(path.resolve(filePath)), { recursive: true });
+      fs.writeFileSync(filePath, bytes);
+    },
     sha256Hex: (bytes: Uint8Array) =>
       createHash('sha256').update(bytes).digest('hex'),
     templates: createTemplateStore(),

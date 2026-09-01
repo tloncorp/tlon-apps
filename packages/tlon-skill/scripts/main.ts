@@ -53,7 +53,7 @@ Commands:
   notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
   posts        Post reactions, edits, deletes (react, unreact, edit, delete)
   settings     OpenClaw settings management (get, set, delete, allow-dm, ...)
-  surface      Dashboard channels (create, templates, lint, publish, event, state, snapshot)
+  surface      Dashboard channels (create, templates, lint, publish, show, event, state, snapshot)
   upload       Upload a file from URL, local path, or stdin
 
 Credential Options (override defaults):

@@ -55,6 +55,10 @@ channel history. If the history cannot be read to its start the command
 fails rather than printing a partial fold — an incomplete fold is wrong
 state, not stale state.
 
+State is what members have PUT in the dashboard. It is not the app: the
+definition, its recipe and its bundle are what \`tlon surface show <channel>\`
+returns, and that is the command to run before revising anything.
+
 Options:
   --max-posts <n>  Stop after this many posts (default 5000)
   --json           Emit a machine-readable result

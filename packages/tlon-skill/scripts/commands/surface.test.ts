@@ -52,6 +52,7 @@ describe('surface dispatcher', () => {
       'templates',
       'lint',
       'publish',
+      'show',
       'event',
       'state',
       'snapshot',

@@ -162,6 +162,18 @@ export class FakeShip {
   readonly posts = new Map<string, FakePost[]>();
   readonly uploads: { fileName: string; bytes: Uint8Array }[] = [];
   readonly files = new Map<string, string>();
+  /**
+   * The bucket, as a URL → bytes map, kept SEPARATE from the spec that
+   * points at it.
+   *
+   * That separation is the whole point: real storage can serve bytes that
+   * do not hash to what a channel's definition pins, and a double that
+   * derived the served bytes from the spec could not express that case at
+   * all — the tamper test would be asserting against a fixture that cannot
+   * be wrong. `serveAsset` writes here; `tamperAsset` overwrites a key the
+   * way a second PUT does.
+   */
+  readonly assets = new Map<string, string>();
   readonly createPokes: SurfaceCreateChannelPoke[] = [];
   readonly descriptionWrites: {
     groupId: string;
@@ -265,6 +277,29 @@ export class FakeShip {
       return;
     }
     throw new Error(`no fake channel ${channelId}`);
+  }
+
+  /** Puts bytes at a storage URL, and returns the URL. */
+  serveAsset(url: string, content: string): string {
+    this.assets.set(url, content);
+    return url;
+  }
+
+  /**
+   * Replaces the bytes at a URL that is already serving something.
+   *
+   * The modelled threat, verbatim (the dev store's own note says the same):
+   * whoever holds the bucket can change what is at a key, and cannot thereby
+   * change what a client will run. It throws on an unserved key so a test
+   * cannot "tamper" with storage that was never holding the original — that
+   * would be two arms differing in whether the file exists rather than in
+   * what it contains.
+   */
+  tamperAsset(url: string, content: string): void {
+    if (!this.assets.has(url)) {
+      throw new Error(`nothing is served at ${url} to tamper with`);
+    }
+    this.assets.set(url, content);
   }
 
   channelSpecText(channelId: string): string | null {
@@ -567,6 +602,27 @@ export function createTestSurfaceDeps(
     lint: (input) => lintSurfaceBundle(input),
     formatLint: (result) => formatSurfaceLintResult(result),
 
+    // Storage, serving whatever `ship.assets` currently holds — which is not
+    // required to agree with the spec that points at it. A double that
+    // rebuilt the bytes from the spec could never express the tampered case,
+    // and a verification test whose double cannot express the defect is
+    // bounded by the double rather than by the code.
+    //
+    // It deliberately does NOT enforce `maxBytes`. A hostile bucket does not
+    // enforce it either — that is the whole point of the cap — so a double
+    // that refused an over-cap body here would be standing in for the
+    // caller's check and would make the caller's check untestable.
+    fetchAsset: async ({ url }) => {
+      const content = ship.assets.get(url);
+      if (content === undefined) {
+        return {
+          ok: false,
+          reason: 'fetch-failed',
+          detail: `nothing is served at ${url}`,
+        };
+      }
+      return { ok: true, bytes: new TextEncoder().encode(content) };
+    },
     readTextFile: (filePath) => {
       const text = ship.files.get(filePath);
       if (text === undefined) throw new Error(`ENOENT: ${filePath}`);
@@ -576,6 +632,9 @@ export function createTestSurfaceDeps(
       const text = ship.files.get(filePath);
       if (text === undefined) throw new Error(`ENOENT: ${filePath}`);
       return new TextEncoder().encode(text);
+    },
+    writeBinaryFile: (filePath, bytes) => {
+      ship.files.set(filePath, new TextDecoder().decode(bytes));
     },
     sha256Hex: (bytes) => createHash('sha256').update(bytes).digest('hex'),
     templates: fakeTemplateStore(

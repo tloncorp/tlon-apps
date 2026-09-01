@@ -231,6 +231,7 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'publish',
       'event',
       'state',
+      'show',
       'snapshot',
       'preview',
       'doctrine',
@@ -978,6 +979,7 @@ function summarizeSurfaceOperation(
     case 'snapshot':
       return build('write');
     case 'state':
+    case 'show':
       return build('read');
     default:
       return build('utility');

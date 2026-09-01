@@ -16,6 +16,7 @@ import {
   runSurfaceSnapshot,
   runSurfaceState,
 } from './surface-records';
+import { runSurfaceShow } from './surface-show';
 import { runSurfaceTemplates } from './surface-templates';
 
 export const SURFACE_HELP = `Usage: tlon surface <subcommand> [args...]
@@ -28,6 +29,7 @@ Subcommands:
   templates   Browse the templates shipped with the authoring skill
   lint        Run the publish gate over a bundle and spec
   publish     Gate, upload, and publish an app to a channel
+  show        Read back a channel's published definition, recipe and bundle
   event       Post a host update, or retract one
   state       Hydrate a dashboard and print its reduced state
   snapshot    Post a snapshot, compacting the channel's history
@@ -43,6 +45,10 @@ reading them does not depend on the runtime's skill mechanism:
 Every command that writes confirms by reading the result back and says what
 it observed. A poke that resolves is never treated as a write that landed.
 
+Revising an app starts with "show", not with a fresh generation: it returns
+the definition verbatim — including the recipe the last publish recorded —
+and will fetch and hash-verify the bundle you are about to edit.
+
 Options:
   --json      Available on every subcommand; emits a machine-readable result,
               and on failure a { ok: false, code, message } document
@@ -55,6 +61,7 @@ export const SURFACE_SUBCOMMANDS = [
   'templates',
   'lint',
   'publish',
+  'show',
   'event',
   'state',
   'snapshot',
@@ -122,6 +129,8 @@ export async function run(args: string[], deps: SurfaceDeps): Promise<number> {
         return await runSurfaceLint(rest, deps);
       case 'publish':
         return await runSurfacePublish(rest, deps);
+      case 'show':
+        return await runSurfaceShow(rest, deps);
       case 'event':
         return await runSurfaceEvent(rest, deps);
       case 'state':

@@ -65,6 +65,7 @@ export const SURFACE_ERROR_CODES = [
   'template-not-found',
   'template-catalogue-empty',
   'doctrine-unavailable',
+  'bundle-unavailable',
 ] as const;
 
 export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
@@ -130,6 +131,13 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     // The install does not carry the document the bot asked for: its own
     // files are irrelevant to the failure, and no rewrite of them fixes it.
     'doctrine-unavailable': 'environment',
+    // The bytes a channel's definition points at cannot be had, or cannot be
+    // trusted. Nothing in the caller's working directory is implicated — the
+    // pointer and the hash were written by an earlier publish, and the
+    // storage holding them belongs to somebody else — so regenerating an app
+    // in response is exactly the destructive noise `environment` exists to
+    // prevent.
+    'bundle-unavailable': 'environment',
   };
 
 export class SurfaceError extends CommandError {
@@ -236,6 +244,22 @@ export type SurfaceStoragePreflight =
 export type SurfaceValidation =
   | { ok: true }
   | { ok: false; issues: readonly string[] };
+
+/**
+ * The result of asking storage for a bundle's bytes.
+ *
+ * Total rather than throwing, and the failure reasons are the ones the
+ * CLIENT already distinguishes (`bundleCache.ts`'s `BundleResult`): a
+ * transport failure and an over-cap body are different facts about the
+ * bucket, and a caller that only learns "it did not work" cannot say which.
+ *
+ * `hash-mismatch` is deliberately NOT in this union. Whether bytes match the
+ * hash is not something transport gets an opinion about — it is the one
+ * judgement the caller makes for itself, over the bytes it was handed.
+ */
+export type SurfaceAssetFetch =
+  | { ok: true; bytes: Uint8Array }
+  | { ok: false; reason: 'fetch-failed' | 'oversize'; detail: string };
 
 export interface SurfaceTemplateSummary {
   name: string;
@@ -391,8 +415,22 @@ export interface SurfaceDeps extends CommandDeps {
   /** `formatSurfaceLintResult` — the gate's own rendering, not a copy */
   formatLint(result: SurfaceLintResult): string;
 
+  /**
+   * Reads a bundle back out of storage.
+   *
+   * Injected for the same reason `uploadBundle` is: storage is environment.
+   * It is a plain GET and nothing more — no hashing, no caching, no
+   * judgement about what came back. `maxBytes` lets the transport
+   * short-circuit an over-cap body on its declared length before buffering
+   * it, which is the one protection that cannot live in the caller.
+   */
+  fetchAsset(input: {
+    url: string;
+    maxBytes: number;
+  }): Promise<SurfaceAssetFetch>;
   readTextFile(path: string): string;
   readBinaryFile(path: string): Uint8Array;
+  writeBinaryFile(path: string, bytes: Uint8Array): void;
   sha256Hex(bytes: Uint8Array): string;
   templates: SurfaceTemplateStore;
 }

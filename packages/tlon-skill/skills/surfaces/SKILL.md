@@ -113,8 +113,24 @@ language: "I don't have permission to add channels here yet."
 8. **Announce in chat** — one short message in a real chat channel saying what
    the surface does and where it is. Surface channels are excluded from unread
    badges and activity summaries, so nothing else tells the group it exists.
-9. **Revise on feedback.** "Show who hasn't responded" is a new revision:
-   regenerate, lint, preview, `surface publish` again. Use `--preserve-state`
+9. **Revise on feedback. Read the app back first.**
+   `tlon surface show <channel> --bundle-out app.js --json` returns the
+   definition the channel actually holds — including the `recipe` recording
+   what the app was asked to be — and writes the published bundle to
+   `app.js`, hash-verified against the definition before it lands. **Start
+   every revision there.** You are editing an app that exists; "show who
+   hasn't responded" is a change to that code, not a fresh generation of
+   something adjacent to it. Regenerating from a template throws away every
+   choice the previous rounds made — the wording, the layout, the fixes you
+   already applied — and the user experiences it as the app being replaced.
+
+   The definition it prints is the raw one, so it is also the thing to edit
+   and hand back to `surface publish`: keep the fields you are not changing
+   exactly as they came out. (`surface publish` owns `bundle.*` and
+   `specRevision` regardless of what your file says, so those you may
+   leave.)
+
+   Then: edit, lint, preview, `surface publish` again. Use `--preserve-state`
    whenever the data should survive the change — the command folds the current
    state and posts the migration snapshot in the same command, so on the
    success path the pending window is one command wide. If the command fails
@@ -169,6 +185,19 @@ language: "I don't have permission to add channels here yet."
 
 ## Maintaining a live surface
 
+- `tlon surface show <channel> [--bundle-out <path>]` — read back what the
+  channel publishes: its definition verbatim, its `recipe`, the storage
+  pointer for its bundle, and with `--bundle-out` the bundle source itself.
+  This is the app; `surface state` is what members put in it. The two are
+  different questions and the commands are not interchangeable.
+
+  The definition comes back raw — exactly the bytes the channel holds, not a
+  cleaned-up view of them — because that is what you edit and republish. The
+  bundle is fetched only when you ask, and only bytes matching the sha256 the
+  definition pins are ever written: a mismatch refuses and writes nothing.
+  Take that refusal at face value; it means storage is not serving the app
+  this channel published, and there is no flag that makes it work.
+
 - `tlon surface state <channel>` — read the current folded state before
   reasoning about it; never reconstruct it from memory of past events. It
   refuses rather than printing a partial fold, because a partial fold is wrong
@@ -201,8 +230,12 @@ language: "I don't have permission to add channels here yet."
   the reducer skips edited surface posts), never by publishing a new spec.
   Spec revisions are for UI and action changes.
 - The generation context you publish rides along in the spec (`recipe`). On
-  revision requests, read it back instead of re-deriving intent. It is
-  member-visible: §14 of `tlon surface doctrine` says what may go in it.
+  revision requests, read it back with `tlon surface show <channel>` instead
+  of re-deriving intent — that command is the only thing that returns it, and
+  a definition published without one reports `recipePresent: false` rather
+  than an empty string, so you can tell "no intent recorded" from "intent was
+  nothing". It is member-visible: §14 of `tlon surface doctrine` says what may
+  go in it.
 
 ## When things fail
 
@@ -224,18 +257,19 @@ and is the first thing to read:
   the refusal, and rewriting the app is destructive noise that hides the real
   problem. Do the specific thing the row below names, or stop.
 
-| `code`                                                                            | class       | what to do                                                                                                                  | what the user hears                                                    |
-| --------------------------------------------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `admin-required`, `group-not-found`                                               | environment | stop; nothing to retry                                                                                                      | "I don't have permission to add channels in that group yet."           |
-| `storage-unavailable`, `storage-no-bucket`                                        | environment | stop; the remedy belongs to whoever set the bot up                                                                          | "This node can't host app files yet — storage needs configuring."      |
-| `name-burned`, `name-taken`                                                       | environment | pick another name, or omit `--name` for a random one                                                                        | nothing; just proceed                                                  |
-| `lint-failed`                                                                     | author      | read `details.violations`, fix the earliest, re-lint                                                                        | nothing until it passes                                                |
-| `spec-file-invalid`, `spec-invalid`, `invalid-ops`                                | author      | your own file or ops are wrong; fix and retry                                                                               | nothing                                                                |
-| `surface-id-changed`                                                              | author      | almost always your bug — fix the spec, do not pass the override                                                             | nothing                                                                |
-| `migration-pending`                                                               | environment | run `tlon surface snapshot <channel>` — that posts the missing snapshot; if it refuses too, stop and say the board is stuck | nothing, unless the repair also refuses                                |
-| `state-too-large`                                                                 | environment | the board holds more than a snapshot can carry; prune it with a host event, then retry. **Do not touch the app files**      | "That board has more in it than I can save in one go — let's trim it." |
-| `partial-hydration`                                                               | environment | do not report state or snapshot; retry, then report the channel unreadable                                                  | "I couldn't read the whole history of that board just now."            |
-| `create-unconfirmed`, `publish-unconfirmed`, `post-unconfirmed`, `kind-tail-lost` | environment | the write is **not** confirmed — do not claim it landed                                                                     | "That didn't go through — let me try again."                           |
+| `code`                                                                            | class       | what to do                                                                                                                                                                                                                                                                | what the user hears                                                    |
+| --------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `admin-required`, `group-not-found`                                               | environment | stop; nothing to retry                                                                                                                                                                                                                                                    | "I don't have permission to add channels in that group yet."           |
+| `storage-unavailable`, `storage-no-bucket`                                        | environment | stop; the remedy belongs to whoever set the bot up                                                                                                                                                                                                                        | "This node can't host app files yet — storage needs configuring."      |
+| `name-burned`, `name-taken`                                                       | environment | pick another name, or omit `--name` for a random one                                                                                                                                                                                                                      | nothing; just proceed                                                  |
+| `lint-failed`                                                                     | author      | read `details.violations`, fix the earliest, re-lint                                                                                                                                                                                                                      | nothing until it passes                                                |
+| `spec-file-invalid`, `spec-invalid`, `invalid-ops`                                | author      | your own file or ops are wrong; fix and retry                                                                                                                                                                                                                             | nothing                                                                |
+| `surface-id-changed`                                                              | author      | almost always your bug — fix the spec, do not pass the override                                                                                                                                                                                                           | nothing                                                                |
+| `migration-pending`                                                               | environment | run `tlon surface snapshot <channel>` — that posts the missing snapshot; if it refuses too, stop and say the board is stuck                                                                                                                                               | nothing, unless the repair also refuses                                |
+| `state-too-large`                                                                 | environment | the board holds more than a snapshot can carry; prune it with a host event, then retry. **Do not touch the app files**                                                                                                                                                    | "That board has more in it than I can save in one go — let's trim it." |
+| `partial-hydration`                                                               | environment | do not report state or snapshot; retry, then report the channel unreadable                                                                                                                                                                                                | "I couldn't read the whole history of that board just now."            |
+| `bundle-unavailable`                                                              | environment | the definition read back fine; only its bundle did not. On `details.reason` of `hash-mismatch` or `unsupported-scheme`, stop — there is nothing to retry and the bytes are not the app. On `fetch-failed`, retry once. **Never revise from a regenerated bundle instead** | "I can read that app's setup but not its code right now."              |
+| `create-unconfirmed`, `publish-unconfirmed`, `post-unconfirmed`, `kind-tail-lost` | environment | the write is **not** confirmed — do not claim it landed                                                                                                                                                                                                                   | "That didn't go through — let me try again."                           |
 
 - **Never work around a gate rule.** They are load-bearing: a bundle that dodges
   the gate can still never gain capabilities, it just gets worse.

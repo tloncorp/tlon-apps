@@ -196,6 +196,45 @@ for (const command of HOSTILE_HELP_COMMANDS) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Discoverability, in the ARTIFACT                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `surface show` is discoverable from the compiled binary, without
+ * credentials.
+ *
+ * A subcommand that exists in the dispatcher and is named nowhere a reader
+ * looks is the defect this command was written to close, one level up: the
+ * skill told a reviser to read its `recipe` back for four sessions while no
+ * command returned one. A unit test over `SURFACE_SUBCOMMANDS` proves the
+ * switch has an arm; it does not prove anybody can find it. These two cases
+ * are the finding path — the group's usage, and the command's own help —
+ * asserted against the artifact that actually ships.
+ */
+assertCase({
+  name: 'surface usage lists show',
+  args: ['surface'],
+  expectedExitCode: 0,
+  stderr: '',
+  stdoutIncludes: [
+    'show        Read back a channel',
+    'Revising an app starts with "show"',
+  ],
+});
+
+assertCase({
+  name: 'surface show --help explains itself without a ship',
+  args: ['surface', 'show', '--help'],
+  expectedExitCode: 0,
+  stderr: '',
+  stdoutIncludes: [
+    'Usage: tlon surface show <channel>',
+    '--bundle-out <path>',
+    'sha256 the definition pins',
+  ],
+});
+
+/* ------------------------------------------------------------------ */
 /* The skill's documents, served by the COMPILED binary                */
 /* ------------------------------------------------------------------ */
 
