@@ -361,7 +361,9 @@ describe('Buckets runtime hardening', () => {
     mockedRequestBucketsUpload.impl = async () => {
       throw new Error('The Bucket host rejected this actor');
     };
-    globalThis.fetch = (async (input) => {
+    // Annotated, because a body that only throws infers Promise<never>, which
+    // does not overlap typeof fetch well enough for the assertion.
+    globalThis.fetch = (async (input): Promise<Response> => {
       throw new Error(`Unexpected fetch: ${String(input)}`);
     }) as typeof fetch;
 
