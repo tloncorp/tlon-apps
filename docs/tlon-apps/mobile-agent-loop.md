@@ -113,6 +113,35 @@ artifact the build did not produce. Clear the output directory and build again:
 rm -rf apps/tlon-mobile/android/app/build/outputs/apk
 ```
 
+A phone plugged into the machine is a second adb target, and a bare `adb`
+command fails or, worse, reaches the phone. Name the emulator for every adb
+call in a loop that also has hardware attached:
+
+```bash
+export ANDROID_SERIAL=emulator-5556   # `stim android` prints the serial it used
+```
+
+## Driving the UI
+
+`stim ios` and `stim android` install, launch and verify the app, so the loop
+needs no device tool. A task that taps, types or reads the view hierarchy uses
+`agent-device`, which picks a booted device on its own. This repository usually
+has both an iOS simulator and an Android emulator booted, so name the target
+and keep it in its own session, or the commands land on the wrong platform:
+
+```bash
+agent-device snapshot --platform android --device stim-<label>-tlon-mobile --session <name>
+agent-device click @e12 --session <name>
+```
+
+A session stays bound to the device it first selected. `agent-device close
+--session <name>` releases it.
+
+Some flows need a signed-in app. `.env.local` carries `DEFAULT_SHIP_LOGIN_URL`
+and `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, and the "Have an account? Log in" ->
+"Or configure self hosted" screen arrives with both fields already filled, so
+the sign-in is one tap on `Connect`.
+
 ## Repository facts worth knowing
 
 - **Node comes from `.nvmrc`** (22.22.0). Other versions fail to build
@@ -129,6 +158,17 @@ rm -rf apps/tlon-mobile/android/app/build/outputs/apk
   used whether this one is on or off.
 - **`tailwind.json` and `tailwind.css`** in `apps/tlon-mobile` are stale
   leftovers. Nothing in the app reads them, and a worktree without them builds.
+- **Expo modules ship as prebuilt Android artifacts.** `./gradlew projects`
+  marks them `[📦]`. Editing or patching the Kotlin under
+  `node_modules/expo-*/android` changes nothing, and the build stays green, so
+  the edit looks applied until you unzip the APK and find it absent. To change
+  one, name it in `expo.autolinking.buildFromSource` in
+  `apps/tlon-mobile/package.json` first, which makes gradle compile that module
+  from source.
+- **A native `Podfile.lock` diff after `pod install` is the hermes checksum**
+  on react-native 0.86.0, which embeds the absolute checkout path. Do not
+  commit it. react-native 0.86.3 carries the upstream fix that makes the
+  checksum path-independent.
 
 ## What the loop costs
 
