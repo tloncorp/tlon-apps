@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y git curl gettext-base unzip && apt-get 
 RUN npm install -g pnpm@11.9.0
 
 # Install OpenClaw globally
-RUN npm install -g openclaw@2026.8.1
+RUN npm install -g openclaw@2026.8.2
 
 # Install the Brave web-search plugin used when BRAVE_API_KEY is present.
 # Mirrors the test image and production (tlonbot entrypoint); the install
