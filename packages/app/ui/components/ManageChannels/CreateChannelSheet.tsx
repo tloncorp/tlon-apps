@@ -43,7 +43,7 @@ function buildChannelTypes(
   };
   const gallery: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Gallery',
-    subtitle: 'Gather, connect, and arrange rich media',
+    subtitle: 'Gather and arrange rich media',
     value: 'gallery',
     icon: 'ChannelGalleries',
   };

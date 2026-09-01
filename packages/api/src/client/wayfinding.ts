@@ -147,7 +147,7 @@ export function generatePersonalGroupTitle(contact: {
   id: string;
   nickname?: string | null;
 }) {
-  const displayName = contact.nickname || contact.id;
+  const displayName = contact.nickname?.trim() || contact.id;
   return `${displayName}'s Group`;
 }
 
@@ -155,6 +155,6 @@ export function generateBotHomeGroupTitle(contact: {
   id: string;
   nickname?: string | null;
 }) {
-  const displayName = contact.nickname || contact.id;
+  const displayName = contact.nickname?.trim() || contact.id;
   return `${displayName}'s Group`;
 }
