@@ -29,12 +29,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BucketItem, BucketUploadCandidate } from '../../ui';
 import { calculateBucketUploadProgress } from '../../utils/bucketUploadProgress';
 import { deletePrivateBucketFiles } from './bucketDeletion';
-import {} from './bucketUploadReconciliation';
 import {
   clearUploadCancelled,
+  clearUploadRunning,
   forgetUpload,
   isUploadCancelled,
   markUploadCancelled,
+  markUploadRunning,
   rememberUploadSource,
   trackUploadTask,
   uploadSource,
@@ -155,11 +156,12 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
 
   // Retire any local row the manifest has caught up with.
   //
-  // Keyed off the snapshot rather than off an entry-created fact, because a
-  // fact is only one of the ways an entry becomes visible: a revision gap
-  // refreshes instead, and a replacement snapshot arrives whole. Matching the
-  // fact alone left the row standing in exactly those cases, and a row holding
-  // a published serverEntryId hides the real file and makes Retry delete it.
+  // Keyed off the manifest as read, rather than off an entry-created fact,
+  // because a fact is only one of the ways an entry becomes visible: a
+  // replacement snapshot arrives whole, and reconnecting resubscribes and
+  // takes one. Matching the fact alone left the row standing in those cases,
+  // and a row holding a published serverEntryId hides the real file and arms
+  // Retry to delete it.
   // Once a batch has nothing left to do, its finished rows have served their
   // purpose -- they were kept only so the aggregate bar's denominator did not
   // shrink under it. Without this they accumulate for good, and every past
@@ -210,6 +212,9 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       const candidate = uploadSource(id);
       if (!upload || !candidate) return;
+      // Declared before the first await: from here until this returns, a
+      // cancellation has to survive the row it was made against.
+      markUploadRunning(id);
       const parentId = upload.parentId;
       let sessionId: string | undefined;
       let serverEntryId: number | undefined;
@@ -221,8 +226,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         }
         const mimeType = candidate.mimeType ?? 'application/octet-stream';
 
+        // null, not undefined: an update set drops undefined keys, so
+        // clearing a column with one leaves the old value in place. A retry
+        // would keep showing the error that failed it.
         updateLocalUpload(id, {
-          error: undefined,
+          error: null,
           progress: 1,
           state: 'uploading',
         });
@@ -260,7 +268,18 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         });
         sessionId = grant.session;
         serverEntryId = grant.entryId;
-        updateLocalUpload(id, { progress: 5, serverEntryId, sessionId });
+        // The request id has done its work: the answer it was minted to
+        // recover is in hand. Keeping it would arm Retry to re-ask under an
+        // id the host has already answered, replaying this grant for a
+        // session the catch below is about to cancel -- so the bytes would go
+        // to a stale URL and finish-upload would refuse the dead session.
+        // Everything after this point is recovered by beginning again.
+        updateLocalUpload(id, {
+          openRequestId: null,
+          progress: 5,
+          serverEntryId,
+          sessionId,
+        });
 
         if (isUploadCancelled(id)) {
           throw new Error('Upload cancelled');
@@ -291,8 +310,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         brokerCompleted = true;
         updateLocalUpload(id, { progress: 100 });
         // Nothing further here on purpose. The host broadcasts the published
-        // entry and reconcileUploads retires this row once it arrives, with
-        // the revision-gap path covering a fact we miss.
+        // entry, sync writes it, and the effect above retires this row when it
+        // reads it -- from the fact, or from the snapshot a reconnect takes.
         //
         // Refreshing was the one thing that could throw after the upload had
         // genuinely succeeded, and the catch then marked the row failed while
@@ -309,7 +328,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // would replay that refusal on every Retry until the record is swept,
         // even once whatever caused it has been put right.
         if (cause instanceof BucketsActionFailed) {
-          updateLocalUpload(id, { openRequestId: undefined });
+          updateLocalUpload(id, { openRequestId: null });
         }
         // One cancel, not two. The host releases the storage reservation as
         // part of this -- previously that was a second call from here, made
@@ -339,6 +358,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
             state: 'failed',
           });
         }
+      } finally {
+        clearUploadRunning(id);
       }
     },
     [flag, updateLocalUpload]
@@ -536,6 +557,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           }),
         deleteObject: deleteBucketObject,
         isAlreadyDeleted: isBucketObjectAlreadyDeleted,
+        isMissingEntry: (cause) =>
+          cause instanceof BucketsActionFailed && cause.type === 'not-found',
         issueDelete: async (entryId) => {
           const issued = await requestBucketsGrant({
             type: 'issue-delete',

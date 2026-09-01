@@ -284,34 +284,18 @@ export async function requestBucketReadToken(
 }
 
 /**
- * Listeners on the one %buckets subscription.
+ * The one %buckets subscription, opened where every other agent's is.
  *
- * One firehose for the whole app, the way every other agent is subscribed:
- * opened on the first listener and never closed. Panes come and go, so they
- * register here rather than each opening their own -- which meant two
+ * Sync reduces what arrives here into the database and panes read it back, so
+ * there is one consumer rather than one per mount -- which is what a pane
+ * opening its own subscription and reducing privately cost us: two
  * subscriptions to the same path, and a per-mount unsubscribe racing the
- * replacement id Airlock allocates when a subscription is kicked. Nothing
- * left to race: there is no unsubscribe.
+ * replacement id Airlock allocates when a subscription is kicked. Neither the
+ * fan-out nor the disposal survived that change; holding either in a module
+ * variable would outlive the client it was opened on.
  */
-const bucketListeners = new Set<(response: BucketsResponse) => void>();
-let bucketFirehose: Promise<unknown> | null = null;
-
-export async function subscribeToBuckets(
+export function subscribeToBuckets(
   handler: (response: BucketsResponse) => void
 ) {
-  bucketListeners.add(handler);
-  bucketFirehose ??= subscribe<BucketsResponse>(
-    { app: BUCKETS_APP, path: '/v1' },
-    (response) => {
-      // Copied, so a listener removing itself mid-delivery cannot disturb
-      // the iteration.
-      for (const listener of [...bucketListeners]) listener(response);
-    }
-  );
-  await bucketFirehose;
-
-  return () => {
-    bucketListeners.delete(handler);
-    return Promise.resolve();
-  };
+  return subscribe<BucketsResponse>({ app: BUCKETS_APP, path: '/v1' }, handler);
 }
