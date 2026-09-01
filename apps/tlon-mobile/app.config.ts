@@ -24,8 +24,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   runtimeVersion: {
     policy: 'fingerprint',
   },
-  buildCacheProvider:
-    process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
   experiments: {
     reactCompiler: true,
   },
