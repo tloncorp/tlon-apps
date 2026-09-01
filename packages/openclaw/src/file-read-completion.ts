@@ -84,6 +84,8 @@ const EMPTY_RESULT_ACKNOWLEDGMENT =
   /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was|are|were)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
   /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
+const GERUND_RESULT_SUBJECT =
+  /^(?:opening|reading|loading|checking|inspecting|fetching|analyzing|summari[sz]ing|reviewing|processing|parsing|scanning|pasting|displaying|showing|printing)\b(?:\s+[\p{L}\p{N}_.-]+){0,5}\s+(?:is|are|was|were|has|have|had|took|takes|will|would|can|could)\b/iu;
 const TRUNCATION_MARKER =
   /^\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/im;
 
@@ -355,7 +357,8 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
     !hasVisibleResultSentence;
   return (
     (PROGRESS_ONLY.test(progressCandidate) &&
-      !SUBSTANTIVE_PROGRESS_TAIL.test(progressCandidate)) ||
+      !SUBSTANTIVE_PROGRESS_TAIL.test(progressCandidate) &&
+      !GERUND_RESULT_SUBJECT.test(progressCandidate)) ||
     completionOnly ||
     isEmptyDeliveryClaim(normalized)
   );

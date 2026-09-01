@@ -86,6 +86,8 @@ describe('file read completion guard', () => {
     'The CSV contains 31 daily rows and peaks on August 20.',
     'Reading the file, I found 31 rows and a peak on August 20.',
     "I've read the file and found 31 rows with an August 20 peak.",
+    'Reading level is grade 5.',
+    'Processing took 12 seconds.',
     `${CSV}\n`,
     'I could not read the file because permission was denied.',
   ])('does not flag a substantive final reply: %s', (reply) => {
