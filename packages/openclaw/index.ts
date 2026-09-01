@@ -1219,7 +1219,7 @@ export default defineBundledChannelEntry({
         logger: api.logger,
         telemetrySource: 'after_tool_call',
         sourceEventName: event.toolName,
-        sessionKey: event.sessionKey ?? ctx.sessionKey,
+        sessionKey: ctx.sessionKey,
         run: () => {
           if (tlonCommandContext) {
             emitDiagnosticEvent({
@@ -1550,7 +1550,7 @@ export default defineBundledChannelEntry({
       const revision = fileReadCompletion.beforeFinalize({
         runId: event.runId ?? ctx.runId,
         lastAssistantMessage: event.lastAssistantMessage,
-        sessionKey: ctx.sessionKey,
+        sessionKey: event.sessionKey ?? ctx.sessionKey,
       });
       if (revision) {
         api.logger.warn(
