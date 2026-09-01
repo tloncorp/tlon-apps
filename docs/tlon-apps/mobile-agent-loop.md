@@ -182,10 +182,10 @@ revival, or bot config.
   one, name it in `expo.autolinking.buildFromSource` in
   `apps/tlon-mobile/package.json` first, which makes gradle compile that module
   from source.
-- **A native `Podfile.lock` diff after `pod install` is the hermes checksum**
-  on react-native 0.86.0, which embeds the absolute checkout path. Do not
-  commit it. react-native 0.86.3 carries the upstream fix that makes the
-  checksum path-independent.
+- **`pod install` leaves `Podfile.lock` clean.** react-native 0.86.3 resolves
+  hermesc through `$(PODS_ROOT)`, so the checksum no longer embeds the checkout
+  path and every checkout fingerprints the same. A hermes checksum diff after
+  `pod install` means the version moved back.
 
 ## What the loop costs
 
