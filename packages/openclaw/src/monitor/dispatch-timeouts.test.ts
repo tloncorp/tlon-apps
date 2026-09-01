@@ -21,6 +21,32 @@ describe('dispatch timeout observation', () => {
     ).toBe(300_000);
   });
 
+  /**
+   * The case above passes the value in, so it never saw the default. That gap
+   * is how the default sat at 120_000 while the deployed value was 300_000:
+   * every consumer that omits the key — the dev container among them — got
+   * less than half the budget a hosted bot gets, and no test disagreed.
+   *
+   * The number is tlonbot `entrypoint/tlawn.py`'s DEFAULT_TLON_RUN_TIMEOUT_MS.
+   * This pin cannot observe that file; it only makes changing our side
+   * deliberate and says where the other side lives.
+   */
+  it('falls back to the deployed run timeout when the key is absent', () => {
+    expect(
+      resolveDispatchTimeoutMs({ runTimeoutMs: null, toolTimeoutMs: null })
+    ).toBe(300_000);
+    expect(
+      resolveDispatchTimeoutMs({
+        runTimeoutMs: undefined,
+        toolTimeoutMs: null,
+      } as unknown as Parameters<typeof resolveDispatchTimeoutMs>[0])
+    ).toBe(300_000);
+    // and a value too small to be meant is treated as absent, not honoured
+    expect(
+      resolveDispatchTimeoutMs({ runTimeoutMs: 500, toolTimeoutMs: null })
+    ).toBe(300_000);
+  });
+
   it('reads OpenClaw compaction timeoutSeconds with its deployed default', () => {
     expect(
       resolveCompactionObservationTimeoutMs({
