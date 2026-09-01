@@ -58,7 +58,10 @@ import {
   type SurfaceLintRule,
   lintSurfaceBundle,
 } from '../../tlon-skill/scripts/surface-lint';
-import { validateRubricArtifact } from '../../tlon-skill/scripts/surface-rubric-artifact';
+import {
+  REACHABILITY_CITED_CHECK,
+  validateRubricArtifact,
+} from '../../tlon-skill/scripts/surface-rubric-artifact';
 
 /**
  * The gate's rules, split into the two questions the scoreboard asks
@@ -282,7 +285,70 @@ function main(): void {
           ? (raw as { bundleSha256: string }).bundleSha256
           : null;
       const identical = declared === bundleSha256;
-      const problems = validation.ok ? [] : validation.problems;
+
+      // A sheet recorded before part of the artifact's SHAPE existed is NOT an
+      // author error, and must not be scored as one.
+      //
+      // This probe reads past runs; it does not gate a write. `surface publish`
+      // refuses such a sheet, correctly and with no lenient path, because there
+      // the sheet is a claim about what somebody looked at before something
+      // lands. Here the run already happened, the recording is the evidence,
+      // and re-scoring it under a rule that did not exist would put a
+      // fabricated author-error on the scoreboard — the same failure as the
+      // smoke-render case above, where a tooling problem was nearly recorded as
+      // a bad app.
+      //
+      // So: reader, not gate. Do NOT "fix" this into strictness to match
+      // publish; the two are answering different questions about the same file.
+      // `surfaces-score.mjs` needs no copy of this rule — it spawns this probe
+      // and reads the verdict below, so the tolerance is single-sourced here by
+      // construction rather than by discipline.
+      //
+      // The list GROWS as the artifact grows. Every field added to
+      // `RubricArtifact` since these recordings were made belongs here, or the
+      // next one silently turns four historical sheets into four fabricated
+      // failures — which is exactly how this was found the second time.
+      const PRE_BINDING_FIELDS = [
+        'specSha256',
+        'stateSource',
+        'stateSha256',
+      ] as const;
+      const missingBindings: string[] = PRE_BINDING_FIELDS.filter(
+        (field) => (raw as Record<string, unknown>)?.[field] === undefined
+      );
+      // Check 7's `reachability` citation is the same class one level in: it
+      // lives on a check entry rather than at the top level, so absence is read
+      // there. Only when the entry EXISTS and lacks the line — a sheet missing
+      // check 7 altogether is genuinely incomplete and keeps failing.
+      const scoredChecks = (raw as { checks?: unknown })?.checks;
+      const citedCheck =
+        typeof scoredChecks === 'object' &&
+        scoredChecks !== null &&
+        !Array.isArray(scoredChecks)
+          ? (scoredChecks as Record<string, unknown>)[REACHABILITY_CITED_CHECK]
+          : undefined;
+      if (
+        typeof citedCheck === 'object' &&
+        citedCheck !== null &&
+        !Array.isArray(citedCheck) &&
+        (citedCheck as Record<string, unknown>).reachability === undefined
+      ) {
+        missingBindings.push('reachability');
+      }
+      const predatesBindings = missingBindings.length > 0;
+      // Only the complaints about the fields this sheet is older than are set
+      // aside. A sheet that ALSO left three cells blank is still incomplete,
+      // and says so — the tolerance is scoped to the shape change, not to the
+      // scoring. Every one of the validator's messages names its field in
+      // double quotes, which is what makes this match narrow rather than a
+      // substring guess.
+      const validationProblems = (
+        validation.ok ? [] : validation.problems
+      ).filter(
+        (problem) =>
+          !missingBindings.some((field) => problem.includes(`"${field}"`))
+      );
+      const problems = [...validationProblems];
       if (!identical) {
         problems.push(
           `the sheet scores bundle ${declared ?? '(none declared)'} but the run's bundle is ${bundleSha256}`
@@ -291,12 +357,23 @@ function main(): void {
       rubric = {
         present: true,
         verdict: problems.length === 0 ? 'pass' : 'fail',
-        code: validation.ok
-          ? identical
-            ? null
-            : 'rubric-mismatch'
-          : validation.code,
+        code:
+          validationProblems.length > 0
+            ? validation.code
+            : identical
+              ? null
+              : 'rubric-mismatch',
+        // `surfaces-score.mjs` renders this as the rubric axis's detail line,
+        // so dropping it leaves a failing axis with nothing said about why.
         problems,
+        // Said plainly rather than left to be inferred from a silence: this
+        // sheet is older than part of the artifact's shape.
+        ...(predatesBindings
+          ? {
+              predatesBindings: missingBindings,
+              note: `this sheet was recorded before ${missingBindings.join(', ')} joined the rubric artifact; those fields are not scored against it`,
+            }
+          : {}),
         declaredBundleSha256: declared,
         // The screenshot scoring itself: reported, never adjudicated by this
         // probe. It is a judgement somebody made while looking at twelve

@@ -10,17 +10,24 @@ import { describe, expect, it } from 'bun:test';
 import { canonicalJson } from '../surface-canonical-json';
 import { COMPLIANT_FIXTURE } from '../surface-lint-fixtures';
 import {
+  REACHABILITY_CITED_CHECK,
   RUBRIC_CELL_IDS,
   RUBRIC_CHECKS,
   UNCONDITIONAL_RUBRIC_CHECKS,
   applicableRubricChecks,
+  reachabilityCitation,
+  surfaceCanonicalHash,
 } from '../surface-rubric-artifact';
 import {
   type FakeShipOptions,
   createTestSurfaceDeps,
 } from '../surface-test-doubles';
 import type { SurfaceWriteScope } from '../surface-write-scope';
-import { buildForkProvenance, deriveForkSpec } from './surface-fork';
+import {
+  buildForkProvenance,
+  deriveForkSpec,
+  pendingAssetRef,
+} from './surface-fork';
 import { run } from './surface';
 
 const { SurfaceSpecSchema } = surfaceSchemasModule as Pick<
@@ -98,6 +105,11 @@ function bundleHash(harness: ReturnType<typeof createTestSurfaceDeps>): string {
 function completedRubric(input: {
   surfaceId: string;
   bundleSha256: string;
+  specSha256: string;
+  /** the starting point a plain preview run would have opened on */
+  initialState?: unknown;
+  /** the state a `--state` run substituted, when standing in for one */
+  stateOverride?: unknown;
   checks?: readonly { id: string; number: number; title: string }[];
 }) {
   const cells: Record<string, string> = {};
@@ -110,15 +122,77 @@ function completedRubric(input: {
       verdict: 'pass',
       cell: RUBRIC_CELL_IDS[0],
       note: `check ${check.number} scored here: ${check.title}`,
+      // Check 7 carries preview's reachability line as well as the note, and
+      // the validator requires it there. Built through `reachabilityCitation`
+      // rather than hand-written, so this fixture cannot satisfy a marker rule
+      // the real template writer would fail.
+      ...(check.id === REACHABILITY_CITED_CHECK
+        ? {
+            reachability: reachabilityCitation({
+              closed: true,
+              nodeCount: 4,
+              truncatedBy: [],
+              shortfalls: [],
+              findings: [],
+            }),
+          }
+        : {}),
     };
   }
+  const overridden = input.stateOverride !== undefined;
   return {
     version: 1,
     surfaceId: input.surfaceId,
     bundleSha256: input.bundleSha256,
+    specSha256: input.specSha256,
+    stateSource: overridden ? 'override' : 'spec-initial-state',
+    stateSha256: surfaceCanonicalHash(
+      overridden ? input.stateOverride : input.initialState
+    ),
     cells,
     checks,
   };
+}
+
+/**
+ * The definition the landing pass will derive, computed here the way the
+ * staging pass computes it — which is what `surface preview` renders and what
+ * the sheet is therefore scored under.
+ *
+ * `deriveForkSpec` is a pure function of the source's raw cell, the fork's id,
+ * the fetched bundle's length and the provenance claim, so "the staged spec"
+ * and "the spec fork lands" are the same document whenever nothing moved
+ * between the two runs. Calling the real derivation rather than hand-writing
+ * the expected object is what keeps this fixture honest: a change to what a
+ * fork carries moves both ends at once.
+ */
+function forkSpecHash(
+  sourceRaw: Record<string, unknown>,
+  overrides: {
+    surfaceId?: string;
+    channel?: string | null;
+    /** length of the bytes the fork will host, when not the fixture's */
+    size?: number;
+  } = {}
+): string {
+  const bytes = new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource);
+  const sourceBundle = sourceRaw.bundle as Record<string, unknown> | undefined;
+  const sha256 = String(sourceBundle?.sha256 ?? '');
+  return surfaceCanonicalHash(
+    deriveForkSpec({
+      sourceRaw,
+      surfaceId: overrides.surfaceId ?? FORK_ID,
+      assetRef: pendingAssetRef(sha256),
+      size: overrides.size ?? bytes.byteLength,
+      provenance: buildForkProvenance({
+        surfaceId: String(sourceRaw.surfaceId),
+        specRevision: Number(sourceRaw.specRevision),
+        sha256,
+        channel: overrides.channel ?? null,
+        mode: 'copy',
+      }),
+    })
+  );
 }
 
 interface SetupOptions extends FakeShipOptions {
@@ -130,6 +204,10 @@ interface SetupOptions extends FakeShipOptions {
   rubricSurfaceId?: string;
   /** the hash the rubric is scored for; defaults to the served bundle's */
   rubricSha256?: string;
+  /** the spec hash the rubric is scored for; defaults to the fork's own */
+  rubricSpecSha256?: string;
+  /** the state a `--state` preview run substituted before the sheet was filled in */
+  rubricStateOverride?: unknown;
   rubricChecks?: readonly { id: string; number: number; title: string }[];
 }
 
@@ -170,6 +248,19 @@ function setup(options: SetupOptions = {}) {
       completedRubric({
         surfaceId: options.rubricSurfaceId ?? FORK_ID,
         bundleSha256: options.rubricSha256 ?? sha256,
+        // Scored under the definition the staging pass wrote and preview
+        // rendered. A source with no definition has no fork spec to score, so
+        // a placeholder stands in — those tests refuse long before the sheet
+        // is read.
+        specSha256:
+          options.rubricSpecSha256 ??
+          (spec === null ? '0'.repeat(64) : forkSpecHash(spec)),
+        // A fork opens on the copied definition's own starting point; state
+        // never travels.
+        initialState: spec === null ? undefined : spec.initialState,
+        ...(options.rubricStateOverride === undefined
+          ? {}
+          : { stateOverride: options.rubricStateOverride }),
         checks: options.rubricChecks,
       }),
       null,
@@ -513,6 +604,200 @@ describe('surface fork — landing the copy', () => {
     expect(harness.ship.uploads).toHaveLength(0);
   });
 
+  /**
+   * The staging pass and the landing pass are two commands with a human's
+   * scoring in between, and the source can move between them.
+   *
+   * A source that republishes a SPEC-only revision — same bundle, same hash —
+   * changes what the fork derives without changing a byte the sheet's bundle
+   * hash names. The sheet was scored on renders of the older definition, so it
+   * is not a sheet for this copy. Both arms are the same setup and the same
+   * republish; only the re-scoring differs.
+   */
+  it("refuses when the source's SPEC moved but its bundle did not", async () => {
+    const harness = setup();
+    const sha256 = bundleHash(harness);
+    const bytes = new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource);
+    const bundle = {
+      assetRef: SOURCE_ASSET,
+      sha256,
+      size: bytes.byteLength,
+      shellVersion: 1,
+    };
+    // A spec-only revision at the source: one string, no new bytes.
+    harness.ship.setChannelSpec(
+      SOURCE_CHANNEL,
+      sourceSpec({ bundle, title: 'Potluck, renamed by the source' })
+    );
+
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    // The sheet still names the bytes this fork will host, so the bundle half
+    // of the binding is satisfied and cannot be what refuses below.
+    expect(sheet.bundleSha256).toBe(sha256);
+
+    expect(await fork(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-mismatch');
+    expect(String(result.message)).toContain('scores a spec hashing to');
+    expect(String(result.message)).toContain('SPEC-only change');
+    expect(String(result.message)).not.toContain('different builds');
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.descriptionWrites).toHaveLength(0);
+  });
+
+  it('forks that same revision once the copy has been re-previewed', async () => {
+    // The positive arm. Without it the refusal above would pass equally
+    // against a binding that refused every sheet ever written.
+    const harness = setup();
+    const bytes = new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource);
+    const republished = sourceSpec({
+      bundle: {
+        assetRef: SOURCE_ASSET,
+        sha256: bundleHash(harness),
+        size: bytes.byteLength,
+        shellVersion: 1,
+      },
+      title: 'Potluck, renamed by the source',
+    });
+    harness.ship.setChannelSpec(SOURCE_CHANNEL, republished);
+    expect(await fork(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-mismatch');
+
+    harness.ship.files.set(
+      RUBRIC_PATH,
+      JSON.stringify(
+        completedRubric({
+          surfaceId: FORK_ID,
+          bundleSha256: bundleHash(harness),
+          specSha256: forkSpecHash(republished),
+          initialState: republished.initialState,
+        })
+      )
+    );
+    expect(await fork(harness)).toBe(0);
+    expect(landedSpec(harness).title).toBe('Potluck, renamed by the source');
+  });
+
+  /**
+   * The discriminator, and why it has to be the undeclared key (D138).
+   *
+   * `title` is declared on `SurfaceSpecSchema`, so the two tests above would
+   * pass just as well against a spec hash taken over the VALIDATED view — they
+   * cannot tell a raw derivation from a re-encoded one. `x-fourth-bite` can:
+   * the schema strips it, so a validated hash is blind to a change confined to
+   * it, and the fork would land a definition carrying data nobody rendered.
+   */
+  it('refuses when only a key the schema strips moved at the source', async () => {
+    const harness = setup();
+    const bytes = new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource);
+    const bundle = {
+      assetRef: SOURCE_ASSET,
+      sha256: bundleHash(harness),
+      size: bytes.byteLength,
+      shellVersion: 1,
+    };
+    const before = sourceSpec({ bundle });
+    const after = sourceSpec({
+      bundle,
+      'x-fourth-bite': { why: 'the source rewrote the undeclared key' },
+    });
+    // Raw, two documents; validated, one. The second assertion is what fails
+    // if the hash is ever moved onto the schema's output.
+    expect(forkSpecHash(after)).not.toBe(forkSpecHash(before));
+    expect(surfaceCanonicalHash(SurfaceSpecSchema.parse(after))).toBe(
+      surfaceCanonicalHash(SurfaceSpecSchema.parse(before))
+    );
+
+    harness.ship.setChannelSpec(SOURCE_CHANNEL, after);
+    expect(await fork(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-mismatch');
+    expect(String(harness.json().message)).toContain('SPEC-only change');
+    expect(harness.ship.descriptionWrites).toHaveLength(0);
+  });
+
+  /**
+   * The state binding at the fork end.
+   *
+   * A fork never carries state — the copy opens on the definition's own
+   * `initialState` in a channel that has no history — so a sheet scored against
+   * the SOURCE's live board (a `surface preview --state` run against
+   * `tlon surface state --json`, which `SKILL.md` names as a thing to do) is a
+   * sheet about screens this copy will not show anyone.
+   */
+  it('refuses a sheet whose captures opened on a substituted state', async () => {
+    const harness = setup({
+      rubricStateOverride: { bringing: { '~ten': "the source's live board" } },
+    });
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    // Bundle and spec both match; only the board the captures opened on does
+    // not, so neither older half of the binding can be what refuses.
+    expect(sheet.bundleSha256).toBe(bundleHash(harness));
+    expect(sheet.stateSource).toBe('override');
+
+    expect(await fork(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-mismatch');
+    const message = String(result.message);
+    expect(message).toContain('captures that opened on a state hashing to');
+    expect(message).toContain('a board this app never opens on');
+    expect(message).not.toContain('different builds');
+    expect(message).not.toContain('SPEC-only change');
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.descriptionWrites).toHaveLength(0);
+  });
+
+  it('forks on a sheet from a run without --state', async () => {
+    // The positive arm, separate: this one never asks for an override at all.
+    const harness = setup();
+    expect(
+      JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string).stateSource
+    ).toBe('spec-initial-state');
+    expect(await fork(harness)).toBe(0);
+    expect(landedSpec(harness).surfaceId).toBe(FORK_ID);
+  });
+
+  it("accepts an override that IS the copied definition's starting point", async () => {
+    // What is compared is the STATE, not the flag. "Refuse any override sheet"
+    // would pass the refusal above and fail here.
+    const harness = setup({
+      rubricStateOverride: (COMPLIANT_FIXTURE.spec as Record<string, unknown>)
+        .initialState,
+    });
+    expect(
+      JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string).stateSource
+    ).toBe('override');
+    expect(await fork(harness)).toBe(0);
+    expect(landedSpec(harness).surfaceId).toBe(FORK_ID);
+  });
+
+  it('refuses a sheet carrying no state provenance', async () => {
+    for (const field of ['stateSource', 'stateSha256']) {
+      const harness = setup();
+      const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+      delete sheet[field];
+      harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet));
+      expect(await fork(harness)).toBe(1);
+      expect(harness.json().code).toBe('rubric-incomplete');
+      expect(JSON.stringify(harness.json().details)).toContain(field);
+      expect(harness.ship.uploads).toHaveLength(0);
+    }
+  });
+
+  it('refuses a sheet carrying no spec hash at all', async () => {
+    // The compatibility decision at the fork end: a sheet written before the
+    // spec binding existed, or one somebody deleted a line out of, looks
+    // exactly like this. Accepting it would make the binding satisfiable by
+    // omission on both commands at once.
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    delete sheet.specSha256;
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet));
+    expect(await fork(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-incomplete');
+    expect(JSON.stringify(harness.json().details)).toContain('specSha256');
+    expect(harness.ship.uploads).toHaveLength(0);
+  });
+
   // The copied `memberInteraction` marker makes check 8 apply to the FORK. A
   // sheet carrying only the seven universal checks is therefore incomplete
   // here even though it would be complete for an app without the marker —
@@ -560,23 +845,23 @@ describe('surface fork — landing the copy', () => {
     // The source's definition is republished to pin the broken bytes, so the
     // fetch verifies and the ONLY thing standing between the copy and the
     // channel is the gate.
-    harness.ship.setChannelSpec(
-      SOURCE_CHANNEL,
-      sourceSpec({
-        bundle: {
-          assetRef: SOURCE_ASSET,
-          sha256: harness.deps.sha256Hex(bytes),
-          size: bytes.byteLength,
-          shellVersion: 1,
-        },
-      })
-    );
+    const republished = sourceSpec({
+      bundle: {
+        assetRef: SOURCE_ASSET,
+        sha256: harness.deps.sha256Hex(bytes),
+        size: bytes.byteLength,
+        shellVersion: 1,
+      },
+    });
+    harness.ship.setChannelSpec(SOURCE_CHANNEL, republished);
     harness.ship.files.set(
       RUBRIC_PATH,
       JSON.stringify(
         completedRubric({
           surfaceId: FORK_ID,
           bundleSha256: harness.deps.sha256Hex(bytes),
+          specSha256: forkSpecHash(republished, { size: bytes.byteLength }),
+          initialState: republished.initialState,
         })
       )
     );
@@ -612,17 +897,29 @@ describe('surface fork — landing the copy', () => {
     });
     // Pin the real bytes now that the harness exists.
     const bytes = new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource);
-    harness.ship.setChannelSpec(
-      SOURCE_CHANNEL,
-      sourceSpec({
-        preserveState: true,
-        bundle: {
-          assetRef: SOURCE_ASSET,
-          sha256: harness.deps.sha256Hex(bytes),
-          size: bytes.byteLength,
-          shellVersion: 1,
-        },
-      })
+    const republished = sourceSpec({
+      preserveState: true,
+      bundle: {
+        assetRef: SOURCE_ASSET,
+        sha256: harness.deps.sha256Hex(bytes),
+        size: bytes.byteLength,
+        shellVersion: 1,
+      },
+    });
+    harness.ship.setChannelSpec(SOURCE_CHANNEL, republished);
+    // The source's definition moved after `setup()` scored the sheet, so the
+    // sheet is re-scored against what the fork will now derive — the same
+    // thing the bot does by re-staging and re-previewing.
+    harness.ship.files.set(
+      RUBRIC_PATH,
+      JSON.stringify(
+        completedRubric({
+          surfaceId: FORK_ID,
+          bundleSha256: harness.deps.sha256Hex(bytes),
+          specSha256: forkSpecHash(republished),
+          initialState: republished.initialState,
+        })
+      )
     );
 
     expect(await fork(harness)).toBe(0);

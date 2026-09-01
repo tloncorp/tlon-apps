@@ -8,12 +8,48 @@ import {
   type PreviewRequest,
 } from '../surface-preview';
 import {
+  SURFACE_TRANSITION_BOUNDS,
+  type ReachabilityReport,
+} from '../surface-transitions';
+import {
   SURFACE_PREVIEW_HELP,
   type SurfacePreviewDeps,
   parseSurfacePreviewArgs,
   run,
   runSurfacePreview,
 } from './surface-preview';
+
+/**
+ * A closed walk that found nothing, as the manifest's default.
+ *
+ * The reachability half of the report has its own suite
+ * (`surface-transitions.test.ts`); what this file checks is that the command
+ * PRINTS it, so the fixture is the quiet case and the loud one is supplied per
+ * test.
+ */
+function reachabilityReport(
+  overrides: Partial<ReachabilityReport> = {}
+): ReachabilityReport {
+  return {
+    bounds: SURFACE_TRANSITION_BOUNDS,
+    nodeCount: 4,
+    edgeCount: 12,
+    depthReached: 1,
+    exhaustive: true,
+    closed: true,
+    truncatedBy: [],
+    shortfalls: [],
+    declaredActions: ['vote-pizza', 'vote-tacos'],
+    reachedActions: ['vote-pizza', 'vote-tacos'],
+    unreachedActions: [],
+    valueDomains: [],
+    pointerOverflow: false,
+    checkpoints: [],
+    findings: [],
+    notChecked: ['whether the states it CAN reach are the ones asked for'],
+    ...overrides,
+  };
+}
 
 function manifest(overrides: Partial<PreviewManifest> = {}): PreviewManifest {
   return {
@@ -29,6 +65,7 @@ function manifest(overrides: Partial<PreviewManifest> = {}): PreviewManifest {
     defects: [],
     unprobedCells: [],
     notChecked: ['whether any copy means anything'],
+    reachability: reachabilityReport(),
     now: Date.UTC(2025, 0, 1, 0, 0, 0),
     timeDisplayRefreshSeconds: null,
     stateSource: 'spec-initial-state' as const,
@@ -383,6 +420,92 @@ describe('surface preview — the machine defect list', () => {
     expect(printed).toContain('Machine-checked defects: none found');
     expect(printed).toContain('It did NOT check:');
     expect(printed).toContain('A clean machine pass is not a clean app.');
+  });
+
+  it('prints a reachability finding in the SAME list, counted with the rest', async () => {
+    // The cell pass and the walk are separate fields in the manifest — one is
+    // per-cell and the other is not — but a model reading stdout has to be
+    // handed one list of repairs, so the count covers both.
+    const { deps, out } = makeDeps({
+      render: async () => ({
+        manifest: manifest({
+          reachability: reachabilityReport({
+            nodeCount: 4096,
+            findings: [
+              {
+                kind: 'mandatory-checkpoint',
+                rubricCheck: 7,
+                key: 'checkpoint:/tasks/*/status:"done"',
+                message:
+                  '"done" at /tasks/*/status is reachable only through "doing", then "blocked"',
+              },
+            ],
+          }),
+        }),
+        manifestPath: '/out/manifest.json',
+        rubricTemplatePath: '/out/rubric.template.json',
+        shots: [],
+        populated: {
+          state: {},
+          invokes: [],
+          hostOps: [],
+          restoredAfterDestructive: false,
+          abortedSequenceNums: [],
+          unchanged: false,
+        },
+      }),
+    });
+    await run(['app.js', 'spec.json'], deps);
+    const printed = out();
+    expect(printed).toContain('Machine-checked defects: 1 found');
+    expect(printed).toContain('[rubric 7: mandatory-checkpoint]');
+    expect(printed).toContain(
+      'seen in: the walk over 4096 reachable screen(s), not in any one capture'
+    );
+  });
+
+  it('prints the walk and its bound even when it found nothing', async () => {
+    // The vacuity guard, again: "no mandatory checkpoint" and "no mandatory
+    // checkpoint was looked for past state 1700" must not print the same.
+    const { deps, out } = makeDeps();
+    await run(['app.js', 'spec.json'], deps);
+    const printed = out();
+    expect(printed).toContain(
+      'Reachability (closed: all 4 reachable screen(s)'
+    );
+    expect(printed).toContain('bounds: 24 presses deep');
+    expect(printed).toContain('This pass did NOT check:');
+  });
+
+  it('says a truncated walk asserted nothing', async () => {
+    const { deps, out } = makeDeps({
+      render: async () => ({
+        manifest: manifest({
+          reachability: reachabilityReport({
+            closed: false,
+            exhaustive: false,
+            nodeCount: 6000,
+            truncatedBy: ['the 6000-state budget ran out'],
+          }),
+        }),
+        manifestPath: '/out/manifest.json',
+        rubricTemplatePath: '/out/rubric.template.json',
+        shots: [],
+        populated: {
+          state: {},
+          invokes: [],
+          hostOps: [],
+          restoredAfterDestructive: false,
+          abortedSequenceNums: [],
+          unchanged: false,
+        },
+      }),
+    });
+    await run(['app.js', 'spec.json'], deps);
+    const printed = out();
+    expect(printed).toContain('TRUNCATED: 6000 screen(s) reached');
+    expect(printed).toContain('stopped because the 6000-state budget ran out');
+    expect(printed).toContain('no defect ASSERTED');
   });
 
   it('distinguishes an unmeasured cell from a clean one', async () => {

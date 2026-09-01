@@ -29,6 +29,11 @@ import {
   groupDefects,
 } from './surface-preview-defects';
 import { buildRubricTemplate } from './surface-rubric-artifact';
+import {
+  type ReachabilityReport,
+  type TransitionBounds,
+  analyzeSurfaceReachability,
+} from './surface-transitions';
 
 /**
  * `surface preview` (plan §9, step 6): render a surface app THE WAY
@@ -1106,6 +1111,16 @@ export interface PreviewRequest {
    * spec's own starting point.
    */
   stateOverride?: JsonObject;
+  /**
+   * Bounds for the reachability walk. The module's own defaults otherwise,
+   * which are sized so a six-card, four-column board closes.
+   *
+   * Exposed so a caller with a very large app can trade time for a closed
+   * answer, and so the tests can force a truncated one. There is no way to turn
+   * the walk OFF: the whole point is that check 7 stops being scored from
+   * stills, and an off switch is where that would quietly go back to happening.
+   */
+  reachabilityBounds?: Partial<TransitionBounds>;
   launcher?: PreviewLauncher;
 }
 
@@ -1174,6 +1189,29 @@ export interface PreviewManifest {
   unprobedCells: { cell: string; problem: string }[];
   /** every check this pass did not make, printed on clean runs too */
   notChecked: string[];
+  /**
+   * What a member can reach by PRESSING things (`surface-transitions.ts`).
+   *
+   * **A SIBLING of `defects`, and deliberately not more entries in it.** Do not
+   * "tidy" the two together. `defects` is per-CELL — every entry names the
+   * capture cells it was seen in — and a reachability finding is about the
+   * app's navigation and belongs to no cell, so filing it there would mean an
+   * empty `cells` array that means "not applicable": a second meaning for a
+   * field that already has one.
+   *
+   * That is not only a taste argument; it is measured. Two suites assert the
+   * shape merging would break, and both are owned elsewhere:
+   * `surface-preview.test.ts` asserts `defects` is `[]` for a clean fixture and
+   * that EVERY defect names exactly twelve cells, and
+   * `surface-templates.test.ts` asserts `defects` is `[]` for all nine shipped
+   * templates. A reachability entry satisfies neither.
+   *
+   * What the split costs is nothing where it matters: the two are printed as
+   * ONE list by `commands/surface-preview.ts`, which is where the model reads
+   * them, and check 7's entry in the rubric sheet cites this half
+   * (`reachabilityCitation` in `surface-rubric-artifact.ts`).
+   */
+  reachability: ReachabilityReport;
 }
 
 export interface PreviewOutcome {
@@ -1284,6 +1322,20 @@ export async function renderSurfacePreview(
       problem: shot.probeProblem ?? 'the probe returned nothing',
     }));
 
+  // The transition pass. It walks from `spec.initialState`, which by this point
+  // IS the substituted state when `--state` was supplied — so the graph starts
+  // from the same board the twelve cells show, and `stateSource` above says
+  // which one that was. Synchronous, and deliberately not awaited across:
+  // `installDomGlobals` swaps the ambient `window`/`document` for the duration
+  // of the walk, and nothing may interleave with that.
+  const { report: reachability } = analyzeSurfaceReachability({
+    bundleSource: request.bundleSource,
+    spec,
+    ...(request.reachabilityBounds === undefined
+      ? {}
+      : { bounds: request.reachabilityBounds }),
+  });
+
   const manifest: PreviewManifest = {
     surfaceId: spec.surfaceId,
     specRevision: spec.specRevision,
@@ -1300,6 +1352,7 @@ export async function renderSurfacePreview(
     defects: groupDefects(defects),
     unprobedCells,
     notChecked: [...PREVIEW_DEFECTS_NOT_CHECKED],
+    reachability,
     populated: {
       invokes: populated.invokes,
       hostOps: populated.hostOps,
@@ -1337,7 +1390,29 @@ export async function renderSurfacePreview(
     buildRubricTemplate({
       surfaceId: spec.surfaceId,
       bundleSha256: request.bundleSha256,
-      spec,
+      // `request.spec`, not the validated `spec`: the template's `specSha256`
+      // is the identity publish and fork bind the sheet to, and a hash over the
+      // schema's output cannot see a change confined to a key the schema does
+      // not declare (D72). The validated view is still what everything above
+      // renders from; only the identity is taken raw.
+      spec: request.spec,
+      // The substitution, carried into the artifact. Preview already says on
+      // stdout that a supplied state stood in — "loud, because a capture of a
+      // substituted state must never be indistinguishable from a capture of
+      // the spec's own starting point" — but stdout is not what publish reads,
+      // so until this line the sheet was exactly that indistinguishable.
+      // `request.stateOverride`, not the mutated `spec.initialState`, which is
+      // already the override by the time this runs.
+      ...(request.stateOverride === undefined
+        ? {}
+        : { stateOverride: request.stateOverride }),
+      // Check 7's citation. The REPORT is passed, not a sentence about it, so
+      // the sheet cannot describe a walk other than the one the manifest
+      // records — and `not measured:` is stamped as loudly as a finding, since
+      // a truncated walk reading as "checked, nothing found" is the defect this
+      // whole pass exists to stop, committed in the sheet that records stopping
+      // it.
+      reachability,
     })
   );
 

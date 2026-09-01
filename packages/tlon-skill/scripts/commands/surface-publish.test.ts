@@ -15,8 +15,11 @@ import {
   RULE_FIXTURES,
 } from '../surface-lint-fixtures';
 import {
+  REACHABILITY_CITED_CHECK,
   RUBRIC_CELL_IDS,
   UNCONDITIONAL_RUBRIC_CHECKS,
+  reachabilityCitation,
+  surfaceCanonicalHash,
 } from '../surface-rubric-artifact';
 import {
   type FakeShipOptions,
@@ -44,7 +47,15 @@ const RUBRIC_PATH = '/work/rubric.json';
  * string twelve times is refused on purpose and a fixture that tripped that
  * would turn every publish test into a test of the anti-degeneracy rule.
  */
-function completedRubric(input: { surfaceId: string; bundleSha256: string }) {
+function completedRubric(input: {
+  surfaceId: string;
+  bundleSha256: string;
+  specSha256: string;
+  /** the state the captures opened on; omit for the spec's own */
+  stateOverride?: unknown;
+  /** the spec, for the starting point a plain run would have opened on */
+  initialState?: unknown;
+}) {
   const cells: Record<string, string> = {};
   for (const id of RUBRIC_CELL_IDS) {
     cells[id] = `looked at ${id}; nothing cut off, copy reads as the group's`;
@@ -59,12 +70,33 @@ function completedRubric(input: { surfaceId: string; bundleSha256: string }) {
       verdict: 'pass',
       cell: RUBRIC_CELL_IDS[0],
       note: `check ${check.number} scored: ${check.title}`,
+      // Check 7 carries preview's reachability line as well as the note, and
+      // the validator requires it there. Built through `reachabilityCitation`
+      // rather than hand-written, so this fixture cannot satisfy a marker rule
+      // the real template writer would fail.
+      ...(check.id === REACHABILITY_CITED_CHECK
+        ? {
+            reachability: reachabilityCitation({
+              closed: true,
+              nodeCount: 4,
+              truncatedBy: [],
+              shortfalls: [],
+              findings: [],
+            }),
+          }
+        : {}),
     };
   }
+  const overridden = input.stateOverride !== undefined;
   return {
     version: 1,
     surfaceId: input.surfaceId,
     bundleSha256: input.bundleSha256,
+    specSha256: input.specSha256,
+    stateSource: overridden ? 'override' : 'spec-initial-state',
+    stateSha256: surfaceCanonicalHash(
+      overridden ? input.stateOverride : input.initialState
+    ),
     cells,
     checks,
   };
@@ -93,34 +125,30 @@ function setup(
   );
   const specValue = options.spec ?? specFile();
   harness.ship.files.set(SPEC_PATH, JSON.stringify(specValue, null, 2));
-  // The scoring sheet a passing publish needs, bound to these exact bytes
-  // through the SAME hash function publish will compute over them.
-  harness.ship.files.set(
-    RUBRIC_PATH,
-    JSON.stringify(
-      completedRubric({
-        surfaceId: String(specValue.surfaceId),
-        bundleSha256: harness.deps.sha256Hex(
-          harness.deps.readBinaryFile(BUNDLE_PATH)
-        ),
-      }),
-      null,
-      2
-    )
-  );
+  restampRubric(harness);
   return harness;
 }
 
 /**
- * Re-scores after a test changed the bundle or the spec under the harness.
+ * Scores the sheet against whatever the harness currently holds — "the author
+ * ran `surface preview` on this pair and filled the template in".
  *
- * Needed because the sheet is bound to the bundle's hash and the spec's
- * surfaceId, so any test that edits either has, correctly, invalidated its
- * rubric. Calling this is the test's way of saying "and the author re-ran
- * preview and scored the new build", which is what the tool now requires of a
- * repair round.
+ * Bound to BOTH halves publish binds, through the same functions publish uses:
+ * the bundle's bytes and the spec file's verbatim parse. Any test that edits
+ * either has, correctly, invalidated its rubric; calling this is the test's way
+ * of saying the repair round included a re-preview. That is what the tool
+ * requires of a bundle change and, since the spec binding landed, of a
+ * spec-only change too.
  */
-function restampRubric(harness: ReturnType<typeof setup>) {
+function restampRubric(
+  harness: ReturnType<typeof createTestSurfaceDeps>,
+  /**
+   * The state a `surface preview --state <file>` run substituted, when the test
+   * is standing in for one. Omitted is the ordinary run: the captures opened on
+   * the spec's own `initialState`.
+   */
+  stateOverride?: unknown
+) {
   const spec = JSON.parse(harness.ship.files.get(SPEC_PATH) as string);
   harness.ship.files.set(
     RUBRIC_PATH,
@@ -130,11 +158,32 @@ function restampRubric(harness: ReturnType<typeof setup>) {
         bundleSha256: harness.deps.sha256Hex(
           harness.deps.readBinaryFile(BUNDLE_PATH)
         ),
+        specSha256: surfaceCanonicalHash(spec),
+        initialState: spec.initialState,
+        ...(stateOverride === undefined ? {} : { stateOverride }),
       }),
       null,
       2
     )
   );
+}
+
+/**
+ * The author edited the spec and re-ran preview, in that order.
+ *
+ * A spec-only edit invalidates the sheet — the twelve captures were rendered
+ * under the older definition — so a revision that does not re-score is refused.
+ * Almost every test here revises in order to exercise something downstream, so
+ * they revise the way the tool requires; the handful that deliberately do NOT
+ * re-score are the ones measuring the binding itself, and they call
+ * `files.set` directly so the omission is visible at the call site.
+ */
+function revise(
+  harness: ReturnType<typeof createTestSurfaceDeps>,
+  spec: Record<string, unknown>
+) {
+  harness.ship.files.set(SPEC_PATH, JSON.stringify(spec));
+  restampRubric(harness);
 }
 
 async function publish(
@@ -351,6 +400,11 @@ describe('surface publish — no-op versus bump', () => {
     await publish(harness);
 
     const reordered = specFile();
+    // Written WITHOUT re-scoring, on purpose. Key order is not content, so the
+    // sheet's spec hash does not move for it either — if it did, this publish
+    // would refuse as `rubric-mismatch` long before it could report a no-op,
+    // and the binding would be inventing revisions the same way a naive
+    // `JSON.stringify` comparison would (D109).
     harness.ship.files.set(
       SPEC_PATH,
       JSON.stringify(Object.fromEntries(Object.entries(reordered).reverse()))
@@ -388,10 +442,7 @@ describe('surface publish — no-op versus bump', () => {
     await publish(harness);
     const first = harness.json();
 
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
-    );
+    revise(harness, specFile({ title: 'Potluck, renamed' }));
     expect(await publish(harness)).toBe(0);
     const second = harness.json();
 
@@ -407,10 +458,7 @@ describe('surface publish — no-op versus bump', () => {
     await publish(harness);
     expect(harness.json().specRevision).toBe(1);
 
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ specRevision: 47, title: 'Renamed' }))
-    );
+    revise(harness, specFile({ specRevision: 47, title: 'Renamed' }));
     await publish(harness);
     expect(harness.json().specRevision).toBe(2);
   });
@@ -508,11 +556,7 @@ describe('surface publish — surface identity', () => {
     const harness = setup();
     await publish(harness);
 
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ surfaceId: 'srf-something-else' }))
-    );
-    restampRubric(harness);
+    revise(harness, specFile({ surfaceId: 'srf-something-else' }));
     expect(await publish(harness)).toBe(1);
     expect(harness.json().code).toBe('surface-id-changed');
 
@@ -545,10 +589,7 @@ describe('surface publish — preserving state', () => {
     const harness = withHistory();
     // Revision 1 first, so there is a real fold to carry forward.
     await publish(harness);
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v2' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v2' }));
 
     expect(await publish(harness, ['--preserve-state'])).toBe(0);
     const result = harness.json();
@@ -590,7 +631,7 @@ describe('surface publish — preserving state', () => {
       firstAction
     ].duplicatesTolerated = true;
     (marked as Record<string, unknown>).aKeyNoSchemaDeclares = 'survives';
-    harness.ship.files.set(SPEC_PATH, JSON.stringify(marked));
+    revise(harness, marked);
 
     expect(await publish(harness)).toBe(0);
 
@@ -654,10 +695,7 @@ describe('surface publish — preserving state', () => {
     expect(folded.stateFull).toBe(false);
 
     // A title-only preserving revision — the smallest possible change.
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
-    );
+    revise(harness, specFile({ title: 'Potluck, renamed' }));
     expect(await publish(harness, ['--preserve-state'])).toBe(0);
 
     const result = harness.json();
@@ -695,10 +733,7 @@ describe('surface publish — preserving state', () => {
         ? { ok: false, issues: ['snapshot state exceeds 65536 bytes'] }
         : real(kind, value);
 
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
-    );
+    revise(harness, specFile({ title: 'Potluck, renamed' }));
     expect(await publish(harness, ['--preserve-state'])).toBe(1);
 
     const result = harness.json();
@@ -748,10 +783,7 @@ describe('surface publish — preserving state', () => {
       ]),
     });
 
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v2' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v2' }));
     expect(await publish(harness, ['--preserve-state'])).toBe(0);
 
     // The revision-2 snapshot exists; retract it by hand so the surface is
@@ -762,10 +794,7 @@ describe('surface publish — preserving state', () => {
     expect(snapshotPost).toBeDefined();
     snapshotPost!.isEdited = true;
 
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v3' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v3' }));
     expect(await publish(harness, ['--preserve-state'])).toBe(1);
     expect(harness.json().code).toBe('migration-pending');
   });
@@ -946,10 +975,7 @@ describe('surface publish — the primary preserving path and aborted entries', 
     const harness = setup();
     expect(await publish(harness)).toBe(0);
     withAbortedHistory(harness);
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v2' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v2' }));
     return harness;
   }
 
@@ -1108,10 +1134,7 @@ describe('surface publish — an exact retry over a stranded channel', () => {
     const harness = setup();
     expect(await publish(harness)).toBe(0);
     withEvent(harness, ops);
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v2' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v2' }));
 
     // The poke for the snapshot resolves and nothing lands — the D50 shape,
     // and the same thing a crash between the two writes leaves behind.
@@ -1175,10 +1198,7 @@ describe('surface publish — an exact retry over a stranded channel', () => {
     const harness = setup();
     expect(await publish(harness)).toBe(0);
     withEvent(harness);
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v2' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v2' }));
     expect(await publish(harness, ['--preserve-state'])).toBe(0);
     const posts = (harness.ship.posts.get(CHANNEL) ?? []).length;
 
@@ -1288,10 +1308,7 @@ describe('surface publish — an exact retry over a stranded channel', () => {
     const harness = setup();
     expect(await publish(harness)).toBe(0);
     withEvent(harness);
-    harness.ship.files.set(
-      SPEC_PATH,
-      JSON.stringify(specFile({ title: 'Potluck v2' }))
-    );
+    revise(harness, specFile({ title: 'Potluck v2' }));
     expect(await publish(harness, ['--preserve-state'])).toBe(0);
     // A snapshot at the current revision is conclusive wherever it is found,
     // so a history that cannot be paged to its start is no reason to refuse a
@@ -1547,6 +1564,240 @@ describe('surface publish — refuses without a completed rubric', () => {
     expect(String(harness.json().message)).toContain(
       'A rubric for one app says nothing about another'
     );
+  });
+
+  /**
+   * The hole the bundle hash could not see, and the control for its closure.
+   *
+   * `bundleSha256` alone bound the sheet until this case was measured: a
+   * revision that changes the SPEC and leaves the bundle alone keeps its hash,
+   * so a sheet scored before the change still satisfied the binding and a
+   * definition whose twelve cells were never rendered landed under a sheet
+   * asserting they were. Both arms below come from the SAME `setup()` and the
+   * SAME sheet; the only thing that moves between them is one string in the
+   * spec file and whether preview was re-run.
+   */
+  it('refuses a sheet scored under a different SPEC, with the bundle unchanged', async () => {
+    const harness = setup();
+    const before = harness.deps.sha256Hex(
+      harness.deps.readBinaryFile(BUNDLE_PATH)
+    );
+
+    // A spec-only revision: not one byte of the bundle moves.
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
+    );
+    expect(
+      harness.deps.sha256Hex(harness.deps.readBinaryFile(BUNDLE_PATH))
+    ).toBe(before);
+    // And the sheet still names those unchanged bytes, so the older binding
+    // was satisfied — this refusal can only come from the spec half.
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    expect(sheet.bundleSha256).toBe(before);
+
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-mismatch');
+    const message = String(result.message);
+    expect(message).toContain('scores a spec hashing to');
+    expect(message).toContain('SPEC-only change');
+    expect(message).toContain('Re-run `surface preview` on this spec');
+    // Named specifically, not as a generic failure: the two halves of the
+    // identity have different repairs and must not read the same.
+    expect(message).not.toContain('Those are different builds');
+    expect((result.details as Record<string, unknown>).scoredSpec).toBe(
+      sheet.specSha256
+    );
+    // Nothing reached the ship.
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  it('publishes that same spec once preview has been re-run on it', async () => {
+    // The positive arm. Without it, the refusal above would pass equally
+    // against a binding that refused every sheet ever written.
+    const harness = setup();
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify(specFile({ title: 'Potluck, renamed' }))
+    );
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-mismatch');
+
+    restampRubric(harness);
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().outcome).toBe('published');
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
+    expect(stored.title).toBe('Potluck, renamed');
+  });
+
+  it('publishes an unchanged spec against the sheet preview stamped for it', async () => {
+    // The other positive control, and the cheapest one: touch nothing at all.
+    // A binding that had been written over the wrong document — `specFile.rest`
+    // rather than the verbatim parse, say — would refuse here.
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().outcome).toBe('published');
+  });
+
+  /**
+   * The discriminator, and the reason it is an undeclared key.
+   *
+   * D138: a guard tested only against the fields its prediction named can pass
+   * under the exact defect it was written to catch. `title` is declared on
+   * `SurfaceSpecSchema`, so a spec hash taken over the VALIDATED view would
+   * still have refused the two tests above — they cannot tell a raw hash from a
+   * re-encoded one. Only a key the schema does not declare can, so the fixture
+   * carries one and the first assertion pins that the fulcrum really is the
+   * stripping.
+   */
+  it('refuses a change confined to a key the schema strips', async () => {
+    const full = COMPLIANT_FIXTURE.spec as Record<string, unknown>;
+    const marked = { ...full, 'x-fourth-bite': 'present' };
+    // Raw, the two are different documents.
+    expect(surfaceCanonicalHash(marked)).not.toBe(surfaceCanonicalHash(full));
+    // Validated, they are the SAME document — so a hash over the validated
+    // view is blind here, and this test is what notices if one is ever
+    // introduced.
+    expect(surfaceCanonicalHash(SurfaceSpecSchema.parse(marked))).toBe(
+      surfaceCanonicalHash(SurfaceSpecSchema.parse(full))
+    );
+
+    const harness = setup();
+    harness.ship.files.set(
+      SPEC_PATH,
+      JSON.stringify({ ...specFile(), 'x-fourth-bite': 'present' })
+    );
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-mismatch');
+    expect(String(harness.json().message)).toContain('SPEC-only change');
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  /**
+   * The hole one level below the spec binding, and the control for its closure.
+   *
+   * `surface preview --state <file>` renders a state the author supplies in
+   * place of `initialState`. `RUBRIC.md` tells the scorer to do exactly that
+   * for an app whose interesting screens no button reaches, and the countdown
+   * template's NOTES say its `--state` run "is the only run that exercises
+   * 'Passed' and 'in 12 hours'". Preview said so loudly on stdout and the
+   * artifact carried nothing, so a sheet honestly filled in against a board the
+   * app never opens on was indistinguishable from one filled in against its own
+   * opening screen — and publish took it.
+   *
+   * Every arm below shares one `setup()`, one bundle and one spec. The only
+   * thing that moves is which preview run the sheet came from.
+   */
+  it('refuses a sheet whose captures opened on a substituted state', async () => {
+    const harness = setup();
+    const spec = JSON.parse(harness.ship.files.get(SPEC_PATH) as string);
+    // The board the countdown's `state.json` stands for: real, useful to look
+    // at, and not what the app opens on.
+    restampRubric(harness, { bringing: { '~zod': 'bread' }, closed: true });
+
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    // Bundle and spec both still match, so neither of the older halves of the
+    // binding can be what refuses below.
+    expect(sheet.bundleSha256).toBe(
+      harness.deps.sha256Hex(harness.deps.readBinaryFile(BUNDLE_PATH))
+    );
+    expect(sheet.specSha256).toBe(surfaceCanonicalHash(spec));
+    expect(sheet.stateSource).toBe('override');
+
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-mismatch');
+    const message = String(result.message);
+    expect(message).toContain('captures that opened on a state hashing to');
+    expect(message).toContain('`--state` stood in');
+    expect(message).toContain('a board this app never opens on');
+    // Named as a STATE mismatch, not as either of the other two: three
+    // different repairs must not read the same.
+    expect(message).not.toContain('different builds');
+    expect(message).not.toContain('SPEC-only change');
+    const details = result.details as Record<string, unknown>;
+    expect(details.scoredStateSource).toBe('override');
+    expect(details.scoredState).toBe(sheet.stateSha256);
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  it('publishes the same app on a sheet from a run without --state', async () => {
+    // The positive arm, and genuinely separate: this one never touches the
+    // sheet `setup()` wrote. Without it the refusal above would pass equally
+    // against a binding that refused every sheet in existence.
+    const harness = setup();
+    expect(
+      JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string).stateSource
+    ).toBe('spec-initial-state');
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().outcome).toBe('published');
+  });
+
+  it("accepts an override that IS the spec's own starting point", async () => {
+    // The arm that pins WHAT is compared. A cheaper implementation — "refuse
+    // any sheet whose stateSource is override" — passes the refusal above and
+    // fails here, because these captures opened on exactly the board this app
+    // opens on and are therefore the right captures.
+    const harness = setup();
+    const spec = JSON.parse(harness.ship.files.get(SPEC_PATH) as string);
+    restampRubric(harness, spec.initialState);
+    expect(
+      JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string).stateSource
+    ).toBe('override');
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().outcome).toBe('published');
+  });
+
+  it("refuses a sheet claiming the spec's own state while naming another", async () => {
+    // The other direction of the same comparison, and the reason the hash is
+    // stamped unconditionally rather than only for an override: a sheet that
+    // SAYS it opened on the spec's starting point is still checked against it.
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    sheet.stateSha256 = 'b'.repeat(64);
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(1);
+    const message = String(harness.json().message);
+    expect(harness.json().code).toBe('rubric-mismatch');
+    expect(message).toContain('scored on a spec that opened somewhere else');
+    expect(message).not.toContain('`--state` stood in');
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  it('refuses a sheet that carries no state provenance', async () => {
+    // Same compatibility stance as the spec hash, one level down: a sheet
+    // written before the state binding existed carries neither field, and
+    // accepting it would make the binding satisfiable by omission.
+    for (const field of ['stateSource', 'stateSha256']) {
+      const harness = setup();
+      const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+      delete sheet[field];
+      harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+      expect(await publish(harness)).toBe(1);
+      expect(harness.json().code).toBe('rubric-incomplete');
+      expect(String(harness.json().message)).toContain(`"${field}"`);
+      expect(harness.ship.uploads).toHaveLength(0);
+    }
+  });
+
+  it('refuses a sheet that carries no spec hash at all', async () => {
+    // The compatibility decision, executable. Every sheet written before the
+    // spec binding existed looks exactly like this, and so does any sheet
+    // somebody deletes one line out of. Accepting it would make the binding
+    // satisfiable by omission, which is the same as not having one.
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    delete sheet.specSha256;
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-incomplete');
+    expect(String(result.message)).toContain('"specSha256"');
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
   });
 
   it('carries the residuals a shipped-with-known-defects publish declared', async () => {

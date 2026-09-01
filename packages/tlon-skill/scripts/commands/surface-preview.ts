@@ -12,6 +12,7 @@ import {
   parseHostOps,
   renderSurfacePreview,
 } from '../surface-preview';
+import { formatReachabilityReport } from '../surface-transitions';
 import {
   type CommandDeps,
   type CommandRunner,
@@ -104,6 +105,14 @@ denylist over the text a real browser painted — and prints what it found as
 a concrete list. That pass cannot see whether copy means anything, whether
 the screen answers what was asked, or anything about colour; it prints what
 it did not check on every run, including clean ones.
+
+It also walks what a member can REACH by pressing things: from the opening
+screen, press every rendered control, fold the action it invokes through the
+real reducer, and repeat. The twelve cells are stills, so they cannot show
+that a column is only reachable after another one, or that a declared action
+has no control on any screen a member can get to. The walk is bounded, and
+says which bound stopped it — a truncated walk reports what it saw and
+asserts nothing.
 
 Finally it writes ${PREVIEW_RUBRIC_TEMPLATE_FILE} into the output directory: the
 scoring sheet, pre-keyed for all twelve cells and every check that applies
@@ -291,18 +300,25 @@ function reportDefects(
   deps: SurfacePreviewDeps,
   outcome: PreviewOutcome
 ): void {
-  const { defects, unprobedCells, notChecked } = outcome.manifest;
+  const { defects, unprobedCells, notChecked, reachability } = outcome.manifest;
+
+  // ONE list, from two passes. The cell pass measures twelve stills; the
+  // reachability walk presses things. They are separate fields in the manifest
+  // because one is per-cell and the other is not (see `PreviewManifest`), but a
+  // model reading stdout has to be handed a single list of repairs — 6a's
+  // finding is that a second list is a list that does not get read.
+  const total = defects.length + reachability.findings.length;
 
   writeLine(deps.stdout);
-  if (defects.length === 0) {
+  if (total === 0) {
     writeLine(
       deps.stdout,
-      'Machine-checked defects: none found in the three checks below.'
+      'Machine-checked defects: none found in the four checks below.'
     );
   } else {
     writeLine(
       deps.stdout,
-      `Machine-checked defects: ${defects.length} found. Each is a repair, not a note.`
+      `Machine-checked defects: ${total} found. Each is a repair, not a note.`
     );
     writeLine(deps.stdout);
     for (const defect of defects) {
@@ -311,6 +327,16 @@ function reportDefects(
         `  [rubric ${defect.rubricCheck}: ${defect.check}] ${defect.message}`
       );
       writeLine(deps.stdout, `      seen in: ${defect.cells.join(', ')}`);
+    }
+    for (const finding of reachability.findings) {
+      writeLine(
+        deps.stdout,
+        `  [rubric ${finding.rubricCheck}: ${finding.kind}] ${finding.message}`
+      );
+      writeLine(
+        deps.stdout,
+        `      seen in: the walk over ${reachability.nodeCount} reachable screen(s), not in any one capture`
+      );
     }
   }
 
@@ -325,10 +351,20 @@ function reportDefects(
     }
   }
 
+  // The walk's own accounting: how far it got, which bound stopped it, and what
+  // it cannot see. Printed whether or not it found anything, for the same
+  // reason the list below it is.
+  writeLine(deps.stdout);
+  for (const line of formatReachabilityReport(reachability, {
+    findings: false,
+  })) {
+    writeLine(deps.stdout, line);
+  }
+
   writeLine(deps.stdout);
   writeLine(
     deps.stdout,
-    'That pass is mechanical: viewport overflow from layout metrics, tap-target'
+    'The cell pass is mechanical: viewport overflow from layout metrics, tap-target'
   );
   writeLine(
     deps.stdout,

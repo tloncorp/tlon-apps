@@ -170,6 +170,15 @@ it says it is. Score the six distinct images, and score `state.json` separately
 with `--state` — that is the only run that exercises "Passed" and "in 12
 hours".
 
+**Publish on the plain run's sheet, not the `--state` run's.** The scoring
+sheet is stamped with the state its captures opened on, and `surface publish`
+refuses one whose captures opened on a board this app does not start on —
+`state.json` is exactly such a board, which is the whole reason it is useful to
+look at. So: run `--state` first and read what it shows you, then run preview
+plain, write what the `--state` run taught you into that sheet's notes, and
+publish it. Each run overwrites `rubric.template.json`, so doing the plain run
+last leaves the publishable sheet on disk.
+
 ## Revising it later
 
 Copy changes are revisions. **The date is not.** `targetMs`, `targetLabel` and

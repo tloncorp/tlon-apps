@@ -9,11 +9,17 @@ Almost nothing here is automated, and the part that is says so out loud.
 `surface preview` renders, captures, and runs a **machine defect pass** over
 what it rendered — viewport overflow from layout metrics, tap-target
 geometry, and the jargon denylist against the text a real browser painted.
-It prints what it found as a concrete list, and it prints what it did not
-check on every run, including clean ones.
+It then **walks what a member can reach by pressing things**: from the
+opening screen it presses every rendered control, folds what that control
+invokes through the real reducer, and repeats. It prints what both found as
+one concrete list, and it prints what neither checked on every run,
+including clean ones.
 
-That pass reaches parts of checks 1, 2 and 6. It reaches **no part** of
-checks 3, 4, 5 or 7, and it cannot tell whether a single sentence means
+That pass reaches parts of checks 1, 2 and 6, and — since the walk — part of
+check 7: it can tell you that a column is only reachable through another
+one, or that a declared action has no control on any screen a member can get
+to. It reaches **no part** of checks 3, 4 or 5, it still knows nothing about
+what was ASKED for, and it cannot tell whether a single sentence means
 anything. A clean machine pass is not a clean app; scoring is still your
 job, with your own eyes, on the images it wrote.
 
@@ -184,6 +190,50 @@ An app that passes checks 1–6 and answers a different question than the one
 that was asked is a failure, and it is the failure that is hardest to see
 from inside the work.
 
+**Score this one against the reachability report, not only against the
+stills.** This check has passed three real defects, and every one of them
+was about what happens when you PRESS something — most recently a board
+whose new Blocked column became mandatory, because the revision added a
+column and left one button per card. The note that passed it was "Blocked is
+visibly present as its own section between Doing and Done": true of the
+screen, silent about the board. Twelve stills cannot see that, however
+carefully they are read.
+
+So preview now walks it. From the opening screen it presses every rendered
+control, folds what that control invokes through the real reducer, and
+repeats — and prints, under `Reachability`:
+
+- **how much of the app it saw**: `closed` means every screen a member can
+  reach was walked; `TRUNCATED` means it ran into a bound and stopped, and a
+  truncated walk asserts nothing;
+- **every declared action no control on any reachable screen invokes** — a
+  button that exists in the code and on no screen anyone can get to;
+- **mandatory checkpoints**: a value at some place in the state that no
+  sequence of presses reaches except through another one. That is the D140
+  line, and it reads `"done" at /tasks/*/status is reachable only through
+"doing", then "blocked"`;
+- **the values each part of the state actually took**, so a column, an
+  option or an answer that nothing ever produced is visible as an absence.
+
+**The same line is already in your scoring sheet.** `rubric.template.json`'s
+entry for this check carries a `reachability` field preview stamped, and it
+begins with one of three words that are not interchangeable:
+
+- `measured:` — the walk covered every screen a member can reach, and what
+  follows is what it found, including "nothing".
+- `not measured:` — it ran into a bound or could not press something, so a
+  path it never took could contradict anything it saw. **This is not a clean
+  result.** Score this check the way it was scored before the walk existed,
+  from the captures and the request alone, and say in your note that
+  reachability was not established.
+- `not walked:` — it never ran. Same as above, for a different reason.
+
+Leave that line alone — it is the tool's, not yours, and publish refuses a
+sheet that lost it. Write your verdict and note against it, and say in the
+note what it told you. It still does not know what was asked — that half is
+yours, and it always will be. What it removes is the excuse that the screens
+looked right.
+
 ### 8. Display-only is what was asked for, not what was convenient
 
 _Scored only when the spec declares `memberInteraction`. Machine pass:
@@ -237,7 +287,8 @@ self-assessment; a refusal does.
 Preview writes `rubric.template.json` into its output directory, already
 keyed for the twelve cells and every check that applies to your spec, and
 stamped with the
-bundle's own sha256. Fill it in and hand it to publish:
+bundle's own sha256, the spec's, and the state its captures opened on. Fill it
+in and hand it to publish:
 
 ```
 tlon surface publish <channel> --bundle app.js --spec spec.json \
@@ -257,10 +308,20 @@ Two things the tool checks and one it does not:
 
 - **Completeness.** Every cell has an observation, every check has a verdict
   and a note, every verdict cites a real cell.
-- **Identity.** The sheet names the app being published and the exact bundle
-  bytes. A repair round changes the bytes and therefore invalidates the
-  sheet — so re-run preview and re-score. That is deliberate: the twelve
-  images behind a sheet must be the twelve images this build produces.
+- **Identity.** The sheet names the app being published, the exact bundle
+  bytes, the exact spec, and the state its captures opened on. A repair round
+  changes one of them and therefore invalidates the sheet — so re-run preview
+  and re-score. That is deliberate: the twelve images behind a sheet must be
+  the twelve images this build produces.
+
+  **This includes `--state`.** A sheet from a `--state` run is scored on a
+  board the app does not open on, and publish refuses it by name. Score such
+  a run for your own eyes — it is often the only way to see a state no button
+  reaches — and fold what you learn into the notes on the sheet you publish,
+  which must come from a run without `--state`. Run the plain preview last
+  and the file is already the right one, because each run overwrites
+  `rubric.template.json`.
+
 - **Not quality.** Nothing reads your notes and decides whether they are any
   good. A validator that tried would either be gameable or would reject
   accurate short observations. A complete sheet is a sheet you filled in,
@@ -289,6 +350,7 @@ Do not raise these as findings against the app.
   `populated.restoredAfterDestructive` when that pass ran, so the extra
   invokes are attributable to the tool rather than mistaken for the
   spec's.
+
 - **The populated state looking identical to the empty one.** The report
   says so when it happens. That means folding every action changed nothing
   — which is a finding about the _spec_, not about the render.
@@ -298,6 +360,10 @@ Do not raise these as findings against the app.
   nothing to fold, and preview's own report says so correctly. For such an
   app the twelve cells collapse to six pairs, so honest scoring is six
   distinct images plus a separate `--state` run against the example board.
+  Publish on the sheet from the plain run — the `--state` run's sheet names
+  a board this app does not open on and is refused — and carry what the
+  `--state` run showed you into that sheet's notes.
+
 - **Blank space below a short app.** The captures are a fixed viewport; an
   app shorter than it leaves the rest as background. That is what the app
   screen looks like too.

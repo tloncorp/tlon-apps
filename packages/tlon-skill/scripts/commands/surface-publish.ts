@@ -4,6 +4,8 @@ import { canonicalJson } from '../surface-canonical-json';
 import {
   type RubricArtifact,
   rubricResiduals,
+  specInitialState,
+  surfaceCanonicalHash,
   validateRubricArtifact,
 } from '../surface-rubric-artifact';
 import {
@@ -65,9 +67,17 @@ those carry in the file is ignored.
 A COMPLETED RUBRIC IS REQUIRED. \`surface preview\` writes a pre-keyed scoring
 sheet next to its screenshots; fill it in and pass it here. Publish checks
 that all twelve capture cells carry an observation, that every applicable rubric
-checks carry a verdict and a cell, and that the sheet names the exact bundle
-being published — completeness and identity only. Whether the observations
-are any good is not machine-checkable and is not checked.
+checks carry a verdict and a cell, and that the sheet names the exact bundle,
+the exact spec, and the state its captures opened on — completeness and
+identity only. Whether the observations are any good is not machine-checkable
+and is not checked.
+
+Changing the spec alone invalidates the sheet, even when the bundle is
+byte-identical: a renamed title or a different starting state changes what
+the twelve captures show. So does scoring a \`surface preview --state <file>\`
+run: those captures are of a board this app does not open on, and publish
+refuses them. Score such a run for your own eyes; publish on a sheet from a
+run without \`--state\`. Either way: re-preview and re-score.
 
 Options:
   --bundle <path>       App bundle — JavaScript source, not a document
@@ -103,7 +113,10 @@ const BUNDLE_CONTENT_TYPE = 'application/javascript';
 
 /**
  * Reads the scoring sheet and refuses unless it is complete and it names these
- * exact bytes.
+ * exact bytes under this exact definition.
+ *
+ * Shared by `surface publish` and `surface fork`, so every word here is a
+ * statement about both.
  *
  * Three refusals, kept distinct because they are three different repairs and
  * because collapsing them would let the "publish refuses an incomplete rubric"
@@ -111,15 +124,29 @@ const BUNDLE_CONTENT_TYPE = 'application/javascript';
  *
  * - `rubric-unreadable` — the file is not a rubric. Rewrite it.
  * - `rubric-incomplete` — the shape is right and work is missing. Fill it in.
- * - `rubric-mismatch` — the work is complete, for a different app or a
- *   different build of this one. Re-preview and re-score.
+ * - `rubric-mismatch` — the work is complete, for a different app, a different
+ *   build of this one, or a different definition of it. Re-preview and
+ *   re-score.
  *
- * The hash comparison is the load-bearing one. `preview` stamps the bundle's
- * sha256 into the template it writes, so a sheet that names these bytes is a
- * sheet whose twelve cells were rendered from these bytes. A repair round
- * changes the bytes and therefore invalidates the sheet, which is expensive and
+ * The three hash comparisons are the load-bearing ones, and it takes all three.
+ * The twelve captures are a function of (bundle, spec, starting state) at a
+ * fixed clock; `preview` stamps all three into the template it writes, so a
+ * sheet naming this triple is a sheet whose cells were rendered from these
+ * bytes, under this definition, opening on the state this definition opens on.
+ * Any one of them changing invalidates the sheet, which is expensive and
  * correct: scoring revision 1 and spending it on revision 3 is exactly the
  * shortcut a loop under time pressure takes.
+ *
+ * Each was added because the ones before it were measured blind to a real case.
+ * The bundle hash missed a spec-only revision — a renamed title, different
+ * action copy, a `memberInteraction` claim added — which keeps the bundle's
+ * hash while changing every capture. Bundle plus spec then missed a
+ * SUBSTITUTED STATE: `surface preview --state <file>` renders a state the
+ * author supplies in place of `initialState`, `RUBRIC.md` tells the scorer to
+ * do exactly that for an app whose interesting screens no button reaches, and
+ * the resulting sheet was indistinguishable from one scored on the app's own
+ * opening screen. Only a discriminator that moves with the thing it names
+ * discriminates (D138).
  */
 export function requireCompletedRubric(
   deps: SurfaceDeps,
@@ -130,6 +157,25 @@ export function requireCompletedRubric(
     sha256: string;
     /** the raw spec being published, so a display-only app is scored as one */
     spec: unknown;
+    /**
+     * `surfaceCanonicalHash` of the RAW definition this write will land — the
+     * spec file's verbatim parse for publish, the derived fork spec for fork.
+     * The caller computes it because the two commands hash different documents;
+     * what they share is the helper and the rule that it is never taken over a
+     * validated view (D72).
+     */
+    specSha256: string;
+    /**
+     * `surfaceCanonicalHash` of the state this definition OPENS ON — its own
+     * `initialState`, read off the same raw object `specSha256` was taken over.
+     *
+     * Not made redundant by `specSha256` even though `initialState` is part of
+     * the spec. The spec hash answers "is this the same definition"; this one
+     * answers "was the renderer fed that definition's own starting point, or
+     * something the author substituted with `--state`". A change that makes
+     * either redundant has broken the other.
+     */
+    stateSha256: string;
   }
 ): RubricArtifact {
   let text: string;
@@ -193,6 +239,41 @@ export function requireCompletedRubric(
         path: input.path,
         scored: artifact.bundleSha256,
         publishing: input.sha256,
+      }
+    );
+  }
+  // The bundle hash cannot see this one, which is the entire reason it exists:
+  // the bytes are byte-identical and the screen is not.
+  if (artifact.specSha256 !== input.specSha256) {
+    throw surfaceError(
+      'rubric-mismatch',
+      `${input.path} scores a spec hashing to ${artifact.specSha256}, and the spec being written hashes to ${input.specSha256}. The bundle is the same build, so this is a SPEC-only change — a renamed title, different copy, a different starting state — and the twelve captures behind that sheet were rendered under the older definition. Re-run \`surface preview\` on this spec and score what it renders.`,
+      {
+        channel: input.channelId,
+        path: input.path,
+        scoredSpec: artifact.specSha256,
+        writingSpec: input.specSha256,
+      }
+    );
+  }
+  // Neither hash above can see this one. The bundle is these bytes and the spec
+  // is this definition; the cells were simply opened on a different board than
+  // the one this definition starts on, because `--state` put it there.
+  if (artifact.stateSha256 !== input.stateSha256) {
+    const substituted = artifact.stateSource === 'override';
+    throw surfaceError(
+      'rubric-mismatch',
+      `${input.path} scores captures that opened on a state hashing to ${artifact.stateSha256}, and this definition opens on one hashing to ${input.stateSha256}. ${
+        substituted
+          ? "The sheet says `--state` stood in for the spec's own starting point, so those twelve captures are of a board this app never opens on — score it that way for your own eyes if you like, but publish on a sheet from a run without `--state`."
+          : "The sheet was scored on a spec that opened somewhere else, so its captures are not this app's opening screen."
+      } Re-run \`surface preview\` and score what it renders.`,
+      {
+        channel: input.channelId,
+        path: input.path,
+        scoredState: artifact.stateSha256,
+        scoredStateSource: artifact.stateSource,
+        writingState: input.stateSha256,
       }
     );
   }
@@ -362,7 +443,14 @@ export async function runSurfacePublish(
 
   const bundleBytes = readBundle(deps, bundlePath);
   const bundleSource = deps.readTextFile(bundlePath);
-  const specFile = readSpecFile(readJsonFile(deps, specPath, 'spec'), specPath);
+  // The verbatim parse, kept before `readSpecFile` takes its own copy and
+  // deletes the fields publish owns. The rubric's spec binding is taken over
+  // THIS — the whole document the author previewed, undeclared keys and all —
+  // because a hash over `specFile.rest` would be blind to a change in
+  // `bundle.shellVersion`, which picks the shell the twelve cells rendered in
+  // (D72: raw to raw, and the raw is the whole cell).
+  const specRaw = readJsonFile(deps, specPath, 'spec');
+  const specFile = readSpecFile(specRaw, specPath);
   const publishedTitle =
     typeof specFile.rest.title === 'string' && specFile.rest.title.length > 0
       ? specFile.rest.title
@@ -379,6 +467,15 @@ export async function runSurfacePublish(
     surfaceId: specFile.surfaceId,
     sha256,
     spec: specFile.rest,
+    specSha256: surfaceCanonicalHash(specRaw),
+    // What this definition opens on. `--preserve-state` does not change it:
+    // the state a preserving revision carries is a property of the CHANNEL, not
+    // of this write, and it moves whenever a member acts — binding the sheet to
+    // it would refuse correct work for anyone who previewed a minute too early.
+    // So the sheet is bound to the one starting point the write does determine,
+    // and a preserving revision previewed with `--state` needs a plain run for
+    // the sheet it publishes on.
+    stateSha256: surfaceCanonicalHash(specInitialState(specRaw)),
   });
 
   const currentRead = readChannelSpec(deps, resolved.channel);

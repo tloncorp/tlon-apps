@@ -1,5 +1,9 @@
 import { canonicalJson } from '../surface-canonical-json';
-import { rubricResiduals } from '../surface-rubric-artifact';
+import {
+  rubricResiduals,
+  specInitialState,
+  surfaceCanonicalHash,
+} from '../surface-rubric-artifact';
 import { assertPreStateInScope } from '../surface-write-scope';
 import {
   type SurfaceDeps,
@@ -88,10 +92,11 @@ import {
  * Step 3 deliberately re-fetches the bundle from the source rather than
  * trusting the staged file: the staged copy is a convenience for previewing,
  * and a file on disk between two commands is a thing that can be edited. The
- * rubric's `bundleSha256` binding then does real work — a source revised
- * between staging and forking serves different bytes, the sheet no longer
- * names them, and the fork refuses instead of publishing an app nobody looked
- * at.
+ * rubric's identity binding then does real work — a source revised between
+ * staging and forking serves different bytes, or the same bytes under a
+ * different definition, the sheet no longer names what is being written, and
+ * the fork refuses instead of publishing an app nobody looked at. Both halves
+ * are needed: the source's spec-only revisions leave `bundleSha256` alone.
  *
  * ## What provenance is
  *
@@ -120,7 +125,9 @@ Forking is TWO commands, because the copy has to be looked at before it lands:
   2. preview  \`tlon surface preview <bundle> <spec>\` renders the staged pair
               and writes a scoring sheet pre-keyed to this fork.
   3. fork     re-reads the source, re-gates it, and publishes the copy. The
-              sheet must name this fork's surface id and these exact bytes.
+              sheet must name this fork's surface id, these exact bytes and
+              the definition staged for them — a source that revised its spec
+              in between is a different copy, and needs a new preview.
 
 The copy is byte-faithful: the source's definition arrives verbatim except for
 a fresh surfaceId, a revision reset to 1, the new storage pointer, the source
@@ -741,12 +748,26 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
   // display-only makes the fork answer check 8 too — the marker travels, and
   // the judgement it demands is about the destination's request, not the
   // source's.
+  //
+  // `provisional` is what the spec binding is taken over, and it is the same
+  // document the staging pass wrote to `--stage-spec` for preview to render:
+  // `deriveForkSpec` is a pure function of the source's verbatim cell, the
+  // chosen surface id, the fetched bundle's length and the provenance claim.
+  // So the sheet matches exactly when nothing moved between the two runs — and
+  // when the source republished in between, or `--include-source-channel`
+  // differs, the definition landing here is genuinely not the one that was
+  // rendered, and the refusal is the correct answer rather than a nuisance.
   const rubric = requireCompletedRubric(deps, {
     path: parsed.rubric,
     channelId: parsed.destination,
     surfaceId: parsed.surfaceId,
     sha256: source.sha256,
     spec: provisional,
+    specSha256: surfaceCanonicalHash(provisional),
+    // A fork always starts at the copied definition's own `initialState` —
+    // state never travels — so the sheet must come from a run that opened
+    // there, not from a `--state` run against the source's live board.
+    stateSha256: surfaceCanonicalHash(specInitialState(provisional)),
   });
 
   assertSpecValid(deps, parsed.destination, provisional);

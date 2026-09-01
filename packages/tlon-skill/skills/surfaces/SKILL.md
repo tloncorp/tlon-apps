@@ -80,10 +80,15 @@ language: "I don't have permission to add channels here yet."
    reducer. **Open the images and score them against `tlon surface rubric`.**
    Preview also runs a machine defect pass over what it rendered — viewport
    overflow, tap-target geometry, and the jargon denylist over the text the
-   browser actually painted — and prints what it found as a concrete list.
-   That pass reaches parts of checks 1, 2 and 6 and no part of 3, 4, 5 or 7;
-   it prints what it did not check on every run. **A clean machine pass is not
-   a clean app.** Every defect it lists is a repair round, not a note.
+   browser actually painted — and a **reachability walk** that presses every
+   rendered control, folds what it invokes through the real reducer, and
+   repeats, so a column only reachable through another one, or a declared
+   action with no control on any screen a member can get to, shows up as a
+   line. Both print into one concrete list.
+   That pass reaches parts of checks 1, 2, 6 and 7, and no part of 3, 4 or 5;
+   it prints what it did not check on every run, and it says whether the walk
+   closed or ran into a bound. **A clean machine pass is not a clean app.**
+   Every defect it lists is a repair round, not a note.
 
    Two flags matter for apps whose interesting state is not reachable by
    pressing buttons. `--host-ops <file>` folds host events alongside the
@@ -96,9 +101,19 @@ language: "I don't have permission to add channels here yet."
    Preview writes `rubric.template.json` next to the screenshots, already keyed
    for the twelve cells and every check that applies to your spec, and
    stamped with the bundle's
-   sha256. Fill it in as you score — one observation per capture cell, one
-   verdict per check citing the cell you scored it on. **`surface publish`
-   refuses without it.**
+   sha256, the spec's, and the state its captures opened on. Fill it in as you
+   score — one observation per capture cell, one verdict per check citing the
+   cell you scored it on. **`surface
+publish` refuses without it.** Changing the spec invalidates the sheet even
+   when the bundle is untouched, because the twelve captures were rendered
+   under the older definition: re-preview and re-score.
+
+   **A `--state` run's sheet is not publishable**, for the same reason: those
+   captures opened on a board the app does not open on, and publish refuses
+   them by name. Use `--state` to see states no button reaches, carry what it
+   showed you into the notes on the plain run's sheet, and publish that one.
+   Each preview run overwrites `rubric.template.json`, so do the plain run
+   last and the file on disk is already the right one.
 
    **How to open them:** the command prints absolute paths; read each one with
    your file-reading tool, which recognizes a PNG and returns the picture
