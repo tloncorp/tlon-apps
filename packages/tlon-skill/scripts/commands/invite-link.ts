@@ -14,7 +14,10 @@ import {
   actingShipCanAdminister,
 } from './groups-verification';
 
-export const IN_FLIGHT_AWAIT_TIMEOUT_MS = 8_000;
+// 5s + the 15s mint await leaves ~5s of the runtime's 25s global deadline for
+// authentication and the preliminary scries (fresh confirmations land in
+// ~1-2s; a stale nonce only needs some timeout to trigger recovery).
+export const IN_FLIGHT_AWAIT_TIMEOUT_MS = 5_000;
 export const MINT_AWAIT_TIMEOUT_MS = 15_000;
 
 export const INVITE_LINK_HELP = `Usage: tlon groups invite-link <~host/group-slug> [--self]
