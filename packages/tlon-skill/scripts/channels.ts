@@ -35,6 +35,7 @@ import { ensureClient, getCurrentShip } from './api-client';
 import {
   assertKnownChannelKind,
   getOption,
+  hasFlag,
   hasOptionValue,
   isHelpArg,
   isNotesNest,
@@ -71,8 +72,8 @@ Commands:
   all
   info <nest>
   create <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]
-  update <nest> (--title "..." | --description "...")
-  rename <nest> "New Title"
+  update <nest> (--title "..." | --description "...") [--allow-unpublish]
+  rename <nest> "New Title" [--allow-unpublish]
   delete <nest>
   add-writers <nest> <role1> [role2...]
   del-writers <nest> <role1> [role2...]
@@ -83,6 +84,13 @@ Examples:
   tlon channels create ~host/group-slug "Projects" --kind chat
   tlon channels rename chat/~host/project-updates "Team Updates"`;
 
+const UNPUBLISH_HELP_NOTE = `These commands rewrite the channel's description cell from the fields they know
+about. A surface (dashboard) channel stores its whole app definition in that
+cell, so on such a channel the write unpublishes the app — which is why it is
+refused unless --allow-unpublish says so, and why the command then names the
+app it destroyed. Use \`tlon surface show <nest>\` to read a definition and
+\`tlon surface publish\` to change one.`;
+
 const CHANNELS_COMMAND_HELP: Record<string, string> = {
   dms: `Usage: tlon channels dms`,
   'group-dms': `Usage: tlon channels group-dms`,
@@ -90,8 +98,8 @@ const CHANNELS_COMMAND_HELP: Record<string, string> = {
   all: `Usage: tlon channels all`,
   info: `Usage: tlon channels info <nest>\nExample: tlon channels info chat/~host/slug`,
   create: `Usage: tlon channels create <group-id> "Channel Name" [--kind chat|heap|notes] [--description "..."]\nExample: tlon channels create ~host/group-slug "Projects" --kind chat`,
-  update: `Usage: tlon channels update <nest> (--title "..." | --description "...")\nExample: tlon channels update chat/~host/slug --title "New Title"`,
-  rename: `Usage: tlon channels rename <nest> "New Title"\nExample: tlon channels rename chat/~host/slug "Project Updates"`,
+  update: `Usage: tlon channels update <nest> (--title "..." | --description "...") [--allow-unpublish]\nExample: tlon channels update chat/~host/slug --title "New Title"\n\n${UNPUBLISH_HELP_NOTE}`,
+  rename: `Usage: tlon channels rename <nest> "New Title" [--allow-unpublish]\nExample: tlon channels rename chat/~host/slug "Project Updates"\n\n${UNPUBLISH_HELP_NOTE}`,
   delete: `Usage: tlon channels delete <nest>\nExample: tlon channels delete chat/~host/slug`,
   'add-writers': `Usage: tlon channels add-writers <nest> <role1> [role2...]\nExample: tlon channels add-writers chat/~host/slug admin`,
   'del-writers': `Usage: tlon channels del-writers <nest> <role1> [role2...]\nExample: tlon channels del-writers chat/~host/slug member`,
@@ -100,6 +108,9 @@ const CHANNELS_COMMAND_HELP: Record<string, string> = {
 };
 
 const CHANNEL_UPDATE_FLAGS = ['title', 'description'] as const;
+
+/** Acknowledges that a metadata edit destroys the channel's surface app. */
+const ALLOW_UNPUBLISH_FLAG = 'allow-unpublish';
 
 function getChannelsHelp(command?: string) {
   return command
@@ -288,8 +299,109 @@ async function findChannelGroup(
   return null;
 }
 
+/**
+ * A channel's `description` is not a string — it is a cell holding an encoded
+ * `StructuredChannelDescriptionPayload`, of which the human description is one
+ * optional key. A surface (dashboard) channel keeps its entire app definition
+ * there under `surfaceSpec`.
+ *
+ * That makes "empty" and "has a payload but no human description" two
+ * different states, and the CLI used to render both as `(none)`. It is the
+ * difference between "there is nothing here" and "there is an app here", told
+ * to a bot that came looking for exactly that app.
+ *
+ * Nothing below validates the spec against its schema: presence is the
+ * question these two call sites ask (a definition that fails validation is
+ * still a definition that a metadata write would destroy, and still something
+ * `surface show` should be asked about). `tlon surface show` is the validating
+ * reader.
+ */
+export type SurfaceSpecSummary = {
+  surfaceId: string | null;
+  specRevision: number | null;
+  title: string | null;
+  /** the stored text was not a JSON object — present, but not describable */
+  unreadable: boolean;
+};
+
+export function summarizeSurfaceSpec(
+  raw: string | null | undefined
+): SurfaceSpecSummary | null {
+  if (raw == null || raw.length === 0) return null;
+  const unreadable: SurfaceSpecSummary = {
+    surfaceId: null,
+    specRevision: null,
+    title: null,
+    unreadable: true,
+  };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return unreadable;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return unreadable;
+  }
+  const spec = parsed as Record<string, unknown>;
+  return {
+    surfaceId: typeof spec.surfaceId === 'string' ? spec.surfaceId : null,
+    specRevision:
+      typeof spec.specRevision === 'number' ? spec.specRevision : null,
+    title: typeof spec.title === 'string' ? spec.title : null,
+    unreadable: false,
+  };
+}
+
+/** One phrase naming the app, for both the refusal and the audit line. */
+export function describeSurfaceSpec(summary: SurfaceSpecSummary): string {
+  if (summary.unreadable) {
+    return 'an app definition this build cannot parse';
+  }
+  const parts = [`the app "${summary.surfaceId ?? '(unnamed surface)'}"`];
+  if (summary.title) parts.push(`titled "${summary.title}"`);
+  if (summary.specRevision !== null) {
+    parts.push(`at spec revision ${summary.specRevision}`);
+  }
+  return parts.join(', ');
+}
+
+/** Whether the stored cell is an encoded payload rather than plain text. */
+export function isStructuredDescriptionPayload(
+  raw: string | null | undefined
+): boolean {
+  if (raw == null || raw.length === 0) return false;
+  try {
+    const parsed = JSON.parse(raw);
+    return (
+      typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What `channels info` prints for the description cell, and why it is three
+ * cases rather than two.
+ */
+export function describeDescriptionCell(channel: {
+  description?: string | null;
+  descriptionPayload?: string | null;
+  surfaceSpec?: string | null;
+}): string {
+  if (channel.description) return `Description: ${channel.description}`;
+  if (channel.surfaceSpec) {
+    return "Description: (none — this channel's description cell holds a surface app definition, see below)";
+  }
+  if (isStructuredDescriptionPayload(channel.descriptionPayload)) {
+    return 'Description: (none — the description cell holds a structured payload with no human description)';
+  }
+  return 'Description: (none)';
+}
+
 // Get channel info
-async function getChannelInfo(nest: string) {
+export async function getChannelInfo(nest: string) {
   const { kind, name } = parseNest(nest);
 
   // Find the group this channel belongs to
@@ -305,7 +417,17 @@ async function getChannelInfo(nest: string) {
   console.log(`Kind: ${kind}`);
   console.log(`Group: ${group.title} (${group.id})`);
   console.log(`Zone: ${findChannelSectionId(group, channel.id)}`);
-  console.log(`Description: ${channel.description || '(none)'}`);
+  console.log(describeDescriptionCell(channel));
+  const surface = summarizeSurfaceSpec(channel.surfaceSpec);
+  if (surface) {
+    console.log(`Surface app: ${describeSurfaceSpec(surface)}`);
+    console.log(
+      `   Definition, recipe and bundle pointer: tlon surface show ${nest}`
+    );
+    console.log(
+      `   \`channels update\` and \`channels rename\` would unpublish it.`
+    );
+  }
   const readerRoles = (channel.readerRoles || []).map((r) => r.roleId);
   console.log(
     `Readers: ${readerRoles.length > 0 ? readerRoles.join(', ') : '(all members)'}`
@@ -318,6 +440,10 @@ async function getChannelInfo(nest: string) {
     groupTitle: group.title,
     title: channel.title,
     description: channel.description,
+    hasStructuredDescriptionPayload: isStructuredDescriptionPayload(
+      channel.descriptionPayload
+    ),
+    surface,
     zone: findChannelSectionId(group, channel.id),
     readers: readerRoles,
   };
@@ -370,10 +496,38 @@ async function createNotesChannel(groupId: string, title: string) {
   return nest;
 }
 
-// Update channel metadata
-async function updateChannelMeta(
+/**
+ * The refusal an operator sees when a metadata edit would take the app with
+ * it. It names the app, because an escape hatch that leaves no audit trail is
+ * the failure it is supposed to prevent (D99).
+ */
+export function unpublishRefusal(
   nest: string,
-  options: { title?: string; description?: string }
+  summary: SurfaceSpecSummary
+): string {
+  return [
+    `Refusing to edit ${nest}: this would unpublish ${describeSurfaceSpec(summary)}.`,
+    '',
+    "This command rewrites the channel's description cell from the fields it knows",
+    'about (title, description). A surface channel keeps its whole app definition in',
+    'that cell, so the write drops it: members stop seeing an app, and the state the',
+    "app folded out of the channel's posts becomes unreachable.",
+    '',
+    `Read the definition first with \`tlon surface show ${nest}\`, and change the app`,
+    'with `tlon surface publish` rather than by editing the description here.',
+    '',
+    'If unpublishing is what you mean, pass --allow-unpublish.',
+  ].join('\n');
+}
+
+// Update channel metadata
+export async function updateChannelMeta(
+  nest: string,
+  options: {
+    title?: string;
+    description?: string;
+    allowUnpublish?: boolean;
+  }
 ) {
   const match = await findChannelGroup(nest);
   if (!match) {
@@ -381,6 +535,19 @@ async function updateChannelMeta(
   }
 
   const { group, channel } = match;
+
+  // The gate, before anything is built or sent. It turns on the PRESENCE of a
+  // definition, not its validity: an unreadable spec is still an app this
+  // write would erase, and refusing to destroy it is right either way.
+  //
+  // Scope, recorded honestly: this gates the CLI. The description cell is an
+  // ordinary group-channel metadata field, so the web/mobile clients and any
+  // other %groups poker can still overwrite it with no such check.
+  const surface = summarizeSurfaceSpec(channel.surfaceSpec);
+  if (surface && !options.allowUnpublish) {
+    throw new Error(unpublishRefusal(nest, surface));
+  }
+
   const sectionId = findChannelSectionId(group, channel.id) || 'default';
   const description = options.description ?? channel.description ?? '';
   const channelContentConfiguration = channel.contentConfiguration ?? undefined;
@@ -413,6 +580,15 @@ async function updateChannelMeta(
   console.log(`✅ Channel updated.`);
   console.log(`   Title: ${channelUpdate.meta.title}`);
   console.log(`   Description: ${description || '(none)'}`);
+  if (surface) {
+    console.log(
+      `⚠️  Unpublished ${describeSurfaceSpec(surface)} from ${nest}.`
+    );
+    console.log(
+      `   The definition stored in the channel's description cell is gone.`
+    );
+    console.log(`   Republish with \`tlon surface publish\`.`);
+  }
 }
 
 // Delete a channel
@@ -620,7 +796,11 @@ async function main() {
           process.exit(1);
         }
 
-        await updateChannelMeta(nest, { title, description });
+        await updateChannelMeta(nest, {
+          title,
+          description,
+          allowUnpublish: hasFlag(args, ALLOW_UNPUBLISH_FLAG),
+        });
         break;
       }
 
@@ -631,7 +811,10 @@ async function main() {
           console.error(CHANNELS_COMMAND_HELP.rename);
           process.exit(1);
         }
-        await updateChannelMeta(nest, { title });
+        await updateChannelMeta(nest, {
+          title,
+          allowUnpublish: hasFlag(args, ALLOW_UNPUBLISH_FLAG),
+        });
         break;
       }
 
@@ -700,4 +883,11 @@ async function main() {
   }
 }
 
-main();
+// Two entry styles reach this module, and neither is `import.meta.main`: the
+// unified CLI dynamically imports it after rewriting argv to
+// `['tlon', 'channels', ...]`, and legacy direct execution keeps the source
+// filename in argv[1]. Both are recognised here so the module itself stays
+// side-effect free for unit tests, which run with a `*.test.ts` argv[1].
+if (/(?:^|[\\/])channels(?:\.(?:ts|js))?$/.test(process.argv[1] ?? '')) {
+  main();
+}
