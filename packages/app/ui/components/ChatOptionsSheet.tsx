@@ -28,6 +28,7 @@ import {
   desktopFlyoutContentProps,
   desktopFlyoutPopoverProps,
 } from './ActionSheet';
+import { canMarkChannelRead } from './chatOptionsUtils';
 import { ListItem } from './ListItem';
 
 function getNotificationTitle(
@@ -647,10 +648,7 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  // third-party channels (e.g. notes) have no %channels/%activity unreads, so
-  // mark-read doesn't apply
-  const canMarkRead =
-    !(channel.unread?.count === 0) && !ub.isThirdPartyChannel(channel.id);
+  const canMarkRead = canMarkChannelRead(channel);
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
