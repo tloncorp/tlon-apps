@@ -108,19 +108,6 @@ export class Urbit {
    * subscription is available, which may be 0, 1, or many times. The
    * disconnect function may be called exactly once.
    */
-  /**
-   * Subscriptions whose subscribe request has been allocated but not yet sent.
-   *
-   * The id is published to the consumer as soon as it exists, so a consumer
-   * that unmounts mid-flight can name the replacement rather than the
-   * obsolete id. That leaves a window where its unsubscribe would be sent
-   * first and remove nothing, after which the subscribe lands and the
-   * subscription stays open with nobody listening -- so an unsubscribe
-   * arriving in this window is deferred until the subscribe has gone out.
-   */
-  private inFlightSubscribes: Set<number> = new Set();
-  private deferredUnsubscribes: Set<number> = new Set();
-
   private outstandingSubscriptions: Map<number, SubscriptionRequestInterface> =
     new Map();
 
@@ -836,15 +823,14 @@ export class Urbit {
    * @param handlers Handlers to deal with various events of the subscription
    */
   async subscribe(params: SubscriptionRequestInterface): Promise<number> {
-    const { app, path, ship, resubOnQuit, err, event, quit, onSubscriptionId } =
-      {
-        err: () => {},
-        event: () => {},
-        quit: () => {},
-        resubOnQuit: true,
-        ...params,
-        ship: desig(params.ship ?? this.nodeId ?? ''),
-      };
+    const { app, path, ship, resubOnQuit, err, event, quit } = {
+      err: () => {},
+      event: () => {},
+      quit: () => {},
+      resubOnQuit: true,
+      ...params,
+      ship: desig(params.ship ?? this.nodeId ?? ''),
+    };
 
     if (this.lastEventId === 0) {
       this.emit('status-update', { status: 'opening' });
@@ -865,7 +851,6 @@ export class Urbit {
       err,
       event,
       quit,
-      onSubscriptionId,
     });
 
     this.emit('subscription', {
@@ -875,20 +860,7 @@ export class Urbit {
       status: 'open',
     });
 
-    // Publish the replacement id as soon as it is allocated. A consumer may
-    // unmount while the resubscribe request is still in flight and must still
-    // be able to unsubscribe the replacement rather than the obsolete id.
-    this.inFlightSubscribes.add(message.id);
-    onSubscriptionId?.(message.id);
-    try {
-      await this.sendJSONtoChannel(message);
-    } finally {
-      this.inFlightSubscribes.delete(message.id);
-    }
-
-    if (this.deferredUnsubscribes.delete(message.id)) {
-      await this.unsubscribe(message.id);
-    }
+    await this.sendJSONtoChannel(message);
 
     return message.id;
   }
@@ -899,12 +871,6 @@ export class Urbit {
    * @param subscription
    */
   async unsubscribe(subscription: number) {
-    // Its subscribe has not gone out yet; unsubscribing now would race ahead
-    // of it and remove nothing. Recorded instead, and sent once it has.
-    if (this.inFlightSubscribes.has(subscription)) {
-      this.deferredUnsubscribes.add(subscription);
-      return;
-    }
     return this.sendJSONtoChannel({
       id: this.getEventId(),
       action: 'unsubscribe',

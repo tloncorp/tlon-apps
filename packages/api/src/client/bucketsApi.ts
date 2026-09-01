@@ -283,34 +283,35 @@ export async function requestBucketReadToken(
   return mint;
 }
 
+/**
+ * Listeners on the one %buckets subscription.
+ *
+ * One firehose for the whole app, the way every other agent is subscribed:
+ * opened on the first listener and never closed. Panes come and go, so they
+ * register here rather than each opening their own -- which meant two
+ * subscriptions to the same path, and a per-mount unsubscribe racing the
+ * replacement id Airlock allocates when a subscription is kicked. Nothing
+ * left to race: there is no unsubscribe.
+ */
+const bucketListeners = new Set<(response: BucketsResponse) => void>();
+let bucketFirehose: Promise<unknown> | null = null;
+
 export async function subscribeToBuckets(
   handler: (response: BucketsResponse) => void
 ) {
-  let activeSubscriptionId: number | null = null;
-  // Airlock reallocates the id when a subscription is kicked and re-established,
-  // and that can happen while our own unsubscribe is in flight. Without this
-  // flag the callback would publish a replacement the disposer has already run
-  // past, leaving it live for good -- decoding every Bucket snapshot on a
-  // subscription nobody is listening to.
-  let disposed = false;
-  const subscriptionId = await subscribe<BucketsResponse>(
+  bucketListeners.add(handler);
+  bucketFirehose ??= subscribe<BucketsResponse>(
     { app: BUCKETS_APP, path: '/v1' },
-    handler,
-    {
-      onSubscriptionId: (id) => {
-        activeSubscriptionId = id;
-        if (disposed) {
-          void unsubscribe(id).catch(() => undefined);
-        }
-      },
+    (response) => {
+      // Copied, so a listener removing itself mid-delivery cannot disturb
+      // the iteration.
+      for (const listener of [...bucketListeners]) listener(response);
     }
   );
-  activeSubscriptionId ??= subscriptionId;
+  await bucketFirehose;
 
   return () => {
-    disposed = true;
-    return activeSubscriptionId === null
-      ? Promise.resolve()
-      : unsubscribe(activeSubscriptionId);
+    bucketListeners.delete(handler);
+    return Promise.resolve();
   };
 }

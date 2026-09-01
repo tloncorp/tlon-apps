@@ -209,17 +209,31 @@ test('requestBucketReadToken mints one on a cold start', async () => {
   });
 });
 
-test('subscribeToBuckets unsubscribes the replacement id after a reset', async () => {
-  vi.mocked(subscribe).mockImplementationOnce(
-    async (_endpoint, _onUpdate, options) => {
-      options?.onSubscriptionId?.(7);
-      options?.onSubscriptionId?.(19);
-      return 7;
-    }
-  );
+// One subscription for the app, the way every other agent is subscribed.
+// Listeners come and go against it; it is never unsubscribed, so there is no
+// replacement id to chase and nothing for a disposal to race.
+test('subscribeToBuckets opens one subscription and fans out to listeners', async () => {
+  let deliver: ((response: unknown) => void) | undefined;
+  vi.mocked(subscribe).mockImplementation(async (_endpoint, onUpdate) => {
+    deliver = onUpdate as (response: unknown) => void;
+    return 7;
+  });
 
-  const stop = await subscribeToBuckets(vi.fn());
-  await stop();
+  const first = vi.fn();
+  const second = vi.fn();
+  const stopFirst = await subscribeToBuckets(first);
+  await subscribeToBuckets(second);
 
-  expect(unsubscribe).toHaveBeenCalledWith(19);
+  expect(vi.mocked(subscribe)).toHaveBeenCalledTimes(1);
+
+  deliver?.({ type: 'snapshot' });
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(second).toHaveBeenCalledTimes(1);
+
+  // Dropping one listener leaves the subscription and the other alone.
+  await stopFirst();
+  deliver?.({ type: 'snapshot' });
+  expect(first).toHaveBeenCalledTimes(1);
+  expect(second).toHaveBeenCalledTimes(2);
+  expect(unsubscribe).not.toHaveBeenCalled();
 });
