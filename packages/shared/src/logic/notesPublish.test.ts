@@ -2,6 +2,17 @@ import { expect, test } from 'vitest';
 
 import { renderPublishedNoteHtml } from './notesPublish';
 
+test('renderPublishedNoteHtml links the published footer to Tlon', () => {
+  const html = renderPublishedNoteHtml({
+    title: 'Published note',
+    body: 'Hello',
+  });
+
+  expect(html).toContain(
+    '<div class="tlon-published-footer">Published from <a href="https://tlon.io">Tlon</a></div>'
+  );
+});
+
 test('renderPublishedNoteHtml renders markdown list children as list items', () => {
   const html = renderPublishedNoteHtml({
     title: 'List note',
