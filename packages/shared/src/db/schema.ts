@@ -79,6 +79,7 @@ export const settings = sqliteTable('settings', {
   webAppSplashDismissed: boolean('web_app_splash_dismissed'),
   mobileAppPromoDismissed: boolean('mobile_app_promo_dismissed'),
   contextLensEnabled: boolean('context_lens_enabled'),
+  showDeleteMarkers: boolean('show_delete_markers'),
 });
 
 export const systemContacts = sqliteTable(
@@ -163,6 +164,10 @@ export const contacts = sqliteTable(
     status: text('status'),
     color: text('color'),
     coverImage: text('coverImage'),
+    // Raw JSON of the bot's self-published identity claim (harness and
+    // versions), read off its contact profile. Validated at read; see
+    // docs/bot-info.md.
+    botInfo: text('bot_info'),
     isBlocked: boolean('blocked'),
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),
@@ -1430,6 +1435,27 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
+
+export const botReplyFeedback = sqliteTable(
+  'bot_reply_feedback',
+  {
+    messageId: text('message_id').primaryKey().notNull(),
+    postId: text('post_id').notNull(),
+    feedbackId: text('feedback_id').notNull(),
+    revision: integer('revision').notNull(),
+    rating: text('rating').$type<'up' | 'down' | null>(),
+    categories: text('categories', { mode: 'json' })
+      .$type<string[]>()
+      .notNull(),
+    submittedAt: timestamp('submitted_at').notNull(),
+  },
+  (table) => ({
+    postIdIndex: index('bot_reply_feedback_post_id_index').on(table.postId),
+    submittedAtIndex: index('bot_reply_feedback_submitted_at_index').on(
+      table.submittedAt
+    ),
+  })
+);
 
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner

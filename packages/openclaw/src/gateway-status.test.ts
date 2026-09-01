@@ -1,5 +1,5 @@
 import {
-  configureGatewayStatus,
+  configureStewardGateway,
   gatewayHeartbeat,
   gatewayStart,
   gatewayStop,
@@ -23,26 +23,23 @@ import {
   startGatewayHeartbeatLoop,
 } from './gateway-status.js';
 import { sharedSlot } from './shared-state.js';
-import { configureTlonApiWithPoke } from './urbit/api-client.js';
+import { withTlonApiPoke } from './urbit/api-client.js';
 
 vi.mock('@tloncorp/api', () => ({
-  configureGatewayStatus: vi.fn().mockResolvedValue(undefined),
+  configureStewardGateway: vi.fn().mockResolvedValue(undefined),
   gatewayStart: vi.fn().mockResolvedValue(undefined),
   gatewayHeartbeat: vi.fn().mockResolvedValue(undefined),
   gatewayStop: vi.fn().mockResolvedValue(undefined),
 }));
 
-// The heartbeat and sendGatewayStop paths call configureTlonApiWithPoke each
-// time to defeat OpenClaw plugin module isolation; in tests we stub it to a
-// no-op so the fake @tloncorp/api singleton stays as the vitest mock above.
 vi.mock('./urbit/api-client.js', () => ({
-  configureTlonApiWithPoke: vi.fn(),
+  withTlonApiPoke: vi.fn(
+    (_poke: SharedApiClientParams['poke'], fn: () => Promise<unknown>) => fn()
+  ),
 }));
 
 const stubApiClientParams: SharedApiClientParams = {
   poke: vi.fn().mockResolvedValue(undefined),
-  shipName: 'test-bot',
-  shipUrl: 'http://localhost:8080',
 };
 
 /** A promise the test can resolve/reject on its own schedule. */
@@ -99,11 +96,11 @@ beforeEach(() => {
   vi.useFakeTimers();
   // These resolve with the poke response id (a number); the value itself is
   // never asserted on, only that the call happened.
-  vi.mocked(configureGatewayStatus).mockClear().mockResolvedValue(1);
+  vi.mocked(configureStewardGateway).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStart).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayHeartbeat).mockClear().mockResolvedValue(1);
   vi.mocked(gatewayStop).mockClear().mockResolvedValue(1);
-  vi.mocked(configureTlonApiWithPoke).mockClear();
+  vi.mocked(withTlonApiPoke).mockClear();
   sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(
     stubApiClientParams
   );
@@ -314,6 +311,10 @@ describe('gateway-status: startGatewayHeartbeatLoop', () => {
     await vi.advanceTimersByTimeAsync(30_000);
     expect(gatewayHeartbeat).toHaveBeenCalledTimes(1);
     expect(vi.mocked(gatewayHeartbeat).mock.calls[0][0].bootId).toBe('boot-1');
+    expect(withTlonApiPoke).toHaveBeenCalledWith(
+      stubApiClientParams.poke,
+      expect.any(Function)
+    );
     await vi.advanceTimersByTimeAsync(30_000);
     expect(gatewayHeartbeat).toHaveBeenCalledTimes(2);
     stop();
@@ -393,6 +394,35 @@ describe('gateway-status: runGatewayStatusActivation', () => {
     coordinator = createGatewayStatusCoordinator({ logger: undefined });
   });
 
+  it('reports a missing published poke and stops retrying when aborted', async () => {
+    const controller = new AbortController();
+    const errorObserved = deferred<void>();
+    const onActivationError = vi.fn((err: unknown, attempt: number) => {
+      expect(err).toEqual(
+        expect.objectContaining({ message: 'api-client params not published' })
+      );
+      expect(attempt).toBe(1);
+      errorObserved.resolve();
+    });
+    sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(null);
+    coordinator.beginGeneration();
+
+    const activation = runGatewayStatusActivation({
+      coordinator,
+      owner: '~zod',
+      signal: controller.signal,
+      isTornDown: () => false,
+      onActivationError,
+      registerHeartbeatStop: vi.fn(),
+    });
+
+    await expectSettled(errorObserved.promise, 'missing-published-poke');
+    expect(configureStewardGateway).not.toHaveBeenCalled();
+    controller.abort();
+    await expectSettled(activation, 'missing-published-poke:aborted');
+    expect(onActivationError).toHaveBeenCalledOnce();
+  });
+
   it('waits for the lifecycle, sends %configure + %gateway-start, then starts the heartbeat', async () => {
     const registerHeartbeatStop = vi.fn();
     const lc = coordinator.beginGeneration();
@@ -403,15 +433,22 @@ describe('gateway-status: runGatewayStatusActivation', () => {
       registerHeartbeatStop,
     });
 
-    expect(configureGatewayStatus).toHaveBeenCalledTimes(1);
+    expect(configureStewardGateway).toHaveBeenCalledTimes(1);
     expect(gatewayStart).toHaveBeenCalledTimes(1);
     expect(vi.mocked(gatewayStart).mock.calls[0][0]).toMatchObject({
       bootId: lc.bootId,
     });
+    expect(withTlonApiPoke).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(withTlonApiPoke).mock.calls[0][0]).toBe(
+      stubApiClientParams.poke
+    );
+    expect(vi.mocked(withTlonApiPoke).mock.calls[1][0]).toBe(
+      stubApiClientParams.poke
+    );
     expect(registerHeartbeatStop).toHaveBeenCalledTimes(1);
 
     // configure must precede gateway-start
-    const configureOrder = vi.mocked(configureGatewayStatus).mock
+    const configureOrder = vi.mocked(configureStewardGateway).mock
       .invocationCallOrder[0];
     const startOrder = vi.mocked(gatewayStart).mock.invocationCallOrder[0];
     expect(configureOrder).toBeLessThan(startOrder);
@@ -467,10 +504,10 @@ describe('gateway-status: runGatewayStatusActivation', () => {
   it('stop during %configure: no %gateway-start, no heartbeat, no stop handle', async () => {
     const configureCalled = deferred<void>();
     const configureResult = deferred<void>();
-    vi.mocked(configureGatewayStatus).mockImplementationOnce(() => {
+    vi.mocked(configureStewardGateway).mockImplementationOnce(() => {
       configureCalled.resolve();
       return configureResult.promise as unknown as ReturnType<
-        typeof configureGatewayStatus
+        typeof configureStewardGateway
       >;
     });
     const registerHeartbeatStop = vi.fn();
@@ -534,7 +571,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
       isTornDown: () => true,
       registerHeartbeatStop: vi.fn(),
     });
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
   });
 
   it('returns silently (no telemetry) when aborted while waiting for the lifecycle to start', async () => {
@@ -550,7 +587,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
     });
     controller.abort();
     await activation;
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
     expect(onActivationError).not.toHaveBeenCalled();
   });
 
@@ -575,7 +612,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
     // Watchdog timer was cleared on abort — advancing well past it fires nothing.
     await vi.advanceTimersByTimeAsync(GATEWAY_STATUS_START_WATCHDOG_MS * 2);
     expect(onWatchdogTimeout).not.toHaveBeenCalled();
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
   });
 
   it('watchdog: fires once (log/telemetry-only), never activates, and clears on abort', async () => {
@@ -592,7 +629,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
 
     await vi.advanceTimersByTimeAsync(GATEWAY_STATUS_START_WATCHDOG_MS);
     expect(onWatchdogTimeout).toHaveBeenCalledTimes(1);
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
 
     // One-shot: it does not fire again on further elapsed time.
     await vi.advanceTimersByTimeAsync(GATEWAY_STATUS_START_WATCHDOG_MS * 2);
@@ -600,7 +637,7 @@ describe('gateway-status: runGatewayStatusActivation', () => {
 
     controller.abort();
     await activation;
-    expect(configureGatewayStatus).not.toHaveBeenCalled();
+    expect(configureStewardGateway).not.toHaveBeenCalled();
   });
 
   it('watchdog timer is cleared once the lifecycle starts (no timeout fires after)', async () => {
@@ -822,11 +859,9 @@ describe('gateway-status: sendGatewayStop', () => {
     expect(gatewayStop).not.toHaveBeenCalled();
   });
 
-  it('configures the api client before sending the stop poke', async () => {
+  it('sends the stop through the published poke without reconfiguring the api client', async () => {
     const params: SharedApiClientParams = {
       poke: vi.fn().mockResolvedValue(undefined),
-      shipName: 'test-bot',
-      shipUrl: 'http://localhost:8080',
     };
     sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT).set(params);
 
@@ -835,13 +870,10 @@ describe('gateway-status: sendGatewayStop', () => {
       reason: 'shutdown',
     });
     expect(sent).toBe(true);
-    expect(configureTlonApiWithPoke).toHaveBeenCalledTimes(1);
     expect(gatewayStop).toHaveBeenCalledTimes(1);
-    // configure must run before the poke so the stop reaches the SSE-bound
-    // client in this module's @tloncorp/api instance.
-    const configureOrder = vi.mocked(configureTlonApiWithPoke).mock
-      .invocationCallOrder[0];
-    const stopOrder = vi.mocked(gatewayStop).mock.invocationCallOrder[0];
-    expect(configureOrder).toBeLessThan(stopOrder);
+    expect(withTlonApiPoke).toHaveBeenCalledWith(
+      params.poke,
+      expect.any(Function)
+    );
   });
 });

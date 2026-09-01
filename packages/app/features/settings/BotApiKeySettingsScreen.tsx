@@ -177,15 +177,15 @@ export function BotApiKeySettingsScreen(props: Props) {
   const errorMessage =
     validationError ??
     (saveProviderKey.error
-      ? getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.'
+      ? (getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.')
       : null) ??
     (deleteProviderKey.error
-      ? getErrorMessage(deleteProviderKey.error) ??
-        'Failed to delete provider key.'
+      ? (getErrorMessage(deleteProviderKey.error) ??
+        'Failed to delete provider key.')
       : null) ??
     (disconnectLLMSubscription.error
-      ? getErrorMessage(disconnectLLMSubscription.error) ??
-        `Failed to disconnect the ${subscriptionName ?? 'subscription'}.`
+      ? (getErrorMessage(disconnectLLMSubscription.error) ??
+        `Failed to disconnect the ${subscriptionName ?? 'subscription'}.`)
       : null);
 
   return (
@@ -250,8 +250,8 @@ export function BotApiKeySettingsScreen(props: Props) {
                 }
               >
                 {subscriptionStatusError
-                  ? getErrorMessage(queries.llmAuthStatusQuery.error) ??
-                    `Could not check your ${subscriptionName}.`
+                  ? (getErrorMessage(queries.llmAuthStatusQuery.error) ??
+                    `Could not check your ${subscriptionName}.`)
                   : `Checking your ${subscriptionName}…`}
               </Text>
               {subscriptionStatusError ? (

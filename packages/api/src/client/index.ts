@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export * from './agentProtocol';
 export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
@@ -119,5 +120,5 @@ export * from './metagrabApi';
 export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
-export * from './gatewayStatusApi';
+export * from './stewardGatewayApi';
 export * from './lensApi';

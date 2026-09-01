@@ -32,6 +32,9 @@ import {
   InviteUsersSheet,
   useIsWindowNarrow,
 } from '../../ui';
+import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
+import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
 const logger = createDevLogger('ChannelScreen', false);
 
@@ -40,6 +43,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
 export default function ChannelScreen(props: Props) {
   const {
     channelId,
+    disableTransition,
     selectedPostId,
     startDraft,
     groupId: routeGroupId,
@@ -49,6 +53,15 @@ export default function ChannelScreen(props: Props) {
     startDraft: false,
     groupId: undefined,
   };
+
+  useEffect(() => {
+    if (!disableTransition) return;
+
+    const frame = requestAnimationFrame(() => {
+      props.navigation.setParams({ disableTransition: undefined });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [disableTransition, props.navigation]);
   const [currentChannelId, setCurrentChannelId] = React.useState(channelId);
 
   useEffect(() => {
@@ -71,6 +84,18 @@ export default function ChannelScreen(props: Props) {
   });
 
   const groupId = channel?.groupId ?? group?.id;
+  const {
+    agentOnboarding,
+    agentShipId,
+    navigationLocked: agentOnboardingNavigationLocked,
+  } = useAgentOnboardingChannel({
+    navigation: props.navigation,
+    channelId,
+    currentChannelId,
+    groupId,
+    routeGroupId,
+  });
+  const currentUserId = api.getCurrentUserId();
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -135,23 +160,66 @@ export default function ChannelScreen(props: Props) {
     return () => abortController.abort();
   }, [channelIsPending, channelId, notesActivityCapabilitiesEpoch]);
 
-  // for the unread channel divider, we care about the unread state when you enter but don't want it to update over
-  // time
-  const [initialChannelUnread, setInitialChannelUnread] =
-    React.useState<db.ChannelUnread | null>(null);
-  const [unreadDidInitialize, setUnreadDidInitialize] = React.useState(false);
+  // Snapshot unread state once per focused entry so the divider does not move
+  // as the channel is marked read.
+  const [initialChannelUnreadSnapshot, setInitialChannelUnreadSnapshot] =
+    React.useState<{
+      channelId: string;
+      unread: db.ChannelUnread | null;
+    } | null>(null);
+  const [unreadSnapshotIsFresh, setUnreadSnapshotIsFresh] =
+    React.useState(false);
+  const [clearedCursor, setClearedCursor] = React.useState(false);
   const isFocused = useIsFocused();
-  useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getChannelUnread({ channelId: currentChannelId });
-      setInitialChannelUnread(unread ?? null);
-      setUnreadDidInitialize(true);
-    }
+  useFocusEffect(
+    useCallback(() => {
+      let isCurrent = true;
+      setUnreadSnapshotIsFresh(false);
 
-    if (isFocused) {
-      initializeChannelUnread();
+      async function initializeChannelUnread() {
+        let unread: db.ChannelUnread | null | undefined;
+        try {
+          unread = await db.getChannelUnread({ channelId: currentChannelId });
+        } catch (error) {
+          logger.trackError('failed to initialize channel unread', error);
+        }
+
+        if (isCurrent) {
+          setInitialChannelUnreadSnapshot({
+            channelId: currentChannelId,
+            unread: unread ?? null,
+          });
+          setUnreadSnapshotIsFresh(true);
+        }
+      }
+
+      void initializeChannelUnread();
+
+      return () => {
+        isCurrent = false;
+        setUnreadSnapshotIsFresh(false);
+      };
+    }, [currentChannelId])
+  );
+
+  const unreadDidInitialize =
+    isFocused &&
+    unreadSnapshotIsFresh &&
+    initialChannelUnreadSnapshot?.channelId === currentChannelId;
+  useEffect(() => {
+    if (unreadDidInitialize) {
+      // Keep the retained visit's query mode stable while its replacement
+      // unread snapshot loads, then allow the fresh cursor to take over.
+      setClearedCursor(false);
     }
-  }, [currentChannelId, isFocused]);
+  }, [unreadDidInitialize]);
+  // Retain the prior focused entry's snapshot while its replacement loads.
+  // This preserves Channel-local draft state without enabling unread work
+  // until the new snapshot is ready.
+  const initialChannelUnread =
+    initialChannelUnreadSnapshot?.channelId === currentChannelId
+      ? initialChannelUnreadSnapshot.unread
+      : null;
 
   const {
     navigateToImage,
@@ -168,44 +236,62 @@ export default function ChannelScreen(props: Props) {
 
   const { performGroupAction } = useGroupActions();
 
-  const cursor = useMemo(() => {
-    if (!channel) {
-      return undefined;
+  const unreadCursor =
+    channel &&
+    initialChannelUnread &&
+    (initialChannelUnread.countWithoutThreads ?? 0) > 0
+      ? initialChannelUnread.firstUnreadPostId
+      : undefined;
+  // Channel navigation establishes a new cursor scope.
+  useEffect(() => {
+    setClearedCursor(false);
+  }, [currentChannelId]);
+
+  // A newly selected post establishes a new cursor scope. Clearing an existing
+  // selection below must not immediately restore the cursor we just retired.
+  useEffect(() => {
+    if (selectedPostId) {
+      setClearedCursor(false);
     }
-    const firstUnreadId =
-      initialChannelUnread &&
-      (initialChannelUnread.countWithoutThreads ?? 0) > 0 &&
-      initialChannelUnread?.firstUnreadPostId;
-    return selectedPostId || firstUnreadId;
-    // We only want this to rerun when the channel is loaded for the first time OR if
-    // the selected post route param changes
-    // eslint-disable-next-line
-  }, [!!channel, initialChannelUnread, selectedPostId]);
+  }, [selectedPostId]);
+
+  const handleScrollToBottom = useCallback(() => {
+    setClearedCursor(true);
+    if (selectedPostId) {
+      props.navigation.setParams({ selectedPostId: undefined });
+    }
+  }, [props.navigation, selectedPostId]);
+
+  const channelConfiguration = useMemo(
+    () => configurationFromChannel(channel),
+    [channel]
+  );
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    channelConfiguration?.includeDeletedPosts && showDeleteMarkers;
+  const requestedCursor = selectedPostId || unreadCursor;
+  const { data: cursorPost } = store.usePostWithRelations(
+    requestedCursor ? { id: requestedCursor } : null
+  );
+  const cursorPostIsHidden = Boolean(
+    requestedCursor && !includeDeletedPosts && cursorPost?.isDeleted
+  );
+  const cursor = cursorPostIsHidden ? undefined : requestedCursor;
+
+  useEffect(() => {
+    if (cursorPostIsHidden) {
+      setClearedCursor(true);
+      if (selectedPostId) {
+        props.navigation.setParams({ selectedPostId: undefined });
+      }
+    }
+  }, [cursorPostIsHidden, props.navigation, selectedPostId]);
 
   useEffect(() => {
     if (channel?.id) {
       logger.sensitiveCrumb(`channelId: ${channel?.id}`, `cursor: ${cursor}`);
     }
   }, [channel?.id, cursor]);
-
-  // If scroll to bottom is pressed, it's most straighforward to ignore
-  // existing cursor
-  const [clearedCursor, setClearedCursor] = React.useState(false);
-
-  // But if a new post is selected, we should mark the cursor
-  // as uncleared
-  useEffect(() => {
-    setClearedCursor(false);
-  }, [selectedPostId]);
-
-  const handleScrollToBottom = useCallback(() => {
-    setClearedCursor(true);
-  }, []);
-
-  const channelConfiguration = useMemo(
-    () => configurationFromChannel(channel),
-    [channel]
-  );
 
   const {
     posts,
@@ -214,10 +300,12 @@ export default function ChannelScreen(props: Props) {
     loadOlder,
     isLoading: isLoadingPosts,
   } = store.useChannelPosts({
-    enabled: !!channel && !channel?.isPendingChannel,
+    // Capture the unread cursor before loading posts or mounting Channel,
+    // which can mark the channel read as soon as cached posts are available.
+    enabled: unreadDidInitialize && !!channel && !channel?.isPendingChannel,
     channelId: currentChannelId,
     count: 30,
-    filterDeleted: !channelConfiguration?.includeDeletedPosts,
+    filterDeleted: !includeDeletedPosts,
     ...(cursor && !clearedCursor
       ? {
           mode: 'around',
@@ -230,27 +318,86 @@ export default function ChannelScreen(props: Props) {
         }),
   });
 
+  const oldestPage = postsQuery.data?.pages.at(-1);
+  const oldestPageHasOnlyDeletedPosts = Boolean(
+    !includeDeletedPosts &&
+    oldestPage?.posts.length &&
+    oldestPage.posts.every((post) => post.isDeleted)
+  );
+
   useEffect(() => {
-    // make sure we always load enough posts to fill the screen or
-    // onScrollEndReached might not fire properly
+    // This recovers a failed around-cursor query by issuing a newest query.
+    // Successful queries that temporarily omit the anchor recover in PostList.
+    if (
+      unreadCursor &&
+      !selectedPostId &&
+      !clearedCursor &&
+      postsQuery.isError &&
+      !isLoadingPosts
+    ) {
+      logger.log('unread cursor failed; falling back to newest posts', {
+        channelId: currentChannelId,
+        unreadCursor,
+      });
+      setClearedCursor(true);
+    }
+  }, [
+    clearedCursor,
+    currentChannelId,
+    isLoadingPosts,
+    postsQuery.isError,
+    selectedPostId,
+    unreadCursor,
+  ]);
+
+  useEffect(() => {
+    // Make sure the initial page can fill the screen; otherwise the visual
+    // start boundary may never move far enough to request another older page.
+    // Likewise, keep going when a page contains only hidden delete markers,
+    // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
       !postsQuery.isFetching &&
       postsQuery.hasNextPage &&
       unreadDidInitialize &&
-      (!posts || posts.length < ENOUGH_POSTS_TO_FILL_SCREEN)
+      (!posts ||
+        posts.length < ENOUGH_POSTS_TO_FILL_SCREEN ||
+        oldestPageHasOnlyDeletedPosts)
     ) {
       loadOlder();
     }
-  }, [postsQuery, posts, loadOlder, unreadDidInitialize]);
+  }, [
+    loadOlder,
+    oldestPageHasOnlyDeletedPosts,
+    posts,
+    postsQuery,
+    unreadDidInitialize,
+  ]);
 
   const filteredPosts = useMemo(
-    () =>
-      channelConfiguration?.includeDeletedPosts
-        ? posts
-        : posts?.filter((p) => !p.isDeleted),
-    [posts, channelConfiguration?.includeDeletedPosts]
+    () => (includeDeletedPosts ? posts : posts?.filter((p) => !p.isDeleted)),
+    [posts, includeDeletedPosts]
   );
+  const agentGroupSetupActive = useMemo(() => {
+    return isAgentGroupSetupActive(
+      filteredPosts,
+      currentUserId,
+      agentShipId,
+      Boolean(agentOnboarding.marker)
+    );
+  }, [agentOnboarding.marker, agentShipId, currentUserId, filteredPosts]);
+
+  const pendingThinkingLabel = useAgentOnboardingFirstEntry({
+    agentShipId,
+    awaitingFirstEntry: agentOnboarding.awaitingFirstEntry,
+    channelId: currentChannelId,
+    groupId,
+    isFocused,
+    posts: filteredPosts,
+    provisionId: agentOnboarding.marker?.provision?.provisionId,
+    provisionAcknowledgedAt: agentOnboarding.marker?.provisionAcknowledgedAt,
+  });
+
   usePushNotifTapTelemetry({
     channelId: currentChannelId,
     posts: filteredPosts,
@@ -349,13 +496,13 @@ export default function ChannelScreen(props: Props) {
   );
 
   const handleMarkRead = useCallback(async () => {
-    if (channel && !channel.isPendingChannel) {
+    if (unreadDidInitialize && channel && !channel.isPendingChannel) {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [channel?.type, channel?.id, channel?.groupId]);
+  }, [channel?.type, channel?.id, channel?.groupId, unreadDidInitialize]);
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
@@ -406,7 +553,10 @@ export default function ChannelScreen(props: Props) {
     [currentChannelId, routeGroupId, channel?.groupId]
   );
 
-  if (!channel) {
+  if (
+    !channel ||
+    initialChannelUnreadSnapshot?.channelId !== currentChannelId
+  ) {
     return null;
   }
 
@@ -421,7 +571,9 @@ export default function ChannelScreen(props: Props) {
           key={currentChannelId}
           channel={channel}
           initialChannelUnread={
-            clearedCursor ? undefined : initialChannelUnread
+            clearedCursor || cursorPostIsHidden
+              ? undefined
+              : initialChannelUnread
           }
           isLoadingPosts={isLoadingPosts}
           loadPostsError={postsQuery.error}
@@ -430,8 +582,14 @@ export default function ChannelScreen(props: Props) {
           group={group}
           groupIsLoading={groupIsLoading}
           posts={filteredPosts ?? null}
-          selectedPostId={selectedPostId}
+          selectedPostId={
+            clearedCursor || cursorPostIsHidden ? undefined : selectedPostId
+          }
           goBack={navigationRef.current.goBack}
+          disableBackButton={agentOnboardingNavigationLocked}
+          suppressEmptyState={agentGroupSetupActive}
+          suppressAnimatedSendScroll={agentGroupSetupActive}
+          pendingThinkingLabel={pendingThinkingLabel}
           goToPost={navigateToPost}
           goToMediaViewer={navigateToImage}
           goToChatDetails={handleChatDetailsPressed}
@@ -441,8 +599,8 @@ export default function ChannelScreen(props: Props) {
           goToDm={handleGoToDm}
           goToUserProfile={handleGoToUserProfile}
           goToGroupSettings={handleGoToGroupSettings}
-          onScrollEndReached={loadOlder}
-          onScrollStartReached={loadNewer}
+          onLoadNewerPosts={loadNewer}
+          onLoadOlderPosts={loadOlder}
           onPressRef={navigateToRef}
           markRead={handleMarkRead}
           onGroupAction={performGroupAction}

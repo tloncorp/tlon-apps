@@ -282,6 +282,7 @@ export function BotModelSettingsScreen(props: Props) {
               ? 'Choose provider'
               : 'Choose model'
         }
+        placement="navigation"
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">

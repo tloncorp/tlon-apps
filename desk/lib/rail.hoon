@@ -207,8 +207,6 @@
 /%  foreigns-1                  %foreigns-1
 /%  foreigns-2                  %foreigns-2
 /%  gangs                       %gangs
-/%  gateway-status-action-1     %gateway-status-action-1
-/%  gateway-status-update-1     %gateway-status-update-1
 /%  group                       %group
 /%  group-1                     %group-1
 /%  group-2                     %group-2
@@ -567,8 +565,6 @@
       $:  %foreigns-1                  $+  foreigns-1                  p=_*vale:foreigns-1                  ==
       $:  %foreigns-2                  $+  foreigns-2                  p=_*vale:foreigns-2                  ==
       $:  %gangs                       $+  gangs                       p=_*vale:gangs                       ==
-      $:  %gateway-status-action-1     $+  gateway-status-action-1     p=_*vale:gateway-status-action-1     ==
-      $:  %gateway-status-update-1     $+  gateway-status-update-1     p=_*vale:gateway-status-update-1     ==
       $:  %group                       $+  group                       p=_*vale:group                       ==
       $:  %group-1                     $+  group-1                     p=_*vale:group-1                     ==
       $:  %group-2                     $+  group-2                     p=_*vale:group-2                     ==
@@ -929,8 +925,6 @@
     %foreigns-1                  [-.rail !>(+.rail)]
     %foreigns-2                  [-.rail !>(+.rail)]
     %gangs                       [-.rail !>(+.rail)]
-    %gateway-status-action-1     [-.rail !>(+.rail)]
-    %gateway-status-update-1     [-.rail !>(+.rail)]
     %group                       [-.rail !>(+.rail)]
     %group-1                     [-.rail !>(+.rail)]
     %group-2                     [-.rail !>(+.rail)]
@@ -1289,8 +1283,6 @@
     %foreigns-1                  [p !<(_*vale:foreigns-1 q)]
     %foreigns-2                  [p !<(_*vale:foreigns-2 q)]
     %gangs                       [p !<(_*vale:gangs q)]
-    %gateway-status-action-1     [p !<(_*vale:gateway-status-action-1 q)]
-    %gateway-status-update-1     [p !<(_*vale:gateway-status-update-1 q)]
     %group                       [p !<(_*vale:group q)]
     %group-1                     [p !<(_*vale:group-1 q)]
     %group-2                     [p !<(_*vale:group-2 q)]
@@ -1649,8 +1641,6 @@
       :-  %foreigns-1                  -:!>(*vale:foreigns-1)
       :-  %foreigns-2                  -:!>(*vale:foreigns-2)
       :-  %gangs                       -:!>(*vale:gangs)
-      :-  %gateway-status-action-1     -:!>(*vale:gateway-status-action-1)
-      :-  %gateway-status-update-1     -:!>(*vale:gateway-status-update-1)
       :-  %group                       -:!>(*vale:group)
       :-  %group-1                     -:!>(*vale:group-1)
       :-  %group-2                     -:!>(*vale:group-2)

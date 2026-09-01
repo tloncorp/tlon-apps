@@ -23,6 +23,35 @@ export function resolveSlotEmoji(slot: string) {
   return getNativeEmoji(slot) ?? slot;
 }
 
+/** Keeps a normalized display glyph separate from the stored reaction value. */
+export function resolveReactionSlot(slot: string, selectedReaction?: string) {
+  const value = resolveSlotEmoji(slot);
+  const selected =
+    selectedReaction !== undefined &&
+    resolveSlotEmoji(selectedReaction) === value;
+
+  return {
+    value,
+    selected,
+    actionValue: selected ? selectedReaction : value,
+  };
+}
+
+export function selectLastReactionSlot(
+  visibleSlots: string[],
+  selectedReaction?: string
+) {
+  if (
+    selectedReaction !== undefined &&
+    !visibleSlots.some(
+      (slot) => resolveSlotEmoji(slot) === resolveSlotEmoji(selectedReaction)
+    )
+  ) {
+    return selectedReaction;
+  }
+  return LAST_SLOT_PLACEHOLDER;
+}
+
 /**
  * Picks the frequent slots from `sortedByUsage` (most-used first), backfilling
  * with defaults so the toolbar is never short. Returns slot values in their

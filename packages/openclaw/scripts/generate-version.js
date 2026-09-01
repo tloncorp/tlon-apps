@@ -1,20 +1,20 @@
 #!/usr/bin/env node
-import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { execSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const outPath = join(__dirname, "..", "src", "version.generated.ts");
-const pkgPath = join(__dirname, "..", "package.json");
+const outPath = join(__dirname, '..', 'src', 'version.generated.ts');
+const pkgPath = join(__dirname, '..', 'package.json');
 
-const { version } = JSON.parse(readFileSync(pkgPath, "utf8"));
+const { version } = JSON.parse(readFileSync(pkgPath, 'utf8'));
 
-let commit = "unknown";
+let commit = 'unknown';
 try {
-  commit = execSync("git rev-parse --short HEAD", {
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "ignore"],
+  commit = execSync('git rev-parse --short HEAD', {
+    encoding: 'utf8',
+    stdio: ['pipe', 'pipe', 'ignore'],
   }).trim();
 } catch {
   // Not in a git repo

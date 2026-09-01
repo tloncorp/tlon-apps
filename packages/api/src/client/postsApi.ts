@@ -227,6 +227,7 @@ export const editPost = async ({
   parentId,
   metadata,
   blob,
+  botProfile,
 }: {
   channelId: string;
   postId: string;
@@ -236,6 +237,10 @@ export const editPost = async ({
   parentId?: string;
   metadata?: db.PostMetadata;
   blob?: string;
+  // The %edit arm stores the submitted essay wholesale, so an edit that omits
+  // this would rewrite a bot-authored post to a bare ship author and drop its
+  // Bot tag. Callers pass the existing post's authorship shape back in.
+  botProfile?: AuthorProfile;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -247,7 +252,7 @@ export const editPost = async ({
   if (parentId) {
     logger.log('editing a reply');
     const replyEssay: ub.ReplyEssay = {
-      author: authorId,
+      author: toAuthor(authorId, botProfile),
       content,
       sent: sentAt,
       blob: blob ?? null,
@@ -289,6 +294,7 @@ export const editPost = async ({
           cover: metadata.cover || '',
         }
       : undefined,
+    botProfile,
   });
 
   const action = channelPostAction(channelId, {
@@ -652,6 +658,8 @@ export const getChangedPosts = async ({
   endCursor,
   afterTime,
 }: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
+  // %chat exposes DM and club updates through its global changes-since feed,
+  // not a per-conversation, cursor-bounded changed-posts endpoint.
   if (!isGroupChannelId(channelId)) {
     throw new Error(
       `invalid channel id  ${channelId}:

@@ -112,6 +112,8 @@ interface _PostDataDraftBase {
   channelId: string;
   content: (Inline | Block)[];
   attachments: Attachment[];
+  /** Typed metadata preserved through optimistic send, retry, and finalization. */
+  blob?: string;
   channelType: ChannelType;
   title?: string;
   image?: string;
@@ -192,6 +194,10 @@ export namespace PostDataDraft {
 
     // Validate replyToPostId is string or null
     if (obj.replyToPostId !== null && typeof obj.replyToPostId !== 'string') {
+      return false;
+    }
+
+    if (obj.blob !== undefined && typeof obj.blob !== 'string') {
       return false;
     }
 

@@ -180,7 +180,7 @@ const GROUPS_COMMAND_HELP: Record<string, string> = {
 };
 
 function getGroupsHelp(command?: string) {
-  return command ? GROUPS_COMMAND_HELP[command] ?? GROUPS_HELP : GROUPS_HELP;
+  return command ? (GROUPS_COMMAND_HELP[command] ?? GROUPS_HELP) : GROUPS_HELP;
 }
 
 function validateGroupsArgs(args: string[]): void {

@@ -13,6 +13,7 @@ import { View, XStack, YStack } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
 import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import { BotBadge } from '../../ui/components/BotBadge';
 import {
   BotSettingsDivider,
   BotSettingsErrorText,
@@ -304,6 +305,7 @@ export function BotChannelRuleSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={channelLabel || 'Channel'}
+        placement="navigation"
       />
       {!ready ? (
         <View flex={1} alignItems="center" justifyContent="center">
@@ -406,9 +408,23 @@ export function BotChannelRuleSettingsScreen(props: Props) {
                         justifyContent="space-between"
                         gap="$m"
                       >
-                        <Text size="$label/l" color="$primaryText">
-                          {ship}
-                        </Text>
+                        <XStack
+                          alignItems="center"
+                          gap="$s"
+                          flex={1}
+                          minWidth={0}
+                        >
+                          <Text
+                            size="$label/l"
+                            color="$primaryText"
+                            numberOfLines={1}
+                            flex={1}
+                            minWidth={0}
+                          >
+                            {ship}
+                          </Text>
+                          <BotBadge contactId={ship} />
+                        </XStack>
                         <Pressable
                           disabled={controlsDisabled}
                           onPress={() =>

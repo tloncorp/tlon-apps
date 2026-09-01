@@ -1,10 +1,5 @@
 import { createNativeBottomTabNavigator } from '@react-navigation/bottom-tabs/unstable';
 import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider as NavigationThemeProvider,
-} from '@react-navigation/native';
-import {
   BlendMode,
   ClipOp,
   ImageFormat,
@@ -16,16 +11,17 @@ import {
 import * as store from '@tloncorp/shared/store';
 import { makeSigil } from '@tloncorp/ui';
 import { toHex } from 'color2k';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { type ImageSourcePropType, PixelRatio, Platform } from 'react-native';
 import { getTokenValue, useTheme } from 'tamagui';
 
 import { ActivityScreen } from '../features/top/ActivityScreen';
 import ChatListScreen from '../features/top/ChatListScreen';
 import ContactsScreen from '../features/top/ContactsScreen';
+import { useIsDarkMode } from '../hooks/useDarkMode';
 import { useTopLevelTabController } from '../hooks/useTopLevelTabController';
 import ProfileStatusSheet from '../ui/components/ProfileStatusSheet';
-import { useIsDarkTheme, useSigilColors } from '../ui/utils/colorUtils';
+import { useSigilColors } from '../ui/utils/colorUtils';
 import { TOP_LEVEL_TABS, trackTopLevelTabSelection } from './topLevelTabs';
 import type { TopLevelTabParamList } from './types';
 
@@ -321,36 +317,16 @@ function useRoundedAvatarSource({
 
 export function TopLevelTabNavigator() {
   const theme = useTheme();
-  const isDarkTheme = useIsDarkTheme();
-  const navigationTheme = useMemo(() => {
-    const baseTheme = isDarkTheme ? DarkTheme : DefaultTheme;
-
-    return {
-      ...baseTheme,
-      colors: {
-        ...baseTheme.colors,
-        background: theme.background?.val ?? baseTheme.colors.background,
-        card: theme.background?.val ?? baseTheme.colors.card,
-        text: theme.primaryText?.val ?? baseTheme.colors.text,
-        border: theme.border?.val ?? baseTheme.colors.border,
-        primary: theme.primaryText?.val ?? baseTheme.colors.primary,
-        notification: getTokenValue('$blue', 'color'),
-      },
-    };
-  }, [
-    isDarkTheme,
-    theme.background?.val,
-    theme.border?.val,
-    theme.primaryText?.val,
-  ]);
+  const isDarkMode = useIsDarkMode();
+  const defaultIconColor = isDarkMode ? 'white' : 'black';
   const { currentUserId, haveUnreadActivity, statusSheet } =
     useTopLevelTabController();
   const { data: currentUser } = store.useContact({ id: currentUserId });
   const { data: calmSettings } = store.useCalmSettings();
   const sigilColors = useSigilColors(currentUser?.color);
   const unreadActivityIconSources = useUnreadActivityIconSources({
-    activeColor: theme.primaryText?.val ?? navigationTheme.colors.text,
-    inactiveColor: theme.secondaryText?.val ?? navigationTheme.colors.text,
+    activeColor: theme.primaryText?.val ?? defaultIconColor,
+    inactiveColor: theme.secondaryText?.val ?? defaultIconColor,
   });
   const roundedAvatarSource = useRoundedAvatarSource({
     avatarImage: calmSettings?.disableAvatars
@@ -361,7 +337,7 @@ export function TopLevelTabNavigator() {
     foregroundColor: sigilColors.foregroundColor,
   });
   return (
-    <NavigationThemeProvider value={navigationTheme}>
+    <>
       <Tabs.Navigator
         initialRouteName="ChatList"
         backBehavior="history"
@@ -433,6 +409,6 @@ export function TopLevelTabNavigator() {
           onUpdateStatus={statusSheet.updateStatus}
         />
       )}
-    </NavigationThemeProvider>
+    </>
   );
 }

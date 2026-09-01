@@ -3,6 +3,7 @@ import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
+import type { ConversationContentInsets } from './Channel/PostList';
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ThinkingState } from './Channel/ThinkingState';
 import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
@@ -33,6 +34,8 @@ export interface DetailViewProps {
     scrollToStart: (opts: { animated?: boolean }) => void;
     scrollToEnd: (opts: { animated?: boolean }) => void;
   } | null>;
+  contentInsets?: ConversationContentInsets;
+  isLoading?: boolean;
 }
 
 export const DetailView = ({
@@ -53,12 +56,14 @@ export const DetailView = ({
   anchor,
   highlightPostId,
   scrollerRef,
+  contentInsets,
+  isLoading,
 }: DetailViewProps) => {
   const channelType = channel.type;
   const isChat = channelType !== 'notebook' && channelType !== 'gallery';
   const resolvedPosts = useMemo(() => {
     if (isChat) {
-      return posts ? [...posts, post] : posts;
+      return posts ? [post, ...[...posts].reverse()] : posts;
     }
     return posts ? [...posts].reverse() : posts;
   }, [posts, post, isChat]);
@@ -74,6 +79,7 @@ export const DetailView = ({
   }, [isChat]);
 
   const shouldShowThinkingState = useShouldShowThinkingState(channel);
+  const latestPost = resolvedPosts?.[resolvedPosts.length - 1];
   // Computing presence is channel-scoped, so this shows bots thinking
   // anywhere in the channel, not just in this thread. The ideal end state is
   // thread-scoped presence contexts (e.g. /channel/chat/~host/name/thread/<id>)
@@ -81,9 +87,20 @@ export const DetailView = ({
   const listBottomComponent = useMemo(
     () =>
       shouldShowThinkingState ? (
-        <ThinkingState conversationId={channel.id} channelType={channel.type} />
+        <ThinkingState
+          conversationId={channel.id}
+          channelType={channel.type}
+          latestPostId={latestPost?.id}
+          latestPostAuthorId={latestPost?.authorId}
+        />
       ) : undefined,
-    [shouldShowThinkingState, channel.id, channel.type]
+    [
+      shouldShowThinkingState,
+      channel.id,
+      channel.type,
+      latestPost?.authorId,
+      latestPost?.id,
+    ]
   );
 
   const listHeaderComponent = useMemo(() => {
@@ -118,7 +135,7 @@ export const DetailView = ({
       <Scroller
         ref={scrollerRef}
         anchor={anchor}
-        inverted={isChat}
+        anchorToEnd={isChat}
         renderItem={ChatMessage}
         channel={channel}
         collectionLayoutType="compact-list-bottom-to-top"
@@ -135,7 +152,7 @@ export const DetailView = ({
         onGoToBotRun={onGoToBotRun}
         highlightPostId={highlightPostId}
         firstUnreadId={
-          initialPostUnread?.count ?? 0 > 0
+          (initialPostUnread?.count ?? 0 > 0)
             ? initialPostUnread?.firstUnreadPostId
             : null
         }
@@ -145,6 +162,8 @@ export const DetailView = ({
         setActiveMessage={setActiveMessage}
         listHeaderComponent={listHeaderComponent}
         listBottomComponent={listBottomComponent}
+        contentInsets={contentInsets}
+        isLoading={isLoading}
       />
     </View>
   );

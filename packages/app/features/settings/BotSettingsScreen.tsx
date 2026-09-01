@@ -179,6 +179,7 @@ export function BotSettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title="Bot settings"
+        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"

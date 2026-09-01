@@ -93,6 +93,9 @@ export interface Contact extends WithId {
   systemContactId?: string | null;
   pinnedGroups?: ContactPinnedGroups | null;
   attestations?: any[] | null;
+  // Raw JSON of the bot's self-published identity claim (harness and
+  // versions), as published in its contact profile. Validated at read.
+  botInfo?: string | null;
 }
 
 export type ContactPinnedGroups = any[];
@@ -323,6 +326,7 @@ export interface Settings {
   webAppSplashDismissed?: boolean;
   mobileAppPromoDismissed?: boolean;
   contextLensEnabled?: boolean;
+  showDeleteMarkers?: boolean;
 }
 
 export interface VolumeSettings {

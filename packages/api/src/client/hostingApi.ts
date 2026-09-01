@@ -1235,7 +1235,7 @@ export const getNodeStatus = async (
     throw new Error('Hosting API call failed');
   }
 
-  const nodeStatus = result.status ? result.status.phase ?? 'Unknown' : null;
+  const nodeStatus = result.status ? (result.status.phase ?? 'Unknown') : null;
   const isBooting = result.ship?.booting;
   const manualUpdateNeeded = result.ship?.manualUpdateNeeded;
   const showWayfinding = result.ship?.showWayfinding ?? false;

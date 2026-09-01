@@ -60,6 +60,7 @@ The runner allocates host ports by default, renders a unique compose project nam
 Current common scenarios are:
 
 -   no-model connectivity checks across bot, owner, and third-party ships
+-   `bot-info` identity publication on the bot profile and its replication to the owner's peer contact
 -   owner DM text reply
 -   owner DM `tlon` tool call followed by final assistant text
 -   unauthorized third-party DM produces no fake-model call and no direct reply

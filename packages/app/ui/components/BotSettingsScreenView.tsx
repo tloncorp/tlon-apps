@@ -8,25 +8,15 @@ import {
   triggerHaptic,
 } from '@tloncorp/ui';
 import { useState } from 'react';
+import { Platform } from 'react-native';
 import { View, XStack, YStack } from 'tamagui';
 
+import type { McpProviderRow } from '../../lib/mcpProviders';
 import { useIsWindowNarrow } from '../utils';
 import { ListItem } from './ListItem';
 import { McpProviderLogo } from './McpProviderLogo';
 import { ScreenHeader } from './ScreenHeader';
 import { SettingsContentScrollView } from './SettingsContentScrollView';
-
-export type BotSettingsProviderStatus =
-  | 'connected'
-  | 'expired'
-  | 'not-connected';
-
-export interface BotSettingsProviderRow {
-  displayName: string;
-  id: string;
-  logoUrl?: string;
-  status: BotSettingsProviderStatus;
-}
 
 interface BotSettingsScreenViewProps {
   available: boolean;
@@ -36,7 +26,7 @@ interface BotSettingsScreenViewProps {
   onConnectProvider: (providerId: string) => void;
   onDisconnectProvider: (providerId: string) => void;
   onRefresh: () => void;
-  providers: BotSettingsProviderRow[];
+  providers: McpProviderRow[];
   refreshing: boolean;
   showUnavailableNotice: boolean;
 }
@@ -65,12 +55,20 @@ export function BotSettingsScreenView({
     <View flex={1} backgroundColor="$background">
       <ScreenHeader
         borderBottom
-        backAction={isWindowNarrow ? onBackPressed : undefined}
-        loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
-        rightControls={
-          <ScreenHeader.IconButton type="Refresh" onPress={onRefresh} />
+        backAction={
+          Platform.OS !== 'web' || isWindowNarrow ? onBackPressed : undefined
         }
+        loadingSubtitle={refreshing && !initialLoading ? 'Refreshing' : null}
+        rightActions={[
+          {
+            id: 'refresh-providers',
+            icon: 'Refresh',
+            label: 'Refresh providers',
+            onPress: onRefresh,
+          },
+        ]}
         title="Connect MCP"
+        placement="navigation"
       />
       {initialLoading ? (
         <YStack flex={1} alignItems="center" justifyContent="center">
@@ -143,7 +141,7 @@ function ProviderSection({
   loadingProviderId: string | null;
   onConnect: (providerId: string) => void;
   onDisconnect: (providerId: string) => void;
-  providers: BotSettingsProviderRow[];
+  providers: McpProviderRow[];
   title: string;
 }) {
   return (
@@ -178,7 +176,7 @@ function ProviderListItem({
   loading: boolean;
   onConnect: (providerId: string) => void;
   onDisconnect: (providerId: string) => void;
-  provider: BotSettingsProviderRow;
+  provider: McpProviderRow;
 }) {
   const isConnected = provider.status === 'connected';
   const canConnect = !disabled && !isConnected;

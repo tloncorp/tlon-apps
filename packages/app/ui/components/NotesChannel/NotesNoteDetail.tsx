@@ -9,6 +9,7 @@ import {
   normalizeNotebookNoteTitle,
   saveNotebookNote,
   trackEvent,
+  withRetry,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
@@ -28,7 +29,6 @@ import {
   NativeSyntheticEvent,
 } from 'react-native';
 import {
-  Input,
   ScrollView,
   TextArea,
   XStack,
@@ -37,6 +37,7 @@ import {
   isWeb,
 } from 'tamagui';
 
+import { matchAgentOnboardingFirstEntryNote } from '../../../features/top/agentOnboardingFirstEntry';
 import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
@@ -219,11 +220,11 @@ function rebaseNotesNoteDraftSnapshot(
     result.titleIntent === 'preserve' &&
     normalizeNotebookNoteTitle(snapshot.title) ===
       normalizeNotebookNoteTitle(result.effectiveTitle)
-      ? result.updated?.title ?? snapshot.title
+      ? (result.updated?.title ?? snapshot.title)
       : snapshot.title;
   const nextBody =
     result.bodyIntent === 'preserve' && snapshot.body === result.effectiveBody
-      ? result.updated?.bodyMd ?? snapshot.body
+      ? (result.updated?.bodyMd ?? snapshot.body)
       : snapshot.body;
   const nextSnapshot = {
     ...snapshot,
@@ -234,8 +235,8 @@ function rebaseNotesNoteDraftSnapshot(
     body: nextBody,
     isDirty: Boolean(
       result.updated &&
-        (normalizeNotebookNoteTitle(nextTitle) !== result.updated.title ||
-          nextBody !== result.updated.bodyMd)
+      (normalizeNotebookNoteTitle(nextTitle) !== result.updated.title ||
+        nextBody !== result.updated.bodyMd)
     ),
     updatedAt: Date.now(),
   };
@@ -274,7 +275,7 @@ function getNotePreviewModeKey(
 }
 
 function getStoredNotePreviewMode(key: string | null) {
-  return key ? notePreviewModes.get(key) ?? true : true;
+  return key ? (notePreviewModes.get(key) ?? true) : true;
 }
 
 function useNotePreviewMode(
@@ -494,32 +495,116 @@ export function NotesNoteDetail({
   const selectedNote =
     noteId === null
       ? null
-      : notes.find((note) => note.noteId === noteId) ?? null;
+      : (notes.find((note) => note.noteId === noteId) ?? null);
   const selectedNoteRowId = selectedNote?.id ?? null;
   const selectedNoteSavePending = Boolean(
     notebookFlag &&
-      selectedNote &&
-      hasPendingNotesNoteSave(notebookFlag, selectedNote.noteId)
+    selectedNote &&
+    hasPendingNotesNoteSave(notebookFlag, selectedNote.noteId)
   );
   const isCurrentNote = useCallback(
     (flag: string, targetNoteId: number) =>
       selectedNoteKeyRef.current === draftSnapshotKey(flag, targetNoteId),
     []
   );
+  const selectedNoteCreatedBy = selectedNote?.createdBy ?? null;
 
   useEffect(() => {
-    if (selectedNoteRowId !== null) {
-      trackEvent(AnalyticsEvent.NoteOpened);
+    if (selectedNoteRowId === null) {
+      return;
     }
+    trackEvent(AnalyticsEvent.NoteOpened);
   }, [selectedNoteRowId]);
+
+  useEffect(() => {
+    if (selectedNoteRowId === null || !notebookFlag || noteId === null) {
+      return;
+    }
+    // Activation for agent onboarding. The plugin reports that it posted the
+    // first entry; only the client knows whether the owner opened one. Counted
+    // once per group and persisted, so it survives a restart and doesn't
+    // re-fire on every note view.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const currentUserId = api.getCurrentUserId();
+        const channel = await db.getChannel({ id: `notes/${notebookFlag}` });
+        const groupId = channel?.groupId;
+        if (!groupId) return;
+        const group = await db.getGroup({ id: groupId });
+        if (group?.hostUserId !== currentUserId) return;
+        const agents = await db.agentGroupAgents.getValue(true);
+        const agentShip = agents[groupId];
+        if (
+          !agentShip ||
+          !selectedNoteCreatedBy ||
+          selectedNoteCreatedBy.replace(/^~/, '') !==
+            agentShip.replace(/^~/, '')
+        ) {
+          return;
+        }
+        const claimKey = `${currentUserId}:${groupId}`;
+        const existingClaims = await db.agentEntryFirstOpened.getValue(true);
+        if (existingClaims[claimKey]) return;
+        const matched = await withRetry(
+          async () => {
+            if (cancelled) throw new Error('Note closed');
+            const chatPosts = (
+              await Promise.all(
+                group.channels
+                  .filter((candidate) => candidate.type === 'chat')
+                  .map((candidate) =>
+                    db.getChanPosts({ channelId: candidate.id })
+                  )
+              )
+            ).flat();
+            const match = matchAgentOnboardingFirstEntryNote(
+              chatPosts,
+              agentShip,
+              notebookFlag,
+              noteId
+            );
+            if (match === 'absent') {
+              throw new Error('First-entry marker not synced');
+            }
+            return match === 'match';
+          },
+          {
+            numOfAttempts: 10,
+            startingDelay: 500,
+            timeMultiple: 1.7,
+            maxDelay: 5_000,
+            retry: () => !cancelled,
+          }
+        );
+        if (cancelled || !matched) return;
+        let claimed = false;
+        await db.agentEntryFirstOpened.setValue((current) => {
+          if (current[claimKey]) return current;
+          claimed = true;
+          return {
+            ...current,
+            [claimKey]: true,
+          };
+        });
+        if (!claimed) return;
+        trackEvent(AnalyticsEvent.AgentEntryFirstOpened, { groupId });
+      } catch {
+        // Never let activation reporting interfere with reading a note.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [noteId, selectedNoteRowId, selectedNoteCreatedBy, notebookFlag]);
 
   const draftsMatchSelectedNote = draftBase?.id === selectedNote?.id;
   const isDirty = Boolean(
     selectedNote &&
-      draftBase &&
-      draftsMatchSelectedNote &&
-      (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
-        bodyDraft !== draftBase.bodyMd)
+    draftBase &&
+    draftsMatchSelectedNote &&
+    (normalizeNotebookNoteTitle(titleDraft) !== draftBase.title ||
+      bodyDraft !== draftBase.bodyMd)
   );
   const previewState = useMemo(() => {
     // Markdown conversion is too expensive to run per keystroke; only
@@ -692,9 +777,9 @@ export function NotesNoteDetail({
       selectedNote.revision < draftBase.revision;
     const draftsMatchSelectedRow = Boolean(
       sameNote &&
-        selectedNote &&
-        normalizeNotebookNoteTitle(titleDraft) === selectedNote.title &&
-        bodyDraft === selectedNote.bodyMd
+      selectedNote &&
+      normalizeNotebookNoteTitle(titleDraft) === selectedNote.title &&
+      bodyDraft === selectedNote.bodyMd
     );
     if (
       sameNote &&
@@ -741,9 +826,9 @@ export function NotesNoteDetail({
         : null;
     const restoreSnapshot = Boolean(
       snapshot &&
-        selectedNote &&
-        (snapshot.baseRevision === selectedNote.revision ||
-          selectedNoteSavePending)
+      selectedNote &&
+      (snapshot.baseRevision === selectedNote.revision ||
+        selectedNoteSavePending)
     );
     const restoredBase =
       restoreSnapshot &&
@@ -759,10 +844,10 @@ export function NotesNoteDetail({
         : selectedNote;
     setDraftBase(restoredBase ?? null);
     setTitleDraft(
-      restoreSnapshot && snapshot ? snapshot.title : selectedNote?.title ?? ''
+      restoreSnapshot && snapshot ? snapshot.title : (selectedNote?.title ?? '')
     );
     setBodyDraft(
-      restoreSnapshot && snapshot ? snapshot.body : selectedNote?.bodyMd ?? ''
+      restoreSnapshot && snapshot ? snapshot.body : (selectedNote?.bodyMd ?? '')
     );
     if (restoreSnapshot && snapshot && notebookFlag && selectedNote) {
       claimNotesNoteDraftRecovery(
@@ -840,8 +925,8 @@ export function NotesNoteDetail({
         hasPredecessor: predecessor !== null,
         matchesPredecessorRequest: Boolean(
           predecessor &&
-            normalizeNotebookNoteTitle(title) ===
-              normalizeNotebookNoteTitle(predecessor.requestedTitle)
+          normalizeNotebookNoteTitle(title) ===
+            normalizeNotebookNoteTitle(predecessor.requestedTitle)
         ),
         differsFromBase: normalizeNotebookNoteTitle(title) !== base.title,
       });
@@ -1589,24 +1674,18 @@ export function NotesNoteDetail({
             ) : null}
             <XStack alignItems="center" gap="$s">
               {isPreviewing ? (
-                <Input
+                <Text
                   flex={1}
-                  width="100%"
-                  value={titleDraft}
-                  placeholder="Untitled"
-                  placeholderTextColor="$tertiaryText"
+                  minWidth={0}
                   fontSize={24}
-                  height={34}
                   minHeight={34}
+                  lineHeight={34}
                   fontWeight="400"
-                  borderColor="transparent"
-                  borderWidth={0}
-                  backgroundColor="transparent"
-                  paddingHorizontal={0}
-                  paddingVertical={0}
-                  disabled
+                  color={titleDraft ? '$primaryText' : '$tertiaryText'}
                   testID="NotesTitleDisplay"
-                />
+                >
+                  {titleDraft || 'Untitled'}
+                </Text>
               ) : (
                 <TextInput
                   ref={titleInputRef}

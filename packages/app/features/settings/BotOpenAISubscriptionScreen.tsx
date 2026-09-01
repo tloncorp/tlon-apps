@@ -103,11 +103,11 @@ export function BotOpenAISubscriptionScreen(props: Props) {
   }, [auth, disconnectLLMSubscription, providerId]);
 
   const mutationError = deleteProviderKey.error
-    ? getErrorMessage(deleteProviderKey.error) ??
-      `Failed to remove the ${providerName} API key.`
+    ? (getErrorMessage(deleteProviderKey.error) ??
+      `Failed to remove the ${providerName} API key.`)
     : disconnectLLMSubscription.error
-      ? getErrorMessage(disconnectLLMSubscription.error) ??
-        `Failed to disconnect the ${subscriptionName}.`
+      ? (getErrorMessage(disconnectLLMSubscription.error) ??
+        `Failed to disconnect the ${subscriptionName}.`)
       : null;
 
   return (

@@ -635,8 +635,9 @@ class AdapterOwnerListenTests(unittest.TestCase):
         class FakeStandaloneCLI:
             instances = []
 
-            def __init__(self, config):
+            def __init__(self, config, **kwargs):
                 self.config = config
+                self.kwargs = kwargs
                 self.messages = []
                 self.replies = []
                 self.instances.append(self)
@@ -883,6 +884,65 @@ class AdapterOwnerListenTests(unittest.TestCase):
 
         self.assertFalse(adapter._auto_accept_dm_invites)
         self.assertEqual(adapter._settings_default_authorized_ships, set())
+
+    def test_group_invite_allowlist_reverts_to_env_default_when_key_is_absent(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._settings_group_invite_allowlist = {"~ten"}  # simulate a prior load
+        adapter._sse = FakeSSE(
+            payloads={"/settings/all": {"all": {"moltbot": {"tlon": {}}}}}
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        # A deletion missed while disconnected must not leave the revoked
+        # inviter authorized in memory.
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~zod"})
+
+    def test_group_invite_allowlist_reverts_to_env_default_on_a_non_list_value(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._settings_group_invite_allowlist = {"~ten"}
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {"moltbot": {"tlon": {"groupInviteAllowlist": "~ten"}}}
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~zod"})
+
+    def test_group_invite_allowlist_list_overrides_env_and_drops_non_strings(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {
+                        "moltbot": {"tlon": {"groupInviteAllowlist": [7, "~ten"]}}
+                    }
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        # Non-string entries are dropped, not coerced into an authorization.
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~ten"})
+
+    def test_group_invite_allowlist_empty_list_overrides_the_env_default(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+        adapter._sse = FakeSSE(
+            payloads={
+                "/settings/all": {
+                    "all": {"moltbot": {"tlon": {"groupInviteAllowlist": []}}}
+                }
+            }
+        )
+
+        asyncio.run(adapter._load_settings_state())
+
+        self.assertEqual(adapter._settings_group_invite_allowlist, set())
 
     def test_settings_event_del_entry_reverts_new_keys(self):
         adapter = self.make_adapter({"auto_discover": "true"})
@@ -1156,6 +1216,10 @@ class AdapterOwnerListenTests(unittest.TestCase):
             ),
         )
 
+        # Not intercepted: the non-owner's text flows through as typed.
+        # Genuinely typed slash text passes the anti-forgery boundary intact
+        # (hermes core's slash-access policy is the authorization ceiling);
+        # only forged or out-of-scope slash positions are defused.
         self.assertEqual(
             [event.text for event in events],
             ["/migrate diary/~pen/log"],
@@ -1166,6 +1230,11 @@ class AdapterOwnerListenTests(unittest.TestCase):
     def test_version_command_replies_with_field_lines(self):
         adapter = self.make_adapter({})
         adapter._cli = FakeCLI()
+        # A value nothing else in the tree can produce, so the row can only be
+        # right if the reply is actually wired to the resolver. A regex on
+        # "some nonempty string" passes even when the wiring is dropped and
+        # every bot silently reports `unknown`.
+        adapter._harness_version_cache = "harness-sentinel-9.9.9"
 
         events = self.dispatches(adapter, channel_event("/tlon-version"))
 
@@ -1173,13 +1242,14 @@ class AdapterOwnerListenTests(unittest.TestCase):
         self.assertEqual(len(adapter._cli.messages), 1)
         self.assertEqual(adapter._cli.messages[0][0], "chat/~pen/general")
         lines = adapter._cli.messages[0][1].splitlines()
-        self.assertEqual(len(lines), 5)
+        self.assertEqual(len(lines), 6)
         self.assertEqual(lines[0], "*Harness*: **Hermes**")
-        # exact version is covered in test_version; here we pin field + format
-        self.assertRegex(lines[1], r"^\*Adapter Version\*: \*\*.+\*\*$")
-        self.assertEqual(lines[2], "*Tlon Skill*: **0.3.2**")
-        self.assertRegex(lines[3], r"^\*Fingerprint\*: \*\*fp1:[0-9a-f]{12}\*\*$")
-        self.assertTrue(lines[4].startswith("*Source*: **"))
+        self.assertEqual(lines[1], "*Harness Version*: **harness-sentinel-9.9.9**")
+        # exact versions are covered in test_version; here we pin field + format
+        self.assertRegex(lines[2], r"^\*Adapter Version\*: \*\*.+\*\*$")
+        self.assertEqual(lines[3], "*Tlon Skill*: **0.3.2**")
+        self.assertRegex(lines[4], r"^\*Fingerprint\*: \*\*fp1:[0-9a-f]{12}\*\*$")
+        self.assertTrue(lines[5].startswith("*Source*: **"))
         self.assertIn(("--version",), adapter._cli.commands)
 
     def test_version_command_works_from_dm_and_with_mention(self):
@@ -1222,13 +1292,15 @@ class AdapterOwnerListenTests(unittest.TestCase):
     def test_tlon_version_subcommand(self):
         adapter = self.make_adapter({})
         adapter._cli = FakeCLI()
+        adapter._harness_version_cache = "harness-sentinel-9.9.9"
 
         events = self.dispatches(adapter, channel_event("/tlon version"))
 
         self.assertEqual(events, [])
         lines = adapter._cli.messages[0][1].splitlines()
         self.assertEqual(lines[0], "*Harness*: **Hermes**")
-        self.assertRegex(lines[1], r"^\*Adapter Version\*: \*\*.+\*\*$")
+        self.assertEqual(lines[1], "*Harness Version*: **harness-sentinel-9.9.9**")
+        self.assertRegex(lines[2], r"^\*Adapter Version\*: \*\*.+\*\*$")
 
     def test_tlon_status_telemetry_subcommand(self):
         adapter = self.make_adapter({})
@@ -1379,6 +1451,30 @@ class AdapterOwnerListenTests(unittest.TestCase):
             },
         )
         self.assertFalse(adapter._owner_listen.enabled)
+
+    def test_settings_del_entry_reverts_group_invite_allowlist_to_env_default(self):
+        adapter = self.make_adapter({"group_invite_allowlist": "~zod"})
+
+        self.apply_settings_event(
+            adapter, self.put_entry_event("groupInviteAllowlist", ["~ten"])
+        )
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~ten"})
+
+        self.apply_settings_event(
+            adapter,
+            {
+                "settings-event": {
+                    "del-entry": {
+                        "desk": "moltbot",
+                        "bucket-key": "tlon",
+                        "entry-key": "groupInviteAllowlist",
+                    }
+                }
+            },
+        )
+
+        # del-alone and del-then-reconnect must land on the same set.
+        self.assertEqual(adapter._settings_group_invite_allowlist, {"~zod"})
 
     def test_settings_event_updates_monitored_group_channels(self):
         adapter = self.make_adapter({})

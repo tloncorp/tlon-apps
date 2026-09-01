@@ -14,54 +14,13 @@ import { View, XStack, YStack } from 'tamagui';
 import { ImageAvatar } from '../../../ui/components/Avatar';
 import { Badge } from '../../../ui/components/Badge';
 import { ListItem } from '../../../ui/components/ListItem';
+import {
+  SettingsDivider,
+  SettingsSection,
+} from '../../../ui/components/SettingsSection';
 
-export function BotSettingsSection({
-  title,
-  subtitle,
-  description,
-  children,
-}: PropsWithChildren<{
-  title?: string;
-  subtitle?: string;
-  description?: string;
-}>) {
-  return (
-    <YStack gap="$m">
-      {title || subtitle ? (
-        <YStack gap="$xs" paddingHorizontal="$s">
-          {title ? (
-            <Text size="$label/m" color="$secondaryText" fontWeight="500">
-              {title}
-            </Text>
-          ) : null}
-          {subtitle ? (
-            <Text size="$label/s" color="$secondaryText">
-              {subtitle}
-            </Text>
-          ) : null}
-        </YStack>
-      ) : null}
-      <YStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$xl"
-        backgroundColor="$background"
-        overflow="hidden"
-      >
-        {children}
-      </YStack>
-      {description ? (
-        <Text size="$label/s" color="$secondaryText" paddingHorizontal="$s">
-          {description}
-        </Text>
-      ) : null}
-    </YStack>
-  );
-}
-
-export function BotSettingsDivider() {
-  return <View height={1} backgroundColor="$border" />;
-}
+export const BotSettingsSection = SettingsSection;
+export const BotSettingsDivider = SettingsDivider;
 
 export function BotSettingsRow({
   label,
@@ -251,7 +210,7 @@ export function BotIdentityHeader({
 
 export function ApplyChangesBar({
   changeCount,
-  labels: _labels,
+  labels,
   applying,
   disabled,
   error,

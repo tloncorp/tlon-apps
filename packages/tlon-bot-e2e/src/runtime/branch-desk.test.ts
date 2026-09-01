@@ -69,6 +69,20 @@ describe('branch desk manifest', () => {
     await writeFile(path.join(root, 'z.hoon'), 'changed');
     expect(await createDeskManifest(root)).not.toBe(manifest);
   });
+
+  test('ignores glob-bot rewrites of desk.docket-0', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'branch-desk-test-'));
+    tempDirs.push(root);
+    await writeFile(path.join(root, 'z.hoon'), 'z');
+    await writeFile(path.join(root, 'desk.docket-0'), 'glob-0v1.aaaaa');
+
+    const manifest = await createDeskManifest(root);
+    await writeFile(path.join(root, 'desk.docket-0'), 'glob-0v1.bbbbb');
+    expect(await createDeskManifest(root)).toBe(manifest);
+
+    await writeFile(path.join(root, 'z.hoon'), 'changed');
+    expect(await createDeskManifest(root)).not.toBe(manifest);
+  });
 });
 
 describe('applyBranchDesk control flow', () => {

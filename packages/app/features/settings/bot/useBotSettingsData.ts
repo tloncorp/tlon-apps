@@ -11,6 +11,7 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
 import {
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_MODEL,
@@ -141,7 +142,7 @@ export function useBotSettingsQueries() {
   });
 
   const oauthStatusQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-status', ship],
+    queryKey: mcpProviderQueryKeys.status(ship),
     queryFn: () => api.getTlawnOAuthStatus(ship),
     enabled: Boolean(ship) && isFocused,
     retry: false,
@@ -160,7 +161,7 @@ export function useBotSettingsQueries() {
   });
 
   const oauthProvidersQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-providers'],
+    queryKey: mcpProviderQueryKeys.providers,
     queryFn: () => api.getTlawnOAuthProviders(),
     retry: false,
     staleTime: 5 * 60 * 1000,

@@ -12,6 +12,9 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+
+import { openExternalBotSettings } from '../utils/botSettings';
 
 import type {
   DesktopBasePathStackParamList,
@@ -56,7 +59,7 @@ export function createTypedReset<T extends Record<string, any>>(
     index = routes.length - 1
   ) {
     navigation.dispatch(
-      // eslint-disable-next-line no-restricted-syntax
+      // eslint-disable-next-line tlon/no-common-actions-reset
       CommonActions.reset({
         index,
         routes,
@@ -84,6 +87,8 @@ function useResetToChannel() {
     function resetToChannel(
       channelId: string,
       options?: {
+        backToGroupIndex?: boolean;
+        disableTransition?: boolean;
         groupId?: string;
         selectedPostId?: string | null;
         startDraft?: boolean;
@@ -92,13 +97,22 @@ function useResetToChannel() {
       const screenName = screenNameFromChannelId(channelId);
 
       if (isWindowNarrow) {
+        const { backToGroupIndex, ...channelOptions } = options ?? {};
         reset([
           getTopLevelTabRoute('ChatList'),
+          ...(backToGroupIndex && channelOptions.groupId
+            ? [
+                {
+                  name: 'GroupChannels' as const,
+                  params: { groupId: channelOptions.groupId },
+                },
+              ]
+            : []),
           {
             name: screenName,
             params: {
               channelId,
-              ...options,
+              ...channelOptions,
             },
           },
         ]);
@@ -498,6 +512,18 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
+  const navigateToBotMcpSettings = useCallback(
+    (providerId?: string) => {
+      if (Platform.OS === 'web') {
+        openExternalBotSettings();
+        return;
+      }
+      const params = providerId ? { providerId } : undefined;
+      navigationRef.current.navigate('BotMcpSettings', params);
+    },
+    [navigationRef]
+  );
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -525,6 +551,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
     }),
     [
       navigation,
@@ -533,6 +560,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
@@ -583,10 +611,13 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  const group = await db.getGroup({ id: groupId });
-  const lastVisitedChannelId = await db
-    .lastVisitedChannelId(groupId)
-    .getValue();
+  // This route decision already needs the full group. Populate the same query
+  // cache used by GroupChannels so its first render does not repeat the DB read
+  // during the native push animation.
+  const [group, lastVisitedChannelId] = await Promise.all([
+    store.fetchGroup(groupId),
+    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
+  ]);
   if (
     group &&
     group.channels &&

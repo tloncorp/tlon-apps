@@ -50,6 +50,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
+  XStack,
   YStack,
   getTokenValue,
   isWeb,
@@ -57,15 +58,10 @@ import {
   useThemeName,
 } from 'tamagui';
 
-import {
-  type SubscriptionProvider,
-  isSubscriptionProvider,
-  providerLabel,
-  subscriptionLabel,
-} from '../../../features/settings/bot/constants';
 import { useOpenAISubscriptionAuth } from '../../../features/settings/bot/useOpenAISubscriptionAuth';
 import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
@@ -75,7 +71,6 @@ import {
   stageTlonbotRevivalDeferredConfig,
 } from '../../../lib/tlonbotRevivalDeferredConfig';
 import { prepareTlonbotRevivalNotificationsForProvisioning } from '../../../lib/tlonbotRevivalNotifications';
-import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
   useAttachmentContext,
@@ -85,14 +80,15 @@ import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
 import { Badge } from '../Badge';
 import { Field, TextInput, TextInputRef } from '../Form';
-import { LLMSubscriptionAuthView } from '../LLMSubscriptionAuthView';
 import { ListItem } from '../ListItem';
+import { LLMSubscriptionAuthView } from '../LLMSubscriptionAuthView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { getDefaultBotName } from './botName';
 import {
   BotCredentialOption,
   buildBotCredentialOptions,
@@ -100,7 +96,7 @@ import {
 } from './botProviderOptions';
 import { validateProviderKey } from './providerKeyValidation';
 import {
-  initializeSubscriptionModels,
+  initializeOpenAISubscriptionModels,
   resolveInitialProviderModel,
 } from './providerModelDefaults';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
@@ -145,15 +141,6 @@ export type TlonbotSplashConfig = {
   stage?: db.TlonbotRevivalStage;
 };
 
-function getPreviewBotName(userNickname?: string | null) {
-  const trimmedNickname = userNickname?.trim();
-  if (!trimmedNickname) {
-    return 'Tlonbot';
-  }
-
-  return `${trimmedNickname}'s Tlonbot 🌱`;
-}
-
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
   onLogout?: () => void | Promise<void>;
@@ -192,12 +179,9 @@ function SplashSequenceComponent(props: {
   const [loadingProviderOptions, setLoadingProviderOptions] = React.useState(
     props.splashSequenceMode === 'signup'
   );
-  const [providersWithKeys, setProvidersWithKeys] = React.useState<
-    Record<string, boolean>
-  >({});
-  const [connectedSubscriptions, setConnectedSubscriptions] = React.useState<
-    Partial<Record<SubscriptionProvider, boolean>>
-  >({});
+  const [hasOpenAIKey, setHasOpenAIKey] = React.useState(false);
+  const [connectedOpenAISubscription, setConnectedOpenAISubscription] =
+    React.useState(false);
   const [providerModels, setProviderModels] = React.useState<
     api.TlawnProviderModel[]
   >([]);
@@ -214,11 +198,6 @@ function SplashSequenceComponent(props: {
     [botCredentialId, providerOptions]
   );
   const botProvider = selectedCredential?.provider || BASIC_PROVIDER_ID;
-  const subscriptionProvider: SubscriptionProvider =
-    selectedCredential?.credentialMode === 'subscription' &&
-    isSubscriptionProvider(botProvider)
-      ? botProvider
-      : 'openai';
 
   useEffect(() => {
     return () => {
@@ -357,13 +336,7 @@ function SplashSequenceComponent(props: {
               mode: props.splashSequenceMode,
             });
             setProviderOptions(providers);
-            setProvidersWithKeys(
-              Object.fromEntries(
-                Object.keys(resolvedProviderConfig.keys ?? {}).map(
-                  (provider) => [provider, true]
-                )
-              )
-            );
+            setHasOpenAIKey(Boolean(resolvedProviderConfig.keys?.openai));
             // Default to included access without overwriting a revived choice.
             const includedProvider = providers.find(
               (option) => option.credentialMode === 'included'
@@ -426,42 +399,32 @@ function SplashSequenceComponent(props: {
 
   const handleSubscriptionComplete = useCallback(
     async (models: api.TlawnSubscriptionModel[]) => {
-      if (providersWithKeys[subscriptionProvider]) {
+      if (hasOpenAIKey) {
         const userId = await db.hostingUserId.getValue();
         if (!userId) {
-          throw new Error(
-            `Could not remove the replaced ${providerLabel(subscriptionProvider)} API key.`
-          );
+          throw new Error('Could not remove the replaced OpenAI API key.');
         }
         await api.deleteTlawnProviderKey(
           userId,
-          subscriptionProvider,
+          'openai',
           userShipId ?? undefined
         );
-        setProvidersWithKeys((current) => ({
-          ...current,
-          [subscriptionProvider]: false,
-        }));
+        setHasOpenAIKey(false);
       }
-      const initialized = initializeSubscriptionModels(
-        subscriptionProvider,
+      const initialized = initializeOpenAISubscriptionModels(
         models,
         botPrimaryModel
       );
-      setConnectedSubscriptions((current) => ({
-        ...current,
-        [subscriptionProvider]: true,
-      }));
+      setConnectedOpenAISubscription(true);
       setProviderModels(initialized.providerModels);
       setBotPrimaryModel(initialized.primaryModel);
       setConfigError(null);
       setCurrentPane(SplashPane.BotModel);
     },
-    [botPrimaryModel, providersWithKeys, subscriptionProvider, userShipId]
+    [botPrimaryModel, hasOpenAIKey, userShipId]
   );
   const subscriptionAuth = useOpenAISubscriptionAuth({
     ship: userShipId ? desig(userShipId) : '',
-    provider: subscriptionProvider,
     onComplete: handleSubscriptionComplete,
   });
 
@@ -470,15 +433,12 @@ function SplashSequenceComponent(props: {
     try {
       await subscriptionAuth.start();
     } catch (error) {
-      logger.trackError('Wayfinding Subscription Start Failed', {
-        provider: subscriptionProvider,
+      logger.trackError('Wayfinding OpenAI Subscription Start Failed', {
         error,
       });
-      setConfigError(
-        `Could not start ${providerLabel(subscriptionProvider)} sign-in. Please try again.`
-      );
+      setConfigError('Could not start OpenAI sign-in. Please try again.');
     }
-  }, [subscriptionAuth, subscriptionProvider]);
+  }, [subscriptionAuth]);
 
   const handleAvatarUrlChange = useCallback(
     (url: string | null, uploadIntent?: Attachment.UploadIntent | null) => {
@@ -739,25 +699,16 @@ function SplashSequenceComponent(props: {
       if (selected?.requiresKey) {
         try {
           await api.setTlawnProviderKey(userId, provider, botApiKey);
-          setProvidersWithKeys((current) => ({
-            ...current,
-            [provider]: true,
-          }));
-          if (
-            isSubscriptionProvider(provider) &&
-            connectedSubscriptions[provider]
-          ) {
+          if (provider === 'openai') {
+            setHasOpenAIKey(true);
+          }
+          if (provider === 'openai' && connectedOpenAISubscription) {
             const shipId = await db.hostedUserNodeId.getValue();
             if (!shipId) {
-              throw new Error(
-                `Missing ship for ${providerLabel(provider)} disconnect.`
-              );
+              throw new Error('Missing ship for OpenAI disconnect.');
             }
-            await api.disconnectTlawnLLMAuth(shipId, provider);
-            setConnectedSubscriptions((current) => ({
-              ...current,
-              [provider]: false,
-            }));
+            await api.disconnectTlawnLLMAuth(shipId, 'openai');
+            setConnectedOpenAISubscription(false);
           }
           logger.trackEvent('Wayfinding Bot Provider Key Sync Succeeded', {
             provider,
@@ -801,7 +752,7 @@ function SplashSequenceComponent(props: {
   }, [
     botApiKey,
     botProvider,
-    connectedSubscriptions,
+    connectedOpenAISubscription,
     saveDeferredTlonbotConfig,
     selectedCredential,
     shouldDeferTlonbotSetup,
@@ -1055,9 +1006,6 @@ function SplashSequenceComponent(props: {
                 subscriptionAuth.dismiss();
                 setCurrentPane(SplashPane.BotProvider);
               }}
-              providerLabel={providerLabel(subscriptionProvider)}
-              subscriptionLabel={subscriptionLabel(subscriptionProvider)}
-              provider={subscriptionProvider}
             />
           </BotSubscriptionAuthPane>
         )}
@@ -1158,9 +1106,8 @@ export function WelcomePane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
 }) {
-  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -1216,9 +1163,8 @@ export function WelcomePane(props: {
 }
 
 export function TlonBotPane(props: { onActionPress: () => void }) {
-  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <Image
@@ -1276,10 +1222,24 @@ export function BotNamePane(props: {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInputRef>(null);
+  const [seedKey, setSeedKey] = useState(0);
+  const lastTypedNameRef = useRef(props.name);
   const handleNameChange = (value: string) => {
+    lastTypedNameRef.current = value;
     setError(null);
     props.onNameChange(value);
   };
+
+  // The persisted revival name hydrates asynchronously, so props.name can
+  // change without the user typing. The native input is uncontrolled (see
+  // below), so remount it to re-seed defaultValue when that happens.
+  useEffect(() => {
+    if (isWeb || props.name === lastTypedNameRef.current) {
+      return;
+    }
+    lastTypedNameRef.current = props.name;
+    setSeedKey((key) => key + 1);
+  }, [props.name]);
 
   const handlePress = () => {
     if (!props.name.trim()) {
@@ -1309,8 +1269,15 @@ export function BotNamePane(props: {
             <Field error={error ?? undefined}>
               <TextInput
                 ref={inputRef}
+                key={seedKey}
                 testID="bot-name-input"
-                value={props.name}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native seeds the revival
+                // prefill via defaultValue and stays uncontrolled; the
+                // key remount re-seeds it when the prefill hydrates late.
+                value={isWeb ? props.name : undefined}
+                defaultValue={isWeb ? undefined : props.name}
                 onChangeText={handleNameChange}
                 onBlur={refocusInput}
                 autoCapitalize="none"
@@ -1321,7 +1288,7 @@ export function BotNamePane(props: {
                 autoFocus
                 placeholder={
                   props.userNickname
-                    ? getPreviewBotName(props.userNickname)
+                    ? getDefaultBotName(props.userNickname)
                     : 'My Tlonbot'
                 }
                 frameStyle={{
@@ -1602,7 +1569,7 @@ export function BotProviderPane(props: {
               {providers.some(
                 (option) => option.credentialMode === 'subscription'
               )
-                ? 'Choose included access, connect a ChatGPT, Claude, or Grok subscription, or bring an API key.'
+                ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
                 : providers.some((option) => !option.requiresKey)
                   ? 'A free model is included. Bring your own API key to use a different provider.'
                   : 'Pick a provider, then enter your API key on the next screen.'}
@@ -2064,8 +2031,7 @@ export function GroupsPane(props: {
   botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
   const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
     useHomeGroupInviteLink({
       enabled: !!props.hostingBotEnabled,
@@ -2075,10 +2041,6 @@ export function GroupsPane(props: {
   const groupInviteHasError = homeGroupInviteState === 'unavailable';
   const { doCopy: copyHomeGroupInvite, didCopy: didCopyHomeGroupInvite } =
     useCopy(homeGroupInviteUrl ?? '');
-  const homeGroupInviteDisplayUrl = useMemo(
-    () => homeGroupInviteUrl?.replace(/^https?:\/\//, '') ?? '',
-    [homeGroupInviteUrl]
-  );
   const shareHomeGroupInvite = useCallback(async () => {
     if (!homeGroupInviteUrl) return;
 
@@ -2207,55 +2169,56 @@ export function GroupsPane(props: {
       </YStack>
       <YStack paddingHorizontal="$xl" gap="$l" marginTop="$xl">
         {props.hostingBotEnabled ? (
-          <YStack width="100%" gap="$l">
-            <Button.Frame
-              width="100%"
-              size="medium"
-              fill="ghost"
-              backgroundColor="$secondaryBackground"
-              cursor="default"
-            >
-              <Text
-                flex={1}
-                minWidth={0}
-                numberOfLines={1}
-                size="$mono/m"
-                color={
-                  groupInviteHasError ? '$negativeActionText' : '$tertiaryText'
-                }
-              >
-                {groupInviteIsReady
-                  ? homeGroupInviteDisplayUrl
-                  : groupInviteIsLoading
+          <YStack width="100%" gap="$s">
+            <XStack width="100%">
+              <TextInput
+                value={groupInviteIsReady ? (homeGroupInviteUrl ?? '') : ''}
+                placeholder={
+                  groupInviteIsLoading
                     ? 'Preparing invite link'
-                    : 'Invite link unavailable'}
-              </Text>
+                    : 'Invite link unavailable'
+                }
+                accent={groupInviteHasError ? 'negative' : 'positive'}
+                editable={false}
+                selectTextOnFocus={groupInviteIsReady}
+                frameStyle={{
+                  flex: 1,
+                  height: 44,
+                  ...(groupInviteHasError
+                    ? {}
+                    : {
+                        borderTopRightRadius: 0,
+                        borderBottomRightRadius: 0,
+                        borderRightWidth: 0,
+                      }),
+                }}
+              />
               {!groupInviteHasError && (
                 <Button
-                  fill="text"
-                  intent="positive"
-                  label="Copy"
-                  leadingIcon={
-                    <Icon
-                      type={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
-                      customSize={[18, 18]}
-                      color="$positiveActionText"
-                    />
-                  }
+                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
+                  icon={didCopyHomeGroupInvite ? 'Checkmark' : 'Copy'}
                   accessibilityLabel={
                     didCopyHomeGroupInvite ? 'Copied' : 'Copy invite link'
                   }
+                  intent="positive"
+                  size="small"
+                  width={44}
+                  borderTopLeftRadius={0}
+                  borderBottomLeftRadius={0}
+                  loading={groupInviteIsLoading}
                   disabled={!groupInviteIsReady}
-                  onPress={groupInviteIsReady ? copyHomeGroupInvite : undefined}
+                  glow={groupInviteIsReady}
                 />
               )}
-            </Button.Frame>
+            </XStack>
             <Button
-              preset="primary"
-              label="Share link"
-              centered
-              disabled={!groupInviteIsReady}
               onPress={groupInviteIsReady ? shareHomeGroupInvite : undefined}
+              label="Share link"
+              intent={groupInviteHasError ? 'negative' : 'positive'}
+              fill="outline"
+              size="small"
+              leadingIcon="Send"
+              disabled={!groupInviteIsReady}
             />
           </YStack>
         ) : null}
@@ -2873,8 +2836,7 @@ function PrivacyLevelsDisplay() {
 }
 
 const InviteFriendsDisplay = () => {
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
 
   return (
     <View marginBottom="$2xl" height={410}>
