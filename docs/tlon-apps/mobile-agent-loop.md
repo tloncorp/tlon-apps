@@ -130,9 +130,6 @@ A dev build then opens "Have an account? Log in" -> "Or configure self hosted"
 with both fields filled and `Connect` already enabled, so the sign-in is one
 press. Both gates are dev-only: `__DEV__`, and both variables non-empty.
 
-`app.config.ts` copies these variables into `extra` for any build, so keep a
-real access code out of release builds.
-
 A `+code` sign-in produces an `authType: 'self'` session. It gets an agent into
 the app; it does not exercise the hosting-account flows such as node status,
 revival, or bot config.
