@@ -1550,6 +1550,7 @@ export default defineBundledChannelEntry({
       const revision = fileReadCompletion.beforeFinalize({
         runId: event.runId ?? ctx.runId,
         lastAssistantMessage: event.lastAssistantMessage,
+        messages: event.messages,
         sessionKey: event.sessionKey ?? ctx.sessionKey,
       });
       if (revision) {

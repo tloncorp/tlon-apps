@@ -44,6 +44,7 @@ describe('file read completion guard', () => {
     "I'll read the file now, and then summarize it.",
     'Reviewing the CSV now.',
     'Processing the data now.',
+    'Reading the file is underway.',
     'Parsing the file now.',
     'Scanning the records now.',
     'That’s the complete revised v0.1.1 text displayed inline.',
@@ -596,8 +597,23 @@ describe('file read completion guard', () => {
         runId: 'bounded-read',
         lastAssistantMessage:
           'The requested first three lines are:\nfirst line\nsecond line\nthird line',
+        messages: [
+          {
+            role: 'user',
+            content: [{ type: 'text', text: 'Show the first three lines.' }],
+          },
+        ],
       })
     ).toBeNull();
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'bounded-read',
+        lastAssistantMessage:
+          'The first chunk is:\nfirst line\nsecond line\nthird line',
+        messages: [{ role: 'user', content: 'Show the complete file.' }],
+      })?.retry.instruction
+    ).toContain('Continue reading');
   });
 
   it('does not mistake a bracketed file heading for a truncation footer', () => {

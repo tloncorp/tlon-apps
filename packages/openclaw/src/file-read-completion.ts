@@ -11,6 +11,7 @@ export type FileReadToolResult = {
 export type FileReadFinalizeInput = {
   runId?: string;
   lastAssistantMessage?: string;
+  messages?: unknown[];
   sessionKey?: string;
 };
 
@@ -86,6 +87,8 @@ const SUBSTANTIVE_PROGRESS_TAIL =
   /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
 const GERUND_RESULT_SUBJECT =
   /^(?:opening|reading|loading|checking|inspecting|fetching|analyzing|summari[sz]ing|reviewing|processing|parsing|scanning|pasting|displaying|showing|printing)\b(?:\s+[\p{L}\p{N}_.-]+){0,5}\s+(?:is|are|was|were|has|have|had|took|takes|will|would|can|could)\b/iu;
+const GERUND_PROGRESS_STATE =
+  /^(?:opening|reading|loading|checking|inspecting|fetching|analyzing|summari[sz]ing|reviewing|processing|parsing|scanning|pasting|displaying|showing|printing)\b(?:\s+[\p{L}\p{N}_.-]+){0,5}\s+(?:is|are|was|were|will\s+be|would\s+be)\s+(?:underway|pending|next|ongoing|in\s+progress|not\s+yet\s+(?:done|complete)|still\s+(?:running|happening))\b/iu;
 const TRUNCATION_MARKER =
   /^\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/im;
 
@@ -133,6 +136,49 @@ function resultHasNonTextContent(result: unknown): boolean {
       block != null &&
       typeof block === 'object' &&
       (block as { type?: unknown }).type !== 'text'
+  );
+}
+
+function lastUserRequest(messages: unknown[] | undefined): string {
+  if (!messages) return '';
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message || typeof message !== 'object' || Array.isArray(message)) {
+      continue;
+    }
+    const record = message as { role?: unknown; content?: unknown };
+    if (record.role !== 'user') continue;
+    if (typeof record.content === 'string') return record.content;
+    if (!Array.isArray(record.content)) return '';
+    return record.content
+      .flatMap((block) => {
+        if (!block || typeof block !== 'object' || Array.isArray(block)) {
+          return [];
+        }
+        const text = (block as { text?: unknown }).text;
+        return typeof text === 'string' ? [text] : [];
+      })
+      .join('\n');
+  }
+  return '';
+}
+
+function requestsBoundedFileRange(request: string): boolean {
+  if (!request.trim()) return false;
+  if (
+    /\b(?:complete|full|entire|whole)\s+(?:file|contents?)\b/i.test(request)
+  ) {
+    return false;
+  }
+  const count =
+    '(?:\\d+|one|two|three|four|five|six|seven|eight|nine|ten|a\\s+few|several)';
+  return (
+    new RegExp(
+      `\\b(?:first|last|top|bottom)\\s+${count}\\s+lines?\\b`,
+      'i'
+    ).test(request) ||
+    /\blines?\s+\d+\s*(?:[-–—]|through|to)\s*\d+\b/i.test(request) ||
+    /\b(?:an?\s+)?(?:excerpt|snippet)\b/i.test(request)
   );
 }
 
@@ -358,7 +404,8 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   return (
     (PROGRESS_ONLY.test(progressCandidate) &&
       !SUBSTANTIVE_PROGRESS_TAIL.test(progressCandidate) &&
-      !GERUND_RESULT_SUBJECT.test(progressCandidate)) ||
+      (!GERUND_RESULT_SUBJECT.test(progressCandidate) ||
+        GERUND_PROGRESS_STATE.test(progressCandidate))) ||
     completionOnly ||
     isEmptyDeliveryClaim(normalized)
   );
@@ -555,7 +602,11 @@ function anyTargetContentIsRepresented(
   );
 }
 
-function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
+function replyCompletesTrackedRead(
+  reply: string,
+  state: RunState,
+  userRequest = ''
+): boolean {
   const targets = relevantTargets(reply, state);
   const acknowledgedEmptyTargets = acknowledgedEmptyTargetKeys(reply, targets);
   const allEmptyTargetsAreAcknowledged = targets.every(
@@ -565,6 +616,7 @@ function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
   const hasTruncated = hasTruncatedTarget(targets);
   const representedBoundedExtract =
     hasTruncated &&
+    requestsBoundedFileRange(userRequest) &&
     targets.every(([, target]) => !target.truncated || target.bounded) &&
     allTargetContentIsRepresented(reply, targets) &&
     !FULL_FILE_DELIVERY_CLAIM.test(reply);
@@ -803,7 +855,9 @@ export function createFileReadCompletionGuard(options?: {
       )
         return null;
       const targets = relevantTargets(reply, state);
-      if (replyCompletesTrackedRead(reply, state)) {
+      if (
+        replyCompletesTrackedRead(reply, state, lastUserRequest(input.messages))
+      ) {
         return null;
       }
 
