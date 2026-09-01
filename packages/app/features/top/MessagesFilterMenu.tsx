@@ -3,10 +3,18 @@ import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
-import { ActionSheet, createActionGroups } from '../../ui';
+import {
+  ActionSheet,
+  DESKTOP_FLYOUT_MIN_WIDTH,
+  createActionGroups,
+  isWeb,
+  useIsWindowNarrow,
+} from '../../ui';
 
 export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const [isOpen, setIsOpen] = useState(false);
+  const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
   const { data } = store.useMessagesFilter();
   const talkFilter = data ?? 'Direct Messages';
 
@@ -62,7 +70,15 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
       mode="popover"
       trigger={children}
     >
-      <ActionSheet.ScrollableContent width={240}>
+      <ActionSheet.ScrollableContent
+        width={
+          isDesktopFlyout
+            ? DESKTOP_FLYOUT_MIN_WIDTH
+            : isWindowNarrow
+              ? '100%'
+              : 240
+        }
+      >
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollableContent>
     </ActionSheet>
