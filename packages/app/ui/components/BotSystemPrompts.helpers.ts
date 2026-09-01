@@ -83,8 +83,12 @@ export function classifyProbeFailure(opts: {
 export function resolvePromptsModuleState(query: {
   data?: 'present' | 'absent';
   isFetching: boolean;
+  isError?: boolean;
 }): PromptsModuleState {
-  if (query.isFetching) {
+  if (query.isFetching || query.isError) {
+    // A failed revalidation determined nothing, but react-query keeps the
+    // previous data — reusing it would report a stale `present` as settled
+    // and let a restart-time per-bot null resolve an owned bot to unowned.
     return 'unresolved';
   }
   return query.data ?? 'unresolved';

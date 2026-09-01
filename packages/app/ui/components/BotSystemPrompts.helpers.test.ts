@@ -115,4 +115,16 @@ describe('resolvePromptsModuleState', () => {
   it('is unresolved with no verdict at all', () => {
     expect(resolvePromptsModuleState({ isFetching: false })).toBe('unresolved');
   });
+
+  it('discards a stale verdict when the revalidation failed', () => {
+    // react-query keeps the last successful data through a failed refetch;
+    // reusing it would settle ownership on a probe that determined nothing.
+    expect(
+      resolvePromptsModuleState({
+        data: 'present',
+        isFetching: false,
+        isError: true,
+      })
+    ).toBe('unresolved');
+  });
 });

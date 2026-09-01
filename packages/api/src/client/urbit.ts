@@ -351,6 +351,12 @@ export async function subscribe<T>(
      * re-subscribes on those itself.
      */
     onError?: (error: unknown) => void;
+    /**
+     * Called on the positive watch-ack. The returned promise resolves on
+     * the channel PUT, so facts can still be dropped until this fires —
+     * anything backfilling a scry-then-watch gap has to read from here.
+     */
+    onAck?: () => void;
   }
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
@@ -369,6 +375,10 @@ export async function subscribe<T>(
       // new id nobody tracks or can unsubscribe) plus the caller's own —
       // duplicating the watch and every fact on each quit.
       ...(opts?.onQuit ? { resubOnQuit: false } : {}),
+      ack: () => {
+        logger.log('subscription acked on', printEndpoint(endpoint));
+        opts?.onAck?.();
+      },
       event: (event: any, mark: string, id?: number) => {
         logger.debug(
           `got subscription event on ${printEndpoint(endpoint)}:`,

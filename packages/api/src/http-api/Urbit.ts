@@ -457,6 +457,15 @@ export class Urbit {
                 console.error(data.err);
                 funcs.err?.(data.err, data.id);
                 this.outstandingSubscriptions.delete(data.id);
+              } else if (funcs) {
+                // Positive watch-ack: the watch is live from here on, so a
+                // caller backfilling the scry-to-watch gap can read now
+                // without a fact being dropped behind it.
+                try {
+                  funcs.ack?.(data.id);
+                } catch (e) {
+                  console.error('Failed to call subscription ack callback', e);
+                }
               }
             } else if (
               data.response === 'diff' &&
@@ -827,7 +836,8 @@ export class Urbit {
    * @param handlers Handlers to deal with various events of the subscription
    */
   async subscribe(params: SubscriptionRequestInterface): Promise<number> {
-    const { app, path, ship, resubOnQuit, err, event, quit } = {
+    const { app, path, ship, resubOnQuit, ack, err, event, quit } = {
+      ack: () => {},
       err: () => {},
       event: () => {},
       quit: () => {},
@@ -852,6 +862,7 @@ export class Urbit {
       app,
       path,
       resubOnQuit,
+      ack,
       err,
       event,
       quit,

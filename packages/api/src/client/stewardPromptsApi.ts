@@ -158,6 +158,13 @@ export const subscribeToBotSystemPrompts = async (
      * null — which would clear the cache and stop retrying for good.
      */
     assumeSupported?: boolean;
+    /**
+     * The watch went live (gall's positive ack). subscribe() resolves on
+     * the channel PUT, so a %sync landing between the caller's backfill
+     * scry and this ack would be dropped with nothing to trigger another
+     * read — do the backfill here.
+     */
+    onAck?: () => void;
   }
 ) => {
   // Probe with a scry so a ship without the prompts module skips the

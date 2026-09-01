@@ -123,7 +123,14 @@ export function useIsOwnedBot(botShip: string) {
   const resolvedSinceMount = promptsQuery.dataUpdatedAt >= mountedAt;
   // Only a resolved probe decides; one pending, revalidating, or errored
   // determined nothing and leaves ownership unresolved.
-  const module = resolvePromptsModuleState(moduleQuery);
+  const module = resolvePromptsModuleState({
+    data: moduleQuery.data,
+    isFetching: moduleQuery.isFetching,
+    // react-query keeps the last successful data when a refetch fails, so
+    // without this a failed revalidation would keep reporting the stale
+    // verdict as settled.
+    isError: moduleQuery.isError,
+  });
   return resolveBotOwnership({
     prompts: promptsQuery.data,
     // A fetch still deciding, or one that errored (a scry that exhausted
@@ -238,6 +245,18 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             assumeSupported:
               everSubscribed ||
               queryClient.getQueryData(promptsModuleQueryKey) === 'present',
+            onAck: () => {
+              if (cancelled) {
+                return;
+              }
+              // The watch is live only now: subscribe() resolved on the
+              // channel PUT, and a fact landing between that and this ack
+              // is dropped. Re-read so the mirror cannot sit stale for the
+              // rest of the session (staleTime is Infinity).
+              queryClient.invalidateQueries({
+                queryKey: promptsQueryKey(botShip),
+              });
+            },
             onQuit: () => {
               if (cancelled) {
                 return;
@@ -293,6 +312,11 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
           // Close the backfill-to-watch gap: a %sync that landed after the
           // initial scry but before this subscription registered would
           // otherwise stay invisible forever (staleTime is Infinity).
+          //
+          // This read only covers the gap up to the channel PUT. Facts can
+          // still be dropped until gall acks the watch, so the onAck
+          // handler above reads again — that one is what actually closes
+          // the window; this one just shortens it.
           queryClient.invalidateQueries({ queryKey: promptsQueryKey(botShip) });
         })
         .catch(() => {
