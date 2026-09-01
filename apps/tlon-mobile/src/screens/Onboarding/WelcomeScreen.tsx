@@ -125,7 +125,7 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               onPress={() => setOpen(true)}
             >
               <SizableText color="$primaryText">
-                Have an account? Log in
+                Have an account? Log in [loop test 3]
               </SizableText>
             </Pressable>
           </XStack>
