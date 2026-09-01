@@ -48,5 +48,22 @@ describe('findUploadShadowEntryIds', () => {
 
   it('hides nothing for an upload that has no entry yet', () => {
     expect(findUploadShadowEntryIds([{}])).toEqual(new Set());
+    // The stored column is null rather than absent once a row exists.
+    expect(findUploadShadowEntryIds([{ serverEntryId: null }])).toEqual(
+      new Set()
+    );
+  });
+
+  // A completed row is kept only so the aggregate progress bar keeps its
+  // denominator; it is no longer standing in for anything. Suppressing on it
+  // hid the entry the upload had just published, so a file vanished the
+  // moment it succeeded and reappeared on reload, when the row was swept.
+  it('stops hiding the entry once the upload has completed', () => {
+    expect(
+      findUploadShadowEntryIds([{ serverEntryId: 10, state: 'completed' }])
+    ).toEqual(new Set());
+    expect(
+      findUploadShadowEntryIds([{ serverEntryId: 10, state: 'uploading' }])
+    ).toEqual(new Set([10]));
   });
 });

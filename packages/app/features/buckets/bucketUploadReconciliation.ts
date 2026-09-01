@@ -10,11 +10,20 @@ import type { BucketsResponse, BucketsSnapshot } from '@tloncorp/api';
  * needed to find it.
  */
 export function findUploadShadowEntryIds(
-  uploads: readonly { serverEntryId?: number | null }[]
+  uploads: readonly {
+    serverEntryId?: number | null;
+    state?: string;
+  }[]
 ): Set<number> {
   return new Set(
     uploads
+      // A completed row is no longer standing in for anything -- it is kept
+      // only so the aggregate progress bar keeps its denominator. Suppressing
+      // on it hid the very entry the upload had just published, so the file
+      // vanished on success and came back on reload, when the row was swept.
+      .filter((upload) => upload.state !== 'completed')
       .map((upload) => upload.serverEntryId)
-      .filter((id): id is number => id !== undefined)
+      // null, not just undefined: the stored column uses null for "not yet".
+      .filter((id): id is number => id !== undefined && id !== null)
   );
 }

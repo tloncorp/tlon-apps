@@ -160,6 +160,20 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   // refreshes instead, and a replacement snapshot arrives whole. Matching the
   // fact alone left the row standing in exactly those cases, and a row holding
   // a published serverEntryId hides the real file and makes Retry delete it.
+  // Once a batch has nothing left to do, its finished rows have served their
+  // purpose -- they were kept only so the aggregate bar's denominator did not
+  // shrink under it. Without this they accumulate for good, and every past
+  // upload goes on counting toward the next batch's progress.
+  useEffect(() => {
+    const settled = uploads.filter((upload) => upload.state === 'completed');
+    if (settled.length === 0) return;
+    const active = uploads.some(
+      (upload) => upload.state === 'queued' || upload.state === 'uploading'
+    );
+    if (active) return;
+    void Promise.all(settled.map((upload) => db.deleteBucketUpload(upload.id)));
+  }, [uploads]);
+
   // Uploads a previous run left behind cannot be resumed -- their bytes went
   // with the process that had the file -- so the first Bucket opened gives up
   // on them, which releases the host session and its reservation.
