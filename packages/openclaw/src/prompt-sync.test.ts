@@ -835,6 +835,47 @@ describe('createPromptSync abort during foreign cleanup', () => {
   });
 });
 
+describe('createPromptSync abort before a foreign unlink', () => {
+  it('leaves the file alone when teardown lands during the content read', async () => {
+    // Text-inferred cleanup reads the file first, so the teardown can land
+    // between the loop-top check and the unlink. A replacement monitor may
+    // have published its own prompt at that pathname by then; deleting it
+    // after its stamp pass finished leaves the new bot without that prompt.
+    const controller = new AbortController();
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'former owner notes');
+    const realLstat = fs.promises.lstat.bind(fs.promises);
+    const lstatSpy = vi
+      .spyOn(fs.promises, 'lstat')
+      .mockImplementation(async (target) => {
+        if (String(target).endsWith('USER.md')) {
+          controller.abort();
+        }
+        return realLstat(target as never);
+      });
+    try {
+      const sync = createPromptSync({
+        core: makeCore(),
+        accountId: 'default',
+        botShip: '~zod',
+        workspaceDir: tmpDir,
+        configPrompts: {},
+        foreignPrompts: { 'USER.md': ['former owner notes'] },
+        owner: null,
+        scry: async () => ({}),
+        poke: async () => ({}),
+        logger,
+        abortSignal: controller.signal,
+      });
+      await sync.startup();
+      expect(fs.readFileSync(path.join(tmpDir, 'USER.md'), 'utf8')).toBe(
+        'former owner notes'
+      );
+    } finally {
+      lstatSpy.mockRestore();
+    }
+  });
+});
+
 describe('createPromptSync abort after in-flight apply', () => {
   it('handleFact publishes nothing once torn down mid-write', async () => {
     const controller = new AbortController();

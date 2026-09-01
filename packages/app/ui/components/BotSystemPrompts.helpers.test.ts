@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyProbeFailure,
   resolveBotOwnership,
+  resolvePromptsModuleState,
 } from './BotSystemPrompts.helpers';
 
 const mirror = (text: string) => [
@@ -89,5 +90,29 @@ describe('classifyProbeFailure', () => {
     expect(
       classifyProbeFailure({ unavailable: false, attempt: 9, maxRetries: 3 })
     ).toBe('rethrow');
+  });
+});
+
+describe('resolvePromptsModuleState', () => {
+  it('treats a revalidation in flight as unresolved', () => {
+    // The cached verdict is what a restart invalidates: holding `present`
+    // through the refetch would let a per-bot 404 (indistinguishable from
+    // "no mirror") resolve an owned bot to unowned mid-restart.
+    expect(
+      resolvePromptsModuleState({ data: 'present', isFetching: true })
+    ).toBe('unresolved');
+  });
+
+  it('uses a settled verdict', () => {
+    expect(
+      resolvePromptsModuleState({ data: 'present', isFetching: false })
+    ).toBe('present');
+    expect(
+      resolvePromptsModuleState({ data: 'absent', isFetching: false })
+    ).toBe('absent');
+  });
+
+  it('is unresolved with no verdict at all', () => {
+    expect(resolvePromptsModuleState({ isFetching: false })).toBe('unresolved');
   });
 });

@@ -70,3 +70,22 @@ export function classifyProbeFailure(opts: {
   }
   return opts.attempt >= opts.maxRetries ? 'absent' : 'retry';
 }
+
+/**
+ * Fold the module probe's query state into a verdict.
+ *
+ * A revalidation in flight counts as unresolved even though the previous
+ * verdict is still in the cache: the whole point of revalidating is that
+ * %steward may have restarted since, and holding `present` through the
+ * refetch would let a per-bot 404 — which the client cannot distinguish
+ * from "no mirror" — resolve an owned bot to unowned.
+ */
+export function resolvePromptsModuleState(query: {
+  data?: 'present' | 'absent';
+  isFetching: boolean;
+}): PromptsModuleState {
+  if (query.isFetching) {
+    return 'unresolved';
+  }
+  return query.data ?? 'unresolved';
+}

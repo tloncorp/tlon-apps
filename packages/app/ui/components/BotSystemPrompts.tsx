@@ -10,9 +10,9 @@ import { ScrollView, View, XStack, YStack } from 'tamagui';
 
 import { ActionSheet } from './ActionSheet';
 import {
-  type PromptsModuleState,
   classifyProbeFailure,
   resolveBotOwnership,
+  resolvePromptsModuleState,
 } from './BotSystemPrompts.helpers';
 import { ControlledTextareaField } from './Form';
 import { ListItem } from './ListItem';
@@ -85,9 +85,24 @@ async function probePromptsModule(): Promise<'present' | 'absent'> {
  * probeBotSystemPromptsModule.
  */
 function usePromptsModule() {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: promptsModuleQueryKey,
-    queryFn: probePromptsModule,
+    queryFn: () => {
+      // `absent` is sticky: re-burning the retry budget on every profile
+      // view of a ship without the module would hide Block for seconds
+      // each time, and a ship that gains the module mid-session still
+      // surfaces it through the subscription's fact.
+      if (queryClient.getQueryData(promptsModuleQueryKey) === 'absent') {
+        return Promise.resolve('absent' as const);
+      }
+      return probePromptsModule();
+    },
+    // `present` is revalidated on every profile view: %steward can restart
+    // between them, and a stale `present` plus a per-bot 404 (which reads
+    // as a successful null) would resolve an owned bot to unowned and put
+    // Block on its own profile.
+    refetchOnMount: 'always',
   });
 }
 
@@ -106,9 +121,9 @@ export function useIsOwnedBot(botShip: string) {
   // subscription registers and triggers its invalidation.
   const [mountedAt] = useState(() => Date.now());
   const resolvedSinceMount = promptsQuery.dataUpdatedAt >= mountedAt;
-  // Only a resolved probe decides; a pending or errored one determined
-  // nothing and leaves ownership unresolved.
-  const module: PromptsModuleState = moduleQuery.data ?? 'unresolved';
+  // Only a resolved probe decides; one pending, revalidating, or errored
+  // determined nothing and leaves ownership unresolved.
+  const module = resolvePromptsModuleState(moduleQuery);
   return resolveBotOwnership({
     prompts: promptsQuery.data,
     // A fetch still deciding, or one that errored (a scry that exhausted
@@ -216,7 +231,13 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             }
           },
           {
-            assumeSupported: everSubscribed,
+            // A cached `present` verdict is proof this ship serves the
+            // module (staleTime is Infinity, so it survives from an earlier
+            // profile view even though this effect's everSubscribed starts
+            // false). A 404 now is a restart, not an old ship.
+            assumeSupported:
+              everSubscribed ||
+              queryClient.getQueryData(promptsModuleQueryKey) === 'present',
             onQuit: () => {
               if (cancelled) {
                 return;
@@ -247,17 +268,20 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
         )
         .then((id) => {
           if (id === null) {
-            // The ship reports no prompts module. Authoritative for now: if
-            // a downgraded / replaced desk removed the module after we
-            // cached a prompt set, that cache would otherwise stay fresh
-            // (and the editor visible) for the rest of the session.
-            writeAuthoritative(null);
             unsupportedProbes += 1;
             if (unsupportedProbes <= UNSUPPORTED_PROBE_RETRIES) {
-              // Might be a desk restart rather than an old ship; a genuine
-              // old ship simply 404s again and we stop after the budget.
+              // Might be a desk restart rather than an old ship, so the
+              // cache is left alone until the budget is spent: clearing it
+              // now would resolve ownership to "not owned" and expose Block
+              // on an owned bot's own profile for the retry window.
               retryTimer = setTimeout(start, 2_000 * unsupportedProbes);
+              return;
             }
+            // Budget spent — the ship really has no prompts module. Clear
+            // the cache: if a downgraded / replaced desk removed the module
+            // after we cached a prompt set, that cache would otherwise stay
+            // fresh (and the editor visible) for the rest of the session.
+            writeAuthoritative(null);
             return;
           }
           if (cancelled) {

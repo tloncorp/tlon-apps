@@ -952,6 +952,14 @@ export function createPromptSync(opts: {
         }
         reason = "text matches another ship's stored edit";
       }
+      if (aborted()) {
+        // The content read above awaits, so the teardown can land after the
+        // loop-top check. Deleting now would take a replacement monitor's
+        // freshly published file at the same pathname — and if its apply
+        // and stamp pass has already finished, nothing restores it and the
+        // new bot runs without that prompt.
+        return;
+      }
       // A foreign stamp cannot coexist with our own content: applying an
       // edit stamps the file for us, and handleFact refuses to write over
       // a file stamped for another ship.
