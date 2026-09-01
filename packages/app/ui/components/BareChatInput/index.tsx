@@ -72,7 +72,6 @@ import {
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
 
-// How long a send waits for iOS to deliver a pending autocorrection.
 const AUTOCORRECT_FLUSH_TIMEOUT_MS = 20;
 
 function normalizePreviewUrl(url: string) {
@@ -352,9 +351,7 @@ function BareChatInput(
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
   const inputRef = useRef<TextInput>(null);
   const runSendMessageRef = useRef<((isEdit: boolean) => void) | null>(null);
-  // Set while waiting for iOS to deliver a pending autocorrection on send.
   const pendingAutocorrectSendRef = useRef<{ isEdit: boolean } | null>(null);
-  // Set once that correction arrives, to send it after the commit that carries it.
   const [queuedSend, setQueuedSend] = useState<{ isEdit: boolean } | null>(
     null
   );
@@ -427,10 +424,6 @@ function BareChatInput(
 
   const handleTextChange = useCallback(
     (newText: string) => {
-      // A send is waiting on a pending autocorrection, so this change is the
-      // corrected text. It still goes through the normal path below, so mention
-      // offsets and references stay in sync, and the send runs once that has
-      // been folded into state.
       const pendingSend = pendingAutocorrectSendRef.current;
       pendingAutocorrectSendRef.current = null;
 
@@ -688,16 +681,12 @@ function BareChatInput(
       }
 
       // iOS applies a pending autocorrection when the send button is tapped,
-      // and delivers the corrected text after this handler runs. Race that
-      // change against a short timeout: handleTextChange sends the corrected
-      // text if it arrives, otherwise send what is already on screen.
+      // and delivers the corrected text through onChangeText after this handler
+      // has already run.
       pendingAutocorrectSendRef.current = { isEdit };
       setTimeout(() => {
         if (pendingAutocorrectSendRef.current) {
           pendingAutocorrectSendRef.current = null;
-          // Through the ref, so a correction that landed in the same native
-          // batch as the press is picked up instead of the text this handler
-          // closed over.
           runSendMessageRef.current?.(isEdit);
         }
       }, AUTOCORRECT_FLUSH_TIMEOUT_MS);
@@ -705,9 +694,9 @@ function BareChatInput(
     [runSendMessage]
   );
 
-  // setQueuedSend batches with the setState calls in handleTextChange, so this
-  // runs after the commit that carries the corrected text and the mention
-  // offsets it shifted — which is what the post has to be built from.
+  // React batches setQueuedSend with the state updates in handleTextChange, so
+  // this effect runs after the commit that carries the corrected text and the
+  // mention offsets it shifted.
   useEffect(() => {
     if (!queuedSend) {
       return;
