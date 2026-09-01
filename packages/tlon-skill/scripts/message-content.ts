@@ -13,6 +13,15 @@ import type {
   PostContent,
 } from '@tloncorp/api';
 
+import {
+  type WindowContext,
+  analyzeWindow,
+  receiptProxyMs,
+  udToUnixMs,
+  windowContainsPost,
+  windowWarning,
+} from './messages-runtime';
+
 /** Story-level content: the array shape `getTextContent` consumes. */
 export type StoryContent = Exclude<PostContent, null>;
 
@@ -308,25 +317,18 @@ export function formatTime(timeVal: string | number): string {
       const date = new Date(num);
       return date.toLocaleString();
     }
-    const timeStr = String(timeVal);
-    const daNum = BigInt(timeStr.replace(/\./g, ''));
-    const DA_SECOND = BigInt('18446744073709551616');
-    const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
-    const offset = DA_SECOND / BigInt(2000);
-    const epochAdjusted = offset + (daNum - DA_UNIX_EPOCH);
-    const unixMs = Math.round(
-      Number((epochAdjusted * BigInt(1000)) / DA_SECOND)
-    );
-
-    const date = new Date(unixMs);
-    if (date.getFullYear() > 2020 && date.getFullYear() < 2100) {
-      return date.toLocaleString();
-    }
-    return 'unknown';
+    // udToUnixMs owns the @da conversion, including the @ud shape gate and
+    // era validation — out-of-era or malformed values read as unknown.
+    const unixMs = udToUnixMs(String(timeVal));
+    if (unixMs === null) return 'unknown';
+    return new Date(unixMs).toLocaleString();
   } catch {
     return 'unknown';
   }
 }
+
+export const TARGET_ABSENT_NOTICE =
+  '⚠ target post not in this window: the id may not exist, the post may be deleted, or its stored position may differ from its sent-time id (late-delivered messages sit at their arrival position).';
 
 function renderBlobLines(blob: Post['blob']): string[] {
   if (!blob) return [];
@@ -355,6 +357,8 @@ function renderBlobLines(blob: Post['blob']): string[] {
 
 export interface RenderPostOptions extends RenderRefLinesOptions {
   highlightId?: string;
+  /** Mark a material sent/received divergence with a (received ...) line. */
+  annotated?: boolean;
 }
 
 export async function renderPostLines(
@@ -370,6 +374,12 @@ export async function renderPostLines(
     opts.highlightId && post.id === opts.highlightId ? ' ◀ TARGET' : '';
 
   lines.push(`- ${author} @ ${time}${replySuffix}${marker}`);
+  if (opts.annotated) {
+    const receipt = receiptProxyMs(post);
+    if (receipt !== null) {
+      lines.push(`  (received ${formatTime(receipt)})`);
+    }
+  }
   lines.push(`  ID: ${post.id}`);
   if (text) {
     lines.push(...formatBodyLines(text));
@@ -390,6 +400,9 @@ export interface RenderPostListOptions {
   fetchRef: FetchRef;
   highlightId?: string;
   budget?: RefBudget;
+  /** Opt in to receipt/sent divergence analysis (history commands only). */
+  window?: WindowContext;
+  displayLimit?: number;
 }
 
 /**
@@ -400,19 +413,48 @@ export interface RenderPostListOptions {
  */
 export async function renderPostListLines(
   posts: Post[],
-  { resolve, fetchRef, highlightId, budget }: RenderPostListOptions
+  {
+    resolve,
+    fetchRef,
+    highlightId,
+    budget,
+    window,
+    displayLimit,
+  }: RenderPostListOptions
 ): Promise<string[]> {
-  const sorted = [...posts].sort((a, b) => a.sentAt - b.sentAt);
+  // Without window context this degrades to a plain sentAt sort (plus lag
+  // annotations where receipt times exist) — search and post replies.
+  const analysis = analyzeWindow(posts, window, displayLimit);
   const shared = budget ?? createRefBudget();
 
   const lines: string[] = [];
-  for (const post of sorted) {
+  const warning = window
+    ? windowWarning(
+        analysis.inversions,
+        window.truncated,
+        analysis.displayedLag
+      )
+    : null;
+  if (warning) {
+    lines.push(warning, '');
+  }
+  if (highlightId && !windowContainsPost(analysis.ordered, highlightId)) {
+    lines.push(TARGET_ABSENT_NOTICE, '');
+  }
+  if (analysis.sequenceGaps > 0) {
+    lines.push(
+      `⚠ ${analysis.sequenceGaps} sequence number(s) in this window's range have no record — moderation-blocked or deleted posts, or records the ship did not return.`,
+      ''
+    );
+  }
+  for (const post of analysis.ordered) {
     lines.push(
       ...(await renderPostLines(post, {
         resolve,
         fetchRef,
         budget: shared,
         highlightId,
+        annotated: analysis.annotate.has(post),
       }))
     );
   }
@@ -427,12 +469,16 @@ export async function renderPostListLines(
 // splitlines()-style reader would fragment the record. Escaping is lossless.
 const JSON_LINE_SEPARATOR_RE = /[\u0085\u2028\u2029]/g;
 
-export function renderPostJsonLine(post: Post): string {
+export function renderPostJsonLine(post: Post, annotated = false): string {
   const parsed = parsePostContent(post.content);
   return JSON.stringify({
     id: post.id,
     authorId: post.authorId,
     sentAt: post.sentAt,
+    // Receipt time where one exists (DM pact key, or group host arrival);
+    // null otherwise. `annotated` mirrors the plaintext (received ...) mark.
+    receivedAt: receiptProxyMs(post),
+    annotated,
     // JSON.stringify drops undefined keys — normalize so the shape is stable.
     parentId: post.parentId ?? null,
     blob: post.blob ?? null,
@@ -444,6 +490,40 @@ export function renderPostJsonLine(post: Post): string {
   );
 }
 
-export function renderPostListJsonLines(posts: Post[]): string[] {
-  return [...posts].sort((a, b) => a.sentAt - b.sentAt).map(renderPostJsonLine);
+export interface RenderPostListJsonOptions {
+  window?: WindowContext;
+  displayLimit?: number;
+  highlightId?: string;
+}
+
+export function renderPostListJsonLines(
+  posts: Post[],
+  { window, displayLimit, highlightId }: RenderPostListJsonOptions = {}
+): string[] {
+  const analysis = analyzeWindow(posts, window, displayLimit);
+  const lines: string[] = [];
+  // Window-level prelude: agents parsing NDJSON need the divergence verdict
+  // as much as plaintext readers need the warning banner.
+  if (window) {
+    lines.push(
+      JSON.stringify({
+        type: 'window',
+        warning: windowWarning(
+          analysis.inversions,
+          window.truncated,
+          analysis.displayedLag
+        ),
+        inversions: analysis.inversions,
+        sequenceGaps: analysis.sequenceGaps,
+        truncated: window.truncated,
+      })
+    );
+  }
+  if (highlightId && !windowContainsPost(analysis.ordered, highlightId)) {
+    lines.push(JSON.stringify({ type: 'notice', notice: 'target-absent' }));
+  }
+  for (const post of analysis.ordered) {
+    lines.push(renderPostJsonLine(post, analysis.annotate.has(post)));
+  }
+  return lines;
 }
