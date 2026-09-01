@@ -1443,7 +1443,7 @@
   ::  moon's wake re-issues for moon ONLY
   ;<  caz=(list card)  bind:m
     %-  do-arvo
-    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 1)
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
     [%behn %wake ~]
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -1457,7 +1457,13 @@
   ::  a duplicate timer from an earlier attempt count is ignored
   ;<  caz=(list card)  bind:m
     %-  do-arvo
-    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 9)
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 9)
+    [%behn %wake ~]
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  so is one whose tag was retired (another arm, or a fresh trust grant)
+  ;<  caz=(list card)  bind:m
+    %-  do-arvo
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 9)/(scot %ud 1)
     [%behn %wake ~]
   (ex-cards caz ~)
 ::
@@ -1546,12 +1552,15 @@
   ;<  caz=(list card)  bind:m  nack
   ;<  ~  bind:m
     %+  ex-cards  caz
-    :~  %+  ex-arvo  /prompts/request-retry/(scot %p moon)/(scot %ud 1)
+    :~  %+  ex-arvo
+          /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
         [%b %wait (add ~2024.1.1 ~m5)]
     ==
   ::  the wake re-issues the request
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  %-  ex-poke
@@ -1564,7 +1573,9 @@
   ::  an ack clears the pending entry: the next wake emits nothing
   ;<  *  bind:m  (do-agent [req-wire [moon %steward] [%poke-ack ~]])
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
   (ex-cards caz ~)
 ::
 ::  the retry budget is bounded — after max-request-tries nacks the bot is
@@ -1588,7 +1599,9 @@
   ;<  ~  bind:m  (ex-cards caz ~)
   ::  and nothing is left pending for a stray wake to re-issue
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
   (ex-cards caz ~)
 ::
 ::  untrusting a bot stops its pending request retries
@@ -1605,7 +1618,50 @@
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
   ;<  caz=(list card)  bind:m
-    (do-arvo /prompts/request-retry/(scot %p moon)/(scot %ud 1) [%behn %wake ~])
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  a request timer armed before an untrust/trust cycle must not re-poke on
+::  the fresh grant: that grant restarts the attempt count, so the old
+::  timer's count collides with the new era's first attempt and would spend
+::  the fresh budget ahead of the retry delay
+::
+++  test-pr-request-retry-retired-by-trust-grant
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  =/  nack
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ::  first nack arms tag 1, attempt 1
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  untrust then trust again: the entry is dropped, so the next nack's
+  ::  attempt count is back to 1
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  *  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/request-retry/(scot %p moon)/(scot %ud 2)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the old era's timer wakes: the tag retired it, so nothing is emitted
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
   (ex-cards caz ~)
 ::
 ::  a timer armed in a previous owner's era must not fan out to the new

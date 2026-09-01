@@ -342,11 +342,12 @@
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
   ::
-      [%prompts %request-retry @ @ ~]
+      [%prompts %request-retry @ @ @ ~]
     ?.  ?=([%behn %wake *] sign)  cor
-    %+  pr-retry-request:pr-core
-      (slav %p i.t.t.wire)
-    (slav %ud i.t.t.t.wire)
+    %^  pr-retry-request:pr-core
+        (slav %p i.t.t.wire)
+      (slav %ud i.t.t.t.wire)
+    (slav %ud i.t.t.t.t.wire)
   ::
       [%prompts %sync-retry @ @ ~]
     ?.  ?=([%behn %wake *] sign)  cor
@@ -1008,19 +1009,26 @@
   ++  pr-request-nacked
     |=  bot=ship
     ^+  cor
-    =/  tries  +((~(gut by pending.prompts.state) bot 0))
+    =/  prev  (~(gut by pending.prompts.state) bot [tag=0 tries=0])
+    =/  tries  +(tries.prev)
     ?:  (gte tries max-retry-tries)
       %-  (slog leaf+"steward: giving up on prompts resync request" ~)
       cor(pending.prompts.state (~(del by pending.prompts.state) bot))
-    =.  pending.prompts.state  (~(put by pending.prompts.state) bot tries)
-    ::  per-bot wire, with the attempt count in it: one bot's nack must not
-    ::  re-poke every other pending bot, and a duplicate timer from an
-    ::  earlier attempt is a no-op on wake instead of multiplying pokes and
-    ::  spending the budget faster than the retry delay
+    ::  the wire is per bot — one bot's nack must not re-poke every other
+    ::  pending bot — and carries the attempt count plus a .req-tag stamp.
+    ::  the count alone can't tell an attempt armed in a previous TRUST era
+    ::  from this one's: untrust/trust deletes the entry, restarting the
+    ::  count, so the old timer would match and spend the fresh grant's
+    ::  budget ahead of the retry delay. the tag never resets, so only the
+    ::  newest armed attempt for this bot matches.
     ::
+    =.  req-tag.prompts.state  +(req-tag.prompts.state)
+    =/  tag  req-tag.prompts.state
+    =.  pending.prompts.state  (~(put by pending.prompts.state) bot [tag tries])
     %-  emit
     :^  %pass
-        /prompts/request-retry/(scot %p bot)/(scot %ud tries)
+        %+  weld  /prompts/request-retry/(scot %p bot)
+        /(scot %ud tag)/(scot %ud tries)
       %arvo
     [%b %wait (add now.bowl retry-delay)]
   ::
@@ -1062,11 +1070,13 @@
     pr-sync-owner
   ::
   ++  pr-retry-request
-    |=  [bot=ship tries=@ud]
+    |=  [bot=ship tag=@ud tries=@ud]
     ^+  cor
-    ::  a stale timer (entry acked, retried since, untrusted, or budget
-    ::  spent) is a no-op
-    ?.  =(tries (~(gut by pending.prompts.state) bot 0))  cor
+    ::  a stale timer is a no-op: a different tag means a later arm (or a
+    ::  fresh trust grant) retired this attempt, and a different count means
+    ::  the entry has since acked or been retried past
+    ?.  =([tag tries] (~(gut by pending.prompts.state) bot [tag=0 tries=0]))
+      cor
     (pr-emit-request bot)
   ::
   ::  a replaced or removed owner must drop its mirror. the initial %revoke

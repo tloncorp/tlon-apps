@@ -35,10 +35,11 @@
 ::          a redundant %revoke is a no-op at the receiver, so retries
 ::          converge.
 ::    .pending: bots whose %request (sent on %trust-bot) was nacked, with
-::          the attempt count. a nack means the bot's steward ran and
-::          refused — mid-restart, or it does not consider us its owner —
-::          and nothing else would make it re-fan until its gateway next
-::          boots, so the request is retried on a behn timer, bounded.
+::          the attempt count and the .req-tag stamped when that attempt was
+::          armed. a nack means the bot's steward ran and refused —
+::          mid-restart, or it does not consider us its owner — and nothing
+::          else would make it re-fan until its gateway next boots, so the
+::          request is retried on a behn timer, bounded.
 ::    .resync: attempts so far at re-fanning our canonical set to the owner
 ::          after a nacked %sync. the %set or %request that triggered the
 ::          fan-out has already acked, so nothing else would retry it —
@@ -49,14 +50,22 @@
 ::          .resync is not — it restarts at 0 for a new owner, so an
 ::          attempt count alone can match a timer armed two nacks earlier
 ::          for a different owner and fan out ahead of the retry delay.
+::    .req-tag: source of the same kind of id for %request retry timers,
+::          which are per bot: each armed attempt stamps the NEXT value into
+::          that bot's .pending entry, and the wake compares against the
+::          stamp rather than this counter — another bot's nack must not
+::          retire a live timer. untrust/trust deletes the entry, so without
+::          the stamp a timer from the previous trust era could match the
+::          new grant's restarted attempt count and spend its budget early.
 ::
 +$  state
   $:  own=prompts
       mirror=(map bot=ship prompts)
       stale=(set ship)
-      pending=(map bot=ship tries=@ud)
+      pending=(map bot=ship [tag=@ud tries=@ud])
       resync=@ud
       sync-tag=@ud
+      req-tag=@ud
   ==
 ::  $action: prompts module inbound actions.
 ::
