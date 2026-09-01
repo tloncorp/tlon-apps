@@ -26,6 +26,7 @@ type ReadTargetState = {
   empty: boolean;
   failed: boolean;
   lastOffset: number;
+  nextOffset: number | null;
   truncated: boolean;
 };
 
@@ -54,6 +55,16 @@ const SUBSTANTIVE_PROGRESS_TAIL =
   /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
 const TRUNCATION_MARKER =
   /^\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/im;
+
+function nextOffsetFromTruncationMarker(text: string): number | null {
+  const match =
+    /^\s*\[(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*(\d+)\s+of\s+\d+(?:[^\]]*)\]\s*$/im.exec(
+      text
+    );
+  if (!match?.[1]) return null;
+  const lastShownLine = Number(match[1]);
+  return Number.isSafeInteger(lastShownLine) ? lastShownLine + 1 : null;
+}
 
 function nonEmptyError(error: string | undefined): boolean {
   return typeof error === 'string' && error.trim().length > 0;
@@ -245,14 +256,23 @@ function allTargetContentIsRepresented(
   reply: string,
   state: RunState
 ): boolean {
-  const targets = [...state.targets.values()].filter(
-    (target) => !target.failed && target.anchors.length > 0
+  const targets = [...state.targets.entries()].filter(
+    ([, target]) => !target.failed
   );
+  const normalizedReply = normalizeForComparison(reply);
+  const emptyResultIsAcknowledged =
+    /\b(?:empty|0 bytes|contains? no (?:content|data|text))\b/i.test(reply);
   return (
     targets.length > 0 &&
-    targets.every((target) =>
-      containsRepresentativeReadContent(reply, target.anchors)
-    )
+    targets.every(([targetKey, target]) => {
+      if (!target.empty) {
+        return containsRepresentativeReadContent(reply, target.anchors);
+      }
+      if (!emptyResultIsAcknowledged) return false;
+      if (targets.length === 1 || targetKey === UNKNOWN_TARGET) return true;
+      const targetName = targetKey.split(/[\\/]/).at(-1) ?? targetKey;
+      return normalizedReply.includes(normalizeForComparison(targetName));
+    })
   );
 }
 
@@ -318,10 +338,10 @@ export function createFileReadCompletionGuard(options?: {
           anchors: target?.anchors ?? [],
           empty: target?.empty ?? false,
           failed: true,
-          lastOffset: Math.max(
-            target?.lastOffset ?? 0,
-            readOffset(input.params)
-          ),
+          // Failed reads are not progress. Preserve the last successful offset
+          // so a retry at the same requested continuation can still recover.
+          lastOffset: target?.lastOffset ?? 0,
+          nextOffset: target?.nextOffset ?? null,
           truncated: target?.truncated ?? false,
         });
         touch(runId, {
@@ -341,9 +361,18 @@ export function createFileReadCompletionGuard(options?: {
       ).slice(0, MAX_ANCHORS_PER_RUN);
       const offset = readOffset(input.params);
       const resultWasTruncated = TRUNCATION_MARKER.test(text);
-      const continuedPastPriorChunk =
+      const continuedFromExpectedOffset =
         existingTarget?.truncated === true &&
-        offset > existingTarget.lastOffset;
+        (existingTarget.nextOffset !== null
+          ? offset === existingTarget.nextOffset
+          : offset > existingTarget.lastOffset);
+      const nextOffset = resultWasTruncated
+        ? existingTarget?.truncated === true && !continuedFromExpectedOffset
+          ? existingTarget.nextOffset
+          : nextOffsetFromTruncationMarker(text)
+        : existingTarget?.truncated === true && !continuedFromExpectedOffset
+          ? existingTarget.nextOffset
+          : null;
       targets.set(targetKey, {
         anchors,
         empty:
@@ -357,11 +386,13 @@ export function createFileReadCompletionGuard(options?: {
             ? true
             : false,
         lastOffset: Math.max(existingTarget?.lastOffset ?? 0, offset),
+        nextOffset,
         // A marker-free reread at the same offset is not proof that the caller
-        // continued to EOF. Only forward progress clears prior truncation.
+        // continued to EOF. A ranged marker additionally requires the exact
+        // next offset, so skipped chunks cannot clear truncation.
         truncated:
           resultWasTruncated ||
-          (existingTarget?.truncated === true && !continuedPastPriorChunk),
+          (existingTarget?.truncated === true && !continuedFromExpectedOffset),
       });
       touch(runId, {
         revisionAttempts: existing?.revisionAttempts ?? 0,

@@ -410,6 +410,60 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('lets a failed continuation recover at the same expected offset', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'failed-continuation',
+        'first chunk\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult({
+      runId: 'failed-continuation',
+      toolName: 'read',
+      params: { path: '/tmp/report.txt', offset: 21 },
+      error: 'temporary failure',
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'failed-continuation',
+        'final chunk',
+        '/tmp/report.txt',
+        21
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'failed-continuation',
+        lastAssistantMessage:
+          'Here are the requested contents:\nfirst chunk\nfinal chunk',
+      })
+    ).toBeNull();
+  });
+
+  it('does not clear truncation when a continuation skips the expected offset', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'skipped-continuation',
+        'first chunk\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead('skipped-continuation', 'last line', '/tmp/report.txt', 40)
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'skipped-continuation',
+        lastAssistantMessage: 'first chunk\nlast line',
+      })?.retry.instruction
+    ).toContain('Continue reading');
+  });
+
   it('does not clear truncation when the same path is reread at the same offset', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
@@ -467,6 +521,31 @@ describe('file read completion guard', () => {
         runId: 'later-target',
         lastAssistantMessage:
           'Here are the requested contents:\na1\na2\na3\na4\na5\na6\nb1\nb2\nb3\nb4\nb5\nb6',
+      })
+    ).toBeNull();
+  });
+
+  it('requires an explicit acknowledgment for an empty target in multi-file delivery', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('mixed-targets', '', '/tmp/empty.txt')
+    );
+    guard.recordToolResult(
+      successfulRead('mixed-targets', 'b1\nb2\nb3\nb4\nb5\nb6', '/tmp/data.txt')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'mixed-targets',
+        lastAssistantMessage:
+          'Here are the requested contents:\nb1\nb2\nb3\nb4\nb5\nb6',
+      })
+    ).not.toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'mixed-targets',
+        lastAssistantMessage:
+          'empty.txt is empty. Here are the requested contents from data.txt:\nb1\nb2\nb3\nb4\nb5\nb6',
       })
     ).toBeNull();
   });
