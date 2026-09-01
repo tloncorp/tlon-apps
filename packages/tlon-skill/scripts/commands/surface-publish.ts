@@ -24,8 +24,10 @@ import {
   postSurfaceRecord,
   hydratePosts,
   readChannelSpec,
+  readSurfacePreState,
   resolveSurfaceChannel,
 } from './surface-writer';
+import { assertPreStateInScope } from '../surface-write-scope';
 import {
   ALLOW_ABORTED_FLAG,
   abortedWaivedLines,
@@ -62,7 +64,7 @@ those carry in the file is ignored.
 
 A COMPLETED RUBRIC IS REQUIRED. \`surface preview\` writes a pre-keyed scoring
 sheet next to its screenshots; fill it in and pass it here. Publish checks
-that all twelve capture cells carry an observation, that all seven rubric
+that all twelve capture cells carry an observation, that every applicable rubric
 checks carry a verdict and a cell, and that the sheet names the exact bundle
 being published — completeness and identity only. Whether the observations
 are any good is not machine-checkable and is not checked.
@@ -119,13 +121,15 @@ const BUNDLE_CONTENT_TYPE = 'application/javascript';
  * correct: scoring revision 1 and spending it on revision 3 is exactly the
  * shortcut a loop under time pressure takes.
  */
-function requireCompletedRubric(
+export function requireCompletedRubric(
   deps: SurfaceDeps,
   input: {
     path: string;
     channelId: string;
     surfaceId: string;
     sha256: string;
+    /** the raw spec being published, so a display-only app is scored as one */
+    spec: unknown;
   }
 ): RubricArtifact {
   let text: string;
@@ -154,7 +158,7 @@ function requireCompletedRubric(
     );
   }
 
-  const validation = validateRubricArtifact(parsed);
+  const validation = validateRubricArtifact(parsed, input.spec);
   if (!validation.ok) {
     throw surfaceError(
       validation.code,
@@ -351,7 +355,10 @@ export async function runSurfacePublish(
   const allowAborted = parsed.flags.has(ALLOW_ABORTED_FLAG);
 
   await deps.authenticate();
-  const resolved = await resolveSurfaceChannel(deps, channelId);
+  const resolved = await resolveSurfaceChannel(deps, channelId, {
+    intent: 'write',
+    operation: 'surface publish',
+  });
 
   const bundleBytes = readBundle(deps, bundlePath);
   const bundleSource = deps.readTextFile(bundlePath);
@@ -371,6 +378,7 @@ export async function runSurfacePublish(
     channelId,
     surfaceId: specFile.surfaceId,
     sha256,
+    spec: specFile.rest,
   });
 
   const currentRead = readChannelSpec(deps, resolved.channel);
@@ -381,6 +389,19 @@ export async function runSurfacePublish(
       { channel: channelId, version: currentRead.version }
     );
   }
+  // The bound pre-state, before any of the branches below decide what to do
+  // with the current definition. `resolveSurfaceChannel` has already refused a
+  // write to the wrong channel or the wrong group; this is the other half of
+  // the bound — the right channel, but no longer the definition anybody
+  // asserted anything about.
+  if (deps.writeScope?.preState) {
+    assertPreStateInScope(deps.writeScope, {
+      channelId,
+      observed: await readSurfacePreState(deps, channelId, currentRead),
+      operation: 'surface publish',
+    });
+  }
+
   // A FAILED LOOKUP IS A FAILED OPERATION.
   //
   // This used to print a note and carry on. That is the generic-file fallback
@@ -482,7 +503,7 @@ export async function runSurfacePublish(
   let assetRef = provisionalAssetRef;
   let uploaded = false;
   if (!bytesUnchanged || parsed.flags.has('--reupload')) {
-    const upload = await uploadBundle(deps, sha256, bundleBytes);
+    const upload = await uploadSurfaceBundle(deps, sha256, bundleBytes);
     assetRef = upload;
     uploaded = true;
   }
@@ -975,7 +996,7 @@ function readBundle(deps: SurfaceDeps, path: string): Uint8Array {
   }
 }
 
-async function uploadBundle(
+export async function uploadSurfaceBundle(
   deps: SurfaceDeps,
   sha256: string,
   bytes: Uint8Array

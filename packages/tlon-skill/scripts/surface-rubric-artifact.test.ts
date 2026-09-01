@@ -5,6 +5,8 @@ import {
   RUBRIC_CHECKS,
   RUBRIC_CHECK_IDS,
   RUBRIC_VERDICTS,
+  UNCONDITIONAL_RUBRIC_CHECKS,
+  applicableRubricChecks,
   buildRubricTemplate,
   rubricResiduals,
   validateRubricArtifact,
@@ -39,17 +41,46 @@ function complete(): Record<string, unknown> {
 }
 
 describe('the twelve and the seven', () => {
-  it('carries twelve capture cells and seven rubric checks', () => {
+  it('carries twelve capture cells and seven universal rubric checks', () => {
     // The resolution, asserted rather than described: the artifact is not
     // twelve OR seven, it is twelve cell observations cross-linked to seven
     // check verdicts. 6a measured the failure as cells never opened; a repair
     // only ever comes out of a check.
     expect(RUBRIC_CELL_IDS).toHaveLength(12);
     expect(new Set(RUBRIC_CELL_IDS).size).toBe(12);
-    expect(RUBRIC_CHECKS).toHaveLength(7);
-    expect(RUBRIC_CHECKS.map((check) => check.number)).toEqual([
+    expect(UNCONDITIONAL_RUBRIC_CHECKS).toHaveLength(7);
+    expect(UNCONDITIONAL_RUBRIC_CHECKS.map((check) => check.number)).toEqual([
       1, 2, 3, 4, 5, 6, 7,
     ]);
+  });
+
+  /**
+   * The eighth check is conditional, and that is the whole design.
+   *
+   * A check every sheet must answer becomes a check every sheet answers the
+   * same way — check 7 is the proof, having passed an expense split nobody
+   * could add an expense to. Check 8 exists only for a spec that has claimed
+   * to be display-only, and its subject is that claim's own sentence.
+   */
+  it('adds the display-only check only for a spec that declares itself one', () => {
+    expect(RUBRIC_CHECKS).toHaveLength(8);
+    expect(applicableRubricChecks({ actions: {} })).toEqual(
+      UNCONDITIONAL_RUBRIC_CHECKS
+    );
+    expect(applicableRubricChecks(undefined)).toEqual(
+      UNCONDITIONAL_RUBRIC_CHECKS
+    );
+    const declared = applicableRubricChecks({
+      actions: {},
+      memberInteraction: {
+        mode: 'none',
+        because: 'the bot posts the rollover',
+      },
+    });
+    expect(declared.map((check) => check.id)).toContain(
+      'display-only-was-asked-for'
+    );
+    expect(declared).toHaveLength(8);
   });
 
   it('requires every check to cite one of the twelve cells', () => {
@@ -72,9 +103,33 @@ describe('buildRubricTemplate', () => {
       buildRubricTemplate({ surfaceId: 'srf-climb', bundleSha256: SHA })
     );
     expect(Object.keys(template.cells)).toEqual([...RUBRIC_CELL_IDS]);
-    expect(Object.keys(template.checks)).toEqual([...RUBRIC_CHECK_IDS]);
+    expect(Object.keys(template.checks)).toEqual(
+      UNCONDITIONAL_RUBRIC_CHECKS.map((check) => check.id)
+    );
     expect(template.surfaceId).toBe('srf-climb');
     expect(template.bundleSha256).toBe(SHA);
+  });
+
+  it('carries the display-only check when the spec declares one', () => {
+    // The forcing function has to land where the author is already filling in
+    // blanks. A check that first appears at publish time is a check discovered
+    // after the work it was meant to shape.
+    const template = JSON.parse(
+      buildRubricTemplate({
+        surfaceId: 'srf-countdown',
+        bundleSha256: SHA,
+        spec: {
+          actions: {},
+          memberInteraction: {
+            mode: 'none',
+            because: 'the launch date is fixed at creation',
+          },
+        },
+      })
+    );
+    expect(Object.keys(template.checks)).toContain(
+      'display-only-was-asked-for'
+    );
   });
 
   it('is INCOMPLETE as emitted — the blanks are the work', () => {

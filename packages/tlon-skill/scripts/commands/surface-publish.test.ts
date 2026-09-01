@@ -8,8 +8,16 @@ import * as surfaceSchemasModule from '@tloncorp/api/client/surface/schemas';
 import { describe, expect, it } from 'bun:test';
 
 import { canonicalJson } from '../surface-canonical-json';
-import { COMPLIANT_FIXTURE, RULE_FIXTURES } from '../surface-lint-fixtures';
-import { RUBRIC_CELL_IDS, RUBRIC_CHECKS } from '../surface-rubric-artifact';
+import {
+  BEACH_TRIP_SPLIT_BUNDLE,
+  BEACH_TRIP_SPLIT_SPEC,
+  COMPLIANT_FIXTURE,
+  RULE_FIXTURES,
+} from '../surface-lint-fixtures';
+import {
+  RUBRIC_CELL_IDS,
+  UNCONDITIONAL_RUBRIC_CHECKS,
+} from '../surface-rubric-artifact';
 import {
   type FakeShipOptions,
   createTestSurfaceDeps,
@@ -42,7 +50,11 @@ function completedRubric(input: { surfaceId: string; bundleSha256: string }) {
     cells[id] = `looked at ${id}; nothing cut off, copy reads as the group's`;
   }
   const checks: Record<string, unknown> = {};
-  for (const check of RUBRIC_CHECKS) {
+  // The seven universal checks, which is the sheet `surface preview` emits for
+  // an ordinary app. A conditional check is added by the test that needs it,
+  // so a test asserting a conditional check is REQUIRED cannot be satisfied by
+  // a helper that quietly filled it in.
+  for (const check of UNCONDITIONAL_RUBRIC_CHECKS) {
     checks[check.id] = {
       verdict: 'pass',
       cell: RUBRIC_CELL_IDS[0],
@@ -557,17 +569,18 @@ describe('surface publish — preserving state', () => {
     expect(stored.preserveState).toBe(true);
   });
 
-  it('carries a gate-only marker through to the stored definition', async () => {
-    // Two markers, one property. `duplicatesTolerated` IS declared on
-    // `SurfaceActionSchema` now (`packages/api/src/client/surface/schemas.ts`)
-    // and would survive validation on its own; `memberInteraction` is the
-    // spec-level marker rule 15 reads and is NOT declared yet, so it survives
-    // only because publish writes the raw assembled object and uses the
-    // schema check purely as a check. If that ever becomes
-    // `write(schemaCheck.value)`, an undeclared marker vanishes from the
-    // published definition and the next revise cycle re-lints a spec that has
-    // lost its opt-out. This pins the WRITE, not the validation — which is
-    // exactly why the undeclared one is the useful subject here.
+  it('carries gate-only markers through to the stored definition', async () => {
+    // Both gate markers are declared on the schema now
+    // (`packages/api/src/client/surface/schemas.ts`), so both would survive
+    // validation on their own. That makes them the wrong subject for the
+    // property this test is actually about, which is that publish writes the
+    // RAW assembled object and uses the schema check purely as a check.
+    //
+    // So an undeclared key rides along. If the write ever becomes
+    // `write(schemaCheck.value)`, `z.object` strips it and the assertion
+    // below is what notices — before some future marker is added to the gate,
+    // not after it has silently vanished from a published definition and the
+    // next revise cycle has re-linted a spec that lost its opt-out.
     const harness = withHistory();
     const marked = specFile();
     const firstAction = Object.keys(
@@ -576,14 +589,14 @@ describe('surface publish — preserving state', () => {
     (marked as { actions: Record<string, Record<string, unknown>> }).actions[
       firstAction
     ].duplicatesTolerated = true;
-    (marked as Record<string, unknown>).memberInteraction = 'none';
+    (marked as Record<string, unknown>).aKeyNoSchemaDeclares = 'survives';
     harness.ship.files.set(SPEC_PATH, JSON.stringify(marked));
 
     expect(await publish(harness)).toBe(0);
 
     const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
     expect(stored.actions[firstAction].duplicatesTolerated).toBe(true);
-    expect(stored.memberInteraction).toBe('none');
+    expect(stored.aKeyNoSchemaDeclares).toBe('survives');
   });
 
   /**
@@ -1676,5 +1689,259 @@ describe('surface publish — a failed lookup is a failed operation', () => {
     expect(harness.err()).toContain(
       'every existing event and snapshot is orphaned'
     );
+  });
+});
+
+/**
+ * The wrong-board write, reproduced and then fenced.
+ *
+ * The verdict run asserted a revision against one board and published it to a
+ * different, similarly-named one. Every check in the pipeline passed, because
+ * every check asked whether the definition landed and none asked whether it
+ * landed HERE. These are the two shapes that failure can take — the wrong
+ * channel, and the right channel at the wrong moment — and both of them are
+ * run first WITHOUT the fence, so what the fence changes is visible rather
+ * than asserted.
+ */
+describe('surface publish — the write fence', () => {
+  const DECOY = 'chat/~zod/dash-0002';
+  const OTHER_GROUP = '~zod/surface-seed';
+
+  /** The identity `surface publish` will compute for CHANNEL as it stands. */
+  function identityOf(
+    harness: ReturnType<typeof setup>,
+    channelId: string
+  ): string {
+    const raw = harness.ship.channelSpecText(channelId);
+    if (raw === null) return 'unpublished:empty';
+    return `spec:${harness.deps.sha256Hex(new TextEncoder().encode(raw))}`;
+  }
+
+  async function publishTo(
+    harness: ReturnType<typeof setup>,
+    channelId: string
+  ) {
+    return run(
+      [
+        'publish',
+        channelId,
+        '--bundle',
+        BUNDLE_PATH,
+        '--spec',
+        SPEC_PATH,
+        '--rubric',
+        RUBRIC_PATH,
+        '--json',
+      ],
+      harness.deps
+    );
+  }
+
+  it('lands on a same-group sibling when nothing is bound — the failure itself', async () => {
+    const harness = setup();
+    harness.ship.addChannel(GROUP, DECOY);
+    expect(await publishTo(harness, DECOY)).toBe(0);
+    expect(harness.json().ok).toBe(true);
+    // Reported as a clean publish, because it was one. Just not this one.
+    expect(harness.ship.channelSpecText(DECOY)).not.toBeNull();
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  it('refuses the sibling once a channel is bound, and names both', async () => {
+    const harness = setup({
+      writeScope: {
+        source: '/fence.json',
+        channel: CHANNEL,
+        preState: null,
+        groups: null,
+      },
+    });
+    harness.ship.addChannel(GROUP, DECOY);
+    expect(await publishTo(harness, DECOY)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('write-out-of-scope');
+    expect(result.message).toContain(DECOY);
+    expect(result.message).toContain(CHANNEL);
+    // And nothing was written anywhere: the refusal is before the write, not
+    // a report about one.
+    expect(harness.ship.channelSpecText(DECOY)).toBeNull();
+    expect(harness.ship.descriptionWrites).toHaveLength(0);
+  });
+
+  it('refuses a board in an unscoped group, which is what actually happened', async () => {
+    const harness = setup({
+      writeScope: {
+        source: '/fence.json',
+        channel: null,
+        preState: null,
+        groups: [GROUP],
+      },
+    });
+    harness.ship.addGroup(OTHER_GROUP);
+    harness.ship.addChannel(OTHER_GROUP, DECOY);
+    expect(await publishTo(harness, DECOY)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('write-out-of-scope');
+    expect(result.message).toContain(OTHER_GROUP);
+    expect(harness.ship.channelSpecText(DECOY)).toBeNull();
+  });
+
+  it('still publishes to the bound channel — the fence is not a stop-work order', async () => {
+    const harness = setup();
+    const bound = setup({
+      writeScope: {
+        source: '/fence.json',
+        channel: CHANNEL,
+        preState: identityOf(harness, CHANNEL),
+        groups: [GROUP],
+      },
+    });
+    expect(await publishTo(bound, CHANNEL)).toBe(0);
+    expect(bound.json().specRevision).toBe(1);
+  });
+
+  it('refuses when the pre-state moved between the bound and the publish', async () => {
+    const harness = setup();
+    // Revision 1 lands, unfenced.
+    expect(await publish(harness)).toBe(0);
+    const bound = identityOf(harness, CHANNEL);
+
+    // Something else revises the board — here, a second publish of different
+    // bytes, which is exactly what a concurrent turn would do.
+    harness.ship.files.set(
+      BUNDLE_PATH,
+      `${COMPLIANT_FIXTURE.bundleSource}\n// a later revision\n`
+    );
+    restampRubric(harness);
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().specRevision).toBe(2);
+    expect(identityOf(harness, CHANNEL)).not.toBe(bound);
+
+    // Now a publish bound to the definition as it stood BEFORE that.
+    harness.deps.writeScope = {
+      source: '/fence.json',
+      channel: CHANNEL,
+      preState: bound,
+      groups: [GROUP],
+    };
+    harness.ship.files.set(
+      BUNDLE_PATH,
+      `${COMPLIANT_FIXTURE.bundleSource}\n// the bound turn's edit\n`
+    );
+    restampRubric(harness);
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('pre-state-moved');
+    expect(result.message).toContain(bound);
+    expect(result.message).toContain(identityOf(harness, CHANNEL));
+    // Revision 2 is untouched: the definition nobody asserted anything about
+    // is still the one on the channel.
+    expect(harness.ship.descriptionWrites).toHaveLength(2);
+  });
+
+  it('binds an unpublished channel by its post head', async () => {
+    const harness = setup({
+      writeScope: {
+        source: '/fence.json',
+        channel: CHANNEL,
+        preState: 'unpublished:empty',
+        groups: [GROUP],
+      },
+    });
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().specRevision).toBe(1);
+  });
+
+  it('refuses an unpublished channel that has been posted to since the bound', async () => {
+    const harness = setup({
+      writeScope: {
+        source: '/fence.json',
+        channel: CHANNEL,
+        preState: 'unpublished:seq:99',
+        groups: [GROUP],
+      },
+    });
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('pre-state-moved');
+  });
+});
+
+/**
+ * The control for the escape hatch that produced the defect it prevented.
+ *
+ * Rule 15 was added because two "who owes what" apps shipped with `actions: {}`
+ * — expense splits nobody can add an expense to. The next expense app shipped
+ * inert AGAIN, one session later, declared this time, so the rule never fired:
+ * the marker had been copied out of the doctrine's snippet before any lint ran.
+ *
+ * The marker now costs a sentence, and the sentence costs a scored check. This
+ * is that check being unskippable: a spec that claims to be display-only draws
+ * a rubric requirement a sheet written for an ordinary app does not satisfy.
+ */
+describe('surface publish — a display-only claim is scored', () => {
+  // The app that shipped inert twice, byte for byte: a bundle with no invokes
+  // and a spec with no actions. The compliant fixture cannot stand in — its
+  // bundle invokes the actions it declares, so emptying the action map trips
+  // the gate on undeclared invokes and the refusal under test would never be
+  // the one measured.
+  function displayOnly(marker: unknown) {
+    const spec: Record<string, unknown> = { ...BEACH_TRIP_SPLIT_SPEC };
+    delete spec.bundle;
+    delete spec.specRevision;
+    if (marker !== undefined) spec.memberInteraction = marker;
+    return spec;
+  }
+
+  function displayOnlySetup(marker: unknown) {
+    return setup({
+      bundle: BEACH_TRIP_SPLIT_BUNDLE,
+      spec: displayOnly(marker),
+    });
+  }
+
+  it('refuses a display-only app whose sheet never scored the claim', async () => {
+    const harness = displayOnlySetup({
+      mode: 'none',
+      because: 'the organizer republishes it when things change',
+    });
+    // A complete sheet — for an ordinary app. Every one of the seven universal
+    // checks is filled in, which is exactly the sheet the inert expense app
+    // shipped with.
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-incomplete');
+    expect(result.message).toContain('display-only-was-asked-for');
+  });
+
+  it('publishes once the claim is scored', async () => {
+    const harness = displayOnlySetup({
+      mode: 'none',
+      because: 'the launch date is fixed at creation',
+    });
+    const rubric = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    rubric.checks['display-only-was-asked-for'] = {
+      verdict: 'pass',
+      cell: RUBRIC_CELL_IDS[0],
+      note: 'the request was "a countdown to launch day"; nothing about it wants a button, and the date is written once at creation',
+    };
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(rubric));
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().specRevision).toBe(1);
+    // And the marker round-trips in its new shape, `because` and all: the
+    // sentence is only worth asking for if it survives to the channel, where
+    // the next revise cycle re-lints against it.
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
+    expect(stored.memberInteraction).toEqual({
+      mode: 'none',
+      because: 'the launch date is fixed at creation',
+    });
+  });
+
+  it('asks nothing extra of an app that makes no such claim', async () => {
+    // The other arm: without this, "refuses" above would pass equally against
+    // a validator that had started demanding check 8 of every sheet.
+    const harness = displayOnlySetup(undefined);
+    expect(await publish(harness)).toBe(0);
   });
 });

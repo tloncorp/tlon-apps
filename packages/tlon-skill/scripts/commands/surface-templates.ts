@@ -133,11 +133,44 @@ function runShow(deps: SurfaceDeps, name: string, asJson: boolean): number {
       }`,
       `  spec:   ${detail.files.spec ?? '(missing)'}`,
       `  notes:  ${detail.files.notes ?? '(missing)'}`,
-      `  actions: ${actions.length > 0 ? actions.join(', ') : '(none declared)'}`,
+      // An empty action map is the shape a forgotten action and a deliberate
+      // display-only app share, and telling them apart is the entire purpose of
+      // the `memberInteraction` marker (D133). Printing "(none declared)" with
+      // the marker's sentence withheld shows an inspecting bot exactly the
+      // ambiguity the marker exists to remove — so when the sentence is there,
+      // it is printed, and when it is not, this says which of the two this is.
+      `  actions: ${
+        actions.length > 0
+          ? actions.join(', ')
+          : displayOnlyBecause(detail.spec) !== null
+            ? '(none — display-only by declaration)'
+            : '(none declared)'
+      }`,
+      ...(actions.length === 0 && displayOnlyBecause(detail.spec) !== null
+        ? [`  because: ${displayOnlyBecause(detail.spec)}`]
+        : []),
       ...(detail.notes ? ['', detail.notes.trimEnd()] : []),
     ],
   };
   return emitReport(deps, report, asJson);
+}
+
+/**
+ * The display-only marker's sentence, when the spec carries one.
+ *
+ * Read off the spec as the template ships it, not off a validated copy: the
+ * point of `show` is to report what an authoring bot would be copying.
+ */
+function displayOnlyBecause(spec: unknown): string | null {
+  if (typeof spec !== 'object' || spec === null) return null;
+  const marker = (spec as Record<string, unknown>).memberInteraction;
+  if (typeof marker !== 'object' || marker === null) return null;
+  const record = marker as Record<string, unknown>;
+  if (record.mode !== 'none') return null;
+  const because = record.because;
+  return typeof because === 'string' && because.trim() !== ''
+    ? because.trim()
+    : null;
 }
 
 export async function runSurfaceTemplates(

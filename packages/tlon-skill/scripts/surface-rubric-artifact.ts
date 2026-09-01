@@ -14,7 +14,8 @@
  *
  * ## Twelve cells or seven checks
  *
- * `RUBRIC.md` has seven checks. The capture matrix has twelve cells. They are
+ * `RUBRIC.md` has seven universal checks (and one that applies only to an app
+ * declaring itself display-only). The capture matrix has twelve cells. They are
  * not the same twelve and the artifact carries BOTH, for a measured reason:
  *
  * - The number 6a recorded as the failure is **cells opened** — 3/12, 0/12.
@@ -22,7 +23,7 @@
  *   observation per capture cell: twelve entries, keyed by the exact file
  *   names preview wrote.
  * - Twelve captions are not a review. A finding becomes a repair only through
- *   the seven checks, so the artifact also carries seven verdicts — and each
+ *   the checks, so the artifact also carries a verdict each — and every one
  *   one must name the cell it was seen in, which is what cross-links the two
  *   halves without either being decorative.
  *
@@ -87,9 +88,17 @@ export const RUBRIC_CELL_IDS = [
 export type RubricCellId = (typeof RUBRIC_CELL_IDS)[number];
 
 /**
- * The seven checks, named for `RUBRIC.md`'s own headings and numbered as it
- * numbers them. The ids are the stable handle; the prose lives in the rubric
- * and is not repeated here, because two copies of a checklist drift.
+ * The checks, named for `RUBRIC.md`'s own headings and numbered as it numbers
+ * them. The ids are the stable handle; the prose lives in the rubric and is
+ * not repeated here, because two copies of a checklist drift.
+ *
+ * Seven apply to every app. The eighth applies only to an app that declares
+ * itself display-only, and it is conditional rather than universal for a
+ * reason: a check every sheet has to answer becomes a check every sheet
+ * answers the same way, and check 7 already demonstrated where that ends —
+ * "the screen is the thing that was asked for" passed an expense split nobody
+ * could add an expense to, because a screenshot of a board nobody can touch
+ * looks exactly like a screenshot of a board somebody can.
  */
 export const RUBRIC_CHECKS = [
   { id: 'overflow', number: 1, title: 'Nothing overflows the viewport' },
@@ -107,11 +116,47 @@ export const RUBRIC_CHECKS = [
     number: 7,
     title: 'The screen is the thing that was asked for',
   },
+  {
+    id: 'display-only-was-asked-for',
+    number: 8,
+    title: 'Display-only is what was asked for, not what was convenient',
+    /**
+     * Scored only when the spec declares `memberInteraction`. The subject is
+     * the `because` sentence: does the request this app answers actually want
+     * a board nobody can touch, and is the host event named in `because` a
+     * real one this bot will really post?
+     */
+    appliesWhen: 'member-interaction-declared',
+  },
 ] as const;
 
 export const RUBRIC_CHECK_IDS = RUBRIC_CHECKS.map(
   (check) => check.id
 ) as readonly string[];
+
+/** The checks every app is scored against, whatever its spec says. */
+export const UNCONDITIONAL_RUBRIC_CHECKS = RUBRIC_CHECKS.filter(
+  (check) => !('appliesWhen' in check)
+);
+
+/**
+ * Which checks a sheet for this spec has to carry.
+ *
+ * Read off the RAW spec, like the gate's own rules: a validated read would
+ * have stripped an unknown key, and the point of the marker being declared in
+ * the schema is that raw and validated agree — but the rubric is scored before
+ * publish validates anything, so raw is the only thing there is.
+ */
+export function applicableRubricChecks(
+  spec: unknown
+): readonly (typeof RUBRIC_CHECKS)[number][] {
+  const marker =
+    isPlainObject(spec) && isPlainObject(spec.memberInteraction)
+      ? spec.memberInteraction
+      : null;
+  if (marker === null) return UNCONDITIONAL_RUBRIC_CHECKS;
+  return RUBRIC_CHECKS;
+}
 
 /**
  * The verdicts a check may carry.
@@ -172,7 +217,8 @@ function nonEmpty(value: unknown): value is string {
  *
  * Every key the validator requires is already here, in reading order, with the
  * identity fields filled in from the render that just happened. What is left
- * for the model is nineteen strings and seven verdicts — no schema to
+ * for the model is nineteen strings and seven verdicts (eight, for an app
+ * that declares itself display-only) — no schema to
  * remember, no hash to compute, no cell names to get right. The cheapest
  * correct emission is "open this file and fill in the blanks", so that is the
  * emission the tool asks for.
@@ -180,13 +226,20 @@ function nonEmpty(value: unknown): value is string {
 export function buildRubricTemplate(input: {
   surfaceId: string;
   bundleSha256: string;
+  /**
+   * The spec being previewed, so a display-only app's template carries check
+   * 8. The forcing function has to land where the author is already filling in
+   * blanks; a check that only appears at publish time is a check discovered
+   * after the work it was meant to shape.
+   */
+  spec?: unknown;
 }): string {
   const cells: Record<string, string> = {};
   for (const cell of RUBRIC_CELL_IDS) {
     cells[cell] = '';
   }
   const checks: Record<string, RubricCheckEntry> = {};
-  for (const check of RUBRIC_CHECKS) {
+  for (const check of applicableRubricChecks(input.spec)) {
     checks[check.id] = {
       verdict: 'pass',
       cell: RUBRIC_CELL_IDS[0],
@@ -214,7 +267,16 @@ export function buildRubricTemplate(input: {
  * typo, and then the test for "publish refuses an incomplete rubric" could
  * pass while only ever exercising the parser.
  */
-export function validateRubricArtifact(raw: unknown): RubricValidation {
+export function validateRubricArtifact(
+  raw: unknown,
+  /**
+   * The spec the sheet is scoring, when the caller has it. Publish does;
+   * anyone checking a sheet in isolation does not, and then only the
+   * unconditional checks are required — a sheet cannot be faulted for missing
+   * a check nobody could tell applied.
+   */
+  spec?: unknown
+): RubricValidation {
   if (!isPlainObject(raw)) {
     return {
       ok: false,
@@ -293,7 +355,7 @@ export function validateRubricArtifact(raw: unknown): RubricValidation {
         `"checks" names ${extra.length} thing(s) that are not rubric checks: ${extra.join(', ')}`
       );
     }
-    for (const check of RUBRIC_CHECKS) {
+    for (const check of applicableRubricChecks(spec)) {
       const entry = raw.checks[check.id];
       if (!isPlainObject(entry)) {
         problems.push(
