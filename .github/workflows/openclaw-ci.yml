@@ -55,13 +55,28 @@ jobs:
         run: npx vitest run src/security.test.ts
 
   integration-test:
-    name: Shared E2E
+    name: Shared E2E (OpenClaw ${{ matrix.openclaw-version }})
     runs-on: blacksmith-8vcpu-ubuntu-2204
-    # Three runtimes boot fresh stacks and re-apply the branch %groups desk
-    # (baseline and cron scenario partitions, then the package suite; ~8-9
-    # minutes per apply on native runners when the desk has drifted). One
-    # CLI invocation spans all three runtimes, so all three applies land in
-    # the single e2e step. The ceiling sits above cold setup ~15 + the
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - openclaw-version: 2026.5.7
+            partitions: read
+            expect-prewarm: "0"
+            suite: common
+          - openclaw-version: 2026.5.28
+            partitions: baseline,cron,read
+            expect-prewarm: "0"
+            suite: all
+          - openclaw-version: 2026.7.1
+            partitions: read
+            expect-prewarm: "1"
+            suite: common
+    # The pinned-runtime lane boots fresh stacks for baseline, cron, read, and
+    # package coverage. Boundary and production-runtime lanes run only the
+    # focused read partition. Each apply takes ~8-9 minutes on native runners
+    # when the desk has drifted. The ceiling sits above cold setup ~15 + the
     # 85-min step cap + the 5-min failure capture + upload, so a step that
     # runs to its cap hits a *step* timeout (a step failure), never this job
     # timeout (a cancellation) — the capture steps below then still run with
@@ -151,13 +166,20 @@ jobs:
           TEST_STORAGE_REGION: ${{ secrets.E2E_S3_REGION }}
           TEST_LIVE_TOOL_TRACE: "1"
           TEST_LIVE_TOOL_TRACE_CONTENTS: "1"
+          OPENCLAW_CORE_VERSION: ${{ matrix.openclaw-version }}
+          TEST_EXPECT_OPENCLAW_PREWARM: ${{ matrix.expect-prewarm }}
           FAKE_SHIP_CACHE_DIR:
             ${{ github.workspace }}/.cache/tlon-bot-e2e/fake-ships
           TLON_BOT_E2E_RUN_ID:
-            ${{ github.run_id }}-${{ github.run_attempt }}-openclaw
-          TLON_BOT_E2E_SCENARIO_PARTITIONS: baseline,cron,read
+            ${{ github.run_id }}-${{ github.run_attempt }}-openclaw-${{
+            matrix.openclaw-version }}
+          TLON_BOT_E2E_SCENARIO_PARTITIONS: ${{ matrix.partitions }}
         run: |
-          pnpm --filter '@tloncorp/openclaw' test:integration:shared
+          if [ "${{ matrix.suite }}" = "all" ]; then
+            pnpm --filter '@tloncorp/openclaw' test:integration:shared
+          else
+            pnpm --dir packages/tlon-bot-e2e test:e2e:openclaw
+          fi
 
       - name: Capture leftover docker state
         if: failure() || cancelled()
@@ -173,7 +195,9 @@ jobs:
           # run_attempt: v4 artifact names are immutable across attempts of a
           # run — a rerun of a failed job must not collide with the previous
           # attempt's upload, or the rerun's diagnostics are rejected.
-          name: tlon-bot-e2e-diagnostics-openclaw-${{ github.run_attempt }}
+          name:
+            tlon-bot-e2e-diagnostics-openclaw-${{ matrix.openclaw-version }}-${{
+            github.run_attempt }}
           path: packages/tlon-bot-e2e/diagnostics/
           if-no-files-found: warn
           retention-days: 7
