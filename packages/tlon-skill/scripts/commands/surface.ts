@@ -8,6 +8,7 @@ import {
 import { SurfaceError, type SurfaceDeps } from './surface-common';
 import { runSurfaceCreate } from './surface-create';
 import { runSurfaceDocument } from './surface-docs';
+import { runSurfaceFork } from './surface-fork';
 import { runSurfaceLint } from './surface-lint';
 import { runSurfacePreview } from './surface-preview';
 import { runSurfacePublish } from './surface-publish';
@@ -34,6 +35,7 @@ Subcommands:
   state       Hydrate a dashboard and print its reduced state
   snapshot    Post a snapshot, compacting the channel's history
   preview     Render the app as production does and screenshot it
+  fork        Copy an app you can read into a channel you can write
 
 The authoring skill's own documents, printed from the installed package, so
 reading them does not depend on the runtime's skill mechanism:
@@ -66,6 +68,7 @@ export const SURFACE_SUBCOMMANDS = [
   'state',
   'snapshot',
   'preview',
+  'fork',
   'doctrine',
   'primitives',
   'rubric',
@@ -139,6 +142,8 @@ export async function run(args: string[], deps: SurfaceDeps): Promise<number> {
         return await runSurfaceSnapshot(rest, deps);
       case 'preview':
         return await runSurfacePreview(rest, deps);
+      case 'fork':
+        return await runSurfaceFork(rest, deps);
       case 'doctrine':
       case 'primitives':
       case 'rubric':

@@ -57,6 +57,7 @@ describe('surface dispatcher', () => {
       'state',
       'snapshot',
       'preview',
+      'fork',
       'doctrine',
       'primitives',
       'rubric',

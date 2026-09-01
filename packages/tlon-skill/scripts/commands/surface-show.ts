@@ -149,15 +149,14 @@ interface FetchedBundle {
  * the bot will read, edit and republish, so writing unverified bytes there
  * would put them into the next spec under a hash that was never theirs.
  */
-async function fetchVerifiedBundle(
+export async function fetchVerifiedBundleBytes(
   deps: SurfaceDeps,
   input: {
     channelId: string;
     assetRef: string;
     sha256: string;
-    outPath: string;
   }
-): Promise<FetchedBundle> {
+): Promise<Uint8Array> {
   const verdict = classifyAssetRef(input.assetRef);
   if (!verdict.ok) {
     throw surfaceError(
@@ -228,11 +227,32 @@ async function fetchVerifiedBundle(
     );
   }
 
-  deps.writeBinaryFile(input.outPath, fetched.bytes);
+  return fetched.bytes;
+}
+
+/**
+ * The same fetch, written to disk.
+ *
+ * Split from the verification above so `surface fork` can reuse the discipline
+ * without the file: a fork holds the bytes in memory to re-gate and re-upload
+ * them, and a second implementation of "fetch, bound, hash, or refuse" is a
+ * second opinion about what a channel published.
+ */
+async function fetchVerifiedBundle(
+  deps: SurfaceDeps,
+  input: {
+    channelId: string;
+    assetRef: string;
+    sha256: string;
+    outPath: string;
+  }
+): Promise<FetchedBundle> {
+  const bytes = await fetchVerifiedBundleBytes(deps, input);
+  deps.writeBinaryFile(input.outPath, bytes);
   return {
     path: input.outPath,
-    bytes: fetched.bytes.byteLength,
-    sha256: observed,
+    bytes: bytes.byteLength,
+    sha256: input.sha256,
   };
 }
 
@@ -269,7 +289,9 @@ export async function runSurfaceShow(
   const outPath = singleValue(parsed, '--bundle-out');
 
   await deps.authenticate();
-  const resolved = await resolveSurfaceChannel(deps, channelId);
+  const resolved = await resolveSurfaceChannel(deps, channelId, {
+    intent: 'read',
+  });
 
   // One answer to "what does an unreadable definition mean". `readChannelSpec`
   // is called for the raw cell; when it is anything but valid, the refusal

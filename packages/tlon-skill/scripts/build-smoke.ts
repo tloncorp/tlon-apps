@@ -234,6 +234,27 @@ assertCase({
   ],
 });
 
+/**
+ * The two halves of a fork have to be findable from the help, because a bot
+ * that stages a copy and cannot see what to run next has a bundle on disk and
+ * no way to land it. Both forms are asserted, and so is the sentence that says
+ * provenance is a claim — the one line of this command that must survive every
+ * later edit to its help.
+ */
+assertCase({
+  name: 'surface fork --help names both halves and the claim',
+  args: ['surface', 'fork', '--help'],
+  expectedExitCode: 0,
+  stderr: '',
+  stdoutIncludes: [
+    'Usage: tlon surface fork <source-channel>',
+    '--stage-bundle <path>',
+    '--surface-id <id>',
+    'Provenance is a CLAIM, not an attestation',
+    'The recipe is NOT copied',
+  ],
+});
+
 /* ------------------------------------------------------------------ */
 /* The skill's documents, served by the COMPILED binary                */
 /* ------------------------------------------------------------------ */
