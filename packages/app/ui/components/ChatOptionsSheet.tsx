@@ -28,7 +28,6 @@ import {
   desktopFlyoutContentProps,
   desktopFlyoutPopoverProps,
 } from './ActionSheet';
-import { canMarkChannelRead } from './chatOptionsUtils';
 import { ListItem } from './ListItem';
 
 function getNotificationTitle(
@@ -648,7 +647,7 @@ export function ChannelOptionsSheetContent({
 
   const groupTitle = utils.useGroupTitle(group) ?? 'group';
   const isSingleChannelGroup = group?.channels?.length === 1;
-  const canMarkRead = canMarkChannelRead(channel);
+  const canMarkRead = channel.unread?.count !== 0;
   const baseVolumeLevel = store.useBaseVolumeLevel();
 
   const handlePressGroupDetails = useCallback(() => {
