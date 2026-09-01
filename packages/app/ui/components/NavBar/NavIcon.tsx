@@ -18,11 +18,13 @@ export function AvatarNavIcon({
   focused,
   onPress,
   onLongPress,
+  disabled = false,
 }: {
   id: string;
   focused: boolean;
   onPress?: () => void;
   onLongPress?: () => void;
+  disabled?: boolean;
 }) {
   const props: Omit<ComponentProps<typeof Pressable>, 'children'> = isWeb
     ? {
@@ -42,8 +44,10 @@ export function AvatarNavIcon({
   return (
     <Pressable
       testID="AvatarNavIcon"
-      onPress={onPress}
-      onLongPress={onLongPress}
+      onPress={disabled ? undefined : onPress}
+      onLongPress={disabled ? undefined : onLongPress}
+      disabled={disabled}
+      accessibilityState={{ disabled }}
       alignItems="center"
       borderRadius="$s"
       {...props}
@@ -68,6 +72,7 @@ export default function NavIcon({
   onPress,
   backgroundColor,
   shouldShowUnreads = true,
+  disabled = false,
 }: {
   testID?: string;
   type: IconType;
@@ -77,6 +82,7 @@ export default function NavIcon({
   onPress?: () => void;
   backgroundColor?: ColorTokens;
   shouldShowUnreads?: boolean;
+  disabled?: boolean;
 }) {
   const resolvedType = isActive && activeType ? activeType : type;
   const unreadDotBackgroundColor = hasUnreads ? '$blue' : 'transparent';
@@ -95,7 +101,9 @@ export default function NavIcon({
     <Pressable
       testID={testID}
       alignItems="center"
-      onPress={onPress}
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      accessibilityState={{ disabled }}
       borderRadius="$s"
       backgroundColor={backgroundColor}
       {...props}

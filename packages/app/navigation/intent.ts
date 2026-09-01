@@ -208,8 +208,8 @@ export function getStateFromNavigationIntent(
 
   return (
     navigatorType === 'mobile'
-      ? getStateFromPath(url, getMobileLinkingConfig('').config) ?? null
-      : getStateFromPath(url, getDesktopLinkingConfig('').config) ?? null
+      ? (getStateFromPath(url, getMobileLinkingConfig('').config) ?? null)
+      : (getStateFromPath(url, getDesktopLinkingConfig('').config) ?? null)
   ) as PartialState<NavigationState<CombinedParamList>> | null;
 }
 

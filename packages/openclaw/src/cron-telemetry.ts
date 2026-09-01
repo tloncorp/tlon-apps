@@ -57,6 +57,7 @@ type GatewayCronJob = {
   id: string;
   agentId?: string;
   name?: string;
+  description?: string;
   enabled?: boolean;
   schedule?: GatewayCronSchedule;
   sessionTarget?: string;
@@ -64,7 +65,7 @@ type GatewayCronJob = {
   payload?: { kind?: string; text?: string };
 };
 
-type CronChangedEvent = {
+export type CronChangedEvent = {
   action: 'added' | 'updated' | 'removed' | 'started' | 'finished' | 'scheduled';
   jobId: string;
   job?: GatewayCronJob;
@@ -87,9 +88,22 @@ type CronChangedEvent = {
 
 type GatewayCronService = {
   list: (opts?: { includeDisabled?: boolean }) => Promise<GatewayCronJob[]>;
+  add: (input: never) => Promise<unknown>;
+  update: (id: string, patch: never) => Promise<unknown>;
+  remove: (id: string) => Promise<{ removed?: boolean }>;
+  removeStaleJobFamily: (family: {
+    declarationKey: string;
+    name: string;
+    ownerPluginTag: string;
+  }) => Promise<number>;
 };
 
 type CronServiceAccessor = () => GatewayCronService | undefined;
+
+export type TlonCronService = GatewayCronService & {
+  run?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+  enqueueRun?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+};
 type CronObservabilityOptions = {
   observer?: TlonCronOtelObserver;
 };
@@ -111,6 +125,10 @@ export function setCronServiceAccessor(
 
 export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
+}
+
+export function getTlonCronService(): TlonCronService | undefined {
+  return cronServiceAccessorSlot.get()?.() as TlonCronService | undefined;
 }
 
 function optionalString(value: string | null | undefined): string | null {

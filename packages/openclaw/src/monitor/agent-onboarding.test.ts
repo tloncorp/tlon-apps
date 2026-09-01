@@ -1,0 +1,3759 @@
+import { A2UI, appendToPostBlob, parsePostBlob } from '@tloncorp/api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import {
+  type TlonCronService,
+  clearCronServiceAccessor,
+  setCronServiceAccessor,
+} from '../cron-telemetry.js';
+import {
+  type AgentOnboardingRunRecord,
+  claimAgentOnboardingRun,
+  clearAgentOnboardingRunFallbackForTesting,
+  forgetAgentOnboardingRunClaim,
+  getAgentOnboardingClaimOwnerId,
+  recordAgentOnboardingRunEnqueued,
+  recordAgentOnboardingRunOutcome,
+  setAgentOnboardingRunStore,
+} from './agent-onboarding-run-store.js';
+import {
+  agentOnboardingCronChannelNest,
+  agentOnboardingCronProviderIds,
+  agentOnboardingTesting,
+  clearAgentOnboardingRuntime,
+  drainAgentOnboardingRuntime,
+  handleAgentOnboardingCronChanged,
+  handleAgentOnboardingMessageSent,
+  handleAgentOnboardingRequest,
+  isAgentOnboardingCronJob,
+  parseAgentOnboardingRequest,
+  scanAgentOnboardingChannel,
+} from './agent-onboarding.js';
+
+const provision = {
+  type: 'tlon-agent-provision' as const,
+  version: 1 as const,
+  provisionId: 'provision-1',
+  groupId: '~ten/group',
+  purposeId: 'agent-daily-digest',
+  purpose: 'A daily digest',
+  topics: ['AI', 'Climate'],
+  timezone: 'America/New_York',
+  scheduleHour: 8,
+  scheduleMinute: 30,
+  notebookNest: 'notes/~ten/updates',
+  notebookTitle: 'Updates',
+};
+
+type RequestContext = Parameters<typeof handleAgentOnboardingRequest>[0];
+type RequestDeps = Parameters<typeof handleAgentOnboardingRequest>[1];
+
+function requestContext(
+  overrides: Partial<RequestContext> = {}
+): RequestContext {
+  return {
+    api: { scry: vi.fn() },
+    botShip: '~bot',
+    channelNest: 'chat/~ten/group/general',
+    groupId: provision.groupId,
+    ownerShip: '~ten',
+    senderShip: '~ten',
+    blob: appendToPostBlob(undefined, provision),
+    ...overrides,
+  };
+}
+
+function replyContext(
+  rawText: string,
+  overrides: Partial<RequestContext> = {}
+): RequestContext {
+  return requestContext({
+    channelNest: 'chat/~ten/general',
+    blob: undefined,
+    rawText,
+    ...overrides,
+  });
+}
+
+type ScanContext = Parameters<
+  typeof agentOnboardingTesting.rememberFirstRun
+>[1];
+
+function scanContext(overrides: Partial<ScanContext> = {}): ScanContext {
+  return {
+    api: { scry: vi.fn() },
+    botShip: '~bot',
+    channelNest: 'chat/~ten/group/general',
+    groupId: provision.groupId,
+    ownerShip: '~ten',
+    ...overrides,
+  };
+}
+
+const generalScanContext = (overrides: Partial<ScanContext> = {}) =>
+  scanContext({ channelNest: 'chat/~ten/general', ...overrides });
+
+function rememberFirstRun(
+  runId: string,
+  {
+    context = scanContext(),
+    request = provision,
+    notebookName,
+    jobId,
+    enqueuedAt,
+  }: {
+    context?: ScanContext;
+    request?: typeof provision;
+    notebookName?: string;
+    jobId?: string;
+    enqueuedAt?: number;
+  } = {}
+) {
+  agentOnboardingTesting.rememberFirstRun(
+    { enqueued: true, runId },
+    context,
+    request,
+    notebookName,
+    jobId,
+    enqueuedAt
+  );
+}
+
+function provisionedGroup(
+  overrides: Partial<{
+    hostUserId: string;
+    channels: Array<{ id: string; type: string }>;
+    members: Array<{
+      contactId: string;
+      status: string;
+      roles: string[];
+    }>;
+  }> = {}
+) {
+  return {
+    hostUserId: '~ten',
+    channels: [{ id: provision.notebookNest, type: 'notes' }],
+    members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+    ...overrides,
+  };
+}
+
+function introRequest(timestamp = 0, isFirstGroup = true) {
+  return {
+    author: '~ten',
+    content: "Let's get set up.",
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request' as const,
+      version: 1 as const,
+      groupId: provision.groupId,
+      ...(isFirstGroup ? { isFirstGroup: true } : {}),
+    }),
+  };
+}
+
+const firstGroupIntro = (timestamp = 0) => introRequest(timestamp);
+
+function botMarker(key: string, timestamp: number) {
+  return {
+    author: '~bot',
+    content: key,
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker' as const,
+      version: 1 as const,
+      key,
+    }),
+  };
+}
+
+function provisionAck(
+  timestamp = 1,
+  provisionId = provision.provisionId,
+  cronJobId = 'job-1'
+) {
+  return {
+    author: '~bot',
+    content: 'ready',
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-provision-ack' as const,
+      version: 1 as const,
+      provisionId,
+      cronJobId,
+    }),
+  };
+}
+
+function provisionRequest(
+  request: typeof provision = provision,
+  timestamp = 1
+) {
+  return {
+    author: '~ten',
+    content: request.topics.join(', '),
+    timestamp,
+    blob: appendToPostBlob(undefined, request),
+  };
+}
+
+function servicesCard(timestamp = 2) {
+  return {
+    author: '~bot',
+    content: 'Pick anything you’d like, or tap Done to continue.',
+    timestamp,
+    blob: appendToPostBlob(undefined, {
+      type: 'tlon-agent-post-marker' as const,
+      version: 1 as const,
+      key: 'services-card',
+    }),
+  };
+}
+
+function successfulSendPost() {
+  return vi.fn(async () => ({
+    channel: 'tlon' as const,
+    messageId: 'post',
+    sentAt: 0,
+  }));
+}
+
+function provisionCronHarness(
+  enqueueRun = vi.fn(async () => ({ enqueued: true, runId: 'run-1' }))
+) {
+  let jobs: Record<string, unknown>[] = [];
+  const cron = {
+    list: vi.fn(async () => jobs),
+    add: vi.fn(async (input: Record<string, unknown>) => {
+      jobs = [{ id: 'job-1', ...input }];
+    }),
+    update: vi.fn(),
+    remove: vi.fn(),
+    enqueueRun,
+  } as unknown as TlonCronService;
+  return { cron, getJobs: () => jobs };
+}
+
+function provisionDeps(
+  cron: TlonCronService,
+  overrides: Partial<RequestDeps> = {}
+): RequestDeps {
+  return {
+    fetchHistory: vi.fn(async () => []),
+    getCron: () => cron,
+    getGroup: vi.fn(async () => provisionedGroup()),
+    sendPost: successfulSendPost(),
+    ...overrides,
+  };
+}
+
+function providerConfig(
+  providerIds: string[],
+  timestamp = 3,
+  provisionId = provision.provisionId
+) {
+  const entry = {
+    type: 'tlon-agent-provider-config' as const,
+    version: 1 as const,
+    provisionId,
+    groupId: provision.groupId,
+    providerIds,
+  };
+  return {
+    entry,
+    historyEntry: {
+      author: '~ten',
+      content: providerIds.join(', '),
+      timestamp,
+      blob: appendToPostBlob(undefined, entry),
+    },
+  };
+}
+
+beforeEach(() => {
+  clearAgentOnboardingRuntime();
+  clearAgentOnboardingRunFallbackForTesting();
+  setAgentOnboardingRunStore(null);
+});
+
+afterEach(() => {
+  clearCronServiceAccessor();
+  vi.useRealTimers();
+});
+
+function assertNoUndefined(value: unknown, path = 'value'): void {
+  if (value === undefined) {
+    throw new Error(`${path} must be JSON-serializable`);
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) =>
+      assertNoUndefined(item, `${path}[${index}]`)
+    );
+    return;
+  }
+  if (value && typeof value === 'object') {
+    Object.entries(value).forEach(([key, item]) =>
+      assertNoUndefined(item, `${path}.${key}`)
+    );
+  }
+}
+
+function memoryRunStore() {
+  const records = new Map<string, AgentOnboardingRunRecord>();
+  const validate = (value: AgentOnboardingRunRecord) => {
+    // Match the hosted plugin-state contract in every durable-store test.
+    assertNoUndefined(value);
+  };
+  return {
+    register: vi.fn(async (key: string, value: AgentOnboardingRunRecord) => {
+      validate(value);
+      records.set(key, value);
+    }),
+    registerIfAbsent: vi.fn(
+      async (key: string, value: AgentOnboardingRunRecord) => {
+        validate(value);
+        if (records.has(key)) return false;
+        records.set(key, value);
+        return true;
+      }
+    ),
+    lookup: vi.fn(async (key: string) => records.get(key)),
+    consume: vi.fn(async (key: string) => {
+      const value = records.get(key);
+      records.delete(key);
+      return value;
+    }),
+    delete: vi.fn(async (key: string) => records.delete(key)),
+    entries: vi.fn(async () =>
+      [...records].map(([key, value]) => ({ key, value, createdAt: 0 }))
+    ),
+    clear: vi.fn(async () => records.clear()),
+  };
+}
+
+function runRecordKey(accountId: string, provisionId: string) {
+  return `${accountId}\u0000${provisionId}`;
+}
+
+const defaultRunAccountId = '~bot';
+const storedRunKey = (provisionId = provision.provisionId) =>
+  runRecordKey(defaultRunAccountId, provisionId);
+
+function storedRunRecord(
+  overrides: Partial<AgentOnboardingRunRecord> = {}
+): AgentOnboardingRunRecord {
+  return {
+    accountId: defaultRunAccountId,
+    provisionId: provision.provisionId,
+    jobId: 'job-1',
+    groupId: provision.groupId,
+    channelNest: 'chat/~ten/group/general',
+    notebookNest: provision.notebookNest,
+    notebookName: provision.notebookTitle,
+    purposeId: provision.purposeId,
+    topics: [...provision.topics],
+    provision,
+    claimedAt: 1,
+    status: 'enqueued',
+    ...overrides,
+  };
+}
+
+describe('first-run durable claims', () => {
+  const record = (claimOwnerId: string): AgentOnboardingRunRecord => ({
+    accountId: 'account-1',
+    provisionId: 'provision-1',
+    jobId: 'job-1',
+    groupId: '~ten/group',
+    channelNest: 'chat/~ten/group/general',
+    notebookNest: 'notes/~ten/updates',
+    notebookName: 'Updates',
+    purposeId: 'agent-daily-digest',
+    topics: ['AI'],
+    claimedAt: 1_000,
+    claimOwnerId,
+    status: 'claimed',
+  });
+  const recordKey = runRecordKey('account-1', 'provision-1');
+
+  it('keeps a fresh claim owned by this process', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, initial);
+    await expect(claimAgentOnboardingRun(initial, 1_001)).resolves.toEqual({
+      outcome: 'owned-by-another-pass',
+    });
+  });
+
+  it('reclaims a fresh unwitnessed claim left by an earlier process', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(recordKey, record('previous-process'));
+    const initial = {
+      ...record(getAgentOnboardingClaimOwnerId()),
+      claimedAt: 31_001,
+    };
+
+    await expect(claimAgentOnboardingRun(initial, 1_001)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+    await expect(store.lookup(recordKey)).resolves.toEqual(initial);
+  });
+
+  it('elects only one recovery pass for concurrent stale claims', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(recordKey, record('previous-process'));
+    const initial = {
+      ...record(getAgentOnboardingClaimOwnerId()),
+      claimedAt: 31_001,
+    };
+
+    const outcomes = await Promise.all([
+      claimAgentOnboardingRun(initial, 31_001),
+      claimAgentOnboardingRun(initial, 31_001),
+    ]);
+
+    expect(outcomes).toContainEqual({ outcome: 'enqueue' });
+    expect(outcomes).toContainEqual({ outcome: 'owned-by-another-pass' });
+    expect(store.delete).toHaveBeenCalledOnce();
+  });
+
+  it('deduplicates an enqueue when the durable store is unavailable', async () => {
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await expect(claimAgentOnboardingRun(initial, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await expect(
+      claimAgentOnboardingRun(initial, 1_001)
+    ).resolves.toMatchObject({
+      outcome: 'recovered',
+      record: { runId: 'run-1', status: 'enqueued' },
+    });
+  });
+
+  it('normalizes optional fields at the durable store boundary', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = {
+      ...record(getAgentOnboardingClaimOwnerId()),
+      runId: undefined,
+      outcome: {
+        status: 'ok' as const,
+        delivered: true,
+        noteId: undefined,
+        error: undefined,
+        observedAt: 1_000,
+      },
+    };
+
+    await expect(claimAgentOnboardingRun(initial, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+    await expect(store.lookup(recordKey)).resolves.toEqual({
+      ...record(getAgentOnboardingClaimOwnerId()),
+      outcome: {
+        status: 'ok',
+        delivered: true,
+        observedAt: 1_000,
+      },
+    });
+  });
+
+  it('persists enqueue state before an outcome exists', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, initial);
+
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await expect(store.lookup(recordKey)).resolves.toEqual({
+      ...initial,
+      runId: 'run-1',
+      status: 'enqueued',
+      enqueuedAt: 1_000,
+    });
+  });
+
+  it('persists an outcome without undefined optional fields', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, initial);
+    await recordAgentOnboardingRunEnqueued(initial, 'run-1', 1_000);
+
+    await recordAgentOnboardingRunOutcome('run-1', {
+      status: 'ok',
+      delivered: true,
+      observedAt: 1_001,
+    });
+
+    await expect(store.lookup(recordKey)).resolves.toMatchObject({
+      outcome: { status: 'ok', delivered: true, observedAt: 1_001 },
+    });
+  });
+
+  it('does not delete an enqueued record when an older enqueue rejects', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    const replacement = {
+      ...initial,
+      claimedAt: initial.claimedAt + 1,
+      claimOwnerId: 'replacement-owner',
+      runId: 'replacement-run',
+      status: 'enqueued' as const,
+    };
+    await store.register(recordKey, replacement);
+
+    await forgetAgentOnboardingRunClaim(initial);
+
+    await expect(store.lookup(recordKey)).resolves.toEqual(replacement);
+  });
+
+  it('does not overwrite an enqueued record when an older enqueue resolves', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    const replacement = {
+      ...initial,
+      claimedAt: initial.claimedAt + 1,
+      claimOwnerId: 'replacement-owner',
+      runId: 'replacement-run',
+      status: 'enqueued' as const,
+    };
+    await store.register(recordKey, replacement);
+
+    await recordAgentOnboardingRunEnqueued(initial, 'older-run', 1_000);
+
+    await expect(store.lookup(recordKey)).resolves.toEqual(replacement);
+  });
+
+  it('preserves an exact delivered note id across later cron outcome writes', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const initial = record(getAgentOnboardingClaimOwnerId());
+    await store.register(recordKey, {
+      ...initial,
+      runId: 'run-1',
+      status: 'enqueued',
+    });
+
+    await Promise.all([
+      recordAgentOnboardingRunOutcome('run-1', {
+        status: 'ok',
+        delivered: true,
+        noteId: 42,
+        observedAt: 1_001,
+      }),
+      recordAgentOnboardingRunOutcome('run-1', {
+        status: 'ok',
+        delivered: true,
+        observedAt: 1_002,
+      }),
+    ]);
+
+    await expect(store.lookup(recordKey)).resolves.toMatchObject({
+      outcome: { status: 'ok', delivered: true, noteId: 42 },
+    });
+  });
+
+  it('claims the same provision id independently for different accounts', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const first = record(getAgentOnboardingClaimOwnerId());
+    const second = { ...first, accountId: 'account-2' };
+
+    await expect(claimAgentOnboardingRun(first, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+    await expect(claimAgentOnboardingRun(second, 1_000)).resolves.toEqual({
+      outcome: 'enqueue',
+    });
+
+    await expect(store.lookup(recordKey)).resolves.toEqual(first);
+    await expect(
+      store.lookup(runRecordKey('account-2', 'provision-1'))
+    ).resolves.toEqual(second);
+  });
+});
+
+describe('durable onboarding cron authorization', () => {
+  it('recognizes an edited job and restores its selected providers from durable state', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        jobId: 'edited-description-job',
+        providerIds: ['gmail'],
+      })
+    );
+
+    await expect(
+      isAgentOnboardingCronJob('edited-description-job')
+    ).resolves.toBe(true);
+    await expect(
+      agentOnboardingCronProviderIds('edited-description-job')
+    ).resolves.toEqual(['gmail']);
+    await expect(
+      agentOnboardingCronChannelNest('edited-description-job')
+    ).resolves.toBe('chat/~ten/group/general');
+  });
+
+  it('does not classify an unrelated MCP-enabled Tlon cron as onboarding', async () => {
+    const jobId = 'fallback-edited-description-job';
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: jobId,
+          description: 'Owner edited this description',
+          payload: { toolsAllow: ['group:web', 'mcp_call'] },
+          delivery: { channel: 'tlon' },
+        },
+      ]),
+    } as unknown as TlonCronService;
+    setCronServiceAccessor(() => cron);
+
+    await expect(isAgentOnboardingCronJob(jobId)).resolves.toBe(false);
+    await expect(agentOnboardingCronProviderIds(jobId)).resolves.toEqual([]);
+  });
+});
+
+describe('first-run correlation', () => {
+  it('keeps reprovisioned runs distinct and rejects an ambiguous notebook fallback', () => {
+    const context = scanContext();
+    rememberFirstRun('run-1', { context });
+    rememberFirstRun('run-2', {
+      context,
+      request: { ...provision, provisionId: 'provision-2' },
+    });
+
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        undefined,
+        provision.notebookNest
+      )
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('run-1', undefined)?.[1]
+        .provisionId
+    ).toBe(provision.provisionId);
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'unrelated-run',
+        undefined,
+        'job-1',
+        true
+      )
+    ).toBeNull();
+  });
+});
+
+describe('agent onboarding requests', () => {
+  it('forwards cancellation to the group membership scry', async () => {
+    const abortController = new AbortController();
+    const scry = vi.fn(
+      async (_path: string, options?: { signal?: AbortSignal }) => {
+        expect(options?.signal).toBe(abortController.signal);
+        return {
+          groups: {
+            [provision.groupId]: { channels: {}, seats: {} },
+          },
+        };
+      }
+    );
+
+    await agentOnboardingTesting.fetchOnboardingGroup(
+      { scry },
+      provision.groupId,
+      abortController.signal
+    );
+
+    expect(scry).toHaveBeenCalledWith('/groups-ui/v7/init.json', {
+      signal: abortController.signal,
+    });
+  });
+
+  it('stops a startup reconciliation before reading after abort', async () => {
+    const abortController = new AbortController();
+    const fetchHistory = vi.fn(async () => []);
+    abortController.abort(new Error('monitor stopped'));
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          abortSignal: abortController.signal,
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        { fetchHistory }
+      )
+    ).rejects.toThrow('monitor stopped');
+    expect(fetchHistory).not.toHaveBeenCalled();
+  });
+
+  it('does not fetch history for ordinary owner chat', async () => {
+    const fetchHistory = vi.fn(async () => {
+      throw new Error('history unavailable');
+    });
+    await expect(
+      handleAgentOnboardingRequest(
+        replyContext('How is the weather?', { blob: null }),
+        { fetchHistory }
+      )
+    ).resolves.toBe(false);
+    expect(fetchHistory).not.toHaveBeenCalled();
+  });
+  it('recognizes only canonical typed requests', () => {
+    expect(
+      parseAgentOnboardingRequest(
+        appendToPostBlob(undefined, {
+          type: 'tlon-agent-intro-request',
+          version: 1,
+          groupId: '~ten/group',
+        })
+      )
+    ).toMatchObject({ type: 'tlon-agent-intro-request' });
+    expect(
+      parseAgentOnboardingRequest(appendToPostBlob(undefined, provision))
+    ).toEqual(provision);
+    expect(parseAgentOnboardingRequest('not-json')).toBeNull();
+  });
+
+  it('keeps the services follow-up action flat', () => {
+    const services = agentOnboardingTesting.buildServicesSurface(
+      'pitch',
+      '~ten/group',
+      'provision-1'
+    );
+    const servicesRoot = services.messages.find(
+      (message) => 'updateComponents' in message
+    );
+    // Providers and connection status belong to the client; the coordinator
+    // sends only the bounded menu configuration and its navigation target.
+    const servicesComponents =
+      servicesRoot && 'updateComponents' in servicesRoot
+        ? servicesRoot.updateComponents.components
+        : [];
+    expect(servicesComponents.find(({ id }) => id === 'root')).toMatchObject({
+      id: 'root',
+      component: 'Column',
+      children: ['pitch', 'providers'],
+    });
+    const menu = servicesComponents.find(({ id }) => id === 'providers') as
+      | A2UI.McpConnect
+      | undefined;
+    expect(menu).toMatchObject({
+      component: 'McpConnect',
+      maxVisible: 4,
+      seeAllLabel: 'See all connectors',
+      submitLabel: 'Use for this group',
+      completionLabel: 'Done',
+      completionAction: {
+        event: { name: A2UI.action.sendMessage, context: { text: 'Done' } },
+      },
+    });
+    expect(menu?.action.event.name).toBe(A2UI.action.navigate);
+    expect(menu?.configureAction).toMatchObject({
+      event: {
+        name: A2UI.action.configureAgentProviders,
+        context: {
+          groupId: '~ten/group',
+          provisionId: 'provision-1',
+          providerIds: [],
+        },
+      },
+    });
+    expect(servicesComponents.find(({ id }) => id === 'done')).toBeUndefined();
+    expect(A2UI.validateBlobEntry(services)).toBe(true);
+  });
+
+  it('labels the topic submit action Done', () => {
+    const topics = agentOnboardingTesting.buildTopicsPickerSurface(
+      '~ten/group',
+      {
+        id: 'agent-daily-digest',
+        label: 'A daily digest',
+        scheduleHour: 8,
+        topicsPrompt: 'What should I keep an eye on?',
+      },
+      ['AI', 'Climate']
+    );
+    const update = topics?.messages.find(
+      (message) => 'updateComponents' in message
+    );
+    const components =
+      update && 'updateComponents' in update
+        ? update.updateComponents.components
+        : [];
+
+    expect(components.find(({ id }) => id === 'topics')).toMatchObject({
+      component: 'SmallChoice',
+      submitLabel: 'Done',
+    });
+  });
+
+  it('waits for Done on the services card before offering the app tour', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('Done'), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Want me to tell you more about what you can do here?'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'onboarding-follow-up',
+      })
+    );
+  });
+
+  it('preserves a valid tour reply when a newer freeform message follows it', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      provisionAck(),
+      botMarker('onboarding-follow-up', 2),
+      { author: '~ten', content: 'Yes', timestamp: 3 },
+      { author: '~ten', content: 'What happens next?', timestamp: 4 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(generalScanContext(), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'bot-tour-offer',
+      })
+    );
+  });
+
+  it('loads extended history when an old orientation card is answered', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      botMarker('onboarding-follow-up', 2),
+      { author: '~ten', content: 'Yes', timestamp: 100 },
+    ];
+    const fetchHistory = vi.fn(
+      async (_api: unknown, _nest: string, count: number) =>
+        count === 500 ? history : history.slice(-1)
+    );
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('Yes'), {
+        fetchHistory,
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(fetchHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      'chat/~ten/general',
+      500,
+      undefined,
+      undefined
+    );
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'bot-tour-offer',
+      })
+    );
+  });
+
+  it('loads extended history when an old purpose picker is answered', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      { author: '~ten', content: 'A daily digest', timestamp: 100 },
+    ];
+    const fetchHistory = vi.fn(
+      async (_api: unknown, _nest: string, count: number) =>
+        count === 500 ? history : history.slice(-1)
+    );
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('A daily digest'), {
+        fetchHistory,
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(fetchHistory).toHaveBeenCalledWith(
+      expect.anything(),
+      'chat/~ten/general',
+      500,
+      undefined,
+      undefined
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'topics-picker',
+      })
+    );
+  });
+
+  it('recovers a durable services completion after a plugin restart', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      firstGroupIntro(),
+      botMarker('intro', 0.1),
+      botMarker('purpose-picker', 0.2),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(generalScanContext(), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'Want me to tell you more about what you can do here?'
+    );
+  });
+
+  it('restores an enqueued run after its request leaves bounded history', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'run-outside-history',
+        channelNest: 'chat/~ten/general',
+        notebookName: 'Updates',
+        enqueuedAt: 1,
+      })
+    );
+
+    await expect(
+      scanAgentOnboardingChannel(generalScanContext(), {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => ({}) as TlonCronService,
+      })
+    ).resolves.toBe(true);
+
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('run-outside-history')
+    ).not.toBeNull();
+  });
+
+  it('ends an additional group setup after services without onboarding tours', async () => {
+    const sendPost = successfulSendPost();
+    const trackStep = vi.fn();
+    const history = [
+      introRequest(0, false),
+      botMarker('purpose-picker', 0.5),
+      provisionAck(),
+      servicesCard(),
+      { author: '~ten', content: 'Done', timestamp: 3 },
+    ];
+
+    await expect(
+      scanAgentOnboardingChannel(generalScanContext({ trackStep }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(sendPost).toHaveBeenCalledOnce();
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'All set. Ask me here anytime'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
+      'what you can do here'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'group-setup-complete',
+      })
+    );
+    expect(trackStep).toHaveBeenCalledWith({
+      step: 'onboarding_completed',
+      completionPath: 'additional_group_completed',
+    });
+  });
+
+  it('offers each orientation step as a simple Yes/No choice', () => {
+    const surface = agentOnboardingTesting.buildTourChoiceSurface(
+      'agent-onboarding-app-tour:~ten/group',
+      'Want a quick tour?'
+    );
+    expect(A2UI.validateBlobEntry(surface)).toBe(true);
+    const update = surface.messages.find(
+      (message) => 'updateComponents' in message
+    );
+    const components =
+      update && 'updateComponents' in update
+        ? update.updateComponents.components
+        : [];
+    expect(components.find(({ id }) => id === 'prompt')).toMatchObject({
+      component: 'Text',
+      text: 'Want a quick tour?',
+    });
+    const choice = components.find(
+      (component): component is A2UI.Choice => component.component === 'Choice'
+    );
+    expect(choice?.options.map((option) => option.action.event)).toEqual([
+      { name: A2UI.action.sendMessage, context: { text: 'Yes' } },
+      { name: A2UI.action.sendMessage, context: { text: 'No' } },
+    ]);
+  });
+
+  it('runs the post-setup tours in order and only after each Yes', async () => {
+    const sent: Array<{ story: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+      sent.push(post);
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const trackStep = vi.fn();
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      botMarker('onboarding-follow-up', 2),
+      { author: '~ten', content: 'Yes', timestamp: 3 },
+    ];
+    const context = replyContext('Yes', { trackStep });
+
+    await expect(
+      handleAgentOnboardingRequest(context, {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sent).toHaveLength(1);
+    expect(JSON.stringify(sent[0])).toContain('Tlon is organized into groups');
+    expect(JSON.stringify(sent[0])).toContain(
+      'Want me to tell you more about what Tlonbot can do for you?'
+    );
+    expect(parsePostBlob(sent[0]!.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'bot-tour-offer',
+      })
+    );
+    expect(trackStep).toHaveBeenCalledWith({
+      step: 'app_tour_answered',
+      answer: 'yes',
+    });
+    trackStep.mockClear();
+
+    history.push(
+      {
+        author: '~bot',
+        content: 'bot tour',
+        timestamp: 4,
+        blob: sent[0]!.blob,
+      },
+      { author: '~ten', content: 'Yes', timestamp: 5 }
+    );
+    await expect(
+      handleAgentOnboardingRequest(context, {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sent).toHaveLength(2);
+    expect(JSON.stringify(sent[1])).toContain(
+      'Try asking me to adjust tomorrow’s update or investigate something now.'
+    );
+    expect(parsePostBlob(sent[1]!.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'orientation-complete',
+      })
+    );
+    expect(trackStep.mock.calls).toEqual([
+      [{ step: 'bot_tour_answered', answer: 'yes' }],
+      [
+        {
+          step: 'onboarding_completed',
+          completionPath: 'bot_tour_completed',
+        },
+      ],
+    ]);
+  });
+
+  it('ends the optional tour cleanly after No', async () => {
+    const sendPost = successfulSendPost();
+    const trackStep = vi.fn();
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      botMarker('onboarding-follow-up', 2),
+      { author: '~ten', content: 'No', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('No', { trackStep }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
+      'You can ask me anytime'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
+      'what Tlonbot can do'
+    );
+    expect(trackStep.mock.calls).toEqual([
+      [{ step: 'app_tour_answered', answer: 'no' }],
+      [
+        {
+          step: 'onboarding_completed',
+          completionPath: 'app_tour_declined',
+        },
+      ],
+    ]);
+  });
+
+  it('tracks declining the Tlonbot tour as a distinct completion path', async () => {
+    const sendPost = successfulSendPost();
+    const trackStep = vi.fn();
+    const history = [
+      firstGroupIntro(),
+      provisionAck(),
+      botMarker('bot-tour-offer', 2),
+      { author: '~ten', content: 'No', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('No', { trackStep }), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(true);
+
+    expect(trackStep.mock.calls).toEqual([
+      [{ step: 'bot_tour_answered', answer: 'no' }],
+      [
+        {
+          step: 'onboarding_completed',
+          completionPath: 'bot_tour_declined',
+        },
+      ],
+    ]);
+  });
+
+  it('catches an intro request that arrived before the channel was watched', async () => {
+    const sendPost = successfulSendPost();
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      isFirstGroup: true,
+    });
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sendPost,
+        }
+      )
+    ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
+  });
+
+  it('describes only the provisioned home group as the first group', async () => {
+    const promptFor = async (isFirstGroup?: boolean) => {
+      clearAgentOnboardingRuntime();
+      const sent: Array<{ blob?: string; story?: unknown }> = [];
+      const introBlob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~ten/group',
+        ...(isFirstGroup ? { isFirstGroup: true } : {}),
+      });
+
+      await handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: introBlob,
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sleep: vi.fn(async () => {}),
+          sendPost: vi.fn(async (post: { blob?: string }) => {
+            sent.push(post);
+            return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+          }),
+        }
+      );
+
+      return sent;
+    };
+
+    const firstGroup = await promptFor(true);
+    expect(firstGroup).toHaveLength(1);
+    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+      'Welcome! This is your private group with me, your Tlonbot.'
+    );
+    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+      'I can keep you informed, help you learn, or follow a question over time.'
+    );
+    expect(JSON.stringify(firstGroup[0]?.story)).toContain(
+      'What can I help you with?'
+    );
+    expect(parsePostBlob(firstGroup[0]?.blob)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'tlon-agent-post-marker',
+          key: 'intro',
+        }),
+        expect.objectContaining({
+          type: 'tlon-agent-post-marker',
+          key: 'purpose-picker',
+        }),
+      ])
+    );
+
+    const additionalGroup = await promptFor();
+    expect(additionalGroup).toHaveLength(1);
+    expect(JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))).toContain(
+      'What can I help you with?'
+    );
+  });
+
+  it('recognizes an unmarked legacy intro without suppressing other steps', () => {
+    const history = [
+      {
+        author: '~bot',
+        content:
+          "I'm your Tlonbot. I can go off and do things — look things up, " +
+          'keep track of what changes, and write it down for you.',
+        timestamp: 1,
+      },
+    ];
+
+    expect(agentOnboardingTesting.hasPostMarker(history, '~bot', 'intro')).toBe(
+      true
+    );
+    expect(
+      agentOnboardingTesting.hasPostMarker(history, '~bot', 'purpose-picker')
+    ).toBe(false);
+    expect(
+      agentOnboardingTesting.hasPostMarker(history, '~other', 'intro')
+    ).toBe(false);
+  });
+
+  it('posts each picker as a durable channel message', async () => {
+    const sent: Array<{ story: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+      sent.push(post);
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const base = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/general',
+      groupId: '~ten/group',
+      ownerShip: '~ten',
+      senderShip: '~ten',
+    };
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [
+      {
+        author: '~ten',
+        content: "Let's get set up.",
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, {
+          type: 'tlon-agent-intro-request',
+          version: 1,
+          groupId: '~ten/group',
+          isFirstGroup: true,
+        }),
+      },
+    ];
+
+    await handleAgentOnboardingRequest(
+      { ...base, blob: history[0].blob },
+      { fetchHistory: vi.fn(async () => history), sendPost }
+    );
+    expect(sent).toHaveLength(1);
+    expect(JSON.stringify(parsePostBlob(sent[0].blob))).not.toContain(
+      'the cards are only starts'
+    );
+    history.push(
+      {
+        author: '~bot',
+        content: 'intro and purpose',
+        timestamp: 2,
+        blob: sent[0].blob,
+      },
+      {
+        author: '~ten',
+        content: 'A daily digest',
+        timestamp: 3,
+      }
+    );
+
+    await handleAgentOnboardingRequest(
+      { ...base, rawText: 'A daily digest', blob: undefined },
+      { fetchHistory: vi.fn(async () => history), sendPost }
+    );
+    expect(sent).toHaveLength(2);
+    const topicsA2UI = parsePostBlob(sent[1].blob).find(
+      (entry) => entry.type === 'a2ui'
+    );
+    expect(topicsA2UI).toMatchObject({ storyMode: 'fallback' });
+    expect(JSON.stringify(topicsA2UI)).toContain(
+      'What should I keep an eye on?'
+    );
+    expect(JSON.stringify(topicsA2UI)).not.toContain(
+      'tell me here in the chat'
+    );
+    expect(JSON.stringify(topicsA2UI)).toContain('tlon.provisionAgent');
+    history.push(
+      {
+        author: '~bot',
+        content: 'topics',
+        timestamp: 4,
+        blob: sent[1].blob,
+      },
+      {
+        author: '~ten',
+        content: 'Open hardware, Space weather',
+        timestamp: 5,
+      }
+    );
+
+    await handleAgentOnboardingRequest(
+      {
+        ...base,
+        rawText: 'Open hardware, Space weather',
+        blob: undefined,
+      },
+      { fetchHistory: vi.fn(async () => history), sendPost }
+    );
+    // Topic confirmation is a client-owned provision action because only the
+    // client knows the device timezone. A raw-text recovery must never revive
+    // the retired timezone prompt or button.
+    expect(sent).toHaveLength(2);
+    expect(JSON.stringify(sent)).not.toContain('timezone-picker');
+    expect(JSON.stringify(sent)).not.toContain('Use my current timezone');
+    expect(JSON.stringify(sent)).not.toContain('One last detail');
+  });
+
+  it('shows thinking and paces the combined onboarding opening', async () => {
+    let now = 0;
+    const events: string[] = [];
+    const abortController = new AbortController();
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      isFirstGroup: true,
+    });
+    const sendPost = vi.fn(async ({ blob }: { blob?: string }) => {
+      const markers = parsePostBlob(blob)
+        .filter((entry) => entry.type === 'tlon-agent-post-marker')
+        .map((entry) => entry.key);
+      events.push(`post:${markers.join('+') || 'unknown'}`);
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: now };
+    });
+
+    await handleAgentOnboardingRequest(
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/general',
+        groupId: '~ten/group',
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: introBlob,
+        abortSignal: abortController.signal,
+        presentation: {
+          startThinking: () => events.push('thinking:start'),
+          stopThinking: () => events.push('thinking:stop'),
+        },
+      },
+      {
+        fetchHistory: vi.fn(async () => [
+          {
+            author: '~ten',
+            content: "Let's get set up.",
+            timestamp: 1,
+            blob: introBlob,
+          },
+        ]),
+        now: () => now,
+        // Fixed at the midpoint so jitter resolves to 1x and the delays are
+        // reproducible; the jitter range itself is asserted below.
+        random: () => 0.5,
+        sleep: vi.fn(async (ms, signal) => {
+          expect(signal).toBe(abortController.signal);
+          events.push(`sleep:${ms}`);
+          now += ms;
+        }),
+        sendPost,
+      }
+    );
+
+    // Presence must bracket the whole sequence — a pause with no indicator
+    // reads as the app hanging rather than the bot thinking.
+    expect(events[0]).toBe('thinking:start');
+    expect(events.at(-1)).toBe('thinking:stop');
+    expect(events.filter((e) => e.startsWith('post:'))).toEqual([
+      'post:intro+purpose-picker',
+    ]);
+
+    // Every post is preceded by a pause, and the pause is composed rather than
+    // a flat floor: it scales with the message and stays inside the clamp.
+    const sleeps = events
+      .filter((e) => e.startsWith('sleep:'))
+      .map((e) => Number(e.slice('sleep:'.length)));
+    expect(sleeps).toHaveLength(1);
+    expect(sleeps[0]).toBeGreaterThanOrEqual(2_000);
+    for (const ms of sleeps) {
+      expect(ms).toBeGreaterThanOrEqual(800);
+      expect(ms).toBeLessThanOrEqual(3500);
+    }
+  });
+
+  it('jitters pacing so the rhythm is not metronomic', async () => {
+    const delaysFor = async (random: () => number) => {
+      clearAgentOnboardingRuntime();
+      const sleeps: number[] = [];
+      let now = 0;
+      const introBlob = appendToPostBlob(undefined, {
+        type: 'tlon-agent-intro-request',
+        version: 1,
+        groupId: '~ten/group',
+      });
+      await handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: introBlob,
+          presentation: {
+            startThinking: () => {},
+            stopThinking: () => {},
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          now: () => now,
+          random,
+          sleep: vi.fn(async (ms) => {
+            sleeps.push(ms);
+            now += ms;
+          }),
+          sendPost: vi.fn(async () => ({
+            channel: 'tlon' as const,
+            messageId: 'post',
+            sentAt: now,
+          })),
+        }
+      );
+      return sleeps;
+    };
+
+    const low = await delaysFor(() => 0);
+    const mid = await delaysFor(() => 0.5);
+    const high = await delaysFor(() => 1);
+
+    // ±20% around the composed delay, so two consecutive setups never share a
+    // rhythm — and the clamp still holds at both extremes.
+    expect(low[0]).toBeLessThan(mid[0]!);
+    expect(high[0]).toBeGreaterThan(mid[0]!);
+    expect(low[0]).toBeGreaterThanOrEqual(Math.round(mid[0]! * 0.8) - 1);
+    expect(high[0]).toBeLessThanOrEqual(Math.round(mid[0]! * 1.2) + 1);
+  });
+
+  it('always clears thinking presence when an onboarding post fails', async () => {
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      isFirstGroup: true,
+    });
+    const startThinking = vi.fn();
+    const stopThinking = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          senderShip: '~ten',
+          blob: introBlob,
+          presentation: {
+            startThinking,
+            stopThinking,
+            minResponseDelayMs: 0,
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sendPost: vi.fn(async () => {
+            throw new Error('send failed');
+          }),
+        }
+      )
+    ).rejects.toThrow('send failed');
+    expect(startThinking).toHaveBeenCalledOnce();
+    expect(stopThinking).toHaveBeenCalledOnce();
+  });
+
+  it('always clears thinking presence when initial cron setup fails', async () => {
+    const startThinking = vi.fn();
+    const stopThinking = vi.fn();
+    const cron = {
+      list: vi.fn(async () => {
+        throw new Error('cron unavailable');
+      }),
+    } as unknown as TlonCronService;
+
+    await expect(
+      handleAgentOnboardingRequest(
+        requestContext({
+          presentation: {
+            startThinking,
+            stopThinking,
+            minResponseDelayMs: 0,
+          },
+        }),
+        {
+          fetchHistory: vi.fn(async () => []),
+          getCron: () => cron,
+          getGroup: vi.fn(async () => ({
+            hostUserId: '~ten',
+            channels: [
+              { id: provision.notebookNest, type: 'notes', title: 'Updates' },
+            ],
+            members: [
+              {
+                contactId: '~bot',
+                status: 'joined',
+                roles: ['admin'],
+              },
+            ],
+          })),
+        }
+      )
+    ).rejects.toThrow('cron unavailable');
+    expect(startThinking).toHaveBeenCalledOnce();
+    expect(stopThinking).toHaveBeenCalledOnce();
+  });
+
+  it('consumes picker replies from production-shaped history before model dispatch', async () => {
+    const sent: Array<{ story: unknown; blob?: string }> = [];
+    const sendPost = vi.fn(async (post: { story: unknown; blob?: string }) => {
+      sent.push(post);
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+      isFirstGroup: true,
+    });
+    const base = {
+      api: { scry: vi.fn() },
+      botShip: '~bot',
+      botProfile: { nickname: "Napdet's Tlonbot", avatar: '' },
+      channelNest: 'chat/~ten/general',
+      groupId: '~ten/group',
+      ownerShip: '~ten',
+      senderShip: '~ten',
+    };
+
+    await handleAgentOnboardingRequest(
+      { ...base, blob: introBlob },
+      {
+        fetchHistory: vi.fn(async () => [
+          {
+            author: '~ten',
+            content: "Let's get set up.",
+            timestamp: 1,
+            blob: introBlob,
+          },
+        ]),
+        sendPost,
+      }
+    );
+
+    base.api.scry.mockResolvedValue({
+      posts: {
+        intro: {
+          seal: { id: 'intro' },
+          essay: {
+            author: {
+              ship: '~bot',
+              nickname: "Napdet's Tlonbot",
+              avatar: '',
+            },
+            sent: 2,
+            content: [{ inline: ['intro'] }],
+            blob: sent[0].blob,
+          },
+        },
+        reply: {
+          seal: { id: 'reply' },
+          essay: {
+            author: '~ten',
+            sent: 3,
+            content: [{ inline: ['A daily digest'] }],
+          },
+        },
+      },
+    });
+
+    await expect(
+      handleAgentOnboardingRequest(
+        {
+          ...base,
+          rawText: 'A daily digest',
+          blob: undefined,
+        },
+        { sendPost }
+      )
+    ).resolves.toBe(true);
+    expect(sent).toHaveLength(2);
+    expect(JSON.stringify(parsePostBlob(sent[1].blob))).toContain(
+      'tlon.provisionAgent'
+    );
+  });
+
+  it.each([
+    ['A daily digest', 'A daily digest—great', 'What should I keep an eye on?'],
+    ['Learn something', 'Great', 'What would you like to understand better?'],
+    ['Research', 'Got it', 'What question or field should I follow closely?'],
+  ])('uses purpose-specific topic copy for %s', (reply, detail, question) => {
+    const purpose = agentOnboardingTesting.purposeForReply(reply);
+    expect(purpose?.topicsPrompt).toContain(detail);
+    expect(purpose?.topicsPrompt).toContain(question);
+  });
+
+  it('leaves unsupported free-text purpose replies to ordinary chat', () => {
+    expect(
+      agentOnboardingTesting.purposeForReply('Invent a different workflow')
+    ).toBeNull();
+    expect(
+      agentOnboardingTesting.purposePickerFallbackText('Choose')
+    ).not.toContain('or just tell me');
+  });
+
+  it.each([
+    ['agent-daily-digest', 'write a fresh digest in Field notes'],
+    ['agent-learning', 'write one useful idea in Field notes'],
+    [
+      'agent-research',
+      'write a source-backed update in Field notes, this group’s notebook',
+    ],
+  ])('explains the ongoing cadence for %s', (purposeId, expectation) => {
+    // Every variant has to name the notebook it writes into. "Publish", and
+    // worse "publish here", read as chat — an owner watched a notebook appear
+    // in the sidebar having never been told it existed.
+    const cadence = agentOnboardingTesting.provisionCadence(
+      purposeId,
+      'Field notes'
+    );
+    expect(cadence).toContain(expectation);
+    expect(cadence).toContain('notebook');
+    expect(cadence).not.toContain('publish');
+  });
+
+  it('explains learning rotation without promising an unverified next topic', () => {
+    const cadence = agentOnboardingTesting.provisionCadence(
+      'agent-learning',
+      'Updates'
+    );
+    expect(cadence).toContain('rotating through your topics');
+    expect(cadence).not.toContain('Music theory first');
+    expect(cadence).not.toContain('then Architecture');
+  });
+
+  it('derives the notebook name the sidebar shows', () => {
+    expect(
+      agentOnboardingTesting.notebookDisplayName('notes/~zod/daily-digest')
+    ).toBe('Daily digest');
+    expect(
+      agentOnboardingTesting.notebookDisplayName('notes/~zod/updates')
+    ).toBe('Updates');
+  });
+
+  it.each([['agent-daily-digest'], ['agent-learning'], ['agent-research']])(
+    'pitches services by benefit, not mechanism, for %s',
+    (purposeId) => {
+      // The old copy named calendars/docs/notes and no reason to connect them,
+      // and read identically whichever purpose the owner picked.
+      const pitch = agentOnboardingTesting.servicesPitch(purposeId);
+      expect(pitch).toMatch(/^Connect your/);
+      expect(pitch).not.toContain('to give me more to work with');
+    }
+  );
+
+  it('describes the recurring schedule after the forced first entry', () => {
+    expect(
+      agentOnboardingTesting.scheduleConfirmation({
+        scheduleHour: 8,
+        scheduleMinute: 0,
+        timezone: 'America/New_York',
+      } as never)
+    ).toBe('After this first entry, new ones arrive at 8:00 AM.');
+    expect(
+      agentOnboardingTesting.scheduleConfirmation({
+        scheduleHour: 0,
+        scheduleMinute: 5,
+        timezone: 'Asia/Tokyo',
+      } as never)
+    ).toBe('After this first entry, new ones arrive at 12:05 AM.');
+  });
+});
+
+describe('primary onboarding cron slot', () => {
+  beforeEach(async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({ status: 'completed' })
+    );
+  });
+
+  function cronHarness(initial: Record<string, unknown>[] = []) {
+    let jobs = initial.map((job) => ({ ...job }));
+    const cron = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input) => {
+        jobs.push({ id: 'job-1', ...input });
+      }),
+      update: vi.fn(async (id, patch) => {
+        jobs = jobs.map((job) => (job.id === id ? { ...job, ...patch } : job));
+      }),
+      remove: vi.fn(),
+    } as unknown as TlonCronService;
+    return { cron, getJobs: () => jobs };
+  }
+
+  it('rejects a live provision superseded in durable history', async () => {
+    const getCron = vi.fn();
+    const newerProvision = {
+      ...provision,
+      provisionId: 'provision-2',
+      topics: ['Robotics'],
+    };
+    await expect(
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => [
+          {
+            author: '~ten',
+            content: 'AI, Climate',
+            timestamp: 1,
+            blob: appendToPostBlob(undefined, provision),
+          },
+          {
+            author: '~ten',
+            content: 'Robotics',
+            timestamp: 2,
+            blob: appendToPostBlob(undefined, newerProvision),
+          },
+        ]),
+        getCron,
+      })
+    ).resolves.toBe(true);
+
+    expect(getCron).not.toHaveBeenCalled();
+  });
+
+  it('rechecks for a newer provision after asynchronous setup checks', async () => {
+    const getCron = vi.fn();
+    const oldHistory = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+    ];
+    const newerProvision = {
+      ...provision,
+      provisionId: 'provision-2',
+      topics: ['Robotics'],
+    };
+    const fetchHistory = vi
+      .fn()
+      .mockResolvedValueOnce(oldHistory)
+      .mockResolvedValueOnce([
+        ...oldHistory,
+        {
+          author: '~ten',
+          content: 'Robotics',
+          timestamp: 2,
+          blob: appendToPostBlob(undefined, newerProvision),
+        },
+      ]);
+
+    await expect(
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory,
+        getCron,
+        getGroup: vi.fn(async () => provisionedGroup()),
+      })
+    ).resolves.toBe(true);
+
+    expect(fetchHistory).toHaveBeenCalledTimes(2);
+    expect(getCron).not.toHaveBeenCalled();
+  });
+
+  it('adds, verifies, and then no-ops the stable group slot', async () => {
+    const harness = cronHarness();
+    await expect(
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general'
+      )
+    ).resolves.toBe('job-1');
+    expect(harness.cron.add).toHaveBeenCalledOnce();
+
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    expect(harness.cron.add).toHaveBeenCalledOnce();
+    expect(harness.cron.update).not.toHaveBeenCalled();
+    expect(harness.getJobs()[0].description).toBe(
+      'tlon-agent-primary:~ten/group'
+    );
+  });
+
+  it('serializes concurrent creation of the stable group slot', async () => {
+    const harness = cronHarness();
+
+    await Promise.all([
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general'
+      ),
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general'
+      ),
+    ]);
+
+    expect(harness.cron.add).toHaveBeenCalledOnce();
+    expect(harness.getJobs()).toHaveLength(1);
+  });
+
+  it('serializes distinct provider updates without dropping the newest one', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+
+    await Promise.all([
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general',
+        ['gmail']
+      ),
+      agentOnboardingTesting.upsertPrimaryJob(
+        harness.cron,
+        provision,
+        'chat/~ten/group/general',
+        ['notion']
+      ),
+    ]);
+
+    expect(harness.cron.update).toHaveBeenCalledTimes(2);
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["notion"]') },
+    });
+  });
+
+  it('accepts the runtime text alias when verifying an existing slot', async () => {
+    const initial = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      initial.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const job = initial.getJobs()[0] as Record<string, unknown> & {
+      payload: { message: string };
+    };
+    const runtime = cronHarness([
+      {
+        ...job,
+        payload: {
+          ...job.payload,
+          text: job.payload.message,
+          message: undefined,
+        },
+      },
+    ]);
+
+    await agentOnboardingTesting.upsertPrimaryJob(
+      runtime.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    expect(runtime.cron.update).not.toHaveBeenCalled();
+  });
+
+  it('updates the same slot when the plan changes', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      {
+        ...provision,
+        provisionId: 'provision-2',
+        topics: ['Robotics'],
+      },
+      'chat/~ten/group/general'
+    );
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()).toHaveLength(1);
+    expect(harness.getJobs()[0].name).toBe('Tlonbot scheduled update');
+    expect(harness.getJobs()[0].name).not.toContain('Robotics');
+  });
+
+  it('keeps the recurring prompt useful without granting Tlon access', () => {
+    const prompt = agentOnboardingTesting.buildRecurringPrompt(provision);
+    expect(prompt).toContain(provision.topics.join(', '));
+    expect(prompt).not.toContain('tlon notes');
+    expect(prompt).toContain('order items by urgency');
+    expect(prompt).toContain('concise and scannable');
+  });
+
+  it('keeps research updates narrow, sourced, and honest about freshness', () => {
+    const prompt = agentOnboardingTesting.buildRecurringPrompt({
+      ...provision,
+      purposeId: 'agent-research',
+      purpose: 'Research',
+    });
+    expect(prompt).toContain('Prioritize primary sources and direct links');
+    expect(prompt).toContain('publication dates from event dates');
+    expect(prompt).toContain('uncertainty or conflicting evidence');
+    expect(prompt).toContain('nothing meaningful changed');
+  });
+
+  it('builds a progressive entry for the learning flow', () => {
+    const prompt = agentOnboardingTesting.buildRecurringPrompt({
+      ...provision,
+      purposeId: 'agent-learning',
+      purpose: 'Learn something',
+      topics: ['Music theory', 'Cryptography'],
+    });
+    expect(prompt).toContain('topics are: Music theory, Cryptography');
+    expect(prompt).toContain('Cover exactly one topic');
+    expect(prompt).toContain('never combine or force connections');
+    expect(prompt).toContain('Rotate through the list over time');
+    expect(prompt).toContain('one useful idea');
+    expect(prompt).not.toContain('baseline');
+  });
+
+  it('uses the current host payload schema and explicit Notes delivery', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: {
+        kind: 'agentTurn',
+        message: expect.stringContaining('Return only the finished note'),
+        toolsAllow: ['group:web'],
+      },
+      delivery: {
+        mode: 'announce',
+        channel: 'tlon',
+        to: provision.notebookNest,
+        failureDestination: {
+          mode: 'announce',
+          channel: 'tlon',
+          to: 'chat/~ten/group/general',
+        },
+      },
+    });
+  });
+
+  it('adds only the MCP meta-tools and a read-only provider policy', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general',
+      ['gmail', 'notion']
+    );
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: {
+        toolsAllow: [
+          'group:web',
+          'mcp__list_upstreams',
+          'mcp__search',
+          'mcp__describe',
+          'mcp__call',
+        ],
+        message: expect.stringMatching(
+          /gmail.*notion.*read-only.*Never create, update, delete, send, publish/s
+        ),
+      },
+    });
+  });
+
+  it('updates the existing group slot from an owner provider config', async () => {
+    const harness = cronHarness();
+    const config = providerConfig(['gmail']);
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const history = [provisionRequest(), provisionAck(2), config.historyEntry];
+    Object.assign(harness.getJobs()[0], {
+      name: 'My edited digest',
+      schedule: {
+        kind: 'cron',
+        expr: '15 10 * * 1-5',
+        tz: 'America/Chicago',
+      },
+      payload: {
+        ...(harness.getJobs()[0].payload as object),
+        message: 'Use my custom editorial instructions.',
+      },
+    });
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => harness.cron,
+      }
+    );
+    expect(harness.getJobs()).toHaveLength(1);
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      name: 'My edited digest',
+      schedule: {
+        kind: 'cron',
+        expr: '15 10 * * 1-5',
+        tz: 'America/Chicago',
+      },
+      payload: {
+        toolsAllow: expect.arrayContaining(['group:web', 'mcp__call']),
+        message: expect.stringMatching(
+          /Use my custom editorial instructions.*\["gmail"\]/s
+        ),
+      },
+    });
+  });
+
+  it('does not enable providers without durable authorization state', async () => {
+    setAgentOnboardingRunStore(null);
+    const harness = cronHarness();
+    const config = providerConfig(['gmail']);
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const history = [provisionRequest(), provisionAck(2), config.historyEntry];
+
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).not.toHaveBeenCalled();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { toolsAllow: ['group:web'] },
+    });
+  });
+
+  it('updates providers after the original transcript leaves recent history', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        enqueuedAt: 1,
+        completedAt: 2,
+        status: 'completed',
+      })
+    );
+    const config = providerConfig(['gmail']);
+
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
+      {
+        fetchHistory: vi.fn(async () => [config.historyEntry]),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["gmail"]') },
+    });
+  });
+
+  it('revokes provider authorization before a failing cron update', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general',
+      ['notion']
+    );
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        providerIds: ['notion'],
+        status: 'completed',
+      })
+    );
+    harness.cron.update = vi.fn(async () => {
+      throw new Error('cron update failed');
+    });
+    const config = providerConfig(['gmail']);
+
+    await expect(
+      handleAgentOnboardingRequest(
+        requestContext({
+          blob: appendToPostBlob(undefined, config.entry),
+        }),
+        {
+          fetchHistory: vi.fn(async () => [config.historyEntry]),
+          getCron: () => harness.cron,
+        }
+      )
+    ).rejects.toThrow('cron update failed');
+
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
+      providerIds: [],
+    });
+    await expect(agentOnboardingCronProviderIds('job-1')).resolves.toEqual([]);
+  });
+
+  it('does not let a stalled provider request overwrite a newer selection', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const baseHistory = [provisionRequest(), provisionAck(2)];
+    const older = providerConfig(['gmail'], 3);
+    const newer = providerConfig(['notion'], 4);
+    const olderHistory = [...baseHistory, older.historyEntry];
+    const newestHistory = [
+      ...baseHistory,
+      older.historyEntry,
+      newer.historyEntry,
+    ];
+    let releaseOlderRevalidation!: () => void;
+    const olderRevalidation = new Promise<void>((resolve) => {
+      releaseOlderRevalidation = resolve;
+    });
+    let olderFetchCount = 0;
+    const fetchOlderHistory = vi.fn(async () => {
+      olderFetchCount += 1;
+      if (olderFetchCount === 1) return olderHistory;
+      await olderRevalidation;
+      return newestHistory;
+    });
+
+    const olderRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, older.entry) }),
+      { fetchHistory: fetchOlderHistory, getCron: () => harness.cron }
+    );
+    await vi.waitFor(() => expect(fetchOlderHistory).toHaveBeenCalledTimes(2));
+
+    const newerRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, newer.entry) }),
+      {
+        fetchHistory: vi.fn(async () => newestHistory),
+        getCron: () => harness.cron,
+      }
+    );
+    releaseOlderRevalidation();
+    await Promise.all([olderRequest, newerRequest]);
+
+    expect(harness.cron.update).toHaveBeenCalledOnce();
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["notion"]') },
+    });
+  });
+
+  it('serializes provider changes through the final durable write', async () => {
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const baseHistory = [provisionRequest(), provisionAck(2)];
+    const older = providerConfig(['gmail'], 3);
+    const newer = providerConfig(['notion'], 4);
+    const olderHistory = [...baseHistory, older.historyEntry];
+    const newestHistory = [
+      ...baseHistory,
+      older.historyEntry,
+      newer.historyEntry,
+    ];
+    const originalUpdate = harness.cron.update.bind(harness.cron);
+    let releaseOlderUpdate!: () => void;
+    const olderUpdate = new Promise<void>((resolve) => {
+      releaseOlderUpdate = resolve;
+    });
+    let updateCount = 0;
+    harness.cron.update = vi.fn(async (id, patch) => {
+      updateCount += 1;
+      if (updateCount === 1) await olderUpdate;
+      await originalUpdate(id, patch);
+    });
+
+    const olderRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, older.entry) }),
+      {
+        fetchHistory: vi.fn(async () => olderHistory),
+        getCron: () => harness.cron,
+      }
+    );
+    await vi.waitFor(() => expect(harness.cron.update).toHaveBeenCalledOnce());
+    const newerRequest = handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, newer.entry) }),
+      {
+        fetchHistory: vi.fn(async () => newestHistory),
+        getCron: () => harness.cron,
+      }
+    );
+
+    releaseOlderUpdate();
+    await Promise.all([olderRequest, newerRequest]);
+
+    expect(harness.cron.update).toHaveBeenCalledTimes(2);
+    expect(harness.getJobs()[0]).toMatchObject({
+      payload: { message: expect.stringContaining('["notion"]') },
+    });
+  });
+
+  it('rejects a provider config for a superseded provision', async () => {
+    const harness = cronHarness();
+    const config = providerConfig(['gmail'], 4);
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const history = [
+      provisionRequest(),
+      provisionAck(2),
+      {
+        author: '~ten',
+        content: 'Robotics',
+        timestamp: 3,
+        blob: appendToPostBlob(undefined, {
+          ...provision,
+          provisionId: 'provision-2',
+          topics: ['Robotics'],
+        }),
+      },
+      config.historyEntry,
+    ];
+
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects a durable superseded provider config outside history', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const harness = cronHarness();
+    await agentOnboardingTesting.upsertPrimaryJob(
+      harness.cron,
+      provision,
+      'chat/~ten/group/general'
+    );
+    const durableRecord = (provisionId: string, claimedAt: number) =>
+      storedRunRecord({
+        provisionId,
+        provision: { ...provision, provisionId },
+        claimedAt,
+        status: 'completed',
+      });
+    await store.register(storedRunKey(), durableRecord('provision-1', 1));
+    await store.register(
+      storedRunKey('provision-2'),
+      durableRecord('provision-2', 2)
+    );
+    const config = providerConfig(['gmail']);
+
+    await handleAgentOnboardingRequest(
+      requestContext({ blob: appendToPostBlob(undefined, config.entry) }),
+      {
+        fetchHistory: vi.fn(async () => [config.historyEntry]),
+        getCron: () => harness.cron,
+      }
+    );
+
+    expect(harness.cron.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('provision coordinator ordering', () => {
+  it('uses the legacy cron run method when enqueueRun is unavailable', async () => {
+    const run = vi.fn(async () => ({ enqueued: true, runId: 'legacy-run' }));
+    const cron = {
+      list: vi.fn(async () => []),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      run,
+    } as unknown as TlonCronService;
+
+    await expect(
+      agentOnboardingTesting.ensureFirstRunEnqueued(
+        cron,
+        'job-1',
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/group/legacy',
+          groupId: provision.groupId,
+          ownerShip: '~ten',
+        },
+        provision,
+        'Updates',
+        100
+      )
+    ).resolves.toBe('enqueued');
+
+    expect(run).toHaveBeenCalledWith('job-1', 'force');
+  });
+
+  it('reports each funnel step exactly once, in order', async () => {
+    // An unfired analytics event is invisible, so the funnel's shape is worth
+    // pinning: these are the steps a healthy setup must emit, and the order is
+    // what makes drop-off computable.
+    const steps: string[] = [];
+    const trackStep = (report: { step: string; outcome?: string }) =>
+      steps.push(`${report.step}:${report.outcome ?? 'ok'}`);
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [];
+    const { cron } = provisionCronHarness();
+
+    const context = {
+      api: {
+        scry: vi.fn(async () => ({
+          groups: {
+            [provision.groupId]: {
+              channels: { [provision.notebookNest]: {} },
+              seats: { '~bot': { roles: ['admin'] } },
+            },
+          },
+        })),
+      },
+      botShip: '~bot',
+      channelNest: 'chat/~ten/group/general',
+      groupId: provision.groupId,
+      ownerShip: '~ten',
+      senderShip: '~ten',
+      blob: appendToPostBlob(undefined, provision),
+      trackStep,
+    };
+    const deps = {
+      fetchHistory: vi.fn(async () => history),
+      getCron: () => cron,
+      sendPost: vi.fn(async ({ blob }: { blob?: string }) => {
+        history.push({
+          author: '~bot',
+          content: '',
+          timestamp: Date.now(),
+          blob,
+        });
+        return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+      }),
+    };
+
+    await handleAgentOnboardingRequest(context, deps);
+    // The durable provision remains in reconciliation history. Replaying it
+    // must not inflate the funnel or enqueue a second first run.
+    await handleAgentOnboardingRequest(context, deps);
+
+    expect(steps).toEqual([
+      'provision_received:ok',
+      'cron_created:ok',
+      'first_run_enqueued:ok',
+    ]);
+    expect(cron.enqueueRun).toHaveBeenCalledOnce();
+  });
+
+  it('reports a rejected provision as a failed step', async () => {
+    const steps: Array<{ step: string; outcome?: string; errorText?: string }> =
+      [];
+    await handleAgentOnboardingRequest(
+      {
+        api: {
+          // Owner mismatch: the group is hosted by someone else.
+          scry: vi.fn(async () => ({
+            groups: {
+              [provision.groupId]: {
+                channels: { [provision.notebookNest]: {} },
+                seats: { '~bot': { roles: ['admin'] } },
+              },
+            },
+          })),
+        },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, {
+          ...provision,
+          notebookNest: 'notes/~ten/not-a-listed-channel',
+        }),
+        trackStep: (report) => steps.push(report),
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        getGroup: vi.fn(async () => ({
+          hostUserId: '~other',
+          channels: [{ id: provision.notebookNest, type: 'notes' }],
+          members: [],
+        })),
+        getCron: () => undefined as never,
+        sendPost: vi.fn(),
+      }
+    );
+
+    // The drop-off has to be visible, not just absent from the funnel.
+    expect(steps).toHaveLength(1);
+    expect(steps[0]).toMatchObject({
+      step: 'provision_received',
+      outcome: 'failed',
+    });
+  });
+
+  it('retries a valid provision while notebook membership converges', async () => {
+    const trackStep = vi.fn();
+    await expect(
+      handleAgentOnboardingRequest(requestContext({ trackStep }), {
+        fetchHistory: vi.fn(async () => []),
+        getGroup: vi.fn(async () => ({
+          hostUserId: '~ten',
+          channels: [],
+          members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+        })),
+        getCron: () => undefined as never,
+        sendPost: vi.fn(),
+      })
+    ).rejects.toThrow('onboarding notebook is not available yet');
+    expect(trackStep).not.toHaveBeenCalled();
+  });
+
+  it('waits for the bot admin promotion before provisioning', async () => {
+    const withoutAdmin = {
+      hostUserId: '~ten',
+      channels: [{ id: provision.notebookNest, type: 'notes' }],
+      members: [{ contactId: '~bot', status: 'joined', roles: [] }],
+    };
+    const withAdmin = {
+      ...withoutAdmin,
+      members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+    };
+    const getGroup = vi
+      .fn()
+      .mockResolvedValueOnce(withoutAdmin)
+      .mockResolvedValue(withAdmin);
+    const sleep = vi.fn(async () => {});
+    const { cron } = provisionCronHarness();
+
+    await expect(
+      handleAgentOnboardingRequest(
+        requestContext(),
+        provisionDeps(cron, { getGroup, sleep })
+      )
+    ).resolves.toBe(true);
+
+    expect(getGroup).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledWith(250, undefined);
+    expect(cron.enqueueRun).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a durable provision retryable until admin promotion arrives', async () => {
+    const withoutAdmin = {
+      hostUserId: '~ten',
+      channels: [{ id: provision.notebookNest, type: 'notes' }],
+      members: [{ contactId: '~bot', status: 'joined', roles: [] }],
+    };
+    await expect(
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => []),
+        getCron: () => undefined as never,
+        getGroup: vi.fn(async () => withoutAdmin),
+        sendPost: vi.fn(),
+        sleep: vi.fn(async () => {}),
+      })
+    ).rejects.toThrow('agent is not an admin yet');
+  });
+
+  it('keeps an early first-run result behind the ordered setup messages', async () => {
+    const events: string[] = [];
+    const stories: unknown[] = [];
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [];
+    let jobs: Record<string, unknown>[] = [];
+    const cron = {
+      list: vi.fn(async () => jobs),
+      add: vi.fn(async (input) => {
+        events.push('cron:add');
+        jobs = [{ id: 'job-1', ...input }];
+      }),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi.fn(async () => {
+        events.push('cron:enqueue');
+        await recordAgentOnboardingRunOutcome('first-run-1', {
+          status: 'ok',
+          delivered: true,
+          noteId: 77,
+          observedAt: Date.now(),
+        });
+        return { enqueued: true, runId: 'first-run-1' };
+      }),
+    } as unknown as TlonCronService;
+
+    await handleAgentOnboardingRequest(
+      {
+        api: {
+          scry: vi.fn(async () => ({
+            groups: {
+              [provision.groupId]: {
+                channels: { [provision.notebookNest]: {} },
+                seats: { '~bot': { roles: ['admin'] } },
+              },
+            },
+          })),
+        },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+        senderShip: '~ten',
+        blob: appendToPostBlob(undefined, provision),
+      },
+      {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => cron,
+        sendPost: vi.fn(async ({ blob, story }) => {
+          stories.push(story);
+          const entries = parsePostBlob(blob);
+          const marker =
+            entries.find(
+              (entry) =>
+                entry.type === 'tlon-agent-post-marker' &&
+                entry.key.startsWith('ack:')
+            ) ??
+            entries.find((entry) => entry.type === 'tlon-agent-post-marker');
+          if (marker?.type === 'tlon-agent-post-marker') {
+            events.push(`post:${marker.key}`);
+          }
+          history.push({
+            author: '~bot',
+            content: '',
+            timestamp: Date.now(),
+            blob,
+          });
+          return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+        }),
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    // Two beats now, not one: the acknowledgement, then the "writing it now"
+    // status. The handoff tip and the services pitch are no longer part of
+    // this post at all — they wait until the first entry has actually landed.
+    expect(events.slice(0, 4)).toEqual([
+      'cron:add',
+      'cron:enqueue',
+      'post:ack:provision-1',
+      'post:first-entry-pending',
+    ]);
+    expect(JSON.stringify(stories[1])).toContain(
+      'I’ll be back in a few seconds with your tailored post.'
+    );
+    expect(events.indexOf('post:first-entry-ping')).toBeGreaterThan(3);
+    expect(
+      parsePostBlob(history[0]?.blob).filter(
+        (entry) => entry.type === 'tlon-agent-post-marker'
+      )
+    ).toEqual([expect.objectContaining({ key: 'ack:provision-1' })]);
+    expect(JSON.stringify(parsePostBlob(history[0]?.blob))).not.toContain(
+      'Connect services'
+    );
+  });
+
+  it('releases a durable claim when enqueue rejects', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const enqueueRun = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('enqueue unavailable'))
+      .mockResolvedValueOnce({ enqueued: true, runId: 'run-1' });
+    const { cron } = provisionCronHarness(enqueueRun);
+    const context = requestContext();
+    const deps = provisionDeps(cron);
+
+    await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
+      'enqueue unavailable'
+    );
+    await expect(store.lookup(storedRunKey())).resolves.toBeUndefined();
+    await expect(handleAgentOnboardingRequest(context, deps)).resolves.toBe(
+      true
+    );
+    expect(cron.enqueueRun).toHaveBeenCalledTimes(2);
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
+      status: 'enqueued',
+      runId: 'run-1',
+    });
+  });
+
+  it('re-enqueues with an exact run id when persisting an enqueue fails', async () => {
+    const store = memoryRunStore();
+    store.register.mockRejectedValueOnce(new Error('state store unavailable'));
+    setAgentOnboardingRunStore(store);
+    let now = 100;
+    const { cron, getJobs } = provisionCronHarness();
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [];
+    const context = requestContext();
+    const deps = provisionDeps(cron, {
+      fetchHistory: vi.fn(async () => history),
+      now: () => now,
+      sendPost: vi.fn(async ({ blob }: { blob?: string }) => {
+        history.push({
+          author: '~bot',
+          content: '',
+          timestamp: now,
+          blob,
+        });
+        return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+      }),
+    });
+
+    await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
+      'state store unavailable'
+    );
+    now = 101;
+    await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
+      'still being claimed'
+    );
+
+    getJobs()[0] = { ...getJobs()[0], state: { runningAtMs: 200 } };
+    now = 30_101;
+    await expect(handleAgentOnboardingRequest(context, deps)).resolves.toBe(
+      true
+    );
+
+    expect(cron.enqueueRun).toHaveBeenCalledTimes(2);
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
+      status: 'enqueued',
+    });
+    expect(history).toHaveLength(2);
+  });
+
+  it('does not enqueue twice when acknowledgement fails after enqueue', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    const history: Array<{
+      author: string;
+      content: string;
+      timestamp: number;
+      blob?: string;
+    }> = [];
+    const { cron } = provisionCronHarness();
+    let failAck = true;
+    const sendPost = vi.fn(async ({ blob }) => {
+      if (failAck) {
+        failAck = false;
+        throw new Error('ship disconnected after enqueue');
+      }
+      history.push({
+        author: '~bot',
+        content: '',
+        timestamp: Date.now(),
+        blob,
+      });
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+    const context = requestContext();
+    const deps = provisionDeps(cron, {
+      fetchHistory: vi.fn(async () => history),
+      sendPost,
+    });
+
+    await expect(handleAgentOnboardingRequest(context, deps)).rejects.toThrow(
+      'ship disconnected after enqueue'
+    );
+    await expect(handleAgentOnboardingRequest(context, deps)).resolves.toBe(
+      true
+    );
+
+    expect(cron.enqueueRun).toHaveBeenCalledOnce();
+    expect(await store.lookup(storedRunKey())).toMatchObject({
+      status: 'enqueued',
+      runId: 'run-1',
+    });
+    expect(history).toHaveLength(2);
+  });
+
+  it('finishes a completed first run discovered after plugin restart', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'run-before-restart',
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: {
+          status: 'ok',
+          delivered: true,
+          noteId: 91,
+          observedAt: 200,
+        },
+      })
+    );
+    const ackBlob = appendToPostBlob(
+      appendToPostBlob(undefined, {
+        type: 'tlon-agent-provision-ack',
+        version: 1,
+        provisionId: provision.provisionId,
+        cronJobId: 'job-1',
+      }),
+      {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: `ack:${provision.provisionId}`,
+      }
+    );
+    const history = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      { author: '~bot', content: 'Ready', timestamp: 2, blob: ackBlob },
+    ];
+    const sendPost = successfulSendPost();
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: true,
+          },
+        },
+      ]),
+      add: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(),
+      enqueueRun: vi.fn(),
+    } as unknown as TlonCronService;
+
+    await handleAgentOnboardingRequest(requestContext(), {
+      fetchHistory: vi.fn(async () => history),
+      getCron: () => cron,
+      getGroup: vi.fn(async () => ({
+        hostUserId: '~ten',
+        channels: [{ id: provision.notebookNest, type: 'notes' }],
+        members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+      })),
+      sendPost,
+      sleep: vi.fn(async () => {}),
+    });
+
+    expect(cron.enqueueRun).not.toHaveBeenCalled();
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/91' },
+        },
+      },
+    });
+    expect(await store.lookup(storedRunKey())).toMatchObject({
+      status: 'completed',
+    });
+  });
+
+  it('fails a restored successful run whose note delivery failed', async () => {
+    const context = scanContext();
+    rememberFirstRun('run-before-restart', {
+      context,
+      notebookName: 'Updates',
+      jobId: 'job-1',
+      enqueuedAt: 100,
+    });
+    const sendPost = successfulSendPost();
+    const cron = {
+      list: vi.fn(async () => [
+        {
+          id: 'job-1',
+          state: {
+            lastRunAtMs: 200,
+            lastRunStatus: 'ok',
+            lastDelivered: false,
+          },
+        },
+      ]),
+    } as unknown as TlonCronService;
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      cron,
+      storedRunRecord({
+        runId: 'run-before-restart',
+        channelNest: context.channelNest,
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+        outcome: {
+          status: 'error',
+          delivered: false,
+          observedAt: 200,
+        },
+      }),
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+  });
+
+  it('does not infer the forced-run outcome from aggregate job state', async () => {
+    const sendPost = vi.fn();
+    const list = vi.fn(async () => [
+      {
+        id: 'job-1',
+        state: {
+          lastRunAtMs: 200,
+          lastRunStatus: 'ok' as const,
+          lastDelivered: true,
+        },
+      },
+    ]);
+
+    await agentOnboardingTesting.reconcileRestoredFirstRun(
+      { list } as unknown as TlonCronService,
+      storedRunRecord({
+        runId: 'forced-run',
+        notebookName: 'Updates',
+        claimedAt: 100,
+        enqueuedAt: 100,
+      }),
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(list).not.toHaveBeenCalled();
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('keeps an acknowledged restart retryable until cron is available', async () => {
+    const ackBlob = appendToPostBlob(
+      appendToPostBlob(undefined, {
+        type: 'tlon-agent-provision-ack',
+        version: 1,
+        provisionId: provision.provisionId,
+        cronJobId: 'job-1',
+      }),
+      {
+        type: 'tlon-agent-post-marker',
+        version: 1,
+        key: `ack:${provision.provisionId}`,
+      }
+    );
+    const history = [
+      {
+        author: '~ten',
+        content: 'AI, Climate',
+        timestamp: 1,
+        blob: appendToPostBlob(undefined, provision),
+      },
+      { author: '~bot', content: 'Ready', timestamp: 2, blob: ackBlob },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(requestContext(), {
+        fetchHistory: vi.fn(async () => history),
+        getCron: () => undefined as never,
+        getGroup: vi.fn(async () => ({
+          hostUserId: '~ten',
+          channels: [{ id: provision.notebookNest, type: 'notes' }],
+          members: [{ contactId: '~bot', status: 'joined', roles: ['admin'] }],
+        })),
+      })
+    ).rejects.toThrow('cron service is not available while restoring setup');
+  });
+
+  it('posts a note reference when the correlated first run finishes', async () => {
+    const sendPost = successfulSendPost();
+    const sleep = vi.fn(async () => {});
+    rememberFirstRun('first-run-complete');
+
+    const listNotes = vi.fn(async () => [
+      {
+        id: `${provision.notebookNest}/12`,
+        notebookFlag: provision.notebookNest,
+        noteId: 12,
+        title: 'First entry',
+        createdBy: '~bot',
+        createdAt: Date.now() + 1,
+      },
+    ]);
+
+    await handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# First entry',
+        success: true,
+        messageId: '~bot/notes-12',
+        runId: 'nested-model-run',
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes,
+        sendPost,
+        sleep,
+      },
+      'first-run-complete'
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(listNotes).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledOnce();
+    expect(sleep).toHaveBeenCalledWith(5_500, undefined);
+    const reveal = sendPost.mock.calls[0]?.[0];
+    // The sentence carries the entry on its own — the cite renders as
+    // "Content not available" until the client has synced the notes channel,
+    // so the card is a bonus, not the message.
+    expect(JSON.stringify(reveal.story)).toContain('Your first entry is ready');
+    expect(JSON.stringify(reveal.story)).toContain('First entry');
+    expect(JSON.stringify(reveal.story)).toContain('notebook');
+    expect(reveal.story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/12' },
+        },
+      },
+    });
+    // Keyed per channel, not per provision: re-provisioning minted a new id
+    // and let the same reveal post three times in one setup.
+    expect(parsePostBlob(reveal.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'first-entry-ping',
+      })
+    );
+    expect(parsePostBlob(sendPost.mock.calls[1]?.[0].blob)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'tlon-agent-post-marker',
+          key: 'services-card',
+        }),
+        expect.objectContaining({ type: 'a2ui' }),
+      ])
+    );
+    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain('McpConnect');
+    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).toContain(
+      'tap Done to continue'
+    );
+    expect(JSON.stringify(sendPost.mock.calls[1]?.[0])).not.toContain(
+      'Connect anything'
+    );
+  });
+
+  it('waits for an explicit delivery result after a successful run', async () => {
+    const sendPost = successfulSendPost();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'first-run-delivery-pending' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/delivery-pending',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-delivery-pending',
+        status: 'ok',
+        delivered: null,
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'first-run-delivery-pending'
+      )
+    ).not.toBeNull();
+  });
+
+  it('ignores a successful cron completion with a different run id', async () => {
+    const sendPost = vi.fn();
+    rememberFirstRun('expected-run', { jobId: 'shared-job' });
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'shared-job',
+        runId: 'unrelated-run',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('expected-run')
+    ).not.toBeNull();
+  });
+
+  it('cancels the services pause when the monitor is draining', async () => {
+    const api = { scry: vi.fn() };
+    const abortController = new AbortController();
+    const context = scanContext({ api, abortSignal: abortController.signal });
+    rememberFirstRun('first-run-aborted-pause', {
+      context,
+      notebookName: provision.notebookTitle,
+      jobId: 'job-1',
+    });
+    const sleep = vi.fn(
+      async (_ms: number, signal?: AbortSignal): Promise<void> =>
+        new Promise((_resolve, reject) => {
+          if (signal?.aborted) {
+            reject(signal.reason);
+            return;
+          }
+          signal?.addEventListener('abort', () => reject(signal.reason), {
+            once: true,
+          });
+        })
+    );
+    const completion = handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# First entry',
+        success: true,
+        messageId: '~bot/notes-12',
+        runId: 'nested-run',
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => [
+          {
+            id: `${provision.notebookNest}/12`,
+            notebookFlag: provision.notebookNest,
+            noteId: 12,
+            title: 'First entry',
+            createdBy: '~bot',
+            createdAt: Date.now() + 1,
+          },
+        ]),
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep,
+      },
+      'first-run-aborted-pause'
+    );
+    await vi.waitFor(() =>
+      expect(sleep).toHaveBeenCalledWith(5_500, abortController.signal)
+    );
+
+    abortController.abort(new Error('monitor stopped'));
+
+    await expect(completion).rejects.toThrow('monitor stopped');
+    await expect(drainAgentOnboardingRuntime(api)).resolves.toBeUndefined();
+  });
+
+  it('uses the authoritative created note when cron completion wins the hook race', async () => {
+    const sendPost = successfulSendPost();
+    const listNotes = vi.fn(async () => [
+      {
+        id: `${provision.notebookNest}/77`,
+        notebookFlag: provision.notebookNest,
+        noteId: 77,
+        title: 'Authoritative entry',
+      },
+      {
+        id: `${provision.notebookNest}/78`,
+        notebookFlag: provision.notebookNest,
+        noteId: 78,
+        title: 'Unrelated newer entry',
+      },
+    ]);
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'first-run-authoritative',
+        enqueuedAt: 2,
+        outcome: {
+          status: 'ok',
+          delivered: true,
+          noteId: 77,
+          observedAt: 3,
+        },
+      })
+    );
+    rememberFirstRun('first-run-authoritative');
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-authoritative',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes,
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(listNotes).toHaveBeenCalledOnce();
+    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/77' },
+        },
+      },
+    });
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Authoritative entry'
+    );
+  });
+
+  it('posts a terminal status when the initial run fails', async () => {
+    const sendPost = successfulSendPost();
+    const trackStep = vi.fn();
+    rememberFirstRun('first-run-failed', {
+      context: scanContext({ trackStep }),
+    });
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-failed',
+        status: 'error',
+        delivered: false,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'first-entry-failed',
+      })
+    );
+    expect(trackStep).toHaveBeenCalledWith(
+      expect.objectContaining({
+        step: 'first_entry_revealed',
+        outcome: 'failed',
+      })
+    );
+    expect(parsePostBlob(sendPost.mock.calls[1]?.[0].blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'services-card',
+      })
+    );
+  });
+
+  it('posts a terminal status when execution succeeds but delivery fails', async () => {
+    const sendPost = successfulSendPost();
+    rememberFirstRun('first-run-undelivered');
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'first-run-undelivered',
+        status: 'ok',
+        delivered: false,
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      }
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+  });
+
+  it('persists a matched outcome before posting the reveal', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'matched-run',
+        enqueuedAt: 1,
+      })
+    );
+    rememberFirstRun('matched-run', {
+      notebookName: provision.notebookTitle,
+      jobId: 'job-1',
+    });
+
+    await expect(
+      handleAgentOnboardingMessageSent(
+        {
+          to: provision.notebookNest,
+          content: '# Entry',
+          success: true,
+          messageId: '~bot/notes-77',
+          runId: 'nested-run',
+        },
+        {
+          fetchHistory: vi.fn(async () => []),
+          listNotes: vi.fn(async () => []),
+          sendPost: vi.fn(async () => {
+            throw new Error('transport closed during reveal');
+          }),
+          sleep: vi.fn(async () => {}),
+        },
+        'matched-run'
+      )
+    ).rejects.toThrow('transport closed during reveal');
+
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
+      status: 'enqueued',
+      outcome: { status: 'ok', delivered: true },
+    });
+  });
+
+  it('retries a matched outcome after a transient store failure', async () => {
+    const store = memoryRunStore();
+    const sleep = vi.fn(async () => {});
+    setAgentOnboardingRunStore(store);
+    await store.register(
+      storedRunKey(),
+      storedRunRecord({
+        runId: 'transient-store-run',
+        enqueuedAt: 1,
+      })
+    );
+    store.register.mockRejectedValueOnce(new Error('temporary store failure'));
+    rememberFirstRun('transient-store-run', {
+      notebookName: provision.notebookTitle,
+      jobId: 'job-1',
+    });
+
+    await handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# Entry',
+        success: true,
+        messageId: '~bot/notes-77',
+        runId: 'nested-run',
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => []),
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep,
+      },
+      'transient-store-run'
+    );
+
+    expect(sleep).toHaveBeenCalledWith(100);
+    await expect(store.lookup(storedRunKey())).resolves.toMatchObject({
+      outcome: { status: 'ok', delivered: true },
+    });
+  });
+
+  it('uses successful Notes delivery when the host drops cron completion', async () => {
+    const sendPost = successfulSendPost();
+    rememberFirstRun('first-run-delivery-fallback');
+
+    const listNotes = vi.fn(async () => [
+      {
+        noteId: 42,
+        title: 'First entry',
+        createdAt: Date.now() + 1,
+        createdBy: '~bot',
+      },
+    ]);
+    await handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# First entry',
+        success: true,
+        messageId: '~bot/notes-42',
+        // The host-level context carries the cron run while the nested model
+        // delivery can expose a different event run id.
+        runId: 'nested-model-run',
+      },
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes,
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      },
+      'first-run-delivery-fallback'
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Your first entry is ready'
+    );
+    expect(sendPost.mock.calls[0]?.[0].story).toContainEqual({
+      block: {
+        cite: {
+          chan: { nest: provision.notebookNest, where: '/note/42' },
+        },
+      },
+    });
+    expect(listNotes).toHaveBeenCalled();
+  });
+
+  it('treats an omitted delivery status from an older host as success', async () => {
+    const sendPost = successfulSendPost();
+    rememberFirstRun('legacy-host-delivery');
+
+    await handleAgentOnboardingMessageSent(
+      {
+        to: provision.notebookNest,
+        content: '# First entry',
+        messageId: '~bot/notes-42',
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        listNotes: vi.fn(async () => [
+          {
+            noteId: 42,
+            title: 'First entry',
+            createdAt: Date.now() + 1,
+            createdBy: '~bot',
+          },
+        ]),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      },
+      'legacy-host-delivery'
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'Your first entry is ready'
+    );
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('legacy-host-delivery')
+    ).toBeNull();
+  });
+
+  it('suppresses completion presentation for a superseded provision', async () => {
+    const store = memoryRunStore();
+    setAgentOnboardingRunStore(store);
+    await store.register(storedRunKey('provision-newer'), {
+      accountId: defaultRunAccountId,
+      ...provision,
+      provisionId: 'provision-newer',
+      jobId: 'job-newer',
+      channelNest: 'chat/~ten/group/general',
+      notebookName: 'Updates',
+      claimedAt: Date.now() + 1,
+      status: 'enqueued',
+    });
+    rememberFirstRun('superseded-run');
+    const sendPost = vi.fn();
+
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'unknown:superseded-run',
+        runId: 'superseded-run',
+        status: 'ok',
+        delivered: true,
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost }
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('superseded-run')
+    ).toBeNull();
+  });
+
+  it('ignores a notebook send from a different contextual run', async () => {
+    const sendPost = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'expected-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/contextual-run',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: true,
+        to: provision.notebookNest,
+        messageId: '~bot/notes-99',
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost },
+      'unrelated-run'
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('expected-run')
+    ).not.toBeNull();
+  });
+
+  it('ignores a failure-destination send from the expected run', async () => {
+    const sendPost = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'expected-run' },
+      {
+        api: { scry: vi.fn() },
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/contextual-run',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: true,
+        to: 'chat/~ten/group/contextual-run',
+        messageId: '~bot/chat-99',
+      } as never,
+      { fetchHistory: vi.fn(async () => []), sendPost },
+      'expected-run'
+    );
+
+    expect(sendPost).not.toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('expected-run')
+    ).not.toBeNull();
+  });
+
+  it('settles a correlated first run when notebook delivery fails', async () => {
+    const sendPost = successfulSendPost();
+    rememberFirstRun('failed-notebook-send');
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: false,
+        to: provision.notebookNest,
+        error: 'delivery unavailable',
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost,
+        sleep: vi.fn(async () => {}),
+      },
+      'failed-notebook-send'
+    );
+
+    expect(sendPost).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sendPost.mock.calls[0]?.[0].story)).toContain(
+      'couldn’t publish the first entry'
+    );
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('failed-notebook-send')
+    ).toBeNull();
+  });
+
+  it('keeps equal run ids isolated by account', async () => {
+    const firstTrackStep = vi.fn();
+    const secondTrackStep = vi.fn();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'shared-run-id' },
+      { ...scanContext(), accountId: 'first', trackStep: firstTrackStep },
+      provision
+    );
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'shared-run-id' },
+      { ...scanContext(), accountId: 'second', trackStep: secondTrackStep },
+      provision
+    );
+
+    await handleAgentOnboardingMessageSent(
+      {
+        success: false,
+        to: provision.notebookNest,
+        error: 'delivery unavailable',
+      } as never,
+      {
+        fetchHistory: vi.fn(async () => []),
+        sendPost: vi.fn(async () => ({
+          channel: 'tlon' as const,
+          messageId: 'post',
+          sentAt: 0,
+        })),
+        sleep: vi.fn(async () => {}),
+      },
+      'shared-run-id',
+      'second'
+    );
+
+    expect(firstTrackStep).not.toHaveBeenCalled();
+    expect(secondTrackStep).toHaveBeenCalled();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'shared-run-id',
+        provision.notebookNest,
+        undefined,
+        false,
+        'first'
+      )
+    ).not.toBeNull();
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation(
+        'shared-run-id',
+        provision.notebookNest,
+        undefined,
+        false,
+        'second'
+      )
+    ).toBeNull();
+  });
+
+  it('blocks new lifecycle completions once runtime draining begins', async () => {
+    const api = { scry: vi.fn() };
+    let releaseHistory!: (history: never[]) => void;
+    const historyBarrier = new Promise<never[]>((resolve) => {
+      releaseHistory = resolve;
+    });
+    const fetchHistory = vi.fn(() => historyBarrier);
+    const sendPost = successfulSendPost();
+    agentOnboardingTesting.rememberFirstRun(
+      { enqueued: true, runId: 'draining-run' },
+      {
+        api,
+        botShip: '~bot',
+        channelNest: 'chat/~ten/group/general',
+        groupId: provision.groupId,
+        ownerShip: '~ten',
+      },
+      provision
+    );
+
+    const existingCompletion = handleAgentOnboardingMessageSent(
+      {
+        success: true,
+        to: provision.notebookNest,
+        messageId: '~bot/notes-42',
+      } as never,
+      { fetchHistory, sendPost, sleep: vi.fn(async () => {}) },
+      'draining-run'
+    );
+    await vi.waitFor(() => expect(fetchHistory).toHaveBeenCalledOnce());
+
+    const drain = drainAgentOnboardingRuntime(api);
+    expect(
+      agentOnboardingTesting.findFirstRunCorrelation('draining-run')
+    ).toBeNull();
+    await handleAgentOnboardingCronChanged(
+      {
+        action: 'finished',
+        jobId: 'job-1',
+        runId: 'draining-run',
+        status: 'ok',
+        delivered: false,
+      } as never,
+      { fetchHistory, sendPost }
+    );
+
+    releaseHistory([]);
+    await Promise.all([existingCompletion, drain]);
+    expect(fetchHistory).toHaveBeenCalledOnce();
+    expect(sendPost).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not mutate cron or post when the sender is not the owner', async () => {
+    const getCron = vi.fn();
+    const sendPost = vi.fn();
+
+    await expect(
+      handleAgentOnboardingRequest(requestContext({ senderShip: '~zod' }), {
+        getCron,
+        sendPost,
+      })
+    ).resolves.toBe(true);
+    expect(getCron).not.toHaveBeenCalled();
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+});

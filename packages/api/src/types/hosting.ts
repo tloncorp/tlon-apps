@@ -102,7 +102,7 @@ export interface TlawnProviderModel {
   [key: string]: unknown;
 }
 
-export type TlawnLLMAuthProvider = 'openai' | 'anthropic';
+export type TlawnLLMAuthProvider = 'openai' | 'anthropic' | 'xai';
 
 export type TlawnLLMAuthFlowStatus =
   | 'awaiting_browser'
@@ -225,6 +225,7 @@ export interface TlawnOAuthProvider {
   displayName: string;
   id: string;
   kind: TlawnOAuthProviderKind;
+  logoUrl?: string;
   revokeUrl?: string;
   scopes: string;
   suggestedUpstream: TlawnOAuthUpstream;

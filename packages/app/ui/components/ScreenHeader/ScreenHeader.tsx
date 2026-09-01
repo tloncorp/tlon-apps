@@ -1,6 +1,14 @@
 import { useDebouncedValue } from '@tloncorp/shared';
 import { Icon, Text, View } from '@tloncorp/ui';
-import { Children, ReactNode, useEffect, useRef, useState } from 'react';
+import {
+  Children,
+  ReactNode,
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Platform,
@@ -69,6 +77,10 @@ type ScreenHeaderProps = SharedScreenHeaderProps &
       }
   );
 
+const InlineScreenHeaderContext = createContext(false);
+
+export const InlineScreenHeaderProvider = InlineScreenHeaderContext.Provider;
+
 export const ScreenHeaderComponent = ({
   children,
   title,
@@ -89,6 +101,7 @@ export const ScreenHeaderComponent = ({
   testID,
   placement = 'content',
 }: ScreenHeaderProps) => {
+  const forceInline = useContext(InlineScreenHeaderContext);
   const { top } = useSafeAreaInsets();
   const [headerWidth, setHeaderWidth] = useState(0);
   const [leftControlsWidth, setLeftControlsWidth] = useState(0);
@@ -281,7 +294,7 @@ export const ScreenHeaderComponent = ({
     isInteractive: onTitlePress != null,
   });
   const shouldUseNativeHeader = useNativeHeader({
-    enabled: placement === 'navigation',
+    enabled: placement === 'navigation' && !forceInline,
     title: typeof title === 'string' ? title : '',
     titleElement: interactiveTitleContent,
     titlePresentationKey,

@@ -2,6 +2,8 @@ import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
+import { sharedMap } from './shared-state.js';
+
 export type TlonAgentTurnExecution =
   | 'completed'
   | 'failed'
@@ -86,10 +88,12 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   durationMs: number;
   execution: TlonAgentTurnExecution;
   finalErrorReplyCount: number;
+  lastToolError: { toolName: string; message: string } | null;
   reason: TlonAgentTurnReason;
   result: TlonAgentTurnResult;
   sourceReplyCount: number;
   toolCallCount: number;
+  toolErrorCount: number;
 };
 
 export type TlonAgentTurnObserver = {
@@ -103,9 +107,12 @@ type TlonAgentTurnState = TlonAgentTurnStart & {
   finalErrorReplyCount: number;
   finalNonErrorReplyCount: number;
   finalized: boolean;
+  lastToolError: { toolName: string; message: string } | null;
+  outputCount: number;
   sourceReplyCount: number;
   summary: TlonAgentTurnSummary | null;
   toolCallCount: number;
+  toolErrorCount: number;
 };
 
 type MetricAttributes = Record<string, string>;
@@ -142,6 +149,10 @@ type TurnInstruments = {
 };
 
 const turnStorage = new AsyncLocalStorage<TlonAgentTurnState>();
+const traceIdsByRunId = sharedMap<string, string>(
+  'turnRecorder.traceIdsByRunId'
+);
+const MAX_TRACKED_TRACE_IDS = 1_024;
 const terminalLogger = createSubsystemLogger('tlon/agent-turn');
 
 function normalizeShip(ship: string): string {
@@ -313,6 +324,7 @@ function buildSummary(
     durationMs: Math.max(0, terminal.durationMs),
     execution,
     finalErrorReplyCount: state.finalErrorReplyCount,
+    lastToolError: state.lastToolError,
     reason: resolveReason({
       delivery,
       execution,
@@ -325,6 +337,7 @@ function buildSummary(
     ship: state.ship,
     sourceReplyCount: state.sourceReplyCount,
     toolCallCount: state.toolCallCount,
+    toolErrorCount: state.toolErrorCount,
     trigger: state.trigger,
   };
 }
@@ -399,6 +412,7 @@ export function createTlonAgentTurnOtelObserver(options?: {
           'tlon.turn.ship': summary.ship,
           'tlon.turn.source_reply_count': summary.sourceReplyCount,
           'tlon.turn.tool_call_count': summary.toolCallCount,
+          'tlon.turn.tool_error_count': summary.toolErrorCount,
           'tlon.turn.trigger': summary.trigger,
         });
       });
@@ -421,9 +435,12 @@ export function startTlonAgentTurn(
     finalErrorReplyCount: 0,
     finalNonErrorReplyCount: 0,
     finalized: false,
+    lastToolError: null,
+    outputCount: 0,
     sourceReplyCount: 0,
     summary: null,
     toolCallCount: 0,
+    toolErrorCount: 0,
   };
 
   safeObserve(() => observer.recordStarted(state));
@@ -438,6 +455,7 @@ export function startTlonAgentTurn(
       }
       state.finalized = true;
       state.summary = buildSummary(state, terminal);
+      traceIdsByRunId.delete(state.runId);
       safeObserve(() => observer.recordTerminal(state.summary!));
       return state.summary;
     },
@@ -469,10 +487,42 @@ export function recordActiveTlonTurnSourceReply(reply?: {
   });
 }
 
-export function recordActiveTlonTurnToolCall(): void {
+export function recordActiveTlonTurnToolCall(update?: {
+  toolName?: string;
+  errorMessage?: string;
+}): void {
   updateActiveTurn((state) => {
     state.toolCallCount += 1;
+    const errorMessage = update?.errorMessage;
+    if (typeof errorMessage === 'string' && errorMessage.trim()) {
+      state.toolErrorCount += 1;
+      state.lastToolError = {
+        toolName: update?.toolName || 'unknown',
+        message: errorMessage,
+      };
+    }
   });
+}
+
+export function recordTlonAgentRunTrace(
+  runId?: string,
+  traceId?: string
+): void {
+  const normalizedRunId = runId?.trim();
+  const normalized = traceId?.trim();
+  if (!normalizedRunId || !normalized) {
+    return;
+  }
+  if (
+    !traceIdsByRunId.has(normalizedRunId) &&
+    traceIdsByRunId.size >= MAX_TRACKED_TRACE_IDS
+  ) {
+    const oldestRunId = traceIdsByRunId.keys().next().value;
+    if (oldestRunId) {
+      traceIdsByRunId.delete(oldestRunId);
+    }
+  }
+  traceIdsByRunId.set(normalizedRunId, normalized);
 }
 
 export function recordActiveTlonTurnDelivery(success: boolean): void {
@@ -483,6 +533,24 @@ export function recordActiveTlonTurnDelivery(success: boolean): void {
       state.deliveryFailureCount += 1;
     }
   });
+}
+
+export function claimActiveTlonTurnOutput(): {
+  runId: string | null;
+  outputIndex: number;
+  traceId: string | null;
+} {
+  const state = turnStorage.getStore();
+  if (!state || state.finalized) {
+    return { runId: null, outputIndex: 0, traceId: null };
+  }
+  const outputIndex = state.outputCount;
+  state.outputCount += 1;
+  return {
+    runId: state.runId,
+    outputIndex,
+    traceId: traceIdsByRunId.get(state.runId) ?? null,
+  };
 }
 
 export async function observeActiveTlonTurnDelivery<T>(

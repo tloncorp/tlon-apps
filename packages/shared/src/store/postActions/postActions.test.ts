@@ -3,6 +3,8 @@ import { poke, scry } from '@tloncorp/api';
 import { Attachment, ImageAttachment } from '@tloncorp/api/types/attachment';
 import { PostDataDraft } from '@tloncorp/api/types/post';
 import * as $ from 'drizzle-orm';
+import fs from 'node:fs';
+import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import * as db from '../../db';
@@ -17,6 +19,7 @@ import { mergePendingPosts } from '../useMergePendingPosts';
 import {
   deleteFailedPost,
   deletePost,
+  editPost,
   finalizeAndSendPost,
   forwardPost,
   retrySendPost,
@@ -160,6 +163,32 @@ describe('sendPost', () => {
       deliveryStatus: 'failed',
     });
     expect(mockedPoke).toHaveBeenCalledTimes(0);
+  });
+
+  test('interactive sends reject after recording a definitive failure', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    const sendError = new Error('definitive send failure');
+    vi.mocked(poke).mockRejectedValueOnce(sendError);
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toBe(sendError);
+    await vi.runOnlyPendingTimersAsync();
+    await rejection;
+
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  test('interactive sends reject when the channel is missing', async () => {
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: 'missing-channel' }), {
+        rejectOnDefinitiveFailure: true,
+      })
+    ).rejects.toThrow('channel missing-channel is missing');
   });
 
   test('tracks whether a sent post is going to a bot DM', async () => {
@@ -313,6 +342,47 @@ describe('finalizeAndSendPost', () => {
       content: expect.stringContaining(message),
       deliveryStatus: 'failed',
     });
+  });
+
+  test('can reject a definitive send failure for one-shot controls', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockRejectedValueOnce(new Error('definitive send failure'));
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toThrow(
+      'definitive send failure'
+    );
+    await vi.runOnlyPendingTimersAsync();
+
+    await rejection;
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  test('does not reject after backend delivery when local cleanup fails', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockResolvedValueOnce(0);
+    const cleanup = vi
+      .spyOn(PostDataDraft, 'revokeBlobUrls')
+      .mockImplementationOnce(() => {
+        throw new Error('local cleanup failed');
+      });
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    await vi.runOnlyPendingTimersAsync();
+
+    await expect(sendPostPromise).resolves.toBeUndefined();
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'pending',
+    });
+    cleanup.mockRestore();
   });
 
   test('tracks completion when a failed send succeeds on retry', async () => {
@@ -1683,5 +1753,144 @@ describe('deleting a pinned post', () => {
     expect((await fetchPost(post.id))!.deleteStatus).toBe('failed');
     const channelAfter = await db.getChannel({ id: GROUP_CHANNEL });
     expect(channelAfter!.order).toEqual([post.id]);
+  });
+});
+
+// The %edit arm stores the submitted essay wholesale, so an edit that drops the
+// author object rewrites a bot-authored post to a bare ship and strips its
+// "Bot" tag.
+describe('editing preserves authorship shape', () => {
+  const BOT_CHANNEL = 'chat/~zod/bots';
+  const BOT_SHIP = '~ridlur-figbud';
+
+  beforeEach(async () => {
+    await db.insertChannels([
+      db.buildChannel({ id: BOT_CHANNEL, type: 'chat' }),
+    ]);
+    vi.mocked(poke).mockResolvedValue(0);
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+  });
+
+  afterEach(() => {
+    vi.mocked(poke).mockReset();
+    updateSession(null);
+  });
+
+  async function seedPost(
+    isBot: boolean,
+    { parentId }: { parentId?: string } = {}
+  ): Promise<db.Post> {
+    const channel = (await db.getChannel({ id: BOT_CHANNEL }))!;
+    const post = db.buildPost({
+      authorId: BOT_SHIP,
+      author: null,
+      channel,
+      sequenceNum: 1,
+      content: [{ inline: ['original'] }],
+      deliveryStatus: 'sent',
+      ...(parentId ? { parentId } : {}),
+    });
+    await db.insertChannelPosts({ posts: [{ ...post, isBot, parentId }] });
+    const stored = (await fetchPost(post.id))!;
+    expect(stored.isBot).toBe(isBot);
+    return stored;
+  }
+
+  // Top-level edits and reply edits ride different arms of the same action —
+  // `post.edit.essay` vs `post.reply.action.edit['reply-essay']` — so the
+  // author is read from whichever one this edit produced.
+  type EditPoke = {
+    channel?: {
+      action?: {
+        post?: {
+          edit?: { essay: { author: unknown } };
+          reply?: {
+            action?: { edit?: { 'reply-essay': { author: unknown } } };
+          };
+        };
+      };
+    };
+  };
+
+  function editedEssayAuthor() {
+    const authors = vi
+      .mocked(poke)
+      .mock.calls.map(([payload]) => {
+        const post = (payload.json as EditPoke).channel?.action?.post;
+        return (
+          post?.edit?.essay.author ??
+          post?.reply?.action?.edit?.['reply-essay'].author
+        );
+      })
+      .filter((author) => author !== undefined);
+    expect(authors).toHaveLength(1);
+    return authors[0];
+  }
+
+  test('a bot-authored post keeps its author object through an edit', async () => {
+    const post = await seedPost(true);
+
+    await editPost({ post, content: [{ inline: ['edited'] }] });
+
+    expect(editedEssayAuthor()).toEqual({
+      ship: BOT_SHIP,
+      nickname: null,
+      avatar: null,
+    });
+  });
+
+  test('a human-authored post keeps its bare ship author through an edit', async () => {
+    const post = await seedPost(false);
+
+    await editPost({ post, content: [{ inline: ['edited'] }] });
+
+    expect(editedEssayAuthor()).toBe(BOT_SHIP);
+  });
+
+  // The call-site assertion below proves every edit path shares one call; it
+  // does not prove the condition on that call is parent-independent. Mutating
+  // the spread to `postBeforeEdit.parentId == null` keeps every other test in
+  // this file green while stripping the tag from every bot reply.
+  test('a bot-authored reply keeps its author object through an edit', async () => {
+    const channel = (await db.getChannel({ id: BOT_CHANNEL }))!;
+    const parent = await seedPost(false);
+    const reply = {
+      ...db.buildPost({
+        authorId: BOT_SHIP,
+        author: null,
+        channel,
+        sequenceNum: 2,
+        content: [{ inline: ['original reply'] }],
+        deliveryStatus: 'sent',
+        parentId: parent.id,
+      }),
+      type: 'reply' as const,
+    };
+    await db.insertChannelPosts({ posts: [{ ...reply, isBot: true }] });
+    const stored = (await fetchPost(reply.id))!;
+    expect(stored.isBot).toBe(true);
+    expect(stored.parentId).toBe(parent.id);
+
+    await editPost({ post: stored, content: [{ inline: ['edited'] }] });
+
+    expect(editedEssayAuthor()).toEqual({
+      ship: BOT_SHIP,
+      nickname: null,
+      avatar: null,
+    });
+  });
+
+  // The two tests above drive the deprecated `editPost` wrapper. They
+  // generalize to replies, drafts and retries only because every edit funnels
+  // through `_editPost`'s single `api.editPost` call — so that is what gets
+  // asserted, rather than rebuilding a valid draft and thread per path. A
+  // second call site would be a path the authorship fix does not cover.
+  test('every edit path shares one api.editPost call site', () => {
+    const source = fs.readFileSync(
+      path.resolve(__dirname, './postActions.ts'),
+      'utf8'
+    );
+    const callSites = source.match(/\bapi\.editPost\(/g) ?? [];
+    expect(callSites).toHaveLength(1);
   });
 });
