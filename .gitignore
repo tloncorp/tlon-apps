@@ -62,3 +62,14 @@ packages/shared/seed/served/
 
 # playwright-mcp console dumps (local debugging artifacts)
 .playwright-mcp/
+
+# per-machine record of which fakeship desk hash was verified against which
+# assembled desk content (dev/surfaces-desk-preflight.mjs --record). Pike
+# hashes are takos — they carry parents and timestamps, so they mean nothing
+# on another machine and there is nothing to share.
+packages/openclaw/dev/.desk-sync-ledger.json
+
+# per-run write fence, rewritten by dev/surfaces-run.sh before every prompt and
+# widened back after. The binding that produced it is recorded durably in the
+# assertion's binding.json; this file is the live copy the container reads.
+packages/openclaw/dev/surfaces-6a-out/write-scope.json

@@ -88,6 +88,23 @@ services:
       # absolute path from the env file must not leak in.
       - TLON_APPS_DIR=/workspace/tlon-apps
       - TLON_SKILL_DIR=/workspace/tlon-apps/packages/tlon-skill
+      # ── The write fence ────────────────────────────────────────────────
+      #
+      # `tlon surface *` writes refuse anything outside the channel, pre-state
+      # and groups this file names (packages/tlon-skill/scripts/
+      # surface-write-scope.ts). `dev/surfaces-run.sh` rewrites it per run:
+      # groups-only between runs, narrowed to one channel and one definition
+      # sha for the duration of a bound revision.
+      #
+      # The path is inside the ./surfaces-6a-out mount below, so the harness on
+      # the host and the CLI in the container are looking at one file.
+      #
+      # A missing file is a REFUSAL, not "unfenced" — so the container is
+      # fenced from the moment it comes up, and a harness that forgot to write
+      # a scope produces a stopped bot rather than an unbounded one. Bring the
+      # container up after `surfaces-run.sh` has written one, or write it by
+      # hand: {"groups":["~zod/your-group"]}.
+      - TLON_SURFACE_SCOPE_FILE=/workspace/surfaces-6a-out/write-scope.json
       # ── Bound how long one run can poison its session ──────────────────
       #
       # 6a.5 hit a capped run whose session write lock stayed held for ~17

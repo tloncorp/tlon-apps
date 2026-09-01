@@ -335,3 +335,55 @@ test('the evidence quotes context, because a bare span out of painted text is un
   assert.match(hit.context, /Responses~zodComing/);
   assert.equal(hit.where, 'render[phone-initial-light].text');
 });
+
+/**
+ * The source check searched with the PROSE set only, and for at least one real
+ * request that made it inert.
+ *
+ * `rev-poll-cant-make-it`'s render patterns all required a literal space
+ * (`can.?t make it`); the only occurrence in the app that demonstrably HAD the
+ * behaviour was the identifier `'cant-make-it'`. So the check reported "the
+ * bundle source does not mention it" without being able to mention it, and the
+ * one net under "coded but not currently painted" was missing for that request.
+ * Found by a spot audit of the verdict run's pre-states, not by this suite.
+ *
+ * The fixture reproduces both halves: identifier-shaped source (only the action
+ * patterns can reach it) and prose-shaped source (only the render patterns can).
+ */
+test('the source check reads identifier-shaped source, not only prose', () => {
+  const identifierOnly = decide({
+    witness: NONRESPONDER_WITNESS,
+    spec: { actions: {} },
+    recipe: 'A board.',
+    render: {
+      ok: true,
+      unprobedCells: [],
+      cells: [{ cell: 'c', text: 'Friday movie night', controls: [] }],
+    },
+    // No prose pattern can match this: every one of them needs whitespace or a
+    // word the slug does not spell out.
+    bundleSource: "const VOTE = { 'mark-pending': () => invoke('pending') };",
+  });
+  assert.equal(identifierOnly.verdict, VERDICT.abstain);
+  assert.equal(identifierOnly.reason, 'source-only');
+  assert.match(identifierOnly.findings.sourceHit.pattern, /pending/);
+});
+
+test('widening the source check cannot turn an absence into a presence', () => {
+  // The direction that makes the union safe without a further self-test: a
+  // source hit produces ABSTAIN, so over-matching costs a candidate request and
+  // can never manufacture a PRESENT or corrupt an issued observation.
+  const decision = decide({
+    witness: NONRESPONDER_WITNESS,
+    spec: { actions: {} },
+    recipe: 'A board.',
+    render: {
+      ok: true,
+      unprobedCells: [],
+      cells: [{ cell: 'c', text: 'Friday movie night', controls: [] }],
+    },
+    bundleSource: "const a = { 'mark-pending': 1 };",
+  });
+  assert.notEqual(decision.verdict, VERDICT.present);
+  assert.equal(mayIssue(decision), false);
+});

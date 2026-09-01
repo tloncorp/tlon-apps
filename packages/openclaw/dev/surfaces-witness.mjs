@@ -33,7 +33,10 @@
  * reduced state and at that state with every declared action folded through.
  * Source is searched too, but source may only ever ABSTAIN (see the lattice
  * below), never pass and never refuse: a bundle can name a concept it never
- * paints and paint a concept it never names.
+ * paints and paint a concept it never names. It is searched with BOTH pattern
+ * sets — source is neither prose nor an action map but a mixture, and searching
+ * it with the prose set alone made the check inert for at least one real
+ * request (see the note at the `sourceHit` line).
  *
  * **2. Every witness must survive a two-sided self-test before it is used at
  * all.** The author supplies, per surface, a `positive` string that an app
@@ -364,7 +367,27 @@ export function decide({ witness, spec, recipe, render, bundleSource }) {
   const actionHit = firstHit(actionFields, actionTest.compiled);
   const recipeHit = firstHit(recipeFields, renderTest.compiled);
   const renderHit = firstHit(renderFields, renderTest.compiled);
-  const sourceHit = firstHit(sourceFields, renderTest.compiled);
+  // BOTH pattern sets, against the source. The prose set alone was a vacuous
+  // check, and it was caught by a spot audit rather than by anything here: for
+  // `rev-poll-cant-make-it` the render patterns all required a literal space
+  // (`can.?t make it`) while the only occurrence in the post-state bundle was
+  // the identifier `'cant-make-it'`, so the source check could not have fired
+  // even on the app that demonstrably had the behaviour — and the evidence
+  // sheet said "the bundle source does not mention it" as though it had looked.
+  // The requests README already names this failure for the action surface ("a
+  // prose pattern applied to an action map matches nothing ever"); source is
+  // neither prose nor an action map but a mixture of both, and it needs both.
+  //
+  // Widening here cannot corrupt a measurement, only cost a candidate: a source
+  // hit produces ABSTAIN and never PRESENT, so a pattern that over-matches
+  // turns an issuable request into a refused one. That direction is the safe
+  // one, which is why the union is not gated on a further self-test — each
+  // list is separately self-tested, and their union is only ever consulted
+  // for a refusal.
+  const sourceHit = firstHit(sourceFields, [
+    ...renderTest.compiled,
+    ...actionTest.compiled,
+  ]);
 
   const findings = { actionHit, recipeHit, renderHit, sourceHit };
 

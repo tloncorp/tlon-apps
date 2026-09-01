@@ -221,12 +221,137 @@ function extractTurn(trajectory, marker) {
   return { turnText: JSON.stringify(turn), replyText };
 }
 
+/**
+ * The container's CLI actually honours the write fence.
+ *
+ * `TLON_SURFACE_SCOPE_FILE` is set in docker-compose.surfaces-6a.yml, and an
+ * environment change only reaches a container on RECREATE. But recreating is
+ * not enough, and the first version of this assertion learned that the
+ * expensive way: it read the variable out of the running process, found it set,
+ * and passed — while the CLI the bot actually invokes was a `bun --compile`
+ * binary built BEFORE the fence existed and ignoring the variable completely.
+ * A guard that observes a mechanism's configuration rather than its behaviour
+ * is the vacuity this project keeps cataloguing, and it was reproduced here
+ * inside an hour of writing the fence.
+ *
+ * So this EXERCISES it. Three probes, no ship credentials and no writes:
+ *
+ *   a malformed scope file   → refuses, naming the parse error
+ *   a scope file that is not there → refuses, fail-closed
+ *   no scope named at all    → falls through to the ordinary failure
+ *
+ * The third is the control. Without it the first two would pass equally against
+ * a CLI that failed on everything; with it, a binary that lacks the fence
+ * produces the same ordinary failure three times and is caught.
+ */
+function assertFenced(container) {
+  const notes = [];
+  const failures = [];
+
+  const env = (name) => {
+    try {
+      return sh('docker', [
+        'exec',
+        container.id,
+        'sh',
+        '-c',
+        `printf %s "$${name}"`,
+      ]).trim();
+    } catch {
+      return '';
+    }
+  };
+
+  const scopePath = env('TLON_SURFACE_SCOPE_FILE');
+  if (scopePath === '') {
+    failures.push(
+      'TLON_SURFACE_SCOPE_FILE is not set in the running container. The compose file ' +
+        'sets it; an env change reaches a container only on recreate, so bring the stack ' +
+        'down and up rather than restarting it.'
+    );
+    return { ok: false, notes, failures };
+  }
+  notes.push(`TLON_SURFACE_SCOPE_FILE=${scopePath}`);
+
+  const skillDir = env('TLON_SKILL_DIR');
+  if (skillDir === '') {
+    failures.push('TLON_SKILL_DIR is not set, so the CLI cannot be located.');
+    return { ok: false, notes, failures };
+  }
+  const cli = `${skillDir}/bin/tlon`;
+
+  const probe = (scopeEnv) => {
+    try {
+      return sh('docker', [
+        'exec',
+        container.id,
+        'sh',
+        '-c',
+        `printf %s 'not json at all' > /tmp/fence-probe-bad.json; ` +
+          `TLON_URL= TLON_SHIP= TLON_CODE= ${scopeEnv} ${cli} ` +
+          `surface show chat/~zod/a-channel-that-does-not-exist --json 2>&1 | tail -1`,
+      ]).trim();
+    } catch (error) {
+      return `PROBE FAILED: ${error.message}`;
+    }
+  };
+
+  const malformed = probe('TLON_SURFACE_SCOPE_FILE=/tmp/fence-probe-bad.json');
+  const missing = probe('TLON_SURFACE_SCOPE_FILE=/tmp/fence-probe-absent.json');
+  const unfenced = probe('TLON_SURFACE_SCOPE_FILE=');
+
+  const refusedFor = (output, why) =>
+    /not JSON|could not be read/i.test(output);
+  if (!refusedFor(malformed)) {
+    failures.push(
+      'the CLI in this container accepted a malformed scope file. The binary the bot ' +
+        'invokes predates the write fence — rebuild it ' +
+        '(TLON_SKILL_FROM_SOURCE=1 dev/build-local-skill-override.sh) before measuring ' +
+        `anything. It said: ${malformed.slice(0, 200)}`
+    );
+  }
+  if (!refusedFor(missing)) {
+    failures.push(
+      'the CLI treated an absent scope file as unfenced rather than refusing. A fence ' +
+        `that fails open is decoration. It said: ${missing.slice(0, 200)}`
+    );
+  }
+  // The control. If this ALSO refuses, the two above prove nothing — the CLI is
+  // simply failing on everything and the fence has not been shown to exist.
+  if (refusedFor(unfenced)) {
+    failures.push(
+      'the CLI refused with a scope-file error even when no scope was named, so the two ' +
+        'refusals above are not evidence of a fence. Something else is failing: ' +
+        `${unfenced.slice(0, 200)}`
+    );
+  } else {
+    notes.push(
+      `unfenced control fell through to the ordinary failure: ${unfenced.slice(0, 120)}`
+    );
+  }
+
+  let scope = '';
+  try {
+    scope = sh('docker', ['exec', container.id, 'cat', scopePath]);
+    notes.push(`scope in force: ${JSON.stringify(JSON.parse(scope))}`);
+  } catch {
+    failures.push(
+      `the container cannot read or parse ${scopePath}, so every surface write would ` +
+        'fail. dev/surfaces-run.sh writes one; by hand it is {"groups":["~zod/your-group"]}.'
+    );
+  }
+
+  return { ok: failures.length === 0, notes, failures };
+}
+
 async function main() {
   const startedAt = Date.now();
   const container = resolveContainer();
   log(
     `container: ${container.id} (created ${container.created}, started ${container.startedAt})`
   );
+
+  const fenced = assertFenced(container);
 
   const token = Array.from({ length: 16 }, () =>
     String(Math.floor(Math.random() * 10))
@@ -290,7 +415,7 @@ async function main() {
   });
 
   const result = {
-    ok: vision.ok && skills.ok,
+    ok: vision.ok && skills.ok && fenced.ok,
     container: {
       id: container.id,
       created: container.created,
@@ -305,6 +430,7 @@ async function main() {
     checks: {
       'model-accepts-images': vision,
       'system-prompt-lists-skills': skills,
+      'container-is-write-fenced': fenced,
     },
   };
 

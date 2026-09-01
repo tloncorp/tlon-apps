@@ -16,6 +16,7 @@ import {
   surfaceError,
   usageSurfaceError,
 } from './surface-common';
+import { assertWriteInScope } from '../surface-write-scope';
 
 export const SURFACE_CREATE_HELP = `Usage: tlon surface create <group-id> --title <title> [options]
 
@@ -338,6 +339,16 @@ export async function runSurfaceCreate(
   const collisionPolicy: CollisionPolicy = collisionRaw ?? 'fail';
 
   await deps.authenticate();
+  // Creating a channel is a write to a group, and it is the one write that has
+  // no channel to resolve first — so the group fence is applied here by hand
+  // rather than in `resolveSurfaceChannel`. The channel bound, if there is one,
+  // names a channel that by definition does not exist yet, so any create under
+  // a channel binding is out of scope.
+  assertWriteInScope(deps.writeScope, {
+    channelId: 'a new channel',
+    groupId,
+    operation: 'surface create',
+  });
   await assertCanAdminister(deps, groupId);
   if (!parsed.flags.has('--skip-storage-check')) {
     await assertStorageReachable(deps);

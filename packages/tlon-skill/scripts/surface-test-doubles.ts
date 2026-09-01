@@ -22,6 +22,7 @@ import type {
   SurfaceValidation,
 } from './commands/surface-common';
 import { formatSurfaceLintResult, lintSurfaceBundle } from './surface-lint';
+import type { SurfaceWriteScope } from './surface-write-scope';
 
 /**
  * A fake ship for the `surface *` command tests.
@@ -121,6 +122,8 @@ export type CreateEffect = 'both' | 'channels-only' | 'groups-only' | 'none';
 export interface FakeShipOptions {
   ship?: string;
   budget?: ObservationBudget;
+  /** the operator's write fence, when a test wants one; unfenced by default */
+  writeScope?: SurfaceWriteScope | null;
   createEffect?: CreateEffect;
   /** how many observation polls pass before the create lands */
   createDelayPolls?: number;
@@ -494,6 +497,9 @@ export function createTestSurfaceDeps(
     stderr: (text) => stderr.push(text),
     authenticate: async () => {},
     actingShip: () => ship.ship,
+    // Unfenced by default: the fence is an operator's bound on one process, so
+    // a test that wants one sets it explicitly (see surface-write-scope.test.ts).
+    writeScope: options.writeScope ?? null,
     observationBudget: options.budget ?? TEST_BUDGET,
     normalizeShip: (name) => (name.startsWith('~') ? name : `~${name}`),
     now: () => ship.now(),

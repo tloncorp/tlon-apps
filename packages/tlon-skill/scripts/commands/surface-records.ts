@@ -287,7 +287,10 @@ export async function runSurfaceEvent(
   const budget = deps.observationBudget;
 
   await deps.authenticate();
-  const resolved = await resolveSurfaceChannel(deps, channelId);
+  const resolved = await resolveSurfaceChannel(deps, channelId, {
+    intent: 'write',
+    operation: 'surface event',
+  });
   const spec = requireChannelSpec(deps, resolved);
 
   const retractId = singleValue(parsed, '--retract');
@@ -387,7 +390,9 @@ export async function runSurfaceState(
   const maxPosts = readCount(parsed, '--max-posts', SURFACE_STATE_HELP);
 
   await deps.authenticate();
-  const resolved = await resolveSurfaceChannel(deps, channelId);
+  const resolved = await resolveSurfaceChannel(deps, channelId, {
+    intent: 'read',
+  });
   const spec = requireChannelSpec(deps, resolved);
 
   const hydrated = await hydratePosts(deps, channelId, { maxPosts });
@@ -504,7 +509,10 @@ export async function runSurfaceSnapshot(
   const budget = deps.observationBudget;
 
   await deps.authenticate();
-  const resolved = await resolveSurfaceChannel(deps, channelId);
+  const resolved = await resolveSurfaceChannel(deps, channelId, {
+    intent: 'write',
+    operation: 'surface snapshot',
+  });
   const spec = requireChannelSpec(deps, resolved);
 
   const retractId = singleValue(parsed, '--retract');

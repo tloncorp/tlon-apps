@@ -38,6 +38,18 @@
  * unaskable rather than guarded. The render probe imports the CLI's own
  * `renderSurfacePreview` for the same reason.
  *
+ * **What that does NOT cover, stated because it was read as covering it.**
+ * This is not a stale-binary guard. There is no detector here and nothing it
+ * keys on; it works by removing the question for THIS FILE'S OWN READS. The
+ * bot under measurement invokes a different CLI — the compiled binary at
+ * `$TLON_SKILL_DIR/bin/tlon` — and nothing in this file has ever looked at it.
+ * One session later, "the stale-binary guard" was cited as though it covered
+ * the container, and a fence the bot's binary predated passed a preflight that
+ * had only read an environment variable. `dev/surfaces-preflight.mjs`'s
+ * `assertFenced` is where the bot's binary is exercised; a remedy that works
+ * by removing a question has to say what question it removed, or the next
+ * reader will take it for a wider one.
+ *
  * ## The judgment
  *
  * All the judging is in `dev/surfaces-witness.mjs`, which is pure and tested;
@@ -69,6 +81,7 @@
  * Request records live in `dev/surfaces-requests/*.json`; see the README there.
  */
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -422,6 +435,43 @@ async function main(): Promise<void> {
     join(outDir, 'assertion.json'),
     `${JSON.stringify(evidence, null, 2)}\n`
   );
+
+  // The BINDING: what was asserted, in the form the CLI's write fence checks.
+  //
+  // 6a.5's defect was a preflight cleared against one phrasing while another
+  // went down the wire, and the fix was to read both out of one record. The
+  // verdict run's defect was the same shape one axis over — a preflight cleared
+  // against one CHANNEL while the write went to another — and the fix is the
+  // same: the file that cleared the request is the file that names the target,
+  // so the two cannot drift. `surfaces-run.sh` copies this into the container's
+  // scope file, and `surface publish` refuses anything else.
+  //
+  // Only written on a pass. A binding emitted alongside a refusal would be a
+  // target nobody cleared, sitting in a file a later run might pick up.
+  if (mayIssue(decision)) {
+    writeFileSync(
+      join(outDir, 'binding.json'),
+      `${JSON.stringify(
+        {
+          request: record.id,
+          channel: show.channel ?? record.channel,
+          groups: show.group ? [show.group] : null,
+          // Raw-to-raw (D72): the cell as the ship holds it, not the validated
+          // read, so a key the schema strips cannot make two different stored
+          // definitions bind to the same identity.
+          preState: `spec:${createHash('sha256')
+            .update(show.specText ?? '', 'utf8')
+            .digest('hex')}`,
+          surfaceId: show.surfaceId,
+          specRevision: show.specRevision,
+          bundleSha256: show.bundle?.sha256 ?? null,
+          assertedAt: evidence.assertedAt,
+        },
+        null,
+        2
+      )}\n`
+    );
+  }
   const text = renderText(evidence).join('\n');
   writeFileSync(join(outDir, 'assertion.txt'), `${text}\n`);
 

@@ -14,6 +14,10 @@ import {
   surfaceError,
   surfaceWireKind,
 } from './surface-common';
+import {
+  assertWriteInScope,
+  surfacePreStateIdentity,
+} from '../surface-write-scope';
 
 /**
  * The shared writer layer for surface records, and the read that every
@@ -40,6 +44,22 @@ export interface ResolvedSurfaceChannel {
 }
 
 /**
+ * Why every caller has to say whether it is about to write.
+ *
+ * `resolveSurfaceChannel` is the only place in the surface commands that turns
+ * a channel id into a group id, which makes it the only place a group fence can
+ * be applied without every command having to remember to. Reads must stay
+ * unfenced — the preflight reads channels it is not bound to write, and so does
+ * anyone diagnosing one — so the fence needs an intent, and an intent that
+ * DEFAULTED to `read` would let a new write command slip past it by saying
+ * nothing at all. The argument is required, so adding a write command without
+ * deciding is a type error rather than a silent hole.
+ */
+export type SurfaceAccess =
+  | { intent: 'read' }
+  | { intent: 'write'; operation: string };
+
+/**
  * Locates a channel in both agents and returns its group listing.
  *
  * `%channels` is asked first because it is the only place that knows which
@@ -48,10 +68,14 @@ export interface ResolvedSurfaceChannel {
  * definition lives. A channel present in one and not the other is the
  * half-created state D50 describes, and it is reported as such rather than
  * as a plain "not found".
+ *
+ * On a write, the resolved group and channel are checked against the process's
+ * write fence (`surface-write-scope.ts`) before the caller sees them.
  */
 export async function resolveSurfaceChannel(
   deps: SurfaceDeps,
-  channelId: string
+  channelId: string,
+  access: SurfaceAccess
 ): Promise<ResolvedSurfaceChannel> {
   parseSurfaceNest(channelId);
   const nests = await deps.readChannelNests();
@@ -88,12 +112,66 @@ export async function resolveSurfaceChannel(
       { channel: channelId, group: groupId }
     );
   }
+  if (access.intent === 'write') {
+    assertWriteInScope(deps.writeScope, {
+      channelId,
+      groupId,
+      operation: access.operation,
+    });
+  }
   return {
     channelId,
     groupId,
     hostShip: channelHostShip(channelId),
     channel,
   };
+}
+
+/**
+ * How wide a window the pre-state identity reads when a channel has no spec.
+ *
+ * A sequenced channel is identified by its head alone and one post would do.
+ * An unsequenced or empty one is identified by the id set, and the set has to
+ * be wide enough that "a post arrived since the bound was taken" changes it.
+ */
+const PRE_STATE_HEAD_WINDOW = 25;
+
+/**
+ * What the channel looks like right now, in the one form the write fence
+ * compares against (`surface-write-scope.ts`).
+ *
+ * A definition that exists but does not validate still has a raw cell, so it
+ * still has an identity — a binding taken over an unreadable definition is
+ * checkable, which matters because `--allow-unreadable` exists.
+ */
+export async function readSurfacePreState(
+  deps: SurfaceDeps,
+  channelId: string,
+  current: SurfaceSpecRead
+): Promise<string> {
+  if (current.status !== 'absent') {
+    return surfacePreStateIdentity({
+      description: current.raw,
+      hasSpec: true,
+      postHead: null,
+      sha256Hex: deps.sha256Hex,
+    });
+  }
+  const head = await readPostHead(deps, channelId, PRE_STATE_HEAD_WINDOW);
+  const postHead =
+    head.sequenceNum !== null
+      ? `seq:${head.sequenceNum}`
+      : head.ids.size === 0
+        ? 'empty'
+        : `ids:${deps.sha256Hex(
+            new TextEncoder().encode([...head.ids].sort().join(','))
+          )}`;
+  return surfacePreStateIdentity({
+    description: null,
+    hasSpec: false,
+    postHead,
+    sha256Hex: deps.sha256Hex,
+  });
 }
 
 export type SurfaceSpecRead =
@@ -252,7 +330,7 @@ interface PostHead {
   ids: Set<string>;
 }
 
-async function readPostHead(
+export async function readPostHead(
   deps: SurfaceDeps,
   channelId: string,
   window: number

@@ -5,6 +5,7 @@ import type {
 } from '@tloncorp/api';
 
 import type { SurfaceLintResult } from '../surface-lint';
+import type { SurfaceWriteScope } from '../surface-write-scope';
 import { CommandError, type CommandDeps, writeLine } from './command';
 
 /**
@@ -71,6 +72,11 @@ export const SURFACE_ERROR_CODES = [
   'rubric-incomplete',
   'rubric-mismatch',
   'current-definition-unreadable',
+  'write-out-of-scope',
+  'pre-state-moved',
+  'fork-destination-occupied',
+  'recipe-absent',
+  'gate-harness-unavailable',
 ] as const;
 
 export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
@@ -122,6 +128,12 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     'spec-file-invalid': 'author',
     'surface-id-changed': 'author',
     'lint-failed': 'author',
+    // The GATE could not run — its own known-good canary bundle failed to
+    // render, so nothing the behavioral phase would have said about the
+    // caller's app is a fact about the caller's app. Author-classing this
+    // would tell a bot to rewrite files that are fine, which is the exact
+    // destructive-noise failure `environment` exists to prevent.
+    'gate-harness-unavailable': 'environment',
     'upload-failed': 'environment',
     'publish-unconfirmed': 'environment',
     'post-unconfirmed': 'environment',
@@ -162,6 +174,24 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     // prevent, and in this case it would land someone else's app on a live
     // board.
     'current-definition-unreadable': 'environment',
+    // The operator pointed this process somewhere and it went somewhere else.
+    // Nothing about the app or the caller's files is wrong, and rewriting
+    // either fixes nothing — the target is the thing that has to change, and
+    // only whoever set the fence can decide how.
+    'write-out-of-scope': 'environment',
+    'pre-state-moved': 'environment',
+    // The channel a fork was aimed at already publishes an app. Nothing the
+    // caller is holding is wrong — the source and its bundle are fine — and no
+    // rewrite of either helps, because the thing that has to change is the
+    // target. Landing a fork on a published board would orphan every event
+    // under it at a revision restarting from 1: the wrong-board incident with
+    // a copy in place of a revision.
+    'fork-destination-occupied': 'environment',
+    // `--regenerate` forks from the source's recorded intent, and this source
+    // recorded none. The caller's files are not implicated — the missing
+    // recipe belongs to a publish somebody else ran — so the remedy is to fork
+    // the bytes instead, not to rewrite anything here.
+    'recipe-absent': 'environment',
   };
 
 export class SurfaceError extends CommandError {
@@ -358,6 +388,13 @@ export interface SurfacePostPage {
 export interface SurfaceDeps extends CommandDeps {
   authenticate(): Promise<void>;
   actingShip(): string;
+  /**
+   * The operator's write fence, or null when this process is unfenced.
+   *
+   * Resolved once when the runtime is built, not per command: a fence that
+   * could change under a running command would be a fence with a race in it.
+   */
+  writeScope: SurfaceWriteScope | null;
   /** how patiently every write waits to observe itself */
   observationBudget: ObservationBudget;
   normalizeShip(ship: string): string;

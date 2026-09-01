@@ -42,6 +42,7 @@ import {
 import { shipCanStoreUploads } from './commands/upload';
 import { normalizeShip } from './notes-migrate';
 import { formatSurfaceLintResult, lintSurfaceBundle } from './surface-lint';
+import { loadSurfaceWriteScope } from './surface-write-scope';
 
 /**
  * Real dependencies for the `surface *` commands.
@@ -698,6 +699,13 @@ export function createSurfaceDeps(): SurfaceDeps {
       await ensureClient(['groups', 'channels']);
     },
     actingShip: () => getCurrentUserId(),
+    // Read once, here, and never again: a fence the commands re-read could
+    // change under a running command, and a fence resolved lazily would let a
+    // malformed one surface as a failure in whichever command happened to
+    // touch it first rather than at startup.
+    writeScope: loadSurfaceWriteScope(process.env, (filePath) =>
+      fs.readFileSync(filePath, 'utf-8')
+    ),
     observationBudget: DEFAULT_OBSERVATION_BUDGET,
     normalizeShip,
     now: () => Date.now(),
