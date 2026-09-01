@@ -17,6 +17,7 @@
  *                               framed plaintext
  */
 import {
+  getCanonicalPostId,
   getChannelPosts,
   getPostReference,
   getPostWithReplies,
@@ -532,7 +533,16 @@ async function main() {
         if (!target || !postId) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.context);
         }
-        await fetchContext(target, postId, limit, resolveCites, json);
+        // Users paste undotted ids from ship logs; returned posts carry
+        // canonical dotted ids. Normalize once so the cursor, the target
+        // marker, and the absent-target checks all agree.
+        await fetchContext(
+          target,
+          getCanonicalPostId(postId),
+          limit,
+          resolveCites,
+          json
+        );
         break;
       }
 
@@ -547,7 +557,13 @@ async function main() {
         if (authorIdx !== -1 && args[authorIdx + 1]) {
           author = normalizeShip(args[authorIdx + 1]);
         }
-        await fetchPost(target, postId, author, resolveCites, json);
+        await fetchPost(
+          target,
+          getCanonicalPostId(postId),
+          author,
+          resolveCites,
+          json
+        );
         break;
       }
 
