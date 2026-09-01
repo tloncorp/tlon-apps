@@ -217,11 +217,12 @@ function isEmptyDeliveryClaim(reply: string): boolean {
   const visiblePayloadLines = reply
     .slice((claim.index ?? 0) + claim[0].length)
     .split(/\r?\n/)
-    .map((line) => line.replace(/^[\s:;,.!\-–—`*_~]+/, '').trim())
-    .filter(
-      (line) =>
-        Boolean(line) && !/^```/.test(line) && !isDeferredSameLineTail(line)
-    );
+    .map((line) => {
+      const trimmed = line.trim();
+      if (/^(?:```|~~~)[\w.+-]*\s*$/.test(trimmed)) return '';
+      return line.replace(/^[\s:;,.!\-–—`*_~]+/, '').trim();
+    })
+    .filter((line) => Boolean(line) && !isDeferredSameLineTail(line));
 
   // Only content after the delivery claim can fulfill it. Introductory prose
   // before an empty heading is not delivered output.

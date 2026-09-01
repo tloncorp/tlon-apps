@@ -191,6 +191,21 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it.each(['```csv\n```', '~~~text\n~~~'])(
+    'rejects a delivery heading followed by an empty fenced block: %s',
+    (fence) => {
+      const guard = createFileReadCompletionGuard();
+      guard.recordToolResult(successfulRead('empty-fence'));
+
+      expect(
+        guard.beforeFinalize({
+          runId: 'empty-fence',
+          lastAssistantMessage: `Here are the requested contents:\n${fence}`,
+        })
+      ).not.toBeNull();
+    }
+  );
+
   it.each([
     'Opening the summary now.',
     'Reading the records now.',
