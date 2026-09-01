@@ -51,7 +51,11 @@ Each in `light` and `dark`, and in two states:
 
 ---
 
-## The seven checks
+## The checks
+
+Seven apply to every app. An eighth applies only to an app whose spec claims
+to be display-only; the scoring sheet `surface preview` writes for you carries
+it exactly when it applies, so you never have to work out which.
 
 Score every one against both themes. A finding on any is a repair round,
 not a note-to-self. Each heading below says what the machine pass reaches,
@@ -180,6 +184,31 @@ An app that passes checks 1–6 and answers a different question than the one
 that was asked is a failure, and it is the failure that is hardest to see
 from inside the work.
 
+### 8. Display-only is what was asked for, not what was convenient
+
+_Scored only when the spec declares `memberInteraction`. Machine pass:
+reaches none of this either._
+
+The gate warns when an app declares no actions, and the marker turns that
+warning off. So the marker is where an app that forgot its member action
+goes to look finished. It has happened three times, twice silently and once
+declared, always to the same shape of app: a board that renders "who owes
+what" and offers nobody a way to add anything.
+
+The subject of this check is the `because` sentence in the spec, held next to
+the request:
+
+- Does the request actually want a board nobody can touch? "Count down to
+  launch day" does. "Who owes what for the trip" does not — somebody has to
+  add an expense.
+- Is the host event named in `because` a real one, that this bot will really
+  post? "The bot archives the day's log on its next interaction" is real.
+  "The organizer edits it and I republish" is not an app.
+- Would a member looking at this screen reach for a button that is not there?
+
+A `fail` here is not a copy repair. It means the app is missing an action,
+and the repair is to add one and delete the marker.
+
 ---
 
 ## Scoring, and when to stop
@@ -206,7 +235,8 @@ and changed nothing. Doctrine asking for self-assessment did not produce
 self-assessment; a refusal does.
 
 Preview writes `rubric.template.json` into its output directory, already
-keyed for the twelve cells and the seven checks and stamped with the
+keyed for the twelve cells and every check that applies to your spec, and
+stamped with the
 bundle's own sha256. Fill it in and hand it to publish:
 
 ```
@@ -242,14 +272,32 @@ Two things the tool checks and one it does not:
 
 Do not raise these as findings against the app.
 
-- **A member who logged nothing.** The populated state folds _every_
-  declared action, including a reset (`clear-today` and friends). Whoever
-  the rotation hands the reset to last ends up empty, and will legitimately
-  be missing from the crew list. Check `manifest.json`'s invoke list before
-  concluding the app drops members.
+- **Everyone in one bucket.** For any app whose actions are (item ×
+  state) — a board with columns, a ladder with results — the populated
+  state folds every declared action in order, so each item ends at its
+  last-declared action and the capture piles everything into one column.
+  No ordering of the spec avoids it. Check `manifest.json`'s invoke list,
+  and read the `--state` capture instead: a `state.json` you wrote is the
+  realistic board.
+
+  **A member who logged nothing used to belong on this list and no longer
+  does.** The fold once handed a reset (`clear-today` and friends) to
+  whichever actor the rotation reached last, and that member was
+  legitimately missing from the crew list. The fold now replays every
+  constructive action once per actor after the rounds, so an actor-shaped
+  hole is a finding about the app again. `manifest.json` records
+  `populated.restoredAfterDestructive` when that pass ran, so the extra
+  invokes are attributable to the tool rather than mistaken for the
+  spec's.
 - **The populated state looking identical to the empty one.** The report
   says so when it happens. That means folding every action changed nothing
   — which is a finding about the _spec_, not about the render.
+
+  **Unless the app declares `memberInteraction`**, in which case it is the
+  app being exactly what it says it is: nothing a member can press means
+  nothing to fold, and preview's own report says so correctly. For such an
+  app the twelve cells collapse to six pairs, so honest scoring is six
+  distinct images plus a separate `--state` run against the example board.
 - **Blank space below a short app.** The captures are a fixed viewport; an
   app shorter than it leaves the rest as background. That is what the app
   screen looks like too.

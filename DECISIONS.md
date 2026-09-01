@@ -3805,3 +3805,797 @@ transcript is an audit that will be lost, and this project has now lost two.)
   6a.5's reported 100–130s. Five turns exceeded 6a.5's longest. Generation from
   nothing costs roughly twice what revising an existing board costs, and 6a.5
   measured mostly the latter.
+
+---
+
+## Session 6b — the verdict, the five conditions, and the templates
+
+### The format verdict
+
+- **D130: the bundle format earns its keep.** After three measurement rounds
+  the joint reading is that the loop EDITS an existing app when asked to change
+  it rather than regenerating one with the requirement folded in, so the
+  fluency premium is real and template investment is justified. M2's format
+  gate is satisfied and Session 6b's template authoring is unblocked.
+
+  The basis, in one place: **twelve post-read-back revision observations, zero
+  regenerations** (6a.5's two edits and three no-ops, plus the verdict run's six
+  edits and one no-op), and the kanban structural case — `['todo','doing','done']`
+  → `['todo','doing','blocked','done']`, six actions added, **all 18 originals
+  kept by id**, four member-moved cards still in their columns after the
+  migration. Word survival 94–100% across the six edits, four of them at 100%.
+  See `surface-channels-verdict-run-report.md` §4, `-6a5-report.md`, and the
+  decision brief `surface-channels-peer-report.md` for the case against.
+
+  **Two qualifications recorded with the verdict, not after it.** Only seven of
+  the twelve observations were FORCED — 6a.5's five turned out to be already
+  satisfied, which is why that round was uninterpretable — so "zero
+  regenerations across twelve" is carrying five observations that prove less
+  than the seven do. And four of the verdict run's six edits were on apps the
+  same loop had generated minutes earlier from templates it had just read,
+  which is the friendliest possible case for editing. D131's aged-board
+  revisions are the free confirmation on that residual and are evidence
+  gathering, not a gate.
+
+  What the verdict does NOT settle is readiness, and that is unchanged: the
+  same run published to the wrong board, twice answered a request instead of
+  acting on it, and shipped an inert app for the third time. None of those is a
+  format question. D131 and D133 close two of them.
+
+  **Amended by D140.** The kanban case cited above as the strongest single
+  observation produced a board on which no card can reach Done without first
+  being marked Blocked, and the rubric passed it. The edit-versus-regenerate
+  claim is untouched — the diff really is surgical and the state really did
+  survive — but this case should not be read as evidence that the resulting
+  APP was good, and D130 as first written invited exactly that reading.
+
+### The five conditions attached to the verdict
+
+- **D131: the write fence — a surface write is bound to a target, not just to a
+  sentence.** `packages/tlon-skill/scripts/surface-write-scope.ts`. A scope file
+  named by `TLON_SURFACE_SCOPE_FILE` carries up to three claims: the only
+  `channel` writes may touch, the `preState` identity that channel must still
+  carry, and the `groups` writes may touch at all. `surface publish`,
+  `surface event`, `surface snapshot` and `surface create` all refuse outside
+  it.
+
+  Enforced at `resolveSurfaceChannel`, which is the only place in the surface
+  commands that turns a channel id into a group id and therefore the only place
+  a group fence applies without every command remembering to. Its new `access`
+  argument is REQUIRED and has no default: reads must stay unfenced (the
+  preflight reads channels it is not bound to write), and an intent defaulting
+  to `read` would let a future write command slip past by saying nothing. A
+  write command that forgets to decide is now a type error.
+
+  Four judgment calls worth the record.
+
+  **A file, not env vars.** The fenced process runs in a container the harness
+  cannot re-exec. Compose names the path once; the harness rewrites the
+  contents per run. One mechanism rather than two.
+
+  **A scope file that cannot be read is a refusal, not "unfenced".** A fence
+  that fails open is decoration, and treating an unreadable file as absent
+  turns a typo into a silent removal of the bound.
+
+  **The pre-state is spent by one publish.** `preState` binds a
+  transformation — take THIS definition and produce another — so a second
+  publish under one binding starts from a definition nobody asserted anything
+  about and refuses. That will occasionally refuse a legitimate republish
+  inside one bound turn. Accepted deliberately: the refusal is loud, names both
+  identities and both readings, and the alternative is a binding that silently
+  widens.
+
+  **Identity is raw-to-raw (D72).** The pre-state hash is taken over the
+  description cell as the ship holds it, never over a validated re-encode — a
+  key the schema strips would otherwise make two different stored definitions
+  bind to the same identity.
+
+  The harness half: `surfaces-assert-unsatisfied.ts` emits `binding.json` on a
+  pass only, and `surfaces-run.sh` copies it into the container's scope file
+  before the prompt goes out and widens it back afterwards via an EXIT trap.
+  `SURFACES_ALLOWED_GROUPS` is required and has no default, because a default
+  is a blast radius nobody chose and "nobody chose it" is how a seed-group
+  fixture got written to. A binding whose group is outside the declared set
+  refuses at the harness, before the CLI is ever reached.
+
+  **Negative controls, all four run.** The wrong-board write reproduced
+  unfenced (publishes clean to a same-group sibling, reported as a successful
+  first publish); the same write refused once bound, naming both channels, with
+  nothing written anywhere; a board in an undeclared group refused; and a
+  pre-state moved between the bound and the publish refused, naming both
+  identities, leaving the existing revision untouched. Mutating both call sites
+  to no-ops failed exactly those four tests and no others — the mutation was
+  confirmed applied before the result was believed.
+
+  **`surfaces-preflight.mjs` now asserts the container is actually fenced**, by
+  reading `TLON_SURFACE_SCOPE_FILE` out of the running process rather than out
+  of the compose file. An environment change reaches a container only on
+  RECREATE, so a container started before the compose file gained the line runs
+  unfenced while every host-side artifact says otherwise — the stale-binary
+  problem one layer down. Verified against the currently-running 6a container,
+  which reports the variable empty and would fail.
+
+- **D132: the two structural witnesses re-read, independently — the record
+  holds, the instrument had a hole.** A fresh agent that had not authored the
+  witness patterns went back to the verdict run's pre-state bundles and read
+  them as a reviewer, without consulting the patterns.
+
+  **Both audited requests were genuinely unsatisfied.** The kanban pre-state
+  hard-coded three statuses in three separate places (`bundle.js:13`, `:14`,
+  `:20`), gave each of six tasks exactly three handlers, and declared eighteen
+  actions writing only `todo`/`doing`/`done`; there was no fourth column and no
+  reachable fourth status. `rev-poll-cant-make-it`'s pre-state declared exactly
+  three vote actions and painted a "who has voted" roster with no way to
+  decline. Chain of custody was checked too: for every `rev-*` record the
+  bundle the preflight fetched is byte-identical to the captured pre-state
+  artifact, and the run log shows the assertion written before the sentence
+  went out.
+
+  **The hole: the bundle-source check searched with the PROSE pattern set
+  only.** For `rev-poll-cant-make-it` every render pattern required a literal
+  space (`can.?t make it`) while the only occurrence in the app that
+  demonstrably HAD the behaviour was the identifier `'cant-make-it'` — so the
+  fourth check could not have fired even on the positive case, and the evidence
+  sheet said "the bundle source does not mention it" as though it had looked.
+  This is the failure the requests README already names for the action surface
+  ("a prose pattern applied to an action map matches nothing ever, and 'no
+  action provides it' would then be true by construction"), repeated one
+  surface over on the reasoning that all four surfaces are prose. Bundle source
+  is not prose; it is a mixture, and it needs both sets.
+
+  Fixed: `sourceHit` now searches the union of both compiled sets. Widening is
+  safe without a further self-test because a source hit produces ABSTAIN and
+  never PRESENT — over-matching costs a candidate request and can never
+  manufacture a false ABSENT or corrupt an issued observation. Two tests pin
+  it, and reverting the union fails exactly those two.
+
+  **Three further limits found and recorded rather than fixed**, because each
+  would be new machinery and none of them bit this corpus. (1) `initialState`
+  and the live state document are never pattern-matched — `decide()` searches
+  the action map, the recipe, the render and the source, and every app in the
+  corpus is data-driven, so for state-resident behaviour the painted render is
+  the only check that can see it. (2) The twelve render cells are two state
+  configurations, not twelve — live-reduced and live-reduced-with-all-actions —
+  and the second adds nothing the action-map check does not already have, so a
+  behaviour filtered out of the render at both reports ABSENT on all four
+  surfaces while sitting in plain sight in the definition. (3) Action patterns
+  match `id + serialised ops`, so a generic parameterised action would provide
+  a behaviour without the witness word appearing anywhere; that is inapplicable
+  in v0, where input-carrying actions do not exist, and becomes live the day
+  they do.
+
+- **D133: the display-only marker costs a sentence, and the sentence is
+  scored.** `memberInteraction` was a bare `z.enum(['none'])`. Its first outing
+  was on the exact app the rule was written to catch — an expense split nobody
+  can add an expense to, shipped inert a SECOND time one session after the
+  failure was named, declared this time so the warning never fired. The marker
+  had been copied out of `PARADIGM.md`'s snippet before any lint ran, from a
+  code block sitting eleven lines below the paragraph naming that app shape as
+  the wrong reason to reach for it.
+
+  Three changes, in the order they are encountered rather than the order they
+  were written:
+
+  **Doctrine first.** The declaration is now presented as a sentence rather
+  than a flag, the example's `because` is a placeholder that cannot be pasted
+  without writing something, and the paragraph naming the incident sits under
+  it. The rule a reader meets before the hatch is the rule that motivates it.
+
+  **The schema second.** `memberInteraction` is now
+  `{ mode: 'none', because: string }` with a non-empty `because`, declared on
+  `SurfaceSpecSchema` for the `duplicatesTolerated` reason (`z.object` strips
+  what it does not declare, so an undeclared marker is present in a written
+  spec and absent from the validated read-back of that same spec). The bare
+  string the field used to be is now REJECTED — leaving it accepted would have
+  kept the old path open beside the new one.
+
+  **The rubric third.** Check 8, `display-only-was-asked-for`, applies only to
+  a spec that declares the marker, and its subject is the `because` sentence
+  held next to the request. Conditional rather than universal on purpose: a
+  check every sheet must answer becomes a check every sheet answers the same
+  way, and check 7 is the standing proof — "the screen is the thing that was
+  asked for" passed an inert expense split, because a screenshot of a board
+  nobody can touch looks exactly like one somebody can. `surface preview` emits
+  check 8 in the template exactly when it applies, so the forcing function
+  lands where the author is already filling in blanks rather than at publish
+  time, after the work it was meant to shape.
+
+  **Control, as required:** the verdict run's inert-but-declared expense spec,
+  updated to the new marker shape, is refused by publish with
+  `rubric-incomplete` naming `display-only-was-asked-for`; it publishes once
+  the check is scored; and an app making no such claim is asked for nothing
+  extra. The gate additionally warns on a marker with no `because` and says
+  what is missing, and an empty or whitespace `because` is not a `because`.
+
+  **What this does not do**, stated because the last rule of this shape was
+  believed to do more than it did: `because` is not machine-checkable and is
+  not trying to be. Its job is to make an author who cannot name the host event
+  notice that they cannot, at the moment they are typing.
+
+- **D134: the desk preflight — a claim with a shelf life gets a check.**
+  `packages/openclaw/dev/surfaces-desk-preflight.mjs`. "The publish pipeline is
+  proven end to end on fakeships" was true when written and silently stopped
+  being true: a develop merge added `mar/group/action-5.hoon` and flipped the
+  client to poke that mark in one commit, and the running ships were never
+  re-synced. Nothing could see it, because nothing ever compared the ship's
+  desk against the repo's.
+
+  It assembles the branch's desk the way `deploy.sh` and rube do
+  (`scripts/assemble-desk.sh`) and compares it file-by-file against each
+  running ship's MOUNTED `%groups` desk. Two paths are excluded, each named
+  with the reason it carries no compiled behaviour: `commit.txt` is a git stamp
+  that moves on every commit to anything (checked for ANCESTRY instead, which
+  catches the thing a stamp can actually tell you — a ship built from another
+  branch), and `desk.docket-0` carries the released frontend glob, which this
+  workflow never fetches because the client comes from the vite dev server.
+
+  **The mount is not the whole answer**, and this is the part worth recording.
+  The mounted directory is what clay wrote out, but it is also what anyone
+  rsynced in: `rsync` without a following `|commit` leaves the mount matching
+  the branch while clay still holds the old desk — the original failure with an
+  extra step. There is no way to read a clay file back over eyre, so the second
+  half is a per-machine gitignored ledger. `--record` writes the ship's live
+  `%groups` pike hash beside the content digest verified at that moment; later
+  runs require both to still match. A commit nobody recorded shows up as a
+  moved pike hash; a sync nobody committed shows up as a digest with no ledger
+  entry. Neither passes silently. The ledger is gitignored because pike hashes
+  are takos — they carry parents and timestamps and mean nothing on another
+  machine.
+
+  **Demonstrated failing**, as required: against a decoy pier missing
+  `mar/group/action-5.hoon` and one Hoon file behind, it names both files and
+  exits 1; against a ledger with a moved pike hash it reports `pike-moved` and
+  exits 1; against a moved content digest, `digest-moved` and exit 1; an
+  unmounted desk exits 2. The current fakeships pass on all 641 files with the
+  stamp an ancestor of HEAD. Eleven unit tests cover the pure half in CI, where
+  the live half cannot run.
+
+  Wired into `surfaces-run.sh` ahead of every other preflight: a run taken on a
+  stale desk measures the loop against a backend the repo no longer describes.
+
+- **D135: the fence assertion was vacuous when written, and was caught by
+  running it.** D131's container check first read `TLON_SURFACE_SCOPE_FILE` out
+  of the running process, found it set after the recreate, and passed. The CLI
+  the bot actually invokes is a `bun --compile` binary at
+  `$TLON_SKILL_DIR/bin/tlon`, and the one in the container had been built at
+  13:35 that day — before the fence existed. So the assertion was confirming
+  that an environment variable pointed at a file the binary never read. Species
+  4 of the vacuous-guard taxonomy, claims-a-mechanism-never-exercised,
+  reproduced inside an hour of writing the mechanism.
+
+  The assertion now EXERCISES the fence with three credential-free probes
+  against the container's own CLI: a malformed scope file must be refused
+  naming the parse error, an absent one must be refused fail-closed, and — the
+  control — **no scope named at all must fall through to the ordinary
+  failure**. Without the third, the first two would pass equally against a CLI
+  that failed on everything.
+
+  **Negative control run:** the same three probes against
+  `packages/tlon-skill/dist/tlon`, an August 18 binary that predates the whole
+  `surface` command group, produce `Run "tlon --help" for usage information`
+  three times — no scope-file refusal anywhere, so the assertion fails, which
+  is the required outcome. The rebuilt binary passes all three, and the full
+  preflight passes live with the control note recorded in its evidence file.
+
+  **The general lesson, which is the reason this is a numbered entry rather
+  than a footnote:** the guards this project keeps writing are guards about
+  configuration, and configuration is the thing that is easy to observe. What
+  is worth observing is behaviour. The distinction is not academic — the
+  configuration was correct and the behaviour was absent, simultaneously, and
+  only one of those two facts was visible to the check.
+
+  **Why the 6a.5 "stale-binary guard" did not catch this, asked and answered.**
+  It could not have, because it is not a guard. Its whole implementation is a
+  design choice recorded in `surfaces-assert-unsatisfied.ts`'s header: *"Both
+  CLI reads run the CLI FROM SOURCE (`bun packages/tlon-skill/scripts/
+  main.ts`), never a compiled binary… running from source makes the staleness
+  question **unaskable rather than guarded**."* There is no detector, nothing it
+  keys on, and nothing that could fire. It caught 6a.5's twenty-minute-stale
+  CLI by ceasing to use it.
+
+  So neither candidate explanation is right. The assertion did not run outside
+  the guard's path, and the guard does not key on something the fence commit
+  left alone: **the remedy was scoped to the INSTRUMENT and never extended to
+  the ACTOR.** The preflight reads through source; the bot reads through
+  `$TLON_SKILL_DIR/bin/tlon`; nothing ever looked at the second. That makes
+  this a scope hole as well as a vacuous guard, and the two have the same fix,
+  which is the one now in place — exercise the mechanism through the path the
+  real actor uses.
+
+  A documentation hazard worth naming with it: "unaskable rather than guarded"
+  is a true and careful sentence about the preflight's own reads, and one
+  session later it was read as a guard covering the container. A remedy that
+  works by removing a question leaves nothing behind that says what it does not
+  cover — so `surfaces-assert-unsatisfied.ts`'s header now says it, naming the
+  bot's compiled binary as the consumer this does not reach and pointing at
+  `assertFenced` as the place that does. That is the durable half of this
+  entry: the fix to the assertion stops one instance, and the fix to the
+  paragraph stops the next reader from making the same inference about some
+  other remedy of the same shape.
+
+### What template authoring surfaced about the tools
+
+- **D136: six findings from writing templates, five of them about the gate and
+  the preview rather than about the apps.** Session 5 found five plan errors
+  this way; the prompt expected more and there were more. Recorded together
+  because they share a shape — each is a place where the tool's answer depends
+  on something other than the app it is judging.
+
+  **1. `surface lint` gives different verdicts depending on the working
+  directory, and blames the author for it.** The shipped `poll` template FAILS
+  from the repo root and PASSES from `packages/tlon-skill`:
+  `error smoke-render bundle: render threw (initial state): TypeError:
+  Attempting to define property on object that is not extensible` — a
+  Preact/React JSX-runtime mismatch. Reproduced directly, and independently by
+  two template authors, one of whom established that
+  `bun --tsconfig-override packages/tlon-skill/tsconfig.json` does NOT fix it,
+  so the cause is not simply the root tsconfig's `jsx: react-jsx` without a
+  `jsxImportSource`. `surface preview` is unaffected from either cwd because it
+  renders through the prebuilt `dist` artifact rather than transpiling the
+  shell's `.tsx` primitives — which is also why the render probe works from the
+  repo root and lint does not.
+
+  **The serious half is the classification, not the failure.** It is reported
+  as a `violation`, an author error, and this codebase's own
+  `SURFACE_ERROR_CLASS` doctrine tells a bot that an author error means "your
+  files are wrong, rewrite and retry". So a correct app gets regenerated
+  because of where the tool was invoked from. That is precisely the destructive
+  noise the `environment` class exists to prevent, and it is the second time
+  the same mistake has been found in this project.
+
+  **2. A shipped template carried a twelve-cell machine defect that CI could
+  not see.** `workout-tracker` failed the preview machine pass on
+  `tap-targets` in all twelve cells — two buttons 0px apart in a bare `<div>` —
+  and it is the template whose idiom both new template authors copied first.
+  Fixed with a flex wrapper at `gap: var(--space-m)`; gate and suite green.
+  The reason it survived: `surface-templates.test.ts` auto-discovers every
+  template and checks the GATE, but never runs the preview defect pass, and
+  CI's headless render step runs `surface-preview.test.ts`, which does not
+  iterate templates. Wiring the machine pass over every shipped template is
+  the fix, and this is the evidence that it is worth doing rather than
+  hypothetical.
+
+  **3. The populated capture can systematically erase a member.**
+  `foldPopulatedState` applies actions in DECLARATION ORDER to a rotating
+  actor, so whichever action is declared last lands last on a determinate
+  actor — and if it is destructive (`del /responses/$actor`), that member is
+  gone from every populated cell. `RUBRIC.md` names the symptom ("A member who
+  logged nothing") but neither the cause nor the remedy, so an author reads a
+  real member-shaped hole as their own bug. Routed to the agent already inside
+  that function, with the constraint that the fix must not stop activating
+  declared controls — the gate's `not fully exercised` skip fires for any
+  action no control invoked, and the templates suite requires the skip list to
+  be empty.
+
+  **4. `PARADIGM.md` §3 asserts a guarantee nothing enforces.** It says flatly
+  "No `Date`, no `Date.now()`, no `setTimeout`/`setInterval`, no elapsed time."
+  At HEAD the gate's entire rule set is `action-idempotency`, `byte-cap`,
+  `chart-sizing`, `entry-point`, `jargon`, `member-interaction`,
+  `navigation-vector`, `pointer-hygiene`, `smoke-render`, `spec-schema` — there
+  is no lexical time rule at all, and the file's only `setTimeout` mention is a
+  comment about a different rule's evadability. A bundle containing
+  `Date.now() > 0 ? 0 : 1` passes clean. **This session's own author repeated
+  the false claim in two agent briefs before checking it**, which is the
+  session's lesson landing on the person writing it down.
+
+  **5. `surface preview` cannot render a template's `state.json`.** It renders
+  `initialState` and the mechanical fold, and there is no `--state` flag. Every
+  template ships a `state.json` its NOTES describe as "what CI renders", so the
+  CLI and the shell-side render job reach that file by different routes and an
+  author cannot preview what CI will draw. Both template authors independently
+  worked around it by writing temp specs with `initialState` swapped.
+
+  **6. A template cannot declare an action with no rendered control.** An
+  author wanted spare cost slots so a mid-trip cost could be added by one host
+  event rather than a revision. It lints clean as an APP (the skip is not a
+  violation) but `surface-templates.test.ts` requires the skip list to be
+  empty, so the pattern is unbuildable as a TEMPLATE. Recorded rather than
+  resolved: the skip rule and the template test currently disagree about what
+  a state-conditional control means, and that disagreement is worth settling
+  deliberately rather than by whichever one someone hits first.
+
+### `surface fork`
+
+- **D137: fork is built, and §9 was wrong in three places that only building it
+  exposed.** `surface fork <source> --into <destination> [--regenerate]`,
+  `packages/tlon-skill/scripts/commands/surface-fork.ts`, 35 tests, ten
+  negative controls each verified applied before the result was believed. The
+  plan text is amended in place with each change marked rather than quietly
+  rewritten.
+
+  **`--into` names a channel, not a group, and fork does not create it.** §9
+  said `--into <group>` and "create the channel". Building that would have
+  meant a second copy of `surface create`'s D50 burned-name discipline; the
+  deciding reason against is different, though — a destination the command
+  creates cannot be resolved at write intent before it exists, so the write
+  fence (D131) could not apply to fork the way it applies to publish. Splitting
+  it gives fork one read-intent resolve of the source and one write-intent
+  resolve of the destination, which is the property that matters.
+
+  **"`--regenerate` runs the full generation loop" is not buildable in a CLI.**
+  The loop is the bot's, between tool calls. The command does the loop's first
+  move and routes; §9 now says so. It also needed a refusal §9 did not
+  anticipate — `recipe-absent`, because re-deriving a recipe from the running
+  app would invent the thing the mode exists to carry.
+
+  **"Re-lints the copied bundle" understated the re-gate**, and the
+  understatement had a shape consequence. Rubric check 7 is context-scored, so
+  the source's sheet cannot travel; a fresh sheet must be bound to an id that
+  does not exist until fork mints it; so a plain copy is necessarily TWO runs
+  with a `surface preview` between them. That is not a design preference, it
+  falls out of the rubric's own `(surfaceId, bundleSha256)` binding.
+
+- **D138: the fourth-bite test would have passed under the defect it was
+  written to predict, and the test that says so is the useful artifact.** The
+  standing prediction was that fork would strip a gate opt-out marker. It does
+  not — but the reason is not that fork is careful: it is that
+  `duplicatesTolerated` and `memberInteraction` are both DECLARED on
+  `SurfaceSpecSchema` (D67, D72), so neither can tell a raw derivation from a
+  validated one. **A fourth-bite test built only from the markers the
+  prediction named would have passed under the exact defect it predicted.**
+  Only an undeclared key discriminates, so the fixture carries one
+  (`x-fourth-bite`), and there is now an explicit test pinning that the
+  fulcrum is the undeclared key rather than the markers.
+
+  Two things the test observed that nobody predicted. `memberInteraction`
+  travelling makes rubric check 8 (D133) apply to the fork, which turns "the
+  source's sheet does not travel" from doctrine into a mechanical refusal — a
+  seven-check sheet is `rubric-incomplete` on a forked display-only app. And
+  the read-back mutation (comparing the validated spec instead of the raw cell)
+  reproduces D72's signature exactly: six landing tests report
+  `publish-unconfirmed` on writes that landed.
+
+  **Re-verified after the conditions changed.** `provenance` was declared on
+  the schema later the same session (D139), which removes one more candidate
+  discriminator. Re-running the validated-derivation mutation with provenance
+  declared still fails the fourth-bite test, and still on the undeclared-key
+  assertion — so declaring the field did not hollow out the test.
+
+- **D139: `provenance` is declared on `SurfaceSpecSchema`, third time for the
+  same reason.** It was in plan §4.1's interface and not in the schema, so
+  every fork was writing an undeclared key. Safe today only because every
+  comparison on fork's write path happens to be raw-to-raw — a property of
+  today's call sites, not of the field, which is precisely the argument D67 and
+  D72 already made twice. Capped at 1KB (`SURFACE_CAPS.provenance`): a bound on
+  abuse, not on legitimate content, since nothing correct comes near it and a
+  spec near `specTotal` must not be pushed over by a field nobody chose to add.
+  Shape enforced — an unverifiable field with an unconstrained shape is a place
+  to put arbitrary member-visible text. `channel` stays optional, because
+  naming the source nest discloses that a channel by that name exists
+  somewhere and the forker should have to opt into saying so.
+
+  Consequence beyond hygiene: lineage is now readable off a validated spec,
+  which the §9 client fork affordance needs in order to display anything at
+  all.
+
+### The kanban case, re-examined
+
+- **D140: the verdict run's strongest observation produced a board you cannot
+  finish a task on, and the rubric passed it.** Found while deciding whether to
+  promote the generated kanban into a template. Verified directly against the
+  captured artifacts rather than taken on report.
+
+  `kanban-v1/bundle.js`: `const next = { todo: 'doing', doing: 'done', done: 'todo' }`.
+  `kanban-v2/bundle.js`: `const next = { todo: 'doing', doing: 'blocked', blocked: 'done', done: 'todo' }`.
+  **One button per card.** So the revision that added the Blocked column made
+  Blocked *mandatory*: after it, no card reaches Done without first being
+  marked Blocked, and Done wraps around to To do. The requested feature was
+  spliced into a single-button cycle, and the cycle is the whole navigation.
+
+  **Rubric check 7 passed it**, with the note quoted verbatim from
+  `artifacts/rubrics/rev5.json`: *"Blocked is visibly present as its own section
+  between Doing and Done."* That is true of the screen and silent about the
+  board.
+
+  **What this does and does not qualify.** It does NOT touch the format
+  verdict. The question D130 answers is edit-versus-regenerate, and the loop
+  edited: four call sites changed, all 18 original actions kept by id, four
+  member-moved cards surviving the migration in place. Every one of those
+  claims still holds. What it qualifies is the use of this case as evidence of
+  QUALITY. The verdict-run report and D130 present it as the strongest single
+  observation and describe ids preserved and live state surviving, without
+  noting that the app the edit produced is worse than the one it replaced. A
+  format that supports a precise edit and a model that makes a poor design
+  choice inside it are separable, and only the first was being measured.
+
+  **The generalisable part, and it is the third instance of one shape.** Check
+  7 — "the screen is the thing that was asked for" — has now passed three
+  defects: an expense split nobody could add an expense to, the same app again
+  with the inertness declared, and a board whose requested column became a
+  mandatory checkpoint. The common structure is not carelessness. **Every one
+  of those defects is about what happens when you press something, and check 7
+  is scored from a still image.** The preview matrix renders STATES and never
+  TRANSITIONS: twelve captures, no interaction between any two of them. A
+  static capture cannot see reachability, so no amount of care in scoring it
+  can catch this class.
+
+  Recorded rather than fixed, and deliberately. Closing it means preview
+  rendering a transition graph — press each control, capture the resulting
+  state, and report the columns or states that no sequence reaches — which is
+  a substantial addition to the tool and the wrong thing to bolt on at the end
+  of a session that has already added six guards. **It is the first candidate
+  for the next session**, and it is a better one than another rule, because it
+  gives the rubric something it currently cannot see rather than another
+  question to answer about the same picture.
+
+  The template does not inherit the defect: the generated app's DATA MODEL was
+  kept (status at a fixed shared path, one action per card-column pair, a
+  literal handler table — the structure that survived the live migration) and
+  the cycle was replaced with one destination button per column.
+
+### The eval harness
+
+- **D141: the harness measures by re-deriving, and its loudest outcome is
+  neither pass nor fail.** `packages/openclaw/dev/surfaces-corpus/` (33
+  records), `surfaces-score.mjs` (36 tests), `surfaces-eval-probe.ts`,
+  `surfaces-eval-run.sh`, a recorded baseline, and a negative-control fixture
+  pair. The full corpus run is the M2 exit measurement and is executed outside
+  build sessions.
+
+  **The corpus is 27 in scope — exactly three per template across all nine —
+  plus 6 deliberately out of scope, with 8 sentences carried verbatim from 6a**
+  and pinned by a test, so a later tidy-up cannot silently break comparability
+  with 6a's numbers.
+
+  **The out-of-scope six are the part worth understanding.** Four sit
+  deliberately close to an in-scope neighbour. The load-bearing one:
+  `oos-poll-lookup` and `poll-movie-night` carry the same trigger word with
+  opposite correct answers. 6a found "poll" routing AWAY twice, and the obvious
+  repair is to make the word magnetic — a corpus containing only the in-scope
+  member would score that repair as a clean win. The pair makes the two numbers
+  move in opposite directions, so the tradeoff is visible instead of being
+  optimised against.
+
+  **`expect.template` is reported and never gated**, because several requests
+  have a defensible second answer and scoring a judgement call pass/fail
+  invites optimising against the scorer. Every record carries a required
+  `expect.why`: an expectation with no argument is unfalsifiable, and when the
+  run disagrees nothing says whether the run or the expectation was wrong.
+
+  **Re-derive, don't trust.** The gate and the rubric are recomputed from the
+  artifact bytes using the same implementations `surface publish` uses. Where
+  the recomputation disagrees with what the run CLAIMED, the row is a
+  `contradiction` — ranked above `fail`, exit 1. Five cross-checks, including
+  `published-over-failing-gate` and `published-other-bytes`. This is the
+  scoreboard equivalent of D135's lesson: measure the behaviour through the
+  path the actor used, not the actor's own report of it.
+
+  **`unscored` is never `pass`, and there is deliberately no headline pass
+  rate anywhere in the output.** A missing request is `missing`, loudly; the
+  corpus is always the denominator. Out-of-scope requests get `n/a` on every
+  quality axis even when the run built something — an app that should not exist
+  has no business padding "how good are the apps this pipeline builds" — with
+  budget the deliberate exception, since an out-of-scope request that burned
+  the cap is exactly the cost worth surfacing.
+
+  **The cap is first class, per the reviewer's condition.** `cap-killed` ranks
+  above `fail` and below `contradiction`, derived from the turn's own seconds
+  OR the runner's flag, since the runner sits outside the turn and often cannot
+  see the kill. Per-phase seconds come from the transcript's own timestamps
+  rather than anything the runner writes down — the same re-derive rule — and
+  the split isolates `beforeFirstSurfaceCommand`, which is routing plus
+  generation, the phase the verdict run found expensive and the one no command
+  times on its own. **Medians, not means:** one 300s kill drags a mean across
+  33 requests. A transcript without timestamps yields `null`, not zeros.
+
+  **The negative control was run in both directions, and the second direction
+  is the one that makes it a control.** `broken-run/` carries six independent
+  breakages, each shaped to LOOK like a success — artifacts present, transcripts
+  showing the pipeline, four of six reporting `outcome: "published"` with a
+  read-back observation. Six different mechanisms catch them. But "the broken
+  run scored broken" is satisfied by a scorer that scores everything broken, so
+  a clean fixture runs beside it: `BROKEN: pass 0 | fail 2 | cap-killed 1 |
+  contradiction 3, exit 1` against `CLEAN: pass 2 | fail 0 | contradiction 0,
+  exit 0`. Both run in CI with the real probe, and a missing `bun` fails loudly
+  rather than skipping.
+
+  **Two refusals rather than defaults, both correct.** The probe exits 2 if the
+  gate gains a rule that neither the static nor the behavioural list names —
+  defaulting would file a behavioural rule under `lint` on a scoreboard whose
+  entire purpose is keeping those apart, and `time-display` landing mid-session
+  is the demonstration that this happens rather than a hypothetical. And on the
+  cwd defect (D136.1) the harness pins cwd AND the probe refuses with exit 2
+  rather than reporting a violation it does not believe, tested in both
+  directions so the guard survives the underlying fix landing.
+
+  **Part V's specification was wrong in three places.** "lint / fold / gate
+  results" are not three products — there is one gate with sixteen rules, now
+  decomposed into rules decided by reading (lint), rules that run the app
+  (fold), and their union (what publish enforces). "Routing outcome" and
+  "publish observation" cannot be produced in a build session at all; the smoke
+  subset leaves them `unscored`, which the harness reports rather than papers
+  over. And the screenshot-rubric input is not a separate file — the bot fills
+  `rubric.template.json` in place, so an unfilled sheet correctly fails the
+  rubric axis, which is why both in-scope smoke rows read `fail`.
+
+### Preview, conformance, and host-supplied time
+
+- **D142: the conformance assertion D69 asked for would have been vacuous, and
+  the honest version is three assertions with three different fulcrums.**
+  D69 wanted preview's populated-state fold and the client reducer driven
+  through the same fixtures and asserted equal. But preview does not have a
+  second fold: `surface-preview.ts` imports `reduceSurface` from
+  `@tloncorp/api/client/surface/reducer` and folds with it. A suite asserting
+  the two agree would assert that a function equals itself — green forever,
+  including on the day someone replaces the import with a hand-rolled copy,
+  which is the only failure the assertion exists to catch. Species 1 of the
+  taxonomy, computed-from-itself.
+
+  Shipped instead: **the import is pinned** (source-read, whitespace- and
+  quote-normalised, following the file's existing "assembled by the same
+  imports packages/app uses" pattern), **the migration gate is shown to be the
+  reducer's** (preview's `preserveState` stand-in snapshot driven through
+  `reduceSurface` with the author changed, the revision changed, and the
+  snapshot absent — all three must return `migration-pending`, so preview's
+  populated state exists because the reducer accepted a snapshot satisfying
+  §4.4/§6 rather than because preview waved the gate), and **D69's divergence
+  is asserted rather than described** (production carries the snapshot fold,
+  preview folds the new `initialState`; the test asserts they are NOT the same
+  screen, so "knowingly optimistic" is pinned instead of being prose).
+
+- **D143: host-supplied `now`, and two places the prompt's specification could
+  not be met literally.**
+
+  **"Shell-minor" has no representation.** `SHELL_VERSION` is a single major
+  and bumping it would break every spec's `bundle.shellVersion: 1` pin. It
+  stays 1, with the compatibility argument written into `version.ts`: the
+  change is additive in all three skew directions — old bundle on new shell,
+  new bundle on old host, old host with new shell all render.
+
+  **"The shell re-renders on an interval" cannot be true and deterministic at
+  once.** A shell-owned interval must read a clock or extrapolate from wall
+  time, either of which destroys the fixed-`now` reproducibility the feature
+  exists for. **The interval is the HOST's**, gated on the spec's declared
+  `timeDisplay` flag; the shell repaints only when handed a `now` and never
+  advances one itself. The flag stays gate-visible, which is what the
+  requirement actually needed.
+
+  Three consumers inject a fixed `now` — preview (`PREVIEW_FIXED_NOW`), the
+  gate's smoke render (`GATE_NOW`), and the preflight witness — so every
+  painted-output comparison stays deterministic.
+
+- **D144: the determinism control's first version was wrong, and its own
+  negative control caught it.** The claim under test is that a host-supplied
+  `now` makes a clock-dependent app's captures reproducible across preview
+  RUNS. The first implementation called `renderSurfacePreview` four times in
+  ONE process — and mutating `PREVIEW_FIXED_NOW` to `Date.now()` still passed,
+  because a module-level constant is evaluated once per process and both
+  in-process runs therefore read the same wall clock. The control was
+  measuring nothing.
+
+  Rewritten so each run is its own `bun` subprocess, which is also what a
+  preview run actually is. Both arms then behave: injected — twelve cells
+  byte-identical across runs ≥1.1s apart; ambient (`Date.now()`, the banned
+  pattern, present only as the negative arm) — all twelve differ. And both
+  mutations now fail: pinning `PREVIEW_FIXED_NOW` to the wall clock fails the
+  injected arm, and neutralising the ambient bundle fails the must-differ
+  assertion.
+
+  **Third instance this session of a guard caught vacuous by exercising it**
+  (D135, D138, this). The pattern in all three: the guard's subject was
+  observed rather than run.
+
+- **D145: the `Date` ban is now enforced, and the gate's own harness can no
+  longer blame the author for its environment.**
+
+  Rule 16 `time-display` has two legs. The lexical leg errors on `Date`,
+  `setTimeout`/`setInterval`, `requestAnimationFrame`/`requestIdleCallback` and
+  `performance.now` — this is what makes `PARADIGM.md` §3's sentence true for
+  the first time (D136.4). The behavioural leg renders at two host `now` values
+  a day apart and compares painted copy: moving without declaring is an error,
+  declaring without moving is a warning. **Both legs are needed and the fixture
+  set proves it**: `ambient-date-read` paints `Date.now() > 0 ? 'yes' : 'no'`,
+  which is stable across a day, so the behavioural leg is blind to it by
+  construction.
+
+  §3 is reordered to D133's rule — the constraint, then WHY ambient time is
+  banned (the sandbox's clock is the viewer's, so divergence is silent and
+  per-viewer), then that writes are never display, then the `timeDisplay`
+  hatch, then **exactly what the gate does and does not catch** (aliased
+  globals, computed member access, a `Date` read stable over a day,
+  `Intl.DateTimeFormat`). A hatch is not taught before the rule that motivates
+  it, and the limits are stated where the hatch is offered.
+
+  **`gate-harness-unavailable`.** D136.1's cwd-dependent failure could not be
+  reproduced consistently after rebuilding `packages/api` and
+  `packages/surface-shell` dist, so the cause is not claimed. The CLASS is
+  fixed: the behavioural phase now renders a known-good canary bundle in its
+  own window first, and if the canary fails, every behavioural rule is skipped
+  with a reason, no violations are emitted, and the CLI throws
+  `gate-harness-unavailable`, classed `environment`. Verified live — from the
+  repo root the poll template now reports *"Your files are not implicated — do
+  not rewrite the app. This is the gate's environment, not the bundle"* instead
+  of a `smoke-render` violation. The canary needs its own window: sharing one
+  leaves its shell root in the document the real run renders into, which was
+  measured to change an activation-shortfall reason.
+
+- **D146: the destructive-fold hole is closed, and D136.3's remedy was the
+  wrong one.** Ordering destructive actions first does NOT work — round N's
+  `del` lands on the actor round N-1 just wrote for, so the hole moves rather
+  than closing. The fold now replays every CONSTRUCTIVE action once per actor
+  after the rounds, so no actor-shaped hole survives any rotation. It runs only
+  when a spec mixes destructive and constructive actions (a `del`-only spec is
+  legitimately empty), drops no declared action, and records
+  `restoredAfterDestructive` in `PopulatedFold` and the manifest so the extra
+  invokes are attributable to the tool rather than mistaken for the spec's. It
+  ships its own in-suite control, reconstructing the old fold through the real
+  reducer and asserting a member IS missing.
+
+  `RUBRIC.md`'s "preview's artifact" entry described the old behaviour and was
+  therefore **wrong the moment this landed** — a stale doc that would have sent
+  authors to excuse a real defect. Rewritten: the member-shaped hole is now a
+  finding about the app again, and the entry instead names the artifact that
+  does survive — for any (item × state) app, folding every action in order
+  piles everything into one bucket, and no spec ordering avoids it.
+
+- **D147: the template machine pass runs in CI, one subprocess per template.**
+  `workout-tracker` shipped a tap-target defect in all twelve cells — two
+  buttons 0px apart, under the 6px minimum — and lints clean, passes the
+  template gate checks, and passes the shell-side render test. Three separate
+  agents found it independently, each by running preview by hand, because it is
+  the template whose idiom a new author copies first. Nothing in CI could see
+  it: `surface-templates.test.ts` checked the GATE, and the browser step ran
+  only `surface-preview.test.ts`, which does not iterate templates.
+
+  Now every shipped template is rendered and defect-scored, in CI, gated on
+  `TLON_PREVIEW_BROWSER` like its neighbour. **One template per SUBPROCESS**,
+  measured rather than assumed: seven templates in one process wedge Chromium
+  and fail on the third, while that same template alone passes in under ten
+  seconds. Shell errors and unprobed cells are asserted before defects, because
+  "no defects" over a blank page is the vacuous pass.
+
+  **Negative control:** removing the flex gap from `workout-tracker` fails the
+  new leg naming `tap-targets`; restoring it passes. The defect that motivated
+  the leg is the defect the leg catches.
+
+### The last two templates, and the doctrine debt they closed
+
+- **D148: nine templates, and six gaps that only writing the last two
+  exposed.** `habit-tracker` and `countdown` complete the list. Both gate-clean
+  at zero violations, warnings and skips; machine pass clean on all
+  twenty-four cells; `surface-templates.test.ts` is 37 assertions over nine
+  templates.
+
+  **`surface templates show` was hiding the sentence D133 exists to make
+  authors write.** It printed `actions: (none declared)` for a display-only app
+  and never printed `memberInteraction.because` — showing an inspecting bot
+  exactly the ambiguity the marker was added to remove, at the moment it is
+  deciding what to copy. Now an empty action map reads either
+  `(none — display-only by declaration)` with the sentence beneath it, or
+  `(none declared)`, and those are different things. A guard is only as good as
+  the surface that reports it, and this one was reporting the pre-guard world.
+
+  **The templates test required every `state.json` to name a ship**, which
+  pushed a countdown toward inventing people to satisfy a lint. Waived for a
+  DECLARED display-only app and no other — an app that merely happens to have
+  no actions still has to show somebody, because that is also what a forgotten
+  action looks like.
+
+  **`PARADIGM.md` §3 over-claimed reproducibility, and the over-claim was
+  load-bearing for one of this session's own controls.** It said two preview
+  runs "produce byte-identical screenshots". Across five runs on identical
+  bytes, cell-to-cell byte equality WITHIN one run flaked once in about sixty
+  cells on visually indistinguishable images; cross-run identity of the same
+  cell held every time. So the claim is now stated at the strength it holds —
+  compare a cell against ITSELF across runs, which is what D144's control does,
+  and build nothing that diffs one cell's bytes against another's.
+
+  **Three smaller corrections.** `RUBRIC.md`'s "populated identical to empty"
+  entry called that a finding about the spec, which is wrong for an app that
+  declares itself display-only — it is the app being what it says, its twelve
+  cells collapse to six pairs, and honest scoring is six images plus a
+  `--state` run. §2's host-is-the-clock section assumed a SCHEDULE throughout,
+  when lazy rollover is the shape a bot can actually deliver — now written up
+  with its tolerance test ("say out loud what a late close costs"; if you
+  cannot, the period is load-bearing and this is not the pattern) and its two
+  consequences, that a merged entry's marks are the union and that a run counts
+  days on the board rather than calendar days. And §5's float ban appeared to
+  forbid what `Progress` requires: a proportion handed to a primitive is
+  geometry, not a derived value — divide for the bar, never for the label.
+
+  **The line `countdown` draws, which is the one worth keeping:** a date that
+  has gone by is something a board may SHOW; it is not something a board may
+  WRITE. "Passed" is derived at paint time, per-viewer like the theme, recorded
+  nowhere — two members can briefly disagree and neither is wrong. "Closed" as
+  a stored fact is a host event and nothing else. The test: *does this change
+  what is IN the board, or what is ON the screen?*

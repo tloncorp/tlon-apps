@@ -67,7 +67,7 @@ language: "I don't have permission to add channels here yet."
    injects the source inside a `<script>` element. State shape and actions
    first, render second. Keep actions parameterless; key per-member state by
    `$actor`.
-5. **Lint:** `tlon surface lint app.js spec.json --json`. The gate runs fifteen
+5. **Lint:** `tlon surface lint app.js spec.json --json`. The gate runs sixteen
    rules in a fixed order, and the order is the repair order — fix the earliest
    violation first, because later rules are usually downstream of it (a bundle
    with module syntax cannot be evaluated at all, so nothing behavioral can be
@@ -85,8 +85,17 @@ language: "I don't have permission to add channels here yet."
    it prints what it did not check on every run. **A clean machine pass is not
    a clean app.** Every defect it lists is a repair round, not a note.
 
+   Two flags matter for apps whose interesting state is not reachable by
+   pressing buttons. `--host-ops <file>` folds host events alongside the
+   actions, so a board whose chart or history only a host event fills previews
+   full rather than empty; `--state <file>` renders a state you supply (a
+   template's `state.json`, or a live channel's `tlon surface state --json`)
+   in place of `initialState`. Every cell renders at one FIXED host clock, so
+   two preview runs of the same bytes produce the same screenshots.
+
    Preview writes `rubric.template.json` next to the screenshots, already keyed
-   for the twelve cells and the seven checks and stamped with the bundle's
+   for the twelve cells and every check that applies to your spec, and
+   stamped with the bundle's
    sha256. Fill it in as you score — one observation per capture cell, one
    verdict per check citing the cell you scored it on. **`surface publish`
    refuses without it.**
@@ -122,7 +131,7 @@ language: "I don't have permission to add channels here yet."
 7. **Publish.** `tlon surface create <group-id> --title "…"` the first time,
    then `tlon surface publish <channel> --bundle app.js --spec spec.json --rubric surface-preview/rubric.template.json`.
    The rubric is required and is checked for completeness and identity only —
-   all twelve cells observed, all seven checks scored, and the sheet naming
+   all twelve cells observed, every applicable check scored, and the sheet naming
    these exact bundle bytes. A repair round changes the bytes, so re-run
    preview and re-score before republishing. The
    revision number is derived from content — you never supply it — so a changed
@@ -273,6 +282,45 @@ language: "I don't have permission to add channels here yet."
   nothing". It is member-visible: §14 of `tlon surface doctrine` says what may
   go in it.
 
+## Copying somebody else's app
+
+`tlon surface fork <source> --into <channel>` duplicates an app you can read
+into a channel you can write. Make the destination first with
+`tlon surface create`; a fork refuses a channel that already publishes
+something, because it restarts the revision at 1 under a new id and would
+orphan whatever was there.
+
+It takes two runs, because the copy has to be looked at before it lands:
+
+1. `--stage-bundle <path> --stage-spec <path>` fetches the source's bundle,
+   hash-verifies it, writes it and the fork's definition to disk, and prints
+   the surface id it minted. Nothing is written to any ship.
+2. `tlon surface preview <bundle> <spec>` renders the staged pair and writes a
+   scoring sheet keyed to this fork.
+3. `--surface-id <id> --rubric <file>` re-reads the source, re-gates it, and
+   publishes the copy.
+
+Three things about a copy are not negotiable, and the command enforces all
+three rather than asking you to remember them:
+
+- **The source's `recipe` is not copied.** It is the source author's intent
+  record, written for their group, and it is member-visible in yours. Write
+  the fork its own on the next publish.
+- **The copy is re-gated and re-scored here.** An unchanged hash proves the
+  bytes are the ones that were published; it does not prove they are the right
+  screen for _this_ request, which is what rubric check 7 asks. The source's
+  sheet does not travel and the tool will not accept it.
+- **`provenance` is a claim, not an attestation.** This command writes it and
+  nothing verifies it. Say so if you repeat it to anyone. The source channel is
+  left out of it unless you pass `--include-source-channel`, because naming it
+  reveals that the channel exists and that you could see it.
+
+`--regenerate` is the other mode: it hands you the source's `recipe` as INPUT
+for an app you write yourself, fetches no bundle, and copies nothing. Prefer it
+when a recipe exists — a byte copy inherits code no gate has re-checked since
+the source published it. It ends with an ordinary `create` → `preview` →
+`publish`, carrying the provenance block it prints.
+
 ## When things fail
 
 Every subcommand takes `--json`. Success prints `{ ok: true, … }` with what the
@@ -309,6 +357,8 @@ and is the first thing to read:
 | `partial-hydration`                                                               | environment | do not report state or snapshot; retry, then report the channel unreadable                                                                                                                                                                                                | "I couldn't read the whole history of that board just now."                          |
 | `bundle-unavailable`                                                              | environment | the definition read back fine; only its bundle did not. On `details.reason` of `hash-mismatch` or `unsupported-scheme`, stop — there is nothing to retry and the bytes are not the app. On `fetch-failed`, retry once. **Never revise from a regenerated bundle instead** | "I can read that app's setup but not its code right now."                            |
 | `create-unconfirmed`, `publish-unconfirmed`, `post-unconfirmed`, `kind-tail-lost` | environment | the write is **not** confirmed — do not claim it landed                                                                                                                                                                                                                   | "That didn't go through — let me try again."                                         |
+| `fork-destination-occupied`                                                       | environment | the channel you aimed a fork at already publishes an app. Make a fresh one with `tlon surface create` and fork into that. **Do not** reach for `surface publish` to overwrite it unless a person asked for that board to be replaced                                      | "That board already has an app on it — I'll set the copy up in a new one."           |
+| `recipe-absent`                                                                   | environment | `--regenerate` needs the source's recorded intent and this source has none. Fork the bytes instead (drop the flag). **Never re-derive a recipe from the running app** — that invents the thing the mode exists to carry                                                   | "That app didn't record what it was asked to be, so I'll copy it as it stands."      |
 
 - **Never work around a gate rule.** They are load-bearing: a bundle that dodges
   the gate can still never gain capabilities, it just gets worse.

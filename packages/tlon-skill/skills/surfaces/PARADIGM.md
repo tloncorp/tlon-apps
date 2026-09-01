@@ -36,7 +36,9 @@ register one function:
 ```
 
 - **`render(state)` is pure.** Same state in, same tree out. It runs again on
-  every state change and every permission change. (A theme flip only swaps
+  every state change and every permission change. A second argument,
+  `render(state, context)`, carries the host's clock for the few apps that
+  need one — display only, and §3 has the whole rule. (A theme flip only swaps
   the CSS variables — your tree is not re-rendered, which is why an
   already-drawn chart keeps its colors until the next state update.)
 - **There is no app-local state.** No `useState`, no hooks, no module
@@ -46,7 +48,9 @@ register one function:
 - **`state` is whatever the reducer folded** — `initialState` plus events.
   Nothing guarantees a key is present. `state.votes || {}` everywhere.
 - **Your capabilities are exactly two:** read `state` (the render argument)
-  and `invoke(actionId)`. Everything else on `surface` is presentation.
+  and `invoke(actionId)`. Everything else on `surface` is presentation, and
+  `context` is an input rather than a capability — nothing you read from it
+  can be written back.
 - Your script is wrapped in a function, so top-level `var`/`function`
   declarations are local to the bundle, not globals.
 
@@ -102,22 +106,33 @@ chat and I republish", that is an app that does not work — the whole point
 is that the board changes without you. It needs an action.
 
 Display-only means the state moves **only** from host events you post on a
-schedule: a countdown, a rota that rolls over nightly, a summary of
-something outside the group. If you cannot name the host event that moves
-it, it is not display-only.
+schedule, or from a value written once at creation: a countdown, a rota that
+rolls over nightly, a summary of something outside the group. If you cannot
+name the host event that moves it, it is not display-only.
 
-Only then:
+**Naming it is the marker.** The declaration is not a flag, it is a sentence,
+and the sentence is the part that does the work:
 
 ```json
-{
-  "surfaceId": "srf-launch-countdown",
-  "memberInteraction": "none",
-  "actions": {}
+"memberInteraction": {
+  "mode": "none",
+  "because": "<name the host event that moves this app's state, or the value fixed at creation>"
 }
 ```
 
-Same shape as `duplicatesTolerated` below — an optional marker that turns a
-default-suspicious spec into a declared one.
+Write your own sentence. If the true one is "the organizer edits it and I
+republish", you have just written down that the app does not work, which is
+the point — the whole promise of a dashboard is that it changes without you.
+
+This is scored. A spec carrying the marker draws an eighth rubric check
+(`RUBRIC.md`, check 8), and it is scored against the request: display-only has
+to be what was **asked for**, not what was convenient to build.
+
+The last time this marker was a bare word, it was copied out of this document
+into the first spec written for an expense split — one session after two
+expense splits had shipped inert, eleven lines below the paragraph saying that
+exact app shape is the wrong reason to reach for it. The rule fired on nothing.
+That is why it costs a sentence now.
 
 ### The default: idempotent `set` keyed by `$actor`
 
@@ -173,6 +188,27 @@ The pattern, using the workout tracker (the worked example — read
 You get dated history, full idempotency, two ops well under the cap of 20,
 and no `append` anywhere. It degrades gracefully: a missed rollover just
 stretches "this session".
+
+**Roll over LAZILY, not on a schedule.** The bot archives on its next organic
+interaction with the channel. An OpenClaw cron job is not a line in a crontab —
+it wakes the agent and runs a model turn, so scheduling this puts inference in
+a timer path: every night a model works out what channel it is in, what date to
+write, and composes a two-op bookkeeping post with no judgement in it. That
+turn costs tokens, can fail, and can decide to do something else. Inference
+belongs where somebody asked a question.
+
+**The test for whether lazy is allowed: say out loud what a late close costs.**
+For a habit log it is that a mark tapped at half past midnight files under the
+day that just ended, and nothing on the board is paid, awarded, closed or
+expired at midnight. If you cannot say the cost — money, a deadline, a winner,
+anything disputable — the period is load-bearing and this is not the pattern
+for it. v0 has no right answer for those, because a scheduled host event is
+still a bot turn and a bot turn is still not a clock.
+
+Two consequences to write into the app's copy rather than hide: a merged entry
+covers everything since the last close and its marks are the UNION, and a run
+therefore counts days ON THE BOARD, not calendar days — so never claim a
+calendar streak.
 
 **Both ops go in one host event, in that order, and that is load-bearing.**
 The `del` is safe only because the `set` before it succeeded. The archiving
@@ -281,20 +317,115 @@ Both templates use it — `VOTE` in `templates/poll/`, `LOG` in
 
 ---
 
-## 3. `render` never reads the clock
+## 3. Time never enters ambiently, and never enters writes
 
-No `Date`, no `Date.now()`, no `setTimeout`/`setInterval`, no elapsed time,
-no "today", no "overdue".
+The rule, in one line: **time never enters ambiently and never enters
+writes; a host-supplied `now` is a display input.**
+
+### Why the clock is banned
+
+`render` never reads a clock. No `Date`, no `Date.now()`, no
+`setTimeout`/`setInterval`, no `requestAnimationFrame`, no
+`performance.now()`, no elapsed time measured inside the sandbox.
 
 The sandbox's clock is the **viewer's**. Every boundary that matters — the
 rollover, the archived date, the deadline the host wrote down — is the
-**host's**. Showing one as the other is a lie that differs per viewer, and
-the viewer in another timezone sees a different app.
+**host's**. An app that reads its own clock shows a different board to a
+member in Lisbon and a member in Los Angeles, and **nothing tells either of
+them that.** There is no error, no warning, no divergence anyone can see: two
+people describe the same screen differently and conclude one of them is
+confused. That silence is the whole reason this is a rule and not a
+preference.
 
-What you may use: the **order** of state (arrays and sorted keys are
-ordered), and **any date the host wrote into state**. That is all the time
-information that exists. A countdown renders the target date the host wrote
-and whatever status the host wrote; it does not tick.
+Start from state. The **order** of state is yours (arrays and sorted keys are
+ordered), and **any date the host wrote into state** is yours. For most apps
+that is all the time information that should exist: a deadline is a string
+the host wrote, a "closed" flag is a field the host set. Reach for the
+paragraph below only when the screen genuinely has to move between host
+events — and note that "genuinely" is rarer than it feels.
+
+### Writes are not display, ever
+
+A state transition that depends on time — "closed once the date passes",
+"archived at midnight", "streak broken after 48 hours" — is a **host event**
+and nothing else. No value of `now` can cause a write: `render` writes
+nothing, `invoke` carries no arguments, and an action's ops are fixed in the
+spec. If the rule you are implementing changes what is IN the board rather
+than what is ON the screen, it belongs to the host, and the host-is-the-clock
+pattern (§2) is how it gets there.
+
+Display and writes never blur. An app may grey out an expired row it derived
+from `now`; it may not decide the row is expired in state.
+
+### The display hatch: a host-supplied `now`
+
+When the screen really must stay current between host events, `render`'s
+**second argument** carries the host's clock:
+
+```js
+surface.register({
+  render(state, context) {
+    // context.now is epoch milliseconds from the HOST, or null
+    const left = context.now === null ? null : state.targetMs - context.now;
+    ...
+  },
+});
+```
+
+and the spec declares that the screen depends on it:
+
+```json
+"timeDisplay": { "refreshSeconds": 60 }
+```
+
+The declaration is what makes the host resend `now` on that cadence; without
+it `context.now` is the single reading the screen was opened with, and the
+app is frozen at it. `context.now` is `null` when the host supplied nothing —
+render something sane for that rather than assuming a number.
+
+Three properties, all load-bearing:
+
+- **It is an input, not state.** It arrives beside `state`, never inside it,
+  and nothing derived from it can be written back.
+- **It is per-viewer, like theme.** Two members can see different values; that
+  is fine for a countdown and fatal for a stored fact, which is what the
+  previous section is about.
+- **It is injectable, so captures are reproducible.** `surface preview`, the
+  publish gate's smoke render and the preflight witness all inject the same
+  FIXED `now`, so the same cell rendered by two preview runs at different
+  wall-clock times is byte-identical — measured, with the ambient-clock arm
+  measured beside it to show the comparison can fail.
+
+  Stated at the strength it actually holds: what is pinned is the CONTENT, and
+  cell-to-cell byte equality within one run has been seen to flake about once
+  in sixty cells on visually indistinguishable images. So compare a cell
+  against ITSELF across runs, which is what the control does; do not build
+  anything that diffs one cell's bytes against another's.
+
+Integer arithmetic on epoch milliseconds (§5) is how you turn it into "3 days
+left". Do not reach for `Date` to format it — `Date` is refused by the gate,
+and an absolute calendar date is a string the host should have written.
+
+### What the gate actually enforces, and what it does not
+
+Two checks, and neither subsumes the other:
+
+- **Lexical** — the bundle's code is scanned for `Date`,
+  `setTimeout`/`setInterval`, `requestAnimationFrame`/`requestIdleCallback`
+  and `performance.now`. Any of them is an **error**. Comments are not code,
+  so a comment saying "this app never calls `Date`" is fine.
+- **Behavioral** — the gate renders the initial state twice, one day apart on
+  the host-supplied clock, and compares the painted output. A screen that
+  moves without a declared `timeDisplay` is an **error**; a declared
+  `timeDisplay` whose screen never moves is a **warning**.
+
+It does **not** catch: a clock reached through an alias or a computed member
+expression (`globalThis['Da' + 'te']`); a `Date` read whose painted result
+happens to be identical across a day; `Intl.DateTimeFormat`, which formats a
+host-supplied timestamp without reading a clock and still renders in the
+viewer's timezone. The ordinary ways of reading a clock are refused. A
+determined evasion is not, and never was the claim — the rule is a rule
+because of what it costs the members, not because a scanner can prove it.
 
 ---
 
@@ -334,6 +465,13 @@ arithmetic on integers, divide only in the formatter:
 const tenths = (kg) => Math.round(kg * 10);
 const format = (t, unit) => String(t / 10) + " " + unit;
 ```
+
+**A proportion handed to a primitive is not a derived value.** `Progress`
+takes a fraction from 0 to 1 by contract, so every app that uses it divides.
+That is the formatter boundary, not a violation of this section: the fraction
+is consumed as geometry and never displayed, and the number a member reads
+("4 of 5", "80.0%") must still come from integers. Divide for the bar; never
+divide for the label.
 
 Store integers in state too. The op language has no arithmetic at all, so
 every computed value is derived in `render` — which is exactly why the
