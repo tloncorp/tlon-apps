@@ -453,10 +453,11 @@ export function fakeTemplateStore(
     root: () => root,
     exists: () => templates !== null,
     list: (): SurfaceTemplateSummary[] =>
-      (templates ?? []).map(({ name, title, files }) => ({
+      (templates ?? []).map(({ name, title, files, bundleAbsence }) => ({
         name,
         title,
         files,
+        bundleAbsence,
       })),
     read: (name) => (templates ?? []).find((t) => t.name === name) ?? null,
   };

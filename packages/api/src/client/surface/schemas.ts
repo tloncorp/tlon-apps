@@ -168,6 +168,25 @@ export const SurfaceSpecSchema = z
       'initialState'
     ),
     preserveState: z.boolean().optional(),
+    /**
+     * The publish gate's opt-out from the member-interaction rule: an app that
+     * declares no actions is display-only BY DESIGN — a countdown, a schedule,
+     * a read-only summary whose state moves only from host events — rather
+     * than by omission. The reducer never reads it.
+     *
+     * An enum with one legal value rather than a boolean, for two reasons.
+     * `displayOnly: false` over an empty action map would be a spec asserting
+     * members can act while declaring nothing they can do, a third state the
+     * schema cannot refuse. And the claim is about the MEMBER's half of the
+     * action map, not about the screen — a display-only surface still changes,
+     * from host events.
+     *
+     * Declared here for the reason `duplicatesTolerated` is: `z.object`
+     * strips what it does not declare, so an undeclared marker is present in a
+     * written spec and absent from the validated read-back of that same spec,
+     * and every comparison of the two sees a difference that is not there.
+     */
+    memberInteraction: z.enum(['none']).optional(),
     actions: z
       .record(ActionIdSchema, SurfaceActionSchema)
       .superRefine((actions, ctx) => {

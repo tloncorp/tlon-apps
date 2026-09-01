@@ -6,6 +6,9 @@ import { wrapBundleSource } from '@tloncorp/surface-shell/sandbox';
 
 import {
   ALL_FIXTURES,
+  BEACH_TRIP_SPLIT_BUNDLE,
+  BEACH_TRIP_SPLIT_SHA256,
+  BEACH_TRIP_SPLIT_SPEC,
   COMPLIANT_FIXTURE,
   RULE_FIXTURES,
   SUPPLEMENTARY_FIXTURES,
@@ -53,6 +56,20 @@ describe('surface publish gate — one fixture per rule', () => {
         bundleSource: fixture.bundleSource,
         spec: fixture.spec,
       });
+
+      // A warning-severity rule reports the OPPOSITE outcome for `ok`, and
+      // asserting it that way is the point: `ok === true` alongside exactly
+      // one warning is the contract ("warnings never block"), and a rule
+      // that quietly became an error would fail here rather than pass by
+      // being a stricter version of itself.
+      if (fixture.severity === 'warning') {
+        expect(result.ok).toBe(true);
+        expect(result.violations).toEqual([]);
+        expect(ruleSet(result.warnings)).toEqual([
+          fixture.rule as SurfaceLintRule,
+        ]);
+        return;
+      }
 
       expect(result.ok).toBe(false);
       // the right rule fired ...
@@ -1270,6 +1287,115 @@ describe('the behavioral phase presses the app’s controls', () => {
     expect(result.skipped.map((skip) => skip.rule).sort()).toEqual(WIDENED);
     for (const skip of result.skipped) {
       expect(skip.reason).toContain('activation budget ran out');
+    }
+  });
+});
+
+/**
+ * Rule 15 — an inert app is a declared choice, not a silent one.
+ *
+ * The defect it holds shut, verbatim from this session's run of the gate
+ * over both apps session 6a.5 published, BEFORE the rule existed:
+ *
+ *     --- beach-trip-split  (surfaceId=srf-beach-split, actions={})
+ *         ok=true violations=0 warnings=0 skipped=0
+ *         <gate output: empty — nothing to say>
+ *     --- dash-wqxxcy7q  (surfaceId=srf-ski-trip-split, actions={})
+ *         ok=true violations=0 warnings=0 skipped=0
+ *         <gate output: empty — nothing to say>
+ *
+ * FULCRUM: the observed value is the warning list, and exactly two things in
+ * this test's world move it — the NUMBER OF KEYS in the spec's `actions`
+ * object, and the presence of `memberInteraction: "none"`. The two fixtures
+ * below differ in the second and in nothing else, and the `actions` arm is
+ * moved by adding one key. Delete `checkMemberInteraction`'s call site and
+ * the first test fails on an empty warning list; make the rule ignore the
+ * marker and the second fails on a non-empty one; make it an error instead
+ * of a warning and the per-rule assertion in `one fixture per rule` fails on
+ * `ok`.
+ */
+describe('rule 15 — zero member actions is warned about, not refused', () => {
+  const fixture = RULE_FIXTURES.find(
+    (entry) => entry.name === 'member-interaction'
+  )!;
+
+  it('is the app that shipped, byte for byte', async () => {
+    // Without this, the fixture is a paraphrase of the incident and the
+    // suite could not tell an edited copy from the published bytes. The
+    // digest is the one `chat/~zod/beach-trip-split`'s definition pins.
+    const digest = new Uint8Array(
+      await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(BEACH_TRIP_SPLIT_BUNDLE)
+      )
+    );
+    const hex = [...digest]
+      .map((byte) => byte.toString(16).padStart(2, '0'))
+      .join('');
+    expect(hex).toBe(BEACH_TRIP_SPLIT_SHA256);
+    expect(BEACH_TRIP_SPLIT_SPEC.actions as Record<string, unknown>).toEqual(
+      {}
+    );
+  });
+
+  it('warns, and lets the publish through', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: fixture.spec,
+    });
+    // Not a refusal. The gate's contract is `ok = violations.length === 0`
+    // over severity `error` only, and this rule relies on that being true.
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0].rule).toBe('member-interaction');
+    expect(result.warnings[0].severity).toBe('warning');
+    expect(result.warnings[0].specPath).toBe('actions');
+    // The message has to teach the opt-out; a warning nobody can act on is
+    // noise that gets tuned out.
+    expect(result.warnings[0].message).toContain('memberInteraction: "none"');
+    // And it must actually reach the publisher's eyes.
+    expect(formatSurfaceLintResult(result)).toContain(
+      'warning member-interaction actions:'
+    );
+  });
+
+  it('says nothing when the app declares itself display-only', () => {
+    const declared = SUPPLEMENTARY_FIXTURES.memberInteractionDeclared;
+    const result = lintSurfaceBundle({
+      bundleSource: declared.bundleSource,
+      spec: declared.spec,
+    });
+    expect(result.violations).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(formatSurfaceLintResult(result)).toBe('');
+  });
+
+  it('says nothing about an app with even one member action', () => {
+    // The other arm of the fulcrum: same bundle, one action added. Without
+    // this, "warns" above would pass equally against a rule that warned on
+    // every spec it was handed.
+    const result = lintSurfaceBundle({
+      bundleSource: fixture.bundleSource,
+      spec: {
+        ...BEACH_TRIP_SPLIT_SPEC,
+        actions: {
+          settle: { ops: [{ op: 'set', path: '/settled', value: 1 }] },
+        },
+      },
+    });
+    expect(ruleSet(result.warnings)).toEqual([]);
+  });
+
+  it('does not accept a marker that says something else', () => {
+    // `memberInteraction` is an enum with one legal value on purpose. A
+    // truthy-but-wrong value is an undeclared app, not a declared one.
+    for (const value of ['None', 'members', true, 1, null]) {
+      const result = lintSurfaceBundle({
+        bundleSource: fixture.bundleSource,
+        spec: { ...BEACH_TRIP_SPLIT_SPEC, memberInteraction: value },
+      });
+      expect(ruleSet(result.warnings)).toEqual(['member-interaction']);
     }
   });
 });

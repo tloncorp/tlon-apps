@@ -25,6 +25,16 @@ export interface SurfaceLintFixture {
   spec: unknown;
   /** what the defect is, for the failure message when it stops firing */
   defect: string;
+  /**
+   * The severity the fixture's rule reports at; `error` when omitted.
+   *
+   * A warning-severity rule can never make `ok` false, so the per-rule
+   * assertion has to expect a DIFFERENT outcome for it — a gate that passes,
+   * carrying exactly one warning. Declared per fixture rather than inferred
+   * from the result, because inferring it from the result is how a rule that
+   * silently downgrades to a warning keeps its test green.
+   */
+  severity?: 'error' | 'warning';
 }
 
 const SHA256 = 'a'.repeat(64);
@@ -113,6 +123,145 @@ const SECTION_HEADER = '<${SectionHeader}>Who is bringing what<//>';
  * the two are otherwise indistinguishable.
  */
 const DEFERRED_JARGON = '"No " + "scr" + "atch" + " entries yet"';
+
+/* ------------------------------------------------------------------ */
+/* Rule 15's fixture: a real shipped app, read back off the channel     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `chat/~zod/beach-trip-split`, exactly as session 6a.5 published it —
+ * fetched with `surface show --bundle-out` (which hash-verifies against the
+ * definition before writing) rather than written here from memory.
+ *
+ * It is the incident rule 15 exists for: an expense split that renders a
+ * "Who owes what" card and declares `actions: {}`, so no member can add an
+ * expense to it. It passed every gate rule and rubric check 7. The gate's
+ * whole output for it was empty.
+ *
+ * `BEACH_TRIP_SPLIT_SHA256` is the sha256 the published definition pins, and
+ * `surface-lint.test.ts` re-hashes the string below against it. That is what
+ * makes "this fixture IS the shipped app" a checked claim rather than a
+ * comment: an edit to the source string, however small, breaks the hash.
+ */
+export const BEACH_TRIP_SPLIT_SHA256 =
+  'ea79c417ffa51e1b1cd660652782934fc61ccb502c05fce254d054548f0837c3';
+
+export const BEACH_TRIP_SPLIT_BUNDLE = `(function () {
+  const { html, primitives } = surface;
+  const { Card, ListRow, Stat, SectionHeader, Badge, Avatar, EmptyState } = primitives;
+
+  const cents = function (value) {
+    return Math.round(value);
+  };
+
+  const money = function (value) {
+    const sign = value < 0 ? '-' : '';
+    const absolute = Math.abs(value);
+    return sign + '$' + String(Math.floor(absolute / 100)) + '.' + String(absolute % 100).padStart(2, '0');
+  };
+
+  surface.register({
+    render(state) {
+      const people = Array.isArray(state.people) ? state.people : [];
+      const expenses = Array.isArray(state.expenses) ? state.expenses : [];
+      const paid = {};
+      for (const person of people) paid[person.ship] = 0;
+      for (const expense of expenses) {
+        if (expense && typeof expense.paidBy === 'string') {
+          paid[expense.paidBy] = cents((paid[expense.paidBy] || 0) + cents(expense.amountCents || 0));
+        }
+      }
+      const total = people.reduce(function (sum, person) { return sum + (paid[person.ship] || 0); }, 0);
+      const share = people.length === 0 ? 0 : Math.floor(total / people.length);
+
+      return html\`
+        <\${Card} title=\${state.title || 'Beach trip split'}>
+          <\${Stat} value=\${money(total)} label="total trip costs" hint="split equally between everyone" />
+          <\${SectionHeader}>What was paid<//>
+          \${expenses.length === 0
+            ? html\`<\${EmptyState} title="No expenses yet" description="Add the trip costs to see who owes what." />\`
+            : expenses.map(function (expense) {
+                return html\`
+                  <\${ListRow}
+                    left=\${html\`<\${Avatar} ship=\${expense.paidBy} />\`}
+                    right=\${html\`<\${Badge}>\${money(expense.amountCents || 0)}<//>\`}
+                  >
+                    <div>\${expense.label || 'Trip expense'}</div>
+                    <div>Paid by \${expense.paidBy}</div>
+                  <//>
+                \`;
+              })}
+        <//>
+
+        <\${Card} title="Who owes what">
+          <\${SectionHeader}>Equal share: \${money(share)} each<//>
+          \${people.length === 0
+            ? html\`<\${EmptyState} title="Nobody added yet" description="Add the travelers to calculate the split." />\`
+            : people.map(function (person) {
+                const balance = (paid[person.ship] || 0) - share;
+                const label = balance > 0 ? 'gets back ' + money(balance) : balance < 0 ? 'owes ' + money(-balance) : 'settled up';
+                return html\`
+                  <\${ListRow}
+                    left=\${html\`<\${Avatar} ship=\${person.ship} />\`}
+                    right=\${html\`<\${Badge} tone=\${balance > 0 ? 'positive' : balance < 0 ? 'negative' : 'neutral'}>\${label}<//>\`}
+                  >
+                    <div>\${person.ship}</div>
+                    <div>Paid \${money(paid[person.ship] || 0)}</div>
+                  <//>
+                \`;
+              })}
+        <//>
+      \`;
+    },
+  });
+})();
+`;
+
+/** The verbatim `surfaceSpec` cell, as `surface show` served it. */
+export const BEACH_TRIP_SPLIT_SPEC: Record<string, unknown> = {
+  version: 1,
+  surfaceId: 'srf-beach-split',
+  title: 'Beach trip split',
+  initialState: {
+    title: 'Beach trip split',
+    people: [
+      {
+        ship: '~ten',
+      },
+      {
+        ship: '~zod',
+      },
+    ],
+    expenses: [
+      {
+        paidBy: '~ten',
+        amountCents: 24000,
+        label: 'House',
+      },
+      {
+        paidBy: '~zod',
+        amountCents: 9000,
+        label: 'Gas',
+      },
+      {
+        paidBy: '~zod',
+        amountCents: 6000,
+        label: 'Groceries',
+      },
+    ],
+  },
+  actions: {},
+  recipe:
+    "A shared beach-trip expense split for two travelers. The board lists fixed trip expenses and derives an equal share and each person's balance from integer cents. Positive balances mean money back; negative balances mean money owed. The initial board records the house, gas, and groceries already paid.",
+  specRevision: 1,
+  bundle: {
+    assetRef:
+      'http://127.0.0.1:4323/ea79c417ffa51e1b1cd660652782934fc61ccb502c05fce254d054548f0837c3.js',
+    sha256: 'ea79c417ffa51e1b1cd660652782934fc61ccb502c05fce254d054548f0837c3',
+    size: 2974,
+    shellVersion: 1,
+  },
+};
 
 export const COMPLIANT_FIXTURE: SurfaceLintFixture = {
   name: 'compliant',
@@ -265,6 +414,19 @@ export const RULE_FIXTURES: SurfaceLintFixture[] = [
     })(),
     defect: 'an append action with no duplicatesTolerated marking (D54)',
   },
+  {
+    name: 'member-interaction',
+    rule: 'member-interaction',
+    severity: 'warning',
+    // The shipped app, not a reconstruction of it. Every other fixture here
+    // is the compliant baseline plus one injected defect; this one is the
+    // defect as it actually reached a channel, which is why it is worth the
+    // bytes.
+    bundleSource: BEACH_TRIP_SPLIT_BUNDLE,
+    spec: BEACH_TRIP_SPLIT_SPEC,
+    defect:
+      'a published expense split with actions: {} — no member can add an expense, and nothing said so',
+  },
 ];
 
 /**
@@ -300,6 +462,23 @@ export const SUPPLEMENTARY_FIXTURES = {
       return spec;
     })(),
     defect: 'none — the declared escape hatch must actually work',
+  } satisfies SurfaceLintFixture,
+
+  /**
+   * Rule 15's escape hatch: the same zero-action app, declared.
+   *
+   * A countdown-shaped surface — nothing a member can press, state moved by
+   * host events — is a legitimate app, and the rule's job is to make that a
+   * DECLARED shape rather than an accident. The two fixtures differ in
+   * exactly one key, so the warning is attributable to the declaration and
+   * to nothing else about the pair.
+   */
+  memberInteractionDeclared: {
+    name: 'member-interaction-declared',
+    rule: null,
+    bundleSource: BEACH_TRIP_SPLIT_BUNDLE,
+    spec: { ...BEACH_TRIP_SPLIT_SPEC, memberInteraction: 'none' },
+    defect: 'none — the declared display-only marker must actually work',
   } satisfies SurfaceLintFixture,
 
   /**

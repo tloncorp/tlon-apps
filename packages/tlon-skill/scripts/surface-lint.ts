@@ -132,6 +132,12 @@ export const SURFACE_LINT_RULES = [
   'jargon',
   'smoke-render',
   'action-idempotency',
+  // Appended rather than filed beside the other spec rules on purpose: the
+  // numbers in this list are cited by `RUBRIC.md`, `PARADIGM.md` and this
+  // module's own comments ("rule 13 — idempotency"), and inserting in the
+  // middle would renumber every rule after it. Ordering is a repair-priority
+  // signal, and a warning is never the first thing to repair.
+  'member-interaction',
 ] as const;
 
 export type SurfaceLintRule = (typeof SURFACE_LINT_RULES)[number];
@@ -1065,6 +1071,58 @@ function readRawActions(spec: unknown): RawAction[] {
     });
   }
   return actions;
+}
+
+/**
+ * The value `memberInteraction` takes when an app is display-only by design.
+ *
+ * An enum with one legal value, not a boolean, and the distinction is the
+ * naming argument. A boolean (`displayOnly: true`) creates a third state the
+ * schema cannot refuse — `displayOnly: false` over an empty action map is a
+ * spec asserting members can act and declaring nothing they can do — and it
+ * describes the SCREEN, which is wrong: a display-only surface still changes,
+ * from host events (a countdown ticks, a schedule advances). What is empty is
+ * the MEMBER's half of the action map, and that is what this names. Absent
+ * means undeclared, which is the case the warning is about; `'none'` means
+ * declared inert.
+ */
+const MEMBER_INTERACTION_NONE = 'none';
+
+/**
+ * Rule 15 — an inert app is a declared choice, not a silent one.
+ *
+ * Both 6a.5 "who owes what" apps shipped with `actions: {}` — a beach-trip
+ * expense split no member can add an expense to. Every gate rule passed
+ * (there is nothing wrong with the bundle) and rubric check 7 passed too:
+ * "the screen is the thing that was asked for" is scored against a
+ * screenshot, and a screenshot of a board nobody can touch looks exactly
+ * like a screenshot of a board somebody can.
+ *
+ * So the gate says it out loud. WARNING, never a violation: a display-only
+ * surface is a legitimate shape (a countdown, a schedule, a read-only
+ * summary) and refusing it would be refusing the shape rather than the
+ * silence. Declaring `memberInteraction: "none"` is the whole opt-out, and
+ * it passes clean — the same move `duplicatesTolerated` makes for D54.
+ *
+ * Read off the RAW spec, like every other spec rule here: the gate judges
+ * the spec it was handed.
+ */
+function checkMemberInteraction(collector: Collector, spec: unknown): void {
+  // A non-object spec has a `spec-schema` violation of its own; this rule has
+  // nothing to add to it.
+  if (!isRecord(spec)) return;
+  const declared = spec.memberInteraction === MEMBER_INTERACTION_NONE;
+  const actionCount = isRecord(spec.actions)
+    ? Object.keys(spec.actions).length
+    : 0;
+  if (actionCount > 0 || declared) return;
+  collector.add({
+    rule: 'member-interaction',
+    severity: 'warning',
+    message:
+      'the spec declares no actions, so no member can change anything on this surface. If that is the app — a countdown, a schedule, a read-only summary — declare memberInteraction: "none" and this warning goes away. If it is not, the app is missing the action its request asked for.',
+    specPath: 'actions',
+  });
 }
 
 /**
@@ -2367,6 +2425,7 @@ export function lintSurfaceBundle(input: SurfaceLintInput): SurfaceLintResult {
     rawActions.map((action) => action.id)
   );
   checkPointerHygiene(collector, rawActions);
+  checkMemberInteraction(collector, input.spec);
   const spec = checkSpecSchema(collector, input.spec);
   checkStyles(collector, scan);
   checkChartSourceGrep(collector, scan);

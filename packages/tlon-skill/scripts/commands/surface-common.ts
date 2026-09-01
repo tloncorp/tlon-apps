@@ -64,6 +64,7 @@ export const SURFACE_ERROR_CODES = [
   'state-too-large',
   'template-not-found',
   'template-catalogue-empty',
+  'template-bundle-missing',
   'doctrine-unavailable',
   'bundle-unavailable',
   'rubric-unreadable',
@@ -132,6 +133,11 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     'state-too-large': 'environment',
     'template-not-found': 'author',
     'template-catalogue-empty': 'environment',
+    // The INSTALL ships a template directory with no app bundle in it. The
+    // caller's own files are not implicated and no rewrite of them produces
+    // the missing file, so this is `environment` for the same reason
+    // `template-catalogue-empty` is.
+    'template-bundle-missing': 'environment',
     // The install does not carry the document the bot asked for: its own
     // files are irrelevant to the failure, and no rewrite of them fixes it.
     'doctrine-unavailable': 'environment',
@@ -284,6 +290,22 @@ export interface SurfaceTemplateSummary {
   title: string | null;
   /** absolute paths of the files the template actually ships */
   files: { bundle: string | null; spec: string | null; notes: string | null };
+  /**
+   * Why `files.bundle` is null, when it is — the names that were looked for
+   * and what the directory actually holds. Null whenever a bundle WAS found.
+   *
+   * It exists so a failed bundle lookup can be REPORTED rather than
+   * substituted for. The lookup used to fall through to
+   * `readdirSync(dir).filter(.js)[0]` — an arbitrary file, chosen by
+   * filesystem enumeration order, handed to a bot as the template's bundle
+   * under a zero exit code. Carrying the absence here lets the command that
+   * consumes it name the template, the expected names and the found ones
+   * without reaching for the filesystem itself.
+   */
+  bundleAbsence: {
+    expected: readonly string[];
+    found: readonly string[];
+  } | null;
 }
 
 export interface SurfaceTemplateDetail extends SurfaceTemplateSummary {

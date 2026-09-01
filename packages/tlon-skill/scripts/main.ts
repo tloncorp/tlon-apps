@@ -170,12 +170,12 @@ async function main() {
       }
       case 'channels': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./channels');
+        await import('./channels');
         break;
       }
       case 'contacts': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./contacts');
+        await import('./contacts');
         break;
       }
       case 'dms': {
@@ -186,22 +186,22 @@ async function main() {
       }
       case 'expose': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./expose');
+        await import('./expose');
         break;
       }
       case 'groups': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./groups');
+        await import('./groups');
         break;
       }
       case 'hooks': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./hooks');
+        await import('./hooks');
         break;
       }
       case 'messages': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./messages');
+        await import('./messages');
         break;
       }
       case 'notes': {
@@ -216,7 +216,7 @@ async function main() {
       }
       case 'settings': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./settings');
+        await import('./settings');
         break;
       }
       case 'surface': {

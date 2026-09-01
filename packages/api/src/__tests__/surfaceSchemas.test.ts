@@ -143,6 +143,31 @@ describe('SurfaceSpecSchema', () => {
     expect(parsed.actions['add-note']).not.toHaveProperty('stillUnknown');
   });
 
+  test('a spec survives validation carrying memberInteraction', () => {
+    // Same mechanism as duplicatesTolerated above, one level up: the gate's
+    // opt-out from the empty-action-map warning has to survive the round
+    // trip, or a display-only app declares itself inert and the validated
+    // read-back says it never did. The unknown key beside it is the contrast
+    // — it still vanishes, which is what the marker would do undeclared.
+    const parsed = SurfaceSpecSchema.parse({
+      ...validSpec({ actions: {} }),
+      memberInteraction: 'none',
+      stillUnknown: true,
+    });
+    expect(parsed.memberInteraction).toBe('none');
+    expect(parsed).not.toHaveProperty('stillUnknown');
+  });
+
+  test('rejects a memberInteraction that is not "none"', () => {
+    // One legal value, so the near-misses a model would reach for are the
+    // cases worth pinning: a capitalised variant, a plausible-but-undeclared
+    // word, and the boolean this deliberately is not.
+    for (const value of ['None', 'members', true, 1, null]) {
+      const spec = { ...validSpec(), memberInteraction: value as never };
+      expect(SurfaceSpecSchema.safeParse(spec).success).toBe(false);
+    }
+  });
+
   test('getDeclaredAction resolves only own declared actions', () => {
     const spec = SurfaceSpecSchema.parse(validSpec());
     expect(getDeclaredAction(spec, 'vote')).toBeDefined();

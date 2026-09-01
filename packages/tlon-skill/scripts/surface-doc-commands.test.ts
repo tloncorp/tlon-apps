@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { SURFACE_SUBCOMMANDS } from './commands/surface';
+import { SURFACE_LINT_RULES } from './surface-lint';
 import { readSurfaceSkillDocument } from './surface-docs-runtime';
 
 /**
@@ -209,5 +210,42 @@ describe('the surfaces skill may only instruct commands that exist', () => {
     ].join('\n');
 
     expect(extractSurfaceReferences('PROSE.md', text)).toEqual([]);
+  });
+});
+
+/**
+ * The rule COUNT in `SKILL.md` is a hand-maintained number about a list that
+ * lives in code, which is the drift shape D113's family is made of. It said
+ * "fourteen rules" and stayed correct only as long as nobody added one; this
+ * session added rule 15 and the sentence had to be found by hand.
+ *
+ * FULCRUM: `SURFACE_LINT_RULES.length`. Add or remove a rule id and this
+ * fails until the sentence is updated — which is the whole point, since the
+ * sentence is what a bot reads before deciding how many findings to expect.
+ */
+describe('the skill states the gate rule count correctly', () => {
+  const NUMBER_WORDS: Record<number, string> = {
+    12: 'twelve',
+    13: 'thirteen',
+    14: 'fourteen',
+    15: 'fifteen',
+    16: 'sixteen',
+    17: 'seventeen',
+    18: 'eighteen',
+  };
+
+  it('names as many rules as the gate declares', () => {
+    const read = readSurfaceSkillDocument('SKILL.md');
+    if (!read.ok) throw new Error(`SKILL.md unreadable: ${read.reason}`);
+    const expected = NUMBER_WORDS[SURFACE_LINT_RULES.length];
+    // A count outside the table is a real failure, not a skip: it means the
+    // gate grew past what this check can spell, and the sentence needs a
+    // human either way.
+    expect(expected, `no word for ${SURFACE_LINT_RULES.length}`).toBeDefined();
+    // Whitespace-tolerant: the sentence is markdown-wrapped, and the wrap
+    // column moves when the word length does.
+    expect(read.text.replace(/\s+/g, ' ')).toContain(
+      `The gate runs ${expected} rules`
+    );
   });
 });

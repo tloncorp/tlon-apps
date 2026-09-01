@@ -83,6 +83,27 @@ function runShow(deps: SurfaceDeps, name: string, asJson: boolean): number {
     );
   }
 
+  // A template with no bundle is not a template, and this command's whole
+  // job is handing a bot the bundle to copy. The lookup used to fall back to
+  // an arbitrary `.js` file from the directory — so a malformed template
+  // returned exit 0 and a path to something that was never an app. The
+  // refusal names all three things a repair needs: which template, what was
+  // expected, and what the directory actually holds.
+  if (detail.files.bundle === null) {
+    const absence = detail.bundleAbsence;
+    const expected = absence?.expected ?? [];
+    const found = absence?.found ?? [];
+    throw surfaceError(
+      'template-bundle-missing',
+      `Template "${detail.name}" ships no app bundle, so there is nothing to show. Expected one of ${expected.join(', ')}; ${
+        found.length === 0
+          ? 'the directory is empty'
+          : `the directory holds ${found.join(', ')}`
+      }.`,
+      { name: detail.name, expected, found }
+    );
+  }
+
   const actions =
     detail.spec &&
     typeof detail.spec === 'object' &&
@@ -106,7 +127,8 @@ function runShow(deps: SurfaceDeps, name: string, asJson: boolean): number {
     },
     lines: [
       `${detail.name}${detail.title ? ` — ${detail.title}` : ''}`,
-      `  bundle: ${detail.files.bundle ?? '(missing)'}${
+      // No `(missing)` branch: a bundle-less template was refused above.
+      `  bundle: ${detail.files.bundle}${
         detail.bundleBytes === null ? '' : ` (${detail.bundleBytes} bytes)`
       }`,
       `  spec:   ${detail.files.spec ?? '(missing)'}`,

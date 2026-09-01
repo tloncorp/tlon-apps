@@ -558,13 +558,16 @@ describe('surface publish — preserving state', () => {
   });
 
   it('carries a gate-only marker through to the stored definition', async () => {
-    // `duplicatesTolerated` is NOT in SurfaceActionSchema — z.object strips
-    // unknown keys (D67). It survives only because publish writes the raw
-    // assembled object and uses the schema check purely as a check. If that
-    // ever becomes `write(schemaCheck.value)`, the marker vanishes from the
-    // published definition, and the next revise cycle re-lints a spec whose
-    // append action has lost its opt-out and fails with no recourse. This
-    // pins the write, not the validation.
+    // Two markers, one property. `duplicatesTolerated` IS declared on
+    // `SurfaceActionSchema` now (`packages/api/src/client/surface/schemas.ts`)
+    // and would survive validation on its own; `memberInteraction` is the
+    // spec-level marker rule 15 reads and is NOT declared yet, so it survives
+    // only because publish writes the raw assembled object and uses the
+    // schema check purely as a check. If that ever becomes
+    // `write(schemaCheck.value)`, an undeclared marker vanishes from the
+    // published definition and the next revise cycle re-lints a spec that has
+    // lost its opt-out. This pins the WRITE, not the validation — which is
+    // exactly why the undeclared one is the useful subject here.
     const harness = withHistory();
     const marked = specFile();
     const firstAction = Object.keys(
@@ -573,12 +576,14 @@ describe('surface publish — preserving state', () => {
     (marked as { actions: Record<string, Record<string, unknown>> }).actions[
       firstAction
     ].duplicatesTolerated = true;
+    (marked as Record<string, unknown>).memberInteraction = 'none';
     harness.ship.files.set(SPEC_PATH, JSON.stringify(marked));
 
     expect(await publish(harness)).toBe(0);
 
     const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
     expect(stored.actions[firstAction].duplicatesTolerated).toBe(true);
+    expect(stored.memberInteraction).toBe('none');
   });
 
   /**

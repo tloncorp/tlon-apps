@@ -64,6 +64,22 @@ describe('surface lint', () => {
       const code = await run(['lint', BUNDLE, SPEC, '--json'], harness.deps);
       const result = harness.json();
       const violations = result.violations as { rule: string }[];
+      const warnings = result.warnings as { rule: string }[];
+
+      // A warning-severity rule reaches the DOCUMENT and deliberately not
+      // the exit status. Asserting that here rather than skipping it keeps
+      // the loop total over the corpus: a rule that quietly stopped
+      // appearing anywhere would still fail this.
+      if (fixture.severity === 'warning') {
+        expect(
+          warnings.some((entry) => entry.rule === fixture.rule),
+          `${fixture.name}: ${fixture.defect}`
+        ).toBe(true);
+        expect(violations, fixture.name).toEqual([]);
+        expect(code, fixture.name).toBe(0);
+        continue;
+      }
+
       expect(
         violations.some((entry) => entry.rule === fixture.rule),
         `${fixture.name}: ${fixture.defect}`
@@ -73,14 +89,18 @@ describe('surface lint', () => {
   });
 
   it('does not fail on warnings alone', async () => {
-    // The compliant fixture passes clean; assert the exit status tracks
-    // errors rather than the presence of any finding at all.
-    const harness = setup(
-      COMPLIANT_FIXTURE.bundleSource,
-      COMPLIANT_FIXTURE.spec
-    );
+    // Deliberately NOT the compliant fixture, which produces no findings at
+    // all: "exit 0 over nothing" is not evidence that the exit status tracks
+    // errors rather than findings. This one produces a warning and no
+    // violation, which is the only shape that can tell the two apart.
+    const fixture = RULE_FIXTURES.find((entry) => entry.severity === 'warning');
+    if (!fixture) throw new Error('the gate corpus lost its warning fixture');
+    const harness = setup(fixture.bundleSource, fixture.spec);
     expect(await run(['lint', BUNDLE, SPEC, '--json'], harness.deps)).toBe(0);
-    expect(harness.json().ok).toBe(true);
+    const result = harness.json();
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual([]);
+    expect(result.warnings).toHaveLength(1);
   });
 
   it('separates a missing file from a gate finding', async () => {

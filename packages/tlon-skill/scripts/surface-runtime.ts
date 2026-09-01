@@ -555,15 +555,25 @@ function readTemplateSummary(
   name: string
 ): SurfaceTemplateSummary {
   const dir = path.join(root, name);
+  // A failed lookup is a failed lookup. This used to fall through to
+  // `readdirSync(dir).filter('.js')[0]` when none of the expected names
+  // existed — an ARBITRARY file, ordered by the filesystem rather than by
+  // anything a caller could predict, returned in the same field a real
+  // bundle occupies. `surface templates show` then handed that path to a
+  // bot as the template's bundle, at exit code 0, with nothing anywhere
+  // saying a lookup had failed. Absence is now reported as absence, and
+  // `bundleAbsence` carries the evidence the refusal is written from.
   const bundle =
     TEMPLATE_BUNDLE_NAMES.map((candidate) => path.join(dir, candidate)).find(
       (candidate) => fs.existsSync(candidate)
-    ) ??
-    fs
-      .readdirSync(dir)
-      .filter((entry) => entry.endsWith('.js'))
-      .map((entry) => path.join(dir, entry))[0] ??
-    null;
+    ) ?? null;
+  const bundleAbsence =
+    bundle === null
+      ? {
+          expected: TEMPLATE_BUNDLE_NAMES,
+          found: fs.readdirSync(dir).sort(),
+        }
+      : null;
   const specPath = path.join(dir, 'spec.json');
   const notesPath = path.join(dir, 'NOTES.md');
   let title: string | null = null;
@@ -578,6 +588,7 @@ function readTemplateSummary(
   return {
     name,
     title,
+    bundleAbsence,
     files: {
       bundle,
       spec: fs.existsSync(specPath) ? specPath : null,

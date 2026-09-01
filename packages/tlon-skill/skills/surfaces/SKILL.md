@@ -67,7 +67,7 @@ language: "I don't have permission to add channels here yet."
    injects the source inside a `<script>` element. State shape and actions
    first, render second. Keep actions parameterless; key per-member state by
    `$actor`.
-5. **Lint:** `tlon surface lint app.js spec.json --json`. The gate runs fourteen
+5. **Lint:** `tlon surface lint app.js spec.json --json`. The gate runs fifteen
    rules in a fixed order, and the order is the repair order — fix the earliest
    violation first, because later rules are usually downstream of it (a bundle
    with module syntax cannot be evaluated at all, so nothing behavioral can be

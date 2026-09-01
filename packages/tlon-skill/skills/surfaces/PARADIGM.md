@@ -75,6 +75,29 @@ values — only which declared button they pressed. That is what makes a
 hand-crafted post achieve exactly what tapping the control achieves, and
 nothing more.
 
+### An app with no actions has to say so
+
+A spec with an empty `actions` map is a surface **no member can change**.
+That is a real shape — a countdown, a schedule, a read-only summary whose
+state moves only from host events — and it is also what an app looks like
+when you forgot the thing it was asked for. Two apps shipped with
+`actions: {}` for the second reason: expense splits that render "who owes
+what" and offer no way to add an expense. Nothing in the gate or the rubric
+said a word, because a screenshot of a board nobody can touch looks exactly
+like a screenshot of a board somebody can.
+
+So the gate now **warns** on an empty action map. It is a warning, not a
+refusal: display-only is allowed, it just has to be on purpose. Declare it
+and the warning goes away:
+
+```json
+{ "surfaceId": "srf-launch", "memberInteraction": "none", "actions": {} }
+```
+
+Same shape as `duplicatesTolerated` below — an optional marker that turns a
+default-suspicious spec into a declared one. If you cannot honestly write
+it, the app is missing an action.
+
 ### The default: idempotent `set` keyed by `$actor`
 
 ```json
@@ -153,7 +176,7 @@ deciding whether the ops after it were written expecting it to land.
 
 So the doctrine rule below is belt-and-braces rather than your only
 protection — write to it anyway, because it is what keeps an entry
-*readable* as a unit: **no destructive op whose safety depends on a preceding
+_readable_ as a unit: **no destructive op whose safety depends on a preceding
 op succeeding — unless both sit in the same entry with the destructive one
 second.** Order every entry so the destructive op is last, and lint before
 you post.
@@ -204,10 +227,10 @@ table keyed by item id, with a literal in every entry:
 ```js
 const VOTE = {
   pizza: function () {
-    return invoke('vote-pizza');
+    return invoke("vote-pizza");
   },
   tacos: function () {
-    return invoke('vote-tacos');
+    return invoke("vote-tacos");
   },
 };
 

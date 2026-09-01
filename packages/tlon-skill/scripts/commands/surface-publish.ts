@@ -16,7 +16,6 @@ import {
   parseSurfaceArgs,
   readJsonFile,
   requireValue,
-  singleValue,
   surfaceError,
   usageSurfaceError,
 } from './surface-common';
