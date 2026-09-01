@@ -9,6 +9,40 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## expo-notifications@57.0.6
+
+Local patch:
+`patches/expo-notifications@57.0.6.patch`
+
+Why:
+On Android cold starts, expo-notifications queues the notification response
+until its native emitter is registered. Version 57.0.6 delivers that queued
+response but does not remove it. If the native module is recreated while the
+app process remains alive, the same notification tap is emitted again and the
+app routes back to the original channel. Killing the process clears the queue.
+
+What it does:
+Tracks whether a native listener handled each queued response and drains the
+queue after successful delivery, for both structured responses and responses
+reconstructed from launch-intent extras. The mobile package also lists
+`expo-notifications` in Android's `buildFromSource` configuration so this patch
+is compiled instead of the package's prebuilt AAR.
+
+Upstream:
+- `expo/expo#47615`
+- commit `6bbdfb1b7ac8029f83ebbe41a6cd4ced67684704`
+
+Validation:
+- Build and launch the Android `productionDebug` variant.
+- Open the app from a channel notification, background it, then reopen it from
+  the launcher without killing the process. It must stay on the current screen
+  instead of routing back to the notification's channel.
+
+Removal:
+Drop this patch when the pinned expo-notifications release includes
+`expo/expo#47615`, then remove `expo-notifications` from Android's
+`buildFromSource` list and refresh the Gradle dependency lock.
+
 ## @react-navigation/bottom-tabs@7.18.14 and react-native-screens@4.25.2
 
 Local patches:
