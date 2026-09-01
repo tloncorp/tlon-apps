@@ -103,7 +103,10 @@ export const WelcomeScreen = ({ navigation }: Props) => {
               </Pressable>
             ) : (
               <YStack gap="$l">
-                <OnboardingButton onPress={handlePressSignup} label="Sign up" />
+                <OnboardingButton
+                  onPress={handlePressSignup}
+                  label="Sign up [loop test 1]"
+                />
                 <OnboardingButton
                   secondary
                   onPress={() => {
