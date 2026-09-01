@@ -68,7 +68,10 @@ const NUDGE_CLEANUP_WAIT_MS = 45_000;
 const NUDGE_DUPLICATE_WINDOW_MS = 15_000;
 const REACTION_PROVENANCE_BY_DRIVER = {
   hermes: 'latest-user',
-  openclaw: 'latest-user',
+  // OpenClaw 2026.7.1 constructs reaction turns from the active session
+  // history. The current reaction envelope remains in userText below, while
+  // the registered scenario tag is deliberately recovered from history.
+  openclaw: 'history-active',
 } as const;
 
 export const commonScenarios: readonly SharedScenario[] = [
