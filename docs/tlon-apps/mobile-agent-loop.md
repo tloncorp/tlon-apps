@@ -27,6 +27,29 @@ npm install --global agent-device
 npx skills add callstack/agent-device
 ```
 
+## The main checkout
+
+The default branch is `develop`, not `main`. Every branch starts there and
+every pull request targets it.
+
+A warm worktree is a copy of the main checkout, so whatever is stale there is
+stale in each worktree it seeds. Refresh it before starting a task, and branch
+from the fetched remote tip rather than whatever the local branch happens to
+be:
+
+```bash
+git -C <main-checkout> fetch --prune
+stim worktree create <name> --carry-ignored --base origin/develop
+```
+
+`doctor` reports how far behind the main checkout is, because a later rebase
+can change a native input and invalidate a build done from the older base.
+
+Leave the main checkout clean and use it to seed worktrees. Its `node_modules`
+and `ios/Pods` are what `--carry-ignored` clones, so a checkout whose install
+is stale hands that staleness to every worktree; run `pnpm install` there after
+a pull that moves dependencies.
+
 ## Before the first worktree
 
 Run `stim doctor` from `apps/tlon-mobile`. It inspects the **main checkout**
