@@ -1427,6 +1427,13 @@ export default defineBundledChannelEntry({
     });
 
     api.on('message_sent', (event, ctx) => {
+      // A successful outbound send before finalization is a committed
+      // message-tool delivery for this run. Do not revise a deliberate
+      // NO_REPLY source final into a duplicate file response.
+      fileReadCompletion.recordMessageDelivery({
+        runId: event.runId ?? ctx.runId,
+        success: event.success,
+      });
       void handleAgentOnboardingMessageSent(
         event,
         {},

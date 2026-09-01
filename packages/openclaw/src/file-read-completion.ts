@@ -13,6 +13,11 @@ export type FileReadFinalizeInput = {
   lastAssistantMessage?: string;
 };
 
+export type FileReadMessageDelivery = {
+  runId?: string;
+  success: boolean;
+};
+
 export type FileReadRevision = {
   action: 'revise';
   reason: string;
@@ -33,6 +38,7 @@ type ReadTargetState = {
 };
 
 type RunState = {
+  deliveredViaMessageTool: boolean;
   lastSuccessfulTarget: string | null;
   revisionAttempts: number;
   targets: Map<string, ReadTargetState>;
@@ -288,7 +294,9 @@ function allTargetContentIsRepresented(
 ): boolean {
   const normalizedReply = normalizeForComparison(reply);
   const emptyResultIsAcknowledged =
-    /\b(?:empty|0 bytes|contains? no (?:content|data|text))\b/i.test(reply);
+    /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i.test(
+      reply
+    );
   return (
     targets.length > 0 &&
     targets.every(([targetKey, target]) => {
@@ -374,6 +382,7 @@ export function createFileReadCompletionGuard(options?: {
           truncated: target?.truncated ?? false,
         });
         touch(runId, {
+          deliveredViaMessageTool: existing?.deliveredViaMessageTool ?? false,
           lastSuccessfulTarget: existing?.lastSuccessfulTarget ?? null,
           revisionAttempts: existing?.revisionAttempts ?? 0,
           targets,
@@ -425,9 +434,22 @@ export function createFileReadCompletionGuard(options?: {
           (existingTarget?.truncated === true && !continuedFromExpectedOffset),
       });
       touch(runId, {
+        deliveredViaMessageTool: existing?.deliveredViaMessageTool ?? false,
         lastSuccessfulTarget: targetKey,
         revisionAttempts: existing?.revisionAttempts ?? 0,
         targets,
+      });
+    },
+
+    recordMessageDelivery(input: FileReadMessageDelivery): void {
+      const runId = input.runId?.trim();
+      if (!runId || !input.success) return;
+      const existing = runs.get(runId);
+      touch(runId, {
+        deliveredViaMessageTool: true,
+        lastSuccessfulTarget: existing?.lastSuccessfulTarget ?? null,
+        revisionAttempts: existing?.revisionAttempts ?? 0,
+        targets: new Map(existing?.targets ?? []),
       });
     },
 
@@ -438,6 +460,7 @@ export function createFileReadCompletionGuard(options?: {
       const state = runs.get(runId);
       if (
         !state ||
+        state.deliveredViaMessageTool ||
         hasFailedTarget(state) ||
         state.revisionAttempts >= MAX_REVISION_ATTEMPTS
       )

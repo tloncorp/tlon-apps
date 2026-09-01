@@ -308,6 +308,56 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('does not treat an empty filename in a progress update as an empty-file result', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('empty-name', '', '/tmp/empty.txt'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'empty-name',
+        lastAssistantMessage: 'Opening empty.txt now.',
+      })
+    ).not.toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'empty-name',
+        lastAssistantMessage: 'empty.txt is empty.',
+      })
+    ).toBeNull();
+  });
+
+  it('preserves a successful message-tool-only file delivery', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('message-tool-delivery'));
+    guard.recordMessageDelivery({
+      runId: 'message-tool-delivery',
+      success: true,
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'message-tool-delivery',
+        lastAssistantMessage: 'NO_REPLY',
+      })
+    ).toBeNull();
+  });
+
+  it('still revises after a failed message-tool delivery', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('failed-message-tool-delivery'));
+    guard.recordMessageDelivery({
+      runId: 'failed-message-tool-delivery',
+      success: false,
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'failed-message-tool-delivery',
+        lastAssistantMessage: 'NO_REPLY',
+      })
+    ).not.toBeNull();
+  });
+
   it('recognizes delivered files whose lines are all short', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('short', 'a\nb\nc'));
