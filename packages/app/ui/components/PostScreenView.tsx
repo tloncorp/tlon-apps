@@ -924,6 +924,7 @@ function SinglePostView({
         {replyInput && (
           <ConversationComposerPlacement
             enabled={hasFloatingReplyInput}
+            avoidKeyboard={!hasFloatingReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
             onFloatingHeightChange={onFloatingHeightChange}
