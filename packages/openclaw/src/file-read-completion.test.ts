@@ -410,6 +410,28 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('normalizes equivalent paths when tracking a continuation', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'normalized-path',
+        'first chunk\n[Showing lines 1-20 of 40]',
+        './report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead('normalized-path', 'final chunk', 'report.txt', 21)
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'normalized-path',
+        lastAssistantMessage:
+          'Here are the requested contents:\nfirst chunk\nfinal chunk',
+      })
+    ).toBeNull();
+  });
+
   it('lets a failed continuation recover at the same expected offset', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
@@ -500,10 +522,14 @@ describe('file read completion guard', () => {
     expect(revision?.retry.instruction).toContain('perform that instead');
   });
 
-  it('requires representative content from every successful read target', () => {
+  it('does not require an auxiliary read target in the requested file delivery', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
-      successfulRead('later-target', 'a1\na2\na3\na4\na5\na6', '/tmp/a.txt')
+      successfulRead(
+        'later-target',
+        'schema1\nschema2\nschema3\nschema4',
+        '/tmp/schema.txt'
+      )
     );
     guard.recordToolResult(
       successfulRead('later-target', 'b1\nb2\nb3\nb4\nb5\nb6', '/tmp/b.txt')
@@ -515,23 +541,23 @@ describe('file read completion guard', () => {
         lastAssistantMessage:
           'Here are the requested contents:\nb1\nb2\nb3\nb4\nb5\nb6',
       })
-    ).not.toBeNull();
+    ).toBeNull();
     expect(
       guard.beforeFinalize({
         runId: 'later-target',
         lastAssistantMessage:
-          'Here are the requested contents:\na1\na2\na3\na4\na5\na6\nb1\nb2\nb3\nb4\nb5\nb6',
+          'Here are the requested contents:\nschema1\nschema2\nschema3\nschema4',
       })
-    ).toBeNull();
+    ).not.toBeNull();
   });
 
   it('requires an explicit acknowledgment for an empty target in multi-file delivery', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
-      successfulRead('mixed-targets', '', '/tmp/empty.txt')
+      successfulRead('mixed-targets', 'b1\nb2\nb3\nb4\nb5\nb6', '/tmp/data.txt')
     );
     guard.recordToolResult(
-      successfulRead('mixed-targets', 'b1\nb2\nb3\nb4\nb5\nb6', '/tmp/data.txt')
+      successfulRead('mixed-targets', '', '/tmp/empty.txt')
     );
 
     expect(

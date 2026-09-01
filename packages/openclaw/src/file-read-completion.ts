@@ -1,3 +1,5 @@
+import { posix as path } from 'node:path';
+
 export type FileReadToolResult = {
   runId?: string;
   toolName: string;
@@ -31,6 +33,7 @@ type ReadTargetState = {
 };
 
 type RunState = {
+  lastSuccessfulTarget: string | null;
   revisionAttempts: number;
   targets: Map<string, ReadTargetState>;
 };
@@ -148,7 +151,9 @@ function readTarget(params: unknown): string | null {
       : typeof record.file_path === 'string'
         ? record.file_path
         : null;
-  return value?.trim() || null;
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return path.normalize(trimmed.replace(/\\/g, '/'));
 }
 
 function readOffset(params: unknown): number {
@@ -256,12 +261,29 @@ function allTargetContentIsRepresented(
   reply: string,
   state: RunState
 ): boolean {
-  const targets = [...state.targets.entries()].filter(
+  const successfulTargets = [...state.targets.entries()].filter(
     ([, target]) => !target.failed
   );
   const normalizedReply = normalizeForComparison(reply);
   const emptyResultIsAcknowledged =
     /\b(?:empty|0 bytes|contains? no (?:content|data|text))\b/i.test(reply);
+  const relevantTargetKeys = new Set<string>();
+  if (state.lastSuccessfulTarget) {
+    relevantTargetKeys.add(state.lastSuccessfulTarget);
+  }
+  for (const [targetKey, target] of successfulTargets) {
+    const targetName = targetKey.split('/').at(-1) ?? targetKey;
+    if (
+      (targetKey !== UNKNOWN_TARGET &&
+        normalizedReply.includes(normalizeForComparison(targetName))) ||
+      matchedReadContentCount(reply, target.anchors) > 0
+    ) {
+      relevantTargetKeys.add(targetKey);
+    }
+  }
+  const targets = successfulTargets.filter(([targetKey]) =>
+    relevantTargetKeys.has(targetKey)
+  );
   return (
     targets.length > 0 &&
     targets.every(([targetKey, target]) => {
@@ -345,6 +367,7 @@ export function createFileReadCompletionGuard(options?: {
           truncated: target?.truncated ?? false,
         });
         touch(runId, {
+          lastSuccessfulTarget: existing?.lastSuccessfulTarget ?? null,
           revisionAttempts: existing?.revisionAttempts ?? 0,
           targets,
         });
@@ -395,6 +418,7 @@ export function createFileReadCompletionGuard(options?: {
           (existingTarget?.truncated === true && !continuedFromExpectedOffset),
       });
       touch(runId, {
+        lastSuccessfulTarget: targetKey,
         revisionAttempts: existing?.revisionAttempts ?? 0,
         targets,
       });
