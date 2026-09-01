@@ -91,29 +91,12 @@ for `--force`, which also discards uncommitted and untracked files.
 
 The app builds two product flavors, `production` (`io.tlon.groups`) and
 `preview` (`io.tlon.groups.preview`), so `assembleDebug` leaves two APKs and
-nothing says which to install. Stim refuses rather than guess. Name the variant
-the repo's own `pnpm android` uses:
+nothing says which to install. Stim refuses rather than guess, and its refusals
+carry the command that clears them. Name the variant the repo's own
+`pnpm android` uses, on every call:
 
 ```bash
 stim android --variant productionDebug
-```
-
-Pass it on every `stim android` call.
-
-After a run with the wrong variant, gradle reports `BUILD SUCCESSFUL` while
-leaving the APK from the earlier run in place, and Stim refuses to install an
-artifact the build did not produce. Clear the output directory and build again:
-
-```bash
-rm -rf apps/tlon-mobile/android/app/build/outputs/apk
-```
-
-A phone plugged into the machine is a second adb target, and a bare `adb`
-command fails or, worse, reaches the phone. Name the emulator for every adb
-call in a loop that also has hardware attached:
-
-```bash
-export ANDROID_SERIAL=emulator-5556   # `stim android` prints the serial it used
 ```
 
 ## Driving the UI
