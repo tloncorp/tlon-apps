@@ -163,6 +163,54 @@ test('hydrates Bucket writers from a live subscription update', async () => {
   expect(edited?.writerRoles?.map((r) => r.roleId)).toEqual(['editor']);
 });
 
+// Subscriptions are set up alongside the init fetch, not after it, so on a
+// cold start the first snapshot can land before init has written any channel
+// rows. It has to be kept: a rejected write is swallowed by the subscription
+// handler, and nothing asks again, so the Bucket would read as empty for the
+// rest of the connection.
+test('keeps a Bucket manifest that arrives before its channel row', async () => {
+  const channelId = 'buckets/~zod/early';
+
+  await batchEffects('test:earlyBucket', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'early' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Early',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: [],
+          entries: [
+            {
+              id: 1,
+              parentId: null,
+              name: 'plans',
+              kind: 'folder',
+              createdBy: '~zod',
+              createdAt: 0,
+              updatedBy: '~zod',
+              updatedAt: 0,
+            },
+          ],
+          revision: 4,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(4);
+  expect(stored?.entries.map((entry) => entry.name)).toEqual(['plans']);
+});
+
 // A Bucket's manifest arrives only through this subscription, so the database
 // is where it lands and views read it from there.
 test('reduces a Bucket manifest into the database', async () => {

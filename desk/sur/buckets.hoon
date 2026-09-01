@@ -316,27 +316,10 @@
 +$  response-body
   $%  [%ok ~]
       [%grant =grant]
-      [%deleted grants=(list delete-grant)]
       [%upload =upload-grant]
       [%token =read-token]
       [%pending ~]
       [%error type=action-error message=@t]
-  ==
-::
-::  $delete-grant: one unlinked object, and the grant to remove it.
-::
-::  A delete answers with the whole set the host actually removed, rather than
-::  the requester asking for one grant per entry it had seen. Those are not the
-::  same set: a file published between the requester reading the manifest and
-::  this delete landing is removed with the rest, and it could not have been
-::  asked about -- so under the old shape its bytes stayed in storage with the
-::  only entry that named them gone.
-::
-+$  delete-grant
-  $:  token=@t
-      entry-id=@ud
-      object=@t
-      expires-at=@da
   ==
 ::
 ::  $upload-grant: where to PUT one file's bytes, and how.

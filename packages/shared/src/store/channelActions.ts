@@ -488,11 +488,11 @@ export async function deleteChannel({
 
   const deletedChannel = await db.getChannel({ id: channelId });
   const bucketFlag = api.parseBucketsChannelId(channelId);
-  // A Bucket's manifest and its in-flight uploads hang off the channel row by
-  // foreign key, so the optimistic delete below takes them too. Held here so a
-  // refused delete can put back more than the channel: without them the
-  // restored Bucket comes back empty and its uploads lose the session ids
-  // that make them cancellable, until a reconnect supplies a fresh snapshot.
+  // Deleting a channel clears its Bucket's manifest and in-flight uploads with
+  // it, so the optimistic delete below takes those too. Held here so a refused
+  // delete can put back more than the channel row: without them the restored
+  // Bucket comes back empty and its uploads lose the session ids that make
+  // them cancellable, until a reconnect supplies a fresh snapshot.
   const deletedBucket = bucketFlag ? await db.getBucket({ channelId }) : null;
   const deletedUploads = bucketFlag
     ? await db.getBucketUploads({ channelId })

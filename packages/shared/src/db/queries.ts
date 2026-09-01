@@ -2096,9 +2096,9 @@ export const deleteBucket = createWriteQuery(
 /**
  * Put back what an optimistic channel delete took with it.
  *
- * Deleting a channel row cascades through the Bucket's foreign keys, so a
- * delete the server then refuses would otherwise leave the restored channel
- * with an empty manifest and no record of the uploads that were running.
+ * Deleting a channel clears its Bucket's rows too, so a delete the server
+ * then refuses would otherwise leave the restored channel with an empty
+ * manifest and no record of the uploads that were running.
  * Existing rows win: by the time a rollback runs, the subscription may
  * already have written something newer than this snapshot.
  */
@@ -3242,10 +3242,27 @@ export const deleteChannels = createWriteQuery(
     await ctx.db
       .delete($chatMembers)
       .where(inArray($chatMembers.chatId, channels));
+    // A Bucket's rows are keyed by channel but not foreign-keyed to it, so
+    // they are cleared here rather than by a cascade -- which fires or not
+    // depending on a PRAGMA the drivers do not agree on.
+    await ctx.db
+      .delete($bucketEntries)
+      .where(inArray($bucketEntries.channelId, channels));
+    await ctx.db
+      .delete($bucketUploads)
+      .where(inArray($bucketUploads.channelId, channels));
+    await ctx.db.delete($buckets).where(inArray($buckets.channelId, channels));
     await ctx.db.delete($channels).where(inArray($channels.id, channels));
     return;
   },
-  ['channels', 'posts', 'chatMembers']
+  [
+    'channels',
+    'posts',
+    'chatMembers',
+    'buckets',
+    'bucketEntries',
+    'bucketUploads',
+  ]
 );
 
 export const addNavSectionToGroup = createWriteQuery(

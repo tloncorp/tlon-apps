@@ -838,11 +838,18 @@ export const channelReaderRelations = relations(channelReaders, ({ one }) => {
  * should read what has been received rather than fetch and hold its own copy.
  * Everything else about a Bucket is already a channel, so this is the
  * revision and nothing more.
+ *
+ * Keyed by channel without a foreign key to it, as every other per-channel
+ * table here is. A key would order the two writes, and they are not ordered:
+ * the subscription's first snapshot races the init fetch that creates channel
+ * rows, so on a cold start the manifest could arrive first and be rejected --
+ * leaving the Bucket empty until something forced a resubscribe. Cleanup is
+ * explicit in +deleteChannels instead, which also makes it the same on every
+ * platform: whether a cascade runs at all depends on a PRAGMA no driver here
+ * agrees on.
  */
 export const buckets = sqliteTable('buckets', {
-  channelId: text('channel_id')
-    .primaryKey()
-    .references(() => channels.id, { onDelete: 'cascade' }),
+  channelId: text('channel_id').primaryKey(),
   revision: integer('revision').notNull().default(0),
 });
 
@@ -864,9 +871,7 @@ export const bucketsRelations = relations(buckets, ({ one, many }) => ({
 export const bucketEntries = sqliteTable(
   'bucket_entries',
   {
-    channelId: text('channel_id')
-      .notNull()
-      .references(() => channels.id, { onDelete: 'cascade' }),
+    channelId: text('channel_id').notNull(),
     entryId: integer('entry_id').notNull(),
     parentId: integer('parent_id'),
     name: text('name').notNull(),
@@ -918,9 +923,7 @@ export const bucketUploads = sqliteTable(
   'bucket_uploads',
   {
     id: text('id').primaryKey(),
-    channelId: text('channel_id')
-      .notNull()
-      .references(() => channels.id, { onDelete: 'cascade' }),
+    channelId: text('channel_id').notNull(),
     parentId: integer('parent_id'),
     name: text('name').notNull(),
     size: integer('size').notNull(),

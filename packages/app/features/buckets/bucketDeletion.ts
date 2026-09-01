@@ -1,39 +1,47 @@
-import type { BucketsDeleteGrant, BucketsFlag } from '@tloncorp/api';
+import type { BucketsFileEntry, BucketsFlag } from '@tloncorp/api';
 
-export type BucketObjectDeletionOperations = {
+export type PrivateFileDeletionOperations = {
+  deleteManifestEntry: (id: number) => Promise<unknown>;
   deleteObject: (
     capability: string,
     host: string,
     objectId: string
   ) => Promise<unknown>;
   isAlreadyDeleted: (cause: unknown) => boolean;
-  onObjectDeleted?: (entryId: number) => void;
+  /** Whether a failed manifest delete means the entry is already gone. */
+  isMissingEntry: (cause: unknown) => boolean;
+  /** Asks the host for a delete grant and returns its bearer token. */
+  issueDelete: (id: number) => Promise<string>;
+  onManifestDelete?: (id: number) => void;
 };
 
-/**
- * Remove the objects a delete unlinked.
- *
- * The grants are the host's own account of what it removed, so this no longer
- * has to guess from a manifest read that may already be stale, and no longer
- * makes a round trip per file to ask for permission. What it cannot do is
- * survive its own process: if this stops partway the remaining objects are
- * left in storage with nothing naming them, which is the orphan sweep's
- * problem rather than something to solve by leaving manifest entries behind.
- *
- * An object another deleter already removed is the outcome this wanted, so it
- * does not stop the rest.
- */
-export async function deleteGrantedBucketObjects(
-  grants: readonly BucketsDeleteGrant[],
+export async function deletePrivateBucketFiles(
+  entries: BucketsFileEntry[],
   flag: BucketsFlag,
-  operations: BucketObjectDeletionOperations
+  operations: PrivateFileDeletionOperations
 ) {
-  for (const grant of grants) {
+  for (const entry of entries) {
+    const capability = await operations.issueDelete(entry.id);
     try {
-      await operations.deleteObject(grant.token, flag.host, grant.object);
+      await operations.deleteObject(
+        capability,
+        flag.host,
+        entry.file.objectKey
+      );
     } catch (cause) {
       if (!operations.isAlreadyDeleted(cause)) throw cause;
     }
-    operations.onObjectDeleted?.(grant.entryId);
+    try {
+      await operations.deleteManifestEntry(entry.id);
+    } catch (cause) {
+      // Two collaborators deleting the same file each get a grant. One wins
+      // the object delete and the other is told it was already gone, which
+      // this loop accepts -- but both then delete the manifest entry, and the
+      // loser is told there is nothing there. That is the outcome it asked
+      // for; treating it as a failure aborted the rest of a recursive folder
+      // delete and reported a deleted file as undeleted.
+      if (!operations.isMissingEntry(cause)) throw cause;
+    }
+    operations.onManifestDelete?.(entry.id);
   }
 }

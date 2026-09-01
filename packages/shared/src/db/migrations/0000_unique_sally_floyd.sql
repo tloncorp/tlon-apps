@@ -82,8 +82,7 @@ CREATE TABLE `bucket_entries` (
 	`checksum` text,
 	`object_key` text,
 	`status` text,
-	PRIMARY KEY(`channel_id`, `entry_id`),
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+	PRIMARY KEY(`channel_id`, `entry_id`)
 );
 --> statement-breakpoint
 CREATE INDEX `bucket_entries_channel_id_index` ON `bucket_entries` (`channel_id`);--> statement-breakpoint
@@ -101,15 +100,13 @@ CREATE TABLE `bucket_uploads` (
 	`session_id` text,
 	`server_entry_id` integer,
 	`open_request_id` text,
-	`started_at` integer NOT NULL,
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+	`started_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE INDEX `bucket_uploads_channel_id_index` ON `bucket_uploads` (`channel_id`);--> statement-breakpoint
 CREATE TABLE `buckets` (
 	`channel_id` text PRIMARY KEY NOT NULL,
-	`revision` integer DEFAULT 0 NOT NULL,
-	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+	`revision` integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `channel_readers` (

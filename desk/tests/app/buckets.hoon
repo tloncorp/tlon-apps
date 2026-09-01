@@ -288,20 +288,6 @@
   %+  skim  caz
   |=(=card ?=([%give %fact * %buckets-req-response-1 *] card))
 ::
-::  +only-answer: the body of the one answer a settled action produced.
-::
-++  only-answer
-  |=  caz=(list card)
-  ^-  response-body:bu
-  =/  found=(list response-body:bu)
-    %+  murn  caz
-    |=  =card
-    ^-  (unit response-body:bu)
-    ?.  ?=([%give %fact * %buckets-req-response-1 *] card)  ~
-    `body:!<(req-response:bu q.cage.p.card)
-  ?~  found  ~|(%no-answer !!)
-  i.found
-::
 ::  +secretless-scries: the group is there, but %genuine has not initialised.
 ::  A real state on a fresh ship, and the one place a mint is answered in the
 ::  same event that records what is owed.
@@ -763,77 +749,6 @@
     %+  turn  ~(val by sessions.st3)
     |=(ses=upload-session:bu name.entry.ses)
   (ex-equal !>([before survivors]) !>([2 ~['outside.pdf']]))
-::
-::  A delete answers with a grant for every object it unlinked.
-::
-::  The requester cannot ask for these one at a time beforehand and be right:
-::  between reading the manifest and the delete landing, someone else can
-::  publish a file that this delete then removes. Its bytes are only reachable
-::  if the answer names them, so the set the host reports is the set it took.
-::
-::  The two tokens must also differ. There is one +eny per event, so minting
-::  from it alone would hand back the same token twice and one of the two
-::  objects could never be deleted.
-::
-++  test-delete-answers-with-a-grant-per-object
-  %-  eval-mare
-  =/  m  (mare ,~)
-  =*  b  bind:m
-  ^-  form:m
-  ;<  ~  b  setup
-  ;<  ~  b  create
-  ;<  *  b  (ask 0v1 [%bucket flag [%create-folder ~ 'Launch']])
-  ;<  ~  b  (set-scry-gate genuine-scries)
-  ;<  sv=vase  b  get-save
-  =/  st=state-0:bu  !<(state-0:bu sv)
-  =/  bs=bucket-state:bu  (state-for st flag)
-  =/  folder=@ud
-    =/  ents  ~(tap by entries.bs)
-    ?~(ents !! p.i.ents)
-  ::  one file lands inside the folder
-  ;<  caz=(list card)  b
-    (ask 0v2 [%bucket flag [%begin-upload `folder 'first.png' 'image/png' 8 ~]])
-  =/  push=[=wire =request:http]  (only-iris caz)
-  ;<  *  b  (do-arvo wire.push (iris-grant 'res-a' 'https://storage.test/put'))
-  ;<  sv2=vase  b  get-save
-  =/  st2=state-0:bu  !<(state-0:bu sv2)
-  =/  ses=upload-session:bu  (only-session st2)
-  =/  one=file:bu  (file-of entry.ses)
-  ;<  fin=(list card)  b  (ask 0v3 [%bucket flag [%finish-upload id.ses]])
-  ;<  *  b
-    (do-arvo wire:(only-iris fin) (iris-object object-key.one 8 'image/png'))
-  ::  and a second one the deleter never saw
-  ;<  ~  b  (jab-bowl |=(bol=bowl bol(eny 0v4321)))
-  ;<  caz2=(list card)  b
-    (ask 0v4 [%bucket flag [%begin-upload `folder 'second.png' 'image/png' 8 ~]])
-  =/  push2=[=wire =request:http]  (only-iris caz2)
-  ;<  *  b  (do-arvo wire.push2 (iris-grant 'res-b' 'https://storage.test/put'))
-  ;<  sv3=vase  b  get-save
-  =/  st3=state-0:bu  !<(state-0:bu sv3)
-  =/  ses2=upload-session:bu
-    =/  live=(list upload-session:bu)
-      %+  skim  ~(val by sessions.st3)
-      |=(s=upload-session:bu =('second.png' name.entry.s))
-    ?~(live !! i.live)
-  =/  two=file:bu  (file-of entry.ses2)
-  ;<  fin2=(list card)  b  (ask 0v5 [%bucket flag [%finish-upload id.ses2]])
-  ;<  *  b
-    (do-arvo wire:(only-iris fin2) (iris-object object-key.two 8 'image/png'))
-  ::  deleting the folder reports both objects, under two distinct tokens
-  ;<  del=(list card)  b  (ask 0v6 [%bucket flag [%entry folder [%delete &]]])
-  =/  body=response-body:bu  (only-answer del)
-  ?.  ?=([%deleted *] body)
-    (ex-equal !>(-.body) !>(%deleted))
-  =/  objects=(set @t)  (silt (turn grants.body |=(g=delete-grant:bu object.g)))
-  =/  tokens=(set @t)  (silt (turn grants.body |=(g=delete-grant:bu token.g)))
-  ;<  sv4=vase  b  get-save
-  =/  st4=state-0:bu  !<(state-0:bu sv4)
-  =/  registered=(list ?)
-    %+  turn  ~(tap in tokens)
-    |=(tok=@t (~(has by object-capabilities.st4) tok))
-  %+  ex-equal
-  !>([objects ~(wyt in tokens) registered])
-  !>([(silt ~[object-key.one object-key.two]) 2 ~[& &]])
 ::
 ::  A revoke issued while a grant is still in flight supersedes it, because
 ::  it carries a higher revision — the broker keeps the newer state whichever

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "821f12b5-7857-49ff-aea1-7200a4d6cc09",
+  "id": "d8458e88-df51-4187-aa04-38a7b7215001",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -570,21 +570,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "bucket_entries_channel_id_channels_id_fk": {
-          "name": "bucket_entries_channel_id_channels_id_fk",
-          "tableFrom": "bucket_entries",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {
         "bucket_entries_channel_id_entry_id_pk": {
           "columns": [
@@ -703,21 +689,7 @@
           "isUnique": false
         }
       },
-      "foreignKeys": {
-        "bucket_uploads_channel_id_channels_id_fk": {
-          "name": "bucket_uploads_channel_id_channels_id_fk",
-          "tableFrom": "bucket_uploads",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -742,21 +714,7 @@
         }
       },
       "indexes": {},
-      "foreignKeys": {
-        "buckets_channel_id_channels_id_fk": {
-          "name": "buckets_channel_id_channels_id_fk",
-          "tableFrom": "buckets",
-          "tableTo": "channels",
-          "columnsFrom": [
-            "channel_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
+      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}

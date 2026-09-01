@@ -1,6 +1,7 @@
 import {
   BUCKETS_AUTH_FAILURE_STATUSES,
   BucketsEntry,
+  BucketsFileEntry,
   BucketsFlag,
   BucketsResponse,
   BucketsSnapshot,
@@ -11,7 +12,7 @@ import {
   requestBucketReadToken,
   BucketsActionFailed,
   mintRequestId,
-  requestBucketsDelete,
+  requestBucketsGrant,
   requestBucketsUpload,
   sendBucketsAction,
 } from '@tloncorp/api';
@@ -27,7 +28,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { BucketItem, BucketUploadCandidate } from '../../ui';
 import { calculateBucketUploadProgress } from '../../utils/bucketUploadProgress';
-import { deleteGrantedBucketObjects } from './bucketDeletion';
+import { deletePrivateBucketFiles } from './bucketDeletion';
 import {
   clearUploadCancelled,
   clearUploadRunning,
@@ -540,22 +541,40 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       );
       await Promise.all(doomedUploads.map((upload) => cancelUpload(upload.id)));
 
-      // The manifest goes first and reports what it removed, rather than this
-      // pane deciding from its own copy which objects to clear out. The two
-      // are not the same set once anyone else is writing: a file published
-      // between reading the manifest and this landing was deleted with the
-      // rest, and under the old order its bytes stayed in storage with the
-      // only entry that named them gone.
-      const removed = await requestBucketsDelete({
-        type: 'delete-entry',
-        flag,
-        id,
-        recursive,
-      });
-      await deleteGrantedBucketObjects(removed, flag, {
+      const privateFiles = current.filter(
+        (entry): entry is BucketsFileEntry =>
+          ids.has(entry.id) &&
+          entry.kind === 'file' &&
+          entry.file.status === 'ready'
+      );
+      await deletePrivateBucketFiles(privateFiles ?? [], flag, {
+        deleteManifestEntry: (deletedId) =>
+          sendBucketsAction({
+            type: 'delete-entry',
+            flag,
+            id: deletedId,
+            recursive: false,
+          }),
         deleteObject: deleteBucketObject,
         isAlreadyDeleted: isBucketObjectAlreadyDeleted,
+        isMissingEntry: (cause) =>
+          cause instanceof BucketsActionFailed && cause.type === 'not-found',
+        issueDelete: async (entryId) => {
+          const issued = await requestBucketsGrant({
+            type: 'issue-delete',
+            flag,
+            id: entryId,
+          });
+          return issued.token;
+        },
       });
+      if (
+        root?.kind === 'file' &&
+        privateFiles?.some((entry) => entry.id === id)
+      ) {
+        return;
+      }
+      return sendBucketsAction({ type: 'delete-entry', flag, id, recursive });
     },
     error,
     loading,

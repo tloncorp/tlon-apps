@@ -1,7 +1,6 @@
 import type {
   BucketsAction,
   BucketsActionError,
-  BucketsDeleteGrant,
   BucketsFlag,
   BucketsGrant,
   BucketsUploadGrant,
@@ -225,25 +224,6 @@ export async function requestBucketsGrant(
     throw new Error(`%buckets ${action.type} did not return a grant`);
   }
   return body.grant;
-}
-
-/**
- * Delete an entry, and learn every object the host unlinked doing it.
- *
- * The grants come back with the answer rather than being asked for one at a
- * time first, so what gets cleaned out of storage is what was actually
- * removed -- including a file someone else published while this delete was
- * being decided on.
- */
-export async function requestBucketsDelete(
-  action: BucketsAction,
-  requestId?: string
-): Promise<BucketsDeleteGrant[]> {
-  const body = await sendBucketsAction(action, requestId);
-  if (!('deleted' in body)) {
-    throw new Error(`%buckets ${action.type} did not return deleted objects`);
-  }
-  return body.deleted;
 }
 
 /**

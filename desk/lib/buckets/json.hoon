@@ -142,19 +142,6 @@
         ['expiresAt' s+(scot %da expires-at.tok)]
     ==
   ::
-  ++  delete-grants
-    |=  grants=(list delete-grant:b)
-    ^-  json
-    :-  %a
-    %+  turn  grants
-    |=  gra=delete-grant:b
-    %-  pairs
-    :~  ['token' s+token.gra]
-        ['entryId' (numb entry-id.gra)]
-        ['object' s+object.gra]
-        ['expiresAt' s+(scot %da expires-at.gra)]
-    ==
-  ::
   ++  req-response
     |=  res=req-response:b
     ^-  json
@@ -163,7 +150,6 @@
         %ok       (frond 'ok' ~)
         %pending  (frond 'pending' ~)
         %grant    (frond 'grant' (grant grant.body.res))
-        %deleted  (frond 'deleted' (delete-grants grants.body.res))
         %upload   (frond 'upload' (upload-grant upload-grant.body.res))
         %token    (frond 'token' (read-token read-token.body.res))
       ::
