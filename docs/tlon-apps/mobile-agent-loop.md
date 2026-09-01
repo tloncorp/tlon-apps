@@ -103,11 +103,7 @@ the repo's own `pnpm android` uses:
 stim android --variant productionDebug
 ```
 
-To make that the default for everyone, commit a `.stim.json` at the repo root:
-
-```json
-{ "android": { "variant": "productionDebug" } }
-```
+Pass it on every `stim android` call.
 
 After a run with the wrong variant, gradle reports `BUILD SUCCESSFUL` while
 leaving the APK from the earlier run in place, and Stim refuses to install an
