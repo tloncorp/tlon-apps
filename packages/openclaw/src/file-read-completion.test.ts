@@ -260,6 +260,19 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it('rejects an explicit full-file claim with no representative content', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('unrepresented-full-file'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'unrepresented-full-file',
+        lastAssistantMessage:
+          'The complete file is shown below:\nPlaceholder text unrelated to the read result.',
+      })
+    ).not.toBeNull();
+  });
+
   it('requires both ends of a long single-line file', () => {
     const guard = createFileReadCompletionGuard();
     const longLine = `${'a'.repeat(220)}${'z'.repeat(220)}`;

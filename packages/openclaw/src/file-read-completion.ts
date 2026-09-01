@@ -65,6 +65,8 @@ const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
 const FULL_FILE_DELIVERY_CLAIM =
   /\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents\s+(?:are|is)\s+(?:below|above|here)|(?:the\s+)?(?:complete|full|entire)\s+file\s+(?:(?:is|was)\s+)?(?:displayed|shown|pasted|printed)\s+(?:inline|below|above))\b/i;
+const EXPLICIT_FULL_FILE_DELIVERY_CLAIM =
+  /\b(?:the\s+)?(?:complete|full|entire)\s+file\s+(?:(?:is|was)\s+)?(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b/i;
 const EMPTY_RESULT_ACKNOWLEDGMENT =
   /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was|are|were)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
@@ -428,6 +430,7 @@ function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
     (allTargetContentIsRepresented(reply, targets) ||
       (allEmptyTargetsAreAcknowledged &&
         !isIncompleteFileDeliveryReply(reply) &&
+        !EXPLICIT_FULL_FILE_DELIVERY_CLAIM.test(reply) &&
         !(
           FULL_FILE_DELIVERY_CLAIM.test(reply) &&
           anyTargetContentIsRepresented(reply, targets)
