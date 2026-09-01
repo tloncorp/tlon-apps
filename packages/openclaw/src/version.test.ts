@@ -34,4 +34,18 @@ describe('formatTlonVersionIdentity', () => {
       '`plugins.entries.tlon.hooks.allowConversationAccess: true` is required'
     );
   });
+
+  it('keeps workspace Node pins at the supported OpenClaw runtime floor', () => {
+    const rootPin = readFileSync(
+      new URL('../../../.nvmrc', import.meta.url),
+      'utf8'
+    ).trim();
+    const webPin = readFileSync(
+      new URL('../../../apps/tlon-web/.tool-versions', import.meta.url),
+      'utf8'
+    ).trim();
+
+    expect(rootPin).toBe('22.22.3');
+    expect(webPin).toBe('nodejs 22.22.3');
+  });
 });

@@ -266,7 +266,7 @@ Several `package.json` scripts use Unix shell tools (`rm -rf`, `cp -R`, `mkdir -
     ```
     Open a fresh terminal so the env var is loaded. Do **not** rely on bare `bash` on PATH — on Windows it usually resolves to `C:\Windows\System32\bash.exe` (WSL), which runs scripts inside Linux with the wrong filesystem view.
 
-Also: use the pinned Node version (`.nvmrc` → 22.22.3). Node 24+ has no prebuilt binaries for `better-sqlite3@11.x` and will fall back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
+Also: use the pinned Node version (`.nvmrc` and `apps/tlon-web/.tool-versions` → 22.22.3). Node 24+ has no prebuilt binaries for `better-sqlite3@11.x` and will fall back to compiling via node-gyp, which needs VS Build Tools + Windows SDK installed.
 
 ### Shell Script Compatibility
 

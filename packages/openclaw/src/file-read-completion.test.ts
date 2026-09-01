@@ -686,6 +686,25 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('requires a separate result statement for every empty target', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('two-empty', '', '/tmp/a.txt'));
+    guard.recordToolResult(successfulRead('two-empty', '', '/tmp/b.txt'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'two-empty',
+        lastAssistantMessage: 'a.txt is empty; Opening b.txt now.',
+      })
+    ).not.toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'two-empty',
+        lastAssistantMessage: 'Both a.txt and b.txt are empty.',
+      })
+    ).toBeNull();
+  });
+
   it('treats a gerund result sentence as substantive', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('gerund-result'));

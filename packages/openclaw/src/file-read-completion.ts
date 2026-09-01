@@ -61,6 +61,8 @@ const PROGRESS_ONLY = new RegExp(
 );
 const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
+const EMPTY_RESULT_ACKNOWLEDGMENT =
+  /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was|are|were)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
   /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
 const TRUNCATION_MARKER =
@@ -289,25 +291,61 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
   return targets;
 }
 
+function acknowledgedEmptyTargetKeys(
+  reply: string,
+  targets: TrackedTarget[]
+): Set<string> {
+  const normalizedReply = normalizeForComparison(reply);
+  const acknowledgedEmptyTargets = new Set<string>();
+  const emptyTargets = targets.filter(([, target]) => target.empty);
+  if (targets.length === 1 || emptyTargets[0]?.[0] === UNKNOWN_TARGET) {
+    if (EMPTY_RESULT_ACKNOWLEDGMENT.test(reply) && emptyTargets[0]) {
+      acknowledgedEmptyTargets.add(emptyTargets[0][0]);
+    }
+  } else if (emptyTargets.length > 0) {
+    let replyWithPlaceholders = normalizedReply;
+    const placeholders = new Map<string, string>();
+    [...emptyTargets]
+      .sort(([left], [right]) => right.length - left.length)
+      .forEach(([targetKey], index) => {
+        if (targetKey === UNKNOWN_TARGET) return;
+        const targetName = targetKey.split(/[\\/]/).at(-1) ?? targetKey;
+        const normalizedTargetName = normalizeForComparison(targetName);
+        const placeholder = `tlonemptytarget${index}`;
+        placeholders.set(targetKey, placeholder);
+        replyWithPlaceholders = replyWithPlaceholders.replaceAll(
+          normalizedTargetName,
+          placeholder
+        );
+      });
+    const clauses = replyWithPlaceholders.split(/[;.!?\n]+/);
+    for (const [targetKey, placeholder] of placeholders) {
+      if (
+        clauses.some(
+          (clause) =>
+            clause.includes(placeholder) &&
+            EMPTY_RESULT_ACKNOWLEDGMENT.test(clause)
+        )
+      ) {
+        acknowledgedEmptyTargets.add(targetKey);
+      }
+    }
+  }
+  return acknowledgedEmptyTargets;
+}
+
 function allTargetContentIsRepresented(
   reply: string,
   targets: TrackedTarget[]
 ): boolean {
-  const normalizedReply = normalizeForComparison(reply);
-  const emptyResultIsAcknowledged =
-    /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i.test(
-      reply
-    );
+  const acknowledgedEmptyTargets = acknowledgedEmptyTargetKeys(reply, targets);
   return (
     targets.length > 0 &&
     targets.every(([targetKey, target]) => {
       if (!target.empty) {
         return containsRepresentativeReadContent(reply, target.anchors);
       }
-      if (!emptyResultIsAcknowledged) return false;
-      if (targets.length === 1 || targetKey === UNKNOWN_TARGET) return true;
-      const targetName = targetKey.split(/[\\/]/).at(-1) ?? targetKey;
-      return normalizedReply.includes(normalizeForComparison(targetName));
+      return acknowledgedEmptyTargets.has(targetKey);
     })
   );
 }
@@ -323,10 +361,16 @@ function anyTargetContentIsRepresented(
 
 function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
   const targets = relevantTargets(reply, state);
+  const acknowledgedEmptyTargets = acknowledgedEmptyTargetKeys(reply, targets);
+  const allEmptyTargetsAreAcknowledged = targets.every(
+    ([targetKey, target]) =>
+      !target.empty || acknowledgedEmptyTargets.has(targetKey)
+  );
   return (
     !hasTruncatedTarget(targets) &&
     (allTargetContentIsRepresented(reply, targets) ||
-      (!isIncompleteFileDeliveryReply(reply) &&
+      (allEmptyTargetsAreAcknowledged &&
+        !isIncompleteFileDeliveryReply(reply) &&
         !(
           EMPTY_DELIVERY_CLAIM.test(reply) &&
           anyTargetContentIsRepresented(reply, targets)
