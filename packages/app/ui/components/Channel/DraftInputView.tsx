@@ -1,5 +1,5 @@
 import { DraftInputId } from '@tloncorp/api';
-import { ComponentProps, PropsWithChildren } from 'react';
+import { ComponentProps, PropsWithChildren, useEffect } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { View } from 'tamagui';
 
 import { useComponentsKitContext } from '../../contexts/componentsKits';
 import {
+  useConversationComposerHeight,
   useConversationScrollToBottomControl,
   useConversationScrollViewNativeID,
 } from '../../contexts/scroll';
@@ -63,15 +64,25 @@ export function ConversationComposerPlacement({
   const insets = useSafeAreaInsets();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
+  const { report: reportConversationComposerHeight } =
+    useConversationComposerHeight();
   const content = contentProps ? (
     <View {...contentProps}>{children}</View>
   ) : (
     children
   );
 
+  useEffect(() => {
+    if (!enabled || !supportsFloatingComposer) {
+      return;
+    }
+    return () => reportConversationComposerHeight(0);
+  }, [enabled, reportConversationComposerHeight]);
+
   if (enabled && supportsFloatingComposer) {
     return (
       <KeyboardStickyView
+        enabled={Platform.OS === 'ios'}
         // The container keeps its home-indicator padding while the keyboard is
         // open, so cancel that padding to place the visible input at its edge.
         offset={{ closed: 0, opened: insets.bottom }}
@@ -86,12 +97,15 @@ export function ConversationComposerPlacement({
               Platform.OS === 'ios' && scrollToBottomControl?.visible
                 ? floatingScrollControlClearance
                 : 0;
-            onFloatingHeightChange?.(
-              Math.max(
-                0,
-                event.nativeEvent.layout.height - scrollControlClearance
-              )
+            const height = Math.max(
+              0,
+              event.nativeEvent.layout.height - scrollControlClearance
             );
+            // Feed the list's Reanimated content inset before publishing the
+            // React geometry used by surrounding controls. The scroll view can
+            // then adjust its inset and offset in one native commit.
+            reportConversationComposerHeight(height);
+            onFloatingHeightChange?.(height);
           }}
         >
           {content}

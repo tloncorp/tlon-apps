@@ -17,9 +17,8 @@ describe('scoped API client', () => {
   });
 
   it('keeps concurrent monitor clients isolated', async () => {
-    const { runWithTlonApiScope, setScopedTlonApiWithPoke } = await import(
-      './api-client.js'
-    );
+    const { runWithTlonApiScope, setScopedTlonApiWithPoke } =
+      await import('./api-client.js');
 
     const readShip = (ship: string) =>
       runWithTlonApiScope(async () => {
@@ -55,6 +54,31 @@ describe('scoped API client', () => {
     await expect(
       withTlonApiPoke(transport, () => scry({ app: 'contacts', path: '/self' }))
     ).rejects.toThrow('Scry not supported on this client shim');
+  });
+
+  it('forwards request abort options through a configured monitor scope', async () => {
+    const { runWithTlonApiScope, setScopedTlonApiWithPoke } =
+      await import('./api-client.js');
+    const transport = vi.fn().mockResolvedValue({ ok: true });
+    const controller = new AbortController();
+
+    await expect(
+      runWithTlonApiScope(async () => {
+        setScopedTlonApiWithPoke(
+          vi.fn(),
+          '~zod',
+          'http://zod',
+          undefined,
+          transport
+        );
+        return requestJson('/notes', 'GET', undefined, {
+          signal: controller.signal,
+        });
+      })
+    ).resolves.toEqual({ ok: true });
+    expect(transport).toHaveBeenCalledWith('/notes', 'GET', undefined, {
+      signal: controller.signal,
+    });
   });
 
   it('runs an authenticated full client only inside its operation', async () => {
@@ -132,5 +156,23 @@ describe('scoped API client', () => {
     });
 
     expect(ships).toEqual(['~zod', '~nec', '~zod']);
+  });
+
+  it('can re-enter a configured scope from a later lifecycle callback', async () => {
+    const {
+      captureTlonApiScope,
+      runWithTlonApiScope,
+      setScopedTlonApiWithPoke,
+    } = await import('./api-client.js');
+
+    const runCaptured = await runWithTlonApiScope(async () => {
+      setScopedTlonApiWithPoke(vi.fn(), '~zod', 'http://zod');
+      return captureTlonApiScope();
+    });
+
+    expect(runCaptured).toBeTypeOf('function');
+    await expect(
+      runCaptured!(() => Promise.resolve(getCurrentUserId()))
+    ).resolves.toBe('~zod');
   });
 });

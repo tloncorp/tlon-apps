@@ -132,7 +132,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
-        versionName "9.4.2"
+        versionName "9.5.0"
     }
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -250,4 +250,5 @@ dependencies {
 
     // PostHog - pinned to avoid constructor signature incompatibilities with newer versions
     implementation("com.posthog:posthog-android:3.8.2")
+    testImplementation("junit:junit:4.13.2")
 }

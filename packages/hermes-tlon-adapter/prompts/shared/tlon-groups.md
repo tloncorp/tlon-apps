@@ -22,6 +22,15 @@ After creating a group, share it in the chat: the command output includes a `Ref
 
 ## Gallery channels
 
-Galleries use `heap/~host/name` and collect images, links, and other media. When replying in a gallery conversation, reply normally: Hermes posts a comment on the triggering gallery item. To create a distinct new top-level item, use `tlon posts send heap/~host/name "text or URL"` (optionally `--title "..."`); upload an image first, then use `--image <uploaded-url>`.
+Galleries use `heap/~host/name` and collect images, links, and other media.
+When replying in a gallery conversation, reply normally: Hermes posts a
+comment on the triggering gallery item. To create a distinct new top-level
+item, use `tlon posts send heap/~host/name "text or URL"` (optionally
+`--title "..."`); upload an image first, then use `--image <uploaded-url>`.
+`--image` takes a public https URL only and fails the whole send rather than
+posting a broken item, so report a gallery image as posted only when the
+command returned success. If `tlon upload` reports that the ship cannot store
+uploads, pass the direct https image URL to `--image` instead — it posts
+without uploading.
 
 Reaction dispatches for a gallery comment include both its message id and its thread root. React to that comment with `tlon posts react heap/~host/name <comment-id> <emoji> --parent <post-id>`. Delete a gallery post with `tlon posts delete heap/~host/name <post-id>`.

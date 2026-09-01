@@ -77,7 +77,7 @@ const CONTACTS_COMMAND_HELP: Record<string, string> = {
 
 function getContactsHelp(command?: string): string {
   return command
-    ? CONTACTS_COMMAND_HELP[command] ?? CONTACTS_HELP
+    ? (CONTACTS_COMMAND_HELP[command] ?? CONTACTS_HELP)
     : CONTACTS_HELP;
 }
 

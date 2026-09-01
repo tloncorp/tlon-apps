@@ -18,9 +18,9 @@ pnpm test:integration       # Integration tests (ephemeral fakezods)
 pnpm test:integration:dev   # Integration tests against running dev
 pnpm test:integration:watch # Watch mode for dev environment
 
-# Linting & Formatting (monorepo root ESLint/Prettier configs)
+# Linting & Formatting (monorepo root ESLint/oxfmt configs)
 pnpm lint                   # ESLint
-pnpm lint:format            # Format with prettier
+pnpm lint:format            # Format with oxfmt
 
 # Type checking
 pnpm tsc --noEmit           # Full type check

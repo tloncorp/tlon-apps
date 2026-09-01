@@ -9,6 +9,40 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## expo-notifications@57.0.6
+
+Local patch:
+`patches/expo-notifications@57.0.6.patch`
+
+Why:
+On Android cold starts, expo-notifications queues the notification response
+until its native emitter is registered. Version 57.0.6 delivers that queued
+response but does not remove it. If the native module is recreated while the
+app process remains alive, the same notification tap is emitted again and the
+app routes back to the original channel. Killing the process clears the queue.
+
+What it does:
+Tracks whether a native listener handled each queued response and drains the
+queue after successful delivery, for both structured responses and responses
+reconstructed from launch-intent extras. The mobile package also lists
+`expo-notifications` in Android's `buildFromSource` configuration so this patch
+is compiled instead of the package's prebuilt AAR.
+
+Upstream:
+- `expo/expo#47615`
+- commit `6bbdfb1b7ac8029f83ebbe41a6cd4ced67684704`
+
+Validation:
+- Build and launch the Android `productionDebug` variant.
+- Open the app from a channel notification, background it, then reopen it from
+  the launcher without killing the process. It must stay on the current screen
+  instead of routing back to the notification's channel.
+
+Removal:
+Drop this patch when the pinned expo-notifications release includes
+`expo/expo#47615`, then remove `expo-notifications` from Android's
+`buildFromSource` list and refresh the Gradle dependency lock.
+
 ## @react-navigation/bottom-tabs@7.18.14 and react-native-screens@4.25.2
 
 Local patches:
@@ -147,6 +181,66 @@ Removal:
 Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
+
+## react-native-keyboard-controller@1.22.0
+
+Local patch:
+`patches/react-native-keyboard-controller@1.22.0.patch`
+
+Why:
+On iOS, `KeyboardChatScrollView` implements composer growth through
+`extraContentPadding`, which updates the scroll view's `contentInset`. When
+`keyboardLiftBehavior="whenAtEnd"` decides not to move a user who is browsing
+older messages, upstream returns without re-emitting the current
+`contentOffset`. `ScrollViewWithBottomPadding` also omits `contentOffset` when
+its numeric target has not changed. UIKit can therefore adjust the offset while
+applying the inset by itself, producing a one-frame flash or jump when a
+multiline chat composer first grows.
+
+What it does:
+- On iOS Fabric, re-publishes the currently observed offset when an
+  `extraContentPadding` change should not shift the content. The guard keeps
+  the workaround out of Android, web, and the legacy iOS architecture.
+- Emits that offset whenever bottom padding changes, even if its numeric value
+  is unchanged, so Reanimated sends the new `contentInset` and a
+  `contentOffset` that preserves position in the same animated-props commit.
+
+The app still owns the product behavior: it reports the floating composer
+height to LegendList and uses the shared `whenAtEnd` policy on both platforms.
+Android freezes keyboard-controller's inset path because `adjustResize`
+already shrinks its viewport; iOS supplies the composer inset and performs the
+offset-preserving commit.
+
+Upstream:
+- repo: `kirillzyusko/react-native-keyboard-controller`
+- related discussion:
+  [#1333](https://github.com/kirillzyusko/react-native-keyboard-controller/discussions/1333)
+  covers layout shifts involving `whenAtEnd` and `extraContentPadding`
+- related open fixes
+  [#1605](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1605)
+  and
+  [#1609](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1609)
+  address different animated-padding and Reanimated 4.6 failures
+- as of August 31, 2026, upstream release `1.22.4` still has the same
+  no-shift and unchanged-offset behavior; no exact upstream fix has shipped
+
+Validation:
+- Run `corepack pnpm install --frozen-lockfile` to confirm the patch applies
+  and its lockfile hash is current.
+- Rebuild the iOS app. With the keyboard open, grow and shrink the multiline
+  composer while browsing history; the same visible message should retain its
+  vertical position without flashing.
+- Repeat at the end of the conversation; the latest message should remain
+  anchored above the composer.
+- Exercise emoji keyboard changes, momentum scrolling, and leaving/reopening
+  the conversation to check for stale inset or offset state.
+- Rebuild Android and confirm composer growth and keyboard dismissal retain
+  the existing end-anchor behavior.
+
+Removal:
+Remove this patch after an upstream release commits `contentInset` together
+with a preserving `contentOffset` for no-shift `extraContentPadding` changes,
+then repeat the mid-history and at-end simulator checks without the patch.
 
 ## react-native-reanimated@4.5.0
 

@@ -210,7 +210,7 @@ export const MessageInputContainer = memo(
             ) : null}
 
             {isEditing ? (
-              <MessageInputChromeAction bottomSpacing="2xs">
+              <MessageInputChromeAction>
                 <MessageInputChromeButton
                   preset="secondary"
                   icon="Close"
@@ -301,9 +301,15 @@ MessageInputContainer.displayName = 'MessageInputContainer';
 
 const usesFloatingChrome = Platform.OS !== 'web';
 const usesIOSGlass = supportsLiquidGlass();
+const usesAndroidMaterialChrome = Platform.OS === 'android';
+const materialChromeAlignment = usesAndroidMaterialChrome
+  ? 'flex-end'
+  : 'center';
 
 const materialSurfaceProps = {
-  backgroundColor: '$secondaryBackground',
+  backgroundColor: usesAndroidMaterialChrome
+    ? '$background'
+    : '$secondaryBackground',
   boxShadow: '0 2px 6px rgba(0, 0, 0, 0.24)',
 } as const;
 
@@ -377,7 +383,7 @@ function MessageInputChromeRow({
     return (
       <XStack
         width="100%"
-        alignItems="center"
+        alignItems={materialChromeAlignment}
         gap={metrics.rowGap}
         paddingHorizontal={metrics.rowPaddingHorizontal}
         paddingVertical={metrics.rowPaddingVertical}
@@ -405,12 +411,7 @@ function MessageInputChromeRow({
   );
 }
 
-function MessageInputChromeAction({
-  children,
-  bottomSpacing = 'xs',
-}: PropsWithChildren<{
-  bottomSpacing?: 'xs' | '2xs';
-}>) {
+function MessageInputChromeAction({ children }: PropsWithChildren) {
   if (usesIOSGlass) {
     return (
       <GlassSurface isInteractive style={inputChromeStyles.action}>
@@ -435,11 +436,7 @@ function MessageInputChromeAction({
     );
   }
 
-  return (
-    <View marginBottom={bottomSpacing === '2xs' ? '$2xs' : '$xs'}>
-      {children}
-    </View>
-  );
+  return <View top={2}>{children}</View>;
 }
 
 function MessageInputChromeBody({
@@ -473,10 +470,14 @@ function MessageInputChromeBody({
           flex={1}
           minHeight={metrics.controlSize}
           borderRadius={metrics.controlRadius}
-          alignItems="center"
+          alignItems={materialChromeAlignment}
           gap={metrics.rowGap}
           backgroundColor={
-            isEditing ? '$positiveBackground' : '$secondaryBackground'
+            isEditing
+              ? '$positiveBackground'
+              : usesAndroidMaterialChrome
+                ? '$background'
+                : '$secondaryBackground'
           }
           overflow="hidden"
         >
@@ -535,8 +536,8 @@ function MessageInputChromeButton(props: ComponentProps<typeof Button>) {
 function MessageInputChromeSendAction({ children }: PropsWithChildren) {
   return (
     <View
-      marginBottom={usesFloatingChrome ? undefined : '$xs'}
-      alignSelf={usesFloatingChrome ? 'center' : undefined}
+      top={usesFloatingChrome ? undefined : 2}
+      alignSelf={usesFloatingChrome ? materialChromeAlignment : undefined}
     >
       {children}
     </View>

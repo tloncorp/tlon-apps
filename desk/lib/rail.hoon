@@ -210,15 +210,18 @@
 /%  group                       %group
 /%  group-1                     %group-1
 /%  group-2                     %group-2
+/%  group-3                     %group-3
 /%  group-action                %group-action
 /%  group-action-0              %group-action-0
 /%  group-action-1              %group-action-1
 /%  group-action-2              %group-action-2
 /%  group-action-3              %group-action-3
 /%  group-action-4              %group-action-4
+/%  group-action-5              %group-action-5
 /%  group-cancel                %group-cancel
 /%  group-changed-groups-1      %group-changed-groups-1
 /%  group-changed-groups-2      %group-changed-groups-2
+/%  group-changed-groups-3      %group-changed-groups-3
 /%  group-channel-active        %group-channel-active
 /%  group-channel-join          %group-channel-join
 /%  group-channel-leave         %group-channel-leave
@@ -247,10 +250,12 @@
 /%  group-rescind               %group-rescind
 /%  group-response-1            %group-response-1
 /%  group-response-2            %group-response-2
+/%  group-response-3            %group-response-3
 /%  group-token                 %group-token
 /%  group-ui                    %group-ui
 /%  group-ui-1                  %group-ui-1
 /%  group-ui-2                  %group-ui-2
+/%  group-ui-3                  %group-ui-3
 /%  group-update                %group-update
 /%  grouper-answer-enabled      %grouper-answer-enabled
 /%  grouper-ask-enabled         %grouper-ask-enabled
@@ -259,6 +264,7 @@
 /%  groups                      %groups
 /%  groups-1                    %groups-1
 /%  groups-2                    %groups-2
+/%  groups-3                    %groups-3
 /%  groups-ui                   %groups-ui
 /%  groups-ui-1                 %groups-ui-1
 /%  groups-ui-2                 %groups-ui-2
@@ -336,6 +342,7 @@
 /%  ui-init-6                   %ui-init-6
 /%  ui-init-7                   %ui-init-7
 /%  ui-init-8                   %ui-init-8
+/%  ui-init-10                  %ui-init-10
 /%  ui-pins                     %ui-pins
 /%  ui-show-contact             %ui-show-contact
 /%  ui-vita                     %ui-vita
@@ -561,15 +568,18 @@
       $:  %group                       $+  group                       p=_*vale:group                       ==
       $:  %group-1                     $+  group-1                     p=_*vale:group-1                     ==
       $:  %group-2                     $+  group-2                     p=_*vale:group-2                     ==
+      $:  %group-3                     $+  group-3                     p=_*vale:group-3                     ==
       $:  %group-action                $+  group-action                p=_*vale:group-action                ==
       $:  %group-action-0              $+  group-action-0              p=_*vale:group-action-0              ==
       $:  %group-action-1              $+  group-action-1              p=_*vale:group-action-1              ==
       $:  %group-action-2              $+  group-action-2              p=_*vale:group-action-2              ==
       $:  %group-action-3              $+  group-action-3              p=_*vale:group-action-3              ==
       $:  %group-action-4              $+  group-action-4              p=_*vale:group-action-4              ==
+      $:  %group-action-5              $+  group-action-5              p=_*vale:group-action-5              ==
       $:  %group-cancel                $+  group-cancel                p=_*vale:group-cancel                ==
       $:  %group-changed-groups-1      $+  group-changed-groups-1      p=_*vale:group-changed-groups-1      ==
       $:  %group-changed-groups-2      $+  group-changed-groups-2      p=_*vale:group-changed-groups-2      ==
+      $:  %group-changed-groups-3      $+  group-changed-groups-3      p=_*vale:group-changed-groups-3      ==
       $:  %group-channel-active        $+  group-channel-active        p=_*vale:group-channel-active        ==
       $:  %group-channel-join          $+  group-channel-join          p=_*vale:group-channel-join          ==
       $:  %group-channel-leave         $+  group-channel-leave         p=_*vale:group-channel-leave         ==
@@ -598,10 +608,12 @@
       $:  %group-rescind               $+  group-rescind               p=_*vale:group-rescind               ==
       $:  %group-response-1            $+  group-response-1            p=_*vale:group-response-1            ==
       $:  %group-response-2            $+  group-response-2            p=_*vale:group-response-2            ==
+      $:  %group-response-3            $+  group-response-3            p=_*vale:group-response-3            ==
       $:  %group-token                 $+  group-token                 p=_*vale:group-token                 ==
       $:  %group-ui                    $+  group-ui                    p=_*vale:group-ui                    ==
       $:  %group-ui-1                  $+  group-ui-1                  p=_*vale:group-ui-1                  ==
       $:  %group-ui-2                  $+  group-ui-2                  p=_*vale:group-ui-2                  ==
+      $:  %group-ui-3                  $+  group-ui-3                  p=_*vale:group-ui-3                  ==
       $:  %group-update                $+  group-update                p=_*vale:group-update                ==
       $:  %grouper-answer-enabled      $+  grouper-answer-enabled      p=_*vale:grouper-answer-enabled      ==
       $:  %grouper-ask-enabled         $+  grouper-ask-enabled         p=_*vale:grouper-ask-enabled         ==
@@ -610,6 +622,7 @@
       $:  %groups                      $+  groups                      p=_*vale:groups                      ==
       $:  %groups-1                    $+  groups-1                    p=_*vale:groups-1                    ==
       $:  %groups-2                    $+  groups-2                    p=_*vale:groups-2                    ==
+      $:  %groups-3                    $+  groups-3                    p=_*vale:groups-3                    ==
       $:  %groups-ui                   $+  groups-ui                   p=_*vale:groups-ui                   ==
       $:  %groups-ui-1                 $+  groups-ui-1                 p=_*vale:groups-ui-1                 ==
       $:  %groups-ui-2                 $+  groups-ui-2                 p=_*vale:groups-ui-2                 ==
@@ -687,6 +700,7 @@
       $:  %ui-init-6                   $+  ui-init-6                   p=_*vale:ui-init-6                   ==
       $:  %ui-init-7                   $+  ui-init-7                   p=_*vale:ui-init-7                   ==
       $:  %ui-init-8                   $+  ui-init-8                   p=_*vale:ui-init-8                   ==
+      $:  %ui-init-10                  $+  ui-init-10                  p=_*vale:ui-init-10                  ==
       $:  %ui-pins                     $+  ui-pins                     p=_*vale:ui-pins                     ==
       $:  %ui-show-contact             $+  ui-show-contact             p=_*vale:ui-show-contact             ==
       $:  %ui-vita                     $+  ui-vita                     p=_*vale:ui-vita                     ==
@@ -914,15 +928,18 @@
     %group                       [-.rail !>(+.rail)]
     %group-1                     [-.rail !>(+.rail)]
     %group-2                     [-.rail !>(+.rail)]
+    %group-3                     [-.rail !>(+.rail)]
     %group-action                [-.rail !>(+.rail)]
     %group-action-0              [-.rail !>(+.rail)]
     %group-action-1              [-.rail !>(+.rail)]
     %group-action-2              [-.rail !>(+.rail)]
     %group-action-3              [-.rail !>(+.rail)]
     %group-action-4              [-.rail !>(+.rail)]
+    %group-action-5              [-.rail !>(+.rail)]
     %group-cancel                [-.rail !>(+.rail)]
     %group-changed-groups-1      [-.rail !>(+.rail)]
     %group-changed-groups-2      [-.rail !>(+.rail)]
+    %group-changed-groups-3      [-.rail !>(+.rail)]
     %group-channel-active        [-.rail !>(+.rail)]
     %group-channel-join          [-.rail !>(+.rail)]
     %group-channel-leave         [-.rail !>(+.rail)]
@@ -951,10 +968,12 @@
     %group-rescind               [-.rail !>(+.rail)]
     %group-response-1            [-.rail !>(+.rail)]
     %group-response-2            [-.rail !>(+.rail)]
+    %group-response-3            [-.rail !>(+.rail)]
     %group-token                 [-.rail !>(+.rail)]
     %group-ui                    [-.rail !>(+.rail)]
     %group-ui-1                  [-.rail !>(+.rail)]
     %group-ui-2                  [-.rail !>(+.rail)]
+    %group-ui-3                  [-.rail !>(+.rail)]
     %group-update                [-.rail !>(+.rail)]
     %grouper-answer-enabled      [-.rail !>(+.rail)]
     %grouper-ask-enabled         [-.rail !>(+.rail)]
@@ -963,6 +982,7 @@
     %groups                      [-.rail !>(+.rail)]
     %groups-1                    [-.rail !>(+.rail)]
     %groups-2                    [-.rail !>(+.rail)]
+    %groups-3                    [-.rail !>(+.rail)]
     %groups-ui                   [-.rail !>(+.rail)]
     %groups-ui-1                 [-.rail !>(+.rail)]
     %groups-ui-2                 [-.rail !>(+.rail)]
@@ -1040,6 +1060,7 @@
     %ui-init-6                   [-.rail !>(+.rail)]
     %ui-init-7                   [-.rail !>(+.rail)]
     %ui-init-8                   [-.rail !>(+.rail)]
+    %ui-init-10                  [-.rail !>(+.rail)]
     %ui-pins                     [-.rail !>(+.rail)]
     %ui-show-contact             [-.rail !>(+.rail)]
     %ui-vita                     [-.rail !>(+.rail)]
@@ -1265,15 +1286,18 @@
     %group                       [p !<(_*vale:group q)]
     %group-1                     [p !<(_*vale:group-1 q)]
     %group-2                     [p !<(_*vale:group-2 q)]
+    %group-3                     [p !<(_*vale:group-3 q)]
     %group-action                [p !<(_*vale:group-action q)]
     %group-action-0              [p !<(_*vale:group-action-0 q)]
     %group-action-1              [p !<(_*vale:group-action-1 q)]
     %group-action-2              [p !<(_*vale:group-action-2 q)]
     %group-action-3              [p !<(_*vale:group-action-3 q)]
     %group-action-4              [p !<(_*vale:group-action-4 q)]
+    %group-action-5              [p !<(_*vale:group-action-5 q)]
     %group-cancel                [p !<(_*vale:group-cancel q)]
     %group-changed-groups-1      [p !<(_*vale:group-changed-groups-1 q)]
     %group-changed-groups-2      [p !<(_*vale:group-changed-groups-2 q)]
+    %group-changed-groups-3      [p !<(_*vale:group-changed-groups-3 q)]
     %group-channel-active        [p !<(_*vale:group-channel-active q)]
     %group-channel-join          [p !<(_*vale:group-channel-join q)]
     %group-channel-leave         [p !<(_*vale:group-channel-leave q)]
@@ -1302,10 +1326,12 @@
     %group-rescind               [p !<(_*vale:group-rescind q)]
     %group-response-1            [p !<(_*vale:group-response-1 q)]
     %group-response-2            [p !<(_*vale:group-response-2 q)]
+    %group-response-3            [p !<(_*vale:group-response-3 q)]
     %group-token                 [p !<(_*vale:group-token q)]
     %group-ui                    [p !<(_*vale:group-ui q)]
     %group-ui-1                  [p !<(_*vale:group-ui-1 q)]
     %group-ui-2                  [p !<(_*vale:group-ui-2 q)]
+    %group-ui-3                  [p !<(_*vale:group-ui-3 q)]
     %group-update                [p !<(_*vale:group-update q)]
     %grouper-answer-enabled      [p !<(_*vale:grouper-answer-enabled q)]
     %grouper-ask-enabled         [p !<(_*vale:grouper-ask-enabled q)]
@@ -1314,6 +1340,7 @@
     %groups                      [p !<(_*vale:groups q)]
     %groups-1                    [p !<(_*vale:groups-1 q)]
     %groups-2                    [p !<(_*vale:groups-2 q)]
+    %groups-3                    [p !<(_*vale:groups-3 q)]
     %groups-ui                   [p !<(_*vale:groups-ui q)]
     %groups-ui-1                 [p !<(_*vale:groups-ui-1 q)]
     %groups-ui-2                 [p !<(_*vale:groups-ui-2 q)]
@@ -1391,6 +1418,7 @@
     %ui-init-6                   [p !<(_*vale:ui-init-6 q)]
     %ui-init-7                   [p !<(_*vale:ui-init-7 q)]
     %ui-init-8                   [p !<(_*vale:ui-init-8 q)]
+    %ui-init-10                  [p !<(_*vale:ui-init-10 q)]
     %ui-pins                     [p !<(_*vale:ui-pins q)]
     %ui-show-contact             [p !<(_*vale:ui-show-contact q)]
     %ui-vita                     [p !<(_*vale:ui-vita q)]
@@ -1616,15 +1644,18 @@
       :-  %group                       -:!>(*vale:group)
       :-  %group-1                     -:!>(*vale:group-1)
       :-  %group-2                     -:!>(*vale:group-2)
+      :-  %group-3                     -:!>(*vale:group-3)
       :-  %group-action                -:!>(*vale:group-action)
       :-  %group-action-0              -:!>(*vale:group-action-0)
       :-  %group-action-1              -:!>(*vale:group-action-1)
       :-  %group-action-2              -:!>(*vale:group-action-2)
       :-  %group-action-3              -:!>(*vale:group-action-3)
       :-  %group-action-4              -:!>(*vale:group-action-4)
+      :-  %group-action-5              -:!>(*vale:group-action-5)
       :-  %group-cancel                -:!>(*vale:group-cancel)
       :-  %group-changed-groups-1      -:!>(*vale:group-changed-groups-1)
       :-  %group-changed-groups-2      -:!>(*vale:group-changed-groups-2)
+      :-  %group-changed-groups-3      -:!>(*vale:group-changed-groups-3)
       :-  %group-channel-active        -:!>(*vale:group-channel-active)
       :-  %group-channel-join          -:!>(*vale:group-channel-join)
       :-  %group-channel-leave         -:!>(*vale:group-channel-leave)
@@ -1653,10 +1684,12 @@
       :-  %group-rescind               -:!>(*vale:group-rescind)
       :-  %group-response-1            -:!>(*vale:group-response-1)
       :-  %group-response-2            -:!>(*vale:group-response-2)
+      :-  %group-response-3            -:!>(*vale:group-response-3)
       :-  %group-token                 -:!>(*vale:group-token)
       :-  %group-ui                    -:!>(*vale:group-ui)
       :-  %group-ui-1                  -:!>(*vale:group-ui-1)
       :-  %group-ui-2                  -:!>(*vale:group-ui-2)
+      :-  %group-ui-3                  -:!>(*vale:group-ui-3)
       :-  %group-update                -:!>(*vale:group-update)
       :-  %grouper-answer-enabled      -:!>(*vale:grouper-answer-enabled)
       :-  %grouper-ask-enabled         -:!>(*vale:grouper-ask-enabled)
@@ -1665,6 +1698,7 @@
       :-  %groups                      -:!>(*vale:groups)
       :-  %groups-1                    -:!>(*vale:groups-1)
       :-  %groups-2                    -:!>(*vale:groups-2)
+      :-  %groups-3                    -:!>(*vale:groups-3)
       :-  %groups-ui                   -:!>(*vale:groups-ui)
       :-  %groups-ui-1                 -:!>(*vale:groups-ui-1)
       :-  %groups-ui-2                 -:!>(*vale:groups-ui-2)
@@ -1742,6 +1776,7 @@
       :-  %ui-init-6                   -:!>(*vale:ui-init-6)
       :-  %ui-init-7                   -:!>(*vale:ui-init-7)
       :-  %ui-init-8                   -:!>(*vale:ui-init-8)
+      :-  %ui-init-10                  -:!>(*vale:ui-init-10)
       :-  %ui-pins                     -:!>(*vale:ui-pins)
       :-  %ui-show-contact             -:!>(*vale:ui-show-contact)
       :-  %ui-vita                     -:!>(*vale:ui-vita)

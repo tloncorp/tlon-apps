@@ -3,7 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   canDismissOpenAIAuth,
   copyOpenAIUserCode,
+  getLLMAuthDisconnectQueryKeys,
+  getLLMAuthProviderStatus,
   getLLMAuthStatusRefetchInterval,
+  getLLMAuthSubscriptionModels,
   getOpenAIAuthStatus,
   getOpenAICredentialSwitch,
   getOpenAIDisconnectQueryKeys,
@@ -125,6 +128,42 @@ describe('OpenAI subscription auth state', () => {
     });
   });
 
+  it('retains a rejected token error while the same flow awaits a token', () => {
+    const anthropicFlow = {
+      id: 'flow-anthropic',
+      provider: 'anthropic' as const,
+      status: 'awaiting_token' as const,
+      expiresAt: 5_000,
+    };
+    const rejected = reduceOpenAIAuthState(
+      { phase: 'active', flow: anthropicFlow },
+      { type: 'tokenFailure', message: 'Invalid setup token.' }
+    );
+
+    expect(
+      reduceOpenAIAuthState(rejected, {
+        type: 'flow',
+        flow: anthropicFlow,
+        now: 2_000,
+      })
+    ).toEqual({
+      phase: 'active',
+      flow: anthropicFlow,
+      error: 'Invalid setup token.',
+    });
+
+    expect(
+      reduceOpenAIAuthState(rejected, {
+        type: 'flow',
+        flow: { ...anthropicFlow, status: 'authenticating' },
+        now: 2_000,
+      })
+    ).toEqual({
+      phase: 'active',
+      flow: { ...anthropicFlow, status: 'authenticating' },
+    });
+  });
+
   it('turns an expired active flow into a restartable error', () => {
     expect(
       reduceOpenAIAuthState(
@@ -202,6 +241,45 @@ describe('OpenAI subscription status and models', () => {
     ]);
   });
 
+  it('selects xAI status and subscription models', () => {
+    const xaiStatus = {
+      ts: 1,
+      providers: [{ provider: 'xai', status: 'ok' }],
+      subscriptionModels: {
+        xai: [{ id: 'grok-4.3', name: 'Grok 4.3' }],
+      },
+    };
+    expect(getLLMAuthProviderStatus(xaiStatus, 'xai')).toEqual({
+      provider: 'xai',
+      status: 'ok',
+    });
+    expect(getLLMAuthSubscriptionModels(xaiStatus, 'xai')).toEqual([
+      { id: 'grok-4.3', name: 'Grok 4.3' },
+    ]);
+    expect(getLLMAuthDisconnectQueryKeys('zod', 'user-1', 'xai')).toEqual([
+      ['tlonbot', 'llm-auth-status', 'zod'],
+      ['tlonbot', 'provider-config', 'user-1'],
+      ['tlonbot', 'provider-models', 'user-1', 'xai'],
+    ]);
+  });
+
+  it('selects Anthropic status and subscription models', () => {
+    const anthropicStatus = {
+      ts: 1,
+      providers: [{ provider: 'anthropic', status: 'ok' }],
+      subscriptionModels: {
+        anthropic: [{ id: 'claude-sonnet-5', name: 'Claude Sonnet 5' }],
+      },
+    };
+    expect(getLLMAuthProviderStatus(anthropicStatus, 'anthropic')).toEqual({
+      provider: 'anthropic',
+      status: 'ok',
+    });
+    expect(getLLMAuthSubscriptionModels(anthropicStatus, 'anthropic')).toEqual([
+      { id: 'claude-sonnet-5', name: 'Claude Sonnet 5' },
+    ]);
+  });
+
   it('deduplicates subscription and API-key models by id', () => {
     expect(
       mergeProviderModels(
@@ -222,7 +300,7 @@ describe('OpenAI subscription status and models', () => {
     expect(getOpenAIVerificationUrl(undefined)).toBeNull();
   });
 
-  it('requires the existing OpenAI credential mode to be removed when switching', () => {
+  it('requires the existing provider credential mode to be removed when switching', () => {
     expect(
       getOpenAICredentialSwitch(
         { hasApiKey: true, subscriptionConnected: false },

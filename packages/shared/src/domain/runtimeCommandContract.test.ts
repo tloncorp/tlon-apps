@@ -2,7 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { type BotAgentType, RUNTIME_COMMANDS } from './slashCommands';
+import {
+  type BotAgentType,
+  RUNTIME_COMMANDS,
+  STATIC_MANIFESTS,
+} from './slashCommands';
 
 // The drift contract. Command lists are app-static now, so nothing on the wire
 // keeps them honest — this test does: each runtime commits a token-only fixture
@@ -31,6 +35,19 @@ const RUNTIMES: { harness: BotAgentType; fixture: string }[] = [
   },
 ];
 
+// The engagement parity contract reads each runtime's engagement fixture: the
+// token set that engages bare from the owner in a watched group channel.
+const ENGAGEMENT_FIXTURES: { harness: BotAgentType; fixture: string }[] = [
+  {
+    harness: 'openclaw',
+    fixture: '../../../openclaw/fixtures/engagement-tokens.json',
+  },
+  {
+    harness: 'hermes',
+    fixture: '../../../hermes-tlon-adapter/fixtures/engagement-tokens.json',
+  },
+];
+
 const readTokens = (rel: string): string[] =>
   JSON.parse(fs.readFileSync(path.resolve(__dirname, rel), 'utf8'));
 
@@ -52,6 +69,41 @@ describe.each(RUNTIMES)(
       const runtimeTokens = readTokens(fixture);
       expect(runtimeTokens.length).toBeGreaterThan(0);
       for (const token of runtimeTokens) {
+        expect(token).toMatch(/^\/[a-zA-Z0-9-]+$/);
+      }
+    });
+  }
+);
+
+// The engagement parity contract. The popup inserts commands bare (no mention
+// prefix), and in third-party-hosted group channels a bare command only works
+// if the runtime engages it without a mention. So every token the client can
+// offer — the FULL static manifest, runtime half AND core half — must appear
+// in that runtime's committed engagement-tokens.json.
+//
+// Subset, not equality: a runtime may engage tokens the client never suggests
+// (Hermes handles the unadvertised /tlon-version alias), so extra fixture
+// tokens are fine; a missing one is the bug this contract exists to stop — a
+// client-side command addition that works in DMs/mentions but is silently
+// ignored bare in third-party-hosted groups.
+describe.each(ENGAGEMENT_FIXTURES)(
+  '$harness engagement parity contract',
+  ({ harness, fixture }) => {
+    it('every popup token engages bare in the runtime', () => {
+      const engagementTokens = new Set(readTokens(fixture));
+      const popupTokens = STATIC_MANIFESTS[harness].commands.map(
+        (option) => option.command as string
+      );
+
+      for (const token of popupTokens) {
+        expect(engagementTokens.has(token)).toBe(true);
+      }
+    });
+
+    it('the engagement fixture is a non-empty list of slash tokens', () => {
+      const engagementTokens = readTokens(fixture);
+      expect(engagementTokens.length).toBeGreaterThan(0);
+      for (const token of engagementTokens) {
         expect(token).toMatch(/^\/[a-zA-Z0-9-]+$/);
       }
     });

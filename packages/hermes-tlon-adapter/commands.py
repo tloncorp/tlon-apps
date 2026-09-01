@@ -184,6 +184,16 @@ def command_detection_regex(name: str) -> re.Pattern[str]:
     return _DETECTION_REGEXES[name]
 
 
+def is_adapter_command(text: str) -> bool:
+    """Whether the (stripped) text matches any registry command's detection
+    regex — the exact shapes the control-command dispatcher matches, so a
+    caller that recognizes text here knows the dispatcher would consume it."""
+    stripped = str(text or "").strip()
+    if not stripped:
+        return False
+    return any(regex.match(stripped) for regex in _DETECTION_REGEXES.values())
+
+
 def advertised_command_rows() -> list[CommandRow]:
     return [row for row in COMMAND_REGISTRY if row.advertise]
 
@@ -199,3 +209,57 @@ def build_command_tokens_json() -> str:
     builder's ``JSON.stringify(tokens, null, 2)`` so both runtimes' fixtures
     look alike."""
     return json.dumps(command_tokens(), indent=2) + "\n"
+
+
+# Hermes CORE commands the client's popup offers alongside the registry
+# tokens. Audit-pinned constant mirroring the client's HERMES_CORE_COMMANDS,
+# carrying the same audit citation (hermes-agent tag v2026.6.19, commit
+# 2bd1977): each is defined in core's command registry
+# (hermes_cli/commands.py) and dispatched by the gateway (gateway/run.py).
+# The adapter neither registers nor dispatches them — core does, once the
+# message passes the attention gate — but bare owner engagement
+# (is_core_command) must let them through, so the popup's bare insertion
+# works in any monitored channel.
+CORE_COMMAND_TOKENS: tuple[str, ...] = (
+    "/help",
+    "/status",
+    "/new",
+    "/stop",
+    "/usage",
+    "/model",
+)
+
+# Same detection shape as the registry's PREFIX rows (token followed by
+# whitespace or end-of-string, case-insensitive, matched against the
+# stripped text), reusing that machinery so a bare core command is
+# recognized exactly like a bare adapter command.
+_CORE_COMMAND_REGEXES: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(rf"^{re.escape(token)}(?:\s|$)", re.IGNORECASE)
+    for token in CORE_COMMAND_TOKENS
+)
+
+
+def is_core_command(text: str) -> bool:
+    """Whether the (stripped) message text is a bare Hermes core command,
+    optionally followed by arguments. Token-boundary safe: ``/new`` does
+    not match ``/newish``."""
+    stripped = str(text or "").strip()
+    if not stripped:
+        return False
+    return any(regex.match(stripped) for regex in _CORE_COMMAND_REGEXES)
+
+
+def engagement_tokens() -> list[str]:
+    """Every token that engages bare from the owner in a monitored channel:
+    all registry tokens (including the unadvertised /tlon-version, which the
+    dispatcher still handles) plus the core tokens above."""
+    return [row.token for row in COMMAND_REGISTRY] + list(CORE_COMMAND_TOKENS)
+
+
+def build_engagement_tokens_json() -> str:
+    """The committed fixture's exact bytes (fixtures/engagement-tokens.json).
+    The CI artifact the client's parity contract reads: every token the
+    client's popup can insert bare must appear here, or the popup would
+    offer a command that is silently ignored in third-party-hosted group
+    channels. Matches the TS builder's byte format."""
+    return json.dumps(engagement_tokens(), indent=2) + "\n"

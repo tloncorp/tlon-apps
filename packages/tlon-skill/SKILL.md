@@ -7,6 +7,8 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
+This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin, and registers as `tlon-platform:tlon-product-guide` under Hermes. It is not always installed: a Hermes deployment that has this CLI but not the plugin tree won't have it. Check the skills available to you rather than assuming, and if it isn't there, answer the product question yourself instead of loading a skill that doesn't exist.
+
 ## Hermes
 
 When running as a Hermes plugin skill, the `tlon` tool is a wrapper around the `tlon` CLI for reading data, administration, management, and proactive posts.
@@ -21,6 +23,13 @@ Gallery channels use `heap/~host/name`. A normal reply in a gallery becomes a co
 
 Blocked in Hermes' `tlon` tool: plain-text `posts reply`/`dms send`/`dms reply` and `posts send` to a current chat/DM conversation (reply normally instead). Current-gallery `posts send` creates a new item and is allowed. Image sends (`--image`) are allowed anywhere, including the current conversation: `tlon upload <direct-image-url>`, then `posts send <target> [caption] --image <uploaded-url>`.
 
+**Never say an image was posted unless both commands returned success** — `tlon
+upload` (when used) and the `posts send`/`dms send` that carries `--image`. Both
+fail loudly; neither degrades to a plain link. If `upload` reports that the ship
+cannot store uploads (self-hosted moons have no storage), you do not need it:
+pass the direct **https** image URL straight to `--image`, which posts without
+uploading.
+
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
@@ -32,7 +41,7 @@ tlon upload ./generated-chart.png      # local file — prints the uploaded URL
 tlon upload https://example.com/x.png  # remote URL
 ```
 
-Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. If the upload fails (e.g. self-hosted moons, which have no storage), retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`.
+Pass that printed URL as `media=`. On Tlon-hosted deployments (where `TLON_HOSTING` is set) the bot's own ship uploads through Tlon file hosting. Self-hosted moons have no storage, so `upload` refuses immediately with `This ship cannot store uploads …`; for a local file, retry through the owner ship's config: `tlon --config "$TLON_OWNER_CONFIG_PATH" upload <path>`. For a source that is already a public https URL, `media=` takes it directly — no upload needed. Never claim an image was sent unless the upload and the send both returned success.
 
 > **Deprecated: diary channels.** `%diary` is not managed by the CLI: `tlon notebook`, `--kind diary`, and `diary/...` targets fail with guidance toward `%notes`. Use the `tlon notes` family for Markdown notebooks. An owner can preview a legacy diary with `tlon notes migrate-plan <diary-nest>` and migrate it with `tlon notes migrate-apply <diary-nest> --yes`.
 
@@ -111,8 +120,8 @@ export URBIT_CODE="sampel-ticlyt-migfun-falmel"
 
 **Cookie vs Code:**
 
--   **Cookie-based:** Uses pre-authenticated session cookie. Ship is parsed from the cookie name (`urbauth-~ship=...`). Fastest option.
--   **Code-based:** Performs login to get a fresh session cookie. Requires URL + ship + code.
+- **Cookie-based:** Uses pre-authenticated session cookie. Ship is parsed from the cookie name (`urbauth-~ship=...`). Fastest option.
+- **Code-based:** Performs login to get a fresh session cookie. Requires URL + ship + code.
 
 You can provide both cookie and code — cookie is used first, code serves as fallback if cookie expires.
 
@@ -139,10 +148,10 @@ $ tlon --ship ~bus contacts self
 
 **Cache behavior:**
 
--   Cached cookies are URL-specific (won't use a cookie for the wrong host)
--   If only one ship is cached, it's auto-selected (no flags needed)
--   If multiple ships are cached, you'll be prompted to specify with `--ship`
--   Code login and code fallback cache fresh cookies; provided-cookie flows do not copy cookies into cache
+- Cached cookies are URL-specific (won't use a cookie for the wrong host)
+- If only one ship is cached, it's auto-selected (no flags needed)
+- If multiple ships are cached, you'll be prompted to specify with `--ship`
+- Code login and code fallback cache fresh cookies; provided-cookie flows do not copy cookies into cache
 
 **Clear cache:** `rm ~/.tlon/cache/*.json`
 
@@ -150,9 +159,9 @@ $ tlon --ship ~bus contacts self
 
 If you have credentials for multiple ships, you can use this skill to operate on behalf of any of them. This is useful for:
 
--   **Managing multiple identities** — switch between ships without changing environment variables
--   **Bot operations** — act as a bot ship while authenticated as yourself
--   **Moon management** — operate moons from their parent planet
+- **Managing multiple identities** — switch between ships without changing environment variables
+- **Bot operations** — act as a bot ship while authenticated as yourself
+- **Moon management** — operate moons from their parent planet
 
 Simply pass the target ship's credentials via CLI flags:
 
@@ -215,9 +224,9 @@ tlon channels rename --help
 
 Notes on permissions:
 
--   Empty writers list = anyone in the group can post (default for chat)
--   Empty readers list = anyone in the group can view (default)
--   Roles must exist in the group (use `tlon groups add-role` first)
+- Empty writers list = anyone in the group can post (default for chat)
+- Empty readers list = anyone in the group can view (default)
+- Roles must exist in the group (use `tlon groups add-role` first)
 
 ### Contacts
 
@@ -306,10 +315,10 @@ Group format: `~host-ship/group-slug`
 
 Join behavior:
 
--   `join` first checks whether you are already a member, then checks foreign/unjoined group state for a valid invite.
--   Invited groups and public groups use the backend join action.
--   Private groups without an invite use the invite-request action.
--   Secret groups require an invite.
+- `join` first checks whether you are already a member, then checks foreign/unjoined group state for a valid invite.
+- Invited groups and public groups use the backend join action.
+- Private groups without an invite use the invite-request action.
+- Secret groups require an invite.
 
 ### Hooks
 
@@ -339,23 +348,23 @@ tlon hooks rest 0v1a                                     # Stop cron job
 
 Notes:
 
--   Hook IDs are @uv format (e.g., `0v1a.2b3c4...`)
--   Schedules use @dr format: `~h1` (1 hour), `~m30` (30 minutes), `~d1` (1 day)
--   Hooks run in order when triggered; use `order` to set priority
--   Use `config` to pass channel-specific settings to a hook instance
+- Hook IDs are @uv format (e.g., `0v1a.2b3c4...`)
+- Schedules use @dr format: `~h1` (1 hour), `~m30` (30 minutes), `~d1` (1 day)
+- Hooks run in order when triggered; use `order` to set priority
+- Use `config` to pass channel-specific settings to a hook instance
 
 **Writing Hooks:** See `references/hooks.md` for full documentation on writing hooks, including:
 
--   Event types (`on-post`, `on-reply`, `cron`, `wake`)
--   Bowl context (channel, group, config access)
--   Effects (channel actions, group actions, scheduled wakes)
--   Config handling with clam (`;;`)
+- Event types (`on-post`, `on-reply`, `cron`, `wake`)
+- Bowl context (channel, group, config access)
+- Effects (channel actions, group actions, scheduled wakes)
+- Config handling with clam (`;;`)
 
 **Examples:** See `references/hooks-examples/` for starter templates:
 
--   `auto-react.hoon` — React to new posts with emoji
--   `delete-old-posts.hoon` — Cron job to clean up old messages
--   `word-filter.hoon` — Block posts containing banned words
+- `auto-react.hoon` — React to new posts with emoji
+- `delete-old-posts.hoon` — Cron job to clean up old messages
+- `word-filter.hoon` — Block posts containing banned words
 
 ### Messages
 
@@ -414,8 +423,8 @@ tlon expose url heap/~host/gallery/170.141...            # Get the public URL
 
 Cite path formats:
 
--   Simplified: `chat/~host/channel/170.141...` (auto-expands)
--   Full: `/1/chan/chat/~host/channel/msg/170.141...`
+- Simplified: `chat/~host/channel/170.141...` (auto-expands)
+- Full: `/1/chan/chat/~host/channel/msg/170.141...`
 
 Channel kinds map to content types: chat→msg, heap→curio
 
@@ -442,7 +451,9 @@ tlon posts delete heap/~host/gallery 170.141...          # Delete a gallery post
 
 `--bot` marks a `posts send`/`posts reply`/`dms send`/`dms reply` message as bot-authored: the message carries an author object instead of a bare ship, which is what makes clients render the "Bot" tag. Bot display names come from contact sync, not from the message, so the flag takes no value: `--bot=Name`, `--bot Name`, and a repeated `--bot` are all usage errors rather than message text. Opt-in on purpose — messages you send as yourself must not be bot-tagged. Edits need no flag: `posts edit` preserves the existing post's authorship, so a bot-authored post keeps its "Bot" tag and a human-authored one stays bare.
 
-Send `--image` takes a **direct** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
+Send `--image` takes a **direct https** png/jpeg/gif/webp URL — normally the URL returned by `tlon upload` — and attaches it as an inline image block (dimensions are read from the image bytes). The message becomes an optional caption.
+
+`--image` is https-only and fails loudly rather than posting a broken block: local file paths, `file://`, plain `http://`, URLs with embedded credentials, and malformed URLs are each refused with their own message **before anything is posted**. Accepted URLs are fetched through an SSRF guard (private-network targets blocked) under a 30s deadline and a 10 MiB cap, and the decision to attach an image is made from the fetched bytes — the file extension is never consulted. Nothing is posted when any of that fails, so never report an image as delivered unless the command returned success.
 
 `posts edit` edits message text only. The former notebook-only `--title`/`--image`/`--content` edit flags are removed (they refuse with an explanatory error). Deprecated diary channels are unmanaged by the CLI except through the owner-run `tlon notes migrate-plan <diary-nest>` and `tlon notes migrate-apply <diary-nest> --yes` paths.
 
@@ -505,7 +516,24 @@ Options: `-t`/`--type` (override MIME type), `--stdin` (read from stdin)
 
 Content type is auto-detected from file extension for local files. For stdin, `-t` is recommended (defaults to `application/octet-stream`).
 
-Returns the uploaded URL for use in posts, profiles, etc.
+Returns the uploaded URL for use in posts, profiles, etc. The printed URL is
+always a credential-free https URL; if storage returns anything else the
+command fails instead of printing it (usually a misconfigured `publicUrlBase`).
+
+Before reading any bytes, `upload` checks whether the ship can actually store
+them — Tlon-hosted nodes upload through Memex, otherwise custom S3 credentials
+**and** a selected bucket are required. A ship with neither fails immediately
+with `This ship cannot store uploads …` (typical for self-hosted moons). That
+is not a dead end: `posts send --image <direct https URL>` never uploads, so
+pass the source URL to `--image` directly. Set `TLON_HOSTING` on hosted
+deployments whose node URL is reached over localhost/proxy so the hosted path
+is used.
+
+Remote (URL) uploads go through the same SSRF guard as `--image`, with
+general-file limits: `http` and `https` sources are both accepted, URLs with
+embedded credentials are refused, private-network targets are blocked, and the
+download is bounded by a 120s deadline and a 100 MiB cap. Local-path and stdin
+uploads are unaffected.
 
 ### Settings (OpenClaw)
 
@@ -533,12 +561,12 @@ tlon settings deauthorize-ship ~ship                     # Remove from auth
 
 ## Notes
 
--   Ship names should include `~` prefix
--   Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
--   DM post IDs include author prefix (`~ship/170.141...`)
--   Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
+- Ship names should include `~` prefix
+- Post IDs are @ud format with dots (e.g. `170.141.184.507...`)
+- DM post IDs include author prefix (`~ship/170.141...`)
+- Channel nests: `<kind>/~<host>/<name>` (chat, heap, or notes)
 
 ## Limits
 
--   Activity: max 25 items
--   Messages: max 50 items
+- Activity: max 25 items
+- Messages: max 50 items
