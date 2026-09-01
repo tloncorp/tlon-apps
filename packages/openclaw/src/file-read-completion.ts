@@ -11,11 +11,13 @@ export type FileReadToolResult = {
 export type FileReadFinalizeInput = {
   runId?: string;
   lastAssistantMessage?: string;
+  sessionKey?: string;
 };
 
 export type FileReadMessageDelivery = {
   content?: string;
   runId?: string;
+  sessionKey?: string;
   success: boolean;
 };
 
@@ -32,6 +34,7 @@ export type FileReadRevision = {
 type ReadTargetState = {
   anchorGroups: string[][];
   anchors: string[];
+  bounded: boolean;
   empty: boolean;
   failed: boolean;
   lastOffset: number;
@@ -40,7 +43,7 @@ type ReadTargetState = {
 };
 
 type RunState = {
-  deliveredViaMessageTool: boolean;
+  deliveredSessionKey: string | null;
   lastSuccessfulTarget: string | null;
   revisionAttempts: number;
   targets: Map<string, ReadTargetState>;
@@ -232,12 +235,26 @@ function mutationTargets(toolName: string, params: unknown): string[] | null {
   return targets.length > 0 ? Array.from(new Set(targets)) : null;
 }
 
+function targetKeysMayMatch(left: string, right: string): boolean {
+  if (left === right) return true;
+  if (left === UNKNOWN_TARGET || right === UNKNOWN_TARGET) return false;
+  return left.endsWith(`/${right}`) || right.endsWith(`/${left}`);
+}
+
 function readOffset(params: unknown): number {
   if (!params || typeof params !== 'object' || Array.isArray(params)) return 0;
   const offset = (params as { offset?: unknown }).offset;
   return typeof offset === 'number' && Number.isFinite(offset) && offset >= 0
     ? offset
     : 0;
+}
+
+function readIsExplicitlyBounded(params: unknown): boolean {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    return false;
+  }
+  const limit = (params as { limit?: unknown }).limit;
+  return typeof limit === 'number' && Number.isFinite(limit) && limit > 0;
 }
 
 function isDeferredSameLineTail(tail: string): boolean {
@@ -413,9 +430,6 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
   const normalizedReply = normalizeForComparison(reply);
   const basenameCounts = targetBasenameCounts(successfulTargets);
   const relevantTargetKeys = new Set<string>();
-  if (state.lastSuccessfulTarget) {
-    relevantTargetKeys.add(state.lastSuccessfulTarget);
-  }
   for (const [targetKey, target] of successfulTargets) {
     if (
       targetIsNamed(normalizedReply, targetKey, basenameCounts) ||
@@ -423,6 +437,9 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
     ) {
       relevantTargetKeys.add(targetKey);
     }
+  }
+  if (relevantTargetKeys.size === 0 && state.lastSuccessfulTarget) {
+    relevantTargetKeys.add(state.lastSuccessfulTarget);
   }
   const targets = successfulTargets.filter(([targetKey]) =>
     relevantTargetKeys.has(targetKey)
@@ -542,16 +559,23 @@ function replyCompletesTrackedRead(reply: string, state: RunState): boolean {
     ([targetKey, target]) =>
       !target.empty || acknowledgedEmptyTargets.has(targetKey)
   );
+  const hasTruncated = hasTruncatedTarget(targets);
+  const representedBoundedExtract =
+    hasTruncated &&
+    targets.every(([, target]) => !target.truncated || target.bounded) &&
+    allTargetContentIsRepresented(reply, targets) &&
+    !FULL_FILE_DELIVERY_CLAIM.test(reply);
   return (
-    !hasTruncatedTarget(targets) &&
-    (allTargetContentIsRepresented(reply, targets) ||
-      (allEmptyTargetsAreAcknowledged &&
-        !isIncompleteFileDeliveryReply(reply) &&
-        !EXPLICIT_FULL_FILE_DELIVERY_CLAIM.test(reply) &&
-        !(
-          FULL_FILE_DELIVERY_CLAIM.test(reply) &&
-          anyTargetContentIsRepresented(reply, targets)
-        )))
+    representedBoundedExtract ||
+    (!hasTruncated &&
+      (allTargetContentIsRepresented(reply, targets) ||
+        (allEmptyTargetsAreAcknowledged &&
+          !isIncompleteFileDeliveryReply(reply) &&
+          !EXPLICIT_FULL_FILE_DELIVERY_CLAIM.test(reply) &&
+          !(
+            FULL_FILE_DELIVERY_CLAIM.test(reply) &&
+            anyTargetContentIsRepresented(reply, targets)
+          ))))
   );
 }
 
@@ -614,8 +638,11 @@ export function createFileReadCompletionGuard(options?: {
           runs.delete(runId);
           return;
         }
-        const invalidatedTargets = changedTargets.filter((targetKey) =>
-          existing.targets.has(targetKey)
+        const invalidatedTargets = [...existing.targets.keys()].filter(
+          (targetKey) =>
+            changedTargets.some((changedTarget) =>
+              targetKeysMayMatch(targetKey, changedTarget)
+            )
         );
         if (invalidatedTargets.length === 0) return;
         const targets = new Map(existing.targets);
@@ -626,7 +653,7 @@ export function createFileReadCompletionGuard(options?: {
         }
         touch(runId, {
           ...existing,
-          deliveredViaMessageTool: false,
+          deliveredSessionKey: null,
           lastSuccessfulTarget: invalidatedTargets.includes(
             existing.lastSuccessfulTarget ?? ''
           )
@@ -648,6 +675,7 @@ export function createFileReadCompletionGuard(options?: {
         targets.set(targetKey, {
           anchorGroups: target?.anchorGroups ?? [],
           anchors: target?.anchors ?? [],
+          bounded: target?.bounded ?? false,
           empty: target?.empty ?? false,
           failed: true,
           // Failed reads are not progress. Preserve the last successful offset
@@ -657,7 +685,7 @@ export function createFileReadCompletionGuard(options?: {
           truncated: target?.truncated ?? false,
         });
         touch(runId, {
-          deliveredViaMessageTool: existing?.deliveredViaMessageTool ?? false,
+          deliveredSessionKey: existing?.deliveredSessionKey ?? null,
           lastSuccessfulTarget: existing?.lastSuccessfulTarget ?? null,
           revisionAttempts: existing?.revisionAttempts ?? 0,
           targets,
@@ -709,6 +737,7 @@ export function createFileReadCompletionGuard(options?: {
       targets.set(targetKey, {
         anchorGroups,
         anchors,
+        bounded: readIsExplicitlyBounded(input.params),
         empty:
           (existingTarget?.empty ?? true) &&
           anchors.length === 0 &&
@@ -731,7 +760,7 @@ export function createFileReadCompletionGuard(options?: {
       touch(runId, {
         // Any successful read after a message-tool delivery adds new work.
         // Only a later qualifying delivery may suppress final correction.
-        deliveredViaMessageTool: false,
+        deliveredSessionKey: null,
         lastSuccessfulTarget: targetKey,
         revisionAttempts: existing?.revisionAttempts ?? 0,
         targets,
@@ -740,7 +769,8 @@ export function createFileReadCompletionGuard(options?: {
 
     recordMessageDelivery(input: FileReadMessageDelivery): void {
       const runId = input.runId?.trim();
-      if (!runId || !input.success) return;
+      const sessionKey = input.sessionKey?.trim();
+      if (!runId || !sessionKey || !input.success) return;
       const existing = runs.get(runId);
       if (
         !existing ||
@@ -749,7 +779,7 @@ export function createFileReadCompletionGuard(options?: {
       )
         return;
       touch(runId, {
-        deliveredViaMessageTool: true,
+        deliveredSessionKey: sessionKey,
         lastSuccessfulTarget: existing.lastSuccessfulTarget,
         revisionAttempts: existing.revisionAttempts,
         targets: new Map(existing.targets),
@@ -763,7 +793,8 @@ export function createFileReadCompletionGuard(options?: {
       const state = runs.get(runId);
       if (
         !state ||
-        state.deliveredViaMessageTool ||
+        (state.deliveredSessionKey != null &&
+          state.deliveredSessionKey === input.sessionKey?.trim()) ||
         hasRelevantFailedTarget(reply, state) ||
         state.revisionAttempts >= MAX_REVISION_ATTEMPTS
       )

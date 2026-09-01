@@ -414,6 +414,7 @@ describe('file read completion guard', () => {
     guard.recordMessageDelivery({
       content: `Here are the requested contents:\n${CSV}`,
       runId: 'message-tool-delivery',
+      sessionKey: 'session:source',
       success: true,
     });
 
@@ -421,6 +422,7 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'message-tool-delivery',
         lastAssistantMessage: 'NO_REPLY',
+        sessionKey: 'session:source',
       })
     ).toBeNull();
   });
@@ -431,6 +433,7 @@ describe('file read completion guard', () => {
     guard.recordMessageDelivery({
       content: `Here are the requested contents:\n${CSV}`,
       runId: 'failed-message-tool-delivery',
+      sessionKey: 'session:source',
       success: false,
     });
 
@@ -438,6 +441,7 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'failed-message-tool-delivery',
         lastAssistantMessage: 'NO_REPLY',
+        sessionKey: 'session:source',
       })
     ).not.toBeNull();
   });
@@ -448,6 +452,7 @@ describe('file read completion guard', () => {
     guard.recordMessageDelivery({
       content: 'Opening the CSV now.',
       runId: 'message-tool-progress',
+      sessionKey: 'session:source',
       success: true,
     });
 
@@ -455,6 +460,7 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'message-tool-progress',
         lastAssistantMessage: 'NO_REPLY',
+        sessionKey: 'session:source',
       })
     ).not.toBeNull();
   });
@@ -467,6 +473,7 @@ describe('file read completion guard', () => {
     guard.recordMessageDelivery({
       content: `Here are the requested contents:\n${CSV}`,
       runId: 'delivery-then-read',
+      sessionKey: 'session:source',
       success: true,
     });
     guard.recordToolResult(
@@ -481,6 +488,26 @@ describe('file read completion guard', () => {
       guard.beforeFinalize({
         runId: 'delivery-then-read',
         lastAssistantMessage: 'NO_REPLY',
+        sessionKey: 'session:source',
+      })
+    ).not.toBeNull();
+  });
+
+  it('does not credit file delivery to a different conversation', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('cross-conversation-delivery'));
+    guard.recordMessageDelivery({
+      content: `Here are the requested contents:\n${CSV}`,
+      runId: 'cross-conversation-delivery',
+      sessionKey: 'session:other',
+      success: true,
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'cross-conversation-delivery',
+        lastAssistantMessage: 'NO_REPLY',
+        sessionKey: 'session:source',
       })
     ).not.toBeNull();
   });
@@ -544,6 +571,31 @@ describe('file read completion guard', () => {
         lastAssistantMessage: 'first line\nsecond line',
       })?.retry.instruction
     ).toContain('Continue reading');
+  });
+
+  it('accepts a fully represented explicitly bounded read', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult({
+      runId: 'bounded-read',
+      toolName: 'read',
+      params: { path: '/tmp/report.txt', limit: 3 },
+      result: {
+        content: [
+          {
+            type: 'text',
+            text: 'first line\nsecond line\nthird line\n[Showing lines 1-3 of 40]',
+          },
+        ],
+      },
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'bounded-read',
+        lastAssistantMessage:
+          'The requested first three lines are:\nfirst line\nsecond line\nthird line',
+      })
+    ).toBeNull();
   });
 
   it('does not mistake a bracketed file heading for a truncation footer', () => {
@@ -767,7 +819,7 @@ describe('file read completion guard', () => {
         lastAssistantMessage:
           'Here are the requested contents:\nschema1\nschema2\nschema3\nschema4',
       })
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
   it('does not select an earlier target from an ambiguous basename alone', () => {
@@ -900,7 +952,7 @@ describe('file read completion guard', () => {
       toolName: 'apply_patch',
       params: {
         patch:
-          '*** Begin Patch\n*** Update File: /tmp/report.txt\n@@\n-old one\n+new one\n*** End Patch',
+          '*** Begin Patch\n*** Update File: tmp/report.txt\n@@\n-old one\n+new one\n*** End Patch',
       },
       result: { content: [{ type: 'text', text: 'Done!' }] },
     });
@@ -947,6 +999,32 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('does not require a later auxiliary target when earlier content is explicit', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'requested-before-auxiliary',
+        'report one\nreport two\nreport three\nreport four',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'requested-before-auxiliary',
+        'schema one\nschema two\nschema three\nschema four',
+        '/tmp/schema.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'requested-before-auxiliary',
+        lastAssistantMessage:
+          'Here are the requested report.txt contents:\nreport one\nreport two\nreport three\nreport four',
+      })
+    ).toBeNull();
+  });
+
   it('does not require continuation of a truncated auxiliary read', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
@@ -973,7 +1051,7 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
-  it('requires an explicit acknowledgment for an empty target in multi-file delivery', () => {
+  it('requires acknowledgment only when an empty target is selected', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(
       successfulRead('mixed-targets', 'b1\nb2\nb3\nb4\nb5\nb6', '/tmp/data.txt')
@@ -987,6 +1065,13 @@ describe('file read completion guard', () => {
         runId: 'mixed-targets',
         lastAssistantMessage:
           'Here are the requested contents:\nb1\nb2\nb3\nb4\nb5\nb6',
+      })
+    ).toBeNull();
+    expect(
+      guard.beforeFinalize({
+        runId: 'mixed-targets',
+        lastAssistantMessage:
+          'Here are the requested data.txt and empty.txt contents:\nb1\nb2\nb3\nb4\nb5\nb6',
       })
     ).not.toBeNull();
     expect(
