@@ -256,7 +256,7 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
     ? progressCandidate.slice(completionPrefix[0].length)
     : '';
   const laterSentences = completionTail
-    .split(/[.!?]\s+/)
+    .split(/(?:[.!?]\s+|[,;:]\s*(?:and\s+)?)/i)
     .slice(1)
     .map((sentence) => unwrapProgressMarkdown(sentence))
     .filter(Boolean);
@@ -309,7 +309,7 @@ function relevantTargets(reply: string, state: RunState): TrackedTarget[] {
     if (
       (targetKey !== UNKNOWN_TARGET &&
         normalizedReply.includes(normalizeForComparison(targetName))) ||
-      matchedReadContentCount(reply, target.anchors) > 0
+      containsRepresentativeReadContent(reply, target.anchors)
     ) {
       relevantTargetKeys.add(targetKey);
     }

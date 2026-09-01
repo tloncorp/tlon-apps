@@ -3,6 +3,8 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
+      - ".nvmrc"
+      - "apps/tlon-web/.tool-versions"
       - "packages/openclaw/**"
       - "packages/tlon-bot-e2e/**"
       - "packages/api/**"
@@ -36,6 +38,13 @@ jobs:
           run_install: |
             - recursive: true
               args: [--frozen-lockfile]
+
+      # This contract is specific to tlon-apps and intentionally stays out of
+      # src/**, which is synced into the upstream OpenClaw repository.
+      - name: Check workspace Node pins
+        run: |
+          test "$(cat ../../.nvmrc)" = "22.22.3"
+          test "$(cat ../../apps/tlon-web/.tool-versions)" = "nodejs 22.22.3"
 
       - name: Build
         run: pnpm build

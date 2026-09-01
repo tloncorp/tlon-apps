@@ -338,6 +338,22 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it.each([', and', ':'])(
+    'accepts a result joined to the read acknowledgment with %s',
+    (separator) => {
+      const guard = createFileReadCompletionGuard();
+      const runId = `joined-result-${separator}`;
+      guard.recordToolResult(successfulRead(runId));
+
+      expect(
+        guard.beforeFinalize({
+          runId,
+          lastAssistantMessage: `I've read the file${separator} the title is Quarterly Report.`,
+        })
+      ).toBeNull();
+    }
+  );
+
   it('accepts a requested extract under a singular delivery heading', () => {
     const guard = createFileReadCompletionGuard();
     const lastRow = CSV.split('\n').at(-1) ?? '';
@@ -723,6 +739,32 @@ describe('file read completion guard', () => {
           'Here are the requested contents:\nschema1\nschema2\nschema3\nschema4',
       })
     ).not.toBeNull();
+  });
+
+  it('does not select an auxiliary JSON target from shared structural anchors', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'json-target',
+        '{\n  "schema": "v1",\n  "auxiliary": true\n}',
+        '/tmp/schema.json'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'json-target',
+        '{\n  "title": "Quarterly Report",\n  "items": [1, 2, 3]\n}',
+        '/tmp/report.json'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'json-target',
+        lastAssistantMessage:
+          'Here are the requested file contents:\n{\n  "title": "Quarterly Report",\n  "items": [1, 2, 3]\n}',
+      })
+    ).toBeNull();
   });
 
   it('does not require continuation of a truncated auxiliary read', () => {
