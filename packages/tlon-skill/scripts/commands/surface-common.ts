@@ -66,6 +66,10 @@ export const SURFACE_ERROR_CODES = [
   'template-catalogue-empty',
   'doctrine-unavailable',
   'bundle-unavailable',
+  'rubric-unreadable',
+  'rubric-incomplete',
+  'rubric-mismatch',
+  'current-definition-unreadable',
 ] as const;
 
 export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
@@ -138,6 +142,20 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     // in response is exactly the destructive noise `environment` exists to
     // prevent.
     'bundle-unavailable': 'environment',
+    // All three rubric refusals are `author`: the scoring sheet is a file the
+    // caller wrote, and the remedy is always to change that file (or the work
+    // behind it) and run again. `rubric-mismatch` is the one worth naming —
+    // it means the sheet is complete but scores different bytes, so the repair
+    // is re-running preview and re-scoring, not editing the hash.
+    'rubric-unreadable': 'author',
+    'rubric-incomplete': 'author',
+    'rubric-mismatch': 'author',
+    // The CHANNEL holds something unreadable. Nothing in the caller's working
+    // directory caused it and no rewrite of the app fixes it — regenerating in
+    // response is precisely the destructive noise `environment` exists to
+    // prevent, and in this case it would land someone else's app on a live
+    // board.
+    'current-definition-unreadable': 'environment',
   };
 
 export class SurfaceError extends CommandError {

@@ -21,9 +21,14 @@ function manifest(overrides: Partial<PreviewManifest> = {}): PreviewManifest {
     specRevision: 2,
     title: 'Lunch poll',
     shellVersion: 1,
+    bundleSha256: 'a'.repeat(64),
     actions: ['vote-pizza', 'vote-tacos'],
     actors: ['~zod', '~ten', '~mug'],
     rubric: 'skills/surfaces/RUBRIC.md',
+    rubricTemplate: '/out/rubric.template.json',
+    defects: [],
+    unprobedCells: [],
+    notChecked: ['whether any copy means anything'],
     populated: {
       invokes: [{ actionId: 'vote-pizza', actor: '~zod' }],
       unchanged: false,
@@ -75,6 +80,17 @@ function makeDeps(
       }
       return contents;
     },
+    readBundleBytes: (path) => {
+      const contents = files[path];
+      if (contents === undefined) {
+        throw new Error('ENOENT: no such file');
+      }
+      return new TextEncoder().encode(contents);
+    },
+    // A stand-in, but a real function of the bytes: the assertion that
+    // preview stamps the BUNDLE's hash (not the spec's, not a constant) into
+    // what it hands the renderer has to be able to fail.
+    sha256Hex: (bytes) => `${bytes.byteLength}`.padStart(64, '0').slice(0, 64),
     render:
       options.render ??
       (async (request) => {
@@ -82,6 +98,7 @@ function makeDeps(
         return {
           manifest: manifest(),
           manifestPath: '/out/manifest.json',
+          rubricTemplatePath: '/out/rubric.template.json',
           shots: [],
           populated: { state: {}, invokes: [], unchanged: false },
         };
@@ -238,6 +255,7 @@ describe('surface preview', () => {
           ],
         }),
         manifestPath: '/out/manifest.json',
+        rubricTemplatePath: '/out/rubric.template.json',
         shots: [],
         populated: { state: {}, invokes: [], unchanged: false },
       }),
@@ -252,6 +270,7 @@ describe('surface preview', () => {
       render: async () => ({
         manifest: manifest(),
         manifestPath: '/out/manifest.json',
+        rubricTemplatePath: '/out/rubric.template.json',
         shots: [],
         populated: { state: {}, invokes: [], unchanged: true },
       }),
@@ -266,6 +285,8 @@ describe('surface preview', () => {
       stdout: (text) => stdout.push(text),
       stderr: () => {},
       readTextFile: () => '',
+      readBinaryFile: () => new Uint8Array(),
+      sha256Hex: () => '0'.repeat(64),
     });
     expect(exit).toBe(0);
     expect(stdout.join('')).toContain('tlon surface preview');
@@ -275,5 +296,100 @@ describe('surface preview', () => {
     const { deps, out } = makeDeps();
     expect(await run(['app.js', 'spec.json', '--json'], deps)).toBe(0);
     expect(JSON.parse(out()).surfaceId).toBe('srf-poll');
+  });
+});
+
+describe('surface preview — the machine defect list', () => {
+  it('prints every defect with its rubric check and the cells it was in', async () => {
+    const { deps, out } = makeDeps({
+      render: async () => ({
+        manifest: manifest({
+          defects: [
+            {
+              check: 'overflow',
+              rubricCheck: 1,
+              key: 'overflow:canvas.tsh-chart',
+              message:
+                'canvas.tsh-chart runs 62px past the right edge of the 390px viewport',
+              cells: ['phone-initial-light', 'phone-initial-dark'],
+            },
+            {
+              check: 'no-jargon',
+              rubricCheck: 6,
+              key: 'jargon:rollover',
+              message: 'the word "rollover" is on screen',
+              cells: ['phone-populated-light'],
+            },
+          ],
+        }),
+        manifestPath: '/out/manifest.json',
+        rubricTemplatePath: '/out/rubric.template.json',
+        shots: [],
+        populated: { state: {}, invokes: [], unchanged: false },
+      }),
+    });
+    await run(['app.js', 'spec.json'], deps);
+    const printed = out();
+    expect(printed).toContain('Machine-checked defects: 2 found');
+    expect(printed).toContain(
+      '[rubric 1: overflow] canvas.tsh-chart runs 62px past the right edge'
+    );
+    expect(printed).toContain(
+      'seen in: phone-initial-light, phone-initial-dark'
+    );
+    expect(printed).toContain('[rubric 6: no-jargon] the word "rollover"');
+  });
+
+  it('says what it did not check even when it found nothing', async () => {
+    // The whole hazard of a machine pass: a clean run read as a clean app.
+    const { deps, out } = makeDeps();
+    await run(['app.js', 'spec.json'], deps);
+    const printed = out();
+    expect(printed).toContain('Machine-checked defects: none found');
+    expect(printed).toContain('It did NOT check:');
+    expect(printed).toContain('A clean machine pass is not a clean app.');
+  });
+
+  it('distinguishes an unmeasured cell from a clean one', async () => {
+    const { deps, out } = makeDeps({
+      render: async () => ({
+        manifest: manifest({
+          unprobedCells: [
+            { cell: 'phone-populated-dark', problem: 'frame was detached' },
+          ],
+        }),
+        manifestPath: '/out/manifest.json',
+        rubricTemplatePath: '/out/rubric.template.json',
+        shots: [],
+        populated: { state: {}, invokes: [], unchanged: false },
+      }),
+    });
+    await run(['app.js', 'spec.json'], deps);
+    expect(out()).toContain(
+      '1 cell(s) could NOT be measured, so "no defects" says nothing about them'
+    );
+    expect(out()).toContain('phone-populated-dark: frame was detached');
+  });
+
+  it('points at the scoring sheet and says publish refuses without it', async () => {
+    const { deps, out } = makeDeps();
+    await run(['app.js', 'spec.json'], deps);
+    expect(out()).toContain('/out/rubric.template.json');
+    expect(out()).toContain('Publish refuses without it.');
+  });
+
+  it("hands the renderer the BUNDLE's hash, not the spec's", async () => {
+    // The identity the rubric artifact is bound to. If this ever hashed the
+    // spec, or a constant, every publish would refuse a correctly scored
+    // sheet — or worse, accept one scored against other bytes.
+    const { deps, requests } = makeDeps({
+      files: {
+        'app.js': '0123456789',
+        'spec.json': JSON.stringify({ surfaceId: 'srf-poll' }),
+      },
+    });
+    await run(['app.js', 'spec.json'], deps);
+    expect(requests[0].bundleSha256).toBe('10'.padStart(64, '0').slice(0, 64));
+    expect(requests[0].bundleSource).toBe('0123456789');
   });
 });

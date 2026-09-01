@@ -13,22 +13,27 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+import type { PreviewCellObservation } from './surface-preview-defects';
 import {
   PREVIEW_ACTORS,
   PREVIEW_FULL_HEIGHT,
+  PREVIEW_RUBRIC_TEMPLATE_FILE,
   type PreviewBrowser,
   type PreviewContext,
+  type PreviewFrame,
   type PreviewLauncher,
   type PreviewPage,
   type SurfaceSpec,
   assemblePreviewDocument,
   buildInitMessage,
   buildPreviewHostPage,
+  cellId,
   foldPopulatedState,
   previewMatrix,
   previewViewports,
   renderSurfacePreview,
 } from './surface-preview';
+import { RUBRIC_CELL_IDS } from './surface-rubric-artifact';
 
 // bun test runs from the package root
 const repoRoot = join(process.cwd(), '..', '..');
@@ -285,38 +290,99 @@ interface RecordedPage {
   host: string;
   mounted: { document: string; flags: string; init: string } | null;
   screenshot: string | null;
+  probeExpressions: string[];
+}
+
+/**
+ * A clean measurement: nothing past the edge, one comfortable control, no
+ * denylisted word. This is the "good bundle" arm of the defect-pass control,
+ * and it has to be a real observation rather than an empty object — a stand-in
+ * that could not express a defect would make the whole pass untestable, which
+ * is the trap the brief names.
+ */
+function cleanObservation(): PreviewCellObservation {
+  return {
+    viewportWidth: 390,
+    viewportHeight: 844,
+    documentScrollWidth: 390,
+    overflowing: [],
+    controls: [
+      {
+        descriptor: 'button.tsh-button',
+        text: 'Add a session',
+        left: 16,
+        right: 200,
+        top: 300,
+        bottom: 342,
+        width: 184,
+        height: 42,
+        clipped: false,
+      },
+    ],
+    text: 'This week Add a session Nobody has logged one yet.',
+  };
 }
 
 function fakeLauncher(
   options: {
     errors?: { phase: string; message: string }[];
+    /** what the probe brings back from the app frame, per cell */
+    observation?: PreviewCellObservation | null;
+    /** the app frame throws instead of answering */
+    probeThrows?: string;
   } = {}
 ): { launcher: PreviewLauncher; pages: RecordedPage[] } {
   const pages: RecordedPage[] = [];
 
-  const makePage = (record: RecordedPage): PreviewPage => ({
-    async setContent(html) {
-      record.host = html;
-    },
-    async evaluate(_fn, arg) {
-      if (arg === undefined) {
-        return { errors: options.errors ?? [] };
-      }
-      record.mounted = arg as RecordedPage['mounted'];
-      return undefined;
-    },
-    async waitForFunction() {
-      return undefined;
-    },
-    async waitForTimeout() {},
-    async screenshot({ path }) {
-      record.screenshot = path;
-      mkdirForFile(path);
-      writeFileSync(path, 'png');
-      return undefined;
-    },
-    async close() {},
-  });
+  const makePage = (record: RecordedPage): PreviewPage => {
+    const hostFrame: PreviewFrame = {
+      // The host page has no shell root, which is how the real probe tells
+      // the two frames apart.
+      async evaluate() {
+        return null;
+      },
+    };
+    const appFrame: PreviewFrame = {
+      async evaluate(expression) {
+        record.probeExpressions.push(expression);
+        if (options.probeThrows !== undefined) {
+          throw new Error(options.probeThrows);
+        }
+        return options.observation === undefined
+          ? cleanObservation()
+          : options.observation;
+      },
+    };
+    return {
+      async setContent(html) {
+        record.host = html;
+      },
+      async evaluate(_fn, arg) {
+        if (arg === undefined) {
+          return { errors: options.errors ?? [] };
+        }
+        record.mounted = arg as RecordedPage['mounted'];
+        return undefined;
+      },
+      async waitForFunction() {
+        return undefined;
+      },
+      async waitForTimeout() {},
+      async screenshot({ path }) {
+        record.screenshot = path;
+        mkdirForFile(path);
+        writeFileSync(path, 'png');
+        return undefined;
+      },
+      mainFrame() {
+        return hostFrame;
+      },
+      frames() {
+        return [hostFrame, appFrame];
+      },
+      async close() {},
+    };
+  };
 
   const browser: PreviewBrowser = {
     async newContext(contextOptions) {
@@ -328,6 +394,7 @@ function fakeLauncher(
         host: '',
         mounted: null,
         screenshot: null,
+        probeExpressions: [],
       };
       pages.push(record);
       const context: PreviewContext = {
@@ -367,6 +434,7 @@ describe('renderSurfacePreview', () => {
     const { launcher, pages } = fakeLauncher();
     const dir = outDir();
     const outcome = await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
       bundleSource: pollBundle(),
       spec: pollSpec(),
       outDir: dir,
@@ -396,6 +464,7 @@ describe('renderSurfacePreview', () => {
     const bundleSource = pollBundle();
     await renderSurfacePreview({
       bundleSource,
+      bundleSha256: '0'.repeat(64),
       spec: pollSpec(),
       outDir: outDir(),
       launcher,
@@ -422,6 +491,7 @@ describe('renderSurfacePreview', () => {
   it('renders a read-only member when asked', async () => {
     const { launcher, pages } = fakeLauncher();
     await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
       bundleSource: pollBundle(),
       spec: pollSpec(),
       outDir: outDir(),
@@ -437,6 +507,7 @@ describe('renderSurfacePreview', () => {
       errors: [{ phase: 'render', message: 'boom' }],
     });
     const outcome = await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
       bundleSource: pollBundle(),
       spec: pollSpec(),
       outDir: outDir(),
@@ -455,6 +526,7 @@ describe('renderSurfacePreview', () => {
     await expect(
       renderSurfacePreview({
         bundleSource: pollBundle(),
+        bundleSha256: '0'.repeat(64),
         spec: { ...pollSpec(), specRevision: -1 },
         outDir: outDir(),
         launcher,
@@ -474,6 +546,7 @@ describe('renderSurfacePreview', () => {
     writeFileSync(stale, 'stale');
     const { launcher } = fakeLauncher();
     await renderSurfacePreview({
+      bundleSha256: '0'.repeat(64),
       bundleSource: pollBundle(),
       spec: pollSpec(),
       outDir: dir,
@@ -502,6 +575,7 @@ describe('headless capture', () => {
       const dir = outDir();
       const outcome = await renderSurfacePreview({
         bundleSource: pollBundle(),
+        bundleSha256: '0'.repeat(64),
         spec: pollSpec(),
         outDir: dir,
       });
@@ -511,6 +585,273 @@ describe('headless capture', () => {
         // a PNG, not a zero-byte placeholder
         expect(readFileSync(shot.path).byteLength).toBeGreaterThan(1000);
       }
+    },
+    120_000
+  );
+});
+
+/* ------------------------------------------------------------------ */
+/* the machine defect pass                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A deliberately bad app, in the shape a generating model actually produces
+ * one: two vote buttons crowded onto a row, a strip wider than a phone, and a
+ * sentence that describes the machine instead of the subject.
+ *
+ * It is a REAL bundle — it registers with the real shell and renders through
+ * the real primitives — because a control whose bad arm is a hand-written
+ * measurement only proves the arithmetic. The `TLON_PREVIEW_BROWSER` test at
+ * the bottom of this file runs this through actual Chromium.
+ */
+const DEFECTIVE_BUNDLE = `(function () {
+  const { html, primitives } = surface;
+  const { Card, Button } = primitives;
+  surface.register({
+    render(state) {
+      return html\`
+        <\${Card} title="Zine board">
+          <div style="display: flex; gap: 2px;">
+            <\${Button}>Approve<//>
+            <\${Button}>Reject<//>
+          </div>
+          <div style="width: 620px">\${state.note || 'wide strip'}</div>
+          <p>3 pages since the last rollover</p>
+        <//>
+      \`;
+    },
+  });
+})();`;
+
+function defectiveSpec(): SurfaceSpec {
+  return {
+    version: 1,
+    surfaceId: 'srf-defective-fixture',
+    specRevision: 1,
+    title: 'Zine board',
+    bundle: {
+      assetRef: 'fixture://defective/app.js',
+      sha256: 'b'.repeat(64),
+      size: 512,
+      shellVersion: 1,
+    },
+    initialState: { note: 'a strip that is much wider than a phone' },
+    actions: {
+      approve: { ops: [{ op: 'set', path: '/note', value: 'approved' }] },
+    },
+  } as unknown as SurfaceSpec;
+}
+
+/** A cell whose layout metrics and copy are all findings. */
+function defectiveObservation(): PreviewCellObservation {
+  return {
+    viewportWidth: 390,
+    viewportHeight: 844,
+    documentScrollWidth: 636,
+    overflowing: [
+      {
+        descriptor: 'div',
+        text: 'a strip that is much wider than a phone',
+        left: 16,
+        right: 636,
+        top: 400,
+        bottom: 424,
+        width: 620,
+        height: 24,
+        clipped: false,
+      },
+    ],
+    controls: [
+      {
+        descriptor: 'button.tsh-button',
+        text: 'Approve',
+        left: 16,
+        right: 120,
+        top: 300,
+        bottom: 342,
+        width: 104,
+        height: 42,
+        clipped: false,
+      },
+      {
+        descriptor: 'button.tsh-button',
+        text: 'Reject',
+        left: 122,
+        right: 226,
+        top: 300,
+        bottom: 342,
+        width: 104,
+        height: 42,
+        clipped: false,
+      },
+    ],
+    text: 'Zine board Approve Reject a strip 3 pages since the last rollover',
+  };
+}
+
+describe('renderSurfacePreview — the defect pass reaches the manifest', () => {
+  it('finds nothing in a clean render, and says what it did not check', async () => {
+    const { launcher } = fakeLauncher();
+    const outcome = await renderSurfacePreview({
+      bundleSource: pollBundle(),
+      bundleSha256: 'd'.repeat(64),
+      spec: pollSpec(),
+      outDir: outDir(),
+      launcher,
+    });
+    expect(outcome.manifest.defects).toEqual([]);
+    expect(outcome.manifest.unprobedCells).toEqual([]);
+    expect(outcome.manifest.notChecked.length).toBeGreaterThan(3);
+  });
+
+  it('carries every defect, grouped, with the cells it was seen in', async () => {
+    // Same command, same fixture, ONE thing different: what the app frame
+    // measured. That is the fulcrum, and this is the arm that moves it.
+    const { launcher } = fakeLauncher({
+      observation: defectiveObservation(),
+    });
+    const outcome = await renderSurfacePreview({
+      bundleSource: DEFECTIVE_BUNDLE,
+      bundleSha256: 'e'.repeat(64),
+      spec: defectiveSpec(),
+      outDir: outDir(),
+      launcher,
+    });
+
+    const byCheck = outcome.manifest.defects.map((defect) => defect.check);
+    expect(byCheck).toContain('overflow');
+    expect(byCheck).toContain('tap-targets');
+    expect(byCheck).toContain('no-jargon');
+    // Every cell rendered, so every cell saw it — grouped to one line each.
+    for (const defect of outcome.manifest.defects) {
+      expect(defect.cells).toHaveLength(12);
+    }
+  });
+
+  it('reports an unmeasurable cell as unmeasured, never as clean', async () => {
+    // The vacuity guard. A probe that silently failed would report zero
+    // defects for every app forever and look exactly like a passing run.
+    const { launcher } = fakeLauncher({
+      probeThrows: 'Execution context was destroyed',
+    });
+    const outcome = await renderSurfacePreview({
+      bundleSource: pollBundle(),
+      bundleSha256: 'f'.repeat(64),
+      spec: pollSpec(),
+      outDir: outDir(),
+      launcher,
+    });
+    expect(outcome.manifest.defects).toEqual([]);
+    expect(outcome.manifest.unprobedCells).toHaveLength(12);
+    expect(outcome.manifest.unprobedCells[0].problem).toContain(
+      'Execution context was destroyed'
+    );
+  });
+
+  it('runs the probe in the app frame, not the host frame', async () => {
+    const { launcher, pages } = fakeLauncher();
+    await renderSurfacePreview({
+      bundleSource: pollBundle(),
+      bundleSha256: 'a'.repeat(64),
+      spec: pollSpec(),
+      outDir: outDir(),
+      launcher,
+    });
+    expect(pages).toHaveLength(12);
+    for (const page of pages) {
+      expect(page.probeExpressions).toHaveLength(1);
+      expect(page.probeExpressions[0]).toContain('.tsh-root');
+    }
+  });
+});
+
+describe('renderSurfacePreview — the scoring sheet', () => {
+  it('writes a template keyed for the twelve cells and stamped with the hash', async () => {
+    const { launcher } = fakeLauncher();
+    const dir = outDir();
+    const outcome = await renderSurfacePreview({
+      bundleSource: pollBundle(),
+      bundleSha256: '9'.repeat(64),
+      spec: pollSpec(),
+      outDir: dir,
+      launcher,
+    });
+    expect(outcome.rubricTemplatePath).toBe(
+      join(dir, PREVIEW_RUBRIC_TEMPLATE_FILE)
+    );
+    const template = JSON.parse(
+      readFileSync(outcome.rubricTemplatePath, 'utf8')
+    );
+    expect(Object.keys(template.cells)).toEqual([...RUBRIC_CELL_IDS]);
+    expect(template.bundleSha256).toBe('9'.repeat(64));
+    expect(template.surfaceId).toBe(pollSpec().surfaceId);
+  });
+
+  it('clears the previous round’s template, which named the previous bytes', async () => {
+    const { launcher } = fakeLauncher();
+    const dir = outDir();
+    const stale = join(dir, PREVIEW_RUBRIC_TEMPLATE_FILE);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(stale, '{"version":1,"bundleSha256":"stale"}');
+    await renderSurfacePreview({
+      bundleSource: pollBundle(),
+      bundleSha256: '8'.repeat(64),
+      spec: pollSpec(),
+      outDir: dir,
+      launcher,
+    });
+    expect(JSON.parse(readFileSync(stale, 'utf8')).bundleSha256).toBe(
+      '8'.repeat(64)
+    );
+  });
+
+  it('agrees with the cell ids surface publish validates against', () => {
+    // The duplication check. `surface-rubric-artifact.ts` carries its own copy
+    // of the twelve so publish can validate a text file without importing
+    // Playwright, the shell artifact and the reducer. Two hand-maintained
+    // lists is exactly the drift class 6a's cap incident was, so it is checked
+    // rather than hoped for.
+    expect(previewMatrix(['initial', 'populated']).map(cellId)).toEqual([
+      ...RUBRIC_CELL_IDS,
+    ]);
+  });
+});
+
+describe('headless capture — the defect pass against a real browser', () => {
+  browserTest(
+    'finds the crowding, the overflow and the jargon in a bad bundle',
+    async () => {
+      const outcome = await renderSurfacePreview({
+        bundleSource: DEFECTIVE_BUNDLE,
+        bundleSha256: '1'.repeat(64),
+        spec: defectiveSpec(),
+        outDir: outDir(),
+      });
+      // The probe reached the sandbox at all — an opaque-origin srcdoc frame
+      // the host page cannot touch. If this ever regresses, every cell goes
+      // unprobed and the pass reports a clean bill of health.
+      expect(outcome.manifest.unprobedCells).toEqual([]);
+      const messages = outcome.manifest.defects.map(
+        (defect) => `${defect.check}: ${defect.message}`
+      );
+      expect(messages.join('\n')).toContain('past the right edge');
+      expect(messages.join('\n')).toContain('on the same row');
+      expect(messages.join('\n')).toContain('"rollover" is on screen');
+    },
+    120_000
+  );
+
+  browserTest(
+    'finds nothing in the poll fixture, measured the same way',
+    async () => {
+      const outcome = await renderSurfacePreview({
+        bundleSource: pollBundle(),
+        bundleSha256: '2'.repeat(64),
+        spec: pollSpec(),
+        outDir: outDir(),
+      });
+      expect(outcome.manifest.unprobedCells).toEqual([]);
+      expect(outcome.manifest.defects).toEqual([]);
     },
     120_000
   );

@@ -2,6 +2,11 @@ import type { SurfaceSpec } from '@tloncorp/api';
 
 import { canonicalJson } from '../surface-canonical-json';
 import {
+  type RubricArtifact,
+  rubricResiduals,
+  validateRubricArtifact,
+} from '../surface-rubric-artifact';
+import {
   type ObservationBudget,
   type SurfaceDeps,
   type SurfaceReport,
@@ -31,7 +36,16 @@ import {
   repairPendingMigration,
 } from './surface-records';
 
-export const SURFACE_PUBLISH_HELP = `Usage: tlon surface publish <channel> --bundle <path> --spec <path> [options]
+/**
+ * The acknowledgment for publishing over a definition nobody can read.
+ *
+ * Declared above the help string it is interpolated into: a `const` read
+ * before its initializer is a temporal-dead-zone throw at module load, which
+ * would take out the whole CLI rather than one command.
+ */
+export const ALLOW_UNREADABLE_FLAG = '--allow-unreadable-definition';
+
+export const SURFACE_PUBLISH_HELP = `Usage: tlon surface publish <channel> --bundle <path> --spec <path> --rubric <path> [options]
 
 Publish an app to a dashboard channel: gate, upload, write the definition,
 mirror it, and (when preserving state) post the migration snapshot.
@@ -47,15 +61,28 @@ recipe, preserveState and bundle.shellVersion. This command owns
 bundle.sha256, bundle.size, bundle.assetRef and specRevision; any value
 those carry in the file is ignored.
 
+A COMPLETED RUBRIC IS REQUIRED. \`surface preview\` writes a pre-keyed scoring
+sheet next to its screenshots; fill it in and pass it here. Publish checks
+that all twelve capture cells carry an observation, that all seven rubric
+checks carry a verdict and a cell, and that the sheet names the exact bundle
+being published — completeness and identity only. Whether the observations
+are any good is not machine-checkable and is not checked.
+
 Options:
   --bundle <path>       App bundle — JavaScript source, not a document
   --spec <path>         Spec JSON
+  --rubric <path>       The completed scoring sheet from \`surface preview\`
   --preserve-state      Carry the current state across the revision, posting
                         the migration snapshot in this same command
   --reupload            Re-upload the bundle even when its bytes are unchanged
   --allow-surface-id-change
                         Permit a surfaceId different from the channel's
                         current one (this orphans all existing state)
+  ${ALLOW_UNREADABLE_FLAG}
+                        Publish over a definition this build cannot read.
+                        Without it, a channel whose definition does not
+                        validate is a refusal: publish cannot tell you what
+                        it is about to replace, so it does not replace it
   ${ALLOW_ABORTED_FLAG}
                         Preserve state even though an entry in the fold
                         stopped early. The migration snapshot is that entry's
@@ -67,10 +94,108 @@ Options:
   -h, --help            Show this help
 
 Example:
-  tlon surface publish chat/~zod/dash-abc --bundle ./app.js --spec ./spec.json`;
+  tlon surface publish chat/~zod/dash-abc --bundle ./app.js --spec ./spec.json \\
+    --rubric ./surface-preview/rubric.template.json`;
 
 const DEFAULT_SHELL_VERSION = 1;
 const BUNDLE_CONTENT_TYPE = 'application/javascript';
+
+/**
+ * Reads the scoring sheet and refuses unless it is complete and it names these
+ * exact bytes.
+ *
+ * Three refusals, kept distinct because they are three different repairs and
+ * because collapsing them would let the "publish refuses an incomplete rubric"
+ * test pass while only ever exercising `JSON.parse`:
+ *
+ * - `rubric-unreadable` — the file is not a rubric. Rewrite it.
+ * - `rubric-incomplete` — the shape is right and work is missing. Fill it in.
+ * - `rubric-mismatch` — the work is complete, for a different app or a
+ *   different build of this one. Re-preview and re-score.
+ *
+ * The hash comparison is the load-bearing one. `preview` stamps the bundle's
+ * sha256 into the template it writes, so a sheet that names these bytes is a
+ * sheet whose twelve cells were rendered from these bytes. A repair round
+ * changes the bytes and therefore invalidates the sheet, which is expensive and
+ * correct: scoring revision 1 and spending it on revision 3 is exactly the
+ * shortcut a loop under time pressure takes.
+ */
+function requireCompletedRubric(
+  deps: SurfaceDeps,
+  input: {
+    path: string;
+    channelId: string;
+    surfaceId: string;
+    sha256: string;
+  }
+): RubricArtifact {
+  let text: string;
+  try {
+    text = deps.readTextFile(input.path);
+  } catch (error) {
+    throw surfaceError(
+      'rubric-unreadable',
+      `The completed rubric could not be read at ${input.path}: ${
+        error instanceof Error ? error.message : String(error)
+      }. \`surface preview\` writes a pre-keyed one next to its screenshots.`,
+      { channel: input.channelId, path: input.path }
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch (error) {
+    throw surfaceError(
+      'rubric-unreadable',
+      `${input.path} is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      { channel: input.channelId, path: input.path }
+    );
+  }
+
+  const validation = validateRubricArtifact(parsed);
+  if (!validation.ok) {
+    throw surfaceError(
+      validation.code,
+      `${input.path} is not a completed rubric: ${validation.problems.join('; ')}. Nothing was uploaded or written. Completeness is all this checks — whether what you wrote is any good is yours.`,
+      {
+        channel: input.channelId,
+        path: input.path,
+        problems: validation.problems,
+      }
+    );
+  }
+
+  const artifact = validation.artifact;
+  if (artifact.surfaceId !== input.surfaceId) {
+    throw surfaceError(
+      'rubric-mismatch',
+      `${input.path} scores surface "${artifact.surfaceId}", and this publish is surface "${input.surfaceId}". A rubric for one app says nothing about another.`,
+      {
+        channel: input.channelId,
+        path: input.path,
+        scored: artifact.surfaceId,
+        publishing: input.surfaceId,
+      }
+    );
+  }
+  if (artifact.bundleSha256 !== input.sha256) {
+    throw surfaceError(
+      'rubric-mismatch',
+      `${input.path} scores a bundle hashing to ${artifact.bundleSha256}, and the bundle being published hashes to ${input.sha256}. Those are different builds, so the twelve captures behind that sheet are not this app's. Re-run \`surface preview\` on these bytes and score what it renders.`,
+      {
+        channel: input.channelId,
+        path: input.path,
+        scored: artifact.bundleSha256,
+        publishing: input.sha256,
+      }
+    );
+  }
+
+  return artifact;
+}
 
 /**
  * The spec's content, with the revision removed.
@@ -192,12 +317,13 @@ export async function runSurfacePublish(
   const parsed = parseSurfaceArgs(
     args,
     {
-      value: ['--bundle', '--spec'],
+      value: ['--bundle', '--spec', '--rubric'],
       boolean: [
         '--json',
         '--preserve-state',
         '--reupload',
         '--allow-surface-id-change',
+        ALLOW_UNREADABLE_FLAG,
         ALLOW_ABORTED_FLAG,
       ],
     },
@@ -221,6 +347,7 @@ export async function runSurfacePublish(
   }
   const bundlePath = requireValue(parsed, '--bundle', SURFACE_PUBLISH_HELP);
   const specPath = requireValue(parsed, '--spec', SURFACE_PUBLISH_HELP);
+  const rubricPath = requireValue(parsed, '--rubric', SURFACE_PUBLISH_HELP);
   const budget = deps.observationBudget;
   const allowAborted = parsed.flags.has(ALLOW_ABORTED_FLAG);
 
@@ -238,6 +365,15 @@ export async function runSurfacePublish(
   const sha256 = deps.sha256Hex(bundleBytes);
   const size = bundleBytes.byteLength;
 
+  // Before the gate, before the upload, before anything is written: the
+  // cheapest refusal first, and the one that must not be reachable around.
+  const rubric = requireCompletedRubric(deps, {
+    path: rubricPath,
+    channelId,
+    surfaceId: specFile.surfaceId,
+    sha256,
+  });
+
   const currentRead = readChannelSpec(deps, resolved.channel);
   if (currentRead.status === 'version-too-new') {
     throw surfaceError(
@@ -246,16 +382,44 @@ export async function runSurfacePublish(
       { channel: channelId, version: currentRead.version }
     );
   }
-  const current = currentRead.status === 'valid' ? currentRead.spec : null;
+  // A FAILED LOOKUP IS A FAILED OPERATION.
+  //
+  // This used to print a note and carry on. That is the generic-file fallback
+  // 6a caught, seen from the tool's side: the bot could not find the app it was
+  // revising, reached for whatever `app.js`/`spec.json` were lying around — the
+  // potluck's leftovers, hash-confirmed — and aimed them at the kanban channel.
+  // The `surfaceId` guard below refused it. But that guard only fires when
+  // `current` is non-null, and `current` is null on BOTH "never published" and
+  // "published, unreadable". So on a channel whose definition had stopped
+  // validating, the same mistake would have gone all the way through: someone
+  // else's app published over a live board, its state orphaned, reported as a
+  // clean first publish at revision 1.
+  //
+  // The remedy is removal, not a better guard. Reading the channel's current
+  // definition is how publish learns what this channel IS; when that read
+  // fails, publish does not know what it is about to overwrite, and every
+  // downstream check that depends on knowing — the surfaceId comparison, the
+  // revision derivation, the state carried by --preserve-state — is running on
+  // an assumption rather than an observation. The `surfaceId` guard stays
+  // exactly where it was, as the last line it was always meant to be, and it is
+  // now a line that always runs.
+  //
+  // The escape hatch is explicit and it names what it destroys (D99): a
+  // definition nobody can read is still a definition somebody published, and
+  // replacing it is a decision, not a default.
   if (currentRead.status === 'invalid') {
-    // Not fatal: an unreadable definition is exactly what a republish is
-    // for. It does mean there is no previous revision to bump from, so the
-    // new definition starts at 1 and any prior state is unreachable — say
-    // so rather than letting the revision quietly restart.
+    if (!parsed.flags.has(ALLOW_UNREADABLE_FLAG)) {
+      throw surfaceError(
+        'current-definition-unreadable',
+        `${channelId} holds a definition this build cannot read, so publishing over it would replace an app without knowing which app it is — and every existing event and snapshot would be orphaned under a revision restarting at 1. Read it back with \`tlon surface show ${channelId}\` first. If replacing it is genuinely what you mean, pass ${ALLOW_UNREADABLE_FLAG}.`,
+        { channel: channelId, status: currentRead.status }
+      );
+    }
     deps.stderr(
-      `Note: ${channelId}'s current definition does not validate; publishing replaces it and the revision restarts at 1.\n`
+      `Replacing ${channelId}'s unreadable definition with surface "${specFile.surfaceId}" on the strength of ${ALLOW_UNREADABLE_FLAG}. The revision restarts at 1, every existing event and snapshot is orphaned, and no check compared this app against the one being replaced — because there was nothing readable to compare it to.\n`
     );
   }
+  const current = currentRead.status === 'valid' ? currentRead.spec : null;
 
   if (
     current &&
@@ -614,6 +778,15 @@ export async function runSurfacePublish(
       mirrorPostId: mirror.postId,
       snapshot,
       warnings: lint.warnings,
+      // The scoring sheet's own record, and the residuals it declared.
+      // `RUBRIC.md` says a finding that survives two repair rounds ships with
+      // the residual said plainly; this is where "plainly" lands, so a
+      // known-broken publish is distinguishable afterwards from a clean one.
+      rubric: {
+        path: rubricPath,
+        bundleSha256: rubric.bundleSha256,
+        residuals: rubricResiduals(rubric),
+      },
       observed:
         'the channel description was read back and carries exactly this definition',
     },
@@ -636,6 +809,11 @@ export async function runSurfacePublish(
       ...(lint.warnings.length > 0
         ? [`  warnings: ${lint.warnings.length} (gate passed)`]
         : []),
+      `  rubric:   ${rubricPath}`,
+      ...rubricResiduals(rubric).map(
+        (residual) =>
+          `    check ${residual.number} (${residual.id}): ${residual.verdict} — ${residual.note}`
+      ),
     ],
   };
   return emitReport(deps, report, asJson);

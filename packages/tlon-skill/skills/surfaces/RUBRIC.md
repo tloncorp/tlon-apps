@@ -5,8 +5,20 @@ Read this with the screenshots open. It is the checklist you score
 reviewer this app gets, and the vision pass is the only check that can see
 what a member will see. The gate reads the source; this reads the screen.
 
-Nothing here is automated. `surface preview` renders and captures; scoring
-is your job, with your own eyes, on the images it wrote.
+Almost nothing here is automated, and the part that is says so out loud.
+`surface preview` renders, captures, and runs a **machine defect pass** over
+what it rendered — viewport overflow from layout metrics, tap-target
+geometry, and the jargon denylist against the text a real browser painted.
+It prints what it found as a concrete list, and it prints what it did not
+check on every run, including clean ones.
+
+That pass reaches parts of checks 1, 2 and 6. It reaches **no part** of
+checks 3, 4, 5 or 7, and it cannot tell whether a single sentence means
+anything. A clean machine pass is not a clean app; scoring is still your
+job, with your own eyes, on the images it wrote.
+
+**And it is now required.** `surface publish` refuses without a completed
+scoring sheet — see "Recording the scoring" at the bottom.
 
 ---
 
@@ -16,8 +28,9 @@ is your job, with your own eyes, on the images it wrote.
 tlon surface preview app.js spec.json --out surface-preview
 ```
 
-Twelve PNGs and a `manifest.json` in the output directory. Read them in
-this order — the order the report prints them:
+Twelve PNGs, a `manifest.json`, and a `rubric.template.json` in the output
+directory. Read the images in this order — the order the report prints
+them:
 
 | cell         | size     | what it answers                                         |
 | ------------ | -------- | ------------------------------------------------------- |
@@ -41,9 +54,15 @@ Each in `light` and `dark`, and in two states:
 ## The seven checks
 
 Score every one against both themes. A finding on any is a repair round,
-not a note-to-self.
+not a note-to-self. Each heading below says what the machine pass reaches,
+so you know which half is still entirely yours.
 
 ### 1. Nothing overflows the viewport
+
+_Machine pass: measures it._ It reports the page's own horizontal scroll and
+names the outermost element crossing the right edge, per cell. What it
+cannot see is a chart whose **data** runs off, or a layout that technically
+fits and reads as cramped.
 
 Look at `phone` first, then `phone-full`.
 
@@ -58,6 +77,11 @@ Look at `phone` first, then `phone-full`.
 
 ### 2. Tap targets are reachable
 
+_Machine pass: measures the geometry only._ It reports controls under 40px
+tall, under 44px wide, clipped by their own label, or sitting less than 6px
+apart on one row. It has no opinion about whether a tappable thing **looks**
+tappable, and it does not look at vertical spacing at all.
+
 The `Button` primitive renders **42px tall** by default, which is already
 about as small as a control should be. So the finding is never "the
 primitive is too small" — it is:
@@ -71,6 +95,9 @@ If you find yourself wanting a smaller button, that is the finding.
 
 ### 3. Both themes are readable
 
+_Machine pass: reaches none of this._ No colour is measured anywhere. This
+check is entirely yours.
+
 Open the `dark` captures and read every string on them.
 
 - Secondary and tertiary text (`Stat` hints, `EmptyState` descriptions,
@@ -83,6 +110,8 @@ Open the `dark` captures and read every string on them.
   Fix the meaning, not the color.
 
 ### 4. The empty state explains itself
+
+_Machine pass: reaches none of this._
 
 The `initial` captures are the whole test. A first member opens this and
 must know, without asking anybody:
@@ -98,6 +127,8 @@ control with nothing explaining what pressing it does.
 
 ### 5. The populated state is scannable
 
+_Machine pass: reaches none of this._
+
 On the `populated` captures, at a glance and without reading carefully:
 
 - Can you tell **who did what**? Every member who acted is visible; the
@@ -111,6 +142,13 @@ On the `populated` captures, at a glance and without reading carefully:
   for.
 
 ### 6. No mechanism vocabulary anywhere on screen
+
+_Machine pass: matches six words._ `rollover`, `revision`, `invoke`, `spec`,
+`scratch` and `$actor`, against the text each cell actually painted — which
+catches a word assembled at runtime that the gate's source scan cannot see.
+The wider list below is NOT matched, because "state", "action", "event" and
+"host" are legitimate words in plenty of real apps' own domains and a
+denylist that cried wolf on them would teach you to ignore it.
 
 Read every word in the images. This is `PARADIGM.md` §8 and it is the
 check the gate cannot make for you: the gate has a denylist, and a
@@ -127,6 +165,9 @@ says "bringing". If a sentence explains the machine rather than the
 subject, delete it — deleting is almost always the right repair.
 
 ### 7. The screen is the thing that was asked for
+
+_Machine pass: reaches none of this, and could not._ Nothing mechanical has
+access to what was asked.
 
 Put the request next to the screenshots.
 
@@ -151,6 +192,49 @@ Then repair, and re-run preview. **Two repair rounds, at most.** If a
 finding survives both, publish anyway and say plainly what is still wrong;
 a third round on the same finding means the fix is not in the copy or the
 layout, and shipping with a known residual beats looping.
+
+---
+
+## Recording the scoring
+
+`surface publish` refuses without a completed scoring sheet. This is not
+ceremony. It exists because across six measured runs that reached preview,
+the number of capture cells actually opened was 3, 3, **0**, 1, 1 and 3 out
+of twelve, and the complete written rubric output for four of those runs was
+four sentences. `surface rubric` — this document — was read in three of them
+and changed nothing. Doctrine asking for self-assessment did not produce
+self-assessment; a refusal does.
+
+Preview writes `rubric.template.json` into its output directory, already
+keyed for the twelve cells and the seven checks and stamped with the
+bundle's own sha256. Fill it in and hand it to publish:
+
+```
+tlon surface publish <channel> --bundle app.js --spec spec.json \
+  --rubric surface-preview/rubric.template.json
+```
+
+- **`cells`** — one observation per capture cell, twelve of them. A short
+  sentence naming what you saw in that image. Twelve copies of one string is
+  refused: that is one observation written down twelve times.
+- **`checks`** — one entry per numbered check above: a `verdict` of `pass`,
+  `fail`, `repaired` or `residual`, the `cell` you scored it on, and a
+  `note`. A residual is publishable and is echoed into publish's own output,
+  so shipping a known defect leaves a record instead of being laundered into
+  a `pass`.
+
+Two things the tool checks and one it does not:
+
+- **Completeness.** Every cell has an observation, every check has a verdict
+  and a note, every verdict cites a real cell.
+- **Identity.** The sheet names the app being published and the exact bundle
+  bytes. A repair round changes the bytes and therefore invalidates the
+  sheet — so re-run preview and re-score. That is deliberate: the twelve
+  images behind a sheet must be the twelve images this build produces.
+- **Not quality.** Nothing reads your notes and decides whether they are any
+  good. A validator that tried would either be gameable or would reject
+  accurate short observations. A complete sheet is a sheet you filled in,
+  not a sheet that says anything true.
 
 ---
 

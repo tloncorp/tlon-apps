@@ -20,6 +20,15 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { canonicalJson } from './surface-canonical-json';
+import {
+  type GroupedDefect,
+  type PreviewCellObservation,
+  PREVIEW_DEFECTS_NOT_CHECKED,
+  PREVIEW_PROBE_EXPRESSION,
+  findCellDefects,
+  groupDefects,
+} from './surface-preview-defects';
+import { buildRubricTemplate } from './surface-rubric-artifact';
 
 /**
  * `surface preview` (plan §9, step 6): render a surface app THE WAY
@@ -194,6 +203,19 @@ export interface PreviewCell {
   state: PreviewStateName;
   /** file name within the output directory */
   file: string;
+}
+
+/**
+ * A cell's name in every artifact that is not an image: the screenshot's file
+ * name without its extension.
+ *
+ * The rubric artifact keys on these, and `surface-rubric-artifact.ts` carries
+ * its own copy of the twelve so `surface publish` can validate a scoring sheet
+ * without importing Playwright, the shell artifact or the reducer. The copy is
+ * checked against this function in `surface-preview.test.ts`.
+ */
+export function cellId(cell: PreviewCell): string {
+  return cell.file.replace(/\.png$/, '');
 }
 
 export function previewMatrix(
@@ -509,12 +531,29 @@ const PREVIEW_HOST_PAGE_TEMPLATE = `<!doctype html>
  * package needs no type dependency on it and so the driver can be tested
  * against a stand-in. Tracks `playwright`'s `chromium` export.
  */
+export interface PreviewFrame {
+  evaluate(expression: string): Promise<unknown>;
+}
+
 export interface PreviewPage {
   setContent(html: string): Promise<void>;
   evaluate(fn: (arg: never) => unknown, arg?: unknown): Promise<unknown>;
   waitForFunction(expression: string, arg?: unknown): Promise<unknown>;
   waitForTimeout(ms: number): Promise<void>;
   screenshot(options: { path: string }): Promise<unknown>;
+  /**
+   * The app runs in an `allow-scripts`-only iframe, which gives it an opaque
+   * origin — so the host page cannot reach its document at all, and the
+   * defect pass has to measure from outside. Playwright can, through the
+   * frame's own isolated world, which is the only reason a machine-checked
+   * pass over the rendered app is possible.
+   *
+   * Both are REQUIRED rather than optional. A stand-in that omitted them
+   * would make the defect pass silently do nothing, and a checker that
+   * reports nothing on everything is the vacuous version of this feature.
+   */
+  mainFrame(): PreviewFrame;
+  frames(): PreviewFrame[];
   close(): Promise<void>;
 }
 
@@ -578,6 +617,48 @@ export interface CapturedShot {
   path: string;
   /** shell errors reported while this cell rendered */
   errors: { phase: string; message: string }[];
+  /** what the machine defect pass measured, or null when it could not run */
+  observation: PreviewCellObservation | null;
+  /** why the probe did not run, when it did not */
+  probeProblem: string | null;
+}
+
+/**
+ * Measures the rendered app, from the frame it actually rendered in.
+ *
+ * The app frame is found by probing: the host frame has no `.tsh-root`, so the
+ * probe returns null there and the first frame that answers with a
+ * measurement is the app. A frame that throws is reported as a problem rather
+ * than skipped — an unprobed cell must never be indistinguishable from a clean
+ * one, which is the specific way this feature could become vacuous without
+ * anybody noticing.
+ */
+export async function probeAppFrame(page: PreviewPage): Promise<{
+  observation: PreviewCellObservation | null;
+  problem: string | null;
+}> {
+  const main = page.mainFrame();
+  const problems: string[] = [];
+  for (const frame of page.frames()) {
+    if (frame === main) continue;
+    let value: unknown;
+    try {
+      value = await frame.evaluate(PREVIEW_PROBE_EXPRESSION);
+    } catch (error) {
+      problems.push(error instanceof Error ? error.message : String(error));
+      continue;
+    }
+    if (value !== null && typeof value === 'object') {
+      return { observation: value as PreviewCellObservation, problem: null };
+    }
+  }
+  return {
+    observation: null,
+    problem:
+      problems.length > 0
+        ? `the app frame could not be measured: ${problems.join('; ')}`
+        : 'no frame in the page reported a rendered app, so nothing was measured',
+  };
 }
 
 export interface CaptureOptions {
@@ -668,7 +749,16 @@ export async function capturePreview(
             (window as unknown as { __surfacePreview: unknown })
               .__surfacePreview
         )) as { errors?: { phase: string; message: string }[] } | undefined;
-        shots.push({ cell, path, errors: report?.errors ?? [] });
+        // After the shutter, so a probe that somehow perturbed layout could
+        // not change the image that was scored.
+        const probe = await probeAppFrame(page);
+        shots.push({
+          cell,
+          path,
+          errors: report?.errors ?? [],
+          observation: probe.observation,
+          probeProblem: probe.problem,
+        });
       } finally {
         await page.close();
         await context.close();
@@ -686,6 +776,19 @@ export async function capturePreview(
 
 export interface PreviewRequest {
   bundleSource: string;
+  /**
+   * sha256 of the bundle's BYTES, computed by the caller with the same
+   * function `surface publish` uses.
+   *
+   * It is the identity the rubric artifact is bound to: preview prints it into
+   * the template, publish refuses a rubric that names any other hash. That is
+   * what makes "the twelve cells you scored are the twelve cells these bytes
+   * produce" a checked statement rather than a hoped-for one — and it is why
+   * the caller computes it from the file's bytes rather than this function
+   * hashing `bundleSource`, which would be a re-encoding of the file and not
+   * the file.
+   */
+  bundleSha256: string;
   /** the raw parsed spec.json; validated here against the real schema */
   spec: unknown;
   /** resolved against the process cwd, so the command layer needs no `process` */
@@ -704,9 +807,13 @@ export interface PreviewManifest {
   specRevision: number;
   title: string | null;
   shellVersion: number;
+  /** the bytes these twelve cells were rendered from */
+  bundleSha256: string;
   actions: string[];
   actors: string[];
   rubric: string;
+  /** the pre-filled scoring sheet, written next to the screenshots */
+  rubricTemplate: string;
   populated: {
     invokes: { actionId: string; actor: string }[];
     unchanged: boolean;
@@ -721,11 +828,29 @@ export interface PreviewManifest {
     path: string;
   }[];
   shellErrors: { cell: string; phase: string; message: string }[];
+  /**
+   * The machine-checked defect list, one entry per distinct defect with every
+   * cell it was seen in. Grouped rather than raw because the same overflowing
+   * chart appears in eight cells and eight identical lines is a wall, not a
+   * list.
+   */
+  defects: GroupedDefect[];
+  /**
+   * Cells the probe could not measure, with the reason.
+   *
+   * Reported separately and loudly: "measured, found nothing" and "could not
+   * measure" must never render the same, or the whole pass can go silently
+   * vacuous.
+   */
+  unprobedCells: { cell: string; problem: string }[];
+  /** every check this pass did not make, printed on clean runs too */
+  notChecked: string[];
 }
 
 export interface PreviewOutcome {
   manifest: PreviewManifest;
   manifestPath: string;
+  rubricTemplatePath: string;
   shots: CapturedShot[];
   populated: PopulatedFold;
 }
@@ -765,7 +890,14 @@ function prepareOutDir(outDir: string): void {
     rmSync(join(outDir, cell.file), { force: true });
   }
   rmSync(join(outDir, 'manifest.json'), { force: true });
+  // The template is bound to the bundle's hash, so one left over from a
+  // previous repair round names bytes that no longer exist. Publish would
+  // refuse it, but only after the model had filled all nineteen fields in.
+  rmSync(join(outDir, PREVIEW_RUBRIC_TEMPLATE_FILE), { force: true });
 }
+
+/** The scoring sheet's file name, inside the preview output directory. */
+export const PREVIEW_RUBRIC_TEMPLATE_FILE = 'rubric.template.json';
 
 export async function renderSurfacePreview(
   request: PreviewRequest
@@ -799,14 +931,31 @@ export async function renderSurfacePreview(
     launcher,
   });
 
+  const defects = shots.flatMap((shot) =>
+    shot.observation === null
+      ? []
+      : findCellDefects(cellId(shot.cell), shot.observation)
+  );
+  const unprobedCells = shots
+    .filter((shot) => shot.observation === null)
+    .map((shot) => ({
+      cell: cellId(shot.cell),
+      problem: shot.probeProblem ?? 'the probe returned nothing',
+    }));
+
   const manifest: PreviewManifest = {
     surfaceId: spec.surfaceId,
     specRevision: spec.specRevision,
     title: spec.title ?? null,
     shellVersion: shellArtifactVersion,
+    bundleSha256: request.bundleSha256,
     actions: Object.keys(spec.actions),
     actors: [...PREVIEW_ACTORS],
     rubric: PREVIEW_RUBRIC_PATH,
+    rubricTemplate: join(outDir, PREVIEW_RUBRIC_TEMPLATE_FILE),
+    defects: groupDefects(defects),
+    unprobedCells,
+    notChecked: [...PREVIEW_DEFECTS_NOT_CHECKED],
     populated: {
       invokes: populated.invokes,
       unchanged: populated.unchanged,
@@ -834,5 +983,14 @@ export async function renderSurfacePreview(
   const manifestPath = join(outDir, 'manifest.json');
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
-  return { manifest, manifestPath, shots, populated };
+  const rubricTemplatePath = join(outDir, PREVIEW_RUBRIC_TEMPLATE_FILE);
+  writeFileSync(
+    rubricTemplatePath,
+    buildRubricTemplate({
+      surfaceId: spec.surfaceId,
+      bundleSha256: request.bundleSha256,
+    })
+  );
+
+  return { manifest, manifestPath, rubricTemplatePath, shots, populated };
 }

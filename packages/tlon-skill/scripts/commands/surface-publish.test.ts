@@ -9,6 +9,7 @@ import { describe, expect, it } from 'bun:test';
 
 import { canonicalJson } from '../surface-canonical-json';
 import { COMPLIANT_FIXTURE, RULE_FIXTURES } from '../surface-lint-fixtures';
+import { RUBRIC_CELL_IDS, RUBRIC_CHECKS } from '../surface-rubric-artifact';
 import {
   type FakeShipOptions,
   createTestSurfaceDeps,
@@ -25,6 +26,37 @@ const GROUP = '~zod/dashboards';
 const CHANNEL = 'chat/~zod/dash-0001';
 const BUNDLE_PATH = '/work/app.js';
 const SPEC_PATH = '/work/spec.json';
+const RUBRIC_PATH = '/work/rubric.json';
+
+/**
+ * A COMPLETE scoring sheet for a given app and bundle.
+ *
+ * Every field the validator requires, filled with distinguishable text — the
+ * twelve observations differ from each other, because a sheet repeating one
+ * string twelve times is refused on purpose and a fixture that tripped that
+ * would turn every publish test into a test of the anti-degeneracy rule.
+ */
+function completedRubric(input: { surfaceId: string; bundleSha256: string }) {
+  const cells: Record<string, string> = {};
+  for (const id of RUBRIC_CELL_IDS) {
+    cells[id] = `looked at ${id}; nothing cut off, copy reads as the group's`;
+  }
+  const checks: Record<string, unknown> = {};
+  for (const check of RUBRIC_CHECKS) {
+    checks[check.id] = {
+      verdict: 'pass',
+      cell: RUBRIC_CELL_IDS[0],
+      note: `check ${check.number} scored: ${check.title}`,
+    };
+  }
+  return {
+    version: 1,
+    surfaceId: input.surfaceId,
+    bundleSha256: input.bundleSha256,
+    cells,
+    checks,
+  };
+}
 
 /** The gate's own compliant fixture, minus the fields publish owns. */
 function specFile(overrides: Record<string, unknown> = {}) {
@@ -47,11 +79,50 @@ function setup(
     BUNDLE_PATH,
     options.bundle ?? COMPLIANT_FIXTURE.bundleSource
   );
+  const specValue = options.spec ?? specFile();
+  harness.ship.files.set(SPEC_PATH, JSON.stringify(specValue, null, 2));
+  // The scoring sheet a passing publish needs, bound to these exact bytes
+  // through the SAME hash function publish will compute over them.
   harness.ship.files.set(
-    SPEC_PATH,
-    JSON.stringify(options.spec ?? specFile(), null, 2)
+    RUBRIC_PATH,
+    JSON.stringify(
+      completedRubric({
+        surfaceId: String(specValue.surfaceId),
+        bundleSha256: harness.deps.sha256Hex(
+          harness.deps.readBinaryFile(BUNDLE_PATH)
+        ),
+      }),
+      null,
+      2
+    )
   );
   return harness;
+}
+
+/**
+ * Re-scores after a test changed the bundle or the spec under the harness.
+ *
+ * Needed because the sheet is bound to the bundle's hash and the spec's
+ * surfaceId, so any test that edits either has, correctly, invalidated its
+ * rubric. Calling this is the test's way of saying "and the author re-ran
+ * preview and scored the new build", which is what the tool now requires of a
+ * repair round.
+ */
+function restampRubric(harness: ReturnType<typeof setup>) {
+  const spec = JSON.parse(harness.ship.files.get(SPEC_PATH) as string);
+  harness.ship.files.set(
+    RUBRIC_PATH,
+    JSON.stringify(
+      completedRubric({
+        surfaceId: String(spec.surfaceId),
+        bundleSha256: harness.deps.sha256Hex(
+          harness.deps.readBinaryFile(BUNDLE_PATH)
+        ),
+      }),
+      null,
+      2
+    )
+  );
 }
 
 async function publish(
@@ -66,6 +137,11 @@ async function publish(
       BUNDLE_PATH,
       '--spec',
       SPEC_PATH,
+      // Callers that are testing the rubric gate itself pass their own
+      // --rubric in `extra`; parseSurfaceArgs takes the last value, so theirs
+      // wins over this default.
+      '--rubric',
+      RUBRIC_PATH,
       '--json',
       ...extra,
     ],
@@ -280,6 +356,7 @@ describe('surface publish — no-op versus bump', () => {
       BUNDLE_PATH,
       `${COMPLIANT_FIXTURE.bundleSource}\n// a comment that changes the bytes\n`
     );
+    restampRubric(harness);
     expect(await publish(harness)).toBe(0);
     const second = harness.json();
 
@@ -423,6 +500,7 @@ describe('surface publish — surface identity', () => {
       SPEC_PATH,
       JSON.stringify(specFile({ surfaceId: 'srf-something-else' }))
     );
+    restampRubric(harness);
     expect(await publish(harness)).toBe(1);
     expect(harness.json().code).toBe('surface-id-changed');
 
@@ -945,6 +1023,8 @@ describe('surface publish — the primary preserving path and aborted entries', 
           BUNDLE_PATH,
           '--spec',
           SPEC_PATH,
+          '--rubric',
+          RUBRIC_PATH,
           '--preserve-state',
           '--allow-aborted-events',
         ],
@@ -1338,6 +1418,258 @@ describe('D72 — why the comparison has to be raw-to-raw', () => {
     expect(canonicalJson(written)).not.toBe(canonicalJson(stored));
     expect(canonicalJson(validated(written))).toBe(
       canonicalJson(validated(stored))
+    );
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* the rubric forcing function                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * **The fulcrum is the number of filled entries in the scoring sheet.** In this
+ * test's world the only thing that can move it is the file at RUBRIC_PATH, and
+ * both arms are built from the SAME `completedRubric()` fixture for the same
+ * bundle — the refusing arm is that object with three cell observations
+ * emptied and nothing else touched.
+ *
+ * That construction is load-bearing. An "incomplete" arm that was also
+ * malformed, or scored a different app, would let the refusal fire for a
+ * reason that has nothing to do with completeness, and the guard would look
+ * identical whether it checked completeness or not.
+ */
+describe('surface publish — refuses without a completed rubric', () => {
+  it('refuses when no rubric is offered at all', async () => {
+    const harness = setup();
+    expect(
+      await run(
+        [
+          'publish',
+          CHANNEL,
+          '--bundle',
+          BUNDLE_PATH,
+          '--spec',
+          SPEC_PATH,
+          '--json',
+        ],
+        harness.deps
+      )
+    ).toBe(1);
+    expect(harness.json().code).toBe('usage');
+    expect(String(harness.json().message)).toContain('--rubric is required');
+    // Nothing reached the ship.
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  it('refuses an INCOMPLETE sheet, names the cells, and writes nothing', async () => {
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    sheet.cells['phone-populated-dark'] = '';
+    sheet.cells['desktop-initial-light'] = '';
+    sheet.cells['phone-full-populated-light'] = '';
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-incomplete');
+    const message = String(result.message);
+    expect(message).toContain('3 of the twelve capture cells');
+    expect(message).toContain('phone-populated-dark');
+    expect(message).toContain('Nothing was uploaded or written');
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+  });
+
+  it('publishes when those same three cells are filled in', async () => {
+    // The other arm: byte-identical bundle, byte-identical spec, the same
+    // sheet with the three observations written. If the refusal above had
+    // been about anything other than completeness, this would refuse too.
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    sheet.cells['phone-populated-dark'] = '';
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-incomplete');
+
+    sheet.cells['phone-populated-dark'] =
+      'dark, three members listed, the tally still reads at a glance';
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().outcome).toBe('published');
+  });
+
+  it('separates an unreadable sheet from an unfinished one', async () => {
+    const harness = setup();
+    harness.ship.files.set(RUBRIC_PATH, '{ not json at all');
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-unreadable');
+  });
+
+  it('refuses a complete sheet that scores different bytes', async () => {
+    // The binding that stops a revision-1 score being spent on revision 3.
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    sheet.bundleSha256 = '9'.repeat(64);
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-mismatch');
+    expect(String(harness.json().message)).toContain(
+      'Re-run `surface preview` on these bytes'
+    );
+  });
+
+  it('refuses a complete sheet that scores a different app', async () => {
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    sheet.surfaceId = 'srf-somebody-elses-app';
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(1);
+    expect(harness.json().code).toBe('rubric-mismatch');
+    expect(String(harness.json().message)).toContain(
+      'A rubric for one app says nothing about another'
+    );
+  });
+
+  it('carries the residuals a shipped-with-known-defects publish declared', async () => {
+    const harness = setup();
+    const sheet = JSON.parse(harness.ship.files.get(RUBRIC_PATH) as string);
+    sheet.checks['tap-targets'] = {
+      verdict: 'residual',
+      cell: 'phone-populated-dark',
+      note: 'the two vote buttons still touch on a 390px phone',
+    };
+    harness.ship.files.set(RUBRIC_PATH, JSON.stringify(sheet, null, 2));
+    expect(await publish(harness)).toBe(0);
+    const rubric = harness.json().rubric as Record<string, unknown>;
+    expect(rubric.residuals).toEqual([
+      {
+        id: 'tap-targets',
+        number: 2,
+        verdict: 'residual',
+        note: 'the two vote buttons still touch on a 390px phone',
+      },
+    ]);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* the generic-file fallback, removed                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Session 6a, revision phase: after eighteen failed reads hunting for the
+ * zine app, the bot reached for the generic `app.js`/`spec.json` lying in its
+ * working directory — the potluck's leftovers, hash-confirmed — and aimed them
+ * at the kanban channel. The `surfaceId` guard refused it, and that guard was
+ * the only thing between "cannot find the current app" and a live board being
+ * silently replaced with its state orphaned.
+ *
+ * **The fulcrum is whether publish could READ the channel's current
+ * definition.** The `surfaceId` guard compares `current.surfaceId` against the
+ * spec's, and `current` is null on BOTH "never published" and "published,
+ * unreadable" — so on a channel whose definition had stopped validating, the
+ * guard did not fire at all and the same mistake went all the way through. In
+ * this test's world the only thing that moves the fulcrum is what the channel's
+ * description cell holds, which is what these two arms differ in.
+ *
+ * The guard is unchanged. What is removed is the branch that let publish carry
+ * on after failing to look up what it was about to overwrite.
+ */
+describe('surface publish — a failed lookup is a failed operation', () => {
+  /** The kanban board, live, with a definition nobody can read any more. */
+  function kanbanWithUnreadableDefinition() {
+    const harness = setup({
+      spec: specFile({ surfaceId: 'srf-potluck-leftovers' }),
+    });
+    harness.ship.setChannelSpec(CHANNEL, {
+      version: 1,
+      surfaceId: 'srf-kanban-zine',
+      // no `bundle`, no `initialState`, no `actions`: the shape a half-written
+      // definition leaves, and exactly what `readChannelSpec` reports as
+      // "invalid" rather than "absent"
+      specRevision: 4,
+    });
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~ten',
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: 'srf-kanban-zine',
+          specRevision: 4,
+          mode: 'invoke',
+          actionId: 'claim-layout',
+        },
+      ]),
+    });
+    return harness;
+  }
+
+  it('refuses to publish over a definition it cannot read', async () => {
+    const harness = kanbanWithUnreadableDefinition();
+    const before = harness.ship.channelSpecText(CHANNEL);
+
+    expect(await publish(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('current-definition-unreadable');
+    expect(String(result.message)).toContain('tlon surface show');
+
+    // Nothing moved: not the cell, not storage, not the channel's posts.
+    expect(harness.ship.channelSpecText(CHANNEL)).toBe(before);
+    expect(harness.ship.uploads).toHaveLength(0);
+    expect(blobEntries(harness)).toHaveLength(1);
+  });
+
+  it('is the refusal that 6a’s surfaceId guard could not make', async () => {
+    // The pre-fix behaviour, stated as an assertion about the guard rather
+    // than a claim about history: with the definition unreadable there is no
+    // `current.surfaceId` to compare, so a potluck spec and a kanban channel
+    // are indistinguishable to the guard. The refusal above cannot be coming
+    // from it.
+    const harness = kanbanWithUnreadableDefinition();
+    await publish(harness);
+    expect(harness.json().code).not.toBe('surface-id-changed');
+
+    const readable = setup({
+      spec: specFile({ surfaceId: 'srf-potluck-leftovers' }),
+    });
+    readable.ship.setChannelSpec(CHANNEL, {
+      version: 1,
+      surfaceId: 'srf-kanban-zine',
+      specRevision: 4,
+      bundle: {
+        assetRef: 'https://storage.example/kanban.js',
+        sha256: 'c'.repeat(64),
+        size: 10,
+        shellVersion: 1,
+      },
+      initialState: {},
+      actions: {},
+    });
+    expect(await publish(readable)).toBe(1);
+    expect(readable.json().code).toBe('surface-id-changed');
+  });
+
+  it('still publishes to a channel that has never held a definition', async () => {
+    // "Absent" and "unreadable" are different situations and only one of them
+    // is a failed lookup. A refusal that could not tell them apart would break
+    // every first publish, which is the obvious over-correction here.
+    const harness = setup();
+    expect(harness.ship.channelSpecText(CHANNEL)).toBeNull();
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().specRevision).toBe(1);
+  });
+
+  it('lets an explicit acknowledgment through, and names what it destroys', async () => {
+    const harness = kanbanWithUnreadableDefinition();
+    expect(await publish(harness, ['--allow-unreadable-definition'])).toBe(0);
+    expect(harness.json().specRevision).toBe(1);
+    expect(harness.err()).toContain(
+      'Replacing chat/~zod/dash-0001\'s unreadable definition with surface "srf-potluck-leftovers"'
+    );
+    expect(harness.err()).toContain(
+      'every existing event and snapshot is orphaned'
     );
   });
 });
