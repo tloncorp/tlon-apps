@@ -248,6 +248,18 @@ describe('file read completion guard', () => {
     ).not.toBeNull();
   });
 
+  it('requires representative content after an explicit full-file claim', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('explicit-full-file'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'explicit-full-file',
+        lastAssistantMessage: `The complete file is shown below:\n${CSV.split('\n')[0]}`,
+      })
+    ).not.toBeNull();
+  });
+
   it('requires both ends of a long single-line file', () => {
     const guard = createFileReadCompletionGuard();
     const longLine = `${'a'.repeat(220)}${'z'.repeat(220)}`;
@@ -409,6 +421,32 @@ describe('file read completion guard', () => {
     expect(
       guard.beforeFinalize({
         runId: 'message-tool-progress',
+        lastAssistantMessage: 'NO_REPLY',
+      })
+    ).not.toBeNull();
+  });
+
+  it('resets message-tool delivery when a later read adds new work', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('delivery-then-read', CSV, '/tmp/a.csv')
+    );
+    guard.recordMessageDelivery({
+      content: `Here are the requested contents:\n${CSV}`,
+      runId: 'delivery-then-read',
+      success: true,
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'delivery-then-read',
+        'name,value\nsecond,2\nthird,3',
+        '/tmp/b.csv'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'delivery-then-read',
         lastAssistantMessage: 'NO_REPLY',
       })
     ).not.toBeNull();

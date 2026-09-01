@@ -64,7 +64,7 @@ const COMPLETION_PREFIX =
 const EMPTY_DELIVERY_CLAIM =
   /(?:\b(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b|\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents?\s+(?:are|is)\s+(?:below|above|here))\b)/i;
 const FULL_FILE_DELIVERY_CLAIM =
-  /\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents\s+(?:are|is)\s+(?:below|above|here))\b/i;
+  /\b(?:here\s+(?:are|is)\s+(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents|(?:the\s+)?(?:requested\s+)?(?:file\s+)?contents\s+(?:are|is)\s+(?:below|above|here)|(?:the\s+)?(?:complete|full|entire)\s+file\s+(?:(?:is|was)\s+)?(?:displayed|shown|pasted|printed)\s+(?:inline|below|above))\b/i;
 const EMPTY_RESULT_ACKNOWLEDGMENT =
   /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was|are|were)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
@@ -549,7 +549,9 @@ export function createFileReadCompletionGuard(options?: {
           (existingTarget?.truncated === true && !continuedFromExpectedOffset),
       });
       touch(runId, {
-        deliveredViaMessageTool: existing?.deliveredViaMessageTool ?? false,
+        // Any successful read after a message-tool delivery adds new work.
+        // Only a later qualifying delivery may suppress final correction.
+        deliveredViaMessageTool: false,
         lastSuccessfulTarget: targetKey,
         revisionAttempts: existing?.revisionAttempts ?? 0,
         targets,
