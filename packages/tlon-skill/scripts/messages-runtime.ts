@@ -17,10 +17,11 @@ const DA_UNIX_EPOCH = BigInt('170141184475152167957503069145530368000');
 // Convert a @da ud (e.g. '170.141.184...') to unix milliseconds
 export function udToUnixMs(ud: string): number | null {
   try {
-    // Enforce the unsigned dotted-decimal @ud shape before parsing: BigInt
-    // also accepts hex/octal/binary prefixes, which could smuggle a non-@ud
-    // representation past the era check below.
-    if (!/^\d+(?:\.\d+)*$/.test(ud)) return null;
+    // Enforce the unsigned @ud shape before parsing: BigInt also accepts
+    // hex/octal/binary prefixes, and arbitrary dot grouping (1.23.4567)
+    // signals corruption — real values are raw digits or the canonical
+    // three-digit grouping.
+    if (!/^(?:\d+|\d{1,3}(?:\.\d{3})*)$/.test(ud)) return null;
     const digits = ud.replace(/\./g, '');
     const daNum = BigInt(digits);
     const offset = DA_SECOND / BigInt(2000);

@@ -497,6 +497,12 @@ describe('messages runtime', () => {
     expect(udToUnixMs('0x8000000d361293000000000000000000')).toBeNull();
     expect(udToUnixMs('+170141184508120246532342846161124589568')).toBeNull();
     expect(udToUnixMs(' 170141184508120246532342846161124589568')).toBeNull();
+    // Non-canonical dot grouping strips into an in-era number but signals
+    // corruption — only raw digits or canonical 3-digit groups parse.
+    expect(udToUnixMs('170141184508120246532342846161124589.568')).toBeNull();
+    expect(
+      udToUnixMs('170.141.184.508.120.246.532.342.846.161.124.589.568')
+    ).not.toBeNull();
     // Both shapes the API actually produces still convert: canonical dotted
     // and raw undotted digits.
     expect(
