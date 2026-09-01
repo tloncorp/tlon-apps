@@ -250,6 +250,10 @@ export function createContextLensShipSync(opts: {
             app: 'steward',
             mark: 'steward-action-1',
             json: { configure: { owner } },
+            // Eyre's 2xx only means the poke was queued; a nack from a
+            // restarting %steward would otherwise mark this params
+            // instance configured when the ship never took it.
+            awaitAck: true,
           });
           configuredFor = params;
           if (cancelled) {
@@ -432,6 +436,11 @@ export function initContextLensShipSync(api: {
               app: 'steward',
               mark: 'steward-action-1',
               json,
+              // This assertion is the only thing correcting a retired
+              // sync's in-flight %configure, and nothing else retries it —
+              // so it has to see gall's ack, not just Eyre's, and treat a
+              // nack as a failure worth retrying.
+              awaitAck: true,
             });
             opts?.onConfigured?.(params);
             return;

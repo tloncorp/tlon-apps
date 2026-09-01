@@ -569,6 +569,7 @@ describe('initContextLensShipSync retirement', () => {
           app: 'steward',
           mark: 'steward-action-1',
           json: { unconfigure: null },
+          awaitAck: true,
         },
       ]);
     } finally {
@@ -693,6 +694,12 @@ describe('initContextLensShipSync retirement', () => {
         { unconfigure: null },
         { unconfigure: null },
       ]);
+      // Every attempt must wait for gall's ack: Eyre's 2xx only means the
+      // poke was queued, so a nack from a restarting %steward would
+      // otherwise end the retries as though the correction had landed.
+      expect(
+        pokes.map((poke) => (poke as { awaitAck?: boolean }).awaitAck)
+      ).toEqual([true, true]);
     } finally {
       slot.set(previousParams);
       vi.useRealTimers();

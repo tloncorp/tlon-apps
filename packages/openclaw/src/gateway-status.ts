@@ -21,6 +21,13 @@ export interface SharedApiClientParams {
     app: string;
     mark: string;
     json: unknown;
+    /**
+     * Wait for gall's poke ack, not just Eyre's 2xx (which only means the
+     * poke was queued). Correctness pokes with no later event to retry them
+     * — the lens sync's ownership assertions — must set this, or a nack
+     * from a restarting %steward reads as success.
+     */
+    awaitAck?: boolean;
   }) => Promise<unknown>;
 }
 
