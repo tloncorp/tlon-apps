@@ -23,34 +23,34 @@ import {
   isBucketObjectAlreadyDeleted,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useBucket } from '@tloncorp/shared/store';
+import { useBucket, useBucketUploads } from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { BucketItem, BucketUploadCandidate } from '../../ui';
-import {
-  calculateBucketUploadProgress,
-  completeBucketUploadInBatch,
-  removeBucketUploadFromBatch,
-} from '../../utils/bucketUploadProgress';
-import type { BucketUploadBatchItem } from '../../utils/bucketUploadProgress';
+import { calculateBucketUploadProgress } from '../../utils/bucketUploadProgress';
 import { deletePrivateBucketFiles } from './bucketDeletion';
 import {} from './bucketUploadReconciliation';
+import {
+  clearUploadCancelled,
+  forgetUpload,
+  isUploadCancelled,
+  markUploadCancelled,
+  rememberUploadSource,
+  trackUploadTask,
+  uploadSource,
+  uploadTask,
+} from './bucketUploadSources';
+import { cancelAbandonedUploadsOnce } from './abandonedUploads';
 import { createBucketUploadTask } from './bucketUploadTask';
-import type { BucketUploadTask } from './bucketUploadTask.types';
 
-type LocalUpload = {
-  candidate: BucketUploadCandidate;
-  error?: string;
-  id: string;
-  parentId: number | null;
-  progress: number;
-  serverEntryId?: number;
-  sessionId?: string;
-  // Kept across a failure so a user's Retry re-asks under the id the host may
-  // already have answered, rather than opening a second session beside it.
-  openRequestId?: string;
-  state: 'queued' | 'uploading' | 'failed';
-};
+/**
+ * An upload as stored.
+ *
+ * The source is deliberately absent: a File handle belongs to the process
+ * that picked it, so it lives in the module registry keyed by the same id.
+ */
+type StoredUpload = Awaited<ReturnType<typeof db.getBucketUploads>>[number];
+type LocalUpload = StoredUpload;
 
 type StoredBucketEntry = NonNullable<
   Awaited<ReturnType<typeof db.getBucket>>
@@ -129,38 +129,28 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const entriesRef = useRef<BucketsEntry[]>([]);
   entriesRef.current = entries;
   const [error, setError] = useState<string | null>(null);
-  const [uploads, setUploads] = useState<LocalUpload[]>([]);
-  const uploadsRef = useRef<LocalUpload[]>([]);
-  const [uploadBatch, setUploadBatch] = useState<BucketUploadBatchItem[]>([]);
-  const tasksRef = useRef(new Map<string, BucketUploadTask>());
-  const cancelledRef = useRef(new Set<string>());
+  // Uploads are rows too. They outlive the pane, so leaving a Bucket no longer
+  // ends a transfer, and a second pane on the same Bucket sees them. What
+  // cannot be written down -- the File handle and the live XHR -- stays in a
+  // module-level registry beside them.
+  const { data: uploadRows } = useBucketUploads({ channelId });
+  const uploads = useMemo(() => uploadRows ?? [], [uploadRows]);
+  const uploadsRef = useRef<StoredUpload[]>([]);
+  uploadsRef.current = uploads;
 
-  const setCurrentUploads = useCallback(
-    (update: (current: LocalUpload[]) => LocalUpload[]) => {
-      const next = update(uploadsRef.current);
-      uploadsRef.current = next;
-      setUploads(next);
-      return next;
+  const retireUpload = useCallback(
+    async (id: string, outcome: 'completed' | 'removed') => {
+      forgetUpload(id);
+      if (outcome === 'removed') {
+        await db.deleteBucketUpload(id);
+        return;
+      }
+      // Kept, not deleted: the aggregate bar sums every row, and dropping one
+      // the instant it finished would shrink the total and make the bar jump
+      // backwards. Swept once the batch has nothing active left.
+      await db.updateBucketUpload({ id, progress: 100, state: 'completed' });
     },
     []
-  );
-
-  // An upload lives in two structures: the row the file list renders, and the
-  // batch item the aggregate progress bar sums. Retiring it from one without
-  // the other is invisible until the bar sticks short of 100% for the rest of
-  // the session, so both moves happen here and nowhere else.
-  const retireUpload = useCallback(
-    (id: string, outcome: 'completed' | 'removed') => {
-      setCurrentUploads((current) =>
-        current.filter((candidate) => candidate.id !== id)
-      );
-      setUploadBatch((current) =>
-        outcome === 'completed'
-          ? completeBucketUploadInBatch(current, id)
-          : removeBucketUploadFromBatch(current, id)
-      );
-    },
-    [setCurrentUploads]
   );
 
   // Retire any local row the manifest has caught up with.
@@ -170,6 +160,13 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   // refreshes instead, and a replacement snapshot arrives whole. Matching the
   // fact alone left the row standing in exactly those cases, and a row holding
   // a published serverEntryId hides the real file and makes Retry delete it.
+  // Uploads a previous run left behind cannot be resumed -- their bytes went
+  // with the process that had the file -- so the first Bucket opened gives up
+  // on them, which releases the host session and its reservation.
+  useEffect(() => {
+    void cancelAbandonedUploadsOnce();
+  }, []);
+
   // An upload row stands until its entry is in the manifest. The manifest now
   // arrives through the query, so this runs when that changes rather than on
   // each subscription response.
@@ -178,44 +175,28 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     uploadsRef.current
       .filter(
         (upload) =>
-          upload.serverEntryId !== undefined &&
-          published.has(upload.serverEntryId)
+          upload.serverEntryId !== null && published.has(upload.serverEntryId)
       )
-      .forEach((upload) => retireUpload(upload.id, 'completed'));
+      .forEach((upload) => void retireUpload(upload.id, 'completed'));
   }, [entries, retireUpload]);
 
   const updateLocalUpload = useCallback(
-    (id: string, patch: Partial<LocalUpload>) => {
-      setCurrentUploads((current) =>
-        current.map((upload) =>
-          upload.id === id ? { ...upload, ...patch } : upload
-        )
-      );
-      if (patch.progress !== undefined || patch.state !== undefined) {
-        setUploadBatch((current) =>
-          current.map((item) =>
-            item.id === id
-              ? {
-                  ...item,
-                  progress: patch.progress ?? item.progress,
-                  state:
-                    patch.state === undefined
-                      ? item.state
-                      : patch.state === 'failed'
-                        ? 'failed'
-                        : 'active',
-                }
-              : item
-          )
-        );
-      }
+    (id: string, patch: Partial<Omit<LocalUpload, 'id'>>) => {
+      void db.updateBucketUpload({ id, ...patch });
     },
-    [setCurrentUploads]
+    []
   );
 
   const runUpload = useCallback(
-    async (upload: LocalUpload) => {
-      const { candidate, id, parentId } = upload;
+    async (id: string) => {
+      // Read fresh rather than passed in: the row may have been written by a
+      // different pane, or by this one before a navigation.
+      const upload = (await db.getBucketUploads({ channelId })).find(
+        (row) => row.id === id
+      );
+      const candidate = uploadSource(id);
+      if (!upload || !candidate) return;
+      const parentId = upload.parentId;
       let sessionId: string | undefined;
       let serverEntryId: number | undefined;
       let brokerCompleted = false;
@@ -267,7 +248,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         serverEntryId = grant.entryId;
         updateLocalUpload(id, { progress: 5, serverEntryId, sessionId });
 
-        if (cancelledRef.current.has(id)) {
+        if (isUploadCancelled(id)) {
           throw new Error('Upload cancelled');
         }
 
@@ -280,11 +261,10 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
               progress: Math.max(5, Math.round(5 + progress * 0.9)),
             })
         );
-        tasksRef.current.set(id, task);
+        trackUploadTask(id, task);
         await task.upload;
-        tasksRef.current.delete(id);
 
-        if (cancelledRef.current.has(id)) {
+        if (isUploadCancelled(id)) {
           throw new Error('Upload cancelled');
         }
         if (!sessionId) {
@@ -309,8 +289,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
         // row until the manifest has it makes that case a visible stuck
         // upload rather than a vanished file.
       } catch (cause) {
-        tasksRef.current.delete(id);
-        const cancelled = cancelledRef.current.has(id);
+        const cancelled = isUploadCancelled(id);
         // Only an ambiguous failure is worth re-asking under the same id. A
         // typed refusal is an answer the host has stored, so reusing the id
         // would replay that refusal on every Retry until the record is swept,
@@ -354,28 +333,28 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
   const addUploads = useCallback(
     (candidates: BucketUploadCandidate[], parentId: number | null) => {
       const now = Date.now();
-      const nextUploads = candidates.map(
-        (candidate, index): LocalUpload => ({
-          candidate,
-          id: `local-upload-${now}-${index}`,
-          parentId,
-          progress: 0,
-          state: 'queued',
+      void Promise.all(
+        candidates.map(async (candidate, index) => {
+          const id = `local-upload-${now}-${index}`;
+          // The source is held beside the row rather than in it: a File
+          // handle belongs to this process and cannot be written down.
+          rememberUploadSource(id, candidate);
+          await db.upsertBucketUpload({
+            id,
+            channelId,
+            parentId,
+            name: candidate.name,
+            size: candidate.size,
+            mime: candidate.mimeType ?? null,
+            progress: 0,
+            state: 'queued',
+            startedAt: now,
+          });
+          void runUpload(id);
         })
       );
-      setCurrentUploads((current) => [...current, ...nextUploads]);
-      setUploadBatch((current) => [
-        ...current,
-        ...nextUploads.map((upload) => ({
-          id: upload.id,
-          progress: 0,
-          size: upload.candidate.size,
-          state: 'active' as const,
-        })),
-      ]);
-      nextUploads.forEach((upload) => void runUpload(upload));
     },
-    [runUpload, setCurrentUploads]
+    [channelId, runUpload]
   );
 
   const cancelUpload = useCallback(
@@ -392,13 +371,11 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const sessionId = upload?.sessionId;
 
       if (upload) {
-        cancelledRef.current.add(id);
+        markUploadCancelled(id);
       }
-      await tasksRef.current
-        .get(id)
+      await uploadTask(id)
         ?.cancel()
         .catch(() => undefined);
-      tasksRef.current.delete(id);
 
       retireUpload(id, 'removed');
       // No optimistic removal: the host publishes entries-deleted, the
@@ -430,8 +407,8 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
     async (id: string) => {
       const upload = uploads.find((candidate) => candidate.id === id);
       if (!upload) return;
-      cancelledRef.current.delete(id);
-      if (upload.serverEntryId !== undefined) {
+      clearUploadCancelled(id);
+      if (upload.serverEntryId !== null) {
         await sendBucketsAction({
           type: 'delete-entry',
           flag,
@@ -439,55 +416,54 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
           recursive: false,
         }).catch(() => undefined);
       }
-      const next = {
-        ...upload,
-        error: undefined,
+      await db.updateBucketUpload({
+        id,
+        error: null,
         progress: 0,
-        serverEntryId: undefined,
-        sessionId: undefined,
-        state: 'queued' as const,
-      };
-      setCurrentUploads((current) =>
-        current.map((candidate) => (candidate.id === id ? next : candidate))
-      );
-      setUploadBatch((current) =>
-        current.map((item) =>
-          item.id === id
-            ? { ...item, progress: 0, state: 'active' as const }
-            : item
-        )
-      );
-      void runUpload(next);
+        serverEntryId: null,
+        sessionId: null,
+        state: 'queued',
+      });
+      void runUpload(id);
     },
-    [flag, runUpload, setCurrentUploads, uploads]
+    [flag, runUpload, uploads]
   );
 
+  // Completed rows linger for the aggregate bar; the list shows what is
+  // still going.
   const localItems = useMemo<BucketItem[]>(
     () =>
-      uploads.map((upload) => ({
-        // Whoever is uploading, which is us. bucket.updatedBy is the last
-        // person to change the Bucket, so a collaborator's edit would put
-        // their name on our own in-flight rows.
-        author: getCurrentUserId(),
-        id: upload.id,
-        kind: 'file',
-        mimeType: upload.candidate.mimeType,
-        modifiedLabel: upload.state === 'failed' ? 'Failed' : 'Uploading',
-        name: upload.candidate.name,
-        sizeLabel: formatFileSize(upload.candidate.size),
-        uploadSize: upload.candidate.size,
-        uploadError: upload.error,
-        uploadProgress: upload.progress,
-        uploadState: upload.state,
-      })),
+      uploads
+        .filter((upload) => upload.state !== 'completed')
+        .map((upload) => ({
+          // Whoever is uploading, which is us. bucket.updatedBy is the last
+          // person to change the Bucket, so a collaborator's edit would put
+          // their name on our own in-flight rows.
+          author: getCurrentUserId(),
+          id: upload.id,
+          kind: 'file',
+          mimeType: upload.mime ?? undefined,
+          modifiedLabel: upload.state === 'failed' ? 'Failed' : 'Uploading',
+          name: upload.name,
+          sizeLabel: formatFileSize(upload.size),
+          uploadSize: upload.size,
+          uploadError: upload.error ?? undefined,
+          uploadProgress: upload.progress,
+          uploadState: upload.state === 'failed' ? 'failed' : 'uploading',
+        })),
     [uploads]
   );
   const uploadAggregateProgress = useMemo(
     () =>
-      uploadBatch.length > 0
-        ? calculateBucketUploadProgress(uploadBatch)
+      uploads.length > 0
+        ? calculateBucketUploadProgress(
+            uploads.map((upload) => ({
+              progress: upload.progress,
+              size: upload.size,
+            }))
+          )
         : undefined,
-    [uploadBatch]
+    [uploads]
   );
 
   return {
@@ -526,7 +502,7 @@ export function useLiveBucket(requestedFlag: BucketsFlag) {
       const doomedUploads = uploads.filter(
         (upload) =>
           (upload.parentId !== null && ids.has(upload.parentId)) ||
-          (upload.serverEntryId !== undefined && ids.has(upload.serverEntryId))
+          (upload.serverEntryId !== null && ids.has(upload.serverEntryId))
       );
       await Promise.all(doomedUploads.map((upload) => cancelUpload(upload.id)));
 

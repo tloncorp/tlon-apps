@@ -772,6 +772,25 @@ export const useBucket = (options: { channelId?: string }) => {
   });
 };
 
+/** One Bucket's in-flight uploads. */
+export const useBucketUploads = (options: { channelId?: string }) => {
+  const { channelId } = options;
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: [
+      'bucketUploads',
+      useKeyFromQueryDeps(db.getBucketUploads),
+      channelId,
+    ],
+    queryFn: () => {
+      if (!channelId) {
+        throw new Error('missing channel id');
+      }
+      return db.getBucketUploads({ channelId });
+    },
+  });
+};
+
 export const useChannel = (options: { id?: string }) => {
   const { id } = options;
   return useQuery({

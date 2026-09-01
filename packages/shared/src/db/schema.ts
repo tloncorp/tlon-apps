@@ -903,6 +903,62 @@ export const bucketEntriesRelations = relations(bucketEntries, ({ one }) => ({
   }),
 }));
 
+/**
+ * An upload in flight, as far as it can be written down.
+ *
+ * The bytes cannot be: the source is a File handle or a local URI belonging to
+ * the process that picked it, so it lives in a module-level registry
+ * alongside the transfer task. What is here is everything else -- enough for
+ * a second pane to show the upload, for it to survive leaving the Bucket,
+ * and, if the app is closed mid-transfer, for the next launch to find the
+ * abandoned session and cancel it rather than leaving the host holding a
+ * reservation and its quota until they lapse.
+ */
+export const bucketUploads = sqliteTable(
+  'bucket_uploads',
+  {
+    id: text('id').primaryKey(),
+    channelId: text('channel_id')
+      .notNull()
+      .references(() => channels.id, { onDelete: 'cascade' }),
+    parentId: integer('parent_id'),
+    name: text('name').notNull(),
+    size: integer('size').notNull(),
+    mime: text('mime'),
+    progress: integer('progress').notNull().default(0),
+    // 'completed' rows are kept until the batch they belong to has no active
+    // uploads left. The aggregate progress bar sums every row, so dropping
+    // one the moment it finished shrank the total and made the bar jump --
+    // which is what a second parallel structure used to exist to avoid.
+    state: text('state')
+      .$type<'queued' | 'uploading' | 'failed' | 'completed'>()
+      .notNull()
+      .default('queued'),
+    error: text('error'),
+    // The host's names for this upload, once it has them.
+    sessionId: text('session_id'),
+    serverEntryId: integer('server_entry_id'),
+    // Kept across a failure so a retry re-asks under the id the host may
+    // already have answered rather than opening a second session.
+    openRequestId: text('open_request_id'),
+    startedAt: integer('started_at').notNull(),
+  },
+  (table) => {
+    return {
+      channelIdIndex: index('bucket_uploads_channel_id_index').on(
+        table.channelId
+      ),
+    };
+  }
+);
+
+export const bucketUploadsRelations = relations(bucketUploads, ({ one }) => ({
+  channel: one(channels, {
+    fields: [bucketUploads.channelId],
+    references: [channels.id],
+  }),
+}));
+
 export const channelWriters = sqliteTable(
   'channel_writers',
   {

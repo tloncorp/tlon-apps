@@ -10,7 +10,7 @@ import type { BucketsResponse, BucketsSnapshot } from '@tloncorp/api';
  * needed to find it.
  */
 export function findUploadShadowEntryIds(
-  uploads: readonly { serverEntryId?: number }[]
+  uploads: readonly { serverEntryId?: number | null }[]
 ): Set<number> {
   return new Set(
     uploads

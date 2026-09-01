@@ -71,6 +71,7 @@ import {
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   bucketEntries as $bucketEntries,
+  bucketUploads as $bucketUploads,
   buckets as $buckets,
   channelWriters as $channelWriters,
   channels as $channels,
@@ -2090,6 +2091,68 @@ export const deleteBucket = createWriteQuery(
     await ctx.db.delete($buckets).where(eq($buckets.channelId, channelId));
   },
   ['buckets', 'bucketEntries']
+);
+
+export const upsertBucketUpload = createWriteQuery(
+  'upsertBucketUpload',
+  async (upload: typeof $bucketUploads.$inferInsert, ctx: QueryCtx) => {
+    await ctx.db
+      .insert($bucketUploads)
+      .values(upload)
+      .onConflictDoUpdate({ target: $bucketUploads.id, set: upload });
+  },
+  ['bucketUploads']
+);
+
+export const updateBucketUpload = createWriteQuery(
+  'updateBucketUpload',
+  async (
+    {
+      id,
+      ...patch
+    }: { id: string } & Partial<typeof $bucketUploads.$inferInsert>,
+    ctx: QueryCtx
+  ) => {
+    await ctx.db
+      .update($bucketUploads)
+      .set(patch)
+      .where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+export const deleteBucketUpload = createWriteQuery(
+  'deleteBucketUpload',
+  async (id: string, ctx: QueryCtx) => {
+    await ctx.db.delete($bucketUploads).where(eq($bucketUploads.id, id));
+  },
+  ['bucketUploads']
+);
+
+export const getBucketUploads = createReadQuery(
+  'getBucketUploads',
+  async ({ channelId }: { channelId: string }, ctx: QueryCtx) => {
+    return ctx.db.query.bucketUploads.findMany({
+      where: eq($bucketUploads.channelId, channelId),
+      orderBy: asc($bucketUploads.startedAt),
+    });
+  },
+  ['bucketUploads']
+);
+
+/**
+ * Every upload row, whichever Bucket it belongs to.
+ *
+ * Read once at startup: a row with no transfer behind it is one this process
+ * did not start, so its bytes are unreachable and its host session wants
+ * cancelling.
+ */
+export const getAllBucketUploads = createReadQuery(
+  'getAllBucketUploads',
+  async (_: undefined, ctx: QueryCtx) => {
+    return ctx.db.query.bucketUploads.findMany({});
+  },
+  ['bucketUploads']
 );
 
 /** One Bucket's manifest, or null if this ship does not hold it. */

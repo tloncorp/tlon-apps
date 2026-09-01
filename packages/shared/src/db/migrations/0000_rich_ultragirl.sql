@@ -88,6 +88,24 @@ CREATE TABLE `bucket_entries` (
 --> statement-breakpoint
 CREATE INDEX `bucket_entries_channel_id_index` ON `bucket_entries` (`channel_id`);--> statement-breakpoint
 CREATE INDEX `bucket_entries_parent_index` ON `bucket_entries` (`channel_id`,`parent_id`);--> statement-breakpoint
+CREATE TABLE `bucket_uploads` (
+	`id` text PRIMARY KEY NOT NULL,
+	`channel_id` text NOT NULL,
+	`parent_id` integer,
+	`name` text NOT NULL,
+	`size` integer NOT NULL,
+	`mime` text,
+	`progress` integer DEFAULT 0 NOT NULL,
+	`state` text DEFAULT 'queued' NOT NULL,
+	`error` text,
+	`session_id` text,
+	`server_entry_id` integer,
+	`open_request_id` text,
+	`started_at` integer NOT NULL,
+	FOREIGN KEY (`channel_id`) REFERENCES `channels`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE INDEX `bucket_uploads_channel_id_index` ON `bucket_uploads` (`channel_id`);--> statement-breakpoint
 CREATE TABLE `buckets` (
 	`channel_id` text PRIMARY KEY NOT NULL,
 	`revision` integer DEFAULT 0 NOT NULL,
