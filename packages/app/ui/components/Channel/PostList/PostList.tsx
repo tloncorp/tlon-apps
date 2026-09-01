@@ -38,7 +38,6 @@ function useConversationKeyboardListProps(
       // iOS keeps the viewport fixed, so the list owns keyboard and composer
       // insets and commits them with the preserving content offset.
       return {
-        contentInsetAdjustmentBehavior: 'never' as const,
         contentInsetEndAdjustment: composerContentInset,
         freeze: false,
         keyboardDismissMode: 'interactive' as const,
@@ -48,7 +47,6 @@ function useConversationKeyboardListProps(
     // Android adjustResize already shrinks the viewport. Freeze the library's
     // inset path so it does not count the keyboard twice.
     return {
-      contentInsetAdjustmentBehavior: undefined,
       contentInsetEndAdjustment: undefined,
       freeze: true,
       keyboardDismissMode: 'on-drag' as const,
