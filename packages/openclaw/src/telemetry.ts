@@ -437,6 +437,7 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindEveryCount: number | null;
   scheduleKindAtCount: number | null;
   scheduleKindOnExitCount: number | null;
+  scheduleKindStreamCount: number | null;
 };
 
 /**
@@ -1947,6 +1948,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
           scheduleKindEveryCount: event.scheduleKindEveryCount,
           scheduleKindAtCount: event.scheduleKindAtCount,
           scheduleKindOnExitCount: event.scheduleKindOnExitCount,
+          scheduleKindStreamCount: event.scheduleKindStreamCount,
           ...this.cronCountPersonProps(event),
         },
         { omitNullish: true }

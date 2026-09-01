@@ -66,7 +66,13 @@ type GatewayCronJob = {
 };
 
 export type CronChangedEvent = {
-  action: 'added' | 'updated' | 'removed' | 'started' | 'finished' | 'scheduled';
+  action:
+    | 'added'
+    | 'updated'
+    | 'removed'
+    | 'started'
+    | 'finished'
+    | 'scheduled';
   jobId: string;
   job?: GatewayCronJob;
   sessionTarget?: string;
@@ -215,6 +221,11 @@ export function cronScheduleFields(
         ...empty,
         scheduleKind: 'on-exit',
       };
+    case 'stream':
+      return {
+        ...empty,
+        scheduleKind: 'stream',
+      };
     default:
       return empty;
   }
@@ -227,12 +238,14 @@ export function summarizeCronJobs(jobs: GatewayCronJob[]): {
   scheduleKindEveryCount: number;
   scheduleKindAtCount: number;
   scheduleKindOnExitCount: number;
+  scheduleKindStreamCount: number;
 } {
   let active = 0;
   let cronKind = 0;
   let everyKind = 0;
   let atKind = 0;
   let onExitKind = 0;
+  let streamKind = 0;
   for (const job of jobs) {
     // `enabled` is optional on the hook projection; jobs default to enabled.
     if (job.enabled !== false) {
@@ -251,6 +264,9 @@ export function summarizeCronJobs(jobs: GatewayCronJob[]): {
       case 'on-exit':
         onExitKind += 1;
         break;
+      case 'stream':
+        streamKind += 1;
+        break;
     }
   }
   return {
@@ -260,6 +276,7 @@ export function summarizeCronJobs(jobs: GatewayCronJob[]): {
     scheduleKindEveryCount: everyKind,
     scheduleKindAtCount: atKind,
     scheduleKindOnExitCount: onExitKind,
+    scheduleKindStreamCount: streamKind,
   };
 }
 

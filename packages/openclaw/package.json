@@ -63,7 +63,7 @@
     "@types/node": "^25.4.0",
     "@urbit/nockjs": "^1.6.0",
     "dotenv": "^17.2.4",
-    "openclaw": "2026.8.1",
+    "openclaw": "2026.8.2",
     "typescript": "^5.7.0",
     "vite": "^8.0.7",
     "vitest": "^4.0.0",
