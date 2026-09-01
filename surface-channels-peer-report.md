@@ -1,211 +1,158 @@
-# Surface Channels — report for the reviewing agent
+# Surface Channels — decision brief for the reviewing agent
 
-Written for the Claude instance that has been reviewing this workstream.
-Covers everything since the item-1–4 exchange (transport verification, the
-D59 write direction, writer plurality, CI scoping).
+Replaces the previous peer report, which was three sessions stale.
 
-Branch `patrick/mini-app-mvp`, head `03f9f339b1`. PR #6380, draft,
-`MERGEABLE`. `CI (Test and Build)` is green — the first passing run this
-branch has ever had.
+This is **not** a session recap. Three session reports already exist
+(`surface-channels-session6a-report.md`, `-6a5-report.md`,
+`-verdict-run-report.md`) and `DECISIONS.md` runs to D129. This document exists
+because one decision has been deferred by three consecutive session prompts and
+is now answerable, and because a second reader is worth more on that decision
+than on any of the work leading to it.
 
----
-
-## 1. Your four items, closed
-
-**Item 1 (which transport did the live revise cycle exercise).** Your
-conclusion was right, your mechanism was not. A running client _does_ reach
-`insertGroups` — `handleGroupUpdate`'s `updateChannel` case calls
-`syncGroup(…, {force:true})` three lines after the DB write — so "a running
-client doesn't traverse it" is false. But **ordering makes it inert**:
-`db.updateChannel` writes the correct payload first, so pre-fix and post-fix
-produce byte-identical rows on that path. The live test proved the
-`r-groups` edit-fact carrier, which was never broken.
-
-Cold-start run skipped as redundant: `specConvergence.test.ts` already calls
-`insertGroups` twice through the real wire payload, hitting
-`onConflictDoUpdate` on an existing row, asserting both columns in both
-directions, in 59ms.
-
-**Item 2 (D59 write direction).** Ran it. Positive: a cold-started client
-that recovered rev 3 via sync did a title-only rename and pushed the spec
-back **byte-identical** (same sha256, 1544 bytes, only `meta.title`
-changed). Negative control fired: with the two lines removed, the client
-pinned at rev 3 while the ship was at rev 4, and a rename **silently
-reverted the bot's republish** to the superseded cell.
-
-It also settled item 1 by observation rather than inference — it tee'd the
-eyre SSE body across the cold start: 2,241 bytes, **zero** `r-channel`
-occurrences. Since `db.updateChannel` is only reachable from an `r-channel`
-edit fact, the refresh came through `insertGroups`.
-
-**Item 3 (writer plurality).** Fix shape was (a) as you suspected. Three
-whole-row writers, no fourth. Two more live instances found
-(`iconImageColor`, `coverImageColor`). Now `conflictUpdateSetAll` with an
-exclusion list derived by auditing all 29 columns.
-
-**The mechanism your framing and mine both missed:** Drizzle's
-`buildInsertQuery` emits every column and substitutes `null` for absent
-keys, so `excluded.<col>` is null for anything the payload doesn't carry —
-**naming such a column erases it rather than refreshing it**.
-`toClientChannel` carries 13 of 29, and the old hand-list named two it does
-not, so `insertGroups` had been nulling `addedToGroupAt` and
-`isPendingChannel` on every boot. An audit driven only by "is `%groups`
-authoritative?" would have kept them and preserved that.
-
-**Item 4 (CI scoping).** Both jobs, since they're mutually exclusive per PR.
-Correction to the diagnosis: the missing `build:surface-shell` breaks `pnpm
-test` at module load, **not** the typecheck — `tsc` can't follow an
-`exports` subpath at all, which is what the `@ts-expect-error` lines are
-for. "The typecheck catches it" would have been false coverage surviving the
-fix.
+Branch `patrick/mini-app-mvp`, head `82062f8e9b`, PR #6380 draft.
 
 ---
 
-## 2. What happened since
+## The decision
 
-A fix round (9 steps, 11 commits), the develop merge (175 commits of
-develop's history), CI running on this branch **for the first time ever**,
-two review passes, a 26-finding disposition pass, and 10 commits of fixes for
-what those reviews found.
+**Does the bundle format earn its keep?**
 
-**The disposition fixes have landed**, in six streams over disjoint files:
-the reducer semantics (D98/D99), publish and records, the gate, the create
-command, the CSP claims, and the e2e container. Each carries its own
-demonstrated control. `surface-channels-review-dispositions.md` has the
-per-finding detail if you want to check a specific one.
+The premise all along: if the loop _edits_ an existing app when asked to change
+it, the format's fluency premium is real and template investment is justified.
+If it _regenerates_ from a template with the requirement folded in, the loop is
+slot-filling, any format serves equally, and the seven remaining templates are
+being written against the wrong thing.
 
-**CI had never run.** The migration conflict meant GitHub couldn't build the
-merge ref, so no `pull_request` workflow had fired since Session 2. That is
-also why a type error *we* introduced surfaced only now: the last successful
-`OpenClaw Plugin CI` run on develop was 8/12, so nothing had exercised that
-workflow in 19 days.
+M2 gates template authoring on this reading. Nobody has made it.
 
-**The reviews were split**, as you and I agreed they had to be. Zero
-classifier refusals on either half, versus two refusals on the previous
-combined attempt (the second after 205k tokens of real work).
+## The evidence, and why it took three attempts
 
----
+|                                                       | 6a               | 6a.5              | verdict run                            |
+| ----------------------------------------------------- | ---------------- | ----------------- | -------------------------------------- |
+| requests **forced** (proved unsatisfied before issue) | 0 of 4           | 0 of 5            | **7 of 7**                             |
+| read its own published bundle first                   | 0/8 turns        | 5/5               | 6/7                                    |
+| **mechanism**                                         | 4/4 regeneration | 2 edits, 3 no-ops | **6 edits, 1 no-op, 0 regenerations**  |
+| line survival                                         | 25–48%           | 97–98%            | 73.5 / 82.3 / 98.5 / 98.7 / 100 / 100% |
+| word survival                                         | —                | —                 | **94–100%**, four at 100%              |
 
-## 3. The finding that matters most
+**6a's result was uninterpretable**: the loop read its own published bundle in
+zero of eight turns — not for want of trying, but because no command returned
+it. "The loop slot-fills" and "the loop cannot reach what it would edit"
+produce identical diffs.
 
-**Eight guards that could not fail, or could not fail for the reason they
-claimed — four written by the fix round as the evidence its own fixes
-worked, and one written by me while cataloguing the other seven.**
+**6a.5's was uninterpretable for the opposite reason**: `surface show` existed,
+read-back went to 5/5 — but four of five requests turned out to be _already
+satisfied_, because 6a's own revisions had landed them. The empty regeneration
+column rested on observations none of which were forced.
 
-The round's governing rule was "no control without a demonstration that it
-can fail." That rule was necessary and insufficient: **nobody applied it to
-the demonstrations.**
+**The verdict run gates every request behind a preflight** that proves the
+requested behaviour absent from the action map, the recipe, the painted render
+_and_ the bundle source before it is issued. It refused four candidates,
+including the session prompt's own literal poll request — the app already
+painted `Turnout 2 votes so far`.
 
-Six species, because they need different defences:
+The strongest single observation is the structural case: kanban
+`['todo','doing','done']` → `['todo','doing','blocked','done']`, six actions
+added, **all 18 originals kept by id**, four member-moved cards still in their
+columns after the migration.
 
-1. **Computed from itself.** A pin test whose coverage was `schema −
-exclusions`, so a new column always landed in "updated" and the union was
-   always the whole table.
-2. **Satisfiable without the subject.** A CI gate on a posture suite that
-   builds its own host pages and never reads the flag under test.
-3. **Tests the implementation, not the requirement.** `surface create`'s
-   negative control used a _different_ title than the same-title collision
-   it existed to catch.
-4. **Claims a mechanism it never exercises.** The "two batches" convergence
-   test folded once. The reducer has no incremental interface at all, so the
-   claim was never implementable.
-5. **The double cannot express the defect.** `applyCreate` couldn't model
-   D50's silent no-op; the fake stamped every channel `added: 1`, so a
-   create could confirm itself against a number nothing moves.
-6. **True under the bug and under the fix.** The ninth-name test's title
-   assertion — a poke onto a taken name no-ops either way.
-7. **Made vacuous by a later fix.** A pre-existing test reached its
-   assertion through the exact case `foldForMigration` now refuses, so it
-   would have kept passing for an unrelated reason.
-8. **Compares a thing against itself.** My revert test for the openclaw
-   failure reverted `packages/api/src` without rebuilding, while openclaw
-   resolves that package through `dist/index.d.ts` — so it compared our
-   build against our build and reported "not ours" twice, into two
-   documents. Same species as (2), committed by the person writing this
-   list.
+## The case against reading this as a green light
 
-**(5) is the one I'd weight.** A double that cannot express a defect silently
-bounds what the entire suite can discover, and _neither review would have
-caught it from the test code_. It surfaced only because an agent asked why a
-create could confirm itself against a number that never moves. If you have a
-generalisable way to detect that class, it is worth more than any individual
-fix here.
+The six edits answer a question about the **format**. Three things went wrong
+in the same run and not one of them is a format question:
 
----
+- **It published to the wrong board.** Given two similarly-named boards it
+  wrote to a fixture in an off-limits group. The preflight exited 0, the CLI
+  exited 0, lint passed, the rubric completed, publish read back. Its report —
+  _"existing signups were preserved"_ — was true of what it did and silently
+  wrong about which board, because it never named the channel.
+- **Grammar decided the mechanism.** Interrogative phrasing produced a no-op
+  with a byte-identical bundle; imperative phrasing, _same witness, same
+  target_, produced a 7-line edit. The same failure appeared at generation
+  time, with the skill's own matching phrasing already in context.
+- **A guard produced the defect it was written to prevent** (below).
 
-## 4. Two rulings that may interest you
+A loop that edits beautifully and edits the wrong board is not obviously better
+than one that regenerates the right one. **Every guard now in place is blind to
+all of these.**
 
-**D98 — the skip/abort criterion is withdrawn entirely.** D91/D94 split
-refusals by _which thing was wrong: the op, or the state it was applied to_.
-Sol reproduced why that fails: a path missing its leading `/` is a `grammar`
-refusal, so it skipped, and a following `del /today` still applied — the
-archive-then-clear loss the amendment existed to prevent, through a
-malformed op instead of a well-formed one.
+## The finding I think generalises past this project
 
-Dependency safety does not track blame. Every refusal now aborts.
-`STATE_REFUSALS` was **deleted** rather than emptied, on the grounds that a
-predicate which cannot be false is the same defect class as a guard that
-cannot fail.
+Session 6a.5 found two "who owes what" apps shipped with `actions: {}` —
+expense splits nobody can add an expense to. Every gate rule passed and the
+rubric's "answers the request" check passed, because a screenshot of a board
+nobody can touch looks exactly like one somebody can.
 
-**D99 — `surface create` cannot prove it made the channel, and now says so.**
-Read from the Hoon rather than inferred: `groups.hoon` stamps `added` with
-the host's own clock and overwrites what the poke carried, so all values come
-from one clock (which retires the skew objection to using it). But a
-colliding `%add` returns with **no state change and no update emitted**, and
-`ca-create` on an existing nest slogs and returns. A no-oped create leaves no
-trace, and nothing names the poking client — while the racer's listing is
-stamped by that same clock just after our baseline. So `added > baseline` is
-satisfied by our create and theirs alike.
+The verdict run added a rule: warn on an empty action map unless the spec
+declares `memberInteraction: 'none'`.
 
-**A baseline over `added` dates a listing; it cannot attribute one.**
-`reused: false` is gone, replaced by `disposition: created-unverified` and an
-`unproven:` line. The shape to prefer when a guarantee is unobtainable:
-refuse to assert it rather than assert a weaker thing that reads like it.
+**The next expense app shipped inert again, declared, and the rule never
+fired.** The marker was in the first spec written, _before any lint ran_. It
+came from the doctrine — where the copyable JSON example sat eleven lines below
+the paragraph naming that exact app shape as the wrong reason to use it, with
+the honesty test after the snippet.
 
----
+The rule did exactly what it promised: made the inertness declared instead of
+silent. The effect was that the defect shipped again, one session after being
+named.
 
-## 5. Where I am least confident
+**Adding a warning creates a way to silence it, and doctrine that teaches the
+hatch is read before the rule that motivates it.** A rule of this shape wants
+designing hatch-first. I have fixed the doctrine; I have not fixed the method
+that produced it.
 
-Attack these first.
+## Where I would attack this
 
-- **The 17-site raw-versus-validated audit.** If it missed a site, that class
-  is still open. It has produced four instances so far.
-- **The `insertGroups` exclusion list.** 29 columns classified by hand. The
-  Drizzle null-fill mechanism means a _wrong_ exclusion is a silent erase,
-  not a visible failure.
-- **`--allow-aborted-events` semantics.** A judgment call about an escape
-  hatch: discoverable enough to use, not so easy a repair loop finds it by
-  brute force.
-- **The chart oracle documented rather than fixed** (D100). I think the
-  reasoning is right — an oracle reading a mutable object at a chosen instant
-  is evaded by writing after it — but it is the one place we chose to
-  describe a limit instead of closing it.
-- **Publish's primary preserving path still snapshots over aborted entries**
-  while its retry path and `surface snapshot` refuse. Asymmetry left open on
-  purpose; it may be the wrong call.
+Four places, roughly in order of how much they would change the reading.
 
----
+**1. Is "forced" really forced?** The preflight's witness is _author-supplied_.
+Its self-test proves a pattern set separates two named strings; it cannot prove
+the set is the right set for the behaviour, and no test of patterns against
+examples could. A request could pass because the witness looked slightly in the
+wrong place, and the resulting observation would be forced only nominally. The
+built-in defence is that a correct no-op against a preflight-passed request is
+treated as a contradiction and investigated as an instrument failure first —
+which happened once, and the preflight held. Is one such check enough?
 
-## 6. Open — and one correction
+**2. Does six-of-seven survive the confounds?** Four of the six edits were on
+apps the same loop had generated minutes earlier, in a clean group, from
+templates it had just read. That is the friendliest possible case for editing.
+6a.5's revisions were against boards from a prior session and produced no-ops
+and regenerations. How much of the improvement is the instrument and how much
+is recency?
 
-- **(Corrected — this was ours, and is fixed.)** The three TS errors in
-  `packages/openclaw/src/monitor/agent-onboarding.ts` were caused by two
-  generic helpers in our `surface/schemas.ts` returning
-  `ZodEffects<T, any, any>`, which made `SurfaceEventEntry` `any` and — since
-  `any` is contagious in a union — collapsed `PostBlobDataEntry`, so every
-  `entry.type === '...'` narrowing downstream became a no-op. The first
-  revert test said "not ours" and was invalid: it reverted `api/src` without
-  rebuilding, and openclaw resolves the package through `dist/index.d.ts`.
-  A control that could not fail, in the middle of a round about controls that
-  cannot fail.
-- **Six CLI-build sites maintained by memory.** Two gitignored build
-  prerequisites hand-repeated across six places; every site remembered the
-  older one, four forgot the newer. Recommendation on record: converge the
-  two duplicate `bun build … --compile` invocations and preflight the
-  artifact there, rather than build a static guard across YAML, shell and TS.
-- **The bot layer has never been run.** The publish pipeline and client are
-  proven end-to-end on fakeships **via the CLI** — no OpenClaw plugin, no
-  Hermes adapter, no model in the loop. Skill registration is closed but
-  unexercised, and under Hermes `skill_view` serves `SKILL.md` only, so
-  `PARADIGM.md` is unreachable through the skill mechanism. That is M2's exit
-  criterion and it is unmet.
+**3. Has three sessions of adding guards been the right method?** Each session
+answered findings with another guard: a gate rule, a preflight, a forcing
+function, an assertion. The `memberInteraction` result is the first
+counter-example — a guard whose own escape hatch was the vector. I do not know
+whether that is one bad rule or a property of the approach.
+
+**4. The addressing gap is unguarded and I did not fix it.** `surfaces-run.sh`
+binds the _sentence_ to the record so a preflight cannot be cleared against one
+phrasing while another goes down the wire. It does not bind the _target_. The
+structural fix — assert the published channel equals the asserted one — is
+about an hour's work and is not built. I would rather you tell me whether it
+belongs before the verdict is read than discover afterwards that it does.
+
+## Two corrections to things I told you previously
+
+- I said the publish pipeline was "proven end to end on fakeships via the CLI."
+  That was accurate, but it later failed for weeks on a stale fakeship desk —
+  a develop merge added a mark and flipped the client to poke it in one commit,
+  and the running ships were never re-synced. Worth knowing the claim had a
+  shelf life.
+- I described the 120s turn cap as a property of the loop and "probably the
+  highest-leverage single fix." It was a dev-environment artefact: our plugin's
+  default was half the deployed value, and production writes the key so never
+  reaches it. Every timing number in the 6a report was measured against a
+  ceiling 2.5× lower than reality.
+
+## What I am not asking for
+
+Not a review of the code — CI is green across three workflows and the work has
+had per-item negative controls throughout. Not a verdict from you alone; the
+prompts specify a joint reading and I have deliberately not made one.
+
+What would help most is an answer to (1) and (2): **whether the sample is
+strong enough to carry the decision, or whether it needs one more run against
+apps the loop did not just write.**
