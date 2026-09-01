@@ -86,6 +86,37 @@ only after a native input changes.
 Finish with `stim stop`. Ask before `stim worktree remove`: it deletes the
 worktree and its simulator.
 
+## Android
+
+`ANDROID_HOME` must be exported (`stim doctor` checks it):
+
+```bash
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+```
+
+The app builds two product flavors, `production` (`io.tlon.groups`) and
+`preview` (`io.tlon.groups.preview`), so `assembleDebug` leaves two APKs and
+nothing says which to install. Stim refuses rather than guess. Name the variant
+the repo's own `pnpm android` uses:
+
+```bash
+stim android --variant productionDebug
+```
+
+To make that the default for everyone, commit a `.stim.json` at the repo root:
+
+```json
+{ "android": { "variant": "productionDebug" } }
+```
+
+After a run with the wrong variant, gradle reports `BUILD SUCCESSFUL` while
+leaving the APK from the earlier run in place, and Stim refuses to install an
+artifact the build did not produce. Clear the output directory and build again:
+
+```bash
+rm -rf apps/tlon-mobile/android/app/build/outputs/apk
+```
+
 ## Repository facts worth knowing
 
 - **Node comes from `.nvmrc`** (22.22.0). Other versions fail to build
@@ -114,6 +145,7 @@ Measured on an M-series MBP with Xcode 26.5, in a warm worktree branched from
 | `stim start` | 3s |
 | `stim ios`, native build required | 5m16s, with 81% compilation-cache hits |
 | `stim ios`, native inputs unchanged | 9s, from the build cache |
+| `stim android`, cold gradle build | 4m15s to compile, then install and launch |
 
 The compilation cache is shared across worktrees, which is why a first build in
 a brand-new worktree still reused most of its objects.
