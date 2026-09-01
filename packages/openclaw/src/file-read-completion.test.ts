@@ -41,6 +41,7 @@ describe('file read completion guard', () => {
     "I'll summarize the file now.",
     "I'll summarise the file now.",
     "I'll read the file now, then summarize it.",
+    "I'll read the file now, and then summarize it.",
     'Reviewing the CSV now.',
     'Processing the data now.',
     'Parsing the file now.',
@@ -847,6 +848,38 @@ describe('file read completion guard', () => {
     expect(
       guard.beforeFinalize({
         runId: 'fresh-version',
+        lastAssistantMessage:
+          'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
+      })
+    ).toBeNull();
+  });
+
+  it('invalidates truncated read evidence after a successful file mutation', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'mutated-truncation',
+        'old one\nold two\nold three\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult({
+      runId: 'mutated-truncation',
+      toolName: 'write',
+      params: { path: '/tmp/report.txt' },
+      result: { content: [{ type: 'text', text: 'updated' }] },
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'mutated-truncation',
+        'new one\nnew two\nnew three\nnew four',
+        '/tmp/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'mutated-truncation',
         lastAssistantMessage:
           'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
       })

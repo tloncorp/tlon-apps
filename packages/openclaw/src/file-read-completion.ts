@@ -52,6 +52,13 @@ const MAX_ANCHOR_LENGTH = 180;
 const MAX_SUSPICIOUS_REPLY_LENGTH = 600;
 const MAX_REVISION_ATTEMPTS = 2;
 const UNKNOWN_TARGET = '\0unknown-read-target';
+const FILE_MUTATION_TOOLS = new Set([
+  'apply_patch',
+  'edit',
+  'edit_file',
+  'write',
+  'write_file',
+]);
 
 const PROGRESS_VERBS =
   '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|analyz(?:e|ing)|summari[sz](?:e|ing)|review(?:ing)?|process(?:ing)?|pars(?:e|ing)|scan(?:ning)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
@@ -59,7 +66,7 @@ const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
 const PROGRESS_SUBJECT = "(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?";
 const PROGRESS_CLAUSE = `${PROGRESS_SUBJECT}${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}`;
 const PROGRESS_ONLY = new RegExp(
-  `^(?:(?:okay|sure)[,!.]?\\s*)?${PROGRESS_CLAUSE}(?:[,;:]\\s*(?:(?:then|and)\\s+)?${PROGRESS_CLAUSE})*[.!…]*$`,
+  `^(?:(?:okay|sure)[,!.]?\\s*)?${PROGRESS_CLAUSE}(?:[,;:]\\s*(?:(?:(?:and\\s+)?then|and)\\s+)?${PROGRESS_CLAUSE})*[.!…]*$`,
   'i'
 );
 const COMPLETION_PREFIX =
@@ -509,7 +516,34 @@ export function createFileReadCompletionGuard(options?: {
   return {
     recordToolResult(input: FileReadToolResult): void {
       const runId = input.runId?.trim();
-      if (!runId || input.toolName !== 'read') {
+      if (!runId) {
+        return;
+      }
+      if (input.toolName !== 'read') {
+        if (
+          !FILE_MUTATION_TOOLS.has(input.toolName) ||
+          nonEmptyError(input.error) ||
+          toolResultIsError(input.result)
+        )
+          return;
+        const existing = runs.get(runId);
+        const targetKey = readTarget(input.params);
+        if (!existing || !targetKey || !existing.targets.has(targetKey)) return;
+        const targets = new Map(existing.targets);
+        targets.delete(targetKey);
+        if (targets.size === 0) {
+          runs.delete(runId);
+          return;
+        }
+        touch(runId, {
+          ...existing,
+          deliveredViaMessageTool: false,
+          lastSuccessfulTarget:
+            existing.lastSuccessfulTarget === targetKey
+              ? null
+              : existing.lastSuccessfulTarget,
+          targets,
+        });
         return;
       }
       if (
