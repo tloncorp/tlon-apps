@@ -1506,6 +1506,64 @@ describe('UrbitSSEClient', () => {
       expect(body[0]).toMatchObject({ action: 'subscribe', id: 2 });
     });
 
+    it('stops a timed-out resubscribe once a late nack moves the handlers', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const recoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: recoverySpy }
+      );
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      priv(client).isConnected = true;
+      priv(client).channelEpoch = 1;
+
+      // Gall quit kicks sub 1; the loop registers sub 2 and sends it.
+      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+      await vi.advanceTimersByTimeAsync(2_500);
+      // Its ack never comes, so the 30s wait expires and the loop retries.
+      await vi.advanceTimersByTimeAsync(30_000);
+      // The nack finally lands: its handler spawns a fresh recovery for
+      // sub 3 and moves the handlers off sub 2.
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","err":"nope"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).eventHandlers.has(2)).toBe(false);
+      recoverySpy.mockClear();
+
+      // Let the abandoned loop reach its next backoff: it must stop rather
+      // than re-send for an id whose handlers are gone.
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      // An ack for the abandoned id must not report the watch live: the
+      // prompt monitor would scry and reconcile before the real
+      // replacement is up and miss any owner edit in the gap.
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const putIds = mockUrbitFetch.mock.calls
+        .filter((call) => call[0].init?.method === 'PUT')
+        .flatMap((call) => JSON.parse(call[0].init?.body as string))
+        .map((entry: { id: number; action: string }) => `${entry.action}:${entry.id}`);
+      // Only the original sub 2 send and the replacement sub 3 send: the
+      // abandoned loop must not re-send for an id whose handlers are gone,
+      // since that send's ack would report the watch live.
+      expect(putIds).toEqual(['subscribe:2', 'subscribe:3']);
+      expect(recoverySpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'recovered' })
+      );
+    });
+
     it('a 404 rebuild resolves a pending resubscribe via epoch bump (no double PUT)', async () => {
       const { urbitFetch } = await import('./fetch.js');
       const mockUrbitFetch = vi.mocked(urbitFetch);

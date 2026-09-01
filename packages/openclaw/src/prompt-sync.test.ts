@@ -835,6 +835,23 @@ describe('createPromptSync abort during foreign cleanup', () => {
   });
 });
 
+describe('readEffectivePrompts teardown', () => {
+  it('does not remove a symlinked prompt once torn down', async () => {
+    // The lstat awaits, so a replacement monitor can atomically publish a
+    // regular file at this path before the unlink runs — deleting it would
+    // leave the new bot without that prompt.
+    const secret = path.join(tmpDir, 'secret');
+    fs.writeFileSync(secret, 'private');
+    fs.symlinkSync(secret, path.join(tmpDir, 'USER.md'));
+    const effective = await readEffectivePrompts(tmpDir, logger, () => true);
+    expect(effective.ok).toBe(false);
+    expect(effective.prompts['USER.md']).toBeUndefined();
+    expect(fs.lstatSync(path.join(tmpDir, 'USER.md')).isSymbolicLink()).toBe(
+      true
+    );
+  });
+});
+
 describe('createPromptSync abort before a foreign unlink', () => {
   it('leaves the file alone when teardown lands during the content read', async () => {
     // Text-inferred cleanup reads the file first, so the teardown can land

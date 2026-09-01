@@ -371,7 +371,13 @@ export function initContextLensShipSync(api: {
     // Retire, but assert nothing: a correction would ride the same
     // ambiguous transport. Each monitor's own prompt sync re-configures its
     // ship's owner on connect, which IS correctly scoped to one account.
-    void retirePrevious();
+    //
+    // The flush still goes in the slot. Dropping it would lose the only
+    // handle on a poke this sync already sent, so a reload back to one
+    // account would assert its owner with nothing to order it behind — and
+    // the older poke could land last, restoring the former owner.
+    const settled = retirePrevious();
+    shipSyncUnsubscribeSlot.set({ retire: () => {}, flush: () => settled });
     api.logger.info(
       `[tlon] Context lens ship sync disabled: ${runnable.length} runnable Tlon accounts share one transport slot`
     );

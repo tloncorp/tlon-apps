@@ -1779,6 +1779,16 @@ export class UrbitSSEClient {
 
       if (this.aborted) return;
 
+      if (!this.eventHandlers.has(newSubId)) {
+        // A nack for this id that arrived after our ack wait timed out
+        // spawned a fresh recovery loop, which took the handlers with it.
+        // Re-sending — or emitting `recovered` — for a handlerless id would
+        // tell dependents the watch is live while facts still go nowhere:
+        // the prompt monitor would scry and reconcile before the real
+        // replacement is up, missing any owner edit in the gap.
+        return;
+      }
+
       if (this.channelEpoch !== epochAtRegistration) {
         // A stream reconnect rebuilt the channel with newSub included;
         // sending it again would double-subscribe.
@@ -1853,6 +1863,11 @@ export class UrbitSSEClient {
         if (!acked) {
           // Nacked: the subscribe-nack handler already spawned a fresh
           // recovery loop for the replacement id.
+          return;
+        }
+        if (!this.eventHandlers.has(newSubId)) {
+          // Same as above, for a handler transfer that landed while this
+          // attempt was in flight.
           return;
         }
         this.logger.log?.(

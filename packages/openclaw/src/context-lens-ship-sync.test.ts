@@ -762,6 +762,93 @@ describe('initContextLensShipSync retirement', () => {
       // The previous sync is retired (no run poke) and nothing is asserted.
       expect(pokes).toEqual([]);
       expect(infos.join('\n')).toContain('share one transport slot');
+
+      // Back to one account: still works, and the parked flush is what
+      // orders it (see the next test).
+      expect(initContextLensShipSync(singleAccount)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(pokes.map((poke) => JSON.stringify(poke.json))).toEqual([
+        JSON.stringify({ configure: { owner: '~bus' } }),
+      ]);
+    } finally {
+      slot.set(previousParams);
+    }
+  });
+
+  it('keeps retirement ordering across a multi-account detour', async () => {
+    const order: string[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let hung = false;
+    slot.set({
+      poke: async (params) => {
+        const owner = JSON.stringify((params as RecordedPoke).json);
+        order.push(owner);
+        if (!hung) {
+          // Only the first assertion hangs: it is the in-flight poke the
+          // later one has to order itself behind.
+          hung = true;
+          await gate;
+        }
+        return undefined;
+      },
+    });
+    const apiFor = (
+      owner: string,
+      accounts?: Record<string, unknown>
+    ) => ({
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner,
+            },
+            ...(accounts ? { accounts } : {}),
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    });
+    try {
+      expect(initContextLensShipSync(apiFor('~bus'))).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(order).toEqual([JSON.stringify({ configure: { owner: '~bus' } })]);
+
+      // A reload briefly sees two runnable accounts, then returns to one.
+      expect(
+        initContextLensShipSync(
+          apiFor('~bus', {
+            hosted: {
+              ship: '~sampel-palnet',
+              url: 'https://other.example.com',
+              code: 'code-456',
+              ownerShip: '~dev',
+            },
+          })
+        )
+      ).toBe(false);
+      expect(initContextLensShipSync(apiFor('~dev'))).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      // ~dev must not be asserted until ~bus's in-flight poke settles, or
+      // the older poke lands last and restores the former owner.
+      order.push('released');
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(order).toEqual([
+        JSON.stringify({ configure: { owner: '~bus' } }),
+        'released',
+        JSON.stringify({ configure: { owner: '~dev' } }),
+      ]);
     } finally {
       slot.set(previousParams);
     }

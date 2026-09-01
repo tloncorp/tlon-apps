@@ -411,7 +411,8 @@ async function readPromptFileIfRegular(
  */
 export async function readEffectivePrompts(
   workspaceDir: string,
-  logger?: PromptSyncLogger
+  logger?: PromptSyncLogger,
+  aborted?: () => boolean
 ): Promise<{ prompts: Record<string, string>; ok: boolean }> {
   const out: Record<string, string> = {};
   let ok = true;
@@ -433,6 +434,13 @@ export async function readEffectivePrompts(
         continue;
       }
       if (info.isSymbolicLink()) {
+        if (aborted?.()) {
+          // The lstat awaits, so a teardown can land before this unlink.
+          // A replacement monitor may have atomically published a regular
+          // file at this path since; deleting it would leave the new bot
+          // without that prompt until some later reconcile.
+          return { prompts: out, ok: false };
+        }
         logger?.warn(
           `[tlon] Prompt file ${name} is a symlink; removing it instead of reading through it`
         );
@@ -1102,7 +1110,8 @@ export function createPromptSync(opts: {
     }
     const { prompts: effective, ok: readOk } = await readEffectivePrompts(
       workspaceDir,
-      logger
+      logger,
+      aborted
     );
     if (!readOk) {
       // A partial read would seed an incomplete set, and %steward would
