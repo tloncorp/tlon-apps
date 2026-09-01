@@ -1379,6 +1379,7 @@ export const getChats = createReadQuery(
           orderBy: [desc($channels.lastPostAt)],
           with: {
             lastPost: true,
+            unread: true,
           },
         },
         // Just need the first 4 members for avatar display
@@ -1443,25 +1444,39 @@ export const getChats = createReadQuery(
       }
     }
 
-    const groupChats: Chat[] = groups.map((g) => ({
-      id: g.id,
-      type: 'group',
-      pin: g.pin,
-      timestamp: g.haveInvite
-        ? (g.unread?.updatedAt ?? 0)
-        : // whichever is newer: the latest post, or the activity summary's
-          // recency — activity that isn't a post (e.g. a note in a notebook
-          // channel) also reorders the sidebar
-          Math.max(g.lastPostAt ?? 0, g.unread?.updatedAt ?? 0),
-      volumeSettings: g.volumeSettings,
-      unreadCount: g.unread?.count ?? 0,
-      group: g,
-      isPending:
-        g.haveInvite === true ||
-        !!g.joinStatus ||
-        g.haveRequestedInvite ||
-        false,
-    }));
+    const groupChats: Chat[] = groups.map((g) => {
+      // Temporary client-side workaround for TLON-6417. Group activity
+      // recency includes membership and other events that should not reorder
+      // the chat list. Keep the old post-based ordering, plus the narrower
+      // Notes source recency, until the backend provides a sidebar-specific
+      // recency value.
+      const latestNotesActivityAt = Math.max(
+        0,
+        ...g.channels
+          .filter(
+            (channel) =>
+              channel.type === 'notes' && channel.currentUserIsMember === true
+          )
+          .map((channel) => channel.unread?.updatedAt ?? 0)
+      );
+
+      return {
+        id: g.id,
+        type: 'group',
+        pin: g.pin,
+        timestamp: g.haveInvite
+          ? (g.unread?.updatedAt ?? 0)
+          : Math.max(g.lastPostAt ?? 0, latestNotesActivityAt),
+        volumeSettings: g.volumeSettings,
+        unreadCount: g.unread?.count ?? 0,
+        group: g,
+        isPending:
+          g.haveInvite === true ||
+          !!g.joinStatus ||
+          g.haveRequestedInvite ||
+          false,
+      };
+    });
 
     const channelChats: Chat[] = channels.map((c) => ({
       id: c.id,

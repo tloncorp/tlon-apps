@@ -14,16 +14,21 @@ import { ContactName } from '../ContactNameV2';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ListItem, ListItemProps } from '../ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
+import type { GroupRecencyOverride } from './chatListRecency';
 
 export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
   customSubtitle,
+  recencyOverride,
   disableOptions = false,
   hoverStyle,
   ...props
-}: { customSubtitle?: string } & ListItemProps<db.Group>) => {
+}: {
+  customSubtitle?: string;
+  recencyOverride?: GroupRecencyOverride | null;
+} & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
@@ -140,7 +145,11 @@ export const GroupListItem = ({
           />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
-            {customSubtitle ? (
+            {recencyOverride ? (
+              <ListItem.SubtitleWithIcon icon="ChannelNotebooks">
+                {recencyOverride.label}
+              </ListItem.SubtitleWithIcon>
+            ) : customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : isSingleChannel ? (
               <ListItem.SubtitleWithIcon icon="ChannelMultiDM">
@@ -165,7 +174,7 @@ export const GroupListItem = ({
                 </ListItem.Subtitle>
               </>
             ) : null}
-            {model.lastPost ? (
+            {recencyOverride ? null : model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
             ) : !isPending ? (
               model.isPersonalGroup ? (
@@ -185,7 +194,9 @@ export const GroupListItem = ({
                 />
               ) : (
                 <>
-                  <ListItem.Time time={model.lastPostAt} />
+                  <ListItem.Time
+                    time={recencyOverride?.timestamp ?? model.lastPostAt}
+                  />
                   <ListItem.Count
                     opacity={isHovered ? 0 : 1}
                     notified={notified}

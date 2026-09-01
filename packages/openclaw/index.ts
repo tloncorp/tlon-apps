@@ -53,6 +53,7 @@ import {
 } from './src/mcp-readonly-policy.js';
 import { setAgentOnboardingRunStore } from './src/monitor/agent-onboarding-run-store.js';
 import {
+  agentOnboardingCronChannelNest,
   agentOnboardingCronProviderIds,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
@@ -1023,6 +1024,9 @@ export default defineBundledChannelEntry({
         : undefined;
       const isOnboardingCron =
         isMcpTool && (await isAgentOnboardingCronJob(cronJobId));
+      const onboardingChannelNest = isOnboardingCron
+        ? await agentOnboardingCronChannelNest(cronJobId)
+        : undefined;
       const allowedProviderIds = isOnboardingCron
         ? await agentOnboardingCronProviderIds(cronJobId)
         : [];
@@ -1055,6 +1059,12 @@ export default defineBundledChannelEntry({
         const background = ensureBackgroundContextLensForSession(
           ctx.sessionKey,
           {
+            ...(onboardingChannelNest
+              ? {
+                  chatType: 'channel' as const,
+                  conversationId: onboardingChannelNest,
+                }
+              : {}),
             runKind: isCronSession ? 'cron' : 'internal',
             trigger: isCronSession ? 'cron' : 'tool',
             preview: `${event.toolName} tool activity`,
@@ -1445,7 +1455,7 @@ export default defineBundledChannelEntry({
     // no `:cron:` marker — the agent-level hook context is the only place
     // the gateway exposes the cron trigger, so tag the run's lens here
     // before any tool fires. Idempotent across both hooks.
-    const ensureCronContextLens = (ctx: {
+    const ensureCronContextLens = async (ctx: {
       sessionKey?: string;
       trigger?: string;
       jobId?: string;
@@ -1453,7 +1463,16 @@ export default defineBundledChannelEntry({
       if (!contextLensEnabled || ctx.trigger !== 'cron') {
         return;
       }
+      const onboardingChannelNest = await agentOnboardingCronChannelNest(
+        ctx.jobId
+      );
       const background = ensureBackgroundContextLensForSession(ctx.sessionKey, {
+        ...(onboardingChannelNest
+          ? {
+              chatType: 'channel' as const,
+              conversationId: onboardingChannelNest,
+            }
+          : {}),
         runKind: 'cron',
         trigger: 'cron',
         preview: ctx.jobId ? `cron job ${ctx.jobId}` : 'cron run',
@@ -1466,7 +1485,7 @@ export default defineBundledChannelEntry({
     // model/harness/run failures can bypass the inbound-session telemetry gate
     // and retain their detailed diagnostic fields. The lifecycle hook remains
     // the authoritative source for the final cron outcome.
-    const onCronAgentHook = (ctx: {
+    const onCronAgentHook = async (ctx: {
       sessionId?: string;
       sessionKey?: string;
       trigger?: string;
@@ -1499,16 +1518,16 @@ export default defineBundledChannelEntry({
         // before any interactive MCP tool call is checked against it.
         clearCronJobForSession(ctx.sessionKey);
       }
-      ensureCronContextLens(ctx);
+      await ensureCronContextLens(ctx);
     };
-    api.on('agent_turn_prepare', (_event, ctx) => {
+    api.on('agent_turn_prepare', async (_event, ctx) => {
       // Cron has no active Tlon turn recorder, so its output trace stays nullable.
       if (ctx.trigger !== 'cron') {
         recordTlonAgentRunTrace(ctx.runId, ctx.trace?.traceId);
       }
-      onCronAgentHook(ctx);
+      await onCronAgentHook(ctx);
     });
-    api.on('model_call_started', (_event, ctx) => onCronAgentHook(ctx));
+    api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
 
     // Background lenses normally finalize on tool-result idle; agent_end
     // re-arms the window so runs that end with model output (no trailing

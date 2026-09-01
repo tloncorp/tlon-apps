@@ -182,12 +182,12 @@ test('uses init data to get chat list', async () => {
   const ids = result.unpinned.map((r) => r.id).slice(0, 7);
   expect(ids).toEqual([
     'chat/~nibset-napwyn/commons',
-    '~nibset-napwyn/tlon',
     '~nocsyx-lassul',
     'chat/~pondus-watbel/new-channel',
-    '~pondus-watbel/testing-facility',
     'chat/~nibset-napwyn/intros',
     '~ravseg-nosduc',
+    '~solfer-magfed',
+    '~hansel-ribbur',
   ]);
 
   expect(result.pending.map((r) => r.id)).toEqual([
@@ -195,6 +195,100 @@ test('uses init data to get chat list', async () => {
     '~barmyl-sigted/network-being',
     '~salfer-biswed/gamers',
   ]);
+});
+
+describe('getChats group recency workaround', () => {
+  type TestGroup = Parameters<typeof queries.insertGroups>[0]['groups'][number];
+
+  function testGroup(id: string, lastPostAt: number): TestGroup {
+    return {
+      id,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~zod',
+      lastPostAt,
+      channels: [],
+    } as unknown as TestGroup;
+  }
+
+  test('ignores broad group activity and legacy notebook activity', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const noisyGroupId = '~zod/noisy-activity';
+    const legacyNotebookId = 'diary/~zod/noisy-activity/notebook';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(noisyGroupId, 100)],
+    });
+    await queries.insertChannels([
+      { id: legacyNotebookId, type: 'notebook', groupId: noisyGroupId },
+    ]);
+    await queries.insertGroupUnreads([
+      makeGroupUnread({ groupId: noisyGroupId, updatedAt: 400 }),
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: legacyNotebookId, updatedAt: 300 }),
+    ]);
+
+    const groupIds = (await queries.getChats()).unpinned
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([recentGroupId, noisyGroupId]);
+  });
+
+  test('reorders groups from a persisted Notes summary without local activity events', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const notesGroupId = '~zod/notes-activity';
+    const notesChannelId = 'notes/~zod/notes-activity';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(notesGroupId, 100)],
+    });
+    await queries.insertChannels([
+      {
+        id: notesChannelId,
+        type: 'notes',
+        groupId: notesGroupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: notesChannelId, updatedAt: 300 }),
+    ]);
+
+    const groupIds = (await queries.getChats()).unpinned
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([notesGroupId, recentGroupId]);
+  });
+
+  test('ignores stale Notes summaries after leaving a notebook', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const leftNotesGroupId = '~zod/left-notes';
+    const leftNotesChannelId = 'notes/~zod/left-notes';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(leftNotesGroupId, 100)],
+    });
+    await queries.insertChannels([
+      {
+        id: leftNotesChannelId,
+        type: 'notes',
+        groupId: leftNotesGroupId,
+        currentUserIsMember: false,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: leftNotesChannelId, updatedAt: 300 }),
+    ]);
+
+    const groupIds = (await queries.getChats()).unpinned
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([recentGroupId, leftNotesGroupId]);
+  });
 });
 
 test('update channel: new writer roles with existing writer roles', async () => {
