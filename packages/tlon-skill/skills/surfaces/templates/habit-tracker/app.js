@@ -243,9 +243,7 @@
                     ${'Done'}
                   <//>
                 `}
-              >
-                <div data-testid=${'habit-' + id}>
-                  <div>${habit.label || id}</div>
+                secondary=${html`
                   <div>${habit.detail || ''}</div>
                   <div style=${AVATAR_ROW}>
                     ${doers.length === 0
@@ -254,7 +252,9 @@
                           return html`<${Avatar} ship=${ship} />`;
                         })}
                   </div>
-                </div>
+                `}
+              >
+                <div data-testid=${'habit-' + id}>${habit.label || id}</div>
               <//>
             `;
           })}
@@ -293,9 +293,7 @@
                     right=${run === 0
                       ? null
                       : html`<${Badge} tone="positive">${runLabel(run)}<//>`}
-                  >
-                    <div data-testid=${'habit-crew-' + ship}>
-                      <div>${ship}</div>
+                    secondary=${html`
                       <div>
                         ${String(marksIn(today[ship], order)) +
                         ' of ' +
@@ -303,7 +301,9 @@
                         ' today'}
                       </div>
                       <div>${stripFor(history, shown, ship, order)}</div>
-                    </div>
+                    `}
+                  >
+                    <div data-testid=${'habit-crew-' + ship}>${ship}</div>
                   <//>
                 `;
               })}

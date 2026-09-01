@@ -223,11 +223,9 @@
             right=${wanted === 0
               ? html`<${Badge} tone="positive">Nothing missing<//>`
               : html`<${Badge}>${String(wanted) + ' more wanted'}<//>`}
+            secondary=${html`<div>${state.where || ''}</div>`}
           >
-            <div data-testid="potluck-details">
-              <div>${state.when || ''}</div>
-              <div>${state.where || ''}</div>
-            </div>
+            <div data-testid="potluck-details">${state.when || ''}</div>
           <//>
 
           <${SectionHeader}>What are you bringing?<//>

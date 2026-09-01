@@ -166,11 +166,9 @@
                   >${String(seatsLeft(seats, coming)) + ' seats left'}<//
                 >`
               : null}
+            secondary=${html`<div>${state.where || ''}</div>`}
           >
-            <div data-testid="rsvp-details">
-              <div>${state.when || ''}</div>
-              <div>${state.where || ''}</div>
-            </div>
+            <div data-testid="rsvp-details">${state.when || ''}</div>
           <//>
 
           <${SectionHeader}>Your answer<//>

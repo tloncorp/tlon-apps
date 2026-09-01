@@ -84,17 +84,59 @@ html`
   <${ListRow}
     left=${html`<${Avatar} ship=${ship} />`}
     right=${html`<${Button} onPress=${() => invoke("vote-pizza")}>Vote<//>`}
+    secondary=${html`<div>${"put in " + paid + " · share " + share}</div>`}
   >
     ${label}
   <//>
 `;
 ```
 
-| prop     | type   | notes                                          |
-| -------- | ------ | ---------------------------------------------- |
-| `left`   | nodes? | leading slot — avatar, index, icon-sized thing |
-| `right`  | nodes? | trailing slot — control, badge, value          |
-| children | nodes  | the content column                             |
+| prop        | type   | notes                                           |
+| ----------- | ------ | ----------------------------------------------- |
+| `left`      | nodes? | leading slot — avatar, index, icon-sized thing  |
+| `right`     | nodes? | trailing slot — control, badge, value           |
+| `secondary` | nodes? | supporting detail, muted and small, below       |
+| children    | nodes  | the content column — the row's title, at weight |
+
+`children` is the row's title and stays at the body weight. `secondary` is
+everything that qualifies it, and the primitive draws it smaller and muted,
+so the two read as a title and its detail rather than two identical lines.
+
+**Two supporting facts are two nodes, not a nested stack.** `secondary` is a
+column: pass it more than one element and it stacks them with the right
+gap. Do not build that stack yourself — a `<div>` of `<div>`s inside
+`children` is the shape this slot replaced, and it renders every line at one
+weight.
+
+**Controls go in `right`, not in `secondary`.** The muted type is set on the
+container, so a `Button` or `Badge` in `secondary` keeps its own color and
+size and will look fine — which is exactly why the rule has to be stated
+rather than left to the eye. The one case that earns the exception is a
+control cluster that WRAPS: three or more buttons in `right` take most of a
+phone's width and squeeze the content column to a word a line, and
+`secondary` renders last, so they land under the row rather than above its
+detail. `kanban`'s card is that case and says so where it does it. One
+button, or two, belongs in `right`.
+
+```js
+html`
+  <${ListRow}
+    left=${html`<${Avatar} ship=${ship} />`}
+    secondary=${html`
+      <div>${done + " of " + total + " today"}</div>
+      <div>${strip}</div>
+    `}
+  >
+    ${ship}
+  <//>
+`;
+```
+
+The cluster is often not all text. A row of avatars, a run of `Badge`s, a
+`Progress` — those set their own color and size, so they are unaffected by
+the muted type and belong in `secondary` alongside the text, which is also
+the only way they land _below_ it. Anything left in `children` renders above
+the whole cluster.
 
 ---
 

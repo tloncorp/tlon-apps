@@ -191,10 +191,17 @@
    */
   const cardRow = function (id, task, here, onIt) {
     const moves = has(MOVE, id) ? MOVE[id] : {};
+    // The move buttons ride in `secondary` with the note and the faces
+    // rather than in `right`, which is where a control belongs in every
+    // other row on this board. This one is the exception because there are
+    // THREE of them and they wrap: in the trailing slot they would take
+    // most of a phone's width and squeeze the card's own text to a word a
+    // line. `secondary` renders last, so putting them there is what keeps
+    // them under the card instead of above the note. Copying this row for
+    // an app with one button per row is the wrong lesson — use `right`.
     return html`
-      <${ListRow}>
-        <div data-testid=${'kanban-card-' + id}>
-          <div>${task.label || id}</div>
+      <${ListRow}
+        secondary=${html`
           <div>${task.note || ''}</div>
           ${onIt.length === 0
             ? null
@@ -244,7 +251,9 @@
               `;
             })}
           </div>
-        </div>
+        `}
+      >
+        <div data-testid=${'kanban-card-' + id}>${task.label || id}</div>
       <//>
     `;
   };
@@ -337,11 +346,9 @@
                   <${ListRow}
                     left=${html`<${Avatar} ship=${ship} />`}
                     right=${html`<${Badge}>${LABELS[columnOf(task)]}<//>`}
+                    secondary=${html`<div>${task.label || String(id)}</div>`}
                   >
-                    <div data-testid=${'kanban-crew-' + ship}>
-                      <div>${ship}</div>
-                      <div>${task.label || String(id)}</div>
-                    </div>
+                    <div data-testid=${'kanban-crew-' + ship}>${ship}</div>
                   <//>
                 `;
               })}

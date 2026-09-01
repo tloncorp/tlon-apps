@@ -383,19 +383,23 @@
                     <//>
                   </div>
                 `}
+                secondary=${html`
+                  <div data-testid=${'workout-lift-' + id}>
+                    ${ships.map(function (ship) {
+                      return html`<span
+                        >${' ' + ship + ' '}${formatWeight(
+                          progress[ship].working[id],
+                          unit
+                        )}${' ' +
+                        markOf(outcomeOf(today, ship, id)) +
+                        ' '}</span
+                      >`;
+                    })}
+                  </div>
+                `}
               >
                 <div>
                   ${lift.label || id} <${Badge}>${lift.scheme || ''}<//>
-                </div>
-                <div data-testid=${'workout-lift-' + id}>
-                  ${ships.map(function (ship) {
-                    return html`<span
-                      >${' ' + ship + ' '}${formatWeight(
-                        progress[ship].working[id],
-                        unit
-                      )}${' ' + markOf(outcomeOf(today, ship, id)) + ' '}</span
-                    >`;
-                  })}
                 </div>
               <//>
             `;
@@ -422,11 +426,7 @@
                   <${ListRow}
                     left=${html`<${Avatar} ship=${ship} />`}
                     right=${html`<${Badge}>${'Next: ' + derived.next}<//>`}
-                  >
-                    <div data-testid=${'workout-ship-' + ship}>
-                      <div>
-                        ${ship}${' — '}${sessionCount(derived.sessions)}
-                      </div>
+                    secondary=${html`
                       <div>
                         ${weightLine(order, lifts, derived.working, unit)}
                       </div>
@@ -450,6 +450,10 @@
                           return null;
                         })}
                       </div>
+                    `}
+                  >
+                    <div data-testid=${'workout-ship-' + ship}>
+                      ${ship}${' — '}${sessionCount(derived.sessions)}
                     </div>
                   <//>
                 `;

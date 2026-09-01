@@ -308,12 +308,7 @@
                         I paid this
                       <//>
                     `}
-                  >
-                    <div data-testid=${'split-cost-' + cost.id}>
-                      <div>
-                        ${cost.label}
-                        <${Badge}>${money(currency, cost.cents)}<//>
-                      </div>
+                    secondary=${html`
                       <div>
                         ${cost.payer === null
                           ? 'nobody has said they paid this'
@@ -321,6 +316,11 @@
                               cost.payer +
                               ' paid'}`}
                       </div>
+                    `}
+                  >
+                    <div data-testid=${'split-cost-' + cost.id}>
+                      ${cost.label}
+                      <${Badge}>${money(currency, cost.cents)}<//>
                     </div>
                   <//>
                 `;
@@ -373,16 +373,16 @@
                           ? 'gets back ' + money(currency, balance)
                           : 'owes ' + money(currency, -balance)}<//
                     >`}
-                  >
-                    <div data-testid=${'split-member-' + ship}>
-                      <div>${ship}</div>
+                    secondary=${html`
                       <div>
                         ${'put in ' +
                         money(currency, paid[ship] || 0) +
                         ' · share ' +
                         money(currency, shares[ship] || 0)}
                       </div>
-                    </div>
+                    `}
+                  >
+                    <div data-testid=${'split-member-' + ship}>${ship}</div>
                   <//>
                 `;
               })}

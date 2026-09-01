@@ -42,6 +42,38 @@ test('ListRow places left, content, and right', () => {
   expect(el.querySelector('.tsh-avatar')).toBeTruthy();
   expect(el.querySelector('.tsh-list-row-content')?.textContent).toBe('middle');
   expect(el.querySelector('.tsh-badge')?.textContent).toBe('3');
+  // Additive: a row that passes no `secondary` emits no secondary element,
+  // so every call site written before the slot existed renders unchanged.
+  expect(el.querySelector('.tsh-list-row-secondary')).toBeNull();
+});
+
+test('ListRow stacks the secondary cluster below the title', () => {
+  const el = mount(
+    <ListRow
+      secondary={[<div key="a">3 of 4 today</div>, <div key="b">✓ ·</div>]}
+    >
+      ~zod
+    </ListRow>
+  );
+  const content = el.querySelector('.tsh-list-row-content')!;
+  const secondary = content.querySelector('.tsh-list-row-secondary')!;
+  expect(secondary.textContent).toBe('3 of 4 today✓ ·');
+  // Below, not above: `children` is the default-weight slot, so the muted
+  // cluster has to be the LAST thing in the content column.
+  expect(content.lastElementChild).toBe(secondary);
+  // Two supporting facts, two elements — the primitive owns the stack, so
+  // the app does not nest divs to get one.
+  expect(secondary.children.length).toBe(2);
+});
+
+test('ListRow renders a non-text secondary cluster unchanged', () => {
+  // The facepile/badge-row case: those primitives carry their own color and
+  // size, so putting them in the muted cluster must not restyle them.
+  const el = mount(
+    <ListRow secondary={<Badge tone="negative">deloaded</Badge>}>~zod</ListRow>
+  );
+  const badge = el.querySelector('.tsh-list-row-secondary .tsh-badge')!;
+  expect(badge.className).toContain('tsh-badge--negative');
 });
 
 test('Button fires onPress; disabled buttons do not', () => {

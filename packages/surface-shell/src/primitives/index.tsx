@@ -24,12 +24,31 @@ export function Card(props: { title?: string; children?: ComponentChildren }) {
 export function ListRow(props: {
   left?: ComponentChildren;
   right?: ComponentChildren;
+  /**
+   * The supporting cluster under the row's title: the muted type scale, and
+   * a COLUMN, so a row with two supporting facts stacks them without the
+   * app hand-rolling a nest of divs (which is what every template did
+   * before this existed, and it rendered title and detail at one weight).
+   *
+   * Nodes rather than a string because the cluster is often not all text —
+   * a facepile, a badge row, a `Progress`. Those set their own color and
+   * size, so the muted scale here does not reach them; the column is
+   * supplying their vertical rhythm, nothing else. It renders BELOW
+   * `children` so that `children` stays the default-weight slot every
+   * existing call site already uses.
+   */
+  secondary?: ComponentChildren;
   children?: ComponentChildren;
 }) {
   return (
     <div class="tsh-list-row">
       {props.left}
-      <div class="tsh-list-row-content">{props.children}</div>
+      <div class="tsh-list-row-content">
+        {props.children}
+        {props.secondary != null && (
+          <div class="tsh-list-row-secondary">{props.secondary}</div>
+        )}
+      </div>
       {props.right}
     </div>
   );

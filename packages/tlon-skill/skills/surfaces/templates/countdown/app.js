@@ -223,13 +223,15 @@
                     right=${now === null || at === null
                       ? null
                       : html`<${Badge}>${untilLabel(at - now)}<//>`}
-                  >
-                    <div data-testid=${'countdown-step-' + id}>
-                      <div>${step.label || id}</div>
+                    secondary=${html`
                       <div>${step.when || ''}</div>
                       ${owner === ''
                         ? null
                         : html`<div>${'Ask ' + owner}</div>`}
+                    `}
+                  >
+                    <div data-testid=${'countdown-step-' + id}>
+                      ${step.label || id}
                     </div>
                   <//>
                 `;

@@ -47,6 +47,24 @@
   min-width: 0;
 }
 
+/*
+ * The supporting cluster under a row's title. The type is the same
+ * --text-s / --color-text-secondary pair .tsh-stat-label and
+ * .tsh-section-header use, so a row's detail line reads at the weight a
+ * stat's label does. A COLUMN with the --space-2xs gap .tsh-stat stacks its
+ * own label group by, because a row's supporting facts are frequently more
+ * than one and the primitive, not the app, should own that rhythm.
+ */
+.tsh-list-row-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin-top: var(--space-2xs);
+  font-size: var(--text-s);
+  line-height: var(--line-s);
+  color: var(--color-text-secondary);
+}
+
 .tsh-button {
   font-family: var(--font-family);
   font-size: var(--text-m);

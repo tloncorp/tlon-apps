@@ -315,9 +315,7 @@
                   <${ListRow}
                     left=${html`<${Avatar} ship=${entry.ship} />`}
                     right=${html`<${Badge}>${percent(entry.rate)}<//>`}
-                  >
-                    <div data-testid=${'ladder-player-' + entry.ship}>
-                      <div>${String(entry.position) + '. ' + entry.ship}</div>
+                    secondary=${html`
                       <div>
                         ${'won ' +
                         String(entry.won) +
@@ -338,6 +336,10 @@
                         value=${entry.rate / 10000}
                         label=${entry.ship + ' wins'}
                       />
+                    `}
+                  >
+                    <div data-testid=${'ladder-player-' + entry.ship}>
+                      ${String(entry.position) + '. ' + entry.ship}
                     </div>
                   <//>
                 `;
@@ -373,14 +375,16 @@
                         <//>
                       </div>
                     `}
-                  >
-                    <div data-testid=${'ladder-round-' + round.id}>
-                      <div>${round.label}</div>
+                    secondary=${html`
                       <div>
                         ${entries === 0
                           ? 'nobody has said yet'
                           : String(entries) + ' played'}
                       </div>
+                    `}
+                  >
+                    <div data-testid=${'ladder-round-' + round.id}>
+                      ${round.label}
                     </div>
                   <//>
                 `;
