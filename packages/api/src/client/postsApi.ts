@@ -227,6 +227,7 @@ export const editPost = async ({
   parentId,
   metadata,
   blob,
+  botProfile,
 }: {
   channelId: string;
   postId: string;
@@ -236,6 +237,10 @@ export const editPost = async ({
   parentId?: string;
   metadata?: db.PostMetadata;
   blob?: string;
+  // The %edit arm stores the submitted essay wholesale, so an edit that omits
+  // this would rewrite a bot-authored post to a bare ship author and drop its
+  // Bot tag. Callers pass the existing post's authorship shape back in.
+  botProfile?: AuthorProfile;
 }) => {
   logger.log('editing post', { channelId, postId, authorId, sentAt, content });
   const channelType = getChannelType(channelId);
@@ -247,7 +252,7 @@ export const editPost = async ({
   if (parentId) {
     logger.log('editing a reply');
     const replyEssay: ub.ReplyEssay = {
-      author: authorId,
+      author: toAuthor(authorId, botProfile),
       content,
       sent: sentAt,
       blob: blob ?? null,
@@ -289,6 +294,7 @@ export const editPost = async ({
           cover: metadata.cover || '',
         }
       : undefined,
+    botProfile,
   });
 
   const action = channelPostAction(channelId, {
@@ -430,6 +436,7 @@ export type GetChannelPostsOptions = {
   mode: 'older' | 'newer' | 'around' | 'newest';
   cursor?: Cursor;
   sequenceBoundary?: number | null;
+  skipGapFill?: boolean;
 };
 
 export interface GetChannelPostsResponse {
@@ -466,6 +473,7 @@ export const getChannelPosts = async ({
   count = 20,
   includeReplies = false,
   sequenceBoundary = null,
+  skipGapFill = false,
 }: GetChannelPostsOptions) => {
   // third-party channels (e.g. notes) are served by their backing agent, not
   // %channels. Rendering is delegated to that agent's WebView, so skip post
@@ -510,10 +518,12 @@ export const getChannelPosts = async ({
     { posts: [] }
   );
   const postsResponse = toPagedPostsData(channelId, response);
-  const { posts: finalPosts, numStubs } = fillSequenceGaps(
-    postsResponse.posts,
-    { upperBound: null, lowerBound: null }
-  );
+  const { posts: finalPosts, numStubs } = skipGapFill
+    ? { posts: postsResponse.posts, numStubs: 0 }
+    : fillSequenceGaps(postsResponse.posts, {
+        upperBound: null,
+        lowerBound: null,
+      });
 
   return {
     ...postsResponse,
@@ -648,6 +658,8 @@ export const getChangedPosts = async ({
   endCursor,
   afterTime,
 }: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
+  // %chat exposes DM and club updates through its global changes-since feed,
+  // not a per-conversation, cursor-bounded changed-posts endpoint.
   if (!isGroupChannelId(channelId)) {
     throw new Error(
       `invalid channel id  ${channelId}:
@@ -987,7 +999,7 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupId,
@@ -1328,6 +1340,7 @@ export function toPostData(
   if ('seq' in post.seal) {
     sequenceNum = Number(post.seal.seq);
   }
+  const rawReacts = post?.seal.reacts ?? {};
 
   return {
     id,
@@ -1356,11 +1369,11 @@ export function toPostData(
     replyTime: post?.seal.meta.lastReply,
     replyContactIds: post?.seal.meta.lastRepliers,
     images: getContentImages(id, post.essay?.content),
+    rawReactionCount: Object.keys(rawReacts).length,
     reactions: (() => {
-      const reacts = post?.seal.reacts ?? {};
       // Check for shortcodes in initial post reactions
-      if (Object.keys(reacts).length > 0) {
-        const shortcodeReactions = Object.entries(reacts).filter(
+      if (Object.keys(rawReacts).length > 0) {
+        const shortcodeReactions = Object.entries(rawReacts).filter(
           ([, v]) => typeof v === 'string' && /^:[a-zA-Z0-9_+-]+:?$/.test(v)
         );
 
@@ -1372,12 +1385,12 @@ export function toPostData(
               user: k,
               value: v,
             })),
-            allReacts: reacts,
+            allReacts: rawReacts,
             context: 'initial_post_load',
           });
         }
       }
-      return toReactionsData(reacts, id);
+      return toReactionsData(rawReacts, id);
     })(),
     replies: replyData,
     deliveryStatus: null,

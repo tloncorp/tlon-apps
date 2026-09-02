@@ -153,6 +153,24 @@ class CiteValidationTests(unittest.TestCase):
             with self.subTest(nest=nest):
                 self._resolve([chan_cite("/msg/123", nest=nest)])
 
+    def test_nests_with_separators_or_uppercase_prefix_never_scry(self):
+        # Channel names may mix case, but dots/underscores/symbols in the
+        # name and uppercase in the type or ship parts stay route-unsafe.
+        for nest in (
+            "chat/~zod/general.name",
+            "chat/~zod/general_name",
+            "chat/~zod/general$name",
+            "Chat/~zod/general",
+            "chat/~Zod/general",
+        ):
+            with self.subTest(nest=nest):
+                self._resolve([chan_cite("/msg/123", nest=nest)])
+
+    def test_leading_zero_post_ids_never_scry(self):
+        for post_id in ("00123", "00.123", "0.001"):
+            with self.subTest(post_id=post_id):
+                self._resolve([chan_cite(f"/msg/{post_id}")])
+
     def test_invalid_ids_never_scry(self):
         for where in (
             "/msg/123/456/extra",
@@ -339,6 +357,52 @@ class ResolveCitesTests(unittest.TestCase):
 
         self.assertEqual(result, "")
         self.assertEqual(len(scry.calls), 1)
+
+    def test_mixed_case_nest_scries_with_case_preserved(self):
+        scry = recording_scry(essay_payload())
+
+        result = asyncio.run(
+            cite.resolve_cites(scry, [chan_cite("/msg/123", nest="chat/~zod/QChan2RoI")])
+        )
+
+        self.assertEqual(result, "> ~real-author wrote: hello")
+        self.assertEqual(scry.calls, ["/channels/v4/chat/~zod/QChan2RoI/posts/post/123"])
+
+    def test_zero_post_id_scries(self):
+        scry = recording_scry(essay_payload())
+
+        result = asyncio.run(cite.resolve_cites(scry, [chan_cite("/msg/0")]))
+
+        self.assertEqual(result, "> ~real-author wrote: hello")
+        self.assertEqual(scry.calls, ["/channels/v4/chat/~host/chan/posts/post/0"])
+
+    def test_scried_author_beats_legacy_where_author(self):
+        scry = recording_scry(essay_payload(author="~real"))
+
+        result = asyncio.run(cite.resolve_cites(scry, [chan_cite("/msg/~evil/123")]))
+
+        self.assertEqual(result, "> ~real wrote: hello")
+        self.assertNotIn("~evil", result)
+
+    def test_collected_accumulates_lines_as_they_resolve(self):
+        collected = []
+        observed_lengths = []
+        calls = []
+
+        async def scry(path):
+            calls.append(path)
+            if len(calls) == 1:
+                return essay_payload()
+            observed_lengths.append(len(collected))
+            raise ConnectionError("late failure")
+
+        content = [chan_cite("/msg/123"), chan_cite("/msg/456")]
+
+        result = asyncio.run(cite.resolve_cites(scry, content, collected=collected))
+
+        self.assertEqual(observed_lengths, [1])
+        self.assertEqual(collected, ["> ~real-author wrote: hello"])
+        self.assertEqual(result, "> ~real-author wrote: hello")
 
 
 if __name__ == "__main__":

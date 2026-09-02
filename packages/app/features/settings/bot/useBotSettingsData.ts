@@ -11,21 +11,30 @@ import * as db from '@tloncorp/shared/db';
 import { useCallback, useMemo } from 'react';
 
 import { useCurrentUserId } from '../../../hooks/useCurrentUser';
+import { mcpProviderQueryKeys } from '../../../lib/mcpProviders';
 import {
   BASIC_PROVIDER_ID,
   BASIC_PROVIDER_MODEL,
   EMPTY_PROVIDER_CONFIG,
   PROVIDER_OPTIONS,
   RETRY_INTERVAL_MS,
+  SUBSCRIPTION_PROVIDERS,
 } from './constants';
 import {
   ModelFormValues,
+  getAvailableProviderIds,
   hasProviderCredential,
   normalizeMoonName,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
   toBackendModel,
 } from './helpers';
+import {
+  getLLMAuthDisconnectQueryKeys,
+  getLLMAuthStatusRefetchInterval,
+  getLLMAuthSubscriptionModels,
+  mergeProviderModels,
+} from './openAiSubscription';
 
 /**
  * Identifiers for the tlonbot hosting endpoints. User-level endpoints
@@ -133,7 +142,7 @@ export function useBotSettingsQueries() {
   });
 
   const oauthStatusQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-status', ship],
+    queryKey: mcpProviderQueryKeys.status(ship),
     queryFn: () => api.getTlawnOAuthStatus(ship),
     enabled: Boolean(ship) && isFocused,
     retry: false,
@@ -141,8 +150,18 @@ export function useBotSettingsQueries() {
       botReady && query.state.data !== undefined ? false : RETRY_INTERVAL_MS,
   });
 
+  const llmAuthStatusQuery = useQuery({
+    queryKey: ['tlonbot', 'llm-auth-status', ship],
+    queryFn: () => api.getTlawnLLMAuthStatus(ship),
+    enabled: Boolean(ship) && botReady && isFocused,
+    retry: false,
+    staleTime: 60 * 1000,
+    refetchInterval: (query) =>
+      getLLMAuthStatusRefetchInterval(query.state.data),
+  });
+
   const oauthProvidersQuery = useQuery({
-    queryKey: ['tlonbot', 'oauth-providers'],
+    queryKey: mcpProviderQueryKeys.providers,
     queryFn: () => api.getTlawnOAuthProviders(),
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -164,6 +183,7 @@ export function useBotSettingsQueries() {
     moonChannelsQuery,
     oauthStatusQuery,
     oauthProvidersQuery,
+    llmAuthStatusQuery,
   };
 }
 
@@ -174,19 +194,22 @@ export type BotSettingsQueries = ReturnType<typeof useBotSettingsQueries>;
  * provider has a single fixed model and doesn't hit the network.
  */
 export function useAllProviderModels(
-  providerConfig: api.TlawnProviderConfigInfo
+  providerConfig: api.TlawnProviderConfigInfo,
+  llmAuthStatus?: api.TlawnLLMAuthStatus
 ) {
   const { hostingUserId } = useBotSettingsIds();
   const providers = useMemo(
-    () =>
-      PROVIDER_OPTIONS.map((option) => option.id).filter((option) =>
-        hasProviderCredential(providerConfig, option)
-      ),
-    [providerConfig]
+    () => getAvailableProviderIds(providerConfig, llmAuthStatus),
+    [llmAuthStatus, providerConfig]
   );
   const fetchableProviders = useMemo(
-    () => providers.filter((provider) => provider !== BASIC_PROVIDER_ID),
-    [providers]
+    () =>
+      PROVIDER_OPTIONS.map((option) => option.id).filter(
+        (provider) =>
+          provider !== BASIC_PROVIDER_ID &&
+          hasProviderCredential(providerConfig, provider)
+      ),
+    [providerConfig]
   );
 
   // `combine` keeps the aggregate referentially stable across renders and
@@ -237,8 +260,17 @@ export function useAllProviderModels(
       loading[BASIC_PROVIDER_ID] = false;
       errors[BASIC_PROVIDER_ID] = null;
     }
+    SUBSCRIPTION_PROVIDERS.forEach((provider) => {
+      if (!providers.includes(provider)) return;
+      models[provider] = mergeProviderModels(
+        getLLMAuthSubscriptionModels(llmAuthStatus, provider),
+        models[provider] ?? []
+      );
+      loading[provider] = loading[provider] ?? false;
+      errors[provider] = errors[provider] ?? null;
+    });
     return { providers, models, loading, errors };
-  }, [providers, fetched]);
+  }, [providers, fetched, llmAuthStatus]);
 }
 
 export type AllProviderModels = ReturnType<typeof useAllProviderModels>;
@@ -280,11 +312,22 @@ export function useBotSettingsMutations() {
 
   const deleteProviderKey = useMutation({
     mutationFn: ({ provider }: { provider: string }) =>
-      api.deleteTlawnProviderKey(hostingUserId, provider),
+      api.deleteTlawnProviderKey(hostingUserId, provider, ship),
     onSuccess: (data, { provider }) => {
       setProviderConfig(data);
       invalidateProviderModels(provider);
     },
+  });
+
+  const disconnectLLMSubscription = useMutation({
+    mutationFn: (provider: api.TlawnLLMAuthProvider) =>
+      api.disconnectTlawnLLMAuth(ship, provider),
+    onSuccess: (_data, provider) =>
+      Promise.all(
+        getLLMAuthDisconnectQueryKeys(ship, hostingUserId, provider).map(
+          (queryKey) => queryClient.invalidateQueries({ queryKey })
+        )
+      ),
   });
 
   const updateNickname = useMutation({
@@ -337,6 +380,7 @@ export function useBotSettingsMutations() {
     setProviderConfig,
     saveProviderKey,
     deleteProviderKey,
+    disconnectLLMSubscription,
     updateNickname,
     savePrimaryModel,
   };

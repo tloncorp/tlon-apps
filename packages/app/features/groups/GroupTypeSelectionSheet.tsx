@@ -374,6 +374,7 @@ export function GroupTypeSelectionSheet({
       onOpenChange={onOpenChange}
       snapPoints={[90]}
       snapPointsMode="percent"
+      modal
     >
       {content}
     </ActionSheet>

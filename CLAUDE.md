@@ -32,7 +32,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 -   `pnpm run lint:all` - Run linting across all packages
 -   `pnpm lint:fix` - Fix linting issues (per package)
--   `pnpm lint:format` - Format code with prettier (per package)
+-   `pnpm lint:format` - Format code with oxfmt (per package)
 
 ### Typechecking
 
@@ -65,6 +65,16 @@ broke compilation on new kelvins.
     To build against a different kernel, change the rev there on your branch.
 -   `desk/lib/verb.hoon` is a locally-patched variant and stays committed — do
     NOT add patched or repo-owned files to the peru pick lists.
+-   **Never hand-edit files in a mounted pier desk.** The only supported flow
+    for getting code onto a ship is: edit sources in `desk/`, run
+    `./scripts/assemble-desk.sh <target>`, rsync the assembled output into the
+    mounted desk (`rsync -a --delete <target>/ <pier>/<desk>/`), then
+    `|commit`. Writing or stubbing files directly in the pier desk makes the
+    ship's clay diverge from the repo in ways later syncs won't detect or
+    repair. If a ship's clay has stale files the sync can't remove (e.g.
+    leftovers from another branch), fix it in clay — `|rm` the file, or
+    `|unmount` + `|mount` to reset mount tracking and re-rsync — rather than
+    overwriting the file in place.
 
 ### Database Migrations
 
@@ -148,7 +158,7 @@ When using the `=<` + helper core pattern with `^+  cor`, be aware that type-nar
 #### Mark Conventions
 
 -   **Versioned marks**: `action-1.hoon`, `update-1.hoon` in `desk/mar/<agent-name>/`
--   **Mark naming**: `%gateway-status-action-1` (agent name + mark name + version)
+-   **Mark naming**: `%steward-gateway-action-1` (agent name + module/mark name + version)
 -   **JSON serialization for `@da`/`@dr`/`@p`**: Use `scot`/`se` pairs, not `numb`/`ni`:
     -   Grow: `s+(scot %da lease-until)`, `s+(scot %dr active-window)`, `s+(scot %p owner)`
     -   Grab: `(se %da)`, `(se %dr)`, `(se %p)`
@@ -216,7 +226,7 @@ To identify which component to modify:
 ## Key Technologies
 
 -   **Frontend**: React, TypeScript, React Native, Expo, Electron
--   **UI**: Tamagui, Tailwind CSS
+-   **UI**: Tamagui
 -   **State Management**: Zustand, React Query
 -   **Database**: SQLite (web: SQLocal, mobile: op-sqlite, desktop: better-sqlite3)
 -   **Backend**: Urbit (Hoon)
@@ -283,7 +293,7 @@ Before finalizing a PR, do a focused pass on your own diff:
 -   **Trim debug fat.** Remove leftover `console.log`s, ad-hoc perf marks, commented-out code, and stale `// TODO` notes that no longer apply. Comments that just describe _what_ the code does belong in the identifiers; keep comments only when they explain _why_ (non-obvious constraints, workarounds, decisions).
 -   **Reuse before adding.** Before introducing a new helper/util/constant, grep for an existing one. Don't ship parallel implementations — if the new one is genuinely better, remove the old in the same PR.
 -   **Audit comments for staleness.** A comment written mid-implementation may describe an earlier approach. If it references deleted code or a previous shape of the function, fix or delete it.
--   **Always run Prettier before committing.** Run `npx prettier --check` (or `--write`) on your changed files — or `pnpm lint:format` in the affected package — so a formatting-only diff never lands in the commit or trips CI. Editor/tsc/eslint passing does not guarantee Prettier is satisfied.
+-   **Always run the formatter before committing.** Run `pnpm format:check` (or `pnpm format`) from the repo root — or `pnpm lint:format` in the affected package — so a formatting-only diff never lands in the commit or trips CI. Editor/tsc/lint passing does not guarantee the formatter is satisfied.
 
 ## Testing
 
@@ -536,9 +546,18 @@ Uses Drizzle ORM with SQLite for local data storage:
 -   Migrations in `packages/shared/src/db/migrations/`
 -   Platform-specific database connections in `packages/shared/src/db/`
 
+### Querying and Caching
+
+**Read `docs/tlon-apps/db-react-query.md` before reasoning about whether a component sees fresh data, and before filing a review finding about stale reads.** The caching setup is deliberately unusual and does not match React Query defaults, so don't infer it from memory. The essentials:
+
+-   React Query runs with a global `staleTime: Infinity` (`packages/shared/src/db/reactQuery.ts`). Nothing goes stale with the passage of time — only explicit invalidation makes a query refetch.
+-   DB reads and writes declare table dependencies/effects via `createReadQuery` / `createWriteQuery` (`packages/shared/src/db/query.ts`). A write invalidates readers whose declared tables overlap its effects.
+-   **The deps `Set` from `useKeyFromQueryDeps` must sit at `queryKey` index 1.** The invalidation predicate only looks at that position; a key that puts it elsewhere silently never refreshes again.
+-   `invalidateQueries` flags queries stale and refetches only those with active observers. It does not clear cached data, so a remounted query serves its previous value for a render while refetching in the background — and keeps that value if the refetch fails.
+
 ## Adding a New Post Blob Entry Type
 
-See `docs/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
+See `docs/tlon-apps/post-blobs.md` for the full post-blob spec: wire format, current entry types, read/write behavior, and integration rules.
 
 Use this section as a compact checklist when changing blob behavior.
 

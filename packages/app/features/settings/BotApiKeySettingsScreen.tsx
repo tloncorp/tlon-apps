@@ -4,6 +4,7 @@ import {
   ConfirmDialog,
   Icon,
   Pressable,
+  Text,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -17,12 +18,21 @@ import {
   TextInput,
 } from '../../ui';
 import { BotSettingsSection } from './bot/BotSettingsUI';
-import { PROVIDER_OPTIONS } from './bot/constants';
+import {
+  PROVIDER_OPTIONS,
+  isSubscriptionProvider,
+  subscriptionLabel,
+} from './bot/constants';
 import {
   getErrorMessage,
   safeKeySummary,
   validateProviderKey,
 } from './bot/helpers';
+import {
+  getLLMAuthProviderStatus,
+  getOpenAICredentialSwitch,
+  isLLMAuthProviderConnected,
+} from './bot/openAiSubscription';
 import {
   useBotSettingsMutations,
   useBotSettingsQueries,
@@ -34,11 +44,13 @@ export function BotApiKeySettingsScreen(props: Props) {
   const { provider: providerId } = props.route.params;
   const isWindowNarrow = useIsWindowNarrow();
   const queries = useBotSettingsQueries();
-  const { saveProviderKey, deleteProviderKey } = useBotSettingsMutations();
+  const { saveProviderKey, deleteProviderKey, disconnectLLMSubscription } =
+    useBotSettingsMutations();
   const [key, setKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] = useState(false);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
 
   // The desktop settings drawer keeps this screen mounted across provider
   // switches, so clear the pasted key and related state when the provider
@@ -51,6 +63,7 @@ export function BotApiKeySettingsScreen(props: Props) {
     setShowKey(false);
     setValidationError(null);
     setConfirmRemove(false);
+    setConfirmSwitch(false);
   }, [providerId, queries.hostingUserId]);
 
   const provider = useMemo(
@@ -58,29 +71,89 @@ export function BotApiKeySettingsScreen(props: Props) {
     [providerId]
   );
   const isConfigured = Boolean(queries.providerConfig.keys?.[providerId]);
-  const busy = saveProviderKey.isPending || deleteProviderKey.isPending;
+  const supportsSubscription = isSubscriptionProvider(providerId);
+  const subscriptionName = supportsSubscription
+    ? subscriptionLabel(providerId)
+    : null;
+  const subscriptionConnected =
+    supportsSubscription &&
+    isLLMAuthProviderConnected(
+      getLLMAuthProviderStatus(queries.llmAuthStatusQuery.data, providerId)
+        ?.status
+    );
+  const subscriptionStatusKnown =
+    !supportsSubscription || queries.llmAuthStatusQuery.data !== undefined;
+  const subscriptionStatusError =
+    supportsSubscription &&
+    !subscriptionStatusKnown &&
+    queries.llmAuthStatusQuery.isError;
+  const busy =
+    saveProviderKey.isPending ||
+    deleteProviderKey.isPending ||
+    disconnectLLMSubscription.isPending;
 
   const handleBack = useCallback(() => {
     props.navigation.goBack();
   }, [props.navigation]);
 
+  const saveKey = useCallback(async () => {
+    await saveProviderKey.mutateAsync({
+      provider: providerId,
+      key: key.trim(),
+    });
+  }, [key, providerId, saveProviderKey]);
+
   const handleSave = useCallback(async () => {
+    // Do not infer that the subscription is disconnected while its status is
+    // loading or unavailable. Otherwise this bypasses the replacement flow and
+    // can leave both credential modes configured for the provider.
+    if (!subscriptionStatusKnown) {
+      return;
+    }
     const validation = validateProviderKey(providerId, key);
     if (validation) {
       setValidationError(validation);
       return;
     }
     setValidationError(null);
+    const credentialSwitch = getOpenAICredentialSwitch(
+      {
+        hasApiKey: isConfigured,
+        subscriptionConnected,
+      },
+      'api-key'
+    );
+    if (credentialSwitch.remove === 'subscription') {
+      setConfirmSwitch(true);
+      return;
+    }
     try {
-      await saveProviderKey.mutateAsync({
-        provider: providerId,
-        key: key.trim(),
-      });
+      await saveKey();
       setKey('');
     } catch {
       // surfaced via saveProviderKey.error below
     }
-  }, [providerId, key, saveProviderKey]);
+  }, [
+    isConfigured,
+    key,
+    subscriptionStatusKnown,
+    providerId,
+    saveKey,
+    subscriptionConnected,
+  ]);
+
+  const handleSwitch = useCallback(async () => {
+    try {
+      await saveKey();
+      if (supportsSubscription) {
+        await disconnectLLMSubscription.mutateAsync(providerId);
+      }
+      setKey('');
+      setConfirmSwitch(false);
+    } catch {
+      // surfaced via mutation errors below
+    }
+  }, [disconnectLLMSubscription, providerId, saveKey, supportsSubscription]);
 
   const handleRemove = useCallback(async () => {
     try {
@@ -104,11 +177,15 @@ export function BotApiKeySettingsScreen(props: Props) {
   const errorMessage =
     validationError ??
     (saveProviderKey.error
-      ? getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.'
+      ? (getErrorMessage(saveProviderKey.error) ?? 'Failed to save API key.')
       : null) ??
     (deleteProviderKey.error
-      ? getErrorMessage(deleteProviderKey.error) ??
-        'Failed to delete provider key.'
+      ? (getErrorMessage(deleteProviderKey.error) ??
+        'Failed to delete provider key.')
+      : null) ??
+    (disconnectLLMSubscription.error
+      ? (getErrorMessage(disconnectLLMSubscription.error) ??
+        `Failed to disconnect the ${subscriptionName ?? 'subscription'}.`)
       : null);
 
   return (
@@ -117,6 +194,7 @@ export function BotApiKeySettingsScreen(props: Props) {
         borderBottom
         backAction={isWindowNarrow ? handleBack : undefined}
         title={`${provider.label} API key`}
+        placement="navigation"
       />
       <SettingsContentScrollView
         paddingHorizontal="$l"
@@ -162,11 +240,38 @@ export function BotApiKeySettingsScreen(props: Props) {
             </YStack>
           </BotSettingsSection>
 
+          {!subscriptionStatusKnown ? (
+            <YStack gap="$m">
+              <Text
+                size="$label/s"
+                color={
+                  subscriptionStatusError
+                    ? '$negativeActionText'
+                    : '$secondaryText'
+                }
+              >
+                {subscriptionStatusError
+                  ? (getErrorMessage(queries.llmAuthStatusQuery.error) ??
+                    `Could not check your ${subscriptionName}.`)
+                  : `Checking your ${subscriptionName}…`}
+              </Text>
+              {subscriptionStatusError ? (
+                <Button
+                  preset="secondary"
+                  label="Try again"
+                  centered
+                  loading={queries.llmAuthStatusQuery.isFetching}
+                  onPress={() => void queries.llmAuthStatusQuery.refetch()}
+                />
+              ) : null}
+            </YStack>
+          ) : null}
+
           <Button
             preset="primary"
             label="Save key"
             centered
-            disabled={busy || !key.trim()}
+            disabled={busy || !key.trim() || !subscriptionStatusKnown}
             loading={saveProviderKey.isPending}
             onPress={handleSave}
           />
@@ -190,6 +295,15 @@ export function BotApiKeySettingsScreen(props: Props) {
         description="Tlonbot will stop using custom models from this provider."
         confirmText="Remove"
         onConfirm={handleRemove}
+      />
+      <ConfirmDialog
+        open={confirmSwitch}
+        onOpenChange={setConfirmSwitch}
+        destructive
+        title={`Replace the ${subscriptionName}?`}
+        description={`${subscriptionName} access and ${provider?.label ?? providerId} API-key access are alternatives. Saving this key will disconnect the ${subscriptionName}.`}
+        confirmText="Replace and save"
+        onConfirm={handleSwitch}
       />
     </View>
   );

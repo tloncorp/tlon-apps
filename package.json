@@ -28,40 +28,36 @@
     "cosmos": "concurrently \"pnpm run cosmos:native\" \"pnpm run cosmos:web\"",
     "deps": "pnpm install && pnpm run deps:ios",
     "deps:ios": "cd apps/tlon-mobile/ios && bundle install && bundle exec pod install",
-    "dev:shared": "pnpm --filter '@tloncorp/shared' dev",
-    "dev:android": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' android\"",
-    "dev:ios": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
-    "dev:ios:preview": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-mobile' dev\" \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
-    "dev:desktop": "concurrently \"pnpm run dev:shared\" \"pnpm --filter 'tlon-desktop' dev\"",
+    "dev:android": "pnpm --filter 'tlon-mobile' android",
+    "dev:ios": "concurrently \"pnpm --filter 'tlon-mobile' ios\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:ios:preview": "concurrently \"pnpm --filter 'tlon-mobile' ios:preview\" \"pnpm --filter '@tloncorp/ui' watch\"",
+    "dev:desktop": "pnpm --filter 'tlon-desktop' dev",
     "dev:web": "pnpm --filter 'tlon-web' dev",
     "e2e": "pnpm --filter 'tlon-web' e2e",
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
-    "prettier:rebuild-monorepo-ignore": "prettierignore-monorepo"
+    "sync:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs",
+    "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "lint": "oxlint"
   },
   "dependencies": {
     "@tloncorp/ui": "workspace:*"
   },
   "devDependencies": {
-    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
-    "@typescript-eslint/eslint-plugin": "^7.7.1",
-    "@typescript-eslint/parser": "^7.7.1",
+    "@resvg/resvg-js": "^2.6.2",
     "concurrently": "^8.2.2",
-    "eslint": "8.57.0",
-    "eslint-import-resolver-typescript": "^4.4.4",
-    "eslint-plugin-import-x": "^4.16.2",
-    "eslint-plugin-react": "^7.34.1",
-    "eslint-plugin-react-compiler": "19.1.0-rc.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
     "lint-staged": "^15.0.0",
-    "prettierignore-monorepo": "^1.0.5",
     "react-cosmos": "7.2.0",
     "tsup": "^8.0.1",
-    "vitest": "^1.2.2"
+    "vitest": "^1.2.2",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.12.0"
   },
   "packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b"
 }

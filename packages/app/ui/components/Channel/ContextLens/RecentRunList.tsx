@@ -3,7 +3,7 @@ import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import {
   TONE_COLORS,
-  formatWallTime,
+  formatWallDateTime,
   pluralize,
   runMeta,
   runPreview,
@@ -147,7 +147,7 @@ export function RecentRunList({
                     </SizableText>
                   </XStack>
                   <SizableText size="$s" color="$tertiaryText" flexShrink={0}>
-                    {formatWallTime(event.lens.updatedAt)}
+                    {formatWallDateTime(event.lens.updatedAt)}
                   </SizableText>
                 </XStack>
                 <SizableText size="$s" color="$secondaryText" numberOfLines={2}>

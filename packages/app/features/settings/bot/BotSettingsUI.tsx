@@ -14,52 +14,18 @@ import { View, XStack, YStack } from 'tamagui';
 import { ImageAvatar } from '../../../ui/components/Avatar';
 import { Badge } from '../../../ui/components/Badge';
 import { ListItem } from '../../../ui/components/ListItem';
+import {
+  SettingsDivider,
+  SettingsSection,
+} from '../../../ui/components/SettingsSection';
 
-export function BotSettingsSection({
-  title,
-  description,
-  children,
-}: PropsWithChildren<{
-  title?: string;
-  description?: string;
-}>) {
-  return (
-    <YStack gap="$m">
-      {title ? (
-        <Text
-          size="$label/m"
-          color="$secondaryText"
-          fontWeight="500"
-          paddingHorizontal="$s"
-        >
-          {title}
-        </Text>
-      ) : null}
-      <YStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$xl"
-        backgroundColor="$background"
-        overflow="hidden"
-      >
-        {children}
-      </YStack>
-      {description ? (
-        <Text size="$label/s" color="$secondaryText" paddingHorizontal="$s">
-          {description}
-        </Text>
-      ) : null}
-    </YStack>
-  );
-}
-
-export function BotSettingsDivider() {
-  return <View height={1} backgroundColor="$border" />;
-}
+export const BotSettingsSection = SettingsSection;
+export const BotSettingsDivider = SettingsDivider;
 
 export function BotSettingsRow({
   label,
   value,
+  valueColor = '$tertiaryText',
   description,
   icon,
   pending,
@@ -69,6 +35,7 @@ export function BotSettingsRow({
 }: PropsWithChildren<{
   label: string;
   value?: string;
+  valueColor?: '$primaryText' | '$secondaryText' | '$tertiaryText';
   description?: string;
   icon?: IconType;
   pending?: boolean;
@@ -89,7 +56,7 @@ export function BotSettingsRow({
         {value ? (
           <Text
             size="$label/m"
-            color="$tertiaryText"
+            color={valueColor}
             numberOfLines={1}
             maxWidth={160}
           >

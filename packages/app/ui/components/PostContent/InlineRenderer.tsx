@@ -1,5 +1,6 @@
 import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import {
+  BlockquoteInlineData,
   GroupMentionInlineData,
   InlineData,
   InlineFromType,
@@ -20,7 +21,6 @@ import React, {
 import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
-import { useChannelContext } from '../../contexts/channel';
 import { useNavigation } from '../../contexts/navigation';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
@@ -89,8 +89,8 @@ export function InlineGroupMention({
 }: PropsWithChildren<{
   inline: GroupMentionInlineData;
 }>) {
-  const channel = useChannelContext();
-  const { data: group } = useGroupPreview(channel.groupId ?? '');
+  const { groupId } = useContentContext();
+  const { data: group } = useGroupPreview(groupId ?? '');
   const { onGoToGroupSettings } = useNavigation();
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();
@@ -215,6 +215,17 @@ export function InlineTask({ inline: node }: { inline: TaskInlineData }) {
   );
 }
 
+export function InlineBlockquote({ inline }: { inline: BlockquoteInlineData }) {
+  return (
+    <Text color="$tertiaryText">
+      {' > '}
+      {inline.children.map((child, i) => (
+        <InlineRenderer inline={child} key={i} />
+      ))}{' '}
+    </Text>
+  );
+}
+
 export type InlineRenderer<T extends InlineData> = React.ComponentType<{
   inline: T;
   color?: ColorTokens;
@@ -232,6 +243,7 @@ export const defaultInlineRenderers: InlineRendererConfig = {
   lineBreak: InlineLineBreak,
   link: InlineLink,
   task: InlineTask,
+  blockquote: InlineBlockquote,
 };
 
 const InlineRendererContext = React.createContext<

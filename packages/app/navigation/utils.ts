@@ -12,6 +12,9 @@ import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+
+import { openExternalBotSettings } from '../utils/botSettings';
 
 import type {
   DesktopBasePathStackParamList,
@@ -22,11 +25,14 @@ import {
   getActiveTopLevelDrawerRouteName,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
   screenNameFromChannelId,
 } from './routeHelpers';
+import { getTopLevelTabRoute } from './topLevelTabs';
 import { CombinedParamList, RootStackParamList } from './types';
 
 export { screenNameFromChannelId } from './routeHelpers';
+export { getTopLevelTabRoute } from './topLevelTabs';
 
 const logger = createDevLogger('nav-utils', false);
 
@@ -53,7 +59,7 @@ export function createTypedReset<T extends Record<string, any>>(
     index = routes.length - 1
   ) {
     navigation.dispatch(
-      // eslint-disable-next-line no-restricted-syntax
+      // eslint-disable-next-line tlon/no-common-actions-reset
       CommonActions.reset({
         index,
         routes,
@@ -81,6 +87,8 @@ function useResetToChannel() {
     function resetToChannel(
       channelId: string,
       options?: {
+        backToGroupIndex?: boolean;
+        disableTransition?: boolean;
         groupId?: string;
         selectedPostId?: string | null;
         startDraft?: boolean;
@@ -89,13 +97,22 @@ function useResetToChannel() {
       const screenName = screenNameFromChannelId(channelId);
 
       if (isWindowNarrow) {
+        const { backToGroupIndex, ...channelOptions } = options ?? {};
         reset([
-          { name: 'ChatList' },
+          getTopLevelTabRoute('ChatList'),
+          ...(backToGroupIndex && channelOptions.groupId
+            ? [
+                {
+                  name: 'GroupChannels' as const,
+                  params: { groupId: channelOptions.groupId },
+                },
+              ]
+            : []),
           {
             name: screenName,
             params: {
               channelId,
-              ...options,
+              ...channelOptions,
             },
           },
         ]);
@@ -127,7 +144,7 @@ function useResetToPost() {
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(postParams.channelId);
         reset([
-          { name: 'ChatList' },
+          getTopLevelTabRoute('ChatList'),
           {
             name: screenName,
             params: {
@@ -167,7 +184,10 @@ function useResetToGroup() {
 
   return async function resetToGroup(groupId: string) {
     if (isWindowNarrow) {
-      reset([{ name: 'ChatList' }, await getMainGroupRoute(groupId, true)]);
+      reset([
+        getTopLevelTabRoute('ChatList'),
+        await getMainGroupRoute(groupId, true),
+      ]);
     } else {
       reset([
         {
@@ -193,13 +213,10 @@ function useResetToGroupInvite() {
       // matches the mobile push-notification tap: chat list with the invited
       // group's preview sheet open (see groupInvitePreviewRouteStack)
       reset([
-        {
-          name: 'ChatList',
-          params: {
-            previewGroupId: groupId,
-            previewGroupFromInviteNotification: true,
-          },
-        },
+        getTopLevelTabRoute('ChatList', {
+          previewGroupId: groupId,
+          previewGroupFromInviteNotification: true,
+        }),
       ]);
     } else {
       reset([getDesktopGroupInviteRoute(groupId)]);
@@ -298,7 +315,7 @@ export function useNavigateBackFromPost() {
       const previousRouteParams = previousRoute?.params as
         | { channelId?: string }
         | undefined;
-      const lastScreenWasActivity = previousRoute?.name === 'Activity';
+      const lastScreenWasActivity = isActivityBackTarget(previousRoute);
       // @ts-expect-error - ChannelRoot is fine here.
       const lastScreenWasChannel = previousRoute?.name === 'ChannelRoot';
       const lastChannelWasChat =
@@ -315,7 +332,8 @@ export function useNavigateBackFromPost() {
         return;
       }
       if (lastScreenWasActivity) {
-        navigation.navigate('Activity', undefined, { pop: true });
+        const route = getTopLevelTabRoute('Activity');
+        navigation.navigate(route.name, route.params, { pop: true });
         return;
       }
       if (isWindowNarrow) {
@@ -494,6 +512,18 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
+  const navigateToBotMcpSettings = useCallback(
+    (providerId?: string) => {
+      if (Platform.OS === 'web') {
+        openExternalBotSettings();
+        return;
+      }
+      const params = providerId ? { providerId } : undefined;
+      navigationRef.current.navigate('BotMcpSettings', params);
+    },
+    [navigationRef]
+  );
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -521,6 +551,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
     }),
     [
       navigation,
@@ -529,6 +560,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
@@ -579,10 +611,13 @@ export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
 ) {
-  const group = await db.getGroup({ id: groupId });
-  const lastVisitedChannelId = await db
-    .lastVisitedChannelId(groupId)
-    .getValue();
+  // This route decision already needs the full group. Populate the same query
+  // cache used by GroupChannels so its first render does not repeat the DB read
+  // during the native push animation.
+  const [group, lastVisitedChannelId] = await Promise.all([
+    store.fetchGroup(groupId),
+    isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
+  ]);
   if (
     group &&
     group.channels &&

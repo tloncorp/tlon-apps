@@ -81,6 +81,71 @@ export function getActiveTopLevelDrawerRouteName(
   return outermostTopLevel;
 }
 
+type NestedRouteLike = {
+  name?: unknown;
+  params?: unknown;
+  state?: {
+    index?: number;
+    routes?: NestedRouteLike[];
+  };
+};
+
+/** Read the active desktop navigation branch and return its group id. */
+export function getActiveNestedGroupId(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  const candidate = value as {
+    groupId?: unknown;
+    params?: unknown;
+    index?: number;
+    routes?: unknown[];
+    state?: unknown;
+  };
+  if (typeof candidate.groupId === 'string') return candidate.groupId;
+
+  const stateMatch = getActiveNestedGroupId(candidate.state);
+  if (stateMatch) return stateMatch;
+  if (candidate.routes?.length) {
+    const activeRoute = candidate.routes[candidate.index ?? 0];
+    const routeMatch = getActiveNestedGroupId(activeRoute);
+    if (routeMatch) return routeMatch;
+  }
+  return getActiveNestedGroupId(candidate.params);
+}
+
+/**
+ * Return whether a Post's preceding root route represents Activity.
+ *
+ * Narrow layouts keep Activity inside the `MainTabs` route, while desktop
+ * exposes Activity directly. Prefer live nested tab state when available;
+ * route params are only an initialization fallback.
+ */
+export function isActivityBackTarget(route: unknown): boolean {
+  if (typeof route !== 'object' || route === null) {
+    return false;
+  }
+
+  const candidate = route as NestedRouteLike;
+  if (candidate.name === 'Activity') {
+    return true;
+  }
+  if (candidate.name !== 'MainTabs') {
+    return false;
+  }
+
+  const nestedState = candidate.state;
+  if (nestedState?.routes?.length) {
+    const activeIndex = nestedState.index ?? 0;
+    return nestedState.routes[activeIndex]?.name === 'Activity';
+  }
+
+  return (
+    typeof candidate.params === 'object' &&
+    candidate.params !== null &&
+    'screen' in candidate.params &&
+    candidate.params.screen === 'Activity'
+  );
+}
+
 /**
  * Build a desktop nested route that opens a post's parent thread under the
  * Home/Messages channel stack. Mirrors `getDesktopChannelRoute`: the wrapper

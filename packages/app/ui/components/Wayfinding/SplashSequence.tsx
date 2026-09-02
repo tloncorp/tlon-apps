@@ -58,8 +58,10 @@ import {
   useThemeName,
 } from 'tamagui';
 
+import { useOpenAISubscriptionAuth } from '../../../features/settings/bot/useOpenAISubscriptionAuth';
 import { useContactDiscovery } from '../../../hooks/useContactDiscovery';
 import { useContactPermissions } from '../../../hooks/useContactPermissions';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import {
   InviteSystemContactsFn,
   useInviteSystemContactHandler,
@@ -69,7 +71,6 @@ import {
   stageTlonbotRevivalDeferredConfig,
 } from '../../../lib/tlonbotRevivalDeferredConfig';
 import { prepareTlonbotRevivalNotificationsForProvisioning } from '../../../lib/tlonbotRevivalNotifications';
-import { useActiveTheme } from '../../../provider';
 import {
   AttachmentProvider,
   useAttachmentContext,
@@ -77,15 +78,27 @@ import {
 } from '../../contexts/attachment';
 import { useSystemContactSearch } from '../../hooks/systemContactSorters';
 import AttachmentSheet from '../AttachmentSheet';
+import { Badge } from '../Badge';
 import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
+import { LLMSubscriptionAuthView } from '../LLMSubscriptionAuthView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { getDefaultBotName } from './botName';
+import {
+  BotCredentialOption,
+  buildBotCredentialOptions,
+  startBotReadinessPolling,
+} from './botProviderOptions';
 import { validateProviderKey } from './providerKeyValidation';
+import {
+  initializeOpenAISubscriptionModels,
+  resolveInitialProviderModel,
+} from './providerModelDefaults';
 import { useHomeGroupInviteLink } from './useHomeGroupInviteLink';
 import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
 
@@ -94,7 +107,7 @@ import { PrivacyThumbprint } from './visuals/PrivacyThumbprint';
  *
  * Bot-enabled flow:
  *   Welcome → TlonBot → BotName → BotAvatar → BotProvider
- *     → (BotApiKey if provider requires key) → BotModel → Group → Invite
+ *     → (BotApiKey or BotSubscriptionAuth) → BotModel → Group → Invite
  *
  * TlonBot revival delays Group → Invite until the revival setup wait finishes.
  *
@@ -111,6 +124,7 @@ enum SplashPane {
   BotAvatar = 'BotAvatar',
   BotProvider = 'BotProvider',
   BotApiKey = 'BotApiKey',
+  BotSubscriptionAuth = 'BotSubscriptionAuth',
   BotModel = 'BotModel',
   TlonBotSetup = 'TlonBotSetup',
   Invite = 'Invite',
@@ -126,15 +140,6 @@ export type TlonbotSplashConfig = {
   botModel?: string;
   stage?: db.TlonbotRevivalStage;
 };
-
-function getPreviewBotName(userNickname?: string | null) {
-  const trimmedNickname = userNickname?.trim();
-  if (!trimmedNickname) {
-    return 'Tlonbot';
-  }
-
-  return `${trimmedNickname}'s Tlonbot 🌱`;
-}
 
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
@@ -159,7 +164,7 @@ function SplashSequenceComponent(props: {
   );
   const [botAvatarUploadIntent, setBotAvatarUploadIntent] =
     React.useState<Attachment.UploadIntent | null>(null);
-  const [botModel, setBotModel] = React.useState('');
+  const [botCredentialId, setBotCredentialId] = React.useState('');
   const [botApiKey, setBotApiKey] = React.useState('');
   const [userShipId, setUserShipId] = React.useState<string | null>(null);
   const [userNickname, setUserNickname] = React.useState<string | null>(null);
@@ -169,8 +174,14 @@ function SplashSequenceComponent(props: {
   const [didConfigureBot, setDidConfigureBot] = React.useState(false);
   const [configError, setConfigError] = React.useState<string | null>(null);
   const [providerOptions, setProviderOptions] = React.useState<
-    { label: string; provider: string; requiresKey: boolean }[]
+    BotCredentialOption[]
   >([]);
+  const [loadingProviderOptions, setLoadingProviderOptions] = React.useState(
+    props.splashSequenceMode === 'signup'
+  );
+  const [hasOpenAIKey, setHasOpenAIKey] = React.useState(false);
+  const [connectedOpenAISubscription, setConnectedOpenAISubscription] =
+    React.useState(false);
   const [providerModels, setProviderModels] = React.useState<
     api.TlawnProviderModel[]
   >([]);
@@ -182,6 +193,11 @@ function SplashSequenceComponent(props: {
   const didHydrateTlonbotRevivalConfigRef = useRef(false);
   const isMountedRef = useRef(true);
   const shouldDeferTlonbotSetup = props.splashSequenceMode === 'tlonbotRevival';
+  const selectedCredential = useMemo(
+    () => providerOptions.find((option) => option.id === botCredentialId),
+    [botCredentialId, providerOptions]
+  );
+  const botProvider = selectedCredential?.provider || BASIC_PROVIDER_ID;
 
   useEffect(() => {
     return () => {
@@ -223,7 +239,13 @@ function SplashSequenceComponent(props: {
       setBotAvatarUploadIntent(tlonbotRevivalSetup.botAvatarUploadIntent);
     }
     if (tlonbotRevivalSetup.botProvider) {
-      setBotModel(tlonbotRevivalSetup.botProvider);
+      setBotCredentialId(
+        `${tlonbotRevivalSetup.botProvider}:${
+          tlonbotRevivalSetup.botProvider === BASIC_PROVIDER_ID
+            ? 'included'
+            : 'api-key'
+        }`
+      );
     }
   }, [
     shouldDeferTlonbotSetup,
@@ -254,6 +276,16 @@ function SplashSequenceComponent(props: {
   // Fetch bot info and provider config from hosting API on mount
   useEffect(() => {
     let cancelled = false;
+    let stopReadinessPolling: (() => void) | undefined;
+    let initialReadinessSettled = false;
+    const shouldCheckReadiness = props.splashSequenceMode === 'signup';
+    setLoadingProviderOptions(shouldCheckReadiness);
+    const settleInitialReadiness = () => {
+      if (!cancelled && !initialReadinessSettled) {
+        initialReadinessSettled = true;
+        setLoadingProviderOptions(false);
+      }
+    };
     (async () => {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
@@ -293,60 +325,120 @@ function SplashSequenceComponent(props: {
               setBotShipId(`~${botInfo.moon}-${shipId}`);
             }
 
-            // Build provider options from hosting config
-            if (providerConfig) {
-              const providers: {
-                label: string;
-                provider: string;
-                requiresKey: boolean;
-              }[] = [];
-              // Providers with default keys (free, no user key needed)
-              for (const provider of Object.keys(
-                providerConfig.defaultKeys ?? {}
-              )) {
-                providers.push({
-                  label: providerLabel(provider),
-                  provider,
-                  requiresKey: false,
-                });
-              }
-              // Providers the user already has keys for
-              for (const provider of Object.keys(providerConfig.keys ?? {})) {
-                if (!providers.some((p) => p.provider === provider)) {
-                  providers.push({
-                    label: providerLabel(provider),
-                    provider,
-                    requiresKey: true,
-                  });
-                }
-              }
-              // Always include common BYOK providers
-              for (const provider of ['anthropic', 'openai', 'openrouter']) {
-                if (!providers.some((p) => p.provider === provider)) {
-                  providers.push({
-                    label: providerLabel(provider),
-                    provider,
-                    requiresKey: true,
-                  });
-                }
-              }
-              setProviderOptions(providers);
-              // Default to the first free provider
-              const freeProvider = providers.find((p) => !p.requiresKey);
-              if (freeProvider) {
-                setBotModel(freeProvider.provider);
-              }
+            const resolvedProviderConfig = providerConfig ?? {
+              keys: {},
+              models: [],
+              defaultKeys: {},
+            };
+            const providers = buildBotCredentialOptions({
+              providerConfig: resolvedProviderConfig,
+              botReady: false,
+              mode: props.splashSequenceMode,
+            });
+            setProviderOptions(providers);
+            setHasOpenAIKey(Boolean(resolvedProviderConfig.keys?.openai));
+            // Default to included access without overwriting a revived choice.
+            const includedProvider = providers.find(
+              (option) => option.credentialMode === 'included'
+            );
+            if (includedProvider) {
+              setBotCredentialId((current) => current || includedProvider.id);
+            }
+
+            if (shouldCheckReadiness) {
+              let loggedReadinessError = false;
+              stopReadinessPolling = startBotReadinessPolling({
+                checkReadiness: async () => {
+                  try {
+                    const ready = await api.checkNodeIsTlonbotReady(shipId);
+                    if (!ready) {
+                      settleInitialReadiness();
+                    }
+                    return ready;
+                  } catch (error) {
+                    settleInitialReadiness();
+                    throw error;
+                  }
+                },
+                onReady: () => {
+                  setProviderOptions(
+                    buildBotCredentialOptions({
+                      providerConfig: resolvedProviderConfig,
+                      botReady: true,
+                      mode: props.splashSequenceMode,
+                    })
+                  );
+                  settleInitialReadiness();
+                },
+                onError: (error) => {
+                  if (!loggedReadinessError) {
+                    loggedReadinessError = true;
+                    logger.trackError(
+                      'TlonBot provider readiness check failed',
+                      { error }
+                    );
+                  }
+                },
+              });
             }
           }
         }
       } catch {
         // Best-effort
+      } finally {
+        if (!stopReadinessPolling) {
+          settleInitialReadiness();
+        }
       }
     })();
     return () => {
       cancelled = true;
+      stopReadinessPolling?.();
     };
-  }, []);
+  }, [props.splashSequenceMode, shouldDeferTlonbotSetup]);
+
+  const handleSubscriptionComplete = useCallback(
+    async (models: api.TlawnSubscriptionModel[]) => {
+      if (hasOpenAIKey) {
+        const userId = await db.hostingUserId.getValue();
+        if (!userId) {
+          throw new Error('Could not remove the replaced OpenAI API key.');
+        }
+        await api.deleteTlawnProviderKey(
+          userId,
+          'openai',
+          userShipId ?? undefined
+        );
+        setHasOpenAIKey(false);
+      }
+      const initialized = initializeOpenAISubscriptionModels(
+        models,
+        botPrimaryModel
+      );
+      setConnectedOpenAISubscription(true);
+      setProviderModels(initialized.providerModels);
+      setBotPrimaryModel(initialized.primaryModel);
+      setConfigError(null);
+      setCurrentPane(SplashPane.BotModel);
+    },
+    [botPrimaryModel, hasOpenAIKey, userShipId]
+  );
+  const subscriptionAuth = useOpenAISubscriptionAuth({
+    ship: userShipId ? desig(userShipId) : '',
+    onComplete: handleSubscriptionComplete,
+  });
+
+  const handleStartSubscription = useCallback(async () => {
+    setConfigError(null);
+    try {
+      await subscriptionAuth.start();
+    } catch (error) {
+      logger.trackError('Wayfinding OpenAI Subscription Start Failed', {
+        error,
+      });
+      setConfigError('Could not start OpenAI sign-in. Please try again.');
+    }
+  }, [subscriptionAuth]);
 
   const handleAvatarUrlChange = useCallback(
     (url: string | null, uploadIntent?: Attachment.UploadIntent | null) => {
@@ -448,12 +540,12 @@ function SplashSequenceComponent(props: {
   const handleBotAvatarCompleted = useCallback(async () => {
     if (shouldDeferTlonbotSetup) {
       await saveDeferredTlonbotConfig({
-        botProvider: botModel || undefined,
+        botProvider,
       });
     } else {
       persistBotIdentityInBackground({
         flow: 'identity',
-        provider: botModel || 'unselected',
+        provider: botProvider,
         shipId: userShipId ? userShipId.slice(1) : null,
         nickname: botName,
         avatarUrl: avatarDirty ? botAvatarUrl : null,
@@ -463,7 +555,7 @@ function SplashSequenceComponent(props: {
   }, [
     avatarDirty,
     botAvatarUrl,
-    botModel,
+    botProvider,
     botName,
     persistBotIdentityInBackground,
     saveDeferredTlonbotConfig,
@@ -568,8 +660,8 @@ function SplashSequenceComponent(props: {
     setConfigError(null);
     try {
       const userId = await db.hostingUserId.getValue();
-      const provider = botModel || BASIC_PROVIDER_ID;
-      const selected = providerOptions.find((p) => p.provider === provider);
+      const provider = botProvider;
+      const selected = selectedCredential;
 
       if (provider === BASIC_PROVIDER_ID) {
         setDidConfigureBot(true);
@@ -607,6 +699,17 @@ function SplashSequenceComponent(props: {
       if (selected?.requiresKey) {
         try {
           await api.setTlawnProviderKey(userId, provider, botApiKey);
+          if (provider === 'openai') {
+            setHasOpenAIKey(true);
+          }
+          if (provider === 'openai' && connectedOpenAISubscription) {
+            const shipId = await db.hostedUserNodeId.getValue();
+            if (!shipId) {
+              throw new Error('Missing ship for OpenAI disconnect.');
+            }
+            await api.disconnectTlawnLLMAuth(shipId, 'openai');
+            setConnectedOpenAISubscription(false);
+          }
           logger.trackEvent('Wayfinding Bot Provider Key Sync Succeeded', {
             provider,
           });
@@ -632,9 +735,9 @@ function SplashSequenceComponent(props: {
         return;
       }
       setProviderModels(result.data);
-      // Require an explicit model pick on BotModelPane once real models are
-      // loaded. `handleSaveModelConfig` still keeps a defensive fallback.
-      setBotPrimaryModel('');
+      setBotPrimaryModel((currentModel) =>
+        resolveInitialProviderModel(provider, result.data, currentModel)
+      );
       setCurrentPane(SplashPane.BotModel);
     } catch (e) {
       console.error('Failed to validate provider during onboarding:', e);
@@ -648,9 +751,10 @@ function SplashSequenceComponent(props: {
     }
   }, [
     botApiKey,
-    botModel,
-    providerOptions,
+    botProvider,
+    connectedOpenAISubscription,
     saveDeferredTlonbotConfig,
+    selectedCredential,
     shouldDeferTlonbotSetup,
   ]);
 
@@ -659,14 +763,17 @@ function SplashSequenceComponent(props: {
   // straight through to the validate/save path.
   const handleProviderSelected = useCallback(() => {
     setConfigError(null);
-    const provider = botModel || BASIC_PROVIDER_ID;
-    const selected = providerOptions.find((p) => p.provider === provider);
+    const selected = selectedCredential;
+    if (selected?.credentialMode === 'subscription') {
+      setCurrentPane(SplashPane.BotSubscriptionAuth);
+      return;
+    }
     if (selected?.requiresKey) {
       setCurrentPane(SplashPane.BotApiKey);
       return;
     }
     handleValidateProvider();
-  }, [botModel, providerOptions, handleValidateProvider]);
+  }, [handleValidateProvider, selectedCredential]);
 
   const handleTlonbotSetupComplete = useCallback(async () => {
     useLureState
@@ -699,12 +806,16 @@ function SplashSequenceComponent(props: {
   }, [shouldDeferTlonbotSetup]);
 
   const handleModelBackPress = useCallback(() => {
-    const provider = botModel || BASIC_PROVIDER_ID;
-    const selected = providerOptions.find((p) => p.provider === provider);
+    const selected = selectedCredential;
+    if (selected?.credentialMode === 'subscription') {
+      subscriptionAuth.dismiss();
+      setCurrentPane(SplashPane.BotSubscriptionAuth);
+      return;
+    }
     setCurrentPane(
       selected?.requiresKey ? SplashPane.BotApiKey : SplashPane.BotProvider
     );
-  }, [botModel, providerOptions]);
+  }, [selectedCredential, subscriptionAuth]);
 
   // Step 2 (non-basic only): start the restart-causing work in the background.
   const handleSaveModelConfig = useCallback(async () => {
@@ -713,10 +824,10 @@ function SplashSequenceComponent(props: {
     try {
       const userId = await db.hostingUserId.getValue();
       const shipId = await db.hostedUserNodeId.getValue();
-      const provider = botModel || BASIC_PROVIDER_ID;
+      const provider = botProvider;
       const model = botPrimaryModel || `${provider}/auto`;
       setDidConfigureBot(true);
-      logger.trackEvent('Customized TlonBot API Key', {
+      logger.trackEvent('Customized TlonBot Provider', {
         botProvider: provider,
         botModel: model,
       });
@@ -747,7 +858,7 @@ function SplashSequenceComponent(props: {
       }
     }
   }, [
-    botModel,
+    botProvider,
     botPrimaryModel,
     saveDeferredTlonbotConfig,
     shouldDeferTlonbotSetup,
@@ -861,21 +972,19 @@ function SplashSequenceComponent(props: {
         )}
         {currentPane === SplashPane.BotProvider && (
           <BotProviderPane
-            model={botModel}
+            model={botCredentialId}
             providers={providerOptions}
+            loadingProviders={loadingProviderOptions}
             loading={savingConfig}
             error={configError}
-            onModelChange={setBotModel}
+            onModelChange={setBotCredentialId}
             onBackPress={() => setCurrentPane(SplashPane.BotAvatar)}
             onActionPress={handleProviderSelected}
           />
         )}
         {currentPane === SplashPane.BotApiKey && (
           <BotApiKeyPane
-            providerLabel={
-              providerOptions.find((p) => p.provider === botModel)?.label ??
-              botModel
-            }
+            providerLabel={selectedCredential?.label ?? botProvider}
             apiKey={botApiKey}
             loading={savingConfig}
             error={configError}
@@ -883,6 +992,22 @@ function SplashSequenceComponent(props: {
             onBackPress={() => setCurrentPane(SplashPane.BotProvider)}
             onActionPress={handleValidateProvider}
           />
+        )}
+        {currentPane === SplashPane.BotSubscriptionAuth && (
+          <BotSubscriptionAuthPane>
+            <LLMSubscriptionAuthView
+              state={subscriptionAuth.state}
+              browserError={subscriptionAuth.browserError ?? configError}
+              onStart={() => void handleStartSubscription()}
+              onOpenBrowser={() => void subscriptionAuth.openVerificationUrl()}
+              onSubmitToken={subscriptionAuth.completeToken}
+              onRetry={() => void subscriptionAuth.restart()}
+              onCancel={() => {
+                subscriptionAuth.dismiss();
+                setCurrentPane(SplashPane.BotProvider);
+              }}
+            />
+          </BotSubscriptionAuthPane>
         )}
         {currentPane === SplashPane.BotModel && (
           <BotModelPane
@@ -964,17 +1089,6 @@ function prejoinTlonbotRevivalWayfindingGroups() {
   });
 }
 
-const PROVIDER_LABELS: Record<string, string> = {
-  basic: 'MiniMax',
-  anthropic: 'Anthropic',
-  openai: 'OpenAI',
-  openrouter: 'OpenRouter',
-};
-
-function providerLabel(provider: string): string {
-  return PROVIDER_LABELS[provider] ?? provider;
-}
-
 const SplashTitle = styled(Text, {
   fontSize: '$xl',
   fontWeight: '600',
@@ -992,9 +1106,8 @@ export function WelcomePane(props: {
   onActionPress: () => void;
   hostingBotEnabled?: boolean;
 }) {
-  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
 
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
@@ -1050,9 +1163,8 @@ export function WelcomePane(props: {
 }
 
 export function TlonBotPane(props: { onActionPress: () => void }) {
-  const activeTheme = useActiveTheme();
   const insets = useSafeAreaInsets();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
   return (
     <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
       <Image
@@ -1110,10 +1222,24 @@ export function BotNamePane(props: {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInputRef>(null);
+  const [seedKey, setSeedKey] = useState(0);
+  const lastTypedNameRef = useRef(props.name);
   const handleNameChange = (value: string) => {
+    lastTypedNameRef.current = value;
     setError(null);
     props.onNameChange(value);
   };
+
+  // The persisted revival name hydrates asynchronously, so props.name can
+  // change without the user typing. The native input is uncontrolled (see
+  // below), so remount it to re-seed defaultValue when that happens.
+  useEffect(() => {
+    if (isWeb || props.name === lastTypedNameRef.current) {
+      return;
+    }
+    lastTypedNameRef.current = props.name;
+    setSeedKey((key) => key + 1);
+  }, [props.name]);
 
   const handlePress = () => {
     if (!props.name.trim()) {
@@ -1143,8 +1269,15 @@ export function BotNamePane(props: {
             <Field error={error ?? undefined}>
               <TextInput
                 ref={inputRef}
+                key={seedKey}
                 testID="bot-name-input"
-                value={props.name}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native seeds the revival
+                // prefill via defaultValue and stays uncontrolled; the
+                // key remount re-seeds it when the prefill hydrates late.
+                value={isWeb ? props.name : undefined}
+                defaultValue={isWeb ? undefined : props.name}
                 onChangeText={handleNameChange}
                 onBlur={refocusInput}
                 autoCapitalize="none"
@@ -1155,7 +1288,7 @@ export function BotNamePane(props: {
                 autoFocus
                 placeholder={
                   props.userNickname
-                    ? getPreviewBotName(props.userNickname)
+                    ? getDefaultBotName(props.userNickname)
                     : 'My Tlonbot'
                 }
                 frameStyle={{
@@ -1373,9 +1506,19 @@ export function BotAvatarPane(props: {
   );
 }
 
+function BotSubscriptionAuthPane({ children }: { children: React.ReactNode }) {
+  const insets = useSafeAreaInsets();
+  return (
+    <View flex={1} paddingTop={insets.top} paddingBottom={insets.bottom}>
+      {children}
+    </View>
+  );
+}
+
 export function BotProviderPane(props: {
   model: string;
-  providers: { label: string; provider: string; requiresKey: boolean }[];
+  providers: BotCredentialOption[];
+  loadingProviders?: boolean;
   loading?: boolean;
   error?: string | null;
   onModelChange: (model: string) => void;
@@ -1385,6 +1528,7 @@ export function BotProviderPane(props: {
   const {
     model,
     providers,
+    loadingProviders,
     loading,
     error,
     onModelChange,
@@ -1406,46 +1550,60 @@ export function BotProviderPane(props: {
         <SplashTitle>
           Choose a <Text color="$positiveActionText">brain.</Text>
         </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-            gap: getTokenValue('$s', 'size'),
-            paddingBottom: getTokenValue('$6xl', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            {providers.some((p) => !p.requiresKey)
-              ? 'A free model is included. Bring your own API key to use a different provider.'
-              : 'Pick a provider, then enter your API key on the next screen.'}
-          </SplashParagraph>
-          {providers.map((option) => (
-            <ModelOptionCard
-              key={option.provider}
-              testID={`bot-provider-option-${option.provider}`}
-              option={{
-                label: option.label,
-                description: option.requiresKey
-                  ? 'Requires API key'
-                  : 'Default (free, used as fallback)',
-              }}
-              selected={model === option.provider}
-              onPress={() => onModelChange(option.provider)}
-            />
-          ))}
-          {error ? (
-            <Text
-              size="$label/m"
-              color="$negativeActionText"
-              paddingHorizontal="$xl"
-              paddingTop="$l"
-            >
-              {error}
-            </Text>
-          ) : null}
-        </ScrollView>
+        {loadingProviders ? (
+          <YStack flex={1} alignItems="center" justifyContent="center">
+            <LoadingSpinner size="large" />
+          </YStack>
+        ) : (
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={{
+              paddingHorizontal: getTokenValue('$xl', 'size'),
+              gap: getTokenValue('$s', 'size'),
+              paddingBottom: getTokenValue('$6xl', 'size'),
+            }}
+          >
+            <SplashParagraph marginHorizontal={0} marginBottom="$m">
+              {providers.some(
+                (option) => option.credentialMode === 'subscription'
+              )
+                ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
+                : providers.some((option) => !option.requiresKey)
+                  ? 'A free model is included. Bring your own API key to use a different provider.'
+                  : 'Pick a provider, then enter your API key on the next screen.'}
+            </SplashParagraph>
+            {providers.map((option) => (
+              <ModelOptionCard
+                key={option.id}
+                testID={`bot-provider-option-${option.id}`}
+                option={{
+                  label: option.label,
+                  description:
+                    option.credentialMode === 'subscription'
+                      ? undefined
+                      : option.requiresKey
+                        ? 'Requires API key'
+                        : 'Default (free, used as fallback)',
+                  recommendationLabel: option.recommendationLabel,
+                }}
+                selected={model === option.id}
+                onPress={() => onModelChange(option.id)}
+              />
+            ))}
+            {error ? (
+              <Text
+                size="$label/m"
+                color="$negativeActionText"
+                paddingHorizontal="$xl"
+                paddingTop="$l"
+              >
+                {error}
+              </Text>
+            ) : null}
+          </ScrollView>
+        )}
       </YStack>
       <Button
         data-testid="bot-provider-next"
@@ -1454,7 +1612,7 @@ export function BotProviderPane(props: {
         label={loading ? 'Validating...' : 'Next'}
         preset="hero"
         loading={loading}
-        disabled={loading || !model}
+        disabled={loading || loadingProviders || !model}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -1873,8 +2031,7 @@ export function GroupsPane(props: {
   botShipId?: string | null;
 }) {
   const insets = useSafeAreaInsets();
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
   const { inviteUrl: homeGroupInviteUrl, state: homeGroupInviteState } =
     useHomeGroupInviteLink({
       enabled: !!props.hostingBotEnabled,
@@ -2015,7 +2172,7 @@ export function GroupsPane(props: {
           <YStack width="100%" gap="$s">
             <XStack width="100%">
               <TextInput
-                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
+                value={groupInviteIsReady ? (homeGroupInviteUrl ?? '') : ''}
                 placeholder={
                   groupInviteIsLoading
                     ? 'Preparing invite link'
@@ -2679,8 +2836,7 @@ function PrivacyLevelsDisplay() {
 }
 
 const InviteFriendsDisplay = () => {
-  const activeTheme = useActiveTheme();
-  const isDark = useMemo(() => activeTheme === 'dark', [activeTheme]);
+  const isDark = useIsDarkMode();
 
   return (
     <View marginBottom="$2xl" height={410}>
@@ -2747,7 +2903,11 @@ function ModelOptionCard({
   onPress,
   testID,
 }: {
-  option: { label: string; description: string };
+  option: {
+    label: string;
+    description?: string;
+    recommendationLabel?: string;
+  };
   selected: boolean;
   onPress: () => void;
   testID?: string;
@@ -2755,27 +2915,29 @@ function ModelOptionCard({
   return (
     <Pressable testID={testID} onPress={onPress}>
       <ListItem
-        backgroundColor={selected ? '$positiveBackground' : '$background'}
+        backgroundColor={selected ? '$secondaryBackground' : '$background'}
         borderWidth={1}
-        borderColor={selected ? '$positiveActionText' : '$border'}
+        borderColor={selected ? '$primaryText' : '$border'}
       >
         <ListItem.MainContent>
-          <ListItem.Title
-            color={selected ? '$positiveActionText' : '$primaryText'}
-          >
-            {option.label}
-          </ListItem.Title>
-          {option.description && (
-            <ListItem.Subtitle
-              color={selected ? '$positiveActionText' : '$secondaryText'}
-            >
+          <ListItem.Title color="$primaryText">{option.label}</ListItem.Title>
+          {option.recommendationLabel ? (
+            <Badge
+              text={option.recommendationLabel}
+              type="positive"
+              size="micro"
+              alignSelf="flex-start"
+              marginTop="$m"
+            />
+          ) : option.description ? (
+            <ListItem.Subtitle color="$secondaryText">
               {option.description}
             </ListItem.Subtitle>
-          )}
+          ) : null}
         </ListItem.MainContent>
         {selected && (
           <ListItem.EndContent>
-            <Icon type="Checkmark" color="$positiveActionText" />
+            <Icon type="Checkmark" color="$primaryText" />
           </ListItem.EndContent>
         )}
       </ListItem>

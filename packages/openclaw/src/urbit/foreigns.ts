@@ -28,7 +28,7 @@ export interface ForeignInvite {
 }
 
 export type Lookup = 'preview' | 'done' | 'error';
-export type Progress = 'ask' | 'join' | 'watch' | 'done' | 'error';
+export type Progress = 'ask' | 'join' | 'watch' | 'done' | 'leave' | 'error';
 
 export interface Foreign {
   invites: ForeignInvite[];

@@ -17,8 +17,8 @@ const logger = createDevLogger('useAnchorScrollLock', false);
 /**
  * useAnchorScrollLock
  *
- * Manages scrolling to an anchor post (selected post or unread marker)
- * in a virtualized FlatList where the target item may not be measured yet.
+ * Manages scrolling to a selected post in a virtualized notebook or gallery
+ * FlatList where the target item may not be measured yet.
  *
  * Scroll phase state machine (`scrollPhaseRef`):
  *
@@ -57,17 +57,11 @@ export function useAnchorScrollLock({
   flatListRef,
   posts,
   anchor,
-  hasNewerPosts,
-  shouldMaintainVisibleContentPosition,
-  collectionLayoutType,
   columnsCount,
 }: {
   flatListRef: RefObject<FlatList<db.Post> | null>;
   posts: db.Post[] | null;
-  anchor: ScrollAnchor | null | undefined;
-  hasNewerPosts?: boolean;
-  shouldMaintainVisibleContentPosition: boolean;
-  collectionLayoutType: string;
+  anchor: Pick<ScrollAnchor, 'postId'> | null | undefined;
   columnsCount: number;
 }) {
   const MAX_FAILURE_RETRIES = 3;
@@ -107,14 +101,12 @@ export function useAnchorScrollLock({
   const anchorIndexRef = useRef(anchorIndex);
   anchorIndexRef.current = anchorIndex;
 
-  // For grid layouts, FlatList indexes by row, not by item. Centralize
-  // the raw-item-index → row-index conversion to avoid inconsistencies.
+  // A multi-column FlatList indexes by row, not by item. Centralize the
+  // raw-item-index → row-index conversion to avoid inconsistencies.
   const getEffectiveIndex = useCallback(
     (rawIndex: number) =>
-      collectionLayoutType === 'grid'
-        ? Math.floor(rawIndex / columnsCount)
-        : rawIndex,
-    [collectionLayoutType, columnsCount]
+      columnsCount > 1 ? Math.floor(rawIndex / columnsCount) : rawIndex,
+    [columnsCount]
   );
 
   const handleScrollBeginDrag = useCallback(() => {
@@ -156,7 +148,6 @@ export function useAnchorScrollLock({
             anchor?.postId === currentAnchorId.current
           ) {
             const retryEffectiveIndex = getEffectiveIndex(idx);
-            const viewPos = anchor?.type === 'unread' ? 1 : 0.5;
             logger.log('retrying scroll after failure', {
               index: retryEffectiveIndex,
               attempt: failureRetryCountRef.current,
@@ -165,7 +156,7 @@ export function useAnchorScrollLock({
               const countBefore = failureRetryCountRef.current;
               flatListRef.current.scrollToIndex({
                 index: retryEffectiveIndex,
-                viewPosition: viewPos,
+                viewPosition: 0.5,
                 animated: false,
               });
               // Only start a done-timeout if onScrollToIndexFailed did not
@@ -207,7 +198,6 @@ export function useAnchorScrollLock({
         scrollPhaseRef.current !== 'done'
       ) {
         const effectiveIndex = getEffectiveIndex(index);
-        const viewPosition = anchor.type === 'unread' ? 1 : 0.5;
         const isCorrection = scrollPhaseRef.current === 'scrolled';
 
         logger.log(
@@ -217,7 +207,7 @@ export function useAnchorScrollLock({
           { id: post.id, index }
         );
 
-        if (collectionLayoutType === 'grid') {
+        if (columnsCount > 1) {
           logger.log('Using grid-adjusted index for scrollToIndex:', {
             originalIndex: index,
             gridAdjustedIndex: effectiveIndex,
@@ -228,7 +218,7 @@ export function useAnchorScrollLock({
         try {
           flatListRef.current.scrollToIndex({
             index: effectiveIndex,
-            viewPosition,
+            viewPosition: 0.5,
             animated: false,
           });
         } catch (e) {
@@ -274,17 +264,6 @@ export function useAnchorScrollLock({
     }
   );
 
-  const maintainVisibleContentPositionConfig = useMemo(() => {
-    if (!shouldMaintainVisibleContentPosition) {
-      return undefined;
-    }
-
-    return {
-      minIndexForVisible: 0,
-      autoscrollToTopThreshold: hasNewerPosts ? undefined : 0,
-    };
-  }, [hasNewerPosts, shouldMaintainVisibleContentPosition]);
-
   // Clean up timers on unmount
   useEffect(() => {
     return () => {
@@ -324,13 +303,8 @@ export function useAnchorScrollLock({
     () => ({
       onScrollBeginDrag: handleScrollBeginDrag,
       onScrollToIndexFailed: handleScrollToIndexFailed,
-      maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
     }),
-    [
-      handleScrollBeginDrag,
-      handleScrollToIndexFailed,
-      maintainVisibleContentPositionConfig,
-    ]
+    [handleScrollBeginDrag, handleScrollToIndexFailed]
   );
 
   return useMemo(

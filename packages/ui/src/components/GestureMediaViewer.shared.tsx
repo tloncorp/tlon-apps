@@ -58,7 +58,6 @@ export type GestureMediaViewerProps = {
   onDismiss?: () => void;
   onDismissStart?: () => void;
   onSingleTap?: () => void;
-  onDoubleTap?: () => void;
   onZoomStateChange?: (state: GestureMediaViewerZoomState) => void;
   renderContainer?: GestureMediaViewerRenderContainer;
   renderItem?: GestureMediaViewerRenderItem;

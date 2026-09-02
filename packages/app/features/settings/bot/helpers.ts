@@ -3,11 +3,23 @@ import type {
   TlawnChannelGroups,
   TlawnChannelModelOverride,
   TlawnConfig,
+  TlawnLLMAuthStatus,
   TlawnProviderConfigInfo,
 } from '@tloncorp/api';
 import { desig, preSig } from '@tloncorp/api/lib/urbit';
 
-import { BASIC_DEFAULT_MODEL, BASIC_PROVIDER_ID } from './constants';
+import {
+  BASIC_DEFAULT_MODEL,
+  BASIC_PROVIDER_ID,
+  PROVIDER_OPTIONS,
+  isSubscriptionProvider,
+} from './constants';
+import {
+  getLLMAuthProviderStatus,
+  isLLMAuthProviderConnected,
+} from './openAiSubscription';
+
+const LEGACY_BASIC_DEFAULT_MODELS = new Set(['minimax/minimax-m3']);
 
 export type ChannelRuleDraft = {
   mode: 'open' | 'allowlist';
@@ -167,11 +179,24 @@ export const normalizeProviderConfig = (
 
 export const hasProviderCredential = (
   config: TlawnProviderConfigInfo | undefined,
-  providerId: string
+  providerId: string,
+  llmAuthStatus?: TlawnLLMAuthStatus
 ): boolean =>
   providerId === BASIC_PROVIDER_ID
     ? Boolean(config?.defaultKeys?.[BASIC_PROVIDER_ID])
-    : Boolean(config?.keys?.[providerId]);
+    : Boolean(config?.keys?.[providerId]) ||
+      (isSubscriptionProvider(providerId) &&
+        isLLMAuthProviderConnected(
+          getLLMAuthProviderStatus(llmAuthStatus, providerId)?.status
+        ));
+
+export const getAvailableProviderIds = (
+  config: TlawnProviderConfigInfo | undefined,
+  llmAuthStatus?: TlawnLLMAuthStatus
+): string[] =>
+  PROVIDER_OPTIONS.map((option) => option.id).filter((providerId) =>
+    hasProviderCredential(config, providerId, llmAuthStatus)
+  );
 
 // Never render a stored key in full. Show a redacted summary (mask + last four
 // characters) so the settings screens can indicate a key is set without
@@ -189,11 +214,11 @@ export const safeKeySummary = (
 // Basic is now persisted as its own backend provider (see toBackendModel), so a
 // stored `basic` entry displays as Basic directly. This heuristic additionally
 // covers legacy configs written before that: an openrouter entry running the
-// shared hosted default model (`BASIC_DEFAULT_MODEL`) with no custom openrouter
-// key is the Basic default key, so show it as Basic. It must be gated on the
-// model — a custom openrouter model (primary, fallback, or channel override)
-// must NOT be relabeled Basic, or a later save (toBackendModel) would pin it to
-// minimax-m3 and silently rewrite the user's real model.
+// current or previous shared hosted default model with no custom openrouter key
+// is the Basic default key, so show it as Basic. It must be gated on the model —
+// a custom openrouter model (primary, fallback, or channel override) must NOT be
+// relabeled Basic, or a later save (toBackendModel) would pin it to the current
+// Basic default and silently rewrite the user's real model.
 export const toDisplayProviderId = (
   config: TlawnProviderConfigInfo | undefined,
   providerId: string,
@@ -201,7 +226,8 @@ export const toDisplayProviderId = (
 ): string => {
   if (
     providerId === 'openrouter' &&
-    model === BASIC_DEFAULT_MODEL &&
+    (model === BASIC_DEFAULT_MODEL ||
+      LEGACY_BASIC_DEFAULT_MODELS.has(model ?? '')) &&
     !config?.keys?.openrouter &&
     config?.defaultKeys?.[BASIC_PROVIDER_ID]
   ) {
@@ -353,8 +379,8 @@ export const toChatFormValues = (
 // to openrouter. It has no model picker, so pin its model to the fixed default
 // (matching the backend's `basicDefaultModel`). Persisting `basic` explicitly
 // keeps it distinct from openrouter even when the user also has their own
-// openrouter key; toDisplayProviderId still reads legacy openrouter/minimax
-// configs as Basic for backward compatibility.
+// openrouter key; toDisplayProviderId still reads the previous OpenRouter-backed
+// Basic model as Basic for backward compatibility.
 export const toBackendModel = (
   provider: string,
   model: string

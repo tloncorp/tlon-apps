@@ -28,6 +28,7 @@ SKIP_MELD=${SKIP_MELD:-false}
 VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
 SKIP_PREPARE=${SKIP_PREPARE:-false}
+ARCHIVE_TAG=${ARCHIVE_TAG:-}
 
 # Parse command line arguments
 for arg in "$@"; do
@@ -59,6 +60,7 @@ for arg in "$@"; do
             echo "  SKIP_CLEANUP=true     Keep local archives after upload"
             echo "  SKIP_MELD=true        Skip meld operation (for low-memory systems)"
             echo "  SKIP_PREPARE=true     Skip ship prep/re-extraction (same as --skip-prepare)"
+            echo "  ARCHIVE_TAG=-tag      Name archives rube-{ship}{tag}.tgz instead of bumping the number"
             echo "  URBIT_BINARY=PATH     Urbit binary to use for sync/roll/chop (must run on this host)"
             echo ""
             exit 0
@@ -123,10 +125,22 @@ get_current_version() {
     echo "$url" | sed -n 's/.*rube-'"$ship"'\([0-9]*\)\.tgz/\1/p'
 }
 
-# Function to increment version
+# Function to increment version, or use a literal tag when pinned.
+# ARCHIVE_TAG names archives after what they contain rather than a position in
+# the numbered lineage (e.g. ARCHIVE_TAG=-group-blob -> rube-zod-group-blob.tgz),
+# for piers tied to a branch.
 get_next_version() {
     local ship=$1
+    if [ -n "$ARCHIVE_TAG" ]; then
+        echo "$ARCHIVE_TAG"
+        return 0
+    fi
     local current_version=$(get_current_version "$ship")
+    if [ -z "$current_version" ]; then
+        print_error "Cannot derive a version for ~$ship from $MANIFEST_FILE" >&2
+        print_info "The manifest holds a non-numeric archive name; set ARCHIVE_TAG explicitly." >&2
+        return 1
+    fi
     echo $((current_version + 1))
 }
 
@@ -794,6 +808,8 @@ core.*
 .urb/dev-*
 .run
 .bin/*
+._*
+.DS_Store
 EOF
 
     # Create the archive (exclude problematic files using exclude file)
@@ -805,6 +821,14 @@ EOF
         # Archive just the pier dir as "<ship>/" so the archive root matches what
         # rube expects. Try different tar options based on what's available.
         # Redirect stderr to suppress extended attributes warnings
+        #
+        # Never embed macOS resource forks/xattrs: BSD tar stores them as
+        # AppleDouble entries that GNU tar inside the Linux containers
+        # materializes as literal ._* files throughout the piers — including
+        # the mounted %groups desk, which then never matches a clean
+        # assembly (observed breaking the bot-e2e desk apply on v28).
+        # COPYFILE_DISABLE covers BSD tar; it is harmless for the GNU paths.
+        export COPYFILE_DISABLE=1
         if tar --version 2>/dev/null | grep -q "GNU tar"; then
             # GNU tar
             tar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
@@ -813,7 +837,7 @@ EOF
             gtar --exclude-from="$exclude_file" --format=gnu -czf "$archive_path" "$pier_name/" 2>/dev/null
         else
             # BSD tar (macOS default) - use -X flag for exclude file
-            tar -X "$exclude_file" -czf "$archive_path" "$pier_name/" 2>/dev/null
+            tar --no-mac-metadata -X "$exclude_file" -czf "$archive_path" "$pier_name/" 2>/dev/null
         fi
     )
 
@@ -910,9 +934,9 @@ update_dockerfile() {
     # Pattern: "https://bootstrap.urbit.org/rube-SHIP*.tgz SHIP.tgz"
     # macOS sed requires empty string after -i, GNU sed works with or without
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+        sed -i '' "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
     else
-        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[0-9]*.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
+        sed -i "s|https://bootstrap.urbit.org/rube-${ship}[^ ]*\.tgz ${ship}.tgz|${new_url} ${ship}.tgz|g" "$DOCKERFILE"
     fi
 
     print_status "Updated Dockerfile for ~$ship"
@@ -1018,8 +1042,13 @@ main() {
             exit 1
         fi
 
-        # Get next version number
-        local next_version=$(get_next_version "$ship")
+        # Get next version number. Split the declaration from the assignment
+        # so a failure in get_next_version is not masked by `local`.
+        local next_version
+        if ! next_version=$(get_next_version "$ship"); then
+            print_error "Aborting: no archive version available for ~$ship"
+            exit 1
+        fi
         print_info "Next version for $ship: $next_version"
 
         # Archive the pier

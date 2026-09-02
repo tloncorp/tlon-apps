@@ -19,16 +19,16 @@ import 'expo-dev-client';
 import { useEffect, useRef } from 'react';
 import { AppState, Platform, TurboModuleRegistry } from 'react-native';
 import 'react-native-get-random-values';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import {
   ReanimatedLogLevel,
   configureReanimatedLogger,
 } from 'react-native-reanimated';
-import { TailwindProvider } from 'tailwind-rn';
 
 import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
 import { initializeBackgroundSync } from './src/lib/backgroundSync';
-import utilities from './tailwind.json';
+import { shouldSuppressForegroundNotification } from './src/lib/notificationPresentation';
 
 // Extend BigInt so serialization will never crash in JSON.parse
 (BigInt.prototype as any).toJSON = function () {
@@ -48,7 +48,7 @@ configureReanimatedLogger({
 
 // Eager module init. Runs at the entry so it isn't deferred by inline requires.
 initializeBackgroundSync();
-initializeNotifications();
+initializeNotifications(shouldSuppressForegroundNotification);
 
 const UrbitModule =
   Platform.OS !== 'web' ? TurboModuleRegistry.get('UrbitModule') : null;
@@ -101,17 +101,15 @@ function MainInner() {
 
   useJsHeartbeat(isDbReady);
 
-  return (
-    <TailwindProvider utilities={utilities}>
-      {isDbReady ? <App /> : null}
-    </TailwindProvider>
-  );
+  return isDbReady ? <App /> : null;
 }
 
 function Main() {
   return (
     <RootErrorBoundary>
-      <MainInner />
+      <KeyboardProvider>
+        <MainInner />
+      </KeyboardProvider>
     </RootErrorBoundary>
   );
 }

@@ -4,12 +4,16 @@ import type { RuntimeContext } from '../drivers/types.js';
 import {
   type DockerCommandRunner,
   connectComposeNetwork,
+  copyIntoComposeService,
   disconnectComposeNetwork,
   execInComposeService,
+  execInContainer,
+  inspectComposeServiceState,
   readComposeServiceLogs,
   resolveComposeContainer,
   restartComposeService,
   startComposeService,
+  topComposeService,
 } from './docker-direct.js';
 
 describe('direct Docker compose-service helpers', () => {
@@ -93,6 +97,64 @@ describe('direct Docker compose-service helpers', () => {
     ).resolves.toMatchObject({ exitCode: 17, stderr: 'cron failed' });
   });
 
+  test('copies a runner directory into the resolved service container', async () => {
+    const run = commandRunner([{ stdout: 'container-id\n' }, {}]);
+
+    await copyIntoComposeService(
+      context(),
+      'ships',
+      '/tmp/desk/.',
+      '/tmp/staged-desk',
+      run
+    );
+    expect(run).toHaveBeenLastCalledWith(
+      'docker',
+      ['cp', '/tmp/desk/.', 'container-id:/tmp/staged-desk'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+  });
+
+  test('uses one timeout budget for container resolution and exec', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const run: DockerCommandRunner = vi.fn(async (_command, args, opts) => {
+      if (args[0] === 'container') {
+        expect(opts.timeoutMs).toBe(50);
+        vi.setSystemTime(40);
+        return { stdout: 'container-id\n', stderr: '', exitCode: 0 };
+      }
+      expect(opts.timeoutMs).toBe(10);
+      vi.setSystemTime(50);
+      throw new Error('docker exec timed out after its remaining 10ms budget');
+    });
+
+    await expect(
+      execInComposeService(
+        context(),
+        'bot',
+        ['echo', 'cron'],
+        { timeoutMs: 50 },
+        run
+      )
+    ).rejects.toThrow(/remaining 10ms budget/);
+    expect(run).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  test('executes in a pre-resolved container without another lookup', async () => {
+    const run = commandRunner([{ stdout: 'ok' }]);
+
+    await expect(
+      execInContainer(context(), 'known-container', ['echo', 'cron'], {}, run)
+    ).resolves.toMatchObject({ stdout: 'ok' });
+    expect(run).toHaveBeenCalledWith(
+      'docker',
+      ['exec', 'known-container', 'echo', 'cron'],
+      expect.objectContaining({ timeoutMs: 60_000 })
+    );
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   test('disconnects a service from the compose network', async () => {
     const run = commandRunner([{ stdout: 'container-id\n' }, {}]);
 
@@ -153,6 +215,130 @@ describe('direct Docker compose-service helpers', () => {
         run
       )
     ).rejects.toThrow(/read logs for service bot failed/);
+  });
+
+  test('inspects service state via label-filtered resolve then State JSON', async () => {
+    const statePayload =
+      '{"Status":"exited","Running":false,"Paused":false,' +
+      '"Restarting":false,"OOMKilled":true,"Pid":0,"ExitCode":137,' +
+      '"Error":"","StartedAt":"2026-01-01T00:00:00Z",' +
+      '"FinishedAt":"2026-01-01T00:01:00Z"}';
+    const run = commandRunner([
+      { stdout: 'container-id\n' },
+      { stdout: `${statePayload}\n` },
+    ]);
+
+    const state = await inspectComposeServiceState(context(), 'ships', {}, run);
+
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      'docker',
+      [
+        'container',
+        'ls',
+        '--all',
+        '--quiet',
+        '--filter',
+        'label=com.docker.compose.project=tlon-bot-e2e-unit',
+        '--filter',
+        'label=com.docker.compose.service=ships',
+      ],
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+    expect(run).toHaveBeenNthCalledWith(
+      2,
+      'docker',
+      ['container', 'inspect', '--format', '{{json .State}}', 'container-id'],
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+    expect(state).toBe(JSON.stringify(JSON.parse(statePayload), null, 2));
+    expect(state).toContain('"ExitCode": 137');
+    expect(state).toContain('"OOMKilled": true');
+  });
+
+  test('inspectComposeServiceState fails loudly on nonzero inspect exit', async () => {
+    const run = commandRunner([
+      { stdout: 'container-id\n' },
+      { stdout: '', stderr: 'no such container', exitCode: 1 },
+    ]);
+
+    await expect(
+      inspectComposeServiceState(context(), 'ships', {}, run)
+    ).rejects.toThrow(/inspect state for service ships failed/);
+  });
+
+  test('uses one timeout budget for container resolution and state inspect', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const run: DockerCommandRunner = vi.fn(async (_command, args, opts) => {
+      if (args[0] === 'container' && args[1] === 'ls') {
+        expect(opts.timeoutMs).toBe(50);
+        vi.setSystemTime(40);
+        return { stdout: 'container-id\n', stderr: '', exitCode: 0 };
+      }
+      expect(opts.timeoutMs).toBe(10);
+      vi.setSystemTime(50);
+      return { stdout: '{"Running":false}', stderr: '', exitCode: 0 };
+    });
+
+    await expect(
+      inspectComposeServiceState(context(), 'ships', { timeoutMs: 50 }, run)
+    ).resolves.toContain('"Running": false');
+    expect(run).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  test('tops a service with an explicit process-table format', async () => {
+    const run = commandRunner([
+      { stdout: 'container-id\n' },
+      { stdout: '  PID  PPID COMMAND\n    1     0 bash\n' },
+    ]);
+
+    const top = await topComposeService(context(), 'ships', {}, run);
+
+    expect(top).toBe('  PID  PPID COMMAND\n    1     0 bash\n');
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      'docker',
+      [
+        'container',
+        'ls',
+        '--all',
+        '--quiet',
+        '--filter',
+        'label=com.docker.compose.project=tlon-bot-e2e-unit',
+        '--filter',
+        'label=com.docker.compose.service=ships',
+      ],
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+    expect(run).toHaveBeenNthCalledWith(
+      2,
+      'docker',
+      ['top', 'container-id', '-eo', 'pid,ppid,comm,args'],
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+  });
+
+  test('uses one timeout budget for container resolution and top', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const run: DockerCommandRunner = vi.fn(async (_command, args, opts) => {
+      if (args[0] === 'container' && args[1] === 'ls') {
+        expect(opts.timeoutMs).toBe(50);
+        vi.setSystemTime(40);
+        return { stdout: 'container-id\n', stderr: '', exitCode: 0 };
+      }
+      expect(opts.timeoutMs).toBe(10);
+      vi.setSystemTime(50);
+      return { stdout: '  PID\n', stderr: '', exitCode: 0 };
+    });
+
+    await expect(
+      topComposeService(context(), 'ships', { timeoutMs: 50 }, run)
+    ).resolves.toBe('  PID\n');
+    expect(run).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
   });
 });
 

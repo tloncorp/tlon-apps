@@ -64,7 +64,7 @@ const EXPOSE_COMMAND_HELP: Record<string, string> = {
 };
 
 function getExposeHelp(command?: string): string {
-  return command ? EXPOSE_COMMAND_HELP[command] ?? EXPOSE_HELP : EXPOSE_HELP;
+  return command ? (EXPOSE_COMMAND_HELP[command] ?? EXPOSE_HELP) : EXPOSE_HELP;
 }
 
 function validateExposeArgs(args: string[]): void {

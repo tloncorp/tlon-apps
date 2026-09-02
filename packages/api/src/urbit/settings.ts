@@ -60,6 +60,7 @@ export type CalmEngineSettings = {
 
 export type DisplaySettings = {
   theme?: AppTheme;
+  showDeleteMarkers?: boolean;
 };
 
 export type GroupsSettings = {
@@ -111,6 +112,7 @@ export type GroupsDeskSettings = {
     groups?: GroupsSettings;
     calmEngine?: CalmEngineSettings;
     display?: DisplaySettings;
+    botReplyFeedback?: Bucket;
   };
 };
 

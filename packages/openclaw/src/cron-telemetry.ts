@@ -7,8 +7,8 @@
  * - `TlonBot Cron Job Changed` for lifecycle changes, with fresh job counts
  *   from `ctx.getCron().list()`.
  * - `TlonBot Cron Run` for `finished` events (success/failure/skip, duration,
- *   delivery outcome). `started` is intentionally ignored — the gateway
- *   enforces run timeouts, so every start produces a `finished`.
+ *   delivery outcome). `started` and `finished` also feed the thin OTEL
+ *   projection used for fleet health and alerting.
  * - `TlonBot Cron Snapshot` once per boot (from the monitor, after connect),
  *   reconciling counts that drift when change events are missed.
  *
@@ -24,6 +24,12 @@ import type {
   PluginHookGatewayCronService,
 } from 'openclaw/plugin-sdk/types';
 
+import {
+  type TlonCronOtelObserver,
+  type TlonCronRunFinished,
+  type TlonCronRunStarted,
+  getDefaultTlonCronOtelObserver,
+} from './cron-observability.js';
 import { sharedSlot } from './shared-state.js';
 import {
   type TlonCronCountFields,
@@ -40,6 +46,14 @@ const CRON_ERROR_MAX_CHARS = 500;
 const SNAPSHOT_RETRY_DELAY_MS = 20_000;
 
 type CronServiceAccessor = () => PluginHookGatewayCronService | undefined;
+
+export type TlonCronService = PluginHookGatewayCronService & {
+  run?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+  enqueueRun?: (id: string, mode?: 'due' | 'force') => Promise<unknown>;
+};
+type CronObservabilityOptions = {
+  observer?: TlonCronOtelObserver;
+};
 
 // OpenClaw 2026.5.28 predates event-driven `on-exit` schedules, while this
 // plugin's peer range also permits newer hosts that expose them. Keep the
@@ -72,6 +86,10 @@ export function setCronServiceAccessor(
 
 export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
+}
+
+export function getTlonCronService(): TlonCronService | undefined {
+  return cronServiceAccessorSlot.get()?.() as TlonCronService | undefined;
 }
 
 function optionalString(value: string | null | undefined): string | null {
@@ -265,6 +283,53 @@ export function buildCronRunReport(
   };
 }
 
+function buildCronRunStartedObservation(
+  event: PluginHookCronChangedEvent
+): TlonCronRunStarted {
+  const job = event.job;
+  return {
+    agentId: optionalString(event.agentId ?? job?.agentId),
+    jobId: event.jobId,
+    jobName: optionalString(job?.name),
+    payloadKind: optionalString(job?.payload?.kind),
+    runAtMs: optionalNumber(event.runAtMs),
+    runId: optionalString(event.runId),
+    scheduleKind: cronScheduleFields(job).scheduleKind,
+    sessionId: optionalString(event.sessionId),
+    sessionKey: optionalString(event.sessionKey),
+    sessionTargetKind: normalizeCronSessionTargetKind(
+      event.sessionTarget ?? job?.sessionTarget
+    ),
+  };
+}
+
+function buildCronRunFinishedObservation(
+  event: PluginHookCronChangedEvent,
+  run: TlonCronRunReportInput
+): TlonCronRunFinished {
+  return {
+    agentId: run.agentId,
+    cronError: run.cronError,
+    delivered: run.delivered,
+    deliveryError: run.deliveryError,
+    deliveryStatus: run.deliveryStatus,
+    durationMs: run.durationMs,
+    jobId: run.jobId,
+    jobName: run.jobName,
+    model: run.model,
+    nextRunAtMs: run.nextRunAtMs,
+    payloadKind: run.payloadKind,
+    provider: run.provider,
+    runAtMs: run.runAtMs,
+    runId: run.runId,
+    scheduleKind: run.scheduleKind,
+    sessionId: optionalString(event.sessionId),
+    sessionKey: optionalString(event.sessionKey),
+    sessionTargetKind: run.sessionTargetKind,
+    status: run.status,
+  };
+}
+
 export function buildCronSnapshotReport(
   jobs: PluginHookGatewayCronJob[]
 ): TlonCronSnapshotReportInput {
@@ -284,8 +349,10 @@ async function listCronJobs(
 
 export async function handleCronChangedEvent(
   event: PluginHookCronChangedEvent,
-  ctx: Pick<PluginHookGatewayContext, 'getCron'>
+  ctx: Pick<PluginHookGatewayContext, 'getCron'>,
+  options?: CronObservabilityOptions
 ): Promise<void> {
+  const observer = options?.observer ?? getDefaultTlonCronOtelObserver();
   if (ctx.getCron) {
     setCronServiceAccessor(ctx.getCron);
   }
@@ -293,18 +360,24 @@ export async function handleCronChangedEvent(
   if (event.action === 'finished') {
     const run = buildCronRunReport(event);
     if (run) {
+      observer.recordFinished(buildCronRunFinishedObservation(event, run));
       reportCronRun(run);
     }
     return;
   }
   if (event.action === 'started') {
+    observer.recordStarted(buildCronRunStartedObservation(event));
     return;
   }
 
   let counts: TlonCronCountFields | null = null;
   try {
     const jobs = await listCronJobs(ctx.getCron);
-    counts = jobs ? summarizeCronJobs(jobs) : null;
+    if (jobs) {
+      const snapshot = summarizeCronJobs(jobs);
+      counts = snapshot;
+      observer.recordJobSnapshot(snapshot);
+    }
   } catch {
     // Counts are best-effort enrichment; still emit the change event.
   }
@@ -315,11 +388,17 @@ export async function handleCronChangedEvent(
 }
 
 /** @returns false when the cron service accessor is not published yet. */
-export async function emitCronSnapshot(): Promise<boolean> {
+export async function emitCronSnapshot(
+  options?: CronObservabilityOptions
+): Promise<boolean> {
   const jobs = await listCronJobs();
   if (!jobs) {
     return false;
   }
+  const snapshot = summarizeCronJobs(jobs);
+  (options?.observer ?? getDefaultTlonCronOtelObserver()).recordJobSnapshot(
+    snapshot
+  );
   reportCronSnapshot(buildCronSnapshotReport(jobs));
   return true;
 }

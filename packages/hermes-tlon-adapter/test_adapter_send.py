@@ -118,6 +118,7 @@ def load_module(name):
 tlon_api = load_module("tlon_api")
 lens = load_module("lens")
 adapter_mod = load_module("adapter")
+tlon_tool = sys.modules[f"{PACKAGE_NAME}.tlon_tool"]
 
 
 def cli_result(
@@ -176,6 +177,19 @@ class FakeSSE:
     async def close(self, *, graceful=True):
         del graceful
         return None
+
+
+class FakeTitleSSE:
+    def __init__(self, payload=None, error=None):
+        self.payload = payload
+        self.error = error
+        self.scries = []
+
+    async def scry(self, path):
+        self.scries.append(path)
+        if self.error is not None:
+            raise self.error
+        return self.payload
 
 
 def make_adapter(results=None, extra=None):
@@ -407,6 +421,298 @@ class ChunkingTests(unittest.TestCase):
         result = asyncio.run(adapter.send("~alice", "hello"))
         self.assertFalse(result.success)
         self.assertEqual(result.error, "boom")
+
+    def test_diary_delivery_refusal_dms_owner_once_with_real_nest(self):
+        adapter = make_adapter(
+            [
+                cli_result(
+                    success=False,
+                    message_id=None,
+                    error="generic diary refusal",
+                    returncode=1,
+                )
+            ]
+        )
+        sender = adapter._diary_notification_sender
+        title_lookups = []
+
+        async def title_lookup(lookup_nest):
+            title_lookups.append(lookup_nest)
+            return "Transport diary"
+
+        adapter_mod.set_diary_migration_notification_sender(
+            sender,
+            bot_ship=adapter.tlon_config.ship_name,
+            owner_ship=adapter.tlon_config.owner_ship,
+            title_lookup=title_lookup,
+        )
+        self.addCleanup(
+            adapter_mod.clear_diary_migration_notification_sender,
+            sender,
+        )
+        nest = "diary/~pen/discovery-transport"
+
+        async def run():
+            first = await adapter.send(nest, "hello")
+            await adapter_mod.wait_for_pending_discovery()
+            second = await adapter.send(nest, "hello again")
+            await adapter_mod.wait_for_pending_discovery()
+            return first, second
+
+        first, second = asyncio.run(run())
+
+        self.assertFalse(first.success)
+        self.assertFalse(second.success)
+        self.assertIn(f"/migrate {nest}", first.error)
+        self.assertNotIn("<diary-nest>", first.error)
+        self.assertEqual(title_lookups, [nest])
+        self.assertEqual(len(adapter._cli.commands), 1)
+        command = adapter._cli.commands[0]
+        self.assertEqual(command[:3], ("posts", "send", "~mug"))
+        self.assertEqual(command[3], 'Diary migration available for "Transport diary"')
+        blob = command[5]
+        entry = json.loads(blob)[0]
+        components = entry["messages"][1]["updateComponents"]["components"]
+        button = next(
+            component
+            for component in components
+            if component["component"] == "Button"
+        )
+        self.assertEqual(
+            button["action"]["event"]["context"]["text"],
+            f"/migrate {nest}",
+        )
+
+    def test_diary_delivery_refusal_returns_before_notification_resolves(self):
+        adapter = make_adapter(
+            [
+                cli_result(
+                    success=False,
+                    message_id=None,
+                    error="generic diary refusal",
+                    returncode=1,
+                )
+            ]
+        )
+        calls = []
+
+        async def run():
+            started = asyncio.Event()
+            release = asyncio.Event()
+
+            async def send_dm(text, blob):
+                calls.append((text, blob))
+                started.set()
+                await release.wait()
+                return True
+
+            async def title_lookup(_nest):
+                return "Detached transport diary"
+
+            adapter_mod.set_diary_migration_notification_sender(
+                send_dm,
+                bot_ship=adapter.tlon_config.ship_name,
+                owner_ship=adapter.tlon_config.owner_ship,
+                title_lookup=title_lookup,
+            )
+            try:
+                send = asyncio.create_task(
+                    adapter.send("diary/~pen/detached-transport", "hello")
+                )
+                await started.wait()
+                returned_before_release = send.done()
+                release.set()
+                result = await send
+                await adapter_mod.wait_for_pending_discovery()
+                return returned_before_release, result
+            finally:
+                adapter_mod.clear_diary_migration_notification_sender(send_dm)
+
+        returned_before_release, result = asyncio.run(run())
+
+        self.assertTrue(returned_before_release)
+        self.assertFalse(result.success)
+        self.assertEqual(len(calls), 1)
+
+    def test_fresh_diary_title_bypasses_stale_sibling_discovery_cache(self):
+        adapter = make_adapter()
+        nest = "diary/~pen/second"
+        adapter._sse = FakeTitleSSE(
+            {
+                "groups": {
+                    "~pen/first": {
+                        "channels": {
+                            "diary/~pen/first": {"title": "  First diary  "},
+                        }
+                    },
+                    "~pen/second": {
+                        "channels": {
+                            "diary/PEN/second": {
+                                "meta": {"title": "  Journal  "},
+                                "title": "Ignored fallback",
+                            },
+                        }
+                    },
+                }
+            }
+        )
+        calls = []
+
+        async def send_dm(text, blob):
+            calls.append((text, blob))
+            return True
+
+        async def run():
+            first = await adapter._lookup_diary_channel_title(
+                "diary/~pen/first"
+            )
+            adapter._sse.payload = {
+                "groups": {
+                    "~pen/second": {
+                        "channels": {
+                            nest: {"title": "Journal-ARCHIVE"},
+                        }
+                    }
+                }
+            }
+            notified = await tlon_tool.notify_diary_migration_discovery(
+                nest,
+                sender=send_dm,
+                bot_ship="~pen",
+                owner_ship="~mug",
+                title_lookup=adapter._lookup_diary_channel_title,
+            )
+            return first, notified
+
+        first, notified = asyncio.run(run())
+
+        self.assertEqual(first, "First diary")
+        self.assertTrue(notified)
+        self.assertEqual(
+            adapter._sse.scries,
+            ["/groups-ui/v7/init", "/groups-ui/v7/init"],
+        )
+        self.assertEqual(
+            calls,
+            [
+                (
+                    f"Found legacy diary `{nest}`, but its title already ends in "
+                    "`-ARCHIVE`, so it looks like it has already been migrated "
+                    "and no action was offered. If it has not been migrated, "
+                    "rename the channel to remove `-ARCHIVE` and it can be "
+                    "migrated again.",
+                    None,
+                )
+            ],
+        )
+
+    def test_diary_title_lookup_does_not_memoize_misses(self):
+        adapter = make_adapter()
+        adapter._sse = FakeTitleSSE({"groups": {}})
+        nest = "diary/~pen/retry-title"
+
+        with self.assertLogs(adapter_mod.logger, level="DEBUG"):
+            first = asyncio.run(adapter._lookup_diary_channel_title(nest))
+        adapter._sse.payload = {
+            "groups": {
+                "~pen/group": {
+                    "channels": {nest: {"title": "Retry diary"}},
+                }
+            }
+        }
+        second = asyncio.run(adapter._lookup_diary_channel_title(nest))
+
+        self.assertIsNone(first)
+        self.assertEqual(second, "Retry diary")
+        self.assertEqual(
+            adapter._sse.scries,
+            ["/groups-ui/v7/init", "/groups-ui/v7/init"],
+        )
+
+    def test_diary_title_lookup_uses_nullish_not_truthy_title_fallback(self):
+        adapter = make_adapter()
+        nest = "diary/~pen/empty-meta-title"
+        adapter._sse = FakeTitleSSE(
+            {
+                "groups": {
+                    "~pen/group": {
+                        "channels": {
+                            nest: {
+                                "meta": {"title": ""},
+                                "title": "Must not be used",
+                            }
+                        }
+                    }
+                }
+            }
+        )
+
+        with self.assertLogs(adapter_mod.logger, level="DEBUG"):
+            title = asyncio.run(adapter._lookup_diary_channel_title(nest))
+
+        self.assertIsNone(title)
+
+    def test_diary_title_lookup_logs_systemic_failures_distinctly(self):
+        nest = "diary/~pen/systemic"
+        cases = (
+            (
+                None,
+                f"[tlon] diary migration title lookup unavailable for {nest}: SSE client is not connected",
+            ),
+            (
+                FakeTitleSSE(error=RuntimeError("scry down")),
+                f"[tlon] diary migration title lookup unavailable for {nest}: scry down",
+            ),
+            (
+                FakeTitleSSE(None),
+                f"[tlon] diary migration title lookup unavailable for {nest}: init payload is not a mapping",
+            ),
+            (
+                FakeTitleSSE({"groups": []}),
+                f"[tlon] diary migration title lookup unavailable for {nest}: groups payload is not a mapping",
+            ),
+            (
+                FakeTitleSSE({"groups": {"~pen/group": {"channels": []}}}),
+                f"[tlon] diary migration title lookup unavailable for {nest}: channel payloads are not mappings",
+            ),
+        )
+        for sse, expected in cases:
+            with self.subTest(expected=expected):
+                adapter = make_adapter()
+                adapter._sse = sse
+                with self.assertLogs(adapter_mod.logger, level="DEBUG") as logs:
+                    title = asyncio.run(adapter._lookup_diary_channel_title(nest))
+                self.assertIsNone(title)
+                self.assertEqual(
+                    [record.getMessage() for record in logs.records],
+                    [expected],
+                )
+
+    def test_diary_title_lookup_logs_absent_nest_as_normal_miss(self):
+        adapter = make_adapter()
+        adapter._sse = FakeTitleSSE(
+            {
+                "groups": {
+                    "~nec/foreign": {
+                        "channels": {
+                            "diary/~nec/other": {"title": "Other diary"},
+                        }
+                    }
+                }
+            }
+        )
+        nest = "diary/~pen/absent"
+
+        with self.assertLogs(adapter_mod.logger, level="DEBUG") as logs:
+            title = asyncio.run(adapter._lookup_diary_channel_title(nest))
+
+        self.assertIsNone(title)
+        self.assertEqual(
+            [record.getMessage() for record in logs.records],
+            [
+                f"[tlon] diary migration title lookup missed nest {nest} in usable init payload"
+            ],
+        )
 
 
 class BlockDirectiveSendTests(unittest.TestCase):
@@ -1105,6 +1411,26 @@ class StandaloneDirectiveTests(unittest.TestCase):
         self.assertTrue(skipped["success"])
         self.assertEqual([entry[2] for entry in cli.sent], ["cron result"])
 
+    def test_standalone_send_refuses_media_instead_of_dropping_it(self):
+        # The standalone/cron path is text-only. Delivering the text and
+        # silently discarding the media would report success for a message the
+        # recipient never sees in full.
+        cli = FakeCLI()
+        with patch.object(adapter_mod, "TlonCLI", return_value=cli):
+            result = asyncio.run(
+                adapter_mod._standalone_send(
+                    self.config(),
+                    "~alice",
+                    "here is the chart",
+                    media_files=["/tmp/chart.png"],
+                )
+            )
+
+        self.assertNotIn("success", result)
+        self.assertIn("media attachments are not supported", result["error"])
+        self.assertIn("--image", result["error"])
+        self.assertEqual(cli.sent, [])
+
 
 class RetryableClassificationTests(unittest.TestCase):
     def test_cli_timeout_not_retryable(self):
@@ -1242,6 +1568,153 @@ class FatalAuthTests(unittest.TestCase):
         with patch.object(adapter_mod.asyncio, "sleep", instant_sleep):
             asyncio.run(adapter._run_stream())
         self.assertEqual(adapter.fatal_errors, [])
+
+
+class BotAuthorDecorationTests(unittest.TestCase):
+    """Every outbound send path must author as a bot. The three TlonCLI
+    construction sites (adapter instance, model tool, standalone sender) each
+    opt in, and decoration itself lives in TlonCLI so raw `run_command` tuples
+    are covered too."""
+
+    # Help output of a bot-flag-capable CLI, which the capability probe reads.
+    CLI_HELP = "Usage: tlon posts send <channel> [message] [--bot]\n"
+
+    def recording_runner(self, calls, *, help_text=None):
+        async def runner(command, env, timeout, _on_deadline):
+            if tuple(command[1:]) == tlon_api.BOT_FLAG_PROBE_ARGS:
+                return tlon_api.TlonProcessResult(
+                    returncode=0,
+                    stdout=self.CLI_HELP if help_text is None else help_text,
+                )
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="")
+
+        return runner
+
+    def recording_cli_factory(self, calls, *, help_text=None):
+        runner = self.recording_runner(calls, help_text=help_text)
+
+        def factory(config, **kwargs):
+            return tlon_api.TlonCLI(config, runner=runner, **kwargs)
+
+        return factory
+
+    def config(self):
+        return PlatformConfig(
+            extra={
+                "node_url": "https://pen.tlon.network",
+                "node_id": "~pen",
+                "access_code": "code",
+                "owner_ship": "~mug",
+                "cli": "tlon-test",
+            }
+        )
+
+    def test_adapter_cli_authors_owner_notifications_as_bot(self):
+        calls = []
+        with patch.object(
+            adapter_mod, "TlonCLI", self.recording_cli_factory(calls)
+        ):
+            with patch.dict("os.environ", {}, clear=True):
+                adapter = adapter_mod.TlonAdapter(self.config())
+            adapter._apply_self_contact(
+                {"nickname": {"value": "Botly"}, "avatar": {"value": "https://x/y.png"}}
+            )
+            asyncio.run(adapter._notify_owner("~evil", "spam"))
+            asyncio.run(adapter._send_nudge_dm("nudge", 1234))
+
+        for call in calls:
+            self.assertEqual(call[-1], "--bot")
+            self.assertNotIn("--bot-nickname=Botly", call)
+        self.assertEqual(calls[0][1:3], ("posts", "send"))
+
+    def test_adapter_cli_degrades_when_installed_cli_predates_the_flags(self):
+        calls = []
+        old_help = "Usage: tlon posts send <channel> [message] [--blob <json>]\n"
+        with patch.object(
+            adapter_mod,
+            "TlonCLI",
+            self.recording_cli_factory(calls, help_text=old_help),
+        ):
+            with patch.dict("os.environ", {}, clear=True):
+                adapter = adapter_mod.TlonAdapter(self.config())
+            adapter._apply_self_contact({"nickname": {"value": "Botly"}})
+            with self.assertLogs(tlon_api.logger, level="ERROR"):
+                asyncio.run(adapter._notify_owner("~evil", "spam"))
+
+        self.assertEqual(calls[0][1:3], ("posts", "send"))
+        self.assertNotIn("--bot", calls[0])
+
+    def test_standalone_send_authors_as_bot(self):
+        calls = []
+        with patch.object(
+            adapter_mod, "TlonCLI", self.recording_cli_factory(calls)
+        ):
+            asyncio.run(adapter_mod._standalone_send(self.config(), "~alice", "hi"))
+            asyncio.run(
+                adapter_mod._standalone_send(
+                    self.config(), "~alice", "hi", thread_id="170.141"
+                )
+            )
+
+        self.assertEqual(calls[0][1:3], ("posts", "send"))
+        self.assertEqual(calls[1][1:3], ("posts", "reply"))
+        for call in calls:
+            self.assertEqual(call[-1], "--bot")
+
+    def test_model_tool_cli_authors_proactive_sends_as_bot(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        runner = self.recording_runner(calls)
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": 'posts send chat/~pen/other "hi"'},
+                config=cfg,
+                runner=runner,
+            )
+
+        payload = json.loads(asyncio.run(run()))
+
+        self.assertTrue(payload["success"])
+        self.assertEqual(
+            calls[0],
+            ("tlon-test", "posts", "send", "chat/~pen/other", "hi", "--bot"),
+        )
+
+    def test_model_tool_cli_leaves_reads_undecorated(self):
+        calls = []
+        cfg = tlon_api.TlonConfig.from_env(
+            env={
+                "TLON_NODE_URL": "https://pen.tlon.network",
+                "TLON_NODE_ID": "~pen",
+                "TLON_ACCESS_CODE": "code",
+                "TLON_CLI": "tlon-test",
+            }
+        )
+
+        async def runner(command, env, timeout, _on_deadline):
+            calls.append(tuple(command))
+            return tlon_api.TlonProcessResult(returncode=0, stdout="~pen\n")
+
+        async def run():
+            return await tlon_tool.execute_tlon_tool(
+                {"command": "contacts self"},
+                config=cfg,
+                runner=runner,
+            )
+
+        asyncio.run(run())
+
+        self.assertEqual(calls[0], ("tlon-test", "contacts", "self"))
 
 
 if __name__ == "__main__":

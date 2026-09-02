@@ -73,7 +73,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.4
+          bun-version: 1.3.14
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
@@ -82,14 +82,11 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Check .prettierignore is up to date
-        run: |
-          pnpm run prettier:rebuild-monorepo-ignore
-          git diff --exit-code .prettierignore || \
-            (printf "\n⚠️ .prettierignore is out of date. Run 'pnpm run prettier:rebuild-monorepo-ignore' and commit the result." && exit 1)
+      - name: Check native navigation icons
+        run: pnpm check:native-navigation-icons
 
-      - name: Check Prettier
-        run: pnpm prettier --check '**/*.{ts,tsx}'
+      - name: Check formatting
+        run: pnpm format:check
 
       - name: Run Lint
         run: pnpm -r lint
@@ -112,7 +109,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=6144
 
   # Unit-level checks for the bot/plugin packages, mirroring what test-build's
-  # repo-wide prettier/lint/tsc/test:ci ran for them before gating. Only
+  # repo-wide format/lint/tsc/test:ci ran for them before gating. Only
   # needed when test-build is skipped (bot-only PRs); on mixed PRs test-build
   # covers all of this. The openclaw and tlon-bot-e2e unit steps duplicate
   # jobs in the path-triggered hermes-ci/openclaw-ci workflows, on purpose:
@@ -139,7 +136,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: 1.3.4
+          bun-version: 1.3.14
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v3
@@ -148,10 +145,10 @@ jobs:
             - recursive: true
               args: [--frozen-lockfile]
 
-      - name: Check Prettier (bot packages)
+      - name: Check formatting (bot packages)
         run:
-          pnpm prettier --check
-          'packages/{openclaw,tlon-skill,tlon-bot-e2e}/**/*.{ts,tsx}'
+          pnpm exec oxfmt --check packages/openclaw packages/tlon-skill
+          packages/tlon-bot-e2e
 
       - name: Lint OpenClaw
         run: pnpm --filter '@tloncorp/openclaw' lint
@@ -169,6 +166,15 @@ jobs:
 
       - name: Run Hermes adapter unit tests
         run: ./packages/hermes-tlon-adapter/dev/test.sh
+
+      # The drift contract lives in @tloncorp/shared (it owns the static
+      # command lists) but its whole purpose is catching runtime changes — and
+      # a bot-only PR skips test-build, where the shared suite runs. Without
+      # this step, editing a runtime's command registry could never turn it red.
+      - name: Bot command drift contract
+        run:
+          pnpm --filter '@tloncorp/shared' test run
+          src/domain/runtimeCommandContract.test.ts
 
   # Merge gate: the single required status check for this repo ("CI OK" in
   # branch protection). It aggregates the conditionally-skipped jobs above

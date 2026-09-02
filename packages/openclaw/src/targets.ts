@@ -1,9 +1,13 @@
 export type TlonTarget =
   | { kind: 'dm'; ship: string }
-  | { kind: 'channel'; nest: string; hostShip: string; channelName: string };
+  | { kind: 'channel'; nest: string; hostShip: string; channelName: string }
+  | { kind: 'notebook'; nest: string; hostShip: string; notebookName: string };
 
 const SHIP_RE = /^~?[a-z-]+$/i;
-const NEST_RE = /^(chat|heap|diary)\/([^/]+)\/([^/]+)$/i;
+const NEST_RE = /^([^/]+)\/([^/]+)\/([^/]+)$/i;
+const CHANNEL_NEST_PREFIXES = new Set(['chat', 'heap', 'diary', 'notes']);
+
+type NestPrefix = 'chat' | 'heap' | 'diary' | 'notes';
 
 /**
  * Normalize a ship name to canonical form: lowercase with a leading `~`.
@@ -21,14 +25,23 @@ export function normalizeShip(raw: string): string {
 }
 
 export function parseNest(
-  raw: string
+  raw: string,
+  expectedPrefix?: NestPrefix
 ): { nestPrefix: string; hostShip: string; channelName: string } | null {
   const match = NEST_RE.exec(raw.trim());
   if (!match) {
     return null;
   }
+  const nestPrefix = match[1].toLowerCase();
+  if (
+    expectedPrefix
+      ? nestPrefix !== expectedPrefix
+      : !CHANNEL_NEST_PREFIXES.has(nestPrefix)
+  ) {
+    return null;
+  }
   return {
-    nestPrefix: match[1].toLowerCase(),
+    nestPrefix,
     hostShip: normalizeShip(match[2]),
     channelName: match[3],
   };
@@ -51,8 +64,11 @@ export function parseChannelNest(
  * be stored or compared against runtime nest values, which always arrive
  * canonical (lowercase prefix and host).
  */
-export function canonicalizeNest(raw: string): string | null {
-  const parsed = parseNest(raw);
+export function canonicalizeNest(
+  raw: string,
+  expectedPrefix?: NestPrefix
+): string | null {
+  const parsed = parseNest(raw, expectedPrefix);
   if (!parsed) {
     return null;
   }
@@ -81,6 +97,14 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
     const groupTarget = groupPrefix[2].trim();
     const parsedNest = parseNest(groupTarget);
     if (parsedNest) {
+      if (parsedNest.nestPrefix === 'notes') {
+        return {
+          kind: 'notebook',
+          nest: `notes/${parsedNest.hostShip}/${parsedNest.channelName}`,
+          hostShip: parsedNest.hostShip,
+          notebookName: parsedNest.channelName,
+        };
+      }
       return {
         kind: 'channel',
         nest: `${parsedNest.nestPrefix}/${parsedNest.hostShip}/${parsedNest.channelName}`,
@@ -103,9 +127,18 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
     return null;
   }
 
-  // Direct nest format: chat/~host/channel, heap/~host/channel, diary/~host/channel
+  // Direct nest format: chat/~host/channel, heap/~host/channel,
+  // diary/~host/channel, notes/~host/notebook
   const parsedNest = parseNest(withoutPrefix);
   if (parsedNest) {
+    if (parsedNest.nestPrefix === 'notes') {
+      return {
+        kind: 'notebook',
+        nest: `notes/${parsedNest.hostShip}/${parsedNest.channelName}`,
+        hostShip: parsedNest.hostShip,
+        notebookName: parsedNest.channelName,
+      };
+    }
     return {
       kind: 'channel',
       nest: `${parsedNest.nestPrefix}/${parsedNest.hostShip}/${parsedNest.channelName}`,
@@ -123,5 +156,5 @@ export function parseTlonTarget(raw?: string | null): TlonTarget | null {
 }
 
 export function formatTargetHint(): string {
-  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel';
+  return 'dm/~ship | ~ship | chat/~host/channel | heap/~host/channel | diary/~host/channel | notes/~host/notebook';
 }

@@ -246,7 +246,7 @@ export const ImageAvatar = function ImageAvatarComponent({
       />
     </AvatarFrame>
   ) : (
-    fallback ?? null
+    (fallback ?? null)
   );
 };
 

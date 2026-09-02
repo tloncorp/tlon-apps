@@ -103,7 +103,7 @@ const CHANNEL_UPDATE_FLAGS = ['title', 'description'] as const;
 
 function getChannelsHelp(command?: string) {
   return command
-    ? CHANNELS_COMMAND_HELP[command] ?? CHANNELS_HELP
+    ? (CHANNELS_COMMAND_HELP[command] ?? CHANNELS_HELP)
     : CHANNELS_HELP;
 }
 
@@ -359,7 +359,7 @@ async function createChannelInGroup(
 // listing appeared (see notes-channel.ts).
 async function createNotesChannel(groupId: string, title: string) {
   const nest = await createNotesChannelInGroup(
-    { groupId, title },
+    { groupId, title, readers: [] },
     createNotesChannelDeps()
   );
 
@@ -477,7 +477,7 @@ async function addReaders(groupFlag: string, nest: string, roles: string[]) {
   );
   await poke({
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupFlag,
@@ -502,7 +502,7 @@ async function removeReaders(groupFlag: string, nest: string, roles: string[]) {
   );
   await poke({
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupFlag,

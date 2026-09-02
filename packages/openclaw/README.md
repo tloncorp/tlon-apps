@@ -49,7 +49,11 @@ channels:
 
         # Auto-accept settings
         autoAcceptDmInvites: true # Accept DMs from ships in dmAllowlist
-        autoAcceptGroupInvites: false # Require approval for group invites
+        autoAcceptGroupInvites: false # Legacy: no longer governs group-invite authorization (groupInviteAllowlist does); controls channel persistence
+
+        # Ships allowed to invite the bot to groups (auto-accepted unless blocked)
+        groupInviteAllowlist:
+            - '~trusted-friend'
 
         # Channel discovery
         autoDiscoverChannels: true # Monitor all channels in joined groups
@@ -90,6 +94,8 @@ When enabled, the plugin captures `TlonBot Gateway Connected` after subscription
 
 Cron observability rides the gateway's `cron_changed` hook: `TlonBot Cron Job Changed` when a job is added/updated/removed (schedule metadata plus job counts), `TlonBot Cron Run` when a run finishes (`cronStatus` of `ok`/`error`/`skipped`, truncated error text, duration, delivery outcome, model/provider), and `TlonBot Cron Snapshot` once per boot with job counts by schedule kind, including event-driven `on-exit` jobs on newer OpenClaw hosts. Job-count events also update `tlonCronActiveJobCount`/`tlonCronTotalJobCount` person properties so the current count per owner is queryable directly. Job prompts (`payload.text`), on-exit watched commands/directories, and run output (`summary`) are never sent.
 
+Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI run: `started`, then `completed`, `failed` (with error text truncated to 500 chars), or `consent_required` (the CLI's write-widening refusal — the owner is expected to accept and re-run, so it is not counted as a failure). Events share a `migrationId` and carry `action` (apply/cleanup), `durationMs` on terminals, and `deadlineExceeded` when the run outlived its advisory reporting deadline. A gateway death mid-run leaves a `started` with no terminal — count those as unresolved, not failed. Error text is CLI output, so like the package's other error-carrying events it can name channel nests; message and post content are never sent.
+
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
 
 ## Steward automation mirror
@@ -106,7 +112,7 @@ The approval system lets you control who can interact with your bot. When `owner
 
 -   **DM requests** from ships not on your `dmAllowlist`
 -   **Channel mentions** from ships not authorized for that channel
--   **Group invites** (if `autoAcceptGroupInvites` is false)
+-   **Group invites** from ships not on your `groupInviteAllowlist` (owner invites and allowlisted, non-blocked ships are auto-accepted). Pending invites are reconciled at connect and on a 2-minute poll, failed owner notifications are retried, delivered ones are never re-sent, and rejecting or blocking declines the invite on the ship — see SECURITY.md for the invariants.
 
 ### Usage
 
@@ -120,8 +126,8 @@ Reply "approve", "deny", or "block" (ID: dm-1234567890-abc)
 ```
 
 -   **approve**: Allow the interaction and add to allowlist. Original message is processed.
--   **deny**: Reject silently. Ship can try again later.
--   **block**: Permanently block using Tlon's native blocking.
+-   **deny**: Reject silently. Ship can try again later. For a group invite this also declines the invite on the ship.
+-   **block**: Permanently block using Tlon's native blocking, and remove the ship from `dmAllowlist`. For a group invite this also declines the invite on the ship; a block, `dmAllowlist` write, or decline the client could not submit keeps the request pending so you can retry.
 
 ### Admin Commands
 
@@ -146,7 +152,17 @@ Fingerprint: fp1:8aa23ca2bc8d
 Source: no git checkout
 ```
 
-## Bundled Skill
+### Bot info
+
+At monitor boot (and on reconnect catch-up) the plugin publishes the bot's identity — harness, plugin version, host version — in the bot's own contact profile under `bot-info`, compare-then-poke. Tlon clients use the claimed harness to pick which of _their_ static slash-command lists to suggest; this plugin publishes no command list of its own. Wire contract and clear-to-null rollback procedure: [docs/bot-info.md](../../docs/bot-info.md).
+
+The registry in `src/commands-registry.ts` is the single source of truth for registration, and `fixtures/commands.json` is its committed token list. That fixture is a CI artifact, not a wire payload: the client's drift contract (`packages/shared/src/domain/runtimeCommandContract.test.ts`, run by the `bot-checks` job) asserts it names exactly the runtime-owned portion of the client's OpenClaw list, so adding or removing a command here fails until the client list changes too. The host-core entries the list also suggests (`/status`, `/help`, `/new`, `/model`) are audit-pinned constants outside that relation — OpenClaw owns them, not this plugin. **Removals are two-phase**: hosted bots redeploy on restart while the app releases slowly, so keep a removed command's handler alive until an app release stops suggesting it.
+
+## Bundled Skills
+
+The plugin ships two skills, both declared in `skills` in `openclaw.plugin.json` (paths relative to the plugin root).
+
+### `tlon` — the CLI skill
 
 This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tloncorp/tlon-skill) which provides CLI commands for:
 
@@ -154,10 +170,20 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 -   Channel listing and history
 -   Group administration
 -   Message posting and reactions
--   Notes channel management and note CRUD
+-   Notes channel management, note CRUD, and diary-to-notes migration
 -   Settings management
 
 The skill is automatically available to your agent. For standalone usage, see the [tlon-skill repo](https://github.com/tloncorp/tlon-skill).
+
+`%diary` channels are deprecated, but OpenClaw can still read and send to their `diary/~host/name` nests directly. The model tool does not manage diary notebooks. The configured owner can type `/migrate <diary-nest> [--allow-write-widening]` to migrate directly to a fresh `%notes` notebook. Migration renames the source with `-ARCHIVE`; it does not make that source read-only.
+
+### `tlon-product-guide` — the product knowledge skill
+
+`skills/tlon-product-guide/SKILL.md` lives in this repo and is the bot's answer sheet for product questions: what Tlon, Urbit, Tlon Messenger, and Tlonbot are, how features work, and how to walk someone through a task. It carries no tools — OpenClaw loads the body when the model decides a question is in scope, and the model narrates the answer.
+
+Keep it a product reference, not an operating manual: anything that reads or mutates a node belongs in the `tlon` CLI skill. Edit `SKILL.md` directly to update the guide; the `description` frontmatter is what OpenClaw puts in the system prompt, so trigger coverage lives there.
+
+The guide makes claims about product behavior, so it goes stale the way code comments do — a renamed screen or a changed command turns it into confidently wrong support copy. When you change a slash command, a channel type, or a permissions rule, grep this file. `packages/openclaw/skills/**` is on `bot-harness-deploy.yml`'s path filter, so a content-only fix does reach bots on its own — but only the internal fleet. The push trigger hardcodes `TAG="tlon-internal"`; Hermes and external ships restart only via `workflow_dispatch` with the matching selector. A guide correction that needs to reach them is a manual dispatch, plus a package publish for anyone running the npm build.
 
 ## Documentation
 

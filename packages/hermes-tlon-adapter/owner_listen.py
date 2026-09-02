@@ -21,6 +21,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional
 
+from .commands import OWNER_LISTEN_USAGE, command_detection_regex
 from .tlon_api import normalize_ship
 
 SETTINGS_DESK = "moltbot"
@@ -33,14 +34,10 @@ SETTINGS_KEY_GROUP_CHANNELS = "groupChannels"
 
 NEST_PREFIXES = frozenset({"chat", "heap", "diary"})
 
-OWNER_LISTEN_USAGE = (
-    "Usage: /owner-listen [on|off|status|list] [<channel-nest>|<~host/group>] | "
-    "/owner-listen all [on|off] | /owner-listen default [owned|all]"
-)
-
 _GROUP_FLAG_RE = re.compile(r"^~[a-z][a-z-]*/[^/\s]+$", re.IGNORECASE)
 
-_COMMAND_RE = re.compile(r"^/owner-listen(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_COMMAND_RE = command_detection_regex("owner-listen")
 
 
 def _canonical_ship(ship: str) -> str:
@@ -56,6 +53,20 @@ def canonicalize_nest(raw: str) -> Optional[str]:
     if prefix.lower() not in NEST_PREFIXES or not host.strip() or not name:
         return None
     return f"{prefix.lower()}/{_canonical_ship(host)}/{name}"
+
+
+def canonicalize_notes_nest(raw: str) -> Optional[str]:
+    """Canonical notes nest without widening owner-listen channel prefixes."""
+    parts = str(raw or "").strip().split("/")
+    if (
+        len(parts) != 3
+        or parts[0].lower() != "notes"
+        or not parts[1]
+        or not parts[2]
+        or any(char.isspace() for char in parts[2])
+    ):
+        return None
+    return f"notes/{_canonical_ship(parts[1])}/{parts[2]}"
 
 
 def is_owned_channel(nest: str, *, owner_ship: str, bot_ship: str) -> bool:

@@ -26,7 +26,10 @@ function SummaryMessageRaw({
     relevancy !== 'flaggedPost' &&
     relevancy !== 'flaggedReply' &&
     relevancy !== 'contactUpdate' &&
-    relevancy !== 'reactedToPost'
+    relevancy !== 'reactedToPost' &&
+    // note events' content is just the title, so always show the verb line
+    relevancy !== 'noteAdded' &&
+    relevancy !== 'noteEdited'
   ) {
     return null;
   }
@@ -150,6 +153,20 @@ function SummaryMessageRaw({
       </SummaryText>
     );
   }
+
+  if (relevancy === 'noteAdded' || relevancy === 'noteEdited') {
+    const verb = relevancy === 'noteAdded' ? 'added' : 'edited';
+    // note events group per note source, so multiple events here are
+    // always repeat edits of the same note, never distinct notes
+    const message =
+      count === 1 ? ` ${verb} a note:` : ` ${verb} a note ${count} times:`;
+    return (
+      <SummaryText>
+        <ActivitySummaryAuthorList contactIds={authors} />
+        {message}
+      </SummaryText>
+    );
+  }
 }
 
 export const SummaryMessage = React.memo(SummaryMessageRaw);
@@ -212,7 +229,9 @@ type ActivityRelevancy =
   | 'flaggedReply'
   | 'reactedToPost'
   | 'groupJoinRequest'
-  | 'contactUpdate';
+  | 'contactUpdate'
+  | 'noteAdded'
+  | 'noteEdited';
 
 export function getRelevancy(
   summary: logic.SourceActivityEvents,
@@ -278,6 +297,14 @@ export function getRelevancy(
 
   if (newest.type === 'contact') {
     return 'contactUpdate';
+  }
+
+  if (newest.type === 'note-create') {
+    return 'noteAdded';
+  }
+
+  if (newest.type === 'note-edit') {
+    return 'noteEdited';
   }
 
   console.log(

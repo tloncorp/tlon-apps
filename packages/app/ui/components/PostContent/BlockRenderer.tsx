@@ -99,6 +99,20 @@ export function ListBlock({
   return <ListNode node={block.list} {...props} />;
 }
 
+// Contract: a tasklist list's children MAY lack a task inline — GFM permits
+// mixing plain and task items, the converter preserves that faithfully, and
+// remark re-merges adjacent lists so the wire cannot avoid the mixed shape.
+// Such children get a plain bullet; task items draw their own checkbox via
+// InlineTask, so their outer marker stays suppressed.
+export function listItemMarkerType(
+  listType: 'ordered' | 'unordered' | 'tasklist',
+  child: cn.ListData
+): 'ordered' | 'unordered' | 'tasklist' {
+  if (listType !== 'tasklist') return listType;
+  const hasTask = child.content.some((inline) => inline.type === 'task');
+  return hasTask ? 'tasklist' : 'unordered';
+}
+
 function ListNode({
   node,
 }: {
@@ -111,7 +125,10 @@ function ListNode({
       ) : null}
       {node.children?.map((childNode, i) => (
         <XStack key={i} gap="$m">
-          <ListItemMarker index={i} type={node.type ?? 'unordered'} />
+          <ListItemMarker
+            index={i}
+            type={listItemMarkerType(node.type ?? 'unordered', childNode)}
+          />
           <ListNode key={i} node={childNode} />
         </XStack>
       ))}
@@ -281,7 +298,7 @@ export function VoiceMemoBlock({
         ? progress.duration
         : 0;
     const duration =
-      loadedDuration > 0 ? loadedDuration : block.voiceMemo.duration ?? 0;
+      loadedDuration > 0 ? loadedDuration : (block.voiceMemo.duration ?? 0);
     if (duration === 0 || width <= 0) {
       return;
     }

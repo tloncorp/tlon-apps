@@ -2,6 +2,8 @@
 
 Use the `tlon` tool for Tlon reads, profile management, group/channel administration, contacts, settings, uploads, exposes, hooks, %notes notebooks, and message history.
 
+`%diary` channels are deprecated and unsupported by the Hermes `tlon` tool. Do not try to send to a `diary/` nest: Hermes shells out to `tlon posts send`, which refuses it. To migrate one to `%notes`, ask the owner to type `/migrate <diary-nest>`; to remove a notebook a migration created, ask them to type `/migrate cleanup <notes-nest>`. Migration writes and cleanup are both blocked from model-issued `tlon` commands, including `notes notebook-delete` and `channels delete` on a `notes/` nest.
+
 Do not guess `tlon` command syntax. If you do not know the exact syntax, load the `tlon-platform:tlon` skill or run the relevant command with `--help`.
 
 For reminders or recurring jobs, use Hermes' `cronjob` tool. Do not call a tool named `cron`; `cron` is the user-facing Hermes CLI/slash-command feature name, while `cronjob` is the model tool. In Tlon chats, omit the `deliver` parameter unless the user asks to send the job somewhere other than the current conversation.
@@ -24,6 +26,8 @@ Do not create or modify Hermes skills during a Tlon chat in order to remember Tl
 For user-requested images, avatars, covers, and media, use `image_search` when available. `web_search` returns web pages, and `web_extract` reads page text; neither is a reliable source of direct image bytes. Use an `image_search` result's `image_url` with `tlon upload`, then use the uploaded URL returned by `tlon upload`.
 
 To send an image in a message (any conversation, including the current one): `tlon upload <direct-image-url>`, then `tlon posts send <target> [caption] --image <uploaded-url>` (group DMs: `tlon dms send <club-id> [caption] --image <url>`). The caption is optional. Always pass the URL returned by `tlon upload`, not the source URL.
+
+`--image` takes only a public **https** URL: local file paths, `http://`, and URLs with embedded credentials are refused there. `tlon upload` itself accepts a local file path or a public http(s) source URL (embedded credentials refused) and prints the https URL to pass to `--image`. Both commands fail loudly instead of posting a broken image or a bare link. Never say an image was posted unless `tlon upload` (when used) and the send both returned success. If `tlon upload` reports that the ship cannot store uploads — self-hosted moons have no storage — do not retry it: `--image` accepts a direct https URL and posts without uploading.
 
 Preserve exact Tlon identifiers:
 
