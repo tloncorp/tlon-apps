@@ -39,7 +39,7 @@ be:
 
 ```bash
 git -C <main-checkout> fetch --prune
-stim worktree create <name> --carry-ignored --base origin/develop
+stim worktree create <name> --carry-ignored --base origin/develop --dir .worktrees
 ```
 
 `doctor` reports how far behind the main checkout is, because a later rebase
@@ -61,7 +61,7 @@ it labels `costs time` before creating one.
 
 ```bash
 cd apps/tlon-mobile
-stim worktree create <name> --carry-ignored --base origin/develop
+stim worktree create <name> --carry-ignored --base origin/develop --dir .worktrees
 cd <printed-path>/apps/tlon-mobile           # the path the command printed
 
 git checkout -b <your-branch>                # Stim leaves you on worktree-<name>
@@ -71,6 +71,11 @@ stim logs --errors                            # exit code 0 is the pass conditio
                                               # and "No matching log records" on
                                               # stderr is what a pass looks like
 ```
+
+`--dir .worktrees` keeps the worktree inside the repository, where
+`.gitignore` already excludes it. Stim's default is a `tlon-apps-worktrees/`
+sibling, which sits outside the tree a sandboxed agent may write to, so every
+edit there needs the sandbox turned off.
 
 `stim worktree create` puts you on a branch called `worktree-<name>`. That branch
 is Stim's, not a pull request branch, and it outlives the worktree: creating a

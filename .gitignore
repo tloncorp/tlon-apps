@@ -56,3 +56,6 @@ clurd
 
 # Local Superpowers planning artifacts
 /docs/superpowers/
+
+# Worktrees created by the mobile agent loop
+/.worktrees/
