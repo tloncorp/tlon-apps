@@ -32,33 +32,32 @@ import {
 } from './fakeData';
 
 const posts = createFakePosts(100);
-const wrappingPostContent = JSON.stringify([
-  {
-    inline: [
-      'I was just wondering what the stack is that actually makes an llm useful in one of the flagship interfaces',
-    ],
-  },
-  {
-    inline: [
-      "it's not quite what we think of as a harness, that can present the thing as an 'agent'",
-    ],
-  },
-  {
-    inline: [
-      'but it is a stack of stuff that can preserve context, memory and so on',
-    ],
-  },
-  {
-    inline: [
-      "that's obvious, but I hadn't thought much about what it actually is",
-    ],
-  },
-]);
-const wrappingPost = createFakePost('chat', wrappingPostContent, undefined, {
-  replyCount: 0,
-});
-const wrappingPosts = range(50).map(() =>
-  createFakePost('chat', wrappingPostContent, undefined, { replyCount: 0 })
+const wrappingPost = createFakePost(
+  'chat',
+  JSON.stringify([
+    {
+      inline: [
+        'I was just wondering what the stack is that actually makes an llm useful in one of the flagship interfaces',
+      ],
+    },
+    {
+      inline: [
+        "it's not quite what we think of as a harness, that can present the thing as an 'agent'",
+      ],
+    },
+    {
+      inline: [
+        'but it is a stack of stuff that can preserve context, memory and so on',
+      ],
+    },
+    {
+      inline: [
+        "that's obvious, but I hadn't thought much about what it actually is",
+      ],
+    },
+  ]),
+  undefined,
+  { replyCount: 0 }
 );
 
 type UpstreamWrappingItem = {
@@ -531,13 +530,6 @@ export default {
       negotiationMatch={true}
       theme={'light'}
       passedProps={() => ({ posts: [wrappingPost] })}
-    />
-  ),
-  chatMessageWrappingStress: (
-    <ChannelFixture
-      negotiationMatch={true}
-      theme={'light'}
-      passedProps={() => ({ posts: wrappingPosts })}
     />
   ),
   emptyChat: (
