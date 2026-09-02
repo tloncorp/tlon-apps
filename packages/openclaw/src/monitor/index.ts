@@ -124,6 +124,7 @@ import {
 import {
   type OnboardingStepReport,
   createAgentOnboardingCatchUpScheduler,
+  createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
   handleAgentOnboardingRequest,
   scanAgentOnboardingChannel,
@@ -3934,6 +3935,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return;
       }
       try {
+        const presentation = createAgentOnboardingReconciliationPresence({
+          conversationId: nest,
+          createRunId: () => `onboarding-reconcile:${randomUUID()}`,
+          refreshRun: (params) => computingPresence.refreshRun(params),
+          stopRun: (params) => computingPresence.stopRun(params),
+        });
         const reconciled = await scanAgentOnboardingChannel({
           accountId: account.accountId,
           api,
@@ -3945,20 +3952,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ownerShip: effectiveOwnerShip,
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
-          presentation: {
-            startThinking: () => {
-              computingPresence.refreshRun({
-                conversationId: nest,
-                runId: `onboarding-reconcile:${nest}`,
-              });
-            },
-            stopThinking: () => {
-              computingPresence.stopRun({
-                conversationId: nest,
-                runId: `onboarding-reconcile:${nest}`,
-              });
-            },
-          },
+          presentation,
         });
         if (opts.abortSignal?.aborted) return;
         clearAgentOnboardingRetry(nest);
@@ -4230,7 +4224,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           throw error;
         }
         if (handledOnboardingRequest) {
-          onboardingCatchUp.complete(nest);
           // Onboarding requests and deterministic picker replies are
           // control-plane messages. Their visible text remains transcript
           // history but never wakes the model.

@@ -345,7 +345,35 @@ export function createAgentOnboardingCatchUpScheduler({
     }
   };
 
-  return { reconcile, schedule, complete, stop, drain };
+  return { reconcile, schedule, stop, drain };
+}
+
+export function createAgentOnboardingReconciliationPresence({
+  conversationId,
+  createRunId,
+  refreshRun,
+  stopRun,
+}: {
+  conversationId: string;
+  createRunId: () => string;
+  refreshRun: (params: { conversationId: string; runId: string }) => void;
+  stopRun: (params: { conversationId: string; runId: string }) => void;
+}) {
+  let activeRunId: string | null = null;
+
+  return {
+    startThinking: () => {
+      if (activeRunId) return;
+      activeRunId = createRunId();
+      refreshRun({ conversationId, runId: activeRunId });
+    },
+    stopThinking: () => {
+      if (!activeRunId) return;
+      const runId = activeRunId;
+      activeRunId = null;
+      stopRun({ conversationId, runId });
+    },
+  };
 }
 
 type FirstRunCorrelation = {

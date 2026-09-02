@@ -22,6 +22,7 @@ import {
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
   createAgentOnboardingCatchUpScheduler,
+  createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
@@ -30,6 +31,7 @@ import {
   parseAgentOnboardingRequest,
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
+import { createComputingPresenceTracker } from './computing-presence.js';
 
 const provision = {
   type: 'tlon-agent-provision' as const,
@@ -693,18 +695,50 @@ describe('agent onboarding catch-up', () => {
     expect(scan).toHaveBeenCalledTimes(3);
   });
 
-  it('cancels a pending catch-up when live handling completes', async () => {
-    vi.useFakeTimers();
-    const scan = vi.fn(async () => false);
-    const scheduler = createAgentOnboardingCatchUpScheduler({
-      scan,
-      retryDelaysMs: [10],
+  it('uses a fresh thinking run after a completed reconciliation', async () => {
+    const reporter = { publish: vi.fn(async () => {}) };
+    const tracker = createComputingPresenceTracker({
+      reporter,
+      minUpdateIntervalMs: 0,
+    });
+    const createRunId = vi
+      .fn()
+      .mockReturnValueOnce('reconcile-1')
+      .mockReturnValueOnce('reconcile-2');
+    const presentation = createAgentOnboardingReconciliationPresence({
+      conversationId: 'chat/~ten/general',
+      createRunId,
+      refreshRun: tracker.refreshRun,
+      stopRun: tracker.stopRun,
     });
 
-    scheduler.schedule('chat/~ten/general');
-    scheduler.complete('chat/~ten/general');
-    await vi.advanceTimersByTimeAsync(100);
-    expect(scan).not.toHaveBeenCalled();
+    presentation.startThinking();
+    await Promise.resolve();
+    await Promise.resolve();
+    presentation.stopThinking();
+    await Promise.resolve();
+    await Promise.resolve();
+    presentation.startThinking();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(createRunId).toHaveBeenCalledTimes(2);
+    expect(reporter.publish).toHaveBeenCalledTimes(3);
+    expect(reporter.publish).toHaveBeenNthCalledWith(1, {
+      conversationId: 'chat/~ten/general',
+      thinking: true,
+      toolNames: [],
+    });
+    expect(reporter.publish).toHaveBeenNthCalledWith(2, {
+      conversationId: 'chat/~ten/general',
+      thinking: false,
+      toolNames: [],
+    });
+    expect(reporter.publish).toHaveBeenNthCalledWith(3, {
+      conversationId: 'chat/~ten/general',
+      thinking: true,
+      toolNames: [],
+    });
   });
 });
 
