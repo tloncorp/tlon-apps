@@ -5208,3 +5208,141 @@ transcript is an audit that will be lost, and this project has now lost two.)
   D160's guard then verified on the real tree rather than a copy: CURRENT after
   the rebuild, STALE naming `scripts/surface-runtime.ts` when one source is
   touched, CURRENT again on revert.
+
+### The second aged-board revision, and the metric it broke
+
+- **D164: the revision is a minimal, correct, behaviour-changing EDIT — and the
+  word-survival metric classified it as a REGENERATION. The metric is wrong,
+  and that is the finding.**
+
+  `chat/~zod/dash-lihku4fx` — `srf-climbing-sessions`, a cold 6a.5-era board in
+  `~zod/surface-seed`, revision 2. Request, imperative and group-qualified:
+  *"In the Surface seed group's climbing sessions board, order the climbers by
+  who climbed most recently and show when each of them last climbed instead of
+  their session count."* Preflight ABSENT on all four surfaces beforehand.
+
+  | | |
+  | --- | --- |
+  | line survival | 67.7% (67 of 99) |
+  | word survival | **67.3%** (206 of 306) — below the 70% threshold |
+  | actions | 1 → 1, kept by id | 
+  | surfaceId | unchanged; revision 2 → 3 |
+  | bytes | 3395 → 3405 |
+
+  **Why the label is wrong.** The 70% threshold was calibrated on ADDITIVE
+  requests — D149's scored 100% because nothing had to be removed. This request
+  was behaviour-CHANGING, and "rank by total, show count" cannot become "rank
+  by recency, show date" without deleting the accumulator and both of its
+  display sites. Every changed region maps onto a clause of the request:
+  `totalFor` → `lastClimbed`, an alphabetical sort → a recency comparator, two
+  `right=` badges, the card title and empty-state copy, and the removed
+  trailing `Stat`. The `LOG` helper, the `has` helper, the `register` shape,
+  the Card scaffolding and the sole action are byte-identical.
+
+  So the generalisable claim is not about this app. **Word survival conflates
+  how much text changed with whether the loop regenerated, and it stops
+  discriminating exactly where the request requires deletion.** A metric that
+  reads a minimal correct edit as a rewrite cannot be used to defend the format
+  verdict against behaviour-changing requests — which are most real revisions.
+  D130's evidence was twelve observations, and it is now known that all of them
+  were of the shape this metric can measure. That is a limit on the evidence,
+  not a reversal of it: nothing here suggests the loop regenerates, and the
+  structural markers all say edit.
+
+  **What a better discriminator would key on**, recorded rather than built: the
+  survival of code the request does NOT implicate, plus the structural markers
+  already collected (surfaceId, action ids, untouched helpers byte-identical).
+  Building it needs a way to decide "implicated", which is a judgement the
+  measurement currently outsources to a threshold.
+
+  **The app works, checked rather than assumed** — D140's standing reason not
+  to stop at the diff, and here the check is unusually strong: the SAME witness
+  that returned ABSENT before the run returns **PRESENT** after it, matched at
+  `"Last climb"`, with all five negatives still unmatched so it is not matching
+  by accident. Painted text: `"… ~ten2026-08-31 ~zod2026-08-31 Last climbed
+  ~ten2026-08-31 ~zod2026-08-31"` — counts gone, dates in their place, footer
+  removed.
+
+  **The pre-registered caveat held.** Both climbers tie on `2026-08-31`, so the
+  ordering half is unobservable in the render; that was written into the record
+  before the run, not discovered after it. The ordering is verifiable only by
+  reading the comparator, which is implemented correctly.
+
+  **One honest debit:** the edit also extracted a `peopleIn` helper the request
+  did not ask for — about five lines of unrequested refactor.
+
+  **The confound, as pre-registered, pointed toward regeneration and did not
+  produce one:** `habit-tracker`, added hours earlier, is a structural twin of
+  this board and a near drop-in donor. The loop edited the stranger anyway.
+
+### The nine-template live loop
+
+- **D165: nine of nine templates published and took a member interaction
+  observed by scry, and the loop found a silent data-loss bug that every check
+  in the pipeline reported as success.**
+
+  All nine ran in `~zod/umnjhaod` from one-sentence requests, bot-driven, with
+  the fence bound to that group alone. No bot turn came near the 300s cap; the
+  slowest was 133s. `countdown` is carved out of the member-interaction
+  requirement by its own declaration, as decided before the run and not after.
+
+  **The bug: `--preserve-state` silently discards a revision's new
+  `initialState` fields.** It posts a migration snapshot of the PRE-revision
+  state, and the reducer serves that snapshot instead of `initialState`, so
+  anything the new spec adds there is never consulted. Confirmed on
+  `chat/~zod/ski-trip-expenses`:
+
+  ```
+  spec @ revision 2   itemOrder: ["house","van","food","ferry","lift"]  + action paid-lift
+  LIVE state          itemOrder: ["house","van","food","ferry"]
+                      baseSnapshotSeq 3 = newestFoldedSeq 3, foldedEventCount 0
+  ```
+
+  Lint passed, publish passed, the read-back confirmed the description carries
+  exactly the new definition. `paid-lift` is a declared action writing to a key
+  nothing draws.
+
+  **What makes it a trap rather than a bug.** Four other templates took the
+  identical shape and worked — poll, potluck, habit-tracker, leaderboard — but
+  ONLY because the bot also posted a host event writing the new field into live
+  state (`foldedEventCount ≥ 1` after the snapshot). Nothing in the pipeline
+  requires that compensating event. Whether a revision lands is currently down
+  to whether the model remembers, and the four successes are what would make
+  anyone conclude the path works.
+
+  **It is not evenly distributed, and that is the connection worth keeping.**
+  The templates that need new-field revisions at all are the ones whose ITEM
+  SET must grow — expense-split, potluck, kanban. Poll and rsvp never reach
+  this path because their options are fixed by the request. So v0's
+  parameterless-action constraint routes exactly those three templates onto the
+  one path in the pipeline that fails silently.
+
+  **Two smaller findings.** A re-ask after a clarifying question created a
+  SECOND channel with the same title rather than publishing into the one it had
+  just made (`dash-5hi7zfn3` orphaned, `spec-absent`; `ski-trip-expenses`
+  published) — adjacent to D50's burned-name discipline and not covered by it.
+  And `surface preview` injects a fixed `now = 1735689600000` (2025-01-01), so
+  a countdown targeting Oct 2026 is rubric-scored at "652 days", a number no
+  member will ever see: deterministic by design, and a hole in what check 7 can
+  mean for a time-display app.
+
+- **D166: the mechanism classifier is now known wrong in BOTH directions, and
+  the second direction was found by the same run that found the first.**
+  D164 recorded it calling a minimal behaviour-changing EDIT a regeneration,
+  because word survival drops whenever a request requires deletion. The
+  template loop supplies the opposite error: the rsvp venue change and the
+  countdown date change went out correctly as HOST EVENTS with a byte-identical
+  bundle and no revision bump, and `measure.py` reported both as **NO-OP** —
+  because it only diffs bundles, and a host event changes the board without
+  changing a byte of code.
+
+  So the instrument mislabels in both directions, for the same underlying
+  reason: **it infers a mechanism from bundle text, when a revision legitimately
+  happens through two different mechanisms and a correct edit may delete as much
+  as it adds.** A replacement has to read the mechanism from what was POSTED —
+  spec revision, migration snapshot, host event — and use text survival only to
+  characterise a republish once it knows it is looking at one.
+
+  Recorded rather than built. It is the first thing to fix before any further
+  format measurement, because every number D130 rests on came from this
+  instrument.

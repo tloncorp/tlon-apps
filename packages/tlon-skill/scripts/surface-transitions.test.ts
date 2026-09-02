@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { beforeAll, describe, expect, it } from 'bun:test';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -116,6 +116,15 @@ const templateReports = once<Map<string, ReachabilityReport>>(() => {
 /* ------------------------------------------------------------------ */
 
 describe('kanban-v2, the board D140 was written about', () => {
+  // The walk is memoised, so whichever test runs first pays for all 4096
+  // states. That put exactly one assertion over bun's 5s default on a CI
+  // runner while every other test in this block read the memo in under a
+  // millisecond. Paying it in a hook with its own budget attaches the timeout
+  // to the work rather than to whichever assertion happens to be listed first.
+  beforeAll(() => {
+    kanbanV2();
+  }, 120_000);
+
   it('closes: every reachable state explored, with the bound unspent', () => {
     const { report } = kanbanV2();
     expect(report.problem).toBeUndefined();
@@ -244,6 +253,13 @@ describe('a declared action behind a screen nobody can reach', () => {
 
 describe('the shipped templates', () => {
   const names = templateNames();
+
+  // Same reason as kanban-v2's hook: the nine walks are memoised together, so
+  // the alphabetically-first template was paying for all of them and timing
+  // out on CI while the other eight read the memo instantly.
+  beforeAll(() => {
+    templateReports();
+  }, 300_000);
 
   it('ships templates to walk', () => {
     // A loop over an empty list is a green suite that checks nothing.

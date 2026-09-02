@@ -506,14 +506,105 @@ probe and renders its JSON, so the tolerance was single-sourced all along.
 
 ## §9 Part III — the live loop
 
-_Open at the time of writing._
+Preconditions confirmed before starting, all live: desk preflight **exit 0** on
+both ships (641 files matching each, clay verified), container up, fakeships up,
+write fence present, and — for the first time today — the CLI actually built
+from this branch:
 
-Preconditions confirmed before starting: desk preflight **exit 0** on both
-ships (641 files matching each, clay verified), container up, fakeships up,
-write fence present. The container runs the skill from the mounted worktree
-(`TLON_SKILL_DIR=/workspace/tlon-apps/packages/tlon-skill`), so this session's
-changes reach the live loop without a rebuild — to be confirmed by a live
-control rather than assumed.
+```
+[PASS] cli-built-from-this-source
+    container CLI: /workspace/tlon-apps/packages/tlon-skill/bin/tlon
+    sources: 73 files, digest a276f35bfce3 … binary sha256 9cbc22d03571
+    every one of the 73 compiled sources matches the build stamp
+```
+
+### §9.1 The second aged-board revision — and the metric it broke
+
+`chat/~zod/dash-lihku4fx`, `srf-climbing-sessions`, a cold 6a.5-era board in
+`~zod/surface-seed` at revision 2. Nothing in this session produced it.
+
+**Request**, imperative and group-qualified: *"In the Surface seed group's
+climbing sessions board, order the climbers by who climbed most recently and
+show when each of them last climbed instead of their session count."* Preflight
+**ABSENT on all four surfaces** beforehand. Revision moved **2 → 3** in under
+two minutes.
+
+| | |
+| --- | --- |
+| line survival | 67.7% (67 of 99) |
+| word survival | **67.3%** (206 of 306) |
+| actions | 1 → 1, kept by id |
+| surfaceId | unchanged; revision 2 → 3 |
+| bytes | 3395 → 3405 |
+| classifier verdict | **REGENERATION** (threshold 70%) |
+
+**The classifier is wrong, and that is the result.** The 70% threshold was
+calibrated on ADDITIVE requests — D149's scored 100% because nothing had to be
+removed. This request was behaviour-CHANGING, and "rank by total, show count"
+cannot become "rank by recency, show date" without deleting the accumulator and
+both of its display sites. Every changed region maps onto a clause of the
+request: `totalFor` → `lastClimbed`, an alphabetical sort → a recency
+comparator, two `right=` badges, the card title and empty-state copy, and the
+removed trailing `Stat`. The `LOG` helper, the `has` helper, the `register`
+shape, the Card scaffolding and the sole action are byte-identical.
+
+So the generalisable claim is not about this app: **word survival conflates how
+much text changed with whether the loop regenerated, and it stops
+discriminating exactly where the request requires deletion.** D130's evidence
+was twelve observations, and it is now known that all of them were of the shape
+this metric can measure. That is a limit on the evidence, not a reversal of it
+— nothing here suggests the loop regenerates, and every structural marker says
+edit. **D164.**
+
+**The app works, and the check is unusually strong:** the SAME witness that
+returned ABSENT before the run returns **PRESENT** after it, matched at
+`"Last climb"`, with all five negatives still unmatched so it is not matching
+by accident.
+
+```
+"Climbing sessions … Log a session ~ten2026-08-31 ~zod2026-08-31
+ Last climbed ~ten2026-08-31 ~zod2026-08-31"
+```
+
+Counts gone, dates in their place, the `2sessions loggedSeptember 2026` footer
+removed.
+
+**The pre-registered caveat held**: both climbers tie on `2026-08-31`, so the
+ordering half is unobservable in the render. That was written into the record
+before the run, not discovered after it; the ordering is verifiable only by
+reading the comparator, which is correct.
+
+**One honest debit:** the edit also extracted a `peopleIn` helper the request
+did not ask for — about five lines of unrequested refactor.
+
+**The confound, pre-registered, pointed toward regeneration and did not produce
+one.** `habit-tracker`, added hours earlier, is a structural twin of this board
+and a near drop-in donor. The loop edited the stranger anyway.
+
+### §9.2 The nine-template loop
+
+*Open at the time of writing.*
+
+Two things were settled before it started, and both are recorded in §1 rather
+than decided mid-run. `countdown` is carved out of the member-interaction
+requirement — it declares `{mode:'none'}` with zero actions, so there is no
+interaction to observe, by design and by its own `because` sentence. And a
+template that fails the loop is a finding on the template or the pipeline,
+reported with evidence, never re-run locally until it passes.
+
+One control ran before the loop and is worth keeping: **publish refuses the
+sheet that preview writes.**
+
+```
+[rubric-incomplete] 12 of the twelve capture cells have no observation …
+  check 7 (answers-the-request) needs a "note" saying what you saw.
+  Nothing was uploaded or written.
+```
+
+Check 7's machine-stamped reachability citation is present in that same sheet
+and does **not** satisfy the check — the human note is still demanded. That is
+the division D161 intended: the machine says what was walked, the scorer says
+what it means.
 
 ---
 
