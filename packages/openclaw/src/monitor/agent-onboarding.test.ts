@@ -21,6 +21,7 @@ import {
   agentOnboardingCronProviderIds,
   agentOnboardingTesting,
   clearAgentOnboardingRuntime,
+  createAgentOnboardingCatchUpScheduler,
   drainAgentOnboardingRuntime,
   handleAgentOnboardingCronChanged,
   handleAgentOnboardingMessageSent,
@@ -654,6 +655,59 @@ describe('first-run correlation', () => {
   });
 });
 
+describe('agent onboarding catch-up', () => {
+  it('recovers a request that appears after the first empty scan', async () => {
+    vi.useFakeTimers();
+    const scan = vi
+      .fn()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    const scheduler = createAgentOnboardingCatchUpScheduler({
+      scan,
+      retryDelaysMs: [10, 20, 30],
+    });
+
+    await expect(scheduler.reconcile('chat/~ten/general')).resolves.toBe(false);
+    expect(scheduler.schedule('chat/~ten/general')).toBe(false);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(scan).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(20);
+    await scheduler.drain();
+    expect(scan).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(100);
+    expect(scan).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops after the bounded empty-scan window', async () => {
+    vi.useFakeTimers();
+    const scan = vi.fn(async () => false);
+    const scheduler = createAgentOnboardingCatchUpScheduler({
+      scan,
+      retryDelaysMs: [10, 20],
+    });
+
+    await scheduler.reconcile('chat/~ten/general');
+    await vi.advanceTimersByTimeAsync(100);
+    await scheduler.drain();
+    expect(scan).toHaveBeenCalledTimes(3);
+  });
+
+  it('cancels a pending catch-up when live handling completes', async () => {
+    vi.useFakeTimers();
+    const scan = vi.fn(async () => false);
+    const scheduler = createAgentOnboardingCatchUpScheduler({
+      scan,
+      retryDelaysMs: [10],
+    });
+
+    scheduler.schedule('chat/~ten/general');
+    scheduler.complete('chat/~ten/general');
+    await vi.advanceTimersByTimeAsync(100);
+    expect(scan).not.toHaveBeenCalled();
+  });
+});
+
 describe('agent onboarding requests', () => {
   it('forwards cancellation to the group membership scry', async () => {
     const abortController = new AbortController();
@@ -1172,6 +1226,52 @@ describe('agent onboarding requests', () => {
         }
       )
     ).resolves.toBe(true);
+    expect(sendPost).toHaveBeenCalledOnce();
+  });
+
+  it('shows thinking while a later-group greeting is reconciled', async () => {
+    const events: string[] = [];
+    const introBlob = appendToPostBlob(undefined, {
+      type: 'tlon-agent-intro-request',
+      version: 1,
+      groupId: '~ten/group',
+    });
+    const sendPost = vi.fn(async (post: { story: unknown }) => {
+      events.push('post');
+      expect(JSON.stringify(post.story)).toContain('What can I help you with?');
+      return { channel: 'tlon' as const, messageId: 'post', sentAt: 0 };
+    });
+
+    await expect(
+      scanAgentOnboardingChannel(
+        {
+          api: { scry: vi.fn() },
+          botShip: '~bot',
+          channelNest: 'chat/~ten/general',
+          groupId: '~ten/group',
+          ownerShip: '~ten',
+          presentation: {
+            startThinking: () => events.push('thinking:start'),
+            stopThinking: () => events.push('thinking:stop'),
+            minResponseDelayMs: 0,
+          },
+        },
+        {
+          fetchHistory: vi.fn(async () => [
+            {
+              author: '~ten',
+              content: "Let's get set up.",
+              timestamp: 1,
+              blob: introBlob,
+            },
+          ]),
+          sleep: vi.fn(async () => {}),
+          sendPost,
+        }
+      )
+    ).resolves.toBe(true);
+
+    expect(events).toEqual(['thinking:start', 'post', 'thinking:stop']);
     expect(sendPost).toHaveBeenCalledOnce();
   });
 
