@@ -109,6 +109,7 @@ export function AttachmentPreview({
           showSpinner={uploading || loadedMediaUri !== imageUri}
         >
           <Image
+            key={imageUri}
             backgroundColor={'$secondaryBackground'}
             position="absolute"
             top={0}
@@ -156,6 +157,7 @@ export function AttachmentPreview({
           showSpinner={uploading || loadedMediaUri !== posterUri}
         >
           <Image
+            key={posterUri}
             backgroundColor="transparent"
             position="absolute"
             top={0}
