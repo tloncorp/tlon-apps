@@ -51,11 +51,17 @@
   |=  body=@t
   ^-  json
   (need (de:json:html body))
+::  the %project variant's task list, parsed through the production codec
+::
+++  project-tasks-json
+  |=  body=@t
+  ^-  (list identified-task:v1:au)
+  =/  action=action:v1:au  (action:dejs:aj (parse-json body))
+  ?>  ?=(%project -.action)
+  tasks.action
 ++  project-automation-json
   |=  body=@t
-  =/  action=action:v1:au
-    (action:dejs:aj (parse-json body))
-  (project-automation tasks.action)
+  (project-automation (project-tasks-json body))
 ++  trace-project-json
   ^-  @t
   '''
@@ -526,7 +532,7 @@
   =/  before=state-1  !<(state-1 !<(vase q.before-res))
   =/  old=state-0  (as-released-state before)
   ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
-  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m  (ex-cards caz ~[ex-eyre-connect (ex-cleanup-timer ~2024.1.1)])
   ;<  after-res=cage  bind:m  (got-peek /x/dbug/state)
   =/  after=state-1  !<(state-1 !<(vase q.after-res))
   (assert-migrated-state old after)
@@ -667,9 +673,8 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  action=action:v1:au
-    (action:dejs:aj (parse-json trace-project-json))
-  =/  projected=(list identified-task:v1:au)  tasks.action
+  =/  projected=(list identified-task:v1:au)
+    (project-tasks-json trace-project-json)
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation-json trace-project-json)
   ;<  res=cage  bind:m  (got-peek /x/v1/automation/tasks)
@@ -687,10 +692,10 @@
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
-  =/  action=action:v1:au
-    (action:dejs:aj (parse-json trace-project-json))
+  =/  projected=(list identified-task:v1:au)
+    (project-tasks-json trace-project-json)
   =/  expected=(map ship tasks:v1:au)
-    (ship-tasks-of ~[[~dev (~(gas by *tasks:v1:au) tasks.action)]])
+    (ship-tasks-of ~[[~dev (~(gas by *tasks:v1:au) projected)]])
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (project-automation-json trace-project-json)
   ;<  *  bind:m  (do-load agent ~)
@@ -1739,6 +1744,8 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-task /activity [~dev %activity] %watch /v5)
+        ex-eyre-connect
+        (ex-cleanup-timer ~2000.1.1)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
@@ -2015,4 +2022,713 @@
   =+  !<([=status:v1:g lut=(unit @da)] q.res)
   ;<  ~  bind:m  (ex-equal !>(status) !>(%up))
   (ex-equal !>(lut) !>(`lease-time))
+::
+::  ==========================================================
+::  automation edit loop
+::  ==========================================================
+::
+::  ~dev is the bot when ~bus is its configured owner, and the owner
+::  when editing +moon's tasks. .rid is a fixed request id; every edit
+::  creates one task
+::
+++  rid  ^-  request-id:v1:au  `@uv`0x1234.5678
+++  edit-create  ^-  edit:v1:au  [%create (automation-task 'New task')]
+++  created  ^-  response-body:v1:au  [%created 'job-1']
+++  req-wire
+  |=  [bot=ship kind=@ta]
+  ^-  wire
+  /automation/req/(scot %p bot)/(scot %uv rid)/[kind]
+++  req-path
+  |=  requester=ship
+  ^-  path
+  /v1/automation/request/(scot %p requester)/(scot %uv rid)
+++  local-req-path  ^-  path  /v1/automation/request/(scot %uv rid)
+++  harness-path  ^-  path  /v1/automation/harness
+++  cleanup-wire  ^-  wire  /automation/cleanup
+::
+++  do-edit
+  |=  [bot=ship =edit:v1:au]
+  (do-poke %steward-automation-action-1 !>(`action:v1:au`[%edit rid bot edit]))
+++  do-command
+  |=  =edit:v1:au
+  (do-poke %steward-automation-command-1 !>(`c-automation:v1:au`[%edit rid edit]))
+++  do-finalize
+  |=  body=response-body:v1:au
+  (do-poke %steward-automation-action-1 !>(`action:v1:au`[%finalize rid body]))
+++  do-req-watch-sign
+  |=  [bot=ship =sign:agent:gall]
+  (do-agent (req-wire bot %watch) [bot %steward] sign)
+++  do-req-poke-sign
+  |=  [bot=ship =sign:agent:gall]
+  (do-agent (req-wire bot %poke) [bot %steward] sign)
+++  do-req-wake
+  |=  bot=ship
+  (do-arvo (req-wire bot %wake) [%behn %wake ~])
+++  do-cleanup-wake
+  (do-arvo cleanup-wire [%behn %wake ~])
+++  response-fact
+  |=  body=response-body:v1:au
+  ^-  sign:agent:gall
+  [%fact %steward-automation-response-1 !>(`response:v1:au`[rid body])]
+::
+++  ex-req-watch
+  |=  bot=ship
+  (ex-task (req-wire bot %watch) [bot %steward] %watch (req-path ~dev))
+++  ex-req-poke
+  |=  [bot=ship =edit:v1:au]
+  %^  ex-task  (req-wire bot %poke)  [bot %steward]
+  [%poke %steward-automation-command-1 !>(`c-automation:v1:au`[%edit rid edit])]
+++  ex-req-wake
+  |=  [bot=ship at=@da]
+  (ex-card %pass (req-wire bot %wake) %arvo %b %wait (add at ~s20))
+++  ex-req-leave
+  |=  bot=ship
+  (ex-task (req-wire bot %watch) [bot %steward] %leave ~)
+++  ex-local-response
+  |=  body=response-body:v1:au
+  %^  ex-fact  ~[local-req-path]  %steward-automation-response-1
+  !>(`response:v1:au`[rid body])
+++  ex-bot-response
+  |=  [requester=ship body=response-body:v1:au]
+  %^  ex-fact  ~[(req-path requester)]  %steward-automation-response-1
+  !>(`response:v1:au`[rid body])
+++  ex-dispatch
+  |=  [paths=(list path) =edit:v1:au]
+  (ex-fact paths %steward-automation-dispatch-1 !>(`dispatch:v1:au`[rid edit]))
+++  ex-cleanup-timer
+  |=  at=@da
+  (ex-card %pass cleanup-wire %arvo %b %wait (add at ~m5))
+++  ex-eyre-connect
+  (ex-card %pass /eyre/steward %arvo %e %connect [~ /steward] %steward)
+++  ex-relay
+  |=  [bot=ship =edit:v1:au at=@da]
+  ^-  (list $-(card tang))
+  ~[(ex-req-watch bot) (ex-req-poke bot edit) (ex-req-wake bot at)]
+::
+++  got-request
+  =/  m  (mare ,incoming-request:v1:au)
+  ^-  form:m
+  ;<  st=state-1  bind:m  got-state
+  (pure:m (~(got by requests.automation.st) rid))
+++  got-requests
+  =/  m  (mare ,requests:v1:au)
+  ^-  form:m
+  ;<  st=state-1  bind:m  got-state
+  (pure:m requests.automation.st)
+++  got-pending
+  =/  m  (mare ,pending:v1:au)
+  ^-  form:m
+  ;<  st=state-1  bind:m  got-state
+  (pure:m pending.automation.st)
+++  advance-clock
+  |=  by=@dr
+  (jab-bowl |=(b=bowl b(now (add now.b by))))
+::
+::  HTTP fixtures
+::
+++  http-request
+  |=  [authenticated=? method=method:http url=@t body=(unit @t)]
+  ^-  inbound-request:eyre
+  :*  authenticated
+      |
+      [%ipv4 .127.0.0.1]
+      [method url ~ ?~(body ~ `(as-octs:mimes:html u.body))]
+  ==
+++  do-http
+  |=  [eyre-id=@ta req=inbound-request:eyre]
+  (do-poke %handle-http-request !>([eyre-id req]))
+++  ex-http
+  |=  [eyre-id=@ta code=@ud ct=@t body=@t]
+  ^-  (list $-(card tang))
+  =/  paths=(list path)  ~[/http-response/[eyre-id]]
+  :~  %^  ex-fact  paths  %http-response-header
+      !>(`response-header:http`[code ~[['content-type' ct]]])
+      (ex-fact paths %http-response-data !>(`(unit octs)``(as-octs:mimes:html body)))
+      (ex-card %give %kick paths ~)
+  ==
+++  ex-http-response
+  |=  [eyre-id=@ta body=response-body:v1:au]
+  ^-  (list $-(card tang))
+  %-  ex-http
+  :^  eyre-id  200  'application/json'
+  (en:json:html (response:enjs:aj [rid body]))
+++  edit-url  ^-  @t  '/steward/~/v1/automation'
+++  request-url
+  ^-  @t
+  (crip "/steward/~/v1/automation/request/{(scow %uv rid)}")
+++  tasks-url  ^-  @t  '/steward/~/v1/automation/tasks'
+++  edit-post-body
+  |=  with-rid=?
+  ^-  @t
+  =/  fields=(list [@t json])
+    :~  ['bot' s+(scot %p moon)]
+        ['action' (edit:enjs:aj edit-create)]
+    ==
+  =?  fields  with-rid  [['requestId' s+(scot %uv rid)] fields]
+  (en:json:html (pairs:enjs:format fields))
+::
+::  ----------------------------------------------------------
+::  owner side
+::  ----------------------------------------------------------
+::
+::  an edit registers a request and relays it: watch first, then the
+::  command poke, then the pending wake
+::
+++  test-automation-edit-registers-and-relays
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-edit moon edit-create)
+  ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(bot.req) !>(moon))
+  ;<  ~  bind:m  (ex-equal !>(http-id.req) !>(*(unit @ta)))
+  ;<  ~  bind:m  (ex-equal !>(poke-status.req) !>(%sending))
+  (ex-equal !>(result.req) !>(*(unit response-body:v1:au)))
+::
+++  test-automation-edit-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~zod)
+    (do-edit moon edit-create)
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+::  a nacked per-request watch is a typed not-authorized response
+::
+++  test-automation-edit-watch-nack-is-not-authorized
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  why=tang  ~[leaf+"denied"]
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon %watch-ack `why)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response [%error %not-authorized why])])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(result.req) !>(`[%error %not-authorized why]))
+::
+++  test-automation-edit-poke-ack-marks-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack ~)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(poke-status.req) !>(%acked))
+::
+::  a nacked command is a typed unknown response, and the watch is left
+::
+++  test-automation-edit-poke-nack-is-unknown
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  why=tang  ~[leaf+"crash"]
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-req-poke-sign moon %poke-ack `why)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response [%error %unknown why]) (ex-req-leave moon)])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(poke-status.req) !>(%nacked))
+  (ex-equal !>(result.req) !>(`[%error %unknown why]))
+::
+::  the bot's response finalizes the request on the client's path and
+::  leaves the bot watch
+::
+++  test-automation-edit-response-finalizes-and-leaves
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response created) (ex-req-leave moon)])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(result.req) !>(`created))
+  (ex-equal !>(final-at.req) !>(`~2024.1.1))
+::
+::  a response naming another request is ignored
+::
+++  test-automation-edit-response-for-other-id-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  other=response:v1:au  [`@uv`0xdead created]
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m
+    (do-req-watch-sign moon %fact %steward-automation-response-1 !>(other))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(result.req) !>(*(unit response-body:v1:au)))
+::
+::  the wake marks the request pending; a late response still lands
+::
+++  test-automation-edit-wake-pends-then-late-response-lands
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-req-wake moon)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-local-response [%pending %sending])])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(result.req) !>(`[%pending %sending]))
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response created) (ex-req-leave moon)])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(result.req) !>(`created))
+::
+++  test-automation-edit-wake-after-terminal-is-silent
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  caz=(list card)  bind:m  (do-req-wake moon)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(result.req) !>(`created))
+::
+::  a client subscribing after the result landed gets it at once; before
+::  it lands, nothing; a foreign ship never gets it
+::
+++  test-automation-edit-local-request-watch-replays-result
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m  (do-watch local-req-path)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  *  bind:m  (do-leave local-req-path)
+  ;<  caz=(list card)  bind:m  (do-watch local-req-path)
+  %+  ex-cards  caz
+  ~[(ex-fact ~ %steward-automation-response-1 !>(`response:v1:au`[rid created]))]
+::
+++  test-automation-edit-local-request-watch-rejects-foreign
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-watch local-req-path)
+::
+::  sweep: a recent unfetched terminal record survives; an aged one, a
+::  pending one past its hour, and a fetched one are evicted; an
+::  in-flight record is left for its wake
+::
+++  test-automation-edit-cleanup-keeps-recent-terminal
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-cleanup-timer ~2024.1.1)])
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>((~(has by reqs) rid)) !>(&))
+::
+++  test-automation-edit-cleanup-evicts-aged-terminal
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  ~  bind:m  (advance-clock ~d2)
+  ;<  caz=(list card)  bind:m  do-cleanup-wake
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-cleanup-timer (add ~2024.1.1 ~d2))])
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+++  test-automation-edit-cleanup-evicts-pending-after-hour
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  *  bind:m  (do-req-wake moon)
+  ;<  ~  bind:m  (advance-clock ~m30)
+  ;<  *  bind:m  do-cleanup-wake
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>((~(has by reqs) rid)) !>(&))
+  ;<  ~  bind:m  (advance-clock ~m31)
+  ;<  *  bind:m  do-cleanup-wake
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+++  test-automation-edit-cleanup-keeps-in-flight
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  ~  bind:m  (advance-clock ~d2)
+  ;<  *  bind:m  do-cleanup-wake
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>((~(has by reqs) rid)) !>(&))
+::
+::  ----------------------------------------------------------
+::  bot side
+::  ----------------------------------------------------------
+::
+::  only the configured owner may command; a local poke is not the owner
+::  unless the owner is this ship
+::
+++  test-automation-command-requires-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~zod)
+    (do-command edit-create)
+  ;<  ~  bind:m  (ex-fail (do-command edit-create))
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  (ex-equal !>(pen) !>(*pending:v1:au))
+::
+::  with no harness subscribed the bot refuses at once
+::
+++  test-automation-command-harness-offline-fails-fast
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-bot-response ~bus [%error %harness-offline ~])])
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  (ex-equal !>(pen) !>(*pending:v1:au))
+::
+::  with a harness subscribed the command is recorded and dispatched
+::
+++  test-automation-command-dispatches-to-harness
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m  (do-watch harness-path)
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-dispatch ~[harness-path] edit-create)])
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  =/  expected=pending-command:v1:au  [rid ~bus edit-create ~2024.1.1]
+  (ex-equal !>((~(get by pen) rid)) !>(`expected))
+::
+++  test-automation-finalize-responds-and-drops-pending
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  caz=(list card)  bind:m  (do-finalize created)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response ~bus created)])
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  (ex-equal !>(pen) !>(*pending:v1:au))
+::
+::  a late finalize, long after the owner's wake, still answers
+::
+++  test-automation-finalize-late-still-responds
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  ~  bind:m  (advance-clock ~m10)
+  ;<  caz=(list card)  bind:m  (do-finalize created)
+  (ex-cards caz ~[(ex-bot-response ~bus created)])
+::
+++  test-automation-finalize-unknown-id-ignored
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m  (do-finalize created)
+  (ex-cards caz ~)
+::
+++  test-automation-finalize-rejects-foreign-source
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-finalize created)
+::
+::  a harness (re)subscribing receives every outstanding command; a
+::  foreign ship cannot subscribe
+::
+++  test-automation-harness-watch-replays-pending
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  *  bind:m  (do-leave harness-path)
+  ;<  caz=(list card)  bind:m  (do-watch harness-path)
+  (ex-cards caz ~[(ex-dispatch ~ edit-create)])
+::
+++  test-automation-harness-watch-rejects-foreign
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-watch harness-path)
+::
+::  the bot's per-request path admits only the owner, on its own path
+::
+++  test-automation-request-watch-admits-owner-requester-only
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-watch (req-path ~bus))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  ~  bind:m
+    %-  ex-fail
+    %-  (do-as ~zod)
+    (do-watch (req-path ~zod))
+  %-  ex-fail
+  %-  (do-as ~bus)
+  (do-watch (req-path ~zod))
+::
+::  the edit loop never touches the task map
+::
+++  test-automation-edit-loop-leaves-tasks-untouched
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    (do-command edit-create)
+  ;<  *  bind:m  (do-finalize created)
+  ;<  st=state-1  bind:m  got-state
+  (ex-equal !>((local-automation-tasks st)) !>((task-map-of ~[['task-a' task-a]])))
+::
+::  a self-owned bot: the owner still pokes the bot (itself); gall would
+::  loop the watch and poke back, which the test delivers by hand
+::
+++  test-automation-self-owned-edit-round-trip
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~dev)
+  ;<  *  bind:m  (do-watch harness-path)
+  ;<  caz=(list card)  bind:m  (do-edit ~dev edit-create)
+  ;<  ~  bind:m  (ex-cards caz (ex-relay ~dev edit-create ~2024.1.1))
+  ;<  caz=(list card)  bind:m  (do-watch (req-path ~dev))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ;<  caz=(list card)  bind:m  (do-command edit-create)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-dispatch ~[harness-path] edit-create)])
+  ;<  caz=(list card)  bind:m  (do-finalize created)
+  ;<  ~  bind:m  (ex-cards caz ~[(ex-bot-response ~dev created)])
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign ~dev (response-fact created))
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response created) (ex-req-leave ~dev)])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(result.req) !>(`created))
+  ;<  pen=pending:v1:au  bind:m  got-pending
+  (ex-equal !>(pen) !>(*pending:v1:au))
+::
+::  ----------------------------------------------------------
+::  HTTP surface
+::  ----------------------------------------------------------
+::
+++  test-automation-http-unauthenticated-is-401
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request | %'POST' edit-url `(edit-post-body &)))
+  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 401 'text/plain' 'unauthorized'))
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+::  a POST registers the request with its eyre id and relays it; the
+::  held request completes when the response lands
+::
+++  test-automation-http-post-holds-then-completes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
+  ;<  ~  bind:m  (ex-cards caz (ex-relay moon edit-create ~2024.1.1))
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  ;<  ~  bind:m  (ex-equal !>(http-id.req) !>(`'eyre-1'))
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    ;:  weld
+      `(list $-(card tang))`~[(ex-local-response created)]
+      (ex-http-response 'eyre-1' created)
+      `(list $-(card tang))`~[(ex-req-leave moon)]
+    ==
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(http-id.req) !>(*(unit @ta)))
+::
+::  the wake completes the held request with pending; the late response
+::  is stored but does not complete it a second time
+::
+++  test-automation-http-post-pending-completes-once
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body &)))
+  ;<  caz=(list card)  bind:m  (do-req-wake moon)
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    %+  weld  `(list $-(card tang))`~[(ex-local-response [%pending %sending])]
+    (ex-http-response 'eyre-1' [%pending %sending])
+  ;<  caz=(list card)  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  ~  bind:m
+    (ex-cards caz ~[(ex-local-response created) (ex-req-leave moon)])
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(result.req) !>(`created))
+::
+++  test-automation-http-post-mints-request-id
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `(edit-post-body |)))
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  ;<  ~  bind:m  (ex-equal !>(~(wyt by reqs)) !>(1))
+  =/  req=incoming-request:v1:au  q:(head ~(tap by reqs))
+  ;<  ~  bind:m  (ex-equal !>(bot.req) !>(moon))
+  (ex-equal !>(http-id.req) !>(`'eyre-1'))
+::
+++  test-automation-http-post-malformed-is-400
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'POST' edit-url `'nope'))
+  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-1' 400 'text/plain' 'invalid json'))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-2' (http-request & %'POST' edit-url `'{"bot": "~zod"}'))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-2' 400 'text/plain' 'missing `action` field'))
+  ;<  caz=(list card)  bind:m
+    %+  do-http  'eyre-3'
+    (http-request & %'POST' edit-url `'{"bot": "~zod", "action": {"explode": {}}}')
+  ;<  ~  bind:m  (ex-cards caz (ex-http 'eyre-3' 400 'text/plain' 'malformed action'))
+  ;<  reqs=requests:v1:au  bind:m  got-requests
+  (ex-equal !>(reqs) !>(*requests:v1:au))
+::
+++  test-automation-http-wrong-method-is-405
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'GET' edit-url ~))
+  (ex-cards caz (ex-http 'eyre-1' 405 'text/plain' 'method not allowed'))
+::
+::  GET by id returns the record and marks it fetched; unknown is 404
+::
+++  test-automation-http-get-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'GET' request-url ~))
+  ;<  ~  bind:m
+    (ex-cards caz (ex-http 'eyre-1' 404 'text/plain' 'request not found'))
+  ;<  *  bind:m  (do-edit moon edit-create)
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-2' (http-request & %'GET' request-url ~))
+  ;<  ~  bind:m  (ex-cards caz (ex-http-response 'eyre-2' [%pending %sending]))
+  ;<  *  bind:m  (do-req-watch-sign moon (response-fact created))
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-3' (http-request & %'GET' request-url ~))
+  ;<  ~  bind:m  (ex-cards caz (ex-http-response 'eyre-3' created))
+  ;<  req=incoming-request:v1:au  bind:m  got-request
+  (ex-equal !>(fetched.req) !>(&))
+::
+++  test-automation-http-get-tasks
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  task-a=task:v1:au  (automation-task 'Task A')
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (project-automation ~[['task-a' task-a]])
+  ;<  st=state-1  bind:m  got-state
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'GET' tasks-url ~))
+  %+  ex-cards  caz
+  %-  ex-http
+  :^  'eyre-1'  200  'application/json'
+  (en:json:html (ship-tasks:enjs:aj tasks.automation.st))
+::
+++  test-automation-http-unknown-route-is-404
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-http 'eyre-1' (http-request & %'GET' '/steward/~/v1/nope' ~))
+  (ex-cards caz (ex-http 'eyre-1' 404 'text/plain' 'not found'))
 --
