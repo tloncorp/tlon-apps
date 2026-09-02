@@ -5427,3 +5427,132 @@ transcript is an audit that will be lost, and this project has now lost two.)
   complete fix is a `--migrate-ops` input applied in the same command, making it
   atomic; that is a feature with its own validation surface and is the first
   candidate for next session.
+
+### What the bot's adaptation drops, and two checks that catch the mechanical half
+
+- **D168: the bot narrows faithfully and breaks invariants that exist only as
+  comments — so the catches had to be mechanical, and the obvious mechanical
+  rule was unshippable.**
+
+  Nine live boards compared against the templates they came from. **Five of nine
+  are clean narrowings**: things left out because the recipe never asked for
+  them (workout's weights and progression, leaderboard's streaks, countdown's
+  run-up checklist), and every addition wired end to end — no orphan actions
+  anywhere. The bot is good at this.
+
+  What it degrades is narrower and more interesting: **structural invariants
+  stated only in template comments**, and **copy it rewrites**.
+  - `kanban` drops the `here` exclusion, so every card draws a button for the
+    column it is already in — twelve dead controls.
+  - `countdown` hardcodes `"October 15, 2026"` into a card while
+    `state.targetLabel` says `"Thursday, October 22, 2026"` — two dates for one
+    launch on one screen, against a template whose whole doctrine is derive,
+    never hardcode.
+  - `potluck` drops the template's undecided grouping, so a member with no
+    course vanishes from the crew list while still counting in the headline.
+  - `"1 people active"` came from the bot REWRITING a phrase the template had
+    written plural-safe.
+
+  **The obvious no-op rule is unshippable, and that was measured before
+  anything was built.** A bare self-loop test (`edge.from === edge.to`) fires on
+  **eight of the nine shipped templates** — re-pressing `vote-pizza` legitimately
+  changes nothing. The discriminator this file first proposed — "flag it when
+  the same action changes state elsewhere" — **does not separate them**:
+  `loopOnlyActions` is 0 on every app, so every idempotent template action also
+  moves state somewhere, exactly like the kanban button.
+
+  The discriminator that works is **whose data the write belongs to**, and it is
+  not a heuristic — it is the pattern `PARADIGM.md` already documents as the
+  default. An edge `S --A--> S` in a CLOSED walk is a defect **unless EVERY op
+  of `A` mentions `$actor`**, in a path segment or in a value. `every`, not
+  `some`: the kanban action is
+  `[set /tasks/cover-art/status "doing", set /claims/$actor "cover-art"]`, and
+  an any-op test exempts it on the second op while the first is the dead half.
+  Both `$actor` spellings are load-bearing — path (`/votes/$actor`) and value
+  (`set /paidBy/ferry "$actor"`, expense-split) — and a path-only test would
+  have flagged a shipped template. Result: **0 findings on all nine templates,
+  0 on eight of nine live boards, 12 on the kanban.**
+
+  **The copy check is narrow on purpose.** Number/noun agreement against a
+  curated 25-word list, matched **per leaf text run**, never against whole-tree
+  text. That reading is load-bearing in both directions and both are tested:
+  whole-tree text glues `…shared board.` onto `1 people active` so the boundary
+  rejects the real defect, and it also INVENTS matches by gluing `Week 1` to
+  ` people are here` across sibling divs. It also respects a line the shell
+  already draws — `Stat` paints value and label in separate spans, so
+  "1 / votes so far" is never one run, and a stat label is a category name that
+  stays plural.
+
+  **Not fixed, and named:** `"split 1 ways"` is a real agreement defect in the
+  `expense-split` TEMPLATE, not the bot's doing. Admitting `ways` means
+  admitting idiomatic adverbials, which is the road to a general `1 \w+s`
+  pattern that fires on "1 status" and still misses "1 people". It is
+  executable-documented instead — a test passes `extraCountNouns: ['ways']` and
+  asserts the template then fails. And **three defects no check here can reach**
+  — countdown's contradicting dates, kanban's missing crew card, potluck's
+  vanishing undecided members — all need the REQUEST or the app's intent, which
+  the reachability pass explicitly does not have.
+
+### The populated captures are synthetic, and now say so
+
+- **D169: six of nine templates fold to a board no group could produce, the
+  defect is representativeness rather than reachability, and the fix could not
+  be the obvious one because of a binding this project added the day before.**
+
+  `foldPopulatedState` invokes EVERY declared action, rotating three synthetic
+  ships. So wherever two actions write the same slot, the last one declared
+  wins it. Measured: `rsvp` headlines **"0 Coming"** with all three declining;
+  `workout-tracker` has every member failing all five lifts; `kanban` puts all
+  six cards in Done with three members claiming the same one; `potluck` puts all
+  three on dessert and paints **`Dessert 4 of 3`**. Plausible: poll, leaderboard.
+  Honestly vacuous: countdown.
+
+  **A correction to how this was first framed here.** None of these states are
+  unreachable — a member really can be the fourth on dessert, because the app
+  declares no cap. The defect is **representativeness**, not reachability, which
+  is precisely why the transition graph cannot fix it.
+
+  **Why the obvious fix was impossible, not merely partial.** "Use the authored
+  `state.json`" cannot reach the artifact the mechanism protects: `surface
+  publish` REFUSES a `--state` sheet by name (D157's `stateSha256` binding), so
+  the sheet that gates publish is always fold-based. Yesterday's guard closed
+  the door on today's preferred remedy — worth recording, because that is the
+  cost of a binding and it was not foreseen when the binding was written.
+  Constraining the fold was rejected too: the spec declares no capacities to
+  stop at (`courses.mains.want` is app-authored state with no schema), and a
+  fold that merely LOOKED plausible would be scored as real with no tell at all.
+
+  So check 5's cell now carries a machine stamp, mirroring check 7's
+  reachability citation: what was folded, by whom, and that no group produced
+  it. **The line never judges the board** — judging needs a model of what a group
+  would do, which nothing here has — so poll is not slandered and potluck is not
+  excused.
+
+  **The blast radius is wider than check 5.** The sheet lets check 7 name any of
+  the twelve cells, so a reviewer can answer "is this what was asked for" from a
+  synthetic capture and read "0 Coming" as a broken app. The doctrine now says
+  to score check 7 from an `initial` capture; **no validator enforces it**,
+  deliberately, because a populated capture can legitimately be the best place
+  to judge prominence. Stated hole, not an oversight.
+
+  **Evidence this failure mode is real and not theoretical: I fell into it.**
+  Reading the populated cells, I reported to Patrick that three shipped
+  templates were defective — over-capacity, self-contradictory, everything-done.
+  All three were artifacts. I had read the caveat earlier the same day.
+
+- **D170: two guards for the same hazard, one silent and one loud, in the same
+  hour — and the loud one is the pattern.** Adding the `count-agreement` rule
+  broke `surfaces-eval-probe.ts`, which refuses to score when the gate holds a
+  rule it has not classified: *"REFUSING TO SCORE: the gate has rule(s) this
+  probe does not classify."* That is the correct shape, and its own comment says
+  why — defaulting would file a behavioural rule under `lint` on a scoreboard
+  whose entire purpose is to keep those apart. `count-agreement` is now filed
+  beside `jargon`, because the split those lists make is fold-versus-not rather
+  than rendered-versus-not.
+
+  Contrast the tolerance list in the same file, which D162 recorded as
+  hand-maintained: it went stale AGAIN in this session when check 5's citation
+  was added. Same file, same hazard, two mechanisms — one fails loudly and got
+  fixed in a minute, one fails silently and has now been forgotten twice in two
+  days. **The lesson is not "maintain the list"; it is that a list which must
+  grow with an artifact should refuse rather than default.**

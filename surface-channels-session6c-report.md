@@ -755,7 +755,7 @@ should refuse rather than default.** **D170.**
 
 ---
 
-## §10 Notes for M3/M4
+## §11 Notes for M3/M4
 
 **M3 owns the thing this session broke open.** `--preserve-state` is M3's
 revision-transition contract ("both preserving (migration snapshot, pending
