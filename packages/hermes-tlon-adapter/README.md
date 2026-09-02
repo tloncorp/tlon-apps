@@ -203,7 +203,7 @@ Unknown ships are not silently dropped — they queue for owner approval:
 -   a **DM invite** from an unknown ship queues with a `(DM invite - no message yet)` preview (pending invites are also picked up by scry at connect and after every SSE reconnect, so invites that arrived while the gateway was down are not lost). An already-allowlisted ship (env allowlists or the `dmAllowlist` settings key) auto-accepts natively without queuing when `autoAcceptDmInvites` is on; with it off (the default), the invite is left pending in Tlon rather than re-queued as a fresh approval. Only the owner's invite bypasses the toggle — see [Settings-Key Parity](#settings-key-parity-dashboard--openclaw) below
 -   a **DM message** from an unapproved ship in an accepted conversation queues with the message preview and is replayed after approval
 -   an **unauthorized mention** in a restricted group channel queues a channel request; approval grants that ship access in that channel and replays the mention (with channel context)
--   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls the group's channels into the monitored set so the bot is addressable there. Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept; rejection leaves the invite untouched in Tlon.
+-   a **group invite** from an unapproved inviter queues a group request; approval joins the group (`tlon groups accept-invite`) and pulls its channels into the monitored set, while rejection declines the invite on the ship (`tlon groups reject-invite`, staying pending if that call fails). Invites are detected live via a `groups /v1/foreigns` subscription and caught up by scrying `/groups-ui/v7/init` at connect and after every SSE reconnect; an undelivered owner notification is re-sent on later observations (no periodic timer, at most every 10 minutes), and a delivered request is never re-notified while it lives. The owner ship and `TLON_GROUP_INVITE_ALLOWLIST` (settings key `groupInviteAllowlist`) auto-accept.
 
 The owner is notified by DM with a plain-text summary plus an **A2UI approval card** (post-blob entry, rendered by current Tlon clients in DMs): Allow / Reject / Block buttons that type the matching command back into the DM via the `tlon.sendMessage` action, and a View-message button (`tlon.navigate`) when there is a source message. `/pending` renders the same per-item View buttons on its card. Old clients fall back to the text, as does any card that fails validation — the notification itself always goes out.
 
@@ -214,13 +214,13 @@ Owner commands (deterministic, never wake the model):
 ```
 /pending                  list pending requests
 /allow <id>               approve (accepts the DM/group invite if needed, grants access, replays the message)
-/reject <id>              drop the request; a pending DM/group invite is left untouched
-/ban <id|~ship>           block natively via %chat (and clear pending requests from that ship)
+/reject <id>              drop the request; a pending group invite is declined on the ship, a DM invite is left untouched
+/ban <id|~ship>           block natively via %chat and revoke the DM grant (banning a group request by id also declines its invite; /ban ~ship clears pending requests without declining)
 /unban ~ship              unblock
 /banned                   list blocked ships
 ```
 
-Approved DM senders persist in the `dmAllowlist` %settings key and pending requests in `pendingApprovals` (48h TTL) — the same keys the OpenClaw plugin uses, so state carries over in both directions. Bans use Tlon's native ship blocking (no plugin state). Repeat messages from a still-pending ship update the stored preview but re-notify the owner at most every 10 minutes.
+Approved DM senders persist in the `dmAllowlist` %settings key and pending requests in `pendingApprovals` (48h TTL) — the same keys the OpenClaw plugin uses, so state carries over in both directions. Bans use Tlon's native ship blocking (no plugin state). A `/ban` on a group request blocks the inviter, removes it from `dmAllowlist`, then declines the invite — the DM grant is revoked before the decline so a partial ban (block succeeded, decline failed) leaves no live authorization behind, and the failed step keeps the request pending for a retry. Repeat messages from a still-pending ship update the stored preview but re-notify the owner at most every 10 minutes.
 
 ### Per-Channel Open Access
 
@@ -265,12 +265,12 @@ Tlon's hosting service (the backend behind the web dashboard and in-app bot sett
 | `dmAllowlist`            | approved DM senders (see [Access Control & Approvals](#access-control--approvals))                          |
 | `channelRules`           | per-channel open/restricted mode + `allowedShips` (see [Per-Channel Open Access](#per-channel-open-access)) |
 | `groupChannels`          | extra monitored channels, additive to `TLON_CHANNELS`                                                       |
-| `groupInviteAllowlist`   | inviters whose group invites auto-accept                                                                    |
+| `groupInviteAllowlist`   | inviters whose group invites auto-accept; a list (even `[]`) overrides, anything else uses the env seed     |
 | `defaultAuthorizedShips` | global fallback `allowedShips` for restricted channels whose rule doesn't pin its own list                  |
 | `autoAcceptDmInvites`    | whether an allowlisted ship's native DM invite auto-accepts (default off; owner always accepts)             |
 | `autoDiscoverChannels`   | whether an inbound message in an unmonitored `chat/`/`heap/` channel starts monitoring it (default off)     |
 
-All seven load on connect, hot-reload live via the `%settings` subscription (no restart needed), and re-sync after every SSE reconnect. `autoAcceptDmInvites`/`autoDiscoverChannels` are read as strict booleans — a non-boolean or missing value falls back to the default (`autoAcceptDmInvites` to `false`; `autoDiscoverChannels` to the `TLON_AUTO_DISCOVER` seed) rather than being truthy-coerced. `defaultAuthorizedShips` accepts only string ship entries; non-string list items are dropped, not coerced.
+All seven load on connect, hot-reload live via the `%settings` subscription (no restart needed), and re-sync after every SSE reconnect. `autoAcceptDmInvites`/`autoDiscoverChannels` are read as strict booleans — a non-boolean or missing value falls back to the default (`autoAcceptDmInvites` to `false`; `autoDiscoverChannels` to the `TLON_AUTO_DISCOVER` seed) rather than being truthy-coerced. `defaultAuthorizedShips` accepts only string ship entries; non-string list items are dropped, not coerced. `groupInviteAllowlist` resolves exactly like OpenClaw's `settings.groupInviteAllowlist ?? account.groupInviteAllowlist`: only a list value is an owner-authored override (an empty list means "nobody auto-accepts"), and it too takes string entries only; a key that is absent, deleted, or holds a non-list value reverts to the `TLON_GROUP_INVITE_ALLOWLIST` seed instead of keeping whatever was loaded before, so a deletion missed during an outage cannot leave revoked authorization in memory.
 
 The `autoAcceptDmInvites` gate follows OpenClaw exactly: only the **owner's** invite bypasses the toggle; every other allowlisted ship — env `TLON_ALLOWED_USERS`/`TLON_ALLOW_ALL_USERS`/`TLON_DM_ALLOWLIST` or the settings-store `dmAllowlist` — is gated, and a gated-off invite is left pending in Tlon (not queued as a fresh approval; the ship is already approved). Unknown ships queue for owner approval regardless of the flag.
 

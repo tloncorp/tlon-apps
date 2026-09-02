@@ -760,15 +760,6 @@ function useCreateChat() {
                     'Agent group setup failed after opening',
                     error
                   );
-                  // Durable intro/provision posts take over once present. If
-                  // furnishing failed earlier, clear its provisional marker.
-                  void db.agentGroupOnboardingLocks.setValue((current) => {
-                    const lock = current[furnishing.group.id];
-                    if (!lock || lock.provision) return current;
-                    const remaining = { ...current };
-                    delete remaining[furnishing.group.id];
-                    return remaining;
-                  });
                   setCreateChatError(
                     error instanceof Error
                       ? error.message
