@@ -2851,14 +2851,15 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
  * The services pitch, in terms of what the owner just built. The old copy
  * ("Connect calendars, docs, or notes to give me more to work with") named
  * the mechanism and no benefit, and read identically whichever purpose was
- * chosen.
+ * chosen. Name only what the connector catalog actually offers: there is no
+ * calendar connector, so the pitch can't promise one.
  */
 function servicesPitch(purposeId: AgentOnboardingPurposeId) {
   switch (purposeId) {
     case 'agent-learning':
       return (
-        'Connect your calendar or notes and I can fit each update around ' +
-        'your day and build on what you’re already reading.'
+        'Connect your notes or docs and I can build each update on what ' +
+        'you’re already reading.'
       );
     case 'agent-research':
       return (
@@ -2867,8 +2868,8 @@ function servicesPitch(purposeId: AgentOnboardingPurposeId) {
       );
     case 'agent-daily-digest':
       return (
-        'Connect your calendar and docs and your morning digest can cover ' +
-        'your own day — meetings, deadlines, notes — not just the news.'
+        'Connect your docs and notes and your morning digest can cover your ' +
+        'own projects, not just the news.'
       );
   }
 }
