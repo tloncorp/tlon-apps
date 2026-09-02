@@ -73,9 +73,11 @@ stim logs --errors                            # exit code 0 is the pass conditio
 ```
 
 `--dir .worktrees` keeps the worktree inside the repository, where
-`.gitignore` already excludes it. Stim's default is a `tlon-apps-worktrees/`
-sibling, which sits outside the tree a sandboxed agent may write to, so every
-edit there needs the sandbox turned off.
+`.gitignore` excludes it. Stim's default is a `tlon-apps-worktrees/` sibling,
+which sits outside the tree a sandboxed agent may write to, so every edit there
+needs the sandbox turned off. The path is relative to where the command runs,
+so from `apps/tlon-mobile` the worktree lands in
+`apps/tlon-mobile/.worktrees/`; the ignore rule matches at any depth.
 
 `stim worktree create` puts you on a branch called `worktree-<name>`. That branch
 is Stim's, not a pull request branch, and it outlives the worktree: creating a
