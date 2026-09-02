@@ -20,6 +20,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, Platform, TurboModuleRegistry } from 'react-native';
 import 'react-native-get-random-values';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { featureFlags as screensFeatureFlags } from 'react-native-screens';
 import {
   ReanimatedLogLevel,
   configureReanimatedLogger,
@@ -29,6 +30,14 @@ import App from './src/App';
 import { useDbReady } from './src/hooks/useDbReady';
 import { initializeBackgroundSync } from './src/lib/backgroundSync';
 import { shouldSuppressForegroundNotification } from './src/lib/notificationPresentation';
+
+// Keep react-native-screens from zeroing every native-stack screen's Fabric
+// frame whenever the root resizes. On Android 15+ MainActivity resizes the root
+// for the keyboard, and a background screen (the tab host under a channel)
+// never re-reports its frame after that reset, so it ends up laid out one
+// status-bar inset too short and the tab bar floats above the bottom edge.
+// TLON-6443; upstream: software-mansion/react-native-screens#4551.
+screensFeatureFlags.experiment.androidResetScreenShadowStateOnOrientationChangeEnabled = false;
 
 // Extend BigInt so serialization will never crash in JSON.parse
 (BigInt.prototype as any).toJSON = function () {
