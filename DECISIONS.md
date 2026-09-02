@@ -5702,7 +5702,10 @@ standing between untrusted model-generated JavaScript and the network.
   because the base image already carries their libraries.
 
   Fixed by splitting the step: `playwright install-deps` every run,
-  `playwright install` only on a miss. Recorded because it is this session's
+  `playwright install` only on a miss. **Demonstrated on the next run,
+  `e9d03fa0e0`, under the conditions that failed:** cache hit, binaries step
+  skipped, system-deps step ran, `204 passed (7.2m)`. Same runner class, same
+  warm cache, one variable changed. Recorded because it is this session's
   own class of defect — a guard whose first green was a property of the
   environment it happened to run in, not of the thing it measures — landing
   on the job that was added to remove that class. The claim "the posture

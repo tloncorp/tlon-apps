@@ -410,6 +410,20 @@ converted local time to UTC with the wrong offset, and the one datum that
 contradicted me — a `BlobNotFound` response stamped with the real UTC time — I
 waved off as a stale cache. Nothing was anomalous; the alarm was arithmetic.
 
+**The posture job then failed its second CI run, and the first pass had been
+an accident.** On the next push — one markdown file — `Sandbox Posture (3
+engines)` failed and took `CI OK` red. Every webkit case died in 1–4 ms:
+`MiniBrowser: error while loading shared libraries: libwoff2dec.so.1.0.2`. The
+job cached browser binaries and ran `install --with-deps` only on a cache
+miss; the apt libraries webkit needs are not in that cache, so a cold cache
+installed them and a warm one did not. The 204/204 above was a property of the
+runner's cache state, not of the suite — a guard whose first green could not
+have failed, on the job added to remove that class (D171.4 amendment). Fixed by
+installing system deps every run and caching only binaries, and **demonstrated
+on `e9d03fa0e0` under the failing conditions**: warm cache, binaries skipped,
+deps installed, `204 passed`. That head, not `d633eb9c3c`, is the one the CI
+claim rests on.
+
 The two sibling workflows at the time of this push — Hermes Tlon Adapter CI: in_progress; OpenClaw Plugin CI: in_progress
 — are separate from the merge gate; both passed on the previous head.
 
