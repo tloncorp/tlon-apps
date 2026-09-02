@@ -44,6 +44,8 @@ describe('file read completion guard', () => {
     "I'll read the file now, and then summarize it.",
     'Reviewing the CSV now.',
     'Processing the data now.',
+    "I'm currently reading the file.",
+    "I'll quickly analyze it.",
     'Reading the file is underway.',
     'Parsing the file now.',
     'Scanning the records now.',
@@ -64,6 +66,9 @@ describe('file read completion guard', () => {
     'I finished reading the file.',
     'Done reading the file.',
     'The file has been read.',
+    'Done.',
+    'Finished.',
+    "I've read the file. It will be summarized next.",
   ])('recognizes formatted or silent incomplete output: %s', (reply) => {
     expect(isIncompleteFileDeliveryReply(reply)).toBe(true);
   });
@@ -403,6 +408,51 @@ describe('file read completion guard', () => {
         lastAssistantMessage: 'The file is empty.',
       })
     ).not.toBeNull();
+  });
+
+  it.each(['There is no content in the file.', 'The file has no content.'])(
+    'accepts common empty-result wording: %s',
+    (reply) => {
+      const guard = createFileReadCompletionGuard();
+      guard.recordToolResult(successfulRead('empty-wording', ''));
+
+      expect(
+        guard.beforeFinalize({
+          runId: 'empty-wording',
+          lastAssistantMessage: reply,
+        })
+      ).toBeNull();
+    }
+  );
+
+  it('resets emptiness from a fresh offset-zero read', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead('fresh-empty', 'old content', '/tmp/report.txt')
+    );
+    guard.recordToolResult(
+      successfulRead('fresh-empty', '', '/tmp/report.txt')
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'fresh-empty',
+        lastAssistantMessage: 'The file is empty.',
+      })
+    ).toBeNull();
+  });
+
+  it('preserves verbatim non-empty content containing empty wording', () => {
+    const guard = createFileReadCompletionGuard();
+    const content = 'status report\nThe file is empty.\nend of report';
+    guard.recordToolResult(successfulRead('quoted-empty', content));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'quoted-empty',
+        lastAssistantMessage: `Here are the requested contents:\n${content}`,
+      })
+    ).toBeNull();
   });
 
   it('does not treat an empty filename in a progress update as an empty-file result', () => {

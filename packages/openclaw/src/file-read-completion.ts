@@ -67,8 +67,10 @@ const FILE_MUTATION_TOOLS = new Set([
 const PROGRESS_VERBS =
   '(?:open(?:ing)?|read(?:ing)?|load(?:ing)?|check(?:ing)?|inspect(?:ing)?|fetch(?:ing)?|analyz(?:e|ing)|summari[sz](?:e|ing)|review(?:ing)?|process(?:ing)?|pars(?:e|ing)|scan(?:ning)?|pull(?:ing)?\\s+up|past(?:e|ing)|display(?:ing)?|show(?:ing)?|print(?:ing)?)';
 const PROGRESS_MODIFIERS = '(?:(?:going\\s+to|now|go\\s+ahead\\s+and)\\s+)?';
+const PROGRESS_ADVERBS =
+  '(?:(?:currently|quickly|briefly|carefully|first|just|now|still)\\s+)?';
 const PROGRESS_SUBJECT = "(?:(?:i(?:'ll| will|'m| am)|let me)\\s+)?";
-const PROGRESS_CLAUSE = `${PROGRESS_SUBJECT}${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}`;
+const PROGRESS_CLAUSE = `${PROGRESS_SUBJECT}${PROGRESS_ADVERBS}${PROGRESS_MODIFIERS}${PROGRESS_VERBS}\\b[^,;:\\n]{0,220}`;
 const PROGRESS_ONLY = new RegExp(
   `^(?:(?:okay|sure)[,!.]?\\s*)?${PROGRESS_CLAUSE}(?:[,;:]\\s*(?:(?:(?:and\\s+)?then|and)\\s+)?${PROGRESS_CLAUSE})*[.!…]*$`,
   'i'
@@ -82,13 +84,16 @@ const FULL_FILE_DELIVERY_CLAIM =
 const EXPLICIT_FULL_FILE_DELIVERY_CLAIM =
   /\b(?:the\s+)?(?:complete|full|entire)\s+file\s+(?:(?:is|was)\s+)?(?:displayed|shown|pasted|printed)\s+(?:inline|below|above)\b/i;
 const EMPTY_RESULT_ACKNOWLEDGMENT =
-  /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:is|was|are|were)\s+empty|contains?\s+no\s+(?:content|data|text))\b/i;
+  /\b(?:(?:an?\s+)?empty\s+file|0[- ]?bytes?|(?:file|it|this|that|[\w.-]+)\s+(?:(?:is|was|are|were)\s+empty|(?:has|had)\s+no\s+(?:content|data|text))|contains?\s+no\s+(?:content|data|text)|there\s+(?:is|was)\s+no\s+(?:content|data|text)(?:\s+(?:in|inside)\s+(?:the\s+)?(?:file|it))?)\b/i;
+const STANDALONE_COMPLETION = /^(?:done|finished|complete(?:d)?)[.!…]*$/i;
 const SUBSTANTIVE_PROGRESS_TAIL =
   /\b(?:found|contains?|confirms?|had|has|showed|shows|revealed|reveals|indicated|indicates|peak(?:ed|s)?|average[ds]?)\b|\b(?:there|it|they|this|that|which)\s+(?:is|are|was|were|has|have|had|can|could|will|would|shows?|contains?|confirms?)\b/i;
 const GERUND_RESULT_SUBJECT =
   /^(?:opening|reading|loading|checking|inspecting|fetching|analyzing|summari[sz]ing|reviewing|processing|parsing|scanning|pasting|displaying|showing|printing)\b(?:\s+[\p{L}\p{N}_.-]+){0,5}\s+(?:is|are|was|were|has|have|had|took|takes|will|would|can|could)\b/iu;
 const GERUND_PROGRESS_STATE =
   /^(?:opening|reading|loading|checking|inspecting|fetching|analyzing|summari[sz]ing|reviewing|processing|parsing|scanning|pasting|displaying|showing|printing)\b(?:\s+[\p{L}\p{N}_.-]+){0,5}\s+(?:is|are|was|were|will\s+be|would\s+be)\s+(?:underway|pending|next|ongoing|in\s+progress|not\s+yet\s+(?:done|complete)|still\s+(?:running|happening))\b/iu;
+const DEFERRED_COMPLETION_TAIL =
+  /\b(?:will|would|going\s+to)\b[^.!?\n]{0,100}\b(?:next|soon|later|shortly|afterward)\b/i;
 const TRUNCATION_MARKER =
   /^\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/im;
 
@@ -394,12 +399,14 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
       wordCount >= 3 &&
       !PROGRESS_ONLY.test(sentence) &&
       !COMPLETION_PREFIX.test(sentence) &&
+      !DEFERRED_COMPLETION_TAIL.test(sentence) &&
       !isEmptyDeliveryClaim(sentence)
     );
   });
   const completionOnly =
     completionPrefix != null &&
-    !SUBSTANTIVE_PROGRESS_TAIL.test(completionTail) &&
+    (!SUBSTANTIVE_PROGRESS_TAIL.test(completionTail) ||
+      DEFERRED_COMPLETION_TAIL.test(completionTail)) &&
     !hasVisibleResultSentence;
   return (
     (PROGRESS_ONLY.test(progressCandidate) &&
@@ -407,6 +414,7 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
       (!GERUND_RESULT_SUBJECT.test(progressCandidate) ||
         GERUND_PROGRESS_STATE.test(progressCandidate))) ||
     completionOnly ||
+    STANDALONE_COMPLETION.test(progressCandidate) ||
     isEmptyDeliveryClaim(normalized)
   );
 }
@@ -629,7 +637,11 @@ function replyCompletesTrackedRead(
   userRequest = ''
 ): boolean {
   const targets = relevantTargets(reply, state);
-  if (claimsNonEmptyTargetIsEmpty(reply, targets)) return false;
+  if (
+    claimsNonEmptyTargetIsEmpty(reply, targets) &&
+    !allTargetContentIsRepresented(reply, targets)
+  )
+    return false;
   const acknowledgedEmptyTargets = acknowledgedEmptyTargetKeys(reply, targets);
   const allEmptyTargetsAreAcknowledged = targets.every(
     ([targetKey, target]) =>
@@ -815,7 +827,7 @@ export function createFileReadCompletionGuard(options?: {
         anchors,
         bounded: readIsExplicitlyBounded(input.params),
         empty:
-          (existingTarget?.empty ?? true) &&
+          (startsFreshVersion ? true : (existingTarget?.empty ?? true)) &&
           anchors.length === 0 &&
           !text.trim(),
         // A successful retry resolves only this target's prior failure. Other
