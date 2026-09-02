@@ -190,6 +190,7 @@ export function AttachmentPreview({
             height={'100%'}
             reference={attachment.reference}
             actionIcon={null}
+            backgroundColor="$background"
           />
         </AttachmentPreviewContainer>
       );
