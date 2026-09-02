@@ -4,6 +4,7 @@ import {
   floatingComposerEstimatedHeight,
   floatingPinnedPostBannerClearance,
   getConversationContentInsets,
+  getPostCollectionTopInset,
   unobscuredConversationBottomGap,
 } from './conversationInsets';
 
@@ -88,5 +89,27 @@ describe('getConversationContentInsets', () => {
         hasFloatingPinnedPostBanner: false,
       }).bottom
     ).toBe(34 + unobscuredConversationBottomGap);
+  });
+});
+
+describe('getPostCollectionTopInset', () => {
+  it('keeps the full inset in the scroll content when no fixed notice is visible', () => {
+    expect(
+      getPostCollectionTopInset({
+        contentTopInset: 155,
+        fixedLeadingContentOwnsInset: false,
+        sharedTopInset: 155,
+      })
+    ).toBe(155);
+  });
+
+  it('does not duplicate clearance owned by a fixed leading notice', () => {
+    expect(
+      getPostCollectionTopInset({
+        contentTopInset: 155,
+        fixedLeadingContentOwnsInset: true,
+        sharedTopInset: 155,
+      })
+    ).toBe(0);
   });
 });
