@@ -282,12 +282,7 @@ function AttachmentPreviewContainer({
   showSpinner?: boolean;
 }>) {
   return (
-    <View
-      height={128}
-      borderRadius="$m"
-      overflow="hidden"
-      aspectRatio={aspect}
-    >
+    <View height={128} borderRadius="$m" overflow="hidden" aspectRatio={aspect}>
       {children}
       <RemoveAttachmentButton attachment={attachment} />
 
