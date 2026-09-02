@@ -4,9 +4,6 @@ import android.os.Build
 import android.os.Bundle
 import android.content.Intent
 import android.util.Log
-import android.view.View
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.facebook.react.ReactActivity
 import com.posthog.PostHog
 import com.posthog.android.PostHogAndroid
@@ -35,30 +32,6 @@ class MainActivity : ReactActivity() {
     super.onCreate(null)
     ensurePostHogInitialized()
     captureLifecycleEvent("App Created")
-
-    // React Native does not resize the edge-to-edge root for the IME on API 35+.
-    // Only mutate its padding when the IME inset changes; reapplying zero padding
-    // during unrelated inset dispatches can leave native tabs with stale layout.
-    if (Build.VERSION.SDK_INT >= 35) {
-      val rootView = findViewById<View>(android.R.id.content)
-      ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, insets ->
-        val imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime())
-        if (
-          view.paddingLeft != imeInsets.left ||
-          view.paddingTop != imeInsets.top ||
-          view.paddingRight != imeInsets.right ||
-          view.paddingBottom != imeInsets.bottom
-        ) {
-          view.setPadding(
-            imeInsets.left,
-            imeInsets.top,
-            imeInsets.right,
-            imeInsets.bottom
-          )
-        }
-        insets
-      }
-    }
   }
 
   /**

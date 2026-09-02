@@ -44,11 +44,11 @@ function useConversationKeyboardListProps(
       };
     }
 
-    // Android adjustResize already shrinks the viewport. Freeze the library's
-    // inset path so it does not count the keyboard twice.
+    // API 35+ edge-to-edge roots do not reliably resize for the IME. Let the
+    // keyboard adapter drive the list inset instead of native root padding.
     return {
       contentInsetEndAdjustment: undefined,
-      freeze: true,
+      freeze: false,
       keyboardDismissMode: 'on-drag' as const,
     };
   }, [composerContentInset]);
@@ -648,8 +648,11 @@ const ConversationPostListAttempt = React.forwardRef<
         contentContainerStyle={contentContainerStyle}
         {...conversationKeyboardListProps}
         // Preserve older messages while browsing history, but keep the latest
-        // message anchored as the keyboard or composer grows at the end.
-        keyboardLiftBehavior="whenAtEnd"
+        // message anchored as the keyboard or composer grows at the end. On
+        // Android, the adapter owns the IME inset, so it always lifts the list.
+        keyboardLiftBehavior={
+          Platform.OS === 'android' ? 'always' : 'whenAtEnd'
+        }
         keyboardOffset={insets.bottom}
         scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
         automaticallyAdjustsScrollIndicatorInsets={false}

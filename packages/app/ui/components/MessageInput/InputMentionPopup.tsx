@@ -45,14 +45,10 @@ function InputMentionPopupInternal(
   // MentionPopup itself returns null when options.length === 0, so the
   // backdrop would otherwise catch taps with nothing visible — skip both.
   if (isMobile && options.length > 0) {
-    // Android uses adjustResize (see AndroidManifest), so the root view
-    // already shrinks above the keyboard — a Portal's `bottom: 0` is the
-    // keyboard top. On iOS the root does not resize, so we add the
-    // keyboard height ourselves.
+    // Edge-to-edge roots do not resize around the keyboard. Position the
+    // portal from the reported keyboard height on both native platforms.
     const effectiveBottomInset =
-      Platform.OS === 'ios' && keyboardHeight > 0
-        ? keyboardHeight
-        : insets.bottom;
+      keyboardHeight > 0 ? keyboardHeight : insets.bottom;
     const bottomOffset = effectiveBottomInset + containerHeight + 24;
     // Backdrop stops just above the real composer (measured, or the static
     // fallback) so taps inside a tall multi-line input still place the

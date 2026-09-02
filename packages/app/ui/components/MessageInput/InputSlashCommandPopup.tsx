@@ -43,12 +43,10 @@ function InputSlashCommandPopupInternal(
   // Match the native mention-popup path: render in a Portal so Android
   // ancestor clipping cannot hide the list and taps outside can dismiss it.
   if (isMobile) {
-    // Android uses adjustResize, so the root already ends above the keyboard.
-    // On iOS the root does not resize, so include the keyboard height.
+    // Edge-to-edge roots do not resize around the keyboard. Position the
+    // portal from the reported keyboard height on both native platforms.
     const effectiveBottomInset =
-      Platform.OS === 'ios' && keyboardHeight > 0
-        ? keyboardHeight
-        : insets.bottom;
+      keyboardHeight > 0 ? keyboardHeight : insets.bottom;
     const bottomOffset = effectiveBottomInset + containerHeight + 24;
     const backdropBottom =
       effectiveBottomInset + (inputBarHeight ?? containerHeight);
