@@ -1758,6 +1758,9 @@ describe('agent onboarding requests', () => {
       const pitch = agentOnboardingTesting.servicesPitch(purposeId);
       expect(pitch).toMatch(/^Connect your/);
       expect(pitch).not.toContain('to give me more to work with');
+      // No calendar connector exists, so nothing can source meetings or
+      // deadlines. The pitch must not offer what can't be connected.
+      expect(pitch).not.toMatch(/calendar|meetings|deadlines/i);
     }
   );
 
