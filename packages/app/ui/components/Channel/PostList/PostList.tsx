@@ -2,7 +2,7 @@ import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
 import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
-import { Platform } from 'react-native';
+import { Platform, type ScrollView } from 'react-native';
 import { type SharedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -520,6 +520,22 @@ const ConversationPostListAttempt = React.forwardRef<
     React.useLayoutEffect(() => {
       postsWithNeighborsRef.current = postsWithNeighbors;
     }, [postsWithNeighbors]);
+    // Nothing else re-anchors an empty conversation: LegendList skips its end
+    // alignment and maintainScrollAtEnd without rows, and the composer inset
+    // reaction can run before the scroll view has reported its size. Rest the
+    // empty content at its end (offset 0, or the keyboard height while one is
+    // open) whenever its frame or content size settles.
+    const settleEmptyConversationAtEnd = React.useCallback(() => {
+      if (postsWithNeighborsRef.current.length > 0) {
+        return;
+      }
+      // LegendList types the native ref as the bare ScrollView component class;
+      // at runtime it is the ScrollView instance with its scroll methods.
+      const scrollView = listRef.current?.getNativeScrollRef() as
+        | ScrollView
+        | undefined;
+      scrollView?.scrollToEnd({ animated: false });
+    }, []);
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
         atBottomThreshold: onScrolledToBottomThreshold,
@@ -668,6 +684,8 @@ const ConversationPostListAttempt = React.forwardRef<
         // the attachment at low frequency in case Screens replaces the view.
         testID={scrollViewNativeID}
         onLoad={scheduleInitialScroll}
+        onLayout={settleEmptyConversationAtEnd}
+        onContentSizeChange={settleEmptyConversationAtEnd}
         onScroll={handleScroll}
         onScrollBeginDrag={markUserScrolled}
         onStartReached={onStartReached}

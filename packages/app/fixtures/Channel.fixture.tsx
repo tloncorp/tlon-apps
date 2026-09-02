@@ -3,6 +3,7 @@ import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { HeaderHeightContext } from '@react-navigation/elements';
 import {
   Button,
   FlatList,
@@ -504,6 +505,38 @@ function ChannelWithControlledPostLoading() {
   );
 }
 
+// Replays the agent group setup lifecycle on a timer: posts load into an
+// empty channel, the first-entry indicator appears, the first entry arrives,
+// then the indicator clears. The header height mimics the transparent native
+// header so the list carries a top content inset like it does on iOS.
+function AgentGroupSetupSequence() {
+  const [posts, setPosts] = useState<db.Post[] | null>(null);
+  const [label, setLabel] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    const timeouts = [
+      setTimeout(() => setPosts([]), 1500),
+      setTimeout(() => setLabel('Writing your first entry…'), 5000),
+      setTimeout(() => setPosts([createFakePost()]), 9000),
+      setTimeout(() => setLabel(undefined), 11000),
+    ];
+    return () => timeouts.forEach(clearTimeout);
+  }, []);
+  return (
+    <HeaderHeightContext.Provider value={103}>
+      <ChannelFixture
+        negotiationMatch={true}
+        theme={'light'}
+        passedProps={() => ({
+          posts,
+          isLoadingPosts: posts == null,
+          suppressEmptyState: true,
+          pendingThinkingLabel: label,
+        })}
+      />
+    </HeaderHeightContext.Provider>
+  );
+}
+
 function createTestChannelUnread({
   channel,
   post,
@@ -539,6 +572,14 @@ export default {
       passedProps={() => ({
         posts: [],
       })}
+    />
+  ),
+  agentGroupSetupSequence: <AgentGroupSetupSequence />,
+  chatWithThinking: (
+    <ChannelFixture
+      negotiationMatch={true}
+      theme={'light'}
+      passedProps={() => ({ pendingThinkingLabel: 'Thinking...' })}
     />
   ),
   chatWithSimulatedLoad: <ChannelWithControlledPostLoading />,
