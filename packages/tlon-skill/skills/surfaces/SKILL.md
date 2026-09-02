@@ -47,9 +47,9 @@ language: "I don't have permission to add channels here yet."
 
 ## The workflow
 
-1. **Match intent to a template.** Run `tlon surface templates list`. Two are
-   installed today — **poll** and **workout-tracker**. More are planned; the
-   command is the authority, not this sentence, and an empty catalogue is
+1. **Match intent to a template.** Run `tlon surface templates list`. Nine are
+   installed today, **poll** and **workout-tracker** among them. The command is
+   the authority, not this sentence, and an empty catalogue is
    reported as a plain fact rather than an error. Adapt the closest one — never
    invent from scratch; adapted templates are reliably good, invented apps
    reliably are not. `tlon surface templates show <name>` prints its declared
@@ -186,9 +186,10 @@ publish` refuses without it.** Changing the spec invalidates the sheet even
 
    The definition it prints is the raw one, so it is also the thing to edit
    and hand back to `surface publish`: keep the fields you are not changing
-   exactly as they came out. (`surface publish` owns `bundle.*` and
-   `specRevision` regardless of what your file says, so those you may
-   leave.)
+   exactly as they came out. (`surface publish` owns `bundle.sha256`,
+   `bundle.size`, `bundle.assetRef` and `specRevision` regardless of what your
+   file says, so those you may leave. `bundle.shellVersion` is not one of
+   them — it is yours, and it picks the shell the app renders in.)
 
    Then: edit, lint, preview, `surface publish` again. Use `--preserve-state`
    whenever the data should survive the change — the command folds the current

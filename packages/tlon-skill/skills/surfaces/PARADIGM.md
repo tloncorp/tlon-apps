@@ -275,8 +275,8 @@ The gate cross-references every `invoke('…')` in the bundle against the spec's
 declared actions. That check is the only thing standing between a typo'd id
 and a button that silently does nothing — and it works on **literals only**.
 `invoke(option.actionId)` or `invoke('vote-' + option.id)` cannot be
-cross-referenced at all, so one computed call turns the check off **for the
-whole bundle**, not just for that line.
+cross-referenced at all: the gate warns and **that call goes unchecked**, so
+every id reaching `invoke` that way is a typo nothing will catch.
 
 Rendering one button per item is still the natural shape. Do it through a
 table keyed by item id, with a literal in every entry:
@@ -648,7 +648,7 @@ its entry with it.
 | ops per action / per host event | 20                           |
 | single op value                 | 4 KB                         |
 | event entry                     | 8 KB                         |
-| snapshot state                  | 64 KB                        |
+| snapshot state                  | 128 KB                       |
 | **reduced state (live)**        | **128 KB**                   |
 | JSON depth                      | 16                           |
 | path                            | 200 chars, 12 segments       |
