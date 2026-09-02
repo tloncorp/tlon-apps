@@ -1057,32 +1057,6 @@ const installTlonDesk = async () => {
   console.log('Tlon desk installed on all ships');
 };
 
-const ensureTlonDesk = async () => {
-  console.log('Ensuring %tlon desk exists on archived ships');
-
-  for (const ship of Object.values(ships) as Ship[]) {
-    if (
-      (targetShip && targetShip !== ship.ship) ||
-      ship.skipCommit === true
-    ) {
-      continue;
-    }
-
-    try {
-      await waitForTlonDeskInKiln(ship, { maxAttempts: 1 });
-      continue;
-    } catch {
-      console.log(`Creating missing %tlon desk on ${ship.ship}`);
-      await hoodCommand(
-        ship.ship as ShipName,
-        'merge %tlon our %base',
-        ship.loopbackPort
-      );
-      await waitForTlonDeskInKiln(ship, { maxAttempts: 30 });
-    }
-  }
-};
-
 const nukeStateOnShips = async () => {
   for (const ship of Object.values(ships) as Ship[]) {
     if (targetShip && targetShip !== ship.ship) {
@@ -1681,11 +1655,10 @@ const shipNeedsExtraction = (ship: Ship): boolean => {
   // Check if the ship directory looks valid (has expected structure).
   // archive-piers.sh excludes .run and .bin/* from the tarballs, so no
   // published archive can ever contain them.
-  const hasArchiveDesk = ['tlon', 'groups'].some((desk) =>
-    fs.existsSync(path.join(shipPath, desk))
+  const expectedFiles = ['.urb', 'tlon'];
+  const hasValidStructure = expectedFiles.every((file) =>
+    fs.existsSync(path.join(shipPath, file))
   );
-  const hasValidStructure =
-    fs.existsSync(path.join(shipPath, '.urb')) && hasArchiveDesk;
 
   if (!hasValidStructure) {
     return true;
@@ -2166,9 +2139,6 @@ const main = async () => {
       await setStorageConfiguration();
       await logStorageState('post-config');
     } else {
-      // Existing archives predate %tlon. Create the desk before reading its
-      // start hash; mounting later will materialize its filesystem directory.
-      await ensureTlonDesk();
       await getStartHashes();
 
       // Nuke state and set reel service ship before mount/commit operations,
