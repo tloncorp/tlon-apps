@@ -25,7 +25,6 @@ export function useNativeHeader({
   enabled,
   title,
   titleElement,
-  titlePresentationKey,
   usesCustomTitle,
   backgroundColor,
   left,
@@ -47,11 +46,8 @@ export function useNativeHeader({
 
   const shouldUseNativeHeader =
     enabled && Platform.OS !== 'web' && navigation != null;
-  // iOS keeps the installed renderer stable so title updates cannot dismiss an
-  // open native menu. Android's header is React-rendered and can safely remount
-  // this stateless title when its semantic presentation changes.
-  const installedTitlePresentationKey =
-    Platform.OS === 'ios' ? undefined : titlePresentationKey;
+  // Keep this renderer mounted while the store reconciles title updates.
+  // Remounting discards stateful title animations during loading transitions.
   const resolvedBackgroundColor = resolveNativeHeaderColor(
     backgroundColor,
     theme
@@ -77,12 +73,7 @@ export function useNativeHeader({
         ? { backgroundColor: resolvedBackgroundColor }
         : undefined,
       headerTitle: usesCustomTitle
-        ? () => (
-            <NativeHeaderTitle
-              key={installedTitlePresentationKey}
-              store={titleStore}
-            />
-          )
+        ? () => <NativeHeaderTitle store={titleStore} />
         : undefined,
       title,
       ...buildNativeHeaderActionOptions({
@@ -98,7 +89,6 @@ export function useNativeHeader({
     } as NativeStackNavigationOptions;
   }, [
     actionPresentation,
-    installedTitlePresentationKey,
     resolvedBackgroundColor,
     title,
     titleStore,
