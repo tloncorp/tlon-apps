@@ -15,9 +15,11 @@ import {
   RULE_FIXTURES,
 } from '../surface-lint-fixtures';
 import {
+  POPULATED_CITED_CHECK,
   REACHABILITY_CITED_CHECK,
   RUBRIC_CELL_IDS,
   UNCONDITIONAL_RUBRIC_CHECKS,
+  populatedCitation,
   reachabilityCitation,
   surfaceCanonicalHash,
 } from '../surface-rubric-artifact';
@@ -61,6 +63,7 @@ function completedRubric(input: {
     cells[id] = `looked at ${id}; nothing cut off, copy reads as the group's`;
   }
   const checks: Record<string, unknown> = {};
+  const overridden = input.stateOverride !== undefined;
   // The seven universal checks, which is the sheet `surface preview` emits for
   // an ordinary app. A conditional check is added by the test that needs it,
   // so a test asserting a conditional check is REQUIRED cannot be satisfied by
@@ -85,9 +88,28 @@ function completedRubric(input: {
             }),
           }
         : {}),
+      // Check 5 carries preview's `populated` line on the same terms, built
+      // through the same helper for the same reason — and with the state source
+      // this sheet actually claims, so the fixture cannot say "the app's own
+      // starting point" over a sheet that names a supplied board.
+      ...(check.id === POPULATED_CITED_CHECK
+        ? {
+            populated: populatedCitation(
+              {
+                unchanged: false,
+                invokes: [{ actionId: 'claim' }, { actionId: 'release' }],
+                hostOps: [],
+                restoredAfterDestructive: false,
+              },
+              {
+                actors: ['~zod', '~ten', '~palfun-foslup'],
+                stateSource: overridden ? 'override' : 'spec-initial-state',
+              }
+            ),
+          }
+        : {}),
     };
   }
-  const overridden = input.stateOverride !== undefined;
   return {
     version: 1,
     surfaceId: input.surfaceId,

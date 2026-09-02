@@ -88,7 +88,7 @@
  * Only a discriminator that moves with the thing it names discriminates
  * (D138), so each gets its own.
  *
- * ## The one check that carries a machine stamp as well as a note
+ * ## The two checks that carry a machine stamp as well as a note
  *
  * Check 7 — "the screen is the thing that was asked for" — has passed three
  * real defects, and every one was about what happens when you PRESS something
@@ -105,12 +105,39 @@
  * thing as a clean one would be this session's own defect committed one level
  * up: silence read as a finding of nothing.
  *
- * Stamped unconditionally and REQUIRED, for the same reason `stateSha256` is:
- * a field absent in the ordinary case makes "nothing to report" and "the line
- * was deleted" the same shape, and a guard whose bypass is `delete` is not a
- * guard. What the validator checks is presence and a marker it could only have
- * written itself — never whether the sentence is any good, which is the same
- * boundary every other field here observes.
+ * Check 5 — "the populated state is scannable" — carries the second stamp,
+ * `populated`, and it exists because the cells it is scored on are SYNTHETIC.
+ * `foldPopulatedState` hands every declared action to every one of three
+ * invented ships, so wherever two actions write the same slot the last one
+ * declared wins, and nothing holds a count to a limit the app keeps in its own
+ * state. Measured on the nine shipped templates: six of nine produce a board no
+ * group could plausibly reach — the potluck sheet reads "Dessert 4 of 3" over
+ * "10 more wanted", the RSVP reads a headline "0 Coming" with all three members
+ * on "Can't make it". Those numbers are the harness's, not the app's.
+ *
+ * Prose did not stop this. `RUBRIC.md` has named the artifact ("Everyone in one
+ * bucket") since before the templates shipped, preview prints "whether the
+ * populated state resembles anything a real group would produce" in its
+ * did-NOT-check list on every run, and a careful reader who had read both still
+ * scored those cells as the app's own output and filed the templates as
+ * defective (D167: documenting a failure precisely, in the imperative, where the
+ * reader will see it, did not stop the reader doing it). So the sheet the
+ * scorer is filling in says it, at the check whose entire subject is those
+ * cells.
+ *
+ * Three shapes again, and again the distinction is the point. `folded:` (the
+ * ordinary case — the app's own starting point with the fold on top),
+ * `folded onto a supplied state:` (a `--state` run, where the fold also
+ * OVERWROTE any supplied member sharing a name with the synthetic crew, which
+ * is how a realistic board becomes an incoherent one), and `not folded:` (the
+ * fold produced nothing, so the populated captures are the initial ones again).
+ *
+ * Both are stamped unconditionally and REQUIRED, for the same reason
+ * `stateSha256` is: a field absent in the ordinary case makes "nothing to
+ * report" and "the line was deleted" the same shape, and a guard whose bypass is
+ * `delete` is not a guard. What the validator checks is presence and a marker it
+ * could only have written itself — never whether the sentence is any good, which
+ * is the same boundary every other field here observes.
  */
 
 import { createHash } from 'node:crypto';
@@ -286,6 +313,15 @@ export interface RubricCheckEntry {
    * have nothing to cite; REQUIRED by the validator on the one that does.
    */
   reachability?: string;
+  /**
+   * Check 5 only: what the populated captures actually are, written by preview.
+   *
+   * Also not the scorer's field, and the same relationship to the verdict:
+   * check 5's whole subject is the `populated` cells, and those cells are a
+   * mechanical fold by three invented ships rather than a board a group
+   * produced. Optional on the type, REQUIRED by the validator on check 5.
+   */
+  populated?: string;
 }
 
 /**
@@ -382,6 +418,109 @@ export const RUBRIC_STATE_SOURCES = ['spec-initial-state', 'override'] as const;
 
 export type RubricStateSource = (typeof RUBRIC_STATE_SOURCES)[number];
 
+/**
+ * The check whose entry carries a `populated` line.
+ *
+ * Named by id for the reason `REACHABILITY_CITED_CHECK` is, and pinned the same
+ * way: `surface-rubric-artifact.test.ts` asserts this is a real check and that
+ * it is number 5.
+ */
+export const POPULATED_CITED_CHECK = 'populated-scannable';
+
+/**
+ * How a `populated` line may begin.
+ *
+ * A fixed enumeration, checked exactly as `RUBRIC_REACHABILITY_MARKERS` is —
+ * presence of a prefix the machine could only have written itself, never a
+ * judgement about the sentence.
+ *
+ * The three stay apart because they are three different boards. A `--state` run
+ * is not a louder version of an ordinary one: the fold overwrites any supplied
+ * member who shares a name with the synthetic crew, so the capture mixes a
+ * realistic board with three synthetic overwrites and reads as neither. That is
+ * the run the shipped templates are reviewed with, and the one that produced
+ * "Dessert 4 of 3".
+ */
+export const RUBRIC_POPULATED_MARKERS = [
+  'folded:',
+  'folded onto a supplied state:',
+  'not folded:',
+] as const;
+
+/**
+ * What the citation builder needs off the populated fold.
+ *
+ * Structural rather than the imported `PopulatedFold`, for the reason
+ * `ReachabilityCitationInput` is: `surface publish` validates a text file and
+ * must not pull in Playwright, the shell artifact strings or the reducer to do
+ * it. `PopulatedFold` satisfies this shape, so the caller passes the fold itself
+ * and no second object can disagree with it.
+ */
+export interface PopulatedCitationFold {
+  /** set when the reducer refused to produce a state at all */
+  problem?: string;
+  /** true when folding everything produced `initialState` again */
+  unchanged: boolean;
+  /** every invoke that was folded, in fold order */
+  invokes: readonly { actionId: string }[];
+  /** every host event folded around them */
+  hostOps: readonly { at: 'before' | 'after' }[];
+  /** true when the fold added a restore pass after a destructive action */
+  restoredAfterDestructive: boolean;
+}
+
+/**
+ * One line, stamped onto check 5, saying what the populated captures ARE.
+ *
+ * The claim it makes is narrow and it is the only one available: these cells
+ * came from a fold, here is how big the fold was and who made it, and therefore
+ * here is the half of check 5 they can answer. It deliberately does NOT say the
+ * board is implausible — that judgement needs a model of what a real group
+ * would do, the spec format supplies nothing to build one from, and a tool that
+ * guessed would be an elaborate approximation of a guarantee it cannot give.
+ * What it says instead is true of every fold: every action goes to every member,
+ * so the last-declared writer of any slot wins it, and no count is held to a
+ * limit the app keeps in its own state (the spec declares no capacities, so
+ * there is nothing for the fold to stop at).
+ *
+ * The action count is derived from the invokes rather than accepted alongside
+ * them, so a caller cannot name a number the fold did not produce.
+ */
+export function populatedCitation(
+  fold: PopulatedCitationFold,
+  context: { actors: readonly string[]; stateSource: RubricStateSource }
+): string {
+  if (fold.problem !== undefined) {
+    return `not folded: ${fold.problem}, so the populated captures are the initial ones again and check 5 has no board of its own here — score the initial captures and say so in the note`;
+  }
+  const crew = context.actors.join(', ');
+  const actionCount = new Set(fold.invokes.map((invoke) => invoke.actionId))
+    .size;
+  const supplied = context.stateSource === 'override';
+  const opening = supplied
+    ? `folded onto a supplied state: the board \`--state\` supplied, with ${fold.invokes.length} invoke(s) of all ${actionCount} declared action(s) folded ON TOP as ${crew} — so every supplied member sharing a name with that crew had their entry overwritten`
+    : `folded: ${fold.invokes.length} invoke(s) of all ${actionCount} declared action(s), folded through the real reducer as ${crew}`;
+  const asides: string[] = [];
+  if (fold.restoredAfterDestructive) {
+    asides.push(
+      "some of those invokes are the tool's own — a restore pass replayed every constructive action once per actor after the rounds"
+    );
+  }
+  if (fold.hostOps.length > 0) {
+    asides.push(
+      `${fold.hostOps.length} supplied host event(s) folded alongside them`
+    );
+  }
+  if (fold.unchanged) {
+    asides.push(
+      'folding changed nothing, so these captures are the same screen as the initial ones'
+    );
+  }
+  return `${opening}. No group produced this board: every action goes to every member, so wherever two actions write the same thing the last one declared wins it, and no count here is held to any limit the app keeps in its own state.${
+    asides.length === 0 ? '' : ` Also: ${asides.join('; ')}.`
+  } Score the LAYOUT — rhythm, prominence, whether three members fit — and take no number, tally or ranking on this screen for one a real crew would produce.`;
+}
+
 export interface RubricArtifact {
   version: 1;
   surfaceId: string;
@@ -477,12 +616,32 @@ export function buildRubricTemplate(input: {
    * in its own words is a caller that will eventually describe a different one.
    */
   reachability: ReachabilityCitationInput;
+  /**
+   * The fold behind the `populated` captures, and the ships that made it, for
+   * check 5's `populated` line.
+   *
+   * REQUIRED for the reasons `reachability` is, and one more: an optional
+   * argument here is how "these cells are synthetic" becomes a thing preview
+   * says only when someone remembered to ask. The fold itself is passed and the
+   * line derived here; `stateSource` is NOT a parameter, because it is already
+   * decided below by `stateOverride` and a second copy could disagree with it.
+   */
+  populated: {
+    fold: PopulatedCitationFold;
+    /** the synthetic ships the invokes were made as */
+    actors: readonly string[];
+  };
 }): string {
   const cells: Record<string, string> = {};
   for (const cell of RUBRIC_CELL_IDS) {
     cells[cell] = '';
   }
+  const overridden = input.stateOverride !== undefined;
   const citation = reachabilityCitation(input.reachability);
+  const populated = populatedCitation(input.populated.fold, {
+    actors: input.populated.actors,
+    stateSource: overridden ? 'override' : 'spec-initial-state',
+  });
   const checks: Record<string, RubricCheckEntry> = {};
   for (const check of applicableRubricChecks(input.spec)) {
     checks[check.id] = {
@@ -492,9 +651,9 @@ export function buildRubricTemplate(input: {
       ...(check.id === REACHABILITY_CITED_CHECK
         ? { reachability: citation }
         : {}),
+      ...(check.id === POPULATED_CITED_CHECK ? { populated } : {}),
     };
   }
-  const overridden = input.stateOverride !== undefined;
   const artifact: RubricArtifact = {
     version: 1,
     surfaceId: input.surfaceId,
@@ -710,6 +869,31 @@ export function validateRubricArtifact(
             ).join(
               ', '
             )}, which is how a walk that was TRUNCATED stays distinguishable from one that closed and found nothing`
+          );
+        }
+      }
+      // Check 5 alone, and REQUIRED there, on the same terms. The line says the
+      // captures this check is scored on are a fold by three invented ships
+      // rather than a board a group produced — and a careful reader who had
+      // already read that fact in `RUBRIC.md` still scored those cells as the
+      // app's own output (D167). A sheet that lost the line is a sheet whose
+      // check 5 was scored against numbers the harness made up.
+      if (check.id === POPULATED_CITED_CHECK) {
+        if (!nonEmpty(entry.populated)) {
+          problems.push(
+            `check ${check.number} (${check.id}) needs the "populated" line \`surface preview\` stamps on it, saying what the populated captures actually are — re-run \`surface preview\` and score the sheet it writes`
+          );
+        } else if (
+          !RUBRIC_POPULATED_MARKERS.some((marker) =>
+            (entry.populated as string).trimStart().startsWith(marker)
+          )
+        ) {
+          problems.push(
+            `check ${check.number} (${check.id}) has a "populated" line that did not come from \`surface preview\`: it must begin with ${RUBRIC_POPULATED_MARKERS.map(
+              (marker) => `"${marker}"`
+            ).join(
+              ', '
+            )}, which is how a fold laid over a SUPPLIED board stays distinguishable from one laid over the app's own starting point`
           );
         }
       }

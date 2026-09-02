@@ -4,8 +4,7 @@ Branch `patrick/mini-app-mvp`, PR #6380. Split-review-ready: each section is
 self-contained, states what was measured and what was not, and names the
 decision entry that carries it.
 
-All sections are final. The one item still moving is the `--preserve-state`
-fix described in §9.2, which was dispatched after this report was written.
+All sections are final.
 
 ---
 
@@ -626,8 +625,29 @@ not change.** `paid-lift` is a declared action writing to a key nothing draws.
 shape and worked — but only because the bot ALSO posted a host event writing the
 new field into live state. Nothing requires that event. Whether a revision lands
 is down to whether the model remembers, and the four successes are exactly what
-would make anyone conclude the path works. **D165.** In scope and being fixed;
-`--preserve-state` is the M3 revision-transition contract, not adjacent work.
+would make anyone conclude the path works. **D165.**
+
+**Fixed in this session, and the fix is not the one that looks obvious.**
+Merging the new `initialState` into the carried state cannot work: the only
+merge rule safe on arbitrary member data is *seed keys the live state lacks,
+never touch a key it has*, and under that rule this bug SURVIVES, because
+`/itemOrder` exists on both sides. The rules that would repair it are all
+unsafe — replace discards reorderings members made, concatenate duplicates
+carried elements, union invents an order the author never wrote. So publish
+now REFUSES a preserving revision whose `initialState` changed, diffing old
+`initialState` against new — never against live state, which diverges the
+moment a member acts and would refuse every preserving revision. Cleared by
+`--allow-initial-state-change`, which prints the two-step remedy. **D167.**
+
+**And the reason a mechanism was needed at all is the strongest finding here.**
+Documenting it had already been tried. `SKILL.md:205-215` and
+`PARADIGM.md:679-690` describe this exact failure in the imperative, with the
+two-step remedy, the fourth-poll-choice example, and the warning *"Publish the
+revision alone and you will tell the user it was added while they look at the
+old three"* — plus an instruction to confirm with `surface state` before saying
+it landed. The bot had both documents, did the forbidden thing, and reported
+success. **Documentation of the precise failure, in the skill the model reads,
+is not a sufficient control.** That is measured, from this session's own loop.
 
 #### Two smaller findings
 
@@ -661,6 +681,77 @@ were verified by definition and folded-state read-back rather than by eye. Every
 interaction was `~ten` alone: no two-member contention, no read-only screen, no
 dark theme. Two of nine requests ended their first turn with a clarifying
 question rather than a build, and those were not re-run for determinism.
+
+---
+
+## §10 What looking at the renders found, after this report was first written
+
+This section exists because everything above was written without anyone opening
+an image. Every board in §9.2 was verified by scry, by the machine passes and by
+the reachability walk. Asked whether I had actually looked, I had not — and
+looking changed two conclusions.
+
+### §10.1 The templates are the good part; the adaptation degrades them
+
+**Five of nine boards are clean narrowings** — omissions the recipe never asked
+for, every addition wired end to end, no orphan actions. What the bot degrades
+is narrower: **structural invariants stated only in template comments**, and
+**copy it rewrites**.
+
+- `kanban` drops the rule that a card shows only the columns it is NOT in — so
+  every card draws a dead button, twelve of them.
+- `countdown` hardcodes `"October 15, 2026"` while its own state says
+  `"Thursday, October 22, 2026"` — two dates for one launch, on one screen.
+- `potluck` drops the undecided grouping, so a member with no course vanishes
+  from the list while still counting in the headline.
+- `"1 people active"` came from rewriting a phrase the template had written
+  plural-safe.
+
+Two mechanical catches now exist, because D167 measured that documenting a
+failure precisely did not stop the model committing it. **The obvious no-op rule
+was unshippable, and that was measured before anything was built:** a bare
+self-loop test fires on eight of nine shipped templates, since re-pressing
+`vote-pizza` legitimately changes nothing. The discriminator that works is whose
+data the write belongs to — a self-loop is a defect unless EVERY op of the
+action mentions `$actor` — and that is the pattern `PARADIGM.md` already
+documents, not a heuristic. Zero findings on all nine templates; twelve on the
+bot's kanban. **D168.**
+
+### §10.2 The populated captures are synthetic, and now say so
+
+`foldPopulatedState` invokes every declared action with three synthetic ships,
+so wherever two actions write the same slot the last declared wins.
+**Six of nine templates fold to a board no group could produce**: `rsvp`
+headlines "0 Coming", `workout-tracker` has everyone failing every lift,
+`potluck` paints `Dessert 4 of 3`.
+
+Check 5 is `populated-scannable`, and check 7 may be scored from any of the
+twelve cells — so a reviewer is asked to judge realism against a board that
+cannot exist. **The defect is representativeness, not reachability**, which is
+why the transition graph cannot help.
+
+The obvious fix — render the authored `state.json` — is not partial but
+impossible: `surface publish` refuses a `--state` sheet by name (D157's binding,
+added the day before), so the sheet that gates publish is always fold-based.
+**Yesterday's guard closed the door on today's remedy.** Check 5's cell now
+carries a machine stamp saying what was folded and that no group produced it,
+mirroring check 7's reachability citation. The line never judges the board,
+because judging needs a model of what a group would do. **D169.**
+
+### §10.3 The evidence that this matters is that I fell into it
+
+Reading the populated cells, I reported that three shipped templates were
+defective — over-capacity, self-contradictory, everything-done. All three were
+artifacts of the fold, and the caveat existed in preview's own output, which I
+had read earlier the same day. Same shape as D167 one layer up: a warning in
+prose, seen by the reader, and insufficient.
+
+One more instance landed in the same hour. The new copy rule broke the eval
+probe, which **refuses to score when the gate holds a rule it cannot classify**
+— loudly, by design. The tolerance list in the same file, which must also grow
+with the artifact, went stale silently for the second time in two days. Same
+file, same hazard, two mechanisms: **a list that must grow with an artifact
+should refuse rather than default.** **D170.**
 
 ---
 

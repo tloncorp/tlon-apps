@@ -1413,6 +1413,15 @@ export async function renderSurfacePreview(
       // whole pass exists to stop, committed in the sheet that records stopping
       // it.
       reachability,
+      // Check 5's citation, and the same discipline: the FOLD is passed, not a
+      // sentence about it, so the sheet cannot describe a board other than the
+      // one the twelve cells show. Check 5's entire subject is the `populated`
+      // captures, and those captures are this fold by these three invented
+      // ships — a fact `RUBRIC.md` has stated since before the templates
+      // shipped, and which a careful reader still got wrong (D167). Prose where
+      // the reader will see it did not work; the sheet they are filling in is
+      // the next surface in.
+      populated: { fold: populated, actors: [...PREVIEW_ACTORS] },
     })
   );
 

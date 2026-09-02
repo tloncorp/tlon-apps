@@ -10,11 +10,13 @@ import { describe, expect, it } from 'bun:test';
 import { canonicalJson } from '../surface-canonical-json';
 import { COMPLIANT_FIXTURE } from '../surface-lint-fixtures';
 import {
+  POPULATED_CITED_CHECK,
   REACHABILITY_CITED_CHECK,
   RUBRIC_CELL_IDS,
   RUBRIC_CHECKS,
   UNCONDITIONAL_RUBRIC_CHECKS,
   applicableRubricChecks,
+  populatedCitation,
   reachabilityCitation,
   surfaceCanonicalHash,
 } from '../surface-rubric-artifact';
@@ -117,6 +119,7 @@ function completedRubric(input: {
     cells[id] = `looked at ${id}; nothing cut off, copy reads as this group's`;
   }
   const checks: Record<string, unknown> = {};
+  const overridden = input.stateOverride !== undefined;
   for (const check of input.checks ?? RUBRIC_CHECKS) {
     checks[check.id] = {
       verdict: 'pass',
@@ -137,9 +140,26 @@ function completedRubric(input: {
             }),
           }
         : {}),
+      // Check 5 carries preview's `populated` line on the same terms, from the
+      // same helper, with the state source this sheet actually claims.
+      ...(check.id === POPULATED_CITED_CHECK
+        ? {
+            populated: populatedCitation(
+              {
+                unchanged: false,
+                invokes: [{ actionId: 'claim' }, { actionId: 'release' }],
+                hostOps: [],
+                restoredAfterDestructive: false,
+              },
+              {
+                actors: ['~zod', '~ten', '~palfun-foslup'],
+                stateSource: overridden ? 'override' : 'spec-initial-state',
+              }
+            ),
+          }
+        : {}),
     };
   }
-  const overridden = input.stateOverride !== undefined;
   return {
     version: 1,
     surfaceId: input.surfaceId,

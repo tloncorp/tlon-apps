@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'bun:test';
 
 import {
+  POPULATED_CITED_CHECK,
   REACHABILITY_CITED_CHECK,
   RUBRIC_CELL_IDS,
   RUBRIC_CHECKS,
   RUBRIC_CHECK_IDS,
+  RUBRIC_POPULATED_MARKERS,
   RUBRIC_REACHABILITY_MARKERS,
   RUBRIC_VERDICTS,
   UNCONDITIONAL_RUBRIC_CHECKS,
   applicableRubricChecks,
   buildRubricTemplate,
+  populatedCitation,
   reachabilityCitation,
   rubricResiduals,
   surfaceCanonicalHash,
@@ -38,6 +41,27 @@ const CLEAN_WALK = {
   findings: [],
 };
 
+/** An ordinary fold: two actions, six invokes, nothing exotic. */
+const PLAIN_FOLD = {
+  unchanged: false,
+  invokes: [
+    { actionId: 'send' },
+    { actionId: 'project' },
+    { actionId: 'send' },
+    { actionId: 'project' },
+    { actionId: 'send' },
+    { actionId: 'project' },
+  ],
+  hostOps: [],
+  restoredAfterDestructive: false,
+};
+
+/** The three ships every fold is made as. */
+const CREW = ['~zod', '~ten', '~palfun-foslup'];
+
+/** The fold as `buildRubricTemplate` takes it. */
+const PLAIN_POPULATED = { fold: PLAIN_FOLD, actors: CREW };
+
 /**
  * A complete sheet. Twelve distinguishable observations and seven scored
  * checks — the state a model reaches by filling in the template preview wrote.
@@ -58,6 +82,16 @@ function complete(): Record<string, unknown> {
       // cannot satisfy a marker rule the real writer would fail.
       ...(check.id === REACHABILITY_CITED_CHECK
         ? { reachability: reachabilityCitation(CLEAN_WALK) }
+        : {}),
+      // Preview stamps this on check 5 and the validator requires it there, on
+      // exactly the terms above.
+      ...(check.id === POPULATED_CITED_CHECK
+        ? {
+            populated: populatedCitation(PLAIN_FOLD, {
+              actors: CREW,
+              stateSource: 'spec-initial-state',
+            }),
+          }
         : {}),
     };
   }
@@ -138,6 +172,7 @@ describe('buildRubricTemplate', () => {
         bundleSha256: SHA,
         spec: SPEC,
         reachability: CLEAN_WALK,
+        populated: PLAIN_POPULATED,
       })
     );
     expect(Object.keys(template.cells)).toEqual([...RUBRIC_CELL_IDS]);
@@ -166,6 +201,7 @@ describe('buildRubricTemplate', () => {
         spec: SPEC,
         stateOverride: SUPPLIED_STATE,
         reachability: CLEAN_WALK,
+        populated: PLAIN_POPULATED,
       })
     );
     expect(template.stateSource).toBe('override');
@@ -194,6 +230,7 @@ describe('buildRubricTemplate', () => {
           },
         },
         reachability: CLEAN_WALK,
+        populated: PLAIN_POPULATED,
       })
     );
     expect(Object.keys(template.checks)).toContain(
@@ -212,6 +249,8 @@ describe('buildRubricTemplate', () => {
           bundleSha256: SHA,
           spec: SPEC,
           reachability: CLEAN_WALK,
+          populated: PLAIN_POPULATED,
+          populated: PLAIN_POPULATED,
         })
       )
     );
@@ -512,6 +551,7 @@ describe('the reachability citation on check 7', () => {
         bundleSha256: SHA,
         spec: SPEC,
         reachability: CLEAN_WALK,
+        populated: PLAIN_POPULATED,
       })
     );
     const checks = template.checks as Record<string, Record<string, unknown>>;
@@ -650,5 +690,214 @@ describe('the reachability citation on check 7', () => {
       if (id !== REACHABILITY_CITED_CHECK) delete checks[id].reachability;
     }
     expect(validateRubricArtifact(sheet).ok).toBe(true);
+  });
+});
+
+/**
+ * The `populated` citation on check 5.
+ *
+ * The reason it exists is D167 and a measurement. Check 5's whole subject is
+ * the `populated` captures, and those captures are `foldPopulatedState`'s
+ * output: every declared action handed to every one of three invented ships.
+ * Six of the nine shipped templates produce a board no group could plausibly
+ * reach — the potluck sheet reads "Dessert 4 of 3" over "10 more wanted", the
+ * RSVP reads a headline "0 Coming" with all three members on "Can't make it" —
+ * and a careful reader who had already read the caveat in `RUBRIC.md` and in
+ * preview's own did-NOT-check list still scored those numbers as the app's and
+ * filed the templates as defective. Prose where the reader will see it did not
+ * work, so the line is stamped into the sheet they are filling in.
+ */
+describe('the populated citation on check 5', () => {
+  it('names a real check, and it is number 5', () => {
+    // A duplicated string, pinned rather than trusted — the same discipline
+    // `REACHABILITY_CITED_CHECK` and `RUBRIC_CELL_IDS` get.
+    expect(RUBRIC_CHECK_IDS).toContain(POPULATED_CITED_CHECK);
+    expect(
+      RUBRIC_CHECKS.find((check) => check.id === POPULATED_CITED_CHECK)?.number
+    ).toBe(5);
+  });
+
+  it('is stamped on check 5 and on nothing else', () => {
+    const template = JSON.parse(
+      buildRubricTemplate({
+        surfaceId: 'srf-climb',
+        bundleSha256: SHA,
+        spec: SPEC,
+        reachability: CLEAN_WALK,
+        populated: PLAIN_POPULATED,
+      })
+    );
+    const checks = template.checks as Record<string, Record<string, unknown>>;
+    expect(checks[POPULATED_CITED_CHECK].populated).toContain('folded:');
+    for (const [id, entry] of Object.entries(checks)) {
+      if (id === POPULATED_CITED_CHECK) continue;
+      expect(entry.populated).toBeUndefined();
+    }
+  });
+
+  it("says the board is the harness's, and what the cells can still be scored for", () => {
+    const citation = populatedCitation(PLAIN_FOLD, {
+      actors: CREW,
+      stateSource: 'spec-initial-state',
+    });
+    expect(citation.startsWith('folded:')).toBe(true);
+    // The counts come off the fold itself, so the sheet cannot name a fold that
+    // did not happen: six invokes over two distinct actions.
+    expect(citation).toContain('6 invoke(s) of all 2 declared action(s)');
+    expect(citation).toContain('~zod, ~ten, ~palfun-foslup');
+    expect(citation).toContain('No group produced this board');
+    // The half that survives: layout is scorable off a synthetic board, the
+    // numbers are not.
+    expect(citation).toContain('Score the LAYOUT');
+    expect(citation).toContain('take no number');
+  });
+
+  it("keeps a fold over a SUPPLIED board apart from a fold over the app's own", () => {
+    // The distinction is the point, and it is the run the shipped templates are
+    // reviewed with: `--state` puts a realistic board underneath, and then the
+    // fold overwrites every supplied member sharing a name with the synthetic
+    // crew. That is how the potluck's "~zod bringing mains" became "~zod
+    // bringing dessert" and the sheet read "Dessert 4 of 3".
+    const plain = populatedCitation(PLAIN_FOLD, {
+      actors: CREW,
+      stateSource: 'spec-initial-state',
+    });
+    const supplied = populatedCitation(PLAIN_FOLD, {
+      actors: CREW,
+      stateSource: 'override',
+    });
+    expect(plain.startsWith('folded:')).toBe(true);
+    expect(supplied.startsWith('folded onto a supplied state:')).toBe(true);
+    expect(supplied.startsWith('folded:')).toBe(false);
+    expect(supplied).toContain('had their entry overwritten');
+    expect(plain).not.toContain('overwritten');
+  });
+
+  it('says so, differently again, when nothing was folded at all', () => {
+    const citation = populatedCitation(
+      {
+        problem:
+          'the spec declares no actions and no host ops were supplied, so nothing can populate it',
+        unchanged: true,
+        invokes: [],
+        hostOps: [],
+        restoredAfterDestructive: false,
+      },
+      { actors: CREW, stateSource: 'spec-initial-state' }
+    );
+    expect(citation.startsWith('not folded:')).toBe(true);
+    expect(citation).toContain('the spec declares no actions');
+    expect(citation).toContain('the populated captures are the initial ones');
+  });
+
+  it("attributes the restore pass's extra invokes to the tool", () => {
+    // Those invokes are not the app's doing, and a scorer counting members
+    // against the invoke list would otherwise read them as the spec's.
+    const citation = populatedCitation(
+      { ...PLAIN_FOLD, restoredAfterDestructive: true },
+      { actors: CREW, stateSource: 'spec-initial-state' }
+    );
+    expect(citation).toContain('a restore pass replayed every constructive');
+    expect(
+      populatedCitation(PLAIN_FOLD, {
+        actors: CREW,
+        stateSource: 'spec-initial-state',
+      })
+    ).not.toContain('restore pass');
+  });
+
+  it('says when the fold changed nothing, and when host events were folded', () => {
+    const unchanged = populatedCitation(
+      { ...PLAIN_FOLD, unchanged: true },
+      { actors: CREW, stateSource: 'spec-initial-state' }
+    );
+    expect(unchanged).toContain(
+      'these captures are the same screen as the initial ones'
+    );
+    const withHostOps = populatedCitation(
+      { ...PLAIN_FOLD, hostOps: [{ at: 'before' }, { at: 'after' }] },
+      { actors: CREW, stateSource: 'spec-initial-state' }
+    );
+    expect(withHostOps).toContain('2 supplied host event(s)');
+  });
+
+  it('every shape it emits satisfies the validator that requires it', () => {
+    // The builder and the marker list are in one file precisely so they cannot
+    // drift; this is the assertion that says so, over every branch.
+    const folds = [
+      PLAIN_FOLD,
+      { ...PLAIN_FOLD, unchanged: true },
+      { ...PLAIN_FOLD, restoredAfterDestructive: true },
+      { ...PLAIN_FOLD, hostOps: [{ at: 'after' as const }] },
+      { ...PLAIN_FOLD, problem: 'the reducer returned refused' },
+    ];
+    for (const fold of folds) {
+      for (const stateSource of ['spec-initial-state', 'override'] as const) {
+        const citation = populatedCitation(fold, {
+          actors: CREW,
+          stateSource,
+        });
+        expect(
+          RUBRIC_POPULATED_MARKERS.some((marker) => citation.startsWith(marker))
+        ).toBe(true);
+        const sheet = complete();
+        (sheet.checks as Record<string, Record<string, unknown>>)[
+          POPULATED_CITED_CHECK
+        ].populated = citation;
+        expect(validateRubricArtifact(sheet).ok).toBe(true);
+      }
+    }
+  });
+
+  it('refuses a sheet whose check-5 citation was deleted, and accepts the same sheet with it', () => {
+    // Both directions off ONE fixture, so the fulcrum is the field and nothing
+    // else. Satisfiable-by-omission is the hole `stateSha256` closed and check
+    // 7's citation closed again: "nothing to report" and "the line was deleted"
+    // must not be the same shape.
+    const withIt = complete();
+    expect(validateRubricArtifact(withIt).ok).toBe(true);
+
+    const without = complete();
+    delete (without.checks as Record<string, Record<string, unknown>>)[
+      POPULATED_CITED_CHECK
+    ].populated;
+    const result = validateRubricArtifact(without);
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.code).toBe('rubric-incomplete');
+    expect(result.ok === false && result.problems.join(' ')).toContain(
+      'needs the "populated" line'
+    );
+  });
+
+  it('refuses a citation that did not come from preview', () => {
+    const sheet = complete();
+    (sheet.checks as Record<string, Record<string, unknown>>)[
+      POPULATED_CITED_CHECK
+    ].populated = 'looks like a real potluck to me';
+    const result = validateRubricArtifact(sheet);
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.problems.join(' ')).toContain(
+      'did not come from'
+    );
+  });
+
+  it('requires it on check 5 only — the other checks may carry nothing', () => {
+    const sheet = complete();
+    const checks = sheet.checks as Record<string, Record<string, unknown>>;
+    for (const id of Object.keys(checks)) {
+      if (id !== POPULATED_CITED_CHECK) delete checks[id].populated;
+    }
+    expect(validateRubricArtifact(sheet).ok).toBe(true);
+  });
+
+  it("is a second stamp, not a replacement for check 7's", () => {
+    // The two answer different questions off different passes, and a sheet
+    // missing either is refused. Merging them would put one line where two
+    // claims are made.
+    const sheet = complete();
+    const checks = sheet.checks as Record<string, Record<string, unknown>>;
+    expect(checks[POPULATED_CITED_CHECK].reachability).toBeUndefined();
+    expect(checks[REACHABILITY_CITED_CHECK].populated).toBeUndefined();
+    expect(POPULATED_CITED_CHECK).not.toBe(REACHABILITY_CITED_CHECK);
   });
 });

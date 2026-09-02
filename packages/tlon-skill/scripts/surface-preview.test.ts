@@ -1574,6 +1574,141 @@ describe('renderSurfacePreview — the scoring sheet', () => {
   });
 });
 
+/* ------------------------------------------------------------------ */
+/* the populated captures are synthetic, and the sheet has to say so   */
+/* ------------------------------------------------------------------ */
+
+/** One shipped template's files, read from the skill tree they ship in. */
+function template(name: string): { spec: unknown; state: unknown } {
+  const dir = join(process.cwd(), 'skills', 'surfaces', 'templates', name);
+  return {
+    spec: JSON.parse(readFileSync(join(dir, 'spec.json'), 'utf8')),
+    state: JSON.parse(readFileSync(join(dir, 'state.json'), 'utf8')),
+  };
+}
+
+/** The `populated` line preview stamps on check 5, off a real render. */
+async function populatedLine(request: {
+  spec: unknown;
+  stateOverride?: Record<string, unknown>;
+}): Promise<{ line: string; state: Record<string, unknown> }> {
+  const { launcher } = fakeLauncher();
+  const outcome = await renderSurfacePreview({
+    bundleSource: 'globalThis.render = () => ({ type: "Screen", props: {} });',
+    bundleSha256: '7'.repeat(64),
+    spec: request.spec,
+    outDir: outDir(),
+    launcher,
+    ...(request.stateOverride === undefined
+      ? {}
+      : { stateOverride: request.stateOverride }),
+  });
+  const sheet = JSON.parse(readFileSync(outcome.rubricTemplatePath, 'utf8'));
+  return {
+    line: sheet.checks['populated-scannable'].populated as string,
+    state: outcome.populated.state as Record<string, unknown>,
+  };
+}
+
+describe('renderSurfacePreview — the sheet says what the populated cells ARE', () => {
+  /**
+   * The failing control, and it is the case that was actually misread.
+   *
+   * `surface preview potluck/app.js potluck/spec.json --state
+   * potluck/state.json` renders an `initial` cell reading "Mains 2 of 4, Sides
+   * 1 of 4, Drinks 1 of 3, Dessert 1 of 3" over "9 more wanted" — a sheet that
+   * reconciles — and a `populated` cell reading "Mains 0 of 4, Drinks 0 of 3,
+   * **Dessert 4 of 3**" over "10 more wanted". The fold hands all five
+   * course actions to each of ~zod, ~ten and ~palfun-foslup, so all three end
+   * on the last one declared and overwrite the courses the supplied board had
+   * them down for. Nothing in the twelve images says any of that, and a careful
+   * reader scored those numbers as the app's and filed the template as broken.
+   *
+   * Both halves are asserted here: the board really is over capacity (so the
+   * test fails if someone decides the citation is no longer needed because the
+   * fold "got better"), and the sheet really does say where it came from.
+   */
+  it('stamps the potluck fold that reads "Dessert 4 of 3" as a fold over a supplied board', async () => {
+    const potluck = template('potluck');
+    const { line, state } = await populatedLine({
+      spec: potluck.spec,
+      stateOverride: potluck.state as Record<string, unknown>,
+    });
+
+    // The board itself, first: four members on a course the sheet wants three
+    // of, and every one of the synthetic crew moved off what they were down for.
+    const bringing = state.bringing as Record<string, { course?: string }>;
+    const dessert = Object.values(bringing).filter(
+      (entry) => entry.course === 'dessert'
+    );
+    const want = (
+      potluck.state as { courses: Record<string, { want: number }> }
+    ).courses.dessert.want;
+    expect(want).toBe(3);
+    expect(dessert.length).toBeGreaterThan(want);
+    for (const actor of PREVIEW_ACTORS) {
+      expect(bringing[actor].course).toBe('dessert');
+    }
+
+    // And the sheet, which is where the scorer meets it.
+    expect(line.startsWith('folded onto a supplied state:')).toBe(true);
+    expect(line).toContain('all 7 declared action(s)');
+    expect(line).toContain('~zod, ~ten, ~palfun-foslup');
+    expect(line).toContain('had their entry overwritten');
+    expect(line).toContain('No group produced this board');
+    expect(line).toContain('no count here is held to any limit');
+  });
+
+  /**
+   * The positive control, and a genuinely separate case rather than the same
+   * app with a flag flipped.
+   *
+   * The lunch poll's fold is already plausible — three voters, one vote each,
+   * one for each option — because its three actions all write `/votes/$actor`
+   * and the rotation hands a different one to each ship. Two things must hold
+   * for it: the board is not degraded (this change renders nothing
+   * differently), and the citation does not describe it as something it is not.
+   * The line is provenance, not a verdict: it never claims a board is
+   * implausible, because nothing here can tell.
+   */
+  it('leaves an already-plausible fold alone, and labels it as provenance rather than a defect', async () => {
+    const poll = template('poll');
+    const { line, state } = await populatedLine({ spec: poll.spec });
+
+    // Not degraded: still one vote each, still three different options.
+    const votes = state.votes as Record<string, string>;
+    expect(votes).toEqual({
+      '~zod': 'salad',
+      '~ten': 'pizza',
+      '~palfun-foslup': 'tacos',
+    });
+    expect(new Set(Object.values(votes)).size).toBe(3);
+
+    // Not mislabelled: this is the app's own starting point with a fold on top,
+    // and the line says exactly that — no supplied board, no overwriting, and
+    // no claim that anything here is wrong.
+    expect(line.startsWith('folded:')).toBe(true);
+    expect(line).toContain('6 invoke(s) of all 3 declared action(s)');
+    expect(line).not.toContain('supplied state');
+    expect(line).not.toContain('overwritten');
+    expect(line).not.toContain('restore pass');
+    // The provenance still lands: a plausible board is still a synthetic one,
+    // and the scorer is told so on the check whose subject it is.
+    expect(line).toContain('No group produced this board');
+    expect(line).toContain('Score the LAYOUT');
+  });
+
+  it('says a fold that could not run at all differently again', async () => {
+    // The countdown ships no actions — it moves by host event and nothing else
+    // — so there is no fold, and the populated captures are the initial ones.
+    // "Nothing to fold" reading like "here is the board the app produces" is
+    // the same collapse one level up.
+    const { line } = await populatedLine({ spec: template('countdown').spec });
+    expect(line.startsWith('not folded:')).toBe(true);
+    expect(line).toContain('the spec declares no actions');
+  });
+});
+
 describe('headless capture — the defect pass against a real browser', () => {
   browserTest(
     'finds the crowding, the overflow and the jargon in a bad bundle',

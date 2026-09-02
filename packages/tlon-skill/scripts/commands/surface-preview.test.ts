@@ -45,6 +45,7 @@ function reachabilityReport(
     valueDomains: [],
     pointerOverflow: false,
     checkpoints: [],
+    noOpControls: [],
     findings: [],
     notChecked: ['whether the states it CAN reach are the ones asked for'],
     ...overrides,

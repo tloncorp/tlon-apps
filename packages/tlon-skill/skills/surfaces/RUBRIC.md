@@ -48,12 +48,21 @@ Each in `light` and `dark`, and in two states:
 
 - **`initial`** — `initialState`, exactly. This is the screen the first
   member ever sees, and it is the one most often shipped unlooked-at.
-- **`populated`** — produced by folding **every declared action**, twice,
-  through the real reducer as `~zod`, `~ten` and `~palfun-foslup`. Not a
-  state anybody invented: if it looks wrong, the app's own actions produce
-  something wrong.
+- **`populated`** — **a synthetic board.** Produced by folding **every
+  declared action**, twice, through the real reducer as `~zod`, `~ten` and
+  `~palfun-foslup`. Nothing was invented — every op is one the app declares —
+  but no group behaves like that: every action goes to every member, so
+  wherever two actions write the same thing the last one _declared_ wins it,
+  and no count is held to any limit the app keeps in its own state. Six of the
+  nine shipped templates fold to a board nobody could plausibly reach. The
+  potluck sheet reads **"Dessert 4 of 3"** over "10 more wanted"; the RSVP
+  reads a headline **"0 Coming"** with all three members on "Can't make it".
+  Those numbers are the harness's, not the app's.
 
-`manifest.json` records which invokes were folded, in order.
+`manifest.json` records which invokes were folded, in order, and the scoring
+sheet stamps the same fact onto check 5 as a `populated` line you cannot
+delete — because this page has said it since before the templates shipped and
+a careful reader still scored those cells as the app's own output.
 
 ---
 
@@ -137,14 +146,26 @@ control with nothing explaining what pressing it does.
 
 ### 5. The populated state is scannable
 
-_Machine pass: reaches none of this._
+_Machine pass: reaches none of this. It stamps the sheet instead._ Check 5's
+entry in `rubric.template.json` carries a `populated` line preview wrote,
+saying which fold these captures came from — `folded:`, `folded onto a
+supplied state:` or `not folded:` — and the sheet is refused without it.
+
+**Score the LAYOUT here, never the numbers.** The board is synthetic (see
+above): a tally, a ranking, a "0 of 3" or an over-capacity count on a
+`populated` capture is the fold talking. If one looks wrong, check it against
+the `initial` capture and the `--state` capture before you write it down as a
+finding — the last three "this template is broken" findings, all filed in one
+sitting against potluck, expense-split and kanban, were every one of them this
+mistake.
 
 On the `populated` captures, at a glance and without reading carefully:
 
 - Can you tell **who did what**? Every member who acted is visible; the
   crew is not collapsed into a count.
 - Is the **most important number** the most prominent thing, or is it
-  buried in a run of equally-weighted rows?
+  buried in a run of equally-weighted rows? (Whether that number is
+  _believable_ is not this check — it is the fold's.)
 - Do repeated rows have a visible rhythm — separators, alignment,
   consistent columns — or is it a wall?
 - Does the screen still make sense with **three** members? Some layouts
@@ -179,7 +200,10 @@ subject, delete it — deleting is almost always the right repair.
 _Machine pass: reaches none of this, and could not._ Nothing mechanical has
 access to what was asked.
 
-Put the request next to the screenshots.
+Put the request next to the screenshots — and score this one off an
+`initial` capture. The `populated` ones are the fold's board, so "the headline
+number is 0" or "everything is in one column" there is the harness answering,
+not the app; check 5's `populated` line says what that board is.
 
 - Is the thing they asked for the thing that is biggest on the screen?
 - Is anything on screen that nobody asked for?
@@ -303,6 +327,12 @@ tlon surface publish <channel> --bundle app.js --spec spec.json \
   `note`. A residual is publishable and is echoed into publish's own output,
   so shipping a known defect leaves a record instead of being laundered into
   a `pass`.
+- **Two lines you did not write, and must not delete.** Check 5 carries
+  `populated` — what the populated captures are — and check 7 carries
+  `reachability` — what the walk over the reachable screens found. They are
+  preview's, not yours: they are what those two verdicts are scored _against_.
+  Publish refuses a sheet missing either, and refuses one whose line did not
+  come from preview.
 
 Two things the tool checks and one it does not:
 
@@ -333,13 +363,24 @@ Two things the tool checks and one it does not:
 
 Do not raise these as findings against the app.
 
-- **Everyone in one bucket.** For any app whose actions are (item ×
-  state) — a board with columns, a ladder with results — the populated
-  state folds every declared action in order, so each item ends at its
-  last-declared action and the capture piles everything into one column.
-  No ordering of the spec avoids it. Check `manifest.json`'s invoke list,
-  and read the `--state` capture instead: a `state.json` you wrote is the
-  realistic board.
+- **Everyone in one bucket, and every count the fold produced.** For any app
+  whose actions are (item × state) — a board with columns, a ladder with
+  results, a sheet with courses — the populated state folds every declared
+  action in order, so each item ends at its last-declared action and the
+  capture piles everything into one column. No ordering of the spec avoids
+  it, and nothing stops the pile going past a limit the app keeps in its own
+  state: the potluck sheet folds to "Dessert 4 of 3". Check
+  `manifest.json`'s invoke list, read check 5's `populated` line on the
+  scoring sheet, and read the `--state` capture instead — a `state.json` you
+  wrote is the realistic board.
+
+  **`--state` does not make the populated cell realistic either.** It puts a
+  realistic board underneath and then folds on top of it, overwriting every
+  supplied member who shares a name with `~zod`, `~ten` or `~palfun-foslup`.
+  That is how the potluck's `initial` cell reads "Mains 2 of 4 … 9 more
+  wanted" and its `populated` cell reads "Mains 0 of 4 … Dessert 4 of 3, 10
+  more wanted" off the same file. Under `--state` the realistic board is the
+  **`initial`** capture.
 
   **A member who logged nothing used to belong on this list and no longer
   does.** The fold once handed a reset (`clear-today` and friends) to
