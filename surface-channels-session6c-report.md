@@ -4,8 +4,8 @@ Branch `patrick/mini-app-mvp`, PR #6380. Split-review-ready: each section is
 self-contained, states what was measured and what was not, and names the
 decision entry that carries it.
 
-Sections §1–§7 are final. §8 (the transition graph) and §9 (the live loop) are
-marked in place if they are still open at the time you read this.
+All sections are final. The one item still moving is the `--preserve-state`
+fix described in §9.2, which was dispatched after this report was written.
 
 ---
 
@@ -583,17 +583,65 @@ and a near drop-in donor. The loop edited the stranger anyway.
 
 ### §9.2 The nine-template loop
 
-*Open at the time of writing.*
+**Nine of nine published from one-sentence requests, nine of nine with a member
+interaction observed by scry** (countdown carved out, below). All in
+`~zod/umnjhaod`, fence bound to that group alone throughout; `~zod/surface-seed`
+and `~zod/verdict-lvmj0jha` verified unchanged after. **No bot turn came near
+the 300s cap — the slowest was 133s.**
 
-Two things were settled before it started, and both are recorded in §1 rather
-than decided mid-run. `countdown` is carved out of the member-interaction
-requirement — it declares `{mode:'none'}` with zero actions, so there is no
-interaction to observe, by design and by its own `because` sentence. And a
-template that fails the loop is a finding on the template or the pipeline,
-reported with evidence, never re-run locally until it passes.
+| template | channel | member interaction (~ten), by scry | revise mechanism | create / revise |
+| --- | --- | --- | --- | --- |
+| poll | `dash-2c5vwi7x` | `vote-veracruz` → `votes:{"~ten":"veracruz"}` | republish 1→2, **100% word survival**, 3→4 actions, 0 dropped | 86s / 86s |
+| rsvp | `dash-z2o241vz` | `answer-maybe` → `responses:{"~ten":"maybe"}` | **host event** — bundle byte-identical, revision unchanged | 96s / 26s |
+| potluck | `dash-kjcffmpq` | `bring-dessert` → `bringing:{"~ten":{"course":"dessert"}}` | republish 1→2, **100%**, 5→6, 0 dropped | 102s / 91s |
+| expense-split | `ski-trip-expenses` | `join-trip`+`paid-van` → `paidBy:{"van":"~ten"}` | republish 1→2, 100%, 6→7 — **but it never reached the board** | 102s / 107s |
+| habit-tracker | `dash-qt05mw8r` | `did-water`+`did-read` | republish 1→2, **100%**, 5→6, 0 dropped | 112s / 132s |
+| leaderboard | `dash-tujtkoib` | `won-r1`+`lost-r2` | republish 1→2, 99.9%, 6→8, 0 dropped | 122s / 106s |
+| kanban | `dash-gm1ekjow` | `cover-art-doing` → status + `claims:{"~ten":"cover-art"}` | republish 1→2, **100%**, 9→12, 0 dropped | 133s / 97s |
+| workout-tracker | `daily-workout-log` | `squat-ok`+`bench-fail` | republish 1→2, **100%**, 7→9, 0 dropped | 91s / 112s |
+| countdown | `dash-efq0vnqb` | **carved out** — 0 actions, `{mode:'none'}` | **host event** — `targetMs` moved, bundle byte-identical | 91s / 26s |
 
-One control ran before the loop and is worth keeping: **publish refuses the
-sheet that preview writes.**
+Five revisions at **100% word survival with zero actions dropped**, on apps the
+loop had itself created minutes earlier — which is the condition D149 was
+designed to escape, and is why §9.1's cold board is the load-bearing
+measurement rather than these.
+
+#### The defect: `--preserve-state` silently discards a revision's new state
+
+Verified independently after the run:
+
+```
+spec @ revision 2   itemOrder: ["house","van","food","ferry","lift"]  + action paid-lift
+LIVE state          itemOrder: ["house","van","food","ferry"]
+                    baseSnapshotSeq 3 = newestFoldedSeq 3, foldedEventCount 0
+```
+
+`--preserve-state` posts a migration snapshot of the PRE-revision state, and the
+reducer serves that snapshot instead of `initialState`, so anything the new spec
+adds there is never consulted. **Lint passed, publish passed, the read-back
+confirmed the description carries exactly the new definition, and the board did
+not change.** `paid-lift` is a declared action writing to a key nothing draws.
+
+**What makes it a trap rather than a bug:** four templates took the identical
+shape and worked — but only because the bot ALSO posted a host event writing the
+new field into live state. Nothing requires that event. Whether a revision lands
+is down to whether the model remembers, and the four successes are exactly what
+would make anyone conclude the path works. **D165.** In scope and being fixed;
+`--preserve-state` is the M3 revision-transition contract, not adjacent work.
+
+#### Two smaller findings
+
+A re-ask after a clarifying question created a **second channel with the same
+title** rather than publishing into the one it had just made (`dash-5hi7zfn3`
+orphaned, `spec-absent`) — adjacent to D50's burned-name discipline and not
+covered by it. And **`surface preview` injects a fixed `now` of 2025-01-01**, so
+a countdown targeting Oct 2026 is rubric-scored at "652 days", a number no member
+will ever see: deterministic by design, and a hole in what check 7 can mean for a
+time-display app.
+
+#### One control worth keeping
+
+**Publish refuses the sheet preview writes:**
 
 ```
 [rubric-incomplete] 12 of the twelve capture cells have no observation …
@@ -601,13 +649,93 @@ sheet that preview writes.**
   Nothing was uploaded or written.
 ```
 
-Check 7's machine-stamped reachability citation is present in that same sheet
-and does **not** satisfy the check — the human note is still demanded. That is
-the division D161 intended: the machine says what was walked, the scorer says
-what it means.
+Check 7's machine-stamped reachability citation is present in that same sheet and
+does **not** satisfy the check. That is the division D161 intended: the machine
+says what was walked, the scorer says what it means.
+
+#### What the loop did not verify
+
+The rubric was **not audited** — publish enforced completeness, and whether the
+bot's twelve observations were any good was never checked. Seven of nine boards
+were verified by definition and folded-state read-back rather than by eye. Every
+interaction was `~ten` alone: no two-member contention, no read-only screen, no
+dark theme. Two of nine requests ended their first turn with a clarifying
+question rather than a build, and those were not re-run for determinism.
 
 ---
 
 ## §10 Notes for M3/M4
 
-_Open at the time of writing._
+**M3 owns the thing this session broke open.** `--preserve-state` is M3's
+revision-transition contract ("both preserving (migration snapshot, pending
+window) and non-preserving"), and §9.2 shows the preserving half silently
+dropping a revision's new state with every check green. A fix is in flight. The
+part that outlives the fix is the shape: **the pipeline had four successes and
+one failure of the same operation, and the difference was an undocumented
+compensating host event the model happened to send.** M3's adversarial list
+should gain "a preserving revision whose new `initialState` adds a key" as a
+named case.
+
+**The measurement instrument must be fixed before any further format work.**
+D164 and D166 together show the mechanism classifier wrong in both directions —
+it called a minimal behaviour-changing edit a regeneration (word survival drops
+whenever a request requires deletion) and it calls a correct host-event revision
+a no-op (it only diffs bundles). Every number D130's format verdict rests on came
+from this instrument, and all twelve of its observations were of the one shape
+the instrument can measure. That is a bound on the evidence, not a reversal:
+nothing observed suggests the loop regenerates, and every structural marker says
+edit. A replacement reads the mechanism from **what was posted** — spec revision,
+migration snapshot, host event — and uses text survival only to characterise a
+republish once it knows it is looking at one.
+
+**Reachability's blind spots are M3's subject matter.** The transition pass walks
+one member, one theme, permission to act, and no host events. M3's exit criterion
+is "a second user votes from the rendered app" and its adversarial list is full of
+multi-actor and stale-event cases — so the natural extension is a walk that
+branches per actor and folds host ops. Both are deliberate omissions today, printed
+on every run.
+
+**The Worker-realm migration (M4) will move the ground the pass stands on.** The
+walk executes bundles in happy-dom through the same fixture runner the gate uses,
+and it observes controls by wrapping `onclick` handler properties. A remote-dom
+style Worker realm with a host-side interpreter changes both: the DOM the bundle
+touches is serialized ops, not a document, so `recordEventBindings` and
+`activateControls` — now shared in `surface-activation.ts` — would need to
+observe the op stream instead. Worth knowing before the migration, because the
+activation harness is now load-bearing for the gate AND the reachability pass and
+check 7's citation, where before it was only the gate.
+
+**Shared-groups posture is unchanged but better instrumented.** `surface fork`
+now binds its rubric sheet to bundle, spec and starting state, so a sheet scored
+elsewhere cannot vouch for a definition landing in your group. The trust question
+the plan defers to the Worker realm is untouched.
+
+**Carried forward, unfixed and named:**
+
+- The preserving-revision rubric residual (D157): a `--preserve-state` sheet now
+  certifies the board the app OPENS on, which is a board nobody will see. The real
+  answer is to score the `--state` run and bind it to a state the channel provably
+  held, verifiable by folding the post log. Machinery, not a paragraph.
+- Check 7's remaining half: reachability is now an input, but "are these the states
+  the request implies" is still not machine-decidable and still the scorer's.
+- The CLI currency digest excludes `@tloncorp/api` and `@tloncorp/surface-shell`,
+  which compile into the binary (D160). `packages/api`'s `dist`-vs-`src` split has
+  to be decided before that can be closed honestly.
+- The eval probe's pre-binding tolerance list is hand-maintained and has already
+  gone stale once within a day (D162). A check that it covers every artifact field
+  absent from the recordings would close it.
+- A re-ask creating a second same-titled channel, and `surface preview`'s fixed
+  clock making time-display apps rubric-scored on a number no member sees (D165).
+- Templates whose item set must grow — kanban, potluck, expense-split — are the
+  ones that need new-field revisions, and therefore the ones routed onto the path
+  that failed (D165). What v1's input-carrying actions buy is recorded there as
+  evidence; the product judgement about the template set is deliberately not drawn
+  here.
+
+**What M2 still needs, and where it runs:** the eval corpus run (bot harness,
+`surfaces-eval-run.sh`, scoreboard replaces the baseline) and skill delivery to a
+hosted bot (tlonbot-side — `@tloncorp/tlon-skill` resolves from npm, not the
+checkout, so a branch pin alone does not deliver the surfaces skill). Both are
+outside build sessions. Note the corpus run consumes the scoreboard whose negative
+control this session had to repair, and would have been measured against a
+fabricated author-error had it run first.
