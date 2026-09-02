@@ -59,6 +59,7 @@ import {
   lintSurfaceBundle,
 } from '../../tlon-skill/scripts/surface-lint';
 import {
+  POPULATED_CITED_CHECK,
   REACHABILITY_CITED_CHECK,
   validateRubricArtifact,
 } from '../../tlon-skill/scripts/surface-rubric-artifact';
@@ -100,6 +101,11 @@ const STATIC_RULES: readonly SurfaceLintRule[] = [
   'style',
   'chart-sizing',
   'jargon',
+  // Filed beside `jargon` for the same reason: it reads the rendered copy at
+  // the states the gate already draws, and says nothing about what the app
+  // does when state or the clock moves. The split these two lists make is
+  // fold-versus-not, not rendered-versus-not.
+  'count-agreement',
   'member-interaction',
 ];
 
@@ -316,24 +322,37 @@ function main(): void {
       const missingBindings: string[] = PRE_BINDING_FIELDS.filter(
         (field) => (raw as Record<string, unknown>)?.[field] === undefined
       );
-      // Check 7's `reachability` citation is the same class one level in: it
-      // lives on a check entry rather than at the top level, so absence is read
-      // there. Only when the entry EXISTS and lacks the line — a sheet missing
-      // check 7 altogether is genuinely incomplete and keeps failing.
+      // Check 7's `reachability` citation and check 5's `populated` citation
+      // are the same class one level in: they live on a check entry rather than
+      // at the top level, so absence is read there. Only when the entry EXISTS
+      // and lacks the line — a sheet missing the check altogether is genuinely
+      // incomplete and keeps failing.
       const scoredChecks = (raw as { checks?: unknown })?.checks;
-      const citedCheck =
-        typeof scoredChecks === 'object' &&
-        scoredChecks !== null &&
-        !Array.isArray(scoredChecks)
-          ? (scoredChecks as Record<string, unknown>)[REACHABILITY_CITED_CHECK]
+      const entryFor = (id: string): Record<string, unknown> | undefined => {
+        if (
+          typeof scoredChecks !== 'object' ||
+          scoredChecks === null ||
+          Array.isArray(scoredChecks)
+        ) {
+          return undefined;
+        }
+        const entry = (scoredChecks as Record<string, unknown>)[id];
+        return typeof entry === 'object' &&
+          entry !== null &&
+          !Array.isArray(entry)
+          ? (entry as Record<string, unknown>)
           : undefined;
-      if (
-        typeof citedCheck === 'object' &&
-        citedCheck !== null &&
-        !Array.isArray(citedCheck) &&
-        (citedCheck as Record<string, unknown>).reachability === undefined
-      ) {
+      };
+      const citedCheck = entryFor(REACHABILITY_CITED_CHECK);
+      if (citedCheck !== undefined && citedCheck.reachability === undefined) {
         missingBindings.push('reachability');
+      }
+      const populatedCheck = entryFor(POPULATED_CITED_CHECK);
+      if (
+        populatedCheck !== undefined &&
+        populatedCheck.populated === undefined
+      ) {
+        missingBindings.push('populated');
       }
       const predatesBindings = missingBindings.length > 0;
       // Only the complaints about the fields this sheet is older than are set

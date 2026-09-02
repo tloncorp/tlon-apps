@@ -19,6 +19,9 @@ import {
   DOUBLE_INVOKE_BUNDLE,
   DOUBLE_INVOKE_SPEC,
   FREE_GRAPH,
+  KANBAN_ALL_COLUMNS_BUNDLE,
+  KANBAN_ALL_COLUMNS_SPEC,
+  KANBAN_OWN_COLUMN_DROPPED_BUNDLE,
   KANBAN_V2_BUNDLE,
   KANBAN_V2_SPEC,
   LOCKED_SCREEN_BUNDLE,
@@ -27,6 +30,7 @@ import {
   fixtureSpec,
   syntheticGraph,
   syntheticSpec,
+  syntheticSpecWithOps,
 } from './surface-transition-fixtures';
 import {
   ABSENT_VALUE,
@@ -103,13 +107,21 @@ const walkTemplate = (name: string): ReachabilityOutcome => {
   });
 };
 
-const templateReports = once<Map<string, ReachabilityReport>>(() => {
-  const reports = new Map<string, ReachabilityReport>();
+// The GRAPHS are memoised, not just the reports: the `$actor`-exemption
+// vacuity guard reads edges, and re-walking nine templates to look at them
+// would pay the `kanban` template's three seconds a second time.
+const templateWalks = once<Map<string, ReachabilityOutcome>>(() => {
+  const walks = new Map<string, ReachabilityOutcome>();
   for (const name of templateNames()) {
-    reports.set(name, walkTemplate(name).report);
+    walks.set(name, walkTemplate(name));
   }
-  return reports;
+  return walks;
 });
+
+const templateReports = (): Map<string, ReachabilityReport> =>
+  new Map(
+    [...templateWalks()].map(([name, outcome]) => [name, outcome.report])
+  );
 
 /* ------------------------------------------------------------------ */
 /* Control 1 — the case the pass exists for                            */
@@ -258,7 +270,7 @@ describe('the shipped templates', () => {
   // the alphabetically-first template was paying for all of them and timing
   // out on CI while the other eight read the memo instantly.
   beforeAll(() => {
-    templateReports();
+    templateWalks();
   }, 300_000);
 
   it('ships templates to walk', () => {
@@ -273,7 +285,30 @@ describe('the shipped templates', () => {
       expect(report.shortfalls).toEqual([]);
       expect(report.findings).toEqual([]);
     });
+
+    it(`${name} draws every control somewhere it can move the board`, () => {
+      // Asserted on `noOpControls` and not on `findings`, deliberately.
+      // Findings are gated on a closed walk and the `kanban` template does not
+      // close, so for that one template `findings === []` says nothing at all.
+      // The observation is computed on every walk, so this is the assertion
+      // that actually covers all nine.
+      const report = templateReports().get(name) as ReachabilityReport;
+      expect(report.noOpControls).toEqual([]);
+    });
   }
+
+  it('the eight idempotent templates would fail a rule without the $actor exemption', () => {
+    // The vacuity guard on the control above, and the measurement the
+    // exemption was built from. A bare self-loop rule — press it, state
+    // unchanged, report it — fires on EIGHT of the nine: `vote-pizza`
+    // re-pressed, `bench-ok` re-pressed, `answer-yes` re-pressed. If this ever
+    // drops to zero, the templates stopped exercising the idempotent pattern
+    // and "no template draws a no-op control" became free.
+    const loopy = [...templateWalks().values()].filter((outcome) =>
+      outcome.graph.edges.some((edge) => edge.from === edge.to)
+    );
+    expect(loopy.length).toBeGreaterThanOrEqual(7);
+  });
 
   it('at most one template is too large to verify', () => {
     // The vacuity guard on the control above. A truncated walk asserts nothing,
@@ -394,6 +429,238 @@ describe('negative controls', () => {
     const report = analyzeReachability(graph, syntheticSpec(['used', 'never']));
     expect(report.unreachedActions).toEqual(['never']);
     expect(report.findings[0].kind).toBe('unreachable-actions');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Control 5 — the board the live loop shipped                         */
+/* ------------------------------------------------------------------ */
+
+describe('a card that offers the column it is already in', () => {
+  const broken = once<ReachabilityOutcome>(() =>
+    analyzeSurfaceReachability({
+      bundleSource: KANBAN_ALL_COLUMNS_BUNDLE,
+      spec: fixtureSpec(KANBAN_ALL_COLUMNS_SPEC),
+    })
+  );
+  const repaired = once<ReachabilityOutcome>(() =>
+    analyzeSurfaceReachability({
+      bundleSource: KANBAN_OWN_COLUMN_DROPPED_BUNDLE,
+      spec: fixtureSpec(KANBAN_ALL_COLUMNS_SPEC),
+    })
+  );
+
+  beforeAll(() => {
+    broken();
+    repaired();
+  }, 120_000);
+
+  it('closes, so the finding is an assertion and not a guess', () => {
+    const { report } = broken();
+    expect(report.problem).toBeUndefined();
+    expect(report.shortfalls).toEqual([]);
+    expect(report.truncatedBy).toEqual([]);
+    expect(report.closed).toBe(true);
+    // Three cards over four columns, times the four values `/claims/$actor`
+    // takes (absent, then each card), less the combinations no press reaches.
+    expect(report.nodeCount).toBe(193);
+  });
+
+  it('names every action whose button is drawn where it does nothing', () => {
+    const { report } = broken();
+    expect(report.noOpControls).toHaveLength(12);
+    expect(report.noOpControls.map((entry) => entry.actionId)).toContain(
+      'cover-art-doing'
+    );
+    // Every one of the twelve is dead on the same sixteen screens: the states
+    // where that card already sits in that column AND the claim already points
+    // at that card, which is exactly "the member who last moved it, looking at
+    // what they did".
+    for (const control of report.noOpControls) {
+      expect(control.deadStates).toBe(16);
+      expect(control.renderedStates).toBe(193);
+    }
+  });
+
+  it('draws exactly one finding, and it is the no-op one', () => {
+    const { report } = broken();
+    expect(report.findings.map((finding) => finding.kind)).toEqual([
+      'no-op-control',
+    ]);
+    const finding = report.findings[0];
+    expect(finding.rubricCheck).toBe(7);
+    expect(finding.message).toContain(
+      '"copy-edit-blocked" on 16 of the 193 screen(s)'
+    );
+    expect(finding.message).toContain('and 4 more action(s)');
+    expect(finding.key).toContain('cover-art-todo');
+  });
+
+  it('is NOT an unreachable action — every one of the twelve gets pressed', () => {
+    // The precision statement. `unreachable-actions` and `no-op-control` are
+    // opposite failures — a control nobody can reach against a control that
+    // reaches nothing — and a board that drew both would mean one of them is
+    // firing on the other's shape.
+    const { report } = broken();
+    expect(report.declaredActions).toHaveLength(12);
+    expect(report.unreachedActions).toEqual([]);
+  });
+
+  it('goes quiet on the twin that drops the card own column, one filter apart', () => {
+    const { report } = repaired();
+    expect(report.closed).toBe(true);
+    // Same app, same spec, same state space — only the button row differs.
+    expect(report.nodeCount).toBe(broken().report.nodeCount);
+    expect(report.noOpControls).toEqual([]);
+    expect(report.findings).toEqual([]);
+  });
+
+  it('prints the finding, and prints the clean twin as clean', () => {
+    expect(formatReachabilityReport(broken().report).join('\n')).toContain(
+      '[rubric 7: no-op-control]'
+    );
+    expect(formatReachabilityReport(repaired().report).join('\n')).toContain(
+      'every control drawn can move the board'
+    );
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Control 6 — the idempotent pattern the templates are built on       */
+/* ------------------------------------------------------------------ */
+
+describe('an idempotent action is not a no-op control', () => {
+  /** One state, one press, back to the same state. */
+  const selfLoop = () =>
+    syntheticGraph({
+      states: [{ votes: { '~sampel-palnet': 'pizza' } }],
+      edges: [[0, 'vote-pizza', 0]],
+    });
+
+  it('exempts $actor in the PATH — the documented default', () => {
+    // `PARADIGM.md`: "Per-member state … is a `set` at a path keyed by
+    // `$actor`. Pressing twice writes the same literal to the same path: the
+    // second press changes nothing. Reach for this first, every time."
+    const report = analyzeReachability(
+      selfLoop(),
+      syntheticSpecWithOps({
+        'vote-pizza': [{ op: 'set', path: '/votes/$actor', value: 'pizza' }],
+      })
+    );
+    expect(report.noOpControls).toEqual([]);
+    expect(report.findings).toEqual([]);
+  });
+
+  it('exempts $actor in the VALUE — the expense-split spelling', () => {
+    // `set /paidBy/ferry "$actor"` is the same idempotence seen from the other
+    // side: a shared slot recording WHO, where pressing again re-writes your
+    // own name. The shipped template does this, so a path-only test would
+    // report on it.
+    const report = analyzeReachability(
+      selfLoop(),
+      syntheticSpecWithOps({
+        'vote-pizza': [{ op: 'set', path: '/paidBy/ferry', value: '$actor' }],
+      })
+    );
+    expect(report.noOpControls).toEqual([]);
+  });
+
+  it('exempts $actor nested inside a value', () => {
+    const report = analyzeReachability(
+      selfLoop(),
+      syntheticSpecWithOps({
+        'vote-pizza': [
+          { op: 'set', path: '/claims/ferry', value: { by: ['$actor'] } },
+        ],
+      })
+    );
+    expect(report.noOpControls).toEqual([]);
+  });
+
+  it('reports a SHARED write with no $actor anywhere', () => {
+    // The other half of the same graph. Identical states, identical edge —
+    // only the op differs — so a scorer reading the graph alone would say the
+    // same thing about both, and this is what proves the exemption is doing
+    // the separating rather than the shape.
+    const report = analyzeReachability(
+      selfLoop(),
+      syntheticSpecWithOps({
+        'vote-pizza': [
+          { op: 'set', path: '/tasks/theme/status', value: 'doing' },
+        ],
+      })
+    );
+    expect(report.noOpControls).toEqual([
+      { actionId: 'vote-pizza', deadStates: 1, renderedStates: 1 },
+    ]);
+    expect(report.findings.map((finding) => finding.kind)).toEqual([
+      'no-op-control',
+    ]);
+  });
+
+  it('needs EVERY op to name the actor, not merely one', () => {
+    // The shipped board's exact shape: a shared write and an actor write in
+    // one action. An "any op" exemption would let it through on the strength
+    // of the second while the first is the dead half.
+    const report = analyzeReachability(
+      selfLoop(),
+      syntheticSpecWithOps({
+        'vote-pizza': [
+          { op: 'set', path: '/tasks/theme/status', value: 'doing' },
+          { op: 'set', path: '/claims/$actor', value: 'theme' },
+        ],
+      })
+    );
+    expect(report.noOpControls).toHaveLength(1);
+  });
+
+  it('does not exempt an action with no ops at all', () => {
+    // `syntheticSpec` builds `ops: []`. That action cannot change anything
+    // anywhere, which is the strongest form of the defect and not an instance
+    // of the idempotent pattern.
+    const report = analyzeReachability(
+      selfLoop(),
+      syntheticSpec(['vote-pizza'])
+    );
+    expect(report.noOpControls).toHaveLength(1);
+  });
+
+  it('does not count an aborted fold as a pointless control', () => {
+    // The reducer stopping part-way (§7) can also leave state where it was,
+    // but the cause is the fold being refused rather than the control being
+    // pointless, and the two must not read the same.
+    const graph = selfLoop();
+    graph.edges[0].aborted = true;
+    const report = analyzeReachability(
+      graph,
+      syntheticSpecWithOps({
+        'vote-pizza': [
+          { op: 'set', path: '/tasks/theme/status', value: 'doing' },
+        ],
+      })
+    );
+    expect(report.noOpControls).toEqual([]);
+  });
+
+  it('withholds the finding on a walk that did not close', () => {
+    const graph = selfLoop();
+    graph.exhaustive = false;
+    graph.truncatedBy = ['the budget ran out'];
+    const report = analyzeReachability(
+      graph,
+      syntheticSpecWithOps({
+        'vote-pizza': [
+          { op: 'set', path: '/tasks/theme/status', value: 'doing' },
+        ],
+      })
+    );
+    expect(report.closed).toBe(false);
+    expect(report.findings).toEqual([]);
+    // Observed, not asserted — and it says so.
+    expect(report.noOpControls).toHaveLength(1);
+    expect(formatReachabilityReport(report).join('\n')).toContain(
+      'observed: pressing "vote-pizza" changed nothing'
+    );
   });
 });
 

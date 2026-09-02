@@ -122,6 +122,8 @@ export const SURFACE_LINT_RULES = [
   // Appended for the same reason `member-interaction` was: the numbers in
   // this list are cited by name elsewhere, so new rules go on the end.
   'time-display',
+  // Appended for that same reason.
+  'count-agreement',
 ] as const;
 
 export type SurfaceLintRule = (typeof SURFACE_LINT_RULES)[number];
@@ -202,6 +204,19 @@ export interface SurfaceLintInput {
    * ways to narrate their own mechanism.
    */
   extraJargon?: readonly string[];
+  /**
+   * Extra plural nouns for the count-agreement rule, on top of
+   * `SURFACE_COUNT_NOUNS`.
+   *
+   * The same escape hatch as `extraJargon` and for the same reason: the
+   * built-in list is curated for precision, so the words it leaves out are a
+   * decision rather than an oversight, and a caller who wants one back should
+   * not have to fork the rule. It is also how the suite proves the quiet
+   * result on the shipped templates is a property of the LIST — add `ways` and
+   * `expense-split` fails on "split 1 ways", which is a real defect the
+   * built-in list deliberately does not claim.
+   */
+  extraCountNouns?: readonly string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -221,6 +236,55 @@ export const SURFACE_JARGON_TERMS = [
   'spec',
   'scratch',
   '$actor',
+] as const;
+
+/**
+ * Plural count-nouns that must not follow a literal `1` in rendered copy.
+ *
+ * The class: an app builds a sentence out of a count and a noun —
+ * `${claimShips.length} people active` — and never handles the one case where
+ * English needs the singular. The board that shipped this rendered
+ * **"1 people active"**, which is the whole reason this rule exists.
+ *
+ * An INCLUSION list, not a general `1 \w+s` pattern, and the shape is copied
+ * from `SURFACE_JARGON_TERMS` above for the same reason that list is curated:
+ * a copy rule that cries wolf gets switched off, and then it catches nothing
+ * at all. A general plural pattern would fire on every singular noun that ends
+ * in `s` ("1 status", "1 progress", "1 pass", "1 series", "1 bus") and would
+ * still MISS the case that shipped, because "people" has no `s`.
+ *
+ * Each entry earns its place by being (a) a plural naming a thing a group
+ * dashboard counts, and (b) unreadable as a verb after a bare number — which
+ * is why `wins`, `sets`, `matches`, `notes`, `files` and `points` are absent
+ * even though "1 wins" is just as wrong: "Week 1 wins by round" is a heading a
+ * correct app could paint, and one false accusation costs more than one miss.
+ */
+export const SURFACE_COUNT_NOUNS = [
+  'people',
+  'members',
+  'guests',
+  'players',
+  'votes',
+  'tasks',
+  'cards',
+  'items',
+  'entries',
+  'responses',
+  'options',
+  'choices',
+  'rounds',
+  'columns',
+  'dishes',
+  'courses',
+  'seats',
+  'habits',
+  'sessions',
+  'days',
+  'hours',
+  'minutes',
+  'weeks',
+  'photos',
+  'reps',
 ] as const;
 
 /**
@@ -1489,6 +1553,63 @@ function checkJargonInRendered(
 }
 
 /* ------------------------------------------------------------------ */
+/* Count-agreement rule                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `1` and a plural noun in the same run of copy.
+ *
+ * The pattern, exactly:
+ *
+ * - `(?<![\w.])` — the `1` must not continue a word or a decimal, so `31
+ *   people` and `0.1 people` and `v1 people` are all left alone. Start of the
+ *   run satisfies it, which is where the shipped defect sits.
+ * - `1` — the literal one, and only one. `0 people` is correct English and
+ *   `2 person` is the mirror error, which is rarer than this one and would
+ *   need its own singular-noun list to find.
+ * - one or more spaces (ordinary or non-breaking).
+ * - the noun, from `SURFACE_COUNT_NOUNS`, case-insensitively.
+ * - `(?![\w])` — so `1 peoples` is not reported as `1 people`.
+ *
+ * Behavioral only. There is no lexical leg because the source never contains
+ * the defect: what is written is `${n} people`, and the string `1 people`
+ * appears nowhere until something renders it. That is also what makes the rule
+ * cheap to trust — it reports a thing that was on screen, quoted.
+ *
+ * It deliberately does NOT catch: a `Stat` whose value is `1` and whose label
+ * is plural (see `renderedCopyRuns` — that is dashboard idiom and three
+ * templates use it); a plural noun outside the list; an irregular plural
+ * outside the list; `1` and its noun split across two elements by the app
+ * itself; and any disagreement at a count other than one.
+ */
+function checkCountAgreementInRendered(
+  collector: Collector,
+  seen: Set<string>,
+  nouns: readonly string[],
+  runs: readonly string[],
+  when: string
+): void {
+  for (const noun of nouns) {
+    const pattern = new RegExp(`(?<![\\w.])1[ \\u00a0]+${noun}(?![\\w])`, 'i');
+    for (const run of runs) {
+      const found = pattern.exec(run);
+      if (found === null || seen.has(`count-agreement:${noun}`)) {
+        continue;
+      }
+      seen.add(`count-agreement:${noun}`);
+      collector.add({
+        rule: 'count-agreement',
+        severity: 'error',
+        message:
+          `rendered copy (${when}) reads "${found[0]}" — a count of one against a plural noun. ` +
+          `Pick the word from the number: \`n === 1 ? 'person' : 'people'\``,
+        evidence: run.length > 120 ? `${run.slice(0, 117)}…` : run,
+      });
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Behavioral phase                                                    */
 /* ------------------------------------------------------------------ */
 
@@ -1555,6 +1676,54 @@ function renderedCopy(root: ShellRun['root']): string {
     }
   }
   return parts.join(' ');
+}
+
+/**
+ * The rendered copy split into the RUNS the app actually wrote — one per
+ * element that has no element children, plus each copy-bearing attribute.
+ *
+ * `renderedCopy` above concatenates the whole tree, which is right for the
+ * jargon rule (a denylisted word is a word wherever it sits) and wrong for any
+ * rule that reads two adjacent tokens. Whole-tree `textContent` glues siblings
+ * with no separator: the board this file's count rule was written about paints
+ * `…update the shared board.` in one `div` and `1 people active` in the next,
+ * and the glued string is `…shared board.1 people active`, where the match is
+ * hidden behind a full stop. Glue in the other direction INVENTS matches —
+ * a `v1` ending one element and ` people are here` beginning the next reads as
+ * "1 people" and no element on screen says any such thing.
+ *
+ * Leaf elements are also exactly the line between prose and a stat block. The
+ * shell's `Stat` primitive paints its value and its label in two separate
+ * spans (`tsh-stat-value`, `tsh-stat-label`), so "1" over "votes so far" never
+ * becomes one run — which is the intended reading: a stat label is a category
+ * name that stays plural, the way every dashboard writes it, and three of the
+ * shipped templates rely on that. A count and a noun in ONE run is the app
+ * writing a sentence, and a sentence has to agree.
+ */
+function renderedCopyRuns(root: ShellRun['root']): string[] {
+  const attributes = ['aria-label', 'title', 'placeholder', 'alt'];
+  const runs: string[] = [];
+  const nodes = root.querySelectorAll('*');
+  for (let index = 0; index < nodes.length; index++) {
+    const node = nodes[index] as unknown as {
+      children: { length: number };
+      textContent: string | null;
+      getAttribute(name: string): string | null;
+    };
+    if (node.children.length === 0) {
+      const text = (node.textContent ?? '').replace(/\s+/g, ' ').trim();
+      if (text.length > 0) {
+        runs.push(text);
+      }
+    }
+    for (const attribute of attributes) {
+      const value = node.getAttribute(attribute);
+      if (value !== null) {
+        runs.push(value);
+      }
+    }
+  }
+  return runs;
 }
 
 /**
@@ -1708,6 +1877,11 @@ const ACTIVATION_WIDENED_RULES: readonly SurfaceLintRule[] = [
   'chart-sizing',
   'jargon',
   'smoke-render',
+  // Fifth for the same reason: the count that disagrees is usually not the
+  // opening one. The board this rule was written about opens with `claims`
+  // empty, so its badge is absent until somebody presses something — the
+  // "1 people active" is only ever on a screen activation reached.
+  'count-agreement',
 ];
 
 /**
@@ -1902,6 +2076,10 @@ function foldAndRender(
 ): void {
   const hostShip = GATE_HOST_SHIP;
   const actorShip = GATE_ACTOR_SHIP;
+  // Read off `input` rather than threaded through two signatures the way
+  // `jargonTerms` is: `input` is already here, and the rule has no lexical leg
+  // upstream that would need the same list.
+  const countNouns = [...SURFACE_COUNT_NOUNS, ...(input.extraCountNouns ?? [])];
   // Every chart the run ever built, kept for the whole phase: the oracle
   // reads each instance's CURRENT options, so an instance must outlive the
   // render pass that created it.
@@ -1981,6 +2159,13 @@ function foldAndRender(
       seenBehavioral,
       jargonTerms,
       renderedCopy(run.root),
+      when
+    );
+    checkCountAgreementInRendered(
+      collector,
+      seenBehavioral,
+      countNouns,
+      renderedCopyRuns(run.root),
       when
     );
     checkNavigationInRendered(collector, seenBehavioral, run.root, when);
@@ -2290,6 +2475,10 @@ export function lintSurfaceBundle(input: SurfaceLintInput): SurfaceLintResult {
     // than left off: a rule that silently does not run is the vacuous kind of
     // check this file's skip discipline exists to prevent.
     'time-display',
+    // Count agreement has no lexical leg at all — the source says `${n}
+    // people` and the defect only exists once something renders a one — so a
+    // bundle that never rendered was never checked, and has to say so.
+    'count-agreement',
   ];
   const moduleSyntaxFailed = collector.violations.some(
     (violation) => violation.rule === 'module-syntax'

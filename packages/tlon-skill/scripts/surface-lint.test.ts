@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'bun:test';
 import { Window } from 'happy-dom';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import { wrapBundleSource } from '@tloncorp/surface-shell/sandbox';
 
+import {
+  KANBAN_ALL_COLUMNS_BUNDLE,
+  KANBAN_ALL_COLUMNS_SPEC,
+} from './surface-transition-fixtures';
 import {
   ALL_FIXTURES,
   BEACH_TRIP_SPLIT_BUNDLE,
@@ -12,6 +18,7 @@ import {
   COMPLIANT_FIXTURE,
   RULE_FIXTURES,
   SUPPLEMENTARY_FIXTURES,
+  type SurfaceLintFixture,
 } from './surface-lint-fixtures';
 import {
   GATE_ACTOR_SHIP,
@@ -38,19 +45,117 @@ function ruleSet(violations: SurfaceLintViolation[]): SurfaceLintRule[] {
   return [...new Set(violations.map((violation) => violation.rule))].sort();
 }
 
+/* ------------------------------------------------------------------ */
+/* The count-agreement fixture pair                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Derived here rather than in `surface-lint-fixtures.ts` because the fixture
+ * file belongs to a task running beside this one. The derivation is the same
+ * one that file uses — one anchored span of the compliant baseline swapped for
+ * a defective one — and the anchor assertion below is what keeps it honest:
+ * a baseline edit that moved this line would otherwise leave a fixture that
+ * silently stopped containing the defect.
+ */
+function mutateCompliant(from: string, to: string): string {
+  const occurrences = COMPLIANT_FIXTURE.bundleSource.split(from).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(
+      `fixture anchor appears ${occurrences} times in the baseline, expected 1: ${from}`
+    );
+  }
+  return COMPLIANT_FIXTURE.bundleSource.replace(from, to);
+}
+
+const COMPLIANT_SIGNUP_STAT =
+  '<${Stat} value=${String(names.length)} label="signed up" />';
+
+/**
+ * The baseline with the count and its noun written into ONE run of copy.
+ *
+ * The compliant spec's `initialState.bringing` holds exactly one entry, so
+ * `names.length` is 1 on the opening render and the header reads
+ * **"1 people signed up"** — the string a real board shipped, in the form it
+ * shipped in. Nothing else about the app changes, which is what makes the
+ * finding attributable to this line.
+ *
+ * A `SectionHeader` and not the `Stat` it replaces, and that is the whole
+ * point of the pair: `Stat` paints its value and its label in two separate
+ * spans, so "1" over "signed up" is a stat block and stays out of scope. Move
+ * the same two words into one element and it is a sentence.
+ */
+const COUNT_AGREEMENT_BUNDLE = mutateCompliant(
+  COMPLIANT_SIGNUP_STAT,
+  '<${SectionHeader}>${String(names.length)} people signed up<//>'
+);
+
+/** The same header with the word picked from the number. */
+const COUNT_AGREEMENT_REPAIRED_BUNDLE = mutateCompliant(
+  COMPLIANT_SIGNUP_STAT,
+  "<${SectionHeader}>${String(names.length)} ${names.length === 1 ? 'person' : 'people'} signed up<//>"
+);
+
+/**
+ * Two elements that are innocent apart and guilty glued.
+ *
+ * The leaf runs are `Week 1` and `people are here`, neither of which is a
+ * count against a plural. Their PARENT's `textContent` is
+ * `…I will bring saladWeek 1 people are here`, which reads as "1 people" and
+ * describes nothing any member sees. This is the precision half of reading
+ * leaf runs: the restriction is not only about finding the defect behind a
+ * full stop, it is about not inventing one across a boundary.
+ */
+const COUNT_GLUE_BAIT_BUNDLE = mutateCompliant(
+  COMPLIANT_SIGNUP_STAT,
+  '<${SectionHeader}><div>Week 1</div><div> people are here</div><//>'
+);
+
+/**
+ * Three near-misses in one run of copy, one per boundary the pattern carries.
+ *
+ * `31 people` — the `1` continues a number. `0.1 people` — it continues a
+ * decimal. `1 peoples` — the noun continues past the word. All three would
+ * match a pattern with the boundaries dropped, and none of them is a defect.
+ */
+const COUNT_NEAR_MISS_BUNDLE = mutateCompliant(
+  COMPLIANT_SIGNUP_STAT,
+  '<${SectionHeader}>31 people signed up · 1 peoples · 0.1 people<//>'
+);
+
+/**
+ * Fixtures this file owns, folded into the same per-rule contract as the ones
+ * `surface-lint-fixtures.ts` carries: trip exactly one rule, and no other.
+ */
+const LOCAL_RULE_FIXTURES: SurfaceLintFixture[] = [
+  {
+    name: 'count-agreement',
+    rule: 'count-agreement',
+    bundleSource: COUNT_AGREEMENT_BUNDLE,
+    spec: COMPLIANT_FIXTURE.spec,
+    defect: 'renders "1 people signed up" — a count of one against a plural',
+  },
+];
+
+const EVERY_RULE_FIXTURE: SurfaceLintFixture[] = [
+  ...RULE_FIXTURES,
+  ...LOCAL_RULE_FIXTURES,
+];
+
 describe('surface publish gate — one fixture per rule', () => {
   it('covers every declared rule with a fixture', () => {
-    const covered = new Set(RULE_FIXTURES.map((fixture) => fixture.rule));
+    const covered = new Set(EVERY_RULE_FIXTURE.map((fixture) => fixture.rule));
     const uncovered = SURFACE_LINT_RULES.filter((rule) => !covered.has(rule));
     expect(uncovered).toEqual([]);
   });
 
   it('has no duplicate fixture names', () => {
-    const names = ALL_FIXTURES.map((fixture) => fixture.name);
+    const names = [...ALL_FIXTURES, ...LOCAL_RULE_FIXTURES].map(
+      (fixture) => fixture.name
+    );
     expect(new Set(names).size).toBe(names.length);
   });
 
-  for (const fixture of RULE_FIXTURES) {
+  for (const fixture of EVERY_RULE_FIXTURE) {
     it(`${fixture.name}: trips ${fixture.rule} and nothing else (${fixture.defect})`, () => {
       const result = lintSurfaceBundle({
         bundleSource: fixture.bundleSource,
@@ -327,6 +432,7 @@ describe('skipping is explicit, never a silent pass', () => {
     expect(result.skipped.map((skip) => skip.rule).sort()).toEqual([
       'action-idempotency',
       'chart-sizing',
+      'count-agreement',
       'smoke-render',
       'time-display',
     ]);
@@ -343,7 +449,7 @@ describe('skipping is explicit, never a silent pass', () => {
       bundleSource: fixture.bundleSource,
       spec: fixture.spec,
     });
-    expect(result.skipped).toHaveLength(4);
+    expect(result.skipped).toHaveLength(5);
     for (const skip of result.skipped) {
       expect(skip.reason).toContain('schema');
     }
@@ -1058,6 +1164,7 @@ describe('the smoke render is hosted, not ambient', () => {
     expect(result.skipped.map((skip) => skip.rule).sort()).toEqual([
       'action-idempotency',
       'chart-sizing',
+      'count-agreement',
       'smoke-render',
       'time-display',
     ]);
@@ -1082,6 +1189,11 @@ describe('the smoke render is hosted, not ambient', () => {
 describe('the behavioral phase presses the app’s controls', () => {
   const WIDENED: SurfaceLintRule[] = [
     'chart-sizing',
+    // Fifth once count agreement joined them, and for the same reason: the
+    // count that disagrees is usually not the opening one. The board that rule
+    // was written about opens with no claims at all, so its "1 people active"
+    // badge exists only on a screen activation reached.
+    'count-agreement',
     'jargon',
     'navigation-vector',
     'smoke-render',
@@ -1572,5 +1684,160 @@ describe('rule 16 — time is a host input, never an ambient one', () => {
     expect(result.ok).toBe(true);
     expect(ruleSet(result.warnings)).toEqual(['time-display']);
     expect(result.warnings[0].specPath).toBe('timeDisplay');
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Rule 17 — a count and its noun have to agree                        */
+/* ------------------------------------------------------------------ */
+
+describe('rule 17 — a number rendered against a plural noun', () => {
+  const lintNouns = (bundleSource: string, extra?: readonly string[]) =>
+    lintSurfaceBundle({
+      bundleSource,
+      spec: COMPLIANT_FIXTURE.spec,
+      ...(extra === undefined ? {} : { extraCountNouns: extra }),
+    });
+
+  it('quotes the offending words and the run they came from', () => {
+    const result = lintNouns(COUNT_AGREEMENT_BUNDLE);
+    const found = result.violations.filter(
+      (violation) => violation.rule === 'count-agreement'
+    );
+    expect(found).toHaveLength(1);
+    expect(found[0].severity).toBe('error');
+    expect(found[0].message).toContain('"1 people"');
+    // The evidence is what was ON SCREEN, so the report can be checked
+    // against the app without re-running it.
+    expect(found[0].evidence).toBe('1 people signed up');
+  });
+
+  it('goes quiet when the word is picked from the number', () => {
+    // The precision half. Same app, same state, same two words in the same
+    // element — only the singular is handled — so a rule that read the shape
+    // rather than the agreement would say the same thing about both.
+    const result = lintNouns(COUNT_AGREEMENT_REPAIRED_BUNDLE);
+    expect(ruleSet(result.violations)).toEqual([]);
+    expect(result.warnings).toEqual([]);
+    expect(result.ok).toBe(true);
+  });
+
+  it('leaves a Stat alone: its value and its label are two elements', () => {
+    // The compliant baseline already renders `Stat value="1" label="signed
+    // up"`, which reads "1 / signed up" on screen and is how every dashboard
+    // writes a stat. Three shipped templates depend on this staying quiet —
+    // `poll` paints "votes so far", `leaderboard` "rounds played", `potluck`
+    // "bringing something" — so a rule that folded the two spans together
+    // would refuse the templates it is supposed to be teaching from.
+    expect(COMPLIANT_FIXTURE.bundleSource).toContain(COMPLIANT_SIGNUP_STAT);
+    const result = lintNouns(COMPLIANT_FIXTURE.bundleSource);
+    expect(result.violations).toEqual([]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('draws it on the board that shipped it, off the vendored artifact', () => {
+    // The real control, not a synthetic one: the bundle the bot published to
+    // `chat/~zod/dash-gm1ekjow`, byte for byte.
+    //
+    // It is also what pins the leaf-run reading. This board paints
+    // `Choose a column on any task to update the shared board.` in one `div`
+    // and the badge in the next, so the whole-tree `textContent` the jargon
+    // rule reads is `…the shared board.1 people active` — where the count sits
+    // behind a full stop and the pattern's left boundary rejects it. Read the
+    // element's OWN run and it is `1 people active`, which is what a member
+    // sees.
+    const result = lintSurfaceBundle({
+      bundleSource: KANBAN_ALL_COLUMNS_BUNDLE,
+      spec: KANBAN_ALL_COLUMNS_SPEC,
+    });
+    const drawn = result.violations.filter(
+      (entry) => entry.rule === 'count-agreement'
+    );
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0].evidence).toBe('1 people active');
+    // The badge is absent from the opening screen — `claims` starts empty — so
+    // this is only ever reachable through activation.
+    expect(drawn[0].message).toContain('after invoking');
+  });
+
+  it('does not invent a count by gluing two elements together', () => {
+    const result = lintNouns(COUNT_GLUE_BAIT_BUNDLE);
+    expect(
+      result.violations.filter((entry) => entry.rule === 'count-agreement')
+    ).toEqual([]);
+  });
+
+  it('holds all three boundaries: 31 people, 0.1 people, 1 peoples', () => {
+    const result = lintNouns(COUNT_NEAR_MISS_BUNDLE);
+    expect(
+      result.violations.filter((entry) => entry.rule === 'count-agreement')
+    ).toEqual([]);
+  });
+
+  it('does not fire on a count that is not one', () => {
+    const twoSignedUp = {
+      ...(COMPLIANT_FIXTURE.spec as Record<string, unknown>),
+      initialState: {
+        bringing: { '~zod': 'bread', '~sampel-palnet': 'salad' },
+      },
+    };
+    const result = lintSurfaceBundle({
+      bundleSource: COUNT_AGREEMENT_BUNDLE,
+      spec: twoSignedUp,
+    });
+    expect(
+      result.violations.filter((entry) => entry.rule === 'count-agreement')
+    ).toEqual([]);
+  });
+
+  it('the shipped templates draw nothing, and that is the list and not luck', () => {
+    // Direction (b), and the reason it is a real control rather than an empty
+    // one. `expense-split` paints "a head, split 1 ways" — a genuine
+    // agreement defect, in the TEMPLATE, that the curated list deliberately
+    // does not claim because "split N ways" counts people and not ways, and
+    // widening to idiomatic adverbials is the road to a general `1 \w+s`
+    // pattern that fires on "1 status". Hand the rule that one word and the
+    // template fails, which is what proves the quiet result above is a
+    // property of `SURFACE_COUNT_NOUNS` and not of a rule that never runs.
+    const dir = path.join(
+      __dirname,
+      '..',
+      'skills',
+      'surfaces',
+      'templates',
+      'expense-split'
+    );
+    const bundleSource = fs.readFileSync(path.join(dir, 'app.js'), 'utf-8');
+    const spec = JSON.parse(
+      fs.readFileSync(path.join(dir, 'spec.json'), 'utf-8')
+    );
+
+    const asShipped = lintSurfaceBundle({ bundleSource, spec });
+    expect(
+      asShipped.violations.filter((entry) => entry.rule === 'count-agreement')
+    ).toEqual([]);
+
+    const widened = lintSurfaceBundle({
+      bundleSource,
+      spec,
+      extraCountNouns: ['ways'],
+    });
+    const drawn = widened.violations.filter(
+      (entry) => entry.rule === 'count-agreement'
+    );
+    expect(drawn).toHaveLength(1);
+    expect(drawn[0].message).toContain('"1 ways"');
+    // …and the clean assertion above would fail on it.
+    expect(() => expect(drawn).toEqual([])).toThrow();
+  });
+
+  it('is skipped, not silently passed, when nothing could be rendered', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: 'import x from "y";',
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(
+      result.skipped.map((entry) => entry.rule).includes('count-agreement')
+    ).toBe(true);
   });
 });

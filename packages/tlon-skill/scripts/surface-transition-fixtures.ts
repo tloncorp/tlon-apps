@@ -504,6 +504,27 @@ export function syntheticSpec(actionIds: readonly string[]): SurfaceSpec {
   } as unknown as SurfaceSpec;
 }
 
+/**
+ * The same, with real ops — for the one scorer question that reads them.
+ *
+ * `syntheticSpec` gives every action `ops: []`, which is fine for the rules
+ * that only count action ids. The no-op-control rule asks a question ABOUT the
+ * ops (does every one of them name `$actor`?), so testing its exemption on a
+ * spec whose ops are all empty would be testing nothing.
+ */
+export function syntheticSpecWithOps(
+  actions: Record<string, { op: string; path: string; value?: unknown }[]>
+): SurfaceSpec {
+  return {
+    surfaceId: 'srf-synthetic',
+    specRevision: 1,
+    initialState: {},
+    actions: Object.fromEntries(
+      Object.entries(actions).map(([id, ops]) => [id, { ops }])
+    ),
+  } as unknown as SurfaceSpec;
+}
+
 /** D140's shape, reduced to four states: Done sits behind Blocked. */
 export const CHECKPOINT_GRAPH = (): TransitionGraph =>
   syntheticGraph({
@@ -610,3 +631,337 @@ export const DOUBLE_INVOKE_SPEC: unknown = {
     'set-going': { ops: [{ op: 'set', path: '/going', value: true }] },
   },
 };
+
+/* ------------------------------------------------------------------ */
+/* The board the live loop shipped                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The kanban the bot published to `chat/~zod/dash-gm1ekjow` from a
+ * one-sentence request, copied byte for byte off the ship.
+ *
+ * The shipped `kanban` template renders, per card, only the columns the card
+ * is NOT in — its own comment says so: "The three columns it is not in
+ * become the three buttons that move it there." This adaptation dropped that
+ * one condition. `COLUMNS.map` runs over all four, so every card carries a
+ * button for the column it is already sitting in, enabled and
+ * indistinguishable from the three that work. Press it and the board does
+ * not move.
+ *
+ * Vendored rather than read off the ship, for the reason `KANBAN_V2_BUNDLE`
+ * is: a live channel is not a reproducible test input, and the defect the
+ * no-op-control finding exists to catch has to have a fixture that travels
+ * with the repository.
+ *
+ * It also paints "1 people active" once exactly one member has moved a card,
+ * which is the `count-agreement` rule's case. One board, both defects, both
+ * shipped.
+ */
+export const KANBAN_ALL_COLUMNS_BUNDLE = `(function () {
+  const { html, primitives, invoke, canInvoke } = surface;
+  const { Card, ListRow, Button, Badge, SectionHeader, EmptyState, Progress, Stat } = primitives;
+
+  const COLUMNS = [
+    { key: "todo", label: "To do" },
+    { key: "doing", label: "Doing" },
+    { key: "blocked", label: "Blocked" },
+    { key: "done", label: "Done" },
+  ];
+
+  const MOVE = {
+    "cover-art": { todo: function () { return invoke("cover-art-todo"); }, doing: function () { return invoke("cover-art-doing"); }, blocked: function () { return invoke("cover-art-blocked"); }, done: function () { return invoke("cover-art-done"); } },
+    "copy-edit": { todo: function () { return invoke("copy-edit-todo"); }, doing: function () { return invoke("copy-edit-doing"); }, blocked: function () { return invoke("copy-edit-blocked"); }, done: function () { return invoke("copy-edit-done"); } },
+    "mailing-list": { todo: function () { return invoke("mailing-list-todo"); }, doing: function () { return invoke("mailing-list-doing"); }, blocked: function () { return invoke("mailing-list-blocked"); }, done: function () { return invoke("mailing-list-done"); } },
+  };
+
+  const has = function (object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
+  };
+
+  const columnOf = function (status) {
+    for (let i = 0; i < COLUMNS.length; i += 1) {
+      if (COLUMNS[i].key === status) return COLUMNS[i];
+    }
+    return COLUMNS[0];
+  };
+
+  surface.register({
+    render(state) {
+      const tasks = state.tasks || {};
+      const order = Array.isArray(state.taskOrder) ? state.taskOrder : [];
+      const cards = order.map(function (id) {
+        const task = tasks[id] || {};
+        return { id: id, label: task.label || id, note: task.note || "", column: columnOf(task.status) };
+      });
+      const total = cards.length;
+      const finished = cards.filter(function (card) { return card.column.key === "done"; }).length;
+      const claims = state.claims || {};
+      const claimShips = Object.keys(claims);
+
+      const cardFor = function (card) {
+        const moves = MOVE[card.id] || {};
+        const buttons = COLUMNS.map(function (column) {
+          const handler = has(moves, column.key) ? moves[column.key] : null;
+          return html\`<div><\${Button} tone=\${column.key === "done" ? "positive" : "neutral"} disabled=\${!canInvoke() || !handler} onPress=\${handler}>\${column.label}<//></div>\`;
+        });
+        return html\`<\${ListRow} secondary=\${html\`<div>\${card.note}</div><div>\${buttons}</div>\`}>
+          \${card.label}
+        <//>\`;
+      };
+
+      const sections = COLUMNS.map(function (column) {
+        const inColumn = cards.filter(function (card) { return card.column.key === column.key; });
+        return html\`<div><\${SectionHeader}>\${column.label} · \${inColumn.length}<//>\${inColumn.length ? inColumn.map(cardFor) : html\`<\${EmptyState} title="Nothing here yet" description="Move a newsletter task into this column." />\`}</div>\`;
+      });
+
+      return html\`
+        <\${Card} title=\${state.board || "Newsletter relaunch"}>
+          <\${Stat} value=\${String(finished) + " / " + String(total)} label="tasks done" hint="Keep the relaunch moving" />
+          <\${Progress} value=\${total === 0 ? 0 : finished / total} label="Newsletter relaunch progress" />
+          <div>Choose a column on any task to update the shared board.</div>
+          \${claimShips.length ? html\`<div><\${Badge}>\${claimShips.length} people active<//></div>\` : null}
+          \${sections}
+        <//>
+      \`;
+    },
+  });
+})();
+`;
+
+/** `surface show chat/~zod/dash-gm1ekjow --json`, verbatim. */
+export const KANBAN_ALL_COLUMNS_SPEC: unknown = {
+  version: 1,
+  surfaceId: 'newsletter-relaunch-board',
+  title: 'Newsletter relaunch',
+  initialState: {
+    board: 'Newsletter relaunch',
+    taskOrder: ['cover-art', 'copy-edit', 'mailing-list'],
+    tasks: {
+      'cover-art': {
+        label: 'Cover art',
+        note: 'Create the artwork for the relaunched newsletter.',
+        status: 'todo',
+      },
+      'copy-edit': {
+        label: 'Copy edit',
+        note: 'Polish the newsletter copy before sending.',
+        status: 'todo',
+      },
+      'mailing-list': {
+        label: 'Mailing list',
+        note: 'Check and prepare the subscriber list.',
+        status: 'todo',
+      },
+    },
+    claims: {},
+  },
+  actions: {
+    'cover-art-todo': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/cover-art/status',
+          value: 'todo',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'cover-art',
+        },
+      ],
+    },
+    'cover-art-doing': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/cover-art/status',
+          value: 'doing',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'cover-art',
+        },
+      ],
+    },
+    'cover-art-blocked': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/cover-art/status',
+          value: 'blocked',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'cover-art',
+        },
+      ],
+    },
+    'cover-art-done': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/cover-art/status',
+          value: 'done',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'cover-art',
+        },
+      ],
+    },
+    'copy-edit-todo': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/copy-edit/status',
+          value: 'todo',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'copy-edit',
+        },
+      ],
+    },
+    'copy-edit-doing': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/copy-edit/status',
+          value: 'doing',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'copy-edit',
+        },
+      ],
+    },
+    'copy-edit-blocked': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/copy-edit/status',
+          value: 'blocked',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'copy-edit',
+        },
+      ],
+    },
+    'copy-edit-done': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/copy-edit/status',
+          value: 'done',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'copy-edit',
+        },
+      ],
+    },
+    'mailing-list-todo': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/mailing-list/status',
+          value: 'todo',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'mailing-list',
+        },
+      ],
+    },
+    'mailing-list-doing': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/mailing-list/status',
+          value: 'doing',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'mailing-list',
+        },
+      ],
+    },
+    'mailing-list-blocked': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/mailing-list/status',
+          value: 'blocked',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'mailing-list',
+        },
+      ],
+    },
+    'mailing-list-done': {
+      acceptStale: true,
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/mailing-list/status',
+          value: 'done',
+        },
+        {
+          op: 'set',
+          path: '/claims/$actor',
+          value: 'mailing-list',
+        },
+      ],
+    },
+  },
+  recipe:
+    'A shared kanban board for the newsletter relaunch. It tracks three fixed tasks — cover art, copy edit and mailing list — across To do, Doing, Blocked and Done. Members can move any task, and the board records who last moved a task.',
+  specRevision: 2,
+  bundle: {
+    assetRef:
+      'http://127.0.0.1:4323/4f04b528c6a267ac9bdf1733fc23146389cb756441e1d5e60a044efdd6238fb2.js',
+    sha256: '4f04b528c6a267ac9bdf1733fc23146389cb756441e1d5e60a044efdd6238fb2',
+    size: 3529,
+    shellVersion: 1,
+  },
+  preserveState: true,
+};
+
+/**
+ * The same board with the one repair the template already has: a card does
+ * not offer the column it is in.
+ *
+ * A pair, not a lone fixture — the same discipline as
+ * `UNLOCKED_SCREEN_BUNDLE`. A rule that fires on the broken board proves
+ * nothing by itself, because a rule that fires on everything would too. The
+ * repaired twin differs by ONE filter and is what shows the finding tracks
+ * the defect rather than the app.
+ */
+export const KANBAN_OWN_COLUMN_DROPPED_BUNDLE =
+  KANBAN_ALL_COLUMNS_BUNDLE.replace(
+    'const buttons = COLUMNS.map(function (column) {',
+    'const buttons = COLUMNS.filter(function (column) { return column.key !== card.column.key; }).map(function (column) {'
+  );

@@ -5,6 +5,8 @@
 // named-export validation. Subpaths resolve to the real modules, so this walk
 // folds with the SAME reducer the client folds with.
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
+import * as surfaceJsonPointerModule from '@tloncorp/api/client/surface/jsonPointer';
+// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import * as surfaceReducerModule from '@tloncorp/api/client/surface/reducer';
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import { runShellFixture } from '@tloncorp/surface-shell/node';
@@ -102,6 +104,10 @@ type ApiModule = typeof import('@tloncorp/api');
 const { reduceSurface } = surfaceReducerModule as Pick<
   ApiModule,
   'reduceSurface'
+>;
+const { ACTOR_PLACEHOLDER } = surfaceJsonPointerModule as Pick<
+  ApiModule,
+  'ACTOR_PLACEHOLDER'
 >;
 
 export type SurfaceSpec = ApiModule['SurfaceSpecSchema']['_output'];
@@ -632,13 +638,157 @@ export interface ReachabilityCheckpoint {
 }
 
 /* ------------------------------------------------------------------ */
+/* Controls that cannot do anything where they are drawn                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One action, and the screens on which a control invoking it does nothing.
+ *
+ * A SELF-LOOP in the walked graph — press it, and the state is byte-identical
+ * — is the whole measurement. `renderedStates` is carried beside
+ * `deadStates` because the two together are what makes the finding legible:
+ * "dead on 16 of the 193 screens" is a different report from "dead on all 193".
+ */
+export interface ReachabilityNoOpControl {
+  actionId: string;
+  /** screens where a control invoked it and the fold changed nothing */
+  deadStates: number;
+  /** screens where some rendered control invoked it at all */
+  renderedStates: number;
+}
+
+/**
+ * Does every one of this action's ops name the presser?
+ *
+ * This is the whole false-positive defence, and it is not a heuristic: it is
+ * the pattern `PARADIGM.md` documents under "The default: idempotent `set`
+ * keyed by `$actor`" — *"Pressing twice writes the same literal to the same
+ * path: the second press changes nothing. Reach for this first, every time."*
+ * A control whose write is the presser's OWN answer is a radio button. Drawing
+ * it on the screen where it already holds is how you show somebody what they
+ * picked, and pressing it again correctly does nothing.
+ *
+ * Measured before it was believed. Walking the nine shipped templates, a bare
+ * self-loop rule fires on EIGHT of them — `vote-pizza` re-pressed, `bench-ok`
+ * re-pressed, `answer-yes` re-pressed — which is a check nobody would leave
+ * switched on. With this exemption it fires on none of them, and still fires
+ * on the board that shipped the defect.
+ *
+ * Two spellings of "the presser's own answer" are both accepted, because both
+ * ship in the templates:
+ *
+ * - `$actor` in the PATH — `set /votes/$actor "pizza"` (poll, rsvp, potluck,
+ *   habit-tracker, workout-tracker, leaderboard). A per-member slot.
+ * - `$actor` in the VALUE — `set /paidBy/ferry "$actor"` (expense-split).
+ *   A shared slot that records WHO, which is the same idempotence seen from
+ *   the other side: pressing again re-writes your own name.
+ *
+ * EVERY op must qualify, not merely one. The board this pass was written
+ * about writes two ops — `set /tasks/cover-art/status "doing"` and
+ * `set /claims/$actor "cover-art"` — and an "any op" test would exempt it on
+ * the strength of the second while the first is the dead half.
+ *
+ * An action with no ops is not exempt: it cannot change anything anywhere,
+ * which is the strongest form of the defect and not an instance of the
+ * pattern.
+ */
+export function actionWritesOnlyTheActor(
+  spec: SurfaceSpec,
+  actionId: string
+): boolean {
+  const action = spec.actions[actionId];
+  if (action === undefined || action.ops.length === 0) {
+    return false;
+  }
+  return action.ops.every((op) => {
+    const path = (op as { path?: string }).path ?? '';
+    if (path.split('/').includes(ACTOR_PLACEHOLDER)) {
+      return true;
+    }
+    return valueNamesActor((op as { value?: unknown }).value);
+  });
+}
+
+/** `$actor` anywhere in an op's value, at any depth. */
+function valueNamesActor(value: unknown): boolean {
+  if (value === ACTOR_PLACEHOLDER) {
+    return true;
+  }
+  if (Array.isArray(value)) {
+    return value.some(valueNamesActor);
+  }
+  if (typeof value === 'object' && value !== null) {
+    return Object.values(value).some(valueNamesActor);
+  }
+  return false;
+}
+
+/**
+ * Every action with a control that leads nowhere from where it is drawn.
+ *
+ * The measurement is one line — `edge.from === edge.to` — because the walk has
+ * already done the work: an edge exists only because a control RENDERED IN
+ * THAT STATE invoked that action, and its target is what the real reducer
+ * produced. So a self-loop is exactly "a member looking at this screen can
+ * press this, and the board will not move".
+ *
+ * Aborted edges are excluded. The reducer stopping part-way through an
+ * action's ops (§7) can also leave the state where it was, but the cause is
+ * the fold being refused rather than the control being pointless, and the two
+ * must not be reported as the same thing.
+ */
+export function collectNoOpControls(
+  graph: TransitionGraph,
+  spec: SurfaceSpec
+): ReachabilityNoOpControl[] {
+  const dead = new Map<string, Set<number>>();
+  const rendered = new Map<string, Set<number>>();
+  for (const edge of graph.edges) {
+    let seen = rendered.get(edge.actionId);
+    if (seen === undefined) {
+      seen = new Set<number>();
+      rendered.set(edge.actionId, seen);
+    }
+    seen.add(edge.from);
+    if (edge.from !== edge.to || edge.aborted) {
+      continue;
+    }
+    let stuck = dead.get(edge.actionId);
+    if (stuck === undefined) {
+      stuck = new Set<number>();
+      dead.set(edge.actionId, stuck);
+    }
+    stuck.add(edge.from);
+  }
+
+  const controls: ReachabilityNoOpControl[] = [];
+  for (const [actionId, states] of dead) {
+    if (actionWritesOnlyTheActor(spec, actionId)) {
+      continue;
+    }
+    controls.push({
+      actionId,
+      deadStates: states.size,
+      renderedStates: (rendered.get(actionId) as Set<number>).size,
+    });
+  }
+  return controls.sort((left, right) =>
+    left.actionId.localeCompare(right.actionId)
+  );
+}
+
+/** How many action ids the printed no-op finding names before summarising. */
+export const PRINTED_NO_OP_ACTIONS = 8;
+
+/* ------------------------------------------------------------------ */
 /* Findings                                                            */
 /* ------------------------------------------------------------------ */
 
 export type ReachabilityFindingKind =
   | 'inert'
   | 'unreachable-actions'
-  | 'mandatory-checkpoint';
+  | 'mandatory-checkpoint'
+  | 'no-op-control';
 
 export interface ReachabilityFinding {
   kind: ReachabilityFindingKind;
@@ -668,6 +818,8 @@ export interface ReachabilityReport {
   /** more state pointers than the pass tracks; `valueDomains` is partial */
   pointerOverflow: boolean;
   checkpoints: ReachabilityCheckpoint[];
+  /** actions a rendered control invokes on a screen where they change nothing */
+  noOpControls: ReachabilityNoOpControl[];
   /**
    * The subset of the observations above that is ASSERTED. Empty on a walk
    * that was not closed, however suggestive the observations are.
@@ -800,6 +952,7 @@ export function analyzeReachability(
 
   const checkpoints = collectCheckpoints(graph, projections.projections);
   const valueDomains = collectValueDomains(projections.projections);
+  const noOpControls = collectNoOpControls(graph, spec);
 
   const findings: ReachabilityFinding[] = [];
   if (closed) {
@@ -838,6 +991,27 @@ export function analyzeReachability(
           `not a step of the real process, the control that skips it is missing`,
       });
     }
+    if (noOpControls.length > 0) {
+      const named = noOpControls.slice(0, PRINTED_NO_OP_ACTIONS);
+      const rest = noOpControls.length - named.length;
+      findings.push({
+        kind: 'no-op-control',
+        rubricCheck: 7,
+        key: `no-op-control:${noOpControls.map((entry) => entry.actionId).join(',')}`,
+        message:
+          `a control is drawn on screens where pressing it changes nothing: ` +
+          `${named
+            .map(
+              (entry) =>
+                `"${entry.actionId}" on ${entry.deadStates} of the ${entry.renderedStates} screen(s) it appears on`
+            )
+            .join(', ')}${rest > 0 ? `, and ${rest} more action(s)` : ''}. ` +
+          `A member presses it and the board does not move. Do not render the control in the ` +
+          `state it is already in — the shipped \`kanban\` template drops the card's OWN column ` +
+          `from its button row for exactly this reason. (An idempotent re-press of your own ` +
+          `answer is not this: an action whose every op writes \`$actor\` is exempt.)`,
+      });
+    }
   }
 
   return {
@@ -855,6 +1029,7 @@ export function analyzeReachability(
     valueDomains,
     pointerOverflow: projections.pointerOverflow,
     checkpoints,
+    noOpControls,
     findings,
     notChecked: [...REACHABILITY_NOT_CHECKED],
     ...(graph.problem === undefined ? {} : { problem: graph.problem }),
@@ -1160,7 +1335,7 @@ export function formatReachabilityReport(
       );
     } else if (withFindings) {
       lines.push(
-        '  no reachability defect found — every declared action is pressable and no value is a mandatory checkpoint'
+        '  no reachability defect found — every declared action is pressable, every control drawn can move the board, and no value is a mandatory checkpoint'
       );
     }
   }
@@ -1178,6 +1353,11 @@ export function formatReachabilityReport(
     );
   }
   if (!report.closed) {
+    for (const control of report.noOpControls) {
+      lines.push(
+        `  observed: pressing "${control.actionId}" changed nothing on ${control.deadStates} of the ${control.renderedStates} screen(s) it was drawn on inside the bound`
+      );
+    }
     for (const checkpoint of report.checkpoints) {
       lines.push(
         `  observed: ${checkpoint.value} at ${checkpoint.pointer} came only after ${checkpoint.through.join(', then ')} inside the bound`
