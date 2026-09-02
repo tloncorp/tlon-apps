@@ -72,4 +72,63 @@ describe('native header title store', () => {
     });
     expect(unmounted).toHaveBeenCalledOnce();
   });
+
+  it('remounts a stateful title when the owning store changes', () => {
+    const mounted = vi.fn();
+    const unmounted = vi.fn();
+
+    function StatefulTitle({ text }: { text: string }) {
+      useEffect(() => {
+        mounted();
+        return () => {
+          unmounted();
+        };
+      }, []);
+
+      return <span>{text}</span>;
+    }
+
+    function InstalledTitle({
+      ownerKey,
+      store,
+    }: {
+      ownerKey: string;
+      store: ReturnType<typeof createNativeHeaderTitleStore>;
+    }) {
+      return (
+        <div>
+          <NativeHeaderTitle key={ownerKey} store={store} />
+        </div>
+      );
+    }
+
+    const homeStore = createNativeHeaderTitleStore(
+      <StatefulTitle text="Home" />
+    );
+    const activityStore = createNativeHeaderTitleStore(
+      <StatefulTitle text="Activity" />
+    );
+    let renderer: ReactTestRenderer;
+
+    act(() => {
+      renderer = create(<InstalledTitle ownerKey="home" store={homeStore} />);
+    });
+
+    act(() => {
+      renderer!.update(
+        <InstalledTitle ownerKey="activity" store={activityStore} />
+      );
+    });
+
+    expect(mounted).toHaveBeenCalledTimes(2);
+    expect(unmounted).toHaveBeenCalledOnce();
+    expect(renderer!.toJSON()).toMatchObject({
+      children: [{ children: ['Activity'] }],
+    });
+
+    act(() => {
+      renderer!.unmount();
+    });
+    expect(unmounted).toHaveBeenCalledTimes(2);
+  });
 });
