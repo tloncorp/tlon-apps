@@ -41,8 +41,9 @@ html`
 - Components interpolate as tags: `<${Card} …>` … `<//>` closes any tag.
 - Plain elements are fine for grouping: `<div>`, `<span>`, `<ul>`, `<li>`.
 - Props interpolate as `prop=${value}`; children can be arrays.
-- `data-testid=${'thing-' + id}` is allowed and useful — preview and e2e
-  read it.
+- `data-testid=${'thing-' + id}` is allowed, and the templates carry them.
+  Nothing reads them — not preview, not the gate, not any test — so writing
+  more of them buys nothing.
 
 **There is no app CSS.** Only the shell's stylesheet reaches the page, so a
 class name of your own has no styles behind it. Structure comes from the

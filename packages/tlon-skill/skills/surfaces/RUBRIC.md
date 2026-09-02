@@ -236,6 +236,15 @@ repeats — and prints, under `Reachability`:
   sequence of presses reaches except through another one. That is the D140
   line, and it reads `"done" at /tasks/*/status is reachable only through
 "doing", then "blocked"`;
+- **a control drawn where pressing it changes nothing**: a member presses,
+  and the board is byte-identical to what it already was. The repair is not
+  to render the control in the state it is already in — the shipped `kanban`
+  template drops a card's OWN column from its button row for exactly this
+  reason. An action whose EVERY op writes `$actor` is exempt and never
+  appears here, because re-pressing your own answer is a radio button and
+  correctly does nothing. Every op, not some: an action that records your
+  claim and also moves a shared task is dead in its shared half, and that is
+  the board this finding was written about;
 - **the values each part of the state actually took**, so a column, an
   option or an answer that nothing ever produced is visible as an absence.
 

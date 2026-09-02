@@ -558,6 +558,22 @@ You catch the rest by reading every word in the preview screenshots —
 `RUBRIC.md` check 6. Nothing else can: the lint has a fixed denylist, and a
 denylist cannot tell whether a sentence means anything to a member.
 
+### A count of one takes the singular
+
+`${ships.length} people active` paints **"1 people active"** on the day the
+board has one member, which is exactly what the first one shipped. Wherever a
+count and a noun land in the same sentence, pick the word from the number:
+`n === 1 ? 'person' : 'people'`.
+
+The gate reads this off the copy your render actually painted, against a
+curated list of plural nouns and only after a literal `1`. It reads one
+element's text at a time, so a number and a noun that two neighbouring
+elements happen to put side by side is not it, and neither is a `Stat`: a
+stat paints its value and its label in separate spans, and a stat label is a
+category name that stays plural — "1" over "votes so far" is how every
+dashboard writes it, and three of the templates do. A sentence is the thing
+that has to agree.
+
 ---
 
 ## 9. Charts go through the chart primitive
