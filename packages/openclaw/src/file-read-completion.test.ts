@@ -1193,6 +1193,57 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it.each(['pwd', 'git status --short'])(
+    'preserves read evidence after a non-mutating exec: %s',
+    (command) => {
+      const guard = createFileReadCompletionGuard();
+      guard.recordToolResult(
+        successfulRead(
+          'readonly-exec',
+          'one\ntwo\nthree\nfour',
+          '/tmp/report.txt'
+        )
+      );
+      guard.recordToolResult({
+        runId: 'readonly-exec',
+        toolName: 'exec',
+        params: { command },
+        result: { content: [{ type: 'text', text: 'ok' }] },
+      });
+
+      expect(
+        guard.beforeFinalize({
+          runId: 'readonly-exec',
+          lastAssistantMessage: 'I will read the file now.',
+        })
+      ).toMatchObject({ action: 'revise' });
+    }
+  );
+
+  it('invalidates read evidence for a composed exec containing a write', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'composed-exec',
+        'one\ntwo\nthree\nfour',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult({
+      runId: 'composed-exec',
+      toolName: 'exec',
+      params: { command: "pwd && printf 'new' > /tmp/report.txt" },
+      result: { content: [{ type: 'text', text: '' }] },
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'composed-exec',
+        lastAssistantMessage: 'I will read the file now.',
+      })
+    ).toBeNull();
+  });
+
   it('invalidates truncated read evidence after apply_patch', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(

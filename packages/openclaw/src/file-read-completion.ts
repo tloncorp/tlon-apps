@@ -298,6 +298,31 @@ function mutationTargets(toolName: string, params: unknown): string[] | null {
   return targets.length > 0 ? Array.from(new Set(targets)) : null;
 }
 
+function execIsKnownReadOnly(params: unknown): boolean {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    return false;
+  }
+  const record = params as { command?: unknown; cmd?: unknown };
+  const command =
+    typeof record.command === 'string'
+      ? record.command
+      : typeof record.cmd === 'string'
+        ? record.cmd
+        : null;
+  if (!command) return false;
+
+  // Preserve read evidence only for a deliberately small set of commands whose
+  // normal operation cannot change the file that was read. Reject shell
+  // composition and redirection so an appended mutating command remains
+  // conservative.
+  const trimmed = command.trim();
+  if (!trimmed || /(?:&&|\|\||[;|<>`]|\$\(|\r|\n)/.test(trimmed)) {
+    return false;
+  }
+  if (/^pwd(?:\s+--(?:logical|physical))?$/.test(trimmed)) return true;
+  return /^git\s+(?:status|diff|log|show|rev-parse)(?:\s|$)/.test(trimmed);
+}
+
 function targetKeysMayMatch(left: string, right: string): boolean {
   if (left === right) return true;
   if (left === UNKNOWN_TARGET || right === UNKNOWN_TARGET) return false;
@@ -730,6 +755,9 @@ export function createFileReadCompletionGuard(options?: {
           return;
         const existing = runs.get(runId);
         if (!existing) return;
+        if (input.toolName === 'exec' && execIsKnownReadOnly(input.params)) {
+          return;
+        }
         const changedTargets = mutationTargets(input.toolName, input.params);
         // A successful patch with an unrecognized payload may have changed any
         // previously read file. Discard all evidence rather than carrying stale
