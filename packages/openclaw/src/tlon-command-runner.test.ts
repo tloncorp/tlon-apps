@@ -76,14 +76,20 @@ describe('runTlonCommand timeout output capture', () => {
   });
 
   it('rejects near the timeout when a spawnSync grandchild keeps the pipes open', async () => {
-    const timeoutMs = 500;
+    // The budget has to cover two cold Node boots — the wrapper, then the
+    // spawnSync grandchild — before the grandchild's writes can reach us.
+    // A loaded CI runner spends longer on those than the writes themselves,
+    // and a timeout that fires first carries empty output. Keep the
+    // grandchild's hold-open delay well past the timeout so the pipes are
+    // still open when it fires.
+    const timeoutMs = 1_500;
     const grandchildScript = [
       "process.stdout.write('stdout-before-timeout\\n');",
       "process.stderr.write('stderr-before-timeout\\n');",
       'setTimeout(() => {',
       "  process.stdout.write('grandchild-finished\\n');",
       '  process.exit(0);',
-      '}, 2500);',
+      '}, 6000);',
     ].join('\n');
     const wrapperScript = [
       "const { spawnSync } = require('node:child_process');",
@@ -110,7 +116,8 @@ describe('runTlonCommand timeout output capture', () => {
     const elapsedMs = performance.now() - startedAt;
 
     expect(elapsedMs).toBeGreaterThanOrEqual(timeoutMs - 50);
-    expect(elapsedMs).toBeLessThan(1_500);
+    // Rejected on the timeout, not by waiting out the grandchild's exit.
+    expect(elapsedMs).toBeLessThan(3_000);
     expect(failure).toMatchObject({
       message: `tlon command timed out after ${timeoutMs}ms`,
       stdout: 'stdout-before-timeout\n',
