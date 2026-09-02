@@ -6,7 +6,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useA2UINavigation } from '../../hooks/useA2UINavigation';
 import type { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, ScrollView, SizableText, YStack } from '../../ui';
+import {
+  ScreenHeader,
+  ScreenScrollView,
+  SizableText,
+  XStack,
+  YStack,
+} from '../../ui';
+import { CopyRawPayloadButton } from '../../ui/components/Channel/ContextLens/CopyRawPayloadButton';
 import {
   type LensMessageTarget,
   RunInspector,
@@ -88,9 +95,22 @@ export function ContextLensRunScreen(props: Props) {
         title="Bot run"
         backAction={props.navigation.goBack}
         borderBottom
+        placement="navigation"
       />
+      {/* Outside the `lens` branch on purpose: the stored envelope is worth
+          copying precisely when `lensFromRunPayload` rejects it and the
+          inspector below cannot render. */}
+      {runQuery.data?.payload != null ? (
+        <XStack
+          justifyContent="flex-end"
+          paddingHorizontal="$l"
+          paddingTop="$l"
+        >
+          <CopyRawPayloadButton payload={runQuery.data.payload} />
+        </XStack>
+      ) : null}
       {lens ? (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScreenScrollView showsVerticalScrollIndicator={false}>
           <YStack gap="$m" padding="$l" paddingBottom="$2xl">
             <RunSummary
               lens={lens}
@@ -98,7 +118,7 @@ export function ContextLensRunScreen(props: Props) {
             />
             <RunInspector lens={lens} onPressMessage={handlePressMessage} />
           </YStack>
-        </ScrollView>
+        </ScreenScrollView>
       ) : (
         <YStack
           alignItems="center"

@@ -1,45 +1,229 @@
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
-import { Button, Text } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Alert } from 'react-native';
-import { XStack, YStack, isWeb, styled } from 'tamagui';
+import { Button, Icon, type IconType, Text } from '@tloncorp/ui';
+import {
+  type ReactNode,
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+} from 'react';
+import { Alert, Platform } from 'react-native';
+import { View, XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { useContactPermissions } from '../../hooks/useContactPermissions';
 import { useNag } from '../../hooks/useNag';
 import { useNotificationPermissions } from '../../lib/notifications';
+import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 
 const logger = createDevLogger('SystemNotices', false);
 
-const NoticeFrame = styled(YStack, {
-  backgroundColor: '$systemNoticeBackground',
-  padding: '$2xl',
-  marginHorizontal: '$l',
-  borderRadius: '$l',
-  borderWidth: 1.6,
-  borderColor: '$systemNoticeBorder',
+export type SystemNoticePresentation = 'expanded' | 'compact';
+
+const SystemNoticePresentationContext =
+  createContext<SystemNoticePresentation | null>(null);
+
+export const SystemNoticePresentationProvider =
+  SystemNoticePresentationContext.Provider;
+
+function useSystemNoticePresentation(
+  presentation: SystemNoticePresentation | undefined,
+  fallback: SystemNoticePresentation
+) {
+  const contextPresentation = useContext(SystemNoticePresentationContext);
+  return presentation ?? contextPresentation ?? fallback;
+}
+
+const NoticeContainer = styled(View, {
+  width: '100%',
+  minWidth: '100%',
+  alignSelf: 'stretch',
+  variants: {
+    horizontalInset: {
+      true: {
+        paddingHorizontal: '$xl',
+      },
+    },
+  } as const,
+});
+
+const NoticeCardFrame = styled(YStack, {
+  width: '100%',
+  backgroundColor: '$background',
+  padding: 20,
+  borderRadius: '$xl',
+  borderWidth: 1,
+  borderColor: '$border',
 });
 
 const NoticeBody = styled(Text, {
-  color: '$systemNoticeText',
-  opacity: 0.7,
-  size: '$label/l',
+  color: '$secondaryText',
+  size: '$label/m',
+  trimmed: false,
 });
 
 const NoticeTitle = styled(Text, {
-  color: '$systemNoticeText',
-  size: '$label/xl',
+  color: '$primaryText',
+  size: '$label/l',
   fontWeight: '600',
+  trimmed: false,
 });
+
+const NoticeIconFrame = styled(View, {
+  width: 40,
+  height: 40,
+  borderRadius: '$l',
+  backgroundColor: '$secondaryBackground',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+const NoticeBannerFrame = styled(XStack, {
+  width: '100%',
+  height: 56,
+  paddingHorizontal: '$xl',
+  borderRadius: '$xl',
+  backgroundColor: '$secondaryBackground',
+  alignItems: 'center',
+  gap: '$m',
+});
+
+function NoticeIcon({
+  type,
+  compact = false,
+}: {
+  type: IconType;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return <Icon type={type} customSize={[24, 20]} color="$primaryText" />;
+  }
+
+  return (
+    <NoticeIconFrame>
+      <Icon type={type} customSize={[24, 22]} color="$primaryText" />
+    </NoticeIconFrame>
+  );
+}
+
+function NoticeCard({
+  icon,
+  title,
+  children,
+  actions,
+  horizontalInset = true,
+  ...frameProps
+}: {
+  icon: IconType;
+  title: string;
+  children: ReactNode;
+  actions?: ReactNode;
+  horizontalInset?: boolean;
+} & React.ComponentProps<typeof NoticeContainer>) {
+  return (
+    <NoticeContainer horizontalInset={horizontalInset} {...frameProps}>
+      <NoticeCardFrame>
+        <XStack gap="$l" alignItems="flex-start">
+          <NoticeIcon type={icon} />
+          <YStack flex={1}>
+            <NoticeTitle>{title}</NoticeTitle>
+            <NoticeBody>{children}</NoticeBody>
+          </YStack>
+        </XStack>
+        {actions ? <View marginTop="$xl">{actions}</View> : null}
+      </NoticeCardFrame>
+    </NoticeContainer>
+  );
+}
+
+function NoticeBanner({
+  icon,
+  title,
+  actionLabel,
+  onAction,
+  onDismiss,
+  horizontalInset = true,
+  ...containerProps
+}: {
+  icon: IconType;
+  title: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  onDismiss?: () => void;
+  horizontalInset?: boolean;
+} & React.ComponentProps<typeof NoticeContainer>) {
+  return (
+    <NoticeContainer horizontalInset={horizontalInset} {...containerProps}>
+      <NoticeBannerFrame>
+        <NoticeIcon type={icon} compact />
+        <NoticeTitle flex={1} numberOfLines={1}>
+          {title}
+        </NoticeTitle>
+        {actionLabel && onAction ? (
+          <Button
+            preset="primary"
+            label={actionLabel}
+            size="small"
+            height={32}
+            minHeight={32}
+            paddingHorizontal="$l"
+            paddingVertical={0}
+            borderRadius="$l"
+            centered
+            onPress={onAction}
+          />
+        ) : null}
+        {onDismiss ? (
+          <Button
+            icon="Close"
+            size="small"
+            intent="secondary"
+            fill="text"
+            width={24}
+            minWidth={24}
+            height={24}
+            minHeight={24}
+            padding={0}
+            aria-label="Dismiss"
+            onPress={onDismiss}
+          />
+        ) : null}
+      </NoticeBannerFrame>
+    </NoticeContainer>
+  );
+}
+
+function NoticeActions({ children }: { children: ReactNode }) {
+  return (
+    <XStack width="100%" gap="$m">
+      {children}
+    </XStack>
+  );
+}
+
+const noticeActionProps = {
+  flex: 1,
+  height: 40,
+  minHeight: 40,
+  size: 'medium' as const,
+  paddingVertical: 0,
+  borderRadius: '$l' as const,
+  centered: true,
+};
 
 const SystemNotices = {
   ContactBookPrompt,
+  ContactBookPromptView,
   NotificationsPrompt,
+  NotificationsPromptView,
   JoinRequestNotice,
   ConnectedJoinRequestNotice,
   NonHostAdminChannelNotice,
-  NoticeFrame,
+  PresentationProvider: SystemNoticePresentationProvider,
+  NoticeFrame: NoticeCardFrame,
   NoticeBody,
   NoticeTitle,
 };
@@ -69,21 +253,11 @@ export function NotificationsPrompt() {
     notifNag.dismiss();
   }, [notifNag]);
 
-  const handlePrimaryAction = useCallback(async () => {
-    if (perms.canAskPermission) {
-      await perms.requestPermissions();
-      if (perms.hasPermission) {
-        Alert.alert('Success', 'You will now receive notifications.');
-        notifNag.eliminate();
-      } else {
-        notifNag.dismiss();
-      }
-    } else {
-      logger.trackEvent(AnalyticsEvent.ActionNotifPermsSettingsOpened);
-      openedSettingsRef.current = true;
-      perms.openSettings();
-    }
-  }, [perms, notifNag]);
+  const handlePrimaryAction = useCallback(() => {
+    logger.trackEvent(AnalyticsEvent.ActionNotifPermsSettingsOpened);
+    openedSettingsRef.current = true;
+    perms.openSettings();
+  }, [perms]);
 
   if (
     isWeb ||
@@ -97,33 +271,72 @@ export function NotificationsPrompt() {
   }
 
   return (
-    <NoticeFrame>
-      <YStack gap="$5xl">
-        <YStack gap="$xl">
-          <NoticeTitle>Enable notifications</NoticeTitle>
-          <NoticeBody>
-            Tlon Messenger works best if you enable push notifications on your
-            device.
-          </NoticeBody>
-        </YStack>
-        <XStack gap="$m" justifyContent="flex-end">
+    <NotificationsPromptView
+      primaryActionLabel="Settings"
+      onDismiss={handleDismiss}
+      onPrimaryAction={handlePrimaryAction}
+    />
+  );
+}
+
+export function NotificationsPromptView({
+  primaryActionLabel,
+  onDismiss,
+  onPrimaryAction,
+  presentation: presentationOverride,
+}: {
+  primaryActionLabel: 'Enable' | 'Settings';
+  onDismiss: () => void;
+  onPrimaryAction: () => void;
+  presentation?: SystemNoticePresentation;
+}) {
+  const tabBarContentInset = useTopLevelTabBarContentInset();
+  const bottomContentInset =
+    Platform.OS === 'ios' ? tabBarContentInset : undefined;
+  const presentation = useSystemNoticePresentation(
+    presentationOverride,
+    'expanded'
+  );
+
+  if (presentation === 'compact') {
+    return (
+      <NoticeBanner
+        icon="Notifications"
+        title="Turn on notifications"
+        actionLabel={primaryActionLabel}
+        onAction={onPrimaryAction}
+        onDismiss={onDismiss}
+        marginBottom={bottomContentInset}
+      />
+    );
+  }
+
+  return (
+    <NoticeCard
+      icon="Notifications"
+      title="Stay in the loop"
+      marginBottom={bottomContentInset}
+      actions={
+        <NoticeActions>
           <Button
-            type="notice"
-            fill="outline"
-            label="Not Now"
-            size="medium"
-            onPress={handleDismiss}
+            {...noticeActionProps}
+            intent="primary"
+            fill="ghost"
+            backgroundColor="$secondaryBackground"
+            label="Not now"
+            onPress={onDismiss}
           />
           <Button
-            type="notice"
-            fill="solid"
-            size="medium"
-            label={perms.canAskPermission ? 'Enable' : 'Settings'}
-            onPress={handlePrimaryAction}
+            {...noticeActionProps}
+            preset="primary"
+            label={primaryActionLabel}
+            onPress={onPrimaryAction}
           />
-        </XStack>
-      </YStack>
-    </NoticeFrame>
+        </NoticeActions>
+      }
+    >
+      Turn on notifications for new messages, mentions, and invites.
+    </NoticeCard>
   );
 }
 
@@ -173,85 +386,158 @@ export function ContactBookPrompt(props: {
   }
 
   return (
-    <NoticeFrame marginTop="$xl">
-      <YStack gap="$5xl">
-        <YStack gap="$xl">
-          <NoticeTitle>Find Friends</NoticeTitle>
-          <NoticeBody>
-            Sync your contact book to easily find people you know on Tlon. Your
-            contacts are never uploaded — we only send anonymous, hashed
-            identifiers to our server to match you with people you know.
-          </NoticeBody>
-        </YStack>
-        {props.status === 'undetermined' && (
-          <XStack gap="$m" justifyContent="flex-end">
+    <ContactBookPromptView
+      status={props.status}
+      onDismiss={handleDismiss}
+      onPrimaryAction={handlePrimaryAction}
+    />
+  );
+}
+
+export function ContactBookPromptView({
+  status,
+  onDismiss,
+  onPrimaryAction,
+  presentation: presentationOverride,
+}: {
+  status: 'denied' | 'granted' | 'undetermined';
+  onDismiss: () => void;
+  onPrimaryAction: () => void;
+  presentation?: SystemNoticePresentation;
+}) {
+  const presentation = useSystemNoticePresentation(
+    presentationOverride,
+    'expanded'
+  );
+
+  if (presentation === 'compact') {
+    return (
+      <NoticeBanner
+        icon="AddPerson"
+        title="Find people you know"
+        actionLabel={status === 'denied' ? 'Settings' : 'Continue'}
+        onAction={onPrimaryAction}
+        onDismiss={onDismiss}
+        marginTop="$xl"
+      />
+    );
+  }
+
+  return (
+    <NoticeCard
+      icon="AddPerson"
+      title="Find people you know"
+      marginTop="$xl"
+      actions={
+        status === 'undetermined' ? (
+          <NoticeActions>
             <Button
-              type="notice"
-              fill="outline"
-              label="Not Now"
-              size="small"
-              onPress={handleDismiss}
+              {...noticeActionProps}
+              intent="primary"
+              fill="ghost"
+              backgroundColor="$secondaryBackground"
+              label="Not now"
+              onPress={onDismiss}
             />
             <Button
-              type="notice"
-              fill="solid"
+              {...noticeActionProps}
+              preset="primary"
               label="Continue"
-              size="small"
-              onPress={handlePrimaryAction}
+              onPress={onPrimaryAction}
             />
-          </XStack>
-        )}
-        {props.status === 'denied' && (
-          <Button preset="outline" label="Open Settings" />
-        )}
-      </YStack>
-    </NoticeFrame>
+          </NoticeActions>
+        ) : status === 'denied' ? (
+          <NoticeActions>
+            <Button
+              {...noticeActionProps}
+              preset="primary"
+              label="Open Settings"
+              onPress={onPrimaryAction}
+            />
+          </NoticeActions>
+        ) : null
+      }
+    >
+      Match with people in your contacts. We send anonymous hashes—not your
+      address book.
+    </NoticeCard>
   );
 }
 
 export function JoinRequestNotice(params: {
   onViewRequests: () => void;
   onDismiss: () => void;
+  horizontalInset?: boolean;
+  marginTop?: React.ComponentProps<typeof NoticeContainer>['marginTop'];
+  presentation?: SystemNoticePresentation;
 }) {
+  const presentation = useSystemNoticePresentation(
+    params.presentation,
+    'compact'
+  );
+
+  if (presentation === 'expanded') {
+    return (
+      <NoticeCard
+        icon="Profile"
+        title="New join requests"
+        horizontalInset={params.horizontalInset}
+        marginTop={params.marginTop}
+        actions={
+          <NoticeActions>
+            <Button
+              {...noticeActionProps}
+              intent="primary"
+              fill="ghost"
+              backgroundColor="$secondaryBackground"
+              label="Not now"
+              onPress={params.onDismiss}
+            />
+            <Button
+              {...noticeActionProps}
+              preset="primary"
+              label="Review"
+              onPress={params.onViewRequests}
+            />
+          </NoticeActions>
+        }
+      >
+        Review people waiting to join this group.
+      </NoticeCard>
+    );
+  }
+
   return (
-    <NoticeFrame gap="$2xl">
-      <NoticeTitle>Pending Member Requests</NoticeTitle>
-      <XStack gap="$m" justifyContent="flex-end">
-        <Button
-          type="notice"
-          fill="outline"
-          label="Dismiss"
-          onPress={params.onDismiss}
-        />
-        <Button
-          type="notice"
-          fill="solid"
-          label="View Requests"
-          onPress={params.onViewRequests}
-        />
-      </XStack>
-    </NoticeFrame>
+    <NoticeBanner
+      icon="Profile"
+      title="New join requests"
+      actionLabel="Review"
+      onAction={params.onViewRequests}
+      onDismiss={params.onDismiss}
+      horizontalInset={params.horizontalInset}
+      marginTop={params.marginTop}
+    />
   );
 }
 
 export function ConnectedJoinRequestNotice({
   group,
   onViewRequests,
+  horizontalInset,
+  marginTop,
+  presentation,
 }: {
   group?: db.Group | null;
   onViewRequests: () => void;
+  horizontalInset?: boolean;
+  marginTop?: React.ComponentProps<typeof NoticeContainer>['marginTop'];
+  presentation?: SystemNoticePresentation;
 }) {
   // see if we have any pending join requests that haven't been dismissed
-  const hasRelevantJoinRequests = useMemo(() => {
-    if (group && group.joinRequests && group.joinRequests.length > 0) {
-      const dismissedAt = group.pendingMembersDismissedAt ?? 0;
-      return group.joinRequests.some((jr) => {
-        const requestedAt = jr.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
-        return requestedAt > dismissedAt;
-      });
-    }
-    return false;
-  }, [group]);
+  const hasJoinRequests = useMemo(
+    () => hasRelevantJoinRequests(group),
+    [group]
+  );
 
   // handler to dismiss join requests
   const handleDismissJoinRequests = useCallback(() => {
@@ -265,12 +551,12 @@ export function ConnectedJoinRequestNotice({
 
   // clear any unread counts for the join requests whenever displayed
   useEffect(() => {
-    if (group && hasRelevantJoinRequests) {
+    if (group && hasJoinRequests) {
       store.markGroupRead(group.id, false);
     }
-  }, [group, hasRelevantJoinRequests]);
+  }, [group, hasJoinRequests]);
 
-  if (!hasRelevantJoinRequests) {
+  if (!hasJoinRequests) {
     return null;
   }
 
@@ -278,17 +564,48 @@ export function ConnectedJoinRequestNotice({
     <SystemNotices.JoinRequestNotice
       onViewRequests={onViewRequests}
       onDismiss={handleDismissJoinRequests}
+      horizontalInset={horizontalInset}
+      marginTop={marginTop}
+      presentation={presentation}
     />
   );
 }
 
-export function NonHostAdminChannelNotice() {
+export function hasRelevantJoinRequests(group?: db.Group | null) {
+  if (!group?.joinRequests?.length) {
+    return false;
+  }
+
+  const dismissedAt = group.pendingMembersDismissedAt ?? 0;
+  return group.joinRequests.some((request) => {
+    const requestedAt = request.requestedAt ?? Date.now() - 24 * 60 * 60 * 1000;
+    return requestedAt > dismissedAt;
+  });
+}
+
+export function NonHostAdminChannelNotice({
+  presentation: presentationOverride,
+}: {
+  presentation?: SystemNoticePresentation;
+} = {}) {
+  const presentation = useSystemNoticePresentation(
+    presentationOverride,
+    'expanded'
+  );
+
+  if (presentation === 'compact') {
+    return (
+      <NoticeBanner
+        icon="Info"
+        title="Hosted on your node"
+        horizontalInset={false}
+      />
+    );
+  }
+
   return (
-    <NoticeFrame>
-      <NoticeBody>
-        Note: You are not the host of this group. Channels you create will be
-        hosted on your node and will operate independently of the group host.
-      </NoticeBody>
-    </NoticeFrame>
+    <NoticeCard icon="Info" title="Hosted on your node" horizontalInset={false}>
+      This channel will run independently from the group host.
+    </NoticeCard>
   );
 }

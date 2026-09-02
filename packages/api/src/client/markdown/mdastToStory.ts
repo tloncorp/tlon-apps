@@ -1,4 +1,5 @@
 import type {
+  BlockContent,
   Delete,
   Emphasis,
   Heading,
@@ -18,10 +19,13 @@ import type {
 } from 'mdast';
 import { gfmToMarkdown } from 'mdast-util-gfm';
 import { toMarkdown } from 'mdast-util-to-markdown';
+import type { Node } from 'unist';
 
+import { assertNever } from '../../lib/assertNever';
 import { Story, Verse, VerseBlock, VerseInline } from '../../urbit/channel';
 import {
   Block,
+  BlockCode,
   Blockquote,
   Bold,
   Break,
@@ -44,12 +48,13 @@ import {
   Task,
 } from '../../urbit/content';
 import type { GroupMention } from './groupMentionPlugin';
+import { separateShipMentionsFromFusableSiblings } from './serialize';
 import type { ShipMention } from './shipMentionPlugin';
 
 const tableMentionHandlers = {
   handlers: {
     shipMention(node: { value: string }) {
-      return `~${node.value}`;
+      return node.value;
     },
     groupMention(node: { value: string }) {
       return `@${node.value}`;
@@ -80,12 +85,156 @@ function isGroupMention(node: unknown): node is GroupMention {
 }
 
 /**
+ * Flatten mdast link-label children to Story's string-only link content.
+ * Formatting contributes its visible text; ship mention values already carry
+ * their sigil, while group mention values restore their `@`.
+ */
+function linkLabelToText(nodes: PhrasingContent[]): string {
+  return nodes
+    .map((node) => {
+      if (isShipMention(node)) {
+        return (node as unknown as ShipMention).value;
+      }
+      if (isGroupMention(node)) {
+        return `@${(node as unknown as GroupMention).value}`;
+      }
+
+      switch (node.type) {
+        case 'text':
+        case 'inlineCode':
+          return node.value;
+        // remark parses inline HTML inside a label as `html` nodes holding the
+        // raw tags, with the visible text as a sibling `text` node. Emitting
+        // `node.value` here would put `<span>label</span>` in the link rather
+        // than `label`. Story link content is a plain string with nowhere to
+        // put markup, and inline HTML is skipped everywhere else in this
+        // converter, so drop the tags and keep the sibling text.
+        case 'html':
+          return '';
+        case 'break':
+          return '\n';
+        case 'image':
+          return node.alt ?? '';
+        default:
+          if ('children' in node) {
+            return linkLabelToText(node.children as PhrasingContent[]);
+          }
+          return '';
+      }
+    })
+    .join('');
+}
+
+/**
  * Check if a node has a 'checked' property (GFM task list item).
  */
 function isTaskListItem(
   node: MdastListItem
 ): node is MdastListItem & { checked: boolean } {
   return typeof node.checked === 'boolean';
+}
+
+/**
+ * Classify a list from all of its items. GFM permits task and plain items in
+ * the same list, so the list is a task list when any item has checkbox state.
+ */
+function getListType(list: MdastList): 'ordered' | 'unordered' | 'tasklist' {
+  if (list.children.some(isTaskListItem)) {
+    return 'tasklist';
+  }
+  return list.ordered ? 'ordered' : 'unordered';
+}
+
+function blockContentToMarkdown(node: BlockContent): string {
+  // A mention adjacent to text would fuse into a different ship when this
+  // fragment is reserialized and reparsed, so separate them first.
+  separateShipMentionsFromFusableSiblings(node as unknown as Node);
+  return toMarkdown(node as Parameters<typeof toMarkdown>[0], {
+    extensions: [
+      gfmToMarkdown({
+        // Keep GFM table alignment delimiters parseable in the fallback text.
+        stringLength: (value) => Math.max(value.length, 4),
+      }),
+      tableMentionHandlers,
+    ],
+  }).trimEnd();
+}
+
+/**
+ * Convert block-capable mdast children into Story's inline representation.
+ * Nested blockquotes and code blocks use the legal inline `%blockquote` and
+ * `%code` arms. Block-only children fall back to visible Markdown because
+ * Story list and blockquote content cannot contain Blocks.
+ */
+function blockChildrenToInlines(
+  children: MdastBlockquote['children'] | MdastListItem['children']
+): Inline[] {
+  const inlines: Inline[] = [];
+
+  for (const child of children) {
+    let blockInlines: Inline[];
+
+    switch (child.type) {
+      case 'paragraph': {
+        blockInlines = phrasingToInlines((child as Paragraph).children);
+        break;
+      }
+
+      case 'blockquote': {
+        const blockquote: Blockquote = {
+          blockquote: blockChildrenToInlines(
+            (child as MdastBlockquote).children
+          ),
+        };
+        blockInlines = [blockquote];
+        break;
+      }
+
+      case 'code': {
+        // Wire limitation: inline %code is [%code p=cord] — a bare string
+        // (sur/story.hoon, decoded by code/so in story-json.hoon). A fence
+        // nested in a quote or list item therefore cannot carry a language;
+        // emitting the block-shaped {code:{code,lang}} here produced a Story
+        // the ship cannot decode. The language is dropped, documented, and
+        // the serialize direction stays tolerant of the object shape for
+        // anything already in client memory.
+        const codeNode = child as MdastCode;
+        blockInlines = [{ code: codeNode.value }];
+        break;
+      }
+
+      case 'heading':
+      case 'html':
+      case 'list':
+      case 'table':
+      case 'thematicBreak': {
+        blockInlines = [blockContentToMarkdown(child)];
+        break;
+      }
+
+      // Reference definitions and footnotes are deliberately outside this
+      // round's scope. Keep their existing behavior isolated from the
+      // exhaustive BlockContent conversion above.
+      case 'definition':
+      case 'footnoteDefinition':
+        continue;
+
+      default: {
+        blockInlines = assertNever(child);
+        break;
+      }
+    }
+
+    if (blockInlines.length === 0) {
+      continue;
+    }
+    if (inlines.length > 0) {
+      inlines.push({ break: null });
+    }
+    inlines.push(...blockInlines);
+  }
+
+  return inlines;
 }
 
 /**
@@ -97,7 +246,9 @@ export function phrasingToInlines(nodes: PhrasingContent[]): Inline[] {
   for (const node of nodes) {
     // Check for ship mention first (custom node type)
     if (isShipMention(node)) {
-      const ship: Ship = { ship: (node as ShipMention).value };
+      const ship: Ship = {
+        ship: (node as unknown as ShipMention).value,
+      };
       result.push(ship);
       continue;
     }
@@ -153,13 +304,7 @@ export function phrasingToInlines(nodes: PhrasingContent[]): Inline[] {
 
       case 'link': {
         const link = node as MdastLink;
-        // Extract text content from link children
-        const content = link.children
-          .map((child) => {
-            if (child.type === 'text') return (child as Text).value;
-            return '';
-          })
-          .join('');
+        const content = linkLabelToText(link.children);
         const linkInline: Link = {
           link: {
             href: link.url,
@@ -220,15 +365,7 @@ function listItemsToListings(
       const contentNodes = item.children.slice(0, nestedListIndex);
       const nestedList = item.children[nestedListIndex] as MdastList;
 
-      // Extract inlines from content nodes (usually a paragraph)
-      let contentInlines: Inline[] = [];
-      for (const contentNode of contentNodes) {
-        if (contentNode.type === 'paragraph') {
-          contentInlines = phrasingToInlines(
-            (contentNode as Paragraph).children
-          );
-        }
-      }
+      let contentInlines = blockChildrenToInlines(contentNodes);
 
       // Handle task list with nested items
       if (listType === 'tasklist' && isTaskListItem(item)) {
@@ -239,40 +376,18 @@ function listItemsToListings(
       }
 
       // Convert nested list
-      const nestedIsTaskList =
-        nestedList.children.length > 0 &&
-        typeof nestedList.children[0].checked === 'boolean';
-      const nestedListType = nestedIsTaskList
-        ? 'tasklist'
-        : nestedList.ordered
-          ? 'ordered'
-          : 'unordered';
+      const nestedListType = getListType(nestedList);
 
       const list: List = {
         list: {
-          type: listType,
+          type: nestedListType,
           contents: contentInlines,
           items: listItemsToListings(nestedList.children, nestedListType),
         },
       };
       listings.push(list);
     } else {
-      // Simple list item - extract inline content from all paragraphs
-      const inlines: Inline[] = [];
-
-      for (const child of item.children) {
-        if (child.type === 'paragraph') {
-          const paragraphInlines = phrasingToInlines(
-            (child as Paragraph).children
-          );
-          // Add the paragraph's content
-          if (inlines.length > 0) {
-            // Add a break between paragraphs to preserve paragraph separation
-            inlines.push({ break: null });
-          }
-          inlines.push(...paragraphInlines);
-        }
-      }
+      const inlines = blockChildrenToInlines(item.children);
 
       // Handle task list item
       if (listType === 'tasklist' && isTaskListItem(item)) {
@@ -328,15 +443,7 @@ function nodeToBlock(node: RootContent): Block | null {
 
     case 'list': {
       const list = node as MdastList;
-      // Check if this is a task list by checking first item
-      const isTaskList =
-        list.children.length > 0 &&
-        typeof list.children[0].checked === 'boolean';
-      const listType = isTaskList
-        ? 'tasklist'
-        : list.ordered
-          ? 'ordered'
-          : 'unordered';
+      const listType = getListType(list);
 
       const items = listItemsToListings(list.children, listType);
 
@@ -391,15 +498,9 @@ function paragraphToVerse(paragraph: Paragraph): Verse | null {
  * Convert a mdast blockquote to a VerseInline with Blockquote inline.
  */
 function blockquoteToVerse(blockquote: MdastBlockquote): VerseInline {
-  const inlines: Inline[] = [];
-
-  for (const child of blockquote.children) {
-    if (child.type === 'paragraph') {
-      inlines.push(...phrasingToInlines((child as Paragraph).children));
-    }
-  }
-
-  const bq: Blockquote = { blockquote: inlines };
+  const bq: Blockquote = {
+    blockquote: blockChildrenToInlines(blockquote.children),
+  };
   return { inline: [bq] };
 }
 
@@ -410,6 +511,9 @@ function blockquoteToVerse(blockquote: MdastBlockquote): VerseInline {
 function tableToVerse(node: RootContent): VerseInline | null {
   if (node.type !== 'table') return null;
 
+  // A mention adjacent to text in a cell would fuse into a different ship
+  // when the table is reserialized and reparsed, so separate them first.
+  separateShipMentionsFromFusableSiblings(node);
   const tableText = toMarkdown(node as Parameters<typeof toMarkdown>[0], {
     extensions: [
       gfmToMarkdown({

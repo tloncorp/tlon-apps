@@ -21,6 +21,7 @@
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
  * posts, invites), and the notes runtimes (notesV1 et al.).
  */
+import type { NotesV1Api } from '@tloncorp/api';
 import { mock } from 'bun:test';
 
 export const NOTES_V1_OPS = [
@@ -30,6 +31,7 @@ export const NOTES_V1_OPS = [
   'createNotebook',
   'createGroupNotebook',
   'listNotes',
+  'searchNotes',
   'getNote',
   'createNote',
   'updateNoteBody',
@@ -44,6 +46,7 @@ export const NOTES_V1_OPS = [
   'moveFolder',
   'deleteFolder',
   'listMembers',
+  'batchImport',
 ] as const;
 
 export type NotesV1Op = (typeof NOTES_V1_OPS)[number];
@@ -51,6 +54,17 @@ export type MockedNotesV1 = Record<
   NotesV1Op,
   (...args: unknown[]) => Promise<unknown>
 >;
+
+// `NOTES_V1_OPS` is hand-maintained and `mockedNotesV1` is built with a cast,
+// so an operation added to `NotesV1Api` upstream would silently go missing from
+// every test double. A *runtime* comparison against `notesV1` cannot catch that:
+// this module mocks `@tloncorp/api` process-wide, so the `notesV1` any test sees
+// is generated from this very list and the check would compare the list to
+// itself. Types are not mocked, so these resolve against the real package and
+// fail `tsc` in both directions if the list and the interface diverge.
+type AssertNever<T extends never> = T;
+type _NoOpsMissing = AssertNever<Exclude<keyof NotesV1Api, NotesV1Op>>;
+type _NoExtraOps = AssertNever<Exclude<NotesV1Op, keyof NotesV1Api>>;
 
 export class MockNotesV1PendingWriteError extends Error {
   readonly requestId?: string;
@@ -79,6 +93,26 @@ export const mockedNotesV1 = Object.fromEntries(
   NOTES_V1_OPS.map((op) => [op, async () => undefined])
 ) as MockedNotesV1;
 
+export const mockedGetChannelPosts = {
+  impl: async (..._args: unknown[]) => ({
+    posts: [],
+    older: null,
+    totalPosts: 0,
+  }),
+};
+
+export const mockedScry = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedGetGroups = {
+  impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+export const mockedGetGroup = {
+  impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
+};
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -89,11 +123,11 @@ export class MockUrbit {
 mock.module('@tloncorp/api', () => ({
   // api-client.ts value imports
   Urbit: MockUrbit,
-  client: { cookie: '' },
+  client: { cookie: '', url: 'http://localhost', fetchFn: fetch },
   configureClient: async () => undefined,
   internalRemoveClient: () => undefined,
   preSig: (ship: string) => (ship.startsWith('~') ? ship : `~${ship}`),
-  scry: async () => undefined,
+  scry: (...args: unknown[]) => mockedScry.impl(...args),
   subscribe: async () => 0,
   // dms.ts value imports (reaction helpers take injected deps in tests, so
   // these defaults are load-time placeholders, never assertion targets)
@@ -104,10 +138,15 @@ mock.module('@tloncorp/api', () => ({
   respondToDMInvite: async () => undefined,
   sendPost: async () => undefined,
   sendReply: async () => undefined,
+  batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
+  getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
+  toUrbitStory: (content: unknown) => content ?? [],
+  updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   notesV1: mockedNotesV1,
-  getGroup: async () => ({ channels: [] }),
+  getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
+  getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,

@@ -8,6 +8,7 @@ import type {
   TlonProfileUpdateField,
   TlonToolCallContext,
 } from './tlon-tool-command.js';
+import type { TlonAgentTurnSummary } from './turn-recorder.js';
 import type { TlonTelemetryConfig } from './types.js';
 import { getTlonVersionIdentity } from './version.js';
 
@@ -185,6 +186,7 @@ export type TlonReplyOutcomeEvent = {
   model: string | null;
   thinkLevel: string | null;
   toolUsage: ToolUsageSummary;
+  turnSummary: TlonAgentTurnSummary | null;
 };
 
 export type TlonReplyTelemetryStart = {
@@ -244,6 +246,7 @@ export type TlonReplyTelemetryResult = {
   provider: string | null;
   model: string | null;
   thinkLevel: string | null;
+  turnSummary?: TlonAgentTurnSummary;
   dispatchError?: unknown;
 };
 
@@ -264,6 +267,16 @@ export type TlonOutboundRouteEvent = {
   resolvedChannel: string;
   routedToTlon: boolean;
   targetKind: 'dm' | 'group' | 'unknown';
+};
+
+export type TlonReplyOutputSentEvent = {
+  messageId: string;
+  sentAt: number;
+  runId: string | null;
+  traceId: string | null;
+  outputIndex: number;
+  chatType: 'dm' | 'groupChannel';
+  isThreadReply: boolean;
 };
 
 export type TlonSessionLifecycleEvent = {
@@ -425,6 +438,89 @@ export type TlonCronSnapshotEvent = TlonCronCountFields & {
   scheduleKindOnExitCount: number | null;
 };
 
+/**
+ * Diary migration lifecycle (`/migrate`). One event per accepted CLI run,
+ * correlated by `migrationId`; `action` separates apply from cleanup.
+ */
+export type TlonMigrationEvent = {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  migrationEvent: 'started' | 'completed' | 'failed' | 'consent_required';
+  action: 'apply' | 'cleanup';
+  migrationId: string;
+  durationMs: number | null;
+  deadlineExceeded: boolean | null;
+  errorText: string | null;
+};
+
+/**
+ * Steps of agent onboarding, in the order a healthy setup passes through them.
+ *
+ * The whole point is a funnel, so the values are ordered and every setup emits
+ * the same vocabulary: drop-off is `count(step N) / count(step N-1)`, and
+ * time-to-activation is `first_entry_revealed.at - intro_posted.at`.
+ *
+ * `first_entry_revealed` is activation as far as the bot can see it — the entry
+ * exists and has been announced. Whether the owner *looked* is a client-side
+ * event, because only the client knows that. After `services_offered`, first
+ * onboarding branches through one or both tour-answer steps and always ends
+ * with `onboarding_completed`.
+ */
+export type TlonOnboardingStep =
+  | 'intro_posted'
+  | 'purpose_picker_posted'
+  | 'purpose_chosen'
+  | 'topics_picker_posted'
+  | 'provision_received'
+  | 'cron_created'
+  | 'first_run_enqueued'
+  | 'first_entry_revealed'
+  | 'services_offered'
+  | 'app_tour_answered'
+  | 'bot_tour_answered'
+  | 'onboarding_completed';
+
+export type TlonOnboardingAnswer = 'yes' | 'no';
+
+export type TlonOnboardingCompletionPath =
+  | 'additional_group_completed'
+  | 'app_tour_declined'
+  | 'bot_tour_declined'
+  | 'bot_tour_completed';
+
+/**
+ * One event per onboarding step, per group.
+ *
+ * Deliberately narrower than the trace event this replaces: that one carried a
+ * deterministic coordinator's state machine (`onboardingState`,
+ * `onboardingNextState`, retry counters, draft sizes), and this flow has no
+ * such states. What is left is the funnel plus the few dimensions worth
+ * segmenting by.
+ *
+ * Topic *count*, never the topics themselves — the text is the owner's own
+ * words and does not belong in analytics.
+ */
+export type TlonOnboardingFunnelEvent = {
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  step: TlonOnboardingStep;
+  outcome: 'ok' | 'failed';
+  nest: string;
+  groupFlag: string | null;
+  purposeId: string | null;
+  topicCount: number | null;
+  timezone: string | null;
+  cronJobId: string | null;
+  notebookNest: string | null;
+  answer: TlonOnboardingAnswer | null;
+  completionPath: TlonOnboardingCompletionPath | null;
+  /** Since the first step of this setup, so a funnel row carries its own latency. */
+  elapsedMsSinceIntro: number | null;
+  errorText: string | null;
+};
+
 export type TlonHarnessErrorScope =
   | 'harness'
   | 'model'
@@ -531,7 +627,9 @@ export type TlonPluginErrorSource =
   | 'foreigns_subscription'
   | 'steward_subscription'
   | 'settings_refresh'
-  | 'sse_stream';
+  | 'sse_stream'
+  | 'approval_notification'
+  | 'group_invite_decline';
 
 export type TlonPluginErrorEvent = {
   harness: TlonHarnessName;
@@ -549,6 +647,18 @@ export type TlonPluginErrorEvent = {
    * rather than just failure counts.
    */
   downMs: number | null;
+};
+
+export type TlonFailureNoticeEvent = {
+  harness: TlonHarnessName;
+  accountId: string | null;
+  ownerShip: string | null;
+  botShip: string;
+  runId: string;
+  noticeKind: string;
+  destinationKind: string;
+  suppressedByCooldown: boolean;
+  delivered: boolean;
 };
 
 export type TlonAuthAttemptFailedEvent = {
@@ -590,13 +700,22 @@ export interface TlonTelemetryClient {
   captureHarnessError(event: TlonHarnessErrorEvent): void;
   captureHarnessDebug(event: TlonHarnessDebugEvent): void;
   captureAuthAttemptFailed(event: TlonAuthAttemptFailedEvent): void;
+  captureFailureNotice(event: TlonFailureNoticeEvent): void;
   capturePluginError(event: TlonPluginErrorEvent): void;
   captureTelemetryError(event: TlonTelemetryErrorEvent): void;
+  captureOnboardingStep(event: TlonOnboardingFunnelEvent): void;
   captureCronJobChanged(event: TlonCronJobChangedEvent): void;
   captureCronRun(event: TlonCronRunEvent): void;
   captureCronSnapshot(event: TlonCronSnapshotEvent): void;
+  captureMigration(event: TlonMigrationEvent): void;
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void;
+  captureReplyOutputSent(
+    event: TlonReplyOutputSentEvent & {
       ownerShip?: string | null;
       botShip: string;
     }
@@ -604,9 +723,11 @@ export interface TlonTelemetryClient {
   close(): Promise<void>;
 }
 
+const TLON_FAILURE_NOTICE_EVENT = 'TlonBot Failure Notice';
 const TLON_TELEMETRY_EVENT_NAME = 'TlonBot Reply Handled';
 const TLON_GATEWAY_CONNECTED_EVENT = 'TlonBot Gateway Connected';
 const TLON_OUTBOUND_ROUTED_EVENT = 'TlonBot Outbound Routed';
+const TLON_REPLY_OUTPUT_SENT_EVENT = 'TlonBot Reply Output Sent';
 const TLON_SESSION_LIFECYCLE_EVENT = 'TlonBot Session Lifecycle';
 const TLON_SESSION_WATCHDOG_EVENT = 'TlonBot Session Watchdog';
 const TLON_SESSION_RECOVERY_EVENT = 'TlonBot Session Recovery';
@@ -620,6 +741,9 @@ const TLON_HEARTBEAT_REENGAGED_EVENT = 'TlonBot Heartbeat Nudge Reengaged';
 const TLON_CRON_JOB_CHANGED_EVENT = 'TlonBot Cron Job Changed';
 const TLON_CRON_RUN_EVENT = 'TlonBot Cron Run';
 const TLON_CRON_SNAPSHOT_EVENT = 'TlonBot Cron Snapshot';
+const TLON_MIGRATION_EVENT = 'TlonBot Diary Migration';
+const TLON_ONBOARDING_STEP_EVENT = 'TlonBot Onboarding Step';
+const MIGRATION_ERROR_MAX_CHARS = 500;
 const TLON_TELEMETRY_LOG_SOURCE = 'openclawPlugin';
 const TOOL_TRACE_TTL_MS = 60 * 60 * 1000;
 const MAX_TOOL_CALLS_PER_SESSION = 200;
@@ -992,7 +1116,7 @@ function updateHarnessDebugSnapshot(
     previous.lastHarnessEventRunId !== eventRunId;
   const existing = resetForNewRun
     ? createEmptyHarnessDebugSnapshot(now)
-    : previous ?? createEmptyHarnessDebugSnapshot(now);
+    : (previous ?? createEmptyHarnessDebugSnapshot(now));
   const contextEngineEvent = optionalString(event.contextEngineEvent);
   const contextEngineTaskId = optionalString(event.contextEngineTaskId);
   const contextEngineOperation = optionalString(event.contextEngineOperation);
@@ -1419,6 +1543,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
             activeTrace.params.sessionKey,
             activeTrace.toolTraceCursor
           ),
+          turnSummary: result.turnSummary ?? null,
         });
       },
     };
@@ -1476,6 +1601,7 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         trace.params.sessionKey,
         trace.toolTraceCursor
       ),
+      turnSummary: null,
     });
   }
 
@@ -1546,6 +1672,12 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         provider: event.provider,
         model: event.model,
         thinkLevel: event.thinkLevel,
+        execution: event.turnSummary?.execution ?? null,
+        result: event.turnSummary?.result ?? null,
+        delivery: event.turnSummary?.delivery ?? null,
+        finalErrorReplyCount: event.turnSummary?.finalErrorReplyCount ?? null,
+        reason: event.turnSummary?.reason ?? null,
+        trigger: event.turnSummary?.trigger ?? null,
         toolCount: event.toolUsage.calls.length,
         toolNames: event.toolUsage.names,
         toolTotalDurationMs: event.toolUsage.totalDurationMs,
@@ -1821,6 +1953,70 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureOnboardingStep(event: TlonOnboardingFunnelEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+    const errorText = event.errorText
+      ? event.errorText.slice(0, MIGRATION_ERROR_MAX_CHARS)
+      : null;
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_ONBOARDING_STEP_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          step: event.step,
+          outcome: event.outcome,
+          nest: event.nest,
+          groupFlag: event.groupFlag,
+          purposeId: event.purposeId,
+          topicCount: event.topicCount,
+          timezone: event.timezone,
+          cronJobId: event.cronJobId,
+          notebookNest: event.notebookNest,
+          answer: event.answer,
+          completionPath: event.completionPath,
+          elapsedMsSinceIntro: event.elapsedMsSinceIntro,
+          errorText,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
+  captureMigration(event: TlonMigrationEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+    // Truncated here rather than at the call sites so no caller can forget.
+    const errorText = event.errorText
+      ? event.errorText.slice(0, MIGRATION_ERROR_MAX_CHARS)
+      : null;
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_MIGRATION_EVENT,
+      properties: this.properties(
+        {
+          botShip: event.botShip,
+          ownerShip: event.ownerShip,
+          accountId: event.accountId,
+          migrationEvent: event.migrationEvent,
+          action: event.action,
+          migrationId: event.migrationId,
+          durationMs: event.durationMs,
+          deadlineExceeded: event.deadlineExceeded,
+          errorText,
+        },
+        { omitNullish: true }
+      ),
+    });
+  }
+
   captureOutboundRoute(
     event: TlonOutboundRouteEvent & {
       ownerShip?: string | null;
@@ -1841,6 +2037,34 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
         resolvedChannel: event.resolvedChannel,
         routedToTlon: event.routedToTlon,
         targetKind: event.targetKind,
+      }),
+    });
+  }
+
+  captureReplyOutputSent(
+    event: TlonReplyOutputSentEvent & {
+      ownerShip?: string | null;
+      botShip: string;
+    }
+  ): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_REPLY_OUTPUT_SENT_EVENT,
+      properties: this.properties({
+        botShip: event.botShip,
+        ownerShip: event.ownerShip,
+        messageId: event.messageId,
+        sentAt: event.sentAt,
+        runId: event.runId,
+        traceId: event.traceId,
+        outputIndex: event.outputIndex,
+        chatType: event.chatType,
+        isThreadReply: event.isThreadReply,
       }),
     });
   }
@@ -2022,6 +2246,29 @@ class PostHogTlonTelemetry implements TlonTelemetryClient {
     });
   }
 
+  captureFailureNotice(event: TlonFailureNoticeEvent): void {
+    const ownerShip = event.ownerShip ?? '';
+    if (!this.ensureIdentified(ownerShip, event.botShip)) {
+      return;
+    }
+
+    this.client.capture({
+      distinctId: ownerShip,
+      event: TLON_FAILURE_NOTICE_EVENT,
+      properties: this.properties({
+        harness: event.harness,
+        accountId: event.accountId,
+        ownerShip: event.ownerShip,
+        botShip: event.botShip,
+        runId: event.runId,
+        noticeKind: event.noticeKind,
+        destinationKind: event.destinationKind,
+        suppressedByCooldown: event.suppressedByCooldown,
+        delivered: event.delivered,
+      }),
+    });
+  }
+
   captureTelemetryError(event: TlonTelemetryErrorEvent): void {
     const ownerShip = event.ownerShip ?? '';
     if (!this.ensureIdentified(ownerShip, event.botShip)) {
@@ -2177,6 +2424,7 @@ export function createTlonTelemetry(params: {
  * client + owner/bot ships; the hook calls `reportOutboundRoute`.
  */
 export type OutboundRouteReporter = (event: TlonOutboundRouteEvent) => void;
+export type ReplyOutputReporter = (event: TlonReplyOutputSentEvent) => void;
 export type SessionTelemetryReporter = (
   report: TlonSessionTelemetryReport
 ) => void;
@@ -2207,6 +2455,15 @@ export type TlonCronTelemetryReport =
   | { kind: 'snapshot'; event: TlonCronSnapshotReportInput };
 
 export type CronTelemetryReporter = (report: TlonCronTelemetryReport) => void;
+
+export type TlonMigrationReportInput = Omit<
+  TlonMigrationEvent,
+  'accountId' | 'ownerShip' | 'botShip'
+>;
+
+export type MigrationTelemetryReporter = (
+  event: TlonMigrationReportInput
+) => void;
 
 export type TlonSessionLifecycleReportInput = {
   lifecycleEvent: 'session_start' | 'session_end';
@@ -2367,6 +2624,9 @@ export type TlonTelemetryErrorReportInput = {
 const outboundRouteReporterSlot = sharedSlot<OutboundRouteReporter>(
   'telemetry.outboundRouteReporter'
 );
+const replyOutputReporterSlot = sharedSlot<ReplyOutputReporter>(
+  'telemetry.replyOutputReporter'
+);
 const sessionTelemetryReporterSlot = sharedSlot<SessionTelemetryReporter>(
   'telemetry.sessionTelemetryReporter'
 );
@@ -2379,6 +2639,9 @@ const debugTelemetryReporterSlot = sharedSlot<DebugTelemetryReporter>(
 const cronTelemetryReporterSlot = sharedSlot<CronTelemetryReporter>(
   'telemetry.cronTelemetryReporter'
 );
+const migrationTelemetryReporterSlot = sharedSlot<MigrationTelemetryReporter>(
+  'telemetry.migrationTelemetryReporter'
+);
 
 export function setOutboundRouteReporter(
   reporter: OutboundRouteReporter | null
@@ -2388,6 +2651,16 @@ export function setOutboundRouteReporter(
 
 export function reportOutboundRoute(event: TlonOutboundRouteEvent): void {
   outboundRouteReporterSlot.get()?.(event);
+}
+
+export function setReplyOutputReporter(
+  reporter: ReplyOutputReporter | null
+): void {
+  replyOutputReporterSlot.set(reporter);
+}
+
+export function reportReplyOutput(event: TlonReplyOutputSentEvent): void {
+  replyOutputReporterSlot.get()?.(event);
 }
 
 export function setSessionTelemetryReporter(
@@ -2426,6 +2699,22 @@ export function reportCronRun(event: TlonCronRunReportInput): void {
 
 export function reportCronSnapshot(event: TlonCronSnapshotReportInput): void {
   cronTelemetryReporterSlot.get()?.({ kind: 'snapshot', event });
+}
+
+export function setMigrationTelemetryReporter(
+  reporter: MigrationTelemetryReporter | null
+): void {
+  migrationTelemetryReporterSlot.set(reporter);
+}
+
+export function reportMigration(event: TlonMigrationReportInput): void {
+  // Callers sit inside the migration task, whose catch DMs the owner a
+  // failure — a telemetry throw must not fabricate one.
+  try {
+    migrationTelemetryReporterSlot.get()?.(event);
+  } catch {
+    // Swallowed deliberately.
+  }
 }
 
 function optionalString(value: string | null | undefined): string | null {
@@ -2480,32 +2769,40 @@ function normalizeLogAttributes(
 }
 
 export function formatTlonTelemetryErrorText(error: unknown): string {
-  if (error instanceof Error) {
-    return error.stack || error.message || String(error);
-  }
-
-  if (typeof error === 'string') {
-    return error;
-  }
-
-  if (error === null) {
-    return 'null';
-  }
-
-  if (error === undefined) {
-    return 'undefined';
-  }
-
+  // Total by construction: `stack` can be a throwing getter (or poisoned via
+  // a process-global `Error.prepareStackTrace`), and `String(error)` invokes
+  // arbitrary `toString`. Callers sit on failure paths where a second throw
+  // would abort the surrounding error handling.
   try {
-    const json = JSON.stringify(error);
-    if (json) {
-      return json;
+    if (error instanceof Error) {
+      return error.stack || error.message || String(error);
     }
-  } catch {
-    // Fall through to String(error).
-  }
 
-  return String(error);
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    if (error === null) {
+      return 'null';
+    }
+
+    if (error === undefined) {
+      return 'undefined';
+    }
+
+    try {
+      const json = JSON.stringify(error);
+      if (json) {
+        return json;
+      }
+    } catch {
+      // Fall through to String(error).
+    }
+
+    return String(error);
+  } catch {
+    return '[unformattable error]';
+  }
 }
 
 export function reportSessionTurnCreated(

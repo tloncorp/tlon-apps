@@ -475,10 +475,11 @@
   |=  [sender=ship t=@da]
   ^-  [wire gill:gall sign:agent:gall]
   =/  =message-key:a  [[sender t] t]
-  =/  =source:a  [%dm %ship sender]
-  =/  =event:a  [[%dm-post message-key [%ship sender] ~[[%inline ~['hello']]] %.n] %.n %.n]
-  =/  =update:a  [%add source t event]
-  [/activity [~dev %activity] [%fact %activity-update-5 !>(`update:v9:av`update)]]
+  =/  source=source:v9:av  [%dm %ship sender]
+  =/  event=event:v9:av
+    [[%dm-post message-key [%ship sender] ~[[%inline ~['hello']]] %.n] %.n %.n]
+  =/  update=update:v9:av  [%add source t event]
+  [/activity [~dev %activity] [%fact %activity-update-5 !>(update)]]
 ::
 ++  populate-released-slices
   =/  m  (mare ,~)

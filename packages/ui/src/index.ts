@@ -37,7 +37,7 @@ export * as TlonText from './components/TextV2';
 export { Text, RawText } from './components/TextV2';
 export type { FontStyle } from './components/TextV2';
 export { mobileTypeStyles, desktopTypeStyles } from './components/TextV2/Text';
-export { default as UrbitSigil } from './components/UrbitSigil';
+export { default as UrbitSigil, makeSigil } from './components/UrbitSigil';
 export * from './components/View';
 export * from './contexts/ActionSheetContext';
 export * from './contexts/globalSearch';

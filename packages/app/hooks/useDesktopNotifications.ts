@@ -1,8 +1,14 @@
 import * as api from '@tloncorp/api';
-import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  createDevLogger,
+  notesNotebookFlagFromChannelId,
+  trackEvent,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { getTextContent } from '@tloncorp/shared/logic';
-import { useCallback, useEffect, useRef } from 'react';
+import * as store from '@tloncorp/shared/store';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useIsElectron } from './useIsElectron';
 
@@ -13,6 +19,7 @@ interface NotificationData {
   notificationType?: string;
   channelId?: string;
   groupId?: string;
+  postId?: string;
 }
 
 export default function useDesktopNotifications(isClientReady: boolean) {
@@ -95,6 +102,7 @@ export default function useDesktopNotifications(isClientReady: boolean) {
             notificationType: activityEvent.type,
             channelId: activityEvent.channelId,
             groupId: channel.groupId,
+            postId: activityEvent.postId ?? undefined,
           },
         });
       } catch (error) {
@@ -117,7 +125,17 @@ export default function useDesktopNotifications(isClientReady: boolean) {
           surface: 'desktop',
           notificationType: data.notificationType ?? data.type,
         });
-        await api.markChatRead(data.channelId);
+        // notes channels track reads per note on the %notebook source; a
+        // %chat read poke wouldn't parse there, let alone clear anything
+        const notebookFlag = notesNotebookFlagFromChannelId(data.channelId);
+        if (notebookFlag) {
+          const noteId = Number(data.postId);
+          if (Number.isFinite(noteId)) {
+            await store.markNoteRead({ notebookFlag, noteId });
+          }
+        } else {
+          await api.markChatRead(data.channelId);
+        }
 
         // In the future, we could add navigation logic here
       } catch (error) {
@@ -125,6 +143,15 @@ export default function useDesktopNotifications(isClientReady: boolean) {
       }
     },
     []
+  );
+
+  // subscribeToActivity bakes the backend capabilities (resolved during
+  // app-info sync, after this hook first subscribes) into its stream
+  // version — resubscribe when they change so we don't get stuck on an
+  // older stream that drops newer event kinds
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
   );
 
   useEffect(() => {
@@ -171,5 +198,6 @@ export default function useDesktopNotifications(isClientReady: boolean) {
     handleNotificationClick,
     isClientReady,
     isElectron,
+    activityCapabilitiesEpoch,
   ]);
 }

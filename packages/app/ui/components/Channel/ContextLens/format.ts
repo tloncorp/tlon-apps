@@ -71,6 +71,20 @@ export function formatWallTime(ms?: number | null) {
   });
 }
 
+export function formatWallDateTime(ms?: number | null) {
+  if (!ms) {
+    return 'unknown';
+  }
+  return new Date(ms).toLocaleString([], {
+    year: '2-digit',
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+}
+
 export function pluralize(
   count: number,
   singular: string,

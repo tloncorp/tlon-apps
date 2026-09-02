@@ -1,6 +1,6 @@
 import {
   StructuredChannelDescriptionPayload,
-  toClientGroupV7,
+  toClientGroup,
 } from '@tloncorp/api';
 import '@tloncorp/api';
 import {
@@ -10,15 +10,15 @@ import {
 } from '@tloncorp/api';
 import {
   CombinedHeads,
-  GroupsInit6,
+  GroupsInit10,
   PagedPosts,
   PostDataResponse,
 } from '@tloncorp/api/urbit';
 import {
   ContactBookScryResult1,
-  Contact as UrbitContact,
+  ContactsDirectoryScryResult1,
 } from '@tloncorp/api/urbit/contact';
-import { GroupV7 as UrbitGroup } from '@tloncorp/api/urbit/groups';
+import { GroupV11 as UrbitGroup } from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
 import { pick } from 'lodash';
 import { expect, test, vi } from 'vitest';
@@ -28,7 +28,7 @@ import rawChannelPostsData from '../../../../api/src/__tests__/fixtures/channelP
 import * as db from '../../db';
 import rawNewestPostData from '../../test/channelNewestPost.json';
 import rawAfterNewestPostData from '../../test/channelPostsAfterNewest.json';
-import rawContactsData from '../../test/contacts.json';
+import rawContactsData from '../../test/contactsDirectory.json';
 import rawGroupsData from '../../test/groups.json';
 import rawGroupsInitData from '../../test/groupsInit.json';
 import rawHeadsData from '../../test/heads.json';
@@ -57,12 +57,12 @@ const rawContactSuggestionsData: string[] = [];
 
 const channelPostWithRepliesData =
   rawChannelPostWithRepliesData as unknown as PostDataResponse;
-const contactsData = rawContactsData as unknown as Record<string, UrbitContact>;
+const contactsData = rawContactsData as unknown as ContactsDirectoryScryResult1;
 const contactBookData = rawContactsData2 as unknown as ContactBookScryResult1;
 const suggestionsData = rawContactSuggestionsData as unknown as string[];
 const groupsData = rawGroupsData as unknown as Record<string, UrbitGroup>;
-const groupsInitData = rawGroupsInitData as unknown as GroupsInit6;
-const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit6;
+const groupsInitData = rawGroupsInitData as unknown as GroupsInit10;
+const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit10;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
 setupDatabaseTestSuite();
@@ -282,13 +282,13 @@ test('syncs contacts', async () => {
   setScryOutputs([contactsData, contactBookData, suggestionsData]);
   await syncContacts();
   const storedContacts = await db.getContacts();
-  expect(storedContacts.length).toEqual(
-    Object.values(contactsData).filter((n) => !!n).length
-  );
+  expect(storedContacts.length).toEqual(Object.keys(contactsData).length);
   storedContacts.forEach((c) => {
     const original = contactsData[c.id];
     expect(original).toBeTruthy();
-    expect(original.groups?.length ?? 0).toEqual(c.pinnedGroups.length);
+    expect(original.contact.groups?.value.length ?? 0).toEqual(
+      c.pinnedGroups.length
+    );
   });
   setScryOutputs([contactsData, contactBookData, suggestionsData]);
   await syncContacts();
@@ -496,7 +496,7 @@ const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 
 const testGroupData: db.Group = {
-  ...toClientGroupV7(
+  ...toClientGroup(
     groupId,
     Object.values(rawGroupsData)[0] as unknown as UrbitGroup,
     true

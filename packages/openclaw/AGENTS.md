@@ -18,9 +18,9 @@ pnpm test:integration       # Integration tests (ephemeral fakezods)
 pnpm test:integration:dev   # Integration tests against running dev
 pnpm test:integration:watch # Watch mode for dev environment
 
-# Linting & Formatting (monorepo root ESLint/Prettier configs)
+# Linting & Formatting (monorepo root ESLint/oxfmt configs)
 pnpm lint                   # ESLint
-pnpm lint:format            # Format with prettier
+pnpm lint:format            # Format with oxfmt
 
 # Type checking
 pnpm tsc --noEmit           # Full type check
@@ -301,6 +301,7 @@ When merged to OpenClaw, these run automatically:
 ## Patterns
 
 -   **Normalize ships**: always `~ship` format internally
--   **Channel nest format**: `chat/~host/name` or `diary/~host/name`
+-   **Channel nest format**: `chat/~host/name`, `heap/~host/name`, or `diary/~host/name`
+-   **Deprecated diary channels**: direct OpenClaw delivery still accepts `diary/` targets. The CLI tool does not manage them; the owner migration path is `/migrate <diary-nest>`. A migrated source is renamed but remains writable.
 -   **Message deduplication**: via processed-message tracker
 -   **History caching**: for context in replies

@@ -1,6 +1,13 @@
 import { Input } from '@tloncorp/ui';
 import { debounce } from 'lodash';
-import { ComponentProps, useCallback, useMemo, useState } from 'react';
+import {
+  ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { YStack } from 'tamagui';
 
 import { TextInput } from './Form';
@@ -9,6 +16,7 @@ export function SearchBar({
   autoFocus = false,
   placeholder,
   onChangeQuery,
+  onChangeValue,
   debounceTime = 300,
   onPressCancel,
   inputProps,
@@ -17,6 +25,10 @@ export function SearchBar({
   autoFocus?: boolean;
   placeholder?: string;
   onChangeQuery: (query: string) => void;
+  // Receives the input's raw value immediately, before onChangeQuery's
+  // debounce. Consumers can use it to hide results belonging to an older
+  // committed query.
+  onChangeValue?: (value: string) => void;
   debounceTime?: number;
   onPressCancel?: () => void;
   inputProps?: ComponentProps<typeof TextInput>;
@@ -31,11 +43,26 @@ export function SearchBar({
     [debounceTime, onChangeQuery]
   );
 
+  // A trailing debounce outlives the component that scheduled it: closing a
+  // search overlay or leaving a screen mid-type otherwise lets a queued query
+  // land on a consumer that has already reset its state.
+  //
+  // Held in a ref and cancelled with empty deps so this fires on unmount only.
+  // Keying it to the memo's identity would cancel the pending call every time
+  // a caller passed an unstable onChangeQuery — silently defeating the debounce
+  // rather than just cleaning up after it.
+  const pendingQueryRef = useRef(debouncedOnChangeQuery);
+  useEffect(() => {
+    pendingQueryRef.current = debouncedOnChangeQuery;
+  }, [debouncedOnChangeQuery]);
+  useEffect(() => () => pendingQueryRef.current.cancel(), []);
+
   const onTextChange = useCallback(
     (text: string) => {
       // we update the input display immediately, but debounce for consumers
       // of the search bar
       setValue(text);
+      onChangeValue?.(text);
       const newValue = text.trim();
       if (newValue === '') {
         // if value was cleared, update immediately
@@ -50,7 +77,7 @@ export function SearchBar({
         debouncedOnChangeQuery(newValue);
       }
     },
-    [debounceTime, debouncedOnChangeQuery, onChangeQuery]
+    [debounceTime, debouncedOnChangeQuery, onChangeQuery, onChangeValue]
   );
 
   return (

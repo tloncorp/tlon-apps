@@ -57,7 +57,7 @@ export function getGroupInviteSheetState(
     // non-ready row after the timeout: GroupPreviewSheet shows Accept/Reject only when `haveInvite`
     // is true, so a metadata-only/private row would fall through to Request/Join/"secret" actions
     // and mask the routing failure.
-    sheetGroup: ready ? a.selectedGroup ?? undefined : undefined,
+    sheetGroup: ready ? (a.selectedGroup ?? undefined) : undefined,
     // Bounded terminal: window elapsed and still not a real invite → close + log.
     shouldCloseUnresolved: waitElapsed && !ready,
   };

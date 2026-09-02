@@ -1,6 +1,12 @@
 import {
   ALLOWED_TLON_COMMANDS as ALLOWED_TLON_SUBCOMMANDS,
+  checkBlockedDiaryOperation,
+  checkBlockedMigrationOperation,
   checkBlockedSendOperation,
+  findFirstPositionalArgumentIndex,
+  formatAllowedTlonSubcommands,
+  isAllowedTlonSubcommand,
+  refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
 export const ALLOWED_TLON_COMMANDS = new Set<string>(ALLOWED_TLON_SUBCOMMANDS);
@@ -188,6 +194,9 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'members',
       'join',
       'leave',
+      'migrate-plan',
+      'migrate-apply',
+      'notebook-delete',
     ]),
   ],
   ['posts', new Set(['send', 'reply', 'react', 'unreact', 'edit', 'delete'])],
@@ -263,23 +272,109 @@ export function shellSplitCommand(command: string): string[] {
  * and their values. Returns the index into `args`, or -1 if none found.
  */
 export function findTlonSubcommandIndex(args: string[]): number {
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    if (arg.startsWith('--') && arg.includes('=')) {
-      const flag = arg.slice(0, arg.indexOf('='));
-      if (CREDENTIAL_FLAGS_WITH_VALUE.has(flag)) {
-        i += 1;
-        continue;
-      }
-    }
-    if (CREDENTIAL_FLAGS_WITH_VALUE.has(arg)) {
-      i += 2;
-      continue;
-    }
-    return i;
+  return findFirstPositionalArgumentIndex(args, 0, CREDENTIAL_FLAGS_WITH_VALUE);
+}
+
+export type BlockedTlonOperation = {
+  message: string;
+  reason: 'diary_operation' | 'migration_operation' | 'send_operation';
+  diaryNest?: string;
+};
+
+/**
+ * Check blocked operations only after removing global credential flags.
+ * Keeping that normalization here prevents a leading --config/--url prefix
+ * from bypassing a guard that expects the subcommand at args[0].
+ */
+export function checkBlockedTlonOperation(
+  args: string[]
+): BlockedTlonOperation | null {
+  const subIdx = findTlonSubcommandIndex(args);
+  const commandArgs = subIdx >= 0 ? args.slice(subIdx) : [];
+  const migration = checkBlockedMigrationOperation(commandArgs);
+  if (migration) {
+    return {
+      message: migration,
+      reason: 'migration_operation',
+      diaryNest: refusedDiaryNest(commandArgs) ?? undefined,
+    };
   }
-  return -1;
+  const diary = checkBlockedDiaryOperation(commandArgs);
+  if (diary) {
+    return {
+      message: diary.message,
+      reason: 'diary_operation',
+      diaryNest: diary.nest,
+    };
+  }
+  const send = checkBlockedSendOperation(commandArgs);
+  return send ? { message: send, reason: 'send_operation' } : null;
+}
+
+export type TlonToolExecutorDeps = {
+  runCommand: (args: string[]) => Promise<string>;
+  notifyDiaryMigrationDiscovery: (nest: string) => Promise<boolean>;
+  logError?: (message: string) => void;
+};
+
+export function createTlonToolExecutor(deps: TlonToolExecutorDeps) {
+  return async function execute(_id: string, params: { command: string }) {
+    try {
+      const args = shellSplitCommand(params.command);
+
+      const subIdx = findTlonSubcommandIndex(args);
+      const subcommand = subIdx >= 0 ? args[subIdx] : undefined;
+      if (!isAllowedTlonSubcommand(subcommand)) {
+        const message = `Unknown tlon subcommand '${subcommand ?? '(none)'}'. Allowed: ${formatAllowedTlonSubcommands()}`;
+        return {
+          content: [{ type: 'text' as const, text: `Error: ${message}` }],
+          details: { status: 'error', error: message },
+        };
+      }
+
+      const blocked = checkBlockedTlonOperation(args);
+      if (blocked) {
+        // The owner gate logs its denials; this one did not, leaving the more
+        // interesting signal invisible — a model repeatedly attempting a
+        // destructive migration on its own initiative. Log the subcommand and
+        // nest, never params.command, which can carry credential flags.
+        deps.logError?.(
+          `Blocked tlon tool operation: reason=${blocked.reason} subcommand=${subcommand ?? '(none)'}${
+            blocked.diaryNest ? ` nest=${blocked.diaryNest}` : ''
+          }`
+        );
+        if (blocked.diaryNest) {
+          void deps
+            .notifyDiaryMigrationDiscovery(blocked.diaryNest)
+            .catch((error) => {
+              deps.logError?.(
+                `Failed to notify owner about diary migration discovery for ${blocked.diaryNest}: ${String(error)}`
+              );
+            });
+        }
+        return {
+          content: [{ type: 'text' as const, text: blocked.message }],
+          details: {
+            status: 'blocked',
+            blocked: true,
+            reason: blocked.reason,
+          },
+        };
+      }
+
+      const output = await deps.runCommand(args);
+      return {
+        content: [{ type: 'text' as const, text: output }],
+        details: undefined,
+      };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [{ type: 'text' as const, text: `Error: ${message}` }],
+        details: { status: 'error', error: message },
+      };
+    }
+  };
 }
 
 export function summarizeTlonCommand(command: string): TlonToolCallContext {
@@ -715,10 +810,14 @@ function summarizeNotesOperation(
     case 'folders':
     case 'folder':
     case 'members':
+    case 'migrate-plan':
       return build('read');
     case 'note-delete':
     case 'folder-delete':
+    case 'notebook-delete':
       return build('admin');
+    case 'migrate-apply':
+      return build('write');
     case 'create':
     case 'note-create':
     case 'note-update':

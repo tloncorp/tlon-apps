@@ -60,6 +60,88 @@
       [%chat %club *]  (scot %uv p.whom.w)
     ==
   ::
+  ++  v11
+    =,  v9
+    |%
+    ++  group
+      |=  group:v11:gv
+      ^-  json
+      %-  pairs
+      ^-  (list [@t json])
+      :~  meta+(^meta meta)
+          blob+?~(blob ~ s+u.blob)
+        ::
+          admissions+(^admissions admissions)
+          seats+(^seats seats)
+        ::
+          roles+(roles-map roles)
+          admins+a+(turn ~(tap in admins) (lead %s))
+        ::
+          channels+(^channels channels)
+          active-channels+a+(turn ~(tap in active-channels) nest)
+        ::
+          sections+(^sections sections)
+          section-order+a+(turn section-order (lead %s))
+        ::
+          flagged-content+(^flagged-content flagged-content)
+      ==
+    ++  groups
+      |=  gs=groups:v11:gv
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:gv gr=group:v11:gv]
+      [(print-flag f) (group gr)]
+    ++  groups-ui
+      |=  gs=groups-ui:v11:gv
+      %-  pairs
+      %+  turn  ~(tap by gs)
+      |=  [f=flag:gv gr=group-ui:v11:gv]
+      [(print-flag f) (group-ui gr)]
+    ++  group-ui
+      |=  =group-ui:v11:gv
+      =,  group.group-ui
+      %-  pairs
+      ^-  (list [@t json])
+      :~  meta+(^meta meta)
+          blob+?~(b=blob.group.group-ui ~ s+u.b)
+        ::
+          admissions+(^admissions admissions)
+          seats+(^seats seats)
+        ::
+          roles+(roles-map roles)
+          admins+a+(turn ~(tap in admins) (lead %s))
+        ::
+          channels+(^channels channels)
+          active-channels+a+(turn ~(tap in active-channels) nest)
+        ::
+          sections+(^sections sections)
+          section-order+a+(turn section-order (lead %s))
+        ::
+          flagged-content+(^flagged-content flagged-content)
+        ::
+          init+b+init.group-ui
+          member-count+(numb member-count.group-ui)
+      ==
+    ++  r-groups
+      |=  =r-groups:v11:gv
+      ^-  json
+      %-  pairs
+      :~  'flag'^(flag flag.r-groups)
+          'r-group'^(r-group r-group.r-groups)
+      ==
+    ::  $r-group: superset of v10 with the %blob custom payload.
+    ::  delegate the shared variants to v10's enjs.
+    ::
+    ++  r-group
+      |=  =r-group:v11:gv
+      ^-  json
+      ?:  ?=([%blob *] r-group)
+        (frond %blob ?~(blob.r-group ~ s+u.blob.r-group))
+      ?:  ?=([%create *] r-group)
+        (frond %create (group group.r-group))
+      (r-group:v10 r-group)
+    --
+  ::
   ++  v9
     =,  v8
     |%
@@ -1326,6 +1408,32 @@
         del+whom
         set-order+(ar whom)
     ==
+  ::
+  ++  v11
+    =,  v8
+    |%
+    ++  a-groups
+      ^-  $-(json a-groups:v11:gv)
+      %-  of
+      :~  group+(ot flag+flag a-group+a-group ~)
+          invite+(ot flag+flag ships+(as ship) a-invite+a-invite ~)
+          leave+flag
+      ==
+    ++  a-group
+      ^-  $-(json a-group:v11:gv)
+      %-  of
+      :~  meta+meta
+          blob+(mu so)
+          entry+a-entry:v7
+          seat+(ot ships+ships:v7 a-seat+a-seat:v7 ~)
+          role+(ot roles+roles:v7 a-role+a-role:v7 ~)
+          channel+(ot nest+nest a-channel+a-channel:v7 ~)
+          section+(ot section-id+so a-section+a-section:v7 ~)
+          navigation+a-navigation
+          flag-content+flag-content
+          delete+ul
+      ==
+    --
   ::
   ++  v9
     =,  v8

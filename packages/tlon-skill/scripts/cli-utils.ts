@@ -140,7 +140,7 @@ export function refuseNotesCitePath(citePath: string | undefined): void {
 // It says *why* — for agents (e.g. OpenClaw) and humans with stale habits — not a
 // generic "unknown command/kind" or backend "channel not found".
 export const DIARY_REMOVED =
-  'diary/notebook channels are no longer supported — they have been replaced by %notes. Use `tlon notes` (see `tlon notes --help`).';
+  'diary/notebook channels are deprecated and unsupported by this CLI — they have been replaced by %notes. Use `tlon notes` (see `tlon notes --help`), or ask the owner to run `tlon notes migrate-plan <diary-nest>` for a read-only preview and `tlon notes migrate-apply <diary-nest> --yes` to migrate.';
 
 // True for a nest addressing a diary channel (e.g. `diary/~host/blog`).
 export function isDiaryNest(nest: string | undefined): boolean {

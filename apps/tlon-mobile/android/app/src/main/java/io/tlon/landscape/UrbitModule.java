@@ -2,10 +2,12 @@ package io.tlon.landscape;
 
 import android.content.SharedPreferences;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import java.util.Random;
+import io.tlon.landscape.notifications.NotificationPresentationState;
 import io.tlon.landscape.storage.SecureStorage;
 
 public class UrbitModule extends ReactContextBaseJavaModule {
@@ -29,15 +31,23 @@ public class UrbitModule extends ReactContextBaseJavaModule {
         editor.putString(SecureStorage.AUTH_COOKIE_KEY, authCookie.split(";")[0]);
         String uid = Long.toString(System.currentTimeMillis() / 1000L) + "-" + String.format("%06x", new Random().nextInt(0x1000000));
         editor.putString(SecureStorage.CHANNEL_URL, shipUrl + "/~/channel/" + uid);
-        // reset the cached backend capability for the new login; JS re-resolves
-        // it from the ship's version. avoids using a prior ship's v9 mark.
+        // reset the cached backend capabilities for the new login; JS
+        // re-resolves them from the ship's version. avoids using a prior
+        // ship's v9/v10 marks.
         editor.remove(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY);
+        editor.remove(SecureStorage.ACTIVITY_SUPPORTS_NOTES_KEY);
         editor.apply();
     }
 
     @ReactMethod
     public void clearUrbit() {
+        NotificationPresentationState.setActiveChannelId(null);
         SecureStorage.clear();
+    }
+
+    @ReactMethod
+    public void setActiveNotificationChannel(@Nullable String channelId) {
+        NotificationPresentationState.setActiveChannelId(channelId);
     }
 
     // Caches whether the connected backend's %activity supports reactions, so
@@ -47,6 +57,14 @@ public class UrbitModule extends ReactContextBaseJavaModule {
     public void setActivitySupportsReactions(boolean supported) {
         SharedPreferences.Editor editor = SecureStorage.sharedPreferences.edit();
         editor.putBoolean(SecureStorage.ACTIVITY_SUPPORTS_REACTIONS_KEY, supported);
+        editor.apply();
+    }
+
+    // Same pattern for notes activity: gates the v10 (activity-event-2) fetch.
+    @ReactMethod
+    public void setActivitySupportsNotes(boolean supported) {
+        SharedPreferences.Editor editor = SecureStorage.sharedPreferences.edit();
+        editor.putBoolean(SecureStorage.ACTIVITY_SUPPORTS_NOTES_KEY, supported);
         editor.apply();
     }
 

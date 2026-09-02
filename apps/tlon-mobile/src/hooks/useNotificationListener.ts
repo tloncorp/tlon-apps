@@ -10,11 +10,13 @@ import {
   presentContactMatchNotification,
   presentContactsMatchedNotification,
 } from '@tloncorp/app/lib/notifications';
+import { useAgentGroupOnboardingNavGate } from '@tloncorp/app/hooks/useAgentGroupOnboardingLock';
 import { startPushNotifTapMeasurement } from '@tloncorp/app/lib/pushNotifTapTelemetry';
 import { RootStackParamList } from '@tloncorp/app/navigation/types';
 import {
   createTypedReset,
   getMainGroupRoute,
+  getTopLevelTabRoute,
   screenNameFromChannelId,
 } from '@tloncorp/app/navigation/utils';
 import { useIsWindowNarrow } from '@tloncorp/app/ui';
@@ -65,13 +67,10 @@ type RouteStack = {
 // state (see ChatListScreen / groupInvitePreview).
 export function groupInvitePreviewRouteStack(groupId: string): RouteStack {
   return [
-    {
-      name: 'ChatList',
-      params: {
-        previewGroupId: groupId,
-        previewGroupFromInviteNotification: true,
-      },
-    },
+    getTopLevelTabRoute('ChatList', {
+      previewGroupId: groupId,
+      previewGroupFromInviteNotification: true,
+    }),
   ];
 }
 
@@ -143,6 +142,11 @@ export function getMissingNotificationTargetRecovery(
 export default function useNotificationListener() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const isTlonEmployee = db.isTlonEmployee.useValue();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+    runWhenUnlocked,
+  } = useAgentGroupOnboardingNavGate();
 
   const [notifToProcess, setNotifToProcess] =
     useState<ProcessableNotificationData | null>(null);
@@ -268,7 +272,8 @@ export default function useNotificationListener() {
     }
 
     async function goToContacts() {
-      navigation.navigate('Contacts', undefined, { pop: true });
+      const route = getTopLevelTabRoute('Contacts');
+      navigation.navigate(route.name, route.params, { pop: true });
       setNotifToProcess(null);
       return true;
     }
@@ -282,22 +287,17 @@ export default function useNotificationListener() {
       return true;
     }
 
-    async function gotToChannel(channelId: string, postInfo?: PostInfo | null) {
+    async function gotToChannel(
+      channelId: string,
+      postInfo?: PostInfo | null,
+      selectedPostId?: string
+    ) {
       const channel = await db.getChannelWithRelations({ id: channelId });
       if (!channel) {
         return false;
       }
 
-      logger.trackEvent(
-        AnalyticsEvent.ActionTappedPushNotif,
-        logic.getModelAnalytics({ channel })
-      );
-      startPushNotifTapMeasurement({
-        channelId: channel.id,
-        initialLastPostId: channel.lastPostId ?? null,
-      });
-
-      const routeStack: RouteStack = [{ name: 'ChatList' }];
+      const routeStack: RouteStack = [getTopLevelTabRoute('ChatList')];
       if (channel.groupId) {
         const mainGroupRoute = await getMainGroupRoute(
           channel.groupId,
@@ -311,8 +311,14 @@ export default function useNotificationListener() {
         const screenName = screenNameFromChannelId(channelId);
         routeStack.push({
           name: screenName,
-          params: { channelId: channel.id },
+          params: { channelId: channel.id, selectedPostId },
         });
+      } else if (selectedPostId) {
+        const channelRoute = routeStack[routeStack.length - 1] as {
+          name: 'Channel';
+          params: { channelId: string; selectedPostId?: string | null };
+        };
+        channelRoute.params = { ...channelRoute.params, selectedPostId };
       }
 
       // if we have a post id, try to navigate to the thread
@@ -343,6 +349,14 @@ export default function useNotificationListener() {
 
       const typedReset = createTypedReset(navigation);
 
+      logger.trackEvent(
+        AnalyticsEvent.ActionTappedPushNotif,
+        logic.getModelAnalytics({ channel })
+      );
+      startPushNotifTapMeasurement({
+        channelId: channel.id,
+        initialLastPostId: channel.lastPostId ?? null,
+      });
       typedReset(routeStack, 1);
       setNotifToProcess(null);
       return true;
@@ -377,7 +391,11 @@ export default function useNotificationListener() {
       }
     }
 
-    if (notifToProcess) {
+    if (
+      notifToProcess &&
+      !agentOnboardingLockLoading &&
+      !agentOnboardingLocked
+    ) {
       const notificationData = notifToProcess;
       const handleNavigate = (() => {
         switch (notificationData.type) {
@@ -395,7 +413,8 @@ export default function useNotificationListener() {
             return () =>
               gotToChannel(
                 notificationData.channelId,
-                notificationData.postInfo
+                notificationData.postInfo,
+                notificationData.selectedPostId
               );
         }
       })();
@@ -419,17 +438,29 @@ export default function useNotificationListener() {
             }
           }
 
-          let didNavigate = canNavigate ? await handleNavigate() : false;
-
-          if (!didNavigate) {
+          let navigated = false;
+          if (canNavigate) {
+            const attempt = await runWhenUnlocked(handleNavigate);
+            if (!attempt.ran) {
+              // Keep the notification pending; the effect retries it after
+              // the onboarding lock clears.
+              return;
+            }
+            navigated = attempt.result === true;
+          }
+          if (!navigated) {
             const recovered = await syncMissingNotificationTarget(
               notificationData,
               preparedDmInviteTarget
             );
-            didNavigate = recovered ? await handleNavigate() : false;
+            if (recovered) {
+              const retry = await runWhenUnlocked(handleNavigate);
+              if (!retry.ran) return;
+              navigated = retry.result === true;
+            }
 
             // If still not found, clear out the requested channel ID
-            if (!didNavigate) {
+            if (!navigated) {
               if (isTlonEmployee) {
                 logger.trackEvent(AnalyticsEvent.ErrorPushNotifNavigate, {
                   routeCategory: getNotificationRouteCategory(notificationData),
@@ -450,5 +481,13 @@ export default function useNotificationListener() {
         }
       })();
     }
-  }, [notifToProcess, navigation, isTlonEmployee, isDesktop]);
+  }, [
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    runWhenUnlocked,
+    notifToProcess,
+    navigation,
+    isTlonEmployee,
+    isDesktop,
+  ]);
 }

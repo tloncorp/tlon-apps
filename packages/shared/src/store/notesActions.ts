@@ -99,7 +99,7 @@ async function fetchNotesNotebookSnapshot(
       db.getNotesMembers({ notebookFlag: flag }),
     ]);
     currentUserRole = existingNotebook
-      ? existingNotebook.currentUserRole ?? null
+      ? (existingNotebook.currentUserRole ?? null)
       : undefined;
     dbMembers = existingMembers;
   }
@@ -343,19 +343,46 @@ export async function createNotebookNote({
   title: string;
   body?: string;
 }) {
-  const note = await createAndFindNewItem({
-    notebookFlag,
-    getItems: (snapshot) => snapshot.notes,
-    getId: (note) => note.noteId,
-    create: () =>
-      api.notes.createNote({
-        flag: notebookFlag,
-        folder: folderId,
-        title,
-        body,
-      }),
-    findFallback: (notes) => notes.find((note) => note.title === title),
+  const { snapshot: baseline } = await fetchNotesNotebookSnapshot(notebookFlag);
+  await db.saveNotesNotebookSnapshot(baseline);
+
+  const created = await api.notes.createNote({
+    flag: notebookFlag,
+    folder: folderId,
+    title,
+    body,
   });
+  if (created) {
+    // The write response comes from the notebook host and is authoritative.
+    // Do not immediately confirm it through getNote: for remote notebooks that
+    // read hits the local replica, which can legitimately lag the response.
+    const note = {
+      ...api.toClientNotesNote(notebookFlag, created),
+      notebookId: created.notebookId ?? baseline.notebook.notebookId,
+      folderId: created.folderId ?? folderId,
+      bodyMd: created.bodyMd ?? body,
+      revision: created.revision ?? 0,
+    };
+    await db.upsertNotesNote(note);
+    return note;
+  }
+
+  // Older hosts return no applied note. Only that compatibility path needs to
+  // discover the new id by comparing a fresh list against the baseline.
+  const beforeIds = new Set(baseline.notes.map((note) => note.noteId));
+  const note = await syncNotesNotebookUntil<db.NotesNote>(
+    notebookFlag,
+    (snapshot) => {
+      const newNotes = snapshot.notes.filter(
+        (candidate) => !beforeIds.has(candidate.noteId)
+      );
+      return (
+        newNotes.find((candidate) => candidate.title === title) ??
+        newNotes[0] ??
+        null
+      );
+    }
+  );
 
   if (!note) {
     return null;
@@ -902,6 +929,81 @@ export async function markNotesNotebookOpened(notebookFlag: string) {
   });
 }
 
+// Marks a single note read in %activity. Per-note unreads ride the
+// thread-unread table keyed by (notes/<flag>, <note id>); mirror
+// markThreadRead's optimistic flow: clear locally, decrement the channel and
+// group rollup counts, poke, roll back on failure.
+export async function markNoteRead({
+  notebookFlag,
+  noteId,
+}: {
+  notebookFlag: string;
+  noteId: number;
+}) {
+  // before the capability resolves (or on a backend without notes
+  // activity) the read poke can't be sent — skip the optimistic clear
+  // too, or local state diverges from the ship with nothing to retry.
+  // the note detail effect re-runs when the capability epoch changes.
+  if (!api.getActivitySupportsNotes()) {
+    return;
+  }
+  const channelId = `notes/${notebookFlag}`;
+  const threadId = String(noteId);
+  const channel = await db.getChannel({ id: channelId });
+  const existingUnread = await db.getThreadActivity({
+    channelId,
+    postId: threadId,
+  });
+
+  // optimistic local clear only applies when we have a local row, but the
+  // backend read must happen regardless — the note may be viewed before
+  // the thread-unread sync has landed the row, and the effect won't rerun
+  // when it arrives. the backend no-ops on sources with no unread state.
+  const existingCount = existingUnread?.count ?? 0;
+  const priorChannelUnread =
+    existingCount > 0 ? await db.getChannelUnread({ channelId }) : null;
+  const priorGroupUnread =
+    existingCount > 0 && channel?.groupId
+      ? await db.getGroupUnread({ groupId: channel.groupId })
+      : null;
+
+  if (existingUnread) {
+    await db.clearThreadUnread({ channelId, threadId });
+    if (existingCount > 0) {
+      await db.updateChannelUnreadCount({
+        channelId,
+        decrement: existingCount,
+      });
+      if (channel?.groupId) {
+        await db.updateGroupUnreadCount({
+          groupId: channel.groupId,
+          decrement: existingCount,
+        });
+      }
+    }
+  }
+
+  try {
+    await api.readNote({
+      channelId,
+      noteId: threadId,
+      groupId: channel?.groupId,
+    });
+  } catch (e) {
+    logger.error('failed to mark note read', channelId, noteId, e);
+    // roll back the whole optimistic update, rollup decrements included
+    if (existingUnread) {
+      await db.insertThreadUnreads([existingUnread]);
+      if (priorChannelUnread) {
+        await db.insertChannelUnreads([priorChannelUnread]);
+      }
+      if (priorGroupUnread) {
+        await db.insertGroupUnreads([priorGroupUnread]);
+      }
+    }
+  }
+}
+
 async function notesNotebookIsJoined(flag: api.NotesFlag) {
   const notebooks = await api.notes.listNotebooks();
   return notebooks.some(
@@ -923,7 +1025,7 @@ async function syncNotesNotebookUntil<T>(
     snapshot: NotesNotebookSnapshot
   ) => ReadyValue<T> | Promise<ReadyValue<T>>,
   options?: SyncNotesNotebookOptions
-) {
+): Promise<T | null> {
   let readySnapshot: NotesNotebookSnapshot | null = null;
   let readyValue: T | null = null;
   try {
@@ -1028,8 +1130,8 @@ function notebookForSnapshot(
     currentUserRole:
       preservedCurrentUserRole !== undefined
         ? preservedCurrentUserRole
-        : currentMember?.role ??
-          (notebook.host === currentUserId ? ('owner' as const) : null),
+        : (currentMember?.role ??
+          (notebook.host === currentUserId ? ('owner' as const) : null)),
   };
 }
 
@@ -1062,7 +1164,7 @@ function noteForSnapshot(
       note.notebookId ?? existingNote?.notebookId ?? notebook.notebookId,
     folderId: note.folderId ?? existingNote?.folderId ?? notebook.rootFolderId,
     title: note.title,
-    slug: note.slug === undefined ? existingNote?.slug ?? null : note.slug,
+    slug: note.slug === undefined ? (existingNote?.slug ?? null) : note.slug,
     bodyMd: note.bodyMd ?? existingNote?.bodyMd ?? '',
     createdBy: note.createdBy ?? existingNote?.createdBy ?? null,
     createdAt: note.createdAt ?? existingNote?.createdAt ?? null,

@@ -1,10 +1,14 @@
 import { A2UI } from '@tloncorp/api';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   APPROVAL_TTL_MS,
+  type ApprovalQueueContext,
+  type BanActionDeps,
   type DisplayContext,
   type PendingApproval,
+  RENOTIFY_COOLDOWN_MS,
+  applyApprovalRequest,
   buildApprovalA2UIBlob,
   buildPendingApprovalsA2UIBlob,
   buildPendingApprovalsResponse,
@@ -14,12 +18,14 @@ import {
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
+  formatGroupLabel,
   formatPendingList,
   generateApprovalId,
-  hasDuplicatePending,
   isExpired,
+  mergeApprovalDeliveryState,
   normalizeNotificationId,
   removePendingApproval,
+  runBanAction,
 } from './approval.js';
 
 // ---------------------------------------------------------------------------
@@ -51,16 +57,6 @@ describe('createPendingApproval', () => {
       [first.id]
     );
     expect(second.id).not.toBe(first.id);
-  });
-
-  it('stores groupTitle when provided', () => {
-    const approval = createPendingApproval({
-      type: 'group',
-      requestingShip: '~zod',
-      groupFlag: '~host/my-group',
-      groupTitle: 'Garden Club',
-    });
-    expect(approval.groupTitle).toBe('Garden Club');
   });
 });
 
@@ -975,29 +971,610 @@ describe('normalizeNotificationId', () => {
   });
 });
 
-describe('hasDuplicatePending', () => {
-  const approvals: PendingApproval[] = [
-    { id: 'da1b2', type: 'dm', requestingShip: '~zod', timestamp: 1 },
-    {
-      id: 'cc3d4',
-      type: 'channel',
-      requestingShip: '~bus',
-      channelNest: 'chat/~host/general',
-      timestamp: 2,
-    },
-  ];
+// ---------------------------------------------------------------------------
+// applyApprovalRequest (queue semantics, fake clock)
+// ---------------------------------------------------------------------------
 
-  it('detects DM duplicates', () => {
-    expect(hasDuplicatePending(approvals, 'dm', '~zod')).toBe(true);
-    expect(hasDuplicatePending(approvals, 'dm', '~bus')).toBe(false);
+describe('applyApprovalRequest', () => {
+  const BASE_NOW = 1_000_000_000;
+
+  function makeQueueHarness(options: { blocked?: boolean } = {}) {
+    let now = BASE_NOW;
+    let pending: PendingApproval[] = [];
+    let idCounter = 0;
+    const notify = vi.fn<
+      (approval: PendingApproval) => Promise<string | undefined>
+    >(async () => '~zod/170.141.184.507');
+    const persist = vi.fn(async () => {});
+    const isShipBlocked = vi.fn(async () => options.blocked ?? false);
+    const ctx: ApprovalQueueContext = {
+      getPending: () => pending,
+      setPending: (next) => {
+        pending = next;
+      },
+      isShipBlocked,
+      notify,
+      persist,
+      now: () => now,
+      log: vi.fn(),
+    };
+    const groupApproval = (
+      overrides: Partial<PendingApproval> = {}
+    ): PendingApproval => ({
+      id: `g${(idCounter++).toString(16)}ab`,
+      type: 'group',
+      requestingShip: '~inviter',
+      groupFlag: '~host/garden',
+      groupTitle: 'Garden Club',
+      timestamp: now,
+      ...overrides,
+    });
+    return {
+      ctx,
+      notify,
+      persist,
+      isShipBlocked,
+      groupApproval,
+      getPending: () => pending,
+      setPending: (next: PendingApproval[]) => {
+        pending = next;
+      },
+      advance: (ms: number) => {
+        now += ms;
+      },
+      now: () => now,
+    };
+  }
+
+  const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  it('queues a new group approval, sends, stamps delivery, persists', async () => {
+    const h = makeQueueHarness();
+
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+
+    expect(h.notify).toHaveBeenCalledTimes(1);
+    expect(h.getPending()).toHaveLength(1);
+    const stored = h.getPending()[0];
+    expect(stored.notifyAttemptAt).toBe(h.now());
+    expect(stored.notificationMessageId).toBe('170141184507');
+    expect(h.persist).toHaveBeenCalledTimes(1);
   });
 
-  it('detects channel duplicates by nest', () => {
+  it('dedups by flag alone and never re-sends once delivered', async () => {
+    const h = makeQueueHarness();
+    // Delivered approval from one inviter (notificationMessageId is the marker).
+    h.setPending([
+      h.groupApproval({
+        requestingShip: '~first',
+        notifyAttemptAt: h.now() - 5_000,
+        notificationMessageId: '170141184507',
+      }),
+    ]);
+
+    h.advance(RENOTIFY_COOLDOWN_MS * 2);
+    await applyApprovalRequest(
+      h.groupApproval({ requestingShip: '~second' }),
+      h.ctx
+    );
+
+    // Same flag from a different inviter: no second record, no re-DM.
+    expect(h.getPending()).toHaveLength(1);
+    expect(h.getPending()[0].requestingShip).toBe('~first');
+    expect(h.notify).not.toHaveBeenCalled();
+    expect(h.persist).not.toHaveBeenCalled();
+  });
+
+  it('retries a failed send only after the cooldown, then stamps delivery', async () => {
+    const h = makeQueueHarness();
+    h.notify.mockResolvedValueOnce(undefined);
+
+    // Failed first send: record persisted, attempt stamped, no marker.
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.getPending()).toHaveLength(1);
+    expect(h.getPending()[0].notifyAttemptAt).toBe(h.now());
+    expect(h.getPending()[0].notificationMessageId).toBeUndefined();
+    expect(h.persist).toHaveBeenCalledTimes(1);
+
+    // Inside the cooldown: suppressed, no state change.
+    const attemptAt = h.now();
+    h.advance(RENOTIFY_COOLDOWN_MS - 1_000);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.notify).toHaveBeenCalledTimes(1);
+    expect(h.getPending()[0].notifyAttemptAt).toBe(attemptAt);
+
+    // Past the cooldown: one retry, delivery stamped.
+    h.advance(2_000);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.notify).toHaveBeenCalledTimes(2);
+    const stored = h.getPending()[0];
+    expect(stored.notifyAttemptAt).toBe(h.now());
+    expect(stored.notificationMessageId).toBe('170141184507');
+  });
+
+  it('queues a fresh record after the 48h TTL prunes the old one (reminder without restart)', async () => {
+    const h = makeQueueHarness();
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.notify).toHaveBeenCalledTimes(1);
+
+    h.advance(APPROVAL_TTL_MS + 1);
+    const fresh = h.groupApproval();
+    await applyApprovalRequest(fresh, h.ctx);
+
+    expect(h.notify).toHaveBeenCalledTimes(2);
+    expect(h.getPending()).toHaveLength(1);
+    expect(h.getPending()[0].id).toBe(fresh.id);
+  });
+
+  it('treats a junk persisted delivery marker as undelivered and retries', async () => {
+    const h = makeQueueHarness();
+    // Persisted JSON can round-trip a null/empty/non-string marker; suppressing
+    // on it would silence the retry for the full 48h TTL.
+    for (const bogus of [null, '', 12345]) {
+      h.notify.mockClear();
+      h.setPending([
+        h.groupApproval({
+          notifyAttemptAt: h.now() - RENOTIFY_COOLDOWN_MS - 1,
+          notificationMessageId: bogus as unknown as string,
+        }),
+      ]);
+
+      await applyApprovalRequest(h.groupApproval(), h.ctx);
+
+      expect(h.notify).toHaveBeenCalledTimes(1);
+      expect(h.getPending()[0].notificationMessageId).toBe('170141184507');
+    }
+  });
+
+  it('treats a junk persisted attempt stamp as no attempt and retries now', async () => {
+    const h = makeQueueHarness();
+    // Values that arithmetic would read as "attempted in the future" and so
+    // suppress the retry indefinitely.
+    for (const bogus of [Infinity, '9999999999999']) {
+      h.notify.mockClear();
+      h.setPending([
+        h.groupApproval({ notifyAttemptAt: bogus as unknown as number }),
+      ]);
+
+      await applyApprovalRequest(h.groupApproval(), h.ctx);
+
+      expect(h.notify).toHaveBeenCalledTimes(1);
+      expect(h.getPending()[0].notifyAttemptAt).toBe(h.now());
+    }
+  });
+
+  it('consults the block list only when an action is imminent', async () => {
+    const h = makeQueueHarness();
+    // Delivered duplicate: a no-op observation must not scry the block list
+    // (the 2-minute poll re-observes every pending invite).
+    h.setPending([h.groupApproval({ notificationMessageId: '170141184507' })]);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.isShipBlocked).not.toHaveBeenCalled();
+
+    // Undelivered but inside the cooldown: still a no-op, still no scry.
+    h.setPending([h.groupApproval({ notifyAttemptAt: h.now() })]);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.isShipBlocked).not.toHaveBeenCalled();
+
+    // Past the cooldown a send is imminent, so the check runs.
+    h.advance(RENOTIFY_COOLDOWN_MS + 1);
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+    expect(h.isShipBlocked).toHaveBeenCalledTimes(1);
+  });
+
+  it('silently ignores requests from blocked ships', async () => {
+    const h = makeQueueHarness({ blocked: true });
+
+    await applyApprovalRequest(h.groupApproval(), h.ctx);
+
+    expect(h.isShipBlocked).toHaveBeenCalled();
+    expect(h.notify).not.toHaveBeenCalled();
+    expect(h.getPending()).toHaveLength(0);
+    expect(h.persist).not.toHaveBeenCalled();
+  });
+
+  it('keeps dm dedup/re-notify behavior unchanged (preview update + re-notify)', async () => {
+    const h = makeQueueHarness();
+    const first: PendingApproval = {
+      id: 'da1b2',
+      type: 'dm',
+      requestingShip: '~ten',
+      timestamp: h.now(),
+      messagePreview: 'first message',
+      originalMessage: {
+        messageId: 'm1',
+        messageText: 'first message',
+        messageContent: [],
+        timestamp: h.now(),
+      },
+    };
+    const second: PendingApproval = {
+      id: 'da2c3',
+      type: 'dm',
+      requestingShip: '~ten',
+      timestamp: h.now(),
+      messagePreview: 'second message',
+      originalMessage: {
+        messageId: 'm2',
+        messageText: 'second message',
+        messageContent: [],
+        timestamp: h.now(),
+      },
+    };
+
+    await applyApprovalRequest(first, h.ctx);
+    await applyApprovalRequest(second, h.ctx);
+
+    // One record, original ID preserved, content updated, re-notified.
+    expect(h.getPending()).toHaveLength(1);
+    const stored = h.getPending()[0];
+    expect(stored.id).toBe('da1b2');
+    expect(stored.messagePreview).toBe('second message');
+    expect(stored.originalMessage?.messageId).toBe('m2');
+    expect(h.notify).toHaveBeenCalledTimes(2);
+    expect(h.persist).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps channel dedup nested: same ship in different nests queues separately', async () => {
+    const h = makeQueueHarness();
+    const channel = (id: string, nest: string): PendingApproval => ({
+      id,
+      type: 'channel',
+      requestingShip: '~ten',
+      channelNest: nest,
+      timestamp: h.now(),
+      messagePreview: 'hi',
+      originalMessage: {
+        messageId: id,
+        messageText: 'hi',
+        messageContent: [],
+        timestamp: h.now(),
+      },
+    });
+
+    await applyApprovalRequest(channel('ca111', 'chat/~host/a'), h.ctx);
+    await applyApprovalRequest(channel('ca222', 'chat/~host/b'), h.ctx);
+    await applyApprovalRequest(channel('ca333', 'chat/~host/a'), h.ctx);
+
+    expect(h.getPending().map((a) => a.id)).toEqual(['ca111', 'ca222']);
+    expect(h.notify).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not lose the approval when the pending list is replaced during a delayed notify', async () => {
+    const h = makeQueueHarness();
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const approval = h.groupApproval();
+    const applied = applyApprovalRequest(approval, h.ctx);
+    await flush();
+    expect(h.getPending()).toHaveLength(1);
+
+    // The settings subscription replaces the list wholesale mid-notify.
+    h.setPending([]);
+    resolveNotify('~zod/170.141.184.507');
+    await applied;
+
+    expect(h.getPending()).toHaveLength(1);
+    const stored = h.getPending()[0];
+    expect(stored.id).toBe(approval.id);
+    expect(stored.notificationMessageId).toBe('170141184507');
+    expect(h.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it('stamps the live record when a retry notify races a list replacement', async () => {
+    const h = makeQueueHarness();
+    const undelivered = h.groupApproval({
+      notifyAttemptAt: h.now() - RENOTIFY_COOLDOWN_MS - 1,
+    });
+    h.setPending([undelivered]);
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const applied = applyApprovalRequest(h.groupApproval(), h.ctx);
+    await flush();
+
+    // The settings echo replaces the list with a fresh deserialization of the
+    // same record, detaching the object the retry is holding.
+    const replaced = h.groupApproval({ id: undelivered.id });
+    h.setPending([replaced]);
+    resolveNotify('~zod/170.141.184.507');
+    await applied;
+
+    expect(h.getPending()).toEqual([replaced]);
+    expect(replaced.notificationMessageId).toBe('170141184507');
+    expect(replaced.notifyAttemptAt).toBe(h.now());
+    expect(h.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the cooldown when a failed retry races a replacement carrying a stale stamp', async () => {
+    const h = makeQueueHarness();
+    const staleStamp = h.now() - RENOTIFY_COOLDOWN_MS - 1;
+    const undelivered = h.groupApproval({ notifyAttemptAt: staleStamp });
+    h.setPending([undelivered]);
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const attemptAt = h.now();
+    const applied = applyApprovalRequest(h.groupApproval(), h.ctx);
+    await flush();
+
+    // The replacement still carries the stale persisted stamp, and the send
+    // fails: the live record must adopt the newer attempt so the next poll
+    // stays inside the cooldown instead of retrying every 2 minutes.
+    const replaced = h.groupApproval({
+      id: undelivered.id,
+      notifyAttemptAt: staleStamp,
+    });
+    h.setPending([replaced]);
+    resolveNotify(undefined);
+    await applied;
+
+    expect(replaced.notifyAttemptAt).toBe(attemptAt);
+    expect(replaced.notificationMessageId).toBeUndefined();
+  });
+
+  it('does not resurrect a retried approval removed during the notify', async () => {
+    const h = makeQueueHarness();
+    h.setPending([
+      h.groupApproval({ notifyAttemptAt: h.now() - RENOTIFY_COOLDOWN_MS - 1 }),
+    ]);
+    let resolveNotify!: (value: string | undefined) => void;
+    h.notify.mockImplementation(
+      () =>
+        new Promise<string | undefined>((resolve) => {
+          resolveNotify = resolve;
+        })
+    );
+
+    const applied = applyApprovalRequest(h.groupApproval(), h.ctx);
+    await flush();
+
+    // Removed mid-notify (owner acted, or the record expired): the retry has
+    // nothing live to stamp and must not write the detached copy back.
+    h.setPending([]);
+    resolveNotify('~zod/170.141.184.507');
+    await applied;
+
+    expect(h.getPending()).toEqual([]);
+    expect(h.persist).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Bounded group labels (AC3 host-in-surface)
+// ---------------------------------------------------------------------------
+
+describe('group surfaces show host flag alongside title', () => {
+  it('includes the flag in the approval card Group context line', () => {
+    const approval = buildApprovalA2UIBlob({
+      id: 'g5f6e',
+      type: 'group',
+      requestingShip: '~robin-dasler',
+      groupFlag: '~robin-dasler/garden-club',
+      groupTitle: 'Garden Club',
+      timestamp: 1,
+    });
+
+    expect(A2UI.validateBlobEntry(approval)).toBe(true);
+    expect(JSON.stringify(approval)).toContain(
+      'Group: Garden Club (~robin-dasler/garden-club)'
+    );
+  });
+
+  it('includes the group label in the plain-text notification', () => {
     expect(
-      hasDuplicatePending(approvals, 'channel', '~bus', 'chat/~host/general')
-    ).toBe(true);
-    expect(
-      hasDuplicatePending(approvals, 'channel', '~bus', 'chat/~host/other')
-    ).toBe(false);
+      formatApprovalRequestNotification({
+        type: 'group',
+        requestingShip: '~robin-dasler',
+        groupFlag: '~robin-dasler/garden-club',
+        groupTitle: 'Garden Club',
+      })
+    ).toBe(
+      'Group invite request from ~robin-dasler for Garden Club (~robin-dasler/garden-club)'
+    );
+  });
+
+  it('bounds oversized titles and flags on the /pending card and text fallback', () => {
+    const oversized: PendingApproval = {
+      id: 'g5f6e',
+      type: 'group',
+      requestingShip: '~robin-dasler',
+      groupFlag: `~robin-dasler/${'g'.repeat(5_000)}`,
+      groupTitle: 'x'.repeat(5_000),
+      timestamp: Date.now(),
+    };
+
+    // makeA2UIBlob throws when a text node exceeds the a2ui cap; a bounded
+    // label keeps the card valid instead of degrading to text-only.
+    const blob = buildPendingApprovalsA2UIBlob([oversized]);
+    expect(blob).toBeDefined();
+    expect(A2UI.validateBlobEntry(blob)).toBe(true);
+    const cardText = JSON.stringify(blob);
+    expect(cardText).toContain('Group: ');
+    expect(cardText).toContain('~robin-dasler/');
+
+    const text = formatPendingList([oversized]);
+    expect(text).toContain('~robin-dasler/');
+    expect(text.length).toBeLessThan(1_000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mergeApprovalDeliveryState (settings-snapshot replacement guard)
+// ---------------------------------------------------------------------------
+
+describe('mergeApprovalDeliveryState', () => {
+  const group = (
+    overrides: Partial<PendingApproval> = {}
+  ): PendingApproval => ({
+    id: 'g5f6e',
+    type: 'group',
+    requestingShip: '~inviter',
+    groupFlag: '~host/garden',
+    timestamp: 1_000,
+    ...overrides,
+  });
+
+  it('carries delivery state onto an echo that lacks it', () => {
+    const merged = mergeApprovalDeliveryState(
+      [group()],
+      [
+        group({
+          notificationMessageId: '170141184507',
+          notifyAttemptAt: 4_000,
+        }),
+      ]
+    );
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0].notificationMessageId).toBe('170141184507');
+    expect(merged[0].notifyAttemptAt).toBe(4_000);
+  });
+
+  it('never downgrades markers the incoming record already carries', () => {
+    const merged = mergeApprovalDeliveryState(
+      [
+        group({
+          notificationMessageId: '170141184999',
+          notifyAttemptAt: 9_000,
+        }),
+      ],
+      [
+        group({
+          notificationMessageId: '170141184507',
+          notifyAttemptAt: 4_000,
+        }),
+      ]
+    );
+
+    expect(merged[0].notificationMessageId).toBe('170141184999');
+    expect(merged[0].notifyAttemptAt).toBe(9_000);
+  });
+
+  it('does not resurrect a record the snapshot removed', () => {
+    const merged = mergeApprovalDeliveryState(
+      [],
+      [group({ notificationMessageId: '170141184507' })]
+    );
+
+    expect(merged).toEqual([]);
+  });
+});
+
+describe('runBanAction', () => {
+  const approval = (
+    overrides: Partial<PendingApproval> = {}
+  ): PendingApproval => ({
+    id: 'g5f6e',
+    type: 'group',
+    requestingShip: '~inviter',
+    groupFlag: '~host/garden',
+    timestamp: 1_000,
+    ...overrides,
+  });
+
+  const makeDeps = (overrides: Partial<BanActionDeps> = {}) => {
+    const calls: string[] = [];
+    const deps = {
+      blockShip: vi.fn(async () => {
+        calls.push('block');
+        return true;
+      }),
+      removeFromDmAllowlist: vi.fn(async () => {
+        calls.push('removeFromDmAllowlist');
+        return true;
+      }),
+      declineInvite: vi.fn(async () => {
+        calls.push('decline');
+      }),
+      ...overrides,
+    };
+    return { deps, calls };
+  };
+
+  it('blocks, revokes the DM grant, then declines the invite', async () => {
+    const { deps, calls } = makeDeps();
+
+    const result = await runBanAction(approval(), deps);
+
+    expect(result).toEqual({ outcome: 'done' });
+    expect(calls).toEqual(['block', 'removeFromDmAllowlist', 'decline']);
+    expect(deps.declineInvite).toHaveBeenCalledWith('~host/garden');
+  });
+
+  it('keeps the record and skips both follow-ups when the block fails', async () => {
+    const { deps } = makeDeps({ blockShip: vi.fn(async () => false) });
+
+    const result = await runBanAction(approval(), deps);
+
+    // The record is the invite's suppression: dropping it after a failed
+    // block would re-queue and re-DM on the next observation.
+    expect(result).toEqual({ outcome: 'block-failed' });
+    expect(deps.removeFromDmAllowlist).not.toHaveBeenCalled();
+    expect(deps.declineInvite).not.toHaveBeenCalled();
+  });
+
+  it('keeps a group ban pending when the revocation write fails', async () => {
+    const { deps } = makeDeps({
+      removeFromDmAllowlist: vi.fn(async () => false),
+    });
+
+    const result = await runBanAction(approval(), deps);
+
+    // Completing would drop the only record through which a retry can
+    // re-attempt the failed settings write (the helper restored the entry).
+    expect(result).toEqual({ outcome: 'revoke-failed' });
+    expect(deps.declineInvite).not.toHaveBeenCalled();
+  });
+
+  it('tolerates a failed revocation for a dm ban (best-effort, like its block leg)', async () => {
+    const { deps } = makeDeps({
+      removeFromDmAllowlist: vi.fn(async () => false),
+    });
+
+    const result = await runBanAction(approval({ type: 'dm' }), deps);
+
+    expect(result).toEqual({ outcome: 'done' });
+  });
+
+  it('has already revoked the DM grant when the decline cannot be submitted', async () => {
+    const error = new Error('poke failed');
+    const { deps, calls } = makeDeps({
+      declineInvite: vi.fn(async () => {
+        throw error;
+      }),
+    });
+
+    const result = await runBanAction(approval(), deps);
+
+    expect(result).toEqual({ outcome: 'decline-failed', error });
+    expect(calls).toEqual(['block', 'removeFromDmAllowlist']);
+  });
+
+  it('never declines for a dm or channel ban', async () => {
+    for (const type of ['dm', 'channel'] as const) {
+      const { deps, calls } = makeDeps();
+
+      const result = await runBanAction(approval({ type }), deps);
+
+      expect(result).toEqual({ outcome: 'done' });
+      expect(calls).toEqual(['block', 'removeFromDmAllowlist']);
+    }
   });
 });

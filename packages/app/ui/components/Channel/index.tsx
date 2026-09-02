@@ -18,6 +18,7 @@ import {
 import * as db from '@tloncorp/shared/db';
 import * as domain from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -26,6 +27,7 @@ import {
   View,
   XStack,
   YStack,
+  getTokens,
   getVariableValue,
   useTheme,
 } from 'tamagui';
@@ -41,21 +43,26 @@ import { NavigationProvider } from '../../contexts/navigation';
 import { PostCollectionContext } from '../../contexts/postCollection';
 import { ScrollContextProvider } from '../../contexts/scroll';
 import { useChannelShareIntent } from '../../contexts/shareIntent';
+import { ThreadUnreadsProvider } from '../../contexts/threadUnreads';
 import * as utils from '../../utils';
 import { FileDrop } from '../FileDrop';
+import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
-import SystemNotices from '../SystemNotices';
+import SystemNotices, { hasRelevantJoinRequests } from '../SystemNotices';
+import { AgentOnboardingBackTooltip } from '../Wayfinding/Notices';
+import {
+  floatingPinnedPostBannerClearance,
+  getPostCollectionTopInset,
+  useConversationInsets,
+} from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
 import {
   DraftInputContextProvider,
   DraftInputHandle,
   GalleryDraftType,
 } from '../draftInputs/shared';
-import {
-  ConnectedPostView,
-  PostCollectionHandle,
-} from '../postCollectionViews/shared';
+import { PostCollectionHandle } from '../postCollectionViews/shared';
 import { ChannelHeader, ChannelHeaderItemsProvider } from './ChannelHeader';
 import { ContextLensPanel, useContextLensController } from './ContextLens';
 import { DmInviteOptions } from './DmInviteOptions';
@@ -63,7 +70,17 @@ import { DraftInputView } from './DraftInputView';
 import { PinnedPostBanner } from './PinnedPostBanner';
 import { PostView } from './PostView';
 import { ReadOnlyNotice } from './ReadOnlyNotice';
+import {
+  findAgentOnboardingOrientationCompletePostId,
+  isAgentOnboardingFirstGroupRequestPost,
+} from './postVisibility';
 
+const THREAD_UNREAD_OVERLAY_CHANNEL_TYPES: db.ChannelType[] = [
+  'chat',
+  'dm',
+  'groupDm',
+  'notebook',
+];
 const HEADER_LOADING_SHOW_DELAY_MS = 180;
 const HEADER_LOADING_MIN_VISIBLE_MS = 420;
 const IMAGE_FILE_EXTENSION_REGEX =
@@ -258,6 +275,10 @@ interface ChannelProps {
   group: db.Group | null;
   groupIsLoading?: boolean;
   goBack: () => void;
+  disableBackButton?: boolean;
+  suppressEmptyState?: boolean;
+  suppressAnimatedSendScroll?: boolean;
+  pendingThinkingLabel?: string;
   goToChatDetails?: () => void;
   goToPost: (post: db.Post) => void;
   goToDm: (participants: string[]) => void;
@@ -267,8 +288,8 @@ interface ChannelProps {
   goToContextLensRuns?: () => void;
   goToContextLensRun?: (params: { botShip: string; lensId: string }) => void;
   goToUserProfile: (userId: string) => void;
-  onScrollEndReached?: () => void;
-  onScrollStartReached?: () => void;
+  onLoadNewerPosts?: () => void;
+  onLoadOlderPosts?: () => void;
   isLoadingPosts?: boolean;
   loadPostsError?: Error | null;
   onPressRef: (channel: db.Channel, post: db.Post) => void;
@@ -300,6 +321,10 @@ export function Channel({
   group,
   groupIsLoading,
   goBack,
+  disableBackButton,
+  suppressEmptyState,
+  suppressAnimatedSendScroll,
+  pendingThinkingLabel,
   goToChatDetails,
   goToSearch,
   goToContextLensRuns,
@@ -309,8 +334,8 @@ export function Channel({
   goToDm,
   goToUserProfile,
   goToGroupSettings,
-  onScrollEndReached,
-  onScrollStartReached,
+  onLoadNewerPosts,
+  onLoadOlderPosts,
   isLoadingPosts,
   loadPostsError,
   markRead,
@@ -343,16 +368,110 @@ export function Channel({
   const title = utils.useChannelTitle(channel);
   const groups = useMemo(() => (group ? [group] : null), [group]);
   const currentUserId = useCurrentUserId();
+  const groupAgents = db.agentGroupAgents.useValue();
+  const groupId = group?.id ?? channel.groupId ?? undefined;
+  const groupAgentId = groupId ? groupAgents[groupId] : undefined;
   const canWrite = utils.useCanWrite(channel, currentUserId);
   const canRead = utils.useCanRead(channel, currentUserId);
+  const isNarrow = useIsWindowNarrow();
+  const inView = useIsFocused();
   const collectionRef = useRef<PostCollectionHandle>(null);
+  const orientationCompletePostId = useMemo(
+    () => findAgentOnboardingOrientationCompletePostId(posts, groupAgentId),
+    [groupAgentId, posts]
+  );
+  const hasFirstGroupOnboardingRequest = useMemo(
+    () =>
+      posts?.some(
+        (post) =>
+          post.authorId === currentUserId &&
+          isAgentOnboardingFirstGroupRequestPost(post)
+      ) ?? false,
+    [currentUserId, posts]
+  );
+  const [showOnboardingBackTooltip, setShowOnboardingBackTooltip] =
+    useState(false);
+  const claimedOnboardingBackTooltipRef = useRef<string | null>(null);
+  const {
+    value: shownOnboardingBackTooltips,
+    isLoading: shownOnboardingBackTooltipsLoading,
+  } = db.agentOnboardingBackTooltipShown.useStorageItem();
+
+  useEffect(() => {
+    if (
+      disableBackButton ||
+      !inView ||
+      !isNarrow ||
+      shownOnboardingBackTooltipsLoading ||
+      !hasFirstGroupOnboardingRequest ||
+      !orientationCompletePostId ||
+      claimedOnboardingBackTooltipRef.current === orientationCompletePostId ||
+      shownOnboardingBackTooltips[orientationCompletePostId]
+    ) {
+      return;
+    }
+
+    claimedOnboardingBackTooltipRef.current = orientationCompletePostId;
+    setShowOnboardingBackTooltip(true);
+  }, [
+    disableBackButton,
+    hasFirstGroupOnboardingRequest,
+    inView,
+    isNarrow,
+    orientationCompletePostId,
+    shownOnboardingBackTooltips,
+    shownOnboardingBackTooltipsLoading,
+  ]);
+
+  useEffect(() => {
+    if (!showOnboardingBackTooltip || !inView || !orientationCompletePostId) {
+      return;
+    }
+    // Persist only after a focused render has actually shown the hint. This
+    // avoids consuming the one-shot marker while another screen covers the
+    // still-mounted channel.
+    void db.agentOnboardingBackTooltipShown.setValue((current) =>
+      current[orientationCompletePostId]
+        ? current
+        : { ...current, [orientationCompletePostId]: true }
+    );
+  }, [inView, orientationCompletePostId, showOnboardingBackTooltip]);
+
+  useEffect(() => {
+    if (!inView) setShowOnboardingBackTooltip(false);
+  }, [inView]);
 
   const isChatChannel = channel ? getIsChatChannel(channel) : true;
   const isDM = isDmChannelId(channel.id);
   const isGroupDm = isGroupDmChannelId(channel.id);
   const isNotebookOrGallery =
     channel.type === 'notebook' || channel.type === 'gallery';
-  const pinnedPostId = logic.getPinnedPostId(channel);
+  const readOnlyNoticeType =
+    channel.groupId && !group && !groupIsLoading
+      ? 'group-deleted'
+      : !canRead
+        ? 'no-longer-read'
+        : !canWrite
+          ? 'read-only'
+          : !negotiationMatch
+            ? isDM
+              ? 'dm-mismatch'
+              : isGroupDm
+                ? 'group-dm-mismatch'
+                : 'channel-mismatch'
+            : null;
+  const canRenderDraftInput = readOnlyNoticeType == null && !channel.isDmInvite;
+  const draftInputType = !canRenderDraftInput
+    ? null
+    : channel.contentConfiguration != null
+      ? ChannelContentConfiguration.draftInput(channel.contentConfiguration).id
+      : isChatChannel
+        ? DraftInputId.chat
+        : channel.type === 'gallery'
+          ? DraftInputId.gallery
+          : channel.type === 'notebook'
+            ? DraftInputId.notebook
+            : null;
   // For DMs, get the other participant's ID
   const dmRecipientId = useMemo(() => {
     if (isDM && channel.members) {
@@ -384,7 +503,6 @@ export function Channel({
 
   const { attachAssets } = useAttachmentContext();
 
-  const inView = useIsFocused();
   const isUserActive = useIsUserActive();
   const hasLoaded = !!(posts && channel);
   const shouldCheckThreadUnreadActivity =
@@ -395,7 +513,7 @@ export function Channel({
       channel.unread.countWithoutThreads === 0);
   const { data: threadUnreads, isFetched: threadUnreadActivityFetched } =
     useLiveThreadUnreadsByChannel(
-      shouldCheckThreadUnreadActivity ? channel?.id ?? null : null
+      shouldCheckThreadUnreadActivity ? (channel?.id ?? null) : null
     );
   const hasChildThreadUnreadActivity =
     shouldCheckThreadUnreadActivity && (threadUnreads?.length ?? 0) > 0;
@@ -481,15 +599,17 @@ export function Channel({
 
   const handleRefPress = useCallback(
     (refChannel: db.Channel, post: db.Post) => {
-      const anchorIndex = posts?.findIndex((p) => p.id === post.id) ?? -1;
+      const postIsLoaded = posts?.some(
+        (loadedPost) => loadedPost.id === post.id
+      );
 
       if (
         refChannel.id === channel.id &&
-        anchorIndex !== -1 &&
+        postIsLoaded &&
         collectionRef.current
       ) {
         // If the post is already loaded, scroll to it and highlight
-        collectionRef.current?.scrollToPostAtIndex?.(anchorIndex, 0.5);
+        collectionRef.current?.scrollToPost?.(post.id, 0.5);
         collectionRef.current?.highlightPost?.(post.id);
         return;
       }
@@ -545,20 +665,40 @@ export function Channel({
 
   const draftInputRef = useRef<DraftInputHandle>(null);
 
+  // Live group refreshes can briefly clear the query result while a new post
+  // is inserted. Keep the channel's last matching group available so trusted
+  // A2UI does not flash its text fallback or disable its controls mid-message.
+  const stableGroupRef = useRef<db.Group | null>(group);
+  if (group && (!channel.groupId || group.id === channel.groupId)) {
+    stableGroupRef.current = group;
+  }
+  const stableGroup =
+    groupIsLoading && stableGroupRef.current?.id === channel.groupId
+      ? stableGroupRef.current
+      : group;
+  if (!groupIsLoading && !group) {
+    stableGroupRef.current = null;
+  }
+
+  // The onboarding lock hides the free-form composer below, but its A2UI
+  // choices still send ordinary channel posts through this draft context.
   const canStartDraft =
     canRead &&
     canWrite &&
     negotiationMatch &&
-    !(channel.groupId && !group && !groupIsLoading) &&
+    !(channel.groupId && !stableGroup && !groupIsLoading) &&
     !channel.isDmInvite &&
     !editingPost;
 
-  // Helper to scroll to new message - shared by sendPost and sendPostFromDraft
+  // Agent setup drives its scroll from the durable post list below. Starting
+  // an animated send scroll while that list is preserving its end anchor makes
+  // the two corrections visibly fight.
   const scrollToNewMessage = useCallback(() => {
+    if (suppressAnimatedSendScroll) return;
     requestAnimationFrame(() => {
-      collectionRef.current?.scrollToStart?.({ animated: true });
+      collectionRef.current?.scrollToLatest?.({ animated: true });
     });
-  }, []);
+  }, [suppressAnimatedSendScroll]);
 
   const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
     draftInputRef.current?.startDraft?.(mode);
@@ -577,7 +717,7 @@ export function Channel({
       draftInputRef,
       editingPost,
       getDraft,
-      group,
+      group: stableGroup,
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
         setEditingPost?.(undefined);
@@ -599,7 +739,7 @@ export function Channel({
       clearDraft,
       editingPost,
       getDraft,
-      group,
+      stableGroup,
       handleOpenDraft,
       inputShouldBlur,
       setEditingPost,
@@ -608,6 +748,7 @@ export function Channel({
   );
 
   const handleGoBack = useCallback(() => {
+    if (disableBackButton) return;
     if (
       draftInputPresentationMode === 'fullscreen' &&
       draftInputRef.current != null
@@ -618,7 +759,13 @@ export function Channel({
     } else {
       goBack();
     }
-  }, [goBack, draftInputPresentationMode, draftInputRef, setEditingPost]);
+  }, [
+    disableBackButton,
+    goBack,
+    draftInputPresentationMode,
+    draftInputRef,
+    setEditingPost,
+  ]);
 
   useEffect(() => {
     if (startDraft) {
@@ -662,7 +809,6 @@ export function Channel({
     didProcessShareIntent: handleProcessedShareIntent,
   });
 
-  const isNarrow = useIsWindowNarrow();
   const {
     contextLensAvailable,
     contextLensOpen,
@@ -691,231 +837,300 @@ export function Channel({
     return validGroup && validPlatform;
   }, [group]);
 
+  const pinnedPostId = logic.getPinnedPostId(channel);
+  const dismissedPinnedPostBannerIds =
+    db.dismissedPinnedPostBannerIds.useValue();
+  const isPinnedPostBannerDismissed =
+    !!pinnedPostId && dismissedPinnedPostBannerIds.includes(pinnedPostId);
   const shouldShowPinnedPostBanner = useMemo(() => {
-    if (!pinnedPostId) return false;
-    if (!isNotebookOrGallery) return true;
-    return editingPost == null && draftInputPresentationMode !== 'fullscreen';
+    if (!pinnedPostId || draftInputPresentationMode === 'fullscreen') {
+      return false;
+    }
+    return !isNotebookOrGallery || editingPost == null;
   }, [
     pinnedPostId,
     isNotebookOrGallery,
     editingPost,
     draftInputPresentationMode,
   ]);
+  const pinnedPostQuery = store.usePostReference({
+    channelId: channel.id,
+    postId: pinnedPostId ?? '',
+    enabled:
+      shouldShowPinnedPostBanner &&
+      !!pinnedPostId &&
+      !isPinnedPostBannerDismissed,
+  });
+  const pinnedPost = pinnedPostQuery.data;
+  const shouldRenderPinnedPostBanner =
+    shouldShowPinnedPostBanner && !!pinnedPost && !isPinnedPostBannerDismissed;
+  const usesFloatingPinnedPostBanner = isChatChannel && supportsLiquidGlass();
+  const shouldReservePinnedPostBannerSpace =
+    usesFloatingPinnedPostBanner && shouldRenderPinnedPostBanner;
+  const {
+    contentInsets,
+    navigationHeaderHeight,
+    floatingHeaderHeight,
+    onFloatingHeightChange,
+  } = useConversationInsets({
+    hasFloatingComposer: draftInputType === DraftInputId.chat,
+    hasTransparentHeader: isChatChannel,
+    hasFloatingPinnedPostBanner: shouldReservePinnedPostBannerSpace,
+  });
+  const sharedTopInset =
+    floatingHeaderHeight +
+    (shouldReservePinnedPostBannerSpace
+      ? floatingPinnedPostBannerClearance
+      : 0);
+  const shouldRenderJoinRequestNotice =
+    !!includeJoinRequestNotice && hasRelevantJoinRequests(group);
+  const postCollectionInsets = useMemo(
+    () => ({
+      ...contentInsets,
+      // Keep the scroll view beneath transparent chrome so iOS can render its
+      // top edge effect. A visible fixed notice owns that clearance instead.
+      top: getPostCollectionTopInset({
+        contentTopInset: contentInsets.top,
+        fixedLeadingContentOwnsInset: shouldRenderJoinRequestNotice,
+        sharedTopInset,
+      }),
+    }),
+    [contentInsets, sharedTopInset, shouldRenderJoinRequestNotice]
+  );
 
   return (
     <ScrollContextProvider>
       <GroupsProvider groups={groups}>
         <ChannelProvider value={channelProviderValue}>
-          <DraftInputContextProvider value={draftInputContext}>
-            <NavigationProvider
-              onPressRef={handleRefPress}
-              onPressGroupRef={onPressGroupRef}
-              onPressGoToDm={goToDm}
-              onGoToUserProfile={goToUserProfile}
-              onGoToGroupSettings={goToGroupSettings}
-            >
-              <View backgroundColor={backgroundColor} flex={1}>
-                <FileDrop
-                  flexDirection="column"
-                  justifyContent="space-between"
-                  width="100%"
-                  height="100%"
-                  onAssetsDropped={handleImageDrop}
-                >
-                  <ChannelHeaderItemsProvider>
-                    <>
-                      <ChannelHeader
-                        channel={channel}
-                        group={group}
-                        title={title ?? ''}
-                        description={''}
-                        goBack={
-                          isNarrow ||
-                          draftInputPresentationMode === 'fullscreen'
-                            ? handleGoBack
-                            : undefined
-                        }
-                        goToChatDetails={goToChatDetails}
-                        goToProfile={handleGoToProfile}
-                        goToSearch={goToSearch}
-                        onToggleContextLens={
-                          contextLensAvailable
-                            ? isNarrow && goToContextLensRuns
-                              ? goToContextLensRuns
-                              : toggleContextLens
-                            : undefined
-                        }
-                        contextLensOpen={
-                          contextLensAvailable && contextLensOpen
-                        }
-                        contextLensActive={contextLensActive}
-                        showSpinner={showHeaderLoading}
-                        showSearchButton={
-                          channel.type === 'chat' ||
-                          channel.type === 'dm' ||
-                          channel.type === 'groupDm'
-                        }
-                      />
-                      {shouldShowPinnedPostBanner && (
-                        <PinnedPostBanner
+          <ThreadUnreadsProvider
+            channelId={channel.id}
+            enabled={THREAD_UNREAD_OVERLAY_CHANNEL_TYPES.includes(channel.type)}
+          >
+            <DraftInputContextProvider value={draftInputContext}>
+              <NavigationProvider
+                onPressRef={disableBackButton ? undefined : handleRefPress}
+                onPressGroupRef={
+                  disableBackButton ? undefined : onPressGroupRef
+                }
+                onPressGoToDm={disableBackButton ? undefined : goToDm}
+                onGoToUserProfile={
+                  disableBackButton ? undefined : goToUserProfile
+                }
+                onGoToGroupSettings={
+                  disableBackButton ? undefined : goToGroupSettings
+                }
+              >
+                <View backgroundColor={backgroundColor} flex={1}>
+                  <FileDrop
+                    flexDirection="column"
+                    justifyContent="space-between"
+                    width="100%"
+                    height="100%"
+                    onAssetsDropped={handleImageDrop}
+                  >
+                    <ChannelHeaderItemsProvider>
+                      <>
+                        <ChannelHeader
                           channel={channel}
-                          onPressPost={goToPost}
+                          group={group}
+                          title={title ?? ''}
+                          description={''}
+                          backDisabled={disableBackButton}
+                          goBack={
+                            isNarrow ||
+                            draftInputPresentationMode === 'fullscreen'
+                              ? handleGoBack
+                              : undefined
+                          }
+                          goToChatDetails={
+                            disableBackButton ? undefined : goToChatDetails
+                          }
+                          goToProfile={
+                            disableBackButton ? undefined : handleGoToProfile
+                          }
+                          goToSearch={
+                            disableBackButton ? undefined : goToSearch
+                          }
+                          onToggleContextLens={
+                            !disableBackButton && contextLensAvailable
+                              ? isNarrow && goToContextLensRuns
+                                ? goToContextLensRuns
+                                : toggleContextLens
+                              : undefined
+                          }
+                          contextLensOpen={
+                            contextLensAvailable && contextLensOpen
+                          }
+                          contextLensActive={contextLensActive}
+                          showSpinner={showHeaderLoading}
+                          showSearchButton={isChatChannel && !disableBackButton}
                         />
-                      )}
-                      <XStack alignItems="stretch" flex={1} position="relative">
-                        <YStack alignItems="stretch" flex={1} minWidth={0}>
-                          {includeJoinRequestNotice && (
-                            <SystemNotices.ConnectedJoinRequestNotice
-                              group={group}
-                              onViewRequests={goToGroupSettings}
-                            />
-                          )}
-                          <AnimatePresence>
-                            {draftInputPresentationMode !== 'fullscreen' && (
-                              <View flex={1}>
-                                <PostCollectionContext.Provider
-                                  value={{
-                                    channel,
-                                    collectionConfiguration:
-                                      channel.contentConfiguration == null
-                                        ? undefined
-                                        : ChannelContentConfiguration.defaultPostCollectionRenderer(
-                                            channel.contentConfiguration
-                                          ).configuration,
-                                    editingPost,
-                                    goToMediaViewer,
-                                    goToPost,
-                                    inspectContextLensPost:
-                                      contextLensAvailable && contextLensOpen
-                                        ? inspectContextLensPost
-                                        : undefined,
-                                    openContextLensForPost:
-                                      contextLensAvailable && !isNarrow
-                                        ? openContextLensForPost
-                                        : undefined,
-                                    contextLensSelectedPostId:
-                                      contextLensAvailable &&
-                                      contextLensOpen &&
-                                      !isNarrow
-                                        ? selectedContextLensMessage?.id ?? null
-                                        : null,
-                                    goToBotRun:
-                                      contextLensAvailable && isNarrow
-                                        ? goToContextLensRun
-                                        : undefined,
-                                    hasNewerPosts,
-                                    hasOlderPosts,
-                                    initialChannelUnread,
-                                    isLoadingPosts: shouldShowPostLoading,
-                                    loadPostsError,
-                                    onPressDelete,
-                                    onPressRetrySend,
-                                    onPressRetryLoad,
-                                    onScrollEndReached,
-                                    onScrollStartReached,
-                                    posts: posts ?? undefined,
-                                    scrollToBottom: onPressScrollToBottom,
-                                    selectedPostId,
-                                    setEditingPost,
-                                    LegacyPostView: PostView,
-                                    PostView: ConnectedPostView,
-                                  }}
-                                >
-                                  <PostCollectionView
-                                    collectionRef={collectionRef}
-                                    channel={channel}
-                                  />
-                                </PostCollectionContext.Provider>
-                              </View>
-                            )}
-                          </AnimatePresence>
-
-                          {!canRead ||
-                          !canWrite ||
-                          !negotiationMatch ||
-                          (channel.groupId && !group && !groupIsLoading) ? (
-                            <ReadOnlyNotice
-                              type={
-                                channel.groupId && !group && !groupIsLoading
-                                  ? 'group-deleted'
-                                  : !canRead
-                                    ? 'no-longer-read'
-                                    : !canWrite
-                                      ? 'read-only'
-                                      : isDM
-                                        ? 'dm-mismatch'
-                                        : isGroupDm
-                                          ? 'group-dm-mismatch'
-                                          : 'channel-mismatch'
+                        {showOnboardingBackTooltip &&
+                        inView &&
+                        !disableBackButton ? (
+                          <AgentOnboardingBackTooltip
+                            top={
+                              // iOS portals into full-window coordinates, so
+                              // include opaque as well as floating headers.
+                              Platform.OS === 'ios'
+                                ? navigationHeaderHeight
+                                : Platform.OS === 'web'
+                                  ? 30
+                                  : 0
+                            }
+                            onDismiss={() =>
+                              setShowOnboardingBackTooltip(false)
+                            }
+                          />
+                        ) : null}
+                        {shouldRenderPinnedPostBanner && pinnedPost && (
+                          <PinnedPostBanner
+                            post={pinnedPost}
+                            floating={usesFloatingPinnedPostBanner}
+                            floatingHeaderHeight={floatingHeaderHeight}
+                            onPressPost={goToPost}
+                            onDismiss={() => {
+                              if (pinnedPostId) {
+                                store.dismissPinnedPostBanner(pinnedPostId);
                               }
-                            />
-                          ) : channel.contentConfiguration == null ? (
-                            <>
-                              {isChatChannel && !channel.isDmInvite && (
-                                <DraftInputView
-                                  draftInputContext={draftInputContext}
-                                  type={DraftInputId.chat}
+                            }}
+                          />
+                        )}
+                        <View flex={1}>
+                          <XStack
+                            alignItems="stretch"
+                            flex={1}
+                            paddingTop={
+                              draftInputPresentationMode === 'fullscreen'
+                                ? sharedTopInset || undefined
+                                : undefined
+                            }
+                            position="relative"
+                          >
+                            <YStack alignItems="stretch" flex={1} minWidth={0}>
+                              {shouldRenderJoinRequestNotice && (
+                                <SystemNotices.ConnectedJoinRequestNotice
+                                  group={group}
+                                  onViewRequests={goToGroupSettings}
+                                  marginTop={
+                                    sharedTopInset + getTokens().space.l.val
+                                  }
                                 />
                               )}
+                              <AnimatePresence>
+                                {draftInputPresentationMode !==
+                                  'fullscreen' && (
+                                  <View flex={1}>
+                                    <PostCollectionContext.Provider
+                                      value={{
+                                        contentInsets: postCollectionInsets,
+                                        channel,
+                                        collectionConfiguration:
+                                          channel.contentConfiguration == null
+                                            ? undefined
+                                            : ChannelContentConfiguration.defaultPostCollectionRenderer(
+                                                channel.contentConfiguration
+                                              ).configuration,
+                                        editingPost,
+                                        goToMediaViewer,
+                                        goToPost,
+                                        inspectContextLensPost:
+                                          contextLensAvailable &&
+                                          contextLensOpen
+                                            ? inspectContextLensPost
+                                            : undefined,
+                                        openContextLensForPost:
+                                          contextLensAvailable && !isNarrow
+                                            ? openContextLensForPost
+                                            : undefined,
+                                        contextLensSelectedPostId:
+                                          contextLensAvailable &&
+                                          contextLensOpen &&
+                                          !isNarrow
+                                            ? (selectedContextLensMessage?.id ??
+                                              null)
+                                            : null,
+                                        goToBotRun:
+                                          contextLensAvailable && isNarrow
+                                            ? goToContextLensRun
+                                            : undefined,
+                                        hasNewerPosts,
+                                        hasOlderPosts,
+                                        initialChannelUnread,
+                                        isLoadingPosts: shouldShowPostLoading,
+                                        loadPostsError,
+                                        onPressDelete,
+                                        onPressRetrySend,
+                                        onPressRetryLoad,
+                                        onLoadNewerPosts,
+                                        onLoadOlderPosts,
+                                        posts: posts ?? undefined,
+                                        pendingThinkingLabel,
+                                        suppressEmptyState,
+                                        scrollToBottom: onPressScrollToBottom,
+                                        selectedPostId,
+                                        setEditingPost,
+                                        LegacyPostView: PostView,
+                                        PostView,
+                                      }}
+                                    >
+                                      <PostCollectionView
+                                        collectionRef={collectionRef}
+                                        channel={channel}
+                                      />
+                                    </PostCollectionContext.Provider>
+                                  </View>
+                                )}
+                              </AnimatePresence>
 
-                              {channel.type === 'gallery' && (
+                              {readOnlyNoticeType ? (
+                                <ReadOnlyNotice type={readOnlyNoticeType} />
+                              ) : draftInputType ? (
                                 <DraftInputView
                                   draftInputContext={draftInputContext}
-                                  type={DraftInputId.gallery}
+                                  type={draftInputType}
+                                  onFloatingHeightChange={
+                                    onFloatingHeightChange
+                                  }
+                                />
+                              ) : null}
+
+                              {channel.isDmInvite && (
+                                <DmInviteOptions
+                                  channel={channel}
+                                  goBack={goBack}
                                 />
                               )}
-
-                              {channel.type === 'notebook' && (
-                                <DraftInputView
-                                  draftInputContext={draftInputContext}
-                                  type={DraftInputId.notebook}
+                            </YStack>
+                            {contextLensAvailable &&
+                              contextLensOpen &&
+                              !isNarrow && (
+                                <ContextLensPanel
+                                  events={contextLensStream.events}
+                                  streamStatus={contextLensStream.status}
+                                  selectedMessage={selectedContextLensMessage}
+                                  onClearSelectedMessage={
+                                    clearSelectedContextLensMessage
+                                  }
+                                  channelId={channel.id}
+                                  topInset={sharedTopInset}
                                 />
                               )}
-                            </>
-                          ) : (
-                            <DraftInputView
-                              draftInputContext={draftInputContext}
-                              type={
-                                ChannelContentConfiguration.draftInput(
-                                  channel.contentConfiguration
-                                ).id
-                              }
-                            />
-                          )}
-
-                          {channel.isDmInvite && (
-                            <DmInviteOptions
-                              channel={channel}
-                              goBack={goBack}
-                            />
-                          )}
-                        </YStack>
-                        {contextLensAvailable &&
-                          contextLensOpen &&
-                          !isNarrow && (
-                            <ContextLensPanel
-                              events={contextLensStream.events}
-                              streamStatus={contextLensStream.status}
-                              selectedMessage={selectedContextLensMessage}
-                              onClearSelectedMessage={
-                                clearSelectedContextLensMessage
-                              }
-                              channelId={channel.id}
-                            />
-                          )}
-                      </XStack>
-                      <GroupPreviewSheet
-                        group={groupPreview ?? undefined}
-                        open={!!groupPreview}
-                        onOpenChange={() => setGroupPreview(null)}
-                        onActionComplete={handleGroupAction}
-                      />
-                    </>
-                  </ChannelHeaderItemsProvider>
-                </FileDrop>
-              </View>
-            </NavigationProvider>
-          </DraftInputContextProvider>
+                          </XStack>
+                        </View>
+                        <GroupPreviewSheet
+                          group={groupPreview ?? undefined}
+                          open={!!groupPreview}
+                          onOpenChange={() => setGroupPreview(null)}
+                          onActionComplete={handleGroupAction}
+                        />
+                      </>
+                    </ChannelHeaderItemsProvider>
+                  </FileDrop>
+                </View>
+              </NavigationProvider>
+            </DraftInputContextProvider>
+          </ThreadUnreadsProvider>
         </ChannelProvider>
       </GroupsProvider>
     </ScrollContextProvider>

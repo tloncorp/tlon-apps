@@ -147,7 +147,7 @@ export const useLureState = create<LureState>((set, get) => ({
       // normalize here to keep displayed links on the canonical domain
       // no matter what the minter returned
       deepLinkUrl = mintedUrl
-        ? extractNormalizedInviteLink(mintedUrl) ?? mintedUrl
+        ? (extractNormalizedInviteLink(mintedUrl) ?? mintedUrl)
         : mintedUrl;
       lureLogger.crumb('deepLinkUrl created', deepLinkUrl);
     }

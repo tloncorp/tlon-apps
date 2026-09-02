@@ -10,6 +10,9 @@
       "node": "22.22.0",
       "env": {
         "EXPO_USE_PRECOMPILED_MODULES": "0"
+      },
+      "ios": {
+        "image": "macos-tahoe-26.4-xcode-26.4"
       }
     },
     "preview": {
@@ -27,8 +30,7 @@
         "gradleCommand": ":app:bundlePreviewRelease"
       },
       "ios": {
-        "scheme": "Landscape-preview",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape-preview"
       }
     },
     "production": {
@@ -44,8 +46,7 @@
         "gradleCommand": ":app:bundleProductionRelease"
       },
       "ios": {
-        "scheme": "Landscape",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape"
       }
     },
     "demo": {
@@ -65,8 +66,7 @@
         "image": "latest"
       },
       "ios": {
-        "scheme": "Landscape-preview",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape-preview"
       }
     },
     "local-testing": {
@@ -92,7 +92,8 @@
         "buildType": "apk"
       },
       "ios": {
-        "scheme": "Landscape-local"
+        "scheme": "Landscape-local",
+        "image": "macos-tahoe-26.4-xcode-26.4"
       }
     },
     "e2e": {
@@ -103,8 +104,7 @@
       },
       "ios": {
         "simulator": true,
-        "scheme": "Landscape",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape"
       },
       "android": {
         "gradleCommand": ":app:bundleProductionRelease",
@@ -117,9 +117,8 @@
     "preview": {
       "android": {
         "applicationId": "io.tlon.groups.preview",
-        "releaseStatus": "draft",
-        "track": "internal",
-        "changesNotSentForReview": true
+        "releaseStatus": "completed",
+        "track": "internal"
       },
       "ios": {
         "ascAppId": "6477973000",
@@ -129,9 +128,8 @@
     "production": {
       "android": {
         "applicationId": "io.tlon.groups",
-        "releaseStatus": "draft",
-        "track": "internal",
-        "changesNotSentForReview": true
+        "releaseStatus": "completed",
+        "track": "internal"
       },
       "ios": {
         "ascAppId": "6451392109",

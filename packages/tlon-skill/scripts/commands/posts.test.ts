@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 
 import { DIARY_REMOVED, NOTES_CHANNEL_CONTENT_UNSUPPORTED } from '../cli-utils';
-import type { StoryVerse } from '../story';
+import type { StoryVerse } from '../markdown';
 import { commandError } from './command';
 import {
   type ExistingPost,
@@ -120,6 +120,8 @@ function makeDeps(options: MakeDepsOptions = {}) {
         return (await options.getChannelPosts?.(query)) ?? { posts: [] };
       },
     },
+    // The edit path sleeps between lookup attempts; tests must not.
+    sleep: async () => {},
   };
 
   return {
@@ -242,17 +244,58 @@ describe('posts send', () => {
     expect(missingValue.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
     expectNoAuthOrApi(missingValue);
 
-    const nonHttp = makeDeps();
+    const invalidScheme = makeDeps();
     expect(
       await run(
         ['send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
-        nonHttp.deps
+        invalidScheme.deps
       )
     ).toBe(1);
-    expect(nonHttp.stderr()).toBe(
-      'Error: --image must be an http(s) image URL — upload first with `tlon upload`\n'
+    expect(invalidScheme.stderr()).toBe(
+      'Error: Invalid media URL — pass a public https URL. If this is a local ' +
+        'file, upload it first (e.g. `tlon upload <path>`) and resend with the ' +
+        'returned https URL.\n'
     );
-    expectNoAuthOrApi(nonHttp);
+    expectNoAuthOrApi(invalidScheme);
+
+    // The outbound-media contract classifies each rejected shape separately;
+    // every one of them fails before auth and before any network call.
+    const plainHttp = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', 'http://x/y.png'],
+        plainHttp.deps
+      )
+    ).toBe(1);
+    expect(plainHttp.stderr()).toBe(
+      'Error: Only https media URLs are supported.\n'
+    );
+    expectNoAuthOrApi(plainHttp);
+
+    const localPath = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', '/pier/generated.png'],
+        localPath.deps
+      )
+    ).toBe(1);
+    expect(localPath.stderr()).toBe(
+      'Error: Local file paths are not supported for --image — upload the file ' +
+        'first (e.g. `tlon upload <path>`) and pass the returned https URL.\n'
+    );
+    expectNoAuthOrApi(localPath);
+
+    const userinfo = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', 'https://u:p@x/y.png'],
+        userinfo.deps
+      )
+    ).toBe(1);
+    expect(userinfo.stderr()).toBe(
+      'Error: Media URLs with embedded credentials are not supported.\n'
+    );
+    expectNoAuthOrApi(userinfo);
   });
 
   it('rejects a malformed --blob flag before auth', async () => {
@@ -297,6 +340,176 @@ describe('posts send', () => {
         content: [{ inline: ['Hello there'] }],
         blob: undefined,
       },
+    ]);
+  });
+
+  it('sends a markdown list as a listing block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '- a\n- b'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['a'] }, { item: ['b'] }],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
+  it('sends a ship mention with its ~ sigil', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'hi ~sampel-palnet'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: ['hi ', { ship: '~sampel-palnet' }] },
+    ]);
+  });
+
+  it('fails loudly when the message converts to nothing', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '<div>hello</div>'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('fails loudly when the message converts to an empty wrapper shell', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '> [l][i]\n\n[i]: https://x'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('fails loudly when the message is a whitespace-labeled link', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '[ ](https://example.com)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image mixed into a text line', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'caption ![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses an image inside header content', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '# head ![a](https://u/i.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('own line');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a relative target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](./plot.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('refuses a standalone image with a file:// target', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![plot](file:///tmp/x.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('http(s)');
+    expect(context.calls.sendPost).toEqual([]);
+  });
+
+  it('still sends a standalone image line as an image block', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '![alt](https://x/y.png)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      {
+        block: {
+          image: { src: 'https://x/y.png', alt: 'alt', width: 0, height: 0 },
+        },
+      },
+    ]);
+  });
+
+  it('sends a link with a real label', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '[real](https://example.com)'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { inline: [{ link: { href: 'https://example.com', content: 'real' } }] },
+    ]);
+  });
+
+  it('still sends a bare horizontal rule with no text leaves', async () => {
+    const context = makeDeps();
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', '---'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost[0].content).toEqual([
+      { block: { rule: null } },
     ]);
   });
 
@@ -596,6 +809,146 @@ describe('posts reply', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stderr()).toBe('Error: reply failed\n');
+  });
+});
+
+describe('posts bot author flags', () => {
+  it('sends with a bare --bot as a bot with an empty profile', async () => {
+    const context = makeDeps({ currentUserId: '~bot', now: 42 });
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        authorId: '~bot',
+        sentAt: 42,
+        content: [{ inline: ['beep'] }],
+        blob: undefined,
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it('accepts an option following --bot', async () => {
+    const context = makeDeps({ currentUserId: '~bot' });
+    const exitCode = await run(
+      ['send', 'chat/~host/channel', 'beep', '--bot', '--sent-at', '99'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendPost).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        authorId: '~bot',
+        sentAt: 99,
+        content: [{ inline: ['beep'] }],
+        blob: undefined,
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it('omits botProfile entirely without a bot flag', async () => {
+    const context = makeDeps();
+    await run(['send', 'chat/~host/channel', 'beep'], context.deps);
+
+    expect('botProfile' in context.calls.sendPost[0]).toBe(false);
+  });
+
+  it('replies as a bot', async () => {
+    const context = makeDeps({ currentUserId: '~bot', now: 7 });
+    const exitCode = await run(
+      ['reply', 'chat/~host/channel', '~sampel/170141184', 'boop', '--bot'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.sendReply).toEqual([
+      {
+        channelId: 'chat/~host/channel',
+        parentId: '170.141.184',
+        parentAuthor: '~bot',
+        content: [{ inline: ['boop'] }],
+        sentAt: 7,
+        authorId: '~bot',
+        blob: undefined,
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it('keeps a trailing bot flag out of the message text', async () => {
+    const send = makeDeps();
+    await run(
+      ['send', 'chat/~host/channel', 'hello', 'there', 'friend', '--bot'],
+      send.deps
+    );
+    expect(send.calls.sendPost[0].content).toEqual([
+      { inline: ['hello there friend'] },
+    ]);
+
+    const reply = makeDeps();
+    await run(
+      [
+        'reply',
+        'chat/~host/channel',
+        '170.141',
+        'hello',
+        'there',
+        'friend',
+        '--bot',
+      ],
+      reply.deps
+    );
+    expect(reply.calls.sendReply[0].content).toEqual([
+      { inline: ['hello there friend'] },
+    ]);
+  });
+
+  it('rejects a value on the valueless --bot flag before auth', async () => {
+    const cases: [string[], string][] = [
+      [
+        ['send', 'chat/~host/channel', 'hi', '--bot=Botly'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        ['reply', 'chat/~host/channel', '170.141', 'hi', '--bot=Botly'],
+        POSTS_COMMAND_HELP.reply,
+      ],
+      // The separated form used to parse, and since the flag is a message
+      // boundary the post went out truncated with the value discarded.
+      [
+        ['send', 'chat/~host/channel', 'hello', 'world', '--bot', 'Botly'],
+        POSTS_COMMAND_HELP.send,
+      ],
+      [
+        [
+          'reply',
+          'chat/~host/channel',
+          '170.141',
+          'hello',
+          'world',
+          '--bot',
+          'Botly',
+        ],
+        POSTS_COMMAND_HELP.reply,
+      ],
+    ];
+
+    for (const [args, usage] of cases) {
+      const context = makeDeps();
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`${usage}\n`);
+      expectNoAuthOrApi(context);
+    }
   });
 });
 
@@ -981,6 +1334,14 @@ describe('posts edit', () => {
     });
   }
 
+  // Edits refuse to proceed when the post cannot be read, so tests exercising
+  // anything *else* about edit need the lookup to succeed.
+  const READABLE_POST: ExistingPost = {
+    id: '170.141.184',
+    isBot: false,
+  } as ExistingPost;
+  const lookupSucceeds = () => withExistingPost(READABLE_POST);
+
   it('fails missing channel/post id before auth or API work', async () => {
     for (const args of [['edit'], ['edit', 'chat/~host/channel']]) {
       const context = makeDeps();
@@ -1034,6 +1395,39 @@ describe('posts edit', () => {
       expect(context.stderr()).not.toContain('Usage:');
       expectNoAuthOrApi(context);
     }
+  });
+
+  it('refuses to erase a post when the message converts to nothing', async () => {
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', '<div>hello</div>'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.editPost).toEqual([]);
+  });
+
+  it('refuses to erase a post when the message converts to an empty wrapper shell', async () => {
+    const context = makeDeps({ getChannelPosts: withExistingPost(existing) });
+
+    const exitCode = await run(
+      [
+        'edit',
+        'chat/~host/channel',
+        '170.141.184',
+        '**[label][id]**\n\n[id]: https://example.com',
+      ],
+      context.deps
+    );
+
+    expect(exitCode).toBe(1);
+    expect(context.stdout()).toBe('');
+    expect(context.stderr()).toContain('unsupported Markdown');
+    expect(context.calls.editPost).toEqual([]);
   });
 
   it('edits with a markdown message and preserves existing metadata', async () => {
@@ -1094,7 +1488,9 @@ describe('posts edit', () => {
     });
   });
 
-  it('uses undefined metadata fields when the lookup returns null', async () => {
+  it('refuses to edit a post it cannot read, rather than wiping it', async () => {
+    // %edit submits the whole essay, so editing on a failed lookup silently
+    // replaces authorship and metadata with nothing. Retried once, then refused.
     const context = makeDeps({
       getChannelPosts: withExistingPost(null),
     });
@@ -1104,16 +1500,15 @@ describe('posts edit', () => {
       context.deps
     );
 
-    expect(exitCode).toBe(0);
-    expect(context.calls.editPost[0].metadata).toEqual({
-      title: undefined,
-      image: undefined,
-      description: undefined,
-      cover: undefined,
-    });
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    expect(context.stderr()).toContain('may not be readable yet');
   });
 
-  it('treats a failed existing-post lookup as no existing metadata', async () => {
+  it('refuses the edit when the lookup throws, not just when it misses', async () => {
+    // A thrown lookup is indistinguishable from an absent post, and both mean
+    // the authorship and metadata to preserve are unknown.
     const context = makeDeps({
       getChannelPosts: async () => {
         throw new Error('lookup boom');
@@ -1125,17 +1520,78 @@ describe('posts edit', () => {
       context.deps
     );
 
+    expect(exitCode).toBe(1);
+    expect(context.calls.editPost).toHaveLength(0);
+    expect(context.stderr()).toContain('may not be readable yet');
+  });
+
+  // An edit resubmits the whole essay, so the CLI must hand back the existing
+  // post's authorship shape or a bot post silently loses its Bot tag.
+  it('preserves bot authorship when editing a bot-authored post', async () => {
+    const context = makeDeps({
+      getChannelPosts: withExistingPost({ ...existing, isBot: true }),
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
     expect(exitCode).toBe(0);
-    expect(context.calls.editPost[0].metadata).toEqual({
-      title: undefined,
-      image: undefined,
-      description: undefined,
-      cover: undefined,
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: null,
+    });
+  });
+
+  it('leaves a human-authored post bare-authored on edit', async () => {
+    for (const post of [
+      { ...existing, isBot: false },
+      // A record with no isBot at all must not be upgraded either.
+      existing,
+    ]) {
+      const context = makeDeps({ getChannelPosts: withExistingPost(post) });
+
+      const exitCode = await run(
+        ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+        context.deps
+      );
+
+      expect(exitCode).toBe(0);
+      expect('botProfile' in context.calls.editPost[0]).toBe(false);
+    }
+  });
+
+  it('recovers when the post becomes readable on the retry', async () => {
+    // The window this retry exists for: %channels proxies the add to the host
+    // and the scry only sees it once that returns, so a post created moments
+    // ago misses the first look and lands on the second.
+    let attempt = 0;
+    const context = makeDeps({
+      getChannelPosts: async () => {
+        attempt += 1;
+        return attempt === 1
+          ? { posts: [] }
+          : { posts: [{ id: '170.141.184', isBot: true } as ExistingPost] };
+      },
+    });
+
+    const exitCode = await run(
+      ['edit', 'chat/~host/channel', '170.141.184', 'Body'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.getChannelPosts).toHaveLength(2);
+    // And the authorship the retry recovered is the whole point.
+    expect(context.calls.editPost[0].botProfile).toEqual({
+      nickname: null,
+      avatar: null,
     });
   });
 
   it('treats every token after the post id as the message', async () => {
-    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
 
     const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141.184', 'keep', 'this', 'message'],
@@ -1149,7 +1605,7 @@ describe('posts edit', () => {
   });
 
   it('treats --help in the message slot as edit content reaching the API', async () => {
-    const context = makeDeps({ getChannelPosts: withExistingPost(null) });
+    const context = makeDeps({ getChannelPosts: lookupSucceeds() });
 
     const exitCode = await run(
       ['edit', 'chat/~host/channel', '170.141.184', '--help'],
@@ -1165,7 +1621,7 @@ describe('posts edit', () => {
   it('passes the injected clock through to the editPost payload', async () => {
     const context = makeDeps({
       now: 999,
-      getChannelPosts: withExistingPost(null),
+      getChannelPosts: lookupSucceeds(),
     });
 
     await run(
@@ -1178,7 +1634,7 @@ describe('posts edit', () => {
 
   it('routes facade failures through the shared command-error path', async () => {
     const context = makeDeps({
-      getChannelPosts: withExistingPost(null),
+      getChannelPosts: lookupSucceeds(),
       editPost: async () => {
         throw commandError('edit failed');
       },

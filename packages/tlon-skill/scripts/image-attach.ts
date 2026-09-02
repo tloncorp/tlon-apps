@@ -5,9 +5,29 @@
  * dimensions must be real. The image bytes are fetched (typically from the URL
  * `tlon upload` just returned) and the dimensions sniffed from the header —
  * PNG, JPEG, GIF, and WebP are supported.
+ *
+ * `--image` carries the fail-loud outbound-media contract (TLON-6318): the URL
+ * is classified before any network call (local paths, plain http, embedded
+ * credentials, and malformed input each throw their own fixed error), then
+ * fetched through the pinned SSRF guard under a 30s deadline and a 10 MiB
+ * streamed cap. Content decides image-vs-reject: the dimension sniff reads the
+ * actual bytes and the extension is never consulted.
  */
-import { printErrorAndExit, printUsageAndExit } from './cli-utils';
-import type { StoryVerse } from './story';
+import { commandError, usageError } from './commands/command';
+import type { StoryVerse } from './markdown';
+import {
+  HTTPS_ONLY_ERROR,
+  INVALID_MEDIA_ERROR,
+  LOCAL_MEDIA_ERROR,
+  USERINFO_ERROR,
+  classifyMediaUrl,
+  fetchGuardedMedia,
+} from './media-guard';
+
+/** Single wall-clock budget for the whole `--image` fetch, per the contract. */
+export const IMAGE_FETCH_DEADLINE_MS = 30_000;
+/** Streamed cap on decoded image bytes. */
+export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 function u16be(b: Uint8Array, o: number): number {
   return (b[o] << 8) | b[o + 1];
@@ -133,21 +153,55 @@ function altFromUrl(url: string): string {
 }
 
 /**
- * Fetch an image URL and build the story image block verse for it.
- * Throws with an actionable message when the URL is not a direct raster image.
+ * Classify a `--image` value and return the canonical https URL to fetch and
+ * post. Throws the contract's fixed error for every rejected shape; no network
+ * call is made on any rejection path.
+ */
+export function assertPostableImageUrl(raw: string): string {
+  const classified = classifyMediaUrl(raw);
+  switch (classified.kind) {
+    case 'local':
+      throw commandError(LOCAL_MEDIA_ERROR);
+    case 'http':
+      throw commandError(HTTPS_ONLY_ERROR);
+    case 'userinfo':
+      throw commandError(USERINFO_ERROR);
+    case 'invalid':
+      throw commandError(INVALID_MEDIA_ERROR);
+    case 'https':
+      return classified.canonical;
+  }
+}
+
+export type ImageFetcher = (
+  canonicalUrl: string
+) => Promise<{ bytes: Uint8Array }>;
+
+/** The `--image` guard budget, exported so tests lock the contract's limits. */
+export const IMAGE_GUARD_OPTIONS = {
+  maxBytes: MAX_IMAGE_BYTES,
+  deadlineMs: IMAGE_FETCH_DEADLINE_MS,
+  maxRedirects: 3,
+  requireHttps: true,
+} as const;
+
+const guardedImageFetch: ImageFetcher = (canonicalUrl) =>
+  fetchGuardedMedia(canonicalUrl, IMAGE_GUARD_OPTIONS);
+
+/**
+ * Fetch an image URL through the guard and build its story image block verse.
+ * Throws with an actionable message when the URL is rejected by the contract
+ * or when the bytes are not a direct raster image.
  */
 export async function fetchImageVerse(
   url: string,
-  fetchFn: typeof fetch = fetch
+  fetchImage: ImageFetcher = guardedImageFetch
 ): Promise<StoryVerse> {
-  const response = await fetchFn(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status}`);
-  }
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  const canonical = assertPostableImageUrl(url);
+  const { bytes } = await fetchImage(canonical);
   const size = imageDimensions(bytes);
   if (!size || size.width <= 0 || size.height <= 0) {
-    throw new Error(
+    throw commandError(
       'Could not determine image dimensions — pass a direct raster image URL ' +
         '(png/jpeg/gif/webp), e.g. the URL returned by `tlon upload`.'
     );
@@ -155,10 +209,10 @@ export async function fetchImageVerse(
   return {
     block: {
       image: {
-        src: url,
+        src: canonical,
         width: size.width,
         height: size.height,
-        alt: altFromUrl(url),
+        alt: altFromUrl(canonical),
       },
     },
   };
@@ -175,6 +229,7 @@ export function imageFlagIndex(args: string[]): number {
 
 /**
  * Return the value of an optional `--image <url>` or `--image=<url>` flag.
+ * Throws a usage error when the flag is present but its value is missing.
  */
 export function imageFlagValue(
   args: string[],
@@ -190,14 +245,16 @@ export function imageFlagValue(
     ? arg.slice('--image='.length)
     : args[idx + 1];
   if (!url) {
-    printUsageAndExit(usage);
+    throw usageError(usage);
   }
   return url;
 }
 
 /**
- * Validate an optional image flag. Returns the URL when present, undefined
- * when absent; exits with usage/error output on a malformed flag.
+ * Validate an optional image flag. Returns the canonical https URL when
+ * present, undefined when absent; throws on a malformed flag or a URL the
+ * outbound-media contract refuses. This is the single implementation — both
+ * `posts send` and `dms send` use it, so their `--image` handling cannot drift.
  */
 export function validatedImageFlag(
   args: string[],
@@ -207,10 +264,5 @@ export function validatedImageFlag(
   if (!url) {
     return undefined;
   }
-  if (!/^https?:\/\//.test(url)) {
-    printErrorAndExit(
-      '--image must be an http(s) image URL — upload first with `tlon upload`'
-    );
-  }
-  return url;
+  return assertPostableImageUrl(url);
 }
