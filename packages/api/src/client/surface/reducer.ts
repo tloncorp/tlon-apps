@@ -99,6 +99,22 @@ export interface SurfacePostView {
   isEdited?: boolean | null;
   isDeleted?: boolean | null;
   blob?: string | null;
+  /**
+   * The host-stamped post id, used ONLY to break a sequence-number tie.
+   *
+   * `sequenceNum` is not guaranteed unique — there is no unique index on
+   * `(channelId, sequenceNum)`, and two posts sharing one tie completely in
+   * the sort, making the fold depend on the order posts happened to arrive
+   * in. Two clients holding the same posts would then converge on different
+   * state, which §6 promises cannot happen.
+   *
+   * The id is stamped by the host on the same event as the sequence number
+   * and increases in the same order (`channels-server.hoon` derives it from
+   * `now.bowl` with a collision bump), so it is the natural second key.
+   * Optional because not every producer carries it; absent, the sort falls
+   * back to the previous behaviour.
+   */
+  id?: string | null;
 }
 
 export interface ReduceSurfaceInput {
@@ -108,6 +124,25 @@ export interface ReduceSurfaceInput {
   hostShip: string;
   /** hydrated posts, any order */
   posts: SurfacePostView[];
+  /**
+   * The channel's advertised head — the greatest sequence number the SERVER
+   * says exists (`channels.lastPostSequenceNum`). Optional; when supplied,
+   * a snapshot claiming to cover posts beyond it is refused.
+   *
+   * `upToSequenceNum` reads like a checked invariant in §4.4 and is only a
+   * writer obligation: nothing stopped a snapshot from claiming
+   * `upTo: 1_000_000`. Such a snapshot wins selection forever (selection
+   * takes the greatest), freezes every event below its boundary, and leaves
+   * the board at `foldedEventCount: 0` permanently — recoverable only by
+   * deleting that specific post. The realistic trigger is not malice but a
+   * writer putting a millisecond timestamp in the field.
+   *
+   * The head is a SERVER watermark that can legitimately sit above
+   * everything the client holds, which is exactly what makes it a usable
+   * ceiling — a locally-derived head would compare local against local and
+   * pass unconditionally.
+   */
+  advertisedHead?: number | null;
 }
 
 export interface SurfaceReductionReduced {
@@ -172,10 +207,41 @@ export type SurfaceReduction =
 
 interface SequencedEntry<T> {
   sequenceNum: number;
+  /** the post's host-stamped id, to break a sequence-number tie */
+  postId: string | null;
   /** entry position within the post's blob, for a stable in-post order */
   entryIndex: number;
   authorId: string;
   entry: T;
+}
+
+/**
+ * Total order on host post ids, for the sequence-number tie only.
+ *
+ * Post ids are canonical dotted `@ud` renders (`170.141.184.505…`), which
+ * are monotonic NUMERICALLY but not lexicographically: `9` sorts after
+ * `10` under a plain string compare, and the dots make the digits
+ * non-aligned. So compare by digit count first, then lexicographically —
+ * equivalent to a numeric compare, without parsing arbitrarily large
+ * integers.
+ *
+ * Non-numeric ids exist (sequence stubs are `sequence-stub-<channel>-<n>`),
+ * so those fall back to a plain string compare. Any total order will do;
+ * what matters is that every client picks the SAME one.
+ */
+function comparePostIds(a: string | null, b: string | null): number {
+  if (a === null || b === null || a === b) {
+    return 0;
+  }
+  const digitsA = a.replace(/\./g, '');
+  const digitsB = b.replace(/\./g, '');
+  if (/^\d+$/.test(digitsA) && /^\d+$/.test(digitsB)) {
+    if (digitsA.length !== digitsB.length) {
+      return digitsA.length - digitsB.length;
+    }
+    return digitsA < digitsB ? -1 : 1;
+  }
+  return a < b ? -1 : 1;
 }
 
 function isSurfaceEvent(entry: { type: string }): entry is SurfaceEventEntry {
@@ -189,7 +255,7 @@ function isSurfaceSnapshot(entry: {
 }
 
 export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
-  const { spec, hostShip, posts } = input;
+  const { spec, hostShip, posts, advertisedHead } = input;
 
   // Collect validated surface entries from sequenced, unedited posts.
   const events: SequencedEntry<SurfaceEventEntry>[] = [];
@@ -214,6 +280,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       if (isSurfaceEvent(entry) && entry.surfaceId === spec.surfaceId) {
         events.push({
           sequenceNum: post.sequenceNum as number,
+          postId: post.id ?? null,
           entryIndex,
           authorId: post.authorId,
           entry,
@@ -224,6 +291,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       ) {
         snapshots.push({
           sequenceNum: post.sequenceNum as number,
+          postId: post.id ?? null,
           entryIndex,
           authorId: post.authorId,
           entry,
@@ -233,8 +301,13 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
     });
   }
 
+  // sequence, then the host post id, then position within the post. The
+  // middle key is what makes the fold independent of arrival order when two
+  // posts share a sequence number (D174).
   const bySequence = <T>(a: SequencedEntry<T>, b: SequencedEntry<T>) =>
-    a.sequenceNum - b.sequenceNum || a.entryIndex - b.entryIndex;
+    a.sequenceNum - b.sequenceNum ||
+    comparePostIds(a.postId, b.postId) ||
+    a.entryIndex - b.entryIndex;
   events.sort(bySequence);
   snapshots.sort(bySequence);
 
@@ -249,6 +322,21 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
     }
     if (candidate.entry.specRevision !== spec.specRevision) {
       logger.log('skipping wrong-revision snapshot', candidate.sequenceNum);
+      continue;
+    }
+    if (
+      advertisedHead !== undefined &&
+      advertisedHead !== null &&
+      candidate.entry.upToSequenceNum > advertisedHead
+    ) {
+      // A snapshot cannot cover posts that do not exist. Skipping rather
+      // than clamping: a boundary this wrong means the writer's state is
+      // untrustworthy too, so the honest move is to fold the real log.
+      logger.log(
+        'skipping snapshot claiming coverage beyond the advertised head',
+        candidate.entry.upToSequenceNum,
+        advertisedHead
+      );
       continue;
     }
     if (

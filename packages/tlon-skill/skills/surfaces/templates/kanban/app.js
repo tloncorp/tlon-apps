@@ -253,7 +253,7 @@
           </div>
         `}
       >
-        <div data-testid=${'kanban-card-' + id}>${task.label || id}</div>
+        <div>${task.label || id}</div>
       <//>
     `;
   };
@@ -312,7 +312,7 @@
           ${COLUMNS.map(function (column) {
             const ids = byColumn[column.key];
             return html`
-              <div data-testid=${'kanban-column-' + column.key}>
+              <div>
                 <${SectionHeader}>
                   ${column.label + ' '}<${Badge}>${String(ids.length)}<//>
                 <//>
@@ -348,7 +348,7 @@
                     right=${html`<${Badge}>${LABELS[columnOf(task)]}<//>`}
                     secondary=${html`<div>${task.label || String(id)}</div>`}
                   >
-                    <div data-testid=${'kanban-crew-' + ship}>${ship}</div>
+                    <div>${ship}</div>
                   <//>
                 `;
               })}

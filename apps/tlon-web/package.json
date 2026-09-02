@@ -46,7 +46,7 @@
     "e2e:parallel:cleanup": "./rube/cleanup-containers.sh",
     "e2e:shard": "pnpm rube:compile && node ./rube/dist/index.js",
     "e2e:merge-reports": "node ./rube/merge-reports.js",
-    "e2e:sandbox": "playwright test --config playwright.sandbox.config.ts"
+    "e2e:sandbox": "NODE_OPTIONS=--conditions=tlon-source playwright test --config playwright.sandbox.config.ts"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

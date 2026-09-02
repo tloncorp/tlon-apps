@@ -192,7 +192,7 @@
 
       return html`
         <${Card} title=${event}>
-          <div data-testid="countdown-headline">
+          <div>
             <${Stat} value=${headline.value} label=${headline.label} />
           </div>
           ${fraction === null
@@ -230,9 +230,7 @@
                         : html`<div>${'Ask ' + owner}</div>`}
                     `}
                   >
-                    <div data-testid=${'countdown-step-' + id}>
-                      ${step.label || id}
-                    </div>
+                    <div>${step.label || id}</div>
                   <//>
                 `;
               })}

@@ -254,7 +254,7 @@
                   </div>
                 `}
               >
-                <div data-testid=${'habit-' + id}>${habit.label || id}</div>
+                <div>${habit.label || id}</div>
               <//>
             `;
           })}
@@ -303,7 +303,7 @@
                       <div>${stripFor(history, shown, ship, order)}</div>
                     `}
                   >
-                    <div data-testid=${'habit-crew-' + ship}>${ship}</div>
+                    <div>${ship}</div>
                   <//>
                 `;
               })}
@@ -325,7 +325,7 @@
                   const ships = Object.keys(day).sort();
                   return html`
                     <${ListRow}>
-                      <div data-testid=${'habit-day-' + date}>
+                      <div>
                         <div>${date}</div>
                         ${ships.length === 0
                           ? html`<div>${'Nobody marked anything.'}</div>`

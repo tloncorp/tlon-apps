@@ -709,18 +709,30 @@ export function actionWritesOnlyTheActor(
   });
 }
 
-/** `$actor` anywhere in an op's value, at any depth. */
+/**
+ * The op's value IS the placeholder — not merely contains it somewhere.
+ *
+ * The exemption this feeds asks "does this action write only the presser's
+ * own data". Substitution is a property of where the AUTHOR PUT the token;
+ * ownership is a property of where the op WRITES. The two coincide only
+ * when the token is the whole value of an op keyed under the actor, and
+ * they come apart the moment the token is nested: an audit built three
+ * bypasses (D172) that all pass every other rule —
+ *
+ *     set /tasks/theme        {"status":"doing","claimedBy":"$actor"}
+ *     set /tasks/theme/status {"v":"doing","by":"$actor"}
+ *     set /config/mode        ["fixed","$actor"]
+ *
+ * — each writing a SHARED path while the recursive arms granted the
+ * exemption. Relocating the token, not removing it, defeated the "EVERY op,
+ * not merely one" defence that was named as the whole discriminator.
+ *
+ * Narrowing costs the templates nothing: across all nine, `$actor`-in-a-
+ * value occurs four times, all in `expense-split`, all the bare string.
+ * The recursive arms had one synthetic test and no other user.
+ */
 function valueNamesActor(value: unknown): boolean {
-  if (value === ACTOR_PLACEHOLDER) {
-    return true;
-  }
-  if (Array.isArray(value)) {
-    return value.some(valueNamesActor);
-  }
-  if (typeof value === 'object' && value !== null) {
-    return Object.values(value).some(valueNamesActor);
-  }
-  return false;
+  return value === ACTOR_PLACEHOLDER;
 }
 
 /**
@@ -1006,10 +1018,16 @@ export function analyzeReachability(
                 `"${entry.actionId}" on ${entry.deadStates} of the ${entry.renderedStates} screen(s) it appears on`
             )
             .join(', ')}${rest > 0 ? `, and ${rest} more action(s)` : ''}. ` +
+          // The exemption is deliberately NOT described here. `finding.message`
+          // is printed verbatim into the defect list the generating model
+          // reads and repairs against (surface-preview.ts), so spelling out
+          // the exemption's condition published a bypass to the one party
+          // that benefits from it. The rule is documented for humans in
+          // RUBRIC.md; a model that must repair this needs to know what is
+          // wrong, not which shape would make the check stop looking.
           `A member presses it and the board does not move. Do not render the control in the ` +
           `state it is already in — the shipped \`kanban\` template drops the card's OWN column ` +
-          `from its button row for exactly this reason. (An idempotent re-press of your own ` +
-          `answer is not this: an action whose every op writes \`$actor\` is exempt.)`,
+          `from its button row for exactly this reason.`,
       });
     }
   }
@@ -1106,9 +1124,19 @@ function collectValueDomains(
 ): ReachabilityValueDomain[] {
   const groups = new Map<string, PointerProjection[]>();
   for (const projection of projections) {
-    const signature = `${projection.values.join(' ')}${
-      projection.values[projection.rootValue] ?? ABSENT_VALUE
-    }${projection.truncated}`;
+    // JSON, not a delimiter. These are Map keys built from app-controlled
+    // strings, so any separator that CAN appear in a value silently merges
+    // two distinct groups into one wrong row. The previous NUL/SOH pair was
+    // collision-proof for the right reason (`canonicalJson` escapes every
+    // control character, so no token can contain one) but made the file
+    // binary to `grep`, which cost three investigations real time. A JSON
+    // array is injective by construction AND printable — it needs no
+    // argument about the token alphabet at all.
+    const signature = JSON.stringify([
+      projection.values,
+      projection.values[projection.rootValue] ?? ABSENT_VALUE,
+      projection.truncated,
+    ]);
     const existing = groups.get(signature);
     if (existing === undefined) {
       groups.set(signature, [projection]);
@@ -1229,7 +1257,7 @@ function collectCheckpoints(
 
   const groups = new Map<string, Raw[]>();
   for (const entry of raw) {
-    const signature = `${entry.value}${entry.through.join(' ')}`;
+    const signature = JSON.stringify([entry.value, entry.through]);
     const existing = groups.get(signature);
     if (existing === undefined) {
       groups.set(signature, [entry]);

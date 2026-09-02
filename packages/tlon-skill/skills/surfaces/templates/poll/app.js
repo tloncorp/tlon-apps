@@ -133,7 +133,7 @@
                       >${labelOf(options, votes[ship])}<//
                     >`}
                   >
-                    <div data-testid=${'poll-voter-' + ship}>${ship}</div>
+                    <div>${ship}</div>
                   <//>
                 `;
               })}

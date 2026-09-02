@@ -350,7 +350,7 @@
 
       return html`
         <${Card} title=${state.program || 'Workout'}>
-          <div data-testid="workout-summary">
+          <div>
             <${Stat}
               value=${String(dates.length)}
               label="sessions completed"
@@ -384,7 +384,7 @@
                   </div>
                 `}
                 secondary=${html`
-                  <div data-testid=${'workout-lift-' + id}>
+                  <div>
                     ${ships.map(function (ship) {
                       return html`<span
                         >${' ' + ship + ' '}${formatWeight(
@@ -452,9 +452,7 @@
                       </div>
                     `}
                   >
-                    <div data-testid=${'workout-ship-' + ship}>
-                      ${ship}${' — '}${sessionCount(derived.sessions)}
-                    </div>
+                    <div>${ship}${' — '}${sessionCount(derived.sessions)}</div>
                   <//>
                 `;
               })}
@@ -465,7 +463,7 @@
           ((lifts[state.chartLift || 'squat'] || {}).label || '')}
         >
           ${chartable
-            ? html`<div data-testid="workout-chart-host">
+            ? html`<div>
                 <${Chart}
                   type="line"
                   label="Working weight over time"
@@ -492,7 +490,7 @@
                   const day = state.history[date] || {};
                   return html`
                     <${ListRow}>
-                      <div data-testid=${'workout-history-' + date}>
+                      <div>
                         <div>${date}</div>
                         ${Object.keys(day)
                           .sort()

@@ -5,7 +5,7 @@
   "note": "The three-request local smoke subset from session 6b's harness build. NOT the M2 exit measurement: no bot ran, so every routing and publish cell is unscored, 30 of 33 requests were never issued, and the budget row reflects local CLI stages rather than a bot turn (routing and generation, the two phases the verdict run found expensive, are absent by construction). It is here so the first bot-harness corpus run has something to be compared against, and so a later reader can see what the harness reported on the day it was built. The corpus run's scoreboard replaces it.",
   "corpus": {
     "dir": "/Users/patrick/workspace/homestead-tlon-skill-testing-strategy-phase-3/packages/openclaw/dev/surfaces-corpus",
-    "sha256": "fca6b43eb09489f668bb89747fd863f9cb7bb2eb8fba66143896e06f808fa2bb",
+    "sha256": "46de2bc820db90572dc8449b8840d3234c7e945123037300f301619e0a7f3cf8",
     "requests": 33,
     "inScope": 27,
     "outOfScope": 6

@@ -256,6 +256,42 @@ export function createSurfaceShell(options: {
 
   (win as Window & { surface?: SurfaceApi }).surface = api;
 
+  /**
+   * A bundle that throws BEFORE it calls `register`.
+   *
+   * The shell and the bundle are separate `<script>` elements, so a
+   * top-level throw in the bundle aborts only its own script. The shell has
+   * already finished and already posted `ready`, `register` is never
+   * reached, `app` stays null, and every render short-circuits — the host
+   * sees a healthy handshake and an app that never draws. The result was a
+   * permanently blank board with no message and no telemetry, which is
+   * exactly the failure a model-generated bundle with one bad line
+   * produces.
+   *
+   * `error` inside a `try` around `app.render` cannot see it (that is the
+   * in-render path, which already works), so the only place to catch it is
+   * the window. Installed after `surface` is published and before `ready`
+   * so the bundle script, which runs later, is covered from its first
+   * statement.
+   *
+   * Reported as `init`: the app never initialized. `truncate` bounds the
+   * message the same way every other report is bounded.
+   */
+  win.addEventListener('error', (event: ErrorEvent) => {
+    if (app !== null) {
+      // past registration, the render path owns errors and reports them
+      // with the right phase; reporting again here would double-count
+      return;
+    }
+    reportError('init', event.error ?? event.message);
+  });
+  win.addEventListener('unhandledrejection', (event: { reason?: unknown }) => {
+    if (app !== null) {
+      return;
+    }
+    reportError('init', event.reason);
+  });
+
   post({
     type: 'ready',
     shellVersion: SHELL_VERSION,

@@ -168,7 +168,7 @@
               : null}
             secondary=${html`<div>${state.where || ''}</div>`}
           >
-            <div data-testid="rsvp-details">${state.when || ''}</div>
+            <div>${state.when || ''}</div>
           <//>
 
           <${SectionHeader}>Your answer<//>
@@ -186,7 +186,7 @@
                   <//>
                 `}
               >
-                <div data-testid=${'rsvp-answer-' + id}>
+                <div>
                   ${labelOf(answers, id)}
                   <${Badge}>${String(countOf(buckets, id))}<//>
                 </div>
@@ -217,14 +217,14 @@
                   return null;
                 }
                 return html`
-                  <div data-testid=${'rsvp-crew-' + id}>
+                  <div>
                     <${SectionHeader}
                       >${labelOf(answers, id) + ' · ' + String(crew.length)}<//
                     >
                     ${crew.map(function (ship) {
                       return html`
                         <${ListRow} left=${html`<${Avatar} ship=${ship} />`}>
-                          <div data-testid=${'rsvp-guest-' + ship}>${ship}</div>
+                          <div>${ship}</div>
                         <//>
                       `;
                     })}

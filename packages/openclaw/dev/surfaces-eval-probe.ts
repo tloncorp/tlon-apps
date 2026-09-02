@@ -86,6 +86,12 @@ const FOLD_RULES: readonly SurfaceLintRule[] = [
   // painted text differs. Behavioural: it is a fact about what the app does
   // when the clock moves, not about what its source says.
   'time-display',
+  // Reads which folds the reducer REFUSED, so it can only be decided by
+  // folding. The shape it catches (partial-segment `$actor`) looks static —
+  // it is visible in the spec text — but the rule's evidence is not: what
+  // makes the action dead is that every fold aborted, and `pointer-hygiene`
+  // reading the same path statically finds nothing wrong with it.
+  'inert-action',
 ];
 
 const STATIC_RULES: readonly SurfaceLintRule[] = [

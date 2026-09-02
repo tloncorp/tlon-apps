@@ -124,6 +124,11 @@ export const SURFACE_LINT_RULES = [
   'time-display',
   // Appended for that same reason.
   'count-agreement',
+  // Appended for that same reason. Catches the action the reducer refuses
+  // on every path — declared, rendered, pressable, and incapable of ever
+  // changing the board. See `checkInertActions` for why no existing rule
+  // could see it.
+  'inert-action',
 ] as const;
 
 export type SurfaceLintRule = (typeof SURFACE_LINT_RULES)[number];
@@ -865,8 +870,11 @@ const NAVIGATING_ELEMENTS = 'a[href], area[href], meta[http-equiv]';
  * Where containment actually comes from on web: **pre-flight**, the host
  * page's `frame-src` allowlist, which blocks the sandbox frame's
  * self-navigation on chromium, firefox and webkit before the request leaves
- * the device (D43; ships written-but-disabled behind D44's flip criteria);
- * and **structurally**, the M4 Worker-realm migration, which removes the
+ * the device (D43). It SHIPS ENFORCING: `ENFORCE_HOST_CSP` is `true`
+ * (`apps/tlon-web/hostCsp.ts`), so the "written-but-disabled" this comment
+ * used to claim is two sessions stale (D171). D43's redirect residual is
+ * also now measured and closed on all three engines. And **structurally**,
+ * the M4 Worker-realm migration, which removes the
  * browsing context there is nothing here to navigate (D36, plan §5).
  * `packages/surface-shell/src/sandbox/document.ts` already states that
  * position for the in-realm hardening it ships; this rule is under the same
@@ -2245,6 +2253,42 @@ function foldAndRender(
         specPath: `actions.${action.id}`,
       });
       continue;
+    }
+
+    // An action the reducer REFUSES on every path. The classic shape is a
+    // partial-segment `$actor` (`/votes/$actor-choice`), which
+    // `resolveActorSegments` rejects as a grammar error, aborting the whole
+    // entry — so the action is declared, drawn, pressable, and can never
+    // move the board.
+    //
+    // Every existing rule was structurally blind to it, which is why this
+    // needed its own: `pointer-hygiene` sees a legal pointer;
+    // `action-idempotency` sees two identical states, because a refused fold
+    // is trivially idempotent; the activation shortfall sees a control that
+    // does invoke it; and `no-op-control` EXCLUDES it, because the walk skips
+    // aborted edges (`edge.aborted`). A dead action shipped green.
+    //
+    // The signal was already in hand and simply never read: `reduceSurface`
+    // returns `abortedSequenceNums`, and nothing in this file looked at it.
+    const abortedEvery =
+      once.abortedSequenceNums.length === 1 &&
+      twice.abortedSequenceNums.length === 2;
+    // Only speak when no earlier rule already explained this action's
+    // refusal. A statically-malformed pointer (`pointer-hygiene`, rule 8)
+    // also aborts every fold, and reporting both would tell the repairing
+    // model that one broken path is two separate defects. This rule's whole
+    // reason to exist is the refusal that passes every static check, so it
+    // yields to any finding already filed against the same action.
+    const alreadyExplained = collector.violations.some((violation) =>
+      violation.specPath?.startsWith(`actions.${action.id}`)
+    );
+    if (abortedEvery && !alreadyExplained) {
+      collector.add({
+        rule: 'inert-action',
+        severity: 'error',
+        message: `every fold of "${action.id}" is refused by the reducer, so pressing its control can never change the board — it is declared and drawn but dead. The usual cause is a path the reducer rejects outright, such as partial-segment $actor (/votes/$actor-choice); $actor must be a whole path segment (/votes/$actor)`,
+        specPath: `actions.${action.id}`,
+      });
     }
 
     run.sendState(once.state);

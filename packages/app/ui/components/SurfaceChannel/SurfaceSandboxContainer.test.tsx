@@ -36,6 +36,26 @@ vi.mock('../../contexts/appDataContext', () => ({
   useCurrentUserId: () => '~zod',
 }));
 vi.mock('../../utils/channelUtils', () => ({ useCanWrite: () => true }));
+// The container now renders a real §6 state component on an init error, which
+// drags @tloncorp/ui and its tamagui `styled` chain into this jsdom graph.
+// Those components are deliberately dumb and prop-driven (SurfaceStates.tsx
+// says so); what this file tests is the container's WIRING, so the states are
+// stubbed to their testIDs and their appearance is left to cosmos.
+vi.mock('./SurfaceStates', () => ({
+  SurfaceHaltedState: ({
+    detail,
+    onReload,
+  }: {
+    detail?: string;
+    onReload?: () => void;
+  }) => (
+    <div data-testid="SurfaceHaltedState" data-detail={detail}>
+      <button type="button" onClick={onReload}>
+        Reload
+      </button>
+    </div>
+  ),
+}));
 
 function makeSpec(specRevision: number): SurfaceSpec {
   return {
@@ -175,4 +195,75 @@ test('an invoke from the replaced frame never reaches the writer', async () => {
     specRevision: 1,
   });
   expect(sendSurfaceInvoke).not.toHaveBeenCalled();
+});
+
+test('an init error replaces the surface with the halted state, not blankness', async () => {
+  // The failure this covers: a bundle that throws before `surface.register`
+  // handshakes normally and then draws nothing. The shell reports it as an
+  // `init` error; without somewhere to put that report the board stayed blank
+  // forever, with no message and no telemetry.
+  await renderSpec(makeSpec(1), {});
+  const iframe = frame()!;
+  await fromFrame(iframe, READY);
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+
+  await fromFrame(iframe, {
+    type: 'error',
+    phase: 'init',
+    message: 'ReferenceError: thisIsNotDefined is not defined',
+  });
+
+  const halted = container.querySelector('[data-testid="SurfaceHaltedState"]');
+  expect(halted).not.toBe(null);
+  expect(halted?.getAttribute('data-detail')).toBe(
+    'ReferenceError: thisIsNotDefined is not defined'
+  );
+  expect(frame()).toBe(null);
+});
+
+test('a render error leaves the surface alone — the shell already handles it', async () => {
+  // Only a failure to INITIALIZE leaves nothing on screen. A throw inside
+  // render has a defined presentation already: the shell swaps in its own
+  // broken-state view inside the frame and the app keeps running, so
+  // replacing the whole surface would be a regression, not a fix.
+  await renderSpec(makeSpec(1), {});
+  const iframe = frame()!;
+  await fromFrame(iframe, READY);
+
+  await fromFrame(iframe, {
+    type: 'error',
+    phase: 'render',
+    message: 'TypeError: cannot read property of undefined',
+  });
+
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+  expect(frame()).not.toBe(null);
+});
+
+test('reloading after a halt builds a NEW frame rather than reusing the dead one', async () => {
+  // The reload bumps the session key instead of reassigning `srcDoc`: a
+  // reload of the same element is indistinguishable from the frame
+  // navigating itself, which the host tears down as hostile.
+  await renderSpec(makeSpec(1), {});
+  const first = frame()!;
+  await fromFrame(first, READY);
+  await fromFrame(first, { type: 'error', phase: 'init', message: 'boom' });
+
+  const reload = container.querySelector(
+    '[data-testid="SurfaceHaltedState"] button'
+  ) as HTMLButtonElement;
+  await act(async () => {
+    reload.click();
+  });
+
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+  const second = frame();
+  expect(second).not.toBe(null);
+  expect(second).not.toBe(first);
 });

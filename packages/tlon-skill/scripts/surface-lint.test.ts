@@ -123,10 +123,43 @@ const COUNT_NEAR_MISS_BUNDLE = mutateCompliant(
 );
 
 /**
+ * An action the reducer refuses on EVERY path, which shipped green.
+ *
+ * `$actor` must be a whole path segment; `resolveActorSegments` rejects
+ * `$actor-choice` as a grammar error, and a grammar refusal aborts the whole
+ * entry. So this action is declared, rendered, pressable — and incapable of
+ * changing the board, ever.
+ *
+ * Every other rule is structurally blind to it, which is the point of the
+ * fixture: `pointer-hygiene` sees a legal pointer, `action-idempotency` sees
+ * two identical states (a refused fold is trivially idempotent), the
+ * activation shortfall sees a control that does invoke it, and
+ * `no-op-control` EXCLUDES it because the walk skips aborted edges. Before
+ * `inert-action` this spec passed the gate clean.
+ */
+const INERT_ACTION_SPEC = (() => {
+  const spec = structuredClone(COMPLIANT_FIXTURE.spec) as {
+    actions: Record<string, { ops: unknown[] }>;
+  };
+  spec.actions['bring-salad'].ops = [
+    { op: 'set', path: '/bringing/$actor-choice', value: 'salad' },
+  ];
+  return spec as unknown as SurfaceLintFixture['spec'];
+})();
+
+/**
  * Fixtures this file owns, folded into the same per-rule contract as the ones
  * `surface-lint-fixtures.ts` carries: trip exactly one rule, and no other.
  */
 const LOCAL_RULE_FIXTURES: SurfaceLintFixture[] = [
+  {
+    name: 'inert-action',
+    rule: 'inert-action',
+    bundleSource: COMPLIANT_FIXTURE.bundleSource,
+    spec: INERT_ACTION_SPEC,
+    defect:
+      'partial-segment $actor makes every fold of the action a refusal, so the control is dead',
+  },
   {
     name: 'count-agreement',
     rule: 'count-agreement',

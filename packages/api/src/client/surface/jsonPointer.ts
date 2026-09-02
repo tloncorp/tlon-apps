@@ -28,6 +28,21 @@ import {
  * - `$actor` is permitted only when an actor is supplied (spec-declared
  *   action ops): as a whole path segment, or as an exact string value.
  *   With no actor (host ops), any `$actor` use invalidates the op.
+ *
+ * One gap in that last sentence, recorded rather than fixed (D182). "Any
+ * `$actor` use invalidates the op" is true of path segments and of string
+ * VALUES; it is not true of object KEYS inside a value.
+ * `substituteActorInValue` walks `Object.keys` to recurse but assigns
+ * `out[key]` unchanged, and `valueContainsActorPlaceholder` likewise
+ * inspects only values — so a host op writing `{"$actor": …}` stores the
+ * literal four-character key, and nothing ever re-scans stored state, so it
+ * stays literal forever.
+ *
+ * Left alone deliberately: substituting inside keys would make the write
+ * path depend on data shape in a way the pointer grammar does not, and
+ * refusing them would reject a legitimate app that happens to want that
+ * literal string as a key. The note exists so the next reader does not take
+ * the sentence above as a guarantee it is not.
  */
 
 export const POINTER_MAX_LENGTH = 200;

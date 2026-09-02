@@ -98,6 +98,20 @@ function reduce(
   return reduceSurface(input);
 }
 
+function reduceWithHead(
+  posts: SurfacePostView[],
+  advertisedHead: number | null,
+  specOverrides?: Partial<SurfaceSpec>
+) {
+  const input: ReduceSurfaceInput = {
+    spec: spec(specOverrides),
+    hostShip: HOST,
+    posts,
+    advertisedHead,
+  };
+  return reduceSurface(input);
+}
+
 function expectReduced(result: ReturnType<typeof reduceSurface>) {
   expect(result.status).toBe('reduced');
   if (result.status !== 'reduced') {
@@ -1167,5 +1181,200 @@ describe('totality and determinism', () => {
       ],
     });
     expect(theSpec.initialState).toEqual(before);
+  });
+});
+
+/**
+ * DUPLICATE SEQUENCE NUMBERS (D174).
+ *
+ * Nothing guarantees `sequenceNum` is unique — there is no unique index on
+ * `(channelId, sequenceNum)` — and two posts sharing one used to tie
+ * completely in the sort, so `Array.prototype.sort`'s stability handed the
+ * decision to whichever order the posts arrived in. Two clients holding
+ * identical posts could then hold different state, which is exactly what §6
+ * says cannot happen.
+ *
+ * The existing order-invariance properties could not see it: every one of
+ * them shuffles posts whose sequence numbers are DISTINCT, because the
+ * generator hands them out from a strictly-increasing counter. The failing
+ * case was outside the generator, so the property that was supposed to cover
+ * convergence excluded the only input that breaks it.
+ */
+describe('total order under duplicate sequence numbers (D174)', () => {
+  /** two posts, same sequence number, writing the same pointer */
+  function collidingPosts() {
+    return [
+      post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'first' }])], {
+        sequenceNum: 7,
+        id: '170.141.184.500',
+      }),
+      post(
+        HOST,
+        [hostEvent([{ op: 'set', path: '/title', value: 'second' }])],
+        { sequenceNum: 7, id: '170.141.184.501' }
+      ),
+    ];
+  }
+
+  test('property: two posts sharing a sequence number still converge', () => {
+    nextSeq = 1;
+    const posts = collidingPosts();
+    const reference = expectReduced(reduce(posts));
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray(posts, {
+          minLength: posts.length,
+          maxLength: posts.length,
+        }),
+        (shuffled) => {
+          expect(reduce(shuffled)).toEqual(reference);
+        }
+      )
+    );
+  });
+
+  test('the later post id wins, whichever order they arrive in', () => {
+    const [a, b] = collidingPosts();
+    // the tie-break is the host id, so both arrival orders must agree AND
+    // must agree on the HIGHER id — a test that only asserted agreement
+    // would pass on a coin flip that happened to be stable
+    expect(expectReduced(reduce([a, b])).state).toMatchObject({
+      title: 'second',
+    });
+    expect(expectReduced(reduce([b, a])).state).toMatchObject({
+      title: 'second',
+    });
+  });
+
+  test('dotted @ud ids order numerically, not lexicographically', () => {
+    // `9` vs `10`: a plain string compare puts `9` last and would invert
+    // the fold. Canonical ids are dot-grouped and variable length, so this
+    // is the ordinary case, not an edge one.
+    const posts = [
+      post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'nine' }])], {
+        sequenceNum: 4,
+        id: '9',
+      }),
+      post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'ten' }])], {
+        sequenceNum: 4,
+        id: '10',
+      }),
+    ];
+    expect(expectReduced(reduce(posts)).state).toMatchObject({ title: 'ten' });
+    expect(expectReduced(reduce([...posts].reverse())).state).toMatchObject({
+      title: 'ten',
+    });
+  });
+
+  test('posts with no id still fold deterministically', () => {
+    // The field is optional; absent, the sort falls back to the previous
+    // behaviour rather than throwing or reordering.
+    nextSeq = 1;
+    const posts = [
+      post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'x' }])]),
+      post(MEMBER, [invoke('vote')]),
+    ];
+    expect(reduce(posts)).toEqual(reduce([...posts].reverse()));
+  });
+});
+
+/**
+ * AN INFLATED SNAPSHOT BOUNDARY CANNOT BRICK A CHANNEL (D175).
+ *
+ * `upToSequenceNum` reads like a checked invariant in §4.4 and was only a
+ * writer obligation. A snapshot claiming `upTo: 1_000_000` wins selection
+ * forever (selection takes the greatest), freezes every real event beneath
+ * its boundary, and leaves the board permanently at `foldedEventCount: 0`.
+ * The realistic trigger is a writer putting a millisecond timestamp in the
+ * field, not an attacker.
+ */
+describe('snapshot boundary vs the advertised head (D175)', () => {
+  function postsWithInflatedSnapshot() {
+    nextSeq = 1;
+    return [
+      post(HOST, [snapshot({ votes: { [OTHER]: 'no' } }, 1_000_000)]),
+      post(MEMBER, [invoke('vote')]),
+    ];
+  }
+
+  test('without a head, the inflated snapshot still freezes the board', () => {
+    // The pre-fix behaviour, pinned deliberately: the reducer alone cannot
+    // tell an honest boundary from a fabricated one, so callers that supply
+    // no head get exactly what they got before.
+    const result = expectReduced(reduce(postsWithInflatedSnapshot()));
+    expect(result.foldedEventCount).toBe(0);
+    expect(result.baseSnapshotSeq).toBe(1_000_000);
+  });
+
+  test('with the advertised head, the snapshot is refused and the log folds', () => {
+    const result = expectReduced(
+      reduceWithHead(postsWithInflatedSnapshot(), 2)
+    );
+    expect(result.baseSnapshotSeq).toBeNull();
+    expect(result.foldedEventCount).toBeGreaterThan(0);
+    expect(result.state).toMatchObject({ votes: { [MEMBER]: 'yes' } });
+  });
+
+  test('an honest snapshot at exactly the head is still selected', () => {
+    // The boundary case that would make the guard over-eager: `upTo` equal
+    // to the head is legal, and rejecting it would break every snapshot
+    // written by the default path (which uses the newest sequence number).
+    nextSeq = 1;
+    const posts = [
+      post(HOST, [snapshot({ votes: { [OTHER]: 'no' } }, 2)]),
+      post(MEMBER, [invoke('vote')]),
+    ];
+    const result = expectReduced(reduceWithHead(posts, 2));
+    expect(result.baseSnapshotSeq).toBe(2);
+  });
+});
+
+/**
+ * `initialState` IS REPLACED WHOLESALE, AND THAT IS THE CONTRACT (D176).
+ *
+ * `--preserve-state` publishing a revision that also edits `initialState`
+ * silently loses the edit: the reducer never reads `initialState` on a
+ * preserving spec, so the new values are simply absent. D167 put a guard in
+ * `surface publish` — but the guard is publish-only, and any other writer
+ * (Hermes, a hand-edited channel description, the client-executed publish
+ * the plan contemplates for v1) reintroduces the bug at full strength.
+ *
+ * The reducer cannot fix it: every merge rule that WOULD carry the edit is
+ * unsafe (D167), so the semantic has to be a writer obligation. These tests
+ * pin the behaviour writers are obliged against, so a future "helpful merge"
+ * has to delete an explicit test rather than quietly change a line.
+ */
+describe('initialState replacement is the contract, not a bug (D176)', () => {
+  test('a snapshot replaces initialState wholesale — no merge, no fallback', () => {
+    nextSeq = 1;
+    const posts = [post(HOST, [snapshot({ votes: { [OTHER]: 'no' } }, 1)])];
+    const result = expectReduced(reduce(posts));
+    // `initialState` declares BOTH `votes` and `log`; the snapshot declares
+    // only `votes`. If the reducer merged, `log` would survive.
+    expect(result.state).toEqual({ votes: { [OTHER]: 'no' }, log: undefined });
+    expect('log' in result.state).toBe(false);
+  });
+
+  test('a preserving spec never reads initialState at all', () => {
+    // The migration gate returns before `initialState` is touched, so a
+    // preserving revision that edits it changes nothing anywhere.
+    nextSeq = 1;
+    const withoutSnapshot = reduce([post(MEMBER, [invoke('vote')])], {
+      preserveState: true,
+    });
+    expect(withoutSnapshot.status).toBe('migration-pending');
+
+    const withSnapshot = expectReduced(
+      reduce(
+        [
+          post(HOST, [snapshot({ carried: true } as JsonObject, 1)]),
+          post(MEMBER, [invoke('vote')]),
+        ],
+        { preserveState: true }
+      )
+    );
+    // the carried state, and nothing from initialState
+    expect(withSnapshot.state).toMatchObject({ carried: true });
+    expect(withSnapshot.state.log).toBeUndefined();
   });
 });

@@ -77,9 +77,12 @@ type Hit = { path: string; at: number };
 
 let hostServer: Server;
 let attackerServer: Server;
+let redirectorServer: Server;
 let hostOrigin = '';
 let attackerOrigin = '';
+let redirectorOrigin = '';
 const hits: Hit[] = [];
+const redirectorHits: Hit[] = [];
 
 function listen(server: Server): Promise<number> {
   return new Promise((resolve) => {
@@ -159,11 +162,23 @@ test.beforeAll(async () => {
   });
   const hostPort = await listen(hostServer);
   hostOrigin = `http://127.0.0.1:${hostPort}`;
+
+  // D43's named residual: an origin that IS on the allowlist, answering
+  // with a redirect to one that is not. Any non-empty allowlist
+  // reintroduces this hop, and the shipped policy has two sources.
+  redirectorServer = createServer((req, res) => {
+    redirectorHits.push({ path: req.url ?? '', at: Date.now() });
+    res.writeHead(302, { location: `${attackerOrigin}${req.url ?? '/'}` });
+    res.end();
+  });
+  const redirectorPort = await listen(redirectorServer);
+  redirectorOrigin = `http://127.0.0.1:${redirectorPort}`;
 });
 
 test.afterAll(async () => {
   await close(attackerServer);
   await close(hostServer);
+  await close(redirectorServer);
 });
 
 /**
@@ -203,6 +218,24 @@ const NAV_PROBES: Record<string, (target: string) => string> = {
     document.write(
       '<meta http-equiv="refresh" content="0;url=' + ${JSON.stringify(target)} + '">'
     );
+  `,
+  // D93 recorded a bundle reaching the attacker origin through this API on
+  // chromium WHILE PASSING THE GATE, and deferred the probe as "a follow-up
+  // for that suite". Until now the matrix licensed "self-navigation is
+  // blocked" for five spellings and not as a class.
+  //
+  // The API ships on chromium and on neither other engine, so the probe
+  // says so rather than navigating: an absent API produces zero hits, and
+  // scoring that as BLOCKED-PREFLIGHT would credit the CSP with work it
+  // never did — the same substitution of a failure branch for a verdict
+  // that made the old egress probes vacuous.
+  'nav-navigation-api': (target) => `
+    ${ARM}
+    if (typeof window.navigation === 'undefined' || window.navigation === null) {
+      parent.postMessage(JSON.stringify({ type: 'probe-unsupported' }), '*');
+    } else {
+      window.navigation.navigate(${JSON.stringify(target)});
+    }
   `,
 };
 
@@ -323,13 +356,22 @@ type Classification =
   | 'NOT-BLOCKED'
   | 'BLOCKED-LATE'
   | 'BLOCKED-PREFLIGHT'
-  | 'FRAME-NEVER-LOADED';
+  | 'FRAME-NEVER-LOADED'
+  /**
+   * The vector's API does not exist on this engine, so the probe declined
+   * to navigate. Zero hits here mean nothing was attempted — NOT that a
+   * policy refused anything, which is the distinction that keeps an
+   * unsupported engine from reading as evidence of containment.
+   */
+  | 'API-ABSENT';
 
 type Observation = {
   config: string;
   probe: string;
   /** did the sandbox frame load and run the probe at all? */
   armed: boolean;
+  /** did the probe report its API missing on this engine? */
+  unsupported: boolean;
   /** requests the attacker server actually received on this probe's path */
   serverHits: number;
   /** did the frame commit the attacker document? */
@@ -425,6 +467,7 @@ async function observeNavProbe(
   await page.waitForTimeout(400);
 
   const armed = await sawMessage(page, 'probe-armed');
+  const unsupported = await sawMessage(page, 'probe-unsupported');
   const frameUrls = page.frames().map((f) => f.url());
   const serverHits = hits
     .slice(before)
@@ -435,16 +478,19 @@ async function observeNavProbe(
     config: config.id,
     probe,
     armed,
+    unsupported,
     serverHits,
     committed,
     frameStillSrcdoc: frameUrls.includes('about:srcdoc'),
     classification: !armed
       ? 'FRAME-NEVER-LOADED'
-      : serverHits > 0 && committed
-        ? 'NOT-BLOCKED'
-        : serverHits > 0
-          ? 'BLOCKED-LATE'
-          : 'BLOCKED-PREFLIGHT',
+      : unsupported
+        ? 'API-ABSENT'
+        : serverHits > 0 && committed
+          ? 'NOT-BLOCKED'
+          : serverHits > 0
+            ? 'BLOCKED-LATE'
+            : 'BLOCKED-PREFLIGHT',
     frameUrls,
     netRequests: netRequests.filter((u) => u.startsWith(target)),
     netResponses: netResponses.filter((u) => u.startsWith(target)),
@@ -603,6 +649,22 @@ for (const config of HOST_CONFIGS) {
         // the frame must have actually run the probe, or the cell is
         // meaningless
         expect(result.armed).toBe(true);
+
+        // An engine without the vector's API tells us nothing about the
+        // policy, so the cell records that and stops. The one thing still
+        // worth asserting is that the probe really did decline rather than
+        // navigate: zero hits.
+        if (result.unsupported) {
+          expect(result.classification).toBe('API-ABSENT');
+          expect(result.serverHits).toBe(0);
+          expect(result.committed).toBe(false);
+          test.info().annotations.push({
+            type: 'api-absent',
+            description: `${probe} is not implemented on ${test.info().project.name}; this cell measures no policy`,
+          });
+          return;
+        }
+
         expect(result.classification).toBe(expectedClassification);
 
         if (expectedClassification === 'NOT-BLOCKED') {
@@ -632,6 +694,100 @@ for (const config of HOST_CONFIGS) {
     }
   });
 }
+
+/**
+ * D43's NAMED RESIDUAL, measured (item 5, session 6d).
+ *
+ * D43 recorded "redirect chains from an allowlisted origin to an attacker
+ * origin" as known-untested and said it "must be measured before anyone
+ * calls the hole closed"; D44 carries it as flip criterion 2. Every config
+ * above points the frame straight at the attacker, so none of them
+ * exercises the hop that any non-empty allowlist reintroduces — and the
+ * shipped policy has two sources.
+ *
+ * The concrete production shape (hostCsp.ts): `frame-src` matches an
+ * ORIGIN and nothing below it, so if `https://tlon.network` ever answered
+ * with a redirect to a subdomain, the question is whether CSP re-checks
+ * the destination. Per spec it must; browsers have differed.
+ */
+test.describe('D43 residual: redirect from an allowlisted origin', () => {
+  async function observeRedirect(
+    page: import('@playwright/test').Page,
+    policy: string,
+    path: string
+  ) {
+    const beforeAttacker = hits.length;
+    const beforeRedirector = redirectorHits.length;
+    const target = `${redirectorOrigin}${path}`;
+    const doc = buildSandboxDocument({
+      shellJs,
+      shellCss,
+      bundleSource: `${ARM} window.location.replace(${JSON.stringify(target)});`,
+    });
+    await mountOn(
+      page,
+      `${hostOrigin}/host.html?header=${encodeURIComponent(policy)}`,
+      doc
+    );
+
+    const deadline = Date.now() + 2500;
+    while (Date.now() < deadline) {
+      if (hits.slice(beforeAttacker).some((h) => h.path === path)) break;
+      await page.waitForTimeout(100);
+    }
+    await page.waitForTimeout(400);
+
+    return {
+      armed: await sawMessage(page, 'probe-armed'),
+      firstHop: redirectorHits
+        .slice(beforeRedirector)
+        .filter((h) => h.path === path).length,
+      attackerHits: hits.slice(beforeAttacker).filter((h) => h.path === path)
+        .length,
+      committedAttacker: page
+        .frames()
+        .some((f) => f.url().startsWith(`${attackerOrigin}${path}`)),
+    };
+  }
+
+  test('the allowlisted hop is reachable (control)', async ({ page }) => {
+    // Without this the residual test below would pass on a policy that
+    // simply blocked everything, proving nothing about redirects.
+    const result = await observeRedirect(
+      page,
+      `frame-src ${redirectorOrigin} ${attackerOrigin}`,
+      '/redirect-control'
+    );
+    expect(result.armed).toBe(true);
+    expect(
+      result.firstHop,
+      'the allowlisted redirector was never reached, so this suite cannot measure its redirect'
+    ).toBeGreaterThan(0);
+    expect(
+      result.attackerHits,
+      'with BOTH origins allowlisted the redirect must land — otherwise the residual result below is about something else'
+    ).toBeGreaterThan(0);
+  });
+
+  test('the redirect target is re-checked against frame-src', async ({
+    page,
+  }) => {
+    const result = await observeRedirect(
+      page,
+      `frame-src ${redirectorOrigin}`,
+      '/redirect-residual'
+    );
+    expect(result.armed).toBe(true);
+    // the hop the allowlist admits really did happen
+    expect(result.firstHop).toBeGreaterThan(0);
+    // and the destination it names is refused
+    expect(
+      result.attackerHits,
+      "LEAK: an allowlisted origin redirected the sandbox frame to a NON-allowlisted origin and the request was issued — D43's residual is open, and plan §5's allowlist claim does not hold across a redirect"
+    ).toBe(0);
+    expect(result.committedAttacker).toBe(false);
+  });
+});
 
 /**
  * LOAD-EVENT GROUND TRUTH for the host's teardown (SurfaceSandboxHost).

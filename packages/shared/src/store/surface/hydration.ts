@@ -146,7 +146,7 @@ export async function hydrateSurface(
   if (posts.length === 0) {
     if (head === 0) {
       // genuinely empty channel: fold over nothing
-      return completeState(channelId, spec, []);
+      return completeState(channelId, spec, [], head);
     }
     // posts exist remotely (or we can't tell): try one backfill
     if (backfill) {
@@ -190,7 +190,12 @@ export async function hydrateSurface(
   for (let page = 0; page <= maxPages; page++) {
     const oldest = oldestOf(posts);
     const newest = newestOf(posts);
-    const reduction = reduceSurfaceChannel({ channelId, spec, posts });
+    const reduction = reduceSurfaceChannel({
+      channelId,
+      spec,
+      posts,
+      advertisedHead: head,
+    });
 
     const coveredToStart = oldest === 1;
     const coveredBySnapshot =
@@ -304,9 +309,15 @@ function partialState(
 function completeState(
   channelId: string,
   spec: SurfaceSpec,
-  posts: db.Post[]
+  posts: db.Post[],
+  advertisedHead: number | null
 ): SurfaceHydrationState {
-  const reduction = reduceSurfaceChannel({ channelId, spec, posts });
+  const reduction = reduceSurfaceChannel({
+    channelId,
+    spec,
+    posts,
+    advertisedHead,
+  });
   if (reduction.status === 'migration-pending') {
     return { status: 'migration-pending', spec };
   }

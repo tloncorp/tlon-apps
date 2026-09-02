@@ -36,9 +36,17 @@ function StateTitle({ children }: PropsWithChildren) {
   );
 }
 
-function StateDetail({ children }: PropsWithChildren) {
+function StateDetail({
+  children,
+  testID,
+}: PropsWithChildren<{ testID?: string }>) {
   return (
-    <Text size="$label/m" color="$secondaryText" textAlign="center">
+    <Text
+      size="$label/m"
+      color="$secondaryText"
+      textAlign="center"
+      testID={testID}
+    >
       {children}
     </Text>
   );
@@ -135,6 +143,49 @@ export function SurfaceBundleUnavailableState({
           label="Retry"
           onPress={onRetry}
           testID="SurfaceBundleRetry"
+        />
+      )}
+    </StateFrame>
+  );
+}
+
+/**
+ * The app's code failed before it ever drew — the "surface halted" state.
+ *
+ * Distinct from `SurfaceBundleUnavailableState`: the bytes are fine and
+ * verified, and it is running them that failed. So the affordance is a
+ * reload of the sandbox (a fresh session for the same bundle), not a refetch.
+ *
+ * `detail` is sandbox-chosen text and stays ON DEVICE. Under the F6 rules
+ * that is exactly where it may go: telemetry carries only a host-derived
+ * enum and a counter, never any slice of this string, because a bounded
+ * prefix of attacker-chosen text is still an exfiltration channel, only a
+ * slower one. The person looking at a broken dashboard is precisely who
+ * should see the message.
+ */
+export function SurfaceHaltedState({
+  detail,
+  onReload,
+}: {
+  detail?: string;
+  onReload?: () => void;
+}) {
+  return (
+    <StateFrame testID="SurfaceHaltedState">
+      <StateTitle>This dashboard stopped before it could load</StateTitle>
+      <StateDetail>
+        Its app hit an error on startup. Nothing you did caused this, and
+        nothing in the dashboard has been lost.
+      </StateDetail>
+      {detail != null && detail !== '' && (
+        <StateDetail testID="SurfaceHaltedDetail">{detail}</StateDetail>
+      )}
+      {onReload != null && (
+        <Button
+          preset="primary"
+          label="Reload"
+          onPress={onReload}
+          testID="SurfaceHaltedReload"
         />
       )}
     </StateFrame>

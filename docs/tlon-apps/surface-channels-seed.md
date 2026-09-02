@@ -290,6 +290,15 @@ Plane 0 (3 data points). If the canvas is blank, or the card says "Chart.js
 is not available in this shell", the vendored Chart.js is not reaching a
 live 2D context and this fixture has failed.
 
+> **Ungated by design.** This bundle predates the publish gate and cannot
+> pass it today: it builds its action id dynamically
+> (`'pick-' + label.toLowerCase()`), which trips `undeclared-action`, because
+> the gate cannot cross-reference a computed argument. Channel behaviour is
+> unaffected — the seed writes specs straight into the channel description
+> via `store.updateChannel` and never goes through `surface publish` — but do
+> not treat this fixture as an example of publishable code, and do not
+> "fix" the gate to accept it.
+
 This is the fixture that matters most for the shell: every chart assertion
 before it ran under happy-dom, which returns `null` from
 `canvas.getContext('2d')` — so Chart.js's _degrade-cleanly_ path was being
@@ -370,6 +379,13 @@ case this check exists for.)
 `chat/~zod/surface-revision`
 
 Shows the current revision number, a note, and a **Ping** button.
+
+> **Ungated by design.** This bundle predates the publish gate and cannot
+> pass it today: it fails `jargon` on the word "revision", which its entire
+> purpose requires it to display on screen. As above, the seed writes the
+> spec directly rather than through `surface publish`, so the channel works
+> — but the bundle as committed could not be published, and the right
+> resolution is neither to rename the fixture nor to weaken the denylist.
 
 The point of this fixture is that **the bundle bytes never change**. Every
 revision points at the same `assetRef` with the same `sha256`. A host that

@@ -93,6 +93,12 @@ jobs:
       - name: Every workspace package is classified by a path filter
         run: node scripts/check-ci-path-filters.mjs
 
+      # Same reasoning as the check above, applied to the decision record: a
+      # stray DECISIONS.md matches no path filter, so only an ungated job can
+      # see it. Three entries have already been written to the wrong file.
+      - name: The decision record is single, rooted, and covers what is cited
+        run: node scripts/check-decisions-record.mjs
+
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
   # `== 'true'` to fail closed: if the changes job errors, its outputs are
@@ -139,6 +145,16 @@ jobs:
 
       - name: Check Types
         run: pnpm -r tsc
+
+      # The shell's four boundary checks: import allowlist, style boundary,
+      # token drift, deterministic build. They existed and ran NOWHERE — not in
+      # `pnpm -r lint` (oxlint only), not in `test:ci` (vitest only) — while the
+      # plan and the PR description both claimed they were CI-enforced, and
+      # `check-token-drift.mjs` asserted in its own output that it "fails CI
+      # when this file is stale". Wired rather than the claim weakened, since
+      # all four pass today.
+      - name: Surface shell boundary checks
+        run: pnpm --filter '@tloncorp/surface-shell' check:all
 
       - name: Run Tests
         run: pnpm test:ci
@@ -321,7 +337,7 @@ jobs:
   # ci-config-check — append it to `needs` here.
   ci-ok:
     name: CI OK
-    needs: [changes, ci-config-check, test-build, bot-checks]
+    needs: [changes, ci-config-check, test-build, bot-checks, sandbox-posture]
     if: ${{ always() }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
@@ -407,6 +423,82 @@ jobs:
           path: |
             ./apps/tlon-web/test-results/
             ./apps/tlon-web/playwright-report/
+          retention-days: 7
+
+  # The sandbox posture matrix: the only behavioral check that the surface
+  # sandbox still contains an untrusted bundle. Until now nothing ran it in
+  # CI, so per-PR protection was the CSP *string* pinned in a unit test —
+  # which a change to the iframe flags, the document assembly, or the host
+  # policy passes untouched.
+  #
+  # All three engines, deliberately. The vectors diverge by engine (the
+  # Navigation API exists only on chromium; a refused navigation destroys
+  # the frame on chromium and does not on firefox/webkit), so a
+  # chromium-only run would license a claim the matrix makes about three.
+  #
+  # Gated on `app` — the same filter as the app suite — because the two
+  # things it measures both live under it: `apps/tlon-web/**` (the host
+  # page, the CSP, the specs) and `packages/surface-shell/**` (the document
+  # assembly and the shell artifact), the latter deliberately not excluded
+  # from `app` for exactly this reason (see the filter's own comment).
+  sandbox-posture:
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    name: Sandbox Posture (3 engines)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      # the suite reads dist/surface-shell.{js,css} and fails loudly if the
+      # artifact is missing, so this is a prerequisite rather than a warmup
+      - name: Build surface-shell artifact
+        run: pnpm build:surface-shell
+
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p
+          "require('@playwright/test/package.json').version")" >> $GITHUB_OUTPUT
+        working-directory: ./apps/tlon-web
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-posture-${{ runner.os }}-${{
+            steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright Browsers
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        working-directory: ./apps/tlon-web
+
+      - name: Run sandbox posture matrix
+        id: posture
+        run: pnpm e2e:sandbox
+        working-directory: ./apps/tlon-web
+        env:
+          SANDBOX_ENGINES: all
+
+      - name: Upload posture artifacts
+        if: failure() && steps.posture.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-posture-results
+          path: ./apps/tlon-web/test-results/
           retention-days: 7
 
   # Backend tests

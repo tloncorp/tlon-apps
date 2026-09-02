@@ -41,9 +41,9 @@ html`
 - Components interpolate as tags: `<${Card} …>` … `<//>` closes any tag.
 - Plain elements are fine for grouping: `<div>`, `<span>`, `<ul>`, `<li>`.
 - Props interpolate as `prop=${value}`; children can be arrays.
-- `data-testid=${'thing-' + id}` is allowed, and the templates carry them.
-  Nothing reads them — not preview, not the gate, not any test — so writing
-  more of them buys nothing.
+- Do not write `data-testid`. Nothing reads one — not preview, not the gate,
+  not any test — so it is markup that looks load-bearing and is not. The
+  templates carried 29 of them and no longer do.
 
 **There is no app CSS.** Only the shell's stylesheet reaches the page, so a
 class name of your own has no styles behind it. Structure comes from the

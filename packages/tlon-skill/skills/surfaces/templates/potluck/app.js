@@ -225,7 +225,7 @@
               : html`<${Badge}>${String(wanted) + ' more wanted'}<//>`}
             secondary=${html`<div>${state.where || ''}</div>`}
           >
-            <div data-testid="potluck-details">${state.when || ''}</div>
+            <div>${state.when || ''}</div>
           <//>
 
           <${SectionHeader}>What are you bringing?<//>
@@ -243,7 +243,7 @@
                   <//>
                 `}
               >
-                <div data-testid=${'potluck-course-' + id}>
+                <div>
                   ${labelOf(courses, id)}
                   <${Badge}
                     tone=${want > 0 && taken >= want ? 'positive' : 'neutral'}
@@ -299,7 +299,7 @@
                 }
                 const want = wantOf(courses, id);
                 return html`
-                  <div data-testid=${'potluck-group-' + (id || 'undecided')}>
+                  <div>
                     <${SectionHeader}
                       >${want > 0
                         ? labelOf(courses, id) +
@@ -317,9 +317,7 @@
                             ? html`<${Badge} tone="positive">${markLabel}<//>`
                             : null}
                         >
-                          <div data-testid=${'potluck-member-' + ship}>
-                            ${ship}
-                          </div>
+                          <div>${ship}</div>
                         <//>
                       `;
                     })}

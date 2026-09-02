@@ -816,8 +816,16 @@ export function loadCorpus(dir) {
   // The corpus's own identity, so a scoreboard names the corpus it scored and
   // a later comparison against a baseline can tell "the numbers moved" from
   // "somebody edited the questions".
+  // JSON, not a delimiter: `record.request` is free-form English, so `::`,
+  // `|` and spaces all occur naturally and any of them as a separator could
+  // make two different corpora hash alike. The NUL this replaced was safe
+  // but made the file binary to `grep`. Note the digest CHANGED when this
+  // did — `surfaces-eval-baseline.json`'s `corpus.sha256` was regenerated in
+  // the same commit, since a stale one would report `corpusChanged: true`
+  // and read as "somebody edited the questions".
   const hash = createHash('sha256');
-  for (const record of records) hash.update(`${record.id} ${record.request} `);
+  for (const record of records)
+    hash.update(JSON.stringify([record.id, record.request]));
   return { records, sha256: hash.digest('hex') };
 }
 

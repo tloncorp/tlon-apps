@@ -338,9 +338,7 @@
                       />
                     `}
                   >
-                    <div data-testid=${'ladder-player-' + entry.ship}>
-                      ${String(entry.position) + '. ' + entry.ship}
-                    </div>
+                    <div>${String(entry.position) + '. ' + entry.ship}</div>
                   <//>
                 `;
               })}
@@ -383,9 +381,7 @@
                       </div>
                     `}
                   >
-                    <div data-testid=${'ladder-round-' + round.id}>
-                      ${round.label}
-                    </div>
+                    <div>${round.label}</div>
                   <//>
                 `;
               })}
@@ -397,7 +393,7 @@
                 title="Nothing to chart yet"
                 description="The race appears here once people start winning."
               />`
-            : html`<div data-testid="ladder-chart-host">
+            : html`<div>
                 <${Chart}
                   type="line"
                   label="Wins round by round"

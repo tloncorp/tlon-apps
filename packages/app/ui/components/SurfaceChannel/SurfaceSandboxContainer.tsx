@@ -14,6 +14,7 @@ import { useThemeName } from 'tamagui';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useCanWrite } from '../../utils/channelUtils';
 import { SurfaceSandboxHost } from './SurfaceSandboxHost';
+import { SurfaceHaltedState } from './SurfaceStates';
 import { sandboxSessionKey } from './sandboxSession';
 import { shellThemeFromThemeName } from './surfaceTheme';
 
@@ -42,6 +43,36 @@ export function SurfaceSandboxContainer({
 
   const now = useHostClock(spec.timeDisplay?.refreshSeconds ?? null);
 
+  /**
+   * A bundle that failed before it registered leaves an iframe that handshook
+   * and then drew nothing. The shell reports it as an `init` error (it
+   * installs a window error handler for exactly this), and without somewhere
+   * to put that report the board stayed blank forever — no message, no
+   * telemetry, and an `onShellError` channel plumbed through the whole
+   * session layer to a UI that did not exist.
+   *
+   * `reloadNonce` bumps the session key rather than reassigning `srcDoc`, for
+   * the reason spelled out at the render below: a reload of the same element
+   * is indistinguishable from the frame navigating itself, which the host
+   * tears down as hostile.
+   */
+  const [halted, setHalted] = useState<string | null>(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const handleShellError = useCallback((phase: string, message: string) => {
+    // `render` errors already have a defined presentation: the shell swaps in
+    // its own broken-state view inside the frame and the app keeps running.
+    // Only a failure to initialize leaves nothing on screen.
+    if (phase === 'init') {
+      setHalted(message);
+    }
+  }, []);
+
+  const reloadSurface = useCallback(() => {
+    setHalted(null);
+    setReloadNonce((nonce) => nonce + 1);
+  }, []);
+
   const sendInvoke = useCallback(
     (actionId: string) => {
       // success is observed via the refold, not this promise; the host has
@@ -66,6 +97,10 @@ export function SurfaceSandboxContainer({
     [bundleSource]
   );
 
+  if (halted !== null) {
+    return <SurfaceHaltedState detail={halted} onReload={reloadSurface} />;
+  }
+
   return (
     /**
      * The key is the whole fix for "an admin edits the spec and the
@@ -86,7 +121,7 @@ export function SurfaceSandboxContainer({
      * navigation.
      */
     <SurfaceSandboxHost
-      key={sandboxSessionKey(spec)}
+      key={`${sandboxSessionKey(spec)}:${reloadNonce}`}
       document={sandboxDocument}
       spec={spec}
       state={state}
@@ -94,6 +129,7 @@ export function SurfaceSandboxContainer({
       canInvoke={canInvoke}
       now={now}
       onInvoke={sendInvoke}
+      onShellError={handleShellError}
     />
   );
 }

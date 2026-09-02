@@ -2557,8 +2557,9 @@ state exceeds 65536 bytes","details":{…,"definitionPublished":true}}`;
   routes below, and the thirteen that still pass are all forms of the same
   fact, that what an expression resolves to is not readable from its text.
   Containment on web
-  is the host page's `frame-src` allowlist pre-flight (D43, written and
-  disabled) and structurally the M4 Worker realm (D36).
+  is the host page's `frame-src` allowlist pre-flight (D43 — recorded here
+  as "written and disabled", which D171 corrects: it ships ENFORCING,
+  `ENFORCE_HOST_CSP = true`) and structurally the M4 Worker realm (D36).
   `sandbox/document.ts:83-88` had already stated that position for the
   in-realm hardening; rule 5 sits under the same sentence and now says so in
   its own docstring, in plan §5, and in `PARADIGM.md` — which had told
@@ -2575,8 +2576,14 @@ state exceeds 65536 bytes","details":{…,"definitionPublished":true}}`;
     `navigation.navigate()`. The audit reproduced it end to end: a bundle
     calling it from a click handler passed the gate with `ok: true` and zero
     violations while the request reached the attacker origin in Chromium.
-    The sandbox-posture matrix does not probe it either, which is a
-    follow-up for that suite rather than for this file.
+    The sandbox-posture matrix did not probe it either, which was left as a
+    follow-up for that suite rather than for this file. **Closed in D171:**
+    `nav-navigation-api` is now a probe in `navigation.spec.ts`, measured
+    on all three engines. It reproduces exactly as recorded here — under
+    `A/no-csp` on chromium it reaches the attacker and commits — and the
+    shipped policy blocks it at preflight with zero hits. The API does not
+    exist on firefox or webkit, which the probe reports as `API-ABSENT`
+    rather than letting a missing API score as containment.
   - **`<area href>`** — rule 3 skips an `href` on `a` AND `area` as
     "navigation, handled by rule 5", and rule 5's pattern was `<a\b`, which
     cannot match `<area`. The tag was handled by neither rule and passed the
@@ -3374,7 +3381,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
 - **D111: the image handoff into luna's context is verified, and its
   silent-failure mode is named.** OpenClaw core's `read` tool returns a PNG as
   an image content block, and an owner-role Tlon DM session receives it. A
-  synthetic card carrying an unguessable 16-hex token *and* an independent
+  synthetic card carrying an unguessable 16-hex token _and_ an independent
   square count was read back with the count exact in both arms and the token
   exact in the differential arm, from PNGs whose sha256s were asserted
   different before the result was believed. In the first arm the model
@@ -3399,7 +3406,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   carries **six** distinct literals, and any guard must use the superset — a
   placeholder the list misses is a silent pass. More importantly, **the
   placeholder scan alone is not sufficient**: substitution happens in the
-  provider transform *downstream* of the session write, so a stored turn still
+  provider transform _downstream_ of the session write, so a stored turn still
   contains an `image` block even when no image reached the model. The
   placeholder was visible here only because that model narrated its own
   blindness. A token read back from the image is the load-bearing check.
@@ -3508,7 +3515,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
 
   The gap that let it survive is worth naming separately: the pre-existing test
   passed `runTimeoutMs` in explicitly and so never exercised the default, while
-  the compaction test one case below *does* cover its own absent-key path.
+  the compaction test one case below _does_ cover its own absent-key path.
 
   Confirmed in the container rather than from the edit — recreated, source and
   dist both `300_000`, the line 6a logged as `timeoutMs=120000` now reading
@@ -3544,7 +3551,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   `surface <sub>` reference and asserts each exists in the registry, with a
   non-vacuity floor on the scan's yield. **Scope, because it is easy to
   overclaim: this would NOT have caught the incident that prompted it.** The
-  offending instruction — *"read it back instead of re-deriving intent"* —
+  offending instruction — _"read it back instead of re-deriving intent"_ —
   named no subcommand. The check closes the adjacent class; "instructs a read,
   names no reader" remains uncovered by anything.
 
@@ -3569,7 +3576,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   it was given; **that belief is true** — hash-verified, the enum is
   `["send","react","delete","reply"]`. So core's error instructs an action its
   own schema withholds: unsatisfiable by construction. Three defects in one
-  tool: poll *parameters* are advertised whenever the action list is not
+  tool: poll _parameters_ are advertised whenever the action list is not
   exactly `["send"]`, ungated by any capability (unlike presentation and
   delivery-pin in the same function); `hasPollCreationParams` reads
   `pollDurationHours: 1` — the value a field-filling model supplies for a
@@ -3605,7 +3612,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   definition had stopped validating the guard did not run at all. Reproduced:
   the potluck bundle published onto the kanban channel at revision 1, exit 0,
   `"ok": true`, orphaning the board's records. 6a's cross-app attempt was
-  refused only because that channel happened to hold a *readable* definition.
+  refused only because that channel happened to hold a _readable_ definition.
   Publishing over an unreadable definition now refuses; the guard is now a line
   that always runs.
 
@@ -3656,14 +3663,14 @@ transcript is an audit that will be lost, and this project has now lost two.)
 - **Question C is answered "did not recur", with a caveat that matters.**
   Nothing failed in this session, so the truthful-lifecycle path was never
   re-exercised under stress. Establishing whether the wrong-picture outcome was
-  cap-coupled needs a run that is *made* to fail.
+  cap-coupled needs a run that is _made_ to fail.
 
 ## The verdict run — the forced revision sample
 
 - **D123: a failed template lookup is a failed lookup.** `readTemplateSummary`
   fell through to `readdirSync(dir).filter('.js')[0]` when a template directory
   carried none of the expected names — an arbitrary file, ordered by the
-  filesystem, in the field a real bundle occupies. It returned a *different*
+  filesystem, in the field a real bundle occupies. It returned a _different_
   file in two different directories, which is the whole objection. Removed
   rather than better-guarded (D120's rule one level down); `show` names the
   template, the expected names and the found ones, while `list` stays tolerant
@@ -3728,7 +3735,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   The witness survives a two-sided self-test first — a positive it must match,
   negatives quoted verbatim from the target's own output it must not — or
   nothing is read off the ship. It caught a real authoring error: `absent`
-  matched the live `rsvp-absent` action, where absent means *can't make it*, a
+  matched the live `rsvp-absent` action, where absent means _can't make it_, a
   response rather than a non-response. **Stated limit:** this proves a pattern
   set separates two named strings, never that it is the right set.
 
@@ -4086,10 +4093,10 @@ transcript is an audit that will be lost, and this project has now lost two.)
 
   **Why the 6a.5 "stale-binary guard" did not catch this, asked and answered.**
   It could not have, because it is not a guard. Its whole implementation is a
-  design choice recorded in `surfaces-assert-unsatisfied.ts`'s header: *"Both
+  design choice recorded in `surfaces-assert-unsatisfied.ts`'s header: _"Both
   CLI reads run the CLI FROM SOURCE (`bun packages/tlon-skill/scripts/
-  main.ts`), never a compiled binary… running from source makes the staleness
-  question **unaskable rather than guarded**."* There is no detector, nothing it
+main.ts`), never a compiled binary… running from source makes the staleness
+  question **unaskable rather than guarded**."_ There is no detector, nothing it
   keys on, and nothing that could fire. It caught 6a.5's twenty-minute-stale
   CLI by ceasing to use it.
 
@@ -4125,7 +4132,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   directory, and blames the author for it.** The shipped `poll` template FAILS
   from the repo root and PASSES from `packages/tlon-skill`:
   `error smoke-render bundle: render threw (initial state): TypeError:
-  Attempting to define property on object that is not extensible` — a
+Attempting to define property on object that is not extensible` — a
   Preact/React JSX-runtime mismatch. Reproduced directly, and independently by
   two template authors, one of whom established that
   `bun --tsconfig-override packages/tlon-skill/tsconfig.json` does NOT fix it,
@@ -4278,13 +4285,13 @@ transcript is an audit that will be lost, and this project has now lost two.)
   `kanban-v1/bundle.js`: `const next = { todo: 'doing', doing: 'done', done: 'todo' }`.
   `kanban-v2/bundle.js`: `const next = { todo: 'doing', doing: 'blocked', blocked: 'done', done: 'todo' }`.
   **One button per card.** So the revision that added the Blocked column made
-  Blocked *mandatory*: after it, no card reaches Done without first being
+  Blocked _mandatory_: after it, no card reaches Done without first being
   marked Blocked, and Done wraps around to To do. The requested feature was
   spliced into a single-button cycle, and the cycle is the whole navigation.
 
   **Rubric check 7 passed it**, with the note quoted verbatim from
-  `artifacts/rubrics/rev5.json`: *"Blocked is visibly present as its own section
-  between Doing and Done."* That is true of the screen and silent about the
+  `artifacts/rubrics/rev5.json`: _"Blocked is visibly present as its own section
+  between Doing and Done."_ That is true of the screen and silent about the
   board.
 
   **What this does and does not qualify.** It does NOT touch the format
@@ -4385,8 +4392,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   read-back observation. Six different mechanisms catch them. But "the broken
   run scored broken" is satisfied by a scorer that scores everything broken, so
   a clean fixture runs beside it: `BROKEN: pass 0 | fail 2 | cap-killed 1 |
-  contradiction 3, exit 1` against `CLEAN: pass 2 | fail 0 | contradiction 0,
-  exit 0`. Both run in CI with the real probe, and a missing `bun` fails loudly
+contradiction 3, exit 1` against `CLEAN: pass 2 | fail 0 | contradiction 0,
+exit 0`. Both run in CI with the real probe, and a missing `bun` fails loudly
   rather than skipping.
 
   **Two refusals rather than defaults, both correct.** The probe exits 2 if the
@@ -4503,8 +4510,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   own window first, and if the canary fails, every behavioural rule is skipped
   with a reason, no violations are emitted, and the CLI throws
   `gate-harness-unavailable`, classed `environment`. Verified live — from the
-  repo root the poll template now reports *"Your files are not implicated — do
-  not rewrite the app. This is the gate's environment, not the bundle"* instead
+  repo root the poll template now reports _"Your files are not implicated — do
+  not rewrite the app. This is the gate's environment, not the bundle"_ instead
   of a `smoke-render` violation. The canary needs its own window: sharing one
   leaves its shell root in the document the real run renders into, which was
   measured to change an activation-shortfall reason.
@@ -4614,8 +4621,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   has gone by is something a board may SHOW; it is not something a board may
   WRITE. "Passed" is derived at paint time, per-viewer like the theme, recorded
   nowhere — two members can briefly disagree and neither is wrong. "Closed" as
-  a stored fact is a host event and nothing else. The test: *does this change
-  what is IN the board, or what is ON the screen?*
+  a stored fact is a host event and nothing else. The test: _does this change
+  what is IN the board, or what is ON the screen?_
 
 ### The aged-board revision (Part I.5)
 
@@ -4634,7 +4641,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
 
   **Preflight: ABSENT on all four surfaces.** Both pattern sets passed their
   two-sided self-test, and the negative that matters was
-  `"Running total: 1 points · 1 game"` — it contains *Running*, so a witness
+  `"Running total: 1 points · 1 game"` — it contains _Running_, so a witness
   reaching for a bare `run` would have refused a request the board genuinely
   does not satisfy. The action negatives are the whole live action map
   (`report-win`/`draw`/`loss`), which are the near-misses a witness reaching
@@ -4704,8 +4711,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   fakeships**, never for production. That distinction is the whole error: a
   local workaround was read as evidence that the real thing was missing, and
   the reading was repeated in every report from Session 5 onward — including
-  6b's *"the moon→storage grant and the admin role — unchanged and still the
-  hard dependency"* — without one probe against a hosted ship. The cost of the
+  6b's _"the moon→storage grant and the admin role — unchanged and still the
+  hard dependency"_ — without one probe against a hosted ship. The cost of the
   probe was a question to someone with a hosted ship. The cost of not asking
   was four sessions of a blocking item that was never blocking.
 
@@ -4717,8 +4724,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   rule pointed at an assumption instead of an assertion.
 
 - **D151: the D149 record was written to a path that did not exist, and the
-  commit that claimed it did not contain it.** `d1803fb194` is titled *"docs:
-  the aged-board revision"* and contains the session report's §7 — but
+  commit that claimed it did not contain it.** `d1803fb194` is titled _"docs:
+  the aged-board revision"_ and contains the session report's §7 — but
   `git show HEAD:DECISIONS.md` ended at D148, and `grep -c D149 DECISIONS.md`
   returned 0. The 70 lines had gone to an untracked
   `packages/tlon-skill/DECISIONS.md`, created silently by a relative path
@@ -4731,9 +4738,9 @@ transcript is an audit that will be lost, and this project has now lost two.)
 - **D152: the cwd-dependent gate failure stays recorded as unreproduced, with
   its symptom named so a recurrence is diagnosed rather than rediscovered.**
   The class was fixed — a gate failure caused by the environment now reports
-  `gate-harness-unavailable` and tells the author *"Your files are not
+  `gate-harness-unavailable` and tells the author _"Your files are not
   implicated — do not rewrite the app. This is the gate's environment, not the
-  bundle"* — but the cause was never reproduced after a `dist` rebuild, and is
+  bundle"_ — but the cause was never reproduced after a `dist` rebuild, and is
   not claimed. **The symptom to watch for:** the gate failing for a template
   that passes from the package directory but not from the repo root, with
   `Attempting to define property on object that is not extensible`. If that
@@ -4773,10 +4780,10 @@ transcript is an audit that will be lost, and this project has now lost two.)
   answering hangs forever and bun's 120s deadline is the only thing that ends
   it.
 
-  | sequence | result |
-  | --- | --- |
-  | 3 in-process launches, no spawn | PASS ×3 |
-  | spawn, then 1 in-process launch | PASS |
+  | sequence                                         | result   |
+  | ------------------------------------------------ | -------- |
+  | 3 in-process launches, no spawn                  | PASS ×3  |
+  | spawn, then 1 in-process launch                  | PASS     |
   | in-process launch → 4 spawns → in-process launch | FAIL 2/2 |
 
   The mechanism inside Bun/Playwright is **not** claimed: it is consistent with
@@ -4793,7 +4800,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   `previewInSubprocess()` and collapses the private spawn helper into it, so
   the mix cannot be reintroduced by a browser test appended later. Three
   consecutive full runs of the exact CI invocation: `89 pass, 0 fail, 379
-  expect()` at 142.17s / 141.99s / 142.65s. Mutation-checked — pointing the
+expect()` at 142.17s / 141.99s / 142.65s. Mutation-checked — pointing the
   "finds nothing in the poll fixture" arm at `DEFECTIVE_BUNDLE` fails it with
   the full 74-line defect diff, so the subprocess path really drives a browser
   and the manifest survives the process boundary.
@@ -4859,8 +4866,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   one no reader could observe, and every difference a reader could observe
   moves the hash. The distinction is executable against the real
   `SurfaceSpecSchema`: `surfaceSpecHash(raw_with_undeclared_key) !==
-  surfaceSpecHash(raw)` while `surfaceSpecHash(parse(a)) ===
-  surfaceSpecHash(parse(b))`. If anyone moves the hash onto the validated view,
+surfaceSpecHash(raw)` while `surfaceSpecHash(parse(a)) ===
+surfaceSpecHash(parse(b))`. If anyone moves the hash onto the validated view,
   that assertion is what fails.
 
   Two mutations, both verified applied: deleting the spec comparison fails
@@ -4878,9 +4885,9 @@ transcript is an audit that will be lost, and this project has now lost two.)
   state, and nothing bound it — so a sheet could name the right bundle and the
   right spec while its images came from a starting state the spec never
   produces. Reachable through the bot's own documented workflow rather than a
-  corner case: `RUBRIC.md:301` instructs the scorer to do *"a separate
-  `--state` run against the example board"*, and `countdown/NOTES.md:170` says
-  the `--state` run is *"the only run that exercises 'Passed'"*. The sheet a
+  corner case: `RUBRIC.md:301` instructs the scorer to do _"a separate
+  `--state` run against the example board"_, and `countdown/NOTES.md:170` says
+  the `--state` run is _"the only run that exercises 'Passed'"_. The sheet a
   human actually fills in for `countdown` was the unbound one.
 
   Three details earn their place:
@@ -5140,7 +5147,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   check 7 gained a required `reachability` citation (D161). The tolerance list
   did not grow with it, so that one complaint survived the filter and
   `dev/surfaces-score.test.mjs`'s `NEGATIVE CONTROL — the clean run scores as
-  clean` began failing: every axis passed except `rubric`, on a fixture whose
+clean` began failing: every axis passed except `rubric`, on a fixture whose
   sheet carries `bundleSha256` and none of `specSha256` / `stateSha256` /
   `stateSource` / `reachability`.
 
@@ -5181,8 +5188,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   `command -v bun`. In the container bun lives at `~/.bun/bin` and is **not on
   the default PATH**, so under `docker exec` the check fails while bun sits
   right there. The script then fell through to the prebuilt npm binary and
-  printed *"Using prebuilt tlon-skill binary (set TLON_SKILL_FROM_SOURCE=1 to
-  rebuild from local source)"* — with `TLON_SKILL_FROM_SOURCE=1` already set.
+  printed _"Using prebuilt tlon-skill binary (set TLON_SKILL_FROM_SOURCE=1 to
+  rebuild from local source)"_ — with `TLON_SKILL_FROM_SOURCE=1` already set.
 
   Found by running it: the first rebuild attempt of this session took the
   prebuilt path and replaced a stale-but-branch-derived binary with the last
@@ -5217,17 +5224,17 @@ transcript is an audit that will be lost, and this project has now lost two.)
 
   `chat/~zod/dash-lihku4fx` — `srf-climbing-sessions`, a cold 6a.5-era board in
   `~zod/surface-seed`, revision 2. Request, imperative and group-qualified:
-  *"In the Surface seed group's climbing sessions board, order the climbers by
+  _"In the Surface seed group's climbing sessions board, order the climbers by
   who climbed most recently and show when each of them last climbed instead of
-  their session count."* Preflight ABSENT on all four surfaces beforehand.
+  their session count."_ Preflight ABSENT on all four surfaces beforehand.
 
-  | | |
-  | --- | --- |
-  | line survival | 67.7% (67 of 99) |
+  |               |                                                  |
+  | ------------- | ------------------------------------------------ |
+  | line survival | 67.7% (67 of 99)                                 |
   | word survival | **67.3%** (206 of 306) — below the 70% threshold |
-  | actions | 1 → 1, kept by id | 
-  | surfaceId | unchanged; revision 2 → 3 |
-  | bytes | 3395 → 3405 |
+  | actions       | 1 → 1, kept by id                                |
+  | surfaceId     | unchanged; revision 2 → 3                        |
+  | bytes         | 3395 → 3405                                      |
 
   **Why the label is wrong.** The 70% threshold was calibrated on ADDITIVE
   requests — D149's scored 100% because nothing had to be removed. This request
@@ -5260,7 +5267,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
   that returned ABSENT before the run returns **PRESENT** after it, matched at
   `"Last climb"`, with all five negatives still unmatched so it is not matching
   by accident. Painted text: `"… ~ten2026-08-31 ~zod2026-08-31 Last climbed
-  ~ten2026-08-31 ~zod2026-08-31"` — counts gone, dates in their place, footer
+~ten2026-08-31 ~zod2026-08-31"` — counts gone, dates in their place, footer
   removed.
 
   **The pre-registered caveat held.** Both climbers tie on `2026-08-31`, so the
@@ -5362,8 +5369,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   OLD definition forward verbatim.
 
   **Why the obvious fix is not a fix.** The only merge rule that is safe on
-  arbitrary member data is *seed keys the live state lacks, never touch a key it
-  has*. Under that rule the confirmed case is **not repaired**: `/itemOrder`
+  arbitrary member data is _seed keys the live state lacks, never touch a key it
+  has_. Under that rule the confirmed case is **not repaired**: `/itemOrder`
   exists on both sides, so the array stays four elements and the new row still
   never renders. The rules that would repair it are all unsafe — **replace**
   discards every reordering and append a member made, **concatenate** duplicates
@@ -5392,8 +5399,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
   Design (c) — document it — was ALREADY SHIPPED and it failed.
   `SKILL.md:205-215` and `PARADIGM.md:679-690` describe this exact bug in the
   imperative, with the two-step remedy, the fourth-poll-choice example, the
-  failure named — *"Publish the revision alone and you will tell the user it was
-  added while they look at the old three"* — and an instruction to confirm with
+  failure named — _"Publish the revision alone and you will tell the user it was
+  added while they look at the old three"_ — and an instruction to confirm with
   `surface state` **before** saying it landed. The bot had both documents, did
   the forbidden thing, and reported success. Documentation of the precise
   failure, in the skill the model reads, is not a sufficient control. That is
@@ -5514,7 +5521,7 @@ transcript is an audit that will be lost, and this project has now lost two.)
 
   **Why the obvious fix was impossible, not merely partial.** "Use the authored
   `state.json`" cannot reach the artifact the mechanism protects: `surface
-  publish` REFUSES a `--state` sheet by name (D157's `stateSha256` binding), so
+publish` REFUSES a `--state` sheet by name (D157's `stateSha256` binding), so
   the sheet that gates publish is always fold-based. Yesterday's guard closed
   the door on today's preferred remedy — worth recording, because that is the
   cost of a binding and it was not foreseen when the binding was written.
@@ -5543,8 +5550,8 @@ transcript is an audit that will be lost, and this project has now lost two.)
 - **D170: two guards for the same hazard, one silent and one loud, in the same
   hour — and the loud one is the pattern.** Adding the `count-agreement` rule
   broke `surfaces-eval-probe.ts`, which refuses to score when the gate holds a
-  rule it has not classified: *"REFUSING TO SCORE: the gate has rule(s) this
-  probe does not classify."* That is the correct shape, and its own comment says
+  rule it has not classified: _"REFUSING TO SCORE: the gate has rule(s) this
+  probe does not classify."_ That is the correct shape, and its own comment says
   why — defaulting would file a behavioural rule under `lint` on a scoreboard
   whose entire purpose is to keep those apart. `count-agreement` is now filed
   beside `jargon`, because the split those lists make is fold-versus-not rather
@@ -5556,3 +5563,506 @@ transcript is an audit that will be lost, and this project has now lost two.)
   fixed in a minute, one fails silently and has now been forgotten twice in two
   days. **The lesson is not "maintain the list"; it is that a list which must
   grow with an artifact should refuse rather than default.**
+
+## Session 6d — verification hardening
+
+Every item this session repaired an instrument, a claim, or a record. Nothing
+added capability. The organising fact is that the guards written before this
+project adopted its own rules were never re-audited under them, and the audit
+at the end of 6c found five that could not fail — including the one guard
+standing between untrusted model-generated JavaScript and the network.
+
+### The egress instrument
+
+- **D171: the sandbox egress test could not fail, and now can — measured, not
+  argued.** All five probes (fetch, XHR, WebSocket, image beacon, `sendBeacon`)
+  targeted `https://beacon.invalid/`, an RFC-6761 name that can never resolve.
+  Every "blocked" verdict was the branch a DNS failure takes, and the
+  network-level backstop was satisfied by DNS failure too. The correct harness —
+  a real attacker HTTP server, mandated by D43 as the standard for future leak
+  tests and named in `navigation.spec.ts` by name as the anti-pattern
+  `sandbox.spec.ts` embodied — was ~400 lines away in the same suite and had
+  never been back-ported.
+
+  Rebuilt on it. A blocked verdict is now **zero connections observed at a
+  server that was listening and would have answered**; every probe posts
+  `probe-armed` before firing, so a frame that never loaded cannot score as a
+  frame whose probes were all blocked; and the CSP-removed arm is a peer test
+  rather than a comment, so a probe that stops being able to reach the attacker
+  at all fails loudly instead of passing quietly. The WebSocket probe needed an
+  `upgrade` listener on the attacker: node routes a handshake there and not to
+  the request handler, so a connected WebSocket would otherwise have left no
+  trace — the same class of bug one level down.
+
+  **The demonstration, because "the test is better now" is exactly the sort of
+  claim this session exists to stop accepting.** Deleting the CSP meta from
+  `buildSandboxDocument` makes the enforced arm fail with `fetch reached the
+  attacker at /fetch — Expected: 0, Received: 1`. The `.invalid` version
+  survived that mutation unchanged. 195 tests pass across chromium, firefox and
+  webkit.
+
+  **`sendBeacon` is now asserted at all.** Its old comment correctly disclaimed
+  its return value as an egress signal — it reports queueing, not transmission —
+  and then nothing asserted the transmission either. Against a listening
+  attacker the transmission is observable, so it is.
+
+- **D171.1: the `window.top` / `localStorage` confound was real, and the answer
+  came from measuring it rather than reasoning about it.** Those two probes ran
+  on an `about:blank` host, so the PARENT had an opaque origin of its own; their
+  refusal could not be attributed to the sandbox's missing `allow-same-origin`.
+  Measured directly: on `about:blank`, granting `allow-same-origin` leaves
+  `localStorage` reporting `blocked` on all three engines. The flag makes no
+  difference there, so the old verdict was unattributable — it was the parent's
+  opacity doing the work.
+
+  The suite now serves its host page from a real origin, where granting the flag
+  DOES make both escapes succeed, and that arm ships as a control. This is the
+  general shape worth keeping: a guard whose positive result has two possible
+  causes has not measured either one.
+
+- **D171.2: the Navigation API vector, deferred since D93, is measured.** D93
+  recorded a bundle reaching the attacker origin through `window.navigation
+  .navigate()` on chromium WHILE PASSING THE GATE, and deferred the probe as "a
+  follow-up for that suite". Until now the matrix licensed "self-navigation is
+  blocked" for five spellings rather than as a class, and D36 forbids citing
+  "very likely blocked by `frame-src`" in place of a measurement.
+
+  Now `nav-navigation-api`, across all eight host configurations and three
+  engines. It reproduces D93 exactly — under `A/no-csp` on chromium it reaches
+  the attacker and commits its document — and the shipped policy blocks it at
+  preflight with zero hits, with the allowlist-the-attacker controls landing so
+  the block is attributable to source matching.
+
+  The API does not exist on firefox or webkit, and the probe **says so** rather
+  than navigating: an absent API produces zero hits, and scoring that as
+  `BLOCKED-PREFLIGHT` would credit the CSP with work it never did. That is the
+  same substitution of a failure branch for a verdict that made the `.invalid`
+  probes vacuous, so the classification `API-ABSENT` exists to make it
+  unrepresentable.
+
+- **D171.3: D43's redirect residual is CLOSED, and the answer is the good one.**
+  D43 named "redirect chains from an allowlisted origin to an attacker origin"
+  as known-untested and said it "must be measured before anyone calls the hole
+  closed"; D44 carries it as flip criterion 2, outstanding since session 4.
+  Every config in the matrix points the frame straight at the attacker, so none
+  of them exercised the hop that any non-empty allowlist reintroduces.
+
+  Measured with a third origin that 302s to the attacker: **all three engines
+  re-check the redirect target against `frame-src`.** Zero attacker hits, no
+  commit. The control — both origins allowlisted — lands, so the refusal is
+  about the destination and not about the redirect being broken. Still untested
+  from D43's list: `data:` / `blob:` navigation targets.
+
+- **D171.4: the posture suite runs in CI, on all three engines, and gates
+  merges.** It ran nowhere before, so per-PR protection against a sandbox
+  regression was a CSP *string* pinned in a unit test — which a change to the
+  iframe flags, the document assembly, or the host policy passes untouched. New
+  `sandbox-posture` job, `SANDBOX_ENGINES: all`, gated `app == 'true'` (the
+  filter that covers both `apps/tlon-web/**` and `packages/surface-shell/**`),
+  and appended to `ci-ok`'s `needs` so it blocks rather than merely reports.
+  All three engines because the vectors diverge by engine; a chromium-only run
+  would license a claim the matrix makes about three.
+
+- **D171.5: four artifacts said `frame-src` ships disabled. It ships
+  ENFORCING.** `ENFORCE_HOST_CSP` is `true`. The stale claim sat in
+  `surface-lint.ts`'s rule-5 docstring, in D93, and TWICE in plan §5 — the
+  prompt named three and the fourth was in the v0 security claim itself, the
+  single sentence most likely to be quoted at someone. All four corrected, and
+  §5 now states what the rebuilt suite actually demonstrates, with its probe
+  list, rather than a summary of it.
+
+  The honest residual is now stated where the claim is: `frame-src` is an
+  **origin allowlist, not a prohibition**. The two shipped sources stay
+  reachable, so the guarantee is origin-restricted navigation and never "no
+  navigation".
+
+### The two checks that shipped bypassable
+
+- **D172: the `$actor` exemption fell to MOVING the token, not removing it, and
+  the fix was one line.** The gate exempts an action from `no-op-control` when
+  every op "writes `$actor`". Its predicate was a faithful transliteration of
+  the reducer's `substituteActorInValue`, recursive descent included — and that
+  fidelity was the bug. **Substitution is a property of where the AUTHOR PUT the
+  token; ownership is a property of where the op WRITES**, and the gate never
+  looked at the second. So three shapes that all write SHARED paths took the
+  exemption:
+
+      set /tasks/theme        {"status":"doing","claimedBy":"$actor"}
+      set /tasks/theme/status {"v":"doing","by":"$actor"}
+      set /config/mode        ["fixed","$actor"]
+
+  All three passed `spec-schema`, `pointer-hygiene`, `action-idempotency` and
+  every other rule. Narrowing the value arm to "the value IS exactly `\"$actor\"`"
+  closes all three at zero cost: across all nine templates the token appears in
+  a value four times, all in `expense-split`, all the bare string. The recursive
+  arms had one synthetic test — which asserted the bypass — and no other user.
+
+  Control: with the arms restored, the three shapes report `noOpControls: []`;
+  with the narrowing, all three report. Both directions run.
+
+- **D172.1: the finding text published its own bypass to the party that
+  benefits.** The message ended _"an action whose every op writes `$actor` is
+  exempt"_, and `surface preview` prints `finding.message` verbatim into the
+  defect list the generating model reads and repairs against. Stripped. The rule
+  stays documented for humans in `RUBRIC.md`; a model repairing a defect needs
+  to know what is wrong, not which shape makes the check stop looking. A test
+  now asserts the message contains neither "exempt" nor "$actor".
+
+- **D172.2: nothing imported both readers of `$actor`, and now something
+  does.** The gate's detector and the reducer's substituter were written days
+  apart in different packages and held together only by sharing the placeholder
+  STRING — not its semantics. That is the raw-vs-validated class (D72) with no
+  test standing between the halves. The new differential test asserts the
+  agreement that must hold (nothing the gate exempts is a token the reducer
+  would ignore or refuse) AND pins the divergence that must NOT be closed (the
+  gate is strictly narrower on values). A future edit "restoring parity" by
+  widening the gate fails it — verified by making exactly that edit.
+
+- **D173: an action the reducer refuses on every path shipped green, and now
+  fails the gate.** An op with partial-segment `$actor` (`/votes/$actor-choice`)
+  is a hard grammar refusal, so the action is declared, drawn, pressable, and
+  incapable of ever moving the board. Every existing rule was structurally blind
+  to it: `pointer-hygiene` sees a legal pointer; `action-idempotency` sees two
+  identical states, **because a refused fold is trivially idempotent**; the
+  activation shortfall sees a control that does invoke it; and `no-op-control`
+  EXCLUDES it, because the walk skips aborted edges. A dead action was clean.
+
+  New rule 18, `inert-action`. The signal was already in hand and simply never
+  read — `reduceSurface` returns `abortedSequenceNums` and nothing in
+  `surface-lint.ts` looked at it. Control: the fixture spec lints `ok: true`
+  with the rule disabled and `ok: false` with it.
+
+  Scoped to yield when an earlier rule already reported on the same action: a
+  statically-malformed pointer also aborts every fold, and reporting both would
+  tell a repairing model that one broken path is two defects. The rule exists
+  for the refusal that passes every static check.
+
+  It also tripped `surfaces-eval-probe.ts`, which refuses to score when the gate
+  holds a rule it has not classified — the D170 mechanism working twice in three
+  days, on the author who wrote the entry about it.
+
+### Data consistency
+
+- **D174: two posts sharing a sequence number made the fold order-dependent,
+  and every determinism property excluded the case.** There is no unique index
+  on `(channelId, sequenceNum)`; two posts sharing one tied completely in the
+  comparator, so `Array.prototype.sort`'s stability handed the result to
+  whichever order the posts arrived in. Two clients holding identical posts
+  could hold different state — precisely what §6 promises cannot happen.
+
+  The four order-invariance properties could not see it: all four shuffle a
+  hand-built array whose sequence numbers come from a strictly-increasing
+  counter. **The failing input was outside the generator of the property that
+  was supposed to cover convergence.** Duplicates are now in it.
+
+  Tie-break is the host-stamped post id, which the host assigns on the same
+  event and increases in the same order. Compared numerically, not
+  lexicographically: canonical ids are dot-grouped variable-length `@ud` renders
+  (`170.141.184.505…`), so a plain string compare puts `9` after `10`. The field
+  is optional — absent, the sort falls back to the previous behaviour — and the
+  client adapter, which had been dropping `id`, now carries it.
+
+- **D175: an inflated `upToSequenceNum` could brick a channel permanently, and
+  the plan described the obligation as though it were a check.** A snapshot
+  claiming `upTo: 1_000_000` wins selection forever (selection takes the
+  greatest), freezes every real event beneath its boundary, and leaves the board
+  at `foldedEventCount: 0` — recoverable only by deleting that specific post.
+  The realistic trigger is not malice but a writer putting a millisecond
+  timestamp in the field.
+
+  Hydration already held the answer and never passed it: the server-advertised
+  head (`channels.lastPostSequenceNum`). It is now threaded to the reducer,
+  which skips any snapshot claiming coverage beyond it. **Skipping rather than
+  clamping** — a boundary that wrong means the writer's state is untrustworthy
+  too, so the honest move is to fold the real log.
+
+  Deliberately still true without a head: a caller that supplies none gets the
+  old behaviour, pinned by its own test. The reducer alone cannot tell an honest
+  boundary from a fabricated one, so this is a ceiling, not a proof.
+
+- **D176: `--preserve-state`'s semantic is a writer obligation, and is now
+  recorded as one.** D167's guard lives only in `surface publish`; the reducer
+  still replaces `initialState` wholesale, and every merge rule that would carry
+  an edit is unsafe. So Hermes, a hand-edited channel description, and the
+  client-executed publish v1 contemplates all reintroduce the bug at full
+  strength. It was written down only in a test comment and D167 — nowhere in the
+  plan.
+
+  Now in plan §4.3 and §7 (with the snapshot-boundary obligation, as the two
+  rules the reducer cannot enforce alone), and as a named out-of-scope case in
+  the hooks design note: both are host-authored, and the pre-filter must allow
+  every host event, so neither is reachable there. No new code beyond tests that
+  pin replace-wholesale as the documented contract, so a future "helpful merge"
+  has to delete an explicit test rather than quietly change a line.
+
+### The render path
+
+- **D177: a bundle that threw before `register` left a blank board forever, and
+  wiring `onShellError` would not have fixed it.** The audit read this as an
+  unplumbed callback. It is worse than that: on a module-evaluation throw the
+  shell posts **only `ready`**. The shell's script has already completed, the
+  bundle's separate script aborts, `register` is never reached, `app` stays
+  null, and every render short-circuits — so the host sees a healthy handshake
+  and an app that never draws. There was no error message to route. Passing the
+  callback would have changed nothing.
+
+  Two halves, therefore. The shell installs window `error`/`unhandledrejection`
+  handlers that report `init` while `app` is still null (after registration the
+  render path owns errors and reports them with the right phase). The host holds
+  the report, renders `SurfaceHaltedState` — distinct from bundle-unavailable,
+  because the bytes are fine and it is RUNNING them that failed — and offers a
+  reload that bumps the session key rather than reassigning `srcdoc`, since
+  reloading the same element is indistinguishable from the frame navigating
+  itself, which the host tears down as hostile.
+
+  Under the F6 rules the message may reach the card, which stays on device, and
+  never telemetry, which carries only a host-derived enum and a counter.
+
+  Control: a bundle with a ReferenceError on line one reports `init`; with the
+  handlers removed, the report array is empty.
+
+- **D178: the two halves of the render path were each tested against a fake of
+  the other, and the composition had a live bug neither could see.** The React
+  host suite mocks the shell artifact to `'void 0;'` and hand-dispatches the
+  ready handshake, so no shell runs and no real message is parsed. The shell
+  suite drives a hand-rolled iframe with no schema validation, no revision
+  cross-check and no permission re-check, posting `init` with a fabricated
+  one-action spec. Both were green while D177's bug was live — the host's stub
+  shell never throws, and the shell's harness has no host state to leave blank.
+
+  `composed.spec.ts` runs the real shell artifact, in a real browser iframe,
+  driven by the real `createSandboxSession` with `ShellToHostMessageSchema`
+  validation and the revision check active. The session is transport-agnostic by
+  construction, so the only thing the test supplies is the wire. The halves'
+  own tests stay; this is the composition, not a replacement.
+
+  **A premise of mine was wrong and the test caught it.** I wrote a
+  "stale-revision invoke is dropped" case on the belief that initializing the
+  session at a different revision would make the shell's invokes stale. The
+  session SENDS its spec in `init`, so the shell echoes back whatever revision
+  the host gave it and the two cannot disagree while the frame is the one this
+  session initialized. Rewritten to assert that premise compositionally, with
+  the check itself exercised by a labelled synthetic message — rather than
+  dressing a hand-made message up as shell behaviour.
+
+  Also removed before it shipped: a "the frame really is blank" assertion using
+  `contentDocument`, which is null across an opaque origin and would have read
+  as "blank" whether or not it was. A guard that cannot fail, written into the
+  file whose whole purpose is removing them.
+
+### Record and hygiene
+
+- **D179: the decision record's location is now checked mechanically, because
+  three entries have gone to the wrong file and the third went on the day the
+  check was written down.** `scripts/check-decisions-record.mjs` fails if any
+  `DECISIONS.md` exists outside the repo root, and fails if any document on the
+  branch cites a decision the tracked record does not define. It runs in
+  `ci-config-check` — the one job with no path filter — for the same reason
+  `check-ci-path-filters.mjs` does: a stray root markdown matches no filter, so
+  a gated guard would be skipped exactly when it is needed.
+
+  It caught this session's own forward references on its first run, before these
+  entries existed. Prompts are excluded, since a handoff prompt legitimately
+  names the number the next session will start at.
+
+  **Stated rather than implied: there is no working pre-commit hook to attach
+  this to.** `core.hooksPath` points outside the repository at a directory whose
+  real hook file does not exist, so the installed shim exits 0. A pre-commit
+  half would live outside git and could not be relied on; CI is the enforceable
+  half.
+
+- **D180: the NUL separators are gone, and the fix is an injective join rather
+  than a prettier delimiter.** `surface-transitions.ts` and
+  `dev/surfaces-score.mjs` used NUL and SOH as signature separators, which made
+  `file(1)` call them `data` and made plain `grep` skip them **silently, with
+  zero hits and no message** — three separate investigations lost time to it.
+
+  The obvious fix is wrong. Those separators were collision-proof for a real
+  reason: `canonicalJson` escapes every control character, so no token can
+  contain one. Every printable candidate — `::`, `|`, a space, `␟` — CAN appear
+  in a value, and a collision does not crash; it merges two distinct groups into
+  one silently wrong reachability row. So the signatures are now
+  `JSON.stringify([...])`: injective by construction, printable, and needing no
+  argument about the token alphabet at all.
+
+  Consequence recorded because it is not cosmetic: the scorer's digest changed,
+  so `surfaces-eval-baseline.json`'s `corpus.sha256` was regenerated in the same
+  commit. A stale one would have reported `corpusChanged: true` and read as
+  "somebody edited the questions".
+
+- **D181: plan §7 described the `$actor` key wrong, on six of nine templates.**
+  It said path substitution emits the RFC-6901-escaped form (`~0zod`). The code
+  substitutes into an already-unescaped segment list, so the real key is plain
+  `~zod` — escaping is a property of the pointer's TEXT, never of the key the
+  write lands on. The behaviour was right and the description was wrong, which
+  is the dangerous direction: an implementer following the plan literally
+  diverges.
+
+  **The parity check the prompt asked for cannot be run from this repo.** There
+  is no Python surface implementation here: `packages/hermes-tlon-adapter` has
+  53 `.py` files and zero hits for `$actor`, `ACTOR_PLACEHOLDER`, `json_pointer`
+  or `surface_spec` — every "surface" is the English word. The second
+  implementation, if it exists, is out of tree. Recorded as an open question
+  against the hermes repo rather than answered by inference.
+
+- **D182: a host op can write a literal `$actor` object KEY, contradicting
+  `jsonPointer.ts`'s own doc comment — noted, not fixed.** "Any `$actor` use
+  invalidates the op" holds for path segments and string values, not for keys:
+  `substituteActorInValue` walks `Object.keys` to recurse but assigns
+  `out[key]` unchanged. Nothing re-scans stored state, so it stays literal
+  forever. Left alone deliberately — substituting inside keys would make the
+  write path depend on data shape in a way the pointer grammar does not, and
+  refusing them would reject an app that legitimately wants that string as a
+  key. The note exists so the sentence above is not read as a guarantee.
+
+- **D183: housekeeping, each with its reason.** The truncated
+  `surface-channels-f1-navigation-escape.md` stub (309 bytes, ending mid-word,
+  untracked, no recoverable history) is deleted. The two seed fixtures that
+  cannot pass the gate they predate — `surface-chart` (`undeclared-action` on a
+  computed invoke) and `surface-revision` (`jargon` on the word "revision",
+  which its purpose requires it to display) — are marked **ungated by design**
+  in the seed doc, with the note that the right resolution is neither to rename
+  the fixture nor to weaken the denylist. All 29 `data-testid` attributes are
+  removed from the nine templates and `PRIMITIVES.md` now says not to write
+  them: nothing reads one, so they are markup that looks load-bearing and is
+  not.
+
+- **D184: `useSurfaceHydration` had no test, and under `staleTime: Infinity` its
+  dependency predicate is the only thing that ever refreshes a board.** Nothing
+  goes stale with time in this app; a query refetches only when an explicit
+  invalidation matches it, and the match is `query.queryKey[1] instanceof Set &&
+  setsOverlap(...)`. The position is a contract with `db/query.ts` that nothing
+  type-checks — the hook uses raw `useQuery` rather than `createReadQuery`, so
+  the Set is hand-placed. A key that put it anywhere else would silently never
+  refresh again, forever, with no error.
+
+  The key is now exported (`surfaceHydrationQueryKey`) so a test can assert the
+  real one rather than a copy, and the tests drive the REAL invalidation path —
+  a live `QueryObserver` on the module's own `queryClient`, with real writes —
+  rather than re-implementing the predicate, which would have been the vacuity
+  trap this session keeps finding. Positive cases: a post arriving, and D59's
+  scenario end to end (a group re-sync landing a new bundle hash moves a mounted
+  board on its own). Negative: an unrelated write leaves it alone.
+
+  Control: moving the Set off index 1 fails THREE tests, not just the shape
+  guard — the board keeps rendering its first fold forever, which is exactly the
+  silent failure the position protects against.
+
+  Two corrections to what I briefed, found by measurement: `insertChannelPosts`
+  declares only `['posts']`, not `['posts','channels']`; and the four-table
+  effect list I attributed to `insertGroups` is `updateGroup`'s. `insertGroups`'
+  own effects do include `channels`, which is what makes the D59 case work, and
+  `syncGroup` batches both in one ctx — so both routes to a re-sync land
+  `channels` in the effect set.
+
+- **D185: the four fixture states were finally LOOKED AT, and looking found
+  three things reading the code could not.** Their backend behaviour and code
+  paths had been verified; their rendered pixels never had. Screenshots are in
+  `audit-notes/screens/`.
+
+  Text matches the seed doc on all four (`surface-oversized`,
+  `surface-invalid`, `surface-future`, `surface-migration`), the oversized
+  Retry does re-fetch, and the invalid fixture's surface-event post correctly
+  appears only in the sidebar preview and never in the main pane. Then:
+
+  **The migration spinner is invisible. It rotates and paints nothing.** The
+  element is present, sized, visible and demonstrably animating — and both of
+  its circles compute to `stroke: none` and `fill: none`, so the region is
+  blank white in the capture. `LoadingSpinner` passes
+  `color={color ?? '$color.gray700'}`, and **`$color.gray700` is the only use
+  of the `$color.` dotted namespace anywhere in `packages/ui/src` or
+  `packages/app`** — every other component uses a bare theme key
+  (`$secondaryText`, `$negativeActionText`). The token exists
+  (`tamagui.config.ts:62`); that reference form does not resolve, so the stroke
+  is never set.
+
+  **This is the session's own thesis, arriving from outside.** A DOM or testID
+  assertion sees a spinner. A `visibility`/`opacity` check sees a spinner. A
+  user sees two lines of text and no motion. It is a guard-that-cannot-fail
+  wearing UI clothes, and nothing short of looking at the pixels could have
+  caught it.
+
+  **Not fixed here, deliberately.** There are 33 `<LoadingSpinner />` call
+  sites with no explicit colour across `packages/app`, `packages/ui` and
+  `apps/tlon-mobile`, so the one-line fix is an app-wide visual change well
+  outside a verification-hardening session, and I cannot confirm the corrected
+  token renders without a browser pass over those screens. Recorded with its
+  evidence so the next person starts from a diagnosis rather than a symptom.
+
+  **The mechanism, established from source rather than from the browser** —
+  which also rules out the environment hazard below as a cause, since this path
+  never touches CSS extraction. `Spinner.mjs` does
+  `if (color[0] === '$') color = variableToString(theme[color])`, so
+  `'$color.gray700'` is looked up as a THEME key and misses. `variableToString`
+  returns `` `${vrble || ''}` `` — an **empty string**, not `undefined`. React
+  Native Web's `ActivityIndicator` defaults `color` to `#1976D2` only when the
+  prop is `void 0`, so the empty string defeats its own fallback and reaches
+  `<circle style={{stroke: ''}}>`, whose computed value is `none`. Tamagui
+  converting a failed lookup to `''` is precisely what stops RNW's blue default
+  from covering the mistake.
+
+  **A finding I recorded and then had to withdraw, kept because withdrawing it
+  is the point.** I first recorded a second defect: that pressing Retry produces
+  no perceptible feedback, on a browser observation that sampled the DOM every
+  100ms for 2s and never caught the loading state. It does not hold.
+  `useSurfaceBundle`'s `retry` calls `setPhase({ status: 'loading' })`
+  synchronously, and `surfaceViewState` maps a loading bundle to the loading
+  view, which renders text as well as the spinner. A localhost fetch of a small
+  file completes in single-digit milliseconds, so a 100ms sampler would very
+  likely miss a state that genuinely mounted. **The observation was a
+  measurement artifact and I accepted it because it was adjacent to a real
+  finding** — the same reflex that let the synthetic populated-cell captures be
+  reported as three shipped defects in 6c (D169). The user-visible complaint may
+  still be real, but its cause is the invisible spinner alone.
+
+  **One smaller one that does hold:** the seed doc quotes two state strings with
+  trailing periods the UI does not have, which will break anyone writing an
+  exact-text assertion from the doc.
+
+  **An environment hazard worth writing down:** both dev servers were serving a
+  white screen, from a `@tamagui/vite-plugin` v2.4.2 cache bug — the extraction
+  cache lives on `globalThis` while the map that resolves the emitted
+  `X.tsx.tamagui.css` imports is per-plugin-instance, so once the factory
+  re-runs against a warm global cache every tamagui file emits a CSS import
+  nothing can resolve. It does not self-heal on reload. Worked around without
+  restarting anything by forcing per-file cache misses; the next dev-server
+  restart re-rolls it.
+
+- **D186: the claims index found five claims that are not merely uncontrolled
+  but FALSE at this head, and one of them was a fifth copy of the frame-src
+  error.** 126 claims enumerated across the plan, the PR description and the
+  how-it-works doc; 97 have a control, 89 of those have a demonstrated negative
+  control, 29 have none. The unfillable rows are the document's point and are
+  ranked at the top of it.
+
+  The five false ones, each verified by me before acting rather than taken on
+  the report's word:
+
+  1. **"Boundary checks: import allowlist, style boundary, token drift,
+     deterministic build" — claimed CI-enforced, run nowhere.** All four scripts
+     exist under `packages/surface-shell/scripts/` behind `check:all`, and
+     nothing invoked them: not `pnpm -r lint` (oxlint only), not `test:ci`
+     (vitest only), not any workflow. `check-token-drift.mjs` asserts in its own
+     output that it "fails CI when this file is stale", which was false.
+     **Wired rather than the claim weakened** — all four pass today, so the
+     honest repair is to make the sentence true.
+  2. `how-it-works.md:93` said the host CSP "ships disabled" — the FIFTH copy of
+     the error D171.5 corrected in four other places. Fixed. Five copies of one
+     stale fact across four artifacts is itself the finding.
+  3. The PR description says the gate runs "fifteen rules". It ran seventeen
+     before this session and eighteen after.
+  4. The PR description lists `surface fork` under "Not built". It is built,
+     registered in the command table, and has 51 test cases.
+  5. Plan §7's caps table states `provenance` as 512 B; the constant is 1024.
+
+  **The structural reason all five survived: `surface-doc-constants.test.ts`
+  pins only the four SKILL documents.** The plan, the how-it-works doc and the
+  PR body have no drift control at all. Deliberately NOT fixed by extending that
+  test to the plan: the skill docs are what a bot reads and are already pinned,
+  the plan is a design document read by humans, and adding a repo-root reader to
+  a skill-scoped test is machinery out of proportion to the blast radius. The
+  claims index is the control for that class now, and it is tracked.
+
+  Two of the five were introduced by this session's own work (3 and, indirectly,
+  the count in 5's neighbourhood), which is the argument for the index existing
+  at all rather than being a one-off audit artifact.

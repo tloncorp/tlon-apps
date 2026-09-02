@@ -6,6 +6,18 @@ import * as sync from '../sync';
 import { HydrateSurfaceOptions, hydrateSurface } from './hydration';
 
 /**
+ * Exported because the deps `Set` has to sit at index 1 and nothing checks
+ * that: `withCtxOrDefault`'s invalidation predicate (`db/query.ts`) reads
+ * `query.queryKey[1]` and no other position, so a key that moves the Set
+ * type-checks, renders, and then never refreshes again. Building the key
+ * here keeps that contract in one place and lets tests assert the real key
+ * rather than a copy of it.
+ */
+export function surfaceHydrationQueryKey(channelId: string) {
+  return ['surfaceHydration', new Set(['posts', 'channels']), channelId];
+}
+
+/**
  * Live surface hydration over the store's query layer. The deps `Set` at
  * queryKey[1] subscribes this to table-level invalidation for `posts` and
  * `channels`, so live post arrivals, deletions/edits, and spec changes
@@ -23,10 +35,13 @@ export function useSurfaceHydration({
   channelId: string;
   enabled?: boolean;
 } & Pick<HydrateSurfaceOptions, 'pageSize' | 'maxPages'>) {
-  const deps = useMemo(() => new Set(['posts', 'channels']), []);
+  const queryKey = useMemo(
+    () => surfaceHydrationQueryKey(channelId),
+    [channelId]
+  );
   return useQuery({
     enabled,
-    queryKey: ['surfaceHydration', deps, channelId],
+    queryKey,
     queryFn: () =>
       hydrateSurface({
         channelId,

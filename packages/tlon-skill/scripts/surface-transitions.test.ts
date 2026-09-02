@@ -565,16 +565,83 @@ describe('an idempotent action is not a no-op control', () => {
     expect(report.noOpControls).toEqual([]);
   });
 
-  it('exempts $actor nested inside a value', () => {
+  /**
+   * The three bypasses that closed the recursive value arms (D172).
+   *
+   * Each writes a SHARED path — the board moves for everyone or not at all
+   * — while burying `$actor` somewhere in the value so the old arms granted
+   * the ownership exemption. All three passed `spec-schema`,
+   * `pointer-hygiene`, `action-idempotency` and every other rule, and all
+   * three were verified against the real `analyzeReachability` on this
+   * exact one-node self-loop, not against the predicate alone.
+   *
+   * These are the negative controls for the narrowing: before it, every one
+   * of them returned `noOpControls: []`.
+   */
+  const RELOCATION_BYPASSES: {
+    label: string;
+    ops: { op: string; path: string; value: unknown }[];
+  }[] = [
+    {
+      label: 'S1 — token merged into a shared object write',
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/theme',
+          value: { status: 'doing', claimedBy: '$actor' },
+        },
+      ],
+    },
+    {
+      label: 'S2 — token stamped onto the shared op itself',
+      ops: [
+        {
+          op: 'set',
+          path: '/tasks/theme/status',
+          value: { v: 'doing', by: '$actor' },
+        },
+        { op: 'set', path: '/claims/$actor', value: 'theme' },
+      ],
+    },
+    {
+      label: 'S3 — token buried in an array element',
+      ops: [{ op: 'set', path: '/config/mode', value: ['fixed', '$actor'] }],
+    },
+  ];
+
+  for (const bypass of RELOCATION_BYPASSES) {
+    it(`reports a shared write that only RELOCATES $actor: ${bypass.label}`, () => {
+      const report = analyzeReachability(
+        selfLoop(),
+        syntheticSpecWithOps({
+          'vote-pizza': bypass.ops as never,
+        })
+      );
+      expect(report.noOpControls).toEqual([
+        { actionId: 'vote-pizza', deadStates: 1, renderedStates: 1 },
+      ]);
+      expect(report.findings.map((finding) => finding.kind)).toEqual([
+        'no-op-control',
+      ]);
+    });
+  }
+
+  it('the finding text does not publish the exemption it grants', () => {
+    // `finding.message` is printed verbatim into the defect list the
+    // generating model repairs against, so naming the exemption's condition
+    // handed a bypass to the party that benefits from it.
     const report = analyzeReachability(
       selfLoop(),
       syntheticSpecWithOps({
         'vote-pizza': [
-          { op: 'set', path: '/claims/ferry', value: { by: ['$actor'] } },
+          { op: 'set', path: '/tasks/theme/status', value: 'doing' },
         ],
       })
     );
-    expect(report.noOpControls).toEqual([]);
+    const message = report.findings[0]?.message ?? '';
+    expect(message).toContain('does not move');
+    expect(message).not.toContain('exempt');
+    expect(message).not.toContain('$actor');
   });
 
   it('reports a SHARED write with no $actor anywhere', () => {

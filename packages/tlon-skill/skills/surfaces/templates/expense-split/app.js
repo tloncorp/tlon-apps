@@ -271,7 +271,7 @@
       // appears only there is a fact half the group never reads.
       return html`
         <${Card} title=${state.trip || 'Trip costs'}>
-          <div data-testid="split-summary">
+          <div>
             <${Stat}
               value=${money(currency, total)}
               label="paid so far"
@@ -318,7 +318,7 @@
                       </div>
                     `}
                   >
-                    <div data-testid=${'split-cost-' + cost.id}>
+                    <div>
                       ${cost.label}
                       <${Badge}>${money(currency, cost.cents)}<//>
                     </div>
@@ -382,7 +382,7 @@
                       </div>
                     `}
                   >
-                    <div data-testid=${'split-member-' + ship}>${ship}</div>
+                    <div>${ship}</div>
                   <//>
                 `;
               })}
@@ -402,14 +402,7 @@
                         >${money(currency, payment.cents)}<//
                       >`}
                     >
-                      <div
-                        data-testid=${'split-payment-' +
-                        payment.from +
-                        '-' +
-                        payment.to}
-                      >
-                        ${payment.from + ' pays ' + payment.to}
-                      </div>
+                      <div>${payment.from + ' pays ' + payment.to}</div>
                     <//>
                   `;
                 })}

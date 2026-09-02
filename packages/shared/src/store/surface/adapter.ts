@@ -34,6 +34,9 @@ export function toSurfacePostView(post: db.Post): SurfacePostView {
     isEdited: post.isEdited,
     isDeleted: post.isDeleted,
     blob: post.blob,
+    // the tie-break key for two posts sharing a sequence number (D174);
+    // without it the fold depends on the order rows came back in
+    id: post.id,
   };
 }
 
@@ -45,15 +48,23 @@ export function reduceSurfaceChannel({
   channelId,
   spec,
   posts,
+  advertisedHead,
 }: {
   channelId: string;
   spec: SurfaceSpec;
   posts: db.Post[];
+  /**
+   * The channel's server-advertised head. Supplied so a snapshot claiming
+   * coverage beyond the posts that exist is refused rather than freezing
+   * the board forever (D175).
+   */
+  advertisedHead?: number | null;
 }): SurfaceReduction {
   const input: ReduceSurfaceInput = {
     spec,
     hostShip: canonicalShipId(parseGroupChannelId(channelId).host),
     posts: posts.map(toSurfacePostView),
+    advertisedHead,
   };
   return reduceSurface(input);
 }
