@@ -48,7 +48,7 @@ export COMPOSE_PROJECT_NAME TEST_COMPOSE_PROJECT_NAME
 OPENCLAW_CORE_VERSION="${OPENCLAW_CORE_VERSION:-2026.8.2}"
 case "$OPENCLAW_CORE_VERSION" in
   2026.5.28) derived_expect_prewarm=0 ;;
-  2026.6.11|2026.7.1|2026.8.2) derived_expect_prewarm=1 ;;
+  2026.6.11|2026.7.1|2026.8.1|2026.8.2) derived_expect_prewarm=1 ;;
   *)
     if [ -z "${TEST_EXPECT_OPENCLAW_PREWARM:-}" ]; then
       echo "Error: TEST_EXPECT_OPENCLAW_PREWARM must be explicit for OpenClaw $OPENCLAW_CORE_VERSION"
