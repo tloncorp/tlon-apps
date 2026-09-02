@@ -676,11 +676,15 @@ says what was walked, the scorer says what it means.
 #### What the loop did not verify
 
 The rubric was **not audited** — publish enforced completeness, and whether the
-bot's twelve observations were any good was never checked. Seven of nine boards
-were verified by definition and folded-state read-back rather than by eye. Every
-interaction was `~ten` alone: no two-member contention, no read-only screen, no
-dark theme. Two of nine requests ended their first turn with a clarifying
-question rather than a build, and those were not re-run for determinism.
+bot's twelve observations were any good was never checked. Every interaction was
+`~ten` alone: no two-member contention, no read-only screen, no dark theme. Two
+of nine requests ended their first turn with a clarifying question rather than a
+build, and those were not re-run for determinism.
+
+**At the time this section was written, no board had been looked at** — all nine
+were verified by definition and folded-state read-back. That was the gap, and
+§10 is what closed it: the two defects that mattered most in this loop were
+visible in a render and invisible to every mechanical check that passed them.
 
 ---
 
