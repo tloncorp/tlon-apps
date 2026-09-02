@@ -74,6 +74,11 @@ export function clearCronServiceAccessor(): void {
   cronServiceAccessorSlot.set(null);
 }
 
+/** The stashed accessor, for monitor-side code that must reach the cron service. */
+export function getCronServiceAccessor(): CronServiceAccessor | null {
+  return cronServiceAccessorSlot.get();
+}
+
 function optionalString(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
