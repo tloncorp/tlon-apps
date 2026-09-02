@@ -9,6 +9,7 @@ export type FileReadToolResult = {
 };
 
 export type FileReadFinalizeInput = {
+  background?: boolean;
   runId?: string;
   lastAssistantMessage?: string;
   messages?: unknown[];
@@ -94,12 +95,14 @@ const GERUND_PROGRESS_STATE =
   /^(?:opening|reading|loading|checking|inspecting|fetching|analyzing|summari[sz]ing|reviewing|processing|parsing|scanning|pasting|displaying|showing|printing)\b(?:\s+[\p{L}\p{N}_.-]+){0,5}\s+(?:is|are|was|were|will\s+be|would\s+be)\s+(?:underway|pending|next|ongoing|in\s+progress|not\s+yet\s+(?:done|complete)|still\s+(?:running|happening))\b/iu;
 const DEFERRED_COMPLETION_TAIL =
   /\b(?:will|would|going\s+to)\b[^.!?\n]{0,100}\b(?:next|soon|later|shortly|afterward)\b/i;
+const CONCISE_RESULT_SENTENCE =
+  /^(?:yes|no|true|false|none|empty|clean|valid|invalid|passed|failed|success(?:ful)?|unchanged|(?:no|zero)\s+[\p{L}\p{N}_-]+|\d+(?:\.\d+)?(?:\s+[\p{L}\p{N}_-]+)?)\b[.!?]*$/iu;
 const TRUNCATION_MARKER =
-  /^\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/im;
+  /(?:^|\r?\n)\s*\[(?:(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*\d+\s+of\s+\d+(?:[^\]]*)|truncated\s+output(?:[^\]]*\b\d+\b[^\]]*)?)\]\s*$/i;
 
 function nextOffsetFromTruncationMarker(text: string): number | null {
   const match =
-    /^\s*\[(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*(\d+)\s+of\s+\d+(?:[^\]]*)\]\s*$/im.exec(
+    /(?:^|\r?\n)\s*\[(?:showing|reading)\s+lines?\s+\d+\s*[-–—]\s*(\d+)\s+of\s+\d+(?:[^\]]*)\]\s*$/i.exec(
       text
     );
   if (!match?.[1]) return null;
@@ -228,7 +231,7 @@ function contentAnchors(text: string): string[] {
   const candidates = text
     .split(/\r?\n/)
     .map((line) => line.replace(/^\s*\d+[→|:]\s?/, '').trim())
-    .filter((line) => line.length > 0 && !TRUNCATION_MARKER.test(line));
+    .filter((line) => line.length > 0);
   const selected = [
     candidates[0],
     candidates[0]?.length > MAX_ANCHOR_LENGTH
@@ -396,7 +399,7 @@ export function isIncompleteFileDeliveryReply(reply: string): boolean {
   const hasVisibleResultSentence = laterSentences.some((sentence) => {
     const wordCount = sentence.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
     return (
-      wordCount >= 3 &&
+      (wordCount >= 3 || CONCISE_RESULT_SENTENCE.test(sentence)) &&
       !PROGRESS_ONLY.test(sentence) &&
       !COMPLETION_PREFIX.test(sentence) &&
       !DEFERRED_COMPLETION_TAIL.test(sentence) &&
@@ -787,7 +790,10 @@ export function createFileReadCompletionGuard(options?: {
       const targets = new Map(existing?.targets ?? []);
       const targetKey = readTarget(input.params) ?? UNKNOWN_TARGET;
       const existingTarget = targets.get(targetKey);
-      const chunkAnchors = contentAnchors(text);
+      const resultWasTruncated = TRUNCATION_MARKER.test(text);
+      const chunkAnchors = contentAnchors(
+        resultWasTruncated ? text.replace(TRUNCATION_MARKER, '') : text
+      );
       const offset = readOffset(input.params);
       const startsFreshVersion =
         existingTarget != null && !existingTarget.truncated && offset === 0;
@@ -810,7 +816,6 @@ export function createFileReadCompletionGuard(options?: {
       ) {
         anchorGroups.push(chunkAnchors);
       }
-      const resultWasTruncated = TRUNCATION_MARKER.test(text);
       const continuedFromExpectedOffset =
         existingTarget?.truncated === true &&
         existingTarget.nextOffset !== null &&
@@ -873,7 +878,7 @@ export function createFileReadCompletionGuard(options?: {
     beforeFinalize(input: FileReadFinalizeInput): FileReadRevision | null {
       const runId = input.runId?.trim();
       const reply = input.lastAssistantMessage ?? '';
-      if (!runId) return null;
+      if (!runId || input.background) return null;
       const state = runs.get(runId);
       const userRequest = lastUserRequest(input.messages);
       if (

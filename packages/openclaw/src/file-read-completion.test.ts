@@ -69,6 +69,7 @@ describe('file read completion guard', () => {
     'Done.',
     'Finished.',
     "I've read the file. It will be summarized next.",
+    "I've read the file. Next.",
   ])('recognizes formatted or silent incomplete output: %s', (reply) => {
     expect(isIncompleteFileDeliveryReply(reply)).toBe(true);
   });
@@ -88,12 +89,26 @@ describe('file read completion guard', () => {
     }
   );
 
+  it('does not revise an intentionally silent background run', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('silent-background'));
+
+    expect(
+      guard.beforeFinalize({
+        background: true,
+        runId: 'silent-background',
+        lastAssistantMessage: 'NO_REPLY',
+      })
+    ).toBeNull();
+  });
+
   it.each([
     'The CSV contains 31 daily rows and peaks on August 20.',
     'Reading the file, I found 31 rows and a peak on August 20.',
     "I've read the file and found 31 rows with an August 20 peak.",
     'Reading level is grade 5.',
     'Processing took 12 seconds.',
+    "I've read the file. No errors.",
     `${CSV}\n`,
     'I could not read the file because permission was denied.',
   ])('does not flag a substantive final reply: %s', (reply) => {
@@ -634,6 +649,20 @@ describe('file read completion guard', () => {
     });
     expect(revision?.retry.instruction).toContain('Continue reading');
     expect(revision?.retry.instruction).not.toContain('Do not call read again');
+  });
+
+  it('preserves a literal non-terminal truncation marker as file content', () => {
+    const guard = createFileReadCompletionGuard();
+    const content =
+      'Captured output:\n[Showing lines 1-20 of 40]\nThis is the actual final line.';
+    guard.recordToolResult(successfulRead('literal-marker', content));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'literal-marker',
+        lastAssistantMessage: `Here are the requested contents:\n${content}`,
+      })
+    ).toBeNull();
   });
 
   it('does not accept sampled lines as a complete truncated delivery', () => {

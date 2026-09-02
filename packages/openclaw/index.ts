@@ -978,6 +978,7 @@ export default defineBundledChannelEntry({
       logError: (message) => api.logger.warn(`[tlon] ${message}`),
     });
     const fileReadCompletion = createFileReadCompletionGuard();
+    const backgroundFileReadRuns = new Set<string>();
 
     api.registerTool({
       name: 'tlon',
@@ -1509,6 +1510,14 @@ export default defineBundledChannelEntry({
       jobId?: string;
       runId?: string;
     }) => {
+      const runId = ctx.runId?.trim();
+      if (runId && ctx.trigger) {
+        if (ctx.trigger === 'cron') {
+          backgroundFileReadRuns.add(runId);
+        } else {
+          backgroundFileReadRuns.delete(runId);
+        }
+      }
       if (ctx.trigger === 'cron') {
         rememberCronJobForSession(ctx.sessionKey, ctx.jobId);
         recordTlonCronAgentContext({
@@ -1547,8 +1556,10 @@ export default defineBundledChannelEntry({
     api.on('model_call_started', async (_event, ctx) => onCronAgentHook(ctx));
 
     api.on('before_agent_finalize', (event, ctx) => {
+      const runId = event.runId ?? ctx.runId;
       const revision = fileReadCompletion.beforeFinalize({
-        runId: event.runId ?? ctx.runId,
+        background: runId ? backgroundFileReadRuns.has(runId) : false,
+        runId,
         lastAssistantMessage: event.lastAssistantMessage,
         messages: event.messages,
         sessionKey: event.sessionKey ?? ctx.sessionKey,
@@ -1566,6 +1577,7 @@ export default defineBundledChannelEntry({
     // tool call) still finalize, while leaving time for the gateway to
     // deliver the reply (stamped + recorded via the outbound send path).
     api.on('agent_end', (_event, ctx) => {
+      backgroundFileReadRuns.delete(_event.runId ?? ctx.runId ?? '');
       clearCronJobForSession(ctx.sessionKey, ctx.jobId);
       fileReadCompletion.clear(_event.runId ?? ctx.runId);
       if (!contextLensEnabled) {
