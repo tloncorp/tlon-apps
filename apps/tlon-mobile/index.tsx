@@ -19,10 +19,7 @@ import 'expo-dev-client';
 import { useEffect, useRef } from 'react';
 import { AppState, Platform, TurboModuleRegistry } from 'react-native';
 import 'react-native-get-random-values';
-import {
-  KeyboardController,
-  KeyboardProvider,
-} from 'react-native-keyboard-controller';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import {
   ReanimatedLogLevel,
   configureReanimatedLogger,
@@ -104,19 +101,13 @@ function MainInner() {
 
   useJsHeartbeat(isDbReady);
 
-  useEffect(() => {
-    if (isDbReady && Platform.OS === 'ios') {
-      KeyboardController.preload();
-    }
-  }, [isDbReady]);
-
   return isDbReady ? <App /> : null;
 }
 
 function Main() {
   return (
     <RootErrorBoundary>
-      <KeyboardProvider preload={false}>
+      <KeyboardProvider>
         <MainInner />
       </KeyboardProvider>
     </RootErrorBoundary>
