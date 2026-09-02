@@ -2,8 +2,20 @@ import type * as db from '@tloncorp/shared/db';
 import { appendToPostBlob } from '@tloncorp/shared/logic';
 import { range } from 'lodash';
 import type { ComponentProps, PropsWithChildren, SetStateAction } from 'react';
-import { useCallback, useMemo, useRef, useState } from 'react';
-import { Button, SafeAreaView, Switch, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Button,
+  FlatList,
+  SafeAreaView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import {
+  SafeAreaProvider,
+  SafeAreaView as UpstreamSafeAreaView,
+} from 'react-native-safe-area-context';
 import { Label, XStack, YStack } from 'tamagui';
 
 import { ShipProvider } from '../contexts/ship';
@@ -48,6 +60,121 @@ const wrappingPost = createFakePost('chat', wrappingPostContent, undefined, {
 const wrappingPosts = range(50).map(() =>
   createFakePost('chat', wrappingPostContent, undefined, { replyCount: 0 })
 );
+
+type UpstreamWrappingItem = {
+  type: 'heading' | 'body';
+  text: string;
+};
+
+// Exact content and layout preceding the deterministic failure in
+// facebook/react-native#53450. Keep the order and copy unchanged: the bug is
+// sensitive to width and vertical position.
+const upstreamWrappingItems: UpstreamWrappingItem[] = [
+  { type: 'heading', text: 'Lorem Ipsum' },
+  { type: 'heading', text: 'Lorem Ipsum Dolor Sit Amet' },
+  {
+    type: 'body',
+    text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
+  },
+  {
+    type: 'body',
+    text: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.',
+  },
+  {
+    type: 'body',
+    text: 'Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.',
+  },
+  {
+    type: 'body',
+    text: 'Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem.',
+  },
+  { type: 'heading', text: 'Ut Enim Ad Minim Veniam' },
+  {
+    type: 'body',
+    text: 'At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi.',
+  },
+  {
+    type: 'body',
+    text: 'Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.',
+  },
+  {
+    type: 'body',
+    text: 'Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.',
+  },
+  {
+    type: 'body',
+    text: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.',
+  },
+  {
+    type: 'body',
+    text: 'Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+  },
+  { type: 'heading', text: 'Consectetur Adipiscing Elit' },
+  {
+    type: 'body',
+    text: 'Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo.',
+  },
+  {
+    type: 'body',
+    text: 'Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet.',
+  },
+  {
+    type: 'body',
+    text: 'Consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit. This sentence is cut off.',
+  },
+  {
+    type: 'body',
+    text: 'Nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?',
+  },
+];
+
+const upstreamWrappingStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#ecf0f1' },
+  textContainer: { marginBottom: 16, marginHorizontal: 16 },
+  headingText: { fontWeight: 'bold', fontSize: 28 },
+  text: { fontSize: 17, lineHeight: 24 },
+});
+
+function UpstreamTextWrappingRepro() {
+  const listRef = useRef<FlatList<UpstreamWrappingItem>>(null);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      listRef.current?.scrollToOffset({ offset: 1335, animated: false });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      <SafeAreaProvider style={upstreamWrappingStyles.container}>
+        <UpstreamSafeAreaView style={upstreamWrappingStyles.container}>
+          <FlatList
+            ref={listRef}
+            data={upstreamWrappingItems}
+            initialNumToRender={upstreamWrappingItems.length}
+            keyExtractor={(_, index) => String(index)}
+            renderItem={({ item }) => (
+              <View style={upstreamWrappingStyles.textContainer}>
+                <Text
+                  allowFontScaling={false}
+                  style={
+                    item.type === 'heading'
+                      ? upstreamWrappingStyles.headingText
+                      : upstreamWrappingStyles.text
+                  }
+                >
+                  {item.text}
+                </Text>
+              </View>
+            )}
+            showsVerticalScrollIndicator
+          />
+        </UpstreamSafeAreaView>
+      </SafeAreaProvider>
+    </View>
+  );
+}
 const notebookPosts = createFakePosts(5, 'note');
 const onboardingCompletePost = createFakePost();
 onboardingCompletePost.blob = appendToPostBlob(undefined, {
@@ -398,6 +525,7 @@ function createTestChannelUnread({
 
 export default {
   chat: <ChannelFixture negotiationMatch={true} theme={'light'} />,
+  upstreamTextWrappingRepro: <UpstreamTextWrappingRepro />,
   chatMessageWrapping: (
     <ChannelFixture
       negotiationMatch={true}
