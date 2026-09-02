@@ -801,6 +801,233 @@ describe('surface publish — preserving state', () => {
 });
 
 /**
+ * The revision whose `initialState` edit lands nowhere.
+ *
+ * Reproduced live on a board during a nine-template session: revision 2's spec
+ * declared a fifth item in an ordered list and an action writing to it, the
+ * lint passed, the publish passed, the read-back confirmed the description
+ * carried exactly that definition — and the live state stayed at four items,
+ * because a preserving revision folds from the migration snapshot and the
+ * snapshot is the state as it stood under revision 1. Four sibling templates
+ * in the same run took the identical shape and DID land, but only because a
+ * compensating host event was also posted. Nothing required that event.
+ *
+ * The shape below is the real one: a new entry in an ordered list, a new nested
+ * record for it, and a new declared action writing to that record.
+ */
+describe('surface publish — a preserving revision that edits initialState', () => {
+  /** Revision 1's starting point: four items, one action. */
+  function baseState(): Record<string, unknown> {
+    return {
+      bringing: { '~zod': 'bread' },
+      itemOrder: ['house', 'van', 'food', 'ferry'],
+      items: { house: {}, van: {}, food: {}, ferry: {} },
+    };
+  }
+
+  /** Revision 2's: a fifth item in the order, its record, and its action. */
+  function revisedSpec() {
+    const base = specFile({ initialState: baseState() }) as Record<
+      string,
+      unknown
+    >;
+    const state = baseState();
+    state.itemOrder = [...(state.itemOrder as string[]), 'lift'];
+    state.items = { ...(state.items as Record<string, unknown>), lift: {} };
+    return {
+      ...base,
+      initialState: state,
+      actions: {
+        ...(base.actions as Record<string, unknown>),
+        'paid-lift': {
+          ops: [{ op: 'set', path: '/items/lift/paid/$actor', value: true }],
+        },
+      },
+    };
+  }
+
+  /**
+   * Revision 1 published, plus one member action, so the board carries state
+   * that a revision has something to preserve.
+   */
+  async function liveBoard() {
+    const harness = setup({ spec: specFile({ initialState: baseState() }) });
+    expect(await publish(harness)).toBe(0);
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~ten',
+      kind: '/chat/surface/event',
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: 'srf-potluck',
+          specRevision: 1,
+          mode: 'invoke',
+          actionId: 'bring-salad',
+        },
+      ]),
+    });
+    return harness;
+  }
+
+  it('refuses, naming every path the carried state will not have', async () => {
+    const harness = await liveBoard();
+    const writesBefore = harness.ship.descriptionWrites.length;
+    const postsBefore = (harness.ship.posts.get(CHANNEL) ?? []).length;
+
+    revise(harness, revisedSpec());
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+
+    const result = harness.json();
+    expect(result.code).toBe('initial-state-changed');
+    const details = result.details as Record<string, unknown>;
+    expect(details.errorClass).toBe('author');
+    // Both halves of the real shape, and nothing else: the array that gained
+    // an element and the record that gained a key. A guard that only noticed
+    // added KEYS would miss `/itemOrder` — which is the half the renderer
+    // reads — and a guard that only compared canonical JSON would name the
+    // whole document and tell the author nothing.
+    expect(details.divergedPaths).toEqual(['/itemOrder', '/items/lift']);
+    expect(details.previousRevision).toBe(1);
+    expect(String(result.message)).toContain('/itemOrder');
+    expect(String(result.message)).toContain('tlon surface event');
+
+    // Nothing was written: no definition, no mirror, no snapshot.
+    expect(harness.ship.descriptionWrites).toHaveLength(writesBefore);
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(postsBefore);
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
+    expect(stored.specRevision).toBe(1);
+  });
+
+  /**
+   * THE POSITIVE CONTROL, and it is deliberately not a variant of the test
+   * above: this revision edits the spec everywhere EXCEPT `initialState`, on a
+   * board whose live state has already drifted away from every `initialState`
+   * ever declared. A guard that refused any preserving revision, or any
+   * revision whose live state differs from the spec's starting point, passes
+   * the refusal test and fails this one.
+   */
+  it('preserves a drifted board when initialState is untouched', async () => {
+    const harness = await liveBoard();
+    revise(
+      harness,
+      specFile({ initialState: baseState(), title: 'Trip, renamed' })
+    );
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    expect(harness.json().specRevision).toBe(2);
+
+    const snapshot = blobEntries(harness).find(
+      (entry) => (entry as { type?: string }).type === 'surface-snapshot'
+    ) as Record<string, unknown> | undefined;
+    // The DRIFTED state, carried whole — ~ten's salad included.
+    expect(snapshot?.state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'salad' },
+      itemOrder: ['house', 'van', 'food', 'ferry'],
+      items: { house: {}, van: {}, food: {}, ferry: {} },
+    });
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const folded = harness.json();
+    expect(folded.status).toBe('reduced');
+    expect(folded.specRevision).toBe(2);
+    expect((folded.state as Record<string, unknown>).bringing).toEqual({
+      '~zod': 'bread',
+      '~ten': 'salad',
+    });
+  });
+
+  /**
+   * THE REGRESSION CONTROL on the four templates that did land: the revision
+   * is waived, and the compensating host event is posted after it. The result
+   * has to be a board carrying BOTH the preserved data and the new item, with
+   * the event folded exactly once — the boundary sits below it, so a snapshot
+   * that also contained it would double-apply the append.
+   */
+  it('lands the change when a host event carries it, and folds it once', async () => {
+    const harness = await liveBoard();
+    revise(harness, revisedSpec());
+    expect(
+      await publish(harness, [
+        '--preserve-state',
+        '--allow-initial-state-change',
+      ])
+    ).toBe(0);
+    expect(harness.json().specRevision).toBe(2);
+    // The waiver is said out loud, with the remedy in it.
+    expect(harness.err()).toContain('--allow-initial-state-change');
+    expect(harness.err()).toContain('tlon surface event');
+
+    // The snapshot carries the state as it stood: no `lift`, which is the
+    // whole point of the refusal this run waived.
+    const snapshot = blobEntries(harness).find(
+      (entry) => (entry as { type?: string }).type === 'surface-snapshot'
+    ) as Record<string, unknown> | undefined;
+    expect(snapshot).toBeDefined();
+    expect((snapshot!.state as Record<string, unknown>).itemOrder).toEqual([
+      'house',
+      'van',
+      'food',
+      'ferry',
+    ]);
+
+    // The compensating host event, which is what the four templates that
+    // landed had and the ones that did not lacked.
+    expect(
+      await run(
+        [
+          'event',
+          CHANNEL,
+          '--append',
+          '/itemOrder',
+          '"lift"',
+          '--set',
+          '/items/lift',
+          '{}',
+          '--json',
+        ],
+        harness.deps
+      )
+    ).toBe(0);
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const folded = harness.json();
+    expect(folded.status).toBe('reduced');
+    expect(folded.state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'salad' },
+      itemOrder: ['house', 'van', 'food', 'ferry', 'lift'],
+      items: { house: {}, van: {}, food: {}, ferry: {}, lift: {} },
+    });
+    // Exactly one event above the snapshot boundary: the append ran once.
+    expect(folded.foldedEventCount).toBe(1);
+
+    // And it stays folded once on a second, independent fold.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect((harness.json().state as Record<string, unknown>).itemOrder).toEqual(
+      ['house', 'van', 'food', 'ferry', 'lift']
+    );
+  });
+
+  it('says nothing about initialState when the revision does not preserve', async () => {
+    // Without `--preserve-state` the new `initialState` IS the state, so
+    // changing it is the ordinary way to reset a board and nothing is wrong.
+    const harness = await liveBoard();
+    revise(harness, revisedSpec());
+
+    expect(await publish(harness)).toBe(0);
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const folded = harness.json();
+    expect((folded.state as Record<string, unknown>).itemOrder).toEqual([
+      'house',
+      'van',
+      'food',
+      'ferry',
+      'lift',
+    ]);
+  });
+});
+
+/**
  * A preserving publish over a channel whose definition cannot be read.
  *
  * There is nothing to fold the channel's existing events under — that is what

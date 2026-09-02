@@ -1,6 +1,7 @@
 import type { SurfaceSpec } from '@tloncorp/api';
 
 import { canonicalJson } from '../surface-canonical-json';
+import { initialStateDivergence, plainObject } from '../surface-initial-state';
 import {
   type RubricArtifact,
   rubricResiduals,
@@ -47,6 +48,13 @@ import {
  * would take out the whole CLI rather than one command.
  */
 export const ALLOW_UNREADABLE_FLAG = '--allow-unreadable-definition';
+
+/**
+ * The acknowledgment for a preserving revision whose `initialState` moved.
+ *
+ * Declared here for the same temporal-dead-zone reason as the flag above.
+ */
+export const ALLOW_INITIAL_STATE_CHANGE_FLAG = '--allow-initial-state-change';
 
 export const SURFACE_PUBLISH_HELP = `Usage: tlon surface publish <channel> --bundle <path> --spec <path> --rubric <path> [options]
 
@@ -101,6 +109,13 @@ Options:
                         boundary tagged with a revision that no longer folds,
                         so the ops it lost can never be re-posted — check
                         \`tlon surface state\` first
+  ${ALLOW_INITIAL_STATE_CHANGE_FLAG}
+                        Preserve state even though this revision's
+                        \`initialState\` differs from the one the channel is
+                        leaving. A preserving revision folds from the carried
+                        state and NEVER reads \`initialState\`, so the change
+                        lands nowhere. Publish with this flag only when the
+                        host event carrying the same change is going out too
   --json                Emit a machine-readable result
   -h, --help            Show this help
 
@@ -409,6 +424,7 @@ export async function runSurfacePublish(
         '--allow-surface-id-change',
         ALLOW_UNREADABLE_FLAG,
         ALLOW_ABORTED_FLAG,
+        ALLOW_INITIAL_STATE_CHANGE_FLAG,
       ],
     },
     SURFACE_PUBLISH_HELP
@@ -713,6 +729,9 @@ export async function runSurfacePublish(
   if (preserveState) {
     migration = await foldForMigration(deps, resolved, current, published, {
       allowAborted,
+      allowInitialStateChange: parsed.flags.has(
+        ALLOW_INITIAL_STATE_CHANGE_FLAG
+      ),
       specRevision: decision.revision,
     });
   }
@@ -1131,6 +1150,93 @@ export async function uploadSurfaceBundle(
   }
 }
 
+/** How many diverged paths a refusal spells out before summarising. */
+const DIVERGENCE_PATHS_SHOWN = 8;
+
+function divergenceSummary(paths: string[]): string {
+  const shown = paths.slice(0, DIVERGENCE_PATHS_SHOWN).join(', ');
+  return paths.length > DIVERGENCE_PATHS_SHOWN
+    ? `${shown} (and ${paths.length - DIVERGENCE_PATHS_SHOWN} more)`
+    : shown;
+}
+
+/**
+ * Refuses a preserving revision that edits `initialState`, because the edit
+ * lands nowhere.
+ *
+ * A preserving revision folds from the migration snapshot, and the snapshot is
+ * the state as it stood under the OLD definition. `spec.initialState` is read
+ * only when there is no snapshot, which for a preserving revision is exactly
+ * the case that renders migration-pending. So every key the new `initialState`
+ * adds, retypes, or drops is inert: the board goes on rendering from state that
+ * never heard about it, `surface lint` passes (it renders the spec's own
+ * starting state, which is fine), publish passes, and the read-back confirms
+ * the description carries precisely the definition that will not be used. Every
+ * check reports success and the change is not there.
+ *
+ * Measured, not theorised: in one nine-template session several revisions took
+ * this shape. Four of them — poll, potluck, habit-tracker, leaderboard — ALSO
+ * posted a host event carrying the same change into live state, and those four
+ * landed. Nothing in the pipeline required that event. The expense board did
+ * not post one and shipped a declared action writing to a key nothing drew,
+ * with the lint, the publish and the read-back all reporting success.
+ *
+ * **Why this refuses instead of merging the two states.** Only one merge rule
+ * is safe on arbitrary member data — seed the keys the live state lacks, never
+ * touch a key it has — and on the case that produced this refusal that rule
+ * does nothing, because the ordered list it has to grow is present on both
+ * sides and an array is a leaf. The rules that would grow it are replace
+ * (discards every reordering and append members made), concatenate (duplicates
+ * every carried element) and union (invents an order the author never wrote).
+ * A merge that is safe cannot fix this and a merge that fixes this is not safe,
+ * so the tool does not guess: it names the paths and hands them back.
+ *
+ * **The comparison is old-`initialState` against new-`initialState`, never
+ * against the live state.** The live state differs from any `initialState` the
+ * moment a member acts — that is what preserving is FOR — so comparing against
+ * it would refuse every preserving revision ever published. Two declared
+ * starting states, on the other hand, differ only where an author edited one,
+ * so the diff is exactly this revision's intent, and a revision that leaves
+ * `initialState` alone is silent here however far the board has drifted.
+ *
+ * Both sides are plain objects by the time this runs: `initialState` is
+ * schema-required to be one, `deps.validateSpecValue` has already checked the
+ * candidate, and `JsonObjectSchema` is a `z.unknown()` refinement that returns
+ * the value it was handed — so the validated `current.initialState` is the raw
+ * one, and no raw-versus-validated gap (D72) opens here.
+ */
+function assertInitialStateCarried(
+  deps: SurfaceDeps,
+  channelId: string,
+  current: SurfaceSpec,
+  published: Record<string, unknown>,
+  options: { allowed: boolean; specRevision: number }
+): void {
+  const diverged = initialStateDivergence(
+    plainObject(current.initialState) ?? {},
+    plainObject(published.initialState) ?? {}
+  );
+  if (diverged.length === 0) {
+    return;
+  }
+  const summary = divergenceSummary(diverged);
+  if (!options.allowed) {
+    throw surfaceError(
+      'initial-state-changed',
+      `This revision changes ${channelId}'s initialState at ${summary}, and --preserve-state means the new initialState is never read: revision ${options.specRevision} folds from the state the channel already holds, so the change would land nowhere and every check would still report success. Carry it in as data — publish with ${ALLOW_INITIAL_STATE_CHANGE_FLAG} and then post the same change with \`tlon surface event ${channelId}\` — or publish without --preserve-state to start this revision from its own initialState, which discards what members have put in. Nothing was written.`,
+      {
+        channel: channelId,
+        specRevision: options.specRevision,
+        previousRevision: current.specRevision,
+        divergedPaths: diverged,
+      }
+    );
+  }
+  deps.stderr(
+    `Preserving state across revision ${options.specRevision} of ${channelId} even though its initialState changed at ${summary}, on the strength of ${ALLOW_INITIAL_STATE_CHANGE_FLAG}. The migration snapshot carries the state as it stands; none of those paths are in it. Post the matching ops with \`tlon surface event ${channelId}\` and confirm with \`tlon surface state ${channelId}\`.\n`
+  );
+}
+
 /**
  * The state a preserving revision carries across, folded under the definition
  * it is leaving.
@@ -1153,12 +1259,22 @@ async function foldForMigration(
   resolved: { channelId: string; hostShip: string },
   current: SurfaceSpec | null,
   published: Record<string, unknown>,
-  options: { allowAborted: boolean; specRevision: number }
+  options: {
+    allowAborted: boolean;
+    allowInitialStateChange: boolean;
+    specRevision: number;
+  }
 ): Promise<{
   state: Record<string, unknown>;
   upToSequenceNum: number;
   abortedSequenceNums: number[];
 }> {
+  if (current) {
+    assertInitialStateCarried(deps, resolved.channelId, current, published, {
+      allowed: options.allowInitialStateChange,
+      specRevision: options.specRevision,
+    });
+  }
   const hydrated = await hydratePosts(deps, resolved.channelId);
   if (!hydrated.complete) {
     throw surfaceError(
@@ -1191,14 +1307,8 @@ async function foldForMigration(
     // is the true answer rather than a default — and it covers no sequence at
     // all, which is what the boundary has to say. The snapshot still has to
     // exist, or the surface renders migration-pending forever.
-    const initialState = published.initialState;
     return {
-      state:
-        typeof initialState === 'object' &&
-        initialState !== null &&
-        !Array.isArray(initialState)
-          ? (initialState as Record<string, unknown>)
-          : {},
+      state: plainObject(published.initialState) ?? {},
       upToSequenceNum: 0,
       abortedSequenceNums: [],
     };

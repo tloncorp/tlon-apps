@@ -53,6 +53,7 @@ export const SURFACE_ERROR_CODES = [
   'spec-version-too-new',
   'spec-file-invalid',
   'surface-id-changed',
+  'initial-state-changed',
   'lint-failed',
   'upload-failed',
   'publish-unconfirmed',
@@ -127,6 +128,12 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     'spec-version-too-new': 'environment',
     'spec-file-invalid': 'author',
     'surface-id-changed': 'author',
+    // The spec file declares a starting state a preserving revision will not
+    // apply. The caller owns that file and owns the command line, and both
+    // remedies are theirs — carry the change in as a host event, or publish
+    // without `--preserve-state` — so this is `author` for the same reason
+    // `surface-id-changed` is.
+    'initial-state-changed': 'author',
     'lint-failed': 'author',
     // The GATE could not run — its own known-good canary bundle failed to
     // render, so nothing the behavioral phase would have said about the

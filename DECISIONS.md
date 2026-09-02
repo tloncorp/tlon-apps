@@ -5346,3 +5346,84 @@ transcript is an audit that will be lost, and this project has now lost two.)
   Recorded rather than built. It is the first thing to fix before any further
   format measurement, because every number D130 rests on came from this
   instrument.
+
+### `--preserve-state` refuses a revision it cannot carry
+
+- **D167: publish now refuses a preserving revision whose `initialState`
+  changed, because a merge that is SAFE cannot fix the bug and a merge that
+  fixes it is not safe.**
+
+  D165 found `--preserve-state` silently discarding a revision's new state. The
+  drop is two lines: `reducer.ts:268` sets
+  `state = snapshot ? snapshot.state : spec.initialState` — the snapshot
+  REPLACES `initialState`, never merges with it — and the migration gate above
+  it means a preserving spec **never reads `spec.initialState` on any reachable
+  path**. Publish's `foldForMigration` then carries the state folded under the
+  OLD definition forward verbatim.
+
+  **Why the obvious fix is not a fix.** The only merge rule that is safe on
+  arbitrary member data is *seed keys the live state lacks, never touch a key it
+  has*. Under that rule the confirmed case is **not repaired**: `/itemOrder`
+  exists on both sides, so the array stays four elements and the new row still
+  never renders. The rules that would repair it are all unsafe — **replace**
+  discards every reordering and append a member made, **concatenate** duplicates
+  every carried element, **union** invents an order the author never wrote. So
+  the choice was never merge-versus-refuse; it was refuse, or ship the
+  elaborate approximation this project has a rule against.
+
+  **The comparison axis is the design.** The diff is old `initialState` against
+  new `initialState`, **never** new `initialState` against live state. Live
+  state diverges from any declared start the moment a member acts — that is what
+  preserving is FOR — so comparing against it would refuse every preserving
+  revision. Two declared starting states differ only where an author edited one,
+  so the diff is exactly this revision's intent. Arrays are compared whole as
+  leaves, because array elements have no cross-revision identity; the refusal
+  can say `/itemOrder` differs and not which element, and that is the honest
+  limit rather than a guess. Removed keys are reported, never deleted. A retype
+  refuses without picking a winner, because picking one is the guess being
+  refused.
+
+  Cleared by `--allow-initial-state-change` (the D99 waiver pattern this file
+  already uses three times), which prints the two-step remedy. A refusal with no
+  remedy would be circular: the compensating host event must be tagged with the
+  new revision, so the publish has to happen first.
+
+  **The finding that justifies a mechanism at all, and it is the strongest part.**
+  Design (c) — document it — was ALREADY SHIPPED and it failed.
+  `SKILL.md:205-215` and `PARADIGM.md:679-690` describe this exact bug in the
+  imperative, with the two-step remedy, the fourth-poll-choice example, the
+  failure named — *"Publish the revision alone and you will tell the user it was
+  added while they look at the old three"* — and an instruction to confirm with
+  `surface state` **before** saying it landed. The bot had both documents, did
+  the forbidden thing, and reported success. Documentation of the precise
+  failure, in the skill the model reads, is not a sufficient control. That is
+  empirical, from this session's own loop, and it is the general lesson: where a
+  doctrine sentence and a refusal are both available, the sentence has now been
+  measured and found insufficient.
+
+  Controls in all three directions: the negative built from the real shape
+  (`itemOrder` gains an element AND `items` gains a key — both halves asserted);
+  a genuinely separate positive on a board whose live state had already drifted
+  with `initialState` untouched, which must still publish; and a regression
+  control that waives, publishes, posts the compensating host event, and checks
+  the boundary sits below the event so nothing double-applies.
+
+  Three mutations, each applied by an anchored replace that **asserts exactly
+  one occurrence** so a formatter-shifted anchor aborts rather than silently
+  no-opping — the failure mode that bit this session earlier. Neutering the
+  guard kills 2 and the positive control SURVIVES, as it must. Making the leaf
+  comparison blind kills 3, including the array case — the blind spot a safe
+  merge would have had. Comparing against `{}` (refuse-everything) kills 16,
+  which is what proves the positive control is not vacuous.
+
+  Suite 1302 pass / 13 skip / 4 fail against a 1291 baseline; the 4 are the
+  known local `media-guard` TLS failures.
+
+  **Not fixed, deliberately:** the same drop exists on both repair paths
+  (`surface-records.ts:975` and publish's stranded retry), left alone because
+  they run on channels already migration-pending and refusing would strand an
+  unusable board further. And **the waiver is a two-step the tool still cannot
+  verify** — nothing checks the host event was ever posted. The structurally
+  complete fix is a `--migrate-ops` input applied in the same command, making it
+  atomic; that is a feature with its own validation surface and is the first
+  candidate for next session.

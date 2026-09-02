@@ -214,6 +214,15 @@ publish` refuses without it.** Changing the spec invalidates the sheet even
    `tlon surface state <channel>` before you say it landed. See §13 of
    `tlon surface doctrine`.
 
+   **The tool now refuses this rather than leaving it to memory.** A
+   `--preserve-state` publish whose `initialState` differs from the one the
+   channel currently holds fails with `initial-state-changed`, naming every
+   path that will not be in the carried state. Take the refusal as the
+   instruction it is: you are about to ship half of a two-step change. Publish
+   with `--allow-initial-state-change` **and then post the matching host
+   event** — both, in that order — or publish without `--preserve-state` if a
+   reset is genuinely what the user asked for.
+
 ## Rules that are never optional
 
 - **State changes are events; UI changes are revisions.** Never publish a new

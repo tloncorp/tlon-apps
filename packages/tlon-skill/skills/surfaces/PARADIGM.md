@@ -694,6 +694,13 @@ Publish the revision alone and the user is told the choice was added, opens
 the channel, and sees the old three. Read the state back with
 `tlon surface state <channel>` before you claim a change landed.
 
+`surface publish` enforces this: a `--preserve-state` revision whose
+`initialState` differs from the one the channel holds is refused as
+`initial-state-changed`, with every path the carried state will not have named
+in the message. The refusal is cleared by `--allow-initial-state-change`, which
+is an acknowledgment that the host event is still to come — not a substitute
+for it.
+
 - **Any content change bumps the revision** — including a bundle-bytes-only
   change. `surface publish` does this; a byte-identical republish is reported
   as an explicit no-op, never a silent bump.
