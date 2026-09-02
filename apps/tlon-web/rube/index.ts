@@ -838,8 +838,8 @@ const hoodCommand = async (ship: ShipName, command: string, port: string) => {
 
 const shipsAreReadyForCommands = () => {
   const shipsArray = Object.values(ships);
-  const results = shipsArray.map(({ extractPath, ship }) => {
-    if (targetShip && targetShip !== ship) {
+  const results = shipsArray.map(({ extractPath, ship, skipCommit }) => {
+    if ((targetShip && targetShip !== ship) || skipCommit === true) {
       return true;
     }
 
@@ -892,8 +892,8 @@ const getPortsFromFiles = async () =>
     console.log('Getting loopback ports from .http.ports files');
     const shipsArray = Object.values(ships);
 
-    shipsArray.forEach(({ extractPath, ship }) => {
-      if (targetShip && targetShip !== ship) {
+    shipsArray.forEach(({ extractPath, ship, skipCommit }) => {
+      if ((targetShip && targetShip !== ship) || skipCommit === true) {
         return;
       }
 
@@ -971,11 +971,7 @@ const mountDesks = async () => {
     }
 
     console.log(`Mounting tlon on ${ship.ship}`);
-    await hoodCommand(
-      ship.ship as ShipName,
-      `mount %tlon`,
-      ship.loopbackPort
-    );
+    await hoodCommand(ship.ship as ShipName, `mount %tlon`, ship.loopbackPort);
   }
 
   // Wait for mounts to complete
@@ -1036,13 +1032,9 @@ const installTlonDesk = async () => {
   console.log('Installing %tlon desk on fresh ships');
 
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
-    if (ship.skipCommit === true) {
-      continue;
-    }
-
     console.log(`Creating %tlon desk on ${ship.ship}`);
     await hoodCommand(
       ship.ship as ShipName,
@@ -1057,9 +1049,35 @@ const installTlonDesk = async () => {
   console.log('Tlon desk installed on all ships');
 };
 
+const suspendLegacyGroupsOnShips = async () => {
+  console.log('Suspending legacy %groups desk on all ships');
+
+  for (const ship of Object.values(ships) as Ship[]) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
+      continue;
+    }
+
+    try {
+      await hoodCommand(
+        ship.ship as ShipName,
+        'suspend %groups',
+        ship.loopbackPort
+      );
+    } catch (e) {
+      // Some development piers may already omit %groups. Continue so the
+      // %tlon desk can still be installed and started on those ships.
+      console.warn(`Unable to suspend %groups on ${ship.ship}:`, e);
+    }
+  }
+
+  // Let Gall stop the legacy agents before %tlon revives agents with the
+  // same names.
+  await new Promise((resolve) => setTimeout(resolve, 3000));
+};
+
 const nukeStateOnShips = async () => {
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
@@ -1067,7 +1085,7 @@ const nukeStateOnShips = async () => {
       console.log(`Nuking state on ${ship.ship}`);
       await hoodCommand(
         ship.ship as ShipName,
-        'nuke %tlon, =desk &, =hard &',
+        'nuke %groups, =desk &, =hard &',
         ship.loopbackPort
       );
     } catch (e) {
@@ -1076,17 +1094,28 @@ const nukeStateOnShips = async () => {
 
     // Give the nuke command time to complete
     await new Promise((resolve) => setTimeout(resolve, 3000));
+  }
 
-    try {
-      console.log(`Reviving tlon on ${ship.ship}`);
-      await hoodCommand(
-        ship.ship as ShipName,
-        'revive %tlon',
-        ship.loopbackPort
-      );
-    } catch (e) {
-      console.error(`Error reviving tlon on ${ship.ship}:`, e);
+  await reviveTlonOnShips();
+};
+
+const reviveTlonOnShips = async () => {
+  for (const ship of Object.values(ships) as Ship[]) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
+      continue;
     }
+
+    console.log(`Reviving tlon on ${ship.ship}`);
+    // |revive begins an asynchronous Gall startup, but Hood can keep the
+    // request open until that startup completes. Dispatch it and let the
+    // subsequent readiness check observe the actual result instead.
+    void hoodCommand(
+      ship.ship as ShipName,
+      'revive %tlon',
+      ship.loopbackPort
+    ).catch((e) => {
+      console.error(`Error reviving tlon on ${ship.ship}:`, e);
+    });
   }
 
   // Wait for revive to complete
@@ -1097,7 +1126,7 @@ const login = async () => {
   console.log('Logging in to fake ships');
 
   for (const ship of Object.values(ships) as Ship[]) {
-    if (targetShip && targetShip !== ship.ship) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
@@ -1239,10 +1268,7 @@ const assertShipHealthy = async (
 
 const getStartHashes = async () => {
   for (const ship of Object.values(ships) as Ship[]) {
-    if (
-      (targetShip && targetShip !== ship.ship) ||
-      ship.skipCommit === true
-    ) {
+    if ((targetShip && targetShip !== ship.ship) || ship.skipCommit === true) {
       continue;
     }
 
@@ -2119,8 +2145,10 @@ const main = async () => {
     let shipsNeedingUpdates: string[];
 
     if (FRESH_BOOT) {
-      // Fresh boot: install desk from scratch, skip nuke
+      // Fresh boot: install the desk from scratch. Stop the legacy desk first
+      // so its agents do not prevent %tlon from owning their names.
       await installTlonDesk();
+      await suspendLegacyGroupsOnShips();
       await getStartHashes();
 
       // Mount desks so Urbit writes its current state to filesystem
@@ -2129,6 +2157,7 @@ const main = async () => {
       // Copy our desk files and commit
       shipsNeedingUpdates = await copyDesks();
       await commitDesks(shipsNeedingUpdates);
+      await reviveTlonOnShips();
       await checkShipReadinessForTests(shipsNeedingUpdates);
 
       // Set up reel after desk is fully installed
@@ -2143,6 +2172,7 @@ const main = async () => {
 
       // Nuke state and set reel service ship before mount/commit operations,
       // this makes it more likely that the ships will be ready for click commands
+      await suspendLegacyGroupsOnShips();
       await nukeStateOnShips();
       // Only set reel service ship if ~mug is running (optional ships included)
       if (INCLUDE_OPTIONAL_SHIPS) {

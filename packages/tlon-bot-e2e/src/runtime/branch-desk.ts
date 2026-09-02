@@ -230,9 +230,7 @@ export async function applyBranchDesk(
             await replaceMountedDesk(ctx, ship, dependencies);
             await assertDeskMatches(ctx, ship, manifest, dependencies);
           }
-          if (
-            (await tlonHash(endpoint, cookie, dependencies)) === startHash
-          ) {
+          if ((await tlonHash(endpoint, cookie, dependencies)) === startHash) {
             await hoodCommand(ctx, ship, 'commit %tlon', dependencies);
           }
           await waitForDeskReady(endpoint, cookie, startHash, dependencies);
@@ -495,14 +493,11 @@ async function waitForTlonHash(
   cookie: string,
   dependencies: BranchDeskDependencies
 ) {
-  return dependencies.waitFor(
-    () => tlonHash(endpoint, cookie, dependencies),
-    {
-      timeoutMs: 30_000,
-      intervalMs: 1_000,
-      description: `${endpoint.ship} %tlon desk in kiln`,
-    }
-  );
+  return dependencies.waitFor(() => tlonHash(endpoint, cookie, dependencies), {
+    timeoutMs: 30_000,
+    intervalMs: 1_000,
+    description: `${endpoint.ship} %tlon desk in kiln`,
+  });
 }
 
 async function waitForDeskReady(
