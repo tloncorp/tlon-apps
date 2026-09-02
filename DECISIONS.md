@@ -866,6 +866,33 @@ style-src 'unsafe-inline'`) as the resource gate. Outbound
   self-destruct its own surface — but it is a real behavioral consequence
   of enforcement, not a reason against it.
 
+- **D44 AMENDMENT (session 6d): the flip criteria are met, and the flip
+  happened.** D44 recorded the enforcing `<meta>` as "written and gated off
+  behind `ENFORCE_HOST_CSP` … deliberately NOT shipped this session." That
+  was true when written and is now two sessions stale; `ENFORCE_HOST_CSP =
+  true` in `apps/tlon-web/hostCsp.ts`, and the same stale sentence had to be
+  corrected in five other places (D171.5, D186). Against the four amended
+  criteria:
+
+  1. **Met.** A `SecurityPolicyViolationEvent` listener is wired
+     (`apps/tlon-web/src/logic/hostCspViolations.ts`, feeding telemetry under
+     the F6 rules), so a clean Report-Only run is evidence rather than
+     "nobody looked"; the flip followed a Report-Only pass over the full e2e
+     suite that drained 101 pages with zero violations.
+  2. **Met, D171.3.** The redirect residual is measured on all three engines:
+     an allowlisted origin answering with a 302 to a non-allowlisted one is
+     refused at the destination, with a both-origins-allowlisted control
+     proving the hop is reachable. Open since session 4.
+  3. **Accepted, unchanged.** Production enforcement failures are still
+     silent — `report-uri` is still unavailable in `<meta>`. The violation
+     listener covers dev and preview, not production.
+  4. **Accepted, unchanged.** Rollback is a glob redeploy.
+
+  What D44 did not list and remains open: `data:` / `blob:` navigation
+  targets, the other half of D43's residual. And the claim the flip licenses
+  is stated precisely in plan §5 now — `frame-src` is an origin allowlist,
+  so the guarantee is origin-restricted navigation, never "no navigation".
+
 - **D43 AMENDMENT (after the B-layer landed).** D43 recorded that "cells
   are identical across all four probes ... that uniformity is itself
   asserted." **That is no longer true, deliberately.** The B-layer's
@@ -5926,6 +5953,13 @@ standing between untrusted model-generated JavaScript and the network.
   removed from the nine templates and `PRIMITIVES.md` now says not to write
   them: nothing reads one, so they are markup that looks load-bearing and is
   not.
+
+  **The orphan `chat/~zod/dash-ltjbt690` is cleared** — after the session's
+  report was written, once the CLI was rebuilt (the stale binary was the only
+  reason it was declined). `tlon channels delete`, invoked inside the container
+  with its env-driven loopback target and never the `--ship` flag; the ship's
+  re-query answers `not found in any group`. A `create` that landed when its
+  `publish` did not, now gone, with nothing else referencing it.
 
 - **D184: `useSurfaceHydration` had no test, and under `staleTime: Infinity` its
   dependency predicate is the only thing that ever refreshes a board.** Nothing

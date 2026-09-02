@@ -254,11 +254,13 @@ the rule; all 29 `data-testid` attributes removed from the templates, with
 `PRIMITIVES.md` now saying not to write them. One recorded-not-fixed: a host op
 can write a literal `$actor` object _key_, contradicting a doc comment (**D182**).
 
-**The orphan `dash-ltjbt690` was NOT cleared.** It is a dev-ship artifact with
-no repo footprint, and clearing it is a ship-side write; with the CLI stale at
-the time and the `--ship` flag off limits I left it rather than improvise a
-write path. The CLI has since been rebuilt (§1), so that reason no longer holds. It is
-visible in the §7 capture, in the sidebar, as "Dev storage E2E".
+**The orphan `dash-ltjbt690` is cleared** — after this report was first
+written. It is a dev-ship artifact with no repo footprint, and clearing it is a
+ship-side write; with the CLI stale at the time I declined rather than improvise
+a write path. Once the CLI was rebuilt (§1) that reason was gone, and it went
+through `tlon channels delete` inside the container, env-driven, never the
+`--ship` flag; the ship's re-query answers `not found in any group`. It is still
+visible in the §7 capture, which predates the deletion, as "Dev storage E2E".
 
 ---
 
@@ -421,8 +423,6 @@ The two sibling workflows at the time of this push — Hermes Tlon Adapter CI: i
 - **`data:` / `blob:` navigation targets**, the other half of D43's residual.
 - **The spinner fix**, for the blast-radius reason in §7 — 33 call sites across
   three packages make a one-line change an app-wide visual change.
-- **The orphan channel.** Declined mid-session while the CLI was stale; now that
-  the CLI is rebuilt the block is gone and it is simply not done.
 - **The Python parity check**, which is not answerable from this repo.
 
 ---
