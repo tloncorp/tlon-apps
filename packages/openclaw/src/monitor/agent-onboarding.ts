@@ -194,9 +194,6 @@ const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
   'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
   'something now.';
 const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
-const AGENT_GROUP_SETUP_COMPLETE =
-  'All set. Ask me here anytime if you want to change what I do, adjust the ' +
-  'schedule, or work on something else.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
@@ -653,8 +650,26 @@ async function postIntro(
   presentation: OnboardingPresentation,
   isFirstGroup: boolean
 ) {
-  const needsIntro =
-    isFirstGroup && !hasPostMarker(history, context.botShip, 'intro');
+  if (!isFirstGroup) {
+    const posted = await postOnce(
+      context,
+      history,
+      AGENT_GROUP_SETUP_COMPLETE_MARKER,
+      async () => ({ text: AGENT_ONBOARDING_PURPOSE_PROMPT }),
+      deps,
+      presentation
+    );
+    if (posted) {
+      context.trackStep?.({ step: 'intro_posted' });
+      context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath: 'additional_group_completed',
+      });
+    }
+    return;
+  }
+
+  const needsIntro = !hasPostMarker(history, context.botShip, 'intro');
   const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
   const pickerPosted = await postOnce(
     context,
@@ -685,10 +700,7 @@ async function postIntro(
     presentation
   );
   if (!hadPicker && pickerPosted) {
-    if (needsIntro || !isFirstGroup) {
-      // Additional groups share the same ordered funnel vocabulary; their
-      // purpose picker is the first setup surface even though no welcome copy
-      // is needed. First groups carry both markers on the combined opening.
+    if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
     }
     context.trackStep?.({ step: 'purpose_picker_posted' });
@@ -796,34 +808,6 @@ async function advanceOrientationConversation(
     hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
   ) {
     return false;
-  }
-
-  if (!isFirstGroupSetup(history, context.ownerShip!, context.groupId!)) {
-    const servicesCard = markerPost(history, context.botShip, 'services-card');
-    if (!servicesCard) return false;
-    const completedServices = history.some(
-      (entry) =>
-        entry.author === context.ownerShip &&
-        entry.timestamp > servicesCard.timestamp &&
-        isServicesCompleteReply(entry.content)
-    );
-    if (!completedServices) return false;
-
-    const posted = await postOnce(
-      context,
-      history,
-      AGENT_GROUP_SETUP_COMPLETE_MARKER,
-      async () => ({ text: AGENT_GROUP_SETUP_COMPLETE }),
-      deps,
-      presentation
-    );
-    if (posted) {
-      context.trackStep?.({
-        step: 'onboarding_completed',
-        completionPath: 'additional_group_completed',
-      });
-    }
-    return true;
   }
 
   const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
@@ -2380,23 +2364,6 @@ function blobEntriesByAuthor(
       ? parsePostBlob(post.blob).map((entry) => ({ post, entry }))
       : []
   );
-}
-
-function isFirstGroupSetup(
-  history: TlonHistoryEntry[],
-  ownerShip: string,
-  groupId: string
-) {
-  const intro = blobEntriesByAuthor(history, ownerShip, true).find(
-    ({ entry }) =>
-      entry.type === 'tlon-agent-intro-request' && entry.groupId === groupId
-  )?.entry;
-  if (intro?.type === 'tlon-agent-intro-request') {
-    return intro.isFirstGroup === true;
-  }
-  // Preserve first-run behavior for setup conversations created before the
-  // explicit flag was introduced.
-  return groupId.endsWith('/home-group');
 }
 
 /** True once any provision has been acknowledged in this channel. */

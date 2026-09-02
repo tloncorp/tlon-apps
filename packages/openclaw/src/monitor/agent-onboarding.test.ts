@@ -979,43 +979,6 @@ describe('agent onboarding requests', () => {
     ).not.toBeNull();
   });
 
-  it('ends an additional group setup after services without onboarding tours', async () => {
-    const sendPost = successfulSendPost();
-    const trackStep = vi.fn();
-    const history = [
-      introRequest(0, false),
-      botMarker('purpose-picker', 0.5),
-      provisionAck(),
-      servicesCard(),
-      { author: '~ten', content: 'Done', timestamp: 3 },
-    ];
-
-    await expect(
-      scanAgentOnboardingChannel(generalScanContext({ trackStep }), {
-        fetchHistory: vi.fn(async () => history),
-        sendPost,
-      })
-    ).resolves.toBe(true);
-
-    expect(sendPost).toHaveBeenCalledOnce();
-    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).toContain(
-      'All set. Ask me here anytime'
-    );
-    expect(JSON.stringify(sendPost.mock.calls[0]?.[0])).not.toContain(
-      'what you can do here'
-    );
-    expect(parsePostBlob(sendPost.mock.calls[0]?.[0].blob)).toContainEqual(
-      expect.objectContaining({
-        type: 'tlon-agent-post-marker',
-        key: 'group-setup-complete',
-      })
-    );
-    expect(trackStep).toHaveBeenCalledWith({
-      step: 'onboarding_completed',
-      completionPath: 'additional_group_completed',
-    });
-  });
-
   it('offers each orientation step as a simple Yes/No choice', () => {
     const surface = agentOnboardingTesting.buildTourChoiceSurface(
       'agent-onboarding-app-tour:~ten/group',
@@ -1279,9 +1242,35 @@ describe('agent onboarding requests', () => {
 
     const additionalGroup = await promptFor();
     expect(additionalGroup).toHaveLength(1);
-    expect(JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))).toContain(
+    expect(JSON.stringify(additionalGroup[0]?.story)).toContain(
       'What can I help you with?'
     );
+    expect(
+      JSON.stringify(parsePostBlob(additionalGroup[0]?.blob))
+    ).not.toContain('a2ui');
+    expect(parsePostBlob(additionalGroup[0]?.blob)).toContainEqual(
+      expect.objectContaining({
+        type: 'tlon-agent-post-marker',
+        key: 'group-setup-complete',
+      })
+    );
+  });
+
+  it('leaves replies to a later group greeting for ordinary agent chat', async () => {
+    const sendPost = successfulSendPost();
+    const history = [
+      introRequest(1, false),
+      botMarker('group-setup-complete', 2),
+      { author: '~ten', content: 'A daily digest', timestamp: 3 },
+    ];
+
+    await expect(
+      handleAgentOnboardingRequest(replyContext('A daily digest'), {
+        fetchHistory: vi.fn(async () => history),
+        sendPost,
+      })
+    ).resolves.toBe(false);
+    expect(sendPost).not.toHaveBeenCalled();
   });
 
   it('recognizes an unmarked legacy intro without suppressing other steps', () => {

@@ -27,6 +27,7 @@ import {
   View,
   XStack,
   YStack,
+  getTokens,
   getVariableValue,
   useTheme,
 } from 'tamagui';
@@ -48,10 +49,11 @@ import { FileDrop } from '../FileDrop';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { GroupPreviewAction, GroupPreviewSheet } from '../GroupPreviewSheet';
 import { PostCollectionView } from '../PostCollectionView';
-import SystemNotices from '../SystemNotices';
+import SystemNotices, { hasRelevantJoinRequests } from '../SystemNotices';
 import { AgentOnboardingBackTooltip } from '../Wayfinding/Notices';
 import {
   floatingPinnedPostBannerClearance,
+  getPostCollectionTopInset,
   useConversationInsets,
 } from '../conversationScrollChrome';
 import { DraftInputContext } from '../draftInputs';
@@ -880,14 +882,20 @@ export function Channel({
     (shouldReservePinnedPostBannerSpace
       ? floatingPinnedPostBannerClearance
       : 0);
+  const shouldRenderJoinRequestNotice =
+    !!includeJoinRequestNotice && hasRelevantJoinRequests(group);
   const postCollectionInsets = useMemo(
     () => ({
       ...contentInsets,
-      // The channel container clears floating top chrome so notices and side
-      // panels share the list's visible content boundary.
-      top: Math.max(0, contentInsets.top - sharedTopInset),
+      // Keep the scroll view beneath transparent chrome so iOS can render its
+      // top edge effect. A visible fixed notice owns that clearance instead.
+      top: getPostCollectionTopInset({
+        contentTopInset: contentInsets.top,
+        fixedLeadingContentOwnsInset: shouldRenderJoinRequestNotice,
+        sharedTopInset,
+      }),
     }),
-    [contentInsets, sharedTopInset]
+    [contentInsets, sharedTopInset, shouldRenderJoinRequestNotice]
   );
 
   return (
@@ -992,15 +1000,21 @@ export function Channel({
                           <XStack
                             alignItems="stretch"
                             flex={1}
-                            paddingTop={sharedTopInset || undefined}
+                            paddingTop={
+                              draftInputPresentationMode === 'fullscreen'
+                                ? sharedTopInset || undefined
+                                : undefined
+                            }
                             position="relative"
                           >
                             <YStack alignItems="stretch" flex={1} minWidth={0}>
-                              {includeJoinRequestNotice && (
+                              {shouldRenderJoinRequestNotice && (
                                 <SystemNotices.ConnectedJoinRequestNotice
                                   group={group}
                                   onViewRequests={goToGroupSettings}
-                                  marginTop="$l"
+                                  marginTop={
+                                    sharedTopInset + getTokens().space.l.val
+                                  }
                                 />
                               )}
                               <AnimatePresence>
@@ -1099,6 +1113,7 @@ export function Channel({
                                     clearSelectedContextLensMessage
                                   }
                                   channelId={channel.id}
+                                  topInset={sharedTopInset}
                                 />
                               )}
                           </XStack>
