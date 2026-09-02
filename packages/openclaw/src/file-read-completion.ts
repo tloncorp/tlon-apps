@@ -61,6 +61,7 @@ const FILE_MUTATION_TOOLS = new Set([
   'apply_patch',
   'edit',
   'edit_file',
+  'exec',
   'write',
   'write_file',
 ]);
@@ -187,6 +188,12 @@ function requestsBoundedFileRange(request: string): boolean {
     ).test(request) ||
     /\blines?\s+\d+\s*(?:[-–—]|through|to)\s*\d+\b/i.test(request) ||
     /\b(?:an?\s+)?(?:excerpt|snippet)\b/i.test(request)
+  );
+}
+
+function requestsTransformedFileOutput(request: string): boolean {
+  return /\b(?:summari[sz](?:e|ed|ing|ation)|translate|translation|rewrite|reformat|format|convert|extract|analy[sz](?:e|ed|ing)|analysis|inspect|review|explain|classify|compare)\b/i.test(
+    request
   );
 }
 
@@ -666,7 +673,8 @@ function replyCompletesTrackedRead(
           !EXPLICIT_FULL_FILE_DELIVERY_CLAIM.test(reply) &&
           !(
             FULL_FILE_DELIVERY_CLAIM.test(reply) &&
-            anyTargetContentIsRepresented(reply, targets)
+            anyTargetContentIsRepresented(reply, targets) &&
+            !requestsTransformedFileOutput(userRequest)
           ))))
   );
 }
@@ -868,7 +876,15 @@ export function createFileReadCompletionGuard(options?: {
       if (!existing || hasRelevantFailedTarget(input.content ?? '', existing))
         return;
       touch(runId, {
-        messageDelivery: { content: input.content ?? '', sessionKey },
+        messageDelivery: {
+          content:
+            existing.messageDelivery?.sessionKey === sessionKey
+              ? [existing.messageDelivery.content, input.content ?? '']
+                  .filter(Boolean)
+                  .join('\n')
+              : (input.content ?? ''),
+          sessionKey,
+        },
         lastSuccessfulTarget: existing.lastSuccessfulTarget,
         revisionAttempts: existing.revisionAttempts,
         targets: new Map(existing.targets),

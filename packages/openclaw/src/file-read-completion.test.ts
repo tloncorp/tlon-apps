@@ -179,6 +179,22 @@ describe('file read completion guard', () => {
     ).toBeNull();
   });
 
+  it('accepts a requested transformation that preserves one source anchor', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(successfulRead('partial-anchor-translation'));
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'partial-anchor-translation',
+        lastAssistantMessage:
+          'Here are the requested contents:\ndate,pollen_count,notes\n1 août 2026,42,faible\n2 août 2026,117,élevé',
+        messages: [
+          { role: 'user', content: 'Translate this CSV into French.' },
+        ],
+      })
+    ).toBeNull();
+  });
+
   it('accepts transformed output on the same line as the delivery claim', () => {
     const guard = createFileReadCompletionGuard();
     guard.recordToolResult(successfulRead('run-same-line'));
@@ -501,6 +517,45 @@ describe('file read completion guard', () => {
     expect(
       guard.beforeFinalize({
         runId: 'message-tool-delivery',
+        lastAssistantMessage: 'NO_REPLY',
+        sessionKey: 'session:source',
+      })
+    ).toBeNull();
+  });
+
+  it('accumulates a paginated delivery across message-tool sends', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'multi-message-delivery',
+        'first line\nsecond line\n[Showing lines 1-2 of 4]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult(
+      successfulRead(
+        'multi-message-delivery',
+        'third line\nfourth line',
+        '/tmp/report.txt',
+        3
+      )
+    );
+    guard.recordMessageDelivery({
+      content: 'first line\nsecond line',
+      runId: 'multi-message-delivery',
+      sessionKey: 'session:source',
+      success: true,
+    });
+    guard.recordMessageDelivery({
+      content: 'third line\nfourth line',
+      runId: 'multi-message-delivery',
+      sessionKey: 'session:source',
+      success: true,
+    });
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'multi-message-delivery',
         lastAssistantMessage: 'NO_REPLY',
         sessionKey: 'session:source',
       })
@@ -1100,6 +1155,38 @@ describe('file read completion guard', () => {
     expect(
       guard.beforeFinalize({
         runId: 'mutated-truncation',
+        lastAssistantMessage:
+          'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
+      })
+    ).toBeNull();
+  });
+
+  it('treats an offset-zero reread after exec as a fresh snapshot', () => {
+    const guard = createFileReadCompletionGuard();
+    guard.recordToolResult(
+      successfulRead(
+        'exec-mutation',
+        'old one\nold two\nold three\n[Showing lines 1-20 of 40]',
+        '/tmp/report.txt'
+      )
+    );
+    guard.recordToolResult({
+      runId: 'exec-mutation',
+      toolName: 'exec',
+      params: { command: "printf 'new' > /tmp/report.txt" },
+      result: { content: [{ type: 'text', text: '' }] },
+    });
+    guard.recordToolResult(
+      successfulRead(
+        'exec-mutation',
+        'new one\nnew two\nnew three\nnew four',
+        '/tmp/report.txt'
+      )
+    );
+
+    expect(
+      guard.beforeFinalize({
+        runId: 'exec-mutation',
         lastAssistantMessage:
           'Here are the requested file contents:\nnew one\nnew two\nnew three\nnew four',
       })
