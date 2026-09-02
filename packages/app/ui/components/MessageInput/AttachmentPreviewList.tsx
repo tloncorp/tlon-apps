@@ -52,44 +52,22 @@ export function AttachmentPreview({
   uploading?: boolean;
   error?: boolean;
 }) {
-  const [aspect, setAspect] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const knownAspect = getAttachmentAspect(attachment);
+  const [measuredAspect, setMeasuredAspect] = useState<number | null>(null);
+  const [loadedMediaUri, setLoadedMediaUri] = useState<string | null>(null);
+  const aspect = knownAspect ?? measuredAspect ?? 1;
 
-  const handleLoad = useCallback((e: ImageLoadEventData) => {
-    setAspect(e.source.width / e.source.height);
-    setIsLoading(false);
-  }, []);
-
-  const Container = useCallback(
-    ({
-      children,
-      showSpinner,
-    }: PropsWithChildren<{ showSpinner?: boolean }>) => (
-      <View
-        height={128}
-        borderRadius="$m"
-        overflow="hidden"
-        aspectRatio={aspect}
-      >
-        {children}
-        <RemoveAttachmentButton attachment={attachment} />
-
-        {showSpinner && (
-          <View
-            position="absolute"
-            top={0}
-            justifyContent="center"
-            width="100%"
-            height="100%"
-            alignItems="center"
-            backgroundColor="$secondaryBackground"
-          >
-            <Spinner size="small" color="$primaryText" />
-          </View>
-        )}
-      </View>
-    ),
-    [aspect, attachment]
+  const handleLoad = useCallback(
+    (uri: string, e: ImageLoadEventData) => {
+      if (knownAspect == null) {
+        const nextAspect = e.source.width / e.source.height;
+        if (Number.isFinite(nextAspect) && nextAspect > 0) {
+          setMeasuredAspect(nextAspect);
+        }
+      }
+      setLoadedMediaUri(uri);
+    },
+    [knownAspect]
   );
 
   if (error) {
@@ -123,8 +101,13 @@ export function AttachmentPreview({
     }
 
     case 'image': {
+      const imageUri = attachment.file.uri;
       return (
-        <Container showSpinner={uploading || isLoading}>
+        <AttachmentPreviewContainer
+          aspect={aspect}
+          attachment={attachment}
+          showSpinner={uploading || loadedMediaUri !== imageUri}
+        >
           <Image
             backgroundColor={'$secondaryBackground'}
             position="absolute"
@@ -132,13 +115,11 @@ export function AttachmentPreview({
             left={0}
             width="100%"
             height="100%"
-            onLoad={handleLoad}
-            onLoadStart={() => setIsLoading(true)}
-            source={{
-              uri: attachment.file.uri,
-            }}
+            onLoad={(event) => handleLoad(imageUri, event)}
+            onError={() => setLoadedMediaUri(imageUri)}
+            source={{ uri: imageUri }}
           />
-        </Container>
+        </AttachmentPreviewContainer>
       );
     }
 
@@ -147,7 +128,11 @@ export function AttachmentPreview({
       const durationLabel = makePrettyDurationFromSeconds(attachment.duration);
       if (!posterUri) {
         return (
-          <Container showSpinner={uploading}>
+          <AttachmentPreviewContainer
+            aspect={aspect}
+            attachment={attachment}
+            showSpinner={uploading}
+          >
             <View
               backgroundColor="$secondaryBackground"
               position="absolute"
@@ -161,11 +146,15 @@ export function AttachmentPreview({
               <Icon type="Play" color="$tertiaryText" size="$xl" />
             </View>
             <VideoPreviewOverlay durationLabel={durationLabel} />
-          </Container>
+          </AttachmentPreviewContainer>
         );
       }
       return (
-        <Container showSpinner={uploading || isLoading}>
+        <AttachmentPreviewContainer
+          aspect={aspect}
+          attachment={attachment}
+          showSpinner={uploading || loadedMediaUri !== posterUri}
+        >
           <Image
             backgroundColor="transparent"
             position="absolute"
@@ -173,20 +162,23 @@ export function AttachmentPreview({
             left={0}
             width="100%"
             height="100%"
-            onLoad={handleLoad}
-            onLoadStart={() => setIsLoading(true)}
-            onError={() => setIsLoading(false)}
+            onLoad={(event) => handleLoad(posterUri, event)}
+            onError={() => setLoadedMediaUri(posterUri)}
             source={{ uri: posterUri }}
             contentFit="cover"
           />
           <VideoPreviewOverlay durationLabel={durationLabel} />
-        </Container>
+        </AttachmentPreviewContainer>
       );
     }
 
     case 'reference': {
       return (
-        <Container showSpinner={uploading}>
+        <AttachmentPreviewContainer
+          aspect={aspect}
+          attachment={attachment}
+          showSpinner={uploading}
+        >
           <ContentReferenceLoader
             position="absolute"
             contentSize="$s"
@@ -197,13 +189,17 @@ export function AttachmentPreview({
             reference={attachment.reference}
             actionIcon={null}
           />
-        </Container>
+        </AttachmentPreviewContainer>
       );
     }
 
     case 'file': {
       return (
-        <Container showSpinner={uploading}>
+        <AttachmentPreviewContainer
+          aspect={aspect}
+          attachment={attachment}
+          showSpinner={uploading}
+        >
           <Text
             style={{ padding: 12, flex: 1 }}
             backgroundColor="$secondaryBackground"
@@ -216,13 +212,17 @@ export function AttachmentPreview({
                   })) ??
               'Attachment'}
           </Text>
-        </Container>
+        </AttachmentPreviewContainer>
       );
     }
 
     case 'voicememo': {
       return (
-        <Container showSpinner={uploading}>
+        <AttachmentPreviewContainer
+          aspect={aspect}
+          attachment={attachment}
+          showSpinner={uploading}
+        >
           <View backgroundColor="$secondaryBackground" flex={1}>
             <Text style={{ padding: 12 }}>Voice Memo</Text>
             {attachment.transcription && (
@@ -236,7 +236,7 @@ export function AttachmentPreview({
               </Text>
             )}
           </View>
-        </Container>
+        </AttachmentPreviewContainer>
       );
     }
 
@@ -251,6 +251,61 @@ export function AttachmentPreview({
       );
     }
   }
+}
+
+function getAttachmentAspect(attachment: domain.Attachment): number | null {
+  const dimensions =
+    attachment.type === 'image'
+      ? attachment.file
+      : attachment.type === 'video'
+        ? attachment
+        : null;
+  if (
+    dimensions?.width == null ||
+    dimensions.height == null ||
+    dimensions.width <= 0 ||
+    dimensions.height <= 0
+  ) {
+    return null;
+  }
+  return dimensions.width / dimensions.height;
+}
+
+function AttachmentPreviewContainer({
+  aspect,
+  attachment,
+  children,
+  showSpinner,
+}: PropsWithChildren<{
+  aspect: number;
+  attachment: domain.Attachment;
+  showSpinner?: boolean;
+}>) {
+  return (
+    <View
+      height={128}
+      borderRadius="$m"
+      overflow="hidden"
+      aspectRatio={aspect}
+    >
+      {children}
+      <RemoveAttachmentButton attachment={attachment} />
+
+      {showSpinner && (
+        <View
+          position="absolute"
+          top={0}
+          justifyContent="center"
+          width="100%"
+          height="100%"
+          alignItems="center"
+          backgroundColor="$secondaryBackground"
+        >
+          <Spinner size="small" color="$primaryText" />
+        </View>
+      )}
+    </View>
+  );
 }
 
 function VideoPreviewOverlay({ durationLabel }: { durationLabel?: string }) {
