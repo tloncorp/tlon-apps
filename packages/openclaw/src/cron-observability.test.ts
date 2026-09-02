@@ -149,7 +149,8 @@ describe('Tlon cron OTEL observer', () => {
       scheduleKindCronCount: 2,
       scheduleKindEveryCount: 1,
       scheduleKindOnExitCount: 1,
-      totalCronJobCount: 5,
+      scheduleKindStreamCount: 1,
+      totalCronJobCount: 6,
     });
 
     expect(provider.collect('tlon.cron.runs.active')).toEqual([
@@ -177,7 +178,7 @@ describe('Tlon cron OTEL observer', () => {
       {
         attributes: {},
         name: 'tlon.cron.jobs.total',
-        value: 5,
+        value: 6,
       },
     ]);
     expect(provider.collect('tlon.cron.jobs.by_schedule')).toEqual([
@@ -198,6 +199,11 @@ describe('Tlon cron OTEL observer', () => {
       },
       {
         attributes: { schedule_kind: 'on-exit' },
+        name: 'tlon.cron.jobs.by_schedule',
+        value: 1,
+      },
+      {
+        attributes: { schedule_kind: 'stream' },
         name: 'tlon.cron.jobs.by_schedule',
         value: 1,
       },
@@ -439,6 +445,7 @@ describe('Tlon cron OTEL observer', () => {
         scheduleKindCronCount: 1,
         scheduleKindEveryCount: 0,
         scheduleKindOnExitCount: 0,
+        scheduleKindStreamCount: 0,
         totalCronJobCount: 1,
       })
     ).not.toThrow();

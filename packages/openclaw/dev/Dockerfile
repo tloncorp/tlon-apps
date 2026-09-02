@@ -5,13 +5,11 @@ RUN apt-get update && apt-get install -y git curl gettext-base unzip && apt-get 
 RUN npm install -g pnpm@11.9.0
 
 # Install OpenClaw globally
-RUN npm install -g openclaw@2026.5.28
+RUN npm install -g openclaw@2026.8.2
 
-# Install the Brave web-search plugin. openclaw@2026.5.28 rejects
-# tools.web.search.provider "brave" (set by entrypoint.sh when BRAVE_API_KEY
-# is present) unless the plugin is installed. Mirrors the test image and
-# production (tlonbot entrypoint); the install ledger in ~/.openclaw/plugins/
-# survives the entrypoint's config patching.
+# Install the Brave web-search plugin used when BRAVE_API_KEY is present.
+# Mirrors the test image and production (tlonbot entrypoint); the install
+# ledger in ~/.openclaw/plugins/ survives the entrypoint's config patching.
 RUN openclaw plugins install @openclaw/brave-plugin
 
 # Install bun for building @tloncorp/tlon-skill from source in the dev override flow.
