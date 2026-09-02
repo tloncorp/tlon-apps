@@ -5690,6 +5690,24 @@ standing between untrusted model-generated JavaScript and the network.
   All three engines because the vectors diverge by engine; a chromium-only run
   would license a claim the matrix makes about three.
 
+- **D171.4 AMENDMENT: the posture job passed its first CI run by accident and
+  failed its second, on a docs-only push.** The job cached
+  `~/.cache/ms-playwright` and ran `playwright install --with-deps` only on a
+  cache miss. Browser binaries live in the cache; the apt libraries webkit
+  needs to launch do not — they go onto the ephemeral runner. So a cold cache
+  installed them and 204/204 passed; the next push hit a warm cache, skipped
+  the step, and every webkit case failed in 1–4 ms with `MiniBrowser: error
+  while loading shared libraries: libwoff2dec.so.1.0.2`, taking `CI OK` down
+  for a commit that added one markdown file. Chromium and firefox passed
+  because the base image already carries their libraries.
+
+  Fixed by splitting the step: `playwright install-deps` every run,
+  `playwright install` only on a miss. Recorded because it is this session's
+  own class of defect — a guard whose first green was a property of the
+  environment it happened to run in, not of the thing it measures — landing
+  on the job that was added to remove that class. The claim "the posture
+  suite runs in CI" was true for exactly one run before this.
+
 - **D171.5: four artifacts said `frame-src` ships disabled. It ships
   ENFORCING.** `ENFORCE_HOST_CSP` is `true`. The stale claim sat in
   `surface-lint.ts`'s rule-5 docstring, in D93, and TWICE in plan §5 — the

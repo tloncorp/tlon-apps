@@ -481,9 +481,22 @@ jobs:
           key: playwright-posture-${{ runner.os }}-${{
             steps.playwright-version.outputs.version }}
 
+      # Two steps on purpose. The cache above holds BROWSER BINARIES
+      # (~/.cache/ms-playwright); the apt packages webkit needs to launch —
+      # libwoff2dec, gstreamer, and the rest — are installed on the ephemeral
+      # runner and are not in it. The first version of this job ran
+      # `install --with-deps` only on a cache miss, so it passed its first run
+      # (cold cache, deps installed) and failed its second (warm cache, no
+      # deps: `MiniBrowser: error while loading shared libraries:
+      # libwoff2dec.so.1.0.2`), taking CI OK down on a docs-only push. System
+      # deps install every run; only the binaries are cached.
+      - name: Install Playwright system dependencies
+        run: pnpm exec playwright install-deps chromium firefox webkit
+        working-directory: ./apps/tlon-web
+
       - name: Install Playwright Browsers
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+        run: pnpm exec playwright install chromium firefox webkit
         working-directory: ./apps/tlon-web
 
       - name: Run sandbox posture matrix
