@@ -250,7 +250,6 @@ describe('buildRubricTemplate', () => {
           spec: SPEC,
           reachability: CLEAN_WALK,
           populated: PLAIN_POPULATED,
-          populated: PLAIN_POPULATED,
         })
       )
     );

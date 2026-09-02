@@ -1588,9 +1588,17 @@ function template(name: string): { spec: unknown; state: unknown } {
 }
 
 /** The `populated` line preview stamps on check 5, off a real render. */
+/**
+ * Keyed off the real signature rather than restated, so a change to
+ * `PreviewRequest` cannot leave this helper quietly incompatible.
+ */
+type PreviewStateOverride = Parameters<
+  typeof renderSurfacePreview
+>[0]['stateOverride'];
+
 async function populatedLine(request: {
   spec: unknown;
-  stateOverride?: Record<string, unknown>;
+  stateOverride?: PreviewStateOverride;
 }): Promise<{ line: string; state: Record<string, unknown> }> {
   const { launcher } = fakeLauncher();
   const outcome = await renderSurfacePreview({
@@ -1632,7 +1640,7 @@ describe('renderSurfacePreview — the sheet says what the populated cells ARE',
     const potluck = template('potluck');
     const { line, state } = await populatedLine({
       spec: potluck.spec,
-      stateOverride: potluck.state as Record<string, unknown>,
+      stateOverride: potluck.state as PreviewStateOverride,
     });
 
     // The board itself, first: four members on a course the sheet wants three
