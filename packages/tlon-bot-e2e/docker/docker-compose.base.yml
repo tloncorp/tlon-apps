@@ -130,23 +130,23 @@ services:
         }
 
         zod_archive="$$(artifact \
-          rube-zod30.tgz \
-          https://bootstrap.urbit.org/rube-zod30.tgz \
+          rube-zod31-tlon.tgz \
+          https://bootstrap.urbit.org/rube-zod31-tlon.tgz \
           md5 \
-          c156c20f2f16754433711a2ab1aab234 \
-          347494585)"
+          8b14308a9bdcc4b85dc62f6bbfe7ccda \
+          235215350)"
         ten_archive="$$(artifact \
-          rube-ten30.tgz \
-          https://bootstrap.urbit.org/rube-ten30.tgz \
+          rube-ten31-tlon.tgz \
+          https://bootstrap.urbit.org/rube-ten31-tlon.tgz \
           md5 \
-          833d91b522bab7ed1c28cc528b20ba46 \
-          346581323)"
+          98fcdd6acd3036e95dc982261dffaad7 \
+          308436782)"
         mug_archive="$$(artifact \
-          rube-mug30.tgz \
-          https://bootstrap.urbit.org/rube-mug30.tgz \
+          rube-mug31-tlon.tgz \
+          https://bootstrap.urbit.org/rube-mug31-tlon.tgz \
           md5 \
-          29b6004ce1f6dfcf67253375d13dab90 \
-          347375646)"
+          dc1e8de5698a8ac4bf7fea2edcf43a0b \
+          308574832)"
         vere_archive="$$(artifact \
           linux-x86_64-vere-v4.5.tgz \
           https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz \

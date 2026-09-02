@@ -12,7 +12,7 @@ Use `packages/tlon-bot-e2e/.env.example` as the template for local values such a
 
 Runner controls such as `TLON_BOT_E2E_SUITE` and `TLON_BOT_E2E_SCENARIO_PARTITIONS` are also allowed in this package `.env` for local workflows. Shell values still win over the file, so commands can override them for one-off runs without editing local config.
 
-After the fake ships become ready, the runner assembles and applies the checkout's `%groups` desk. `TLON_BOT_E2E_DESK_SHIPS` selects a comma-separated ship set and defaults to `~zod,~ten,~mug` — every ship the harness boots. Narrowing it leaves the omitted ships on their pier's desk, which breaks any branch that bumps a negotiated protocol version. This requires `peru` and `rsync`, as described in the root desk-dependency documentation.
+After the fake ships become ready, the runner assembles and applies the checkout's `%tlon` desk. `TLON_BOT_E2E_DESK_SHIPS` selects a comma-separated ship set and defaults to `~zod,~ten,~mug` — every ship the harness boots. Narrowing it leaves the omitted ships on their pier's desk, which breaks any branch that bumps a negotiated protocol version. This requires `peru` and `rsync`, as described in the root desk-dependency documentation.
 
 The loader only accepts the explicit harness allowlist in `src/runtime/env.ts`. Unknown keys fail the run instead of being passed through implicitly. Docker Compose is still launched with `.env` auto-loading disabled, so package-local files such as `packages/openclaw/.env` and `packages/hermes-tlon-adapter/.env` do not bleed into shared E2E containers.
 
