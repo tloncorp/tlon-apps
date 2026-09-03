@@ -143,6 +143,8 @@ echo "Creating %tlon..."
 run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%tlon |]))
+;<  ~  bind:m  (sleep ~s0)
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-merge+!>([%tlon our.bowl %base 0 %auto]))
 ;<  ~  bind:m  (sleep ~s0)
 =/  =path  
