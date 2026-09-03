@@ -179,7 +179,7 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 ## lifecycle and invariants
 
 - `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` loads `state-1` directly and migrates `state-0` forward (see the state model); no cards are emitted — subscriptions and timers survive an upgrade.
+- `on-load` loads `state-1` directly and migrates `state-0` forward (see the state model). Its only card is the `bot-liveness` seed for a migrated bot whose gateway is already `%up` or `%down` (owner configured): heartbeats advertise only on an up transition, so an already-up gateway would otherwise stay unknown until its next restart. Subscriptions and timers survive an upgrade.
 - Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, liveness publication to `%contacts` on `/gateway/liveness`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored: Ames retries undelivered remote pokes on its own, but an explicitly nacked poke (including a local `%contacts` liveness publish) is not replayed — the next liveness transition publishes again.
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 

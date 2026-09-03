@@ -85,7 +85,18 @@
       %1  `this(state old)
       ::  %0 → %1: the gateway slice gained leading .notify-on-start and
       ::  .last-interaction fields
-      %0  `this(state [%1 owner.old bots.old lens.old [| *@da gateway.old]])
+        %0
+      =.  state  [%1 owner.old bots.old lens.old [| *@da gateway.old]]
+      ::  seed the liveness claim for a bot that predates it: heartbeats
+      ::  only advertise on an up transition, so an already-up gateway
+      ::  would otherwise stay unknown until its next restart. no owner
+      ::  means no bot (%steward runs on every ship); %unknown means the
+      ::  gateway never registered.
+      =/  seed  &(?=(^ owner.state) !?=(%unknown status.gateway.state))
+      ?.  seed  `this
+      =^  cards  state
+        abet:(ga-advertise-liveness:ga-core:cor =(%up status.gateway.state))
+      [cards this]
     ==
   ++  on-poke
     |=  [=mark =vase]

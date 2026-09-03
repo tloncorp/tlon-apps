@@ -1112,8 +1112,11 @@
   =.  pending-restart.g  &
   =.  reply-cooldown.g  ~m3
   =.  active-window.g  ~m5
+  =.  status.g  %up
   =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
-  ;<  *  bind:m  (do-load agent `!>(old))
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  ::  an already-up gateway seeds the liveness claim it predates
+  ;<  ~  bind:m  (ex-cards caz (liveness-poke &) ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
   =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
@@ -1124,6 +1127,43 @@
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   ;<  ~  bind:m  (ex-equal !>(reply-cooldown.gateway.st) !>(~m3))
   (ex-equal !>(active-window.gateway.st) !>(~m5))
+::
+::  a migrated bot whose gateway is down seeds offline
+::
+++  test-on-load-migration-seeds-offline-when-down
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  g=gateway-0  *gateway-0
+  =.  status.g  %down
+  =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l g]
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  (ex-cards caz (liveness-poke |) ~)
+::
+::  no seed without an owner (%steward runs on every ship) ...
+::
+++  test-on-load-migration-seeds-nothing-without-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  g=gateway-0  *gateway-0
+  =.  status.g  %up
+  =/  old=state-0  [%0 ~ (sy ~[moon]) *state:v1:l g]
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  (ex-cards caz ~)
+::
+::  ... or for a gateway that never registered
+::
+++  test-on-load-migration-seeds-nothing-when-unknown
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  =/  old=state-0  [%0 `~bus (sy ~[moon]) *state:v1:l *gateway-0]
+  ;<  caz=(list card)  bind:m  (do-load agent `!>(old))
+  (ex-cards caz ~)
 ::
 ::  ==========================================================
 ::  ACTIVITY WINDOW: ANYONE ENGAGING THE BOT COUNTS
