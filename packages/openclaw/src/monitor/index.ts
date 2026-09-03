@@ -4420,7 +4420,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 // unobservable to the blocked party; that also means no ack
                 // when the block-list lookup failed, and none when the owner
                 // actioned the request during the queueing await (the record
-                // is gone from the live pending list by then).
+                // is gone from the live pending list by then). Bot requesters
+                // get no ack at all: the ack mentions them (and can land in a
+                // thread they participate in), so two mutually-unauthorized
+                // bots would ack each other unboundedly — the
+                // maxBotResponses guard doesn't fire when configured to 0.
+                // The reassurance is for humans; a bot's owner still gets
+                // the DM approval card.
                 const approvalStillPending = pendingApprovals.some(
                   (a) =>
                     a.type === 'channel' &&
@@ -4430,6 +4436,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 if (
                   outcome !== 'blocked' &&
                   !blockCheckUnknown &&
+                  !isKnownBot &&
                   approvalStillPending
                 ) {
                   const ackParentId = resolveDeliverParentId({
