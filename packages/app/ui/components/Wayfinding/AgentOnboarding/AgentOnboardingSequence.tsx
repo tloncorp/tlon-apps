@@ -1,6 +1,6 @@
 import * as api from '@tloncorp/api';
 import { BotHomeGroupSlugs } from '@tloncorp/api/types/wayfinding';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -239,7 +239,7 @@ export function AgentOnboardingSequence(props: {
             });
           });
           completedRef.current = true;
-          logger.trackEvent('Agent Onboarding V2 In-Channel Handoff', {
+          logger.trackEvent(AnalyticsEvent.AgentOnboardingChatOpened, {
             groupId: activeGroupId,
             channelId: furnished.chatChannelId,
           });
