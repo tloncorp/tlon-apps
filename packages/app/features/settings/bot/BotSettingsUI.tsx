@@ -120,12 +120,14 @@ export function PendingBadge() {
 export function SelectableRow({
   label,
   description,
+  endContent,
   selected,
   disabled,
   onPress,
 }: {
   label: string;
   description?: string;
+  endContent?: ReactNode;
   selected: boolean;
   disabled?: boolean;
   onPress: () => void;
@@ -144,9 +146,12 @@ export function SelectableRow({
             <ListItem.Subtitle>{description}</ListItem.Subtitle>
           ) : null}
         </ListItem.MainContent>
-        {selected ? (
-          <XStack alignItems="center" flexShrink={0}>
-            <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+        {endContent || selected ? (
+          <XStack alignItems="center" gap="$s" flexShrink={0}>
+            {endContent}
+            {selected ? (
+              <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+            ) : null}
           </XStack>
         ) : null}
       </ListItem>

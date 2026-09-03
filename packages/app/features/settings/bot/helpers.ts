@@ -44,6 +44,7 @@ export type ChatFormValues = {
 export type ModelFormValues = {
   provider: string;
   model: string;
+  zdr: boolean;
   fallbacks: { provider: string; model: string }[];
 };
 
@@ -252,12 +253,14 @@ export const getModelFormValues = (
       model: hasProviderCredential(config, BASIC_PROVIDER_ID)
         ? BASIC_DEFAULT_MODEL
         : '',
+      zdr: false,
       fallbacks: [],
     };
   }
   return {
     provider: toDisplayProviderId(config, primary.provider, primary.model),
     model: primary.model,
+    zdr: primary.zdr === true,
     fallbacks: nonChannelModels
       .filter((model) => model !== primary)
       .map((model) => ({

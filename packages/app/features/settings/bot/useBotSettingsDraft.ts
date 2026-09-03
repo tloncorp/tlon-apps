@@ -38,7 +38,7 @@ export type { BotSettingsPendingFields } from './botSettingsDraftHelpers';
 
 const EMPTY_VALUES: BotSettingsDraftValues = {
   nickname: '',
-  model: { provider: '', model: '', fallbacks: [] },
+  model: { provider: '', model: '', zdr: false, fallbacks: [] },
   chat: {
     dmAllowlist: '',
     defaultAuthorizedShips: '',
@@ -162,7 +162,9 @@ const getPendingFields = (
 ): BotSettingsPendingFields => ({
   nickname: baseline.nickname !== draft.nickname,
   modelProvider: baseline.model.provider !== draft.model.provider,
-  model: baseline.model.model !== draft.model.model,
+  model:
+    baseline.model.model !== draft.model.model ||
+    baseline.model.zdr !== draft.model.zdr,
   fallbacks:
     stableStringify(baseline.model.fallbacks) !==
     stableStringify(draft.model.fallbacks),
@@ -367,6 +369,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
                 ? nextValues.model.provider
                 : serverModel.provider,
               model: primaryDirty ? nextValues.model.model : serverModel.model,
+              zdr: primaryDirty ? nextValues.model.zdr : serverModel.zdr,
               fallbacks: draft.pending.fallbacks
                 ? nextValues.model.fallbacks
                 : serverModel.fallbacks,

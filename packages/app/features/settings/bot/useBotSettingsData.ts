@@ -275,6 +275,34 @@ export function useAllProviderModels(
 
 export type AllProviderModels = ReturnType<typeof useAllProviderModels>;
 
+export function useOpenRouterModelMetadata(enabled: boolean) {
+  const { hostingUserId } = useBotSettingsIds();
+  const isFocused = useIsFocused();
+  const queryEnabled = Boolean(hostingUserId && enabled && isFocused);
+  const recommendedModelsQuery = useQuery({
+    queryKey: ['tlonbot', 'openrouter-recommended-models', hostingUserId],
+    queryFn: () => api.getTlawnOpenRouterRecommendedModels(hostingUserId),
+    enabled: queryEnabled,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+  const zdrEndpointsQuery = useQuery({
+    queryKey: ['tlonbot', 'openrouter-zdr-endpoints', hostingUserId],
+    queryFn: () => api.getTlawnOpenRouterZdrEndpoints(hostingUserId),
+    enabled: queryEnabled,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+  });
+
+  return {
+    recommendedModelIds: recommendedModelsQuery.data ?? [],
+    zdrEndpoints: zdrEndpointsQuery.data ?? [],
+    loading: zdrEndpointsQuery.isLoading,
+    error: zdrEndpointsQuery.error,
+  };
+}
+
 export function useBotSettingsMutations() {
   const { ship, hostingUserId } = useBotSettingsIds();
   const queryClient = useQueryClient();
@@ -361,6 +389,7 @@ export function useBotSettingsMutations() {
       // empty/stale model.
       return api.setTlawnPrimaryModel(hostingUserId, {
         ...toBackendModel(update.provider, update.model),
+        zdr: update.zdr || undefined,
         fallbacks: update.fallbacks
           .filter(
             (fallback) =>
