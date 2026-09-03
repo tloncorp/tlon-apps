@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { CORE_COMMAND_TOKENS, commandTokens } from '../commands-registry.js';
+import { engagementTokens } from '../commands-registry.js';
 import {
   isOwnerListenSlashCommand,
   isRegisteredCommandText,
@@ -15,7 +15,7 @@ const OWNED_BY_OWNER = 'chat/~zod/general';
 const OWNED_BY_BOT = 'chat/~bus/garage';
 const STRANGER_HOSTED = 'chat/~nec/lounge';
 
-const ALL_ENGAGEMENT_TOKENS = [...commandTokens(), ...CORE_COMMAND_TOKENS];
+const ALL_ENGAGEMENT_TOKENS = engagementTokens();
 
 function baseOpts(
   overrides: Partial<Parameters<typeof shouldEngageInGroup>[0]> = {}

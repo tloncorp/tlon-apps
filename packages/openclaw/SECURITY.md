@@ -382,6 +382,10 @@ try {
 | Non-owner tricks LLM into using tool | ❌ Still blocked (hook-level enforcement) |
 | Internal session (heartbeat, cron) | ✅ Allowed (no role = not a user DM) |
 
+OpenClaw approval requests originating in Tlon are sent only to `ownerShip`.
+The buttons submit OpenClaw's approval ID and decision command; the plugin does
+not keep separate approval state or grant permission itself.
+
 **Implementation:**
 - `before_tool_call` hook intercepts calls to restricted tools
 - Checks SenderRole from session tracker
