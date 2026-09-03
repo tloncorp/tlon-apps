@@ -97,6 +97,9 @@ describe('applyBranchDesk control flow', () => {
     expect(harness.events).toContain('hash:zod:old-hash');
     expect(harness.events).not.toContain('replace:zod');
     expect(harness.events).not.toContain('commit:zod');
+    expect(harness.events).toContain('suspend-groups:zod');
+    expect(harness.events).toContain('revive-tlon:zod');
+    expect(harness.events).toContain('health:zod');
     expect(harness.assembleOptions?.timeoutMs).toBe(300_000);
   });
 

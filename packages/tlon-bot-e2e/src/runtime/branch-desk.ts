@@ -210,6 +210,8 @@ export async function applyBranchDesk(
       const startHash = await waitForTlonHash(endpoint, cookie, dependencies);
       if (await deskMatches(ctx, ship, manifest, dependencies)) {
         console.log(`    ~${ship}: assembled desk unchanged; skipping commit`);
+        await reviveTlon(ctx, ship, dependencies);
+        await waitForTlonAgentReady(endpoint, cookie, dependencies);
         continue;
       }
       logManifestDrift(
@@ -549,14 +551,6 @@ async function waitForDeskReady(
         ) {
           return false;
         }
-        await shipJson(
-          endpoint,
-          cookie,
-          'check %groups app health',
-          '/~/scry/groups/groups/light.json',
-          dependencies,
-          COMMIT_REQUEST_TIMEOUT_MS
-        );
         return true;
       } catch (error) {
         // Busy compiling is progress, not death: keep polling. Only a
@@ -572,6 +566,42 @@ async function waitForDeskReady(
       timeoutMs: deskReadyTimeoutMs(),
       intervalMs: 2_000,
       description: `${endpoint.ship} %tlon desk ready after commit`,
+      rethrowError: (error) => error instanceof ShipUnavailableError,
+    }
+  );
+  await waitForTlonAgentReady(endpoint, cookie, dependencies);
+}
+
+async function waitForTlonAgentReady(
+  endpoint: ShipEndpoint,
+  cookie: string,
+  dependencies: BranchDeskDependencies
+) {
+  await dependencies.waitFor(
+    async () => {
+      try {
+        await shipJson(
+          endpoint,
+          cookie,
+          'check %groups app health',
+          '/~/scry/groups/groups/light.json',
+          dependencies,
+          COMMIT_REQUEST_TIMEOUT_MS
+        );
+        return true;
+      } catch (error) {
+        // The desk can be compiling after revive. Keep polling through that
+        // expected busy period; only a dropped connection triggers reboot.
+        if (error instanceof ShipBusyError) {
+          return false;
+        }
+        throw error;
+      }
+    },
+    {
+      timeoutMs: deskReadyTimeoutMs(),
+      intervalMs: 2_000,
+      description: `${endpoint.ship} %tlon agents ready`,
       rethrowError: (error) => error instanceof ShipUnavailableError,
     }
   );
