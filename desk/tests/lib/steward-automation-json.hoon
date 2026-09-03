@@ -415,7 +415,8 @@
 ++  rid-json  ^-  json  s+(scot %uv rid)
 ++  new-task
   ^-  task:v1:a
-  %=  empty-task
+  =/  =task:v1:a  empty-task
+  %=  task
     name            (some 'New task')
     enabled         (some %.y)
     session-target  (some 'isolated')
