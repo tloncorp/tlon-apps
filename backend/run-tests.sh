@@ -107,6 +107,10 @@ function await_ship
 
 await_ship
 
+# Login becomes available before Gall finishes installing %spider from a
+# freshly booted brass pill. Desk operations below rely on that agent.
+sleep 3
+
 # Allow 10m for longest running operations
 TIMEOUT=600
 
@@ -125,14 +129,11 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Re-create %tlon from %base. The brass pill preserves the %tlon Clay desk,
-# but does not include a mounted working tree for it.
+# Create and mount %tlon from %base.
 echo "Creating %tlon..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%tlon |]))
-;<  ~  bind:m  (sleep ~s0)
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-merge+!>([%tlon our.bowl %base 0 %auto]))
 ;<  ~  bind:m  (sleep ~s0)
 =/  =path  
