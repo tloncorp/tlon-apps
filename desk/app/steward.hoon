@@ -189,6 +189,13 @@
   |=  =path
   ^+  cor
   ?+  path  ~|(bad-watch-path+path !!)
+  ::
+  ::  eyre subscribes here for each inbound HTTP request before it pokes
+  ::  %handle-http-request; the response facts go out on this path
+  ::
+      [%http-response *]
+    cor
+  ::
       [%v1 %lens *]
     ?>  =(src.bowl our.bowl)
     (le-watch:le-core [%v1 t.t.path])

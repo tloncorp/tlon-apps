@@ -2590,6 +2590,16 @@
 ::  HTTP surface
 ::  ----------------------------------------------------------
 ::
+::  eyre subscribes to /http-response/<id> before poking the request
+::
+++  test-automation-http-response-watch-accepted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m  (do-watch /http-response/eyre-1)
+  (ex-cards caz ~)
+::
 ++  test-automation-http-unauthenticated-is-401
   %-  eval-mare
   =/  m  (mare ,~)
