@@ -192,8 +192,15 @@ final class TlonMessageContextMenuView: ExpoView, UIGestureRecognizerDelegate {
         _: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
-        var touchedView = touch.view
-        while let view = touchedView, view !== self {
+        Self.shouldReceiveMessageMenuTouch(touch.view, within: self)
+    }
+
+    static func shouldReceiveMessageMenuTouch(
+        _ touchedView: UIView?,
+        within hostView: UIView
+    ) -> Bool {
+        var touchedView = touchedView
+        while let view = touchedView, view !== hostView {
             // Reaction pills own their long press so users can inspect who
             // reacted instead of opening the message-level action menu.
             if view.accessibilityIdentifier?.hasPrefix("ReactionDisplay") == true {
