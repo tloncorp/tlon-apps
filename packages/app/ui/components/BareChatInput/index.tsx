@@ -1,9 +1,8 @@
-import { getCurrentUserId, toContentReference } from '@tloncorp/api';
-import { JSONContent, Story, pathToCite } from '@tloncorp/api/urbit';
+import { getCurrentUserId } from '@tloncorp/api';
+import { JSONContent, Story } from '@tloncorp/api/urbit';
 import {
   Attachment,
   JSONToInlines,
-  REF_REGEX,
   createDevLogger,
   diaryMixedToJSON,
   useDebouncedValue,
@@ -59,6 +58,7 @@ import type { DraftInputHandle } from '../draftInputs/shared';
 import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
+import { useReferenceExtractor } from './references';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -369,39 +369,7 @@ function BareChatInput(
   attachmentsRef.current = attachments;
   const prevUrlsRef = useRef<string[]>([]);
 
-  const processReferences = useCallback(
-    (text: string): string => {
-      const references = text.match(REF_REGEX);
-      if (!references) {
-        return text;
-      }
-
-      let newText = text;
-      references.forEach((ref) => {
-        const cite = pathToCite(ref);
-        if (!cite) {
-          return;
-        }
-        const reference = toContentReference(cite);
-        if (!reference) {
-          return;
-        }
-
-        addAttachment({
-          type: 'reference',
-          reference,
-          path: ref,
-        });
-
-        newText = newText.replace(ref, '');
-      });
-
-      return newText;
-    },
-    [addAttachment]
-  );
-
-  const lastProcessedRef = useRef('');
+  const extractReferences = useReferenceExtractor();
   const mentionRef = useRef<MentionController>(null);
   const slashCommandRef = useRef<SlashCommandController>(null);
 
@@ -431,46 +399,33 @@ function BareChatInput(
 
       bareChatInputLogger.log('text change', newText);
 
-      // Only process references if the text contains a reference and hasn't been processed before.
-      // This check prevents infinite loops on native platforms where we manually update
-      // the input's text value using setNativeProps after processing references.
-      // Without this guard, each manual text update would trigger another onChangeText,
-      // creating an endless cycle.
-      if (REF_REGEX.test(newText) && lastProcessedRef.current !== newText) {
-        lastProcessedRef.current = newText;
-        const textWithoutRefs = processReferences(newText);
-        const cursorPos = getWebSelectionStart();
-        const adjustedCursorPos =
-          cursorPos != null
-            ? Math.max(0, cursorPos - (newText.length - textWithoutRefs.length))
-            : undefined;
-        setControlledText(textWithoutRefs);
-        handleMention(oldText, textWithoutRefs, adjustedCursorPos);
-        handleSlashCommandInput(textWithoutRefs, adjustedCursorPos);
+      const change = extractReferences(newText, addAttachment);
+      if (!change) {
+        return;
+      }
+      const { text, hadReferences } = change;
 
-        const jsonContent = textAndMentionsToContent(textWithoutRefs, mentions);
-        bareChatInputLogger.log('setting draft', jsonContent);
-        storeDraft(jsonContent);
+      const cursorPos = getWebSelectionStart();
+      const adjustedCursorPos =
+        cursorPos != null
+          ? Math.max(0, cursorPos - (newText.length - text.length))
+          : undefined;
+      setControlledText(text);
+      handleMention(oldText, text, adjustedCursorPos);
+      handleSlashCommandInput(text, adjustedCursorPos);
 
-        // Clear the native input's text after processing references.
-        // We defer with setTimeout because .clear() uses mostRecentEventCount
-        // internally, which isn't updated until after onChangeText returns.
-        // Calling it synchronously would use a stale event count that gets rejected.
-        if (!isWeb) {
-          setTimeout(() => {
-            inputRef.current?.clear();
-          }, 0);
-        }
-      } else if (!REF_REGEX.test(newText)) {
-        // if there's no reference to process, just update normally
-        const cursorPos = getWebSelectionStart();
-        setControlledText(newText);
-        handleMention(oldText, newText, cursorPos);
-        handleSlashCommandInput(newText, cursorPos);
+      const jsonContent = textAndMentionsToContent(text, mentions);
+      bareChatInputLogger.log('setting draft', jsonContent);
+      storeDraft(jsonContent);
 
-        const jsonContent = textAndMentionsToContent(newText, mentions);
-        bareChatInputLogger.log('setting draft', jsonContent);
-        storeDraft(jsonContent);
+      // Clear the native input's text after extracting references.
+      // We defer with setTimeout because .clear() uses mostRecentEventCount
+      // internally, which isn't updated until after onChangeText returns.
+      // Calling it synchronously would use a stale event count that gets rejected.
+      if (hadReferences && !isWeb) {
+        setTimeout(() => {
+          inputRef.current?.clear();
+        }, 0);
       }
 
       if (pendingSend) {
@@ -479,7 +434,8 @@ function BareChatInput(
     },
     [
       controlledText,
-      processReferences,
+      extractReferences,
+      addAttachment,
       getWebSelectionStart,
       handleMention,
       handleSlashCommandInput,
