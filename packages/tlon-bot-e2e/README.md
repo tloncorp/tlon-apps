@@ -136,7 +136,7 @@ The Hermes E2E compose path does not load `packages/hermes-tlon-adapter/.env`. I
 -   empty `mcp_servers`
 -   `agent.disabled_toolsets: [cronjob]` in baseline and no disabled cronjob toolset in the cron partition
 
-The fake ship service preserves the current rube-\*-group-blob / `vere-v4.5` runtime pairing and deterministic fakezod access codes. Startup logs include artifact URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive checks use the MD5 ETags exposed by `bootstrap.urbit.org`; the Vere archive uses a checked SHA-256.
+The fake ship service preserves the current `rube-*-tlon` / `vere-v4.6` runtime pairing and deterministic fakezod access codes. Startup logs include artifact URLs, cache hit/miss state, byte sizes, and checksum results. The rube archive checks use the MD5 ETags exposed by `bootstrap.urbit.org`; the Vere archive uses a checked SHA-256.
 
 ## Unit Tests
 

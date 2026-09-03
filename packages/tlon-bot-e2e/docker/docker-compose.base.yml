@@ -28,8 +28,8 @@ services:
         mkdir -p /cache
 
         echo "==> fake ships runtime pin"
-        echo "    vere pin: vere-v4.5"
-        echo "    pier generation: 30"
+        echo "    vere pin: vere-v4.6"
+        echo "    pier generation: 31"
         echo "    zod code: lidlut-tabwed-pillex-ridrup"
         echo "    ten code: lapseg-nolmel-riswen-hopryc"
         echo "    mug code: ravsut-bolryd-hapsum-pastul"
@@ -148,11 +148,11 @@ services:
           dc1e8de5698a8ac4bf7fea2edcf43a0b \
           308574832)"
         vere_archive="$$(artifact \
-          linux-x86_64-vere-v4.5.tgz \
-          https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz \
+          linux-x86_64-vere-v4.6.tgz \
+          https://github.com/urbit/vere/releases/download/vere-v4.6/linux-x86_64.tgz \
           sha256 \
-          bf7a30aad0a820bf217f3f81239b1029d16f11ba5274d45067d811489f817eed \
-          9728849)"
+          f332e96d66cb767f847fbf15e04b4f953fd078e610b449fbbc26629ea312a3ae \
+          9729797)"
 
         if [ ! -d zod ]; then
           echo "==> Extracting zod"

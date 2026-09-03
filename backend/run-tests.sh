@@ -5,8 +5,8 @@ ship="~zod"
 pier_dir=${ship#\~}
 pier=$pier_dir
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
-vere_ver="vere-v4.5"
+urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.6"
+vere_ver="vere-v4.6"
 arch=`uname -m`
 
 case $OSTYPE in
@@ -40,7 +40,7 @@ case $OSTYPE in
     esac ;;
 esac
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/tlon-192187b-1f43d2e.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
@@ -125,12 +125,12 @@ $run_click $pier <<EOF
 (pure:m !>(%ok))  
 EOF
 
-# Create and mount %tlon
-echo "Creating %tlon..."
+# Mount %tlon
+echo "Mounting tlon..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-merge+!>([%tlon our.bowl %base 0 %auto]))
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%tlon))
 ;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %tlon (scot %da now.bowl) ~]
