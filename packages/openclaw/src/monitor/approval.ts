@@ -59,6 +59,28 @@ export function formatApprovalRequestNotification(
     : `Group invite request from ${ship}`;
 }
 
+/**
+ * In-channel status posted when a mention queues a channel approval, so the
+ * wait for the owner doesn't read as a broken bot (TLON-6451). Written for
+ * readers who don't know how bot channel authorization works. Deliberately
+ * does not promise a reply to this specific message: dedup keeps only the
+ * newest pending mention per ship+channel, so only that one is replayed
+ * after approval. When the owner DM didn't go through (`ownerNotified`
+ * false), don't claim it did — a later mention retries the notification.
+ */
+export function formatChannelApprovalAck(
+  ownerShip: string,
+  ctx?: DisplayContext,
+  options: { ownerNotified?: boolean } = {}
+): string {
+  const owner = displayShipWithId(ownerShip, ctx);
+  const lead = `I need approval from my owner, ${owner}, before I can respond in this channel`;
+  if (options.ownerNotified === false) {
+    return `${lead}. I couldn't reach them just now — please mention me again later.`;
+  }
+  return `${lead} — I've sent them the request.`;
+}
+
 // ============================================================================
 // Display Context — pass human-readable names without breaking purity
 // ============================================================================
@@ -254,6 +276,18 @@ function truncate(text: string, maxLength: number): string {
  */
 export const RENOTIFY_COOLDOWN_MS = 10 * 60 * 1000;
 
+/**
+ * What applyApprovalRequest did with the request: 'queued' created a new
+ * record, 'updated' refreshed an existing one (owner re-notified), 'blocked'
+ * dropped it silently, 'suppressed' left a group record untouched
+ * (already delivered, or within the re-notify cooldown).
+ */
+export type ApprovalRequestOutcome =
+  | 'queued'
+  | 'updated'
+  | 'blocked'
+  | 'suppressed';
+
 export type ApprovalQueueContext = {
   /**
    * Live accessors, read at each use: the settings subscription replaces
@@ -277,18 +311,20 @@ export type ApprovalQueueContext = {
  * retries of failed sends via notifyAttemptAt + RENOTIFY_COOLDOWN_MS.
  * dm/channel keep their existing semantics: dedup by ship (+nest), preview
  * update, unconditional re-notify.
+ *
+ * Returns the outcome so callers can distinguish a live request from one
+ * silently dropped (blocked ship) or suppressed (group dedup/cooldown).
  */
 export async function applyApprovalRequest(
   approval: PendingApproval,
   ctx: ApprovalQueueContext
-): Promise<void> {
+): Promise<ApprovalRequestOutcome> {
   ctx.setPending(
     ctx.getPending().filter((a) => ctx.now() - a.timestamp <= APPROVAL_TTL_MS)
   );
 
   if (approval.type === 'group') {
-    await applyGroupApprovalRequest(approval, ctx);
-    return;
+    return applyGroupApprovalRequest(approval, ctx);
   }
 
   // Check if ship is blocked - silently ignore
@@ -296,7 +332,7 @@ export async function applyApprovalRequest(
     ctx.log?.(
       `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
     );
-    return;
+    return 'blocked';
   }
 
   const existing = ctx
@@ -326,7 +362,7 @@ export async function applyApprovalRequest(
       existing.notificationMessageId = normalizeNotificationId(existNotifId);
     }
     await ctx.persist();
-    return;
+    return 'updated';
   }
 
   // Send notification before saving so notificationMessageId is included
@@ -340,6 +376,7 @@ export async function applyApprovalRequest(
   ctx.log?.(
     `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
   );
+  return 'queued';
 }
 
 /**
@@ -364,7 +401,7 @@ function lastNotifyAttempt(approval: PendingApproval): number {
 async function applyGroupApprovalRequest(
   approval: PendingApproval,
   ctx: ApprovalQueueContext
-): Promise<void> {
+): Promise<ApprovalRequestOutcome> {
   // Dedup by groupFlag alone (hermes already dedups groups by flag).
   const existing = ctx
     .getPending()
@@ -374,10 +411,10 @@ async function applyGroupApprovalRequest(
     // Delivered ⇒ never re-DM while the record lives; the TTL prune plus the
     // next observation provide the eventual fresh reminder.
     if (isNotificationDelivered(existing)) {
-      return;
+      return 'suppressed';
     }
     if (ctx.now() - lastNotifyAttempt(existing) < RENOTIFY_COOLDOWN_MS) {
-      return;
+      return 'suppressed';
     }
   }
 
@@ -388,7 +425,7 @@ async function applyGroupApprovalRequest(
     ctx.log?.(
       `[tlon] Ignoring request from blocked ship ${approval.requestingShip}`
     );
-    return;
+    return 'blocked';
   }
 
   if (existing) {
@@ -400,7 +437,7 @@ async function applyGroupApprovalRequest(
     // the list ⇒ removed meanwhile, so persisting it back would resurrect it.
     const live = ctx.getPending().find((a) => a.id === existing.id);
     if (!live) {
-      return;
+      return 'updated';
     }
     if (notifId) {
       live.notificationMessageId = normalizeNotificationId(notifId);
@@ -410,7 +447,7 @@ async function applyGroupApprovalRequest(
     // honoring the cooldown.
     live.notifyAttemptAt = Math.max(lastNotifyAttempt(live), attemptAt);
     await ctx.persist();
-    return;
+    return 'updated';
   }
 
   // New group approval: push first so /pending shows it regardless of the
@@ -430,6 +467,7 @@ async function applyGroupApprovalRequest(
   ctx.log?.(
     `[tlon] Queued approval request: ${approval.id} (${approval.type} from ${approval.requestingShip})`
   );
+  return 'queued';
 }
 
 /**
