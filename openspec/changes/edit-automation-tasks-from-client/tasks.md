@@ -37,13 +37,13 @@
 
 ## 5. API Client
 
-- [ ] 5.1 Add `packages/api/src/client/stewardAutomationApi.ts`: `createAutomation`, `updateAutomation`, `deleteAutomation`, `getAutomationRequest`, `getAutomations`, with typed `StewardAutomationEditError` and `StewardAutomationPendingError` mirroring the notes envelope errors.
-- [ ] 5.2 Export from the api package index; add unit tests for envelope handling and request-id passthrough.
+- [x] 5.1 Add `packages/api/src/client/stewardAutomationApi.ts`: `createAutomation`, `updateAutomation`, `deleteAutomation`, `getAutomationRequest`, `awaitAutomationRequest`, `getAutomations`, `scryAutomations`, `subscribeToAutomations`, with typed `StewardAutomationEditError` and `StewardAutomationPendingError` mirroring the notes envelope errors; wire types in `packages/api/src/urbit/stewardAutomation.ts`.
+- [x] 5.2 Export from the api package index; add unit tests for envelope handling and request-id passthrough.
 
 ## 6. Documentation and Validation
 
 - [x] 6.1 Update `docs/backend/desk/app/steward.md`: replace the "no task mutation surface" statement with the edit loop, HTTP surface, harness feed, error vocabulary, marks, and paths; update the poke and subscription surface lists.
 - [x] 6.2 Update `packages/openclaw/README.md` for the harness subscription and edit application.
 - [x] 6.3 Compile the desk and run the targeted Hoon tests on a dev ship (rapsed `%groups` via its MCP tools, after merging develop so the desk loads); a live self-owned edit round-trips to a typed `harness-offline`.
-- [ ] 6.4 Run plugin format, lint, typecheck, unit tests, and api-package tests.
+- [x] 6.4 Run plugin format, lint, typecheck, unit tests, and api-package tests.
 - [x] 6.5 Exercised create and update cross-ship (owner simtyc → bot rapsed → OpenClaw 2026.5.28 in the dev container) over the owner's HTTP surface; the mirror on simtyc reflected both; delete, late pickup by id, every typed error path, and harness-offline with the container stopped also verified live. Pending-then-replay after a harness restart is covered by unit tests only. Two live-only bugs found and fixed: eyre's http-response watch, and the created id on hosts that ignore a requested id.

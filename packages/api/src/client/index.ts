@@ -8,6 +8,7 @@ export * from './contactsApi';
 export * from './groupsApi';
 export * from './landscapeApi';
 export * from './notesApi';
+export * from './stewardAutomationApi';
 export * from './postsApi';
 export * from './urbit';
 export * from './initApi';
