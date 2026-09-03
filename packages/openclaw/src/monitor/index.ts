@@ -4446,6 +4446,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       nest,
                       story: markdownToStory(
                         formatChannelApprovalAck(
+                          senderShip,
                           effectiveOwnerShip,
                           buildDisplayContext(),
                           { ownerNotified }
