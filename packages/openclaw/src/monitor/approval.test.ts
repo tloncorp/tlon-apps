@@ -18,6 +18,7 @@ import {
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
+  formatChannelApprovalAck,
   formatGroupLabel,
   formatPendingList,
   generateApprovalId,
@@ -786,6 +787,28 @@ describe('formatApprovalConfirmation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// In-Channel Approval Status (TLON-6451)
+// ---------------------------------------------------------------------------
+
+describe('formatChannelApprovalAck', () => {
+  it('identifies the owner by nickname and ship', () => {
+    const ctx: DisplayContext = {
+      contactNames: new Map([['~nocsyx', 'nocsyx']]),
+    };
+    const text = formatChannelApprovalAck('~nocsyx', ctx);
+    expect(text).toContain('nocsyx (~nocsyx)');
+    expect(text).toContain('approval');
+    expect(text).toContain("I'll reply here once it's approved");
+  });
+
+  it('falls back to the bare ship without context', () => {
+    const text = formatChannelApprovalAck('~nocsyx');
+    expect(text).toContain('~nocsyx');
+    expect(text).not.toContain('(~nocsyx)');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Blocked & Pending List Formatting
 // ---------------------------------------------------------------------------
 
@@ -1238,6 +1261,34 @@ describe('applyApprovalRequest', () => {
 
     expect(h.getPending().map((a) => a.id)).toEqual(['ca111', 'ca222']);
     expect(h.notify).toHaveBeenCalledTimes(3);
+  });
+
+  it('reports the outcome so callers can gate the in-channel status (TLON-6451)', async () => {
+    const h = makeQueueHarness();
+    const channel = (id: string): PendingApproval => ({
+      id,
+      type: 'channel',
+      requestingShip: '~ten',
+      channelNest: 'chat/~host/a',
+      timestamp: h.now(),
+    });
+
+    expect(await applyApprovalRequest(channel('ca111'), h.ctx)).toBe('queued');
+    expect(await applyApprovalRequest(channel('ca222'), h.ctx)).toBe('updated');
+
+    const blocked = makeQueueHarness({ blocked: true });
+    expect(await applyApprovalRequest(channel('ca333'), blocked.ctx)).toBe(
+      'blocked'
+    );
+    expect(
+      await applyApprovalRequest(blocked.groupApproval(), blocked.ctx)
+    ).toBe('blocked');
+
+    // Group semantics: queued when new, suppressed once delivered.
+    expect(await applyApprovalRequest(h.groupApproval(), h.ctx)).toBe('queued');
+    expect(await applyApprovalRequest(h.groupApproval(), h.ctx)).toBe(
+      'suppressed'
+    );
   });
 
   it('does not lose the approval when the pending list is replaced during a delayed notify', async () => {

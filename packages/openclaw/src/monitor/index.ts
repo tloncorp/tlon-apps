@@ -128,6 +128,7 @@ import {
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
 import {
+  type ApprovalRequestOutcome,
   type DisplayContext,
   type PendingApproval,
   applyApprovalRequest,
@@ -139,6 +140,7 @@ import {
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
+  formatChannelApprovalAck,
   isExpired,
   mergeApprovalDeliveryState,
   normalizeNotificationId,
@@ -1955,8 +1957,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // applyApprovalRequest).
     async function queueApprovalRequest(
       approval: PendingApproval
-    ): Promise<void> {
-      await applyApprovalRequest(approval, {
+    ): Promise<ApprovalRequestOutcome> {
+      return applyApprovalRequest(approval, {
         getPending: () => pendingApprovals,
         setPending: (next) => {
           pendingApprovals = next;
@@ -4385,7 +4387,43 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   },
                   pendingApprovals.map((a) => a.id)
                 );
-                await queueApprovalRequest(approval);
+                const outcome = await queueApprovalRequest(approval);
+                // Acknowledge the mention in-channel while the approval is
+                // pending — silence here reads as a broken bot (TLON-6451).
+                // A blocked ship keeps getting silence so blocking stays
+                // unobservable to the blocked party.
+                if (outcome !== 'blocked') {
+                  const ackParentId = resolveDeliverParentId({
+                    isGroup: true,
+                    channelNest: nest,
+                    messageId: messageId ?? '',
+                    parentId,
+                    isThreadReply,
+                  });
+                  try {
+                    await sendChannelPost({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      nest,
+                      story: markdownToStory(
+                        formatChannelApprovalAck(
+                          effectiveOwnerShip,
+                          buildDisplayContext()
+                        )
+                      ),
+                      replyToId: ackParentId ?? undefined,
+                    });
+                  } catch (err) {
+                    // Likely cause: the bot lacks write permission in this
+                    // channel. The approval itself is already queued.
+                    capturePluginError('approval_notification', err, {
+                      errorKind: 'channel_ack_failed',
+                    });
+                    runtime.error?.(
+                      `[tlon] Failed to post approval status in ${nest}: ${String(err)}`
+                    );
+                  }
+                }
               } else {
                 runtime.log?.(
                   `[tlon] Access denied: ${senderShip} in ${nest} (allowed: ${allowedShips.join(', ')})`
