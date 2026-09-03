@@ -30,17 +30,8 @@
 ++  automation-task
   |=  name=@t
   ^-  task:v1:au
-  :*  ~
-      `name
-      ~
-      `&
-      ~
-      ~
-      ~
-      ~
-      ~
-      ~
-  ==
+  =/  =task:v1:au  *task:v1:au
+  task(name `name, enabled `&)
 ++  project-automation
   |=  tasks=(list identified-task:v1:au)
   =/  m  (mare ,~)

@@ -142,7 +142,7 @@ The inbound action and the feed/scry update use separate, independently versione
 }
 ```
 
-The list is the complete projection, not a delta. The action mark parses and validates the JSON fields, while `au-build-task-map` rejects duplicate IDs and constructs the entire replacement map before the agent assigns it to state. Any invalid field, unsupported schedule, duplicate ID, foreign source, or other validation failure leaves the previous map unchanged — the crash fires before any state change or fact, so a rejected projection emits nothing. A valid action replaces the `our` entry in one state transition: omitted IDs are removed, an empty `tasks` list clears the projection, and repeating the same logical snapshot produces the same state without duplicate records. After ingestion, each inbound `id` exists only as its map key.
+`%project` carries the complete task set, never a delta. Accepting one replaces the `our` entry in a single state transition: an ID missing from the list is removed, an empty list clears the entry, and resubmitting the same snapshot leaves state unchanged. Validation happens before anything is written — the mark parses the JSON, and `au-build-task-map` builds the whole replacement map, crashing on a duplicate ID — so a rejected projection (bad field, unsupported schedule, duplicate ID, foreign source) leaves the previous map untouched and emits nothing. Each inbound `id` lives only as its map key.
 
 An equal projection against an existing entry is a complete no-op: no state write, no facts — the harness reconciler re-reads on every `cron_changed` (including execution-only events), and those re-submissions must be silent. Equal-but-absent is the exception: the very first projection creates the `our` entry even when its task list is empty. Entry creation is inexpressible as task-level deltas, so the first accepted projection announces itself on the feed as one fresh full `%tasks` snapshot (even when empty); once the entry exists, a changed projection emits per-task `%set`/`%del` deltas naming the local ship, described below.
 
@@ -212,7 +212,7 @@ The `response` JSON is type-discriminated like the notes v1 envelope, with the m
 
 ### OpenClaw reconciliation
 
-The implementation targets pinned OpenClaw `2026.5.28`, which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
+The implementation targets pinned OpenClaw `2026.7.1-2`, the hosted version, which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. A job the plugin cannot represent (an unsupported schedule kind such as `on-exit`, a malformed field, a duplicate ID) is dropped from the snapshot and reported to telemetry rather than failing it, so one odd job cannot leave the mirror permanently stale. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
 
 The v1 adapter uses one process-global monitor connection slot, so projection is enabled only when exactly one Tlon account is runnable (enabled with ship, URL, and code configured). Additional disabled or incomplete entries do not disable projection. With zero or multiple runnable accounts, gateway-start and cron-change hooks start no projection work; a one-to-many transition stops the active reconciliation epoch on the next trigger and preserves the last stored snapshots instead of targeting whichever monitor most recently published its connection.
 
@@ -321,8 +321,6 @@ The automation update grows to JSON with one shape per variant. `%tasks` carries
 With no entries at all the snapshot's exact JSON shape is `{ "tasks": {} }`. The field is `ship`, not `bot` — entries belong to ships (the local one included); "bot" is a role.
 
 ## scry surface
-
-Dotket scries execute locally against the agent's current state and do not carry a foreign caller source to authorize. Lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
 
 - `/x/v1/lens/recent` → `[%recent entries]` — newest 50 runs across all bots, for backfill. Grows to `{ "recent": [ entry, … ] }` (a JSON array of entry objects).
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.

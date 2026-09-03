@@ -141,8 +141,8 @@ export function parseStewardAutomationDispatch(
  * A create is requested under a job id derived from the request id. Hosts
  * that honor a caller-supplied id (2026.7.1 and later) then reject a dispatch
  * replayed after the plugin applied it and died before answering as a
- * duplicate, instead of creating a second job. The pinned 2026.5.28 ignores
- * the requested id and assigns its own, so the id reported back is always the
+ * duplicate, instead of creating a second job. 2026.5.28 and earlier ignore
+ * the requested id and assign their own, so the id reported back is always the
  * one the service returned, and replay is not idempotent there.
  */
 export function deriveStewardAutomationJobId(requestId: string): string {

@@ -415,16 +415,12 @@
 ++  rid-json  ^-  json  s+(scot %uv rid)
 ++  new-task
   ^-  task:v1:a
-  :*  ~
-      (some 'New task')
-      ~
-      (some %.y)
-      ~
-      (some 'isolated')
-      (some 'now')
-      (some [(some 'agentTurn') (some 'Say hello.')])
-      ~
-      ~
+  %=  empty-task
+    name            (some 'New task')
+    enabled         (some %.y)
+    session-target  (some 'isolated')
+    wake-mode       (some 'now')
+    payload         (some [(some 'agentTurn') (some 'Say hello.')])
   ==
 ++  round-trip-action
   |=  act=a-automation:v1:a
