@@ -1780,16 +1780,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return parseBlockedShips(blocked);
     }
 
-    // Check if a ship is blocked using Tlon's native block list
-    async function isShipBlocked(ship: string): Promise<boolean> {
+    // Check if a ship is blocked using Tlon's native block list.
+    // null = the lookup itself failed, so block status is unknown.
+    async function checkShipBlocked(ship: string): Promise<boolean | null> {
       const normalizedShip = normalizeShip(ship);
       try {
         const blocked = await scryBlockedShips();
         return blocked.some((s) => normalizeShip(s) === normalizedShip);
       } catch (err) {
         runtime.log?.(`[tlon] Failed to check blocked list: ${String(err)}`);
-        return false;
+        return null;
       }
+    }
+
+    async function isShipBlocked(ship: string): Promise<boolean> {
+      return (await checkShipBlocked(ship)) === true;
     }
 
     // Get all blocked ships
@@ -1954,27 +1959,47 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     }
 
     // Queue an approval request and notify the owner (idempotent — see
-    // applyApprovalRequest).
-    async function queueApprovalRequest(
-      approval: PendingApproval
-    ): Promise<ApprovalRequestOutcome> {
-      return applyApprovalRequest(approval, {
+    // applyApprovalRequest). Alongside the outcome, reports whether the
+    // owner DM actually went out and whether the block-list lookup failed —
+    // the in-channel status (TLON-6451) must not claim the request was sent
+    // when it wasn't, and must stay silent when a sender's block status
+    // couldn't be confirmed.
+    async function queueApprovalRequest(approval: PendingApproval): Promise<{
+      outcome: ApprovalRequestOutcome;
+      ownerNotified: boolean;
+      blockCheckUnknown: boolean;
+    }> {
+      let ownerNotified = false;
+      let blockCheckUnknown = false;
+      const outcome = await applyApprovalRequest(approval, {
         getPending: () => pendingApprovals,
         setPending: (next) => {
           pendingApprovals = next;
         },
-        isShipBlocked,
-        notify: (a) => {
+        isShipBlocked: async (ship) => {
+          const blocked = await checkShipBlocked(ship);
+          if (blocked === null) {
+            blockCheckUnknown = true;
+            // Unknown must not drop the request: queue + owner notify still
+            // beat silently losing a legitimate mention.
+            return false;
+          }
+          return blocked;
+        },
+        notify: async (a) => {
           const displayContext = buildDisplayContext();
-          return sendOwnerNotification(
+          const notifId = await sendOwnerNotification(
             formatApprovalRequestNotification(a, displayContext),
             buildApprovalBlobField(a, displayContext)
           );
+          ownerNotified = notifId !== undefined;
+          return notifId;
         },
         persist: savePendingApprovals,
         now: () => Date.now(),
         log: runtime.log,
       });
+      return { outcome, ownerNotified, blockCheckUnknown };
     }
 
     // ── Approval action execution ─────────────────────────────────────
@@ -4387,12 +4412,26 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   },
                   pendingApprovals.map((a) => a.id)
                 );
-                const outcome = await queueApprovalRequest(approval);
+                const { outcome, ownerNotified, blockCheckUnknown } =
+                  await queueApprovalRequest(approval);
                 // Acknowledge the mention in-channel while the approval is
                 // pending — silence here reads as a broken bot (TLON-6451).
                 // A blocked ship keeps getting silence so blocking stays
-                // unobservable to the blocked party.
-                if (outcome !== 'blocked') {
+                // unobservable to the blocked party; that also means no ack
+                // when the block-list lookup failed, and none when the owner
+                // actioned the request during the queueing await (the record
+                // is gone from the live pending list by then).
+                const approvalStillPending = pendingApprovals.some(
+                  (a) =>
+                    a.type === 'channel' &&
+                    a.requestingShip === senderShip &&
+                    a.channelNest === nest
+                );
+                if (
+                  outcome !== 'blocked' &&
+                  !blockCheckUnknown &&
+                  approvalStillPending
+                ) {
                   const ackParentId = resolveDeliverParentId({
                     isGroup: true,
                     channelNest: nest,
@@ -4408,7 +4447,8 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       story: markdownToStory(
                         formatChannelApprovalAck(
                           effectiveOwnerShip,
-                          buildDisplayContext()
+                          buildDisplayContext(),
+                          { ownerNotified }
                         )
                       ),
                       replyToId: ackParentId ?? undefined,

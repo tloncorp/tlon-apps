@@ -62,14 +62,23 @@ export function formatApprovalRequestNotification(
 /**
  * In-channel status posted when a mention queues a channel approval, so the
  * wait for the owner doesn't read as a broken bot (TLON-6451). Written for
- * readers who don't know how bot channel authorization works.
+ * readers who don't know how bot channel authorization works. Deliberately
+ * does not promise a reply to this specific message: dedup keeps only the
+ * newest pending mention per ship+channel, so only that one is replayed
+ * after approval. When the owner DM didn't go through (`ownerNotified`
+ * false), don't claim it did — a later mention retries the notification.
  */
 export function formatChannelApprovalAck(
   ownerShip: string,
-  ctx?: DisplayContext
+  ctx?: DisplayContext,
+  options: { ownerNotified?: boolean } = {}
 ): string {
   const owner = displayShipWithId(ownerShip, ctx);
-  return `I need approval from my owner, ${owner}, before I can respond in this channel. I've sent the request — I'll reply here once it's approved.`;
+  const lead = `I need approval from my owner, ${owner}, before I can respond in this channel`;
+  if (options.ownerNotified === false) {
+    return `${lead}. I couldn't reach them just now — please mention me again later.`;
+  }
+  return `${lead} — I've sent them the request.`;
 }
 
 // ============================================================================
