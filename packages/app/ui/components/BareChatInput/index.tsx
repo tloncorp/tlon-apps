@@ -30,7 +30,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Keyboard, TextInput } from 'react-native';
+import { Keyboard, Platform, TextInput } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -71,6 +71,7 @@ import {
 } from './useSlashCommands';
 
 const bareChatInputLogger = createDevLogger('bareChatInput', false);
+const MESSAGE_INPUT_CONTAINER_HEIGHT = 48;
 
 function normalizePreviewUrl(url: string) {
   try {
@@ -347,6 +348,13 @@ function BareChatInput(
     resetSlashCommandMode,
   } = useSlashCommands({ manifest: slashCommandManifest });
   const maxInputHeight = useMaxInputHeight(maxInputHeightBasic);
+  // Android's material input pill is 48dp tall and bottom-anchors its content
+  // so multiline composers grow upward. Fill that pill at the single-line
+  // height; otherwise the 44dp text input sits 4dp low inside it.
+  const minimumInputHeight =
+    Platform.OS === 'android'
+      ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
+      : initialHeight;
   const inputRef = useRef<TextInput>(null);
 
   usePasteHandler(addAttachment);
@@ -1085,7 +1093,7 @@ function BareChatInput(
     <MessageInputContainer
       onPressSend={handleSend}
       setShouldBlur={setShouldBlur}
-      containerHeight={48}
+      containerHeight={MESSAGE_INPUT_CONTAINER_HEIGHT}
       disableSend={disableSend}
       sendError={sendError}
       showWayfindingTooltip={showWayfindingTooltip}
@@ -1133,7 +1141,7 @@ function BareChatInput(
             {...(!isWeb ? placeholderTextColor : {})}
             style={{
               backgroundColor: 'transparent',
-              minHeight: initialHeight,
+              minHeight: minimumInputHeight,
               // Let the native input auto-size while it has content; force the
               // initial height when empty. The uncontrolled native input keeps a
               // stale (expanded) measurement after the text is cleared on send,
@@ -1141,7 +1149,7 @@ function BareChatInput(
               height: isWeb
                 ? inputHeight
                 : controlledText === ''
-                  ? initialHeight
+                  ? minimumInputHeight
                   : undefined,
               maxHeight: maxInputHeight - getTokenValue('$s', 'space'),
               paddingHorizontal: getTokenValue('$l', 'space'),
