@@ -1,7 +1,51 @@
 @testable import TlonMessageContextMenu
+import UIKit
 import XCTest
 
 final class TlonMessageMenuLayoutTests: XCTestCase {
+    func testReactionPressDoesNotOpenMessageMenu() {
+        let hostView = UIView()
+        let reactionView = UIView()
+        reactionView.accessibilityIdentifier = "ReactionDisplay"
+        hostView.addSubview(reactionView)
+
+        XCTAssertFalse(
+            TlonMessageContextMenuView.shouldReceiveMessageMenuTouch(
+                reactionView,
+                within: hostView
+            )
+        )
+    }
+
+    func testReactionDescendantPressDoesNotOpenMessageMenu() {
+        let hostView = UIView()
+        let reactionView = UIView()
+        reactionView.accessibilityIdentifier = "ReactionDisplay"
+        let reactionLabel = UILabel()
+        reactionView.addSubview(reactionLabel)
+        hostView.addSubview(reactionView)
+
+        XCTAssertFalse(
+            TlonMessageContextMenuView.shouldReceiveMessageMenuTouch(
+                reactionLabel,
+                within: hostView
+            )
+        )
+    }
+
+    func testOtherPressDoesOpenMessageMenu() {
+        let hostView = UIView()
+        let messageContent = UIView()
+        hostView.addSubview(messageContent)
+
+        XCTAssertTrue(
+            TlonMessageContextMenuView.shouldReceiveMessageMenuTouch(
+                messageContent,
+                within: hostView
+            )
+        )
+    }
+
     func testLeadingLayoutPreservesSourcePositionUntilAccessoriesNeedSpace() {
         let layout = TlonMessageMenuPresentationView.resolveLayout(
             bounds: CGRect(x: 0, y: 0, width: 390, height: 844),

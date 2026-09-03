@@ -162,6 +162,7 @@ const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
+const EMPTY_SCAN_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
 const MAX_COMPOSE_DELAY_MS = 3_500;
@@ -261,6 +262,119 @@ const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   topicsPrompt: string;
   topics: readonly string[];
 }[];
+
+/**
+ * Give a newly discovered chat a short, bounded window for its durable intro
+ * request to become visible. Group membership and channel posts arrive over
+ * separate subscriptions, so the first history read can legitimately be
+ * empty. Ordinary groups exhaust this window without leaving a polling loop.
+ */
+export function createAgentOnboardingCatchUpScheduler({
+  scan,
+  abortSignal,
+  retryDelaysMs = EMPTY_SCAN_RETRY_DELAYS_MS,
+}: {
+  scan: (channelNest: string) => Promise<boolean | undefined>;
+  abortSignal?: AbortSignal;
+  retryDelaysMs?: readonly number[];
+}) {
+  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const attempts = new Map<string, number>();
+  const flights = new Set<Promise<void>>();
+  let stopped = false;
+
+  const complete = (channelNest: string) => {
+    const timer = timers.get(channelNest);
+    if (timer) clearTimeout(timer);
+    timers.delete(channelNest);
+    attempts.delete(channelNest);
+  };
+
+  const schedule = (channelNest: string): boolean => {
+    if (stopped || abortSignal?.aborted || timers.has(channelNest))
+      return false;
+    const attempt = attempts.get(channelNest) ?? 0;
+    const delayMs = retryDelaysMs[attempt];
+    if (delayMs === undefined) {
+      attempts.delete(channelNest);
+      return false;
+    }
+    attempts.set(channelNest, attempt + 1);
+    const timer = setTimeout(() => {
+      timers.delete(channelNest);
+      if (stopped || abortSignal?.aborted) return;
+      const flight = (async () => {
+        const result = await scan(channelNest);
+        if (result === false) schedule(channelNest);
+        else complete(channelNest);
+      })();
+      flights.add(flight);
+      void flight.then(
+        () => flights.delete(flight),
+        () => {
+          flights.delete(flight);
+          complete(channelNest);
+        }
+      );
+    }, delayMs);
+    timer.unref?.();
+    timers.set(channelNest, timer);
+    return true;
+  };
+
+  const stop = () => {
+    stopped = true;
+    for (const timer of timers.values()) clearTimeout(timer);
+    timers.clear();
+    attempts.clear();
+  };
+
+  const reconcile = async (
+    channelNest: string
+  ): Promise<boolean | undefined> => {
+    if (stopped || abortSignal?.aborted) return undefined;
+    const result = await scan(channelNest);
+    if (result === false) schedule(channelNest);
+    else complete(channelNest);
+    return result;
+  };
+
+  const drain = async () => {
+    while (flights.size > 0) {
+      await Promise.allSettled([...flights]);
+    }
+  };
+
+  return { reconcile, schedule, stop, drain };
+}
+
+export function createAgentOnboardingReconciliationPresence({
+  conversationId,
+  createRunId,
+  refreshRun,
+  stopRun,
+}: {
+  conversationId: string;
+  createRunId: () => string;
+  refreshRun: (params: { conversationId: string; runId: string }) => void;
+  stopRun: (params: { conversationId: string; runId: string }) => void;
+}) {
+  let activeRunId: string | null = null;
+
+  return {
+    startThinking: () => {
+      if (activeRunId) return;
+      activeRunId = createRunId();
+      refreshRun({ conversationId, runId: activeRunId });
+    },
+    stopThinking: () => {
+      if (!activeRunId) return;
+      const runId = activeRunId;
+      activeRunId = null;
+      stopRun({ conversationId, runId });
+    },
+  };
+}
 
 type FirstRunCorrelation = {
   runId: string;

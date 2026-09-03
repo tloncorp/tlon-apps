@@ -60,7 +60,6 @@ export interface UseNativeHeaderOptions {
   enabled: boolean;
   title: string;
   titleElement: ReactNode;
-  titlePresentationKey: string;
   usesCustomTitle: boolean;
   backgroundColor?: string;
   left: ScreenHeaderAction[];
