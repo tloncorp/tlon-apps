@@ -25,13 +25,16 @@ git diff d5c41acdc5..HEAD -- \
   packages/shared/src/db/schema.ts \
   packages/surface-shell/src \
   packages/app/ui/components/SurfaceChannel \
-  packages/tlon-skill/scripts \
-  apps/tlon-web/sandbox-posture \
-  apps/tlon-web/hostCsp.ts
+  packages/tlon-skill/scripts
 ```
 
-**90 files, +24,629/−961.** Decisions `D100`–`D186` in the repo-root
+**87 files, +23,914/−882.** Decisions `D100`–`D186` in the repo-root
 `DECISIONS.md` cover this range.
+
+**This is a data-integrity and state-correctness review.** The question
+throughout is whether state can be lost, duplicated, stranded, or made to
+diverge between two clients holding the same inputs — and whether the checks
+that claim to prevent that can actually fail.
 
 ### Secondary target — the skill doctrine, as a read
 
@@ -62,31 +65,29 @@ churn and `packages/openclaw/dev` (the eval harness and corpus — measurement
 tooling, not the shipped path). If you find yourself needing the harness to
 judge something in scope, say so rather than reading it speculatively.
 
-## What is NOT in scope, and why
+## Out of scope — do not read these
 
-**Sandbox containment and self-navigation escape analysis.** Not because it does
-not matter — it is the highest-stakes part of the system — but because sustained
-analysis of that material has twice been refused by a provider classifier
-mid-review, once after ~205k tokens of real work were already done. That half is
-reviewed on a separate track and its conclusions live in
-`surface-channels-6d-review-containment.md` at the level of engineering
-conclusions, with specifics in the repository.
+Browser sandbox containment is reviewed on a separate track and is **not** part
+of this review. This is a hard exclusion, not a matter of emphasis: do not open
+these paths, and do not go looking for the subject matter elsewhere.
 
-Concretely: **do not** audit the CSP policy, the iframe sandbox flags, the
-navigation probe matrix, or `apps/tlon-web/sandbox-posture/navigation.spec.ts`
-as escape surfaces. `sandbox-posture/` is in the path list above only so you can
-judge the *instrument* — whether the tests measure what they claim — which is a
-correctness question about test design, not an escape analysis.
+```
+apps/tlon-web/sandbox-posture/       (all files)
+apps/tlon-web/hostCsp.ts
+surface-channels-f1-sandbox-egress.md
+surface-channels-6d-review-containment.md
+sol-review-r1.log, r2.log, r3.log, r3b.log, r4.log
+```
 
-To keep that from drifting back into the excluded subject: **judge the harness,
-not the threat.** Arming before firing; the attacker actually listening on every
-transport it claims to observe; an engine that lacks an API not being scored as
-containment; the CI job asserting a test *count* rather than a green status. The
-model of the finding wanted here is the WebSocket `upgrade`-listener bug this
-range fixed — node routes a handshake to `upgrade`, not to the request handler,
-so a WebSocket that connected would have left no trace and scored as blocked.
-That is a fact about the instrument. Reasoning about what a bundle could
-*reach* is not.
+Also skip, inside files that are otherwise in scope: the `navigation-vector`
+and `forbidden-api` rule bodies in `packages/tlon-skill/scripts/surface-lint.ts`,
+and §5 of `surface-channels-plan.md`. Everything else in those files is in
+scope — `surface-lint.ts`'s fold, idempotency and `inert-action` logic
+especially.
+
+If a question you want to answer requires that material, **stop and say so as a
+finding** rather than reading around it. "I could not judge X without the
+excluded material" is a useful result and costs nothing.
 
 ## What those runs found, and what happened to it
 
@@ -160,12 +161,16 @@ past them. Disagreeing with the framing is itself useful.
    channel description, the client-executed publish v1 contemplates —
    reintroduces the original hazard at full strength. Is "document it in the plan
    and pin the contract with a test" actually sufficient here?
-6. **The composed render test** (`sandbox-posture/composed.spec.ts`). It runs the
-   real shell in a real browser frame driven by the real host session layer in
-   node. That is a genuine composition, but it is not the React component; the
-   container's own wiring is covered separately in jsdom with the state
-   components stubbed. Ask whether the seam I did not compose is the one that
-   matters.
+6. **The host/shell seam, from the in-scope side only.** The React host is
+   tested in jsdom (`SurfaceSandboxContainer.test.tsx`) with the shell artifact
+   mocked to a no-op, the ready handshake hand-dispatched, and the §6 state
+   components stubbed. `sandboxSession.ts` — schema validation, the
+   spec-revision cross-check, the permission re-check, the declared-action
+   check — is the real logic under that stub. Judge whether the jsdom suite
+   plus `sandboxSession.test.ts` actually pin that logic, or whether they pin a
+   shape the stub makes true. (A browser-side composition test exists and is
+   out of scope; do not go find it.)
+
 7. **The claims index** (`surface-channels-claims-index.md`). It enumerates 126
    claims across the plan, the PR body and the how-it-works doc: 97 with a
    control, 89 of those with a demonstrated negative control, **29 with none**
