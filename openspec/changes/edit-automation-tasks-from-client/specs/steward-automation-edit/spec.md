@@ -32,7 +32,7 @@ A `response` SHALL be `[request-id response-body]`, and the `response-body` SHAL
 #### Scenario: Create succeeds
 
 - **WHEN** the harness creates the task
-- **THEN** the response is `created` carrying the task id derived from the request id
+- **THEN** the response is `created` carrying the job id the harness reports, which is the requested derived id on hosts that honor one
 
 #### Scenario: Delete of an unknown task
 
@@ -179,7 +179,7 @@ On subscribe to `/v1/automation/harness` the bot SHALL give one fact per outstan
 
 ### Requirement: Plugin applies commands through the cron service
 
-At `gateway_start`, when exactly one Tlon account is runnable, the plugin SHALL subscribe to the bot's harness feed and SHALL hold the cron service from `getCron()`. For each command it SHALL validate the input, map it to the service's create, patch, or remove input, apply it, and poke the `a-automation` `%finalize` variant with the typed `response-body`. Commands for one bot SHALL be applied serially. `create` SHALL require the fields the service requires and otherwise respond `error invalid` without calling the service. `create` SHALL pass a job id derived deterministically from the request id, and a duplicate-id rejection from the service SHALL be answered `created` with that id so replayed creates are idempotent. `remove` reporting no removal SHALL respond `error not-found`. A thrown service error SHALL respond `error harness-error`. `gateway_stop` SHALL end the subscription without affecting Steward state. With zero or several runnable accounts the plugin SHALL NOT subscribe.
+At `gateway_start`, when exactly one Tlon account is runnable, the plugin SHALL subscribe to the bot's harness feed and SHALL hold the cron service from `getCron()`. For each command it SHALL validate the input, map it to the service's create, patch, or remove input, apply it, and poke the `a-automation` `%finalize` variant with the typed `response-body`. Commands for one bot SHALL be applied serially. `create` SHALL require the fields the service requires and otherwise respond `error invalid` without calling the service. `create` SHALL request a job id derived deterministically from the request id, SHALL report the id the service actually assigned, and SHALL answer a duplicate-id rejection from the service as `created` with the derived id so replayed creates are idempotent on hosts that honor a requested id. `remove` reporting no removal SHALL respond `error not-found`. A thrown service error SHALL respond `error harness-error`. `gateway_stop` SHALL end the subscription without affecting Steward state. With zero or several runnable accounts the plugin SHALL NOT subscribe.
 
 #### Scenario: Create with a cron schedule
 

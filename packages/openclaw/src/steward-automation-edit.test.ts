@@ -207,6 +207,44 @@ describe('applyStewardAutomationDispatch', () => {
     expect(body).toEqual({ type: 'created', id: jobId });
   });
 
+  it('reports the id the service assigned when it ignores the requested one', async () => {
+    const cron = cronService({
+      add: vi
+        .fn()
+        .mockResolvedValue({ id: '5e4dbd9c-c644-4cd0-a900-af54efa4e8e5' }),
+    });
+    const body = await applyStewardAutomationDispatch(
+      { requestId, action: { create: createTask } },
+      cron
+    );
+    expect(body).toEqual({
+      type: 'created',
+      id: '5e4dbd9c-c644-4cd0-a900-af54efa4e8e5',
+    });
+  });
+
+  it('reads the id from a declarative add result', async () => {
+    const cron = cronService({
+      add: vi
+        .fn()
+        .mockResolvedValue({ created: true, job: { id: 'declared-1' } }),
+    });
+    const body = await applyStewardAutomationDispatch(
+      { requestId, action: { create: createTask } },
+      cron
+    );
+    expect(body).toEqual({ type: 'created', id: 'declared-1' });
+  });
+
+  it('falls back to the requested id when add returns nothing usable', async () => {
+    const cron = cronService({ add: vi.fn().mockResolvedValue(undefined) });
+    const body = await applyStewardAutomationDispatch(
+      { requestId, action: { create: createTask } },
+      cron
+    );
+    expect(body).toEqual({ type: 'created', id: jobId });
+  });
+
   it('treats a duplicate-id rejection as the create that already landed', async () => {
     const cron = cronService({
       add: vi

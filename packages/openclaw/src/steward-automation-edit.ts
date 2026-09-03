@@ -138,12 +138,30 @@ export function parseStewardAutomationDispatch(
 }
 
 /**
- * A create is applied under a job id derived from the request id, so a
- * dispatch replayed after the plugin applied it and died before answering is
- * rejected by OpenClaw as a duplicate rather than creating a second job.
+ * A create is requested under a job id derived from the request id. Hosts
+ * that honor a caller-supplied id (2026.7.1 and later) then reject a dispatch
+ * replayed after the plugin applied it and died before answering as a
+ * duplicate, instead of creating a second job. The pinned 2026.5.28 ignores
+ * the requested id and assigns its own, so the id reported back is always the
+ * one the service returned, and replay is not idempotent there.
  */
 export function deriveStewardAutomationJobId(requestId: string): string {
   return `${STEWARD_JOB_ID_PREFIX}${requestId}`;
+}
+
+/** The created job's id as the service reports it, whatever shape `add` returned. */
+export function resolveCreatedJobId(result: unknown): string | undefined {
+  if (typeof result !== 'object' || result === null) {
+    return undefined;
+  }
+  const candidate = result as { id?: unknown; job?: { id?: unknown } };
+  if (typeof candidate.id === 'string' && candidate.id) {
+    return candidate.id;
+  }
+  if (typeof candidate.job?.id === 'string' && candidate.job.id) {
+    return candidate.job.id;
+  }
+  return undefined;
 }
 
 type MappingResult<T> = { ok: true; value: T } | { ok: false; message: string };
@@ -370,8 +388,11 @@ export async function applyStewardAutomationDispatch(
       return errorBody('invalid', input.message);
     }
     try {
-      await cron.add(input.value as never);
-      return { type: 'created', id: input.value.id };
+      const result = await cron.add(input.value as never);
+      return {
+        type: 'created',
+        id: resolveCreatedJobId(result) ?? input.value.id,
+      };
     } catch (error) {
       if (isDuplicateJobError(error)) {
         // A replayed create: the job from the first attempt is the answer.
