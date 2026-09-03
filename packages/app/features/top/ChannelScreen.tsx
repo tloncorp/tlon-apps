@@ -22,7 +22,9 @@ import React, {
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
+import { useResetDb } from '../../hooks/useResetDb';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -96,6 +98,8 @@ export default function ChannelScreen(props: Props) {
     routeGroupId,
   });
   const currentUserId = api.getCurrentUserId();
+  const resetDb = useResetDb();
+  const handleLogout = useHandleLogout({ resetDb });
 
   const channelIsPending = !channel || channel.isPendingChannel;
   useFocusEffect(
@@ -587,6 +591,9 @@ export default function ChannelScreen(props: Props) {
           }
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboardingNavigationLocked}
+          onPressLogout={
+            agentOnboarding.locked ? handleLogout : undefined
+          }
           suppressEmptyState={agentGroupSetupActive}
           suppressAnimatedSendScroll={agentGroupSetupActive}
           pendingThinkingLabel={pendingThinkingLabel}
