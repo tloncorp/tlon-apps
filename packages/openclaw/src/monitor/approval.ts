@@ -67,14 +67,19 @@ export function formatApprovalRequestNotification(
  * newest pending mention per ship+channel, so only that one is replayed
  * after approval. When the owner DM didn't go through (`ownerNotified`
  * false), don't claim it did — a later mention retries the notification.
+ *
+ * The requester prefix must stay a bare ~ship token (no nickname) so the
+ * story parser turns it into a real mention — that's what keeps several
+ * near-identical acks tellable apart when multiple people tag the bot.
  */
 export function formatChannelApprovalAck(
+  requestingShip: string,
   ownerShip: string,
   ctx?: DisplayContext,
   options: { ownerNotified?: boolean } = {}
 ): string {
   const owner = displayShipWithId(ownerShip, ctx);
-  const lead = `I need approval from my owner, ${owner}, before I can respond in this channel`;
+  const lead = `${requestingShip}: I need approval from my owner, ${owner}, before I can respond in this channel`;
   if (options.ownerNotified === false) {
     return `${lead}. I couldn't reach them just now — please mention me again later.`;
   }
@@ -381,9 +386,10 @@ export async function applyApprovalRequest(
 
 /**
  * Persisted JSON can carry a null/empty/non-string marker; only a real
- * message ID proves the owner DM landed.
+ * message ID proves the owner DM landed. Exported so the channel-ack path
+ * can detect the undelivered→delivered transition on a retry mention.
  */
-function isNotificationDelivered(approval: PendingApproval): boolean {
+export function isNotificationDelivered(approval: PendingApproval): boolean {
   return (
     typeof approval.notificationMessageId === 'string' &&
     approval.notificationMessageId.length > 0

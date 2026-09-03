@@ -142,6 +142,7 @@ import {
   formatBlockedList,
   formatChannelApprovalAck,
   isExpired,
+  isNotificationDelivered,
   mergeApprovalDeliveryState,
   normalizeNotificationId,
   pruneExpired,
@@ -4412,10 +4413,32 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   },
                   pendingApprovals.map((a) => a.id)
                 );
+                const priorApproval = pendingApprovals.find(
+                  (a) =>
+                    a.type === 'channel' &&
+                    a.requestingShip === senderShip &&
+                    a.channelNest === nest
+                );
+                const priorOwnerNotified =
+                  priorApproval !== undefined &&
+                  isNotificationDelivered(priorApproval);
                 const { outcome, ownerNotified, blockCheckUnknown } =
                   await queueApprovalRequest(approval);
                 // Acknowledge the mention in-channel while the approval is
                 // pending — silence here reads as a broken bot (TLON-6451).
+                // A newly-queued approval is acknowledged; an 'updated' one
+                // only when this retry finally delivered a previously-failed
+                // owner DM (the failure ack asks the sender to mention
+                // again, so the retry that works must confirm). Both fire at
+                // most once per record, which statelessly bounds mutual-ack
+                // loops between two unauthorized bots that mention each
+                // other: each side acks once, and the counter-ack dedups
+                // into the existing record on the other side. Bot detection
+                // can't do this (a profileless bot sends a bare-string
+                // author and looks human), and maxBotResponses doesn't fire
+                // when configured to 0. Known bots get no ack at all — the
+                // reassurance is for humans, and a bot's owner still gets
+                // the DM approval card.
                 // A blocked ship keeps getting silence so blocking stays
                 // unobservable to the blocked party; that also means no ack
                 // when the block-list lookup failed, and none when the owner
@@ -4427,9 +4450,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     a.requestingShip === senderShip &&
                     a.channelNest === nest
                 );
+                const notifyRecovered =
+                  outcome === 'updated' && !priorOwnerNotified && ownerNotified;
                 if (
-                  outcome !== 'blocked' &&
+                  (outcome === 'queued' || notifyRecovered) &&
                   !blockCheckUnknown &&
+                  !isKnownBot &&
                   approvalStillPending
                 ) {
                   const ackParentId = resolveDeliverParentId({
@@ -4446,6 +4472,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                       nest,
                       story: markdownToStory(
                         formatChannelApprovalAck(
+                          senderShip,
                           effectiveOwnerShip,
                           buildDisplayContext(),
                           { ownerNotified }
