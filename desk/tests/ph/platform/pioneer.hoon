@@ -20,7 +20,7 @@
   =/  tid=@ta
     %^  cat  3  'pioneer-'
     (cat 3 name (cat 3 '-' (scot %uv (sham now.bowl name))))
-  =/  =beak  [who %groups da+now.bowl]
+  =/  =beak  [who q.byk.bowl da+now.bowl]
   =/  file=term  (cat 3 'pioneer-' name)
   =/  start=start-args:spider  [~ `tid beak file !>(`(unit json)`[~ arg])]
   =/  =wire  /(scot %p who)/spider/thread-result/[tid]

@@ -136,7 +136,7 @@
   =*  mark  mark.p.q.unix-effect
   ::  note: this assumes that the marks on the virtual ship and the host match
   ::
-  =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
+  =+  .^(=dais:clay %cb /(scot %p our.bowl)/[q.byk.bowl]/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m [mark vase])
 ::  +wait-for-app-fact: receive a gall fact from a virtual ship and unpack it
@@ -163,7 +163,7 @@
   =*  mark  mark.p.q.unix-effect
   ::  note: this assumes that the marks on the virtual ship and the host match
   ::
-  =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
+  =+  .^(=dais:clay %cb /(scot %p our.bowl)/[q.byk.bowl]/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m !<(mold vase))
 ::  +ex-equal: expect .actual to be equal to .expected
