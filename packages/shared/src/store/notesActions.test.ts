@@ -9,6 +9,9 @@ import { setupDatabaseTestSuite } from '../test/helpers';
 import {
   makeApiNotesFolder,
   makeApiNotesNote,
+  makeFolderUpdate,
+  makeNoteUpdate,
+  makeNotesV1Note,
   makeNotesFolder,
   makeNotesNote,
   makeNotesNotebook,
@@ -17,10 +20,16 @@ import {
 import {
   NotesNoteConflictError,
   adoptNotebookNoteRemote,
+  applyNotesUpdate,
+  createNotebookFolder,
   createNotebookNote,
+  deleteNotebookFolder,
   deleteNotebookNote,
+  importNotebookTree,
+  moveNotebookNote,
   noteIsPublished,
   publishNotebookNote,
+  renameNotebookFolder,
   saveNotebookNote,
   syncNotesNotebook,
   unpublishNotebookNote,
@@ -186,39 +195,40 @@ test('syncNotesNotebook preserves cached note details when list notes omit them'
   });
 });
 
-test('createNotebookNote uses a fresh baseline before finding the created note', async () => {
-  const cachedNote = makeNote('Cached note');
-  const staleRemoteNote = makeNotesNote(4, rootFolder.folderId, 'Stale remote');
-  const createdNote = makeNotesNote(5, rootFolder.folderId, 'Created note');
+test('createNotebookNote persists the created note from the write response alone', async () => {
+  const createdNote = makeNotesNote(4, rootFolder.folderId, 'Created note', {
+    bodyMd: 'created body',
+    revision: 2,
+  });
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
     folders: [rootFolder],
-    notes: [cachedNote],
+    notes: [],
     members: [],
   });
 
-  let created = false;
-  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
-    makeApiNotesFolder(rootFolder),
-  ]);
-  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () => [
-    makeApiNotesNote(staleRemoteNote),
-    ...(created ? [makeApiNotesNote(createdNote)] : []),
-  ]);
-  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
-    created = true;
-    return null;
-  });
+  const listNotes = vi.spyOn(api.notes, 'listNotes');
+  const getNote = vi.spyOn(api.notes, 'getNote');
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue(
+    makeNotesV1Note(createdNote)
+  );
 
   const note = await createNotebookNote({
     notebookFlag,
     folderId: rootFolder.folderId,
     title: createdNote.title,
+    body: createdNote.bodyMd,
   });
 
-  expect(note?.noteId).toBe(createdNote.noteId);
+  expect(note).toMatchObject({
+    noteId: createdNote.noteId,
+    title: createdNote.title,
+    bodyMd: createdNote.bodyMd,
+    revision: createdNote.revision,
+  });
+  // The whole point: no read-back of any kind.
+  expect(listNotes).not.toHaveBeenCalled();
+  expect(getNote).not.toHaveBeenCalled();
 });
 
 test('createNotebookNote immediately persists the authoritative create response', async () => {
@@ -231,6 +241,12 @@ test('createNotebookNote immediately persists the authoritative create response'
     rootFolder.folderId,
     'Collaborator note'
   );
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
   vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
   vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
@@ -262,7 +278,10 @@ test('createNotebookNote immediately persists the authoritative create response'
     bodyMd: createdNote.bodyMd,
     revision: createdNote.revision,
   });
-  expect(api.notes.listNotes).toHaveBeenCalledTimes(1);
+  // A note a collaborator wrote mid-create survives, because the create no
+  // longer saves a whole snapshot over the top of it — it writes just its own
+  // note, straight from the response, and reads nothing back.
+  expect(api.notes.listNotes).not.toHaveBeenCalled();
   expect(getNote).not.toHaveBeenCalled();
   await expect(
     db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
@@ -310,7 +329,7 @@ test('createNotebookNote does not return an existing note when create sync times
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
     folders: [rootFolder],
-    notes: [],
+    notes: [existingNote],
     members: [],
   });
 
@@ -333,7 +352,7 @@ test('createNotebookNote does not return an existing note when create sync times
   expect(note).toBeNull();
 });
 
-test('createNotebookNote hydrates created note details when list notes omit them', async () => {
+test('createNotebookNote falls back to sync when the response carries no update', async () => {
   const createdNote = makeNotesNote(4, rootFolder.folderId, 'Created note', {
     bodyMd: 'created body',
     revision: 2,
@@ -345,22 +364,15 @@ test('createNotebookNote hydrates created note details when list notes omit them
     members: [],
   });
 
-  let created = false;
   vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
   vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
     makeApiNotesFolder(rootFolder),
   ]);
-  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () =>
-    created ? [makeApiNoteSummary(createdNote)] : []
-  );
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(createdNote),
+  ]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  const getNote = vi
-    .spyOn(api.notes, 'getNote')
-    .mockResolvedValue(makeApiNotesNote(createdNote));
-  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
-    created = true;
-    return null;
-  });
+  vi.spyOn(api.notes, 'createNote').mockResolvedValue(null);
 
   const note = await createNotebookNote({
     notebookFlag,
@@ -369,15 +381,7 @@ test('createNotebookNote hydrates created note details when list notes omit them
     body: createdNote.bodyMd,
   });
 
-  expect(getNote).toHaveBeenCalledWith({
-    flag: { host: '~zod', name: 'native-notes' },
-    noteId: createdNote.noteId,
-  });
-  expect(note).toMatchObject({
-    noteId: createdNote.noteId,
-    bodyMd: createdNote.bodyMd,
-    revision: createdNote.revision,
-  });
+  expect(note?.noteId).toBe(createdNote.noteId);
 });
 
 test('saveNotebookNote persists sent content from the response contract, no read-back', async () => {
@@ -1296,7 +1300,7 @@ test('adoptNotebookNoteRemote persists the host copy locally', async () => {
   });
 });
 
-test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
+test('deleteNotebookNote removes the note from the write response alone', async () => {
   const note = makeNote('Delete me');
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
@@ -1305,21 +1309,10 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
     members: [],
   });
 
-  let readLagging = false;
-  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
-  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
-    makeApiNotesFolder(rootFolder),
-  ]);
-  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () => {
-    if (readLagging) {
-      readLagging = false;
-      return [makeApiNotesNote(note)];
-    }
-    return [];
-  });
-  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'deleteNote').mockImplementation(async () => {
-    readLagging = true;
+  const listNotes = vi.spyOn(api.notes, 'listNotes');
+  vi.spyOn(api.notes, 'deleteNote').mockResolvedValue({
+    type: 'note-deleted',
+    noteId: note.noteId,
   });
 
   await deleteNotebookNote({ notebookFlag, noteId: note.noteId });
@@ -1327,11 +1320,35 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
+  expect(listNotes).not.toHaveBeenCalled();
 });
 
-test('deleteNotebookNote keeps the local delete when sync stays stale', async () => {
+test('deleteNotebookNote reports the delete on the write response, not on read-back', async () => {
   const capture = vi.fn();
   useDebugStore.getState().initializeErrorLogger({ capture });
+  const note = makeNote('Delete me');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  vi.spyOn(api.notes, 'deleteNote').mockResolvedValue({
+    type: 'note-deleted',
+    noteId: note.noteId,
+  });
+
+  await deleteNotebookNote({ notebookFlag, noteId: note.noteId });
+
+  // The ok envelope is the host's confirmation — nothing else is needed to
+  // know the delete happened.
+  expect(
+    capture.mock.calls.some(([event]) => event === AnalyticsEvent.NoteDeleted)
+  ).toBe(true);
+});
+
+test('deleteNotebookNote keeps the local delete when the fallback sync stays stale', async () => {
   const note = makeNote('Delete me eventually');
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
@@ -1346,16 +1363,13 @@ test('deleteNotebookNote keeps the local delete when sync stays stale', async ()
   ]);
   vi.spyOn(api.notes, 'listNotes').mockResolvedValue([makeApiNotesNote(note)]);
   vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
-  vi.spyOn(api.notes, 'deleteNote').mockResolvedValue(undefined);
+  vi.spyOn(api.notes, 'deleteNote').mockResolvedValue(null);
 
   await deleteNotebookNote({ notebookFlag, noteId: note.noteId });
 
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
-  expect(
-    capture.mock.calls.some(([event]) => event === AnalyticsEvent.NoteDeleted)
-  ).toBe(false);
 });
 
 test('publishNotebookNote renders current markdown and marks note published', async () => {
@@ -1426,4 +1440,416 @@ test('noteIsPublished matches published records by note id', () => {
 
   expect(noteIsPublished(published, 3)).toBe(true);
   expect(noteIsPublished(published, 4)).toBe(false);
+});
+
+// ---------------------------------------------------------------------------
+// applyNotesUpdate — the shared reducer behind both the write path and the
+// stream. These cover the variants no mutation test exercises end to end.
+// ---------------------------------------------------------------------------
+
+async function seedNotebook(
+  notes: db.NotesNote[] = [],
+  folders: db.NotesFolder[] = [rootFolder]
+) {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders,
+    notes,
+    members: [],
+  });
+}
+
+test('applyNotesUpdate upserts a created note', async () => {
+  await seedNotebook();
+  const note = makeNotesNote(9, rootFolder.folderId, 'From the stream', {
+    bodyMd: 'streamed body',
+    revision: 3,
+  });
+
+  await expect(
+    applyNotesUpdate(notebookFlag, makeNoteUpdate('note-created', note))
+  ).resolves.toBe(true);
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 9 })
+  ).resolves.toMatchObject({
+    title: 'From the stream',
+    bodyMd: 'streamed body',
+    revision: 3,
+    folderId: rootFolder.folderId,
+  });
+});
+
+test('applyNotesUpdate ignores a note update older than the stored revision', async () => {
+  const stored = makeNotesNote(9, rootFolder.folderId, 'Current', {
+    bodyMd: 'current body',
+    revision: 5,
+    updatedAt: 500,
+  });
+  await seedNotebook([stored]);
+
+  const stale = makeNotesNote(9, rootFolder.folderId, 'Stale', {
+    bodyMd: 'stale body',
+    revision: 4,
+    updatedAt: 400,
+  });
+  await expect(
+    applyNotesUpdate(notebookFlag, makeNoteUpdate('note-updated', stale))
+  ).resolves.toBe(true);
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 9 })
+  ).resolves.toMatchObject({ title: 'Current', revision: 5 });
+});
+
+test('applyNotesUpdate applies a note update at the same revision with a newer stamp', async () => {
+  const stored = makeNotesNote(9, rootFolder.folderId, 'Before', {
+    revision: 5,
+    updatedAt: 500,
+  });
+  await seedNotebook([stored]);
+
+  // Renames and moves don't bump the revision — the host stamp breaks the tie.
+  const renamed = makeNotesNote(9, rootFolder.folderId, 'After', {
+    revision: 5,
+    updatedAt: 600,
+  });
+  await applyNotesUpdate(notebookFlag, makeNoteUpdate('note-updated', renamed));
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 9 })
+  ).resolves.toMatchObject({ title: 'After', revision: 5 });
+});
+
+test('applyNotesUpdate deletes a note', async () => {
+  const note = makeNotesNote(9, rootFolder.folderId, 'Doomed');
+  await seedNotebook([note]);
+
+  await applyNotesUpdate(notebookFlag, { type: 'note-deleted', noteId: 9 });
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 9 })
+  ).resolves.toBeNull();
+});
+
+test('applyNotesUpdate upserts a created folder and updates it in place', async () => {
+  await seedNotebook();
+  const folder = makeNotesFolder(8, 'Drafts', rootFolder.folderId);
+
+  await applyNotesUpdate(
+    notebookFlag,
+    makeFolderUpdate('folder-created', folder)
+  );
+  await expect(db.getNotesFolders({ notebookFlag })).resolves.toContainEqual(
+    expect.objectContaining({ folderId: 8, name: 'Drafts' })
+  );
+
+  await applyNotesUpdate(
+    notebookFlag,
+    makeFolderUpdate('folder-updated', { ...folder, name: 'Published' })
+  );
+  const folders = await db.getNotesFolders({ notebookFlag });
+  expect(folders.filter((f) => f.folderId === 8)).toEqual([
+    expect.objectContaining({ name: 'Published' }),
+  ]);
+});
+
+test('applyNotesUpdate deletes a folder subtree and the notes inside it', async () => {
+  const parent = makeNotesFolder(8, 'Parent', rootFolder.folderId);
+  const child = makeNotesFolder(9, 'Child', parent.folderId);
+  const noteInChild = makeNotesNote(20, child.folderId, 'Nested note');
+  const keptNote = makeNotesNote(21, rootFolder.folderId, 'Kept note');
+  await seedNotebook([noteInChild, keptNote], [rootFolder, parent, child]);
+
+  await applyNotesUpdate(notebookFlag, {
+    type: 'folder-deleted',
+    folderId: parent.folderId,
+  });
+
+  const folders = await db.getNotesFolders({ notebookFlag });
+  expect(folders.map((f) => f.folderId)).toEqual([rootFolder.folderId]);
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 20 })
+  ).resolves.toBeNull();
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 21 })
+  ).resolves.not.toBeNull();
+});
+
+test('applyNotesUpdate tracks members joining and leaving', async () => {
+  await seedNotebook();
+
+  await applyNotesUpdate(notebookFlag, {
+    type: 'member-joined',
+    who: '~ten',
+    role: 'editor',
+  });
+  await expect(db.getNotesMembers({ notebookFlag })).resolves.toEqual([
+    expect.objectContaining({ contactId: '~ten', role: 'editor' }),
+  ]);
+
+  await applyNotesUpdate(notebookFlag, { type: 'member-left', who: '~ten' });
+  await expect(db.getNotesMembers({ notebookFlag })).resolves.toEqual([]);
+});
+
+test('applyNotesUpdate records the current user role when we are the member', async () => {
+  await seedNotebook();
+  vi.spyOn(api, 'getCurrentUserId').mockReturnValue('~ten');
+
+  await applyNotesUpdate(notebookFlag, {
+    type: 'member-joined',
+    who: '~ten',
+    role: 'viewer',
+  });
+  await expect(db.getNotesNotebook({ notebookFlag })).resolves.toMatchObject({
+    currentUserRole: 'viewer',
+  });
+
+  await applyNotesUpdate(notebookFlag, { type: 'member-left', who: '~ten' });
+  await expect(db.getNotesNotebook({ notebookFlag })).resolves.toMatchObject({
+    currentUserRole: null,
+  });
+});
+
+test('applyNotesUpdate applies notebook title and visibility changes', async () => {
+  await seedNotebook();
+
+  await applyNotesUpdate(notebookFlag, {
+    type: 'notebook-updated',
+    notebook: { id: 1, title: 'Renamed notebook', updatedAt: 900 },
+  });
+  await applyNotesUpdate(notebookFlag, {
+    type: 'notebook-visibility-changed',
+    visibility: 'public',
+  });
+
+  await expect(db.getNotesNotebook({ notebookFlag })).resolves.toMatchObject({
+    title: 'Renamed notebook',
+    visibility: 'public',
+    updatedAt: 900,
+  });
+});
+
+test('applyNotesUpdate defers to a full sync when the notebook is not local yet', async () => {
+  const note = makeNotesNote(9, rootFolder.folderId, 'Orphan');
+
+  // No notebook row: nothing to attach the note to.
+  await expect(
+    applyNotesUpdate(notebookFlag, makeNoteUpdate('note-created', note))
+  ).resolves.toBe(false);
+});
+
+test('applyNotesUpdate serializes overlapping updates for one notebook', async () => {
+  await seedNotebook();
+  const note = (revision: number, title: string) =>
+    makeNotesNote(9, rootFolder.folderId, title, {
+      revision,
+      updatedAt: revision * 100,
+    });
+
+  await Promise.all([
+    applyNotesUpdate(
+      notebookFlag,
+      makeNoteUpdate('note-created', note(1, 'v1'))
+    ),
+    applyNotesUpdate(
+      notebookFlag,
+      makeNoteUpdate('note-updated', note(3, 'v3'))
+    ),
+    applyNotesUpdate(
+      notebookFlag,
+      makeNoteUpdate('note-updated', note(2, 'v2'))
+    ),
+  ]);
+
+  // Whatever the interleaving, the highest revision is what survives.
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: 9 })
+  ).resolves.toMatchObject({ title: 'v3', revision: 3 });
+});
+
+// ---------------------------------------------------------------------------
+// Mutations that now cost one request
+// ---------------------------------------------------------------------------
+
+test('moveNotebookNote applies the response without reading back', async () => {
+  const note = makeNotesNote(9, rootFolder.folderId, 'Movable');
+  const target = makeNotesFolder(8, 'Target', rootFolder.folderId);
+  await seedNotebook([note], [rootFolder, target]);
+
+  const listNotes = vi.spyOn(api.notes, 'listNotes');
+  vi.spyOn(api.notes, 'moveNote').mockResolvedValue(
+    makeNoteUpdate('note-updated', {
+      ...note,
+      folderId: target.folderId,
+      updatedAt: (note.updatedAt ?? 0) + 100,
+    })
+  );
+
+  await moveNotebookNote({
+    notebookFlag,
+    noteId: note.noteId,
+    folderId: target.folderId,
+  });
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toMatchObject({ folderId: target.folderId });
+  expect(listNotes).not.toHaveBeenCalled();
+});
+
+test('renameNotebookFolder applies the response without reading back', async () => {
+  const folder = makeNotesFolder(8, 'Old name', rootFolder.folderId);
+  await seedNotebook([], [rootFolder, folder]);
+
+  const listFolders = vi.spyOn(api.notes, 'listFolders');
+  vi.spyOn(api.notes, 'renameFolder').mockResolvedValue(
+    makeFolderUpdate('folder-updated', { ...folder, name: 'New name' })
+  );
+
+  await renameNotebookFolder({ notebookFlag, folder, name: 'New name' });
+
+  await expect(db.getNotesFolders({ notebookFlag })).resolves.toContainEqual(
+    expect.objectContaining({ folderId: 8, name: 'New name' })
+  );
+  expect(listFolders).not.toHaveBeenCalled();
+});
+
+test('deleteNotebookFolder removes the subtree from the response alone', async () => {
+  const parent = makeNotesFolder(8, 'Parent', rootFolder.folderId);
+  const child = makeNotesFolder(9, 'Child', parent.folderId);
+  await seedNotebook([], [rootFolder, parent, child]);
+
+  const listFolders = vi.spyOn(api.notes, 'listFolders');
+  vi.spyOn(api.notes, 'deleteFolder').mockResolvedValue({
+    type: 'folder-deleted',
+    folderId: parent.folderId,
+  });
+
+  await deleteNotebookFolder({ notebookFlag, folder: parent });
+
+  await expect(db.getNotesFolders({ notebookFlag })).resolves.toEqual([
+    expect.objectContaining({ folderId: rootFolder.folderId }),
+  ]);
+  expect(listFolders).not.toHaveBeenCalled();
+});
+
+test('createNotebookFolder returns the created folder from the response alone', async () => {
+  await seedNotebook();
+  const created = makeNotesFolder(8, 'Drafts', rootFolder.folderId);
+
+  const listFolders = vi.spyOn(api.notes, 'listFolders');
+  vi.spyOn(api.notes, 'createFolder').mockResolvedValue(
+    makeFolderUpdate('folder-created', created)
+  );
+
+  const folder = await createNotebookFolder({
+    notebookFlag,
+    parentFolderId: rootFolder.folderId,
+    name: 'Drafts',
+  });
+
+  expect(folder).toMatchObject({ folderId: 8, name: 'Drafts' });
+  expect(listFolders).not.toHaveBeenCalled();
+});
+
+test('importNotebookTree submits one poke for the whole tree', async () => {
+  await seedNotebook();
+  const child = makeNotesFolder(8, 'Imported', rootFolder.folderId);
+  const imported = makeNotesNote(20, child.folderId, 'Nested note');
+
+  const batchImport = vi
+    .spyOn(api, 'batchImportNotesTreeV1')
+    .mockResolvedValue('0vserver');
+  const createNote = vi.spyOn(api.notes, 'createNote');
+  const createFolder = vi.spyOn(api.notes, 'createFolder');
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+    makeApiNotesFolder(child),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([
+    makeApiNotesNote(imported),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  const tree: api.NotesImportNode[] = [
+    {
+      name: 'Imported',
+      children: [
+        { title: 'Nested note', body: 'nested body' },
+        { title: 'Second note', body: 'second body' },
+      ],
+    },
+    { title: 'Top note', body: 'top body' },
+  ];
+
+  const result = await importNotebookTree({
+    notebookFlag,
+    parentFolderId: rootFolder.folderId,
+    tree,
+  });
+
+  expect(result).toEqual({ noteCount: 3 });
+  expect(batchImport).toHaveBeenCalledTimes(1);
+  expect(batchImport).toHaveBeenCalledWith(
+    expect.objectContaining({
+      flag: notebookFlag,
+      parent: rootFolder.folderId,
+      tree,
+    })
+  );
+  // Not one request per note or per folder.
+  expect(createNote).not.toHaveBeenCalled();
+  expect(createFolder).not.toHaveBeenCalled();
+
+  // The single trailing sync is what lands the created rows locally.
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: imported.noteId })
+  ).resolves.toMatchObject({ title: 'Nested note' });
+});
+
+test('importNotebookTree counts notes at every depth', async () => {
+  await seedNotebook();
+  vi.spyOn(api, 'batchImportNotesTreeV1').mockResolvedValue('0vserver');
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  const result = await importNotebookTree({
+    notebookFlag,
+    parentFolderId: rootFolder.folderId,
+    tree: [
+      {
+        name: 'a',
+        children: [
+          { title: 'one', body: '' },
+          { name: 'b', children: [{ title: 'two', body: '' }] },
+          { name: 'empty', children: [] },
+        ],
+      },
+      { title: 'three', body: '' },
+    ],
+  });
+
+  expect(result).toEqual({ noteCount: 3 });
+});
+
+test('importNotebookTree does nothing for an empty tree', async () => {
+  const batchImport = vi.spyOn(api, 'batchImportNotesTreeV1');
+  const getNotebook = vi.spyOn(api.notes, 'getNotebook');
+
+  await expect(
+    importNotebookTree({
+      notebookFlag,
+      parentFolderId: rootFolder.folderId,
+      tree: [],
+    })
+  ).resolves.toEqual({ noteCount: 0 });
+
+  expect(batchImport).not.toHaveBeenCalled();
+  expect(getNotebook).not.toHaveBeenCalled();
 });

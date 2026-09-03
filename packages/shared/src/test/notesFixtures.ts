@@ -99,3 +99,46 @@ export function makeApiNotesNote(note: db.NotesNote): api.NotesNote {
     revision: note.revision,
   };
 }
+
+// Wire shapes, as a write response or stream fact delivers them: `id` rather
+// than `noteId`/`folderId`, and no notebookFlag.
+export function makeNotesV1Note(note: db.NotesNote): api.NotesV1Note {
+  return {
+    id: note.noteId,
+    notebookId: note.notebookId,
+    folderId: note.folderId,
+    title: note.title,
+    slug: note.slug ?? null,
+    bodyMd: note.bodyMd,
+    revision: note.revision,
+    ...auditFields,
+    createdAt: note.createdAt ?? 100,
+    updatedAt: note.updatedAt ?? 100,
+  };
+}
+
+export function makeNoteUpdate(
+  type: 'note-created' | 'note-updated',
+  note: db.NotesNote
+): api.NotesUpdate {
+  return { type, noteId: note.noteId, note: makeNotesV1Note(note) };
+}
+
+export function makeFolderUpdate(
+  type: 'folder-created' | 'folder-updated',
+  folder: db.NotesFolder
+): api.NotesUpdate {
+  return {
+    type,
+    folderId: folder.folderId,
+    folder: {
+      id: folder.folderId,
+      notebookId: folder.notebookId,
+      name: folder.name,
+      parentFolderId: folder.parentFolderId ?? null,
+      ...auditFields,
+      createdAt: folder.createdAt ?? 100,
+      updatedAt: folder.updatedAt ?? 100,
+    },
+  };
+}

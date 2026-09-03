@@ -638,7 +638,6 @@ export function NotesNativeChannel({
     activeFolderId,
     canDropImportNotes,
     canEdit,
-    folders,
     notebookFlag,
     notes,
     rootFolderId,
@@ -1132,6 +1131,7 @@ export function NotesNativeChannel({
       flex={1}
       backgroundColor="$background"
       position="relative"
+      testID="NotesChannelRoot"
       {...dropImportProps}
     >
       {error ? <NotesBanner message={error} tone="negative" /> : null}

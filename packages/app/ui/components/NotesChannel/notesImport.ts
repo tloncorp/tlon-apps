@@ -1,3 +1,4 @@
+import type { NotesImportNode } from '@tloncorp/api';
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory as ExpoDirectory, File as ExpoFile } from 'expo-file-system';
 
@@ -18,7 +19,7 @@ export function getNotesImportTargetFolderId({
   return activeFolderId ?? selectedFolderId ?? rootFolderId ?? null;
 }
 
-type NotesImportItem = {
+export type NotesImportItem = {
   body: string;
   folderSegments: string[];
   relativePath: string;
@@ -230,6 +231,60 @@ export function buildNotesImportItems(
       },
     ];
   });
+}
+
+/**
+ * Nest import items into a single `batch-import-tree` payload.
+ *
+ * Folders that already exist are *not* the client's problem: the agent
+ * merges a tree node into an existing same-named child rather than
+ * duplicating it (`+se-batch-import-tree`). Resolving that here instead
+ * would be guesswork — local state can always be one unsynced fact behind
+ * the folder list the host will actually merge against.
+ *
+ * `existingRootTitles` are the titles already used in the folder being
+ * imported into, so a file dropped alongside a same-titled note gets a
+ * distinct one. Notes nested inside imported folders are deduped only
+ * against each other: their destination may turn out to be an existing
+ * folder whose contents the client can't know in advance.
+ */
+export function buildNotesImportTree({
+  items,
+  existingRootTitles,
+}: {
+  items: NotesImportItem[];
+  existingRootTitles?: Set<string>;
+}): NotesImportNode[] {
+  type Destination = { children: NotesImportNode[]; titles: Set<string> };
+  const root: Destination = {
+    children: [],
+    titles: new Set(existingRootTitles ?? []),
+  };
+  const destinations = new Map<string, Destination>([['', root]]);
+
+  for (const item of items) {
+    let path = '';
+    let destination = root;
+    for (const segment of item.folderSegments) {
+      path += `/${normalizeTitleKey(segment)}`;
+      const known = destinations.get(path);
+      if (known) {
+        destination = known;
+        continue;
+      }
+      const created: Destination = { children: [], titles: new Set() };
+      destinations.set(path, created);
+      destination.children.push({ name: segment, children: created.children });
+      destination = created;
+    }
+
+    destination.children.push({
+      title: makeUniqueNoteTitle(item.title, destination.titles),
+      body: item.body,
+    });
+  }
+
+  return root.children;
 }
 
 export function makeUniqueNoteTitle(

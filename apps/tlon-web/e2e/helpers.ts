@@ -861,7 +861,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
 export async function createChannel(
   page: Page,
   title: string,
-  type: 'chat' | 'notebook' | 'gallery' = 'chat'
+  type: 'chat' | 'notebook' | 'gallery' | 'notes' = 'chat'
 ) {
   // Ensure session is stable before creating channel
   await waitForSessionStability(page);
@@ -896,6 +896,15 @@ export async function createChannel(
     } else {
       await page.getByText('Notebook', { exact: true }).click();
     }
+  } else if (type === 'notes') {
+    // The native %notes type owns the 'Notebook' label once the desk is
+    // installed (the legacy diary type becomes 'Bulletin'). If 'Bulletin' never
+    // appears the desk is absent and there is no native type to pick, so fail
+    // loudly rather than silently creating a diary channel.
+    await expect(page.getByText('Bulletin', { exact: true })).toBeVisible({
+      timeout: 10000,
+    });
+    await page.getByText('Notebook', { exact: true }).click();
   } else if (type === 'gallery') {
     await page.getByText('Gallery', { exact: true }).click();
   }

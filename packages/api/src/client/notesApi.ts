@@ -1,4 +1,4 @@
-import { tryParse, valid } from '@urbit/aura';
+import { render, tryParse, valid } from '@urbit/aura';
 import { z } from 'zod';
 
 import { createDevLogger } from '../lib/logger';
@@ -42,15 +42,21 @@ export interface NotesFlag {
 export type NotesTarget = NotesFlag | string;
 
 /**
- * Stream events carry typed update payloads (see the %notes agent docs for
- * the full wire format), but the client treats any event as a signal to
- * resync, so only the envelope is modeled here.
+ * Per-notebook stream event. The agent sends one `snapshot` at subscribe
+ * time, then an `update` for every subsequent change. `update` carries the
+ * parsed `u-notebook` payload, or null when the payload is a variant this
+ * client doesn't model — a null `update` means "something changed, but you
+ * must resync to learn what".
  */
-export type NotesStreamEvent = {
-  type: 'snapshot' | 'update';
-  host: string;
-  flagName: string;
-};
+export type NotesStreamEvent =
+  | { type: 'snapshot'; host: string; flagName: string }
+  | {
+      type: 'update';
+      host: string;
+      flagName: string;
+      time?: number;
+      update: NotesUpdate | null;
+    };
 
 type NotesNoteAction =
   | { type: 'publish'; html: string }
@@ -222,13 +228,42 @@ export async function subscribeToNotesNotebook(
   handler: (event: NotesStreamEvent) => void
 ) {
   const flag = normalizeNotesTarget(target);
-  return subscribe<NotesStreamEvent>(
+  return subscribe<Record<string, unknown>>(
     {
       app: 'notes',
       path: `/v0/notes/${flag.host}/${flag.name}/stream`,
     },
-    handler
+    (raw) => {
+      const event = parseNotesStreamEvent(raw);
+      if (event) {
+        handler(event);
+      }
+    }
   );
+}
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+function parseNotesStreamEvent(raw: any): NotesStreamEvent | null {
+  const host = raw?.host;
+  const flagName = raw?.flagName;
+  if (typeof host !== 'string' || typeof flagName !== 'string') {
+    logger.error('Dropping malformed %notes stream event', raw);
+    return null;
+  }
+  if (raw.type === 'snapshot') {
+    return { type: 'snapshot', host, flagName };
+  }
+  if (raw.type === 'update') {
+    return {
+      type: 'update',
+      host,
+      flagName,
+      time: typeof raw.time === 'number' ? raw.time : undefined,
+      update: parseNotesUpdate(raw.update),
+    };
+  }
+  logger.error('Dropping unknown %notes stream event type', raw?.type);
+  return null;
 }
 
 export async function unsubscribeFromNotesNotebook(subscriptionId: number) {
@@ -1026,6 +1061,142 @@ async function createNoteV1({
   return noteFromWriteEnvelope(envelope, normalized, 'note-created');
 }
 
+// ===========================================================================
+// u-notebook updates
+//
+// The same payload reaches the client two ways: nested in a write's `%ok`
+// envelope (`body.response.update`) as the update that write applied, and
+// broadcast on the per-notebook stream (`RUpdate.update`) for every change,
+// local or remote. Both carry the complete post-write entity — the host's
+// authoritative revision and server-stamped updatedAt/updatedBy included —
+// so a parsed update is enough to advance local state without reading back.
+// See docs/notes/asyncapi.yaml for the wire schema.
+// ===========================================================================
+
+export type NotesUpdate =
+  | { type: 'notebook-created'; notebook: NotesV1NotebookListItem }
+  | { type: 'notebook-updated'; notebook: NotesV1NotebookListItem }
+  | { type: 'notebook-deleted' }
+  | { type: 'notebook-visibility-changed'; visibility: NotesVisibility }
+  | { type: 'member-joined'; who: string; role: NotesRole }
+  | { type: 'member-left'; who: string }
+  | { type: 'folder-created'; folderId: number; folder: NotesV1Folder }
+  | { type: 'folder-updated'; folderId: number; folder: NotesV1Folder }
+  | { type: 'folder-deleted'; folderId: number }
+  | { type: 'note-created'; noteId: number; note: NotesV1Note }
+  | { type: 'note-updated'; noteId: number; note: NotesV1Note }
+  | { type: 'note-deleted'; noteId: number }
+  | { type: 'note-published'; noteId: number }
+  | { type: 'note-unpublished'; noteId: number };
+
+const uFolderSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('folder-created'),
+    id: z.number(),
+    folder: notesV1FolderSchema,
+  }),
+  z.object({
+    type: z.literal('folder-updated'),
+    id: z.number(),
+    folder: notesV1FolderSchema,
+  }),
+  z.object({ type: z.literal('folder-deleted'), id: z.number() }),
+]);
+
+const uNoteSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('note-created'),
+    id: z.number(),
+    note: notesV1NoteSchema,
+  }),
+  z.object({
+    type: z.literal('note-updated'),
+    id: z.number(),
+    note: notesV1NoteSchema,
+  }),
+  z.object({ type: z.literal('note-deleted'), id: z.number() }),
+  // These also carry the rendered `html`, which no client-side consumer
+  // stores — published state is tracked as a boolean.
+  z.object({ type: z.literal('note-published'), id: z.number() }),
+  z.object({ type: z.literal('note-unpublished'), id: z.number() }),
+]);
+
+const uNotebookSchema = z.discriminatedUnion('type', [
+  z.object({
+    type: z.literal('notebook-created'),
+    notebook: notesV1NotebookListItemSchema,
+  }),
+  z.object({
+    type: z.literal('notebook-updated'),
+    notebook: notesV1NotebookListItemSchema,
+  }),
+  z.object({ type: z.literal('notebook-deleted') }),
+  z.object({
+    type: z.literal('notebook-visibility-changed'),
+    visibility: notesVisibilitySchema,
+  }),
+  z.object({
+    type: z.literal('member-joined'),
+    who: z.string(),
+    role: notesRoleSchema,
+  }),
+  z.object({ type: z.literal('member-left'), who: z.string() }),
+  z.object({
+    type: z.literal('folder-update'),
+    folderUpdate: uFolderSchema,
+  }),
+  z.object({ type: z.literal('note-update'), noteUpdate: uNoteSchema }),
+]);
+
+const notesUpdateResponseSchema = z.object({ update: z.unknown() });
+
+/**
+ * Parse a `u-notebook` payload, flattening the folder/note wrappers so every
+ * variant is one level deep.
+ *
+ * Returns null for a missing payload or any variant this client doesn't
+ * model — an unknown update is not an error, it just means the caller must
+ * fall back to a full sync rather than assume the change was applied.
+ */
+export function parseNotesUpdate(raw: unknown): NotesUpdate | null {
+  const parsed = uNotebookSchema.safeParse(raw);
+  if (!parsed.success) {
+    return null;
+  }
+  const update = parsed.data;
+  switch (update.type) {
+    case 'folder-update': {
+      const inner = update.folderUpdate;
+      return inner.type === 'folder-deleted'
+        ? { type: inner.type, folderId: inner.id }
+        : { type: inner.type, folderId: inner.id, folder: inner.folder };
+    }
+    case 'note-update': {
+      const inner = update.noteUpdate;
+      return inner.type === 'note-created' || inner.type === 'note-updated'
+        ? { type: inner.type, noteId: inner.id, note: inner.note }
+        : { type: inner.type, noteId: inner.id };
+    }
+    default:
+      return update;
+  }
+}
+
+/**
+ * Extract the update a write applied from its response envelope. Null when
+ * the write emitted none — `%no-change` bodies, and `%notebook` bodies, which
+ * carry the created notebook summary directly instead.
+ */
+export function notesUpdateFromWriteEnvelope(
+  envelope: NotesEnvelope
+): NotesUpdate | null {
+  if (envelope.body.type !== 'ok') {
+    return null;
+  }
+  const response = notesUpdateResponseSchema.safeParse(envelope.body.response);
+  return response.success ? parseNotesUpdate(response.data.update) : null;
+}
+
 // The ok envelope of a note write carries the applied update, nested per
 // the u-notebook encoder: body.response.update is the notebook-scoped
 // wrapper ({type: 'note-update', noteUpdate: {...}}) and the inner
@@ -1131,14 +1302,16 @@ async function moveNoteV1({
   flag: NotesTarget;
   noteId: number;
   folder: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson<unknown>(
     noteV1Path(normalized, noteId),
     'PUT',
     { folder }
   );
-  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return notesUpdateFromWriteEnvelope(
+    assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId))
+  );
 }
 
 async function deleteNoteV1({
@@ -1147,13 +1320,15 @@ async function deleteNoteV1({
 }: {
   flag: NotesTarget;
   noteId: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson<unknown>(
     noteV1Path(normalized, noteId),
     'DELETE'
   );
-  assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId));
+  return notesUpdateFromWriteEnvelope(
+    assertWriteOk(res, noteChecks(notesChannelId(normalized), noteId))
+  );
 }
 
 async function listNoteHistoryV1({
@@ -1210,7 +1385,7 @@ async function createFolderV1({
   flag: NotesTarget;
   name: string;
   parent?: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const payload: { folderName: string; parent?: number } = { folderName: name };
   if (parent !== undefined) {
@@ -1221,7 +1396,9 @@ async function createFolderV1({
     'POST',
     payload
   );
-  assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)));
+  return notesUpdateFromWriteEnvelope(
+    assertWriteOk(res, folderCreateChecks(notesChannelId(normalized)))
+  );
 }
 
 async function renameFolderV1({
@@ -1232,14 +1409,16 @@ async function renameFolderV1({
   flag: NotesTarget;
   folderId: number;
   name: string;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson<unknown>(
     folderV1Path(normalized, folderId),
     'PUT',
     { folderName: name }
   );
-  assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
+  return notesUpdateFromWriteEnvelope(
+    assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId))
+  );
 }
 
 async function moveFolderV1({
@@ -1250,14 +1429,16 @@ async function moveFolderV1({
   flag: NotesTarget;
   folderId: number;
   parent: number;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson<unknown>(
     folderV1Path(normalized, folderId),
     'PUT',
     { parent }
   );
-  assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
+  return notesUpdateFromWriteEnvelope(
+    assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId))
+  );
 }
 
 async function deleteFolderV1({
@@ -1268,13 +1449,15 @@ async function deleteFolderV1({
   flag: NotesTarget;
   folderId: number;
   recursive: boolean;
-}): Promise<void> {
+}): Promise<NotesUpdate | null> {
   const normalized = normalizeNotesTarget(flag);
   const res = await requestJson<unknown>(
     `${folderV1Path(normalized, folderId)}?recursive=${recursive ? 'true' : 'false'}`,
     'DELETE'
   );
-  assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId));
+  return notesUpdateFromWriteEnvelope(
+    assertWriteOk(res, folderChecks(notesChannelId(normalized), folderId))
+  );
 }
 
 // --- member helpers --------------------------------------------------------
@@ -1406,6 +1589,111 @@ export class NotesUnknownFolderError extends Error {
 // Batch-import submit over the v1 envelope
 // ===========================================================================
 
+/**
+ * A node in a `batch-import-tree` payload. The backend discriminates on the
+ * *presence of* `children` (lib/notes/json.hoon +import-node), so a folder
+ * must always carry the key — even empty — and a note must never carry it.
+ */
+export type NotesImportNode =
+  | { name: string; children: NotesImportNode[] }
+  | { title: string; body: string };
+
+/**
+ * Mint a request id for a batch import. `%notes` rejects the zero atom, and
+ * `renderUv` of all-zero entropy is exactly that, so redraw until non-zero.
+ */
+export function generateNotesRequestId(): string {
+  const source = globalThis.crypto;
+  if (!source?.getRandomValues) {
+    throw new Error(
+      'Cannot generate a %notes request id: no crypto.getRandomValues available'
+    );
+  }
+  let requestId: string;
+  do {
+    const bytes = source.getRandomValues(new Uint8Array(16));
+    let atom = 0n;
+    for (const byte of bytes) {
+      atom = (atom << 8n) | BigInt(byte);
+    }
+    requestId = render('uv', atom);
+  } while (requestId === '0v0');
+  return requestId;
+}
+
+function assertValidRequestId(requestId: string) {
+  const parsed = tryParse('uv', requestId);
+  if (!valid('uv', requestId) || parsed === null) {
+    throw new NotesInvalidRequestIdError(requestId);
+  }
+  if (parsed === 0n) {
+    throw new NotesInvalidRequestIdError(requestId, 'zero');
+  }
+}
+
+/**
+ * Import a whole folder/note tree in one poke. `se-batch-import-tree` walks
+ * the tree creating folders and notes as it goes — merging a node into an
+ * existing same-named child rather than duplicating it — and emits a
+ * `%created` update per entity on the notebook stream. The caller therefore
+ * learns each new id from the stream, not from this response, whose `%ok`
+ * envelope carries only the last update.
+ */
+export async function batchImportNotesTreeV1({
+  flag,
+  parent,
+  tree,
+  requestId,
+}: {
+  flag: string;
+  parent: number;
+  tree: NotesImportNode[];
+  requestId: string;
+}): Promise<string> {
+  assertValidRequestId(requestId);
+
+  const normalized = normalizeNotesTarget(flag);
+  const canonicalFlag = formatNotesFlag(normalized);
+
+  // The agent asserts this id exists too, so this pre-flight is belt and
+  // braces — deliberately kept: against a host that predates that assertion,
+  // a stale parent silently persists the whole batch under a folder id
+  // nothing traverses, leaving the notes real but invisible. One GET per
+  // import is cheap insurance against that, and it buys a typed error
+  // instead of a bare crash from the poke.
+  const folders = await listFoldersV1(normalized, {
+    reauthStatuses: NOTES_AUTH_FAILURE_STATUSES,
+  });
+  if (!folders.some((existing) => existing.id === parent)) {
+    throw new NotesUnknownFolderError(canonicalFlag, parent);
+  }
+
+  const res = await requestJson<unknown>(
+    NOTES_V1_PATH,
+    'POST',
+    {
+      requestId,
+      action: {
+        type: 'notebook' as const,
+        flag: canonicalFlag,
+        action: { type: 'batch-import-tree' as const, parent, tree },
+      },
+    },
+    { reauthStatuses: NOTES_AUTH_FAILURE_STATUSES }
+  );
+
+  const envelope = assertWriteOk(
+    res,
+    noteCreateChecks(notesChannelId(normalized))
+  );
+  const serverRequestId = envelope.requestId;
+  if (!serverRequestId) {
+    throw new Error('%notes batch-import-tree response missing requestId');
+  }
+
+  return serverRequestId;
+}
+
 export async function batchImportNotesV1({
   flag,
   folder,
@@ -1417,13 +1705,7 @@ export async function batchImportNotesV1({
   notes: { title: string; body: string }[];
   requestId: string;
 }): Promise<string> {
-  const parsedRequestId = tryParse('uv', requestId);
-  if (!valid('uv', requestId) || parsedRequestId === null) {
-    throw new NotesInvalidRequestIdError(requestId);
-  }
-  if (parsedRequestId === 0n) {
-    throw new NotesInvalidRequestIdError(requestId, 'zero');
-  }
+  assertValidRequestId(requestId);
 
   const normalized = normalizeNotesTarget(flag);
   const canonicalFlag = formatNotesFlag(normalized);

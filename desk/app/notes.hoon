@@ -2349,6 +2349,10 @@
     |=  [folder=@ud notes=(list [title=@t body=@t])]
     ^+  se-core
     ?>  (se-can-edit src.bowl)
+    ::  the folder id is written into every imported note, so a stale one
+    ::  would persist the whole batch outside folder traversal. Match
+    ::  +se-create-note and refuse rather than accept a dangling reference.
+    ?>  (~(has by folders.notebook-state) folder)
     =/  items=(list [title=@t body=@t])  notes
     |-  ^+  se-core
     ?~  items  se-core
@@ -2372,10 +2376,22 @@
     =.  se-core  (se-update [%note nid [%created note]])
     $(items t.items, se-core se-core)
   ::
+  ::  +se-batch-import-tree: create a whole folder/note tree under $parent.
+  ::
+  ::  A %folder node whose name already exists as a child of the current
+  ::  folder is merged into rather than duplicated, so importing docs/a.md
+  ::  into a notebook that already has docs/ adds to it. The check lives
+  ::  here, not in the client, because only the agent sees authoritative
+  ::  state: a client planning against its own replica can always be one
+  ::  unsynced fact behind and ask for a folder that now exists.
+  ::
   ++  se-batch-import-tree
     |=  [parent=@ud tree=(list import-node:n)]
     ^+  se-core
     ?>  (se-can-edit src.bowl)
+    ::  same hazard as +se-batch-import: top-level notes take this id
+    ::  directly.
+    ?>  (~(has by folders.notebook-state) parent)
     =/  items=(list import-node:n)  tree
     =*  nid-nb  id.notebook.notebook-state
     =|  stack=(list [remaining=(list import-node:n) folder-id=@ud])
@@ -2408,6 +2424,11 @@
       $(items t.items, se-core se-core)
     ::
         %folder
+      =/  existing=(unit @ud)  (se-child-folder-by-name fid name.i.items)
+      ?^  existing
+        ::  merge: descend into the folder that is already there, emitting
+        ::  no %created update since nothing was created.
+        $(items children.i.items, stack [[t.items fid] stack], fid u.existing)
       =/  new-fid=@ud  +(next-id)
       =.  next-id  new-fid
       =/  =folder:n
@@ -2428,6 +2449,31 @@
     ?:  =(u.parent-folder-id.fld folder-id)
       `fid
     ~
+  ::  +se-child-folder-by-name: find an existing child folder of $parent
+  ::  whose name matches $name, ignoring case. Used by tree import to merge
+  ::  into folders that already exist instead of creating a duplicate.
+  ::
+  ::  Duplicate sibling names are legal (+se-create-folder does not prevent
+  ::  them), so resolve ties to the lowest id — the folder that has been
+  ::  there longest — rather than whatever the map happens to yield first.
+  ::
+  ++  se-child-folder-by-name
+    |=  [parent=@ud name=@t]
+    ^-  (unit @ud)
+    =/  target=tape  (cass (trip name))
+    =/  kids=(list @ud)  (se-folder-children-ids parent)
+    =|  best=(unit @ud)
+    |-  ^-  (unit @ud)
+    ?~  kids  best
+    =/  fld=folder:n  (~(got by folders.notebook-state) i.kids)
+    ?.  =(target (cass (trip name.fld)))
+      $(kids t.kids)
+    ::  compute the next value before recursing: narrowing `best` with ?~ at
+    ::  the %= site would type it as ~ and reject the (unit @ud) put back.
+    =/  next=(unit @ud)
+      ?~  best  `i.kids
+      ?:((lth i.kids u.best) `i.kids best)
+    $(kids t.kids, best next)
   ::
   ++  se-subtree-folder-ids
     |=  folder-id=@ud

@@ -749,6 +749,80 @@ export const updateNotesNote = createWriteQuery(
   ['notesNotes']
 );
 
+export const upsertNotesFolder = createWriteQuery(
+  'upsertNotesFolder',
+  async (folder: NotesFolder, ctx: QueryCtx) => {
+    return ctx.db
+      .insert($notesFolders)
+      .values(folder)
+      .onConflictDoUpdate({
+        target: $notesFolders.id,
+        set: conflictUpdateSetAll($notesFolders),
+      });
+  },
+  ['notesFolders']
+);
+
+// Members are keyed by (notebookFlag, contactId, role), so a role change is a
+// delete of the old rows plus an insert — replace the ship's whole role set.
+export const replaceNotesMemberRoles = createWriteQuery(
+  'replaceNotesMemberRoles',
+  async (
+    {
+      notebookFlag,
+      contactId,
+      members,
+    }: {
+      notebookFlag: string;
+      contactId: string;
+      members: NotesMember[];
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .delete($notesMembers)
+        .where(
+          and(
+            eq($notesMembers.notebookFlag, notebookFlag),
+            eq($notesMembers.contactId, contactId)
+          )
+        );
+      if (members.length > 0) {
+        await txCtx.db.insert($notesMembers).values(members);
+      }
+    });
+  },
+  ['notesMembers']
+);
+
+export const updateNotesNotebook = createWriteQuery(
+  'updateNotesNotebook',
+  async (
+    {
+      notebookFlag,
+      ...update
+    }: { notebookFlag: string } & Partial<
+      Pick<
+        NotesNotebook,
+        | 'title'
+        | 'visibility'
+        | 'rootFolderId'
+        | 'updatedAt'
+        | 'updatedBy'
+        | 'currentUserRole'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .update($notesNotebooks)
+      .set(update)
+      .where(eq($notesNotebooks.id, notebookFlag));
+  },
+  ['notesNotebooks']
+);
+
 export const deleteNotesNote = createWriteQuery(
   'deleteNotesNote',
   async (

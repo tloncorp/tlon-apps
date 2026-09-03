@@ -1,3 +1,4 @@
+import { tryParse, valid } from '@urbit/aura';
 import {
   type Mock,
   afterEach,
@@ -13,10 +14,12 @@ import {
   NotesUnknownFolderError,
   NotesV1PendingWriteError,
   NotesV1WriteError,
+  batchImportNotesTreeV1,
   batchImportNotesV1,
   deleteNotesNotebookBestEffort,
   deleteNotesNotebookStrict,
   formatNotesFlag,
+  generateNotesRequestId,
   joinNotesChannel,
   joinNotesNotebook,
   leaveNotesChannel,
@@ -175,12 +178,85 @@ describe('%notes transport helpers', () => {
     const id = await subscribeToNotesNotebook('~zod/blog', handler);
     expect(subscribeMock).toHaveBeenCalledWith(
       { app: 'notes', path: '/v0/notes/~zod/blog/stream' },
-      handler
+      expect.any(Function)
     );
     expect(id).toBe(7);
 
     await unsubscribeFromNotesNotebook(7);
     expect(unsubscribeMock).toHaveBeenCalledWith(7);
+  });
+
+  test('stream events arrive with their update payload parsed', async () => {
+    subscribeMock.mockResolvedValue(7);
+    const handler = vi.fn();
+    await subscribeToNotesNotebook('~zod/blog', handler);
+    const emit = subscribeMock.mock.calls[0][1];
+
+    emit({ type: 'snapshot', host: '~zod', flagName: 'blog' });
+    expect(handler).toHaveBeenCalledWith({
+      type: 'snapshot',
+      host: '~zod',
+      flagName: 'blog',
+    });
+
+    emit({
+      type: 'update',
+      host: '~zod',
+      flagName: 'blog',
+      time: 123,
+      update: {
+        type: 'note-update',
+        host: '~zod',
+        flagName: 'blog',
+        noteUpdate: {
+          type: 'note-updated',
+          id: 4,
+          note: { id: 4, title: 'Renamed', bodyMd: 'body', revision: 3 },
+        },
+      },
+    });
+    expect(handler).toHaveBeenLastCalledWith({
+      type: 'update',
+      host: '~zod',
+      flagName: 'blog',
+      time: 123,
+      update: {
+        type: 'note-updated',
+        noteId: 4,
+        note: expect.objectContaining({ id: 4, title: 'Renamed', revision: 3 }),
+      },
+    });
+  });
+
+  test('an unmodeled update variant reaches the handler as a null update', async () => {
+    subscribeMock.mockResolvedValue(7);
+    const handler = vi.fn();
+    await subscribeToNotesNotebook('~zod/blog', handler);
+    const emit = subscribeMock.mock.calls[0][1];
+
+    emit({
+      type: 'update',
+      host: '~zod',
+      flagName: 'blog',
+      update: { type: 'something-new-from-the-future' },
+    });
+
+    // Null, not dropped: the caller still needs to know something changed.
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'update', update: null })
+    );
+  });
+
+  test('malformed stream events are dropped rather than forwarded', async () => {
+    subscribeMock.mockResolvedValue(7);
+    const handler = vi.fn();
+    await subscribeToNotesNotebook('~zod/blog', handler);
+    const emit = subscribeMock.mock.calls[0][1];
+
+    emit({ type: 'update', update: null });
+    emit({ type: 'bogus', host: '~zod', flagName: 'blog' });
+
+    expect(handler).not.toHaveBeenCalled();
   });
 });
 
@@ -891,6 +967,210 @@ describe('notesV1 writes send pinned v1 HTTP bodies', () => {
     ).resolves.toBeNull();
   });
 
+  function okEnvelope(update: unknown) {
+    return {
+      requestId: '0vok',
+      body: {
+        type: 'ok',
+        response: {
+          type: 'update',
+          host: '~zod',
+          flagName: 'blog',
+          time: 1700000000000,
+          update,
+        },
+      },
+    };
+  }
+
+  test('note writes return the update they applied', async () => {
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'note-update',
+        host: '~zod',
+        flagName: 'blog',
+        noteUpdate: {
+          type: 'note-created',
+          id: 9,
+          note: { id: 9, folderId: 3, title: 'T', bodyMd: 'B', revision: 1 },
+        },
+      })
+    );
+    // createNote returns the applied note itself; the other writes return the
+    // whole update, since the caller needs to know which kind it was.
+    await expect(
+      notesV1.createNote({
+        flag: 'notes/~zod/blog',
+        folder: 3,
+        title: 'T',
+        body: 'B',
+      })
+    ).resolves.toMatchObject({ id: 9, folderId: 3, bodyMd: 'B', revision: 1 });
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'note-update',
+        host: '~zod',
+        flagName: 'blog',
+        noteUpdate: { type: 'note-deleted', id: 9 },
+      })
+    );
+    await expect(
+      notesV1.deleteNote({ flag: 'notes/~zod/blog', noteId: 9 })
+    ).resolves.toEqual({ type: 'note-deleted', noteId: 9 });
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'note-update',
+        host: '~zod',
+        flagName: 'blog',
+        noteUpdate: {
+          type: 'note-updated',
+          id: 9,
+          note: { id: 9, folderId: 5, title: 'T', bodyMd: 'B', revision: 1 },
+        },
+      })
+    );
+    await expect(
+      notesV1.moveNote({ flag: 'notes/~zod/blog', noteId: 9, folder: 5 })
+    ).resolves.toMatchObject({
+      type: 'note-updated',
+      noteId: 9,
+      note: { folderId: 5 },
+    });
+  });
+
+  test('folder writes return the update they applied', async () => {
+    const folder = {
+      id: 7,
+      notebookId: 2,
+      name: 'Drafts',
+      parentFolderId: 3,
+      updatedAt: 1234,
+      updatedBy: '~zod',
+    };
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'folder-update',
+        host: '~zod',
+        flagName: 'blog',
+        folderUpdate: { type: 'folder-created', id: 7, folder },
+      })
+    );
+    await expect(
+      notesV1.createFolder({
+        flag: 'notes/~zod/blog',
+        name: 'Drafts',
+        parent: 3,
+      })
+    ).resolves.toMatchObject({
+      type: 'folder-created',
+      folderId: 7,
+      folder: { id: 7, name: 'Drafts', parentFolderId: 3 },
+    });
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'folder-update',
+        host: '~zod',
+        flagName: 'blog',
+        folderUpdate: {
+          type: 'folder-updated',
+          id: 7,
+          folder: { ...folder, name: 'Renamed' },
+        },
+      })
+    );
+    await expect(
+      notesV1.renameFolder({
+        flag: 'notes/~zod/blog',
+        folderId: 7,
+        name: 'Renamed',
+      })
+    ).resolves.toMatchObject({
+      type: 'folder-updated',
+      folder: { name: 'Renamed' },
+    });
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'folder-update',
+        host: '~zod',
+        flagName: 'blog',
+        folderUpdate: { type: 'folder-deleted', id: 7 },
+      })
+    );
+    await expect(
+      notesV1.deleteFolder({
+        flag: 'notes/~zod/blog',
+        folderId: 7,
+        recursive: true,
+      })
+    ).resolves.toEqual({ type: 'folder-deleted', folderId: 7 });
+  });
+
+  test('a write with no update, or one we do not model, returns null', async () => {
+    requestJsonMock.mockResolvedValue({ body: { type: 'no-change' } });
+    await expect(
+      notesV1.moveNote({ flag: 'notes/~zod/blog', noteId: 9, folder: 5 })
+    ).resolves.toBeNull();
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({ type: 'invented-later', host: '~zod', flagName: 'blog' })
+    );
+    await expect(
+      notesV1.moveNote({ flag: 'notes/~zod/blog', noteId: 9, folder: 5 })
+    ).resolves.toBeNull();
+
+    // A folder update missing its id can't identify a row — null, not a throw.
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'folder-update',
+        host: '~zod',
+        flagName: 'blog',
+        folderUpdate: { type: 'folder-deleted' },
+      })
+    );
+    await expect(
+      notesV1.deleteFolder({
+        flag: 'notes/~zod/blog',
+        folderId: 7,
+        recursive: true,
+      })
+    ).resolves.toBeNull();
+  });
+
+  test('member and notebook updates parse from the ok envelope', async () => {
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'member-joined',
+        host: '~zod',
+        flagName: 'blog',
+        who: '~ten',
+        role: 'editor',
+      })
+    );
+    await expect(
+      notesV1.moveNote({ flag: 'notes/~zod/blog', noteId: 9, folder: 5 })
+    ).resolves.toEqual({ type: 'member-joined', who: '~ten', role: 'editor' });
+
+    requestJsonMock.mockResolvedValue(
+      okEnvelope({
+        type: 'notebook-visibility-changed',
+        host: '~zod',
+        flagName: 'blog',
+        visibility: 'public',
+      })
+    );
+    await expect(
+      notesV1.moveNote({ flag: 'notes/~zod/blog', noteId: 9, folder: 5 })
+    ).resolves.toEqual({
+      type: 'notebook-visibility-changed',
+      visibility: 'public',
+    });
+  });
+
   test('updateNoteBody surfaces a typed conflict error with a tang message', async () => {
     requestJsonMock.mockResolvedValue({
       requestId: '0vconflict',
@@ -1404,5 +1684,152 @@ describe('batchImportNotesV1', () => {
     expect(err).toBeInstanceOf(NotesInvalidRequestIdError);
     expect(err.message).toMatch(/non-zero/);
     expect(requestJsonMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('batchImportNotesTreeV1', () => {
+  const mockFoldersThenImport = (
+    importResponse: unknown,
+    folderIds: number[] = [3, 7]
+  ) => {
+    requestJsonMock.mockImplementation((_path: string, method: string) =>
+      method === 'GET'
+        ? Promise.resolve(
+            folderIds.map((id) => ({
+              id,
+              name: `folder-${id}`,
+              parentFolderId: null,
+            }))
+          )
+        : Promise.resolve(importResponse)
+    );
+  };
+
+  test('sends the whole tree as one batch-import-tree action', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: { type: 'ok' } });
+
+    const tree = [
+      {
+        name: 'guide',
+        children: [
+          { title: 'intro', body: 'a' },
+          { name: 'deep', children: [{ title: 'nested', body: 'b' }] },
+        ],
+      },
+      { title: 'top', body: 'c' },
+    ];
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree,
+        requestId: '0v1',
+      })
+    ).resolves.toBe('0v1');
+
+    expect(requestJsonMock).toHaveBeenLastCalledWith(
+      '/notes/~/v1',
+      'POST',
+      {
+        requestId: '0v1',
+        action: {
+          type: 'notebook',
+          flag: '~zod/blog',
+          action: { type: 'batch-import-tree', parent: 7, tree },
+        },
+      },
+      expect.anything()
+    );
+  });
+
+  test('rejects a parent folder the notebook does not have', async () => {
+    mockFoldersThenImport({ requestId: '0v1', body: { type: 'ok' } }, [3]);
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 99,
+        tree: [{ title: 'x', body: 'y' }],
+        requestId: '0v1',
+      })
+    ).rejects.toBeInstanceOf(NotesUnknownFolderError);
+  });
+
+  test('rejects invalid and zero request ids before any request', async () => {
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [],
+        requestId: 'nope',
+      })
+    ).rejects.toBeInstanceOf(NotesInvalidRequestIdError);
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [],
+        requestId: '0v0',
+      })
+    ).rejects.toBeInstanceOf(NotesInvalidRequestIdError);
+
+    expect(requestJsonMock).not.toHaveBeenCalled();
+  });
+
+  test('surfaces an error envelope rather than reporting success', async () => {
+    mockFoldersThenImport({
+      requestId: '0v1',
+      body: { type: 'error', errorType: 'not-authorized', message: 'nope' },
+    });
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [{ title: 'x', body: 'y' }],
+        requestId: '0v1',
+      })
+    ).rejects.toThrow('%notes error');
+  });
+});
+
+describe('generateNotesRequestId', () => {
+  test('mints distinct, non-zero, parseable @uv ids', () => {
+    const seen = new Set<string>();
+    for (let i = 0; i < 50; i += 1) {
+      const requestId = generateNotesRequestId();
+      expect(valid('uv', requestId)).toBe(true);
+      expect(tryParse('uv', requestId)).not.toBe(0n);
+      seen.add(requestId);
+    }
+    expect(seen.size).toBe(50);
+  });
+
+  test('an id it mints is accepted by the write path that consumes it', async () => {
+    requestJsonMock.mockImplementation((_path: string, method: string) =>
+      method === 'GET'
+        ? Promise.resolve([{ id: 7, name: 'f', parentFolderId: null }])
+        : Promise.resolve({ requestId: '0vserver', body: { type: 'ok' } })
+    );
+
+    await expect(
+      batchImportNotesTreeV1({
+        flag: '~zod/blog',
+        parent: 7,
+        tree: [{ title: 'x', body: 'y' }],
+        requestId: generateNotesRequestId(),
+      })
+    ).resolves.toBe('0vserver');
+  });
+
+  test('redraws when entropy would render the forbidden zero atom', () => {
+    const getRandomValues = vi
+      .spyOn(globalThis.crypto, 'getRandomValues')
+      .mockImplementationOnce(((array: Uint8Array) => array.fill(0)) as never);
+
+    expect(generateNotesRequestId()).not.toBe('0v0');
+    expect(getRandomValues.mock.calls.length).toBeGreaterThan(1);
   });
 });

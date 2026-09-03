@@ -4,6 +4,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import {
   buildNotesImportItems,
+  buildNotesImportTree,
   getNotesImportTargetFolderId,
   makeUniqueNoteTitle,
   normalizeTitleKey,
@@ -409,5 +410,114 @@ describe('notes import helpers', () => {
     );
 
     await expect(selectNotesImportSources('folder')).resolves.toBeNull();
+  });
+});
+
+describe('buildNotesImportTree', () => {
+  const item = (relativePath: string, body = 'body') => {
+    const segments = relativePath.split('/');
+    const fileName = segments[segments.length - 1];
+    return {
+      body,
+      folderSegments: segments.slice(0, -1),
+      relativePath,
+      title: fileName.replace(/\.(md|markdown|txt)$/i, ''),
+    };
+  };
+
+  const build = (relativePaths: string[], existingRootTitles?: Set<string>) =>
+    buildNotesImportTree({
+      items: relativePaths.map((path) => item(path)),
+      existingRootTitles,
+    });
+
+  test('flat files become notes at the top of the tree', () => {
+    expect(build(['a.md', 'b.md'])).toEqual([
+      { title: 'a', body: 'body' },
+      { title: 'b', body: 'body' },
+    ]);
+  });
+
+  test('nested paths become nested folder nodes', () => {
+    expect(
+      build(['docs/guide/intro.md', 'docs/guide/setup.md', 'docs/top.md'])
+    ).toEqual([
+      {
+        name: 'docs',
+        children: [
+          {
+            name: 'guide',
+            children: [
+              { title: 'intro', body: 'body' },
+              { title: 'setup', body: 'body' },
+            ],
+          },
+          { title: 'top', body: 'body' },
+        ],
+      },
+    ]);
+  });
+
+  test('a folder that already exists is left in the tree for the host to merge', () => {
+    // The agent merges a same-named child rather than duplicating it, so the
+    // client submits the path as-is instead of guessing from stale state.
+    expect(build(['docs/new.md'])).toEqual([
+      { name: 'docs', children: [{ title: 'new', body: 'body' }] },
+    ]);
+  });
+
+  test('sibling folders of the same name collapse into one node', () => {
+    const tree = build(['docs/a.md', 'docs/b.md']);
+    expect(tree).toHaveLength(1);
+    expect(tree[0]).toEqual({
+      name: 'docs',
+      children: [
+        { title: 'a', body: 'body' },
+        { title: 'b', body: 'body' },
+      ],
+    });
+  });
+
+  test('folder nodes collapse case-insensitively', () => {
+    const tree = build(['Docs/a.md', 'docs/b.md']);
+    expect(tree).toHaveLength(1);
+    expect((tree[0] as { children: unknown[] }).children).toHaveLength(2);
+  });
+
+  test('titles colliding with notes already in the target folder are made unique', () => {
+    expect(build(['note.md'], new Set(['note']))).toEqual([
+      { title: 'note (2)', body: 'body' },
+    ]);
+  });
+
+  test('titles colliding inside one imported folder are made unique', () => {
+    const tree = buildNotesImportTree({
+      items: [
+        { ...item('new/dup.md'), title: 'dup' },
+        { ...item('new/dup.md'), title: 'dup' },
+      ],
+    });
+
+    expect(tree).toEqual([
+      {
+        name: 'new',
+        children: [
+          { title: 'dup', body: 'body' },
+          { title: 'dup (2)', body: 'body' },
+        ],
+      },
+    ]);
+  });
+
+  test('existing root titles do not constrain notes nested in folders', () => {
+    // The nested folder may turn out to be one that already exists, whose
+    // contents the client has no reliable view of — so it does not guess.
+    expect(build(['sub/note.md'], new Set(['note']))).toEqual([
+      { name: 'sub', children: [{ title: 'note', body: 'body' }] },
+    ]);
+  });
+
+  test('no items yields an empty tree', () => {
+    expect(build([])).toEqual([]);
   });
 });

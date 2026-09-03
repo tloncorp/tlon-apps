@@ -1,7 +1,6 @@
 import {
   AnalyticsEvent,
-  createNotebookFolder,
-  createNotebookNote,
+  importNotebookTree,
   trackEvent,
   useMutableCallback,
 } from '@tloncorp/shared';
@@ -17,8 +16,8 @@ import {
 } from './NotesFeedback';
 import {
   buildNotesImportItems,
+  buildNotesImportTree,
   getNotesImportTargetFolderId,
-  makeUniqueNoteTitle,
   normalizeTitleKey,
   readNotesImportSourcesFromDataTransfer,
   selectNotesImportSources,
@@ -30,7 +29,6 @@ export function useNotesImportController({
   activeFolderId,
   canDropImportNotes,
   canEdit,
-  folders,
   notebookFlag,
   notes,
   rootFolderId,
@@ -40,7 +38,6 @@ export function useNotesImportController({
   activeFolderId: number | null;
   canDropImportNotes: boolean;
   canEdit: boolean;
-  folders: db.NotesFolder[];
   notebookFlag: string | null | undefined;
   notes: db.NotesNote[];
   rootFolderId: number | null;
@@ -67,74 +64,36 @@ export function useNotesImportController({
         return;
       }
 
-      const foldersByParentAndName = new Map<string, db.NotesFolder>();
-      folders.forEach((folder) => {
-        const key = folderCacheKey(folder.name, folder.parentFolderId);
-        foldersByParentAndName.set(key, folder);
+      const tree = buildNotesImportTree({
+        items: importItems,
+        existingRootTitles: new Set(
+          notes
+            .filter((note) => note.folderId === targetRootFolderId)
+            .map((note) => normalizeTitleKey(note.title))
+        ),
       });
 
-      const noteTitlesByFolder = new Map<number, Set<string>>();
-      notes.forEach((note) => {
-        const titles = noteTitlesByFolder.get(note.folderId) ?? new Set();
-        titles.add(normalizeTitleKey(note.title));
-        noteTitlesByFolder.set(note.folderId, titles);
-      });
-
-      const ensureFolderPath = async (segments: string[]) => {
-        let parentFolderId = targetRootFolderId;
-        for (const segment of segments) {
-          const key = folderCacheKey(segment, parentFolderId);
-          const existing = foldersByParentAndName.get(key);
-          if (existing) {
-            parentFolderId = existing.folderId;
-            continue;
-          }
-
-          const folder = await createNotebookFolder({
-            notebookFlag: importNotebookFlag,
-            parentFolderId,
-            name: segment,
-          });
-          if (!folder) {
-            throw new Error(
-              `${NOTES_PENDING_WRITE_MESSAGE}; the outcome is unknown and it may still complete. Check whether folder "${segment}" was created before retrying.`
-            );
-          }
-
-          foldersByParentAndName.set(key, folder);
-          parentFolderId = folder.folderId;
-        }
-        return parentFolderId;
-      };
-
+      // One poke creates the whole tree host-side, merging into folders that
+      // already exist; the created folders and notes arrive as stream updates.
       let importedCount = 0;
-      for (const item of importItems) {
-        try {
-          const folderId = await ensureFolderPath(item.folderSegments);
-          const existingTitles = noteTitlesByFolder.get(folderId) ?? new Set();
-          noteTitlesByFolder.set(folderId, existingTitles);
-          const title = makeUniqueNoteTitle(item.title, existingTitles);
-          const note = await createNotebookNote({
-            notebookFlag: importNotebookFlag,
-            folderId,
-            title,
-            body: item.body,
-          });
-          if (!note) {
-            throw new Error(
-              `${NOTES_PENDING_WRITE_MESSAGE}; the outcome is unknown and it may still complete. Check whether note "${title}" was created before retrying.`
-            );
-          }
-          importedCount += 1;
-        } catch (e) {
-          if (isNotesPendingWriteError(e)) {
-            throw e;
-          }
-          const message = errorMessage(e, 'Failed to import note');
-          throw new Error(
-            `${NOTES_PENDING_WRITE_MESSAGE}; the outcome of importing "${item.relativePath}" is unknown and it may still complete. Check whether it was imported before retrying. ${message}`
-          );
+      try {
+        const { noteCount } = await importNotebookTree({
+          notebookFlag: importNotebookFlag,
+          parentFolderId: targetRootFolderId,
+          tree,
+        });
+        importedCount = noteCount;
+      } catch (e) {
+        if (isNotesPendingWriteError(e)) {
+          throw e;
         }
+        const message = errorMessage(e, 'Failed to import notes');
+        throw new Error(
+          `${NOTES_PENDING_WRITE_MESSAGE}; the outcome of importing ${formatCount(
+            importItems.length,
+            'note'
+          )} is unknown and it may still complete. Check what was imported before retrying. ${message}`
+        );
       }
 
       trackEvent(AnalyticsEvent.NotesImportCompleted, {
@@ -284,10 +243,6 @@ export function useNotesImportController({
     isDragImportActive,
     isImportingNotes,
   };
-}
-
-function folderCacheKey(name: string, parentFolderId?: number | null) {
-  return `${parentFolderId ?? 'root'}:${normalizeTitleKey(name)}`;
 }
 
 function formatImportNotice(importedCount: number) {
