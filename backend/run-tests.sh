@@ -118,18 +118,23 @@ $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))  
-;<  ~  bind:m  (sleep ~s0)  
+;<  ~  bind:m  (sleep ~s0)
 =/  =path  
   [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %base]))  
 (pure:m !>(%ok))  
 EOF
 
-# Mount %tlon
-echo "Mounting tlon..."
+# Re-create %tlon from %base. The brass pill preserves the %tlon Clay desk,
+# but does not include a mounted working tree for it.
+echo "Creating %tlon..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%tlon |]))
+;<  ~  bind:m  (sleep ~s0)
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-merge+!>([%tlon our.bowl %base 0 %auto]))
+;<  ~  bind:m  (sleep ~s0)
 =/  =path  
   [(scot %p our.bowl) %tlon (scot %da now.bowl) ~]
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %tlon]))
