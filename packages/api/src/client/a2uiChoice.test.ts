@@ -438,6 +438,28 @@ describe('screen navigation target', () => {
         )
       )
     ).toBe(true);
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(
+          button({
+            type: 'screen',
+            screen: 'browserCredentialHandoff',
+            viewerUrl:
+              'https://browser-session-ovh1.tlon.network/s/payload.signature',
+          })
+        )
+      )
+    ).toBe(true);
+    expect(
+      A2UI.validateBlobEntry(
+        entryWith(
+          button({
+            type: 'screen',
+            screen: 'browserCredentialHandoff',
+          })
+        )
+      )
+    ).toBe(false);
     // Anything not on the allowlist fails validation, so a blob can't point
     // the renderer at an arbitrary navigator route.
     expect(

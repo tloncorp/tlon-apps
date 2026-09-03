@@ -166,6 +166,21 @@ export type RootDrawerParamList = {
 } & Pick<TopLevelTabParamList, 'Activity' | 'Contacts'> &
   Pick<RootStackParamList, 'Settings'>;
 
+export type BrowserCredentialHandoffParams = {
+  viewerUrl: string;
+  completionId?: string;
+};
+
+export type MobileBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootStackParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+};
+
+export type DesktopBasePathStackParamList = {
+  Root: NavigatorScreenParams<RootDrawerParamList>;
+  BrowserCredentialHandoff: BrowserCredentialHandoffParams;
+};
+
 // hack: adding the true contacts types causes lots of tsc failures that need
 // resolving. Added to support navigating deeply within the contacts drawer
 export type ActualRootDrawerParamList = {

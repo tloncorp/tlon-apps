@@ -322,11 +322,50 @@ export function StaticChatMessage({
     [draftInputContext, post.groupId]
   );
 
+  const sendA2UIMessage = useCallback(
+    async (
+      text: string,
+      selection?: PostBlobDataEntryA2UISelection,
+      requireReady = false
+    ) => {
+      if (!draftInputContext || draftInputContext.canStartDraft === false) {
+        if (requireReady) {
+          throw new Error('This channel is not ready to send messages');
+        }
+        return;
+      }
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      await draftInputContext.sendPostFromDraft({
+        channelId: draftInputContext.channel.id,
+        content: [trimmed],
+        attachments: [],
+        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
+        channelType: draftInputContext.channel.type,
+        replyToPostId: null,
+        isEdit: false,
+      });
+    },
+    [draftInputContext]
+  );
+
   const handleA2UIAction = useCallback(
     async (action: A2UI.Action, selection?: PostBlobDataEntryA2UISelection) => {
       if (action.event.name === A2UI.action.navigate) {
+        const target = action.event.context.target;
         await navigateToA2UITarget(action.event.context.target, {
           allowBotMcpSettings: canUseAgentProviderControls,
+          allowBrowserCredentialHandoff: canUseAgentProviderControls,
+          onBrowserCredentialHandoffComplete:
+            target.type === 'screen' &&
+            target.screen === 'browserCredentialHandoff'
+              ? () =>
+                  sendA2UIMessage(
+                    'I signed in; continue the browser task.',
+                    undefined,
+                    true
+                  )
+              : undefined,
         });
         return;
       }
@@ -354,31 +393,15 @@ export function StaticChatMessage({
         return;
       }
 
-      if (!draftInputContext || draftInputContext.canStartDraft === false) {
-        return;
-      }
-
       const text = action.event.context.text.trim();
-      if (!text) {
-        return;
-      }
-
-      await draftInputContext.sendPostFromDraft({
-        channelId: draftInputContext.channel.id,
-        content: [text],
-        attachments: [],
-        blob: selection ? appendToPostBlob(undefined, selection) : undefined,
-        channelType: draftInputContext.channel.type,
-        replyToPostId: null,
-        isEdit: false,
-      });
+      await sendA2UIMessage(text, selection);
     },
     [
       canUseAgentProviderControls,
       configureAgentProviders,
-      draftInputContext,
       navigateToA2UITarget,
       sendAgentProvision,
+      sendA2UIMessage,
     ]
   );
 
@@ -386,11 +409,8 @@ export function StaticChatMessage({
     (action: A2UI.Action) => {
       if (action.event.name === A2UI.action.navigate) {
         const target = action.event.context.target;
-        return (
-          target.type !== 'screen' ||
-          target.screen !== 'botMcpSettings' ||
-          canUseAgentProviderControls
-        );
+        if (target.type !== 'screen') return true;
+        return canUseAgentProviderControls;
       }
 
       if (action.event.name === A2UI.action.sendMessage) {

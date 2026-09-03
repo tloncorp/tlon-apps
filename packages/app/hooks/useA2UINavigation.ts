@@ -4,6 +4,7 @@ import * as db from '@tloncorp/shared/db';
 import { A2UI } from '@tloncorp/shared/logic';
 import { useCallback } from 'react';
 
+import { useBrowserCredentialHandoffCompletion } from '../features/browser/BrowserCredentialHandoffCompletion';
 import { useRootNavigation } from '../navigation/utils';
 
 const logger = createDevLogger('a2ui-navigation', false);
@@ -63,6 +64,7 @@ function postFromTarget(
 
 export function useA2UINavigation() {
   const rootNavigation = useRootNavigation();
+  const browserHandoffCompletion = useBrowserCredentialHandoffCompletion();
 
   const navigateToMessage = useCallback(
     async (target: A2UI.MessageNavigationTarget) => {
@@ -116,7 +118,11 @@ export function useA2UINavigation() {
   return useCallback(
     async (
       target: A2UI.NavigationTarget,
-      options?: { allowBotMcpSettings?: boolean }
+      options?: {
+        allowBotMcpSettings?: boolean;
+        allowBrowserCredentialHandoff?: boolean;
+        onBrowserCredentialHandoffComplete?: () => Promise<void>;
+      }
     ) => {
       switch (target.type) {
         case 'message':
@@ -169,9 +175,24 @@ export function useA2UINavigation() {
               }
               rootNavigation.navigateToBotMcpSettings(target.providerId);
               return;
+            case 'browserCredentialHandoff':
+              if (!options?.allowBrowserCredentialHandoff) {
+                logger.log('blocked untrusted browser login target', target);
+                return;
+              }
+              const completionId = options.onBrowserCredentialHandoffComplete
+                ? browserHandoffCompletion.register(
+                    options.onBrowserCredentialHandoffComplete
+                  )
+                : undefined;
+              rootNavigation.navigateToBrowserCredentialHandoff(
+                target.viewerUrl,
+                completionId
+              );
+              return;
           }
       }
     },
-    [navigateToMessage, rootNavigation]
+    [browserHandoffCompletion, navigateToMessage, rootNavigation]
   );
 }
