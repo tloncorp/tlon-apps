@@ -1,14 +1,12 @@
-import * as db from '@tloncorp/shared/db';
 import { PropsWithRef } from 'react';
 import React from 'react';
 import { Platform, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, YStack } from 'tamagui';
 
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { MentionOption } from '../BareChatInput/useMentions';
 import { useIsWindowNarrow } from '../Emoji';
 import MentionPopup, { MentionPopupRef } from '../MentionPopup';
+import { useInputPopupBottomOffset } from './useInputPopupBottomOffset';
 
 function InputMentionPopupInternal(
   {
@@ -34,8 +32,10 @@ function InputMentionPopupInternal(
   ref: MentionPopupRef
 ) {
   const isNarrow = useIsWindowNarrow();
-  const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
+  const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(
+    containerHeight,
+    inputBarHeight
+  );
   const isMobile = Platform.OS !== 'web';
 
   if (!isMentionModeActive) return null;
@@ -45,17 +45,6 @@ function InputMentionPopupInternal(
   // MentionPopup itself returns null when options.length === 0, so the
   // backdrop would otherwise catch taps with nothing visible — skip both.
   if (isMobile && options.length > 0) {
-    // Edge-to-edge roots do not resize around the keyboard. Position the
-    // portal from the reported keyboard height on both native platforms.
-    const effectiveBottomInset =
-      keyboardHeight > 0 ? keyboardHeight : insets.bottom;
-    const bottomOffset = effectiveBottomInset + containerHeight + 24;
-    // Backdrop stops just above the real composer (measured, or the static
-    // fallback) so taps inside a tall multi-line input still place the
-    // cursor instead of dismissing the popup.
-    const backdropBottom =
-      effectiveBottomInset + (inputBarHeight ?? containerHeight);
-
     return (
       <Portal>
         {onDismiss ? (

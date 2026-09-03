@@ -1,10 +1,7 @@
 import { DraftInputId } from '@tloncorp/api';
 import { ComponentProps, PropsWithChildren, useEffect } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import {
-  KeyboardStickyView,
-  useKeyboardState,
-} from 'react-native-keyboard-controller';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View } from 'tamagui';
 
@@ -67,7 +64,6 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
-  const keyboardVisible = useKeyboardState((state) => state.isVisible);
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
@@ -88,9 +84,6 @@ export function ConversationComposerPlacement({
   if (enabled && supportsFloatingComposer) {
     return (
       <KeyboardStickyView
-        // Android can finish an interactive dismiss with a stale animated
-        // height. Once didHide fires, force the view's closed transform.
-        enabled={Platform.OS !== 'android' || keyboardVisible}
         // The container keeps its home-indicator padding while the keyboard is
         // open, so cancel that padding to place the visible input at its edge.
         offset={{ closed: 0, opened: insets.bottom }}

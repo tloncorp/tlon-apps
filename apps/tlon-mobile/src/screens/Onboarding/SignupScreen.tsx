@@ -11,7 +11,7 @@ import {
 } from '@tloncorp/app/contexts/branch';
 import {
   Field,
-  KeyboardAvoidingView,
+  OnboardingKeyboardScrollView,
   OnboardingInviteBlock,
   OnboardingTextBlock,
   ScreenHeader,
@@ -206,7 +206,7 @@ export const SignupScreen = ({ navigation }: Props) => {
         loadingSubtitle={isSubmitting ? 'Loading…' : null}
         backAction={goBack}
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={180}>
+      <OnboardingKeyboardScrollView>
         <YStack gap="$2xl" paddingHorizontal="$2xl" paddingVertical="$l">
           {lureMeta ? <OnboardingInviteBlock metadata={lureMeta} /> : null}
           {remoteError ? (
@@ -304,7 +304,7 @@ export const SignupScreen = ({ navigation }: Props) => {
             </TlonText.Text>
           </View>
         </YStack>
-      </KeyboardAvoidingView>
+      </OnboardingKeyboardScrollView>
     </View>
   );
 };

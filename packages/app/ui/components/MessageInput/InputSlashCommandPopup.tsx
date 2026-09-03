@@ -1,14 +1,13 @@
 import type { SlashCommandOption } from '@tloncorp/shared/domain';
 import React, { PropsWithRef } from 'react';
 import { Platform, Pressable } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Portal, View, YStack } from 'tamagui';
 
-import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { useIsWindowNarrow } from '../Emoji';
 import SlashCommandPopup, {
   type SlashCommandPopupRef,
 } from '../SlashCommandPopup';
+import { useInputPopupBottomOffset } from './useInputPopupBottomOffset';
 
 function InputSlashCommandPopupInternal(
   {
@@ -32,8 +31,10 @@ function InputSlashCommandPopupInternal(
   ref: SlashCommandPopupRef
 ) {
   const isNarrow = useIsWindowNarrow();
-  const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
+  const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(
+    containerHeight,
+    inputBarHeight
+  );
   const isMobile = Platform.OS !== 'web';
 
   if (!isSlashCommandModeActive || options.length === 0) {
@@ -43,14 +44,6 @@ function InputSlashCommandPopupInternal(
   // Match the native mention-popup path: render in a Portal so Android
   // ancestor clipping cannot hide the list and taps outside can dismiss it.
   if (isMobile) {
-    // Edge-to-edge roots do not resize around the keyboard. Position the
-    // portal from the reported keyboard height on both native platforms.
-    const effectiveBottomInset =
-      keyboardHeight > 0 ? keyboardHeight : insets.bottom;
-    const bottomOffset = effectiveBottomInset + containerHeight + 24;
-    const backdropBottom =
-      effectiveBottomInset + (inputBarHeight ?? containerHeight);
-
     return (
       <Portal>
         {onDismiss ? (
