@@ -168,6 +168,10 @@ export const contacts = sqliteTable(
     // versions), read off its contact profile. Validated at read; see
     // docs/bot-info.md.
     botInfo: text('bot_info'),
+    // Raw JSON of the bot's self-published liveness claim (`bot-liveness`
+    // contact key), read off its contact profile. Validated at read by
+    // `parseBotLiveness`; see docs/bot-liveness.md.
+    botLiveness: text('bot_liveness'),
     isBlocked: boolean('blocked'),
     isContact: boolean('isContact'),
     isContactSuggestion: boolean('isContactSuggestion'),

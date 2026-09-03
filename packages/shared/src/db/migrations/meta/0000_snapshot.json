@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "b06b522e-7780-49ea-a3b7-f9bf8c206fee",
+  "id": "0600a58a-e10d-413a-ad55-37d795c117ad",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -1244,6 +1244,13 @@
         },
         "bot_info": {
           "name": "bot_info",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "bot_liveness": {
+          "name": "bot_liveness",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

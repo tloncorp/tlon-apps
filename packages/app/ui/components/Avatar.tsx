@@ -1,4 +1,5 @@
 import * as db from '@tloncorp/shared/db';
+import * as domain from '@tloncorp/shared/domain';
 import { Icon, IconType } from '@tloncorp/ui';
 import { Image } from '@tloncorp/ui';
 import { UrbitSigil } from '@tloncorp/ui';
@@ -91,8 +92,9 @@ export const ContactAvatar = React.memo(function ContactAvatarComponent({
 } & AvatarProps) {
   const dbContact = useContact(contactId);
   const contact = contactOverride ?? dbContact;
+  const offline = domain.botLivenessOf(contact) === 'offline';
 
-  return (
+  const avatar = (
     <ImageAvatar
       imageUrl={overrideUrl ?? contact?.avatarImage ?? undefined}
       fallback={
@@ -106,6 +108,35 @@ export const ContactAvatar = React.memo(function ContactAvatarComponent({
       ignoreCalm={ignoreCalm}
       {...props}
     />
+  );
+
+  if (!offline) {
+    return avatar;
+  }
+
+  // size undefined defaults to $4xl, which shows the dot like every size
+  // except $xl. 'custom' sizes can be tiny (the nav bar renders 20px), so
+  // they get the dimming only.
+  const showDot = props.size !== '$xl' && props.size !== 'custom';
+  const dotSize = props.size === '$5xl' || props.size === '$9xl' ? 12 : 8;
+  return (
+    <View position="relative" flexShrink={0} testID="ContactAvatarOffline">
+      <View opacity={0.5}>{avatar}</View>
+      {showDot && (
+        <View
+          testID="ContactAvatarOfflineDot"
+          position="absolute"
+          right={-2}
+          bottom={-2}
+          width={dotSize}
+          height={dotSize}
+          borderRadius={dotSize / 2}
+          backgroundColor="$tertiaryText"
+          borderWidth={1}
+          borderColor="$background"
+        />
+      )}
+    </View>
   );
 });
 

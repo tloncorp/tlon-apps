@@ -452,13 +452,13 @@ function parseContactAttestations(
 }
 
 /**
- * The `bot-info` contact field is self-published by bot ships and its TS
- * declaration proves nothing at runtime — an arbitrary profile can publish it
- * as %set/%numb/%look or any JSON shape. Accept only a %text field carrying a
- * string; everything else maps to null so one bad peer profile cannot break a
- * contacts sync batch.
+ * Bot-published %text claim keys (`bot-info`, `bot-liveness`) are
+ * self-published by bot ships and their TS declarations prove nothing at
+ * runtime — an arbitrary profile can publish them as %set/%numb/%look or any
+ * JSON shape. Accept only a %text field carrying a string; everything else
+ * maps to null so one bad peer profile cannot break a contacts sync batch.
  */
-export const extractBotInfoValue = (field: unknown): string | null => {
+export const extractTextClaimValue = (field: unknown): string | null => {
   if (!field || typeof field !== 'object' || Array.isArray(field)) {
     return null;
   }
@@ -505,7 +505,8 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     attestations: parseContactAttestations(id, contact),
-    botInfo: extractBotInfoValue(contact['bot-info']),
+    botInfo: extractTextClaimValue(contact['bot-info']),
+    botLiveness: extractTextClaimValue(contact['bot-liveness']),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -556,7 +557,8 @@ export const contactToClientProfile = (
     attestations: parseContactAttestations(userId, base),
     // The claim is the bot's own published property: read it from the
     // peer-published base contact only, never the user's `mod` overlay.
-    botInfo: extractBotInfoValue(base['bot-info']),
+    botInfo: extractTextClaimValue(base['bot-info']),
+    botLiveness: extractTextClaimValue(base['bot-liveness']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };
