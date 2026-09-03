@@ -4416,17 +4416,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   await queueApprovalRequest(approval);
                 // Acknowledge the mention in-channel while the approval is
                 // pending — silence here reads as a broken bot (TLON-6451).
+                // Only a newly-queued approval is acknowledged, never an
+                // 'updated' one. That statelessly bounds mutual-ack loops
+                // between two unauthorized bots that mention each other:
+                // each side acks once, and the counter-ack dedups into the
+                // existing record on the other side. Bot detection can't do
+                // this (a profileless bot sends a bare-string author and
+                // looks human), and maxBotResponses doesn't fire when
+                // configured to 0. Known bots get no ack at all — the
+                // reassurance is for humans, and a bot's owner still gets
+                // the DM approval card.
                 // A blocked ship keeps getting silence so blocking stays
                 // unobservable to the blocked party; that also means no ack
                 // when the block-list lookup failed, and none when the owner
                 // actioned the request during the queueing await (the record
-                // is gone from the live pending list by then). Bot requesters
-                // get no ack at all: the ack mentions them (and can land in a
-                // thread they participate in), so two mutually-unauthorized
-                // bots would ack each other unboundedly — the
-                // maxBotResponses guard doesn't fire when configured to 0.
-                // The reassurance is for humans; a bot's owner still gets
-                // the DM approval card.
+                // is gone from the live pending list by then).
                 const approvalStillPending = pendingApprovals.some(
                   (a) =>
                     a.type === 'channel' &&
@@ -4434,7 +4438,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                     a.channelNest === nest
                 );
                 if (
-                  outcome !== 'blocked' &&
+                  outcome === 'queued' &&
                   !blockCheckUnknown &&
                   !isKnownBot &&
                   approvalStillPending
