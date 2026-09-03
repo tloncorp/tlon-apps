@@ -387,6 +387,10 @@ class BranchDeskHarness {
           this.events.push(`mount:${ship}`);
           return success();
         }
+        if (command === 'clay/suspend %groups') {
+          this.events.push(`suspend-groups:${ship}`);
+          return success();
+        }
         if (command === 'commit %tlon') {
           this.events.push(`commit:${ship}`);
           if (this.commitConnectionFailuresRemaining > 0) {
@@ -399,6 +403,10 @@ class BranchDeskHarness {
             });
           }
           this.hashes[ship] = 'new-hash';
+          return success();
+        }
+        if (command === 'clay/revive %tlon') {
+          this.events.push(`revive-tlon:${ship}`);
           return success();
         }
         throw new Error(`unexpected hood command: ${command}`);

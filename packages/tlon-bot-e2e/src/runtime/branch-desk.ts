@@ -203,6 +203,10 @@ export async function applyBranchDesk(
       let cookie = await login(endpoint, dependencies);
       await hoodCommand(ctx, ship, 'mount %tlon', dependencies);
       await waitForMountedDeskStable(ctx, ship, dependencies);
+      // %groups and %tlon install agents with the same names.  A rube can
+      // contain both desks, but Gall cannot run both sets at once: leave the
+      // legacy desk suspended before the branch %tlon desk is activated.
+      await hoodCommand(ctx, ship, 'clay/suspend %groups', dependencies);
       const startHash = await waitForTlonHash(endpoint, cookie, dependencies);
       if (await deskMatches(ctx, ship, manifest, dependencies)) {
         console.log(`    ~${ship}: assembled desk unchanged; skipping commit`);
@@ -233,6 +237,7 @@ export async function applyBranchDesk(
           if ((await tlonHash(endpoint, cookie, dependencies)) === startHash) {
             await hoodCommand(ctx, ship, 'commit %tlon', dependencies);
           }
+          await hoodCommand(ctx, ship, 'clay/revive %tlon', dependencies);
           await waitForDeskReady(endpoint, cookie, startHash, dependencies);
         },
         async (attempt) => {
