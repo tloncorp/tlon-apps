@@ -1,16 +1,16 @@
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createDevLogger } from '@tloncorp/shared';
-import * as db from '@tloncorp/shared/db';
-import { Text, pluralize, useIsWindowNarrow } from '@tloncorp/ui';
-import { ConfirmDialog } from '@tloncorp/ui';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
-import { View, YStack } from 'tamagui';
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { createDevLogger } from "@tloncorp/shared";
+import * as db from "@tloncorp/shared/db";
+import { Text, pluralize, useIsWindowNarrow } from "@tloncorp/ui";
+import { ConfirmDialog } from "@tloncorp/ui";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert } from "react-native";
+import { View, YStack } from "tamagui";
 
-import { useHandleLogout } from '../../hooks/useHandleLogout';
-import { useResetDb } from '../../hooks/useResetDb';
-import { RootStackParamList } from '../../navigation/types';
-import { ScreenHeader, SettingsContentScrollView, TextInput } from '../../ui';
+import { useHandleLogout } from "../../hooks/useHandleLogout";
+import { useResetDb } from "../../hooks/useResetDb";
+import { RootStackParamList } from "../../navigation/types";
+import { ScreenHeader, SettingsContentScrollView, TextInput } from "../../ui";
 import {
   ApplyChangesBar,
   BotIdentityHeader,
@@ -18,35 +18,35 @@ import {
   BotSettingsRow,
   BotSettingsSection,
   BotSwitchRow,
-} from './bot/BotSettingsUI';
+} from "./bot/BotSettingsUI";
 import {
   BASIC_PROVIDER_ID,
   PROVIDER_OPTIONS,
   SUBSCRIPTION_PROVIDERS,
   providerLabel,
   subscriptionProviderLabel,
-} from './bot/constants';
-import { normalizeShipList, safeKeySummary } from './bot/helpers';
+} from "./bot/constants";
+import { normalizeShipList, safeKeySummary } from "./bot/helpers";
 import {
   getLLMAuthProviderStatus,
   isLLMAuthProviderConnected,
-} from './bot/openAiSubscription';
-import { useBotSettingsQueries } from './bot/useBotSettingsData';
+} from "./bot/openAiSubscription";
+import { useBotSettingsQueries } from "./bot/useBotSettingsData";
 import {
   useApplyBotSettings,
   useSyncBotSettingsDraft,
-} from './bot/useBotSettingsDraft';
+} from "./bot/useBotSettingsDraft";
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'> & {
+type Props = NativeStackScreenProps<RootStackParamList, "BotSettings"> & {
   zdrRowLayout?: {
     descriptionGap?: number;
     paddingVertical?: number;
   };
 };
 
-const logger = createDevLogger('BotSettingsScreen', false);
+const logger = createDevLogger("BotSettingsScreen", false);
 
-const userCount = (n: number): string => `${n} ${pluralize(n, 'user')}`;
+const userCount = (n: number): string => `${n} ${pluralize(n, "user")}`;
 
 export function BotSettingsScreen(props: Props) {
   const isWindowNarrow = useIsWindowNarrow();
@@ -84,34 +84,34 @@ export function BotSettingsScreen(props: Props) {
       }
       if (isExpired) {
         Alert.alert(
-          'Logout Required',
+          "Logout Required",
           "To access bot settings, you'll need to log back in again.",
           [
             {
-              text: 'Cancel',
+              text: "Cancel",
               onPress: () => props.navigation.goBack(),
-              style: 'cancel',
+              style: "cancel",
             },
             {
-              text: 'Logout',
+              text: "Logout",
               onPress: handleLogout,
             },
-          ]
+          ],
         );
         return;
       }
       if (!authToken || !hostingUserId) {
-        logger.trackError('Bot settings opened without hosting session', {
+        logger.trackError("Bot settings opened without hosting session", {
           hasAuthToken: Boolean(authToken),
           hasHostingUserId: Boolean(hostingUserId),
         });
-        Alert.alert('Error', 'Cannot access bot settings.', [
-          { text: 'OK', onPress: () => props.navigation.goBack() },
+        Alert.alert("Error", "Cannot access bot settings.", [
+          { text: "OK", onPress: () => props.navigation.goBack() },
         ]);
       }
     }
     checkHostingSession().catch((error) => {
-      logger.trackError('Failed to check hosting session', { error });
+      logger.trackError("Failed to check hosting session", { error });
     });
     return () => {
       cancelled = true;
@@ -123,26 +123,26 @@ export function BotSettingsScreen(props: Props) {
   const hasCustomProviderKey = PROVIDER_OPTIONS.some(
     (option) =>
       option.id !== BASIC_PROVIDER_ID &&
-      Boolean(queries.providerConfig.keys?.[option.id])
+      Boolean(queries.providerConfig.keys?.[option.id]),
   );
   const subscriptionProviders = SUBSCRIPTION_PROVIDERS.map((providerId) => {
     const status = getLLMAuthProviderStatus(
       queries.llmAuthStatusQuery.data,
-      providerId
+      providerId,
     );
     const connected = isLLMAuthProviderConnected(status?.status);
     const summary = queries.llmAuthStatusQuery.isLoading
-      ? 'Checking…'
+      ? "Checking…"
       : queries.llmAuthStatusQuery.isError &&
           queries.llmAuthStatusQuery.data === undefined
-        ? 'Unavailable'
+        ? "Unavailable"
         : connected
-          ? 'Active'
-          : 'Add';
+          ? "Active"
+          : "Add";
     return { providerId, connected, summary };
   }).sort((left, right) => Number(right.connected) - Number(left.connected));
   const apiKeyProviders = PROVIDER_OPTIONS.filter(
-    (option) => option.id !== BASIC_PROVIDER_ID
+    (option) => option.id !== BASIC_PROVIDER_ID,
   ).sort((left, right) => {
     const leftConfigured = Boolean(queries.providerConfig.keys?.[left.id]);
     const rightConfigured = Boolean(queries.providerConfig.keys?.[right.id]);
@@ -167,7 +167,7 @@ export function BotSettingsScreen(props: Props) {
     () =>
       queries.oauthStatusQuery.data?.grants.filter((grant) => grant.connected)
         .length ?? 0,
-    [queries.oauthStatusQuery.data]
+    [queries.oauthStatusQuery.data],
   );
 
   const enabledChannelCount = Object.keys(draft.chat.channelRuleDrafts).length;
@@ -193,7 +193,7 @@ export function BotSettingsScreen(props: Props) {
       >
         <YStack gap="$2xl" paddingBottom="$2xl">
           <BotIdentityHeader
-            title={draft.nickname || 'Tlonbot'}
+            title={draft.nickname || "Tlonbot"}
             subtitle={queries.moon ?? `~${queries.ship}`}
             avatarUrl={queries.avatarQuery.data ?? undefined}
             ready={queries.botReady}
@@ -224,13 +224,13 @@ export function BotSettingsScreen(props: Props) {
                 label={
                   draft.model.provider
                     ? providerLabel(draft.model.provider)
-                    : 'Choose default model'
+                    : "Choose default model"
                 }
-                description={draft.model.model || 'Not set'}
+                description={draft.model.model || "Not set"}
                 pending={pending.modelProvider || pending.model}
                 disabled={controlsReadOnly}
                 onPress={() =>
-                  navigate('BotModelSettings', { mode: 'default' })
+                  navigate("BotModelSettings", { mode: "default" })
                 }
               />
               <BotSettingsDivider />
@@ -240,7 +240,7 @@ export function BotSettingsScreen(props: Props) {
                 pending={pending.fallbacks}
                 disabled={controlsReadOnly}
                 onPress={() =>
-                  navigate('BotModelSettings', { mode: 'fallbacks' })
+                  navigate("BotModelSettings", { mode: "fallbacks" })
                 }
               />
             </BotSettingsSection>
@@ -252,7 +252,7 @@ export function BotSettingsScreen(props: Props) {
             <BotSettingsSection title="Privacy">
               <BotSwitchRow
                 label="Zero data retention"
-                description="Avoid model providers that retain data. Will deplete your included credits faster."
+                description="Avoid model providers that retain data. May use your included credits faster."
                 descriptionNumberOfLines={3}
                 multilineDescriptionGap={props.zdrRowLayout?.descriptionGap}
                 multilinePaddingVertical={props.zdrRowLayout?.paddingVertical}
@@ -278,11 +278,11 @@ export function BotSettingsScreen(props: Props) {
                 <BotSettingsRow
                   label={subscriptionProviderLabel(provider.providerId)}
                   value={provider.summary}
-                  valueColor={provider.connected ? '$primaryText' : undefined}
+                  valueColor={provider.connected ? "$primaryText" : undefined}
                   icon="Link"
                   disabled={applying || !queries.botReady || !providerKeysReady}
                   onPress={() =>
-                    navigate('BotOpenAISubscription', {
+                    navigate("BotOpenAISubscription", {
                       provider: provider.providerId,
                     })
                   }
@@ -303,12 +303,12 @@ export function BotSettingsScreen(props: Props) {
                   value={
                     queries.providerConfig.keys?.[option.id]
                       ? safeKeySummary(queries.providerConfig, option.id)
-                      : 'Add key'
+                      : "Add key"
                   }
                   icon="Lock"
                   disabled={applying || !providerKeysReady}
                   onPress={() =>
-                    navigate('BotApiKeySettings', { provider: option.id })
+                    navigate("BotApiKeySettings", { provider: option.id })
                   }
                 />
                 {index < list.length - 1 ? <BotSettingsDivider /> : null}
@@ -321,11 +321,11 @@ export function BotSettingsScreen(props: Props) {
               label="Connected services"
               value={
                 (queries.oauthProvidersQuery.data?.length ?? 0) === 0
-                  ? 'Unavailable'
+                  ? "Unavailable"
                   : `${connectionsCount} connected`
               }
               icon="Link"
-              onPress={() => navigate('BotMcpSettings')}
+              onPress={() => navigate("BotMcpSettings")}
             />
           </BotSettingsSection>
 
@@ -333,12 +333,12 @@ export function BotSettingsScreen(props: Props) {
             <BotSettingsRow
               label="DM allowlist"
               value={userCount(
-                normalizeShipList(draft.chat.dmAllowlist).length
+                normalizeShipList(draft.chat.dmAllowlist).length,
               )}
               pending={pending.dmAllowlist}
               disabled={controlsReadOnly}
               onPress={() =>
-                navigate('BotShipListSettings', { list: 'dmAllowlist' })
+                navigate("BotShipListSettings", { list: "dmAllowlist" })
               }
             />
             <BotSettingsDivider />
@@ -378,13 +378,13 @@ export function BotSettingsScreen(props: Props) {
             <BotSettingsRow
               label="Default authorized"
               value={userCount(
-                normalizeShipList(draft.chat.defaultAuthorizedShips).length
+                normalizeShipList(draft.chat.defaultAuthorizedShips).length,
               )}
               pending={pending.defaultAuthorizedShips}
               disabled={controlsReadOnly}
               onPress={() =>
-                navigate('BotShipListSettings', {
-                  list: 'defaultAuthorizedShips',
+                navigate("BotShipListSettings", {
+                  list: "defaultAuthorizedShips",
                 })
               }
             />
@@ -392,13 +392,13 @@ export function BotSettingsScreen(props: Props) {
             <BotSettingsRow
               label="Can invite to groups"
               value={userCount(
-                normalizeShipList(draft.chat.groupInviteAllowlist).length
+                normalizeShipList(draft.chat.groupInviteAllowlist).length,
               )}
               pending={pending.groupInviteAllowlist}
               disabled={controlsReadOnly}
               onPress={() =>
-                navigate('BotShipListSettings', {
-                  list: 'groupInviteAllowlist',
+                navigate("BotShipListSettings", {
+                  list: "groupInviteAllowlist",
                 })
               }
             />
@@ -413,7 +413,7 @@ export function BotSettingsScreen(props: Props) {
               value={`${enabledChannelCount} enabled`}
               pending={pending.channelRules}
               disabled={controlsReadOnly}
-              onPress={() => navigate('BotChannelRulesSettings')}
+              onPress={() => navigate("BotChannelRulesSettings")}
             />
           </BotSettingsSection>
         </YStack>
@@ -435,7 +435,7 @@ export function BotSettingsScreen(props: Props) {
         onOpenChange={setConfirmApplyOpen}
         title="Restart gateway?"
         description={`Applying ${changeCount} ${
-          changeCount === 1 ? 'change' : 'changes'
+          changeCount === 1 ? "change" : "changes"
         } restarts the Tlonbot gateway. Your Tlonbot will be offline for ~20 seconds.`}
         confirmText="Apply & restart"
         onConfirm={() => {
@@ -483,7 +483,7 @@ function NicknameField({
     isEditingRef.current = false;
     const trimmed = value.trim();
     if (trimmed.length >= 64) {
-      setError('Nickname must be fewer than 64 characters.');
+      setError("Nickname must be fewer than 64 characters.");
       return;
     }
     setError(null);
@@ -493,11 +493,11 @@ function NicknameField({
   return (
     <YStack padding="$l" gap="$m">
       <Text size="$label/m" color="$tertiaryText">
-        Nickname{pending ? ' (pending)' : ''}
+        Nickname{pending ? " (pending)" : ""}
       </Text>
       <TextInput
         value={value}
-        placeholder={loading ? 'Loading…' : 'tlonbot'}
+        placeholder={loading ? "Loading…" : "tlonbot"}
         editable={!loading && !readOnly}
         onFocus={() => {
           isEditingRef.current = true;
