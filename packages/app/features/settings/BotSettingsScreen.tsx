@@ -37,7 +37,12 @@ import {
   useSyncBotSettingsDraft,
 } from './bot/useBotSettingsDraft';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'> & {
+  zdrRowLayout?: {
+    descriptionGap?: number;
+    paddingVertical?: number;
+  };
+};
 
 const logger = createDevLogger('BotSettingsScreen', false);
 
@@ -244,13 +249,13 @@ export function BotSettingsScreen(props: Props) {
           {settingsReady &&
           draft.model.provider === BASIC_PROVIDER_ID &&
           draft.model.model ? (
-            <BotSettingsSection
-              title="Privacy"
-              subtitle="ZDR requests can cost more and use your included credits faster."
-            >
+            <BotSettingsSection title="Privacy">
               <BotSwitchRow
                 label="Zero data retention"
-                description="Model providers won't retain request data."
+                description="Avoid model providers that retain data. Will deplete your included credits faster."
+                descriptionNumberOfLines={3}
+                multilineDescriptionGap={props.zdrRowLayout?.descriptionGap}
+                multilinePaddingVertical={props.zdrRowLayout?.paddingVertical}
                 checked={draft.model.zdr}
                 pending={pending.zdr}
                 disabled={controlsReadOnly}
