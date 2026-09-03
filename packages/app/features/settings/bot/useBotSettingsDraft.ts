@@ -162,9 +162,8 @@ const getPendingFields = (
 ): BotSettingsPendingFields => ({
   nickname: baseline.nickname !== draft.nickname,
   modelProvider: baseline.model.provider !== draft.model.provider,
-  model:
-    baseline.model.model !== draft.model.model ||
-    baseline.model.zdr !== draft.model.zdr,
+  model: baseline.model.model !== draft.model.model,
+  zdr: baseline.model.zdr !== draft.model.zdr,
   fallbacks:
     stableStringify(baseline.model.fallbacks) !==
     stableStringify(draft.model.fallbacks),
@@ -279,7 +278,11 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     // broken config. The primary model needs a provider, and a non-basic
     // provider also needs a concrete model. Only validate the primary when it's
     // actually dirty — a fallbacks-only change sends the server's primary.
-    if (draft.pending.modelProvider || draft.pending.model) {
+    if (
+      draft.pending.modelProvider ||
+      draft.pending.model ||
+      draft.pending.zdr
+    ) {
       if (!nextValues.model.provider) {
         setApplyError(
           'Select a provider for the default model before applying.'
@@ -352,6 +355,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
       if (
         draft.pending.modelProvider ||
         draft.pending.model ||
+        draft.pending.zdr ||
         draft.pending.fallbacks
       ) {
         steps.push({
@@ -363,7 +367,9 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
               await getFreshProviderConfig()
             );
             const primaryDirty =
-              draft.pending.modelProvider || draft.pending.model;
+              draft.pending.modelProvider ||
+              draft.pending.model ||
+              draft.pending.zdr;
             const saved = await mutations.savePrimaryModel.mutateAsync({
               provider: primaryDirty
                 ? nextValues.model.provider

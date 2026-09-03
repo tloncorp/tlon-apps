@@ -185,7 +185,9 @@ export function BotModelSettingsScreen(props: Props) {
           ...current.model,
           provider,
           model,
-          zdr: provider === 'openrouter' && zdr,
+          zdr:
+            (provider === 'openrouter' || provider === BASIC_PROVIDER_ID) &&
+            zdr,
         },
       }));
     },
@@ -195,7 +197,11 @@ export function BotModelSettingsScreen(props: Props) {
   const selectProvider = useCallback(
     (provider: string) => {
       if (provider === BASIC_PROVIDER_ID) {
-        setModel(BASIC_PROVIDER_ID, BASIC_DEFAULT_MODEL);
+        setModel(
+          BASIC_PROVIDER_ID,
+          BASIC_DEFAULT_MODEL,
+          modelValues.provider === BASIC_PROVIDER_ID && modelValues.zdr
+        );
         setSelectedProvider('');
         props.navigation.goBack();
         return;

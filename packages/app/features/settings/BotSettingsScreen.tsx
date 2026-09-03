@@ -241,6 +241,29 @@ export function BotSettingsScreen(props: Props) {
             </BotSettingsSection>
           ) : null}
 
+          {settingsReady &&
+          draft.model.provider === BASIC_PROVIDER_ID &&
+          draft.model.model ? (
+            <BotSettingsSection
+              title="Privacy"
+              subtitle="ZDR requests can cost more and use your included credits faster."
+            >
+              <BotSwitchRow
+                label="Zero data retention"
+                description="Model providers won't retain request data."
+                checked={draft.model.zdr}
+                pending={pending.zdr}
+                disabled={controlsReadOnly}
+                onCheckedChange={(value) =>
+                  commitDraft((current) => ({
+                    ...current,
+                    model: { ...current.model, zdr: value },
+                  }))
+                }
+              />
+            </BotSettingsSection>
+          ) : null}
+
           <BotSettingsSection
             title="Subscription providers"
             subtitle="Connect an existing AI subscription to your Tlonbot."

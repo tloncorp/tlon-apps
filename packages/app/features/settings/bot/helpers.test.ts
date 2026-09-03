@@ -255,6 +255,24 @@ describe('provider config', () => {
     expect(values.zdr).toBe(true);
   });
 
+  it('derives the primary Basic ZDR preference', () => {
+    const values = getModelFormValues({
+      keys: {},
+      defaultKeys: { basic: { key: 'shared' } },
+      models: [
+        {
+          provider: 'basic',
+          model: 'openai/gpt-5.6-luna',
+          primary: true,
+          zdr: true,
+        },
+      ],
+    });
+
+    expect(values.provider).toBe('basic');
+    expect(values.zdr).toBe(true);
+  });
+
   it('treats the first non-channel model as primary when none is flagged', () => {
     // legacy shape: {provider, model} entries with no `primary` flag
     const values = getModelFormValues({
