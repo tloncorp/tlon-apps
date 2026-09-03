@@ -130,8 +130,6 @@ echo "Mounting tlon..."
 $run_click $pier <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%tlon))
-;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
   [(scot %p our.bowl) %tlon (scot %da now.bowl) ~]
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %tlon]))
