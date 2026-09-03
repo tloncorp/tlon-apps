@@ -541,6 +541,26 @@ const ConversationPostListAttempt = React.forwardRef<
         atBottomThreshold: onScrolledToBottomThreshold,
         bottomAtEnd: true,
       });
+    // LegendList re-anchors the end whenever the list's layout, rows, or
+    // footer change size, and it does so even mid-gesture. On Android a drag
+    // dismisses the keyboard, which resizes the list and the composer while
+    // the finger is still down, so the list would snap back to the end under
+    // the user's scroll. Suspend end maintenance until the gesture, including
+    // its fling, has finished.
+    const [isUserScrolling, setIsUserScrolling] = React.useState(false);
+    const handleScrollBeginDrag = React.useCallback(() => {
+      markUserScrolled();
+      setIsUserScrolling(true);
+    }, [markUserScrolled]);
+    const handleScrollEndDrag = React.useCallback(() => {
+      setIsUserScrolling(false);
+    }, []);
+    const handleMomentumScrollBegin = React.useCallback(() => {
+      setIsUserScrolling(true);
+    }, []);
+    const handleMomentumScrollEnd = React.useCallback(() => {
+      setIsUserScrolling(false);
+    }, []);
     // LegendList recalculates this when scrolling, content, or row measurements
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
@@ -649,7 +669,7 @@ const ConversationPostListAttempt = React.forwardRef<
           initialScrollIndex === undefined
         }
         initialScrollIndex={initialScrollIndex}
-        maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
+        maintainScrollAtEnd={anchorToEnd && !hasNewerPosts && !isUserScrolling}
         // A2UI rows can change by more than a small fraction of the viewport.
         // Keep the normal chat end anchor across those remeasurements whenever
         // the list was within one viewport of the latest message. Far-away
@@ -687,7 +707,10 @@ const ConversationPostListAttempt = React.forwardRef<
         onLayout={settleEmptyConversationAtEnd}
         onContentSizeChange={settleEmptyConversationAtEnd}
         onScroll={handleScroll}
-        onScrollBeginDrag={markUserScrolled}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onMomentumScrollBegin={handleMomentumScrollBegin}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
         onEndReached={onEndReached}
