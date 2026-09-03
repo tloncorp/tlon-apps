@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # This script generates a new pill based on supplied
-# revisions of base and groups desks.
+# revisions of base and tlon desks.
 #
 
 set -eu
@@ -144,9 +144,9 @@ get_desk_hash() {
 function usage()
 {
     cat <<EOF
-Usage: $0 [-fus] <base-ref> <groups-ref>
+Usage: $0 [-fus] <base-ref> <tlon-ref>
 
-Generate a pill containing %base and %groups desks at the specified Git references.
+Generate a pill containing %base and %tlon desks at the specified Git references.
 
 Options:
     -f  force skip desk hash check
@@ -200,7 +200,7 @@ then
 fi
 
 base_rev=$1
-groups_rev=$2
+tlon_rev=$2
 
 ship="bud"
 
@@ -211,7 +211,7 @@ urbit_pill_url="https://bootstrap.urbit.org/urbit-$vere_ver.pill"
 urbit_pill="urbit-$vere_ver.pill"
 
 base_repo="https://github.com/urbit/urbit"
-groups_repo="https://github.com/tloncorp/tlon-apps"
+tlon_repo="https://github.com/tloncorp/tlon-apps"
 
 storage_url="gs://bootstrap.urbit.org"
 
@@ -289,7 +289,7 @@ fi
 if [[ ! -d $pier ]]
 then
     echo "⚙️ Booting $ship..."
-    $vere -x -F $ship -c $ship -B $urbit_pill \
+    $vere -t -x -F $ship -c $ship -B $urbit_pill \
         || fatal "Failed to boot $ship"
     echo "✅ $ship ready"
 fi
@@ -324,14 +324,14 @@ prepare_git_checkout() {
         fatal "Failed to clean repository in $dir"
 }
 
-# Prepare base and groups repositories
+# Prepare base and tlon repositories
 #
 
 prepare_git_checkout urbit-git "$base_repo" "$base_rev"
-prepare_git_checkout tlon-apps-git "$groups_repo" "$groups_rev"
+prepare_git_checkout tlon-apps-git "$tlon_repo" "$tlon_rev"
 
 base_hash=$(git -C urbit-git rev-parse --short HEAD)
-groups_hash=$(git -C tlon-apps-git rev-parse --short HEAD)
+tlon_hash=$(git -C tlon-apps-git rev-parse --short HEAD)
 
 http_port=9123
 $vere --loom 33 --http-port $http_port -t $pier &
@@ -365,11 +365,38 @@ function await_ship
     done
 }
 
+hood_command() {
+    local command="$1"
+    local payload
+    local loopback_port
+    payload=$(printf '{"source":{"dojo":"+hood/%s"},"sink":{"app":"hood"}}' "$command")
+    loopback_port=$(awk '$3 == "loopback" { print $1; exit }' "$pier/.http.ports")
+
+    if [[ -z "$loopback_port" ]]; then
+        echo "Unable to determine Hood loopback port" >&2
+        return 1
+    fi
+
+    for attempt in {1..60}; do
+        if curl --fail --silent \
+            --header 'Content-Type: application/json' \
+            --data "$payload" \
+            "http://localhost:$loopback_port"
+        then
+            return 0
+        fi
+
+        sleep 1
+    done
+
+    echo "Failed to run +hood/$command after 60 attempts" >&2
+    return 1
+}
+
 trap stop_vere EXIT
 
 await_ship
 
-suspend_desk %groups
 suspend_desk %landscape
 suspend_desk %webterm
 
@@ -391,43 +418,41 @@ await_ship
 # We need to wait for spider to reload, it is needed for running kahn threads
 sleep 3
 
-echo "Mounting groups"
-mount_desk %groups
+echo "Creating %tlon desk from %base"
+hood_command 'merge %tlon our %base'
+sleep 3
 
-if ! (cd ./tlon-apps-git && ./scripts/assemble-desk.sh ../$pier/groups)
+echo "Mounting tlon"
+mount_desk %tlon
+
+if ! (cd ./tlon-apps-git && ./scripts/assemble-desk.sh ../$pier/tlon)
 then
-    fatal "Failed to sync groups desk"
+    fatal "Failed to sync tlon desk"
 fi
 
-groups_old_cz=`get_desk_hash %groups`
+tlon_old_cz=`get_desk_hash %tlon`
 
-commit_desk %groups
+commit_desk %tlon
 await_ship
 
-run_thread_silent "revive %groups" $pier <<HOON
-=/  m  (strand ,vase)
-;<  =bowl  bind:m  get-bowl
-;<  ~  bind:m
-  (send-raw-card %pass /live %arvo %c [%zest %groups %live])
-;<  ~  bind:m  (sleep ~s0)  ::  allow clay to activate
-(pure:m !>(&))
-HOON
+# %groups ships the same agents as %tlon.  Stop it before %tlon comes up so
+# Gall does not reject the duplicate agents during the transition.
+suspend_desk %groups
 
-await_ship
+# Hood keeps the request open until Gall finishes starting the desk.  Dispatch
+# it and let the following delay give Gall time to come up, as Rube does.
+hood_command 'revive %tlon' &
+sleep 3
 
-# FIXME: a bug is here
-#
-if [[ "$groups_old_cz" == `get_desk_hash %groups` ]]
+# The asynchronous revive may still be starting Gall.  A forced build does not
+# need the legacy hash guard, and avoiding the extra Khan request lets brass
+# proceed without waiting on that startup response.
+if ! $force && [[ "$tlon_old_cz" == `get_desk_hash %tlon` ]]
 then
-    if ! $force
-    then
-        fatal "Groups desk has not updated, override with -f to continue"
-    else
-        echo "⚠️ Groups desk has not updated, forced to continue"
-    fi
+    fatal "Tlon desk has not updated, override with -f to continue"
 fi
 
-pill_name="groups-$base_hash-$groups_hash"
+pill_name="tlon-$base_hash-$tlon_hash"
 pill_file=$pill_name.pill
 
 if [[ ! -e ./$pill_file ]]
@@ -438,7 +463,7 @@ then
 	=/  m  (strand ,vase)
 	;<  =bowl  bind:m  get-bowl
 	=/  lens-command
-	  :-  dojo+\'+pill/brass %base %groups\'
+	  :-  dojo+\'+pill/brass %base %tlon\'
 	  output-pill+\'$pill_name/pill\'
 	;<  ~  bind:m
 	  (poke-our %dojo lens-command+!>([%$ lens-command]))
@@ -468,7 +493,7 @@ then
 
     test_dir=`mktemp -d`
 
-    if $vere -F nec -B $pill_file -x -c $test_dir/nec
+    if $vere -t -F nec -B $pill_file -x -c $test_dir/nec
     then
         echo "☑️ Pill verified"
         rm -rf $test_dir
@@ -512,4 +537,3 @@ then
         rm -rf $pill_file
     fi
 fi
-
