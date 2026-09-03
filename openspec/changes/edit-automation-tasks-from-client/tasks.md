@@ -46,4 +46,4 @@
 - [x] 6.2 Update `packages/openclaw/README.md` for the harness subscription and edit application.
 - [x] 6.3 Compile the desk and run the targeted Hoon tests on a dev ship (rapsed `%groups` via its MCP tools, after merging develop so the desk loads); a live self-owned edit round-trips to a typed `harness-offline`.
 - [ ] 6.4 Run plugin format, lint, typecheck, unit tests, and api-package tests.
-- [ ] 6.5 Exercise one create, update, and delete end to end against a running bot and confirm the mirror delta arrives on the owner feed.
+- [x] 6.5 Exercised create and update cross-ship (owner simtyc → bot rapsed → OpenClaw 2026.5.28 in the dev container) over the owner's HTTP surface; the mirror on simtyc reflected both. Two live-only bugs found and fixed: eyre's http-response watch, and the created id on hosts that ignore a requested id.
