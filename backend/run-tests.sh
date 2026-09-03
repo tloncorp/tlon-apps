@@ -111,8 +111,10 @@ await_ship
 # freshly booted brass pill. Desk operations below rely on that agent.
 sleep 3
 
-# Allow 10m for longest running operations
-TIMEOUT=600
+# Aqua snapshots boot and sync an eight-ship fleet, which can exceed ten
+# minutes on the two-core CI runners. Keep the request alive through that
+# work; socat's inactivity ceiling remains 30 minutes as well.
+TIMEOUT=1800
 
 # Send source exactly as the pill builder does.  The legacy click helper
 # rewrites input layout, which is incompatible with Vere 4.6's %khan-eval.
@@ -120,6 +122,17 @@ run_thread() {
   local hoon card
   hoon=$(awk '{ printf "%s%s", "\\0a", $0 }')
   card="[0 %fyrd [%base %khan-eval %noun [%ted-eval '$hoon']]]"
+  echo "$card" | "$vere" eval -jn |
+    socat -T 1800 -t "$TIMEOUT" - UNIX-CONNECT:"$pier/.urb/conn.sock" |
+    "$vere" eval -cnk
+}
+
+# Aqua's %pill poke is typed by /lib/pill/hoon.  This is the direct-transport
+# equivalent of the legacy click invocation with that dependency.
+run_thread_with_pill_lib() {
+  local hoon card
+  hoon=$(awk '{ printf "%s%s", "\\0a", $0 }')
+  card="[0 %fyrd [%base %khan-eval %noun [%ted-eval ['$hoon' [/lib/pill/hoon ~]]]]]"
   echo "$card" | "$vere" eval -jn |
     socat -T 1800 -t "$TIMEOUT" - UNIX-CONNECT:"$pier/.urb/conn.sock" |
     "$vere" eval -cnk
@@ -261,7 +274,7 @@ else
 fi
 
 echo "Starting %aqua..."
-run_thread <<EOF
+run_thread_with_pill_lib <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))  

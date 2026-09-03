@@ -69,10 +69,10 @@
 ;<  ~  bind:m
   =/  n  (strand ,~)
   ?.  sync  (pure:n ~)
-  ~>  %slog.1^(crip "Syncing %groups desk to ships...")
+  ~>  %slog.1^(crip "Syncing %tlon desk to ships...")
   |-
   ?~  fleet  (pure:n ~)
-  ;<  ~  bind:n  (sync-desk i.fleet %groups)
+  ;<  ~  bind:n  (sync-desk i.fleet %tlon)
   $(fleet t.fleet)
 ;<  ~  bind:m  (end-test:ph-io vane-tids)
 ;<  =bowl:spider  bind:m  get-bowl
