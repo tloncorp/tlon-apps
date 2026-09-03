@@ -380,6 +380,14 @@ class BranchDeskHarness {
   private readonly execInComposeService: BranchDeskDependencies['execInComposeService'] =
     async (_ctx, _service, argv) => {
       const script = argv[2] ?? '';
+      if (
+        argv[1] === '-c' &&
+        script.includes('tlon-bot-e2e-revive.log') &&
+        argv[6] === 'clay/revive %tlon'
+      ) {
+        this.events.push(`revive-tlon:${argv[5] as ShipLabel}`);
+        return success();
+      }
       if (argv[1] === '-e' && script.includes('+hood/')) {
         const ship = argv[3] as ShipLabel;
         const command = argv[4] ?? '';
@@ -403,10 +411,6 @@ class BranchDeskHarness {
             });
           }
           this.hashes[ship] = 'new-hash';
-          return success();
-        }
-        if (command === 'clay/revive %tlon') {
-          this.events.push(`revive-tlon:${ship}`);
           return success();
         }
         throw new Error(`unexpected hood command: ${command}`);

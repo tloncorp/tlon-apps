@@ -237,7 +237,11 @@ export async function applyBranchDesk(
           if ((await tlonHash(endpoint, cookie, dependencies)) === startHash) {
             await hoodCommand(ctx, ship, 'commit %tlon', dependencies);
           }
-          await hoodCommand(ctx, ship, 'clay/revive %tlon', dependencies);
+          // Hood holds the revive request open until Gall has started every
+          // agent.  Docker exec has a shorter command timeout, so dispatch it
+          // in the background and use the readiness poll below as the actual
+          // completion signal (the pill builder does the same).
+          await reviveTlon(ctx, ship, dependencies);
           await waitForDeskReady(endpoint, cookie, startHash, dependencies);
         },
         async (attempt) => {
@@ -470,6 +474,27 @@ async function hoodCommand(
     );
   }
   requireSuccess(result, `exec in ${ctx.services.ships}`);
+}
+
+async function reviveTlon(
+  ctx: RuntimeContext,
+  ship: ShipLabel,
+  dependencies: BranchDeskDependencies
+) {
+  const result = await dependencies.execInComposeService(
+    ctx,
+    ctx.services.ships,
+    [
+      'sh',
+      '-c',
+      'node -e "$1" "$2" "$3" >/tmp/tlon-bot-e2e-revive.log 2>&1 </dev/null &',
+      'sh',
+      HOOD_LOOPBACK_SCRIPT,
+      ship,
+      'clay/revive %tlon',
+    ]
+  );
+  requireSuccess(result, `start %tlon revival in ${ctx.services.ships}`);
 }
 
 async function tlonHash(
