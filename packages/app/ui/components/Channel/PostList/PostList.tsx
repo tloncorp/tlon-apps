@@ -582,11 +582,17 @@ const ConversationPostListAttempt = React.forwardRef<
     // Data anchoring and end anchoring choose different items to preserve.
     // Let end anchoring own updates while the conversation is being followed;
     // retain data anchoring only after the user has moved away from the end.
+    // With no rows there is nothing to keep in view, and LegendList's default
+    // size anchoring (left on by `undefined`) scrolls iOS by any top padding
+    // change, which carried an empty conversation up by the header inset when
+    // the transparent header reported its height after mount.
     const maintainVisibleContentPosition =
-      collectionLayout.shouldMaintainVisibleContentPosition &&
-      !(anchorToEnd && !hasNewerPosts && isNearEnd)
-        ? true
-        : undefined;
+      postsWithNeighbors.length === 0
+        ? false
+        : collectionLayout.shouldMaintainVisibleContentPosition &&
+            !(anchorToEnd && !hasNewerPosts && isNearEnd)
+          ? true
+          : undefined;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
