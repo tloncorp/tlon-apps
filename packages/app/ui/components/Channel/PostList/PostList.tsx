@@ -1,3 +1,4 @@
+import type * as db from '@tloncorp/shared/db';
 import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
 import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
@@ -29,6 +30,28 @@ import {
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
+
+// LegendList sizes rows it has not measured yet from a running average per
+// item type. A single average for every chat post lets one long code block or
+// wall of text inflate the estimate for everything, and each estimated row
+// then shrinks when it measures, so the list creeps for seconds after a page
+// of history loads. Bucketing by rough content size keeps the averages close
+// to the rows they stand in for.
+function getPostSizeClass(post: db.Post): string {
+  if (post.hasImage) {
+    return `${post.type}:image`;
+  }
+  const textLength = post.textContent?.length ?? 0;
+  const sizeClass =
+    textLength > 600
+      ? 'xl'
+      : textLength > 200
+        ? 'l'
+        : textLength > 60
+          ? 'm'
+          : 's';
+  return `${post.type}:${sizeClass}`;
+}
 
 function useConversationKeyboardListProps(
   composerContentInset: SharedValue<number>
@@ -657,7 +680,7 @@ const ConversationPostListAttempt = React.forwardRef<
         data={postsWithNeighbors}
         keyExtractor={getPostId}
         renderItem={renderItem}
-        getItemType={({ post }) => post.type}
+        getItemType={({ post }) => getPostSizeClass(post)}
         estimatedItemSize={ESTIMATED_ITEM_SIZE}
         // Chat rows are stateful and highly variable-height; recycling them can
         // briefly reuse stale row state and measurements for another post.
