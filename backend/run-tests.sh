@@ -114,11 +114,20 @@ sleep 3
 # Allow 10m for longest running operations
 TIMEOUT=600
 
-run_click="$click -t $TIMEOUT -b $vere -i - -kp"
+# Send source exactly as the pill builder does.  The legacy click helper
+# rewrites input layout, which is incompatible with Vere 4.6's %khan-eval.
+run_thread() {
+  local hoon card
+  hoon=$(awk '{ printf "%s%s", "\\0a", $0 }')
+  card="[0 %fyrd [%base %khan-eval %noun [%ted-eval '$hoon']]]"
+  echo "$card" | "$vere" eval -jn |
+    socat -T 1800 -t "$TIMEOUT" - UNIX-CONNECT:"$pier/.urb/conn.sock" |
+    "$vere" eval -cnk
+}
 
 # Mount %base
 echo "Mounting base..."
-$run_click $pier <<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))  
@@ -131,7 +140,7 @@ EOF
 
 # Create and mount %tlon from %base.
 echo "Creating %tlon..."
-$run_click $pier <<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-merge+!>([%tlon our.bowl %base 0 %auto]))
@@ -150,7 +159,7 @@ then
 fi
 
 echo "Updating base desk..."
-$run_click $pier <<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
@@ -175,7 +184,7 @@ rm -rf "$assembled"
 
 rsync -r --delete desk/tests/ $pier/tlon/tests
 
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /tlon)
 (pure:m !>(hash))  
@@ -191,7 +200,7 @@ then
 fi
 
 echo "Updating tlon desk"
-${run_click} $pier <<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%tlon |]))
@@ -202,7 +211,7 @@ sleep 3
 echo "Awaiting desk update..."
 await_ship
 
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  hash=@uvI  bind:m  (scry @uvI %cz /tlon)
 (pure:m !>(hash))  
@@ -227,7 +236,7 @@ fi
 
 # Run the unit tests
 echo "Running unit tests..."
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
@@ -254,7 +263,7 @@ else
 fi
 
 echo "Starting %aqua..."
-${run_click} $pier "/lib/pill/hoon"<<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))  
@@ -271,7 +280,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 EOF
 
 echo "Preparing aqua snapshot..."
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=~.ci-ph-fleet  
@@ -306,7 +315,7 @@ fi
 # Run aqua tests
 #
 echo "Running tests..."
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  

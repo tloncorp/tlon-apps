@@ -232,11 +232,9 @@ if [[ -n $INPUT ]]; then
     shift
 
     if [[ $EXECUTE -eq 0 ]]; then
-        # Read from file, escape quotes, and preserve layout with Hoon's
-        # newline escape.  %khan-eval on Vere 4.6 parses several of the
-        # layout-sensitive expressions used by the backend runner differently
-        # when their source lines are flattened into spaces.
-        HOON="$(awk '{ printf "%s%s", "\\\\0a", $0 }' "$INPUT" | sed "s;';\\\\';g")"
+        # read from file, escape 's, replace newlines w/ gaps
+        # Use paste for portable line joining (works on both GNU and BSD systems)
+        HOON="$(cat $INPUT | sed "s;';\\\\';g" | paste -sd'  ' -)"
     fi
 else
     PIER=$1
