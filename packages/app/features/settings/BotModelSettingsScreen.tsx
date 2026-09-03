@@ -512,7 +512,7 @@ export function BotModelSettingsScreen(props: Props) {
                                   .filter(Boolean)
                                   .join(' · ')}
                                 endContent={
-                                  recommended || zdrEligible ? (
+                                  recommended || (zdrOnly && zdrEligible) ? (
                                     <XStack gap="$xs">
                                       {recommended ? (
                                         <Badge
@@ -521,7 +521,7 @@ export function BotModelSettingsScreen(props: Props) {
                                           size="micro"
                                         />
                                       ) : null}
-                                      {zdrEligible ? (
+                                      {zdrOnly && zdrEligible ? (
                                         <Badge
                                           text="ZDR"
                                           type="positive"
