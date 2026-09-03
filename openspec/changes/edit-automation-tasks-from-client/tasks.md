@@ -44,6 +44,6 @@
 
 - [x] 6.1 Update `docs/backend/desk/app/steward.md`: replace the "no task mutation surface" statement with the edit loop, HTTP surface, harness feed, error vocabulary, marks, and paths; update the poke and subscription surface lists.
 - [x] 6.2 Update `packages/openclaw/README.md` for the harness subscription and edit application.
-- [ ] 6.3 Compile the desk and run the targeted Hoon tests on a dev ship via the tmux dojo.
+- [x] 6.3 Compile the desk and run the targeted Hoon tests on a dev ship (rapsed `%groups` via its MCP tools, after merging develop so the desk loads); a live self-owned edit round-trips to a typed `harness-offline`.
 - [ ] 6.4 Run plugin format, lint, typecheck, unit tests, and api-package tests.
 - [ ] 6.5 Exercise one create, update, and delete end to end against a running bot and confirm the mirror delta arrives on the owner feed.
