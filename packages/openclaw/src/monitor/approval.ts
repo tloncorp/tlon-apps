@@ -386,9 +386,10 @@ export async function applyApprovalRequest(
 
 /**
  * Persisted JSON can carry a null/empty/non-string marker; only a real
- * message ID proves the owner DM landed.
+ * message ID proves the owner DM landed. Exported so the channel-ack path
+ * can detect the undelivered→delivered transition on a retry mention.
  */
-function isNotificationDelivered(approval: PendingApproval): boolean {
+export function isNotificationDelivered(approval: PendingApproval): boolean {
   return (
     typeof approval.notificationMessageId === 'string' &&
     approval.notificationMessageId.length > 0

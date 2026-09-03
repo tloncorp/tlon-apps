@@ -24,6 +24,7 @@ import {
   formatPendingList,
   generateApprovalId,
   isExpired,
+  isNotificationDelivered,
   mergeApprovalDeliveryState,
   normalizeNotificationId,
   removePendingApproval,
@@ -837,6 +838,31 @@ describe('formatChannelApprovalAck', () => {
       'inline' in verse ? verse.inline : []
     );
     expect(inlines[0]).toEqual({ ship: '~sampel-palnet' });
+  });
+});
+
+describe('isNotificationDelivered', () => {
+  const base: PendingApproval = {
+    id: 'ca111',
+    type: 'channel',
+    requestingShip: '~ten',
+    channelNest: 'chat/~host/a',
+    timestamp: 1,
+  };
+
+  it('requires a real message ID, not just any persisted marker', () => {
+    expect(isNotificationDelivered(base)).toBe(false);
+    expect(
+      isNotificationDelivered({ ...base, notificationMessageId: '170141' })
+    ).toBe(true);
+    for (const bogus of [null, '', 12345]) {
+      expect(
+        isNotificationDelivered({
+          ...base,
+          notificationMessageId: bogus as unknown as string,
+        })
+      ).toBe(false);
+    }
   });
 });
 
