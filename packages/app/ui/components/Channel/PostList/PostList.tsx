@@ -584,6 +584,55 @@ const ConversationPostListAttempt = React.forwardRef<
     const handleMomentumScrollEnd = React.useCallback(() => {
       setIsUserScrolling(false);
     }, []);
+    // Android emits no drag-end event for a cancelled touch, which would leave
+    // end maintenance suspended until the next gesture.
+    const handleTouchCancel = React.useCallback(() => {
+      setIsUserScrolling(false);
+    }, []);
+    // Android chat lists pad the scroll container for the composer. LegendList
+    // re-anchors the end of the list when data, rows, or its footer change
+    // size, but not when the container's padding does, so a composer growing
+    // line by line would cover the latest message. When the inset changes
+    // while the list rests at the end, scroll back to the end once the new
+    // padding has laid out. LegendList retargets its own initial scroll for
+    // padding changes, so this only runs after the initial anchor settles.
+    const composerInset = contentInsets.bottom;
+    const composerInsetRef = React.useRef(composerInset);
+    React.useLayoutEffect(() => {
+      const previousInset = composerInsetRef.current;
+      composerInsetRef.current = composerInset;
+      const insetDelta = composerInset - previousInset;
+      if (
+        Platform.OS !== 'android' ||
+        !anchorToEnd ||
+        insetDelta === 0 ||
+        !didFinishInitialScroll ||
+        isUserScrolling
+      ) {
+        return;
+      }
+      const listState = listRef.current?.getState();
+      if (!listState) {
+        return;
+      }
+      // The list has already absorbed the new padding into its content size,
+      // so the distance it reported before the change is the current
+      // distance less the delta.
+      const distanceFromEndBefore =
+        listState.contentLength -
+        listState.scroll -
+        listState.scrollLength -
+        insetDelta;
+      if (distanceFromEndBefore > 1) {
+        return;
+      }
+      const frame = requestAnimationFrame(() => {
+        runImperativeScroll(() =>
+          listRef.current?.scrollToEnd({ animated: false })
+        );
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [anchorToEnd, composerInset, didFinishInitialScroll, isUserScrolling]);
     // LegendList recalculates this when scrolling, content, or row measurements
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
@@ -734,6 +783,7 @@ const ConversationPostListAttempt = React.forwardRef<
         onScrollEndDrag={handleScrollEndDrag}
         onMomentumScrollBegin={handleMomentumScrollBegin}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        onTouchCancel={handleTouchCancel}
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
         onEndReached={onEndReached}

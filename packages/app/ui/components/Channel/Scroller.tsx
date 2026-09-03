@@ -397,30 +397,9 @@ const Scroller = forwardRef(
     const listOwnsComposerInset =
       Platform.OS === 'ios' &&
       collectionLayoutType === 'compact-list-bottom-to-top';
-    // Android chat lists carry the composer clearance as footer content rather
-    // than container padding. LegendList re-anchors the end of the list when
-    // its footer grows but not when the container's padding does, so padding
-    // would let a growing composer cover the latest message.
-    const footerOwnsComposerInset =
-      Platform.OS === 'android' &&
-      collectionLayoutType === 'compact-list-bottom-to-top' &&
-      (visiblePosts?.length ?? 0) > 0;
-    const scrollContentBottomInset =
-      listOwnsComposerInset || footerOwnsComposerInset
-        ? 0
-        : contentInsets.bottom;
-    const listFooterComponent = useMemo(
-      () =>
-        footerOwnsComposerInset ? (
-          <>
-            {listBottomComponent}
-            <View height={contentInsets.bottom} />
-          </>
-        ) : (
-          listBottomComponent
-        ),
-      [footerOwnsComposerInset, listBottomComponent, contentInsets.bottom]
-    );
+    const scrollContentBottomInset = listOwnsComposerInset
+      ? 0
+      : contentInsets.bottom;
     const [listFrameHeight, setListFrameHeight] = useState<number | null>(null);
     const handleListFrameLayout = useCallback((event: LayoutChangeEvent) => {
       const { height } = event.nativeEvent.layout;
@@ -690,7 +669,7 @@ const Scroller = forwardRef(
             scrollEnabled={!editingPost}
             style={style}
             listHeaderComponent={listHeaderComponent}
-            listBottomComponent={listFooterComponent}
+            listBottomComponent={listBottomComponent}
             contentInsets={contentInsets}
           />
         )}
