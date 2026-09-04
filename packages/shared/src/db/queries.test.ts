@@ -439,10 +439,10 @@ describe('getChats group recency workaround', () => {
     }
   });
 
-  test('prefers the synced title when the event names the same note', async () => {
-    const groupId = '~zod/renamed-note';
-    const channelId = 'notes/~zod/renamed-note';
-    const notebookFlag = '~zod/renamed-note';
+  test('uses a fresh edit event over a stale row for the same note', async () => {
+    const groupId = '~zod/fresh-edit-event';
+    const channelId = 'notes/~zod/fresh-edit-event';
+    const notebookFlag = '~zod/fresh-edit-event';
 
     await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
     await queries.insertChannels([
@@ -457,38 +457,39 @@ describe('getChats group recency workaround', () => {
     await queries.insertChannelUnreads([
       makeChannelUnread({ channelId, updatedAt: 400_000 }),
     ]);
-    // The event's content predates the rename; the synced row carries the
-    // current title. A rename re-emits no event, so the row is the fresher
-    // copy even when the event's stamp is higher.
-    await insertNoteActivityEvent(
-      noteActivityEvent({
-        id: 'renamed-note-event',
-        channelId,
-        groupId,
-        postId: '42',
-        title: 'Title before the rename',
-        timestamp: 399_000,
-        type: 'note-edit',
-      })
-    );
+    // An edit to a note already in notesNotes leaves the snapshot alone (see
+    // markNotesNotebookStaleForNoteEvent), so the row keeps the pre-edit
+    // title and its equal createdAt/updatedAt would read as a creation. The
+    // event is the current copy and has to win.
     await queries.saveNotesNotebookSnapshot({
       notebook: makeNotesNotebook({
         id: notebookFlag,
-        flagName: 'renamed-note',
+        flagName: 'fresh-edit-event',
         title: 'Journal',
       }),
       folders: [],
       notes: [
-        makeNotesNote(42, 1, 'Title after the rename', {
+        makeNotesNote(42, 1, 'Title before the edit', {
           id: `${notebookFlag}/note/42`,
           notebookFlag,
           createdAt: 300,
-          updatedAt: 398,
+          updatedAt: 300,
           updatedBy: '~zod',
         }),
       ],
       members: [],
     });
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'fresh-edit-event',
+        channelId,
+        groupId,
+        postId: '42',
+        title: 'Title after the edit',
+        timestamp: 399_000,
+        type: 'note-edit',
+      })
+    );
 
     const chat = (await queries.getChats()).unpinned.find(
       (candidate) => candidate.id === groupId
@@ -497,7 +498,9 @@ describe('getChats group recency workaround', () => {
     if (chat?.type === 'group') {
       expect(chat.notesActivity).toMatchObject({
         noteId: '42',
-        noteTitle: 'Title after the rename',
+        noteTitle: 'Title after the edit',
+        isNew: false,
+        timestamp: 400_000,
       });
     }
   });

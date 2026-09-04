@@ -1613,22 +1613,20 @@ async function getGroupNotesActivity(
   return activityByGroup;
 }
 
-// Both candidates can describe the same note: an event stamped by the
-// activity ship and a row stamped by the notebook host. Prefer the row there
-// rather than ordering the two clocks -- renames don't bump a revision or
-// re-emit an event, so the event's cached title can be stale while the synced
-// row carries the current one. Distinct notes fall back to the newer stamp;
-// the differing clocks make that imprecise, but the recency window in
-// getGroupNotesActivity bounds how stale the chosen detail can be.
+// The event stamp comes from the activity ship and the note stamp from the
+// notebook host, so this comparison spans two clocks. Newest-wins is still
+// the right rule for a note both sources describe: an edit event carries the
+// note's current title, and markNotesNotebookStaleForNoteEvent deliberately
+// leaves the snapshot alone for a note it already stores, so the row can sit
+// on a stale title for minutes while the event is current. A rename bumps
+// updatedAt, which already lifts the row above an older event. The recency
+// window in getGroupNotesActivity bounds how stale either choice can be.
 function newestNotesActivityDetail(
   event: NotesActivityDetail | undefined,
   localNote: NotesActivityDetail | undefined
 ): NotesActivityDetail | undefined {
   if (!event || !localNote) {
     return event ?? localNote;
-  }
-  if (event.noteId != null && event.noteId === localNote.noteId) {
-    return localNote;
   }
   return event.timestamp > localNote.timestamp ? event : localNote;
 }
