@@ -319,7 +319,9 @@ export function NotesNativeChannel({
           (note) =>
             note.noteId === activeDirtyDraftNoteId ||
             (notebookFlag != null &&
-              hasPendingNotesNoteSave(notebookFlag, note.noteId))
+              (hasPendingNotesNoteSave(notebookFlag, note.noteId) ||
+                getNotesNoteDraftSnapshot(notebookFlag, note.noteId)
+                  ?.isDirty === true))
         )
         .map((note) => note.noteId)
     );
