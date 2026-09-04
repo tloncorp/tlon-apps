@@ -66,6 +66,11 @@ import { NotesSearchModal } from './NotesSearchModal';
 import type { NotesSearchResultNote } from './NotesSearchResults';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
+import {
+  type PublishedNoteBaseline,
+  publishedNoteBaseline,
+  reconcilePublishedNoteUpdates,
+} from './notesPublishMenu';
 import { trackNotesActionError } from './notesTelemetry';
 import {
   type FolderRow,
@@ -198,6 +203,13 @@ export function NotesNativeChannel({
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
   const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
+  const publishedNoteContentBaselinesRef = useRef(
+    new Map<number, PublishedNoteBaseline>()
+  );
+  const publishedNoteContentNotebookRef = useRef(notebookFlag);
+  const [notesWithPublishedUpdates, setNotesWithPublishedUpdates] = useState(
+    new Set<number>()
+  );
 
   const searchSupported = useNotesSearchSupported();
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
@@ -283,6 +295,48 @@ export function NotesNativeChannel({
   const isNotePublished = useMemo(
     () => (noteId: number) => noteIsPublished(publishedNotes, noteId),
     [publishedNotes]
+  );
+  useEffect(() => {
+    if (!publishedNotes) return;
+
+    if (publishedNoteContentNotebookRef.current !== notebookFlag) {
+      publishedNoteContentNotebookRef.current = notebookFlag;
+      publishedNoteContentBaselinesRef.current.clear();
+    }
+
+    const publishedNoteIds = new Set(
+      publishedNotes.map((record) => record.noteId)
+    );
+    const next = reconcilePublishedNoteUpdates({
+      baselines: publishedNoteContentBaselinesRef.current,
+      notes,
+      publishedNoteIds,
+    });
+    setNotesWithPublishedUpdates(next);
+  }, [notebookFlag, notes, publishedNotes]);
+  const hasPublishedUpdate = useMemo(
+    () => (noteId: number) => notesWithPublishedUpdates.has(noteId),
+    [notesWithPublishedUpdates]
+  );
+  const recordPublishedNoteContent = useMutableCallback(
+    (noteId: number, content: { title: string; body: string }) => {
+      const savedNote = notes.find((note) => note.noteId === noteId);
+      publishedNoteContentBaselinesRef.current.set(
+        noteId,
+        publishedNoteBaseline(
+          content,
+          savedNote
+            ? { title: savedNote.title, body: savedNote.bodyMd }
+            : content
+        )
+      );
+      setNotesWithPublishedUpdates((current) => {
+        if (!current.has(noteId)) return current;
+        const next = new Set(current);
+        next.delete(noteId);
+        return next;
+      });
+    }
   );
   const getPublishedNoteUrl = useMemo(
     () => (note: db.NotesNote) => {
@@ -750,6 +804,7 @@ export function NotesNativeChannel({
           title: content.title,
           body: content.body,
         });
+        recordPublishedNoteContent(note.noteId, content);
         await refetchPublishedNotes();
         publishedUrl = getPublishedNoteShareUrl(publishedPath);
         published = true;
@@ -1051,6 +1106,7 @@ export function NotesNativeChannel({
       canEdit={canEdit}
       folderUnreadCounts={folderUnreadCounts}
       getPublishedNoteUrl={getPublishedNoteUrl}
+      hasPublishedUpdate={hasPublishedUpdate}
       isDeletingFolder={isDeletingFolder}
       isNotePublished={isNotePublished}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
