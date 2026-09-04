@@ -61,6 +61,7 @@ import {
   NotesNoteDetail,
   type NotesNoteDraftSnapshot,
   getNotesNoteDraftSnapshot,
+  getNotesNoteDraftSnapshotExpiry,
   usePendingNotesNoteSaveChanges,
 } from './NotesNoteDetail';
 import { NotesSearchModal } from './NotesSearchModal';
@@ -219,6 +220,7 @@ export function NotesNativeChannel({
   const [notesWithPublishedUpdates, setNotesWithPublishedUpdates] = useState(
     new Set<number>()
   );
+  const [retainedDraftExpiryTick, setRetainedDraftExpiryTick] = useState(0);
 
   const searchSupported = useNotesSearchSupported();
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
@@ -372,25 +374,54 @@ export function NotesNativeChannel({
     const publishedNoteIds = new Set(
       publishedNotes.map((record) => record.noteId)
     );
+    // Only published notes can need an update, and this runs on every
+    // keystroke of an open draft — so don't key content for the rest of the
+    // notebook just to have the reconciler discard it. Reading the content
+    // first also prunes any snapshot that has expired since the last run.
+    const publishableNotes = notes
+      .filter((note) => publishedNoteIds.has(note.noteId))
+      .map((note) => ({
+        noteId: note.noteId,
+        publishContent: getNotePublishContent(note),
+      }));
     const next = reconcilePublishedNoteUpdates({
       baselines: publishedNoteContentBaselinesRef.current,
-      // Only published notes can need an update, and this runs on every
-      // keystroke of an open draft — so don't key content for the rest of
-      // the notebook just to have the reconciler discard it.
-      notes: notes
-        .filter((note) => publishedNoteIds.has(note.noteId))
-        .map((note) => ({
-          noteId: note.noteId,
-          publishContent: getNotePublishContent(note),
-        })),
+      notes: publishableNotes,
       publishedNoteIds,
     });
     setNotesWithPublishedUpdates((current) =>
       sameNoteIds(current, next) ? current : next
     );
+
+    // A retained snapshot expiring silently changes what a publish would
+    // send, and nothing announces it — so wake up at the earliest deadline
+    // and reconcile again. The active note is excluded because its content
+    // comes from the draft ref, which no deadline applies to.
+    if (!notebookFlag) return;
+    const activeDraft = activeNoteDraftRef.current;
+    const activeDraftNoteId =
+      activeDraft?.notebookFlag === notebookFlag ? activeDraft.noteId : null;
+    let earliestExpiry: number | null = null;
+    for (const note of publishableNotes) {
+      if (note.noteId === activeDraftNoteId) continue;
+      const expiry = getNotesNoteDraftSnapshotExpiry(notebookFlag, note.noteId);
+      if (
+        expiry !== null &&
+        (earliestExpiry === null || expiry < earliestExpiry)
+      ) {
+        earliestExpiry = expiry;
+      }
+    }
+    if (earliestExpiry === null) return;
+
+    const timer = setTimeout(
+      () => setRetainedDraftExpiryTick((tick) => tick + 1),
+      Math.max(earliestExpiry - Date.now(), 0) + 1
+    );
+    return () => clearTimeout(timer);
     // `getNotePublishContent` reads draft state through refs, so the draft
-    // content key and the save epoch are what re-run this when the content a
-    // publish would send changes.
+    // content key, the save epoch, and the expiry tick are what re-run this
+    // when the content a publish would send changes.
   }, [
     activeDraftPublishKey,
     getNotePublishContent,
@@ -398,21 +429,35 @@ export function NotesNativeChannel({
     notes,
     pendingNotesNoteSaveEpoch,
     publishedNotes,
+    retainedDraftExpiryTick,
   ]);
   const hasPublishedUpdate = useMemo(
     () => (noteId: number) => notesWithPublishedUpdates.has(noteId),
     [notesWithPublishedUpdates]
   );
   const recordPublishedNoteContent = useMutableCallback(
-    (noteId: number, content: { title: string; body: string }) => {
+    (note: db.NotesNote, content: { title: string; body: string }) => {
+      const publishedContentKey = notePublishContentKey(content);
       publishedNoteContentBaselinesRef.current.set(
-        noteId,
-        notePublishContentKey(content)
+        note.noteId,
+        publishedContentKey
       );
+      // The draft can advance while the publish request is in flight, so what
+      // just went public is not necessarily what a publish would send now.
+      // Settling this here rather than clearing the note outright matters
+      // because nothing else is guaranteed to re-run: a save conflict
+      // suspends autosave, and an idle editor changes no dependency.
+      const needsUpdate =
+        publishedContentKey !==
+        notePublishContentKey(getNotePublishContent(note));
       setNotesWithPublishedUpdates((current) => {
-        if (!current.has(noteId)) return current;
+        if (current.has(note.noteId) === needsUpdate) return current;
         const next = new Set(current);
-        next.delete(noteId);
+        if (needsUpdate) {
+          next.add(note.noteId);
+        } else {
+          next.delete(note.noteId);
+        }
         return next;
       });
     }
@@ -837,7 +882,7 @@ export function NotesNativeChannel({
           title: content.title,
           body: content.body,
         });
-        recordPublishedNoteContent(note.noteId, content);
+        recordPublishedNoteContent(note, content);
         await refetchPublishedNotes();
         publishedUrl = getPublishedNoteShareUrl(publishedPath);
         published = true;

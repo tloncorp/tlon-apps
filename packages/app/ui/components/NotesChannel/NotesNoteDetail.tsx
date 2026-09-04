@@ -274,6 +274,22 @@ export function getNotesNoteDraftSnapshot(
   return snapshot;
 }
 
+// When the retained snapshot for this note will lazily expire, after which
+// `getNotesNoteDraftSnapshot` stops returning it and a publish falls back to
+// the saved row. Null when nothing is retained, or when a pending save is
+// holding the snapshot open with no deadline to wait for.
+export function getNotesNoteDraftSnapshotExpiry(
+  notebookFlag: string,
+  noteId: number
+) {
+  const snapshot = notesNoteDraftSnapshots.get(
+    draftSnapshotKey(notebookFlag, noteId)
+  );
+  if (!snapshot) return null;
+  if (hasPendingNotesNoteSave(notebookFlag, noteId)) return null;
+  return snapshot.updatedAt + DRAFT_SNAPSHOT_TTL_MS;
+}
+
 function getNotePreviewModeKey(
   notebookFlag: string | null | undefined,
   noteId: number | null
