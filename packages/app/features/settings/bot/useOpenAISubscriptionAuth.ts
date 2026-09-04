@@ -8,6 +8,7 @@ import {
   getLLMAuthVerificationUrl,
 } from './openAiSubscription';
 import { OpenAIAuthController } from './openAiSubscriptionController';
+import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
 
 function flowFromState(state: OpenAIAuthState) {
   return 'flow' in state ? state.flow : undefined;
@@ -46,6 +47,11 @@ export function useOpenAISubscriptionAuth({
       loadStatus: () => api.getTlawnLLMAuthStatus(ship),
       onComplete: async (models, status) => {
         queryClient.setQueryData(['tlonbot', 'llm-auth-status', ship], status);
+        trackTlonbotSettingUpdated({
+          setting: 'subscription',
+          action: 'connected',
+          provider,
+        });
         await onCompleteRef.current(models);
       },
     });

@@ -3870,6 +3870,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             outcome: report.outcome ?? 'ok',
             nest,
             groupFlag: report.groupFlag ?? groupId ?? null,
+            provisionId: report.provisionId ?? null,
             purposeId: report.purposeId ?? null,
             topicCount: report.topicCount ?? null,
             timezone: report.timezone ?? null,
