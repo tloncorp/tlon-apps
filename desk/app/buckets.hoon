@@ -161,6 +161,16 @@
   =.  state  loaded
   =?  cor  !(~(has by wex.bowl) [/groups our.bowl %groups])
     watch-groups
+  ::  An upgrade that kept its subscription gets no watch-ack, so the sweep
+  ::  has to be armed from here -- but it cannot run from here. Every
+  ::  permission read in it is a scry into %groups, and on-load is not a
+  ::  place to scry another agent: a |commit reloads every agent in an order
+  ::  nothing guarantees, so %groups may not have loaded yet, and an
+  ::  unresolvable scry crashes the event. A crash here reverts the whole
+  ::  commit with the desk hash unchanged and nothing logged, and the mount
+  ::  re-fires it -- a commit that loops on reloading this agent, silently.
+  ::  A timer of ~s0 runs it in the next event instead, when the desk is up.
+  =.  cor  (emit [%pass /groups/sweep %arvo %b %wait now.bowl])
   ::  binding an already-bound route is refused harmlessly; +arvo logs it.
   (emit [%pass /eyre %arvo %e %connect [~ /buckets] %buckets])
 ::
@@ -712,6 +722,13 @@
   =/  res=response:b
     [%update flag +(revision.st) [%delete ~]]
   =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
+  ::  The fact first, then the subscription it travelled on. Cards keep their
+  ::  order, so every replica learns the bucket is gone before being kicked.
+  ::  Without the kick each one keeps a live subscription to a bucket that no
+  ::  longer exists, for as long as both ships run -- and a bucket recreated
+  ::  under the same flag is then watched twice, on the same wire, with the
+  ::  old registration no longer reachable to repair.
+  =.  cor  (give [%kick ~[(updates-path flag)] ~])
   =.  sessions  (drop-bucket-sessions flag)
   =.  cor  (drop-read-token flag)
   =.  spaces  (~(del by spaces) flag)
@@ -1640,7 +1657,22 @@
   =/  sync=reader-sync:b  u.got
   ::  Only the revision we sent; a newer one may still be in flight.
   ?.  =(sent revision.sync)  cor
-  =.  readers  (~(put by readers) key sync(failed &))
+  ::  Giving up is safe for a grant and unsafe for a revoke. A refused grant
+  ::  is superseded by the next access change, and its requester is told now.
+  ::  A revoke has no next change to supersede it: marking it failed drops it
+  ::  out of +owed, off the retry timer, and out of +revoke-readers -- which
+  ::  is fed granted records only -- so it would sit until the expiry prune
+  ::  while the reader went on using a token the broker still honours. That
+  ::  is the one outcome this whole mechanism exists to prevent, so a revoke
+  ::  stays owed and the retry timer is its backoff. It stops being owed at
+  ::  its own expiry, by which time the token it names is worthless anyway.
+  =/  giving-up=?  ?=(%granted -.desired.sync)
+  =?  readers  giving-up  (~(put by readers) key sync(failed &))
+  =?  cor  !giving-up
+    %-  %-  slog
+        :_  ~
+        leaf+"buckets: broker refused a revoke for {<key>}, still owed"
+    cor
   ::  Nothing is owed for a failed revision, so for our own reader this is
   ::  where the renewal loop would otherwise stop for good.
   =?  cor  =(reader.key our.bowl)  (recover-local-reader flag.key)
@@ -2371,7 +2403,10 @@
     ::  a reader who loses access keeps a working token until it expires,
     ::  silently, for as long as the ship runs. Logging it was not a recovery.
         %watch-ack
-      ?~  p.sign  cor
+      ::  A watch that just succeeded is the moment to reconcile: whatever
+      ::  changed while we had no feed was never delivered, and nothing else
+      ::  will go looking for it.
+      ?~  p.sign  recheck-every-host-sub
       %-  (slog leaf+"buckets: groups watch refused, retrying" u.p.sign)
       (emit [%pass /groups/retry %arvo %b %wait (add now.bowl groups-retry)])
     ==
@@ -2554,6 +2589,12 @@
     ::  hold answers with a %watch-ack we ignore.
     watch-groups
   ::
+  ::  The sweep +load armed. Here rather than there because it scries.
+  ::
+      [%groups %sweep ~]
+    ?.  ?=([%behn %wake *] sign-arvo)  cor
+    recheck-every-host-sub
+  ::
       [%buckets %reader-retry ~]
     ?.  ?=([%behn %wake *] sign-arvo)  cor
     retry-readers
@@ -2610,7 +2651,13 @@
       ::  client never asks for a new one.
       =.  cor  (drop-read-token flag.res)
       =.  spaces  (~(del by spaces) flag.res)
-      cor
+      ::  And leave, as +stop-sub does. The host kicks us in the same breath,
+      ::  so this is belt and braces -- but a host still running the version
+      ::  that does not kick, or one we hear the fact from while its kick is
+      ::  lost, would otherwise leave this subscription registered here for
+      ::  good, and a later rejoin would watch the same wire twice.
+      %-  emit
+      [%pass (sub-wire flag.res) %agent [ship.flag.res %buckets] %leave ~]
     =.  st  (apply-update st u-bucket.res)
     =.  revision.st  revision.res
     =.  spaces  (~(put by spaces) flag.res [net.sp `st `group.st])
@@ -2702,6 +2749,34 @@
   ?:  =(kept writers.st)  acc
   %-  (slog leaf+"buckets: dropping deleted roles from {<flag>} writers" ~)
   (commit-update:acc flag st(writers kept) [%writers kept] our.bowl)
+::
+::  +recheck-every-host-sub: run the permission sweep for every group we host
+::  a bucket in.
+::
+::  /v1/groups is a delta-only feed with no snapshot on watch, and Gall does
+::  not replay what was published while we were unsubscribed. So a revocation
+::  that lands while this agent is down, upgrading, or between a kick and its
+::  re-watch is never heard about at all: the reader's record stays granted,
+::  its subscription is never kicked, and the token the broker holds keeps
+::  working until it expires. Nothing else reconciles -- +recheck-host-subs
+::  is only ever called from a fact.
+::
+::  Cheap to be blunt about: every check is a scry, the arm is idempotent,
+::  and revoking what is already revoked is a no-op.
+::
+++  recheck-every-host-sub
+  ^+  cor
+  =/  groups=(set flag:b)
+    %-  silt
+    %+  murn  ~(tap by spaces)
+    |=  [=flag:b sp=space:b]
+    ^-  (unit flag:b)
+    ?.  =(%pub net.sp)  ~
+    ?~  state.sp  ~
+    `group.u.state.sp
+  %+  roll  ~(tap in groups)
+  |=  [=flag:b acc=_cor]
+  (recheck-host-subs:acc flag)
 ::
 ++  recheck-host-subs
   |=  changed=flag:b
