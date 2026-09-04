@@ -1,0 +1,11 @@
+{
+  "id": "oos-meeting-notes-post",
+  "request": "write up the meeting notes as a post in the engineering notebook",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": false,
+    "template": null,
+    "awayTo": "the %notes skill — `tlon notes note-create`",
+    "why": "A neighbouring skill owns this, and it names its destination explicitly. The failure to watch for is a surface channel created next to a notebook that already exists."
+  }
+}

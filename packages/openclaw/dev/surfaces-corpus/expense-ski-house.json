@@ -1,0 +1,10 @@
+{
+  "id": "expense-ski-house",
+  "request": "we need to settle up the ski house — i paid for groceries, dan paid for gas",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "expense-split",
+    "why": "Two expenses stated in the sentence, so the app starts populated. Integer cents, and a who-owes-whom view derived rather than stored."
+  }
+}

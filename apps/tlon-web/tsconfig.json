@@ -30,6 +30,7 @@
     "./rube",
     "cosmos/setup.ts",
     "vite.config.mts",
+    "hostCsp.ts",
     "reactNativeWebPlugin.ts",
     "expo52PatchPlugin.ts"
   ]

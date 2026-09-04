@@ -56,8 +56,11 @@ export function ChannelListItem({
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
   const containerRef = useRef<TamaguiWebElement>(null);
-  const unreadCount = model.unread?.count ?? 0;
-  const notified = model.unread?.notify ?? false;
+  // §8: surface channels never badge, regardless of which query produced
+  // this model
+  const isSurface = logic.isSurfaceChannel(model);
+  const unreadCount = isSurface ? 0 : (model.unread?.count ?? 0);
+  const notified = isSurface ? false : (model.unread?.notify ?? false);
   const title = utils.useChannelTitle(model);
   const firstMemberId = model.members?.[0]?.contactId ?? '';
   const memberCount = model.members?.length ?? 0;

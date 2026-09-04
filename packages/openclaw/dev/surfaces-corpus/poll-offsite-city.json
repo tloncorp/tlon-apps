@@ -1,0 +1,10 @@
+{
+  "id": "poll-offsite-city",
+  "request": "can everyone vote on where we do the offsite — lisbon, athens or split?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "poll",
+    "why": "\"vote\" plus a fixed option set is the poll template unmodified; the only adaptation is the question and the three choices."
+  }
+}

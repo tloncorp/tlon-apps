@@ -1,0 +1,10 @@
+{
+  "id": "habit-writing-30-days",
+  "request": "can we do a daily check-in for the 30 day writing thing?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "habit-tracker",
+    "why": "Daily per-member check-in. The rollover is the template obligation: the bot archives the day lazily on its next organic interaction, and a run that reaches for a cron or a clock in render has broken the no-clock rule."
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "rev-poll-leader",
+  "channel": "chat/~zod/dash-p21bxr23",
+  "note": "REPLACEMENT for cand-poll-answered, which the preflight refused as PRESENT — the poll already paints \"Turnout2votes so far\" and its recipe says \"turnout and tallies derived from the votes\". Same app, same shape, a behaviour it demonstrably does not have: nothing on the board says which option is ahead. (Witness revised once: the first draft anchored every pattern with a trailing \\b — /lead(er|ing|s)?\\b/ — which cannot match `the lead2votes`, because the in-frame probe runs adjacent text nodes together and there is no word boundary between `lead` and `2`. The self-test caught it as a vacuous set and ABSTAINed before anything was read off the ship; the boundary moved to the front of the pattern.)",
+  "request": "on the movie night poll, call out which movie is in the lead",
+  "behaviour": "the board identifies the option currently ahead — a named leader, a marked winning row, or an explicit statement that it is tied — rather than only listing per-option counts",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "\\blead(er|ing|s)?",
+      "\\bahead",
+      "winning|winner",
+      "front.?runner",
+      "top (choice|pick|vote)",
+      "\\btied?\\b",
+      "most votes",
+      "\\bwins?\\b",
+      "out in front"
+    ],
+    "renderPositive": "Dune is in the lead2votes",
+    "renderPositiveSource": "HYPOTHETICAL — no app in this run's corpus names a leader, so there is no real render to draw from. Shaped like this app's own stat rows (`Turnout2votes so far`), which is why it carries the same run-together digits the in-frame probe produces. Labelled so a reader does not mistake it for a measured fixture.",
+    "renderNegatives": [
+      "What should we watch on Friday?Dune 1VoteWhiplash 0VoteArrival 1VoteTurnout2votes so farone vote each — change yours any timeWho has voted~tenArrival~zodDune",
+      "What should we watch on Friday?Dune 1VoteWhiplash 1VoteArrival 1VoteTurnout3votes so farone vote each — change yours any timeWho has voted~palfun-foslupWhiplash~tenDune~zodArrival",
+      "one vote each — change yours any time",
+      "Turnout2votes so far"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-p21bxr23, verbatim, read 2026-09-01 by dev/surfaces-render-probe.ts at the channel's live reduced state. The first two are the two distinct whole-cell texts the twelve cells collapse to; a pattern that survives those survives every cell.",
+    "actionPatterns": [
+      "\\blead(er|ing)?",
+      "winner|winning",
+      "declare",
+      "close-?poll",
+      "tie-?break",
+      "front.?runner"
+    ],
+    "actionPositive": "declare-leader {\"ops\":[{\"op\":\"set\",\"path\":\"/leader\",\"value\":\"dune\"}]}",
+    "actionPositiveSource": "HYPOTHETICAL — a leader is derivable from votes and no app in the corpus stores one. Shaped like the surrounding real actions and labelled as invented.",
+    "actionNegatives": [
+      "vote-dune {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"dune\"}]}",
+      "vote-whiplash {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"whiplash\"}]}",
+      "vote-arrival {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"arrival\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from chat/~zod/dash-p21bxr23's own action map (tlon surface show, 2026-09-01) — the whole map, all three entries"
+  }
+}

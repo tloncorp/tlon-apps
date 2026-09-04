@@ -20,6 +20,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import svgr from 'vite-plugin-svgr';
 
 import expo52PatchPlugin from './expo52PatchPlugin';
+import { hostCspDevHeaders, hostCspPlugin } from './hostCsp';
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
@@ -155,6 +156,13 @@ export default ({ mode }: { mode: string }) => {
           plugins: [reactNativeWeb()],
         },
       }),
+      // Host-page frame-src policy. Injects the enforcing <meta> when
+      // hostCsp.ts sets ENFORCE_HOST_CSP, which it does today — so the
+      // built index.html, and therefore the shipped glob, carries the
+      // policy. Scoped to this branch because it is the one that produces
+      // the glob that ships (see hostCsp.ts on why the glob is the only
+      // production delivery path).
+      hostCspPlugin(),
       // Sentry source map upload - only enabled in CI
       sentryVitePlugin({
         org: process.env.SENTRY_ORG,
@@ -262,6 +270,23 @@ export default ({ mode }: { mode: string }) => {
     server: {
       host: 'localhost',
       port,
+      // Host-page frame-src for dev. This object is EMPTY today, because
+      // ENFORCE_HOST_CSP is on: `transformIndexHtml` runs on the dev
+      // server too, so dev already carries the same enforcing <meta>
+      // production carries, and a Report-Only header on top would put the
+      // page under two policies refusing the same frames.
+      //
+      // Flip the flag off and this fills with
+      // `Content-Security-Policy-Report-Only` instead, while the <meta>
+      // disappears — the two are mutually exclusive by construction (see
+      // `hostCspDevHeaders` in hostCsp.ts). Report-Only is header-only
+      // (CSP3 §3.3 forbids it in <meta>) and production serves this app
+      // from a glob whose response headers we do not control, so these
+      // servers are the only place it can be delivered at all. The whole
+      // Playwright suite runs against them (see playwright.config.ts),
+      // which is what makes that mode a real validation surface rather
+      // than a gesture.
+      headers: hostCspDevHeaders,
       //NOTE  the proxy used by vite is written poorly, and ends up removing
       //      empty path segments from urls: http-party/node-http-proxy#1420.
       //      as a workaround for this, we rewrite the path going into the
@@ -270,6 +295,10 @@ export default ({ mode }: { mode: string }) => {
       proxy: urbitProxy,
     },
     preview: {
+      // `pnpm serve`, which is how USE_PRODUCTION_BUILD e2e runs serve the
+      // real build output. Same delivery as the dev server above — empty
+      // while the enforcing <meta> is on, Report-Only when it is off.
+      headers: hostCspDevHeaders,
       proxy: urbitProxy,
     },
     build:

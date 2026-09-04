@@ -1,0 +1,10 @@
+{
+  "id": "leaderboard-fantasy-streaks",
+  "request": "who's winning our fantasy league — wins, losses and a streak column",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "leaderboard",
+    "why": "Three derived columns from one event stream. Streaks are the case where a run is most tempted to store what it should derive."
+  }
+}

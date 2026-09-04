@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "surfaceId": "srf-potluck",
+  "specRevision": 1,
+  "title": "Potluck sheet",
+  "bundle": {
+    "assetRef": "placeholder://potluck/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "occasion": "Saturday potluck",
+    "when": "Saturday 14 March, 6pm",
+    "where": "The big table, back garden",
+    "markLabel": "Vegetarian",
+    "markQuestion": "Is yours vegetarian?",
+    "courseOrder": ["mains", "sides", "drinks", "dessert"],
+    "courses": {
+      "mains": { "label": "Mains", "want": 4 },
+      "sides": { "label": "Sides", "want": 4 },
+      "drinks": { "label": "Drinks", "want": 3 },
+      "dessert": { "label": "Dessert", "want": 3 }
+    },
+    "bringing": {}
+  },
+  "actions": {
+    "clear-mine": {
+      "acceptStale": true,
+      "ops": [{ "op": "del", "path": "/bringing/$actor" }]
+    },
+    "bring-mains": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/bringing/$actor/course", "value": "mains" }
+      ]
+    },
+    "bring-sides": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/bringing/$actor/course", "value": "sides" }
+      ]
+    },
+    "bring-drinks": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/bringing/$actor/course", "value": "drinks" }
+      ]
+    },
+    "bring-dessert": {
+      "acceptStale": true,
+      "ops": [
+        { "op": "set", "path": "/bringing/$actor/course", "value": "dessert" }
+      ]
+    },
+    "mark-veg": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/bringing/$actor/veg", "value": true }]
+    },
+    "unmark-veg": {
+      "acceptStale": true,
+      "ops": [{ "op": "del", "path": "/bringing/$actor/veg" }]
+    }
+  },
+  "recipe": "A sign-up sheet for one shared meal. Each member holds one entry under their own key, and the entry has two independent fields: which course they are bringing, and whether it is vegetarian. Each field is written by its own idempotent action, so marking a dish vegetarian does not disturb the course and changing the course does not disturb the marker — a second marker would be one more action rather than one per course. The sheet records the KIND of thing somebody is bringing, never the name of the dish: members supply no typed values, only which button they pressed, so dish names belong in the channel alongside the sheet. How many of each course are still wanted is set once by whoever publishes the sheet, and every count on screen is worked out from the entries at the moment the sheet is drawn."
+}

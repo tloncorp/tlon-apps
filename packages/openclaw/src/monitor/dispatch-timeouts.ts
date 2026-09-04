@@ -2,7 +2,24 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import type { TlonLifecycleConfig } from '../types.js';
 
-const DEFAULT_RUN_TIMEOUT_MS = 120_000;
+/**
+ * Mirrors `DEFAULT_TLON_RUN_TIMEOUT_MS` in tlonbot's `entrypoint/tlawn.py`,
+ * which is the deployed value: that entrypoint WRITES `runTimeoutMs` into the
+ * config (migrating anything still on its `PREVIOUS_TLON_RUN_TIMEOUT_MS` of
+ * 120s/240s), so a hosted bot never reaches this default at all.
+ *
+ * Anything that does not run that migration does — the dev container sets the
+ * key nowhere, so this constant alone decided its budget. It was 120_000 while
+ * production ran 300_000, and nothing connected the two: Session 6a measured a
+ * whole authoring loop against a ceiling 2.5x lower than deployed reality and
+ * read the result as a property of the loop.
+ *
+ * These are two hand-maintained numbers for one value in two repositories.
+ * The pin test below makes changing THIS side deliberate; it cannot see the
+ * other side move, so if tlawn.py's default changes, this comment is the only
+ * thing pointing at what to update.
+ */
+const DEFAULT_RUN_TIMEOUT_MS = 300_000;
 const DEFAULT_COMPACTION_TIMEOUT_MS = 180_000;
 
 function normalizeRunTimeoutMs(value: number | null | undefined): number {

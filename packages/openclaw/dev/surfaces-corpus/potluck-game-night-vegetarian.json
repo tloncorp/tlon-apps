@@ -1,0 +1,10 @@
+{
+  "id": "potluck-game-night-vegetarian",
+  "request": "we need people to claim which snacks they're bringing to game night, and mark the vegetarian ones",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "potluck",
+    "why": "The vegetarian-marker case the potluck template is specified to model: member metadata attached to a signup rather than a second app."
+  }
+}

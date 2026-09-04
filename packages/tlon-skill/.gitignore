@@ -10,5 +10,8 @@ artifacts/
 # Ignore binaries, keep package.json
 npm/*/tlon
 bin/tlon
+# Build stamp for bin/tlon (dev/tlon-cli-digest.mjs). Per-machine like the
+# binary it describes: it carries that binary's hash, platform and build time.
+bin/tlon.build.json
 .claude/settings.local.json
 ships/*

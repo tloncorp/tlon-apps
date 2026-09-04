@@ -1,0 +1,123 @@
+{
+  "provenance": "openclaw-6a-state volume, session 7a0d5a65-943d-48e8-ab80-0885aea6b0ba, reset 2026-08-31T22:21:32Z. D111 negative control: MODEL pointed at a catalogued text-only model, same probe shape as dev/surfaces-preflight.mjs, against dev/surfaces-6a-out/probe/card-b.png (token f5d49e9816dd21c9-family, 7 blue squares).",
+  "turn": [
+    {
+      "type": "message",
+      "id": "f929a789",
+      "parentId": "8900c023",
+      "timestamp": "2026-08-31T22:20:12.431Z",
+      "message": {
+        "role": "user",
+        "content": "Use your read tool on the file /workspace/surfaces-6a-out/probe/card-b.png . Then reply with exactly two things: (1) the large text shown in that image, character for character; (2) how many blue squares are below that text. If you cannot actually see the image, say so plainly and quote verbatim whatever placeholder or note you received instead. Do not guess.",
+        "timestamp": 1788214812096
+      }
+    },
+    {
+      "type": "message",
+      "id": "84ae4069",
+      "parentId": "f929a789",
+      "timestamp": "2026-08-31T22:20:16.464Z",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "toolCall",
+            "id": "chatcmpl-tool-f3ad4e29e78240d8b0fe7b8c40e33321",
+            "name": "read",
+            "arguments": {
+              "path": "/workspace/surfaces-6a-out/probe/card-b.png"
+            },
+            "partialArgs": "{\"path\": \"/workspace/surfaces-6a-out/probe/card-b.png\"}"
+          }
+        ],
+        "api": "openai-completions",
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3",
+        "usage": {
+          "input": 19182,
+          "output": 22,
+          "cacheRead": 32,
+          "cacheWrite": 0,
+          "reasoningTokens": 0,
+          "totalTokens": 19236,
+          "cost": {
+            "input": 0.026854799999999998,
+            "output": 0.00009680000000000001,
+            "cacheRead": 0.00000832,
+            "cacheWrite": 0,
+            "total": 0.02695992
+          }
+        },
+        "stopReason": "toolUse",
+        "timestamp": 1788214812438,
+        "responseId": "gen-1788214812-WNP4L7wppTtlT3TmMHOb"
+      }
+    },
+    {
+      "type": "message",
+      "id": "bf24838e",
+      "parentId": "84ae4069",
+      "timestamp": "2026-08-31T22:20:16.943Z",
+      "message": {
+        "role": "toolResult",
+        "toolCallId": "chatcmpl-tool-f3ad4e29e78240d8b0fe7b8c40e33321",
+        "toolName": "read",
+        "content": [
+          {
+            "type": "text",
+            "text": "Read image file [image/png]"
+          },
+          {
+            "type": "image",
+            "data": "<elided: 60416 base64 chars of PNG; the assertion never reads image bytes>",
+            "mimeType": "image/jpeg"
+          }
+        ],
+        "isError": false,
+        "timestamp": 1788214816934
+      }
+    },
+    {
+      "type": "message",
+      "id": "6c3db322",
+      "parentId": "bf24838e",
+      "timestamp": "2026-08-31T22:20:19.975Z",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "Can't actually see the image. Per instructions, say so plainly and quote the placeholder.",
+            "thinkingSignature": "reasoning_details"
+          },
+          {
+            "type": "text",
+            "text": "I can't actually see the image — my current model doesn't support image inputs, so the read tool returned only a placeholder note:\n\n> `Read image file [image/png]`\n> `(tool image omitted: model does not support images)`\n\nNo text or squares visible to me, so I can't tell you what the card says. If you switch me to a vision-capable model (or describe/OCR it), I can help analyze it."
+          }
+        ],
+        "api": "openai-completions",
+        "provider": "openrouter",
+        "model": "z-ai/glm-5.3",
+        "usage": {
+          "input": 58,
+          "output": 111,
+          "cacheRead": 19200,
+          "cacheWrite": 0,
+          "reasoningTokens": 18,
+          "totalTokens": 19369,
+          "cost": {
+            "input": 0.0000812,
+            "output": 0.0004884,
+            "cacheRead": 0.004992,
+            "cacheWrite": 0,
+            "total": 0.0055616
+          }
+        },
+        "stopReason": "stop",
+        "timestamp": 1788214816946,
+        "responseId": "gen-1788214817-mTkzYPyWVeqaxgpBDf2D"
+      }
+    }
+  ],
+  "replyText": "\n\nI can't actually see the image — my current model doesn't support image inputs, so the read tool returned only a placeholder note:\n\n> `Read image file [image/png]`\n> `(tool image omitted: model does not support images)`\n\nNo text or squares visible to me, so I can't tell you what the card says. If you switch me to a vision-capable model (or describe/OCR it), I can help analyze it."
+}

@@ -1,0 +1,40 @@
+{
+  "id": "cand-expense-owes-top",
+  "channel": "chat/~zod/dash-u3u2uvqn",
+  "note": "The verdict-run prompt's LITERAL render-only candidate for the expense split. Issued to the preflight unmodified for the same reason as cand-poll-answered.",
+  "request": "on the cabin weekend split, show who still owes money at the top",
+  "behaviour": "the board surfaces, prominently, the people who are still square-up on the wrong side of the ledger — who owes and who is owed",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "who owes",
+      "still owes?",
+      "owes? money",
+      "outstanding balance",
+      "settle up",
+      "balances? due",
+      "in the red"
+    ],
+    "renderPositive": "Who owes whatNobody included yet",
+    "renderPositiveSource": "painted text of chat/~zod/dash-u3u2uvqn, cell phone-initial-light, read 2026-09-01 by dev/surfaces-render-probe.ts at the channel's live reduced state — the target's OWN output.",
+    "renderNegatives": [
+      "Cabin weekend split$0.00total spent",
+      "Add the first cost below.0people included",
+      "CostsNo costs yetAdd lodging, food, travel, and other cabin costs as they come in.",
+      "How to use this sheetKeep the receipts flowing"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-u3u2uvqn, verbatim, same read",
+    "actionPatterns": [
+      "owe",
+      "settle",
+      "balance",
+      "repay",
+      "square-?up",
+      "reimburse"
+    ],
+    "actionPositive": "settle-up {\"ops\":[{\"op\":\"set\",\"path\":\"/settled/$actor\",\"value\":true}]}",
+    "actionPositiveSource": "HYPOTHETICAL — this target declares no actions at all (memberInteraction: \"none\"), so there is no real action to draw from. Labelled so a reader does not mistake it for a measured fixture.",
+    "actionNegatives": [],
+    "actionNegativesSource": "EMPTY BY NECESSITY, and this is the honest statement of it: chat/~zod/dash-u3u2uvqn ships actions: {} — there is no action on this board to draw a near-miss from. The action half of this witness is therefore uncalibrated against reality and cannot discriminate; the render half carries the verdict."
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "surfaceId": "srf-poll",
+  "specRevision": 1,
+  "title": "Lunch poll",
+  "bundle": {
+    "assetRef": "placeholder://poll/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "question": "What should we get for lunch?",
+    "options": [
+      { "id": "pizza", "label": "Pizza" },
+      { "id": "tacos", "label": "Tacos" },
+      { "id": "salad", "label": "Salad" }
+    ],
+    "votes": {}
+  },
+  "actions": {
+    "vote-pizza": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/votes/$actor", "value": "pizza" }]
+    },
+    "vote-tacos": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/votes/$actor", "value": "tacos" }]
+    },
+    "vote-salad": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/votes/$actor", "value": "salad" }]
+    }
+  },
+  "recipe": "A single-question poll for a small group. Each member holds exactly one vote, stored at their own key, so voting again replaces their previous choice rather than adding one; the tally and the turnout are derived at render time. The choices are fixed by whoever publishes the poll — members choose among them and cannot add their own."
+}

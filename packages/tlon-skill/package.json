@@ -10,14 +10,17 @@
     "bin/tlon.js",
     "scripts/postinstall.js",
     "SKILL.md",
-    "references/"
+    "references/",
+    "skills/"
   ],
   "scripts": {
     "build": "node scripts/build.js",
     "build:all": "node scripts/build-all.js",
     "build:smoke": "pnpm build && bun run scripts/build-smoke.ts",
-    "check": "pnpm typecheck && pnpm test && pnpm build:smoke",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build:smoke",
     "dev:link": "bun run build:all && cp \"npm/$(node -e 'console.log(process.platform + \"-\" + process.arch)')/tlon\" bin/",
+    "lint": "oxlint .",
+    "lint:format": "oxfmt ./",
     "release:binary-smoke": "bun run scripts/release-binary-smoke.ts",
     "release:package": "bun run scripts/release-package.ts",
     "release:package-smoke": "bun run scripts/release-package-smoke.ts",
@@ -34,10 +37,13 @@
   },
   "devDependencies": {
     "@tloncorp/api": "workspace:*",
+    "@tloncorp/surface-shell": "workspace:*",
     "@types/bun": "^1.3.14",
     "@types/node": "^22.10.0",
     "@urbit/aura": "^3.0.0",
     "@urbit/nockjs": "^1.6.0",
+    "happy-dom": "^20.11.10",
+    "playwright": "^1.52.0",
     "typescript": "^5.9.3"
   },
   "repository": {

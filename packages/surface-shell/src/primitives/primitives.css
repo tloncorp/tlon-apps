@@ -1,0 +1,259 @@
+/*
+ * The shell primitive kit: visual ports of the Tlon look, styled entirely
+ * from the generated token variables. No hardcoded colors or font
+ * families — `pnpm check:styles` enforces that mechanically.
+ */
+
+.tsh-root {
+  font-family: var(--font-family);
+  font-size: var(--text-m);
+  line-height: var(--line-m);
+  font-weight: var(--weight-regular);
+  color: var(--color-text);
+  background: var(--color-bg);
+  margin: 0;
+  padding: var(--space-l);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tsh-card {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-l);
+  padding: var(--space-xl);
+  margin-bottom: var(--space-l);
+}
+
+.tsh-card-title {
+  font-size: var(--text-l);
+  font-weight: var(--weight-medium);
+  margin: 0 0 var(--space-m) 0;
+}
+
+.tsh-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-l);
+  padding: var(--space-l) var(--space-m);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tsh-list-row:last-child {
+  border-bottom: none;
+}
+
+.tsh-list-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/*
+ * The supporting cluster under a row's title. The type is the same
+ * --text-s / --color-text-secondary pair .tsh-stat-label and
+ * .tsh-section-header use, so a row's detail line reads at the weight a
+ * stat's label does. A COLUMN with the --space-2xs gap .tsh-stat stacks its
+ * own label group by, because a row's supporting facts are frequently more
+ * than one and the primitive, not the app, should own that rhythm.
+ */
+.tsh-list-row-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+  margin-top: var(--space-2xs);
+  font-size: var(--text-s);
+  line-height: var(--line-s);
+  color: var(--color-text-secondary);
+}
+
+.tsh-button {
+  font-family: var(--font-family);
+  font-size: var(--text-m);
+  font-weight: var(--weight-medium);
+  line-height: var(--line-m);
+  color: var(--color-text);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-m);
+  padding: var(--space-m) var(--space-xl);
+  cursor: pointer;
+}
+
+.tsh-button:active {
+  border-color: var(--color-border-active);
+  background: var(--color-bg);
+}
+
+.tsh-button:disabled {
+  color: var(--color-text-tertiary);
+  cursor: default;
+}
+
+.tsh-button--positive {
+  color: var(--color-positive-text);
+  background: var(--color-positive-bg);
+  border-color: var(--color-positive-border);
+}
+
+.tsh-button--negative {
+  color: var(--color-negative-text);
+  background: var(--color-negative-bg);
+  border-color: var(--color-negative-border);
+}
+
+.tsh-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs);
+}
+
+.tsh-stat-value {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-medium);
+}
+
+.tsh-stat-label {
+  font-size: var(--text-s);
+  color: var(--color-text-secondary);
+}
+
+.tsh-stat-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+
+.tsh-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  line-height: var(--line-xs);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-2xs) var(--space-m);
+}
+
+.tsh-badge--positive {
+  color: var(--color-positive-text);
+  background: var(--color-positive-bg);
+  border-color: var(--color-positive-border);
+}
+
+.tsh-badge--negative {
+  color: var(--color-negative-text);
+  background: var(--color-negative-bg);
+  border-color: var(--color-negative-border);
+}
+
+.tsh-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--space-3xl);
+  height: var(--space-3xl);
+  border-radius: var(--radius-m);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  overflow: hidden;
+}
+
+/*
+ * The sigil scales to whatever box .tsh-avatar declares: the drawing
+ * carries a viewBox rather than a pixel size, so the token above is the
+ * only place an avatar's size is decided.
+ */
+.tsh-avatar-sigil {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tsh-progress {
+  height: var(--space-m);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+}
+
+.tsh-progress-fill {
+  height: 100%;
+  background: var(--color-positive-text);
+  border-radius: var(--radius-xl);
+}
+
+.tsh-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-m);
+  padding: var(--space-4xl) var(--space-xl);
+  text-align: center;
+}
+
+.tsh-empty-state-title {
+  font-size: var(--text-l);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.tsh-empty-state-description {
+  font-size: var(--text-s);
+  color: var(--color-text-tertiary);
+}
+
+.tsh-section-header {
+  font-size: var(--text-s);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-secondary);
+  margin: var(--space-xl) 0 var(--space-m) 0;
+}
+
+/*
+ * The chart box. An ASPECT-RATIO BOX, not a height prop: the height is
+ * derived from whatever width the card gives it, so one declaration works
+ * at a 393pt phone and a wide desktop card, and an app bundle never has a
+ * pixel dimension to guess wrong. `min-height` keeps the box from
+ * collapsing (Chart.js with maintainAspectRatio:false draws into whatever
+ * height the container has, including zero); `max-height` keeps a wide
+ * card from producing an absurdly tall chart.
+ */
+.tsh-chart {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  min-height: 160px;
+  max-height: 320px;
+  margin: var(--space-m) 0;
+}
+
+.tsh-chart--compact {
+  aspect-ratio: 12 / 5;
+  min-height: 120px;
+  max-height: 200px;
+}
+
+.tsh-chart--tall {
+  aspect-ratio: 4 / 3;
+  min-height: 220px;
+  max-height: 420px;
+}
+
+/* Chart.js sets the canvas's inline width/height on every resize; these
+   are the pre-first-resize values and the overflow backstop. */
+.tsh-chart > canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+}
+
+.tsh-broken {
+  border: 1px solid var(--color-negative-border);
+  background: var(--color-negative-bg);
+  border-radius: var(--radius-l);
+  padding: var(--space-xl);
+  color: var(--color-negative-text);
+}

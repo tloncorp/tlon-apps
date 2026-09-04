@@ -1,0 +1,11 @@
+{
+  "id": "rsvp-barbecue-headcount",
+  "request": "who's actually coming to the barbecue on the 14th?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "rsvp",
+    "why": "An attendance question phrased as a question rather than as a request for a thing. The routing question here is whether an interrogative that a single chat message could answer badly still reads as \"keep this up to date\" — it does, because the answer changes as people reply."
+  },
+  "notes": "The nearest in-scope neighbour of oos-weather-saturday: both are questions, and only one of them has an answer that keeps changing as members act."
+}

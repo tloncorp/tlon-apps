@@ -1,0 +1,419 @@
+{
+  "version": 1,
+  "surfaceId": "srf-kanban",
+  "specRevision": 1,
+  "title": "Zine tasks",
+  "bundle": {
+    "assetRef": "placeholder://kanban/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "board": "Zine tasks",
+    "taskOrder": [
+      "theme",
+      "pitches",
+      "interviews",
+      "layout",
+      "proof",
+      "print"
+    ],
+    "tasks": {
+      "theme": {
+        "label": "Choose the issue theme",
+        "note": "Agree on the central idea",
+        "status": "todo"
+      },
+      "pitches": {
+        "label": "Collect contributor pitches",
+        "note": "Gather ideas and assignments",
+        "status": "todo"
+      },
+      "interviews": {
+        "label": "Interviews and reporting",
+        "note": "Finish the source material",
+        "status": "todo"
+      },
+      "layout": {
+        "label": "Lay out the pages",
+        "note": "Assemble text and images",
+        "status": "todo"
+      },
+      "proof": {
+        "label": "Proofread the issue",
+        "note": "Final copy and fact check",
+        "status": "todo"
+      },
+      "print": {
+        "label": "Send to print",
+        "note": "Prepare files and place the order",
+        "status": "todo"
+      }
+    },
+    "claims": {}
+  },
+  "actions": {
+    "theme-todo": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/theme/status",
+          "value": "todo"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "theme"
+        }
+      ]
+    },
+    "theme-doing": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/theme/status",
+          "value": "doing"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "theme"
+        }
+      ]
+    },
+    "theme-blocked": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/theme/status",
+          "value": "blocked"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "theme"
+        }
+      ]
+    },
+    "theme-done": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/theme/status",
+          "value": "done"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "theme"
+        }
+      ]
+    },
+    "pitches-todo": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/pitches/status",
+          "value": "todo"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "pitches"
+        }
+      ]
+    },
+    "pitches-doing": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/pitches/status",
+          "value": "doing"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "pitches"
+        }
+      ]
+    },
+    "pitches-blocked": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/pitches/status",
+          "value": "blocked"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "pitches"
+        }
+      ]
+    },
+    "pitches-done": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/pitches/status",
+          "value": "done"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "pitches"
+        }
+      ]
+    },
+    "interviews-todo": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/interviews/status",
+          "value": "todo"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "interviews"
+        }
+      ]
+    },
+    "interviews-doing": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/interviews/status",
+          "value": "doing"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "interviews"
+        }
+      ]
+    },
+    "interviews-blocked": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/interviews/status",
+          "value": "blocked"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "interviews"
+        }
+      ]
+    },
+    "interviews-done": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/interviews/status",
+          "value": "done"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "interviews"
+        }
+      ]
+    },
+    "layout-todo": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/layout/status",
+          "value": "todo"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "layout"
+        }
+      ]
+    },
+    "layout-doing": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/layout/status",
+          "value": "doing"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "layout"
+        }
+      ]
+    },
+    "layout-blocked": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/layout/status",
+          "value": "blocked"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "layout"
+        }
+      ]
+    },
+    "layout-done": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/layout/status",
+          "value": "done"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "layout"
+        }
+      ]
+    },
+    "proof-todo": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/proof/status",
+          "value": "todo"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "proof"
+        }
+      ]
+    },
+    "proof-doing": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/proof/status",
+          "value": "doing"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "proof"
+        }
+      ]
+    },
+    "proof-blocked": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/proof/status",
+          "value": "blocked"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "proof"
+        }
+      ]
+    },
+    "proof-done": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/proof/status",
+          "value": "done"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "proof"
+        }
+      ]
+    },
+    "print-todo": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/print/status",
+          "value": "todo"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "print"
+        }
+      ]
+    },
+    "print-doing": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/print/status",
+          "value": "doing"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "print"
+        }
+      ]
+    },
+    "print-blocked": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/print/status",
+          "value": "blocked"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "print"
+        }
+      ]
+    },
+    "print-done": {
+      "acceptStale": true,
+      "ops": [
+        {
+          "op": "set",
+          "path": "/tasks/print/status",
+          "value": "done"
+        },
+        {
+          "op": "set",
+          "path": "/claims/$actor",
+          "value": "print"
+        }
+      ]
+    }
+  },
+  "recipe": "A shared task board for putting out an issue of a zine. Every card sits in one of four columns — To do, Doing, Blocked, Done — and the column is a single value the whole group shares, so anyone can move any card and the last move wins. Moving a card also puts the mover's marker on it, one marker per person, so the board shows where everybody is. The cards are fixed by whoever sets the board up; members move them but do not add their own. Column names and card names are permanent once the board is running, because every card already on the board is stored under them."
+}

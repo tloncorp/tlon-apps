@@ -25,6 +25,8 @@ When this package can find `@tloncorp/tlon-skill/SKILL.md`, it registers that fi
 
 A second skill registers the same way: when `skills/tlon-product-guide/SKILL.md` is findable in the OpenClaw plugin tree, it becomes `tlon-platform:tlon-product-guide` and the platform hint points at it for questions about what Tlon Messenger is and how its features work — as opposed to requests to *do* something, which stay on the `tlon` tool. Set `TLON_PRODUCT_GUIDE_PATH` for an explicit file, or `TLON_PLUGIN_DIR` when you know the plugin root but not its internal layout. A deployment without the plugin tree simply doesn't register it.
 
+A third skill comes from the same npm package as the CLI skill: when `@tloncorp/tlon-skill/skills/surfaces/SKILL.md` is findable, it registers as `tlon-platform:surfaces` and teaches authoring and revising surface channels — mini-apps published into a group. `TLON_SKILL_DIR` finds it alongside the CLI skill; set `TLON_SURFACES_SKILL_PATH` for an explicit file. An older tlon-skill install ships no `skills/` directory, so it simply doesn't register. Plugin skills are opt-in explicit loads — Hermes never lists them in the system prompt's `<available_skills>` index — so the platform hint names it, and the hint fragment tracks the registration.
+
 If you explicitly want the skill to appear in Hermes' normal skill index as bare `tlon`, add the directory containing the skill to `skills.external_dirs` in the Hermes profile config. That is optional install-time configuration, not required for the plugin-owned default path.
 
 ## Docker Dev Loop

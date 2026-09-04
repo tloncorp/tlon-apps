@@ -1,0 +1,12 @@
+{
+  "id": "habit-chore-rotation",
+  "request": "chore rotation tracker for the house",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "habit-tracker",
+    "why": "Recurring per-member completion with a host-driven rollover. Recorded as habit-tracker rather than kanban because the thing that changes daily is who has done their chore, not where a card sits."
+  },
+  "notes": "Template expectation is the softest in the corpus — a rota is defensibly a leaderboard or a kanban. `template` is reported, never gated, and this is the record that is why."
+}

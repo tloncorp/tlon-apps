@@ -102,6 +102,20 @@ pnpm install --filter @tloncorp/tlon-skill... --frozen-lockfile --ignore-scripts
 echo "==> Building @tloncorp/api for the local skill binary"
 pnpm --filter @tloncorp/api build
 
+# Same prerequisite as ci.yml's bot-checks and tlon-skill-publish's quality/
+# build jobs: the CLI bundle reaches surface-preview.ts, whose
+# @tloncorp/surface-shell/artifact-strings import resolves through the shell
+# package's exports map to its gitignored dist/. Without this the `bun build`
+# below dies at "Could not resolve" and the adapter never starts — which the
+# harness only sees as a 300s connection timeout. The build belongs here and
+# not in Dockerfile.e2e because the workspace is a runtime bind mount: the
+# image build context is packages/hermes-tlon-adapter, which contains no
+# surface-shell to build. vite and the shell's other build deps are already
+# installed above (`@tloncorp/tlon-skill...` selects surface-shell), so this
+# costs ~1s.
+echo "==> Building @tloncorp/surface-shell for the local skill binary"
+pnpm --filter @tloncorp/surface-shell build
+
 ARCH_KEY="$(node -e 'console.log(process.platform + "-" + process.arch)')"
 case "$ARCH_KEY" in
   linux-arm64) BUN_TARGET="bun-linux-arm64" ;;

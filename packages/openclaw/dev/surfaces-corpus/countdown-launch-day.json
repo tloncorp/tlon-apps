@@ -1,0 +1,11 @@
+{
+  "id": "countdown-launch-day",
+  "request": "put a countdown to the launch on the board",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "countdown",
+    "why": "The host-supplied-now template. Target date is written into state at creation; \"days remaining\" is derived in render from the host-supplied timestamp, and nothing ticks."
+  },
+  "notes": "Countdown is the one template with no member action at all, so it is the corpus's only routine exercise of the memberInteraction hatch and of rubric check 8. A countdown that declares the marker without a `because` sentence must draw the gate warning."
+}

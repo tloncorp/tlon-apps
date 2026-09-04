@@ -3,7 +3,12 @@ dist/
 src/version.generated.ts
 *.log
 .DS_Store
+# every env variant, not just `.env` — per-run files like
+# `.env.surfaces-6a` hold ship codes and provider keys, and a rule that
+# names only `.env` leaves them committable
 .env
+.env.*
+!.env.example
 .vscode
 WORKLOG.md
 .pnpm-store/

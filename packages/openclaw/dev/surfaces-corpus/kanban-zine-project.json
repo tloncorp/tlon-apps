@@ -1,0 +1,11 @@
+{
+  "id": "kanban-zine-project",
+  "request": "simple kanban for the zine project",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "kanban",
+    "why": "The structural case from the verdict run: a revision that migrated its state shape while preserving every action id and every live member entry. That observation is part of the evidence the format gate was closed on."
+  }
+}

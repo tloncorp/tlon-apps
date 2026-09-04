@@ -1,4 +1,5 @@
 export * from './dbHooks';
+export * from './surface';
 export * from './sync';
 export * from './useChannelPosts';
 export * from './useChannelSearch';
@@ -28,6 +29,7 @@ export * from './lanyardActions';
 export * from './notesActions';
 export * from './useNotesSearch';
 export * from './settingsActions';
+export * from './surfaceNotificationDefaults';
 export * from './systemContactActions';
 export * from './blockingActions';
 export * from './metagrabActions';

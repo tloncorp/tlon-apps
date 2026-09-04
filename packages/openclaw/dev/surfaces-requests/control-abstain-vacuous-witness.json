@@ -1,0 +1,29 @@
+{
+  "id": "control-abstain-vacuous-witness",
+  "channel": "chat/~zod/dash-qxifi5qq",
+  "note": "ABSTAIN CONTROL (self-test). The witness is the lazy version of control-nonresponders-poll: one bare keyword taken from the request. It matches a near-miss drawn from the target own screen, so the self-test refuses it before any surface is consulted. This is the demonstration that the preflight can fail on the preflight own account, rather than only on the app.",
+  "request": "show who has not voted yet",
+  "behaviour": "the board names the members who have not yet voted",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "vote"
+    ],
+    "renderPositive": "Not voted yet~ten",
+    "renderPositiveSource": "invented, and that is part of the point — a lazy witness usually is",
+    "renderNegatives": [
+      "Turnout3votes so far",
+      "Who has voted~palfun-foslupArrival~tenDune~zodWhiplash"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-qxifi5qq, verbatim",
+    "actionPatterns": [
+      "vote"
+    ],
+    "actionPositive": "mark-not-voted {\"ops\":[{\"op\":\"set\",\"path\":\"/pending/$actor\",\"value\":true}]}",
+    "actionPositiveSource": "HYPOTHETICAL",
+    "actionNegatives": [
+      "vote-dune {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"dune\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from the target own action map"
+  }
+}

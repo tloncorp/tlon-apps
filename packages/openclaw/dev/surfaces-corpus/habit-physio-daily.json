@@ -1,0 +1,10 @@
+{
+  "id": "habit-physio-daily",
+  "request": "somewhere to tick off whether we each did our physio today",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "habit-tracker",
+    "why": "\"today\" in the request with no date anywhere in state is the trap: dates only exist where a host event wrote them, so the app has to hold the day the host last rolled over rather than ask what day it is."
+  }
+}

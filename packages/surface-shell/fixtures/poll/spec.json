@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "surfaceId": "srf-poll-fixture",
+  "specRevision": 2,
+  "title": "Lunch poll",
+  "bundle": {
+    "assetRef": "fixture://poll/app.js",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "size": 2048,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "question": "What should we get for lunch?",
+    "options": [
+      { "id": "pizza", "label": "Pizza", "actionId": "vote-pizza" },
+      { "id": "tacos", "label": "Tacos", "actionId": "vote-tacos" }
+    ],
+    "votes": {}
+  },
+  "actions": {
+    "vote-pizza": {
+      "ops": [{ "op": "set", "path": "/votes/$actor", "value": "pizza" }]
+    },
+    "vote-tacos": {
+      "ops": [{ "op": "set", "path": "/votes/$actor", "value": "tacos" }]
+    }
+  }
+}

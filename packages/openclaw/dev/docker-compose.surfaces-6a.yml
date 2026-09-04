@@ -1,0 +1,173 @@
+# Session 6a — the real bot driving the real skill against the local rube
+# fakeships.
+#
+#   docker compose -f docker-compose.surfaces-6a.yml --env-file ../.env.surfaces-6a up --build
+#
+# A STANDALONE stack, not an override of docker-compose.yml. That file names
+# `env_file: ../.env`, which points at a REAL ship; compose merges `env_file`
+# by appending, so an override layered on top of it would still read the real
+# credentials. This file names only ../.env.surfaces-6a.
+#
+# It differs from docker-compose.yml in exactly two ways:
+#   - `network_mode: host`, per the note below;
+#   - env_file, per the note above.
+# Same Dockerfile, same entrypoint, same mounts, so what 6a exercises is the
+# dev container, not a special one.
+#
+# ── Why host networking, and why no ships service ─────────────────────
+#
+# The container talks to the fakeships ALREADY RUNNING ON THE HOST — the ones
+# `pnpm e2e:playwright-dev` boots and `pnpm seed:surfaces` seeds — at the
+# ports pinned in apps/tlon-web/e2e/shipManifest.json (~zod 35453, ~ten
+# 38473). It does not boot its own. Three reasons, in order of weight:
+#
+#  1. The seeded corpus is on the host ships. `surface-poll`, `surface-chart`,
+#     `surface-migration`, the hostile-nav and broken-bundle fixtures — the
+#     whole set the 6a run reads and writes — lives in the host piers. A
+#     `ships` service downloads pristine `rube-*-group-blob` archives with
+#     none of it, and no desk fix applied to the host piers reaches them.
+#  2. The dev bundle store binds loopback and mints loopback URLs. It listens
+#     on 127.0.0.1 (packages/shared/seed/bundleServer.ts) and returns
+#     `http://127.0.0.1:<port>/<sha256>.js` as the assetRef regardless of how
+#     it was reached. That URL is the ONLY thing a published bundle can point
+#     at. On a bridge network the container cannot fetch it — ECONNREFUSED —
+#     so the container would publish a ref it could not itself resolve. Under
+#     host networking the container, the ships and the host browser all
+#     resolve the same 127.0.0.1, and the artifact is coherent for every
+#     consumer.
+#  3. `tlon surface publish` refuses to use dev storage unless BOTH the store
+#     and the ship are loopback (TLON_SURFACE_DEV_STORAGE in
+#     packages/tlon-skill/scripts/surface-runtime.ts). Under host networking
+#     that condition is not worked around — it is simply TRUE: the ship the
+#     CLI talks to genuinely is a process on this machine. Reaching the ships
+#     by compose service name (`http://ships:8080`) or by
+#     `host.docker.internal` would each require loosening that guard, and
+#     loosening it is how a variable left in a shell profile follows someone
+#     onto a real ship.
+#
+# The cost, stated plainly: host networking puts the container in the host's
+# network namespace, so the "cannot reach a real ship" property of this stack
+# is enforced by its credentials (env_file, above) and NOT by the network. It
+# also means the gateway binds 18789 on the host directly — `--port 18789` is
+# hardcoded in entrypoint.sh — so OPENCLAW_GATEWAY_PORT no longer applies and
+# 6a cannot run at the same time as a dev container using that port.
+#
+# Verified on OrbStack, where a `--network host` container reaches the macOS
+# host's loopback services. Docker Desktop for Mac joins the Linux VM's
+# namespace instead and will NOT see them; on Linux this is native.
+#
+# To bring up the bot container — enough for `tlon surface preview`, which
+# needs no ship at all:
+#
+#   docker compose -f docker-compose.surfaces-6a.yml --env-file ../.env.surfaces-6a up --build openclaw
+
+# An explicit project name, because compose otherwise derives it from the
+# containing DIRECTORY — "dev" — which docker-compose.yml and
+# docker-compose.test.yml also live in. Without this, bringing 6a up recreates
+# whatever `dev-openclaw-1` those stacks left behind, silently replacing a
+# container that may be pointed at a real ship. Named separately, 6a's
+# containers and volumes cannot collide with theirs.
+name: openclaw-surfaces-6a
+
+services:
+  openclaw:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env.surfaces-6a
+    # The host's network namespace: see the header. `ports:` is deliberately
+    # absent — compose discards published ports under host networking, and
+    # leaving a mapping here would advertise an indirection that does not
+    # exist. `extra_hosts` is absent for the same reason: host.docker.internal
+    # is what this stack exists NOT to use.
+    network_mode: host
+    environment:
+      - MODEL=${MODEL:-openrouter/openai/gpt-5.6-luna}
+      # Inside the container the checkout is always mounted here; the host
+      # absolute path from the env file must not leak in.
+      - TLON_APPS_DIR=/workspace/tlon-apps
+      - TLON_SKILL_DIR=/workspace/tlon-apps/packages/tlon-skill
+      # ── The write fence ────────────────────────────────────────────────
+      #
+      # `tlon surface *` writes refuse anything outside the channel, pre-state
+      # and groups this file names (packages/tlon-skill/scripts/
+      # surface-write-scope.ts). `dev/surfaces-run.sh` rewrites it per run:
+      # groups-only between runs, narrowed to one channel and one definition
+      # sha for the duration of a bound revision.
+      #
+      # The path is inside the ./surfaces-6a-out mount below, so the harness on
+      # the host and the CLI in the container are looking at one file.
+      #
+      # A missing file is a REFUSAL, not "unfenced" — so the container is
+      # fenced from the moment it comes up, and a harness that forgot to write
+      # a scope produces a stopped bot rather than an unbounded one. Bring the
+      # container up after `surfaces-run.sh` has written one, or write it by
+      # hand: {"groups":["~zod/your-group"]}.
+      - TLON_SURFACE_SCOPE_FILE=/workspace/surfaces-6a-out/write-scope.json
+      # ── Bound how long one run can poison its session ──────────────────
+      #
+      # 6a.5 hit a capped run whose session write lock stayed held for ~17
+      # minutes; the next owner DM died with SessionWriteLockTimeoutError. A
+      # measurement session with nine-plus prompts cannot absorb that.
+      #
+      # This is CORE's lock, not ours, and it is not patched. Core resolves the
+      # hold as
+      #
+      #   maxHoldMs = min(MAX_TIMER, max(300_000, timeoutMs + 120_000))
+      #
+      # and takes an env override ahead of config
+      # (session-write-lock-*.js: readPositiveMsEnv → config → fallback).
+      #
+      # Where 1_020_000 came from — the derivation the 6a.5 notes left open —
+      # is not the run timeout. The embedded attempt passes
+      # `timeoutMs: compactionTimeoutMs`, and core's EMBEDDED_COMPACTION_TIMEOUT_MS
+      # is 900_000 (attempt.tool-run-context-*.js). 900_000 + 120_000 = 1_020_000,
+      # exactly the observed value. So the seventeen minutes is core budgeting
+      # for a worst-case CONTEXT COMPACTION, not for a run.
+      #
+      # 420_000 is that same formula evaluated at THIS stack's actual run
+      # timeout (300_000 + 120_000) rather than at the compaction ceiling. It is
+      # therefore not an invented number: it is what core would compute if the
+      # fallback were derived from the timeout this stack really runs under.
+      #
+      # Why not lower. The lock is held ACROSS the attempt, so a value under the
+      # 300s run cap would have the watchdog yank the lock out from under a
+      # legitimate, still-running turn — trading a stall for interleaved session
+      # writes, which is worse. 420_000 is 2.4x the longest turn 6a.5 measured
+      # (129.6s) and leaves the full 120s grace on top of the cap, so no live
+      # run in this stack can reach it. The change makes the watchdog fire
+      # sooner on DEAD runs, not at all on live ones.
+      #
+      # Both release paths read this value, which is why the env var is the
+      # whole fix: the in-process watchdog compares held-for against
+      # `metadata.maxHoldMs`, and a later contender compares the lock file's
+      # recorded `payload.maxHoldMs` (staleReason `hold-exceeded`). The payload
+      # is stamped at acquire time, so this must be set on the openclaw process
+      # — here — and it only takes effect on a recreate.
+      #
+      # Residual risk, stated rather than hidden: if a turn ever does need a
+      # real context compaction lasting more than seven minutes, the watchdog
+      # will release mid-compaction. Nothing in 6a.5's numbers comes near that,
+      # and sessions are reset with /new between prompts. If a run needs it,
+      # raise this line or drop it — it is tracked here precisely so that is a
+      # visible decision rather than an ambient one.
+      #
+      # NOT in ../.env.surfaces-6a: that file is gitignored, and a setting the
+      # next person cannot see is a setting that silently stops applying.
+      - OPENCLAW_SESSION_WRITE_LOCK_MAX_HOLD_MS=420000
+    volumes:
+      - ..:/workspace/openclaw-tlon
+      - openclaw-6a-tlon-modules:/workspace/tlon/node_modules
+      - ${TLONBOT_DIR:-../../../../tlonbot}:/workspace/tlonbot
+      - ${TLON_APPS_DIR:-../../..}:/workspace/tlon-apps
+      - openclaw-6a-state:/root/.openclaw
+      # Where `tlon surface preview` writes its capture matrix, so the PNGs
+      # survive the container and can be read from the host.
+      - ./surfaces-6a-out:/workspace/surfaces-6a-out
+
+# Separate volumes from docker-compose.yml's: 6a must not inherit the state of
+# a dev container that has been talking to a real ship.
+volumes:
+  openclaw-6a-state:
+  openclaw-6a-tlon-modules:

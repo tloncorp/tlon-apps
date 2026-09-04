@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "surfaceId": "srf-expense-split",
+  "specRevision": 1,
+  "title": "Trip costs",
+  "bundle": {
+    "assetRef": "placeholder://expense-split/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "trip": "Beach house weekend",
+    "currency": "$",
+    "itemOrder": ["house", "van", "food", "ferry"],
+    "items": {
+      "house": { "label": "Beach house, two nights", "cents": 48000 },
+      "van": { "label": "Van rental", "cents": 21500 },
+      "food": { "label": "Groceries", "cents": 8425 },
+      "ferry": { "label": "Ferry tickets", "cents": 6650 }
+    },
+    "paidBy": {},
+    "crew": {}
+  },
+  "actions": {
+    "join-trip": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/crew/$actor", "value": true }]
+    },
+    "leave-trip": {
+      "acceptStale": true,
+      "ops": [{ "op": "del", "path": "/crew/$actor" }]
+    },
+    "paid-house": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/paidBy/house", "value": "$actor" }]
+    },
+    "paid-van": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/paidBy/van", "value": "$actor" }]
+    },
+    "paid-food": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/paidBy/food", "value": "$actor" }]
+    },
+    "paid-ferry": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/paidBy/ferry", "value": "$actor" }]
+    }
+  },
+  "recipe": "A shared cost sheet for one trip. The costs are listed with the price the group agreed; each member taps the cost they paid for, and taps to put themselves on the sheet if they are sharing it. Everything else is worked out from those two facts every time the board is drawn: the running total, each person's even share, what each person is up or down, and the shortest list of payments that squares everyone up. Money is held as whole cents throughout, and the leftover cents of an uneven split go one each to the first names on the sheet so the shares add back up to exactly what was spent. Only costs somebody has claimed count towards the split — an unclaimed cost is money nobody has said they put in yet. Members cannot type an amount, so the sheet lists the trip's costs rather than accepting arbitrary receipts; a price that turns out wrong is corrected on the sheet itself, and a member who paid for something and then drops out stays on the sheet, because the group still owes them."
+}

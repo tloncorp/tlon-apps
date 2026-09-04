@@ -71,5 +71,8 @@
     "unified": "^11.0.0",
     "validator": "^13.7.0",
     "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "fast-check": "^4.9.0"
   }
 }

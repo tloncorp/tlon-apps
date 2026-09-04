@@ -1,0 +1,50 @@
+{
+  "id": "control-nonresponders-poll",
+  "channel": "chat/~zod/dash-qxifi5qq",
+  "note": "POSITIVE CONTROL, and the other half of the minimal pair. Byte-identical witness to control-nonresponders-rsvp; only `channel` differs. The movie poll paints a tally, a turnout count and a list of who HAS voted, and carries no member roster in state at all, so it cannot and does not name non-voters. The preflight must PASS it.",
+  "request": "show who hasn't responded yet",
+  "behaviour": "the board names, individually, the members who have not yet answered — not merely a count of how many are outstanding",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "not\\s*(yet\\s*)?(responded|replied|answered|voted|rsvp)",
+      "(yet|still)\\s+to\\s+(respond|reply|answer|vote|rsvp|weigh in)",
+      "(has|have)\\s*n.?t\\s+(responded|replied|answered|voted)",
+      "who\\s+has(n.?t|\\s+not)\\b",
+      "(awaiting|outstanding|unanswered|no\\s+(reply|answer|response))",
+      "(waiting|pending)\\s+on\\b",
+      "still\\s+(out|missing|to\\s+hear)"
+    ],
+    "renderPositive": "Not responded yet~tenNot responded",
+    "renderPositiveSource": "painted text of chat/~zod/dash-ir6lyyyt, cell phone-initial-light, read 2026-09-01 — a real render of an app that does express this",
+    "renderNegatives": [
+      "Are you coming to the book club meetup?",
+      "Your RSVPComingMaybeCan't make it",
+      "Responses~zodComing",
+      "Who has voted~palfun-foslupArrival~tenDune~zodWhiplash",
+      "Turnout3votes so far",
+      "Nobody has voted yetTap Vote beside a movie to put your name down."
+    ],
+    "renderNegativesSource": "painted text of BOTH targets, verbatim: the first three from chat/~zod/dash-ir6lyyyt, the last three from chat/~zod/dash-qxifi5qq. Drawing from both is what lets one witness be used unchanged against both channels, so the verdict flip is a property of the apps rather than of the patterns.",
+    "actionPatterns": [
+      "respond",
+      "pending",
+      "awaiting",
+      "outstanding",
+      "unanswered",
+      "no-?reply",
+      "not-?voted",
+      "non-?voter",
+      "remind",
+      "nudge"
+    ],
+    "actionPositive": "mark-not-voted {\"ops\":[{\"op\":\"set\",\"path\":\"/pending/$actor\",\"value\":true}]}",
+    "actionPositiveSource": "HYPOTHETICAL — no app in the corpus declares an action for this, because on both targets the behaviour is (or would be) derived in the render rather than stored. Shaped like the surrounding real actions; labelled hypothetical so a reader does not mistake it for a measured fixture.",
+    "actionNegatives": [
+      "rsvp-absent {\"ops\":[{\"op\":\"set\",\"path\":\"/entries/$actor\",\"value\":\"absent\"}]}",
+      "rsvp-coming {\"ops\":[{\"op\":\"set\",\"path\":\"/entries/$actor\",\"value\":\"coming\"}]}",
+      "vote-dune {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"dune\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from both targets own action maps (tlon surface show, 2026-09-01). `rsvp-absent` is the load-bearing one: an earlier draft of this witness included `absent`, which matched it — \"absent\" there means \"can not make it\", a RESPONSE, not a non-response. The self-test caught it and the pattern was dropped."
+  }
+}

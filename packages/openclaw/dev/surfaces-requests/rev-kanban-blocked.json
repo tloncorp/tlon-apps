@@ -1,0 +1,43 @@
+{
+  "id": "rev-kanban-blocked",
+  "channel": "chat/~zod/dash-4q5f2720",
+  "note": "Structural, with live state. Verbatim from the verdict-run prompt. Issued only after members have moved cards: at the time of issue chat/~zod/dash-4q5f2720 folds four member invokes (~zod theme-done, ~zod pitches-doing, ~ten interviews-doing, ~ten layout-doing), so `--preserve-state` has something observable to preserve. TARGETING CORRECTION (mid-run, after rev2 published to the wrong board): the first phrasing named the app but not the group, and ~zod holds a SECOND app of the same kind in ~zod/surface-seed. The bot inspected both and picked the other one. The preflight cannot catch that: it binds the SENTENCE to the record, and nothing binds the record's `channel` to the channel the bot goes on to choose. The sentence now names the group. The original phrasing is kept in `requestOriginal` so the change is visible rather than silently absorbed.",
+  "request": "on the Verdict run group's zine tasks board, add a Blocked column between Doing and Done",
+  "behaviour": "the board has a fourth column named Blocked, sitting between Doing and Done, and cards can be moved into and out of it",
+  "shape": "structural",
+  "witness": {
+    "renderPatterns": [
+      "\\bblocked\\b",
+      "\\bblocker",
+      "\\bstuck\\b",
+      "on hold",
+      "waiting on",
+      "\\bblocked column\\b"
+    ],
+    "renderPositive": "Blocked 1Send to printPrepare files and place the orderMove to Done",
+    "renderPositiveSource": "HYPOTHETICAL — no app in the corpus has a Blocked column. Shaped exactly like this board's own column headers and card rows (`Doing 3Collect contributor pitchesGather ideas and assignmentsMove to Done`), run together as the in-frame probe reports them. Labelled as invented.",
+    "renderNegatives": [
+      "Zine tasks6 tasks · Move each card with the buttons.To do 2Proofread the issueFinal copy and fact checkMove to DoingSend to printPrepare files and place the orderMove to DoingDoing 3Collect contributor pitchesGather ideas and assignmentsMove to DoneDo interviews and reportingFinish the source materialMove to DoneLay out the pagesAssemble text and imagesMove to DoneDone 1Choose the issue themeAgree on the central ideaMove to To do",
+      "Zine tasks6 tasks · Move each card with the buttons.To do 0Nothing in To doDoing 0Nothing in DoingDone 6Choose the issue themeAgree on the central ideaMove to To doCollect contributor pitchesGather ideas and assignmentsMove to To doDo interviews and reportingFinish the source materialMove to To doLay out the pagesAssemble text and imagesMove to To doProofread the issueFinal copy and fact checkMove to To doSend to printPrepare files and place the orderMove to To do",
+      "Doing 3Collect contributor pitchesGather ideas and assignmentsMove to Done",
+      "To do 0Nothing in To doDoing 0Nothing in Doing"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-4q5f2720, verbatim, read 2026-09-01 by dev/surfaces-render-probe.ts at the channel's live reduced state — the two distinct whole-cell texts plus two column fragments. A pattern that survives the whole-cell strings survives every column header the board has.",
+    "actionPatterns": [
+      "blocked?\\b",
+      "\\bstuck\\b",
+      "on-?hold",
+      "waiting"
+    ],
+    "actionPositive": "theme-blocked {\"ops\":[{\"op\":\"set\",\"path\":\"/tasks/theme/status\",\"value\":\"blocked\"}]}",
+    "actionPositiveSource": "HYPOTHETICAL — no app in the corpus has this action. Shaped byte-for-byte like this board's own eighteen actions, changing only the status value, so the positive differs from the negatives in exactly the way the behaviour does. Labelled as invented.",
+    "actionNegatives": [
+      "theme-todo {\"ops\":[{\"op\":\"set\",\"path\":\"/tasks/theme/status\",\"value\":\"todo\"}]}",
+      "theme-doing {\"ops\":[{\"op\":\"set\",\"path\":\"/tasks/theme/status\",\"value\":\"doing\"}]}",
+      "theme-done {\"ops\":[{\"op\":\"set\",\"path\":\"/tasks/theme/status\",\"value\":\"done\"}]}",
+      "print-doing {\"ops\":[{\"op\":\"set\",\"path\":\"/tasks/print/status\",\"value\":\"doing\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from chat/~zod/dash-4q5f2720's own action map (tlon surface show, 2026-09-01) — all three statuses of one task plus one from another, which is the whole shape of the map"
+  },
+  "requestOriginal": "on the zine tasks board, add a Blocked column between Doing and Done"
+}

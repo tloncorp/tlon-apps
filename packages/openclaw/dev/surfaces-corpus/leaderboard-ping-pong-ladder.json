@@ -1,0 +1,10 @@
+{
+  "id": "leaderboard-ping-pong-ladder",
+  "request": "keep score for the ping pong ladder in the office",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "leaderboard",
+    "why": "A ladder is a leaderboard with ordering rules. Integer arithmetic throughout; no derived value may be a float."
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "surfaceId": "srf-countdown",
+  "specRevision": 1,
+  "title": "Cabin weekend",
+  "bundle": {
+    "assetRef": "placeholder://countdown/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "timeDisplay": { "refreshSeconds": 60 },
+  "memberInteraction": {
+    "mode": "none",
+    "because": "The date and the run-up were written down once when this board went up, and no button anybody could press would move when the weekend happens. The only thing that changes between now and then is how far off it is, and every viewer works that out for themselves from the clock the host sends with each refresh."
+  },
+  "initialState": {
+    "event": "Cabin weekend",
+    "detail": "Cars leave from the church car park.",
+    "targetLabel": "Friday 17 January, 4:30pm",
+    "targetMs": 1737131400000,
+    "startedMs": 1734048000000,
+    "stepOrder": ["deposit", "headcount", "food"],
+    "steps": {
+      "deposit": {
+        "label": "Cabin deposit due",
+        "when": "Friday 20 December",
+        "atMs": 1734652800000,
+        "owner": "~zod"
+      },
+      "headcount": {
+        "label": "Head count to the cabin",
+        "when": "Friday 10 January",
+        "atMs": 1736467200000,
+        "owner": "~ten"
+      },
+      "food": {
+        "label": "Food order in",
+        "when": "Wednesday 15 January",
+        "atMs": 1736899200000,
+        "owner": "~palfun-foslup"
+      }
+    }
+  },
+  "actions": {},
+  "recipe": "A countdown to one day the group has already agreed on, plus the dates in the run-up to it and who to ask about each. Every date is written into the board once, when it is set up, and nothing changes it afterwards — there is no control for a member to press and no scheduled update behind it. What moves on screen is worked out at the moment the board is drawn, from the clock the host sends every minute: how long is left, how far along the wait is, and whether each date in the run-up is still ahead. A date going by is something this board shows; it never records that a step is finished, because that would be a stored fact and only the channel host can write one. A group that wants to tick these off wants a board with buttons on it, which is a different app."
+}

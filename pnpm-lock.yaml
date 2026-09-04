@@ -78,7 +78,7 @@ importers:
         version: 8.0.1(@swc/core@1.15.11(@swc/helpers@0.5.18))(postcss@8.5.15)(typescript@5.9.3)
       vitest:
         specifier: ^1.2.2
-        version: 1.5.0(@types/node@25.9.3)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+        version: 1.5.0(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
 
   apps/onboarding-sandbox: {}
 
@@ -517,7 +517,7 @@ importers:
         version: 19.2.3(react@19.2.3)
       vitest:
         specifier: ^1.0.4
-        version: 1.5.0(@types/node@25.9.3)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+        version: 1.5.0(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
 
   apps/tlon-web:
     dependencies:
@@ -920,7 +920,7 @@ importers:
         version: 0.17.5(@types/babel__core@7.20.5)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))(workbox-window@7.0.0)
       vitest:
         specifier: ^0.34.1
-        version: 0.34.6(jsdom@23.2.0)(lightningcss@1.32.0)(playwright@1.52.0)(terser@5.46.0)
+        version: 0.34.6(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(playwright@1.52.0)(terser@5.46.0)
       workbox-window:
         specifier: ^7.0.0
         version: 7.0.0
@@ -999,6 +999,10 @@ importers:
       zod:
         specifier: ^3.25.76
         version: 3.25.76
+    devDependencies:
+      fast-check:
+        specifier: ^4.9.0
+        version: 4.9.0
 
   packages/app:
     dependencies:
@@ -1020,6 +1024,9 @@ importers:
       '@tloncorp/shared':
         specifier: workspace:*
         version: link:../shared
+      '@tloncorp/surface-shell':
+        specifier: workspace:*
+        version: link:../surface-shell
       '@tloncorp/ui':
         specifier: workspace:*
         version: link:../ui
@@ -1072,7 +1079,7 @@ importers:
         version: 2.0.1(rollup@4.13.0)(vite@5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0))
       vitest:
         specifier: ^1.0.4
-        version: 1.5.0(@types/node@25.9.3)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+        version: 1.5.0(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
 
   packages/hermes-tlon-adapter: {}
 
@@ -1117,7 +1124,7 @@ importers:
         version: 8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0)
       vitest:
         specifier: ^4.0.0
-        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/scripts:
     dependencies:
@@ -1137,6 +1144,9 @@ importers:
 
   packages/shared:
     dependencies:
+      '@aws-crypto/sha256-js':
+        specifier: ^5.2.0
+        version: 5.2.0
       '@tloncorp/api':
         specifier: workspace:*
         version: link:../api
@@ -1185,7 +1195,41 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^1.4.0
-        version: 1.5.0(@types/node@25.9.3)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+        version: 1.5.0(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+
+  packages/surface-shell:
+    dependencies:
+      '@urbit/sigil-js':
+        specifier: 2.2.0
+        version: 2.2.0
+      chart.js:
+        specifier: 4.5.1
+        version: 4.5.1
+      htm:
+        specifier: 3.1.1
+        version: 3.1.1
+      preact:
+        specifier: 10.29.8
+        version: 10.29.8
+    devDependencies:
+      '@tloncorp/ui':
+        specifier: workspace:*
+        version: link:../ui
+      happy-dom:
+        specifier: ^20.11.10
+        version: 20.13.2
+      typescript:
+        specifier: ~5.9.2
+        version: 5.9.3
+      vite:
+        specifier: ^5.1.6
+        version: 5.1.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
+      vitest:
+        specifier: ^1.0.4
+        version: 1.5.0(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0)
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
   packages/tlon-bot-e2e:
     dependencies:
@@ -1213,13 +1257,16 @@ importers:
         version: 8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0)
       vitest:
         specifier: ^4.0.0
-        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0))
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0))
 
   packages/tlon-skill:
     devDependencies:
       '@tloncorp/api':
         specifier: workspace:*
         version: link:../api
+      '@tloncorp/surface-shell':
+        specifier: workspace:*
+        version: link:../surface-shell
       '@types/bun':
         specifier: ^1.3.14
         version: 1.3.14
@@ -1232,6 +1279,12 @@ importers:
       '@urbit/nockjs':
         specifier: ^1.6.0
         version: 1.6.0
+      happy-dom:
+        specifier: ^20.11.10
+        version: 20.13.2
+      playwright:
+        specifier: ^1.52.0
+        version: 1.52.0
       typescript:
         specifier: ~5.9.2
         version: 5.9.3
@@ -1368,11 +1421,18 @@ packages:
   '@aws-crypto/sha256-js@2.0.0':
     resolution: {integrity: sha512-VZY+mCY4Nmrs5WGfitmNqXzaE873fcIZDu54cbaDaaamsaTOP1DBImV9F4pICc3EHjQXujyE8jig+PFCaew9ig==}
 
+  '@aws-crypto/sha256-js@5.2.0':
+    resolution: {integrity: sha512-FFQQyu7edu4ufvIZ+OadFpHHOt+eSTBaYaki44c+akjg7qZg9oOQeLlk77F6tSYqjDAFClrHJk9tMf0HdVyOvA==}
+    engines: {node: '>=16.0.0'}
+
   '@aws-crypto/supports-web-crypto@2.0.2':
     resolution: {integrity: sha512-6mbSsLHwZ99CTOOswvCRP3C+VCWnzBf+1SnbWxzzJ9lR0mA0JnY2JEAhp8rqmTE0GPFy88rrM27ffgp62oErMQ==}
 
   '@aws-crypto/util@2.0.2':
     resolution: {integrity: sha512-Lgu5v/0e/BcrZ5m/IWqzPUf3UYFTy/PpeED+uc9SWUR1iZQL8XXbGQg10UfllwwBryO3hFF5dizK+78aoXC1eA==}
+
+  '@aws-crypto/util@5.2.0':
+    resolution: {integrity: sha512-4RkU9EsI6ZpBve5fseQlGNUWKMa1RLPQ1dnjnQoe07ldfIzcsGb5hC5W0Dm7u423KWzawlrpbjXBrXCEv9zazQ==}
 
   '@aws-sdk/abort-controller@3.190.0':
     resolution: {integrity: sha512-M6qo2exTzEfHT5RuW7K090OgesUojhb2JyWiV4ulu7ngY4DWBUBMKUqac696sHRUZvGE5CDzSi0606DMboM+kA==}
@@ -3289,6 +3349,9 @@ packages:
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
 
+  '@kurkle/color@0.3.4':
+    resolution: {integrity: sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w==}
+
   '@legendapp/list@3.3.3':
     resolution: {integrity: sha512-p3g4xG6f//s4XQKhuus2189GCQgOHEIbJXHePqeDxj+6UQQQyij4YBjyArNSCgqoP0c03sxDPSOuCFB128Ql6g==}
     peerDependencies:
@@ -5070,9 +5133,21 @@ packages:
   '@skidding/launch-editor@2.2.3':
     resolution: {integrity: sha512-0SuGEsWdulnbryUJ6humogFuuDMWMb4VJyhOc3FGVkibxVdECYDDkGx8VjS/NePZSegNONDIVhCEVZLTv4ycTQ==}
 
+  '@smithy/is-array-buffer@2.2.0':
+    resolution: {integrity: sha512-GGP3O9QFD24uGeAXYUjwSTXARoqpZykHadOmA8G5vfJPK0/DC67qa//0qvqrJzL1xc8WQWX7/yc7fwudjPHPhA==}
+    engines: {node: '>=14.0.0'}
+
   '@smithy/types@4.14.3':
     resolution: {integrity: sha512-YupL0ZWmFtJexUN2cHzkvvF/b9pKrtAIfT1o7/oY/Ppu8IYeZ+lDPM5vZdQJaSeA132dJCqojjGC9NhXeF71VQ==}
     engines: {node: '>=18.0.0'}
+
+  '@smithy/util-buffer-from@2.2.0':
+    resolution: {integrity: sha512-IJdWBbTcMQ6DA0gdNhh/BwrLkDR+ADW5Kr1aZmd4k3DIF6ezMV4R2NIAmT08wQJ3yUK82thHWmC/TnK/wpMMIA==}
+    engines: {node: '>=14.0.0'}
+
+  '@smithy/util-utf8@2.3.0':
+    resolution: {integrity: sha512-R8Rdn8Hy72KKcebgLiv8jQcQkXoLMOGGv5uI1/k0l+snqkOzQ1R0ChUBCxWMlBsFMekWjq0wRudIweFs7sKT5A==}
+    engines: {node: '>=14.0.0'}
 
   '@sqlite.org/sqlite-wasm@3.50.1-build1':
     resolution: {integrity: sha512-yH4M/SHN98NibniIwTVk6rwTJjy7n39l7zwWY3u+qsfZBGTi4lC1uEl2NDvIlkzsFtfCBvHBJJFJ1iuU3UzzEQ==}
@@ -6289,6 +6364,12 @@ packages:
   '@types/video-react@0.15.5':
     resolution: {integrity: sha512-j2T9XGVit44ZNSGYdpScsS2xAs9OAdAupcoGpwHw/Wj4pm7wK+iB2q4CY6V+P6LEcXXJN+ir1dJs4o37AWOiQw==}
 
+  '@types/whatwg-mimetype@3.0.2':
+    resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+
   '@types/ws@8.5.10':
     resolution: {integrity: sha512-vmQSUcfalpIq0R9q7uTo2lXs6eGIpt9wtnLdMv9LVpIjCA/+ufZRozlVoVelIYixx1ugCBKDhn89vnsEGOCx9A==}
 
@@ -6865,6 +6946,10 @@ packages:
   buffer-from@1.1.2:
     resolution: {integrity: sha512-E+XQCRwSbaaiChtv6k6Dwgc+bx+Bs6vuKJHHl5kox/BaKbhiXzqQOwK4cO22yElGp2OCmjwVhT3HmxgyPGnJfQ==}
 
+  buffer-image-size@0.6.4:
+    resolution: {integrity: sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ==}
+    engines: {node: '>=4.0'}
+
   buffer@5.7.1:
     resolution: {integrity: sha512-EHcyIPBQ4BSGlvjB16k5KgAJ27CIsHY/2JBmCRReo48y9rQ3MaUzWX3KVlBa4U7MyX02HdVj0K7C3WaB3ju7FQ==}
 
@@ -7003,6 +7088,10 @@ packages:
 
   charenc@0.0.2:
     resolution: {integrity: sha512-yrLQ/yVUFXkzg7EDQsPieE/53+0RlaWTs+wBrvW36cyilJ2SaDWfl4Yj7MtLTXleV9uEKefbAGUPv2/iWSooRA==}
+
+  chart.js@4.5.1:
+    resolution: {integrity: sha512-GIjfiT9dbmHRiYi6Nl2yFCq7kkwdkp1W/lp2J99rX0yo9tgJGn3lKQATztIjb5tVtevcBtIdICNWqlq5+E8/Pw==}
+    engines: {pnpm: '>=8'}
 
   check-dependency-version-consistency@4.1.1:
     resolution: {integrity: sha512-9YqYued0IoqiaM0H3pOKSygvnvmm+7dCqzpRMS6lP0OZU3SScp4ps55irbEEnC0Owihn9elbEQngCCfxQir11A==}
@@ -8294,6 +8383,10 @@ packages:
   fast-base64-decode@1.0.0:
     resolution: {integrity: sha512-qwaScUgUGBYeDNRnbc/KyllVU88Jk1pRHPStuF/lO7B0/RTRLj7U0lkdTAutlBblY08rwZDff6tNU9cjv6j//Q==}
 
+  fast-check@4.9.0:
+    resolution: {integrity: sha512-7ms6T7SybUev/PQITciI0yLM2pOSFy5zpG8Ty7tQofcVaQUvrMXp6CBwqF6fThLCLOrfBtuHAtwq6Yu4XPCllg==}
+    engines: {node: '>=12.17.0'}
+
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
 
@@ -8694,6 +8787,10 @@ packages:
     resolution: {integrity: sha512-KPIBPDlW7NxrbT/eh4qPXz5FiFdL5UbaA0XUNz2Rp3Z3hqBSkbj0GVjwFDztsWVauZUWsbKHgMg++sk8UX0bkw==}
     engines: {node: ^12.22.0 || ^14.16.0 || ^16.0.0 || >=17.0.0}
 
+  happy-dom@20.13.2:
+    resolution: {integrity: sha512-VC9HoEaT3Jf3K/1g/GjMYGAZCCg+ULgGVcXJlAeSzdTj8mIoPJRp14KVclP5gpUcF/kauuaVB2ri2/WxXbl4vg==}
+    engines: {node: '>=20.0.0'}
+
   has-bigints@1.1.0:
     resolution: {integrity: sha512-R3pbpkcIqv2Pm3dUwgjclDRVmWpTJW2DcMzcIhEXEx1oh/CEMObMm3KLmRJOdvhM7o4uQBnwr8pzRK2sJWIqfg==}
     engines: {node: '>= 0.4'}
@@ -8786,6 +8883,9 @@ packages:
   hosted-git-info@9.0.3:
     resolution: {integrity: sha512-Hc+ghLoSt6QaYZUv0WBiIvmMDZuZZ7oaDvdH8MbfOO4lOsxdXLEvuC6ePoGs9H1X9oCLyq6+NVN0MKqD+ydxyg==}
     engines: {node: ^20.17.0 || >=22.9.0}
+
+  htm@3.1.1:
+    resolution: {integrity: sha512-983Vyg8NwUE7JkZ6NmOqpCZ+sh1bKv2iYTlUkzlWmA5JD2acKoxd4KVxbMmxX/85mtfdnDmTFoNKcg5DGAvxNQ==}
 
   html-encoding-sniffer@3.0.0:
     resolution: {integrity: sha512-oWv4T4yJ52iKrufjnyZPkrN0CH3QnrUqdB6In1g5Fe1mia8GmF36gnfNySxoZtxD5+NmYw1EElVXiBk93UeskA==}
@@ -10812,8 +10912,13 @@ packages:
       react-native-safe-area-context:
         optional: true
 
-  preact@10.26.4:
-    resolution: {integrity: sha512-KJhO7LBFTjP71d83trW+Ilnjbo+ySsaAgCfXOXUlmGzJ4ygYPWmysm77yg4emwfmoz3b22yvH5IsVFHbhUaH5w==}
+  preact@10.29.8:
+    resolution: {integrity: sha512-ej2aVZ+vZ8WO7tvlQWRM9N63A0KzF9q4mWJfDUHgYaIofWY9hu74QdnQrjoPMmZi2/nZ5gN0bJCQF49xQqx09Q==}
+    peerDependencies:
+      preact-render-to-string: '>=5'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
 
   prebuild-install@7.1.1:
     resolution: {integrity: sha512-jAXscXWMcCK8GgCoHOfIr0ODh5ai8mj63L2nWrjuAgXE6tDyYGnx4/8o/rCgU+B4JSyZBKbeZqzhtwtC3ovxjw==}
@@ -10993,6 +11098,9 @@ packages:
 
   pure-rand@6.1.0:
     resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
+
+  pure-rand@8.4.2:
+    resolution: {integrity: sha512-vvuOGgcuPJAirlHvuQw1TrOiw7ptaIXXmIbNuiNOY6lNGJJH49PQ1Kj4nd783nPdQhQdicgOjVI2yI/9BD6/Ng==}
 
   qr.js@0.0.0:
     resolution: {integrity: sha512-c4iYnWb+k2E+vYpRimHqSu575b1/wKl4XFeJGpFmrJQz5I88v9aY2czh7s0w36srfCM1sXgC/xpoJz5dJfq+OQ==}
@@ -13401,6 +13509,12 @@ snapshots:
       '@aws-sdk/types': 3.973.12
       tslib: 1.14.1
 
+  '@aws-crypto/sha256-js@5.2.0':
+    dependencies:
+      '@aws-crypto/util': 5.2.0
+      '@aws-sdk/types': 3.973.12
+      tslib: 2.8.1
+
   '@aws-crypto/supports-web-crypto@2.0.2':
     dependencies:
       tslib: 1.14.1
@@ -13410,6 +13524,12 @@ snapshots:
       '@aws-sdk/types': 3.973.12
       '@aws-sdk/util-utf8-browser': 3.188.0
       tslib: 1.14.1
+
+  '@aws-crypto/util@5.2.0':
+    dependencies:
+      '@aws-sdk/types': 3.973.12
+      '@smithy/util-utf8': 2.3.0
+      tslib: 2.8.1
 
   '@aws-sdk/abort-controller@3.190.0':
     dependencies:
@@ -16274,6 +16394,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  '@kurkle/color@0.3.4': {}
+
   '@legendapp/list@3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
       react: 19.2.3
@@ -17812,8 +17934,22 @@ snapshots:
       chalk: 2.4.2
       shell-quote: 1.8.3
 
+  '@smithy/is-array-buffer@2.2.0':
+    dependencies:
+      tslib: 2.8.1
+
   '@smithy/types@4.14.3':
     dependencies:
+      tslib: 2.8.1
+
+  '@smithy/util-buffer-from@2.2.0':
+    dependencies:
+      '@smithy/is-array-buffer': 2.2.0
+      tslib: 2.8.1
+
+  '@smithy/util-utf8@2.3.0':
+    dependencies:
+      '@smithy/util-buffer-from': 2.2.0
       tslib: 2.8.1
 
   '@sqlite.org/sqlite-wasm@3.50.1-build1': {}
@@ -19726,6 +19862,12 @@ snapshots:
     dependencies:
       '@types/react': 19.2.17
 
+  '@types/whatwg-mimetype@3.0.2': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 25.9.3
+
   '@types/ws@8.5.10':
     dependencies:
       '@types/node': 25.9.3
@@ -20503,6 +20645,10 @@ snapshots:
 
   buffer-from@1.1.2: {}
 
+  buffer-image-size@0.6.4:
+    dependencies:
+      '@types/node': 25.9.3
+
   buffer@5.7.1:
     dependencies:
       base64-js: 1.5.1
@@ -20679,6 +20825,10 @@ snapshots:
   chardet@0.7.0: {}
 
   charenc@0.0.2: {}
+
+  chart.js@4.5.1:
+    dependencies:
+      '@kurkle/color': 0.3.4
 
   check-dependency-version-consistency@4.1.1:
     dependencies:
@@ -22131,6 +22281,10 @@ snapshots:
 
   fast-base64-decode@1.0.0: {}
 
+  fast-check@4.9.0:
+    dependencies:
+      pure-rand: 8.4.2
+
   fast-deep-equal@3.1.3: {}
 
   fast-fifo@1.3.0: {}
@@ -22636,6 +22790,19 @@ snapshots:
 
   graphql@16.6.0: {}
 
+  happy-dom@20.13.2:
+    dependencies:
+      '@types/node': 25.9.3
+      '@types/whatwg-mimetype': 3.0.2
+      '@types/ws': 8.18.1
+      buffer-image-size: 0.6.4
+      entities: 7.0.1
+      whatwg-mimetype: 3.0.0
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+
   has-bigints@1.1.0: {}
 
   has-flag@3.0.0: {}
@@ -22721,6 +22888,8 @@ snapshots:
   hosted-git-info@9.0.3:
     dependencies:
       lru-cache: 11.2.5
+
+  htm@3.1.1: {}
 
   html-encoding-sniffer@3.0.0:
     dependencies:
@@ -25255,8 +25424,10 @@ snapshots:
     dependencies:
       core-js: 3.41.0
       fflate: 0.4.8
-      preact: 10.26.4
+      preact: 10.29.8
       web-vitals: 4.2.4
+    transitivePeerDependencies:
+      - preact-render-to-string
 
   posthog-node@5.37.0(rxjs@7.8.1):
     dependencies:
@@ -25278,7 +25449,7 @@ snapshots:
       react-native-device-info: 10.12.0(react-native@0.86.3(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))
       react-native-safe-area-context: 5.7.0(react-native@0.86.3(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
 
-  preact@10.26.4: {}
+  preact@10.29.8: {}
 
   prebuild-install@7.1.1:
     dependencies:
@@ -25521,6 +25692,8 @@ snapshots:
   punycode@2.3.1: {}
 
   pure-rand@6.1.0: {}
+
+  pure-rand@8.4.2: {}
 
   qr.js@0.0.0: {}
 
@@ -27609,7 +27782,7 @@ snapshots:
       tsx: 4.22.4
       yaml: 2.9.0
 
-  vitest@0.34.6(jsdom@23.2.0)(lightningcss@1.32.0)(playwright@1.52.0)(terser@5.46.0):
+  vitest@0.34.6(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(playwright@1.52.0)(terser@5.46.0):
     dependencies:
       '@types/chai': 4.3.11
       '@types/chai-subset': 1.3.5
@@ -27636,6 +27809,7 @@ snapshots:
       vite-node: 0.34.6(@types/node@25.9.3)(lightningcss@1.32.0)(terser@5.46.0)
       why-is-node-running: 2.3.0
     optionalDependencies:
+      happy-dom: 20.13.2
       jsdom: 23.2.0
       playwright: 1.52.0
     transitivePeerDependencies:
@@ -27647,7 +27821,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@1.5.0(@types/node@25.9.3)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0):
+  vitest@1.5.0(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(lightningcss@1.32.0)(terser@5.46.0):
     dependencies:
       '@vitest/expect': 1.5.0
       '@vitest/runner': 1.5.0
@@ -27671,6 +27845,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 25.9.3
+      happy-dom: 20.13.2
       jsdom: 23.2.0
     transitivePeerDependencies:
       - less
@@ -27681,7 +27856,7 @@ snapshots:
       - supports-color
       - terser
 
-  vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0)):
+  vitest@4.1.8(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(happy-dom@20.13.2)(jsdom@23.2.0)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.8
       '@vitest/mocker': 4.1.8(vite@8.0.16(@types/node@25.9.3)(esbuild@0.27.3)(jiti@2.7.0)(terser@5.46.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -27706,6 +27881,7 @@ snapshots:
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
       '@types/node': 25.9.3
+      happy-dom: 20.13.2
       jsdom: 23.2.0
     transitivePeerDependencies:
       - msw

@@ -222,6 +222,23 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'remove-auth',
     ]),
   ],
+  [
+    'surface',
+    new Set([
+      'create',
+      'templates',
+      'lint',
+      'publish',
+      'event',
+      'state',
+      'show',
+      'snapshot',
+      'preview',
+      'doctrine',
+      'primitives',
+      'rubric',
+    ]),
+  ],
 ]);
 
 /**
@@ -460,6 +477,8 @@ function summarizeKnownTlonCommand(
       return summarizeExposeOperation(operation, remainder, build);
     case 'posts':
       return summarizePostsOperation(operation, remainder, build);
+    case 'surface':
+      return summarizeSurfaceOperation(operation, build);
     case 'notebook':
       return build('write', {
         hasContent: hasFlag(remainder, '--content'),
@@ -925,6 +944,45 @@ function summarizePostsOperation(
       });
     default:
       return build('write', { channelKind });
+  }
+}
+
+/**
+ * Classify a dashboard-authoring command by what it actually touches.
+ *
+ * The surface group is admitted whole by the tool guard, so this is the only
+ * place the operations are told apart. Without it they all collapse onto
+ * `surface.list` / `utility` — the same failure that once hid `notes
+ * migrate-apply` behind the read-only `migrate-plan`.
+ *
+ * - `utility` — reads local files and drives a browser; no ship, no
+ *   credentials (`surface-preview.ts` says so of itself, and the document
+ *   printers only read the packaged skill).
+ * - `read` — hydrates the channel's own history off the ship.
+ * - `write` — posts records, or adds a channel to a group.
+ * - `admin` — `publish` alone, because it rewrites the channel description
+ *   cell, which is the trust root for the code every client then executes.
+ *
+ * No `extra` fields: every argument a surface command carries is a channel
+ * nest, a filesystem path, or an app's own JSON, and none of those belong in
+ * telemetry.
+ */
+function summarizeSurfaceOperation(
+  operation: string,
+  build: (intent: TlonToolIntent) => TlonToolCallContext
+): TlonToolCallContext {
+  switch (operation) {
+    case 'publish':
+      return build('admin');
+    case 'create':
+    case 'event':
+    case 'snapshot':
+      return build('write');
+    case 'state':
+    case 'show':
+      return build('read');
+    default:
+      return build('utility');
   }
 }
 

@@ -1,0 +1,10 @@
+{
+  "id": "poll-standup-time",
+  "request": "quick vote: should we move standup to 10?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "poll",
+    "why": "A two-choice poll. Included because the template ships with three options and a yes/no is the smallest adaptation there is — a run that cannot delete an option has not adapted anything."
+  }
+}

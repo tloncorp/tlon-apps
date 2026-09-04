@@ -1,0 +1,6 @@
+{
+  "turnSeconds": 300,
+  "capSeconds": 300,
+  "killedAtCap": true,
+  "note": "the container killed the turn on the cap; nothing after the lint ran"
+}

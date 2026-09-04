@@ -1,0 +1,11 @@
+# Eval run evidence lands here: per-request transcripts, the app bundles a run
+# produced, twelve-cell capture matrices, and the scoreboard built from them.
+#
+# Ignored for the same reason `surfaces-6a-out/` is: screenshots and fetched
+# bundles are large, regenerable, and quoted into the session report rather
+# than committed. What IS committed lives elsewhere on purpose —
+# `dev/surfaces-corpus/` is the questions, `dev/surfaces-eval-fixtures/` is
+# the harness's own negative control, and `dev/surfaces-eval-baseline.json` is
+# the recorded scoreboard a later run is compared against.
+*
+!.gitignore

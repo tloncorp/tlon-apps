@@ -1,0 +1,10 @@
+{
+  "id": "kanban-site-redesign-blocked",
+  "request": "can we track what's blocked on the site redesign?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "kanban",
+    "why": "A board framed by one column rather than by the board. The adaptation question is whether the run builds the whole pipeline or only the blocked list."
+  }
+}

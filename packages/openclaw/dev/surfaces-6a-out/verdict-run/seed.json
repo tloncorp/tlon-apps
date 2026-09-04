@@ -1,0 +1,226 @@
+{
+  "kind": "verdict-run-clean-seed",
+  "seededAt": "2026-09-01T15:38:08.668Z",
+  "why": "A fresh group for the verdict run, so no generation lands on a board an earlier run built (6a.5 Notes-for-6b item 6).",
+  "ships": {
+    "host": {
+      "name": "~zod",
+      "url": "http://localhost:35453"
+    },
+    "member": {
+      "name": "~ten",
+      "url": "http://localhost:38473"
+    }
+  },
+  "group": {
+    "id": "~zod/verdict-lvmj0jha",
+    "slug": "verdict-lvmj0jha",
+    "title": "Verdict run",
+    "host": "~zod",
+    "members": [
+      "~zod",
+      "~ten"
+    ]
+  },
+  "channels": [
+    {
+      "nest": "chat/~zod/v3r6tieu",
+      "title": "General",
+      "type": "chat",
+      "isSurface": false,
+      "createdBy": "verdict-seed"
+    }
+  ],
+  "dashboards": {
+    "seeded": [],
+    "note": "Empty by design. The four generation-phase dashboards are created by the BOT through `tlon surface create`; that call is part of the loop being measured. Append them here as they are made, so the run log stays the single record of what this group holds."
+  },
+  "contamination": {
+    "how": "Set difference. `priorState` is everything that was on ~zod BEFORE this group existed; anything in it is by construction not part of this run, and anything of this run is by construction not in it. A later reader checks the claim rather than trusting it.",
+    "priorGroupIds": [
+      "~zod/surface-seed"
+    ],
+    "priorSurfaceChannels": [
+      "chat/~zod/dash-dxs2r4uc",
+      "chat/~zod/dash-qxifi5qq",
+      "chat/~zod/dash-dionriii",
+      "chat/~zod/dash-ezw1rkiq",
+      "chat/~zod/surface-future",
+      "chat/~zod/dash-mli2f741",
+      "chat/~zod/dash-pj14oqjp",
+      "chat/~zod/surface-hostile-nav",
+      "chat/~zod/dash-b4fj0jam",
+      "chat/~zod/dash-ir6lyyyt",
+      "chat/~zod/surface-oversized",
+      "chat/~zod/surface-chart",
+      "chat/~zod/dash-um2q3o54",
+      "chat/~zod/dash-lihku4fx",
+      "chat/~zod/surface-migration",
+      "chat/~zod/dash-ltjbt690",
+      "chat/~zod/beach-trip-split",
+      "chat/~zod/dash-tux55wac",
+      "chat/~zod/surface-invalid",
+      "chat/~zod/surface-broken-bundle",
+      "chat/~zod/dash-xl78xbbg",
+      "chat/~zod/dash-wqxxcy7q",
+      "chat/~zod/surface-workout",
+      "chat/~zod/surface-poll",
+      "chat/~zod/dash-lc4k5q4w",
+      "chat/~zod/surface-revision"
+    ],
+    "priorState": {
+      "ship": "~zod",
+      "groups": [
+        {
+          "id": "~zod/surface-seed",
+          "title": "Surface seed",
+          "channels": [
+            {
+              "nest": "chat/~zod/dash-dxs2r4uc",
+              "title": "Lunch poll (live proof)",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-qxifi5qq",
+              "title": "Friday movie night",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-dionriii",
+              "title": "Timing scratch 6a5",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-ezw1rkiq",
+              "title": "Chess leaderboard",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-future",
+              "title": "Spec version too new",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-mli2f741",
+              "title": "House chore rota",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-pj14oqjp",
+              "title": "Lunch poll (template proof)",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-hostile-nav",
+              "title": "Hostile navigation",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-b4fj0jam",
+              "title": "StrongLifts (live proof)",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-ir6lyyyt",
+              "title": "Book club meetup RSVP",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-oversized",
+              "title": "Oversized bundle",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-chart",
+              "title": "Chart.js — real canvas draw",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-um2q3o54",
+              "title": "Zine project",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-lihku4fx",
+              "title": "Climbing Sessions",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-migration",
+              "title": "Migration pending",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-ltjbt690",
+              "title": "Dev storage E2E",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/beach-trip-split",
+              "title": "Beach trip split",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-tux55wac",
+              "title": "6a topology probe",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/v373vvl8",
+              "title": "General",
+              "isSurface": false
+            },
+            {
+              "nest": "chat/~zod/surface-invalid",
+              "title": "Invalid definition",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-broken-bundle",
+              "title": "Broken bundle",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-xl78xbbg",
+              "title": "Potluck signup",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-wqxxcy7q",
+              "title": "Ski trip split",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-workout",
+              "title": "Workout tracker — host is the clock",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-poll",
+              "title": "Poll — happy path",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/dash-lc4k5q4w",
+              "title": "Lunch poll (template proof)",
+              "isSurface": true
+            },
+            {
+              "nest": "chat/~zod/surface-revision",
+              "title": "Stale revision (F2)",
+              "isSurface": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "burnedNameWarning": "Channel and group names are single-use forever on a ship (D50): %channels-server silently no-ops a create for a nest it already holds. Do not re-create any name listed here.",
+  "burnedByEarlierAttempts": {
+    "note": "A first invocation of this script minted a group whose contamination baseline was wrong (getGroups does not join channels, so every pre-existing dashboard read as not-a-dashboard). The group was deleted and the seed re-run. These names are burned on ~zod and must never be reused (D50).",
+    "groupId": "~zod/verdict-0q8ahgka",
+    "channels": [
+      "chat/~zod/v1obam8o"
+    ]
+  }
+}

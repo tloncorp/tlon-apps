@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "surfaceId": "srf-habits",
+  "specRevision": 1,
+  "title": "Daily habits",
+  "bundle": {
+    "assetRef": "placeholder://habit-tracker/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "board": "Daily habits",
+    "daysShown": 7,
+    "habitOrder": ["water", "move", "read", "lights"],
+    "habits": {
+      "water": { "label": "Drink water", "detail": "Two litres" },
+      "move": { "label": "Move", "detail": "Twenty minutes, anything" },
+      "read": { "label": "Read", "detail": "Ten pages" },
+      "lights": { "label": "Lights out", "detail": "Before eleven" }
+    },
+    "history": {},
+    "today": {}
+  },
+  "actions": {
+    "did-water": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/today/$actor/water", "value": true }]
+    },
+    "did-move": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/today/$actor/move", "value": true }]
+    },
+    "did-read": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/today/$actor/read", "value": true }]
+    },
+    "did-lights": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/today/$actor/lights", "value": true }]
+    },
+    "clear-today": {
+      "acceptStale": true,
+      "ops": [{ "op": "del", "path": "/today/$actor" }]
+    }
+  },
+  "recipe": "A shared daily habit board for a small group. Each member marks a habit done for the day at their own key, so marking twice changes nothing and nobody can mark for anybody else; one more control clears a member's own marks for the day. Finished days sit under the date the channel host wrote them. Everything else — how many marks are in, each member's current run, the strip of past days — is worked out when the board is drawn, because the op language has no arithmetic. The host closes the day the next time it has business with this channel rather than on a timer: a habit board can carry a late mark landing in the day before without anybody being wronged, and nothing on it is paid, awarded or expired at midnight. Nothing here reads a clock; the only dates on the board are the ones the host wrote."
+}

@@ -1,0 +1,46 @@
+{
+  "id": "rev-potluck-vegetarian",
+  "channel": "chat/~zod/dash-3xr2qr8q",
+  "note": "Action-map addition, verbatim from the verdict-run prompt. The board's whole action map is eight bring-<item> claims; nothing lets a member say anything ABOUT the dish they claimed. TARGETING CORRECTION (mid-run, after rev2 published to the wrong board): the first phrasing named the app but not the group, and ~zod holds a SECOND app of the same kind in ~zod/surface-seed. The bot inspected both and picked the other one. The preflight cannot catch that: it binds the SENTENCE to the record, and nothing binds the record's `channel` to the channel the bot goes on to choose. The sentence now names the group. The original phrasing is kept in `requestOriginal` so the change is visible rather than silently absorbed.",
+  "request": "in the Verdict run group's potluck signup, let people mark their dish as vegetarian",
+  "behaviour": "a member can flag the item they claimed as vegetarian, and the board shows the flag",
+  "shape": "action-map",
+  "witness": {
+    "renderPatterns": [
+      "vegetarian",
+      "veggie",
+      "\\bvegan\\b",
+      "meat.?free",
+      "plant.?based",
+      "\\bveg\\b",
+      "dietary"
+    ],
+    "renderPositive": "Dessert~tenVegetarian",
+    "renderPositiveSource": "HYPOTHETICAL — nothing in the corpus paints a dietary flag. Shaped like this board's own claim rows (`Dessert~tenChange spot`), run together the way the in-frame probe reports adjacent text nodes. Labelled as invented.",
+    "renderNegatives": [
+      "What is everyone bringing?3/8items claimedTap a spot to put your name downMain dish~zodChange spotSide dishStill neededI’ll bring thisSaladStill neededI’ll bring thisDessert~tenChange spotDrinks~tenChange spotSnacksStill neededI’ll bring thisBreadStill neededI’ll bring thisPlates and napkinsStill neededI’ll bring thisBringing what~zod — Main dish~ten — Dessert~ten — DrinksStill needed5 items to go",
+      "SaladStill neededI’ll bring this",
+      "Bringing what~zod — Main dish~ten — Dessert~ten — Drinks",
+      "3/8items claimed"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-3xr2qr8q, verbatim, read 2026-09-01. `SaladStill neededI’ll bring this` is the deliberate near-miss: a salad is the most vegetarian-looking row on the board and the patterns must not read a food name as a dietary flag.",
+    "actionPatterns": [
+      "vegetarian",
+      "veggie",
+      "vegan",
+      "meat.?free",
+      "plant.?based",
+      "dietary",
+      "\\bdiet\\b"
+    ],
+    "actionPositive": "mark-vegetarian {\"ops\":[{\"op\":\"set\",\"path\":\"/vegetarian/$actor\",\"value\":true}]}",
+    "actionPositiveSource": "HYPOTHETICAL — no app in the corpus declares a dietary action. Shaped like the surrounding real actions ($actor-keyed idempotent set) and labelled as invented.",
+    "actionNegatives": [
+      "bring-main {\"ops\":[{\"op\":\"set\",\"path\":\"/signups/main\",\"value\":\"$actor\"}]}",
+      "bring-salad {\"ops\":[{\"op\":\"set\",\"path\":\"/signups/salad\",\"value\":\"$actor\"}]}",
+      "bring-snacks {\"ops\":[{\"op\":\"set\",\"path\":\"/signups/snacks\",\"value\":\"$actor\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from chat/~zod/dash-3xr2qr8q's own action map (tlon surface show, 2026-09-01). `bring-salad` is the near-miss for the same reason as its render row."
+  },
+  "requestOriginal": "on the potluck signup, let people mark their dish as vegetarian"
+}

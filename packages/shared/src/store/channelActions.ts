@@ -378,8 +378,23 @@ export async function updateChannel({
       [])
     : [];
 
+  // Rebuild the description payload from the full stored payload, not from
+  // known fields: surfaceSpec and any payload key this client version
+  // doesn't know must survive a metadata edit byte-identically.
+  const structuredDescription =
+    StructuredChannelDescriptionPayload.applyMetadataEdit(
+      currentChannel?.descriptionPayload ?? channel.descriptionPayload,
+      {
+        description: channel.description,
+        channelContentConfiguration: channel.contentConfiguration,
+      }
+    );
+
   const updatedChannel: db.Channel = {
     ...channel,
+    ...StructuredChannelDescriptionPayload.rawPersistenceFields(
+      structuredDescription
+    ),
     readerRoles: readers.map((roleId) => ({
       channelId: channel.id,
       roleId,
@@ -401,13 +416,6 @@ export async function updateChannel({
   });
 
   await db.updateChannel(updatedChannel);
-
-  // If we have a `contentConfiguration`, we need to merge these fields to make
-  // a `StructuredChannelDescriptionPayload`, and use that as the `description`
-  const structuredDescription = StructuredChannelDescriptionPayload.encode({
-    description: channel.description ?? undefined,
-    channelContentConfiguration: channel.contentConfiguration ?? undefined,
-  });
 
   const addedTimestamp =
     currentChannel?.addedToGroupAt ?? channel.addedToGroupAt ?? Date.now();
@@ -453,7 +461,12 @@ export async function updateChannel({
     logger.log('updated channel on server');
   } catch (e) {
     console.error('Failed to update channel', e);
-    await db.updateChannel(channel);
+    // Roll back to what the optimistic write actually replaced — the same
+    // `currentChannel` the update was built from — not to the caller's copy.
+    // The screen's copy can be older than what sync has already stored, and
+    // restoring it would locally regress the channel (for surface channels,
+    // briefly resurrecting an older surfaceSpec/bundle) until the next sync.
+    await db.updateChannel(currentChannel ?? channel);
   }
 }
 

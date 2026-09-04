@@ -1,0 +1,20 @@
+{
+  "occasion": "Friday dinner",
+  "when": "Friday 20 March, 7pm",
+  "where": "The Anchor, back room",
+  "seats": 12,
+  "headline": "yes",
+  "answerOrder": ["yes", "maybe", "no"],
+  "answers": {
+    "yes": { "label": "Coming", "button": "Yes", "tone": "positive" },
+    "maybe": { "label": "Maybe", "button": "Maybe", "tone": "neutral" },
+    "no": { "label": "Can't make it", "button": "No", "tone": "negative" }
+  },
+  "responses": {
+    "~zod": "yes",
+    "~ten": "maybe",
+    "~mug": "yes",
+    "~palfun-foslup": "no",
+    "~sampel-palnet": "yes"
+  }
+}

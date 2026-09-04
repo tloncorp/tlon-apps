@@ -1,0 +1,11 @@
+{
+  "id": "workout-climbing-sessions",
+  "request": "track our climbing sessions this month",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "workout-tracker",
+    "why": "Per-member logging of a repeated activity. The 6a run picked a tracker for this and published it."
+  }
+}

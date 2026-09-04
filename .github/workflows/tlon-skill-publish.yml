@@ -59,6 +59,17 @@ jobs:
       - name: Build api dist
         run: pnpm build:api
 
+      # Same reason as ci.yml's test-build/bot-checks: `check` runs the
+      # tlon-skill suite, whose surface-preview module imports
+      # @tloncorp/surface-shell/artifact-strings — an exports subpath that
+      # resolves to the shell's gitignored dist/. Without this the release
+      # gate fails at module load on a clean checkout. The headless preview
+      # leg is intentionally NOT run here (no TLON_PREVIEW_BROWSER, no
+      # chromium install): it already ran on the PR that produced the tag,
+      # and a release gate is the wrong place to first discover a browser.
+      - name: Build surface-shell dist
+        run: pnpm build:surface-shell
+
       - name: Check
         run: pnpm --filter '@tloncorp/tlon-skill' check
 
@@ -98,6 +109,13 @@ jobs:
 
       - name: Build api dist
         run: pnpm build:api
+
+      # The compiled binary bundles scripts/main.ts, which reaches
+      # surface-preview.ts and its @tloncorp/surface-shell/artifact-strings
+      # import. Without the shell's dist, `bun build --compile` stops at
+      # "Could not resolve" before it emits anything.
+      - name: Build surface-shell dist
+        run: pnpm build:surface-shell
 
       - name: Build binary
         working-directory: packages/tlon-skill

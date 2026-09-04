@@ -1,0 +1,333 @@
+// @vitest-environment jsdom
+import type { JsonObject, SurfaceSpec } from '@tloncorp/api';
+import { act } from 'react';
+import { type Root, createRoot } from 'react-dom/client';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+
+import { SurfaceSandboxContainer } from './SurfaceSandboxContainer';
+
+/**
+ * The F2 acceptance criterion end-to-end through the REAL container: an
+ * admin bumps the spec revision without changing the bundle, and the
+ * dashboard keeps working — a new frame, a new `init`, live state, and
+ * invokes that carry the NEW revision to the writer.
+ *
+ * The container is the piece that owns the React key, so asserting the
+ * behaviour through a stand-in would leave exactly the wiring that
+ * matters untested.
+ */
+
+type InvokeArgs = { channelId: string; spec: SurfaceSpec; actionId: string };
+
+const sendSurfaceInvoke = vi.fn((_args: InvokeArgs) => Promise.resolve());
+
+// `vi.mock` is hoisted above the imports, so the container below picks up
+// these stubs rather than the real store / theme / shell artifact
+vi.mock('@tloncorp/shared', () => ({
+  sendSurfaceInvoke: (args: InvokeArgs) => sendSurfaceInvoke(args),
+}));
+vi.mock('@tloncorp/surface-shell/artifact-strings', () => ({
+  shellArtifactJs: 'void 0;',
+  shellArtifactCss: '',
+  shellArtifactVersion: 1,
+}));
+vi.mock('tamagui', () => ({ useThemeName: () => 'light' }));
+vi.mock('../../contexts/appDataContext', () => ({
+  useCurrentUserId: () => '~zod',
+}));
+vi.mock('../../utils/channelUtils', () => ({ useCanWrite: () => true }));
+// The container now renders a real §6 state component on an init error, which
+// drags @tloncorp/ui and its tamagui `styled` chain into this jsdom graph.
+// Those components are deliberately dumb and prop-driven (SurfaceStates.tsx
+// says so); what this file tests is the container's WIRING, so the states are
+// stubbed to their testIDs and their appearance is left to cosmos.
+vi.mock('./SurfaceStates', () => ({
+  SurfaceHaltedState: ({
+    detail,
+    onReload,
+  }: {
+    detail?: string;
+    onReload?: () => void;
+  }) => (
+    <div data-testid="SurfaceHaltedState" data-detail={detail}>
+      <button type="button" onClick={onReload}>
+        Reload
+      </button>
+    </div>
+  ),
+}));
+
+function makeSpec(specRevision: number): SurfaceSpec {
+  return {
+    version: 1,
+    surfaceId: 'srf-1',
+    specRevision,
+    bundle: {
+      assetRef: 'https://x/b',
+      sha256: 'a'.repeat(64),
+      size: 64,
+      shellVersion: 1,
+    },
+    initialState: {},
+    actions: { vote: { ops: [] } },
+  } as unknown as SurfaceSpec;
+}
+
+const CHANNEL = { id: 'chan-1' } as never;
+const BUNDLE = 'void 0;';
+const READY = { type: 'ready', shellVersion: 1, protocolVersion: 1 };
+
+let container: HTMLDivElement;
+let root: Root;
+
+beforeEach(() => {
+  (
+    globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = true;
+  container = window.document.createElement('div');
+  window.document.body.appendChild(container);
+  root = createRoot(container);
+});
+
+afterEach(async () => {
+  await act(async () => {
+    root.unmount();
+  });
+  container.remove();
+  vi.restoreAllMocks();
+  sendSurfaceInvoke.mockClear();
+});
+
+async function renderSpec(spec: SurfaceSpec, state: JsonObject) {
+  await act(async () => {
+    root.render(
+      <SurfaceSandboxContainer
+        channel={CHANNEL}
+        spec={spec}
+        state={state}
+        bundleSource={BUNDLE}
+      />
+    );
+  });
+}
+
+function frame() {
+  return container.querySelector('iframe');
+}
+
+function watch(iframe: HTMLIFrameElement): Record<string, unknown>[] {
+  const sent: Record<string, unknown>[] = [];
+  vi.spyOn(iframe.contentWindow as Window, 'postMessage').mockImplementation(((
+    serialized: unknown
+  ) => {
+    sent.push(JSON.parse(String(serialized)));
+  }) as never);
+  return sent;
+}
+
+async function fromFrame(iframe: HTMLIFrameElement, message: unknown) {
+  await act(async () => {
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        data: JSON.stringify(message),
+        source: iframe.contentWindow as Window,
+      })
+    );
+  });
+}
+
+test('a spec revision bump on an unchanged bundle keeps the dashboard live', async () => {
+  const v1 = makeSpec(1);
+  const v2 = makeSpec(2);
+
+  await renderSpec(v1, { n: 1 });
+  const first = frame()!;
+  const firstSent = watch(first);
+  await fromFrame(first, READY);
+  expect(firstSent).toEqual([
+    expect.objectContaining({ type: 'init', spec: v1, state: { n: 1 } }),
+  ]);
+
+  await renderSpec(v2, { n: 2 });
+  const second = frame()!;
+  // same bundle bytes, so the document is byte-identical: the ONLY thing
+  // that reloads the frame is the remount
+  expect(second).not.toBe(first);
+  expect(second.getAttribute('srcdoc')).toBe(first.getAttribute('srcdoc'));
+
+  const secondSent = watch(second);
+  await fromFrame(second, READY);
+  expect(secondSent).toEqual([
+    expect.objectContaining({ type: 'init', spec: v2, state: { n: 2 } }),
+  ]);
+
+  // state keeps flowing to the new session (the F2 symptom was that it
+  // silently stopped)
+  await renderSpec(v2, { n: 3 });
+  expect(secondSent.at(-1)).toEqual({ type: 'state', state: { n: 3 } });
+
+  // and an invoke reaches the writer stamped with the NEW revision
+  await fromFrame(second, {
+    type: 'invoke',
+    actionId: 'vote',
+    specRevision: 2,
+  });
+  expect(sendSurfaceInvoke).toHaveBeenCalledTimes(1);
+  expect(sendSurfaceInvoke).toHaveBeenCalledWith({
+    channelId: 'chan-1',
+    spec: v2,
+    actionId: 'vote',
+  });
+});
+
+test('an invoke from the replaced frame never reaches the writer', async () => {
+  await renderSpec(makeSpec(1), {});
+  const first = frame()!;
+  watch(first);
+  await fromFrame(first, READY);
+
+  await renderSpec(makeSpec(2), {});
+  expect(frame()).not.toBe(first);
+
+  await fromFrame(first, {
+    type: 'invoke',
+    actionId: 'vote',
+    specRevision: 1,
+  });
+  expect(sendSurfaceInvoke).not.toHaveBeenCalled();
+});
+
+test('an init error replaces the surface with the halted state, not blankness', async () => {
+  // The failure this covers: a bundle that throws before `surface.register`
+  // handshakes normally and then draws nothing. The shell reports it as an
+  // `init` error; without somewhere to put that report the board stayed blank
+  // forever, with no message and no telemetry.
+  await renderSpec(makeSpec(1), {});
+  const iframe = frame()!;
+  await fromFrame(iframe, READY);
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+
+  await fromFrame(iframe, {
+    type: 'error',
+    phase: 'init',
+    message: 'ReferenceError: thisIsNotDefined is not defined',
+  });
+
+  const halted = container.querySelector('[data-testid="SurfaceHaltedState"]');
+  expect(halted).not.toBe(null);
+  expect(halted?.getAttribute('data-detail')).toBe(
+    'ReferenceError: thisIsNotDefined is not defined'
+  );
+  expect(frame()).toBe(null);
+});
+
+test('a render error leaves the surface alone — the shell already handles it', async () => {
+  // Only a failure to INITIALIZE leaves nothing on screen. A throw inside
+  // render has a defined presentation already: the shell swaps in its own
+  // broken-state view inside the frame and the app keeps running, so
+  // replacing the whole surface would be a regression, not a fix.
+  await renderSpec(makeSpec(1), {});
+  const iframe = frame()!;
+  await fromFrame(iframe, READY);
+
+  await fromFrame(iframe, {
+    type: 'error',
+    phase: 'render',
+    message: 'TypeError: cannot read property of undefined',
+  });
+
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+  expect(frame()).not.toBe(null);
+});
+
+test('reloading after a halt builds a NEW frame rather than reusing the dead one', async () => {
+  // The reload bumps the session key instead of reassigning `srcDoc`: a
+  // reload of the same element is indistinguishable from the frame
+  // navigating itself, which the host tears down as hostile.
+  await renderSpec(makeSpec(1), {});
+  const first = frame()!;
+  await fromFrame(first, READY);
+  await fromFrame(first, { type: 'error', phase: 'init', message: 'boom' });
+
+  const reload = container.querySelector(
+    '[data-testid="SurfaceHaltedState"] button'
+  ) as HTMLButtonElement;
+  await act(async () => {
+    reload.click();
+  });
+
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+  const second = frame();
+  expect(second).not.toBe(null);
+  expect(second).not.toBe(first);
+});
+
+test('a healthy new revision clears a halted surface without a manual reload', async () => {
+  // The gap the cold review found (D194): the halt was a bare message and the
+  // early return sat ABOVE the keyed host, so a board halted on revision 1
+  // could not mount revision 2. An admin publishing the fix changed nothing
+  // for anyone already looking at the broken board — every mounted viewer
+  // stayed on revision 1's error until they pressed Reload or navigated away,
+  // which is exactly the population that cannot be told to do either.
+  const v1 = makeSpec(1);
+  const v2 = makeSpec(2);
+
+  await renderSpec(v1, {});
+  const first = frame()!;
+  await fromFrame(first, READY);
+  await fromFrame(first, {
+    type: 'error',
+    phase: 'init',
+    message: 'ReferenceError: thisIsNotDefined is not defined',
+  });
+  expect(
+    container.querySelector('[data-testid="SurfaceHaltedState"]')
+  ).not.toBe(null);
+  expect(frame()).toBe(null);
+
+  // the admin publishes the fix; nobody touches the broken tab
+  await renderSpec(v2, { n: 1 });
+
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+  const second = frame();
+  expect(second).not.toBe(null);
+  expect(second).not.toBe(first);
+
+  // and it is a live session, not just a visible element
+  const secondSent = watch(second!);
+  await fromFrame(second!, READY);
+  expect(secondSent).toEqual([
+    expect.objectContaining({ type: 'init', spec: v2, state: { n: 1 } }),
+  ]);
+});
+
+test('a halt survives a re-render of the SAME revision', async () => {
+  // The other half of keying the halt: it must clear on a NEW session and only
+  // on a new session. A parent re-render with the same spec — a state update
+  // arriving, a theme change — is the same session, and blinking the halted
+  // board back to a frame that has already failed to initialize would loop.
+  const v1 = makeSpec(1);
+
+  await renderSpec(v1, { n: 1 });
+  const first = frame()!;
+  await fromFrame(first, READY);
+  await fromFrame(first, { type: 'error', phase: 'init', message: 'boom' });
+  expect(
+    container.querySelector('[data-testid="SurfaceHaltedState"]')
+  ).not.toBe(null);
+
+  await renderSpec(v1, { n: 2 });
+
+  expect(
+    container.querySelector('[data-testid="SurfaceHaltedState"]')
+  ).not.toBe(null);
+  expect(frame()).toBe(null);
+});

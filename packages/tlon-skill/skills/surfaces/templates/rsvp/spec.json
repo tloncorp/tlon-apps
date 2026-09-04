@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "surfaceId": "srf-rsvp",
+  "specRevision": 1,
+  "title": "Friday dinner",
+  "bundle": {
+    "assetRef": "placeholder://rsvp/app.js",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "size": 1,
+    "shellVersion": 1
+  },
+  "initialState": {
+    "occasion": "Friday dinner",
+    "when": "Friday 20 March, 7pm",
+    "where": "The Anchor, back room",
+    "seats": 12,
+    "headline": "yes",
+    "answerOrder": ["yes", "maybe", "no"],
+    "answers": {
+      "yes": { "label": "Coming", "button": "Yes", "tone": "positive" },
+      "maybe": { "label": "Maybe", "button": "Maybe", "tone": "neutral" },
+      "no": { "label": "Can't make it", "button": "No", "tone": "negative" }
+    },
+    "responses": {}
+  },
+  "actions": {
+    "clear-answer": {
+      "acceptStale": true,
+      "ops": [{ "op": "del", "path": "/responses/$actor" }]
+    },
+    "answer-yes": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/responses/$actor", "value": "yes" }]
+    },
+    "answer-maybe": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/responses/$actor", "value": "maybe" }]
+    },
+    "answer-no": {
+      "acceptStale": true,
+      "ops": [{ "op": "set", "path": "/responses/$actor", "value": "no" }]
+    }
+  },
+  "recipe": "A head count for one occasion. Each member holds exactly one answer — coming, maybe, or can't make it — stored at their own key, so answering again replaces the previous answer rather than adding one, and a fourth action removes it entirely. The date, the place and the seat count are written once by whoever publishes the sheet and are shown exactly as written; nothing on this sheet counts down or knows what day it is. The head count, the seats still free and the list under each answer are all worked out from the answers at the moment the sheet is drawn."
+}

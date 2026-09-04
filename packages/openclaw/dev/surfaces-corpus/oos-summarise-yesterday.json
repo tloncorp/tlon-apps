@@ -1,0 +1,11 @@
+{
+  "id": "oos-summarise-yesterday",
+  "request": "can you summarise what i missed in here yesterday?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": false,
+    "template": null,
+    "awayTo": "message history — read the channel and reply in chat",
+    "why": "Reading, not building. \"in here\" names a channel, and a run that answers it by creating a channel has understood the wrong noun."
+  }
+}

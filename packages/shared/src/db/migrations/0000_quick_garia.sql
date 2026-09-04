@@ -122,6 +122,8 @@ CREATE TABLE `channels` (
 	`remote_updated_at` integer,
 	`last_viewed_at` integer,
 	`content_configuration` text,
+	`surface_spec` text,
+	`description_payload` text,
 	`posts_order` text,
 	FOREIGN KEY (`group_id`) REFERENCES `groups`(`id`) ON UPDATE no action ON DELETE cascade
 );
@@ -508,6 +510,15 @@ CREATE TABLE `settings` (
 	`show_delete_markers` integer
 );
 --> statement-breakpoint
+CREATE TABLE `surface_bundles` (
+	`sha256` text PRIMARY KEY NOT NULL,
+	`content` text NOT NULL,
+	`byte_length` integer NOT NULL,
+	`cached_at` integer NOT NULL,
+	`last_accessed_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE INDEX `surface_bundles_last_accessed_at_index` ON `surface_bundles` (`last_accessed_at`);--> statement-breakpoint
 CREATE TABLE `system_contact_sent_invites` (
 	`invited_to` text,
 	`system_contact_id` text,

@@ -1,0 +1,6 @@
+{"type":"message","timestamp":"2026-09-01T12:00:00.000Z","message":{"role":"user","content":[{"type":"text","text":"fixture prompt"}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:44.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"read","arguments":{"path":"~/.openclaw/plugin-skills/tlon-skill/skills/surfaces/SKILL.md"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:51.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface templates list"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:00:58.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface doctrine"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:05.000Z","message":{"role":"assistant","content":[{"type":"toolCall","name":"tlon","arguments":{"command":"surface lint app.js spec.json --json"}}]}}
+{"type":"message","timestamp":"2026-09-01T12:01:08.000Z","message":{"role":"assistant","content":[{"type":"text","text":"It is up."}]}}

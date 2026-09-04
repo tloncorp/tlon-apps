@@ -1,0 +1,11 @@
+{
+  "id": "oos-weather-saturday",
+  "request": "what's the weather looking like for saturday?",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": false,
+    "template": null,
+    "awayTo": "an ordinary chat reply, or nothing at all",
+    "why": "A one-off question a single message answers, which SKILL.md excludes by name. The nearest in-scope neighbours are rsvp-barbecue-headcount and countdown-lease-expiry — both questions too, and both asking for an answer that has to keep being right."
+  }
+}

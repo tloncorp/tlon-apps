@@ -53,6 +53,7 @@ Commands:
   notes        %notes notebooks (list, show, request, note-create, note-update, join, leave)
   posts        Post reactions, edits, deletes (react, unreact, edit, delete)
   settings     OpenClaw settings management (get, set, delete, allow-dm, ...)
+  surface      Dashboard channels (create, templates, lint, publish, show, event, state, snapshot)
   upload       Upload a file from URL, local path, or stdin
 
 Credential Options (override defaults):
@@ -169,12 +170,12 @@ async function main() {
       }
       case 'channels': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./channels');
+        await import('./channels');
         break;
       }
       case 'contacts': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./contacts');
+        await import('./contacts');
         break;
       }
       case 'dms': {
@@ -185,22 +186,22 @@ async function main() {
       }
       case 'expose': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./expose');
+        await import('./expose');
         break;
       }
       case 'groups': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./groups');
+        await import('./groups');
         break;
       }
       case 'hooks': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./hooks');
+        await import('./hooks');
         break;
       }
       case 'messages': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./messages');
+        await import('./messages');
         break;
       }
       case 'notes': {
@@ -215,7 +216,20 @@ async function main() {
       }
       case 'settings': {
         process.argv = ['tlon', command, ...scriptArgs];
-        const mod = await import('./settings');
+        await import('./settings');
+        break;
+      }
+      case 'surface': {
+        // Imported lazily: the surface deps pull in the publish gate, which
+        // carries happy-dom and the real shell artifact. No other command
+        // should pay for that at startup.
+        const { run: runSurfaceCommand } = await import('./commands/surface');
+        const { createSurfaceDeps } = await import('./surface-runtime');
+        const exitCode = await runSurfaceCommand(
+          scriptArgs,
+          createSurfaceDeps()
+        );
+        process.exit(exitCode);
         break;
       }
     }

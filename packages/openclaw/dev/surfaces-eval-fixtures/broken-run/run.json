@@ -1,0 +1,12 @@
+{
+  "label": "fixture-broken",
+  "note": "Five independent breakages, one per scoring mechanism. Every one of them is shaped to LOOK like a success: the artifacts are present, the transcript shows the pipeline running, and publish.json reports ok. A scoreboard that reads the run's self-report scores this run clean.",
+  "issuedRequests": [
+    "poll-movie-night",
+    "potluck-bringing-what",
+    "oos-poll-lookup",
+    "rsvp-book-club",
+    "habit-physio-daily",
+    "kanban-zine-project"
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "rev-chess-streak",
+  "channel": "chat/~zod/dash-ezw1rkiq",
+  "note": "AGED BOARD (session 6b, Part I.5). The verdict run's six edits were all on apps the same loop had generated minutes earlier, from templates it had just read — the friendliest possible case for editing, and D130 records that as an open residual. This board is from the 6a.5 era: it has been sitting at revision 3 for weeks and nothing in this session's context produced it. The point of the request is not the feature; it is whether the mechanism holds when the app is a stranger.\n\nCONFOUND, stated before the run rather than after it: this session added a `leaderboard` TEMPLATE hours ago, and the bot can read it. So the earlier framing — that no template resembles this board — is false as of today. That does not spoil the observation but it changes what the observation is. Regenerating is now the EASY path: a close template is sitting in the skill, and this board is a stranger the loop would have to read first. An edit under those conditions is a choice against the cheaper option, and a regeneration is no longer evidence that the loop cannot edit — only that it had somewhere better to start.\n\nPhrasing is IMPERATIVE and names the group. Both were decided by the verdict run rather than chosen here: interrogative phrasing produced a byte-identical no-op against the same witness and target, and an app named without its group was published to a same-named board in a different group.",
+  "request": "In the Surface seed group's chess leaderboard, add each player's current streak of wins to their row.",
+  "behaviour": "Each player's row shows how many games they have won in a row, counted from the game log — so a reader can tell a player on a three-win run from one who has three wins scattered among losses.",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "streak",
+      "in a row",
+      "consecutive",
+      "unbeaten",
+      "won \\d+ straight"
+    ],
+    "renderPositive": "1. ~zodRunning total: 3 points · 3 games · streak: 3 in a row3 pts",
+    "renderPositiveSource": "HYPOTHETICAL — the row an app WITH the behaviour would paint, built from this board's own row format (`1. ~zodRunning total: 1 points · 1 game1 pts`) with the streak added. Labelled so it is not mistaken for a measured fixture.",
+    "renderNegatives": [
+      "Chess leaderboard1. ~zodRunning total: 1 points · 1 game1 pts2. ~tenRunning total: 0.5 points · 1 game0.5 ptsReport a gameAdd a winWinAdd a drawDrawAdd a lossLoss1.5total points1 win = 1 point · ½ point for a draw",
+      "Running total: 1 points · 1 game",
+      "1 win = 1 point · ½ point for a draw"
+    ],
+    "renderNegativesSource": "VERBATIM from dev/surfaces-render-probe.ts against this channel's live reduced state. The second is the near-miss that matters: it contains `Running`, so a pattern list using a bare `run` would match it and this witness would refuse a request the board does not satisfy.",
+    "actionPatterns": [
+      "streak",
+      "consecutive",
+      "in-?a-?row"
+    ],
+    "actionPositive": "set-streak {\"ops\":[{\"op\":\"set\",\"path\":\"/streaks/$actor\",\"value\":3}]}",
+    "actionPositiveSource": "HYPOTHETICAL — a streak is derived, not stored, so a correct implementation declares no action for it at all and this positive names an action that should never exist. It is here because the self-test requires the action patterns to be shown capable of matching something; what it proves is that they are not vacuous, not that an action is expected.",
+    "actionNegatives": [
+      "report-win {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/today/$actor\",\"value\":\"win\"}]}",
+      "report-draw {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/today/$actor\",\"value\":\"draw\"}]}",
+      "report-loss {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/today/$actor\",\"value\":\"loss\"}]}"
+    ],
+    "actionNegativesSource": "VERBATIM, the whole of this channel's declared action map as `tlon surface show --json` returns it. These are the near-misses that matter here: they all name a game RESULT, so a witness reaching for `win` or `loss` would match them and report the request satisfied by actions that only record a single day's result."
+  }
+}

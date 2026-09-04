@@ -19,7 +19,9 @@
  * The export shape here is the superset of what the mocked import graphs
  * pull in by value: `api-client.ts` (Urbit, client, configureClient,
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
- * posts, invites), and the notes runtimes (notesV1 et al.).
+ * posts, invites), `surface-runtime.ts` (channel and post writes, uploads),
+ * the notes runtimes (notesV1 et al.), and `channels.ts` (group-channel
+ * metadata writes, channel roles, init data, raw pokes).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 import { mock } from 'bun:test';
@@ -113,6 +115,16 @@ export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
 };
 
+/**
+ * `channels.ts` writes group-channel metadata through this. It is an
+ * assertion target, not a placeholder: the unpublish guard's control turns
+ * on whether the write happened at all and on the description cell it
+ * carried, so the test needs the argument, and a bare no-op cannot give it.
+ */
+export const mockedUpdateChannel = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -141,7 +153,22 @@ mock.module('@tloncorp/api', () => ({
   batchImportNotesV1: async (input: { requestId: string }) => input.requestId,
   getChannelPosts: (...args: unknown[]) => mockedGetChannelPosts.impl(...args),
   toUrbitStory: (content: unknown) => content ?? [],
-  updateChannel: async () => undefined,
+  // channels.ts value imports. `updateChannel` is routed through a mutable
+  // impl because channels.ts is the one importer whose write is asserted;
+  // the rest are named so the module resolves.
+  updateChannel: (...args: unknown[]) => mockedUpdateChannel.impl(...args),
+  addChannelWriters: async () => undefined,
+  removeChannelWriters: async () => undefined,
+  deleteChannel: async () => undefined,
+  deleteNotesNotebookBestEffort: async () => undefined,
+  getInitData: async () => ({ channels: [] }),
+  poke: async () => undefined,
+  // surface-runtime.ts value imports. Named here only so the module can be
+  // imported under the mock: `surface-runtime.test.ts` exercises the
+  // dev-storage guard, which reaches none of these.
+  createChannel: async () => undefined,
+  editPost: async () => undefined,
+  uploadFile: async () => ({ url: '' }),
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
   notesV1: mockedNotesV1,

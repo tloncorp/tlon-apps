@@ -47,13 +47,15 @@
     "dev:migrations": "concurrently \"pnpm watch-migrations\" \"pnpm dev\"",
     "test": "vitest",
     "types": "tsc --emitDeclarationOnly --noEmit false",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit && tsc --noEmit -p seed/tsconfig.json",
     "lint": "oxlint src/",
     "lint:fix": "oxlint src/ --fix --quiet",
     "lint:format": "oxfmt src/",
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
-    "watch-migrations": "pnpm generate:migration --watch"
+    "watch-migrations": "pnpm generate:migration --watch",
+    "seed:surfaces": "vite-node --config seed/vite.config.ts seed/surfaces.ts --",
+    "seed:storage": "vite-node --config seed/vite.config.ts seed/devStorage.ts --"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
@@ -62,6 +64,7 @@
     ]
   },
   "dependencies": {
+    "@aws-crypto/sha256-js": "^5.2.0",
     "@tloncorp/api": "workspace:*",
     "@urbit/aura": "^3.0.0",
     "@urbit/nockjs": "^1.6.0",
@@ -82,16 +85,16 @@
     "vitest": "^1.4.0"
   },
   "peerDependencies": {
-    "expo-speech-recognition": "*",
     "@react-native-async-storage/async-storage": "*",
-    "expo-file-system": "*",
     "@tanstack/react-query": "^5.32.1",
     "@tiptap/core": "^2.6.6",
     "@tiptap/pm": "^2.6.6",
     "@tiptap/react": "^2.6.6",
     "@tiptap/suggestion": "^2.6.6",
     "expo-contacts": "*",
+    "expo-file-system": "*",
     "expo-localization": "*",
+    "expo-speech-recognition": "*",
     "react": "^19.1.0",
     "zustand": "^3.7.2"
   }

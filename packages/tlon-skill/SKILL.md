@@ -7,7 +7,7 @@ description: Interact with Tlon/Urbit API. Use for reading activity, message his
 
 Use the `tlon` command for reading data, managing channels/groups/contacts, and administration.
 
-This skill is about *operating* a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin, and registers as `tlon-platform:tlon-product-guide` under Hermes. It is not always installed: a Hermes deployment that has this CLI but not the plugin tree won't have it. Check the skills available to you rather than assuming, and if it isn't there, answer the product question yourself instead of loading a skill that doesn't exist.
+This skill is about _operating_ a node. Questions about what Tlon Messenger is, how a feature works, or how to walk someone through a task in the app belong to the `tlon-product-guide` skill — reach for that one when the user wants an explanation rather than an action. It ships with the OpenClaw plugin, and registers as `tlon-platform:tlon-product-guide` under Hermes. It is not always installed: a Hermes deployment that has this CLI but not the plugin tree won't have it. Check the skills available to you rather than assuming, and if it isn't there, answer the product question yourself instead of loading a skill that doesn't exist.
 
 ## Hermes
 
@@ -33,6 +33,8 @@ uploading.
 ## OpenClaw
 
 When running as an OpenClaw skill, use the built-in `message` tool for sending outbound messages (DMs and channel posts). The `tlon` command is for reading data, administration, and management — not for sending messages. The `message` tool routes through the proper delivery infrastructure (threading, bot profile, rate limiting).
+
+**Exception — announcing a published surface app.** Use `tlon posts send <chat-nest> "..." --bot`, taking the nest from `tlon channels all` rather than guessing it. This is not a style preference: the `message` tool advertises nine `poll*` parameters while its `action` enum is `["send","react","delete","reply"]`, so a message carrying any of them is rejected with an instruction to use an action the schema does not offer. Session 6a hit that 28 times out of 28 and never landed a single announce. If you reach it anyway, stop after the first rejection — retrying the same arguments is what burned the budget.
 
 **Images are the exception: upload them first.** The `message` tool's `media=` parameter takes only an uploaded https URL — never a local file path, unlike other OpenClaw channels. `tlon upload` accepts a URL, a local file path, or stdin, and prints the uploaded URL:
 

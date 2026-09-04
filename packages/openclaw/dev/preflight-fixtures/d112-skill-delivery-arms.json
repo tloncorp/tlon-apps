@@ -1,0 +1,700 @@
+{
+  "agent:dev:arma-1788220150": {
+    "key": "agent:dev:arma-1788220150",
+    "sessionId": "8a0b9772-471d-4fa8-aa30-620801517057",
+    "updatedAt": 1788220158709,
+    "modelProvider": "openrouter",
+    "model": "openai/gpt-5.6-luna",
+    "contextWeight": {
+      "source": "run",
+      "generatedAt": 1788220155955,
+      "sessionId": "8a0b9772-471d-4fa8-aa30-620801517057",
+      "sessionKey": "agent:dev:arma-1788220150",
+      "provider": "openrouter",
+      "model": "openai/gpt-5.6-luna",
+      "workspaceDir": "/root/.openclaw/workspace",
+      "bootstrapMaxChars": 12000,
+      "bootstrapTotalMaxChars": 60000,
+      "bootstrapTruncation": {
+        "warningMode": "always",
+        "warningShown": false,
+        "truncatedFiles": 0,
+        "nearLimitFiles": 0,
+        "totalNearLimit": false
+      },
+      "sandbox": {
+        "mode": "off",
+        "sandboxed": false
+      },
+      "systemPrompt": {
+        "chars": 36670,
+        "hash": "d9281d71b3d03dffa3293d61d202373e44b3c8c9006288125329fd698ab33f86",
+        "projectContextChars": 18861,
+        "nonProjectContextChars": 17809
+      },
+      "injectedWorkspaceFiles": [
+        {
+          "name": "AGENTS.md",
+          "path": "/root/.openclaw/workspace/AGENTS.md",
+          "missing": false,
+          "rawChars": 4983,
+          "injectedChars": 4983,
+          "truncated": false
+        },
+        {
+          "name": "SOUL.md",
+          "path": "/root/.openclaw/workspace/SOUL.md",
+          "missing": false,
+          "rawChars": 4683,
+          "injectedChars": 4683,
+          "truncated": false
+        },
+        {
+          "name": "TOOLS.md",
+          "path": "/root/.openclaw/workspace/TOOLS.md",
+          "missing": false,
+          "rawChars": 7375,
+          "injectedChars": 7375,
+          "truncated": false
+        },
+        {
+          "name": "IDENTITY.md",
+          "path": "/root/.openclaw/workspace/IDENTITY.md",
+          "missing": false,
+          "rawChars": 326,
+          "injectedChars": 326,
+          "truncated": false
+        },
+        {
+          "name": "USER.md",
+          "path": "/root/.openclaw/workspace/USER.md",
+          "missing": false,
+          "rawChars": 615,
+          "injectedChars": 615,
+          "truncated": false
+        },
+        {
+          "name": "MEMORY.md",
+          "path": "/root/.openclaw/workspace/MEMORY.md",
+          "missing": false,
+          "rawChars": 345,
+          "injectedChars": 345,
+          "truncated": false
+        }
+      ],
+      "skills": {
+        "promptChars": 4511,
+        "hash": "2bb3f5448fd5f4ee0c523e385e7d7593c96dd2a9eb42e064c9e596cea01caf66",
+        "entries": [
+          {
+            "name": "canvas",
+            "blockChars": 261
+          },
+          {
+            "name": "diagram-maker",
+            "blockChars": 264
+          },
+          {
+            "name": "healthcheck",
+            "blockChars": 276
+          },
+          {
+            "name": "meme-maker",
+            "blockChars": 249
+          },
+          {
+            "name": "node-connect",
+            "blockChars": 279
+          },
+          {
+            "name": "node-inspect-debugger",
+            "blockChars": 275
+          },
+          {
+            "name": "notion",
+            "blockChars": 270
+          },
+          {
+            "name": "skill-creator",
+            "blockChars": 257
+          },
+          {
+            "name": "spike",
+            "blockChars": 249
+          },
+          {
+            "name": "taskflow",
+            "blockChars": 279
+          },
+          {
+            "name": "taskflow-inbox-triage",
+            "blockChars": 289
+          },
+          {
+            "name": "tlon-product-guide",
+            "blockChars": 894
+          },
+          {
+            "name": "weather",
+            "blockChars": 264
+          }
+        ]
+      },
+      "tools": {
+        "listChars": 0,
+        "schemaChars": 25834,
+        "entries": [
+          {
+            "name": "read",
+            "summaryChars": 298,
+            "summaryHash": "f8a1d7cf1ecfe02b1b5865c93387e6a5891e5079117b4fe18614b6f912521727",
+            "schemaChars": 304,
+            "schemaHash": "134f19bcabe3e29d63c5cebb38f1d2556759fd08adad6bc90a4b4d3cd1fb8441",
+            "propertiesCount": 3
+          },
+          {
+            "name": "edit",
+            "summaryChars": 326,
+            "summaryHash": "c498a85576e187d069e8e8ea4f70f81bddd57829600d385ef61c4359fd634c9e",
+            "schemaChars": 834,
+            "schemaHash": "457e8bb9f800b21be76c4fd8c0e3078bf07ee9bf93ac82f39944c171bd8f6d84",
+            "propertiesCount": 2
+          },
+          {
+            "name": "write",
+            "summaryChars": 127,
+            "summaryHash": "cdb1c46027b22d1f1b923b47bfe297821d9fe589a9f9d92994961948060a4d89",
+            "schemaChars": 225,
+            "schemaHash": "e98a2484f667cf7c22d76ca103bf2022bf9113dc63fe38b899e71c328cb1e833",
+            "propertiesCount": 2
+          },
+          {
+            "name": "cron",
+            "summaryChars": 3610,
+            "summaryHash": "262e6a7b421538d13ca6d79fc14616de3ea0c24fde8b050d6fa1652fe991e5c5",
+            "schemaChars": 7359,
+            "schemaHash": "a486139fdfec0cd8dc5bf05537b39f040400a8da3c04458e43a31faabef8759b",
+            "propertiesCount": 14
+          },
+          {
+            "name": "message",
+            "summaryChars": 82,
+            "summaryHash": "e038b84558f2f8f82c4e1a0fcb62c680cc37174953a8f4e8c6787b99d00e2f9f",
+            "schemaChars": 5942,
+            "schemaHash": "b626822ebb350ad687c45a951999cda728c1cdd4befd4cb5739e254ce3a9da82",
+            "propertiesCount": 108
+          },
+          {
+            "name": "tts",
+            "summaryChars": 217,
+            "summaryHash": "652c1970c199d82b61061a40be2adddfc7e5634df5d896d776a8a0047c8a6b75",
+            "schemaChars": 264,
+            "schemaHash": "e40695f92ef72d913ee5eb13ef738a15d6f33ae3af3ec609975c45991ef99a78",
+            "propertiesCount": 3
+          },
+          {
+            "name": "image_generate",
+            "summaryChars": 392,
+            "summaryHash": "57b16a66f72edadb1640a608d9f2761fd8d237e124b275d16d74356df5d95c8b",
+            "schemaChars": 2264,
+            "schemaHash": "1ff0d91a2a16769e27d71721f3307059944254c0567f9db718fe90e1665b088d",
+            "propertiesCount": 16
+          },
+          {
+            "name": "music_generate",
+            "summaryChars": 443,
+            "summaryHash": "28a7c10fc163872f6a534e78ca4775ec8f17a024ee5a8e8d1949547f57292ef5",
+            "schemaChars": 1015,
+            "schemaHash": "e03b05b5176641e4edd24ddba66653b5f808eae6ab53c48c4c0d8cbe429bb577",
+            "propertiesCount": 10
+          },
+          {
+            "name": "video_generate",
+            "summaryChars": 231,
+            "summaryHash": "5687c06e790e0aa0dc7b14d72f33407b8c6443da755aaf7b68902253fb83cb3e",
+            "schemaChars": 2042,
+            "schemaHash": "ec3a2b299579c1c85d5cb3d5b18e1185c6bb62ca128aa508692098174393cb35",
+            "propertiesCount": 18
+          },
+          {
+            "name": "agents_list",
+            "summaryChars": 63,
+            "summaryHash": "a7afb8adbaf98833df68160db0677ec2a6bc30b1b96f3592392c9df59e310c65",
+            "schemaChars": 33,
+            "schemaHash": "8243f0af367f188a376f2c17b5eabe872a2f7a979813e0d4e2be6d594c2aa259",
+            "propertiesCount": 0
+          },
+          {
+            "name": "sessions_list",
+            "summaryChars": 135,
+            "summaryHash": "c7e411ae02e3adff5504aaee48f02d262a8abb9152558a3172aae289e3b05faf",
+            "schemaChars": 435,
+            "schemaHash": "c29c6b82c36a2d95a88c8944f129929b2621ee2af6d17b2ab101d4d7e9633d89",
+            "propertiesCount": 9
+          },
+          {
+            "name": "sessions_history",
+            "summaryChars": 117,
+            "summaryHash": "f5d45b76f11a8ac63cc45d456fb6f675f0b1a2e191feb9671924cb5830058f03",
+            "schemaChars": 162,
+            "schemaHash": "ac33b8af2252262afe479236046f5a04bc018f1fcf24d1a8bf32743f0e867598",
+            "propertiesCount": 3
+          },
+          {
+            "name": "sessions_send",
+            "summaryChars": 224,
+            "summaryHash": "56fd935fc97400f8c60b16ae58268660a2d84d8014a60abed515576c45a6f307",
+            "schemaChars": 275,
+            "schemaHash": "f1fbaa412fe6b6aee102234c87c5aa140f39c9086f9bae6e1e9691309a602ffb",
+            "propertiesCount": 5
+          },
+          {
+            "name": "sessions_spawn",
+            "summaryChars": 332,
+            "summaryHash": "5ced554d0c09b9c71fa003139eca7871bbfdc0917a323fc17af2a9faec46c5b7",
+            "schemaChars": 1250,
+            "schemaHash": "2d1670783c8e0c6cae4a1d0a2bdcc059520837661a88702e827905e742a194c9",
+            "propertiesCount": 17
+          },
+          {
+            "name": "sessions_yield",
+            "summaryChars": 79,
+            "summaryHash": "f3782fc41c1522657e1d3494f486a2df998fed38a6b89dcf7f6934fb41424320",
+            "schemaChars": 60,
+            "schemaHash": "b1c4c753820bc3096d85ef7a266a14c9fbe12450536db58076b75bb61d14dbbb",
+            "propertiesCount": 1
+          },
+          {
+            "name": "subagents",
+            "summaryChars": 132,
+            "summaryHash": "1c2ffd38549c0444b118d43736fc4b875ea1aaabc446bbf8bc1fc4ee9180cca4",
+            "schemaChars": 122,
+            "schemaHash": "c4a241d2c3d46ba7985abfce4d3fcd63298ce81f89d49183c8f3d584c48d0c33",
+            "propertiesCount": 2
+          },
+          {
+            "name": "session_status",
+            "summaryChars": 278,
+            "summaryHash": "71177e543dc6235bad4b1a26761995681dcec27ab58dcb4f4f8a7fc9a7b2b5aa",
+            "schemaChars": 89,
+            "schemaHash": "d2995f3d69d126e98ac93eec3c2a9fe5556925bd7979a8e4b6b5a2bf62d329dd",
+            "propertiesCount": 2
+          },
+          {
+            "name": "web_search",
+            "summaryChars": 65,
+            "summaryHash": "b38e9b3c079beaa988d3c576303660b91a55c2e72f56351da04160529173273f",
+            "schemaChars": 991,
+            "schemaHash": "3879e368875d824b14e0e683f81408824e9a2a5850fa2f8514a68caebda54d18",
+            "propertiesCount": 12
+          },
+          {
+            "name": "web_fetch",
+            "summaryChars": 93,
+            "summaryHash": "8875afbb51bd63673e5e6836ca31eeda73914a464862665cd73b346e28d28fd5",
+            "schemaChars": 317,
+            "schemaHash": "d2d8ad58a1b84d849dd16142282aff6c5606f7b0e3d08405e1b740a6a79e6bcc",
+            "propertiesCount": 3
+          },
+          {
+            "name": "image",
+            "summaryChars": 169,
+            "summaryHash": "a46820ca8952445d3663a8908bfa5d3adddff5b53d18b9d8e9eed8f9e593b494",
+            "schemaChars": 350,
+            "schemaHash": "49bb766071c935edca8c2d0df47fc2109bbffe3d4ba32d0b19fe90ec873736ce",
+            "propertiesCount": 6
+          },
+          {
+            "name": "pdf",
+            "summaryChars": 159,
+            "summaryHash": "9f323da0ccbf37f01fff7374ae5cba64b4c05b5f0fc9d982aee7c64040cc61d5",
+            "schemaChars": 448,
+            "schemaHash": "9e8e5acf6d543d3bf39ef65c5cad5326013243efbc32a78aeff5a86edc3947ed",
+            "propertiesCount": 7
+          },
+          {
+            "name": "tlon",
+            "summaryChars": 1135,
+            "summaryHash": "2f9cccd9efaa2d75ec59742f1cd00a870db2ab9cdd4b844a7423f8f0d102425b",
+            "schemaChars": 562,
+            "schemaHash": "1d03ebf65a0c06f832e0c8dc42f9045a35edbb2dfcf494a114f0f0031610a23d",
+            "propertiesCount": 1
+          },
+          {
+            "name": "memory_search",
+            "summaryChars": 605,
+            "summaryHash": "0f918d28864d3682ae77731f149273997c84773592a466b18c7cd0121b599a05",
+            "schemaChars": 250,
+            "schemaHash": "088cd2a3d3a47b251429ff7c56844cdedd1c45c3af0fa8bfaf7aa795766976bf",
+            "propertiesCount": 4
+          },
+          {
+            "name": "memory_get",
+            "summaryChars": 239,
+            "summaryHash": "bff1141a3da31a345c550337417efc9ace4da2909004606c727c59ca1a294495",
+            "schemaChars": 241,
+            "schemaHash": "78f5d58460a82f9104deebad2f1873a8cde05d1ce7328b3ba4da6e994653e70a",
+            "propertiesCount": 4
+          }
+        ]
+      },
+      "currentTurn": {
+        "promptChars": 57,
+        "runtimeContextChars": 0
+      }
+    }
+  },
+  "agent:dev:armb-1788220215": {
+    "key": "agent:dev:armb-1788220215",
+    "sessionId": "ba336419-642f-4d18-a4a7-9a73f1caefe7",
+    "updatedAt": 1788220223907,
+    "modelProvider": "openrouter",
+    "model": "openai/gpt-5.6-luna",
+    "contextWeight": {
+      "source": "run",
+      "generatedAt": 1788220221457,
+      "sessionId": "ba336419-642f-4d18-a4a7-9a73f1caefe7",
+      "sessionKey": "agent:dev:armb-1788220215",
+      "provider": "openrouter",
+      "model": "openai/gpt-5.6-luna",
+      "workspaceDir": "/root/.openclaw/workspace",
+      "bootstrapMaxChars": 12000,
+      "bootstrapTotalMaxChars": 60000,
+      "bootstrapTruncation": {
+        "warningMode": "always",
+        "warningShown": false,
+        "truncatedFiles": 0,
+        "nearLimitFiles": 0,
+        "totalNearLimit": false
+      },
+      "sandbox": {
+        "mode": "off",
+        "sandboxed": false
+      },
+      "systemPrompt": {
+        "chars": 37769,
+        "hash": "e2b0173876642febd669aa28caa0592da4457ef4b578365091ae70c3b4ce4acf",
+        "projectContextChars": 18861,
+        "nonProjectContextChars": 18908
+      },
+      "injectedWorkspaceFiles": [
+        {
+          "name": "AGENTS.md",
+          "path": "/root/.openclaw/workspace/AGENTS.md",
+          "missing": false,
+          "rawChars": 4983,
+          "injectedChars": 4983,
+          "truncated": false
+        },
+        {
+          "name": "SOUL.md",
+          "path": "/root/.openclaw/workspace/SOUL.md",
+          "missing": false,
+          "rawChars": 4683,
+          "injectedChars": 4683,
+          "truncated": false
+        },
+        {
+          "name": "TOOLS.md",
+          "path": "/root/.openclaw/workspace/TOOLS.md",
+          "missing": false,
+          "rawChars": 7375,
+          "injectedChars": 7375,
+          "truncated": false
+        },
+        {
+          "name": "IDENTITY.md",
+          "path": "/root/.openclaw/workspace/IDENTITY.md",
+          "missing": false,
+          "rawChars": 326,
+          "injectedChars": 326,
+          "truncated": false
+        },
+        {
+          "name": "USER.md",
+          "path": "/root/.openclaw/workspace/USER.md",
+          "missing": false,
+          "rawChars": 615,
+          "injectedChars": 615,
+          "truncated": false
+        },
+        {
+          "name": "MEMORY.md",
+          "path": "/root/.openclaw/workspace/MEMORY.md",
+          "missing": false,
+          "rawChars": 345,
+          "injectedChars": 345,
+          "truncated": false
+        }
+      ],
+      "skills": {
+        "promptChars": 5610,
+        "hash": "8d417a95855bed7bc9ec4c2d4d1d6de65189f41f030d2edfe09bb2990d30cd54",
+        "entries": [
+          {
+            "name": "canvas",
+            "blockChars": 261
+          },
+          {
+            "name": "diagram-maker",
+            "blockChars": 264
+          },
+          {
+            "name": "healthcheck",
+            "blockChars": 276
+          },
+          {
+            "name": "meme-maker",
+            "blockChars": 249
+          },
+          {
+            "name": "node-connect",
+            "blockChars": 279
+          },
+          {
+            "name": "node-inspect-debugger",
+            "blockChars": 275
+          },
+          {
+            "name": "notion",
+            "blockChars": 270
+          },
+          {
+            "name": "skill-creator",
+            "blockChars": 257
+          },
+          {
+            "name": "spike",
+            "blockChars": 249
+          },
+          {
+            "name": "surfaces",
+            "blockChars": 749
+          },
+          {
+            "name": "taskflow",
+            "blockChars": 279
+          },
+          {
+            "name": "taskflow-inbox-triage",
+            "blockChars": 289
+          },
+          {
+            "name": "tlon",
+            "blockChars": 344
+          },
+          {
+            "name": "tlon-product-guide",
+            "blockChars": 894
+          },
+          {
+            "name": "weather",
+            "blockChars": 264
+          }
+        ]
+      },
+      "tools": {
+        "listChars": 0,
+        "schemaChars": 25834,
+        "entries": [
+          {
+            "name": "read",
+            "summaryChars": 298,
+            "summaryHash": "f8a1d7cf1ecfe02b1b5865c93387e6a5891e5079117b4fe18614b6f912521727",
+            "schemaChars": 304,
+            "schemaHash": "134f19bcabe3e29d63c5cebb38f1d2556759fd08adad6bc90a4b4d3cd1fb8441",
+            "propertiesCount": 3
+          },
+          {
+            "name": "edit",
+            "summaryChars": 326,
+            "summaryHash": "c498a85576e187d069e8e8ea4f70f81bddd57829600d385ef61c4359fd634c9e",
+            "schemaChars": 834,
+            "schemaHash": "457e8bb9f800b21be76c4fd8c0e3078bf07ee9bf93ac82f39944c171bd8f6d84",
+            "propertiesCount": 2
+          },
+          {
+            "name": "write",
+            "summaryChars": 127,
+            "summaryHash": "cdb1c46027b22d1f1b923b47bfe297821d9fe589a9f9d92994961948060a4d89",
+            "schemaChars": 225,
+            "schemaHash": "e98a2484f667cf7c22d76ca103bf2022bf9113dc63fe38b899e71c328cb1e833",
+            "propertiesCount": 2
+          },
+          {
+            "name": "cron",
+            "summaryChars": 3610,
+            "summaryHash": "262e6a7b421538d13ca6d79fc14616de3ea0c24fde8b050d6fa1652fe991e5c5",
+            "schemaChars": 7359,
+            "schemaHash": "a486139fdfec0cd8dc5bf05537b39f040400a8da3c04458e43a31faabef8759b",
+            "propertiesCount": 14
+          },
+          {
+            "name": "message",
+            "summaryChars": 82,
+            "summaryHash": "e038b84558f2f8f82c4e1a0fcb62c680cc37174953a8f4e8c6787b99d00e2f9f",
+            "schemaChars": 5942,
+            "schemaHash": "b626822ebb350ad687c45a951999cda728c1cdd4befd4cb5739e254ce3a9da82",
+            "propertiesCount": 108
+          },
+          {
+            "name": "tts",
+            "summaryChars": 217,
+            "summaryHash": "652c1970c199d82b61061a40be2adddfc7e5634df5d896d776a8a0047c8a6b75",
+            "schemaChars": 264,
+            "schemaHash": "e40695f92ef72d913ee5eb13ef738a15d6f33ae3af3ec609975c45991ef99a78",
+            "propertiesCount": 3
+          },
+          {
+            "name": "image_generate",
+            "summaryChars": 392,
+            "summaryHash": "57b16a66f72edadb1640a608d9f2761fd8d237e124b275d16d74356df5d95c8b",
+            "schemaChars": 2264,
+            "schemaHash": "1ff0d91a2a16769e27d71721f3307059944254c0567f9db718fe90e1665b088d",
+            "propertiesCount": 16
+          },
+          {
+            "name": "music_generate",
+            "summaryChars": 443,
+            "summaryHash": "28a7c10fc163872f6a534e78ca4775ec8f17a024ee5a8e8d1949547f57292ef5",
+            "schemaChars": 1015,
+            "schemaHash": "e03b05b5176641e4edd24ddba66653b5f808eae6ab53c48c4c0d8cbe429bb577",
+            "propertiesCount": 10
+          },
+          {
+            "name": "video_generate",
+            "summaryChars": 231,
+            "summaryHash": "5687c06e790e0aa0dc7b14d72f33407b8c6443da755aaf7b68902253fb83cb3e",
+            "schemaChars": 2042,
+            "schemaHash": "ec3a2b299579c1c85d5cb3d5b18e1185c6bb62ca128aa508692098174393cb35",
+            "propertiesCount": 18
+          },
+          {
+            "name": "agents_list",
+            "summaryChars": 63,
+            "summaryHash": "a7afb8adbaf98833df68160db0677ec2a6bc30b1b96f3592392c9df59e310c65",
+            "schemaChars": 33,
+            "schemaHash": "8243f0af367f188a376f2c17b5eabe872a2f7a979813e0d4e2be6d594c2aa259",
+            "propertiesCount": 0
+          },
+          {
+            "name": "sessions_list",
+            "summaryChars": 135,
+            "summaryHash": "c7e411ae02e3adff5504aaee48f02d262a8abb9152558a3172aae289e3b05faf",
+            "schemaChars": 435,
+            "schemaHash": "c29c6b82c36a2d95a88c8944f129929b2621ee2af6d17b2ab101d4d7e9633d89",
+            "propertiesCount": 9
+          },
+          {
+            "name": "sessions_history",
+            "summaryChars": 117,
+            "summaryHash": "f5d45b76f11a8ac63cc45d456fb6f675f0b1a2e191feb9671924cb5830058f03",
+            "schemaChars": 162,
+            "schemaHash": "ac33b8af2252262afe479236046f5a04bc018f1fcf24d1a8bf32743f0e867598",
+            "propertiesCount": 3
+          },
+          {
+            "name": "sessions_send",
+            "summaryChars": 224,
+            "summaryHash": "56fd935fc97400f8c60b16ae58268660a2d84d8014a60abed515576c45a6f307",
+            "schemaChars": 275,
+            "schemaHash": "f1fbaa412fe6b6aee102234c87c5aa140f39c9086f9bae6e1e9691309a602ffb",
+            "propertiesCount": 5
+          },
+          {
+            "name": "sessions_spawn",
+            "summaryChars": 332,
+            "summaryHash": "5ced554d0c09b9c71fa003139eca7871bbfdc0917a323fc17af2a9faec46c5b7",
+            "schemaChars": 1250,
+            "schemaHash": "2d1670783c8e0c6cae4a1d0a2bdcc059520837661a88702e827905e742a194c9",
+            "propertiesCount": 17
+          },
+          {
+            "name": "sessions_yield",
+            "summaryChars": 79,
+            "summaryHash": "f3782fc41c1522657e1d3494f486a2df998fed38a6b89dcf7f6934fb41424320",
+            "schemaChars": 60,
+            "schemaHash": "b1c4c753820bc3096d85ef7a266a14c9fbe12450536db58076b75bb61d14dbbb",
+            "propertiesCount": 1
+          },
+          {
+            "name": "subagents",
+            "summaryChars": 132,
+            "summaryHash": "1c2ffd38549c0444b118d43736fc4b875ea1aaabc446bbf8bc1fc4ee9180cca4",
+            "schemaChars": 122,
+            "schemaHash": "c4a241d2c3d46ba7985abfce4d3fcd63298ce81f89d49183c8f3d584c48d0c33",
+            "propertiesCount": 2
+          },
+          {
+            "name": "session_status",
+            "summaryChars": 278,
+            "summaryHash": "71177e543dc6235bad4b1a26761995681dcec27ab58dcb4f4f8a7fc9a7b2b5aa",
+            "schemaChars": 89,
+            "schemaHash": "d2995f3d69d126e98ac93eec3c2a9fe5556925bd7979a8e4b6b5a2bf62d329dd",
+            "propertiesCount": 2
+          },
+          {
+            "name": "web_search",
+            "summaryChars": 65,
+            "summaryHash": "b38e9b3c079beaa988d3c576303660b91a55c2e72f56351da04160529173273f",
+            "schemaChars": 991,
+            "schemaHash": "3879e368875d824b14e0e683f81408824e9a2a5850fa2f8514a68caebda54d18",
+            "propertiesCount": 12
+          },
+          {
+            "name": "web_fetch",
+            "summaryChars": 93,
+            "summaryHash": "8875afbb51bd63673e5e6836ca31eeda73914a464862665cd73b346e28d28fd5",
+            "schemaChars": 317,
+            "schemaHash": "d2d8ad58a1b84d849dd16142282aff6c5606f7b0e3d08405e1b740a6a79e6bcc",
+            "propertiesCount": 3
+          },
+          {
+            "name": "image",
+            "summaryChars": 169,
+            "summaryHash": "a46820ca8952445d3663a8908bfa5d3adddff5b53d18b9d8e9eed8f9e593b494",
+            "schemaChars": 350,
+            "schemaHash": "49bb766071c935edca8c2d0df47fc2109bbffe3d4ba32d0b19fe90ec873736ce",
+            "propertiesCount": 6
+          },
+          {
+            "name": "pdf",
+            "summaryChars": 159,
+            "summaryHash": "9f323da0ccbf37f01fff7374ae5cba64b4c05b5f0fc9d982aee7c64040cc61d5",
+            "schemaChars": 448,
+            "schemaHash": "9e8e5acf6d543d3bf39ef65c5cad5326013243efbc32a78aeff5a86edc3947ed",
+            "propertiesCount": 7
+          },
+          {
+            "name": "tlon",
+            "summaryChars": 1135,
+            "summaryHash": "2f9cccd9efaa2d75ec59742f1cd00a870db2ab9cdd4b844a7423f8f0d102425b",
+            "schemaChars": 562,
+            "schemaHash": "1d03ebf65a0c06f832e0c8dc42f9045a35edbb2dfcf494a114f0f0031610a23d",
+            "propertiesCount": 1
+          },
+          {
+            "name": "memory_search",
+            "summaryChars": 605,
+            "summaryHash": "0f918d28864d3682ae77731f149273997c84773592a466b18c7cd0121b599a05",
+            "schemaChars": 250,
+            "schemaHash": "088cd2a3d3a47b251429ff7c56844cdedd1c45c3af0fa8bfaf7aa795766976bf",
+            "propertiesCount": 4
+          },
+          {
+            "name": "memory_get",
+            "summaryChars": 239,
+            "summaryHash": "bff1141a3da31a345c550337417efc9ace4da2909004606c727c59ca1a294495",
+            "schemaChars": 241,
+            "schemaHash": "78f5d58460a82f9104deebad2f1873a8cde05d1ce7328b3ba4da6e994653e70a",
+            "propertiesCount": 4
+          }
+        ]
+      },
+      "currentTurn": {
+        "promptChars": 57,
+        "runtimeContextChars": 0
+      }
+    }
+  }
+}

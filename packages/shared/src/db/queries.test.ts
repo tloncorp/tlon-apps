@@ -2335,6 +2335,61 @@ describe('last post repair after channel metadata insert', () => {
   });
 });
 
+// The advertised head is a watermark, and the sync layer writes it from
+// whichever posts response happens to land — the sync queue runs three
+// requests concurrently and does not serialize by channel, so an older-range
+// request that observed head 50 can complete AFTER a request that observed
+// head 100. A watermark that moves backward re-opens the truncated-fold
+// defect: hydration would accept a 50-post window as reaching a head of 50
+// and present a partial fold as current state (plan §6).
+describe('setLatestChannelSequenceNum monotonicity', () => {
+  const channelId = 'chat/~zod/seq-watermark/general';
+
+  async function seedChannel() {
+    await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  }
+
+  async function head() {
+    const channel = await queries.getChannel({ id: channelId });
+    return channel!.lastPostSequenceNum;
+  }
+
+  test('a late response carrying a stale head cannot lower the watermark', async () => {
+    await seedChannel();
+
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 100 });
+    expect(await head()).toBe(100);
+
+    // request A observed head 50 before the channel advanced, and only now
+    // completes
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 50 });
+    expect(await head()).toBe(100);
+  });
+
+  test('the watermark still rises, and still installs over a null', async () => {
+    await seedChannel();
+    expect(await head()).toBeNull();
+
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 50 });
+    expect(await head()).toBe(50);
+
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 100 });
+    expect(await head()).toBe(100);
+  });
+
+  // No caller of this setter ever wants to lower the watermark: all three
+  // write a server-reported `newestSequenceNum`. A deliberate reset goes
+  // through `updateChannel`, which stays unconditional, so the monotonic
+  // setter doesn't have to grow an escape hatch nothing asks for.
+  test('a deliberate reset still has an unconditional path', async () => {
+    await seedChannel();
+    await queries.setLatestChannelSequenceNum({ channelId, sequenceNum: 100 });
+
+    await queries.updateChannel({ id: channelId, lastPostSequenceNum: null });
+    expect(await head()).toBeNull();
+  });
+});
+
 // TLON-5606: the delivery-polling query must keep in-flight rows visible
 // even when the user has locally cleared them, so the backoff can still
 // reconcile against the server. `failed` and `needs_verification` are
@@ -2642,5 +2697,269 @@ describe('thread unreads by channel', () => {
     const result = await queries.getThreadUnreadsByChannel({ channelId });
 
     expect(result.map((u) => u.threadId)).toEqual(['mine']);
+  });
+});
+
+describe('surface channel exclusion from unreads and activity (§8)', () => {
+  const groupId = '~zod/surface-badges';
+  const surfaceChannelId = 'chat/~zod/surface-badges/dashboard';
+  const chatChannelId = 'chat/~zod/surface-badges/general';
+
+  // both the plain-string and { id } serializations occur in the wild;
+  // the object form here, the string form asserted separately below
+  const surfaceContentConfiguration = {
+    draftInput: 'tlon.r0.input.none',
+    defaultPostContentRenderer: 'tlon.r0.content.chat',
+    defaultPostCollectionRenderer: { id: 'tlon.r0.collection.surface' },
+  };
+
+  async function seedGroupWithSurfaceAndChatChannels() {
+    await queries.insertGroups({
+      groups: [
+        {
+          id: groupId,
+          hostUserId: '~zod',
+          currentUserIsMember: true,
+          currentUserIsHost: false,
+        } as unknown as Parameters<
+          typeof queries.insertGroups
+        >[0]['groups'][number],
+      ],
+    });
+    await queries.insertChannels([
+      {
+        id: surfaceChannelId,
+        type: 'chat',
+        groupId,
+        contentConfiguration:
+          surfaceContentConfiguration as unknown as Parameters<
+            typeof queries.insertChannels
+          >[0][number]['contentConfiguration'],
+      },
+      { id: chatChannelId, type: 'chat', groupId },
+    ]);
+  }
+
+  // Seeds events with plain per-row inserts. queries.insertActivityEvents
+  // upserts, and its update arm makes SQLite validate
+  // activity_event_contact_group_pins' foreign key, which targets
+  // activity_events(id) while the real primary key is (id, bucketId) — a
+  // pre-existing mismatch that errors under the test database's
+  // foreign_keys pragma. (A multi-row values() insert trips the same
+  // resolution; row-at-a-time inserts don't.)
+  async function seedActivityEvents(
+    events: Parameters<typeof queries.insertActivityEvents>[0]
+  ) {
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+    for (const event of events) {
+      await client.insert(schema.activityEvents).values(event);
+    }
+  }
+
+  test('surface channels never badge; siblings and group counts survive', async () => {
+    await seedGroupWithSurfaceAndChatChannels();
+    await queries.insertChannelUnreads([
+      makeChannelUnread({
+        channelId: surfaceChannelId,
+        count: 5,
+        countWithoutThreads: 5,
+        notify: true,
+      }),
+      makeChannelUnread({
+        channelId: chatChannelId,
+        count: 2,
+        countWithoutThreads: 2,
+        notify: true,
+      }),
+    ]);
+    // the backend-precomputed group count includes the surface channel's 5
+    await queries.insertGroupUnreads([
+      makeGroupUnread({ groupId, count: 7, notify: true }),
+    ]);
+
+    const chats = await queries.getChats();
+    const allChats = [...chats.pinned, ...chats.pending, ...chats.unpinned];
+
+    const surfaceChat = allChats.find((c) => c.id === surfaceChannelId);
+    expect(surfaceChat?.unreadCount).toBe(0);
+    expect(
+      surfaceChat?.type === 'channel' ? surfaceChat.channel.unread?.count : -1
+    ).toBe(0);
+    expect(
+      surfaceChat?.type === 'channel'
+        ? surfaceChat.channel.unread?.notify
+        : true
+    ).toBe(false);
+
+    const chatChat = allChats.find((c) => c.id === chatChannelId);
+    expect(chatChat?.unreadCount).toBe(2);
+
+    // group badge = backend count minus the surface contribution
+    const groupChat = allChats.find((c) => c.id === groupId);
+    expect(groupChat?.unreadCount).toBe(2);
+    expect(
+      groupChat?.type === 'group' ? groupChat.group.unread?.count : -1
+    ).toBe(2);
+  });
+
+  test('string-form renderer id also reads as a surface channel', async () => {
+    await queries.insertChannels([
+      {
+        id: surfaceChannelId,
+        type: 'chat',
+        contentConfiguration: {
+          draftInput: 'tlon.r0.input.none',
+          defaultPostContentRenderer: 'tlon.r0.content.chat',
+          defaultPostCollectionRenderer: 'tlon.r0.collection.surface',
+        } as unknown as Parameters<
+          typeof queries.insertChannels
+        >[0][number]['contentConfiguration'],
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: surfaceChannelId, count: 3 }),
+    ]);
+
+    const chats = await queries.getChats();
+    const surfaceChat = [
+      ...chats.pinned,
+      ...chats.pending,
+      ...chats.unpinned,
+    ].find((c) => c.id === surfaceChannelId);
+    expect(surfaceChat?.unreadCount).toBe(0);
+  });
+
+  test('notifying-source count skips surface channel and thread unreads', async () => {
+    await seedGroupWithSurfaceAndChatChannels();
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: surfaceChannelId, notify: true }),
+      makeChannelUnread({ channelId: chatChannelId, notify: true }),
+    ]);
+    await queries.insertThreadUnreads([
+      makeThreadUnread({ channelId: surfaceChannelId, threadId: 'thread-s' }),
+    ]);
+    await queries.insertGroupUnreads([
+      makeGroupUnread({ groupId, notify: true }),
+    ]);
+
+    // chat channel unread (1) + group unread (1); the surface channel's
+    // channel and thread rows are excluded
+    expect(await queries.getNotifyingUnreadSourceCount()).toBe(2);
+  });
+
+  test('activity queries exclude surface-channel events wholesale', async () => {
+    await seedGroupWithSurfaceAndChatChannels();
+
+    const baseEvent = {
+      bucketId: 'all' as const,
+      type: 'post' as const,
+      shouldNotify: true,
+      groupId,
+      authorId: '~ten',
+    };
+    await seedActivityEvents([
+      {
+        ...baseEvent,
+        id: 'ev-surface-post',
+        sourceId: `channel/${surfaceChannelId}`,
+        channelId: surfaceChannelId,
+        timestamp: 1000,
+      },
+      {
+        ...baseEvent,
+        id: 'ev-chat-post',
+        sourceId: `channel/${chatChannelId}`,
+        channelId: chatChannelId,
+        timestamp: 2000,
+      },
+      {
+        ...baseEvent,
+        id: 'ev-surface-mention',
+        bucketId: 'mentions' as const,
+        sourceId: `channel/${surfaceChannelId}`,
+        channelId: surfaceChannelId,
+        isMention: true,
+        timestamp: 1500,
+      },
+      {
+        ...baseEvent,
+        id: 'ev-chat-mention',
+        bucketId: 'mentions' as const,
+        sourceId: `channel/${chatChannelId}`,
+        channelId: chatChannelId,
+        isMention: true,
+        timestamp: 2500,
+      },
+      // no channel at all — must always pass the exclusion untouched
+      {
+        id: 'ev-contact',
+        bucketId: 'all' as const,
+        type: 'contact' as const,
+        sourceId: 'contact/~ten',
+        shouldNotify: false,
+        timestamp: 3000,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: surfaceChannelId, count: 1 }),
+      makeChannelUnread({ channelId: chatChannelId, count: 1 }),
+    ]);
+
+    const mentions = await queries.getMentionEvents({});
+    expect(mentions.map((e) => e.id)).toEqual(['ev-chat-mention']);
+
+    const buckets = await queries.getBucketedActivity();
+    expect(buckets.all.map((e) => e.id).sort()).toEqual([
+      'ev-chat-mention',
+      'ev-chat-post',
+      'ev-contact',
+    ]);
+    expect(buckets.mentions.map((e) => e.id)).toEqual(['ev-chat-mention']);
+
+    const unseen = await queries.getUnreadUnseenActivityEvents({
+      seenMarker: 0,
+    });
+    const unseenIds = unseen.map((row) => row.activity_events.id);
+    expect(unseenIds).toContain('ev-chat-post');
+    expect(unseenIds).toContain('ev-contact');
+    expect(unseenIds).not.toContain('ev-surface-post');
+    expect(unseenIds).not.toContain('ev-surface-mention');
+
+    const page = await queries.getAllOrRepliesPage({
+      bucket: 'all',
+      existingSourceIds: [],
+    });
+    expect(JSON.stringify(page)).not.toContain(surfaceChannelId);
+    expect(JSON.stringify(page)).toContain(chatChannelId);
+  });
+
+  test('activity holding only surface events reads as empty', async () => {
+    await seedGroupWithSurfaceAndChatChannels();
+    await seedActivityEvents([
+      {
+        id: 'ev-surface-only',
+        bucketId: 'all' as const,
+        type: 'post' as const,
+        sourceId: `channel/${surfaceChannelId}`,
+        channelId: surfaceChannelId,
+        shouldNotify: true,
+        timestamp: 1000,
+      },
+    ]);
+    expect(await queries.checkActivityEmpty()).toBe(true);
+
+    await seedActivityEvents([
+      {
+        id: 'ev-chat-only',
+        bucketId: 'all' as const,
+        type: 'post' as const,
+        sourceId: `channel/${chatChannelId}`,
+        channelId: chatChannelId,
+        shouldNotify: true,
+        timestamp: 2000,
+      },
+    ]);
+    expect(await queries.checkActivityEmpty()).toBe(false);
   });
 });

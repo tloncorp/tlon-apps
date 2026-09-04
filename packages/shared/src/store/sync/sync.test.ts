@@ -672,3 +672,56 @@ test('syncs groups, decoding structured description payloads', async () => {
     channelContentConfiguration
   );
 });
+
+test('syncs groups, persisting the raw description payload and surfaceSpec', async () => {
+  const groupId = '~fabled-faster/new-york';
+  const groupWithScdp = pick(groupsData, groupId);
+  const channelId = 'chat/~tormut-bolpub/nyc-housing-7361';
+  const channel = groupWithScdp['~fabled-faster/new-york'].channels[channelId];
+  // A spec with an unknown key inside it, plus an unknown payload-level
+  // key: both must survive to storage byte-identically (raw, never a
+  // validated view).
+  const surfaceSpec = {
+    version: 1,
+    surfaceId: 'srf-nyc',
+    specRevision: 2,
+    bundle: {
+      assetRef: 'https://storage.example/b',
+      sha256: 'a'.repeat(64),
+      size: 512,
+      shellVersion: 1,
+    },
+    initialState: { votes: {} },
+    actions: { vote: { ops: [] } },
+    futureSpecField: { keep: ['me'] },
+  };
+  const encoded = JSON.stringify({
+    description: 'payload desc',
+    channelContentConfiguration: {
+      draftInput: DraftInputId.chat,
+      defaultPostContentRenderer: PostContentRendererId.chat,
+      defaultPostCollectionRenderer: CollectionRendererId.chat,
+    },
+    surfaceSpec,
+    futurePayloadField: 42,
+  });
+  channel.meta.description = encoded;
+  setScryOutput(groupsData);
+  await syncGroups();
+  setScryOutput(Object.keys(groupsData).slice(0, 3));
+  await syncPinnedItems();
+
+  const channelFromDb = await db.getChannel({ id: channelId });
+  expect(channelFromDb).toBeTruthy();
+  expect(channelFromDb!.descriptionPayload).toBe(encoded);
+  expect(channelFromDb!.surfaceSpec).toBe(JSON.stringify(surfaceSpec));
+
+  // a plain-text description persists verbatim with no spec
+  const plainChannelId = Object.keys(
+    groupWithScdp['~fabled-faster/new-york'].channels
+  ).find((id) => id !== channelId);
+  if (plainChannelId) {
+    const plain = await db.getChannel({ id: plainChannelId });
+    expect(plain?.surfaceSpec ?? null).toBeNull();
+  }
+});

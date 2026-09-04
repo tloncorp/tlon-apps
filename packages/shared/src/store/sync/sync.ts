@@ -44,6 +44,10 @@ import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
 import { migrateLegacyContextLensFlag } from '../settingsActions';
+import {
+  applySurfaceChannelNotificationDefaults,
+  installSurfaceMarkersFromShip,
+} from '../surfaceNotificationDefaults';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
@@ -127,6 +131,11 @@ export const syncInitData = async (
     return writer;
   } else {
     await writer();
+    // This branch is the newly-joined-group/channel refetch (see
+    // checkForNewlyJoined). Run the §8 pass outside the writer so its pokes
+    // aren't issued from inside a batched write. syncStart yields its writer
+    // instead and runs the pass itself once low-priority sync has landed.
+    void applySurfaceChannelNotificationDefaults();
     return () => Promise.resolve();
   }
 };
@@ -516,6 +525,13 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   await db.insertSettings(result.settings);
   await db.dismissedPinnedPostBannerIds.setValue(
     result.dismissedPinnedPostBannerIds
+  );
+  // Installs the §8 markers AND declares them authoritative — surface
+  // discovery may only act on a mirror that has been proven against the ship,
+  // so the write and the declaration are deliberately one call rather than a
+  // setValue that a future edit could leave undeclared. Never rejects.
+  await installSurfaceMarkersFromShip(
+    result.surfaceNotificationDefaultedChannelIds
   );
   await db.replaceBotReplyFeedback(
     result.botReplyFeedback.map(toCachedBotReplyFeedback)
@@ -1288,6 +1304,9 @@ export async function handleGroupUpdate(
     }
     case 'addChannel': {
       await db.insertChannels([update.channel], ctx);
+      // §8: hush a dashboard channel the moment it appears, not at the next
+      // boot — otherwise every interaction with it pushes in the meantime.
+      void applySurfaceChannelNotificationDefaults([update.channel]);
       await syncAddedGroupChannel(update.channel);
       break;
     }
@@ -1303,6 +1322,8 @@ export async function handleGroupUpdate(
       };
       delete channelUpdate.currentUserIsMember;
       await db.updateChannel(channelUpdate, ctx);
+      // A metadata edit can turn an ordinary channel into a surface one.
+      void applySurfaceChannelNotificationDefaults([update.channel]);
       if (update.channel.groupId) {
         await syncGroup(update.channel.groupId, undefined, { force: true });
         await syncUnreads();
@@ -1661,6 +1682,17 @@ export const handleSettingsUpdate = async (
           return [...current, update.postId];
         }
         return current.filter((postId) => postId !== update.postId);
+      });
+      break;
+    case 'surfaceNotificationDefaulted':
+      await db.surfaceNotificationDefaultedChannelIds.setValue((current) => {
+        if (update.defaulted) {
+          if (current.includes(update.channelId)) {
+            return current;
+          }
+          return [...current, update.channelId];
+        }
+        return current.filter((channelId) => channelId !== update.channelId);
       });
       break;
     case 'botReplyFeedback':
@@ -2465,6 +2497,15 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     updateSession({ phase: 'ready' });
 
     await failEnqueuedPosts();
+
+    // §8 notification policy. Deliberately after low-priority sync: channels
+    // land in the high-priority block, but the "already defaulted" markers
+    // come from syncSettings above, and hushing without them would override a
+    // user who unmuted on another device. Ordering alone isn't enough —
+    // `Promise.all` swallows a settings failure and would leave this sweeping
+    // against an empty cache — so the pass itself defers until the markers
+    // have actually loaded, and a later successful syncSettings runs it.
+    await applySurfaceChannelNotificationDefaults();
 
     // post sync initialization work
     await verifyUserInviteLink();

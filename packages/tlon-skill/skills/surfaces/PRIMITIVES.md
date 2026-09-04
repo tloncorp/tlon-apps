@@ -1,0 +1,357 @@
+# The primitive kit
+
+Everything an app is allowed to draw. Read the entries for the components
+you use; do not invent components or props — the shell exposes exactly what
+is listed here, and anything else is a runtime `undefined`.
+
+Drawing with the kit is not the same as drawing something legible. Once the
+app renders, `tlon surface preview` screenshots it at phone and desktop
+width in both themes, and `RUBRIC.md` is the checklist you score those
+screenshots against.
+
+## The `surface` global
+
+```js
+const { html, h, primitives, register, invoke, canInvoke } = surface;
+```
+
+| member                 | what it is                                                                                                |
+| ---------------------- | --------------------------------------------------------------------------------------------------------- |
+| `html`                 | htm bound to Preact — tagged templates, no build step                                                     |
+| `h`                    | Preact's `h`, if you prefer calls to templates                                                            |
+| `primitives`           | the kit below                                                                                             |
+| `register({ render })` | called once, at the end of your script                                                                    |
+| `invoke(actionId)`     | fires a declared action as the viewer; returns `false` if the viewer can't write or the id isn't declared |
+| `canInvoke()`          | whether the viewer may write                                                                              |
+| `Chart`                | the raw Chart.js constructor. **Do not use it** — see `Chart` below                                       |
+
+Nothing else exists: no hooks, no `render` from Preact, no DOM helpers, no
+`document` work of your own.
+
+## Writing markup with `html`
+
+```js
+html`
+  <${Card} title=${state.question}>
+    ${options.map((option) => html`<${ListRow}>${option.label}<//>`)}
+  <//>
+`;
+```
+
+- Components interpolate as tags: `<${Card} …>` … `<//>` closes any tag.
+- Plain elements are fine for grouping: `<div>`, `<span>`, `<ul>`, `<li>`.
+- Props interpolate as `prop=${value}`; children can be arrays.
+- Do not write `data-testid`. Nothing reads one — not preview, not the gate,
+  not any test — so it is markup that looks load-bearing and is not. The
+  templates carried 29 of them and no longer do.
+
+**There is no app CSS.** Only the shell's stylesheet reaches the page, so a
+class name of your own has no styles behind it. Structure comes from the
+primitives; keep any inline style to the gate's whitelisted layout subset
+with token values (`var(--space-m)`), and never set `font-family` or a
+literal color — the gate rejects both. If a layout needs more than that, it
+needs a different composition of primitives.
+
+---
+
+## Card
+
+A titled surface. The outermost thing in most apps; use one per logical
+section rather than nesting them.
+
+```js
+const { Card } = primitives;
+
+html`<${Card} title="Lunch poll">${rows}<//>`;
+```
+
+| prop     | type      | notes                      |
+| -------- | --------- | -------------------------- |
+| `title`  | `string?` | omitted renders no heading |
+| children | nodes     | the body                   |
+
+---
+
+## ListRow
+
+One row of a list: optional leading and trailing slots around a content
+column. This is the workhorse — a member with a control, an option with a
+count, an item with a badge.
+
+```js
+const { ListRow, Avatar, Button } = primitives;
+
+html`
+  <${ListRow}
+    left=${html`<${Avatar} ship=${ship} />`}
+    right=${html`<${Button} onPress=${() => invoke("vote-pizza")}>Vote<//>`}
+    secondary=${html`<div>${"put in " + paid + " · share " + share}</div>`}
+  >
+    ${label}
+  <//>
+`;
+```
+
+| prop        | type   | notes                                           |
+| ----------- | ------ | ----------------------------------------------- |
+| `left`      | nodes? | leading slot — avatar, index, icon-sized thing  |
+| `right`     | nodes? | trailing slot — control, badge, value           |
+| `secondary` | nodes? | supporting detail, muted and small, below       |
+| children    | nodes  | the content column — the row's title, at weight |
+
+`children` is the row's title and stays at the body weight. `secondary` is
+everything that qualifies it, and the primitive draws it smaller and muted,
+so the two read as a title and its detail rather than two identical lines.
+
+**Two supporting facts are two nodes, not a nested stack.** `secondary` is a
+column: pass it more than one element and it stacks them with the right
+gap. Do not build that stack yourself — a `<div>` of `<div>`s inside
+`children` is the shape this slot replaced, and it renders every line at one
+weight.
+
+**Controls go in `right`, not in `secondary`.** The muted type is set on the
+container, so a `Button` or `Badge` in `secondary` keeps its own color and
+size and will look fine — which is exactly why the rule has to be stated
+rather than left to the eye. The one case that earns the exception is a
+control cluster that WRAPS: three or more buttons in `right` take most of a
+phone's width and squeeze the content column to a word a line, and
+`secondary` renders last, so they land under the row rather than above its
+detail. `kanban`'s card is that case and says so where it does it. One
+button, or two, belongs in `right`.
+
+```js
+html`
+  <${ListRow}
+    left=${html`<${Avatar} ship=${ship} />`}
+    secondary=${html`
+      <div>${done + " of " + total + " today"}</div>
+      <div>${strip}</div>
+    `}
+  >
+    ${ship}
+  <//>
+`;
+```
+
+The cluster is often not all text. A row of avatars, a run of `Badge`s, a
+`Progress` — those set their own color and size, so they are unaffected by
+the muted type and belong in `secondary` alongside the text, which is also
+the only way they land _below_ it. Anything left in `children` renders above
+the whole cluster.
+
+---
+
+## Button
+
+The only control. Every button either invokes a declared action or does
+nothing — there are no other effects available.
+
+```js
+const { Button } = primitives;
+
+html`
+  <${Button}
+    tone="positive"
+    disabled=${!canInvoke()}
+    onPress=${() => invoke("squat-ok")}
+  >
+    All reps
+  <//>
+`;
+```
+
+| prop       | type                                    | notes                                                    |
+| ---------- | --------------------------------------- | -------------------------------------------------------- |
+| `onPress`  | handler?                                | not `onClick`                                            |
+| `disabled` | `boolean?`                              | when true the handler is not attached at all             |
+| `tone`     | `'neutral' \| 'positive' \| 'negative'` | defaults to neutral; anything else is treated as neutral |
+| children   | nodes                                   | the label                                                |
+
+Disable on `!canInvoke()` rather than hiding: read-only viewers should see
+the same screen.
+
+---
+
+## Stat
+
+A single number with its label, for the top-of-card summary.
+
+```js
+const { Stat } = primitives;
+
+html`<${Stat}
+  value=${String(total)}
+  label="votes cast"
+  hint="one per person"
+/>`;
+```
+
+| prop    | type      | notes                                                                          |
+| ------- | --------- | ------------------------------------------------------------------------------ |
+| `value` | `string`  | **strings only** — `String(n)`, and format integers to their display unit here |
+| `label` | `string`  | what the number is                                                             |
+| `hint`  | `string?` | small secondary line                                                           |
+
+---
+
+## Badge
+
+A short inline tag against a row or title: a count, a status, a state word.
+
+```js
+const { Badge } = primitives;
+
+html`<${Badge} tone="negative">Missed<//>`;
+```
+
+| prop     | type                                    | notes                         |
+| -------- | --------------------------------------- | ----------------------------- |
+| `tone`   | `'neutral' \| 'positive' \| 'negative'` | defaults to neutral           |
+| children | nodes                                   | keep it to a word or a number |
+
+---
+
+## Avatar
+
+Draws a real sigil from a ship name, colored from the theme tokens. Apps
+never render sigils themselves and never choose a size.
+
+```js
+const { Avatar } = primitives;
+
+html`<${Avatar} ship=${ship} />`;
+```
+
+| prop       | type      | notes                                                                                                        |
+| ---------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| `ship`     | `string?` | a point name — `~zod`, `~sampel-palnet`. State keys written by `$actor` are exactly this form                |
+| `initials` | `string?` | fallback text, first two characters used                                                                     |
+| `color`    | `string?` | tints the frame _behind_ the sigil; must be a token reference (`var(--color-bg-secondary)`), never a literal |
+
+A name the library cannot draw (a moon, a comet, a malformed string) falls
+back to initials instead of throwing — `ship` comes from app state, so a bad
+one is ordinary input. With no `initials`, the fallback is the first two
+characters of the name.
+
+---
+
+## Progress
+
+A proportion bar. Accessible by default when you pass a label.
+
+```js
+const { Progress } = primitives;
+
+html`<${Progress}
+  value=${total === 0 ? 0 : count / total}
+  label=${option.label}
+/>`;
+```
+
+| prop    | type      | notes                                                               |
+| ------- | --------- | ------------------------------------------------------------------- |
+| `value` | `number`  | a **fraction 0–1**, not a percentage. Clamped; non-finite becomes 0 |
+| `label` | `string?` | accessible name                                                     |
+
+---
+
+## EmptyState
+
+The screen before anything has happened — which is the screen the user sees
+first, so write it as carefully as the populated one. Say what will appear
+here, in the domain's words, never in the app's mechanics.
+
+```js
+const { EmptyState } = primitives;
+
+html`<${EmptyState}
+  title="Nobody has signed up yet"
+  description="Tap a slot to put your name down."
+/>`;
+```
+
+| prop          | type      | notes        |
+| ------------- | --------- | ------------ |
+| `title`       | `string`  | required     |
+| `description` | `string?` | one sentence |
+
+---
+
+## SectionHeader
+
+A heading inside a card, above a group of rows.
+
+```js
+const { SectionHeader } = primitives;
+
+html`<${SectionHeader}>Turnout<//>`;
+```
+
+| prop     | type  | notes       |
+| -------- | ----- | ----------- |
+| children | nodes | short label |
+
+---
+
+## Chart
+
+The only chart path. Pass data and options; the primitive owns the
+container, the canvas, and the Chart.js instance across re-renders.
+
+```js
+const { Chart } = primitives;
+
+html`
+  <${Chart}
+    type="line"
+    size="compact"
+    label="Squat weight over time"
+    data=${{
+      labels: dates,
+      datasets: [{ label: "Squat", data: weights }],
+    }}
+    options=${{ scales: { y: { beginAtZero: false } } }}
+  />
+`;
+```
+
+| prop      | type                               | notes                                                                                                                                              |
+| --------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`    | `string`                           | the shell registers all standard Chart.js controllers: `'bar'`, `'line'`, `'doughnut'`, `'pie'`, `'radar'`, `'polarArea'`, `'bubble'`, `'scatter'` |
+| `data`    | `object`                           | Chart.js data. **Omit dataset colors** — datasets with neither `borderColor` nor `backgroundColor` are colored from the theme tokens               |
+| `options` | `object?`                          | Chart.js options **minus sizing**. `responsive` and `maintainAspectRatio` are applied after yours and cannot be overridden                         |
+| `size`    | `'compact' \| 'default' \| 'tall'` | named aspect-ratio shapes, not pixels                                                                                                              |
+| `label`   | `string?`                          | accessible name for the canvas                                                                                                                     |
+
+Rules:
+
+- **Never set `width`, `height`, `responsive`, or `maintainAspectRatio`, and
+  never create a `<canvas>` yourself.** Two early bundles hardcoded a pixel
+  canvas and overflowed every phone. The gate checks this behaviorally: it
+  renders your bundle, presses its controls, and reads `responsive: true`
+  off every **live chart instance** — not off the config it was built with,
+  so reassigning `chart.options` after a responsive construction is caught
+  too. It also rejects a `<canvas>` carrying `width`/`height` in the
+  rendered output, which in the gate's stand-in environment means your
+  bundle put them there (real Chart.js sets those itself).
+- **Do not use `surface.Chart` (the raw constructor).** Chart.js degrades
+  cleanly on _construction_ only: `chart.update()` with no 2D context
+  **throws**, and a throw inside render replaces your whole app with the
+  error box. The primitive guards it with a destroy-and-rebuild fallback;
+  your own code will not.
+- Animation is off by default (stable screenshots); you can re-enable it
+  through `options`, and generally shouldn't.
+- A shell built without the charting library renders a labeled empty state
+  instead of throwing, so a chart is always safe to include.
+- Look at the chart in the `phone-full` preview capture before you publish
+  (`RUBRIC.md` check 1). A chart is usually below the fold, so the 390×844
+  shot does not contain it — and a chart overflowing a phone is the bug
+  that motivated this primitive.
+
+---
+
+## Not in the kit
+
+`BrokenState` is the harness's own error view. It is not part of
+`primitives` and apps never render it — a throw in `render` produces it
+automatically.

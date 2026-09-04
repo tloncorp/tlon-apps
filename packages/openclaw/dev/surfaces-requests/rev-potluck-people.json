@@ -1,0 +1,45 @@
+{
+  "id": "rev-potluck-people",
+  "channel": "chat/~zod/dash-3xr2qr8q",
+  "note": "Render-only, derived. The board counts ITEMS (`3/8items claimed`) and never counts PEOPLE — three claims here are held by two members. Nothing on the screen says how many members have signed up. TARGETING CORRECTION (mid-run, after rev2 published to the wrong board): the first phrasing named the app but not the group, and ~zod holds a SECOND app of the same kind in ~zod/surface-seed. The bot inspected both and picked the other one. The preflight cannot catch that: it binds the SENTENCE to the record, and nothing binds the record's `channel` to the channel the bot goes on to choose. The sentence now names the group. The original phrasing is kept in `requestOriginal` so the change is visible rather than silently absorbed.",
+  "request": "in the Verdict run group's potluck signup, show how many people have signed up so far",
+  "behaviour": "the board states how many distinct members have claimed at least one item — a count of people, not of items",
+  "shape": "render-only",
+  "witness": {
+    "renderPatterns": [
+      "\\d+\\s*(people|members|folks)",
+      "(people|members|folks)\\s+(signed up|bringing|in|so far|helping|contributing)",
+      "(how many|number of)\\s+(people|members)",
+      "\\d+\\s*(of|/)\\s*\\d+\\s*(people|members)",
+      "signed up\\b",
+      "\\d+\\s*(are|have)\\s+(bringing|signed)"
+    ],
+    "renderPositive": "Add the first cost below.0people included",
+    "renderPositiveSource": "painted text of chat/~zod/dash-u3u2uvqn (the cabin weekend split this same run generated), cell phone-initial-light, read 2026-09-01 by dev/surfaces-render-probe.ts. A REAL render of an app that does count people — a different app, but a real one, which is better than an invented string.",
+    "renderNegatives": [
+      "What is everyone bringing?3/8items claimedTap a spot to put your name downMain dish~zodChange spotSide dishStill neededI’ll bring thisSaladStill neededI’ll bring thisDessert~tenChange spotDrinks~tenChange spotSnacksStill neededI’ll bring thisBreadStill neededI’ll bring thisPlates and napkinsStill neededI’ll bring thisBringing what~zod — Main dish~ten — Dessert~ten — DrinksStill needed5 items to go",
+      "What is everyone bringing?8/8items claimedTap a spot to put your name downMain dish~tenChange spotSide dish~palfun-foslupChange spotSalad~zodChange spotDessert~tenChange spotDrinks~palfun-foslupChange spotSnacks~zodChange spotBread~tenChange spotPlates and napkins~palfun-foslupChange spotBringing what~ten — Main dish~palfun-foslup — Side dish~zod — Salad~ten — Dessert~palfun-foslup — Drinks~zod — Snacks~ten — Bread~palfun-foslup — Plates and napkinsStill needed0 items to go",
+      "3/8items claimed",
+      "Still needed5 items to go",
+      "Bringing what~zod — Main dish~ten — Dessert~ten — Drinks"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-3xr2qr8q, verbatim, read 2026-09-01. `3/8items claimed` is the load-bearing near-miss: it is a fraction over a count, exactly the shape a lazy pattern would take for a people count, and it is counting items.",
+    "actionPatterns": [
+      "head-?count",
+      "roster",
+      "participants?",
+      "attendees?",
+      "people-?count",
+      "member-?count"
+    ],
+    "actionPositive": "count-people {\"ops\":[{\"op\":\"set\",\"path\":\"/roster/$actor\",\"value\":true}]}",
+    "actionPositiveSource": "HYPOTHETICAL — the count is derivable from `signups` and no app in the corpus stores a roster. Labelled as invented.",
+    "actionNegatives": [
+      "bring-main {\"ops\":[{\"op\":\"set\",\"path\":\"/signups/main\",\"value\":\"$actor\"}]}",
+      "bring-side {\"ops\":[{\"op\":\"set\",\"path\":\"/signups/side\",\"value\":\"$actor\"}]}",
+      "bring-plates {\"ops\":[{\"op\":\"set\",\"path\":\"/signups/plates\",\"value\":\"$actor\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from chat/~zod/dash-3xr2qr8q's own action map (tlon surface show, 2026-09-01). These are why the action patterns are narrow: an earlier draft used /signed?-?up/, which matches the `/signups/` path segment in every one of the eight bring-* actions and would have declared the request satisfied by the very actions that do not satisfy it."
+  },
+  "requestOriginal": "on the potluck signup, show how many people have signed up so far"
+}

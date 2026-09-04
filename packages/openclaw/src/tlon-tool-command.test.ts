@@ -221,6 +221,103 @@ describe('tlon tool execution', () => {
   });
 });
 
+describe('surface command group', () => {
+  function spawningExecutor() {
+    const runCommand = vi.fn(async () => 'cli output');
+    const execute = createTlonToolExecutor({
+      runCommand,
+      notifyDiaryMigrationDiscovery: vi.fn(async () => true),
+    });
+    return { runCommand, execute };
+  }
+
+  // Driven through the executor rather than the allowlist predicate: the
+  // predicate is a data structure, the executor is what the model hits. The
+  // assertion that matters is that the packaged CLI was actually spawned with
+  // the argv the model wrote — an allowlist entry that never reached
+  // `runCommand` would have unblocked nothing.
+  it.each([
+    ['doctrine', 'surface doctrine'],
+    ['primitives', 'surface primitives --json'],
+    ['rubric', 'surface rubric'],
+    ['templates', 'surface templates'],
+    ['create', 'surface create ~zod/quiet-launch "Potluck" --json'],
+    ['lint', 'surface lint ./app.js ./spec.json --json'],
+    ['preview', 'surface preview ./app.js ./spec.json --out ./shots'],
+    [
+      'publish',
+      'surface publish chat/~zod/dash-abc --bundle ./app.js --spec ./spec.json --json',
+    ],
+    ['event', 'surface event chat/~zod/dash-abc --set /title \'"Friday"\''],
+    ['state', 'surface state chat/~zod/dash-abc --json'],
+    ['snapshot', 'surface snapshot chat/~zod/dash-abc --json'],
+  ])('spawns the packaged CLI for surface %s', async (_name, command) => {
+    const { runCommand, execute } = spawningExecutor();
+
+    const result = await execute('surface-loop', { command });
+
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    expect(runCommand.mock.calls[0]?.[0]?.[0]).toBe('surface');
+    expect(result).toEqual({
+      content: [{ type: 'text', text: 'cli output' }],
+      details: undefined,
+    });
+  });
+
+  it('spawns the packaged CLI for surface after a credential prefix', async () => {
+    const { runCommand, execute } = spawningExecutor();
+
+    await execute('surface-prefixed', {
+      command:
+        '--config /tmp/owner.json surface publish chat/~zod/dash-abc --bundle ./app.js --spec ./spec.json',
+    });
+
+    expect(runCommand).toHaveBeenCalledTimes(1);
+    expect(runCommand.mock.calls[0]?.[0]).toEqual([
+      '--config',
+      '/tmp/owner.json',
+      'surface',
+      'publish',
+      'chat/~zod/dash-abc',
+      '--bundle',
+      './app.js',
+      '--spec',
+      './spec.json',
+    ]);
+  });
+
+  // The allowlist stays an exact-match allowlist. A prefix or case-insensitive
+  // relaxation would admit these three, so this is what keeps "add `surface`"
+  // from having quietly widened the gate to everything that starts with it.
+  it.each(['surfaces', 'surface-publish', 'Surface'])(
+    'refuses %s without spawning anything',
+    async (subcommand) => {
+      const { runCommand, execute } = spawningExecutor();
+
+      const result = await execute('surface-lookalike', {
+        command: `${subcommand} publish chat/~zod/dash-abc`,
+      });
+
+      expect(runCommand).not.toHaveBeenCalled();
+      expect(result.details).toMatchObject({ status: 'error' });
+      expect(result.content[0]?.text).toContain(
+        `Unknown tlon subcommand '${subcommand}'`
+      );
+    }
+  );
+
+  it('is claimed by none of the diary, migration, or send guards', () => {
+    for (const args of [
+      ['surface', 'create', '~zod/quiet-launch', 'Potluck'],
+      ['surface', 'publish', 'chat/~zod/dash-abc', '--bundle', './app.js'],
+      ['surface', 'event', 'chat/~zod/dash-abc', '--set', '/title', '"Friday"'],
+      ['surface', 'snapshot', 'chat/~zod/dash-abc'],
+    ]) {
+      expect(checkBlockedTlonOperation(args)).toBeNull();
+    }
+  });
+});
+
 describe('checkBlockedTlonOperation', () => {
   it('blocks migration writes after a separate --config prefix', () => {
     expect(
@@ -927,5 +1024,63 @@ describe('tlon tool telemetry summarizer', () => {
       summaryKey,
       intent,
     });
+  });
+
+  // Same hazard as the migration operations above, one command group over.
+  // Without explicit cases every surface command summarizes as `surface.list`
+  // with intent `utility`, so the write that plants the code clients execute
+  // is indistinguishable in telemetry from printing the doctrine.
+  it.each([
+    ['surface doctrine', 'surface.doctrine', 'utility'],
+    ['surface primitives', 'surface.primitives', 'utility'],
+    ['surface rubric', 'surface.rubric', 'utility'],
+    ['surface templates', 'surface.templates', 'utility'],
+    ['surface lint ./app.js ./spec.json', 'surface.lint', 'utility'],
+    ['surface preview ./app.js ./spec.json', 'surface.preview', 'utility'],
+    ['surface state chat/~zod/dash-abc', 'surface.state', 'read'],
+    ['surface create ~zod/quiet-launch Potluck', 'surface.create', 'write'],
+    ['surface event chat/~zod/dash-abc --del /today', 'surface.event', 'write'],
+    ['surface snapshot chat/~zod/dash-abc', 'surface.snapshot', 'write'],
+    [
+      'surface publish chat/~zod/dash-abc --bundle ./app.js --spec ./spec.json',
+      'surface.publish',
+      'admin',
+    ],
+  ])('classifies %s by intent', (command, summaryKey, intent) => {
+    expect(summarizeTlonCommand(command)).toMatchObject({
+      subcommand: 'surface',
+      summaryKey,
+      intent,
+      isKnownSubcommand: true,
+    });
+  });
+
+  it('normalizes an unknown surface operation without leaking its argument', () => {
+    const summary = summarizeTlonCommand('surface fork "Launch Planning"');
+
+    expect(summary).toMatchObject({
+      summaryKey: 'surface.invalid',
+      subcommand: 'surface',
+      operation: 'invalid',
+      intent: 'utility',
+      isKnownSubcommand: true,
+    });
+    expect(JSON.stringify(summary)).not.toContain('Launch Planning');
+  });
+
+  it('summarizes a publish without leaking the channel, bundle, or spec', () => {
+    const summary = summarizeTlonCommand(
+      'surface publish chat/~zod/quiet-launch --bundle ./private/app.js --spec ./private/spec.json'
+    );
+
+    expect(summary).toMatchObject({
+      summaryKey: 'surface.publish',
+      intent: 'admin',
+    });
+
+    const serialized = JSON.stringify(summary);
+    expect(serialized).not.toContain('chat/~zod/quiet-launch');
+    expect(serialized).not.toContain('./private/app.js');
+    expect(serialized).not.toContain('./private/spec.json');
   });
 });

@@ -1,0 +1,10 @@
+{
+  "id": "workout-5x5-lifts",
+  "request": "i want somewhere to log my 5x5 lifts so the group can see i'm actually doing them",
+  "origin": "authored-6b",
+  "expect": {
+    "routes": true,
+    "template": "workout-tracker",
+    "why": "The template is literally StrongLifts 5×5. The near-verbatim case is deliberate: if the loop cannot match its own template on the sentence the template was written for, template selection is the problem and not adaptation."
+  }
+}

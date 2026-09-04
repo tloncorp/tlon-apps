@@ -51,7 +51,12 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  SURFACE_CHANNEL_CONFIG_LIKE_PATTERN,
+  appendContactIdToReplies,
+  getCompositeGroups,
+  isSurfaceChannel,
+} from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -95,6 +100,7 @@ import {
   postReactions as $postReactions,
   posts as $posts,
   settings as $settings,
+  surfaceBundles as $surfaceBundles,
   systemContactSentInvites as $systemContactSentInvites,
   systemContacts as $systemContacts,
   threadUnreads as $threadUnreads,
@@ -142,6 +148,16 @@ import {
 import { ObservableField, notifyWriteObservers } from './writeObservers';
 
 const logger = createDevLogger('queries', false);
+
+/**
+ * SQL-side arm of the §8 exclusion (see `isSurfaceChannel`): true for rows
+ * that are NOT surface channels. Matches the JSON text config column as a
+ * substring; a missing channel row (outer join) or missing config counts as
+ * non-surface, so events without a channel (contact, group-level) pass.
+ */
+function notSurfaceChannel(channelsTable: typeof $channels = $channels) {
+  return sql`(${channelsTable.contentConfiguration} IS NULL OR ${channelsTable.contentConfiguration} NOT LIKE ${SURFACE_CHANNEL_CONFIG_LIKE_PATTERN})`;
+}
 
 const GROUP_META_COLUMNS = {
   id: true,
@@ -1447,6 +1463,40 @@ export const getChats = createReadQuery(
       },
     });
 
+    // §8: surface channels never badge. Their own unread rows zero out
+    // here; group counts are backend-precomputed sums over all child
+    // channels (the client can't change what the backend counts), so the
+    // surface contribution is subtracted at read time instead, floored at
+    // zero. The group-level `notify` flag stays backend-authored: we can't
+    // tell whether a surface channel was its sole cause.
+    const surfaceUnreadByGroup = new Map<string, number>();
+    for (const c of channels) {
+      if (!isSurfaceChannel(c) || !c.unread) {
+        continue;
+      }
+      if (c.groupId) {
+        surfaceUnreadByGroup.set(
+          c.groupId,
+          (surfaceUnreadByGroup.get(c.groupId) ?? 0) + (c.unread.count ?? 0)
+        );
+      }
+      c.unread = {
+        ...c.unread,
+        count: 0,
+        countWithoutThreads: 0,
+        notify: false,
+      };
+    }
+    for (const g of groups) {
+      const surfaceCount = surfaceUnreadByGroup.get(g.id) ?? 0;
+      if (g.unread && surfaceCount > 0) {
+        g.unread = {
+          ...g.unread,
+          count: Math.max(0, (g.unread.count ?? 0) - surfaceCount),
+        };
+      }
+    }
+
     const groupChats: Chat[] = groups.map((g) => {
       // Temporary client-side workaround for TLON-6417. Group activity
       // recency includes membership and other events that should not reorder
@@ -1560,6 +1610,39 @@ export const insertMembers = createWriteQuery(
   ['groups', 'chatMembers']
 );
 
+/**
+ * Channel columns a full `%groups` payload must NOT write when it updates an
+ * existing row. Everything else in `channels` is refreshed from the payload;
+ * see the comment at the `onConflictDoUpdate` in `insertGroups` for how a
+ * column earns a place here, and `insertGroupsChannelColumns.test.ts` for the
+ * assertion that every column is classified one way or the other.
+ *
+ * Exported for that test only.
+ */
+export const channelConflictExclusions = [
+  // Client-local state %groups has no view of
+  'lastViewedAt',
+  'syncedAt',
+  'remoteUpdatedAt',
+  'order',
+  'postCount',
+  'unreadCount',
+  'firstUnreadPostId',
+  'lastPostId',
+  'lastPostAt',
+  'lastPostSequenceNum',
+  // DM/contact bookkeeping; group channels never carry these
+  'contactId',
+  'isDmInvite',
+  'isNewMatchedContact',
+  'isPendingChannel',
+  // Owned by `reconcileJoinedGroupChannels`, not by a group payload
+  'currentUserIsMember',
+  // Present on the wire but dropped by `toClientChannel`, so writing it from
+  // the payload would null it rather than refresh it
+  'addedToGroupAt',
+] as const;
+
 export const insertGroups = createWriteQuery(
   'insertGroups',
   async (
@@ -1615,23 +1698,54 @@ export const insertGroups = createWriteQuery(
             }))
           );
 
-          // First insert/update the channels
+          // First insert/update the channels.
+          //
+          // This is the only write that carries channel metadata on a boot or
+          // a full group sync, so whatever it leaves out of its
+          // conflict-update set is pinned on an existing row forever. It used
+          // to hand-list the columns to update, which made "pinned" the
+          // default for anything nobody remembered to add — that is how
+          // `descriptionPayload`/`surfaceSpec` (D56) and then
+          // `iconImageColor`/`coverImageColor` (D76) each ended up frozen at
+          // their creation-time values. The set is now derived from the
+          // schema, so a new column is refreshed unless it is deliberately
+          // named below, and `channelConflictExclusions` is pinned by a test
+          // against `getTableColumns($channels)` so adding a column without
+          // classifying it fails loudly.
+          //
+          // The exclusion list is NOT `insertChannelsInternal`'s. Two things
+          // put a column on it, and only one of them is "some other writer
+          // owns this":
+          //
+          //  1. Client-local state %groups knows nothing about — read
+          //     position, unread counts, last-post pointers, DM bookkeeping.
+          //     Refreshing those from a group payload would clobber them.
+          //  2. Columns the group payload does not actually carry.
+          //     `toClientChannel` never populates `addedToGroupAt` (the
+          //     wire's `added` is dropped), and drizzle emits a literal
+          //     `null` for any column absent from the insert values — so
+          //     naming such a column does not refresh it, it erases it. The
+          //     old hand-list named `addedToGroupAt` and `isPendingChannel`
+          //     and was quietly nulling both on every sync.
+          //
+          // `currentUserIsMember` is excluded for a third, sharper reason:
+          // `reconcileJoinedGroupChannels` is the documented single source of
+          // truth for it, and `agentGroupOnboarding` relies on this write not
+          // touching it.
+          //
+          // What stays in: everything derived from the channel's `meta` cell
+          // — title, description, icon/cover (image and colour alike), the
+          // verbatim `descriptionPayload` and the `surfaceSpec` inside it —
+          // plus `type`, `groupId` and `currentUserIsHost`, which %groups
+          // defines. The description cell is authoritative (plan §3) and its
+          // CONTENT is the change signal, so a republish that reuses
+          // `specRevision` has to land exactly like one that bumps it.
           await txCtx.db
             .insert($channels)
             .values(group.channels)
             .onConflictDoUpdate({
               target: [$channels.id],
-              set: conflictUpdateSet(
-                $channels.iconImage,
-                $channels.coverImage,
-                $channels.title,
-                $channels.description,
-                $channels.addedToGroupAt,
-                $channels.type,
-                $channels.isPendingChannel,
-                $channels.contentConfiguration,
-                $channels.currentUserIsHost
-              ),
+              set: conflictUpdateSetAll($channels, channelConflictExclusions),
             });
 
           const channels = await txCtx.db.query.channels.findMany({
@@ -1994,6 +2108,111 @@ export const getRecentContextLensRuns = createReadQuery(
     });
   },
   ['contextLensRuns']
+);
+
+export const getSurfaceBundle = createReadQuery(
+  'getSurfaceBundle',
+  async ({ sha256 }: { sha256: string }, ctx: QueryCtx) => {
+    const row = await ctx.db.query.surfaceBundles.findFirst({
+      where: eq($surfaceBundles.sha256, sha256),
+    });
+    return row ?? null;
+  },
+  ['surfaceBundles']
+);
+
+export const touchSurfaceBundle = createWriteQuery(
+  'touchSurfaceBundle',
+  async ({ sha256, at }: { sha256: string; at: number }, ctx: QueryCtx) => {
+    await ctx.db
+      .update($surfaceBundles)
+      .set({ lastAccessedAt: at })
+      .where(eq($surfaceBundles.sha256, sha256));
+  },
+  // access-time bumps never change what readers would see
+  []
+);
+
+export const insertSurfaceBundle = createWriteQuery(
+  'insertSurfaceBundle',
+  async (
+    {
+      sha256,
+      content,
+      byteLength,
+      at,
+      maxTotalBytes,
+    }: {
+      sha256: string;
+      content: string;
+      byteLength: number;
+      at: number;
+      maxTotalBytes: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db
+        .insert($surfaceBundles)
+        .values({
+          sha256,
+          content,
+          byteLength,
+          cachedAt: at,
+          lastAccessedAt: at,
+        })
+        .onConflictDoUpdate({
+          target: $surfaceBundles.sha256,
+          set: { content, byteLength, lastAccessedAt: at },
+        });
+
+      // LRU eviction under the byte budget. The just-written row has the
+      // newest lastAccessedAt, so it is walked first and never evicted
+      // (single bundles are capped far below any sane budget).
+      const rows = await txCtx.db
+        .select({
+          sha256: $surfaceBundles.sha256,
+          byteLength: $surfaceBundles.byteLength,
+        })
+        .from($surfaceBundles)
+        .orderBy(desc($surfaceBundles.lastAccessedAt), $surfaceBundles.sha256);
+      let total = 0;
+      const evict: string[] = [];
+      for (const row of rows) {
+        total += row.byteLength;
+        if (total > maxTotalBytes && row.sha256 !== sha256) {
+          evict.push(row.sha256);
+        }
+      }
+      if (evict.length > 0) {
+        await txCtx.db
+          .delete($surfaceBundles)
+          .where(inArray($surfaceBundles.sha256, evict));
+      }
+    });
+  },
+  ['surfaceBundles']
+);
+
+export const deleteSurfaceBundle = createWriteQuery(
+  'deleteSurfaceBundle',
+  async ({ sha256 }: { sha256: string }, ctx: QueryCtx) => {
+    await ctx.db
+      .delete($surfaceBundles)
+      .where(eq($surfaceBundles.sha256, sha256));
+  },
+  ['surfaceBundles']
+);
+
+export const getSurfaceBundleCacheTotalBytes = createReadQuery(
+  'getSurfaceBundleCacheTotalBytes',
+  async (ctx: QueryCtx) => {
+    const rows = await ctx.db
+      .select({ byteLength: $surfaceBundles.byteLength })
+      .from($surfaceBundles);
+    return rows.reduce((sum, row) => sum + row.byteLength, 0);
+  },
+  ['surfaceBundles']
 );
 
 export const getContextLensBotShips = createReadQuery(
@@ -2535,10 +2754,18 @@ export const removeChatMembers = createWriteQuery(
 export const getNotifyingUnreadSourceCount = createReadQuery(
   'getNotifyingUnreadSourceCount',
   async (ctx: QueryCtx) => {
+    // §8: surface channels don't count toward the notifying-source badge.
+    // Left joins keep unread rows whose channel row hasn't synced yet (a
+    // missing config reads as non-surface). The group arm stays as the
+    // backend computed it: a group's notify flag doesn't say which child
+    // caused it, so a group whose only notifying child is a surface channel
+    // still counts here — accepted §8 boundary, server-side kind-aware
+    // activity is the v1 fix.
     const channelCountResult = await ctx.db
       .select({ count: count() })
       .from($channelUnreads)
-      .where(eq($channelUnreads.notify, true));
+      .leftJoin($channels, eq($channelUnreads.channelId, $channels.id))
+      .where(and(eq($channelUnreads.notify, true), notSurfaceChannel()));
 
     const groupCountResult = await ctx.db
       .select({ count: count() })
@@ -2547,7 +2774,8 @@ export const getNotifyingUnreadSourceCount = createReadQuery(
     const threadCountResult = await ctx.db
       .select({ count: count() })
       .from($threadUnreads)
-      .where(eq($threadUnreads.notify, true));
+      .leftJoin($channels, eq($threadUnreads.channelId, $channels.id))
+      .where(and(eq($threadUnreads.notify, true), notSurfaceChannel()));
 
     // Each query returns one aggregate row; sum the row counts.
     return (
@@ -2556,7 +2784,7 @@ export const getNotifyingUnreadSourceCount = createReadQuery(
       (threadCountResult[0]?.count ?? 0)
     );
   },
-  ['channelUnreads', 'groupUnreads', 'threadUnreads']
+  ['channelUnreads', 'groupUnreads', 'threadUnreads', 'channels']
 );
 
 function threadUnreadActivityPredicate() {
@@ -3484,6 +3712,35 @@ export type GetSequencedPostsOptions = {
   count?: number;
   mode: 'newest' | 'older' | 'newer' | 'around';
   cursorSequenceNum?: number;
+  /**
+   * The id half of the page cursor (D187).
+   *
+   * Named `cursorTiePostId`, not `cursorPostId`, because `useChannelPosts`
+   * already uses THAT name for something else entirely — an unread-marker
+   * cursor naming the post to open at, which `normalizeCursor` resolves to a
+   * sequence number and then CLEARS. One field name carrying two meanings is
+   * how a caller ends up believing it passed a tie-break key when it passed a
+   * marker (D200).
+   *
+   * `sequenceNum` alone is not a total order: there is no unique index on
+   * `(channelId, sequenceNum)`, so two posts can share one. Paging on the
+   * sequence number alone then drops a row permanently — the first of a tied
+   * pair is returned, the second is read as a gap, and the next page's
+   * `< sequenceNum` cursor excludes it forever. The reducer's tie-break
+   * (D174) never sees both rows, and two clients holding the same posts fold
+   * different state.
+   *
+   * So the cursor is the pair `(sequenceNum, id)` and the ordering is the
+   * same pair. Any total order works here — this one is SQL's byte order on
+   * the id, which is NOT the reducer's canonical order and does not need to
+   * be. Its only job is to enumerate every row exactly once; deciding which
+   * tied row wins is the reducer's, on the complete set this delivers.
+   *
+   * Absent — or null, which is how `useChannelPosts` spells "resolved to a
+   * sequence number, no id cursor needed" — paging behaves as it did before:
+   * a bare `sequenceNum` cursor.
+   */
+  cursorTiePostId?: string | null;
 };
 
 const seqLogger = createDevLogger('seqPosts', false);
@@ -3533,16 +3790,33 @@ export const getLatestChannelSequenceNums = createReadQuery(
   ['channels']
 );
 
+/**
+ * Raise the channel's advertised-head watermark to a server-reported
+ * `newestSequenceNum`.
+ *
+ * The raise is an atomic SQL maximum, not a read-modify-write, because
+ * nothing serializes these writes by channel: the sync queue runs several
+ * requests concurrently, so a request that observed head 50 can complete
+ * after one that observed head 100. An unconditional set would let the
+ * watermark move BACKWARD, and a watermark below the true head is worse than
+ * a stale one — `hydrateSurface` reads it as proof that the loaded window is
+ * complete and presents a truncated fold as current state (plan §6).
+ *
+ * Same CASE shape as `setLastPostsMonotonic`, which guards the same column
+ * against local inserts. Every caller here writes a server head, so none
+ * needs to lower it; a deliberate reset goes through `updateChannel`.
+ */
 export const setLatestChannelSequenceNum = createWriteQuery(
   'setLatestChannelSequenceNum',
   async (
     options: { channelId: string; sequenceNum: number },
     ctx: QueryCtx
   ) => {
+    const newSeq = options.sequenceNum;
     await ctx.db
       .update($channels)
       .set({
-        lastPostSequenceNum: options.sequenceNum,
+        lastPostSequenceNum: sql`CASE WHEN ${$channels.lastPostSequenceNum} IS NULL OR ${newSeq} > ${$channels.lastPostSequenceNum} THEN ${newSeq} ELSE ${$channels.lastPostSequenceNum} END`,
       })
       .where(eq($channels.id, options.channelId));
   },
@@ -3597,7 +3871,7 @@ export const getSequencedChannelPosts = createReadQuery(
         with: {
           reactions: true,
         },
-        orderBy: [desc($posts.sequenceNum)],
+        orderBy: [desc($posts.sequenceNum), desc($posts.id)],
         limit: count,
       });
       seqLogger.log(`grabbed newest ${dbPosts.length} db posts`, dbPosts);
@@ -3614,6 +3888,13 @@ export const getSequencedChannelPosts = createReadQuery(
       seqLogger.log(`newest post is ${seq}`);
       for (let i = 1; i < dbPosts.length; i++) {
         const post = dbPosts[i];
+        // A repeated sequence number is another row on the SAME rung, not a
+        // gap (D187). Reading it as a gap is what silently discarded one of a
+        // tied pair before the reducer could break the tie.
+        if (post.sequenceNum === seq) {
+          newestContiguousPosts.push(post);
+          continue;
+        }
         // If the sequence number is not continuous, we stop.
         if (post.sequenceNum !== seq - 1) {
           break;
@@ -3632,17 +3913,29 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: older
     if (options.mode === 'older' && options.cursorSequenceNum) {
+      const olderCursorId = options.cursorTiePostId ?? undefined;
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          lt($posts.sequenceNum, options.cursorSequenceNum),
+          // The tuple cursor: strictly below the cursor's rung, or on it and
+          // strictly below the cursor's id. A bare `<` on the sequence number
+          // steps over a tied sibling the previous page's `limit` cut off.
+          olderCursorId === undefined
+            ? lt($posts.sequenceNum, options.cursorSequenceNum)
+            : or(
+                lt($posts.sequenceNum, options.cursorSequenceNum),
+                and(
+                  eq($posts.sequenceNum, options.cursorSequenceNum),
+                  lt($posts.id, olderCursorId)
+                )
+              ),
           isNull($posts.deliveryStatus)
         ),
         with: {
           reactions: true,
         },
-        orderBy: [desc($posts.sequenceNum)],
+        orderBy: [desc($posts.sequenceNum), desc($posts.id)],
         limit: count,
       });
       seqLogger.log(
@@ -3657,7 +3950,12 @@ export const getSequencedChannelPosts = createReadQuery(
       const contiguousOlderPosts: Post[] = [];
       const firstPost = dbPosts[0];
 
-      if (firstPost.sequenceNum !== options.cursorSequenceNum - 1) {
+      // Two rungs are contiguous with the cursor: the cursor's own, when a
+      // tied sibling remains below it, and the one immediately beneath.
+      if (
+        firstPost.sequenceNum !== options.cursorSequenceNum &&
+        firstPost.sequenceNum !== options.cursorSequenceNum - 1
+      ) {
         seqLogger.log('do not have next oldest post locally', {
           needed: options.cursorSequenceNum - 1,
           found: firstPost.sequenceNum,
@@ -3671,6 +3969,11 @@ export const getSequencedChannelPosts = createReadQuery(
       seqLogger.log(`next post is ${seq}`);
       for (let i = 1; i < dbPosts.length; i++) {
         const post = dbPosts[i];
+        // Same rung, not a gap (D187).
+        if (post.sequenceNum === seq) {
+          contiguousOlderPosts.push(post);
+          continue;
+        }
         // If the sequence number is not continuous, we stop.
         if (post.sequenceNum !== seq - 1) {
           break;
@@ -3689,17 +3992,27 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: newer
     if (options.mode === 'newer' && options.cursorSequenceNum) {
+      const newerCursorId = options.cursorTiePostId ?? undefined;
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          gt($posts.sequenceNum, options.cursorSequenceNum),
+          // The tuple cursor, ascending (D187).
+          newerCursorId === undefined
+            ? gt($posts.sequenceNum, options.cursorSequenceNum)
+            : or(
+                gt($posts.sequenceNum, options.cursorSequenceNum),
+                and(
+                  eq($posts.sequenceNum, options.cursorSequenceNum),
+                  gt($posts.id, newerCursorId)
+                )
+              ),
           isNull($posts.deliveryStatus)
         ),
         with: {
           reactions: true,
         },
-        orderBy: [asc($posts.sequenceNum)],
+        orderBy: [asc($posts.sequenceNum), asc($posts.id)],
         limit: count,
       });
       seqLogger.log(
@@ -3714,7 +4027,11 @@ export const getSequencedChannelPosts = createReadQuery(
       const contiguousNewerPosts: Post[] = [];
       const firstPost = dbPosts[0];
 
-      if (firstPost.sequenceNum !== options.cursorSequenceNum + 1) {
+      // The cursor's own rung (a tied sibling above it) or the next one up.
+      if (
+        firstPost.sequenceNum !== options.cursorSequenceNum &&
+        firstPost.sequenceNum !== options.cursorSequenceNum + 1
+      ) {
         seqLogger.log('do not have next newest post locally', {
           needed: options.cursorSequenceNum + 1,
           found: firstPost.sequenceNum,
@@ -3728,6 +4045,11 @@ export const getSequencedChannelPosts = createReadQuery(
       seqLogger.log(`next post is ${seq}`);
       for (let i = 1; i < dbPosts.length; i++) {
         const post = dbPosts[i];
+        // Same rung, not a gap (D187).
+        if (post.sequenceNum === seq) {
+          contiguousNewerPosts.unshift(post);
+          continue;
+        }
         // If the sequence number is not continuous, we stop.
         if (post.sequenceNum !== seq + 1) {
           break;
@@ -3761,7 +4083,14 @@ export const getSequencedChannelPosts = createReadQuery(
         with: {
           reactions: true,
         },
-        orderBy: [desc($posts.sequenceNum)],
+        // Deterministic, so the same database returns the same window twice.
+        // The tie-RETENTION the other three modes gained in D187 is not here:
+        // this mode indexes a single cursor row out of the result and slices
+        // around it, so retaining a tie changes the window arithmetic. It is
+        // the chat scroller's jump-to path, not the surface fold's, and the
+        // residual is recorded in D187 rather than fixed in a correctness
+        // round that has no control for the scroller.
+        orderBy: [desc($posts.sequenceNum), desc($posts.id)],
       });
       seqLogger.log(
         `grabbed ${dbPosts.length} db posts around ${options.cursorSequenceNum}`,
@@ -6115,93 +6444,108 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
     // note events carry their per-note unread as a thread row keyed by the
     // note id (postId), not parentId, so they need their own join
     const $noteThreadUnreads = alias($threadUnreads, 'noteThreadUnreads');
-    return ctx.db
-      .select()
-      .from($activityEvents)
-      .leftJoin(
-        $channelUnreads,
-        eq($activityEvents.channelId, $channelUnreads.channelId)
-      )
-      .leftJoin(
-        $threadUnreads,
-        eq($threadUnreads.threadId, $activityEvents.parentId)
-      )
-      .leftJoin(
-        $noteThreadUnreads,
-        and(
-          eq($noteThreadUnreads.channelId, $activityEvents.channelId),
-          eq($noteThreadUnreads.threadId, $activityEvents.postId)
+    return (
+      ctx.db
+        .select()
+        .from($activityEvents)
+        .leftJoin(
+          $channelUnreads,
+          eq($activityEvents.channelId, $channelUnreads.channelId)
         )
-      )
-      .leftJoin(
-        $groupUnreads,
-        eq($activityEvents.groupId, $groupUnreads.groupId)
-      )
-      .where(
-        and(
-          gt($activityEvents.timestamp, seenMarker),
-          or(
-            eq($activityEvents.type, 'contact'),
-            and(
-              eq($activityEvents.shouldNotify, true),
-              or(
-                and(
-                  eq($activityEvents.type, 'reply'),
-                  gt($threadUnreads.count, 0)
-                ),
-                and(
-                  eq($activityEvents.type, 'post'),
-                  gt($channelUnreads.count, 0)
-                ),
-                and(
-                  or(
-                    eq($activityEvents.type, 'note-create'),
-                    eq($activityEvents.type, 'note-edit')
+        .leftJoin(
+          $threadUnreads,
+          eq($threadUnreads.threadId, $activityEvents.parentId)
+        )
+        .leftJoin(
+          $noteThreadUnreads,
+          and(
+            eq($noteThreadUnreads.channelId, $activityEvents.channelId),
+            eq($noteThreadUnreads.threadId, $activityEvents.postId)
+          )
+        )
+        .leftJoin(
+          $groupUnreads,
+          eq($activityEvents.groupId, $groupUnreads.groupId)
+        )
+        // §8: events from surface channels never surface as unseen activity;
+        // events with no channel (contact, group-level) pass through
+        .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
+        .where(
+          and(
+            gt($activityEvents.timestamp, seenMarker),
+            notSurfaceChannel(),
+            or(
+              eq($activityEvents.type, 'contact'),
+              and(
+                eq($activityEvents.shouldNotify, true),
+                or(
+                  and(
+                    eq($activityEvents.type, 'reply'),
+                    gt($threadUnreads.count, 0)
                   ),
-                  gt($noteThreadUnreads.count, 0)
-                ),
-                // reacts don't bump an unread count (unreads=|), so gate on the
-                // source's notify flag instead: a notified react lights the bell
-                // and clears once the source is read (notify -> false), mirroring
-                // how posts clear via channelUnreads.count. reply reacts carry the
-                // notify bit on the thread, top-level reacts on the channel/dm.
-                and(
-                  eq($activityEvents.type, 'react'),
-                  or(
-                    eq($channelUnreads.notify, true),
-                    eq($threadUnreads.notify, true)
-                  )
-                ),
-                and(
-                  gt($groupUnreads.notifyCount, 0),
-                  or(
-                    eq($activityEvents.type, 'group-ask'),
-                    eq($activityEvents.type, 'flag-post'),
-                    eq($activityEvents.type, 'flag-reply')
+                  and(
+                    eq($activityEvents.type, 'post'),
+                    gt($channelUnreads.count, 0)
+                  ),
+                  and(
+                    or(
+                      eq($activityEvents.type, 'note-create'),
+                      eq($activityEvents.type, 'note-edit')
+                    ),
+                    gt($noteThreadUnreads.count, 0)
+                  ),
+                  // reacts don't bump an unread count (unreads=|), so gate on the
+                  // source's notify flag instead: a notified react lights the bell
+                  // and clears once the source is read (notify -> false), mirroring
+                  // how posts clear via channelUnreads.count. reply reacts carry the
+                  // notify bit on the thread, top-level reacts on the channel/dm.
+                  and(
+                    eq($activityEvents.type, 'react'),
+                    or(
+                      eq($channelUnreads.notify, true),
+                      eq($threadUnreads.notify, true)
+                    )
+                  ),
+                  and(
+                    gt($groupUnreads.notifyCount, 0),
+                    or(
+                      eq($activityEvents.type, 'group-ask'),
+                      eq($activityEvents.type, 'flag-post'),
+                      eq($activityEvents.type, 'flag-reply')
+                    )
                   )
                 )
               )
             )
           )
         )
-      );
+    );
   },
   // the predicate reads all three unread tables, so clearing an unread
   // (e.g. reading a note) must re-run this even when no activity event
-  // row changed
-  ['activityEvents', 'channelUnreads', 'threadUnreads', 'groupUnreads']
+  // row changed; channels feed the §8 surface exclusion
+  [
+    'activityEvents',
+    'channelUnreads',
+    'threadUnreads',
+    'groupUnreads',
+    'channels',
+  ]
 );
 
 export const checkActivityEmpty = createReadQuery(
   'checkActivityEmpty',
   async (ctx: QueryCtx) => {
+    // §8: an activity feed holding only surface-channel events is empty
     const countResult = await ctx.db
       .select({ count: count() })
-      .from($activityEvents);
+      .from($activityEvents)
+      .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
+      .where(notSurfaceChannel());
     const countValue = countResult[0]?.count ?? 0;
     return countValue === 0;
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export type BucketedActivity = {
@@ -6243,9 +6587,12 @@ export const getMentionEvents = createReadQuery(
       },
       limit: !stopCursor ? ACTIVITY_SOURCE_PAGESIZE : undefined,
     });
-    return events;
+    // §8: mentions inside surface channels never reach the activity feed.
+    // Filtered after the fetch (the relational API can't filter on a
+    // relation's column), so a page may come back shorter than the limit.
+    return events.filter((event) => !isSurfaceChannel(event.channel));
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export const getBucketedMentionsPage = async ({
@@ -6301,9 +6648,14 @@ export const getAllOrRepliesPage = createReadQuery(
       const sources = ctx.db
         .selectDistinct({ sourceId: $activityEvents.sourceId })
         .from($activityEvents)
+        // §8: surface-channel sources never enter the activity feed; the
+        // downstream event queries join against these sources, so
+        // excluding them here excludes their events too
+        .leftJoin($channels, eq($activityEvents.channelId, $channels.id))
         .where(
           and(
             eq($activityEvents.bucketId, bucket),
+            notSurfaceChannel(),
             or(
               eq($activityEvents.shouldNotify, true),
               eq($activityEvents.type, 'contact')
@@ -6420,7 +6772,7 @@ export const getAllOrRepliesPage = createReadQuery(
       return [];
     }
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export const getBucketedActivity = createReadQuery(
@@ -6470,9 +6822,18 @@ export const getBucketedActivity = createReadQuery(
       threadsQuery,
       mentionsQuery,
     ]);
-    return { all, threads, mentions };
+    // §8: surface-channel events are excluded from every bucket; filtered
+    // after the fetch (the relational API can't filter on a relation's
+    // column). Events with no channel (contact, group-level) stay.
+    const excludeSurface = (events: ActivityEvent[]) =>
+      events.filter((event) => !isSurfaceChannel(event.channel));
+    return {
+      all: excludeSurface(all),
+      threads: excludeSurface(threads),
+      mentions: excludeSurface(mentions),
+    };
   },
-  ['activityEvents']
+  ['activityEvents', 'channels']
 );
 
 export const insertPinnedItems = createWriteQuery(
@@ -6703,7 +7064,7 @@ function allQueryColumns<T extends Subquery>(
   return subquery._.selectedFields;
 }
 
-function conflictUpdateSetAll(table: Table, exclude?: string[]) {
+function conflictUpdateSetAll(table: Table, exclude?: readonly string[]) {
   const columns = getTableColumns(table);
   return conflictUpdateSet(
     ...Object.entries(columns)

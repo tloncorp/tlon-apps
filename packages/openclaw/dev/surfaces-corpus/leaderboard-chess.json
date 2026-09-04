@@ -1,0 +1,12 @@
+{
+  "id": "leaderboard-chess",
+  "request": "leaderboard for our chess games",
+  "origin": "session-6a",
+  "originNote": "session 6a generation phase, one of the eight (surface-channels-session6a-prompt.md:39) — sentence verbatim",
+  "expect": {
+    "routes": true,
+    "template": "leaderboard",
+    "why": "Published in 6a, and the app that shipped `0.5` for a draw against the integers-only rule — a doctrine violation the gate does not enforce. Whether that recurs is one of the things this corpus is for."
+  },
+  "notes": "The 0.5-for-a-draw defect is invisible to every automated axis here. It is a screenshot-rubric and NOTES-review finding, and it is the standing example of why the rubric slot is not optional."
+}

@@ -425,6 +425,48 @@ class TlonToolGuardTests(unittest.TestCase):
             'skill_view("tlon-platform:tlon")', missing.platform["platform_hint"]
         )
 
+    def test_platform_hint_advertises_surfaces_only_when_registered(self):
+        # Hermes plugin skills never enter the system prompt's skill index, so
+        # the hint is the only thing that tells the model this skill exists —
+        # and an older tlon-skill install ships no surfaces directory, so the
+        # hint has to track the registration the same way the guide's does.
+        class RecordingContext:
+            def __init__(self):
+                self.platform = None
+                self.skills: list[str] = []
+
+            def register_hook(self, *_args):
+                pass
+
+            def register_tool(self, **_kwargs):
+                pass
+
+            def register_skill(self, name, *_args, **_kwargs):
+                self.skills.append(name)
+
+            def register_platform(self, **kwargs):
+                self.platform = kwargs
+
+        marker = 'skill_view("tlon-platform:surfaces")'
+
+        found = RecordingContext()
+        with patch.object(
+            adapter_mod,
+            "resolve_tlon_surfaces_skill_path",
+            return_value=Path("/pkg/skills/surfaces/SKILL.md"),
+        ):
+            adapter_mod.register(found)
+        self.assertIn("surfaces", found.skills)
+        self.assertIn(marker, found.platform["platform_hint"])
+
+        missing = RecordingContext()
+        with patch.object(
+            adapter_mod, "resolve_tlon_surfaces_skill_path", return_value=None
+        ):
+            adapter_mod.register(missing)
+        self.assertNotIn("surfaces", missing.skills)
+        self.assertNotIn(marker, missing.platform["platform_hint"])
+
     def test_tool_description_includes_latex_guidance(self):
         description = tlon_tool.TLON_TOOL_DESCRIPTION
 
@@ -1643,6 +1685,61 @@ class TlonSkillPathTests(unittest.TestCase):
                 self.assertIsNone(
                     tlon_tool.resolve_tlon_product_guide_path(
                         {"TLON_PLUGIN_DIR": str(Path(tmp) / "nonexistent")}
+                    )
+                )
+
+    def test_resolve_tlon_surfaces_skill_path_uses_explicit_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            skill = Path(tmp) / "SKILL.md"
+            skill.write_text("# Building surfaces\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_surfaces_skill_path(
+                    {"TLON_SURFACES_SKILL_PATH": str(skill)}
+                ),
+                skill,
+            )
+
+    def test_resolve_tlon_surfaces_skill_path_uses_skill_dir(self):
+        # TLON_SKILL_DIR points at the installed npm package root, which is
+        # where the surfaces skill ships too — under skills/surfaces/.
+        with tempfile.TemporaryDirectory() as tmp:
+            skill_dir = Path(tmp) / "tlon-skill"
+            skill = skill_dir / "skills" / "surfaces" / "SKILL.md"
+            skill.parent.mkdir(parents=True)
+            skill.write_text("# Building surfaces\n", encoding="utf-8")
+
+            self.assertEqual(
+                tlon_tool.resolve_tlon_surfaces_skill_path(
+                    {"TLON_SKILL_DIR": str(skill_dir)}
+                ),
+                skill,
+            )
+
+    def test_resolve_tlon_surfaces_skill_path_falls_back_to_sibling_package(self):
+        # No env pointing anywhere: the monorepo layout (this adapter and
+        # tlon-skill as sibling packages) has to resolve on its own. This is
+        # the assertion that breaks if the skill directory is ever moved or
+        # renamed inside the package.
+        resolved = tlon_tool.resolve_tlon_surfaces_skill_path({})
+
+        self.assertIsNotNone(resolved)
+        assert resolved is not None
+        self.assertTrue(resolved.is_file())
+        self.assertEqual(resolved.parent.name, "surfaces")
+
+    def test_resolve_tlon_surfaces_skill_path_absent_without_skill_tree(self):
+        # An older @tloncorp/tlon-skill install has no skills/ directory; the
+        # adapter registers no surfaces skill rather than failing to boot.
+        with tempfile.TemporaryDirectory() as tmp:
+            adapter_dir = Path(tmp) / "packages" / "hermes-tlon-adapter"
+            adapter_dir.mkdir(parents=True)
+            with patch.object(
+                tlon_tool, "__file__", str(adapter_dir / "tlon_tool.py")
+            ):
+                self.assertIsNone(
+                    tlon_tool.resolve_tlon_surfaces_skill_path(
+                        {"TLON_SKILL_DIR": str(Path(tmp) / "nonexistent")}
                     )
                 )
 

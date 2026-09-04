@@ -1,0 +1,52 @@
+{
+  "id": "rev-poll-cant-make-it",
+  "channel": "chat/~zod/dash-p21bxr23",
+  "note": "Action-map addition, verbatim from the verdict-run prompt. The poll's three actions are the three movies; a member has no way to say they are not coming at all, and the board has no place to show it. TARGETING CORRECTION (mid-run, after rev2 published to the wrong board): the first phrasing named the app but not the group, and ~zod holds a SECOND app of the same kind in ~zod/surface-seed. The bot inspected both and picked the other one. The preflight cannot catch that: it binds the SENTENCE to the record, and nothing binds the record's `channel` to the channel the bot goes on to choose. The sentence now names the group. The original phrasing is kept in `requestOriginal` so the change is visible rather than silently absorbed.",
+  "request": "on the Verdict run group's movie night poll, add a 'can't make it' option",
+  "behaviour": "a member can record that they are not coming, distinct from voting for a movie, and the board shows who did",
+  "shape": "action-map",
+  "witness": {
+    "renderPatterns": [
+      "can.?t make it",
+      "cannot make it",
+      "not coming",
+      "can.?t come",
+      "unavailable",
+      "sitting (this )?out",
+      "skipping",
+      "\\babsent\\b",
+      "count me out",
+      "none of (these|them)",
+      "abstain"
+    ],
+    "renderPositive": "Your RSVPComingMaybeCan't make it",
+    "renderPositiveSource": "painted text of chat/~zod/dash-ir6lyyyt (session 6a.5's book-club RSVP board), recorded verbatim in dev/surfaces-requests/control-nonresponders-rsvp.json as one of that witness's negatives, where it was read from a real render on 2026-09-01. A REAL render of an app that does offer this, not an invented string.",
+    "renderNegatives": [
+      "What should we watch on Friday?Dune 1VoteWhiplash 0VoteArrival 1VoteTurnout2votes so farone vote each — change yours any timeWho has voted~tenArrival~zodDune",
+      "What should we watch on Friday?Dune 1VoteWhiplash 1VoteArrival 1VoteTurnout3votes so farone vote each — change yours any timeWho has voted~palfun-foslupWhiplash~tenDune~zodArrival",
+      "one vote each — change yours any time",
+      "Who has voted~tenArrival~zodDune"
+    ],
+    "renderNegativesSource": "painted text of chat/~zod/dash-p21bxr23, verbatim, read 2026-09-01 — the two distinct whole-cell texts plus the two fragments a lazy pattern is most likely to trip on.",
+    "actionPatterns": [
+      "can.?t.?make",
+      "cant-?make",
+      "\\babsent\\b",
+      "not-?coming",
+      "\\bskip\\b",
+      "abstain",
+      "unavailable",
+      "opt-?out",
+      "decline"
+    ],
+    "actionPositive": "rsvp-absent {\"ops\":[{\"op\":\"set\",\"path\":\"/entries/$actor\",\"value\":\"absent\"}]}",
+    "actionPositiveSource": "verbatim from chat/~zod/dash-ir6lyyyt's real action map, recorded in control-nonresponders-rsvp.json (tlon surface show, 2026-09-01). A REAL action from a REAL app that offers this behaviour.",
+    "actionNegatives": [
+      "vote-dune {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"dune\"}]}",
+      "vote-whiplash {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"whiplash\"}]}",
+      "vote-arrival {\"acceptStale\":true,\"ops\":[{\"op\":\"set\",\"path\":\"/votes/$actor\",\"value\":\"arrival\"}]}"
+    ],
+    "actionNegativesSource": "verbatim from chat/~zod/dash-p21bxr23's own action map (tlon surface show, 2026-09-01) — the whole map"
+  },
+  "requestOriginal": "on the movie night poll, add a 'can't make it' option"
+}

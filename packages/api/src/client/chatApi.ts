@@ -362,9 +362,10 @@ export const toClientGroupDms = (groupDms: ub.Clubs): GetDmsResponse => {
       // Channel meta is different from other metas, since we can overload the
       // `description` to fit other channel-specific data.
       // Attempt to decode that extra info here.
-      const decodedDesc = StructuredChannelDescriptionPayload.decode(
-        metaFields.description
-      );
+      const decodedDesc =
+        StructuredChannelDescriptionPayload.decodeWithDefaults(
+          metaFields.description
+        );
 
       return {
         id,
