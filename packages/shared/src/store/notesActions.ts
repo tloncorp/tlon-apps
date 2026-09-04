@@ -1124,6 +1124,13 @@ export async function deleteNotebookNote({
     (snapshot) => !findSnapshotNote(snapshot, noteId)
   );
   if (confirmed) {
+    // Snapshot fetch time is not causal proof of deletion because subscribed
+    // notebook replicas can lag. This confirmation poll is: only now suppress
+    // the persisted activity detail that could otherwise expose a stale title.
+    await db.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: [noteId],
+    });
     trackEvent(AnalyticsEvent.NoteDeleted);
   }
 }
@@ -1137,27 +1144,65 @@ export async function deleteNotebookFolder({
 }) {
   // Queued like deleteNotebookNote. The descendant lookup joins the unit so
   // the ids can't come from a copy a concurrent refresh is about to replace.
-  const folderIds = await queueNotebookSnapshot(notebookFlag, async () => {
-    const folders = await db.getNotesFolders({ notebookFlag });
-    const ids = Array.from(
-      collectDescendantFolderIds(folders, folder.folderId)
-    );
+  const { folderIds, noteIds } = await queueNotebookSnapshot(
+    notebookFlag,
+    async () => {
+      // Local rows alone can't name every descendant: an activity event may
+      // arrive for a collaborator's note before the snapshot carries it, and
+      // such a note has no local row while only the host knows it sits in
+      // this subtree. Read the host's copy too, and union the two so a stale
+      // local-only row still gets cleaned up.
+      const [{ snapshot }, folders, notes] = await Promise.all([
+        fetchNotesNotebookSnapshot(notebookFlag),
+        db.getNotesFolders({ notebookFlag }),
+        db.getNotesNotes({ notebookFlag }),
+      ]);
+      const ids = Array.from(
+        collectDescendantFolderIds(
+          [...snapshot.folders, ...folders],
+          folder.folderId
+        )
+      );
+      const folderIdSet = new Set(ids);
+      const noteIds = Array.from(
+        new Set(
+          [...snapshot.notes, ...notes]
+            .filter((note) => folderIdSet.has(note.folderId))
+            .map((note) => note.noteId)
+        )
+      );
 
-    await api.notes.deleteFolder({
-      flag: notebookFlag,
-      folderId: folder.folderId,
-      recursive: true,
-    });
-    await db.deleteNotesFolders({ notebookFlag, folderIds: ids });
-    return ids;
-  });
-  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
-    folderIds.every(
-      (folderId) =>
-        !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
-    )
+      await api.notes.deleteFolder({
+        flag: notebookFlag,
+        folderId: folder.folderId,
+        recursive: true,
+      });
+      await db.deleteNotesFolders({ notebookFlag, folderIds: ids });
+      return { folderIds: ids, noteIds };
+    }
   );
-  if (confirmed) {
+  const confirmedDeletedNoteIds = await syncNotesNotebookUntil(
+    notebookFlag,
+    (snapshot) => {
+      const foldersAreDeleted = folderIds.every(
+        (folderId) =>
+          !snapshot.folders.some(
+            (nextFolder) => nextFolder.folderId === folderId
+          )
+      );
+      if (!foldersAreDeleted) {
+        return null;
+      }
+      return noteIds.filter(
+        (noteId) => !snapshot.notes.some((note) => note.noteId === noteId)
+      );
+    }
+  );
+  if (confirmedDeletedNoteIds) {
+    await db.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: confirmedDeletedNoteIds,
+    });
     trackEvent(AnalyticsEvent.NotesFolderDeleted);
   }
 }

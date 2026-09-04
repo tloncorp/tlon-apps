@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+  formatNotesActivityLabel,
   formatNotesChannelSubtitle,
   getNoteBodyPreview,
   stripNoteMarkdown,
@@ -70,5 +71,44 @@ describe('formatNotesChannelSubtitle', () => {
     expect(formatNotesChannelSubtitle({ noteCount: 0, folderCount: 2 })).toBe(
       'No notes in 2 folders'
     );
+  });
+});
+
+describe('formatNotesActivityLabel', () => {
+  test('identifies a new note and its notebook', () => {
+    expect(
+      formatNotesActivityLabel({
+        noteTitle: 'Weekly plan',
+        notebookTitle: 'Journal',
+        isNew: true,
+      })
+    ).toBe('New note “Weekly plan” in Journal');
+  });
+
+  test('distinguishes an edited note', () => {
+    expect(
+      formatNotesActivityLabel({
+        noteTitle: 'Weekly plan',
+        notebookTitle: 'Journal',
+        isNew: false,
+      })
+    ).toBe('Note “Weekly plan” edited in Journal');
+  });
+
+  test('falls back cleanly when titles are unavailable', () => {
+    expect(
+      formatNotesActivityLabel({
+        noteTitle: null,
+        notebookTitle: 'Journal',
+        isNew: true,
+      })
+    ).toBe('New note in Journal');
+    expect(
+      formatNotesActivityLabel({
+        noteTitle: null,
+        notebookTitle: null,
+        isNew: false,
+      })
+    ).toBe('Note edited');
   });
 });
