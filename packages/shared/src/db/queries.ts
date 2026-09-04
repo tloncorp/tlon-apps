@@ -2828,6 +2828,24 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+export const getExistingChannelIds = createReadQuery(
+  'getExistingChannelIds',
+  async (
+    { channelIds }: { channelIds: string[] },
+    ctx: QueryCtx
+  ): Promise<string[]> => {
+    if (!channelIds.length) {
+      return [];
+    }
+    const rows = await ctx.db.query.channels.findMany({
+      where: inArray($channels.id, channelIds),
+      columns: { id: true },
+    });
+    return rows.map((row) => row.id);
+  },
+  ['channels']
+);
+
 export const getAllMultiDms = createReadQuery(
   'getAllMultiDms',
   async (ctx: QueryCtx) => {
