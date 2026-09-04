@@ -85,10 +85,14 @@ staging=\$(mktemp -d)
 tar xzf /tmp/janeway-desk.tgz -C \$staging
 cd /urbit || exit 1
 set -euo pipefail
+pikes_json=''
+refresh_pikes() {
+  pikes_json=\$(curl -fsS http://localhost:12321/~/scry/hood/kiln/pikes.json) \
+    || { echo 'Unable to read Hood kiln pikes' >&2; exit 1; }
+}
 has_desk() {
   local target="\$1"
-  curl -fsS http://localhost:12321/~/scry/hood/kiln/pikes.json \
-    | grep -Eq '"\$target"[[:space:]]*:'
+  grep -Eq '"\$target"[[:space:]]*:' <<<"\$pikes_json"
 }
 hood_command() {
   local command="\$1"
@@ -96,10 +100,12 @@ hood_command() {
     --data "{\"source\":{\"dojo\":\"+hood/\$command\"},\"sink\":{\"app\":\"hood\"}}" \
     http://localhost:12321
 }
+refresh_pikes
 if ! has_desk "$desk"; then
   echo "Creating %$desk from %base"
   hood_command "merge %$desk our %base"
   for attempt in \$(seq 1 30); do
+    refresh_pikes
     if has_desk "$desk"; then
       break
     fi
@@ -112,11 +118,27 @@ hood_command "mount %$desk"
 rsync -avL --delete \$staging/assembled/ $folder
 hood_command "commit %$desk"
 if [ "$desk" = tlon ]; then
+  refresh_pikes
   if has_desk groups; then
     hood_command 'suspend %groups'
+    # Hood acknowledges suspension before Gall has necessarily stopped every
+    # legacy agent. Give that transition time to release the agent names.
+    sleep 3
   fi
   hood_command 'install our %tlon'
-  hood_command 'revive %tlon'
+  # Gall startup can outlive a Hood request. Dispatch it independently, then
+  # verify the actual application rather than leaving the deploy job blocked.
+  nohup curl -fsS --header 'Content-Type: application/json' \
+    --data '{"source":{"dojo":"+hood/revive %tlon"},"sink":{"app":"hood"}}' \
+    http://localhost:12321 >/tmp/tlon-revive.log 2>&1 &
+  for attempt in \$(seq 1 90); do
+    if curl -fsS http://localhost:12321/~/scry/groups/groups/light.json >/dev/null; then
+      break
+    fi
+    sleep 2
+  done
+  curl -fsS http://localhost:12321/~/scry/groups/groups/light.json >/dev/null \
+    || { echo '%tlon agents did not become healthy' >&2; exit 1; }
 fi
 rm -rf \$staging /tmp/janeway-desk.tgz
 EOF
