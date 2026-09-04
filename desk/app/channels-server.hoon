@@ -1012,7 +1012,7 @@
       =/  groups
         .^  groups:v9:gv
           %gx
-          /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/noun
+          /(scot %p our.bowl)/tlon/(scot %da now.bowl)/v2/groups/noun
         ==
       =+  group=(~(get by groups) group.new)
       ?~  group  |

@@ -433,7 +433,7 @@ export const createGroup = async ({
 
   try {
     const result = await thread<ub.GroupCreateThreadInput, ub.GroupV11>({
-      desk: 'groups',
+      desk: 'tlon',
       inputMark: 'group-create-thread',
       threadName: 'group-create-1',
       outputMark: 'group-ui-2',
