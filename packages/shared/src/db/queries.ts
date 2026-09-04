@@ -55,11 +55,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import {
-  appendContactIdToReplies,
-  getCompositeGroups,
-  noteTimestampMs,
-} from '../logic';
+import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -95,6 +91,7 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesActivityEventTombstones as $notesActivityEventTombstones,
   notesFolders as $notesFolders,
   notesMembers as $notesMembers,
   notesNotebooks as $notesNotebooks,
@@ -829,6 +826,23 @@ export const deleteNotesNote = createWriteQuery(
   ['notesNotes']
 );
 
+export const confirmNotesActivityEventDeleted = createWriteQuery(
+  'confirmNotesActivityEventDeleted',
+  async (
+    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    ctx: QueryCtx
+  ) => {
+    return ctx.db
+      .insert($notesActivityEventTombstones)
+      .values({
+        channelId: `notes/${notebookFlag}`,
+        noteId: String(noteId),
+      })
+      .onConflictDoNothing();
+  },
+  ['notesActivityEventTombstones']
+);
+
 export const deleteNotesFolders = createWriteQuery(
   'deleteNotesFolders',
   async (
@@ -889,11 +903,22 @@ export const deleteNotesNotebook = createWriteQuery(
         .delete($notesMembers)
         .where(eq($notesMembers.notebookFlag, notebookFlag));
       await txCtx.db
+        .delete($notesActivityEventTombstones)
+        .where(
+          eq($notesActivityEventTombstones.channelId, `notes/${notebookFlag}`)
+        );
+      await txCtx.db
         .delete($notesNotebooks)
         .where(eq($notesNotebooks.id, notebookFlag));
     });
   },
-  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+  [
+    'notesNotebooks',
+    'notesFolders',
+    'notesNotes',
+    'notesMembers',
+    'notesActivityEventTombstones',
+  ]
 );
 
 const NOTES_SNAPSHOT_BATCH_SIZE = 50;
@@ -1422,11 +1447,6 @@ type NotesActivityGroup = {
   })[];
 };
 
-type NotesNotebookInfo = {
-  title: string;
-  syncedAt: number | null;
-};
-
 /**
  * Find the newest joined notebook activity in each group. Notebook recency is
  * authoritative for ordering, while the note identity can come from either a
@@ -1459,44 +1479,29 @@ async function getGroupNotesActivity(
   const notebookFlags = notesChannels.flatMap(({ notebookFlag }) =>
     notebookFlag ? [notebookFlag] : []
   );
-  const [eventsByChannel, notesByNotebook, notebooksByFlag] = await Promise.all(
-    [
+  const [eventsByChannel, notesByNotebook, notebookTitlesByFlag] =
+    await Promise.all([
       getLatestNoteEventsByChannel(
         notesChannels.map(({ channel }) => channel.id),
         ctx
       ),
       getLatestNotesByNotebook(notebookFlags, ctx),
-      getNotesNotebookInfo(notebookFlags, ctx),
-    ]
-  );
-  const storedEventNoteKeys = await getStoredEventNoteKeys(
-    notesChannels,
-    eventsByChannel,
-    ctx
-  );
+      getNotesNotebookTitles(notebookFlags, ctx),
+    ]);
 
   for (const { groupId, channel, notebookFlag } of notesChannels) {
     const recency = channel.unread?.updatedAt ?? 0;
-    const event = eventsByChannel.get(channel.id);
-    const localNote = notebookFlag
-      ? notesByNotebook.get(notebookFlag)
-      : undefined;
-    const notebook = notebookFlag
-      ? notebooksByFlag.get(notebookFlag)
-      : undefined;
-    const eventConfirmedDeleted = Boolean(
-      event?.noteId &&
-      notebookFlag &&
-      notebook?.syncedAt != null &&
-      (noteTimestampMs(notebook.syncedAt) ?? 0) >= event.timestamp &&
-      !storedEventNoteKeys.has(noteKey(notebookFlag, event.noteId))
+    const detail = newestNotesActivityDetail(
+      eventsByChannel.get(channel.id),
+      notebookFlag ? notesByNotebook.get(notebookFlag) : undefined
     );
-    const detail = eventConfirmedDeleted
-      ? localNote && event && localNote.timestamp > event.timestamp
-        ? localNote
-        : undefined
-      : newestNotesActivityDetail(event, localNote);
-    const timestamp = Math.max(recency, detail?.timestamp ?? 0);
+    const describes =
+      detail &&
+      (recency <= 0 ||
+        Math.abs(detail.timestamp - recency) <= NOTES_ACTIVITY_DETAIL_WINDOW_MS)
+        ? detail
+        : null;
+    const timestamp = Math.max(recency, describes?.timestamp ?? 0);
     if (timestamp <= 0) {
       continue;
     }
@@ -1506,13 +1511,12 @@ async function getGroupNotesActivity(
       continue;
     }
 
-    const describes =
-      detail && detail.timestamp >= recency - NOTES_ACTIVITY_DETAIL_WINDOW_MS
-        ? detail
-        : null;
     activityByGroup.set(groupId, {
       channelId: channel.id,
-      notebookTitle: channel.title ?? notebook?.title ?? null,
+      notebookTitle:
+        channel.title ??
+        (notebookFlag ? notebookTitlesByFlag.get(notebookFlag) : null) ??
+        null,
       noteId: describes?.noteId ?? null,
       noteTitle: describes?.noteTitle ?? null,
       authorId: describes?.authorId ?? null,
@@ -1559,12 +1563,45 @@ async function getLatestNoteEventsByChannel(
         inArray($activityEvents.channelId, channelIds),
         notExists(
           ctx.db
+            .select({ channelId: $notesActivityEventTombstones.channelId })
+            .from($notesActivityEventTombstones)
+            .where(
+              and(
+                eq(
+                  $notesActivityEventTombstones.channelId,
+                  $activityEvents.channelId
+                ),
+                eq($notesActivityEventTombstones.noteId, $activityEvents.postId)
+              )
+            )
+        ),
+        notExists(
+          ctx.db
             .select({ id: $newerEvents.id })
             .from($newerEvents)
             .where(
               and(
                 eq($newerEvents.channelId, $activityEvents.channelId),
                 inArray($newerEvents.type, ['note-create', 'note-edit']),
+                notExists(
+                  ctx.db
+                    .select({
+                      channelId: $notesActivityEventTombstones.channelId,
+                    })
+                    .from($notesActivityEventTombstones)
+                    .where(
+                      and(
+                        eq(
+                          $notesActivityEventTombstones.channelId,
+                          $newerEvents.channelId
+                        ),
+                        eq(
+                          $notesActivityEventTombstones.noteId,
+                          $newerEvents.postId
+                        )
+                      )
+                    )
+                ),
                 or(
                   gt($newerEvents.timestamp, $activityEvents.timestamp),
                   and(
@@ -1605,69 +1642,19 @@ async function getLatestNoteEventsByChannel(
   return latest;
 }
 
-async function getNotesNotebookInfo(
+async function getNotesNotebookTitles(
   notebookFlags: string[],
   ctx: QueryCtx
-): Promise<Map<string, NotesNotebookInfo>> {
+): Promise<Map<string, string>> {
   if (notebookFlags.length === 0) {
     return new Map();
   }
 
   const rows = await ctx.db
-    .select({
-      id: $notesNotebooks.id,
-      title: $notesNotebooks.title,
-      syncedAt: $notesNotebooks.syncedAt,
-    })
+    .select({ id: $notesNotebooks.id, title: $notesNotebooks.title })
     .from($notesNotebooks)
     .where(inArray($notesNotebooks.id, notebookFlags));
-  return new Map(
-    rows.map((row) => [
-      row.id,
-      { title: row.title, syncedAt: row.syncedAt ?? null },
-    ])
-  );
-}
-
-async function getStoredEventNoteKeys(
-  notesChannels: Array<{
-    channel: Pick<Channel, 'id'>;
-    notebookFlag: string | null;
-  }>,
-  eventsByChannel: Map<string, NotesActivityDetail>,
-  ctx: QueryCtx
-): Promise<Set<string>> {
-  const candidates = notesChannels.flatMap(({ channel, notebookFlag }) => {
-    const noteId = Number(eventsByChannel.get(channel.id)?.noteId);
-    return notebookFlag && Number.isSafeInteger(noteId)
-      ? [{ notebookFlag, noteId }]
-      : [];
-  });
-  if (candidates.length === 0) {
-    return new Set();
-  }
-
-  const rows = await ctx.db
-    .select({
-      notebookFlag: $notesNotes.notebookFlag,
-      noteId: $notesNotes.noteId,
-    })
-    .from($notesNotes)
-    .where(
-      or(
-        ...candidates.map(({ notebookFlag, noteId }) =>
-          and(
-            eq($notesNotes.notebookFlag, notebookFlag),
-            eq($notesNotes.noteId, noteId)
-          )
-        )
-      )
-    );
-  return new Set(rows.map((row) => noteKey(row.notebookFlag, row.noteId)));
-}
-
-function noteKey(notebookFlag: string, noteId: string | number) {
-  return `${notebookFlag}\0${noteId}`;
+  return new Map(rows.map((row) => [row.id, row.title]));
 }
 
 // A notebook can contain thousands of notes, so select only the newest row
@@ -1858,6 +1845,7 @@ export const getChats = createReadQuery(
     'volumeSettings',
     'pins',
     'activityEvents',
+    'notesActivityEventTombstones',
     'notesNotebooks',
     'notesNotes',
   ]

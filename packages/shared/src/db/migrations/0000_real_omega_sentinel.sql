@@ -330,6 +330,12 @@ CREATE TABLE `groups` (
 	`member_count` integer
 );
 --> statement-breakpoint
+CREATE TABLE `notes_activity_event_tombstones` (
+	`channel_id` text NOT NULL,
+	`note_id` text NOT NULL,
+	PRIMARY KEY(`channel_id`, `note_id`)
+);
+--> statement-breakpoint
 CREATE TABLE `notes_folders` (
 	`id` text PRIMARY KEY NOT NULL,
 	`notebook_flag` text NOT NULL,

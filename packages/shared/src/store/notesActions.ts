@@ -1124,6 +1124,10 @@ export async function deleteNotebookNote({
     (snapshot) => !findSnapshotNote(snapshot, noteId)
   );
   if (confirmed) {
+    // Snapshot fetch time is not causal proof of deletion because subscribed
+    // notebook replicas can lag. This confirmation poll is: only now suppress
+    // the persisted activity detail that could otherwise expose a stale title.
+    await db.confirmNotesActivityEventDeleted({ notebookFlag, noteId });
     trackEvent(AnalyticsEvent.NoteDeleted);
   }
 }

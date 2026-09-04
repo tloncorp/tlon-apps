@@ -1229,6 +1229,20 @@ export const notesNotesRelations = relations(notesNotes, ({ one }) => ({
   }),
 }));
 
+// A fetch-completion timestamp cannot prove that a lagging notebook replica
+// causally includes an activity event. Record only deletions that the Notes
+// action path explicitly confirmed against the host-facing API.
+export const notesActivityEventTombstones = sqliteTable(
+  'notes_activity_event_tombstones',
+  {
+    channelId: text('channel_id').notNull(),
+    noteId: text('note_id').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.channelId, table.noteId] }),
+  })
+);
+
 export const notesMembers = sqliteTable(
   'notes_members',
   {

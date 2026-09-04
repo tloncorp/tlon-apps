@@ -1300,6 +1300,10 @@ test('adoptNotebookNoteRemote persists the host copy locally', async () => {
 });
 
 test('deleteNotebookNote waits for the deleted note to disappear from sync', async () => {
+  const confirmActivityEventDeleted = vi.spyOn(
+    db,
+    'confirmNotesActivityEventDeleted'
+  );
   const note = makeNote('Delete me');
   await db.saveNotesNotebookSnapshot({
     notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
@@ -1330,9 +1334,17 @@ test('deleteNotebookNote waits for the deleted note to disappear from sync', asy
   await expect(
     db.getNotesNote({ notebookFlag, noteId: note.noteId })
   ).resolves.toBeNull();
+  expect(confirmActivityEventDeleted).toHaveBeenCalledWith({
+    notebookFlag,
+    noteId: note.noteId,
+  });
 });
 
 test('deleteNotebookNote keeps the local delete when sync stays stale', async () => {
+  const confirmActivityEventDeleted = vi.spyOn(
+    db,
+    'confirmNotesActivityEventDeleted'
+  );
   const capture = vi.fn();
   useDebugStore.getState().initializeErrorLogger({ capture });
   const note = makeNote('Delete me eventually');
@@ -1359,6 +1371,7 @@ test('deleteNotebookNote keeps the local delete when sync stays stale', async ()
   expect(
     capture.mock.calls.some(([event]) => event === AnalyticsEvent.NoteDeleted)
   ).toBe(false);
+  expect(confirmActivityEventDeleted).not.toHaveBeenCalled();
 });
 
 test('publishNotebookNote renders current markdown and marks note published', async () => {

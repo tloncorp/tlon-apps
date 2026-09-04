@@ -442,6 +442,7 @@ describe('getChats group recency workaround', () => {
   test('selects only the newest persisted note event for each notebook', async () => {
     const groupId = '~zod/latest-note-event';
     const channelId = 'notes/~zod/latest-note-event';
+    const notebookFlag = '~zod/latest-note-event';
 
     await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
     await queries.insertChannels([
@@ -489,9 +490,26 @@ describe('getChats group recency workaround', () => {
         timestamp: 400_000,
       });
     }
+
+    await queries.confirmNotesActivityEventDeleted({
+      notebookFlag,
+      noteId: 42,
+    });
+    const afterConfirmedDelete = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(afterConfirmedDelete?.type).toBe('group');
+    if (afterConfirmedDelete?.type === 'group') {
+      expect(afterConfirmedDelete.notesActivity).toMatchObject({
+        noteId: '41',
+        noteTitle: 'Old title',
+        isNew: true,
+        timestamp: 400_000,
+      });
+    }
   });
 
-  test('drops stale event details after a newer snapshot confirms deletion', async () => {
+  test('does not infer deletion from a fetch-stamped snapshot', async () => {
     const groupId = '~zod/deleted-note';
     const channelId = 'notes/~zod/deleted-note';
     const notebookFlag = '~zod/deleted-note';
@@ -522,8 +540,8 @@ describe('getChats group recency workaround', () => {
         id: notebookFlag,
         flagName: 'deleted-note',
         title: 'Journal',
-        // Notes timestamps can arrive in seconds, while activity events use
-        // milliseconds. This snapshot is newer than the event.
+        // Fetch completion is later than the event, but the read replica may
+        // still lag and this timestamp is not causal deletion evidence.
         syncedAt: 500,
       }),
       folders: [],
@@ -539,9 +557,9 @@ describe('getChats group recency workaround', () => {
       expect(chat.notesActivity).toEqual({
         channelId,
         notebookTitle: 'Journal',
-        noteId: null,
-        noteTitle: null,
-        authorId: null,
+        noteId: '42',
+        noteTitle: 'Deleted secret title',
+        authorId: '~bus',
         isNew: true,
         timestamp: 400_000,
       });
@@ -617,7 +635,7 @@ describe('getChats group recency workaround', () => {
       },
     ]);
     await queries.insertChannelUnreads([
-      makeChannelUnread({ channelId, updatedAt: 1_999_000_000_000 }),
+      makeChannelUnread({ channelId, updatedAt: 1_999_999_900_000 }),
     ]);
     await queries.saveNotesNotebookSnapshot({
       notebook: makeNotesNotebook({
@@ -689,6 +707,47 @@ describe('getChats group recency workaround', () => {
     );
     expect(chat?.type).toBe('group');
     if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('does not use a far-future note detail as group recency', async () => {
+    const groupId = '~zod/future-detail';
+    const channelId = 'notes/~zod/future-detail';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'future-note-event',
+        channelId,
+        groupId,
+        title: 'Future title',
+        timestamp: 701_000,
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(400_000);
       expect(chat.notesActivity).toMatchObject({
         noteId: null,
         noteTitle: null,
