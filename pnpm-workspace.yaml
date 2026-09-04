@@ -45,6 +45,7 @@ patchedDependencies:
   '@mattermost/react-native-paste-input@2.0.1': patches/@mattermost__react-native-paste-input@2.0.1.patch
   react-native-keyboard-controller@1.22.0: patches/react-native-keyboard-controller@1.22.0.patch
   expo-notifications@57.0.6: patches/expo-notifications@57.0.6.patch
+  react-native-worklets@0.10.3: patches/react-native-worklets@0.10.3.patch
 
 allowUnusedPatches: false
 
