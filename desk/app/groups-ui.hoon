@@ -274,7 +274,9 @@
     =+  .^(channel=channel-10:u (scry %gx %channels /v6/init/noun))
     =+  .^(chat=chat-2:u (scry %gx %chat /v1/init/noun))
     =+  .^(=activity:v10:av (scry %gx %activity /v6/activity/noun))
-    =+  .^(profile=? (scry %gx %profile /bound/loob))
+    ::  %profile is gone; the init field stays for payload compatibility
+    ::  (the client's GroupsInit interface never declared it) and is always |.
+    =/  profile=?  |
     =/  init=init-10:u
       :*  groups-ui
           foreigns

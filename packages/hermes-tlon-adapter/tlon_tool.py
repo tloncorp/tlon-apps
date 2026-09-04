@@ -42,7 +42,6 @@ ALLOWED_TLON_COMMANDS = frozenset(
         "channels",
         "contacts",
         "dms",
-        "expose",
         "groups",
         "hooks",
         "messages",
@@ -86,11 +85,9 @@ MESSAGES_COMMANDS = frozenset(
 POSTS_COMMANDS = frozenset(
     {"send", "reply", "react", "unreact", "edit", "delete"}
 )
-EXPOSE_TARGET_COMMANDS = frozenset({"show", "hide", "check", "url"})
-
 TLON_TOOL_DESCRIPTION = (
     "Tlon/Urbit CLI for reading data and administration: activity, channels, "
-    "contacts, groups, messages, notes, posts, settings, upload, expose, hooks. "
+    "contacts, groups, messages, notes, posts, settings, upload, hooks. "
     "Use the notes commands to manage %notes notebooks (Markdown notes at "
     "notes/~host/name nests). For notes bodies, use --body <file> "
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
@@ -272,18 +269,6 @@ def _migration_source_operand(args: Sequence[str]) -> Optional[str]:
     return args[index] if index >= 0 else None
 
 
-def _diary_nest_from_cite_path(raw: str | None) -> Optional[str]:
-    parts = str(raw or "").strip().split("/")
-    if (
-        len(parts) >= 6
-        and parts[0] == ""
-        and parts[1] == "1"
-        and parts[2] == "chan"
-    ):
-        return _canonical_diary_nest("/".join(parts[3:6]))
-    return _canonical_diary_nest("/".join(parts[:3]))
-
-
 def _is_help_arg(arg: object) -> bool:
     return str(arg) in HELP_ARGS
 
@@ -350,13 +335,6 @@ def _messages_help_takes_precedence(args: Sequence[str]) -> bool:
         and search_channel
     )
     return not search_query_help_literal
-
-
-def _expose_help_takes_precedence(args: Sequence[str]) -> bool:
-    cli_args = [str(arg) for arg in args[1:]]
-    return bool(cli_args) and (
-        _is_help_arg(cli_args[0]) or _wants_help(cli_args[1:])
-    )
 
 
 def _posts_help_takes_precedence(args: Sequence[str]) -> bool:
@@ -479,15 +457,6 @@ def _diary_nest_for_removed_cli_operation(
         if action not in POSTS_COMMANDS:
             return None
         return _canonical_diary_nest(
-            str(args[2]) if len(args) > 2 else None
-        )
-
-    if subcommand == "expose":
-        if _expose_help_takes_precedence(args):
-            return None
-        if action not in EXPOSE_TARGET_COMMANDS:
-            return None
-        return _diary_nest_from_cite_path(
             str(args[2]) if len(args) > 2 else None
         )
 

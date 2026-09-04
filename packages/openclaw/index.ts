@@ -980,7 +980,7 @@ export default defineBundledChannelEntry({
       name: 'tlon',
       label: 'Tlon CLI',
       description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
