@@ -1,136 +1,124 @@
 import { describe, expect, test } from 'vitest';
 
 import {
-  publishedNoteBaseline,
+  type PublishedNoteBaselines,
+  notePublishContentKey,
   reconcilePublishedNoteUpdates,
 } from './notesPublishMenu';
 
+function baselinesFor(
+  ...entries: [noteId: number, title: string, body: string][]
+): PublishedNoteBaselines {
+  return new Map(
+    entries.map(([noteId, title, body]) => [
+      noteId,
+      notePublishContentKey({ title, body }),
+    ])
+  );
+}
+
+function updatesFor(
+  baselines: PublishedNoteBaselines,
+  publishContent: { title: string; body: string },
+  publishedNoteIds: ReadonlySet<number> = new Set([1])
+) {
+  return reconcilePublishedNoteUpdates({
+    baselines,
+    notes: [{ noteId: 1, publishContent }],
+    publishedNoteIds,
+  });
+}
+
 describe('reconcilePublishedNoteUpdates', () => {
   test('ignores title whitespace normalized by publish and save', () => {
-    const baselines = new Map([
-      [1, publishedNoteBaseline({ title: ' Note ', body: 'Body' })],
-    ]);
+    const baselines = baselinesFor([1, ' Note ', 'Body']);
 
-    expect(
-      reconcilePublishedNoteUpdates({
-        baselines,
-        notes: [{ noteId: 1, title: 'Note', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set(),
-        publishedNoteIds: new Set([1]),
-      })
-    ).toEqual(new Set());
+    expect(updatesFor(baselines, { title: 'Note', body: 'Body' })).toEqual(
+      new Set()
+    );
   });
 
   test('keeps the update action available when the published baseline is unknown', () => {
-    const baselines = new Map();
+    const baselines: PublishedNoteBaselines = new Map();
 
-    const updates = reconcilePublishedNoteUpdates({
-      baselines,
-      notes: [{ noteId: 1, title: 'First', bodyMd: 'Body' }],
-      noteIdsWithPendingSaves: new Set(),
-      publishedNoteIds: new Set([1]),
-    });
-
-    expect(updates).toEqual(new Set([1]));
+    expect(updatesFor(baselines, { title: 'First', body: 'Body' })).toEqual(
+      new Set([1])
+    );
     expect(baselines).toEqual(new Map());
   });
 
-  test('requires an update only after saved content changes', () => {
-    const baselines = new Map([
-      [1, publishedNoteBaseline({ title: 'First', body: 'Body' })],
-    ]);
+  test('requires an update only after the publishable content changes', () => {
+    const baselines = baselinesFor([1, 'First', 'Body']);
 
-    expect(
-      reconcilePublishedNoteUpdates({
-        baselines,
-        notes: [{ noteId: 1, title: 'Changed', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set(),
-        publishedNoteIds: new Set([1]),
-      })
-    ).toEqual(new Set([1]));
-
-    expect(
-      reconcilePublishedNoteUpdates({
-        baselines,
-        notes: [{ noteId: 1, title: 'First', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set(),
-        publishedNoteIds: new Set([1]),
-      })
-    ).toEqual(new Set());
+    expect(updatesFor(baselines, { title: 'Changed', body: 'Body' })).toEqual(
+      new Set([1])
+    );
+    expect(updatesFor(baselines, { title: 'First', body: 'Body' })).toEqual(
+      new Set()
+    );
   });
 
   test('forgets the baseline after a note is unpublished', () => {
-    const baselines = new Map([
-      [1, publishedNoteBaseline({ title: 'First', body: 'Body' })],
-    ]);
+    const baselines = baselinesFor([1, 'First', 'Body']);
 
     reconcilePublishedNoteUpdates({
       baselines,
-      notes: [{ noteId: 1, title: 'Changed', bodyMd: 'Body' }],
-      noteIdsWithPendingSaves: new Set(),
+      notes: [
+        { noteId: 1, publishContent: { title: 'Changed', body: 'Body' } },
+      ],
       publishedNoteIds: new Set(),
     });
 
     expect(baselines).toEqual(new Map());
   });
 
-  test('does not offer an update while a published draft is still saving', () => {
-    const baselines = new Map([
-      [
-        1,
-        publishedNoteBaseline(
-          { title: 'Published draft', body: 'Body' },
-          { title: 'Saved before publish', body: 'Body' }
-        ),
-      ],
-    ]);
+  test('does not offer an update while the published draft is still retained', () => {
+    // Published from a draft whose content had not yet reached the saved row.
+    const baselines = baselinesFor([1, 'Published draft', 'Body']);
 
+    // The draft is what a publish would send, so there is nothing to update —
+    // regardless of how far behind the saved row still is, and regardless of
+    // an intermediate autosave landing a third revision in between.
     expect(
-      reconcilePublishedNoteUpdates({
-        baselines,
-        notes: [{ noteId: 1, title: 'Saved before publish', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set([1]),
-        publishedNoteIds: new Set([1]),
-      })
+      updatesFor(baselines, { title: 'Published draft', body: 'Body' })
     ).toEqual(new Set());
+  });
 
-    expect(
-      reconcilePublishedNoteUpdates({
-        baselines,
-        notes: [{ noteId: 1, title: 'Published draft', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set(),
-        publishedNoteIds: new Set([1]),
-      })
-    ).toEqual(new Set());
+  test('offers an update again when the published draft is abandoned', () => {
+    const baselines = baselinesFor([1, 'Published draft', 'Body']);
 
+    // The draft is gone, so a publish would now send the saved row.
     expect(
-      reconcilePublishedNoteUpdates({
-        baselines,
-        notes: [{ noteId: 1, title: 'Later save', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set(),
-        publishedNoteIds: new Set([1]),
-      })
+      updatesFor(baselines, { title: 'Saved before publish', body: 'Body' })
     ).toEqual(new Set([1]));
   });
 
-  test('offers an update again when a pending draft is abandoned', () => {
-    const baselines = new Map([
-      [
-        1,
-        publishedNoteBaseline(
-          { title: 'Published draft', body: 'Body' },
-          { title: 'Saved before publish', body: 'Body' }
-        ),
-      ],
-    ]);
+  test('tracks each published note independently', () => {
+    const baselines = baselinesFor([1, 'One', 'Body'], [2, 'Two', 'Body']);
 
     expect(
       reconcilePublishedNoteUpdates({
         baselines,
-        notes: [{ noteId: 1, title: 'Saved before publish', bodyMd: 'Body' }],
-        noteIdsWithPendingSaves: new Set(),
-        publishedNoteIds: new Set([1]),
+        notes: [
+          { noteId: 1, publishContent: { title: 'One', body: 'Body' } },
+          { noteId: 2, publishContent: { title: 'Two changed', body: 'Body' } },
+        ],
+        publishedNoteIds: new Set([1, 2]),
       })
-    ).toEqual(new Set([1]));
+    ).toEqual(new Set([2]));
+  });
+
+  test('ignores notes that are not published', () => {
+    const baselines = baselinesFor([1, 'First', 'Body']);
+
+    expect(
+      reconcilePublishedNoteUpdates({
+        baselines,
+        notes: [
+          { noteId: 1, publishContent: { title: 'Changed', body: 'Body' } },
+        ],
+        publishedNoteIds: new Set([2]),
+      })
+    ).toEqual(new Set());
   });
 });

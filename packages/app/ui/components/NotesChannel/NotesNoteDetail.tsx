@@ -138,7 +138,7 @@ function getPendingNotesNoteSaveEpoch() {
   return pendingNotesNoteSaveEpoch;
 }
 
-export function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
   return (
     (pendingNotesNoteSaveCounts.get(draftSnapshotKey(notebookFlag, noteId)) ??
       0) > 0

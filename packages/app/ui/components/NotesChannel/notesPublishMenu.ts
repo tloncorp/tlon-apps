@@ -1,49 +1,33 @@
-type SavedNoteContent = {
-  noteId: number;
-  title: string;
-  bodyMd: string;
-};
-
 type PublishContent = {
   title: string;
   body: string;
 };
 
-export type PublishedNoteBaseline = {
-  publishedContentKey: string;
-  pendingSavedContentKey?: string;
+type ReconcilableNote = {
+  noteId: number;
+  // What publishing this note right now would send: its retained draft when
+  // one exists, otherwise the saved row. Comparing against this — rather than
+  // against the saved row plus a guess about in-flight saves — is what keeps
+  // the action from offering an update that would republish identical content.
+  publishContent: PublishContent;
 };
 
+// Keyed by note id, holding the content key of the note's public copy.
+export type PublishedNoteBaselines = Map<number, string>;
+
 export function notePublishContentKey(content: PublishContent) {
+  // Both the publish renderer and the note-save path trim the title, so a
+  // draft's surrounding whitespace never reaches the published output.
   return JSON.stringify([content.title.trim(), content.body]);
-}
-
-export function publishedNoteBaseline(
-  publishedContent: PublishContent,
-  savedContent?: PublishContent
-): PublishedNoteBaseline {
-  const publishedContentKey = notePublishContentKey(publishedContent);
-  const savedContentKey = savedContent
-    ? notePublishContentKey(savedContent)
-    : publishedContentKey;
-
-  return {
-    publishedContentKey,
-    ...(savedContentKey !== publishedContentKey
-      ? { pendingSavedContentKey: savedContentKey }
-      : {}),
-  };
 }
 
 export function reconcilePublishedNoteUpdates({
   baselines,
   notes,
-  noteIdsWithPendingSaves,
   publishedNoteIds,
 }: {
-  baselines: Map<number, PublishedNoteBaseline>;
-  notes: readonly SavedNoteContent[];
-  noteIdsWithPendingSaves: ReadonlySet<number>;
+  baselines: PublishedNoteBaselines;
+  notes: readonly ReconcilableNote[];
   publishedNoteIds: ReadonlySet<number>;
 }) {
   const noteIdsNeedingUpdate = new Set<number>();
@@ -57,29 +41,15 @@ export function reconcilePublishedNoteUpdates({
   for (const note of notes) {
     if (!publishedNoteIds.has(note.noteId)) continue;
 
-    const contentKey = notePublishContentKey({
-      title: note.title,
-      body: note.bodyMd,
-    });
-    const baseline = baselines.get(note.noteId);
-    if (baseline === undefined) {
-      // The published API does not expose content or a revision. On a fresh
-      // mount we therefore cannot prove that the saved note matches the
-      // public copy, so keep the explicit update action available.
+    const publishedContentKey = baselines.get(note.noteId);
+    if (publishedContentKey === undefined) {
+      // The published API exposes neither content nor a revision, so on a
+      // fresh mount we cannot prove the note matches its public copy. Keep
+      // the explicit update action available rather than hide a stale one.
       noteIdsNeedingUpdate.add(note.noteId);
-    } else if (baseline.publishedContentKey === contentKey) {
-      if (baseline.pendingSavedContentKey !== undefined) {
-        baselines.set(note.noteId, { publishedContentKey: contentKey });
-      }
     } else if (
-      baseline.pendingSavedContentKey !== contentKey ||
-      !noteIdsWithPendingSaves.has(note.noteId)
+      publishedContentKey !== notePublishContentKey(note.publishContent)
     ) {
-      if (baseline.pendingSavedContentKey !== undefined) {
-        baselines.set(note.noteId, {
-          publishedContentKey: baseline.publishedContentKey,
-        });
-      }
       noteIdsNeedingUpdate.add(note.noteId);
     }
   }

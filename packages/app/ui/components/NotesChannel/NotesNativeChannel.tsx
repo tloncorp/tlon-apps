@@ -61,7 +61,6 @@ import {
   NotesNoteDetail,
   type NotesNoteDraftSnapshot,
   getNotesNoteDraftSnapshot,
-  hasPendingNotesNoteSave,
   usePendingNotesNoteSaveChanges,
 } from './NotesNoteDetail';
 import { NotesSearchModal } from './NotesSearchModal';
@@ -69,8 +68,8 @@ import type { NotesSearchResultNote } from './NotesSearchResults';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
 import {
-  type PublishedNoteBaseline,
-  publishedNoteBaseline,
+  type PublishedNoteBaselines,
+  notePublishContentKey,
   reconcilePublishedNoteUpdates,
 } from './notesPublishMenu';
 import { trackNotesActionError } from './notesTelemetry';
@@ -208,8 +207,8 @@ export function NotesNativeChannel({
   const [activeDirtyDraftNoteId, setActiveDirtyDraftNoteId] = useState<
     number | null
   >(null);
-  const publishedNoteContentBaselinesRef = useRef(
-    new Map<number, PublishedNoteBaseline>()
+  const publishedNoteContentBaselinesRef = useRef<PublishedNoteBaselines>(
+    new Map()
   );
   const publishedNoteContentNotebookRef = useRef(notebookFlag);
   const [notesWithPublishedUpdates, setNotesWithPublishedUpdates] = useState(
@@ -302,67 +301,6 @@ export function NotesNativeChannel({
     () => (noteId: number) => noteIsPublished(publishedNotes, noteId),
     [publishedNotes]
   );
-  useEffect(() => {
-    if (!publishedNotes) return;
-
-    if (publishedNoteContentNotebookRef.current !== notebookFlag) {
-      publishedNoteContentNotebookRef.current = notebookFlag;
-      publishedNoteContentBaselinesRef.current.clear();
-    }
-
-    const publishedNoteIds = new Set(
-      publishedNotes.map((record) => record.noteId)
-    );
-    const noteIdsWithPendingSaves = new Set(
-      notes
-        .filter(
-          (note) =>
-            note.noteId === activeDirtyDraftNoteId ||
-            (notebookFlag != null &&
-              (hasPendingNotesNoteSave(notebookFlag, note.noteId) ||
-                getNotesNoteDraftSnapshot(notebookFlag, note.noteId)
-                  ?.isDirty === true))
-        )
-        .map((note) => note.noteId)
-    );
-    const next = reconcilePublishedNoteUpdates({
-      baselines: publishedNoteContentBaselinesRef.current,
-      notes,
-      noteIdsWithPendingSaves,
-      publishedNoteIds,
-    });
-    setNotesWithPublishedUpdates(next);
-  }, [
-    activeDirtyDraftNoteId,
-    notebookFlag,
-    notes,
-    pendingNotesNoteSaveEpoch,
-    publishedNotes,
-  ]);
-  const hasPublishedUpdate = useMemo(
-    () => (noteId: number) => notesWithPublishedUpdates.has(noteId),
-    [notesWithPublishedUpdates]
-  );
-  const recordPublishedNoteContent = useMutableCallback(
-    (noteId: number, content: { title: string; body: string }) => {
-      const savedNote = notes.find((note) => note.noteId === noteId);
-      publishedNoteContentBaselinesRef.current.set(
-        noteId,
-        publishedNoteBaseline(
-          content,
-          savedNote
-            ? { title: savedNote.title, body: savedNote.bodyMd }
-            : content
-        )
-      );
-      setNotesWithPublishedUpdates((current) => {
-        if (!current.has(noteId)) return current;
-        const next = new Set(current);
-        next.delete(noteId);
-        return next;
-      });
-    }
-  );
   const getPublishedNoteUrl = useMemo(
     () => (note: db.NotesNote) => {
       if (!notebookFlag) {
@@ -413,6 +351,55 @@ export function NotesNativeChannel({
       body: note.bodyMd,
     };
   });
+  useEffect(() => {
+    if (!publishedNotes) return;
+
+    if (publishedNoteContentNotebookRef.current !== notebookFlag) {
+      publishedNoteContentNotebookRef.current = notebookFlag;
+      publishedNoteContentBaselinesRef.current.clear();
+    }
+
+    const publishedNoteIds = new Set(
+      publishedNotes.map((record) => record.noteId)
+    );
+    const next = reconcilePublishedNoteUpdates({
+      baselines: publishedNoteContentBaselinesRef.current,
+      notes: notes.map((note) => ({
+        noteId: note.noteId,
+        publishContent: getNotePublishContent(note),
+      })),
+      publishedNoteIds,
+    });
+    setNotesWithPublishedUpdates(next);
+    // `getNotePublishContent` reads draft state through refs, so the epoch and
+    // the active draft's dirty flag are what re-run this when the content a
+    // publish would send changes.
+  }, [
+    activeDirtyDraftNoteId,
+    getNotePublishContent,
+    notebookFlag,
+    notes,
+    pendingNotesNoteSaveEpoch,
+    publishedNotes,
+  ]);
+  const hasPublishedUpdate = useMemo(
+    () => (noteId: number) => notesWithPublishedUpdates.has(noteId),
+    [notesWithPublishedUpdates]
+  );
+  const recordPublishedNoteContent = useMutableCallback(
+    (noteId: number, content: { title: string; body: string }) => {
+      publishedNoteContentBaselinesRef.current.set(
+        noteId,
+        notePublishContentKey(content)
+      );
+      setNotesWithPublishedUpdates((current) => {
+        if (!current.has(noteId)) return current;
+        const next = new Set(current);
+        next.delete(noteId);
+        return next;
+      });
+    }
+  );
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
   });
