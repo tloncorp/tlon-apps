@@ -25,3 +25,25 @@ export function getNoteBodyPreview(
 ): string | null {
   return stripNoteMarkdown(bodyMd) || null;
 }
+
+/**
+ * One-line summary of what a notebook holds, for rows that have no post to
+ * preview (e.g. a notes channel in the group channel list). Folder counts
+ * are expected to exclude the notebook's root folder.
+ */
+export function formatNotesChannelSubtitle({
+  noteCount,
+  folderCount,
+}: {
+  noteCount: number;
+  folderCount: number;
+}): string {
+  const notes = noteCount === 0 ? 'No notes' : countOf(noteCount, 'note');
+  return folderCount === 0
+    ? notes
+    : `${notes} in ${countOf(folderCount, 'folder')}`;
+}
+
+function countOf(count: number, noun: string) {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}

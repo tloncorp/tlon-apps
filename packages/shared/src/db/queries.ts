@@ -554,6 +554,59 @@ export const getNotesNotes = createReadQuery(
   ['notesNotes']
 );
 
+export interface NotesNotebookCounts {
+  noteCount: number;
+  folderCount: number;
+}
+
+// Counts every notebook at once: the channel list needs a count per notes
+// channel, and one grouped read beats a query per row. Folder counts skip
+// each notebook's root folder — it's the notebook itself in the UI, not a
+// folder anyone created. Every synced notebook gets an entry, zeroes
+// included, so callers can tell an empty notebook from an unsynced one.
+export const getNotesCountsByNotebook = createReadQuery(
+  'getNotesCountsByNotebook',
+  async (ctx: QueryCtx): Promise<Record<string, NotesNotebookCounts>> => {
+    // One statement rather than three reads. `saveNotesNotebookSnapshot`
+    // replaces each table wholesale inside a transaction, and plain reads
+    // aren't gated against it — `enqueueTransaction` only serializes
+    // transactions against each other — so separate reads can land between
+    // that save's DELETE and its re-INSERT and report a combination that
+    // never existed. Under the global `staleTime: Infinity` such a value then
+    // sticks until the next invalidation. Driving both counts off
+    // `notesNotebooks` also keeps an empty notebook reporting zeroes rather
+    // than dropping out of the result entirely.
+    const rows = await ctx.db
+      .select({
+        notebookFlag: $notesNotebooks.id,
+        noteCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($notesNotes)
+          .where(eq($notesNotes.notebookFlag, $notesNotebooks.id))}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($notesFolders)
+          .where(
+            and(
+              eq($notesFolders.notebookFlag, $notesNotebooks.id),
+              isNotNull($notesFolders.parentFolderId)
+            )
+          )}`,
+      })
+      .from($notesNotebooks);
+
+    const counts: Record<string, NotesNotebookCounts> = {};
+    for (const row of rows) {
+      counts[row.notebookFlag] = {
+        noteCount: row.noteCount,
+        folderCount: row.folderCount,
+      };
+    }
+    return counts;
+  },
+  ['notesNotebooks', 'notesNotes', 'notesFolders']
+);
+
 export const getNotesNote = createReadQuery(
   'getNotesNote',
   async (
