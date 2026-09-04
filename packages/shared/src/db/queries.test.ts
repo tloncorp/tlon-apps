@@ -439,6 +439,69 @@ describe('getChats group recency workaround', () => {
     }
   });
 
+  test('prefers the synced title when the event names the same note', async () => {
+    const groupId = '~zod/renamed-note';
+    const channelId = 'notes/~zod/renamed-note';
+    const notebookFlag = '~zod/renamed-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    // The event's content predates the rename; the synced row carries the
+    // current title. A rename re-emits no event, so the row is the fresher
+    // copy even when the event's stamp is higher.
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'renamed-note-event',
+        channelId,
+        groupId,
+        postId: '42',
+        title: 'Title before the rename',
+        timestamp: 399_000,
+        type: 'note-edit',
+      })
+    );
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'renamed-note',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Title after the rename', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: 300,
+          updatedAt: 398,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'Title after the rename',
+      });
+    }
+  });
+
   test('selects only the newest persisted note event for each notebook', async () => {
     const groupId = '~zod/latest-note-event';
     const channelId = 'notes/~zod/latest-note-event';
