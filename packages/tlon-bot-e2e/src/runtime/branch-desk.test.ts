@@ -97,6 +97,9 @@ describe('applyBranchDesk control flow', () => {
     expect(harness.events).toContain('hash:zod:old-hash');
     expect(harness.events).not.toContain('replace:zod');
     expect(harness.events).not.toContain('commit:zod');
+    expect(harness.events).toContain('suspend-groups:zod');
+    expect(harness.events).toContain('revive-tlon:zod');
+    expect(harness.events).toContain('health:zod');
     expect(harness.assembleOptions?.timeoutMs).toBe(300_000);
   });
 
@@ -380,14 +383,26 @@ class BranchDeskHarness {
   private readonly execInComposeService: BranchDeskDependencies['execInComposeService'] =
     async (_ctx, _service, argv) => {
       const script = argv[2] ?? '';
+      if (
+        argv[1] === '-c' &&
+        script.includes('tlon-bot-e2e-revive.log') &&
+        argv[6] === 'clay/revive %tlon'
+      ) {
+        this.events.push(`revive-tlon:${argv[5] as ShipLabel}`);
+        return success();
+      }
       if (argv[1] === '-e' && script.includes('+hood/')) {
         const ship = argv[3] as ShipLabel;
         const command = argv[4] ?? '';
-        if (command === 'mount %groups') {
+        if (command === 'mount %tlon') {
           this.events.push(`mount:${ship}`);
           return success();
         }
-        if (command === 'commit %groups') {
+        if (command === 'clay/suspend %groups') {
+          this.events.push(`suspend-groups:${ship}`);
+          return success();
+        }
+        if (command === 'commit %tlon') {
           this.events.push(`commit:${ship}`);
           if (this.commitConnectionFailuresRemaining > 0) {
             this.commitConnectionFailuresRemaining -= 1;
@@ -443,7 +458,7 @@ class BranchDeskHarness {
     }
     if (url.endsWith('/~/scry/hood/kiln/pikes.json')) {
       this.events.push(`hash:${ship}:${this.hashes[ship]}`);
-      return jsonResponse({ groups: { hash: this.hashes[ship] } });
+      return jsonResponse({ tlon: { hash: this.hashes[ship] } });
     }
     if (url.endsWith('/~/scry/groups/groups/light.json')) {
       this.events.push(`health:${ship}`);

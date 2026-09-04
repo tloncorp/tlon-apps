@@ -74,6 +74,30 @@
   ?^  p.sign
     (strand-fail %poke-ack u.p.sign)
   (pure:m ~)
+::  +poke-app-typed: poke a gall agent on a virtual ship with a typed vase.
+::
+::  Unlike +poke-app, this follows Gall's %poke path instead of %raw-poke,
+::  so it does not require the target ship's base desk to supply a raw-poke
+::  mark definition.
+::
+++  poke-app-typed
+  |=  [=dock =mark =vase]
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  =task:gall
+    [%deal [p.dock p.dock /aqua] q.dock %poke mark vase]
+  =/  =aqua-event
+    [%event p.dock /g/aqua/deal task]
+  ;<  ~  bind:m  (send-events ~[aqua-event])
+  ;<  =aqua-effect  bind:m  (take-effect /effect/unto)
+  ?>  =(p.dock who.aqua-effect)
+  =*  effect  q.ufs.aqua-effect
+  ?>  ?=(%unto -.effect)
+  ?>  ?=(%poke-ack -.p.effect)
+  =*  sign  p.effect
+  ?^  p.sign
+    (strand-fail %poke-ack u.p.sign)
+  (pure:m ~)
 ::  +watch-app: watch a gall subscription to a virtual ship
 ::
 ::  the resulting facts are received as aqua effects.
@@ -136,7 +160,7 @@
   =*  mark  mark.p.q.unix-effect
   ::  note: this assumes that the marks on the virtual ship and the host match
   ::
-  =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
+  =+  .^(=dais:clay %cb /(scot %p our.bowl)/[q.byk.bowl]/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m [mark vase])
 ::  +wait-for-app-fact: receive a gall fact from a virtual ship and unpack it
@@ -163,7 +187,7 @@
   =*  mark  mark.p.q.unix-effect
   ::  note: this assumes that the marks on the virtual ship and the host match
   ::
-  =+  .^(=dais:clay %cb /(scot %p our.bowl)/groups/(scot %da now.bowl)/[mark])
+  =+  .^(=dais:clay %cb /(scot %p our.bowl)/[q.byk.bowl]/(scot %da now.bowl)/[mark])
   =/  =vase  (vale:dais noun.p.q.unix-effect)
   (pure:m !<(mold vase))
 ::  +ex-equal: expect .actual to be equal to .expected

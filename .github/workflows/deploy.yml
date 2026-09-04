@@ -111,7 +111,7 @@ jobs:
       - id: deploy
         name: Deploy
         run:
-          ./.github/helpers/deploy.sh tloncorp/tlon-apps groups
+          ./.github/helpers/deploy.sh tloncorp/tlon-apps tlon
           wannec-dozzod-marnus us-central1-a mainnet-tlon-other-2d ${{ env.tag
           }}
         env:

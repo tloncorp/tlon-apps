@@ -5,8 +5,8 @@ ship="~zod"
 pier_dir=${ship#\~}
 pier=$pier_dir
 
-urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.5"
-vere_ver="vere-v4.5"
+urbit_bin_url="https://bootstrap.urbit.org/vere/live/v4.6"
+vere_ver="vere-v4.6"
 arch=`uname -m`
 
 case $OSTYPE in
@@ -40,7 +40,7 @@ case $OSTYPE in
     esac ;;
 esac
 
-pill_download_url="https://bootstrap.urbit.org/groups-v11-3-0-408k.pill"
+pill_download_url="https://bootstrap.urbit.org/tlon-192187b-1f43d2e.pill"
 
 #archive=`basename $download_url`
 pill=`basename $pill_download_url`
@@ -107,46 +107,70 @@ function await_ship
 
 await_ship
 
-# Allow 10m for longest running operations
-TIMEOUT=600
+# Login becomes available before Gall finishes installing %spider from a
+# freshly booted brass pill. Desk operations below rely on that agent.
+sleep 3
 
-run_click="$click -t $TIMEOUT -b $vere -i - -kp"
+# Aqua snapshots boot and sync an eight-ship fleet, which can exceed ten
+# minutes on the two-core CI runners. Keep the request alive through that
+# work; socat's inactivity ceiling remains 30 minutes as well.
+TIMEOUT=1800
+
+# Send source exactly as the pill builder does.  The legacy click helper
+# rewrites input layout, which is incompatible with Vere 4.6's %khan-eval.
+run_thread() {
+  local hoon card
+  hoon=$(awk '{ printf "%s%s", "\\0a", $0 }')
+  card="[0 %fyrd [%base %khan-eval %noun [%ted-eval '$hoon']]]"
+  echo "$card" | "$vere" eval -jn |
+    socat -T 1800 -t "$TIMEOUT" - UNIX-CONNECT:"$pier/.urb/conn.sock" |
+    "$vere" eval -cnk
+}
+
+# Aqua's %pill poke is typed by /lib/pill/hoon.  This is the direct-transport
+# equivalent of the legacy click invocation with that dependency.
+run_thread_with_pill_lib() {
+  local hoon card
+  hoon=$(awk '{ printf "%s%s", "\\0a", $0 }')
+  card="[0 %fyrd [%base %khan-eval %noun [%ted-eval ['$hoon' [/lib/pill/hoon ~]]]]]"
+  echo "$card" | "$vere" eval -jn |
+    socat -T 1800 -t "$TIMEOUT" - UNIX-CONNECT:"$pier/.urb/conn.sock" |
+    "$vere" eval -cnk
+}
 
 # Mount %base
 echo "Mounting base..."
-$run_click $pier <<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%base))  
-;<  ~  bind:m  (sleep ~s0)  
+;<  ~  bind:m  (sleep ~s0)
 =/  =path  
   [(scot %p our.bowl) %base (scot %da now.bowl) ~]  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %base]))  
 (pure:m !>(%ok))  
 EOF
 
-# Unmount and mount %groups
-echo "Mounting groups..."
-$run_click $pier <<EOF
+# Mount the %tlon desk supplied by the brass pill.
+echo "Mounting %tlon..."
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-unmount+!>(%groups))  
-;<  ~  bind:m  (sleep ~s0)  
 =/  =path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) ~]  
-;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %groups]))  
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) ~]
+;<  ~  bind:m  (poke [our.bowl %hood] kiln-mount+!>([path %tlon]))
 (pure:m !>(%ok))  
 EOF
 
 # Insert the jammed pill
 
-if [ ! -f "${pier}/groups/${pill_name}.jam" ]
+if [ ! -f "${pier}/tlon/${pill_name}.jam" ]
 then
-  cp $pill ${pier}/groups/${pill_name}.jam
+  cp $pill ${pier}/tlon/${pill_name}.jam
 fi
 
 echo "Updating base desk..."
-$run_click $pier <<EOF
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
 ;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%base |]))  
@@ -154,10 +178,10 @@ $run_click $pier <<EOF
 EOF
 
 # TODO: We should figure out the source ship for this file and delete it
-rm -f $pier/groups/tests/lib/diary-graph.hoon
+rm -f $pier/tlon/tests/lib/diary-graph.hoon
 
-# Update the groups desk. Assemble the full desk (desk-deps/ vendored deps +
-# desk/ source) and overlay it onto the pill's groups desk. The pill provides a
+# Update the tlon desk. Assemble the full desk (desk-deps/ vendored deps +
+# desk/ source) and overlay it onto the pill's tlon desk. The pill provides a
 # bootable base; the assembled tree brings in peru-vendored deps (e.g.
 # sur/mcp-proxy) that live only in desk-deps/. Overlaid without --delete so the
 # pill's own artifacts (the jammed pill used by the aqua tests) are preserved.
@@ -166,14 +190,14 @@ assembled=$(mktemp -d)
 # assemble-desk stamps the git hash into commit.txt; keep the 'development'
 # placeholder the logs test (/tests/app/logs) asserts on instead.
 cp desk/commit.txt "$assembled/commit.txt"
-rsync -r "$assembled"/ $pier/groups
+rsync -r "$assembled"/ $pier/tlon
 rm -rf "$assembled"
 
-rsync -r --delete desk/tests/ $pier/groups/tests
+rsync -r --delete desk/tests/ $pier/tlon/tests
 
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
-;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /tlon)
 (pure:m !>(hash))  
 EOF
 )
@@ -186,11 +210,11 @@ then
   exit 1
 fi
 
-echo "Updating groups desk"
-${run_click} $pier <<EOF
+echo "Updating tlon desk"
+run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  our=ship  bind:m  get-our  
-;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%groups |]))  
+;<  ~  bind:m  (poke [our %hood] kiln-commit+!>([%tlon |]))
 (pure:m !>(%ok))  
 EOF
 
@@ -198,9 +222,9 @@ sleep 3
 echo "Awaiting desk update..."
 await_ship
 
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
-;<  hash=@uvI  bind:m  (scry @uvI %cz /groups)  
+;<  hash=@uvI  bind:m  (scry @uvI %cz /tlon)
 (pure:m !>(hash))  
 EOF
 )
@@ -223,11 +247,11 @@ fi
 
 # Run the unit tests
 echo "Running unit tests..."
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  tests=path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests ~]  
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) %tests ~]
 ;<  =thread-result  bind:m  
   (await-thread %test !>(\`tests))  
 ?:  ?=(%| -.thread-result)  
@@ -250,7 +274,7 @@ else
 fi
 
 echo "Starting %aqua..."
-${run_click} $pier "/lib/pill/hoon"<<EOF
+run_thread_with_pill_lib <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl    
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-nuke+!>([%aqua |]))  
@@ -258,7 +282,7 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 =/  =dome:clay  (~(gut by cone) [p.byk.bowl %base] *dome:clay)  
 ;<  ~      bind:m  (sleep ~s0)  
 ;<  ~  bind:m  (poke [our.bowl %hood] kiln-rein+!>([%base (~(put by ren.dome) %aqua &)]))  
-=+  pill-path=/(scot %p p.byk.bowl)/groups/(scot %da now.bowl)/${pill_name}/jam  
+=+  pill-path=/(scot %p p.byk.bowl)/tlon/(scot %da now.bowl)/${pill_name}/jam
 =+  .^(pil=@ %cx pill-path)  
 =/  pill  ;;(pill:pill (cue pil))  
 ;<  ~  bind:m  (poke [our.bowl %aqua] pill+!>(pill))  
@@ -267,13 +291,13 @@ ${run_click} $pier "/lib/pill/hoon"<<EOF
 EOF
 
 echo "Preparing aqua snapshot..."
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =+  tid=~.ci-ph-fleet  
 =/  args  
   [\`%ci-aqua-tests ~[~zod ~nec ~bud ~wes ~dem ~fen ~loshut-lonreg ~rivfur-livmet] &]  
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-fleet !>(\`args)])  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %tlon) %ph-fleet !>(\`args)])
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
 ;<  =cage  bind:m  (take-fact /awaiting/[tid])  
@@ -301,16 +325,17 @@ fi
 
 # Run aqua tests
 #
+aqua_test_path="${AQUA_TEST_PATH:-/tests/ph}"
 echo "Running tests..."
-result=$( $run_click $pier <<EOF
+result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
-  [(scot %p our.bowl) %groups (scot %da now.bowl) %tests %ph ~]  
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) ${aqua_test_path}]
 =/  args  
   [\`ph-tests %ci-aqua-tests]  
 =+  tid=~.ci-ph-test  
-=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %groups) %ph-test !>(\`args)])  
+=/  poke-vase  !>(\`start-args:spider\`[\`tid.bowl \`tid byk.bowl(q %tlon) %ph-test !>(\`args)])
 ;<  ~      bind:m  (watch-our /awaiting/[tid] %spider /thread-result/[tid])  
 ;<  ~      bind:m  (poke-our %spider %spider-start poke-vase)  
 ;<  =cage  bind:m  (take-fact /awaiting/[tid])  
@@ -341,4 +366,3 @@ fi
 
 kill -TERM $vere_pid
 exit 0
-

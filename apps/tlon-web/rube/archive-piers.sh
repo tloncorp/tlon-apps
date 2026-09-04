@@ -121,8 +121,9 @@ resolve_pier() {
 get_current_version() {
     local ship=$1
     local url=$(jq -r ".\"~$ship\".downloadUrl" "$MANIFEST_FILE")
-    # Extract version number from URL (e.g., rube-zod14.tgz -> 14)
-    echo "$url" | sed -n 's/.*rube-'"$ship"'\([0-9]*\)\.tgz/\1/p'
+    # Extract version number from URLs such as rube-zod14.tgz or
+    # rube-zod14-tlon.tgz.
+    echo "$url" | sed -E -n 's/.*rube-'"$ship"'([0-9]+)(-[A-Za-z0-9.-]+)?\.tgz/\1/p'
 }
 
 # Function to increment version, or use a literal tag when pinned.
@@ -142,6 +143,12 @@ get_next_version() {
         return 1
     fi
     echo $((current_version + 1))
+}
+
+archive_name() {
+    local ship=$1
+    local version=$2
+    echo "rube-${ship}${version}.tgz"
 }
 
 # Cleanup function
@@ -720,8 +727,8 @@ validate_archive_locally() {
 
     # Check for essential files
     local essential_files=(
-        "$ship/groups/sys.kelvin"
-        "$ship/groups/desk.bill"
+        "$ship/tlon/sys.kelvin"
+        "$ship/tlon/desk.bill"
         "$ship/.urb"
     )
 
@@ -766,7 +773,7 @@ clean_pier() {
 archive_pier() {
     local ship=$1
     local version=$2
-    local archive_name="rube-${ship}${version}.tgz"
+    local archive_name=$(archive_name "$ship" "$version")
     local archive_path="$DIST_DIR/$archive_name"
 
     print_info "Archiving $ship as $archive_name..." >&2
@@ -825,7 +832,7 @@ EOF
         # Never embed macOS resource forks/xattrs: BSD tar stores them as
         # AppleDouble entries that GNU tar inside the Linux containers
         # materializes as literal ._* files throughout the piers — including
-        # the mounted %groups desk, which then never matches a clean
+        # the mounted %tlon desk, which then never matches a clean
         # assembly (observed breaking the bot-e2e desk apply on v28).
         # COPYFILE_DISABLE covers BSD tar; it is harmless for the GNU paths.
         export COPYFILE_DISABLE=1
@@ -898,7 +905,7 @@ upload_archive() {
 update_manifest() {
     local ship=$1
     local version=$2
-    local archive_name="rube-${ship}${version}.tgz"
+    local archive_name=$(archive_name "$ship" "$version")
     local new_url="https://bootstrap.urbit.org/$archive_name"
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -920,7 +927,7 @@ update_manifest() {
 update_dockerfile() {
     local ship=$1
     local version=$2
-    local archive_name="rube-${ship}${version}.tgz"
+    local archive_name=$(archive_name "$ship" "$version")
     local new_url="https://bootstrap.urbit.org/$archive_name"
 
     if [ "$DRY_RUN" = "true" ]; then
@@ -1064,15 +1071,15 @@ main() {
 
         # Upload to GCS with transaction tracking
         if upload_archive "$archive_path"; then
-            uploaded_ships+=("$ship:rube-${ship}${next_version}.tgz")
+            uploaded_ships+=("$ship:$(archive_name "$ship" "$next_version")")
 
             # Update manifest with rollback on failure
             if ! update_manifest "$ship" "$next_version"; then
                 print_error "Manifest update failed for $ship"
                 print_warning "Archive uploaded but manifest not updated!"
                 print_info "Manual fix required:"
-                echo "  1. Update manifest manually with URL: https://bootstrap.urbit.org/rube-${ship}${next_version}.tgz"
-                echo "  2. Or delete uploaded archive: gsutil rm $GCS_BUCKET/rube-${ship}${next_version}.tgz"
+                echo "  1. Update manifest manually with URL: https://bootstrap.urbit.org/$(archive_name "$ship" "$next_version")"
+                echo "  2. Or delete uploaded archive: gsutil rm $GCS_BUCKET/$(archive_name "$ship" "$next_version")"
 
                 # Optional: Could implement automatic rollback here
                 # gsutil rm "$GCS_BUCKET/rube-${ship}${next_version}.tgz" 2>/dev/null

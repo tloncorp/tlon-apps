@@ -139,7 +139,7 @@ SHIPS_TO_VERIFY="zod ten" ./verify-archives.sh
 ### When to Archive New Piers
 
 Archive new piers when:
-- Significant backend changes have been made to the groups desk
+- Significant backend changes have been made to the tlon desk
 - New apps or features need to be included in test piers
 - Pier state needs to be reset or cleaned up
 - Monthly maintenance (recommended)

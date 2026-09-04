@@ -69,10 +69,10 @@ WORKDIR /workspace
 RUN mkdir -p /opt/ships && cd /opt/ships && \
     echo "Downloading ship archives and Urbit binary in parallel..." && \
     printf "%s\n" \
-        "https://bootstrap.urbit.org/rube-zod30.tgz zod.tgz" \
+        "https://bootstrap.urbit.org/rube-zod31-tlon.tgz zod.tgz" \
         "https://bootstrap.urbit.org/rube-bus9.tgz bus.tgz" \
-        "https://bootstrap.urbit.org/rube-ten30.tgz ten.tgz" \
-        "https://bootstrap.urbit.org/rube-mug30.tgz mug.tgz" \
+        "https://bootstrap.urbit.org/rube-ten31-tlon.tgz ten.tgz" \
+        "https://bootstrap.urbit.org/rube-mug31-tlon.tgz mug.tgz" \
         "https://github.com/urbit/vere/releases/latest/download/linux-x86_64.tgz urbit.tgz" \
     | xargs -P 5 -n 2 sh -c 'curl -fSL -o "$1" "$0" || exit 255' && \
     echo "All downloads complete, extracting..." && \
@@ -91,7 +91,7 @@ COPY ../../../packages/ /workspace/packages/
 COPY ../../../apps/tlon-web/ /workspace/apps/tlon-web/
 COPY ../../../desk/ /workspace/desk/
 # peru.yaml + scripts are needed for the runtime `peru sync` (into desk-deps/)
-# and assemble-desk.sh (desk-deps/ + desk/ -> ship groups desk)
+# and assemble-desk.sh (desk-deps/ + desk/ -> ship tlon desk)
 COPY ../../../peru.yaml /workspace/peru.yaml
 COPY ../../../scripts/ /workspace/scripts/
 
