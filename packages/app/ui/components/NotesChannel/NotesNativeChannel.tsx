@@ -442,14 +442,20 @@ export function NotesNativeChannel({
         note.noteId,
         publishedContentKey
       );
-      // The draft can advance while the publish request is in flight, so what
+      // The note can advance while the publish request is in flight, so what
       // just went public is not necessarily what a publish would send now.
       // Settling this here rather than clearing the note outright matters
       // because nothing else is guaranteed to re-run: a save conflict
       // suspends autosave, and an idle editor changes no dependency.
+      //
+      // Resolve the current row rather than trusting the one captured when
+      // the action started — an autosave can land mid-flight, and once the
+      // editor closes there is no draft left to fall back on.
+      const currentNote =
+        notes.find((row) => row.noteId === note.noteId) ?? note;
       const needsUpdate =
         publishedContentKey !==
-        notePublishContentKey(getNotePublishContent(note));
+        notePublishContentKey(getNotePublishContent(currentNote));
       setNotesWithPublishedUpdates((current) => {
         if (current.has(note.noteId) === needsUpdate) return current;
         const next = new Set(current);

@@ -1,3 +1,5 @@
+import { publishedNoteTitle } from '@tloncorp/shared/logic/notesPublish';
+
 type PublishContent = {
   title: string;
   body: string;
@@ -16,9 +18,10 @@ type ReconcilableNote = {
 export type PublishedNoteBaselines = Map<number, string>;
 
 export function notePublishContentKey(content: PublishContent) {
-  // Both the publish renderer and the note-save path trim the title, so a
-  // draft's surrounding whitespace never reaches the published output.
-  return JSON.stringify([content.title.trim(), content.body]);
+  // Key on the title the publish renderer would actually emit — trimmed, with
+  // the Untitled fallback — so drafts that differ only in whitespace, or in
+  // empty-vs-"Untitled", are recognised as producing the same public output.
+  return JSON.stringify([publishedNoteTitle(content.title), content.body]);
 }
 
 // Reconciliation runs on every keystroke of an open draft, so the caller

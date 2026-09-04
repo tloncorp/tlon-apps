@@ -39,6 +39,23 @@ describe('reconcilePublishedNoteUpdates', () => {
     );
   });
 
+  test('treats an empty title and a literal Untitled as the same publication', () => {
+    // `renderPublishedNoteHtml` emits "Untitled" for both, so republishing
+    // one over the other changes nothing public.
+    expect(
+      updatesFor(baselinesFor([1, '', 'Body']), {
+        title: 'Untitled',
+        body: 'Body',
+      })
+    ).toEqual(new Set());
+    expect(
+      updatesFor(baselinesFor([1, 'Untitled', 'Body']), {
+        title: '   ',
+        body: 'Body',
+      })
+    ).toEqual(new Set());
+  });
+
   test('keeps the update action available when the published baseline is unknown', () => {
     const baselines: PublishedNoteBaselines = new Map();
 
