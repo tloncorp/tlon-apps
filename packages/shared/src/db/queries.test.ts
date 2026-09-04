@@ -602,6 +602,61 @@ describe('getChats group recency workaround', () => {
     }
   });
 
+  test('normalizes mixed timestamp units before choosing the newest note', async () => {
+    const groupId = '~zod/mixed-note-times';
+    const channelId = 'notes/~zod/mixed-note-times';
+    const notebookFlag = '~zod/mixed-note-times';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 1_999_000_000_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'mixed-note-times',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(1, 1, 'Newer seconds note', {
+          id: `${notebookFlag}/note/1`,
+          notebookFlag,
+          createdAt: 2_000_000_000,
+          updatedAt: 2_000_000_000,
+        }),
+        makeNotesNote(2, 1, 'Older milliseconds note', {
+          id: `${notebookFlag}/note/2`,
+          notebookFlag,
+          createdAt: 1_900_000_000_000,
+          updatedAt: 1_900_000_000_000,
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(2_000_000_000_000);
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '1',
+        noteTitle: 'Newer seconds note',
+        timestamp: 2_000_000_000_000,
+      });
+    }
+  });
+
   test('does not label a new bump with a stale note event', async () => {
     const groupId = '~zod/stale-detail';
     const channelId = 'notes/~zod/stale-detail';

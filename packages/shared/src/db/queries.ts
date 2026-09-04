@@ -1681,10 +1681,11 @@ async function getLatestNotesByNotebook(
     return latest;
   }
 
-  const $newerNotes = alias($notesNotes, 'newerNotes');
   const effectiveAt = sql<number>`coalesce(${$notesNotes.updatedAt}, ${$notesNotes.createdAt})`;
-  const newerEffectiveAt = sql<number>`coalesce(${$newerNotes.updatedAt}, ${$newerNotes.createdAt})`;
-  const rows = await ctx.db
+  // Normalize before ranking so mixed seconds/milliseconds rows compare by
+  // their actual time, then let SQLite rank each notebook in one pass.
+  const normalizedEffectiveAt = sql<number>`case when ${effectiveAt} < 10000000000 then ${effectiveAt} * 1000 else ${effectiveAt} end`;
+  const $rankedNotes = ctx.db
     .select({
       notebookFlag: $notesNotes.notebookFlag,
       noteId: $notesNotes.noteId,
@@ -1692,33 +1693,24 @@ async function getLatestNotesByNotebook(
       updatedBy: $notesNotes.updatedBy,
       createdAt: $notesNotes.createdAt,
       updatedAt: $notesNotes.updatedAt,
-      effectiveAt,
+      effectiveAt: normalizedEffectiveAt.as('effectiveAt'),
+      rank: sql<number>`row_number() over (
+        partition by ${$notesNotes.notebookFlag}
+        order by ${normalizedEffectiveAt} desc, ${$notesNotes.noteId} desc
+      )`.as('rank'),
     })
     .from($notesNotes)
     .where(
       and(
         inArray($notesNotes.notebookFlag, notebookFlags),
-        isNotNull(effectiveAt),
-        notExists(
-          ctx.db
-            .select({ id: $newerNotes.id })
-            .from($newerNotes)
-            .where(
-              and(
-                eq($newerNotes.notebookFlag, $notesNotes.notebookFlag),
-                isNotNull(newerEffectiveAt),
-                or(
-                  gt(newerEffectiveAt, effectiveAt),
-                  and(
-                    eq(newerEffectiveAt, effectiveAt),
-                    gt($newerNotes.noteId, $notesNotes.noteId)
-                  )
-                )
-              )
-            )
-        )
+        isNotNull(effectiveAt)
       )
-    );
+    )
+    .as('rankedNotes');
+  const rows = await ctx.db
+    .select()
+    .from($rankedNotes)
+    .where(eq($rankedNotes.rank, 1));
 
   for (const row of rows) {
     latest.set(row.notebookFlag, {
@@ -1728,7 +1720,7 @@ async function getLatestNotesByNotebook(
       isNew:
         row.updatedAt == null ||
         (row.createdAt != null && row.createdAt === row.updatedAt),
-      timestamp: noteTimestampMs(row.effectiveAt) ?? 0,
+      timestamp: row.effectiveAt,
     });
   }
 
