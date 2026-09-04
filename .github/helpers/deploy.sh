@@ -43,8 +43,20 @@ fi
 # Assemble desk-deps/ (peru-vendored) + desk/ (our source) into a staging dir.
 "$workdir/src/scripts/assemble-desk.sh" "$workdir/assembled"
 
-# Package the assembled, self-contained desk.
-tar czf "$workdir/desk.tgz" -C "$workdir" assembled
+# Record the meaningful contents separately from the assembled desk.  The
+# assembly stamps commit.txt and the glob bot can update desk.docket-0 without
+# changing runnable Hoon, so neither should force an otherwise identical desk
+# through Clay.  Keeping the manifest beside the payload lets the remote skip
+# an expensive no-op commit (whose kiln hash would not change).
+(
+  cd "$workdir/assembled"
+  find . -type f ! -path './commit.txt' ! -path './desk.docket-0' -print0 \
+    | sort -z \
+    | xargs -0 sha256sum
+) > "$workdir/manifest.sha256"
+
+# Package the assembled, self-contained desk and its content manifest.
+tar czf "$workdir/desk.tgz" -C "$workdir" assembled manifest.sha256
 
 # --- Speed up the IAP tunnel ------------------------------------------------
 # gcloud's IAP TCP forwarding is a single-threaded Python websocket proxy. With
@@ -92,7 +104,12 @@ refresh_pikes() {
 }
 has_desk() {
   local target="\$1"
-  grep -Eq '"\$target"[[:space:]]*:' <<<"\$pikes_json"
+  grep -Eq "\"\${target}\"[[:space:]]*:" <<<"\$pikes_json"
+}
+desk_hash() {
+  local target="\$1"
+  sed -nE "s/.*\"\${target}\"[[:space:]]*:[[:space:]]*[{][^}]*\"hash\"[[:space:]]*:[[:space:]]*\"([^\"]+)\".*/\\1/p" <<<"\$pikes_json" \
+    | head -n 1
 }
 hood_command() {
   local command="\$1"
@@ -115,19 +132,33 @@ if ! has_desk "$desk"; then
 fi
 hood_command "unmount %$desk"
 hood_command "mount %$desk"
-rsync -avL --delete \$staging/assembled/ $folder
-refresh_pikes
-pikes_before_commit="\$pikes_json"
-hood_command "commit %$desk"
-for attempt in \$(seq 1 90); do
+mounted_manifest=\$(mktemp)
+(
+  cd $folder
+  find . -type f ! -path './commit.txt' ! -path './desk.docket-0' -print0 \
+    | sort -z \
+    | xargs -0 sha256sum
+) > "\$mounted_manifest"
+if cmp -s \$staging/manifest.sha256 "\$mounted_manifest"; then
+  echo "%$desk contents unchanged; skipping commit"
+else
+  rsync -avL --delete \$staging/assembled/ $folder
   refresh_pikes
-  if [[ "\$pikes_json" != "\$pikes_before_commit" ]]; then
-    break
-  fi
-  sleep 2
-done
-[[ "\$pikes_json" != "\$pikes_before_commit" ]] \
-  || { echo "%$desk did not advance after commit" >&2; exit 1; }
+  hash_before=\$(desk_hash "$desk")
+  [[ -n "\$hash_before" ]] \
+    || { echo "Unable to read %$desk kiln hash before commit" >&2; exit 1; }
+  hood_command "commit %$desk"
+  for attempt in \$(seq 1 90); do
+    refresh_pikes
+    hash_after=\$(desk_hash "$desk")
+    if [[ -n "\$hash_after" && "\$hash_after" != "\$hash_before" ]]; then
+      break
+    fi
+    sleep 2
+  done
+  [[ -n "\${hash_after:-}" && "\$hash_after" != "\$hash_before" ]] \
+    || { echo "%$desk hash did not advance after commit" >&2; exit 1; }
+fi
 if [ "$desk" = tlon ]; then
   refresh_pikes
   if has_desk groups; then
