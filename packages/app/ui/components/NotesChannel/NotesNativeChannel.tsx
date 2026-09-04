@@ -882,8 +882,13 @@ export function NotesNativeChannel({
           title: content.title,
           body: content.body,
         });
-        recordPublishedNoteContent(note, content);
+        // Record only once the published list includes this note. Doing it
+        // first leaves the baseline exposed to a reconciliation that still
+        // sees the note as unpublished and prunes it, which would strand a
+        // first publication with an unknown baseline. The ref write lands
+        // before the effect runs for the refetched list.
         await refetchPublishedNotes();
+        recordPublishedNoteContent(note, content);
         publishedUrl = getPublishedNoteShareUrl(publishedPath);
         published = true;
       });
