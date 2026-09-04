@@ -6,6 +6,21 @@ import {
 } from './notesPublishMenu';
 
 describe('reconcilePublishedNoteUpdates', () => {
+  test('ignores title whitespace normalized by publish and save', () => {
+    const baselines = new Map([
+      [1, publishedNoteBaseline({ title: ' Note ', body: 'Body' })],
+    ]);
+
+    expect(
+      reconcilePublishedNoteUpdates({
+        baselines,
+        notes: [{ noteId: 1, title: 'Note', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set(),
+        publishedNoteIds: new Set([1]),
+      })
+    ).toEqual(new Set());
+  });
+
   test('keeps the update action available when the published baseline is unknown', () => {
     const baselines = new Map();
 

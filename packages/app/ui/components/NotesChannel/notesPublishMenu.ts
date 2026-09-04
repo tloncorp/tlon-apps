@@ -15,7 +15,7 @@ export type PublishedNoteBaseline = {
 };
 
 export function notePublishContentKey(content: PublishContent) {
-  return JSON.stringify([content.title, content.body]);
+  return JSON.stringify([content.title.trim(), content.body]);
 }
 
 export function publishedNoteBaseline(
