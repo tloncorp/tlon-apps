@@ -1,5 +1,6 @@
 import {
   StructuredChannelDescriptionPayload,
+  scry,
   toClientGroup,
 } from '@tloncorp/api';
 import '@tloncorp/api';
@@ -39,6 +40,7 @@ import {
   setupDatabaseTestSuite,
 } from '../../test/helpers';
 import rawGroupsInit2 from '../../test/init.json';
+import { syncQueue } from '../syncQueue';
 import {
   ensureDmInviteChannel,
   syncChannelWithBackoff,
@@ -49,6 +51,7 @@ import {
   syncPinnedItems,
   syncPosts,
   syncThreadPosts,
+  syncUpdatedPosts,
 } from './sync';
 import { syncContacts } from './syncContacts';
 
@@ -643,6 +646,58 @@ test('syncs thread posts', async () => {
   expect(posts.length).toEqual(
     Object.keys(channelPostWithRepliesData.seal.replies).length + 1
   );
+});
+
+test.each([
+  ['DM', '~pinser-botter-podfyl-parseb'],
+  ['group DM', '0v4.00000.qd4mk.d4htu.er4b8.eao21'],
+])('syncUpdatedPosts skips %s before queueing', async (_label, channelId) => {
+  const enqueue = vi.spyOn(syncQueue, 'add');
+  vi.mocked(scry).mockClear();
+  try {
+    await expect(
+      syncUpdatedPosts(
+        {
+          channelId,
+          startCursor: '1',
+          endCursor: '2',
+          afterTime: new Date(0),
+        },
+        { priority: 4 }
+      )
+    ).resolves.toBeUndefined();
+
+    expect(enqueue).not.toHaveBeenCalled();
+    expect(scry).not.toHaveBeenCalled();
+    expect(await db.getPosts()).toEqual([]);
+  } finally {
+    enqueue.mockRestore();
+  }
+});
+
+test('syncUpdatedPosts fetches and persists changed group-channel posts', async () => {
+  await db.insertChannels([{ id: channelId, type: 'chat' }]);
+  vi.mocked(scry).mockClear();
+  setScryOutput(rawChannelPostsData);
+
+  const response = await syncUpdatedPosts({
+    channelId,
+    startCursor: '1',
+    endCursor: '2',
+    afterTime: new Date(0),
+  });
+
+  expect(scry).toHaveBeenCalledOnce();
+  expect(scry).toHaveBeenCalledWith({
+    app: 'channels',
+    path: `/v4/${channelId}/posts/changes/1/2/~1970.1.1`,
+  });
+  expect(response?.posts.length).toBeGreaterThan(0);
+  const savedPosts = await db.getPosts();
+  expect(savedPosts.map((post) => post.id).sort()).toEqual(
+    response?.posts.map((post) => post.id).sort()
+  );
+  expect(savedPosts.every((post) => post.channelId === channelId)).toBe(true);
 });
 
 test('syncs groups, decoding structured description payloads', async () => {
