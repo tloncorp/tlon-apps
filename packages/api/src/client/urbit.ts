@@ -28,6 +28,9 @@ interface Config extends Pick<
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
+  // bumped on every successful reauth so a request that failed while a
+  // reauth was already in flight can retry without starting another one
+  authEpoch: number;
   loggingOut: boolean;
   lastStatus: string;
   activitySupportsReactions: boolean;
@@ -111,6 +114,7 @@ const config: Config = {
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
+  authEpoch: 0,
   loggingOut: false,
   onQuitOrReset: undefined,
   getCode: undefined,
@@ -252,6 +256,9 @@ export function internalConfigureClient({
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
   config.shipUrl = shipUrl;
+  // a fresh configuration is a fresh session; a forced logout on the previous
+  // one must not leave reauth disabled for this one
+  config.loggingOut = false;
   config.onQuitOrReset = onQuitOrReset;
   config.getCode = getCode;
   config.handleAuthFailure = handleAuthFailure;
@@ -361,10 +368,39 @@ function rotateChannel(client: Urbit, context: string) {
   client.seamlessReset();
 }
 
+// What a request saw when it went out. Several requests fail together when a
+// channel or session dies, and only the first one to come back should fix it;
+// the rest just retry against whatever the fix produced.
+interface SendContext {
+  authEpoch: number;
+  channelId: string | undefined;
+}
+
+function captureSendContext(client: Urbit | null): SendContext {
+  return { authEpoch: config.authEpoch, channelId: client?.channelId };
+}
+
+function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
+  if (sent.channelId !== undefined && client.channelId !== sent.channelId) {
+    logger.log('channel already rotated, retrying', context);
+    return;
+  }
+  rotateChannel(client, context);
+}
+
+async function reauthOnce(sent: SendContext) {
+  if (config.authEpoch !== sent.authEpoch) {
+    logger.log('session already refreshed, retrying');
+    return;
+  }
+  await reauth();
+}
+
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
   handler: (update: T, id?: number) => void
 ): Promise<number> {
+  let sent = captureSendContext(config.client);
   const doSub = async (err?: (error: any, id: string) => void) => {
     if (!config.client) {
       throw new Error('Client not initialized');
@@ -373,6 +409,7 @@ export async function subscribe<T>(
       await config.pendingAuth;
     }
     logger.log('subscribing to', printEndpoint(endpoint));
+    sent = captureSendContext(config.client);
     return config.client.subscribe({
       app: endpoint.app,
       path: endpoint.path,
@@ -429,14 +466,18 @@ export async function subscribe<T>(
   const retry = async (err: any) => {
     logger.error('bad subscribe', printEndpoint(endpoint), err);
     if (config.client && isChannelIdentityMismatch(err)) {
-      rotateChannel(config.client, `subscribe ${printEndpoint(endpoint)}`);
+      rotateChannelOnce(
+        config.client,
+        sent,
+        `subscribe ${printEndpoint(endpoint)}`
+      );
       return doSub(retry);
     }
     if (!(err instanceof AuthError)) {
       throw err;
     }
 
-    await reauth();
+    await reauthOnce(sent);
     // keep the err handler wired so the re-established subscription can
     // recover from a later auth death the same way the initial one does
     return doSub(retry);
@@ -519,6 +560,7 @@ export async function unsubscribe(id: number) {
 }
 
 export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
+  let sent = captureSendContext(config.client);
   const doPoke = async (params?: Partial<NounPokeInterface>) => {
     if (!config.client) {
       throw new Error('Client not initialized');
@@ -527,6 +569,7 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       await config.pendingAuth;
     }
     logger.log('noun poke', { app, mark });
+    sent = captureSendContext(config.client);
     return config.client.pokeNoun({
       ...params,
       app,
@@ -546,9 +589,9 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       return fail(err);
     }
     if (isChannelIdentityMismatch(err)) {
-      rotateChannel(config.client, `noun poke ${app}/${mark}`);
+      rotateChannelOnce(config.client, sent, `noun poke ${app}/${mark}`);
     } else if (err instanceof AuthError) {
-      await reauth();
+      await reauthOnce(sent);
     } else {
       return fail(err);
     }
@@ -575,6 +618,7 @@ export async function poke({ app, mark, json }: PokeParams) {
     mark,
   });
   const activeClient = resolveClient();
+  let sent = captureSendContext(activeClient);
   const doPoke = async () => {
     if (!activeClient) {
       throw new Error('Client not initialized');
@@ -582,6 +626,7 @@ export async function poke({ app, mark, json }: PokeParams) {
     if (activeClient === config.client && config.pendingAuth) {
       await config.pendingAuth;
     }
+    sent = captureSendContext(activeClient);
     return activeClient.poke({ app, mark, json });
   };
   const fail = (err: any) => {
@@ -598,9 +643,9 @@ export async function poke({ app, mark, json }: PokeParams) {
       return fail(err);
     }
     if (isChannelIdentityMismatch(err)) {
-      rotateChannel(activeClient, `poke ${app}/${mark}`);
+      rotateChannelOnce(activeClient, sent, `poke ${app}/${mark}`);
     } else if (err instanceof AuthError) {
-      await reauth();
+      await reauthOnce(sent);
     } else {
       return fail(err);
     }
@@ -777,6 +822,7 @@ export async function scry<T>({
     path: redactPath(path),
     shouldTimeoutAfter: timeout ?? DEFAULT_SCRY_TIMEOUT,
   });
+  const sent = captureSendContext(activeClient);
   try {
     const { result, responseSizeInBytes, responseStatus } =
       await activeClient.scryWithInfo<T>({
@@ -790,7 +836,7 @@ export async function scry<T>({
     logger.log('bad scry', app, path, res.status);
     if (res.status === 403 && activeClient === config.client) {
       logger.log('scry failed with 403, authing to try again');
-      await reauth();
+      await reauthOnce(sent);
       const { result, responseSizeInBytes, responseStatus } =
         await activeClient.scryWithInfo<T>({ app, path });
       trackDuration('success', { responseSizeInBytes, responseStatus });
@@ -825,6 +871,7 @@ export async function requestJson<T = any>(
     await config.pendingAuth;
   }
   const reauthStatuses = options.reauthStatuses ?? [403];
+  const sent = captureSendContext(activeClient);
   const send = () =>
     options.signal
       ? activeClient.requestJson<T>(path, method, body, {
@@ -842,7 +889,7 @@ export async function requestJson<T = any>(
       activeClient === config.client &&
       reauthStatuses.includes(res?.status)
     ) {
-      await reauth();
+      await reauthOnce(sent);
       return await send();
     }
     const errorBody = await responseErrorBody(res);
@@ -1035,6 +1082,7 @@ async function performReauth(): Promise<string | void> {
     }
 
     if (authCookie) {
+      config.authEpoch += 1;
       if (config.client) {
         config.client.cookie = authCookie;
         // logging in moved us to a new session. any channel we opened under

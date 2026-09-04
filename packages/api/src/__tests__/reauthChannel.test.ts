@@ -248,6 +248,26 @@ describe('channel identity mismatch', () => {
   });
 });
 
+describe('seamlessReset', () => {
+  test('aborts the old channel connection so its retry loop stops', async () => {
+    const fetch = vi.fn(async () => new Response(null, { status: 204 }));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    urbit.nodeId = '~zod';
+    (urbit as any).sseClientInitialized = true;
+    await urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
+    const oldSignal: AbortSignal = (fetch.mock.calls[0] as any)[1].signal;
+    const oldChannel = urbit.channelId;
+
+    urbit.seamlessReset();
+
+    expect(oldSignal.aborted).toBe(true);
+    expect(urbit.channelId).not.toBe(oldChannel);
+    await urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
+    const newSignal: AbortSignal = (fetch.mock.calls[1] as any)[1].signal;
+    expect(newSignal.aborted).toBe(false);
+  });
+});
+
 describe('AuthFailureError', () => {
   test('describes what each eyre status means', () => {
     expect(new AuthFailureError(400).message).toMatch(
@@ -255,5 +275,82 @@ describe('AuthFailureError', () => {
     );
     expect(new AuthFailureError(401).message).toMatch(/stale session cookie/);
     expect(new AuthFailureError(500).message).toMatch(/Unexpected response/);
+  });
+});
+
+describe('storms', () => {
+  // several requests fail together when a channel dies; only the first one
+  // back should rotate, the rest retry on the new channel
+  function rotatingClient(overrides: Record<string, unknown> = {}) {
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      ...overrides,
+    });
+    client.seamlessReset = vi.fn(() => {
+      client.channelId = `chan-${client.seamlessReset.mock.calls.length + 1}`;
+    });
+    return client;
+  }
+
+  test('concurrent channel 403s rotate the channel once', async () => {
+    const client = rotatingClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new ChannelPutError(403))
+        .mockRejectedValueOnce(new ChannelPutError(403))
+        .mockRejectedValueOnce(new ChannelPutError(403))
+        .mockResolvedValue(1),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pokes = [
+      poke({ app: 'a', mark: 'm', json: 1 }),
+      poke({ app: 'b', mark: 'm', json: 2 }),
+      poke({ app: 'c', mark: 'm', json: 3 }),
+    ];
+    await expect(Promise.all(pokes)).resolves.toEqual([1, 1, 1]);
+    expect(client.seamlessReset).toHaveBeenCalledTimes(1);
+    expect(client.poke).toHaveBeenCalledTimes(6);
+  });
+
+  test('an auth failure that lands after a reauth retries without a second login', async () => {
+    let calls = 0;
+    const client = rotatingClient({
+      poke: vi.fn(() => {
+        calls += 1;
+        if (calls === 1) {
+          return Promise.reject(new AuthError('invalid session'));
+        }
+        if (calls === 2) {
+          // in flight while the first failure's reauth runs; comes back late
+          return new Promise((_, reject) =>
+            setTimeout(() => reject(new AuthError('invalid session')), 30)
+          );
+        }
+        return Promise.resolve(calls);
+      }),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse());
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const pokes = [
+      poke({ app: 'a', mark: 'm', json: 1 }),
+      poke({ app: 'b', mark: 'm', json: 2 }),
+    ];
+    await expect(Promise.all(pokes)).resolves.toEqual([3, 4]);
+    // the late failure saw the epoch move and just retried
+    expect(loginFetch).toHaveBeenCalledTimes(1);
+    expect(client.seamlessReset).toHaveBeenCalledTimes(1);
   });
 });

@@ -150,6 +150,14 @@ export class Urbit {
     return this.lastEventId > 0;
   }
 
+  /**
+   * The current channel id. Changes on every reset, so a caller can tell
+   * whether the channel it sent on is still the live one.
+   */
+  get channelId(): string {
+    return this.uid;
+  }
+
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
     return `${this.url}/~/channel/${this.uid}`;
@@ -554,8 +562,12 @@ export class Urbit {
   }
 
   seamlessReset() {
-    // called if a channel was reaped by %eyre before we reconnected
-    // so we have to make a new channel.
+    // called if a channel was reaped by %eyre before we reconnected, or if
+    // our session can no longer use it, so we have to make a new channel.
+    // drop the old channel's event source first: its reconnect loop keeps
+    // the old channel url and would otherwise retry it forever
+    this.channelAbort.abort();
+    this.channelAbort = new AbortController();
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
     this.emit('seamless-reset', { uid: this.uid });
     this.emit('status-update', { status: 'initial' });
