@@ -21,6 +21,16 @@ export function notePublishContentKey(content: PublishContent) {
   return JSON.stringify([content.title.trim(), content.body]);
 }
 
+// Reconciliation runs on every keystroke of an open draft, so the caller
+// needs to tell an unchanged verdict from a fresh Set with the same members.
+export function sameNoteIds(a: ReadonlySet<number>, b: ReadonlySet<number>) {
+  if (a.size !== b.size) return false;
+  for (const noteId of a) {
+    if (!b.has(noteId)) return false;
+  }
+  return true;
+}
+
 export function reconcilePublishedNoteUpdates({
   baselines,
   notes,

@@ -4,6 +4,7 @@ import {
   type PublishedNoteBaselines,
   notePublishContentKey,
   reconcilePublishedNoteUpdates,
+  sameNoteIds,
 } from './notesPublishMenu';
 
 function baselinesFor(
@@ -84,6 +85,16 @@ describe('reconcilePublishedNoteUpdates', () => {
     ).toEqual(new Set());
   });
 
+  test('offers an update once a retained draft is edited past the published content', () => {
+    const baselines = baselinesFor([1, 'Published draft', 'Body']);
+
+    // Typing continues after the publish, so the draft — which is what a
+    // publish would send — no longer matches the public copy.
+    expect(
+      updatesFor(baselines, { title: 'Published draft', body: 'Body edited' })
+    ).toEqual(new Set([1]));
+  });
+
   test('offers an update again when the published draft is abandoned', () => {
     const baselines = baselinesFor([1, 'Published draft', 'Body']);
 
@@ -120,5 +131,21 @@ describe('reconcilePublishedNoteUpdates', () => {
         publishedNoteIds: new Set([2]),
       })
     ).toEqual(new Set());
+  });
+});
+
+describe('sameNoteIds', () => {
+  test('treats a fresh set with the same members as unchanged', () => {
+    expect(sameNoteIds(new Set([1, 2]), new Set([2, 1]))).toBe(true);
+  });
+
+  test('detects added, removed, and swapped members', () => {
+    expect(sameNoteIds(new Set([1]), new Set([1, 2]))).toBe(false);
+    expect(sameNoteIds(new Set([1, 2]), new Set([1]))).toBe(false);
+    expect(sameNoteIds(new Set([1]), new Set([2]))).toBe(false);
+  });
+
+  test('treats two empty sets as unchanged', () => {
+    expect(sameNoteIds(new Set(), new Set())).toBe(true);
   });
 });

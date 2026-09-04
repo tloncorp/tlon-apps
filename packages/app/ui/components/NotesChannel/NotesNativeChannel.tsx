@@ -71,6 +71,7 @@ import {
   type PublishedNoteBaselines,
   notePublishContentKey,
   reconcilePublishedNoteUpdates,
+  sameNoteIds,
 } from './notesPublishMenu';
 import { trackNotesActionError } from './notesTelemetry';
 import {
@@ -204,8 +205,12 @@ export function NotesNativeChannel({
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
   const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
-  const [activeDirtyDraftNoteId, setActiveDirtyDraftNoteId] = useState<
-    number | null
+  // Keyed on the active draft's *content*, not just its note id: the editor
+  // republishes a snapshot on every keystroke, and continuous typing keeps
+  // resetting the autosave debounce, so a note-id-only trigger would leave
+  // the publish reconciliation stale for as long as the user keeps typing.
+  const [activeDraftPublishKey, setActiveDraftPublishKey] = useState<
+    string | null
   >(null);
   const publishedNoteContentBaselinesRef = useRef<PublishedNoteBaselines>(
     new Map()
@@ -323,9 +328,14 @@ export function NotesNativeChannel({
   const handleNoteDraftChange = useMutableCallback(
     (draft: NotesNoteDraftSnapshot | null) => {
       activeNoteDraftRef.current = draft;
-      const nextDirtyDraftNoteId = draft?.isDirty ? draft.noteId : null;
-      setActiveDirtyDraftNoteId((current) =>
-        current === nextDirtyDraftNoteId ? current : nextDirtyDraftNoteId
+      const nextKey = draft
+        ? `${draft.noteId}:${notePublishContentKey({
+            title: draft.title,
+            body: draft.body,
+          })}`
+        : null;
+      setActiveDraftPublishKey((current) =>
+        current === nextKey ? current : nextKey
       );
     }
   );
@@ -364,18 +374,25 @@ export function NotesNativeChannel({
     );
     const next = reconcilePublishedNoteUpdates({
       baselines: publishedNoteContentBaselinesRef.current,
-      notes: notes.map((note) => ({
-        noteId: note.noteId,
-        publishContent: getNotePublishContent(note),
-      })),
+      // Only published notes can need an update, and this runs on every
+      // keystroke of an open draft — so don't key content for the rest of
+      // the notebook just to have the reconciler discard it.
+      notes: notes
+        .filter((note) => publishedNoteIds.has(note.noteId))
+        .map((note) => ({
+          noteId: note.noteId,
+          publishContent: getNotePublishContent(note),
+        })),
       publishedNoteIds,
     });
-    setNotesWithPublishedUpdates(next);
-    // `getNotePublishContent` reads draft state through refs, so the epoch and
-    // the active draft's dirty flag are what re-run this when the content a
+    setNotesWithPublishedUpdates((current) =>
+      sameNoteIds(current, next) ? current : next
+    );
+    // `getNotePublishContent` reads draft state through refs, so the draft
+    // content key and the save epoch are what re-run this when the content a
     // publish would send changes.
   }, [
-    activeDirtyDraftNoteId,
+    activeDraftPublishKey,
     getNotePublishContent,
     notebookFlag,
     notes,
