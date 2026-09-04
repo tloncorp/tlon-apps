@@ -6,19 +6,18 @@ import {
 } from './notesPublishMenu';
 
 describe('reconcilePublishedNoteUpdates', () => {
-  test('uses the first saved version of a published note as its baseline', () => {
+  test('keeps the update action available when the published baseline is unknown', () => {
     const baselines = new Map();
 
     const updates = reconcilePublishedNoteUpdates({
       baselines,
       notes: [{ noteId: 1, title: 'First', bodyMd: 'Body' }],
+      noteIdsWithPendingSaves: new Set(),
       publishedNoteIds: new Set([1]),
     });
 
-    expect(updates).toEqual(new Set());
-    expect(baselines.get(1)).toEqual(
-      publishedNoteBaseline({ title: 'First', body: 'Body' })
-    );
+    expect(updates).toEqual(new Set([1]));
+    expect(baselines).toEqual(new Map());
   });
 
   test('requires an update only after saved content changes', () => {
@@ -30,6 +29,7 @@ describe('reconcilePublishedNoteUpdates', () => {
       reconcilePublishedNoteUpdates({
         baselines,
         notes: [{ noteId: 1, title: 'Changed', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set(),
         publishedNoteIds: new Set([1]),
       })
     ).toEqual(new Set([1]));
@@ -38,6 +38,7 @@ describe('reconcilePublishedNoteUpdates', () => {
       reconcilePublishedNoteUpdates({
         baselines,
         notes: [{ noteId: 1, title: 'First', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set(),
         publishedNoteIds: new Set([1]),
       })
     ).toEqual(new Set());
@@ -51,6 +52,7 @@ describe('reconcilePublishedNoteUpdates', () => {
     reconcilePublishedNoteUpdates({
       baselines,
       notes: [{ noteId: 1, title: 'Changed', bodyMd: 'Body' }],
+      noteIdsWithPendingSaves: new Set(),
       publishedNoteIds: new Set(),
     });
 
@@ -72,6 +74,7 @@ describe('reconcilePublishedNoteUpdates', () => {
       reconcilePublishedNoteUpdates({
         baselines,
         notes: [{ noteId: 1, title: 'Saved before publish', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set([1]),
         publishedNoteIds: new Set([1]),
       })
     ).toEqual(new Set());
@@ -80,6 +83,7 @@ describe('reconcilePublishedNoteUpdates', () => {
       reconcilePublishedNoteUpdates({
         baselines,
         notes: [{ noteId: 1, title: 'Published draft', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set(),
         publishedNoteIds: new Set([1]),
       })
     ).toEqual(new Set());
@@ -88,6 +92,28 @@ describe('reconcilePublishedNoteUpdates', () => {
       reconcilePublishedNoteUpdates({
         baselines,
         notes: [{ noteId: 1, title: 'Later save', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set(),
+        publishedNoteIds: new Set([1]),
+      })
+    ).toEqual(new Set([1]));
+  });
+
+  test('offers an update again when a pending draft is abandoned', () => {
+    const baselines = new Map([
+      [
+        1,
+        publishedNoteBaseline(
+          { title: 'Published draft', body: 'Body' },
+          { title: 'Saved before publish', body: 'Body' }
+        ),
+      ],
+    ]);
+
+    expect(
+      reconcilePublishedNoteUpdates({
+        baselines,
+        notes: [{ noteId: 1, title: 'Saved before publish', bodyMd: 'Body' }],
+        noteIdsWithPendingSaves: new Set(),
         publishedNoteIds: new Set([1]),
       })
     ).toEqual(new Set([1]));

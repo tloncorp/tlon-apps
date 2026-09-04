@@ -61,6 +61,8 @@ import {
   NotesNoteDetail,
   type NotesNoteDraftSnapshot,
   getNotesNoteDraftSnapshot,
+  hasPendingNotesNoteSave,
+  usePendingNotesNoteSaveChanges,
 } from './NotesNoteDetail';
 import { NotesSearchModal } from './NotesSearchModal';
 import type { NotesSearchResultNote } from './NotesSearchResults';
@@ -203,6 +205,9 @@ export function NotesNativeChannel({
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
   const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
+  const [activeDirtyDraftNoteId, setActiveDirtyDraftNoteId] = useState<
+    number | null
+  >(null);
   const publishedNoteContentBaselinesRef = useRef(
     new Map<number, PublishedNoteBaseline>()
   );
@@ -221,6 +226,7 @@ export function NotesNativeChannel({
       notebookFlag,
       enabled: Boolean(notebookFlag),
     });
+  const pendingNotesNoteSaveEpoch = usePendingNotesNoteSaveChanges();
 
   useEffect(() => {
     setDesktopFolderId(folderId ?? null);
@@ -307,13 +313,30 @@ export function NotesNativeChannel({
     const publishedNoteIds = new Set(
       publishedNotes.map((record) => record.noteId)
     );
+    const noteIdsWithPendingSaves = new Set(
+      notes
+        .filter(
+          (note) =>
+            note.noteId === activeDirtyDraftNoteId ||
+            (notebookFlag != null &&
+              hasPendingNotesNoteSave(notebookFlag, note.noteId))
+        )
+        .map((note) => note.noteId)
+    );
     const next = reconcilePublishedNoteUpdates({
       baselines: publishedNoteContentBaselinesRef.current,
       notes,
+      noteIdsWithPendingSaves,
       publishedNoteIds,
     });
     setNotesWithPublishedUpdates(next);
-  }, [notebookFlag, notes, publishedNotes]);
+  }, [
+    activeDirtyDraftNoteId,
+    notebookFlag,
+    notes,
+    pendingNotesNoteSaveEpoch,
+    publishedNotes,
+  ]);
   const hasPublishedUpdate = useMemo(
     () => (noteId: number) => notesWithPublishedUpdates.has(noteId),
     [notesWithPublishedUpdates]
@@ -360,6 +383,10 @@ export function NotesNativeChannel({
   const handleNoteDraftChange = useMutableCallback(
     (draft: NotesNoteDraftSnapshot | null) => {
       activeNoteDraftRef.current = draft;
+      const nextDirtyDraftNoteId = draft?.isDirty ? draft.noteId : null;
+      setActiveDirtyDraftNoteId((current) =>
+        current === nextDirtyDraftNoteId ? current : nextDirtyDraftNoteId
+      );
     }
   );
   const getNotePublishContent = useMutableCallback((note: db.NotesNote) => {

@@ -38,10 +38,12 @@ export function publishedNoteBaseline(
 export function reconcilePublishedNoteUpdates({
   baselines,
   notes,
+  noteIdsWithPendingSaves,
   publishedNoteIds,
 }: {
   baselines: Map<number, PublishedNoteBaseline>;
   notes: readonly SavedNoteContent[];
+  noteIdsWithPendingSaves: ReadonlySet<number>;
   publishedNoteIds: ReadonlySet<number>;
 }) {
   const noteIdsNeedingUpdate = new Set<number>();
@@ -61,12 +63,18 @@ export function reconcilePublishedNoteUpdates({
     });
     const baseline = baselines.get(note.noteId);
     if (baseline === undefined) {
-      baselines.set(note.noteId, { publishedContentKey: contentKey });
+      // The published API does not expose content or a revision. On a fresh
+      // mount we therefore cannot prove that the saved note matches the
+      // public copy, so keep the explicit update action available.
+      noteIdsNeedingUpdate.add(note.noteId);
     } else if (baseline.publishedContentKey === contentKey) {
       if (baseline.pendingSavedContentKey !== undefined) {
         baselines.set(note.noteId, { publishedContentKey: contentKey });
       }
-    } else if (baseline.pendingSavedContentKey !== contentKey) {
+    } else if (
+      baseline.pendingSavedContentKey !== contentKey ||
+      !noteIdsWithPendingSaves.has(note.noteId)
+    ) {
       if (baseline.pendingSavedContentKey !== undefined) {
         baselines.set(note.noteId, {
           publishedContentKey: baseline.publishedContentKey,

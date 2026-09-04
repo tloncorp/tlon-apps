@@ -138,10 +138,18 @@ function getPendingNotesNoteSaveEpoch() {
   return pendingNotesNoteSaveEpoch;
 }
 
-function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
+export function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
   return (
     (pendingNotesNoteSaveCounts.get(draftSnapshotKey(notebookFlag, noteId)) ??
       0) > 0
+  );
+}
+
+export function usePendingNotesNoteSaveChanges() {
+  return useSyncExternalStore(
+    subscribeToPendingNotesNoteSaves,
+    getPendingNotesNoteSaveEpoch,
+    getPendingNotesNoteSaveEpoch
   );
 }
 
@@ -435,11 +443,7 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
-  useSyncExternalStore(
-    subscribeToPendingNotesNoteSaves,
-    getPendingNotesNoteSaveEpoch,
-    getPendingNotesNoteSaveEpoch
-  );
+  usePendingNotesNoteSaveChanges();
   // The host's copy of the note after a save hit a genuine revision
   // conflict. While set, autosave is suspended and the banner offers the
   // user the resolution (keep mine / use theirs) — a blind retry can never
