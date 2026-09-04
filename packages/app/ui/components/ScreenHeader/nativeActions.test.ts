@@ -30,4 +30,26 @@ describe('native header actions', () => {
       })
     ).toMatchObject({ identifier: 'rename' });
   });
+
+  it('preserves destructive styling for menu actions', () => {
+    expect(
+      buildNativeHeaderItem({
+        id: 'options',
+        icon: 'Overflow',
+        label: 'More options',
+        items: [
+          {
+            id: 'logout',
+            label: 'Log out',
+            destructive: true,
+            onPress: vi.fn(),
+          },
+        ],
+      })
+    ).toMatchObject({
+      menu: {
+        items: [{ label: 'Log out', destructive: true }],
+      },
+    });
+  });
 });

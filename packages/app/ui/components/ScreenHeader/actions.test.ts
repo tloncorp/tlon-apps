@@ -118,7 +118,14 @@ describe('screen header actions', () => {
         id: 'options',
         icon: 'Overflow',
         label: 'Options',
-        items: [{ id: 'read', label: 'Mark all read', onPress: vi.fn() }],
+        items: [
+          {
+            id: 'logout',
+            label: 'Log out',
+            destructive: true,
+            onPress: vi.fn(),
+          },
+        ],
       },
     ];
     const serialize = (actions: ScreenHeaderAction[]) =>
@@ -127,6 +134,7 @@ describe('screen header actions', () => {
 
     expect(signature).toContain('#00ff00');
     expect(signature).toContain('add-button');
+    expect(signature).toContain('destructive');
     expect(signature).not.toBe(
       serialize([
         { ...base[0], label: 'Create' } as ScreenHeaderAction,
