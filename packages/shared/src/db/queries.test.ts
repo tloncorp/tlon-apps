@@ -491,9 +491,9 @@ describe('getChats group recency workaround', () => {
       });
     }
 
-    await queries.confirmNotesActivityEventDeleted({
+    await queries.confirmNotesActivityEventsDeleted({
       notebookFlag,
-      noteId: 42,
+      noteIds: [42],
     });
     const afterConfirmedDelete = (await queries.getChats()).unpinned.find(
       (candidate) => candidate.id === groupId
@@ -505,6 +505,35 @@ describe('getChats group recency workaround', () => {
         noteTitle: null,
         isNew: true,
         timestamp: 400_000,
+      });
+    }
+
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'latest-note-event',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(43, 1, 'Newer local note', {
+          id: `${notebookFlag}/note/43`,
+          notebookFlag,
+          createdAt: 500,
+          updatedAt: 500,
+        }),
+      ],
+      members: [],
+    });
+    const afterNewerLocalNote = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(afterNewerLocalNote?.type).toBe('group');
+    if (afterNewerLocalNote?.type === 'group') {
+      expect(afterNewerLocalNote.notesActivity).toMatchObject({
+        noteId: '43',
+        noteTitle: 'Newer local note',
+        timestamp: 500_000,
       });
     }
   });
@@ -714,7 +743,7 @@ describe('getChats group recency workaround', () => {
           id: `${notebookFlag}/note/1`,
           notebookFlag,
           createdAt: 2_000_000_000,
-          updatedAt: 2_000_000_000,
+          updatedAt: 2_000_000_000_000,
         }),
         makeNotesNote(2, 1, 'Older milliseconds note', {
           id: `${notebookFlag}/note/2`,
@@ -735,6 +764,7 @@ describe('getChats group recency workaround', () => {
       expect(chat.notesActivity).toMatchObject({
         noteId: '1',
         noteTitle: 'Newer seconds note',
+        isNew: true,
         timestamp: 2_000_000_000_000,
       });
     }
@@ -818,6 +848,49 @@ describe('getChats group recency workaround', () => {
         noteTitle: null,
         timestamp: 400_000,
       });
+    }
+  });
+
+  test('bounds a local note timestamp when notebook recency is absent', async () => {
+    const groupId = '~zod/no-notes-recency';
+    const channelId = 'notes/~zod/no-notes-recency';
+    const notebookFlag = '~zod/no-notes-recency';
+    const futureTimestamp =
+      Date.now() + queries.NOTES_ACTIVITY_DETAIL_WINDOW_MS + 10_000;
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'no-notes-recency',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Future local note', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: futureTimestamp,
+          updatedAt: futureTimestamp,
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBeLessThanOrEqual(Date.now());
+      expect(chat.notesActivity).toBeNull();
     }
   });
 

@@ -55,7 +55,11 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  appendContactIdToReplies,
+  getCompositeGroups,
+  noteTimestampMs,
+} from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -871,19 +875,32 @@ export const deleteNotesNote = createWriteQuery(
   ['notesNotes']
 );
 
-export const confirmNotesActivityEventDeleted = createWriteQuery(
-  'confirmNotesActivityEventDeleted',
+export const confirmNotesActivityEventsDeleted = createWriteQuery(
+  'confirmNotesActivityEventsDeleted',
   async (
-    { notebookFlag, noteId }: { notebookFlag: string; noteId: number },
+    { notebookFlag, noteIds }: { notebookFlag: string; noteIds: number[] },
     ctx: QueryCtx
   ) => {
-    return ctx.db
-      .insert($notesActivityEventTombstones)
-      .values({
-        channelId: `notes/${notebookFlag}`,
-        noteId: String(noteId),
-      })
-      .onConflictDoNothing();
+    if (noteIds.length === 0) {
+      return;
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await batchAction(
+        noteIds,
+        async (batch) => {
+          await txCtx.db
+            .insert($notesActivityEventTombstones)
+            .values(
+              batch.map((noteId) => ({
+                channelId: `notes/${notebookFlag}`,
+                noteId: String(noteId),
+              }))
+            )
+            .onConflictDoNothing();
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+    });
   },
   ['notesActivityEventTombstones']
 );
@@ -1541,19 +1558,29 @@ async function getGroupNotesActivity(
   for (const { groupId, channel, notebookFlag } of notesChannels) {
     const recency = channel.unread?.updatedAt ?? 0;
     const event = eventsByChannel.get(channel.id);
+    const localNote = notebookFlag
+      ? notesByNotebook.get(notebookFlag)
+      : undefined;
     const detail = event?.isConfirmedDeleted
-      ? undefined
-      : newestNotesActivityDetail(
-          event,
-          notebookFlag ? notesByNotebook.get(notebookFlag) : undefined
-        );
+      ? localNote && localNote.timestamp > event.timestamp
+        ? localNote
+        : undefined
+      : newestNotesActivityDetail(event, localNote);
+    const now = Date.now();
     const describes =
       detail &&
-      (recency <= 0 ||
-        Math.abs(detail.timestamp - recency) <= NOTES_ACTIVITY_DETAIL_WINDOW_MS)
+      (recency > 0
+        ? Math.abs(detail.timestamp - recency) <=
+          NOTES_ACTIVITY_DETAIL_WINDOW_MS
+        : detail.timestamp <= now + NOTES_ACTIVITY_DETAIL_WINDOW_MS)
         ? detail
         : null;
-    const timestamp = Math.max(recency, describes?.timestamp ?? 0);
+    const detailTimestamp = describes
+      ? recency > 0
+        ? describes.timestamp
+        : Math.min(describes.timestamp, now)
+      : 0;
+    const timestamp = Math.max(recency, detailTimestamp);
     if (timestamp <= 0) {
       continue;
     }
@@ -1744,7 +1771,8 @@ async function getLatestNotesByNotebook(
       authorId: row.updatedBy ?? null,
       isNew:
         row.updatedAt == null ||
-        (row.createdAt != null && row.createdAt === row.updatedAt),
+        (row.createdAt != null &&
+          noteTimestampMs(row.createdAt) === noteTimestampMs(row.updatedAt)),
       timestamp: row.effectiveAt,
     });
   }

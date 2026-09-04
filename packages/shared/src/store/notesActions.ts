@@ -1127,7 +1127,10 @@ export async function deleteNotebookNote({
     // Snapshot fetch time is not causal proof of deletion because subscribed
     // notebook replicas can lag. This confirmation poll is: only now suppress
     // the persisted activity detail that could otherwise expose a stale title.
-    await db.confirmNotesActivityEventDeleted({ notebookFlag, noteId });
+    await db.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: [noteId],
+    });
     trackEvent(AnalyticsEvent.NoteDeleted);
   }
 }
@@ -1141,27 +1144,52 @@ export async function deleteNotebookFolder({
 }) {
   // Queued like deleteNotebookNote. The descendant lookup joins the unit so
   // the ids can't come from a copy a concurrent refresh is about to replace.
-  const folderIds = await queueNotebookSnapshot(notebookFlag, async () => {
-    const folders = await db.getNotesFolders({ notebookFlag });
-    const ids = Array.from(
-      collectDescendantFolderIds(folders, folder.folderId)
-    );
+  const { folderIds, noteIds } = await queueNotebookSnapshot(
+    notebookFlag,
+    async () => {
+      const [folders, notes] = await Promise.all([
+        db.getNotesFolders({ notebookFlag }),
+        db.getNotesNotes({ notebookFlag }),
+      ]);
+      const ids = Array.from(
+        collectDescendantFolderIds(folders, folder.folderId)
+      );
+      const folderIdSet = new Set(ids);
+      const noteIds = notes
+        .filter((note) => folderIdSet.has(note.folderId))
+        .map((note) => note.noteId);
 
-    await api.notes.deleteFolder({
-      flag: notebookFlag,
-      folderId: folder.folderId,
-      recursive: true,
-    });
-    await db.deleteNotesFolders({ notebookFlag, folderIds: ids });
-    return ids;
-  });
-  const confirmed = await syncNotesNotebookUntil(notebookFlag, (snapshot) =>
-    folderIds.every(
-      (folderId) =>
-        !snapshot.folders.some((nextFolder) => nextFolder.folderId === folderId)
-    )
+      await api.notes.deleteFolder({
+        flag: notebookFlag,
+        folderId: folder.folderId,
+        recursive: true,
+      });
+      await db.deleteNotesFolders({ notebookFlag, folderIds: ids });
+      return { folderIds: ids, noteIds };
+    }
   );
-  if (confirmed) {
+  const confirmedDeletedNoteIds = await syncNotesNotebookUntil(
+    notebookFlag,
+    (snapshot) => {
+      const foldersAreDeleted = folderIds.every(
+        (folderId) =>
+          !snapshot.folders.some(
+            (nextFolder) => nextFolder.folderId === folderId
+          )
+      );
+      if (!foldersAreDeleted) {
+        return null;
+      }
+      return noteIds.filter(
+        (noteId) => !snapshot.notes.some((note) => note.noteId === noteId)
+      );
+    }
+  );
+  if (confirmedDeletedNoteIds) {
+    await db.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: confirmedDeletedNoteIds,
+    });
     trackEvent(AnalyticsEvent.NotesFolderDeleted);
   }
 }
