@@ -108,8 +108,15 @@ has_desk() {
 }
 desk_hash() {
   local target="\$1"
-  sed -nE "s/.*\"\${target}\"[[:space:]]*:[[:space:]]*[{][^}]*\"hash\"[[:space:]]*:[[:space:]]*\"([^\"]+)\".*/\\1/p" <<<"\$pikes_json" \
-    | head -n 1
+  python3 -c '
+import json
+import sys
+
+hash_value = json.load(sys.stdin).get(sys.argv[1], {}).get("hash")
+if not isinstance(hash_value, str):
+    raise SystemExit(1)
+print(hash_value)
+' "\$target" <<<"\$pikes_json"
 }
 hood_command() {
   local command="\$1"
