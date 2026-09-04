@@ -17,12 +17,14 @@ import {
   getModelFormValues,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
+  normalizeShipList,
   normalizeChannelRuleKey,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
   runApplySteps,
   toChatFormValues,
 } from './helpers';
+import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
 import {
   BotSettingsQueries,
   useBotSettingsMutations,
@@ -381,6 +383,30 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
                 : serverModel.fallbacks,
             });
             const savedProviderConfig = normalizeProviderConfig(saved);
+            const savedModel = getModelFormValues(savedProviderConfig);
+            if (draft.pending.modelProvider || draft.pending.model) {
+              trackTlonbotSettingUpdated({
+                setting: 'primary_model',
+                action: 'updated',
+                provider: savedModel.provider,
+                model: savedModel.model,
+              });
+            }
+            if (draft.pending.zdr) {
+              trackTlonbotSettingUpdated({
+                setting: 'zero_data_retention',
+                action: 'updated',
+                enabled: savedModel.zdr,
+                provider: savedModel.provider,
+              });
+            }
+            if (draft.pending.fallbacks) {
+              trackTlonbotSettingUpdated({
+                setting: 'fallback_models',
+                action: 'updated',
+                count: savedModel.fallbacks.length,
+              });
+            }
             // The save returns the full post-save provider config; adopt it as
             // the cached fresh config so the later channelModels merge (in the
             // chat step of this same apply) works from the newest snapshot —
@@ -390,7 +416,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             // Basic pinned to its default) rather than the draft snapshot, so a
             // later failing step doesn't leave a stale model shown.
             return {
-              model: getModelFormValues(savedProviderConfig),
+              model: savedModel,
             };
           },
           commit: { model: nextValues.model },
@@ -554,6 +580,49 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         const savedProviderConfig = normalizeProviderConfig(
           result.providerConfig
         );
+        const savedChat = toChatFormValues(savedConfig, savedProviderConfig);
+        if (draft.pending.dmAllowlist) {
+          trackTlonbotSettingUpdated({
+            setting: 'dm_allowlist',
+            action: 'updated',
+            count: normalizeShipList(savedChat.dmAllowlist).length,
+          });
+        }
+        if (draft.pending.defaultAuthorizedShips) {
+          trackTlonbotSettingUpdated({
+            setting: 'default_authorized_ships',
+            action: 'updated',
+            count: normalizeShipList(savedChat.defaultAuthorizedShips).length,
+          });
+        }
+        if (draft.pending.groupInviteAllowlist) {
+          trackTlonbotSettingUpdated({
+            setting: 'group_invite_allowlist',
+            action: 'updated',
+            count: normalizeShipList(savedChat.groupInviteAllowlist).length,
+          });
+        }
+        if (draft.pending.autoAcceptDmInvites) {
+          trackTlonbotSettingUpdated({
+            setting: 'auto_accept_dm_invites',
+            action: 'updated',
+            enabled: savedChat.autoAcceptDmInvites,
+          });
+        }
+        if (draft.pending.autoDiscoverChannels) {
+          trackTlonbotSettingUpdated({
+            setting: 'auto_discover_channels',
+            action: 'updated',
+            enabled: savedChat.autoDiscoverChannels,
+          });
+        }
+        if (draft.pending.channelRules) {
+          trackTlonbotSettingUpdated({
+            setting: 'channel_rules',
+            action: 'updated',
+            count: Object.keys(savedChat.channelRuleDrafts).length,
+          });
+        }
         mutations.queryClient.setQueryData(
           ['tlonbot', 'settings', queries.ship],
           savedConfig
@@ -563,7 +632,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         // another client added and the merge preserved) rather than the draft
         // snapshot, so those aren't hidden until the next remount/refetch.
         return {
-          chat: toChatFormValues(savedConfig, savedProviderConfig),
+          chat: savedChat,
         };
       };
       if (chatConfigDirty) {

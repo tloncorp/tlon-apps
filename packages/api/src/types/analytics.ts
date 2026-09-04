@@ -64,6 +64,7 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotSettingUpdated = 'Tlonbot Setting Updated',
   TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
   TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',

@@ -35,6 +35,7 @@ import {
   getLLMAuthSubscriptionModels,
   mergeProviderModels,
 } from './openAiSubscription';
+import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
 
 /**
  * Identifiers for the tlonbot hosting endpoints. User-level endpoints
@@ -335,6 +336,11 @@ export function useBotSettingsMutations() {
     onSuccess: (data, { provider }) => {
       setProviderConfig(data);
       invalidateProviderModels(provider);
+      trackTlonbotSettingUpdated({
+        setting: 'api_key',
+        action: 'saved',
+        provider,
+      });
     },
   });
 
@@ -344,24 +350,39 @@ export function useBotSettingsMutations() {
     onSuccess: (data, { provider }) => {
       setProviderConfig(data);
       invalidateProviderModels(provider);
+      trackTlonbotSettingUpdated({
+        setting: 'api_key',
+        action: 'removed',
+        provider,
+      });
     },
   });
 
   const disconnectLLMSubscription = useMutation({
     mutationFn: (provider: api.TlawnLLMAuthProvider) =>
       api.disconnectTlawnLLMAuth(ship, provider),
-    onSuccess: (_data, provider) =>
-      Promise.all(
+    onSuccess: (_data, provider) => {
+      trackTlonbotSettingUpdated({
+        setting: 'subscription',
+        action: 'disconnected',
+        provider,
+      });
+      return Promise.all(
         getLLMAuthDisconnectQueryKeys(ship, hostingUserId, provider).map(
           (queryKey) => queryClient.invalidateQueries({ queryKey })
         )
-      ),
+      );
+    },
   });
 
   const updateNickname = useMutation({
     mutationFn: (nickname: string) => api.setTlawnNickname(ship, nickname),
     onSuccess: (data) => {
       queryClient.setQueryData(['tlonbot', 'nickname', ship], data);
+      trackTlonbotSettingUpdated({
+        setting: 'nickname',
+        action: 'updated',
+      });
     },
   });
 
