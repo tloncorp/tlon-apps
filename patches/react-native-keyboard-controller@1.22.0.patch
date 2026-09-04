@@ -1,3 +1,387 @@
+diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts b/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts
+--- a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts
++++ b/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts
+@@ -13,13 +13,15 @@
+ } from "./helpers";
+
+ import type { UseChatKeyboardOptions, UseChatKeyboardReturn } from "./types";
++import type { NativeEvent } from "../../../types";
+ import type { AnimatedRef } from "react-native-reanimated";
+ import type Reanimated from "react-native-reanimated";
+
+ /**
+  * Hook that manages keyboard-driven scrolling for chat-style scroll views.
+  * Calculates padding (extra scrollable space) and content shift values,
+- * using iOS-specific strategy (contentOffset set once in onStart).
++ * Keeps contentInset and contentOffset paired on each native keyboard frame.
++ * Applying the final offset in onStart can jump ahead of the keyboard on Fabric.
+  *
+  * @param scrollViewRef - Animated ref to the scroll view.
+  * @param options - Configuration for inverted and keyboardLiftBehavior.
+@@ -50,6 +52,16 @@
+   const contentOffsetY = useSharedValue(0);
+   const targetKeyboardHeight = useSharedValue(0);
+   const prevAbsorption = useSharedValue(0);
++  const transition = useSharedValue({
++    active: false,
++    progress: 0,
++    fromHeight: 0,
++    toHeight: 0,
++    fromPadding: 0,
++    toPadding: 0,
++    fromScroll: 0,
++    toScroll: 0,
++  });
+
+   const {
+     layout,
+@@ -59,177 +71,194 @@
+     onContentSizeChange,
+   } = useScrollState(scrollViewRef);
+
+-  useKeyboardHandler(
+-    {
+-      onStart: (e) => {
+-        "worklet";
++  // Compute the destination without publishing animated layout values. Even
++  // temporarily assigning the target here can flush an early native commit.
++  const getTarget = (e: NativeEvent) => {
++    "worklet";
+
+-        if (freeze.value) {
+-          return;
+-        }
++    if (e.height > 0) {
++      // eslint-disable-next-line react-compiler/react-compiler
++      targetKeyboardHeight.value = e.height;
++    }
+
+-        if (e.height > 0) {
+-          // eslint-disable-next-line react-compiler/react-compiler
+-          targetKeyboardHeight.value = e.height;
+-        }
++    const effective = getEffectiveHeight(
++      e.height,
++      targetKeyboardHeight.value,
++      offset,
++    );
+
+-        const effective = getEffectiveHeight(
+-          e.height,
+-          targetKeyboardHeight.value,
+-          offset,
+-        );
++    const atEnd = isScrollAtEnd(
++      scroll.value,
++      layout.value.height,
++      size.value.height,
++      inverted,
++    );
+
+-        const atEnd = isScrollAtEnd(
+-          scroll.value,
+-          layout.value.height,
+-          size.value.height,
+-          inverted,
+-        );
++    // Scale minimum padding absorption by how much of it is visible.
++    // Fully visible → full absorption; fully off-screen → no absorption.
++    const visibleFraction = getVisibleMinimumPaddingFraction(
++      scroll.value,
++      layout.value.height,
++      size.value.height,
++      blankSpace.value,
++      inverted,
++    );
++    const visiblePadding = visibleFraction * blankSpace.value;
++    const minimumPaddingAbsorbed = Math.max(
++      0,
++      visiblePadding - extraContentPadding.value,
++    );
++    const scrollEffective = getScrollEffective(
++      effective,
++      minimumPaddingAbsorbed,
++    );
++    const actualTotalPadding = Math.max(
++      blankSpace.value,
++      effective + extraContentPadding.value,
++    );
++    const target = { padding: effective, scroll: scroll.value };
+
+-        // Scale minimum padding absorption by how much of it is visible.
+-        // Fully visible → full absorption; fully off-screen → no absorption.
+-        const visibleFraction = getVisibleMinimumPaddingFraction(
+-          scroll.value,
+-          layout.value.height,
+-          size.value.height,
+-          blankSpace.value,
+-          inverted,
++    // persistent mode: when keyboard shrinks, clamp to valid range
++    if (keyboardLiftBehavior === "persistent" && effective < padding.value) {
++      prevAbsorption.value = minimumPaddingAbsorbed;
++
++      if (inverted) {
++        const maxScroll = Math.max(size.value.height - layout.value.height, 0);
++
++        target.scroll = Math.max(
++          -actualTotalPadding,
++          Math.min(scroll.value, maxScroll),
+         );
+-        const visiblePadding = visibleFraction * blankSpace.value;
+-        const minimumPaddingAbsorbed = Math.max(
++      } else {
++        const maxScroll = Math.max(
++          size.value.height - layout.value.height + actualTotalPadding,
+           0,
+-          visiblePadding - extraContentPadding.value,
+         );
+-        const scrollEffective = getScrollEffective(
+-          effective,
+-          minimumPaddingAbsorbed,
+-        );
+-        const actualTotalPadding = Math.max(
+-          blankSpace.value,
+-          effective + extraContentPadding.value,
+-        );
+
+-        // persistent mode: when keyboard shrinks, clamp to valid range
+-        if (
+-          keyboardLiftBehavior === "persistent" &&
+-          effective < padding.value
+-        ) {
+-          padding.value = effective;
+-          prevAbsorption.value = minimumPaddingAbsorbed;
++        target.scroll = Math.max(0, Math.min(scroll.value, maxScroll));
++      }
+
+-          if (inverted) {
+-            const maxScroll = Math.max(
+-              size.value.height - layout.value.height,
+-              0,
+-            );
++      return target;
++    }
+
+-            contentOffsetY.value = Math.max(
+-              -actualTotalPadding,
+-              Math.min(scroll.value, maxScroll),
+-            );
+-          } else {
+-            const maxScroll = Math.max(
+-              size.value.height - layout.value.height + actualTotalPadding,
+-              0,
+-            );
++    // never mode: when keyboard shrinks, clamp to valid range
++    // to avoid ghost padding
++    if (
++      keyboardLiftBehavior === "never" &&
++      effective < padding.value &&
++      atEnd
++    ) {
++      prevAbsorption.value = minimumPaddingAbsorbed;
+
+-            contentOffsetY.value = Math.max(
+-              0,
+-              Math.min(scroll.value, maxScroll),
+-            );
+-          }
++      if (inverted) {
++        const maxScroll = Math.max(size.value.height - layout.value.height, 0);
+
+-          return;
+-        }
+-
+-        // never mode: when keyboard shrinks, clamp to valid range
+-        // to avoid ghost padding
+-        if (
+-          keyboardLiftBehavior === "never" &&
+-          effective < padding.value &&
+-          atEnd
+-        ) {
+-          padding.value = effective;
+-          prevAbsorption.value = minimumPaddingAbsorbed;
+-
+-          if (inverted) {
+-            const maxScroll = Math.max(
+-              size.value.height - layout.value.height,
+-              0,
+-            );
++        target.scroll = Math.max(
++          -actualTotalPadding,
++          Math.min(scroll.value, maxScroll),
++        );
++      } else {
++        const maxScroll = Math.max(
++          size.value.height - layout.value.height + actualTotalPadding,
++          0,
++        );
+
+-            contentOffsetY.value = Math.max(
+-              -actualTotalPadding,
+-              Math.min(scroll.value, maxScroll),
+-            );
+-          } else {
+-            const maxScroll = Math.max(
+-              size.value.height - layout.value.height + actualTotalPadding,
+-              0,
+-            );
++        target.scroll = Math.max(0, Math.min(scroll.value, maxScroll));
++      }
+
+-            contentOffsetY.value = Math.max(
+-              0,
+-              Math.min(scroll.value, maxScroll),
+-            );
+-          }
++      return target;
++    }
+
+-          return;
+-        }
++    // Undo only the scroll displacement that was actually applied
++    // (not the full padding, which includes the absorbed portion).
++    // Use the stored absorption from the previous event so that
++    // the unwind matches the shift that was originally applied.
++    const prevScrollEffective = getScrollEffective(
++      padding.value,
++      prevAbsorption.value,
++    );
++    const relativeScroll = inverted
++      ? scroll.value + prevScrollEffective
++      : scroll.value - prevScrollEffective;
+
+-        // Undo only the scroll displacement that was actually applied
+-        // (not the full padding, which includes the absorbed portion).
+-        // Use the stored absorption from the previous event so that
+-        // the unwind matches the shift that was originally applied.
+-        const prevScrollEffective = getScrollEffective(
+-          padding.value,
+-          prevAbsorption.value,
+-        );
+-        const relativeScroll = inverted
+-          ? scroll.value + prevScrollEffective
+-          : scroll.value - prevScrollEffective;
++    prevAbsorption.value = minimumPaddingAbsorbed;
+
+-        padding.value = effective;
+-        prevAbsorption.value = minimumPaddingAbsorbed;
++    if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
++      // Preserve current scroll position so animated props
++      // don't re-apply a stale contentOffset when padding changes
++      return target;
++    }
+
+-        if (!shouldShiftContent(keyboardLiftBehavior, atEnd)) {
+-          // Preserve current scroll position so animated props
+-          // don't re-apply a stale contentOffset when padding changes
+-          contentOffsetY.value = scroll.value;
++    // When blankSpace fully absorbs the keyboard opening, preserve current scroll position
++    // (only when keyboard is open — effective > 0 — not when closing)
++    if (scrollEffective === 0 && minimumPaddingAbsorbed > 0 && effective > 0) {
++      return target;
++    }
+
+-          return;
+-        }
++    target.scroll = computeIOSContentOffset(
++      relativeScroll,
++      scrollEffective,
++      size.value.height,
++      layout.value.height,
++      inverted,
++      actualTotalPadding,
++    );
++    return target;
++  };
+
+-        // When blankSpace fully absorbs the keyboard opening, preserve current scroll position
+-        // (only when keyboard is open — effective > 0 — not when closing)
+-        if (
+-          scrollEffective === 0 &&
+-          minimumPaddingAbsorbed > 0 &&
+-          effective > 0
+-        ) {
+-          contentOffsetY.value = scroll.value;
++  const move = (e: NativeEvent) => {
++    "worklet";
++    if (freeze.value) {
++      currentHeight.value = e.height;
++      return;
++    }
++    const t = transition.value;
++    if (!t.active) return;
++    const distance = t.toHeight - t.fromHeight;
++    const progress =
++      distance === 0
++        ? 1
++        : Math.max(0, Math.min(1, (e.height - t.fromHeight) / distance));
++    padding.value = t.fromPadding + progress * (t.toPadding - t.fromPadding);
++    // Keep composer-height adjustments made between keyboard frames.
++    contentOffsetY.value +=
++      (progress - t.progress) * (t.toScroll - t.fromScroll);
++    transition.value = { ...t, progress };
++    currentHeight.value = e.height;
++  };
+
++  useKeyboardHandler(
++    {
++      onStart: (e) => {
++        "worklet";
++        if (freeze.value) {
++          transition.value = { ...transition.value, active: false };
+           return;
+         }
+-
+-        contentOffsetY.value = computeIOSContentOffset(
+-          relativeScroll,
+-          scrollEffective,
+-          size.value.height,
+-          layout.value.height,
+-          inverted,
+-          actualTotalPadding,
+-        );
++        const fromPadding = padding.value;
++        const fromScroll = scroll.value;
++        const target = getTarget(e);
++        transition.value = {
++          active: true,
++          progress: 0,
++          fromHeight: currentHeight.value,
++          toHeight: e.height,
++          fromPadding,
++          toPadding: target.padding,
++          fromScroll,
++          toScroll: target.scroll,
++        };
++        padding.value = fromPadding;
++        contentOffsetY.value = fromScroll;
++        if (e.duration === 0) move(e);
+       },
+-      onMove: () => {
+-        "worklet";
+-
+-        // iOS doesn't need per-frame updates (contentOffset handles it)
+-      },
++      onMove: move,
+       onEnd: (e) => {
+         "worklet";
+
+         if (freeze.value) {
++          currentHeight.value = e.height;
++          transition.value = { ...transition.value, active: false };
+           return;
+         }
+
+@@ -239,6 +268,9 @@
+           offset,
+         );
+
++        move(e);
++        transition.value = { ...transition.value, active: false };
++        currentHeight.value = e.height;
+         padding.value = effective;
+       },
+     },
 diff --git a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 --- a/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
 +++ b/src/components/KeyboardChatScrollView/useExtraContentPadding/index.ts
