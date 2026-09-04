@@ -87,6 +87,37 @@
   |=  rep=r-groups:v10:gv
   ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(`flag:gv`host^%my-test-group))
   (ex-equal !>(`@tas`-.r-group.rep) !>(%create))
+::  +bucket-with-replica: the state every test below starts from.
+::
+::  ~bud is in the group, the bucket exists, and ~bud holds a replica of it.
+::  Returns once the snapshot has landed, so what follows is not racing the
+::  subscription being established.
+::
+++  bucket-with-replica
+  |=  rid=@uv
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [bucket-member %groups] /v1/groups)
+  ;<  ~  bind:m  (create-test-group bucket-host %public)
+  ;<  ~  bind:m  (join-test-group bucket-member bucket-host)
+  ;<  ~  bind:m  (ex-joined-group bucket-member bucket-host)
+  ;<  ~  bind:m  (watch-app /~bud/buckets/v1 [bucket-member %buckets] /v1)
+  ;<  ~  bind:m  (create-bucket bucket-host rid)
+  ;<  ~  bind:m  (join-bucket bucket-member)
+  (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
+::  +ex-bucket-update: expect an update fact whose u-bucket carries .tag.
+::
+++  ex-bucket-update
+  |=  tag=@tas
+  =/  m  (strand ,~)
+  ^-  form:m
+  %^  (ex-app-fact-match response:b)  /~bud/buckets/v1
+    [bucket-member %buckets]
+  :-  %buckets-response-1
+  |=  res=response:b
+  ?.  ?=(%update -.res)
+    (ex-equal !>(`@tas`-.res) !>(%update))
+  (ex-equal !>(`@tas`-.u-bucket.res) !>(tag))
 ::  +create-bucket: the host opens a bucket in the test group.
 ::
 ++  create-bucket
@@ -106,6 +137,57 @@
   ^-  form:m
   =/  =channel-join:b  [bucket-nest test-group]
   (poke-app [joiner %buckets] group-channel-join+channel-join)
+::  Losing read access takes the replica with it.
+::
+::  This is the path +recheck-host-subs drives: the host kicks the reader off
+::  the updates subscription, the re-watch it prompts is nacked because the
+::  seat is gone, and the replica stops. A reader that kept its replica here
+::  would go on showing a bucket it can no longer read.
+::
+++  ph-test-bucket-revoked-reader-loses-replica
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ::  the host bans ~bud, which takes its seat with it
+  =/  =c-groups:g
+    [%group test-group [%entry [%ban [%add-ships (sy bucket-member ~)]]]]
+  ;<  ~  bind:m  (poke-app [bucket-host %groups] group-command+c-groups)
+  ::  and the bucket goes the way the group did
+  ;<  ~  bind:m  (ex-bucket-update %delete)
+  (pure:m ~)
+::  Writers reach the replica.
+::
+::  A Bucket's writer roles live in %buckets alone -- %groups does not model
+::  them -- so this fact is the only way a member learns them. A replica that
+::  missed it would show an empty set, and an admin saving that bucket's
+::  settings would send the emptiness on to the real host, where empty means
+::  every reader may write.
+::
+++  ph-test-bucket-writers-reach-the-replica
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    `command:b`[0v2 [%bucket test-bucket [%set-writers (sy %admin ~)]]]
+  ;<  ~  bind:m  (ex-bucket-update %writers)
+  (pure:m ~)
+::  Leaving the channel drops the replica.
+::
+::  The other teardown path, and the one +delete-bucket was inconsistent with:
+::  %groups says the member left, +stop-sub drops the space, gives its own
+::  clients the delete and leaves the host's subscription.
+::
+++  ph-test-bucket-channel-leave-drops-replica
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-member %buckets]
+    [%group-channel-leave `channel-leave:b`[bucket-nest]]
+  ;<  ~  bind:m  (ex-bucket-update %delete)
+  (pure:m ~)
 ::  A bucket deletion has to reach the replica and take it with it.
 ::
 ::  The host gives the %delete fact and then kicks the path it travelled on;
