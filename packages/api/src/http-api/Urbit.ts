@@ -10,6 +10,7 @@ import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
+  ChannelPutError,
   AuthenticationInterface,
   FatalError,
   Message,
@@ -140,6 +141,14 @@ export class Urbit {
    * Custom fetch implementation to use.
    */
   fetchFn: typeof fetch = (...args) => fetch(...args);
+
+  /**
+   * Whether anything has been sent over the current channel id yet. Once true,
+   * the ship has a channel bound to whatever identity we had at the time.
+   */
+  get channelOpened(): boolean {
+    return this.lastEventId > 0;
+  }
 
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
@@ -645,7 +654,7 @@ export class Urbit {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to PUT channel');
+      throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -860,7 +869,15 @@ export class Urbit {
       status: 'open',
     });
 
-    await this.sendJSONtoChannel(message);
+    try {
+      await this.sendJSONtoChannel(message);
+    } catch (err) {
+      // the ship never saw this subscription, so don't let a later channel
+      // reset resubscribe it on the caller's behalf; the caller retries
+      this.outstandingSubscriptions.delete(message.id);
+      this.emit('subscription', { id: message.id, status: 'close' });
+      throw err;
+    }
 
     return message.id;
   }

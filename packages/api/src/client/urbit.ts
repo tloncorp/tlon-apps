@@ -3,6 +3,7 @@ import _ from 'lodash';
 
 import {
   AuthError,
+  ChannelPutError,
   ChannelStatus,
   NounPokeInterface,
   Thread,
@@ -330,6 +331,36 @@ function printEndpoint(endpoint: UrbitEndpoint) {
   return `${endpoint.app}${endpoint.path}`;
 }
 
+// Error instances serialize to `{}` once they reach analytics, so pull the
+// useful bits out. `error` is what the debug logger knows how to unpack into
+// errorMessage/errorStack; the rest covers eyre's string nacks and Responses.
+function describeError(err: unknown) {
+  const shaped = err as { name?: unknown; status?: unknown } | null | undefined;
+  return {
+    error: err instanceof Error ? err : undefined,
+    rawError: err instanceof Error ? undefined : String(err),
+    errorName: typeof shaped?.name === 'string' ? shaped.name : undefined,
+    errorStatus: typeof shaped?.status === 'number' ? shaped.status : undefined,
+  };
+}
+
+// Eyre binds each channel to the identity that created it and 403s any PUT
+// from another identity. We hit this when a channel was opened before login
+// (as a guest) and reused after, or after a session change. The channel id is
+// unrecoverable; mint a new one so the caller's retry lands on a fresh channel.
+function isChannelIdentityMismatch(err: unknown): err is ChannelPutError {
+  return err instanceof ChannelPutError && err.status === 403;
+}
+
+function rotateChannel(client: Urbit, context: string) {
+  logger.log('rotating channel', context);
+  logger.trackEvent(AnalyticsEvent.NodeConnectionDebug, {
+    context: 'channel rotated',
+    reason: context,
+  });
+  client.seamlessReset();
+}
+
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
   handler: (update: T, id?: number) => void
@@ -379,9 +410,10 @@ export async function subscribe<T>(
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
       },
       err: (error, id) => {
-        logger.trackError(`subscribe error on ${printEndpoint(endpoint)}`, {
-          stack: error,
-        });
+        logger.trackError(
+          `subscribe error on ${printEndpoint(endpoint)}`,
+          describeError(error)
+        );
 
         if (err) {
           logger.log(
@@ -396,11 +428,15 @@ export async function subscribe<T>(
 
   const retry = async (err: any) => {
     logger.error('bad subscribe', printEndpoint(endpoint), err);
+    if (config.client && isChannelIdentityMismatch(err)) {
+      rotateChannel(config.client, `subscribe ${printEndpoint(endpoint)}`);
+      return doSub(retry);
+    }
     if (!(err instanceof AuthError)) {
       throw err;
     }
 
-    config.pendingAuth = reauth();
+    await reauth();
     // keep the err handler wired so the re-established subscription can
     // recover from a later auth death the same way the initial one does
     return doSub(retry);
@@ -436,7 +472,7 @@ export async function subscribeOnce<T>(
   } catch (err) {
     if (err !== 'timeout' && err !== 'quit') {
       logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
-        stack: err,
+        ...describeError(err),
       });
     } else if (err === 'timeout') {
       logger.error('subscribeOnce timed out', printEndpoint(endpoint));
@@ -498,21 +534,35 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       noun,
     });
   };
+  const fail = (err: any) => {
+    logger.trackError(
+      `NOUN POKE: bad poke to ${app} with mark ${mark}`,
+      describeError(err)
+    );
+    throw err;
+  };
   const retry = async (err: any) => {
-    logger.trackError(`NOUN POKE: bad poke to ${app} with mark ${mark}`, {
-      stack: err,
-      noun: noun,
-    });
-    if (!(err instanceof AuthError)) {
-      throw err;
+    if (!config.client) {
+      return fail(err);
     }
-
-    await reauth();
-    return doPoke();
+    if (isChannelIdentityMismatch(err)) {
+      rotateChannel(config.client, `noun poke ${app}/${mark}`);
+    } else if (err instanceof AuthError) {
+      await reauth();
+    } else {
+      return fail(err);
+    }
+    try {
+      return await doPoke();
+    } catch (retryErr) {
+      return fail(retryErr);
+    }
   };
 
   try {
-    return await doPoke({ onError: retry });
+    // the http-api client rejects the promise on failure, so a separate
+    // onError handler would run the retry a second time
+    return await doPoke();
   } catch (err) {
     return retry(err);
   }
@@ -534,18 +584,31 @@ export async function poke({ app, mark, json }: PokeParams) {
     }
     return activeClient.poke({ app, mark, json });
   };
-  const retry = async (err: any) => {
+  const fail = (err: any) => {
     logger.trackError(`bad poke to ${app} with mark ${mark}`, {
-      stack: err,
+      ...describeError(err),
       body: json,
     });
-    if (!(err instanceof AuthError) || activeClient !== config.client) {
-      trackDuration('error');
-      throw err;
+    trackDuration('error');
+    throw err;
+  };
+  const retry = async (err: any) => {
+    // scoped (non-singleton) clients own their own auth; don't touch them
+    if (!activeClient || activeClient !== config.client) {
+      return fail(err);
     }
-
-    await reauth();
-    return doPoke();
+    if (isChannelIdentityMismatch(err)) {
+      rotateChannel(activeClient, `poke ${app}/${mark}`);
+    } else if (err instanceof AuthError) {
+      await reauth();
+    } else {
+      return fail(err);
+    }
+    try {
+      return await doPoke();
+    } catch (retryErr) {
+      return fail(retryErr);
+    }
   };
 
   try {
@@ -922,69 +985,80 @@ async function reauth() {
     throw new Error('Unable to authenticate with urbit');
   }
 
-  if (config.pendingAuth) {
-    return config.pendingAuth;
-  }
-
-  try {
-    let tries = 0;
-    logger.log('getting urbit code');
-    const code = await config.getCode();
-    config.pendingAuth = new Promise<string>((resolve, reject) => {
-      const tryAuth = async () => {
-        try {
-          logger.log('trying to auth with code', code);
-          const authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
-
-          if (!authCookie && tries < 3) {
-            logger.log('auth failed, trying again', tries);
-            tries++;
-            setTimeout(tryAuth, 1000 + 2 ** tries * 1000);
-            return;
-          }
-
-          if (!authCookie) {
-            config.pendingAuth = null;
-            if (config.handleAuthFailure) {
-              logger.log('auth failed, calling auth failure handler');
-              config.handleAuthFailure({ mustLogout: false });
-            }
-
-            reject(new Error("Couldn't authenticate with urbit"));
-            return;
-          }
-
-          if (config.client) {
-            config.client.cookie = authCookie;
-          }
-
-          config.pendingAuth = null;
-          resolve(authCookie);
-          return;
-        } catch (e) {
-          if (e instanceof AuthFailureError && e.responseStatus === 400) {
-            // the info we tried to reauth with is invalid, it's not going to work and they need to logout
-            config.pendingAuth = null;
-            config.loggingOut = true;
-            config.handleAuthFailure?.({ mustLogout: true });
-            return;
-          }
-          reject(new Error(`Error during reauth: ${e}`));
-        }
-      };
-
-      tryAuth();
+  // Dedupe synchronously, before anything is awaited: every caller that shows
+  // up while a reauth is in flight shares it. Concurrent logins are actively
+  // harmful, since eyre closes the session a login request arrives with, so
+  // parallel logins invalidate each other and all but one come back 401.
+  if (!config.pendingAuth) {
+    config.pendingAuth = performReauth().finally(() => {
+      config.pendingAuth = null;
     });
+  }
+  return config.pendingAuth;
+}
 
-    return await config.pendingAuth;
+const MAX_LOGIN_ATTEMPTS = 4;
+
+async function performReauth(): Promise<string | void> {
+  let code: string;
+  try {
+    logger.log('getting urbit code');
+    code = await config.getCode!();
   } catch (e) {
     logger.error('error getting urbit code', e);
-    config.pendingAuth = null;
     if (config.handleAuthFailure) {
       return config.handleAuthFailure({ mustLogout: false });
     }
-
     throw e;
+  }
+
+  for (let attempt = 0; ; attempt++) {
+    const lastAttempt = attempt >= MAX_LOGIN_ATTEMPTS - 1;
+    let authCookie: string | undefined;
+    try {
+      logger.log('trying to auth with code', code);
+      authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
+    } catch (e) {
+      if (e instanceof AuthFailureError && e.responseStatus === 400) {
+        // the code itself was rejected; no retry will fix that, so log out
+        config.loggingOut = true;
+        config.handleAuthFailure?.({ mustLogout: true });
+        return;
+      }
+      // a 401 means the request carried a session cookie the ship no longer
+      // recognizes; the response expires it, so a retry can go through clean
+      const staleCookie =
+        e instanceof AuthFailureError && e.responseStatus === 401;
+      if (!staleCookie || lastAttempt) {
+        throw new Error(`Error during reauth: ${e}`);
+      }
+    }
+
+    if (authCookie) {
+      if (config.client) {
+        config.client.cookie = authCookie;
+        // logging in moved us to a new session. any channel we opened under
+        // the old one is either gone (eyre closed the old session's channels)
+        // or bound to an identity that is no longer ours, so start fresh
+        // before waiters retry against it
+        if (config.client.channelOpened) {
+          rotateChannel(config.client, 'reauth');
+        }
+      }
+      return authCookie;
+    }
+
+    if (lastAttempt) {
+      if (config.handleAuthFailure) {
+        logger.log('auth failed, calling auth failure handler');
+        config.handleAuthFailure({ mustLogout: false });
+      }
+      throw new Error("Couldn't authenticate with urbit");
+    }
+    logger.log('auth failed, trying again', attempt);
+    await new Promise((resolve) =>
+      setTimeout(resolve, 1000 + 2 ** (attempt + 1) * 1000)
+    );
   }
 }
 
