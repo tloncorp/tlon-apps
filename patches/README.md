@@ -436,3 +436,113 @@ intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated
 so that change is unnecessary here and the lazy-host fix alone restores paste.
 Android image paste is a separate, still-open limitation (the context-menu path
 only reads `item.uri`) and is not patched here.
+
+## react-native-worklets@0.10.3
+
+Local patch:
+`patches/react-native-worklets@0.10.3.patch`
+
+Why:
+On Android, `WorkletsModule.invalidate()` tears down the C++ side
+(`invalidateCpp()` -> `~WorkletsModuleProxy` -> `animationFrameBatchinator_.reset()`)
+and deactivates `AndroidUIScheduler`, but never stops `mAnimationFrameQueue`.
+`invalidate()` runs on the React instance teardown thread while
+`AnimationFrameQueue.executeQueue()` dispatches on the Choreographer thread, so
+teardown can land in the middle of a frame batch. The rAF callback holds only a
+`weak_ptr` to the batchinator, so a `lock()` that succeeded just before teardown
+leaves the UI thread holding the *last* reference: it then runs
+`~AnimationFrameBatchinator` on the Choreographer thread, which releases
+`uiWorkletRuntime_` and any queued `jsi::Function` handles against a
+`jsi::Runtime` teardown has already dropped.
+
+Crashlytics `c8b636be37db34910d3babebc7230864` (29 events / 9 users over 90
+days, all on 9.4.2 and 9.4.3):
+
+```
+SIGSEGV 0x0  (null pointer dereference)
+  1  libworklets.so  worklets::AnimationFrameBatchinator::~AnimationFrameBatchinator() + 220
+  3  libworklets.so  worklets::AnimationFrameCallback::onAnimationFrame(double)
+  6  base.odex       com.swmansion.worklets.runloop.AnimationFrameQueue.executeQueue + 452
+  7  base.odex       AnimationFrameQueue$mChoreographerCallback$1.doFrameGuarded + 76
+```
+
+Upstream hit the same race as a JNI abort (`obj == null in call to
+CallLongMethodV from AnimationFrameCallback.onAnimationFrame`) rather than a
+SIGSEGV, but it is the same window. The sibling path already had this
+synchronization — see the comment in `AndroidUIScheduler.kt` about the cpp part
+being torn down while the UI thread is still executing it.
+
+The race is not new — `AnimationFrameBatchinator` is unchanged since 0.8.3 and
+that version's `invalidate()` has the same gap — but volume only appeared with
+9.4.2, which is the Expo 56 -> 57 upgrade (RN 0.85.3 -> 0.86.0, Reanimated
+4.3.1 -> 4.5.0, worklets 0.8.3 -> 0.10.3). The new stack appears to widen the
+window rather than open it.
+
+iOS is unaffected: `apple/worklets/apple/WorkletsModule.mm` already invalidates
+`animationFrameQueue_` before resetting `workletsModuleProxy_`. Android was the
+outlier.
+
+What it does:
+Carries upstream commit `b3157cd97` verbatim (minus its CHANGELOG entry):
+- `AnimationFrameQueue` gets a terminal `invalidate()` that sets an
+  `mInvalidated` flag, removes the posted frame callback, and clears queued
+  callbacks. `requestAnimationFrame()` and `scheduleQueueExecution()` refuse to
+  enqueue or post afterwards.
+- `executeQueue()` dispatches under a new `mDispatchLock` that `invalidate()`
+  also takes, so `invalidate()` blocks on an in-flight batch that
+  `pullCallbacks()` has already copied out, and no batch can start after
+  invalidation.
+- `WorkletsModule.invalidate()` calls `mAnimationFrameQueue.invalidate()`
+  *before* `invalidateCpp()`, in both the `networking` and `no-networking`
+  source sets (`android/build.gradle.kts` compiles one or the other depending
+  on `FETCH_PREVIEW_ENABLED`).
+
+`invalidate()` deliberately does not reuse `pause()`: `pause()` calls into
+`ReactChoreographer` while holding the `mPaused` monitor, and
+`ReactChoreographer` holds its own monitor across the whole frame dispatch,
+which would invert lock order against the UI thread.
+
+The patched `AnimationFrameQueue.kt` is byte-identical to upstream's. Not
+carried: the unrelated `initialize()`/`addLifecycleEventListener` registration
+upstream added separately (0.10.3 implements `LifecycleEventListener` but never
+registers, so `onHostPause`/`onHostResume` are dead code and the queue never
+pauses when backgrounded). That widens the window but does not create the race,
+and adding it changes runtime behavior beyond this crash fix.
+
+No `buildFromSource` entry is needed: `react-native-worklets` ships no prebuilt
+AAR, so RN autolinking compiles `node_modules` sources directly.
+
+Upstream:
+- repo: `software-mansion/react-native-reanimated`
+- fix: [#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278),
+  merged 2026-08-14 as `b3157cd97`
+- related: #7659, #9449, #9450
+- as of September 4, 2026 the fix is in **no published release**. It is absent
+  from 0.10.4, 0.11.0-0.11.4, 0.12.0 and 0.12.1 (0.12.1 was cut before the
+  merge) and present only from `0.13.0-nightly-20260814`.
+  `AnimationFrameBatchinator.cpp` and `WorkletsModuleProxy.cpp` are otherwise
+  unchanged 0.10.3 -> 0.12.1, so bumping to a stable release does not help.
+- a bump is also blocked by Reanimated's peer pin: `react-native-reanimated@4.5.0`
+  requires `react-native-worklets: 0.10.x`, and `4.6.0` requires `0.12.x`. The
+  release carrying the fix will be `0.13.x`, so picking it up means moving
+  Reanimated too, once a Reanimated release pins `0.13.x`.
+- Linear: `TLON-6469`
+
+Validation:
+- `corepack pnpm install --frozen-lockfile` applies the patch and its lockfile
+  hash is current.
+- Rebuild the Android app so the Kotlin patch is compiled in.
+- Reproducing needs a React instance recreated in place, not a cold start,
+  while worklet rAF callbacks are in flight: render a few always-animating
+  views (`withRepeat(withTiming(...), -1, true)` driving a `useAnimatedStyle`),
+  then reload the instance repeatedly (dev menu reload, or
+  `reactHost.reload()`). Unpatched builds abort within one or two reloads
+  upstream; a static screen does not reproduce it.
+- Watch Crashlytics issue `c8b636be37db34910d3babebc7230864` on the release
+  after this lands.
+
+Removal:
+Drop this patch once we pin a `react-native-worklets` release that includes
+[#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278)
+(0.13.0 or later) together with the Reanimated release that pins it, and confirm
+the Crashlytics issue stays closed.

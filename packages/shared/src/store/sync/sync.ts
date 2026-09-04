@@ -39,6 +39,7 @@ import {
   partitionDiscoveryMatches,
 } from '../lanyardActions';
 import { useLureState } from '../lure';
+import { markNotesNotebookStaleForNoteEvent } from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
 import { getSession, setSession, updateSession } from '../session';
@@ -1518,6 +1519,28 @@ const handleActivityUpdate = async (
       refetchType: 'active',
     });
   }
+  // a note someone else added changes the counts the channel list renders
+  // for that notebook. Deliberately narrower than "any notes activity": a
+  // body edit bumps the notebook's recency (and its channel unread) without
+  // changing either count, and refetching the whole notebook on every
+  // autosave isn't worth it — but %notes reports a create plus its first
+  // edits as one %note-edit, so the edits are checked against what we've
+  // stored rather than skipped. Deletions and folder changes carry no usable
+  // signal at all; those land when the snapshot ages out. Marking rather
+  // than fetching keeps the work with whoever is displaying the counts.
+  for (const event of activitySnapshot.activityEvents) {
+    if (
+      event.channelId &&
+      (event.type === 'note-create' || event.type === 'note-edit')
+    ) {
+      await markNotesNotebookStaleForNoteEvent({
+        channelId: event.channelId,
+        noteId: event.postId,
+        created: event.type === 'note-create',
+      });
+    }
+  }
+
   // check for any newly joined groups and channels
   // WARNING -- removing this will break loading of initial channnels on
   // group join. Shouldn't be the case, but here we are.

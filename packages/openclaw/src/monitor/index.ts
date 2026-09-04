@@ -128,6 +128,7 @@ import {
   scanAgentOnboardingChannel,
 } from './agent-onboarding.js';
 import {
+  type ApprovalRequestOutcome,
   type DisplayContext,
   type PendingApproval,
   applyApprovalRequest,
@@ -139,7 +140,9 @@ import {
   formatApprovalConfirmation,
   formatApprovalRequestNotification,
   formatBlockedList,
+  formatChannelApprovalAck,
   isExpired,
+  isNotificationDelivered,
   mergeApprovalDeliveryState,
   normalizeNotificationId,
   pruneExpired,
@@ -1778,16 +1781,21 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       return parseBlockedShips(blocked);
     }
 
-    // Check if a ship is blocked using Tlon's native block list
-    async function isShipBlocked(ship: string): Promise<boolean> {
+    // Check if a ship is blocked using Tlon's native block list.
+    // null = the lookup itself failed, so block status is unknown.
+    async function checkShipBlocked(ship: string): Promise<boolean | null> {
       const normalizedShip = normalizeShip(ship);
       try {
         const blocked = await scryBlockedShips();
         return blocked.some((s) => normalizeShip(s) === normalizedShip);
       } catch (err) {
         runtime.log?.(`[tlon] Failed to check blocked list: ${String(err)}`);
-        return false;
+        return null;
       }
+    }
+
+    async function isShipBlocked(ship: string): Promise<boolean> {
+      return (await checkShipBlocked(ship)) === true;
     }
 
     // Get all blocked ships
@@ -1952,27 +1960,47 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     }
 
     // Queue an approval request and notify the owner (idempotent — see
-    // applyApprovalRequest).
-    async function queueApprovalRequest(
-      approval: PendingApproval
-    ): Promise<void> {
-      await applyApprovalRequest(approval, {
+    // applyApprovalRequest). Alongside the outcome, reports whether the
+    // owner DM actually went out and whether the block-list lookup failed —
+    // the in-channel status (TLON-6451) must not claim the request was sent
+    // when it wasn't, and must stay silent when a sender's block status
+    // couldn't be confirmed.
+    async function queueApprovalRequest(approval: PendingApproval): Promise<{
+      outcome: ApprovalRequestOutcome;
+      ownerNotified: boolean;
+      blockCheckUnknown: boolean;
+    }> {
+      let ownerNotified = false;
+      let blockCheckUnknown = false;
+      const outcome = await applyApprovalRequest(approval, {
         getPending: () => pendingApprovals,
         setPending: (next) => {
           pendingApprovals = next;
         },
-        isShipBlocked,
-        notify: (a) => {
+        isShipBlocked: async (ship) => {
+          const blocked = await checkShipBlocked(ship);
+          if (blocked === null) {
+            blockCheckUnknown = true;
+            // Unknown must not drop the request: queue + owner notify still
+            // beat silently losing a legitimate mention.
+            return false;
+          }
+          return blocked;
+        },
+        notify: async (a) => {
           const displayContext = buildDisplayContext();
-          return sendOwnerNotification(
+          const notifId = await sendOwnerNotification(
             formatApprovalRequestNotification(a, displayContext),
             buildApprovalBlobField(a, displayContext)
           );
+          ownerNotified = notifId !== undefined;
+          return notifId;
         },
         persist: savePendingApprovals,
         now: () => Date.now(),
         log: runtime.log,
       });
+      return { outcome, ownerNotified, blockCheckUnknown };
     }
 
     // ── Approval action execution ─────────────────────────────────────
@@ -4385,7 +4413,84 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                   },
                   pendingApprovals.map((a) => a.id)
                 );
-                await queueApprovalRequest(approval);
+                const priorApproval = pendingApprovals.find(
+                  (a) =>
+                    a.type === 'channel' &&
+                    a.requestingShip === senderShip &&
+                    a.channelNest === nest
+                );
+                const priorOwnerNotified =
+                  priorApproval !== undefined &&
+                  isNotificationDelivered(priorApproval);
+                const { outcome, ownerNotified, blockCheckUnknown } =
+                  await queueApprovalRequest(approval);
+                // Acknowledge the mention in-channel while the approval is
+                // pending — silence here reads as a broken bot (TLON-6451).
+                // A newly-queued approval is acknowledged; an 'updated' one
+                // only when this retry finally delivered a previously-failed
+                // owner DM (the failure ack asks the sender to mention
+                // again, so the retry that works must confirm). Both fire at
+                // most once per record, which statelessly bounds mutual-ack
+                // loops between two unauthorized bots that mention each
+                // other: each side acks once, and the counter-ack dedups
+                // into the existing record on the other side. Bot detection
+                // can't do this (a profileless bot sends a bare-string
+                // author and looks human), and maxBotResponses doesn't fire
+                // when configured to 0. Known bots get no ack at all — the
+                // reassurance is for humans, and a bot's owner still gets
+                // the DM approval card.
+                // A blocked ship keeps getting silence so blocking stays
+                // unobservable to the blocked party; that also means no ack
+                // when the block-list lookup failed, and none when the owner
+                // actioned the request during the queueing await (the record
+                // is gone from the live pending list by then).
+                const approvalStillPending = pendingApprovals.some(
+                  (a) =>
+                    a.type === 'channel' &&
+                    a.requestingShip === senderShip &&
+                    a.channelNest === nest
+                );
+                const notifyRecovered =
+                  outcome === 'updated' && !priorOwnerNotified && ownerNotified;
+                if (
+                  (outcome === 'queued' || notifyRecovered) &&
+                  !blockCheckUnknown &&
+                  !isKnownBot &&
+                  approvalStillPending
+                ) {
+                  const ackParentId = resolveDeliverParentId({
+                    isGroup: true,
+                    channelNest: nest,
+                    messageId: messageId ?? '',
+                    parentId,
+                    isThreadReply,
+                  });
+                  try {
+                    await sendChannelPost({
+                      botProfile: getBotProfile(),
+                      fromShip: botShipName,
+                      nest,
+                      story: markdownToStory(
+                        formatChannelApprovalAck(
+                          senderShip,
+                          effectiveOwnerShip,
+                          buildDisplayContext(),
+                          { ownerNotified }
+                        )
+                      ),
+                      replyToId: ackParentId ?? undefined,
+                    });
+                  } catch (err) {
+                    // Likely cause: the bot lacks write permission in this
+                    // channel. The approval itself is already queued.
+                    capturePluginError('approval_notification', err, {
+                      errorKind: 'channel_ack_failed',
+                    });
+                    runtime.error?.(
+                      `[tlon] Failed to post approval status in ${nest}: ${String(err)}`
+                    );
+                  }
+                }
               } else {
                 runtime.log?.(
                   `[tlon] Access denied: ${senderShip} in ${nest} (allowed: ${allowedShips.join(', ')})`
