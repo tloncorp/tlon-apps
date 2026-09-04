@@ -89,8 +89,8 @@
   |=  =path
   ^-  (unit vase)
   ?+  path  ~
-    [%gu @ %groups @ %$ ~]  `!>(&)
-    [%gu @ %groups @ %groups %~.~sampel-palnet %sunrise ~]  `!>(&)
+    [%gu @ * @ %$ ~]  `!>(&)
+    [%gu @ * @ %groups %~.~sampel-palnet %sunrise ~]  `!>(&)
 
   ==
 ::  +test-personal-bite: test personal invite bite

@@ -20,12 +20,12 @@
   =/  tid=@ta
     %^  cat  3  'pioneer-'
     (cat 3 name (cat 3 '-' (scot %uv (sham now.bowl name))))
-  =/  =beak  [who q.byk.bowl da+now.bowl]
+  =/  =beak  [who %tlon da+now.bowl]
   =/  file=term  (cat 3 'pioneer-' name)
   =/  start=start-args:spider  [~ `tid beak file !>(`(unit json)`[~ arg])]
   =/  =wire  /(scot %p who)/spider/thread-result/[tid]
   ;<  ~  bind:m  (watch-app wire [who %spider] /thread-result/[tid])
-  ;<  ~  bind:m  (poke-app [who %spider] spider-start+start)
+  ;<  ~  bind:m  (poke-app-typed [who %spider] %spider-start !>(start))
   ;<  kag=cage  bind:m  (wait-for-app-fact wire [who %spider])
   ;<  ~  bind:m  (leave-app wire [who %spider])
   ?+    p.kag  ~|([%strange-thread-result p.kag tid] !!)

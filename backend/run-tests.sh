@@ -325,12 +325,13 @@ fi
 
 # Run aqua tests
 #
+aqua_test_path="${AQUA_TEST_PATH:-/tests/ph}"
 echo "Running tests..."
 result=$( run_thread <<EOF
 =/  m  (strand ,vase)  
 ;<  =bowl  bind:m  get-bowl  
 =/  ph-tests=path  
-  [(scot %p our.bowl) %tlon (scot %da now.bowl) %tests %ph ~]
+  [(scot %p our.bowl) %tlon (scot %da now.bowl) ${aqua_test_path}]
 =/  args  
   [\`ph-tests %ci-aqua-tests]  
 =+  tid=~.ci-ph-test  

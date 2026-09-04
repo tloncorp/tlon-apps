@@ -134,49 +134,8 @@
   ;<  ~  bind:m  (poke-app [~zod %grouper] grouper-enable+my-test-group-id)
   ;<  invite-link=@t  bind:m  (generate-lure-invite lure-group-metadata)
   (ex-not-equal !>(invite-link) !>(''))
-::
-++  eyre-authenticate
-  |=  =ship
-  =/  m  (strand (unit @t))
-  ^-  form:m
-  ;<  =bowl:strand  bind:m  get-bowl
-  =/  aqua-pax
-    /j/(scot %p ship)/code/(scot %da now.bowl)/(scot %p ship)
-  ;<  code=(unit @p)  bind:m
-    (scry-aqua (unit @p) ship aqua-pax)
-  =+  password=(rsh [3 1] (scot %p (need code)))
-  =/  =request:http
-    :*  %'POST'
-        '/~/login'
-        ~
-        `(as-octs:mimes:html (crip "password={(trip password)}"))
-    ==
-  =/  =task:eyre
-    :*  %request
-        secure=|
-        ipv4+.127.0.0.1
-        request
-    ==
-  =/  =aqua-event
-    [%event ship /e/aqua/eyre/request task]
-  ;<  ~  bind:m  (watch-our /effect/response %aqua /effect/response)
-  ;<  ~  bind:m  (send-events ~[aqua-event])
-  ;<  =aqua-effect  bind:m  (take-effect /effect/response)
-  ?>  =(ship who.aqua-effect)
-  =*  effect  q.ufs.aqua-effect
-  ?>  ?=(%response -.effect)
-  ?>  ?=(%start -.http-event.effect)
-  =*  headers  headers.response-header.http-event.effect
-  =/  [@t cookie=@t]
-    %-  head
-    (skim headers |=([key=@t value=@t] ?:(=('set-cookie' key) & |)))
-  =/  cookie=(unit @t)
-    %+  bind  (rush cookie ;~(sfix (plus ;~(less mic prn)) (star prn)))
-    crip
-  (pure:m cookie)
-::
 ++  redeem-lure-invite
-  |=  [=ship cookie=@t lure-invite=@t]
+  |=  [=ship lure-invite=@t]
   =/  m  (strand ,~)
   ^-  form:m
   =/  =purl:eyre
@@ -188,7 +147,7 @@
   =/  =request:http
     :*  %'POST'
         lure-line
-        ~[['cookie' cookie]]
+        ~
         `(as-octs:mimes:html (cat 3 'ship=%7E' (rsh [3 1] (scot %p ship))))
     ==
   =/  =task:eyre
@@ -214,11 +173,12 @@
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-group-metadata)
   ;<  ~  bind:m  (watch-app /~bud/groups/v1/foreigns [~bud %groups] /v1/foreigns)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
-  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~loshut-lonreg)
-  ?>  ?=(^ cookie)
   ::  ~bud onboards from hosting through the lure invite.
+  ::  Aqua's virtual bait service does not enforce browser sessions. Issuing a
+  ::  login first also leaves its virtual Eyre client unable to issue the next
+  ::  request, so exercise the invite endpoint directly.
   ::
-  ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
+  ;<  ~  bind:m  (redeem-lure-invite ~bud lure-invite)
   ::  ~bud receives group invites: one current and one backwards compatible
   ::
   ;<  ~  bind:m
@@ -243,11 +203,9 @@
   ;<  ~  bind:m  (poke-app [~loshut-lonreg %bait] verb+[%volume %info])
   ;<  lure-invite=@t  bind:m  (generate-lure-invite lure-personal-metadata)
   ;<  ~  bind:m  (watch-app /~bud/chat/v4 [~bud %chat] /v4)
-  ;<  cookie=(unit @t)  bind:m  (eyre-authenticate ~loshut-lonreg)
-  ?>  ?=(^ cookie)
   ::  ~bud onboards from hosting through the lure invite.
   ::
-  ;<  ~  bind:m  (redeem-lure-invite ~bud u.cookie lure-invite)
+  ;<  ~  bind:m  (redeem-lure-invite ~bud lure-invite)
   ::  ~bud receives dm invite from ~zod
   ::
   ;<  ~  bind:m
@@ -329,5 +287,4 @@
   ;<  ~  bind:m
     (ex-equal !>((~(get by fields.metadata) %'inviterNickname')) !>(`'Racing Driver'))
   (pure:m ~)
---
-
+ --

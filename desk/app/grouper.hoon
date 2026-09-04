@@ -242,7 +242,16 @@
             group-event
           ~[leaf+"invites for group {<p.flag>}/{(trip q.flag)} not enabled"]
       [caz this]
-    =/  prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    ::  %tlon is the production desk.  Keep legacy desks as fallbacks for
+    ::  ships that have not yet completed the desk migration (including Aqua).
+    =/  tlon-prefix  /(scot %p our.bowl)/tlon/(scot %da now.bowl)
+    =/  groups-prefix  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    =/  prefix
+      ?:  .^(? %gu (weld tlon-prefix /$))
+        tlon-prefix
+      ?:  .^(? %gu (weld groups-prefix /$))
+        groups-prefix
+      /(scot %p our.bowl)/base/(scot %da now.bowl)
     ?.  .^(? %gu (weld prefix /$))
       %-  (tell %warn group-event '%groups not running' ~)
       [caz this]
