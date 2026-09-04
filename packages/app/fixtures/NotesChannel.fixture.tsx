@@ -11,7 +11,7 @@ import {
   useRegisterChannelHeaderItem,
   useRegisterChannelHeaderLoadingSubtitle,
 } from '../ui';
-import { NotesHeaderActions } from '../ui/components/NotesChannel/NotesHeaderActions';
+import { createNotesHeaderActions } from '../ui/components/NotesChannel/NotesHeaderActions';
 import { NotesNoteDetail } from '../ui/components/NotesChannel/NotesNoteDetail';
 import { NotesTreePane } from '../ui/components/NotesChannel/NotesTreePane';
 import {
@@ -342,13 +342,7 @@ function NotebookContentsListFixture() {
 
 function FixtureNotesHeaderActions({ canEdit }: { canEdit: boolean }) {
   const headerActions = useMemo(
-    () => (
-      <NotesHeaderActions
-        canEdit={canEdit}
-        onNew={() => {}}
-        primaryActionVariant="text"
-      />
-    ),
+    () => createNotesHeaderActions({ canEdit, onNew: () => {} }),
     [canEdit]
   );
   useRegisterChannelHeaderItem(headerActions);

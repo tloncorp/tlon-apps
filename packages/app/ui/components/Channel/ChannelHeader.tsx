@@ -429,16 +429,17 @@ export function ChannelHeader({
       visible: !!onToggleContextLens,
     },
   ];
-  const usesNavigationHeader = isChatChannel(channel);
+  const usesNavigationHeader =
+    isChatChannel(channel) || channel.type === 'notes';
   // The conversation list owns its scroll props, but this call installs the
   // matching native scroll-edge options on the navigator.
   useScreenScrollProps({
-    enabled: usesNavigationHeader,
+    enabled: isChatChannel(channel),
     bottomEdgeEffect: 'soft',
   });
   if (usesNavigationHeader) {
     // Native navigation headers accept declarative actions only. Element-style
-    // registrations are reserved for inline notebook and gallery headers.
+    // registrations are reserved for inline bulletin and gallery headers.
     return (
       <ScreenHeader
         {...headerProps}
