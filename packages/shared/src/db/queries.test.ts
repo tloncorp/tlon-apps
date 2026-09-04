@@ -501,8 +501,8 @@ describe('getChats group recency workaround', () => {
     expect(afterConfirmedDelete?.type).toBe('group');
     if (afterConfirmedDelete?.type === 'group') {
       expect(afterConfirmedDelete.notesActivity).toMatchObject({
-        noteId: '41',
-        noteTitle: 'Old title',
+        noteId: null,
+        noteTitle: null,
         isNew: true,
         timestamp: 400_000,
       });
@@ -561,6 +561,71 @@ describe('getChats group recency workaround', () => {
         noteTitle: 'Deleted secret title',
         authorId: '~bus',
         isNew: true,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('suppresses activity after a later snapshot removes a synced note', async () => {
+    const groupId = '~zod/remote-deleted-note';
+    const channelId = 'notes/~zod/remote-deleted-note';
+    const notebookFlag = '~zod/remote-deleted-note';
+    const notebook = makeNotesNotebook({
+      id: notebookFlag,
+      flagName: 'remote-deleted-note',
+      title: 'Journal',
+    });
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook,
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Removed remotely', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          syncedAt: 100,
+        }),
+      ],
+      members: [],
+    });
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'remote-deleted-note-event',
+        channelId,
+        groupId,
+        title: 'Removed remotely',
+        timestamp: 399_000,
+      })
+    );
+
+    await queries.saveNotesNotebookSnapshot({
+      notebook: { ...notebook, syncedAt: 500 },
+      folders: [],
+      notes: [],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        authorId: null,
         timestamp: 400_000,
       });
     }

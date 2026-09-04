@@ -693,6 +693,45 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       const currentByNoteId = new Map(
         currentNotes.map((note) => [note.noteId, note])
       );
+      const incomingNoteIds = new Set(notes.map((note) => note.noteId));
+      const channelId = `notes/${notebook.id}`;
+      // A previously synced row disappearing from a later serialized snapshot
+      // is the remote-deletion signal. Rows created locally have no syncedAt
+      // until the replica observes them, so a lagging post-create snapshot
+      // cannot incorrectly tombstone their activity.
+      const remotelyDeletedNotes = currentNotes.filter(
+        (note) => note.syncedAt != null && !incomingNoteIds.has(note.noteId)
+      );
+      await batchAction(
+        notes,
+        async (batch) => {
+          await txCtx.db.delete($notesActivityEventTombstones).where(
+            and(
+              eq($notesActivityEventTombstones.channelId, channelId),
+              inArray(
+                $notesActivityEventTombstones.noteId,
+                batch.map((note) => String(note.noteId))
+              )
+            )
+          );
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+      await batchAction(
+        remotelyDeletedNotes,
+        async (batch) => {
+          await txCtx.db
+            .insert($notesActivityEventTombstones)
+            .values(
+              batch.map((note) => ({
+                channelId,
+                noteId: String(note.noteId),
+              }))
+            )
+            .onConflictDoNothing();
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
       // Renames and moves don't bump the revision, so equal revisions are
       // ordered by updatedAt (both stamped by the host clock).
       const mergedNotes = notes.map((incoming) => {
@@ -730,7 +769,13 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       );
     });
   },
-  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+  [
+    'notesNotebooks',
+    'notesFolders',
+    'notesNotes',
+    'notesMembers',
+    'notesActivityEventTombstones',
+  ]
 );
 
 /** Persist one authoritative note without replacing concurrent notebook data. */
@@ -1440,6 +1485,10 @@ type NotesActivityDetail = Pick<
   'noteId' | 'noteTitle' | 'authorId' | 'isNew' | 'timestamp'
 >;
 
+type NotesActivityEventDetail = NotesActivityDetail & {
+  isConfirmedDeleted: boolean;
+};
+
 type NotesActivityGroup = {
   id: string;
   channels: (Pick<Channel, 'id' | 'type' | 'title' | 'currentUserIsMember'> & {
@@ -1491,10 +1540,13 @@ async function getGroupNotesActivity(
 
   for (const { groupId, channel, notebookFlag } of notesChannels) {
     const recency = channel.unread?.updatedAt ?? 0;
-    const detail = newestNotesActivityDetail(
-      eventsByChannel.get(channel.id),
-      notebookFlag ? notesByNotebook.get(notebookFlag) : undefined
-    );
+    const event = eventsByChannel.get(channel.id);
+    const detail = event?.isConfirmedDeleted
+      ? undefined
+      : newestNotesActivityDetail(
+          event,
+          notebookFlag ? notesByNotebook.get(notebookFlag) : undefined
+        );
     const describes =
       detail &&
       (recency <= 0 ||
@@ -1545,82 +1597,60 @@ function newestNotesActivityDetail(
 async function getLatestNoteEventsByChannel(
   channelIds: string[],
   ctx: QueryCtx
-): Promise<Map<string, NotesActivityDetail>> {
+): Promise<Map<string, NotesActivityEventDetail>> {
   const $newerEvents = alias($activityEvents, 'newerNoteActivityEvents');
-  const rows = await ctx.db
-    .select({
-      channelId: $activityEvents.channelId,
-      type: $activityEvents.type,
-      postId: $activityEvents.postId,
-      authorId: $activityEvents.authorId,
-      content: $activityEvents.content,
-      timestamp: $activityEvents.timestamp,
-    })
-    .from($activityEvents)
-    .where(
-      and(
-        inArray($activityEvents.type, ['note-create', 'note-edit']),
-        inArray($activityEvents.channelId, channelIds),
-        notExists(
-          ctx.db
-            .select({ channelId: $notesActivityEventTombstones.channelId })
-            .from($notesActivityEventTombstones)
-            .where(
-              and(
-                eq(
-                  $notesActivityEventTombstones.channelId,
-                  $activityEvents.channelId
-                ),
-                eq($notesActivityEventTombstones.noteId, $activityEvents.postId)
-              )
-            )
-        ),
-        notExists(
-          ctx.db
-            .select({ id: $newerEvents.id })
-            .from($newerEvents)
-            .where(
-              and(
-                eq($newerEvents.channelId, $activityEvents.channelId),
-                inArray($newerEvents.type, ['note-create', 'note-edit']),
-                notExists(
-                  ctx.db
-                    .select({
-                      channelId: $notesActivityEventTombstones.channelId,
-                    })
-                    .from($notesActivityEventTombstones)
-                    .where(
-                      and(
-                        eq(
-                          $notesActivityEventTombstones.channelId,
-                          $newerEvents.channelId
-                        ),
-                        eq(
-                          $notesActivityEventTombstones.noteId,
-                          $newerEvents.postId
-                        )
-                      )
+  const [rows, tombstones] = await Promise.all([
+    ctx.db
+      .select({
+        channelId: $activityEvents.channelId,
+        type: $activityEvents.type,
+        postId: $activityEvents.postId,
+        authorId: $activityEvents.authorId,
+        content: $activityEvents.content,
+        timestamp: $activityEvents.timestamp,
+      })
+      .from($activityEvents)
+      .where(
+        and(
+          inArray($activityEvents.type, ['note-create', 'note-edit']),
+          inArray($activityEvents.channelId, channelIds),
+          notExists(
+            ctx.db
+              .select({ id: $newerEvents.id })
+              .from($newerEvents)
+              .where(
+                and(
+                  eq($newerEvents.channelId, $activityEvents.channelId),
+                  inArray($newerEvents.type, ['note-create', 'note-edit']),
+                  or(
+                    gt($newerEvents.timestamp, $activityEvents.timestamp),
+                    and(
+                      eq($newerEvents.timestamp, $activityEvents.timestamp),
+                      gt($newerEvents.id, $activityEvents.id)
+                    ),
+                    and(
+                      eq($newerEvents.timestamp, $activityEvents.timestamp),
+                      eq($newerEvents.id, $activityEvents.id),
+                      gt($newerEvents.bucketId, $activityEvents.bucketId)
                     )
-                ),
-                or(
-                  gt($newerEvents.timestamp, $activityEvents.timestamp),
-                  and(
-                    eq($newerEvents.timestamp, $activityEvents.timestamp),
-                    gt($newerEvents.id, $activityEvents.id)
-                  ),
-                  and(
-                    eq($newerEvents.timestamp, $activityEvents.timestamp),
-                    eq($newerEvents.id, $activityEvents.id),
-                    gt($newerEvents.bucketId, $activityEvents.bucketId)
                   )
                 )
               )
-            )
+          )
         )
-      )
-    );
+      ),
+    ctx.db
+      .select()
+      .from($notesActivityEventTombstones)
+      .where(inArray($notesActivityEventTombstones.channelId, channelIds)),
+  ]);
+  const tombstoneKeys = new Set(
+    tombstones.map(({ channelId, noteId }) =>
+      notesActivityEventKey(channelId, noteId)
+    )
+  );
 
-  const latest = new Map<string, NotesActivityDetail>();
+  const latest = new Map<string, NotesActivityEventDetail>();
   for (const row of rows) {
     if (!row.channelId || latest.has(row.channelId)) {
       continue;
@@ -1636,10 +1666,18 @@ async function getLatestNoteEventsByChannel(
       authorId: row.authorId ?? null,
       isNew: row.type === 'note-create',
       timestamp: row.timestamp,
+      isConfirmedDeleted: Boolean(
+        row.postId &&
+        tombstoneKeys.has(notesActivityEventKey(row.channelId, row.postId))
+      ),
     });
   }
 
   return latest;
+}
+
+function notesActivityEventKey(channelId: string, noteId: string) {
+  return `${channelId}\0${noteId}`;
 }
 
 async function getNotesNotebookTitles(
