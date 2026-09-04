@@ -43,8 +43,20 @@ fi
 # Assemble desk-deps/ (peru-vendored) + desk/ (our source) into a staging dir.
 "$workdir/src/scripts/assemble-desk.sh" "$workdir/assembled"
 
-# Package the assembled, self-contained desk.
-tar czf "$workdir/desk.tgz" -C "$workdir" assembled
+# Record the meaningful contents separately from the assembled desk.  The
+# assembly stamps commit.txt, which does not affect the desk's runnable
+# contents. Keeping the manifest beside the payload lets the remote skip an
+# expensive no-op commit (whose kiln hash would not change). The docket stays
+# in the manifest: a new frontend glob is itself a deployable desk change.
+(
+  cd "$workdir/assembled"
+  find . -type f ! -path './commit.txt' -print0 \
+    | sort -z \
+    | xargs -0 sha256sum
+) > "$workdir/manifest.sha256"
+
+# Package the assembled, self-contained desk and its content manifest.
+tar czf "$workdir/desk.tgz" -C "$workdir" assembled manifest.sha256
 
 # --- Speed up the IAP tunnel ------------------------------------------------
 # gcloud's IAP TCP forwarding is a single-threaded Python websocket proxy. With
@@ -85,25 +97,122 @@ staging=\$(mktemp -d)
 tar xzf /tmp/janeway-desk.tgz -C \$staging
 cd /urbit || exit 1
 set -euo pipefail
-has_desk() {
-  curl -fsS http://localhost:12321/~/scry/hood/kiln/pikes.json \
-    | grep -Eq '"$desk"[[:space:]]*:'
+pikes_json=''
+refresh_pikes() {
+  pikes_json=\$(curl -fsS http://localhost:12321/~/scry/hood/kiln/pikes.json) \
+    || { echo 'Unable to read Hood kiln pikes' >&2; exit 1; }
 }
-if ! has_desk; then
+has_desk() {
+  local target="\$1"
+  grep -Eq "\"\${target}\"[[:space:]]*:" <<<"\$pikes_json"
+}
+desk_hash() {
+  local target="\$1"
+  python3 -c '
+import json
+import sys
+
+hash_value = json.load(sys.stdin).get(sys.argv[1], {}).get("hash")
+if not isinstance(hash_value, str):
+    raise SystemExit(1)
+print(hash_value)
+' "\$target" <<<"\$pikes_json"
+}
+hood_command() {
+  local command="\$1"
+  curl -fsS --header 'Content-Type: application/json' \
+    --data "{\"source\":{\"dojo\":\"+hood/\$command\"},\"sink\":{\"app\":\"hood\"}}" \
+    http://localhost:12321
+}
+refresh_pikes
+if ! has_desk "$desk"; then
   echo "Creating %$desk from %base"
-  curl -fsS --data '{"source":{"dojo":"+hood/merge %$desk our %base"},"sink":{"app":"hood"}}' http://localhost:12321
+  hood_command "merge %$desk our %base"
   for attempt in \$(seq 1 30); do
-    if has_desk; then
+    refresh_pikes
+    if has_desk "$desk"; then
       break
     fi
     sleep 1
   done
-  has_desk || { echo "Timed out waiting for %$desk" >&2; exit 1; }
+  has_desk "$desk" || { echo "Timed out waiting for %$desk" >&2; exit 1; }
 fi
-curl -fsS --data '{"source":{"dojo":"+hood/unmount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
-curl -fsS --data '{"source":{"dojo":"+hood/mount %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
-rsync -avL --delete \$staging/assembled/ $folder
-curl -fsS --data '{"source":{"dojo":"+hood/commit %$desk"},"sink":{"app":"hood"}}' http://localhost:12321
+hood_command "unmount %$desk"
+hood_command "mount %$desk"
+mounted_manifest=\$(mktemp)
+read_mounted_manifest() {
+  (
+    cd $folder || exit 1
+    find . -type f ! -path './commit.txt' -print0 \
+    | sort -z \
+    | xargs -0 sha256sum
+  ) > "\$mounted_manifest"
+}
+# Hood returns before Clay has necessarily materialized the new mount. Wait
+# for two identical manifest samples so a first migration cannot hash a
+# missing or partially populated desk.
+previous_manifest_hash=''
+stable_samples=0
+for attempt in \$(seq 1 30); do
+  if read_mounted_manifest; then
+    manifest_hash=\$(sha256sum "\$mounted_manifest")
+    if [[ "\$manifest_hash" == "\$previous_manifest_hash" ]]; then
+      stable_samples=\$((stable_samples + 1))
+    else
+      stable_samples=1
+      previous_manifest_hash="\$manifest_hash"
+    fi
+    if (( stable_samples >= 2 )); then
+      break
+    fi
+  fi
+  sleep 1
+done
+(( stable_samples >= 2 )) \
+  || { echo "Timed out waiting for mounted %$desk desk to settle" >&2; exit 1; }
+if cmp -s \$staging/manifest.sha256 "\$mounted_manifest"; then
+  echo "%$desk contents unchanged; skipping commit"
+else
+  rsync -avL --delete \$staging/assembled/ $folder
+  refresh_pikes
+  hash_before=\$(desk_hash "$desk")
+  [[ -n "\$hash_before" ]] \
+    || { echo "Unable to read %$desk kiln hash before commit" >&2; exit 1; }
+  hood_command "commit %$desk"
+  for attempt in \$(seq 1 90); do
+    refresh_pikes
+    hash_after=\$(desk_hash "$desk")
+    if [[ -n "\$hash_after" && "\$hash_after" != "\$hash_before" ]]; then
+      break
+    fi
+    sleep 2
+  done
+  [[ -n "\${hash_after:-}" && "\$hash_after" != "\$hash_before" ]] \
+    || { echo "%$desk hash did not advance after commit" >&2; exit 1; }
+fi
+if [ "$desk" = tlon ]; then
+  refresh_pikes
+  if has_desk groups; then
+    hood_command 'suspend %groups'
+    # Hood acknowledges suspension before Gall has necessarily stopped every
+    # legacy agent. Give that transition time to release the agent names.
+    sleep 3
+  fi
+  hood_command 'install our %tlon'
+  # Gall startup can outlive a Hood request. Dispatch it independently, then
+  # verify the actual application rather than leaving the deploy job blocked.
+  nohup curl -fsS --header 'Content-Type: application/json' \
+    --data '{"source":{"dojo":"+hood/revive %tlon"},"sink":{"app":"hood"}}' \
+    http://localhost:12321 >/tmp/tlon-revive.log 2>&1 &
+  for attempt in \$(seq 1 90); do
+    if curl -fsS http://localhost:12321/~/scry/groups/groups/light.json >/dev/null; then
+      break
+    fi
+    sleep 2
+  done
+  curl -fsS http://localhost:12321/~/scry/groups/groups/light.json >/dev/null \
+    || { echo '%tlon agents did not become healthy' >&2; exit 1; }
+fi
 rm -rf \$staging /tmp/janeway-desk.tgz
 EOF
 echo "Remote commands:"
