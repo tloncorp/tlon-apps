@@ -353,6 +353,20 @@ describe('seamlessReset', () => {
     expect((urbit as any).sseAbort.signal.aborted).toBe(false);
   });
 
+  test('a rotation before the event source opens settles the pending setup', async () => {
+    // the stream request never opens; a rotation must not leave the awaiting
+    // channel setup pending forever
+    const fetch = vi.fn(() => new Promise<Response>(() => {}));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    urbit.nodeId = '~zod';
+    (urbit as any).lastEventId = 1;
+    const opening = (urbit as any).eventSource() as Promise<void>;
+
+    urbit.seamlessReset();
+
+    await expect(opening).rejects.toBeInstanceOf(ReapError);
+  });
+
   test('a noun PUT failure carries the status', async () => {
     const fetch = vi.fn(async () => new Response('forbidden', { status: 403 }));
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);

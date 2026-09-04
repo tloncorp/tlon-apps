@@ -404,6 +404,7 @@ export class Urbit {
       return;
     }
     this.sseClientInitialized = true;
+    const signal = this.sseAbort.signal;
     return new Promise((resolve, reject) => {
       const sseOptions: SSEOptions = {
         headers: {},
@@ -411,9 +412,18 @@ export class Urbit {
       if (isBrowser) {
         sseOptions.withCredentials = true;
       }
+      // a rotation that aborts this stream before it opens would otherwise
+      // leave anyone awaiting the channel setup hanging; fetchEventSource
+      // resolves on abort without calling any of the handlers below
+      signal.addEventListener(
+        'abort',
+        () =>
+          reject(new ReapError('Channel rotated before event source opened')),
+        { once: true }
+      );
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
-        signal: this.sseAbort.signal,
+        signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
