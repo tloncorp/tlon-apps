@@ -142,7 +142,7 @@ hood_command "mount %$desk"
 mounted_manifest=\$(mktemp)
 read_mounted_manifest() {
   (
-    cd $folder
+    cd $folder || exit 1
     find . -type f ! -path './commit.txt' -print0 \
     | sort -z \
     | xargs -0 sha256sum
