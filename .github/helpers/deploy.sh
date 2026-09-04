@@ -116,7 +116,18 @@ fi
 hood_command "unmount %$desk"
 hood_command "mount %$desk"
 rsync -avL --delete \$staging/assembled/ $folder
+refresh_pikes
+pikes_before_commit="\$pikes_json"
 hood_command "commit %$desk"
+for attempt in \$(seq 1 90); do
+  refresh_pikes
+  if [[ "\$pikes_json" != "\$pikes_before_commit" ]]; then
+    break
+  fi
+  sleep 2
+done
+[[ "\$pikes_json" != "\$pikes_before_commit" ]] \
+  || { echo "%$desk did not advance after commit" >&2; exit 1; }
 if [ "$desk" = tlon ]; then
   refresh_pikes
   if has_desk groups; then
