@@ -734,33 +734,111 @@
   =.  spaces  (~(del by spaces) flag)
   cor
 ::
+::  +se-core: one bucket we host.
+::
+::  The authoritative half. Every arm here already began by proving it held
+::  the bucket and ended by writing it back, five lines apart with the work
+::  between them -- so the proving and the writing were restated at each of
+::  them and could disagree. +se-abed proves it once, +se-abet writes it once,
+::  and what is left in between is the operation itself.
+::
+++  se-core
+  |_  [=flag:b st=bucket-state:b gone=_|]
+  ++  se-core  .
+  ++  emit  |=(=card se-core(cor cor(cards [card cards])))
+  ++  emil  |=(caz=(list card) se-core(cor cor(cards (welp (flop caz) cards))))
+  ++  give  |=(=gift:agent:gall (emit %give gift))
+  ::  +se-abed: pick up the bucket we host at .f.
+  ::
+  ++  se-abed
+    |=  f=flag:b
+    ^+  se-core
+    =/  sp=space:b  (need-space f)
+    =/  held=(unit bucket-state:b)  state.sp
+    ?~  held  ~|(se-abed-no-state+f !!)
+    se-core(flag f, st u.held)
+  ::  +se-abet: write the bucket back, or drop it if it is gone.
+  ::
+  ++  se-abet
+    ^+  cor
+    ?:  gone
+      =.  spaces  (~(del by spaces) flag)
+      cor
+    =/  sp=space:b  (need-space flag)
+    =.  spaces  (~(put by spaces) flag [net.sp `st `group.st])
+    cor
+  ::
+  ++  se-path  (updates-path flag)
+  ::  +se-update: bump the revision, stamp attribution, and broadcast.
+  ::
+  ::  The actor is passed in rather than read from src.bowl, which on a
+  ::  broker callback is us rather than the uploader.
+  ::
+  ++  se-update
+    |=  [upd=u-bucket:b actor=ship]
+    ^+  se-core
+    =.  revision.st  +(revision.st)
+    =.  bucket.st  bucket.st(updated-by actor, updated-at now.bowl)
+    =/  res=response:b  [%update flag revision.st upd]
+    (give [%fact ~[/v1 se-path] buckets-response-1+!>(res)])
+  ::  +se-set-title: the bucket's authoritative title.
+  ::
+  ++  se-set-title
+    |=  [title=@t actor=ship]
+    ^+  se-core
+    =.  bucket.st
+      bucket.st(title title, updated-by actor, updated-at now.bowl)
+    (se-update [%meta bucket.st] actor)
+  ::  +se-set-writers: replace the group-role writer set.
+  ::
+  ++  se-set-writers
+    |=  [writers=(set @tas) actor=ship]
+    ^+  se-core
+    =.  writers.st  writers
+    (se-update [%writers writers] actor)
+  ::  +se-create-folder: a folder beneath an existing folder or the root.
+  ::
+  ++  se-create-folder
+    |=  [parent=(unit @ud) name=@t actor=ship]
+    ^-  [(unit response-body:b) _se-core]
+    ?.  (valid-parent st parent)
+      [`[%error %not-found 'no such parent folder'] se-core]
+    =/  id=@ud  +(next-id)
+    =.  next-id  id
+    =/  ent=entry:b
+      [id parent name actor now.bowl actor now.bowl [%folder ~]]
+    =.  entries.st  (~(put by entries.st) id ent)
+    [~ (se-update [%entry id [%create ent]] actor)]
+  ::  +se-rename: one entry's display name.
+  ::
+  ++  se-rename
+    |=  [id=@ud name=@t actor=ship]
+    ^-  [(unit response-body:b) _se-core]
+    ?~  got=(~(get by entries.st) id)
+      [`[%error %not-found 'no such entry'] se-core]
+    =/  ent=entry:b  u.got
+    =.  ent  ent(name name, updated-by actor, updated-at now.bowl)
+    =.  entries.st  (~(put by entries.st) id ent)
+    [~ (se-update [%entry id [%update ent]] actor)]
+  --
+::
 ++  set-title
   |=  [=flag:b title=@t actor=ship]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  =.  bucket.st
-    bucket.st(title title, updated-by actor, updated-at now.bowl)
-  (commit-update flag st [%meta bucket.st] actor)
+  se-abet:(se-set-title:(se-abed:se-core flag) title actor)
 ::
 ++  set-writers
   |=  [=flag:b writers=(set @tas) actor=ship]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  =.  writers.st  writers
-  (commit-update flag st [%writers writers] actor)
+  se-abet:(se-set-writers:(se-abed:se-core flag) writers actor)
 ::
 ++  create-folder
   |=  [=flag:b parent=(unit @ud) name=@t actor=ship]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  ?.  (valid-parent st parent)
-    (answer [%error %not-found 'no such parent folder'])
-  =/  id=@ud  +(next-id)
-  =.  next-id  id
-  =/  ent=entry:b
-    [id parent name actor now.bowl actor now.bowl [%folder ~]]
-  =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%entry id [%create ent]] actor)
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-create-folder:sec parent name actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
 ::
 ::  +begin-upload: reserve an entry id and object key, open a host-private
 ::  session, and hand the session id back to the uploader as its broker
@@ -1894,13 +1972,10 @@
 ++  rename-entry
   |=  [=flag:b id=@ud name=@t actor=ship]
   ^+  cor
-  =/  st=bucket-state:b  (need-state flag)
-  ?~  got=(~(get by entries.st) id)
-    (answer [%error %not-found 'no such entry'])
-  =/  ent=entry:b  u.got
-  =.  ent  ent(name name, updated-by actor, updated-at now.bowl)
-  =.  entries.st  (~(put by entries.st) id ent)
-  (commit-update flag st [%entry id [%update ent]] actor)
+  =/  sec  (se-abed:se-core flag)
+  =^  err  sec  (se-rename:sec id name actor)
+  ?^  err  (answer u.err)
+  se-abet:sec
 ::
 ++  move-entry
   |=  [=flag:b id=@ud parent=(unit @ud) actor=ship]
