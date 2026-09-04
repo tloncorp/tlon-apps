@@ -37,8 +37,9 @@ function surfacePayload(description?: string): string {
   });
 }
 
-function setChannel(channel: ChannelFixture) {
-  mockedGetGroups.impl = async () => [
+/** The group listing `getGroups()` returns, with this channel in it. */
+function groupListing(channel: ChannelFixture) {
+  return [
     {
       id: '~zod/beach',
       title: 'Beach',
@@ -58,6 +59,28 @@ function setChannel(channel: ChannelFixture) {
       navSections: [{ sectionId: 'default', channels: [{ channelId: NEST }] }],
     },
   ];
+}
+
+function setChannel(channel: ChannelFixture) {
+  mockedGetGroups.impl = async () => groupListing(channel);
+}
+
+/**
+ * What each successive read of the group listing sees.
+ *
+ * `updateChannelMeta` reads the channel twice — once at the unpublish gate,
+ * once immediately before the write — so a SEQUENCE of fixtures is the
+ * concurrent writer: whatever the second read returns is what landed in
+ * between. The last fixture stands for every read after it.
+ */
+function setChannelSequence(...fixtures: ChannelFixture[]) {
+  let call = 0;
+  mockedGetGroups.impl = async () => {
+    const fixture = fixtures[Math.min(call, fixtures.length - 1)];
+    call += 1;
+    return groupListing(fixture);
+  };
+  return { reads: () => call };
 }
 
 /** The description cell the last `updateChannel` write carried, if any. */
@@ -271,5 +294,106 @@ describe('channels info over a structured description cell', () => {
 
     await channels.getChannelInfo(NEST);
     expect(stdout.lines.join('\n')).toContain('Description: Weekly standup');
+  });
+});
+
+/**
+ * The unpublish the gate above could not see.
+ *
+ * The gate runs on a listing read one round trip before the write, and
+ * `updateChannel` sends a COMPLETE channel with no version or CAS token,
+ * rebuilt from the two fields this command knows about. So a surface
+ * published between the read and the write is destroyed by a command that
+ * looked, found an ordinary channel, and had nothing to refuse — the
+ * `--allow-unpublish` decision made silently, by nobody (D188).
+ *
+ * The fulcrum is the SECOND read: the same command, the same fixture at the
+ * gate, differing only in what the channel carries by the time the write
+ * comes. `reads()` is not asserted on — the behaviour is — but the sequence
+ * is the only thing that moves between these arms.
+ */
+describe('channels update while another client publishes a surface', () => {
+  const ORDINARY: ChannelFixture = {
+    description: 'Just a chat',
+    descriptionPayload: 'Just a chat',
+    surfaceSpec: null,
+  };
+  const PUBLISHED: ChannelFixture = {
+    description: undefined,
+    descriptionPayload: surfacePayload(),
+    surfaceSpec: JSON.stringify(SPEC),
+  };
+
+  it('refuses when the app appears between the gate and the write', async () => {
+    setChannelSequence(ORDINARY, PUBLISHED);
+    const writes = captureWrites();
+    const stdout = captureStdout();
+    restores.push(stdout.restore);
+    const channels = await loadChannels();
+
+    let message = '';
+    try {
+      await channels.updateChannelMeta(NEST, { description: 'Beach fund' });
+      throw new Error('expected a refusal');
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(message).toContain(NEST);
+    expect(message).toContain('changed while this command was running');
+    expect(message).toContain('Nothing was written');
+    // Zero writes — on the write log, not on a final value. The refusal is
+    // the whole point: pre-fix this command reached `updateChannel` with a
+    // description cell rebuilt from the ordinary channel it read at the gate,
+    // and the app that had just been published was gone.
+    expect(writes).toEqual([]);
+    // And it did not congratulate itself on the way past.
+    expect(stdout.lines.join('\n')).not.toContain('✅');
+  });
+
+  it('refuses a title-only rename for the same reason', async () => {
+    setChannelSequence(ORDINARY, PUBLISHED);
+    const writes = captureWrites();
+    const stdout = captureStdout();
+    restores.push(stdout.restore);
+    const channels = await loadChannels();
+
+    await expect(
+      channels.updateChannelMeta(NEST, { title: 'Ledger v2' })
+    ).rejects.toThrow('changed while this command was running');
+    expect(writes).toEqual([]);
+  });
+
+  it('refuses when the channel is gone by the time it writes', async () => {
+    // The other shape of the same gap: not a different value, no value.
+    let call = 0;
+    mockedGetGroups.impl = async () => {
+      call += 1;
+      return call === 1 ? groupListing(ORDINARY) : [];
+    };
+    const writes = captureWrites();
+    const stdout = captureStdout();
+    restores.push(stdout.restore);
+    const channels = await loadChannels();
+
+    await expect(
+      channels.updateChannelMeta(NEST, { description: 'Beach fund' })
+    ).rejects.toThrow('changed while this command was running');
+    expect(writes).toEqual([]);
+  });
+
+  it('writes when the channel did not move — the differential arm', async () => {
+    // Two reads of the SAME channel. Without this, the refusals above would
+    // pass equally against a build that had started refusing every edit.
+    setChannelSequence(ORDINARY, ORDINARY);
+    const writes = captureWrites();
+    const stdout = captureStdout();
+    restores.push(stdout.restore);
+    const channels = await loadChannels();
+
+    await channels.updateChannelMeta(NEST, { description: 'Still a chat' });
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0].description).toContain('Still a chat');
   });
 });

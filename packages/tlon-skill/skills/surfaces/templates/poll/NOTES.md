@@ -47,9 +47,10 @@ poll variant, it is a different design.
   everyone and lets the viewer find their own row. That is also why the
   rows carry sigils: `<${Avatar} ship=${ship} />` takes the ship name
   exactly as `$actor` wrote it into state.
-- **`bundle` in `spec.json`.** `assetRef`, `sha256` and `size` are
-  placeholders; `surface publish` computes and overwrites all three, plus
-  `specRevision`. Do not hand-edit them.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is a
   populated example — three members who have voted — that CI renders through
   the shell, because the starting state is empty and an empty screen

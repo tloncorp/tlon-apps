@@ -174,6 +174,120 @@ export async function readSurfacePreState(
   });
 }
 
+/**
+ * The definition a write is about to replace, in a form two reads can be
+ * compared in.
+ *
+ * NARROWER than `readSurfacePreState` on purpose. That one is the operator's
+ * bound — it folds the post head in, so "a member chatted" changes it, which
+ * is right for "is this the channel you asserted about" and wrong for "is
+ * this still the definition I read". A write-time fence built on it would
+ * refuse a publish because somebody said hello during the upload.
+ *
+ * `absent` is a value here, not a hole: "no definition, still no definition"
+ * is exactly the claim `surface fork` and `channels update` make, and a
+ * fence that could not express it would have nothing to check.
+ */
+export function surfaceDefinitionIdentity(
+  deps: SurfaceDeps,
+  read: SurfaceSpecRead
+): string {
+  if (read.status === 'absent') {
+    return 'absent';
+  }
+  return `spec:${deps.sha256Hex(new TextEncoder().encode(read.raw))}`;
+}
+
+/**
+ * The write-time half of "the pre-state must still hold at write time".
+ *
+ * Every surface write is read-modify-write across seconds of asynchronous
+ * work — a gate run, a bundle upload, an observation budget — and %groups
+ * takes a whole channel value with no version or CAS token. So a check that
+ * ran before the upload proves nothing about the state the write lands on:
+ * publish reads revision 1, another admin publishes revision 2, and the
+ * first command overwrites 2 and then reads ITS OWN WRITE back as
+ * confirmation. The readback certifies the overwrite.
+ *
+ * This re-reads the target immediately before the write and refuses on any
+ * change, naming both identities. It also RETURNS the fresh channel, and
+ * every caller builds its payload from that rather than from the value it
+ * read minutes ago — otherwise the full-cell overwrite drops a concurrent
+ * edit to an unrelated field (title, image) even when the definition itself
+ * did not move.
+ *
+ * Residual, stated plainly: this narrows the window from "the whole command"
+ * to "one round trip", it does not close it. Closing it needs a
+ * compare-and-swap on the description cell in %groups — a backend change,
+ * recorded as a v1 item, not something v0 claims (D188).
+ */
+export async function readDefinitionForWrite(
+  deps: SurfaceDeps,
+  input: {
+    groupId: string;
+    channelId: string;
+    operation: string;
+    /** the identity observed when this command decided to write */
+    checked: string;
+  }
+): Promise<{ channel: SurfaceGroupChannel; identity: string }> {
+  const channels = await deps.readGroupChannels(input.groupId);
+  // `readGroupChannels` returns null for ANY read failure, so "could not read"
+  // and "is not there" arrive as the same value and must not leave as the same
+  // sentence. Both refuse — a fence that cannot see its target fails closed —
+  // but a bot told the channel was deleted when the scry merely failed will go
+  // and create a replacement.
+  if (channels === null) {
+    throw surfaceError(
+      'write-target-moved',
+      `${input.operation} could not re-read ${input.channelId} from ${input.groupId} immediately before writing, so it cannot tell whether the definition it read is still the one it would replace. Nothing was written. This is a read failure, not a missing channel: try again.`,
+      {
+        operation: input.operation,
+        channel: input.channelId,
+        group: input.groupId,
+        checkedIdentity: input.checked,
+        observedIdentity: 'unreadable',
+      }
+    );
+  }
+  const channel = channels[input.channelId];
+  if (!channel) {
+    throw surfaceError(
+      'write-target-moved',
+      `${input.operation} was about to write to ${input.channelId}, but ${input.groupId} no longer lists it. Nothing was written.`,
+      {
+        operation: input.operation,
+        channel: input.channelId,
+        group: input.groupId,
+        checkedIdentity: input.checked,
+        observedIdentity: 'gone',
+      }
+    );
+  }
+  const identity = surfaceDefinitionIdentity(
+    deps,
+    readChannelSpec(deps, channel)
+  );
+  if (identity !== input.checked) {
+    throw surfaceError(
+      'write-target-moved',
+      `${input.operation} checked ${input.channelId} and found ${describeDefinitionIdentity(input.checked)}, but by the time it came to write, the channel carries ${describeDefinitionIdentity(identity)}. Somebody else wrote to this channel while this command was working. Nothing was written — overwriting would have replaced their revision with one derived from a definition that no longer exists, and the read-back afterwards would have confirmed this command's own overwrite. Re-run over the current definition.`,
+      {
+        operation: input.operation,
+        channel: input.channelId,
+        checkedIdentity: input.checked,
+        observedIdentity: identity,
+      }
+    );
+  }
+  return { channel, identity };
+}
+
+/** Renders a definition identity for a refusal a person has to read. */
+function describeDefinitionIdentity(identity: string): string {
+  return identity === 'absent' ? 'no definition' : `the definition ${identity}`;
+}
+
 export type SurfaceSpecRead =
   | { status: 'valid'; spec: SurfaceSpec; raw: string }
   | { status: 'absent' }
@@ -240,6 +354,23 @@ export interface HydratedPosts {
   /** false when paging stopped before reaching the start of the channel */
   complete: boolean;
   pages: number;
+  /**
+   * The channel's head — the greatest `sequenceNum` the SHIP returned — or
+   * null when nothing sequenced came back (D190).
+   *
+   * This is the CLI's half of the D175 guard. The client passes
+   * `channels.lastPostSequenceNum` because its local rows can lag the
+   * server; the CLI has no local store, so every post here came from the
+   * ship on this call and the greatest one IS the server's head. Without it
+   * the CLI folded from a snapshot the client refuses as future-covering and
+   * could then write a fresh snapshot from that fold, laundering the bad
+   * boundary into a post the client would accept.
+   *
+   * Only meaningful alongside `complete`: a truncated page walk has not seen
+   * the head and every caller already refuses on `complete === false` before
+   * reducing.
+   */
+  head: number | null;
 }
 
 export interface HydrateOptions {
@@ -263,6 +394,7 @@ export async function hydratePosts(
   const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
   const maxPosts = options.maxPosts ?? DEFAULT_MAX_POSTS;
   const posts: SurfacePostRecord[] = [];
+  let head: number | null = null;
   let cursor: string | undefined;
   let mode: 'newest' | 'older' = 'newest';
   let pages = 0;
@@ -276,20 +408,28 @@ export async function hydratePosts(
     });
     pages += 1;
     posts.push(...page.posts);
+    for (const post of page.posts) {
+      if (
+        typeof post.sequenceNum === 'number' &&
+        post.sequenceNum > (head ?? -1)
+      ) {
+        head = post.sequenceNum;
+      }
+    }
     if (page.older === null) {
-      return { posts, complete: true, pages };
+      return { posts, complete: true, pages, head };
     }
     if (page.posts.length === 0) {
       // A cursor that returns nothing but still claims more history is a
       // page we cannot advance past; treating it as the end would silently
       // fold a truncated history.
-      return { posts, complete: false, pages };
+      return { posts, complete: false, pages, head };
     }
     cursor = page.older;
     mode = 'older';
   }
 
-  return { posts, complete: false, pages };
+  return { posts, complete: false, pages, head };
 }
 
 /* ------------------------------------------------------------------ */

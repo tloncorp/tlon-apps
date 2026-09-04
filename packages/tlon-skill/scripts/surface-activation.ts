@@ -78,6 +78,27 @@ export interface SurfacePostLike {
   authorId: string;
   sequenceNum: number;
   blob: string;
+  /**
+   * The tie-break key the reducer requires (D189).
+   *
+   * A synthetic post set has no host to stamp one, so it mints its own. It is
+   * not decoration: without it the gate, the preview and the transition walk
+   * would fold in ARRAY order while a real channel folds in id order, and the
+   * one thing those tools exist to predict is what the channel will do.
+   */
+  id: string;
+}
+
+/**
+ * A deterministic id for a post no host ever stamped.
+ *
+ * Zero-padded so a raw string compare on two synthetic ids agrees with their
+ * sequence numbers, and prefixed by kind so two records minted at the same
+ * sequence number (a boundary-0 snapshot and the invoke above it) still order
+ * the same way on every run.
+ */
+export function syntheticPostId(kind: string, sequenceNum: number): string {
+  return `synthetic-${kind}-${String(sequenceNum).padStart(6, '0')}`;
 }
 
 export function invokePost(
@@ -89,6 +110,7 @@ export function invokePost(
   return {
     authorId: actor,
     sequenceNum,
+    id: syntheticPostId('invoke', sequenceNum),
     blob: JSON.stringify([
       {
         type: 'surface-event',
@@ -122,6 +144,7 @@ export function snapshotPost(
   return {
     authorId: hostShip,
     sequenceNum: upToSequenceNum,
+    id: syntheticPostId('snapshot', upToSequenceNum),
     blob: JSON.stringify([
       {
         type: 'surface-snapshot',

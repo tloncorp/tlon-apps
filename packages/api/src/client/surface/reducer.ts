@@ -111,10 +111,16 @@ export interface SurfacePostView {
    * The id is stamped by the host on the same event as the sequence number
    * and increases in the same order (`channels-server.hoon` derives it from
    * `now.bowl` with a collision bump), so it is the natural second key.
-   * Optional because not every producer carries it; absent, the sort falls
-   * back to the previous behaviour.
+   *
+   * REQUIRED (D189). It was optional, and `comparePostIds` returned equality
+   * whenever either side was absent — so two tied id-less posts sorted in
+   * caller order and the exported "posts, any order" contract was false for
+   * anything that did not carry ids. An optional tie-break key is not a
+   * tie-break: making it required is what makes the contract true at the
+   * type level rather than true only for the one producer that happened to
+   * fill it in.
    */
-  id?: string | null;
+  id: string;
 }
 
 export interface ReduceSurfaceInput {
@@ -195,10 +201,34 @@ export interface SurfaceReductionReduced {
    * would be two representations of one fact, free to drift.
    */
   abortedSequenceNums: number[];
+  /**
+   * The `sequenceNum` of every otherwise-eligible snapshot skipped for
+   * claiming coverage beyond `advertisedHead` (D175), ascending.
+   *
+   * Reported rather than only logged (D190) because skipping is not a repair.
+   * The bad snapshot still sits in the channel, still wins selection on any
+   * reader that folds without a head, and — since selection takes the
+   * GREATEST boundary — still beats any honest snapshot written after it. A
+   * writer that folds past one and then snapshots would launder the boundary
+   * into a fresh post while the original stands. So the fold says which post
+   * it had to step over, and a writer refuses on a non-empty list and names
+   * it, instead of quietly producing a correct-looking state.
+   */
+  headExceededSnapshots: number[];
 }
 
 export interface SurfaceReductionPending {
   status: 'migration-pending';
+  /**
+   * Same meaning as on a reduced fold, and present here for the case that
+   * makes it matter most: a preserving revision whose ONLY snapshot claims
+   * coverage beyond the head. Skipping it leaves the revision migration-
+   * pending, which reads as "the host has not posted one yet" — so a repair
+   * path writes a fresh snapshot at an honest boundary, the bad one keeps
+   * winning selection because selection takes the greatest boundary, and the
+   * repair reports success having changed nothing.
+   */
+  headExceededSnapshots: number[];
 }
 
 export type SurfaceReduction =
@@ -208,7 +238,7 @@ export type SurfaceReduction =
 interface SequencedEntry<T> {
   sequenceNum: number;
   /** the post's host-stamped id, to break a sequence-number tie */
-  postId: string | null;
+  postId: string;
   /** entry position within the post's blob, for a stable in-post order */
   entryIndex: number;
   authorId: string;
@@ -227,22 +257,46 @@ interface SequencedEntry<T> {
  *
  * Non-numeric ids exist (sequence stubs are `sequence-stub-<channel>-<n>`),
  * so those fall back to a plain string compare. Any total order will do;
- * what matters is that every client picks the SAME one.
+ * what matters is that every client picks the SAME one — which means it has
+ * to BE one. Two ways it was not (D189):
+ *
+ *   - `1.000` and `1000` carry the same digits, so neither `<` held and both
+ *     directions returned 1: `a > b` and `b > a` at once.
+ *   - Numeric and non-numeric ids were compared raw against each other, so
+ *     `"2" > "1x" > "10" > "2"` closed a cycle across the two classes.
+ *
+ * Both are fixed by ordering the CLASSES first — every numeric id below
+ * every non-numeric one — and by falling through to the raw compare when
+ * two numeric ids agree on digits. `surfaceReducer.test.ts` generates ids
+ * across both classes and asserts antisymmetry and transitivity directly.
  */
-function comparePostIds(a: string | null, b: string | null): number {
-  if (a === null || b === null || a === b) {
+function comparePostIds(a: string, b: string): number {
+  if (a === b) {
     return 0;
   }
   const digitsA = a.replace(/\./g, '');
   const digitsB = b.replace(/\./g, '');
-  if (/^\d+$/.test(digitsA) && /^\d+$/.test(digitsB)) {
+  const numericA = /^\d+$/.test(digitsA);
+  const numericB = /^\d+$/.test(digitsB);
+  if (numericA !== numericB) {
+    return numericA ? -1 : 1;
+  }
+  if (numericA) {
     if (digitsA.length !== digitsB.length) {
       return digitsA.length - digitsB.length;
     }
-    return digitsA < digitsB ? -1 : 1;
+    if (digitsA !== digitsB) {
+      return digitsA < digitsB ? -1 : 1;
+    }
+    // Same number, different rendering (`1.000` vs `1000`). Distinct ids, so
+    // the order must still separate them; the raw compare is a total order
+    // on strings and settles it.
   }
   return a < b ? -1 : 1;
 }
+
+/** Exported for the order's own property tests; not part of the fold API. */
+export const __comparePostIdsForTest = comparePostIds;
 
 function isSurfaceEvent(entry: { type: string }): entry is SurfaceEventEntry {
   return entry.type === 'surface-event';
@@ -271,7 +325,14 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       post.isEdited ||
       typeof post.blob !== 'string' ||
       post.blob.length === 0 ||
-      typeof post.authorId !== 'string'
+      typeof post.authorId !== 'string' ||
+      // The tie-break key is required (D189). A post that arrives without one
+      // cannot be ordered against a post sharing its sequence number, so
+      // folding it would reintroduce exactly the arrival-order dependence the
+      // key exists to remove. Structurally unfoldable, like a post with no
+      // sequence number — the type says so and this enforces it for callers
+      // that are not typechecked against us.
+      typeof post.id !== 'string'
     ) {
       continue;
     }
@@ -280,7 +341,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       if (isSurfaceEvent(entry) && entry.surfaceId === spec.surfaceId) {
         events.push({
           sequenceNum: post.sequenceNum as number,
-          postId: post.id ?? null,
+          postId: post.id,
           entryIndex,
           authorId: post.authorId,
           entry,
@@ -291,7 +352,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
       ) {
         snapshots.push({
           sequenceNum: post.sequenceNum as number,
-          postId: post.id ?? null,
+          postId: post.id,
           entryIndex,
           authorId: post.authorId,
           entry,
@@ -315,6 +376,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
   // effective snapshot has the greatest upToSequenceNum. Ties resolve to
   // the latest-sequenced entry (host-degenerate but deterministic).
   let snapshot: SurfaceSnapshotEntry | null = null;
+  const headExceededSnapshots: number[] = [];
   for (const candidate of snapshots) {
     if (candidate.authorId !== hostShip) {
       logger.log('skipping non-host snapshot', candidate.sequenceNum);
@@ -337,6 +399,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
         candidate.entry.upToSequenceNum,
         advertisedHead
       );
+      headExceededSnapshots.push(candidate.sequenceNum);
       continue;
     }
     if (
@@ -350,7 +413,7 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
   // Migration gate (§6): a preserving revision has no state until the host
   // posts a snapshot at exactly this revision.
   if (spec.preserveState === true && snapshot === null) {
-    return { status: 'migration-pending' };
+    return { status: 'migration-pending', headExceededSnapshots };
   }
 
   let state: JsonObject = snapshot ? snapshot.state : spec.initialState;
@@ -439,5 +502,6 @@ export function reduceSurface(input: ReduceSurfaceInput): SurfaceReduction {
     foldedEventCount,
     skippedEventCount,
     abortedSequenceNums,
+    headExceededSnapshots,
   };
 }

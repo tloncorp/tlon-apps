@@ -78,6 +78,8 @@ export const SURFACE_ERROR_CODES = [
   'fork-destination-occupied',
   'recipe-absent',
   'gate-harness-unavailable',
+  'snapshot-head-exceeded',
+  'write-target-moved',
 ] as const;
 
 export type SurfaceErrorCode = (typeof SURFACE_ERROR_CODES)[number];
@@ -141,6 +143,16 @@ export const SURFACE_ERROR_CLASS: Record<SurfaceErrorCode, SurfaceErrorClass> =
     // would tell a bot to rewrite files that are fine, which is the exact
     // destructive-noise failure `environment` exists to prevent.
     'gate-harness-unavailable': 'environment',
+    // The channel holds a snapshot claiming coverage beyond its own head.
+    // Nothing in the caller's working directory is implicated and no rewrite
+    // of it helps: the repair is retracting a post that is already on the
+    // ship.
+    'snapshot-head-exceeded': 'environment',
+    // Somebody else wrote to the target between this command's check and its
+    // write. The caller's files are correct and unchanged — running the same
+    // command again over the new pre-state is the remedy — so this is
+    // `environment` for the same reason `pre-state-moved` is.
+    'write-target-moved': 'environment',
     'upload-failed': 'environment',
     'publish-unconfirmed': 'environment',
     'post-unconfirmed': 'environment',
@@ -491,6 +503,12 @@ export interface SurfaceDeps extends CommandDeps {
     spec: SurfaceSpec;
     hostShip: string;
     posts: SurfacePostRecord[];
+    /**
+     * The channel head from `hydratePosts`, so the CLI applies the same D175
+     * ceiling the client does. Omitted only where there is no hydration to
+     * take it from — a synthetic post set has no ship and no head.
+     */
+    advertisedHead?: number | null;
   }): SurfaceReduction;
   /** `SURFACE_CAPS`, for pre-flight refusals with a number in them */
   caps: { opsPerEvent: number; bundleSize: number };

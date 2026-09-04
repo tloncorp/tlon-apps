@@ -28,6 +28,7 @@ import {
   type SurfaceLintViolation,
   formatSurfaceLintResult,
   lintSurfaceBundle,
+  specPathIsUnder,
 } from './surface-lint';
 
 /**
@@ -1872,5 +1873,206 @@ describe('rule 17 — a number rendered against a plural noun', () => {
     expect(
       result.skipped.map((entry) => entry.rule).includes('count-agreement')
     ).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* D192 — a prefix is not a path                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The compliant baseline with two more controls, one per vote direction.
+ *
+ * Nothing else about the app changes, which is what makes the two findings
+ * below attributable to the two actions rather than to the screen.
+ */
+const VOTE_PREFIX_BUNDLE = mutateCompliant(
+  COMPLIANT_SIGNUP_STAT,
+  `<\${Stat} value=\${String(names.length)} label="signed up" />
+          <\${Button} disabled=\${!canInvoke()} onPress=\${() => invoke('vote')}>
+            Vote yes
+          <//>
+          <\${Button} disabled=\${!canInvoke()} onPress=\${() => invoke('vote-no')}>
+            Vote no
+          <//>`
+);
+
+/**
+ * Two defective actions whose ids share a raw prefix, one defect each.
+ *
+ * `vote` is DEAD: `$actor` must be a whole path segment, so
+ * `resolveActorSegments` rejects `$actor-choice` as a grammar error and every
+ * fold of it is refused. Nothing static can see this — only `inert-action`,
+ * reading `abortedSequenceNums` off the fold, can.
+ *
+ * `vote-no` is MALFORMED: a bare `~` in a path segment is an invalid RFC 6901
+ * escape, which `pointer-hygiene` reports statically (D51).
+ *
+ * They are independent defects in independent actions, and the gate has to
+ * report both. `actions.vote` is a raw string prefix of `actions.vote-no`, so
+ * the suppression that stops `inert-action` restating a defect an earlier
+ * rule already explained read the rule-8 finding against `vote-no` as a
+ * finding against `vote` and swallowed it — the author repaired the pointer,
+ * re-ran the gate, and met the dead action only then, if at all.
+ */
+const VOTE_PREFIX_SPEC = (() => {
+  const spec = structuredClone(COMPLIANT_FIXTURE.spec) as {
+    initialState: Record<string, unknown>;
+    actions: Record<string, { ops: unknown[] }>;
+  };
+  // so the only thing wrong with either op is the form of its path
+  spec.initialState.votes = {};
+  spec.actions.vote = {
+    ops: [{ op: 'set', path: '/votes/$actor-choice', value: 'yes' }],
+  };
+  spec.actions['vote-no'] = {
+    ops: [{ op: 'set', path: '/votes/~sampel-palnet', value: 'no' }],
+  };
+  return spec as unknown as SurfaceLintFixture['spec'];
+})();
+
+/** the same pair, with the longer id renamed so it shares no prefix */
+const VOTE_RENAMED_SPEC = (() => {
+  const spec = structuredClone(VOTE_PREFIX_SPEC) as {
+    actions: Record<string, { ops: unknown[] }>;
+  };
+  spec.actions['no-vote'] = spec.actions['vote-no'];
+  delete spec.actions['vote-no'];
+  return spec as unknown as SurfaceLintFixture['spec'];
+})();
+
+const VOTE_RENAMED_BUNDLE = VOTE_PREFIX_BUNDLE.replace(
+  "invoke('vote-no')",
+  "invoke('no-vote')"
+);
+
+describe('rule 15 — one action id extending another hides nothing (D192)', () => {
+  it('reports the malformed vote-no AND the dead vote', () => {
+    const result = lintSurfaceBundle({
+      bundleSource: VOTE_PREFIX_BUNDLE,
+      spec: VOTE_PREFIX_SPEC,
+    });
+
+    const hygiene = result.violations.filter(
+      (entry) => entry.rule === 'pointer-hygiene'
+    );
+    expect(hygiene.map((entry) => entry.specPath)).toEqual([
+      'actions.vote-no.ops[0].path',
+    ]);
+
+    // The finding the raw prefix compare swallowed. Its absence was silent:
+    // the gate reported one defect, the author fixed it, and the board still
+    // had a control that could never move it.
+    const inert = result.violations.filter(
+      (entry) => entry.rule === 'inert-action'
+    );
+    expect(inert.map((entry) => entry.specPath)).toEqual(['actions.vote']);
+
+    // and the suppression still works in the direction it was written for:
+    // `vote-no` is refused on every fold too, and says so exactly once,
+    // through rule 8
+    expect(ruleSet(result.violations)).toEqual([
+      'inert-action',
+      'pointer-hygiene',
+    ]);
+  });
+
+  it('reports the same two findings once the ids share no prefix', () => {
+    // The reviewer's own control. Renaming `vote-no` to `no-vote` changes
+    // nothing about either defect, so a gate whose output moves under the
+    // rename is keying on the spelling of the ids — which is exactly what it
+    // was doing.
+    const result = lintSurfaceBundle({
+      bundleSource: VOTE_RENAMED_BUNDLE,
+      spec: VOTE_RENAMED_SPEC,
+    });
+    expect(
+      result.violations
+        .filter((entry) => entry.rule === 'pointer-hygiene')
+        .map((entry) => entry.specPath)
+    ).toEqual(['actions.no-vote.ops[0].path']);
+    expect(
+      result.violations
+        .filter((entry) => entry.rule === 'inert-action')
+        .map((entry) => entry.specPath)
+    ).toEqual(['actions.vote']);
+  });
+});
+
+describe('specPathIsUnder compares segments, not characters', () => {
+  it('holds for the root itself and for everything inside it', () => {
+    expect(specPathIsUnder('actions.vote', 'actions.vote')).toBe(true);
+    // a `.` follows the complete segment ...
+    expect(specPathIsUnder('actions.vote.ops', 'actions.vote')).toBe(true);
+    expect(specPathIsUnder('actions.vote.ops[0].path', 'actions.vote')).toBe(
+      true
+    );
+    // ... and so does a `[`, the only other thing that legally can
+    expect(specPathIsUnder('actions.vote[0]', 'actions.vote')).toBe(true);
+  });
+
+  it('does not hold for a sibling whose id merely extends the root', () => {
+    // The collision, at the level it happens. Both of these start with
+    // `actions.vote` as a raw string and neither is inside it.
+    expect(specPathIsUnder('actions.vote-no', 'actions.vote')).toBe(false);
+    expect(specPathIsUnder('actions.vote-no.ops[0].path', 'actions.vote')).toBe(
+      false
+    );
+    expect(specPathIsUnder('actions.voted', 'actions.vote')).toBe(false);
+  });
+
+  it('is false for an absent path and for one that stops short', () => {
+    expect(specPathIsUnder(undefined, 'actions.vote')).toBe(false);
+    expect(specPathIsUnder('actions', 'actions.vote')).toBe(false);
+    expect(specPathIsUnder('bundle', 'actions.vote')).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* D191 — the gate refuses a spec that contradicts itself              */
+/* ------------------------------------------------------------------ */
+
+describe('rule 9 — memberInteraction beside actions is refused, not warned', () => {
+  it('refuses the compliant interactive app once it declares itself inert', () => {
+    // The compliant fixture, unchanged except for the marker. It passed the
+    // gate clean: rule 15 returns early whenever actions exist, so nothing
+    // looked at the marker at all — and the rubric keys check 8 off the
+    // marker's PRESENCE, so a board full of controls generated a
+    // display-only check for a reviewer to score.
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource,
+      spec: {
+        ...(COMPLIANT_FIXTURE.spec as Record<string, unknown>),
+        memberInteraction: {
+          mode: 'none',
+          because: 'the bot posts the rollover each morning',
+        },
+      },
+    });
+    expect(result.ok).toBe(false);
+    const schema = result.violations.filter(
+      (entry) => entry.rule === 'spec-schema'
+    );
+    expect(schema.map((entry) => entry.specPath)).toEqual([
+      'memberInteraction',
+    ]);
+    expect(schema[0].message).toContain('members cannot act');
+    // One assertion is enough because the schema refusal is what lint
+    // reports: `checkSpecSchema` turns every Zod issue into a `spec-schema`
+    // violation, so the gate needs no rule of its own for this.
+    expect(ruleSet(result.violations)).toEqual(['spec-schema']);
+    // and rule 15 stays quiet — the contradiction is not an inert app
+    expect(ruleSet(result.warnings)).toEqual([]);
+  });
+
+  it('still passes the same app with the marker removed', () => {
+    // The other arm: the marker is the only difference between this and the
+    // refusal above.
+    const result = lintSurfaceBundle({
+      bundleSource: COMPLIANT_FIXTURE.bundleSource,
+      spec: COMPLIANT_FIXTURE.spec,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.violations).toEqual([]);
   });
 });

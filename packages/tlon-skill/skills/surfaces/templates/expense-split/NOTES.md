@@ -87,6 +87,10 @@ somebody has to say who paid.
   not just that line.
 - **`disabled=${!canInvoke()}`** — a read-only viewer sees the same sheet
   with the controls off, not a different screen.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is a
   populated example — four people, one cost still unclaimed, an uneven split
   — that CI renders through the shell, because the starting state has nobody

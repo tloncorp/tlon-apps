@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest';
 
 import * as db from '../../db';
-import { setupDatabaseTestSuite } from '../../test/helpers';
+import { resetDb, setupDatabaseTestSuite } from '../../test/helpers';
 import { hydrateSurface } from './hydration';
 
 setupDatabaseTestSuite();
@@ -429,4 +429,102 @@ test('a channel with no synced head withholds state rather than guess', async ()
   });
   expect(result.status).toBe('partial');
   expect('state' in result).toBe(false);
+});
+
+// D187. Two posts can share a sequence number: there is no unique index on
+// `(channelId, sequenceNum)` in the schema, and `channel-utils.hoon` ships a
+// repairer for "duplicate sequence nrs in the posts". The pair therefore has
+// to survive BOTH halves of the read path — the contiguity walk (which used
+// to read the repeat as a gap) and the page cursor (which used to be a bare
+// `sequenceNum < N` and stepped over the sibling the previous page's limit
+// cut off) — or the reducer breaks a tie it can only see one side of, and two
+// clients holding the same posts in different SQLite insertion order fold
+// different state.
+const TIE_LOW_ID = '170.141.184.506.257.000.000.000.000.000.000.001';
+const TIE_HIGH_ID = '170.141.184.506.257.000.000.000.000.000.000.002';
+const TIE_BASE_ID = '170.141.184.506.256.000.000.000.000.000.000.001';
+
+function conflictSpec() {
+  return spec({
+    initialState: { x: 0, log: [] },
+    actions: {
+      // both write /x, so only one of them can be the final value: the fold
+      // is wrong, not merely incomplete, if the losing row never arrives
+      'x-low': {
+        ops: [
+          { op: 'set', path: '/x', value: 1 },
+          { op: 'append', path: '/log', value: 'low' },
+        ],
+      },
+      'x-high': {
+        ops: [
+          { op: 'set', path: '/x', value: 2 },
+          { op: 'append', path: '/log', value: 'high' },
+        ],
+      },
+    },
+  });
+}
+
+/**
+ * Rebuilds the database from scratch and inserts the posts one statement at a
+ * time, so the tied pair's rowid order — the thing a client has no control
+ * over and the thing the fold must not depend on — is exactly `tiedOrder`.
+ */
+async function seedTiedChannel(tiedOrder: db.Post[]) {
+  resetDb();
+  await insertSurfaceChannel(conflictSpec());
+  const base = makePost(1, MEMBER, [], { id: TIE_BASE_ID, blob: null });
+  for (const post of [base, ...tiedOrder]) {
+    await db.insertChannelPosts({ posts: [post] });
+  }
+  await db.updateChannel({ id: CHANNEL, lastPostSequenceNum: 2 });
+}
+
+test('a sequence-number tie folds identically in either insertion order', async () => {
+  const low = makePost(2, MEMBER, [invokeEntry('x-low')], { id: TIE_LOW_ID });
+  const high = makePost(2, '~bus', [invokeEntry('x-high')], {
+    id: TIE_HIGH_ID,
+  });
+
+  // Both rows reach the reducer, and the canonically greater id wins /x.
+  const expected = { x: 2, log: ['low', 'high'] };
+
+  const arrangements: [string, db.Post[]][] = [
+    ['low-first', [low, high]],
+    ['high-first', [high, low]],
+  ];
+  // pageSize 1 splits the tie ACROSS a page boundary — the half the tuple
+  // cursor fixes. pageSize 50 keeps both rows inside one page — the half the
+  // contiguity walk fixes.
+  const pageSizes = [1, 50];
+
+  const outcomes: unknown[] = [];
+  for (const pageSize of pageSizes) {
+    for (const [order, tiedOrder] of arrangements) {
+      await seedTiedChannel(tiedOrder);
+      const result = await hydrateSurface({
+        channelId: CHANNEL,
+        pageSize,
+        backfill: noopBackfill(),
+      });
+      outcomes.push({
+        pageSize,
+        order,
+        status: result.status,
+        state: result.state,
+      });
+    }
+  }
+
+  expect(outcomes).toEqual(
+    pageSizes.flatMap((pageSize) =>
+      arrangements.map(([order]) => ({
+        pageSize,
+        order,
+        status: 'hydrated',
+        state: expected,
+      }))
+    )
+  );
 });

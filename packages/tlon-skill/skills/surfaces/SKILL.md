@@ -238,7 +238,9 @@ publish` refuses without it.** Changing the spec invalidates the sheet even
   pattern from `tlon surface doctrine` instead. The gate folds every action
   twice and fails any whose second fold changes state.
 - **`render` never reads the clock and never knows who is viewing.** Derive
-  everything from state. Dates only exist where a host event wrote them.
+  everything from state. Dates exist where a host event wrote them, or
+  where they were fixed once at creation, like the countdown template's
+  `targetMs`.
 - **Money, weights, scores: integers only** (cents, grams, tenths). Float
   arithmetic silently corrupts derived values.
 - **Ship names never appear literally in op paths.** `$actor` is the only way
@@ -323,8 +325,11 @@ It takes two runs, because the copy has to be looked at before it lands:
    the surface id it minted. Nothing is written to any ship.
 2. `tlon surface preview <bundle> <spec>` renders the staged pair and writes a
    scoring sheet keyed to this fork.
-3. `--surface-id <id> --rubric <file>` re-reads the source, re-gates it, and
-   publishes the copy.
+3. `--rubric <file>` re-reads the source, re-gates it, and publishes the copy
+   under the id named in the sheet. There is no flag for the id: a fork under
+   an id whose events are still in the destination would fold them into the
+   copy, so the only id a fork can use is the one staging minted and preview
+   wrote down.
 
 Three things about a copy are not negotiable, and the command enforces all
 three rather than asking you to remember them:
@@ -382,6 +387,8 @@ and is the first thing to read:
 | `migration-pending`                                                               | environment | run `tlon surface snapshot <channel>` — that posts the missing snapshot; if it refuses too, stop and say the board is stuck                                                                                                                                               | nothing, unless the repair also refuses                                              |
 | `state-too-large`                                                                 | environment | the board holds more than a snapshot can carry; prune it with a host event, then retry. **Do not touch the app files**                                                                                                                                                    | "That board has more in it than I can save in one go — let's trim it."               |
 | `partial-hydration`                                                               | environment | do not report state or snapshot; retry, then report the channel unreadable                                                                                                                                                                                                | "I couldn't read the whole history of that board just now."                          |
+| `snapshot-head-exceeded`                                                          | environment | the channel holds a snapshot claiming to cover posts that do not exist, so a new one would lose selection to it and repair nothing. Read `details.headExceededSnapshots` for the sequence numbers, retract those posts with `tlon surface snapshot <channel> --retract <post>`, then snapshot                | "That board has a bad checkpoint on it — I'll clear it before saving a new one."      |
+| `write-target-moved`                                                              | environment | somebody else wrote to this channel while your command was working, so it was refused rather than overwriting them. Your files are fine and unchanged: read the channel again and re-run the same command over the definition that is there now                             | "Somebody else changed that board while I was working — I'll pick up their version."  |
 | `bundle-unavailable`                                                              | environment | the definition read back fine; only its bundle did not. On `details.reason` of `hash-mismatch` or `unsupported-scheme`, stop — there is nothing to retry and the bytes are not the app. On `fetch-failed`, retry once. **Never revise from a regenerated bundle instead** | "I can read that app's setup but not its code right now."                            |
 | `create-unconfirmed`, `publish-unconfirmed`, `post-unconfirmed`, `kind-tail-lost` | environment | the write is **not** confirmed — do not claim it landed                                                                                                                                                                                                                   | "That didn't go through — let me try again."                                         |
 | `gate-harness-unavailable`                                                        | environment | the gate could not run at all — **your files are not implicated, do not rewrite the app**; this is the harness, not the bundle                                                                                                                                            | nothing                                                                              |

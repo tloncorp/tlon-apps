@@ -151,6 +151,9 @@ describe('reduced state cap (reducer-enforced)', () => {
     const chunk = 'x'.repeat(4000);
     const hostPost = (ops: unknown[]) => ({
       authorId: '~zod',
+      // Required since D189: a post with no tie-break id is structurally
+      // unfoldable and the reducer skips it outright.
+      id: 'post-' + seq,
       sequenceNum: seq++,
       blob: JSON.stringify([
         {
@@ -244,6 +247,9 @@ describe('reduced state and snapshot state agree', () => {
     let seq = 1;
     const hostPost = (ops: unknown[]) => ({
       authorId: '~zod',
+      // Required since D189: a post with no tie-break id is structurally
+      // unfoldable and the reducer skips it outright.
+      id: 'post-' + seq,
       sequenceNum: seq++,
       blob: JSON.stringify([
         {

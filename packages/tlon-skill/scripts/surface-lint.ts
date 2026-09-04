@@ -1193,6 +1193,25 @@ function reportComputedInvoke(
 /* Spec rules                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Is `path` the spec path `root`, or something inside it?
+ *
+ * A spec path is dotted segments with `[n]` for array indices, so the only
+ * things that can follow a complete segment are `.` and `[`. Comparing raw
+ * prefixes instead makes every action whose id extends another id look like a
+ * child of it.
+ */
+export function specPathIsUnder(
+  path: string | undefined,
+  root: string
+): boolean {
+  if (path === undefined) return false;
+  if (path === root) return true;
+  if (!path.startsWith(root)) return false;
+  const next = path[root.length];
+  return next === '.' || next === '[';
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -2270,6 +2289,10 @@ function foldAndRender(
     //
     // The signal was already in hand and simply never read: `reduceSurface`
     // returns `abortedSequenceNums`, and nothing in this file looked at it.
+    // A raw prefix compare is not a path compare (D192): `actions.vote` is a
+    // prefix of `actions.vote-no`, so a rule-8 finding against a malformed
+    // `vote-no` suppressed the genuinely dead `vote`, and the author repaired
+    // one defect, re-ran the gate, and met the other. Segments, or nothing.
     const abortedEvery =
       once.abortedSequenceNums.length === 1 &&
       twice.abortedSequenceNums.length === 2;
@@ -2280,7 +2303,7 @@ function foldAndRender(
     // reason to exist is the refusal that passes every static check, so it
     // yields to any finding already filed against the same action.
     const alreadyExplained = collector.violations.some((violation) =>
-      violation.specPath?.startsWith(`actions.${action.id}`)
+      specPathIsUnder(violation.specPath, `actions.${action.id}`)
     );
     if (abortedEvery && !alreadyExplained) {
       collector.add({

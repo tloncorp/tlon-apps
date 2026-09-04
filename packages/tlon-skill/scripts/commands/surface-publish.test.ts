@@ -2445,3 +2445,134 @@ describe('surface publish — a display-only claim is scored', () => {
     expect(await publish(harness)).toBe(0);
   });
 });
+
+/**
+ * The overwrite that certified itself.
+ *
+ * `surface publish` reads the channel's definition, then gates, uploads and
+ * assembles records — seconds of asynchronous work — and only then submits a
+ * COMPLETE channel value to `%groups`, which has no version and no CAS token.
+ * Everything between the read and the write is a window in which another admin
+ * can publish, and a publish that lands in that window is overwritten by a
+ * definition derived from a revision that no longer exists. Then the read-back
+ * runs, finds exactly what this command wrote, and reports `ok: true` — the
+ * confirmation confirms the overwrite (D188).
+ *
+ * The fulcrum here is one line of the double: the concurrent write that fires
+ * DURING the upload (`onUploadBundle`). Arm it and the command must refuse
+ * having written nothing; leave it unarmed and the identical command must
+ * publish. Nothing else moves between the two arms.
+ */
+describe('surface publish — a concurrent write between the check and the write', () => {
+  /**
+   * A publish whose bytes changed, so it uploads — which is when the
+   * concurrent admin gets to land. `concurrent` is armed only for the second
+   * run: the first is what puts a definition on the channel to be raced for.
+   */
+  function racedSetup() {
+    let concurrent: (() => void) | null = null;
+    const harness = setup({ onUploadBundle: () => concurrent?.() });
+    return {
+      harness,
+      arm: (write: () => void) => {
+        concurrent = write;
+      },
+      /** this turn's own edit: new bundle bytes, re-scored */
+      reviseBundle: () => {
+        harness.ship.files.set(
+          BUNDLE_PATH,
+          `${COMPLIANT_FIXTURE.bundleSource}\n// this turn's edit\n`
+        );
+        restampRubric(harness);
+      },
+    };
+  }
+
+  it('refuses, writes nothing, and leaves the other admin’s revision standing', async () => {
+    const { harness, arm, reviseBundle } = racedSetup();
+
+    // Revision 1 — the definition this publish will read and believe it is
+    // replacing.
+    expect(await publish(harness)).toBe(0);
+    const d1 = JSON.parse(harness.ship.channelSpecText(CHANNEL) as string);
+    expect(d1.specRevision).toBe(1);
+    const writesBefore = harness.ship.descriptionWrites.length;
+
+    // D2: another admin's revision 2, landed while this command's bundle is
+    // in flight. Built from what the channel actually holds, so it differs
+    // from D1 in exactly the way a second `surface publish` would leave it.
+    const d2 = {
+      ...d1,
+      specRevision: 2,
+      title: 'Potluck, renamed by the other admin',
+    };
+    arm(() => harness.ship.setChannelSpec(CHANNEL, d2));
+
+    reviseBundle();
+    expect(await publish(harness)).toBe(1);
+
+    const result = harness.json();
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('write-target-moved');
+    const details = result.details as Record<string, unknown>;
+    expect(details.operation).toBe('surface publish');
+    expect(details.channel).toBe(CHANNEL);
+    // Both sides of the comparison are named, so the refusal says which
+    // definition was checked and which one is actually there.
+    expect(details.checkedIdentity).not.toBe(details.observedIdentity);
+
+    // ZERO description writes from this command — asserted on the write log,
+    // not on the final value, because a value can be restored and a write
+    // cannot be unsent.
+    expect(harness.ship.descriptionWrites).toHaveLength(writesBefore);
+
+    // And the other admin's revision is still the one on the channel: not
+    // overwritten, not "overwritten and put back".
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) as string);
+    expect(stored.specRevision).toBe(2);
+    expect(stored.title).toBe('Potluck, renamed by the other admin');
+    // The strongest form of it: this command's own bundle never reached the
+    // cell. Pre-fix, `stored.bundle.sha256` was the raced turn's hash and the
+    // read-back below reported `ok: true` over it.
+    expect(stored.bundle.sha256).toBe(d1.bundle.sha256);
+    expect(harness.ship.uploads).toHaveLength(2);
+  });
+
+  it('never reports success over a definition it did not write', async () => {
+    // The self-certification, stated as its own assertion. Pre-fix this
+    // command exited 0, reported `ok: true` at revision 2, and the read-back
+    // that "confirmed" it was reading its own overwrite — so the whole
+    // report has to be checked, not just the exit code.
+    const { harness, arm, reviseBundle } = racedSetup();
+    expect(await publish(harness)).toBe(0);
+    const d1 = JSON.parse(harness.ship.channelSpecText(CHANNEL) as string);
+    arm(() =>
+      harness.ship.setChannelSpec(CHANNEL, {
+        ...d1,
+        specRevision: 2,
+        title: 'the other admin got here first',
+      })
+    );
+    reviseBundle();
+
+    await publish(harness);
+    const result = harness.json();
+    expect(result.ok).not.toBe(true);
+    expect(result.specRevision).toBeUndefined();
+    expect(result.observed).toBeUndefined();
+    // Nothing downstream ran either: a mirror post for a definition that was
+    // never written would be a record of a revision the channel does not have.
+    expect(harness.ship.posts.get(CHANNEL)).toHaveLength(1);
+  });
+
+  it('publishes when nothing raced it — the differential arm', async () => {
+    // Without this, the refusal above would pass equally against a build that
+    // had started refusing every second publish.
+    const { harness, reviseBundle } = racedSetup();
+    expect(await publish(harness)).toBe(0);
+    reviseBundle();
+    expect(await publish(harness)).toBe(0);
+    expect(harness.json().specRevision).toBe(2);
+    expect(harness.ship.descriptionWrites).toHaveLength(2);
+  });
+});

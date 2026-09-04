@@ -3659,6 +3659,28 @@ export type GetSequencedPostsOptions = {
   count?: number;
   mode: 'newest' | 'older' | 'newer' | 'around';
   cursorSequenceNum?: number;
+  /**
+   * The id half of the page cursor (D187).
+   *
+   * `sequenceNum` alone is not a total order: there is no unique index on
+   * `(channelId, sequenceNum)`, so two posts can share one. Paging on the
+   * sequence number alone then drops a row permanently — the first of a tied
+   * pair is returned, the second is read as a gap, and the next page's
+   * `< sequenceNum` cursor excludes it forever. The reducer's tie-break
+   * (D174) never sees both rows, and two clients holding the same posts fold
+   * different state.
+   *
+   * So the cursor is the pair `(sequenceNum, id)` and the ordering is the
+   * same pair. Any total order works here — this one is SQL's byte order on
+   * the id, which is NOT the reducer's canonical order and does not need to
+   * be. Its only job is to enumerate every row exactly once; deciding which
+   * tied row wins is the reducer's, on the complete set this delivers.
+   *
+   * Absent — or null, which is how `useChannelPosts` spells "resolved to a
+   * sequence number, no id cursor needed" — paging behaves as it did before:
+   * a bare `sequenceNum` cursor.
+   */
+  cursorPostId?: string | null;
 };
 
 const seqLogger = createDevLogger('seqPosts', false);
@@ -3789,7 +3811,7 @@ export const getSequencedChannelPosts = createReadQuery(
         with: {
           reactions: true,
         },
-        orderBy: [desc($posts.sequenceNum)],
+        orderBy: [desc($posts.sequenceNum), desc($posts.id)],
         limit: count,
       });
       seqLogger.log(`grabbed newest ${dbPosts.length} db posts`, dbPosts);
@@ -3806,6 +3828,13 @@ export const getSequencedChannelPosts = createReadQuery(
       seqLogger.log(`newest post is ${seq}`);
       for (let i = 1; i < dbPosts.length; i++) {
         const post = dbPosts[i];
+        // A repeated sequence number is another row on the SAME rung, not a
+        // gap (D187). Reading it as a gap is what silently discarded one of a
+        // tied pair before the reducer could break the tie.
+        if (post.sequenceNum === seq) {
+          newestContiguousPosts.push(post);
+          continue;
+        }
         // If the sequence number is not continuous, we stop.
         if (post.sequenceNum !== seq - 1) {
           break;
@@ -3824,17 +3853,29 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: older
     if (options.mode === 'older' && options.cursorSequenceNum) {
+      const olderCursorId = options.cursorPostId ?? undefined;
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          lt($posts.sequenceNum, options.cursorSequenceNum),
+          // The tuple cursor: strictly below the cursor's rung, or on it and
+          // strictly below the cursor's id. A bare `<` on the sequence number
+          // steps over a tied sibling the previous page's `limit` cut off.
+          olderCursorId === undefined
+            ? lt($posts.sequenceNum, options.cursorSequenceNum)
+            : or(
+                lt($posts.sequenceNum, options.cursorSequenceNum),
+                and(
+                  eq($posts.sequenceNum, options.cursorSequenceNum),
+                  lt($posts.id, olderCursorId)
+                )
+              ),
           isNull($posts.deliveryStatus)
         ),
         with: {
           reactions: true,
         },
-        orderBy: [desc($posts.sequenceNum)],
+        orderBy: [desc($posts.sequenceNum), desc($posts.id)],
         limit: count,
       });
       seqLogger.log(
@@ -3849,7 +3890,12 @@ export const getSequencedChannelPosts = createReadQuery(
       const contiguousOlderPosts: Post[] = [];
       const firstPost = dbPosts[0];
 
-      if (firstPost.sequenceNum !== options.cursorSequenceNum - 1) {
+      // Two rungs are contiguous with the cursor: the cursor's own, when a
+      // tied sibling remains below it, and the one immediately beneath.
+      if (
+        firstPost.sequenceNum !== options.cursorSequenceNum &&
+        firstPost.sequenceNum !== options.cursorSequenceNum - 1
+      ) {
         seqLogger.log('do not have next oldest post locally', {
           needed: options.cursorSequenceNum - 1,
           found: firstPost.sequenceNum,
@@ -3863,6 +3909,11 @@ export const getSequencedChannelPosts = createReadQuery(
       seqLogger.log(`next post is ${seq}`);
       for (let i = 1; i < dbPosts.length; i++) {
         const post = dbPosts[i];
+        // Same rung, not a gap (D187).
+        if (post.sequenceNum === seq) {
+          contiguousOlderPosts.push(post);
+          continue;
+        }
         // If the sequence number is not continuous, we stop.
         if (post.sequenceNum !== seq - 1) {
           break;
@@ -3881,17 +3932,27 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: newer
     if (options.mode === 'newer' && options.cursorSequenceNum) {
+      const newerCursorId = options.cursorPostId ?? undefined;
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),
           not(eq($posts.type, 'reply')),
-          gt($posts.sequenceNum, options.cursorSequenceNum),
+          // The tuple cursor, ascending (D187).
+          newerCursorId === undefined
+            ? gt($posts.sequenceNum, options.cursorSequenceNum)
+            : or(
+                gt($posts.sequenceNum, options.cursorSequenceNum),
+                and(
+                  eq($posts.sequenceNum, options.cursorSequenceNum),
+                  gt($posts.id, newerCursorId)
+                )
+              ),
           isNull($posts.deliveryStatus)
         ),
         with: {
           reactions: true,
         },
-        orderBy: [asc($posts.sequenceNum)],
+        orderBy: [asc($posts.sequenceNum), asc($posts.id)],
         limit: count,
       });
       seqLogger.log(
@@ -3906,7 +3967,11 @@ export const getSequencedChannelPosts = createReadQuery(
       const contiguousNewerPosts: Post[] = [];
       const firstPost = dbPosts[0];
 
-      if (firstPost.sequenceNum !== options.cursorSequenceNum + 1) {
+      // The cursor's own rung (a tied sibling above it) or the next one up.
+      if (
+        firstPost.sequenceNum !== options.cursorSequenceNum &&
+        firstPost.sequenceNum !== options.cursorSequenceNum + 1
+      ) {
         seqLogger.log('do not have next newest post locally', {
           needed: options.cursorSequenceNum + 1,
           found: firstPost.sequenceNum,
@@ -3920,6 +3985,11 @@ export const getSequencedChannelPosts = createReadQuery(
       seqLogger.log(`next post is ${seq}`);
       for (let i = 1; i < dbPosts.length; i++) {
         const post = dbPosts[i];
+        // Same rung, not a gap (D187).
+        if (post.sequenceNum === seq) {
+          contiguousNewerPosts.unshift(post);
+          continue;
+        }
         // If the sequence number is not continuous, we stop.
         if (post.sequenceNum !== seq + 1) {
           break;
@@ -3953,7 +4023,14 @@ export const getSequencedChannelPosts = createReadQuery(
         with: {
           reactions: true,
         },
-        orderBy: [desc($posts.sequenceNum)],
+        // Deterministic, so the same database returns the same window twice.
+        // The tie-RETENTION the other three modes gained in D187 is not here:
+        // this mode indexes a single cursor row out of the result and slices
+        // around it, so retaining a tie changes the window arithmetic. It is
+        // the chat scroller's jump-to path, not the surface fold's, and the
+        // residual is recorded in D187 rather than fixed in a correctness
+        // round that has no control for the scroller.
+        orderBy: [desc($posts.sequenceNum), desc($posts.id)],
       });
       seqLogger.log(
         `grabbed ${dbPosts.length} db posts around ${options.cursorSequenceNum}`,

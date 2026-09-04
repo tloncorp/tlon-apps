@@ -144,6 +144,22 @@ export interface FakeShipOptions {
   storage?: SurfaceStoragePreflight | null;
   uploadUrlFor?: (fileName: string) => string;
   uploadThrows?: Error;
+  /**
+   * Somebody else writing to the ship WHILE this command is uploading.
+   *
+   * The upload is the only place a surface command spends real time between
+   * reading a channel and writing it back — publish and fork both gate,
+   * upload, assemble records, and only then rewrite the description cell —
+   * so it is where a concurrent admin lands in practice, and it is the one
+   * seam a test needs to put them there. Nothing else in the double can:
+   * every other hook fires either side of the window, and a test that
+   * mutated the channel before the command started would be testing the
+   * check, not the gap after it.
+   *
+   * It runs before `uploadThrows`, because the world moves whether or not
+   * this ship's upload succeeds.
+   */
+  onUploadBundle?: (ship: FakeShip) => void;
   /** drop the kind tail on edit, reproducing the `%edit` hazard */
   editDropsKindTail?: boolean;
   /** silently ignore the description write, so nothing is observable */
@@ -582,6 +598,7 @@ export function createTestSurfaceDeps(
     storagePreflight: async () =>
       options.storage === undefined ? { canStore: true } : options.storage,
     uploadBundle: async ({ fileName, bytes }) => {
+      options.onUploadBundle?.(ship);
       if (options.uploadThrows) throw options.uploadThrows;
       ship.uploads.push({ fileName, bytes });
       const url = options.uploadUrlFor

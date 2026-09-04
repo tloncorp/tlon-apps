@@ -15,7 +15,6 @@ import {
   RUBRIC_CELL_IDS,
   RUBRIC_CHECKS,
   UNCONDITIONAL_RUBRIC_CHECKS,
-  applicableRubricChecks,
   populatedCitation,
   reachabilityCitation,
   surfaceCanonicalHash,
@@ -53,19 +52,23 @@ const FORK_ID = 'dash-forkid01';
 /**
  * The source definition, carrying every shape a copy can lose.
  *
- * Three of its fields exist purely to be dropped by something:
+ * Two of its fields exist purely to be dropped by something:
  *
  * - `actions.bring-salad.duplicatesTolerated` — a gate opt-out. Declared in
  *   the schema today, so it survives a validated round trip; kept because it
  *   is the marker D67 and D72 are about and because a schema change that
  *   undeclared it must fail here.
- * - `memberInteraction` — the other gate opt-out, in its CURRENT shape
- *   (`{ mode, because }`, not a bare 'none'). Declared, and load-bearing for
- *   a second reason: it makes rubric check 8 apply to the fork, so the sheet
- *   the copy demands is not the sheet the source was scored with.
  * - `x-fourth-bite` — an UNDECLARED key. This is the one the schema really
  *   strips, and therefore the one that tells a raw derivation from a
  *   validated one. Nothing else in the fixture can.
+ *
+ * `memberInteraction` used to stand beside them as a second declared marker
+ * and cannot any more: the schema refuses "members cannot act" beside a
+ * nonempty action map (D191), and this fixture is an actionful app, so the
+ * combination is no longer a spec anything will validate. `duplicatesTolerated`
+ * carries the declared half on its own, and the one test that needs the marker
+ * — check 8 keys off its presence — builds a display-only source of its own
+ * (`displayOnlySpec` below) rather than putting it back here.
  */
 function sourceSpec(
   overrides: Record<string, unknown> = {}
@@ -82,10 +85,6 @@ function sourceSpec(
     specRevision: 4,
     title: 'Potluck',
     actions,
-    memberInteraction: {
-      mode: 'none',
-      because: 'the bot posts the rollover every morning',
-    },
     recipe: {
       request: 'a potluck signup for the ~ten crew',
       notes: 'the source author wrote this for their group, not for ours',
@@ -101,6 +100,41 @@ function bundleHash(harness: ReturnType<typeof createTestSurfaceDeps>): string {
   return harness.deps.sha256Hex(
     new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource)
   );
+}
+
+/**
+ * The bundle every source in this file serves, pinned without a harness.
+ *
+ * `setup()` pins the same three numbers into the source spec it builds, off
+ * the harness it just made. A test that hands `setup()` its OWN source has to
+ * pin them before a harness exists, because the sheet's hashes are computed
+ * from that spec.
+ */
+const SERVED_BUNDLE = {
+  assetRef: SOURCE_ASSET,
+  sha256: bundleHash(createTestSurfaceDeps()),
+  size: new TextEncoder().encode(COMPLIANT_FIXTURE.bundleSource).byteLength,
+  shellVersion: 1,
+};
+
+/**
+ * A display-only source: no actions, and the marker that declares why.
+ *
+ * The marker is what makes rubric check 8 applicable, and the schema refuses
+ * it beside a nonempty action map (D191) — so a source that carries it is a
+ * source with an empty action map, and this is that source. `sourceSpec()`
+ * cannot be it: the fixture above is an actionful app on purpose, and every
+ * other test in this file needs it to stay one.
+ */
+function displayOnlySpec(): Record<string, unknown> {
+  return sourceSpec({
+    bundle: SERVED_BUNDLE,
+    actions: {},
+    memberInteraction: {
+      mode: 'none',
+      because: 'the bot posts the rollover every morning',
+    },
+  });
 }
 
 /** A COMPLETE scoring sheet, for whichever checks the spec makes applicable. */
@@ -310,6 +344,11 @@ async function stage(harness: Harness, extra: string[] = []) {
   );
 }
 
+/**
+ * The landing run. It never names an id: there is no flag for one (D193), and
+ * the fork lands under whatever `RUBRIC_PATH`'s sheet says it scored — which
+ * `setup()` writes as `FORK_ID` unless a test asks for something else.
+ */
 async function fork(harness: Harness, extra: string[] = []) {
   return run(
     [
@@ -317,8 +356,6 @@ async function fork(harness: Harness, extra: string[] = []) {
       SOURCE_CHANNEL,
       '--into',
       DEST_CHANNEL,
-      '--surface-id',
-      FORK_ID,
       '--rubric',
       RUBRIC_PATH,
       '--json',
@@ -385,7 +422,11 @@ describe('deriveForkSpec', () => {
     expect('recipe' in forked).toBe(false);
     expect(forked.provenance).toEqual(provenance);
     expect(forked['x-fourth-bite']).toEqual(source['x-fourth-bite']);
-    expect(forked.memberInteraction).toEqual(source.memberInteraction);
+    // A declared key with structure under it, carried whole: the board the
+    // copy opens on is the source's own, and a derivation that rebuilt the
+    // spec from the fields it knows about is exactly the shape that flattens
+    // one of these.
+    expect(forked.initialState).toEqual(source.initialState);
     expect(
       (forked.actions as Record<string, Record<string, unknown>>)['bring-salad']
         .duplicatesTolerated
@@ -421,9 +462,13 @@ describe('deriveForkSpec', () => {
       provenance,
     });
     expect('x-fourth-bite' in fromValidated).toBe(false);
-    // …and the declared markers survive even the validated route, which is why
+    // …and the declared marker survives even the validated route, which is why
     // an undeclared key is the only witness that tells the two apart.
-    expect(fromValidated.memberInteraction).toEqual(source.memberInteraction);
+    expect(
+      (fromValidated.actions as Record<string, Record<string, unknown>>)[
+        'bring-salad'
+      ].duplicatesTolerated
+    ).toBe(true);
   });
 
   it('omits the source channel from provenance unless asked', () => {
@@ -822,8 +867,15 @@ describe('surface fork — landing the copy', () => {
   // sheet carrying only the seven universal checks is therefore incomplete
   // here even though it would be complete for an app without the marker —
   // which is the mechanical half of "the source's sheet does not travel".
+  //
+  // The source has to be display-only for the marker to be representable at
+  // all: the schema refuses it beside actions (D191), so the actionful fixture
+  // every other test here uses can no longer carry it.
   it('demands the display-only check the copied marker makes applicable', async () => {
-    const harness = setup({ rubricChecks: UNCONDITIONAL_RUBRIC_CHECKS });
+    const harness = setup({
+      spec: displayOnlySpec(),
+      rubricChecks: UNCONDITIONAL_RUBRIC_CHECKS,
+    });
     expect(await fork(harness)).toBe(1);
     const result = harness.json();
     expect(result.code).toBe('rubric-incomplete');
@@ -833,25 +885,21 @@ describe('surface fork — landing the copy', () => {
     expect(harness.ship.descriptionWrites).toHaveLength(0);
   });
 
-  it('refuses to reuse the source’s own surface id', async () => {
+  // The id comes out of the sheet and nowhere else (D193), so "fork under the
+  // source's own id" is now a thing a SHEET can ask for rather than a flag —
+  // and it is refused there. A copy sharing the source's id would make the two
+  // apps' events indistinguishable to anything reading either.
+  it('refuses a sheet that scored the source’s own surface id', async () => {
     const harness = setup({ rubricSurfaceId: 'srf-potluck' });
-    expect(
-      await run(
-        [
-          'fork',
-          SOURCE_CHANNEL,
-          '--into',
-          DEST_CHANNEL,
-          '--surface-id',
-          'srf-potluck',
-          '--rubric',
-          RUBRIC_PATH,
-          '--json',
-        ],
-        harness.deps
-      )
-    ).toBe(1);
-    expect(harness.json().code).toBe('usage');
+    expect(await fork(harness)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('rubric-mismatch');
+    // Named precisely: the other three `rubric-mismatch` arms are about bytes,
+    // spec hashes and captured state, and any of them would satisfy a looser
+    // assertion here while leaving the id collision unrefused.
+    expect(String(result.message)).toContain("scores the source's own id");
+    expect(String(result.message)).toContain('srf-potluck');
+    expect(harness.ship.uploads).toHaveLength(0);
     expect(harness.ship.descriptionWrites).toHaveLength(0);
   });
 
@@ -1039,13 +1087,12 @@ describe('surface fork — the fourth bite', () => {
     ) as Record<string, unknown>;
     const landed = landedSpec(harness);
 
-    // 1. The gate opt-outs, both of them, with their values intact — and
-    //    `memberInteraction` in its current object shape, so a copy written
-    //    against the bare-'none' shape it used to have would fail here.
-    expect(landed.memberInteraction).toEqual({
-      mode: 'none',
-      because: 'the bot posts the rollover every morning',
-    });
+    // 1. The gate opt-out, with its value intact and still in its declared
+    //    home. The whole action map is compared, not just the flag: the
+    //    marker lives INSIDE an action entry, so an action map rebuilt entry
+    //    by entry on the way through would land the actions and lose the
+    //    opt-out, which is precisely D72's prediction for this command.
+    expect(landed.actions).toEqual(source.actions);
     expect(
       (landed.actions as Record<string, Record<string, unknown>>)['bring-salad']
         .duplicatesTolerated
@@ -1086,7 +1133,7 @@ describe('surface fork — the fourth bite', () => {
   });
 
   // The other half of the prediction: the copy must pass the gate the source
-  // passed. It does BECAUSE the marker travelled — the same spec with the
+  // passed. It does BECAUSE the opt-out travelled — the same spec with the
   // marker stripped is a different question, and `surface-lint.test.ts` owns
   // that one. Here the claim is only that the landed definition still
   // validates and still declares what the gate reads.
@@ -1102,12 +1149,19 @@ describe('surface fork — the fourth bite', () => {
         spec: landed,
       }).ok
     ).toBe(true);
-    // The copied marker is what makes the fork's own sheet carry check 8,
-    // which is the mechanism by which "the source's sheet does not travel" is
-    // enforced rather than merely stated.
-    expect(applicableRubricChecks(landed).map((check) => check.id)).toContain(
-      'display-only-was-asked-for'
-    );
+    // Validating is not the same as still SAYING what it said. The opt-out is
+    // declared, so it survives the schema's own view of the landed
+    // definition — and that view is what every later reader gets. A copy that
+    // dropped it would still `safeParse` clean here and fail the gate at the
+    // fork's next publish, which is exactly D72's prediction for this command.
+    expect(
+      (
+        SurfaceSpecSchema.parse(landed).actions as Record<
+          string,
+          { duplicatesTolerated?: boolean }
+        >
+      )['bring-salad'].duplicatesTolerated
+    ).toBe(true);
   });
 });
 
@@ -1332,9 +1386,125 @@ describe('surface fork — argument shape', () => {
     expect(result.message).toContain('--stage-bundle');
   });
 
-  it('refuses a surface id on a staging run', async () => {
+  /**
+   * The negative control for D193.
+   *
+   * The flag is gone, not relocated: a landing run takes the fork's id from
+   * the scored sheet, which is the artifact that binds it to these bytes and
+   * this definition and was required anyway. So there is no run of this
+   * command on which naming an id means anything, and every one of them
+   * refuses it as an unknown option.
+   *
+   * Asserted on the REFUSAL rather than on the flag's absence, and on all
+   * three modes rather than one: a build that quietly accepted and ignored
+   * `--surface-id` would satisfy any assertion phrased as "the parser does
+   * not know about it", and would land forks under an id nothing scored.
+   */
+  it('refuses --surface-id on every run there is', async () => {
+    const invocations = [
+      [
+        '--into',
+        DEST_CHANNEL,
+        '--stage-bundle',
+        STAGE_BUNDLE,
+        '--stage-spec',
+        STAGE_SPEC,
+      ],
+      ['--into', DEST_CHANNEL, '--rubric', RUBRIC_PATH],
+      ['--regenerate'],
+    ];
+    for (const invocation of invocations) {
+      const harness = setup();
+      expect(
+        await run(
+          [
+            'fork',
+            SOURCE_CHANNEL,
+            ...invocation,
+            '--surface-id',
+            FORK_ID,
+            '--json',
+          ],
+          harness.deps
+        )
+      ).toBe(1);
+      const result = harness.json();
+      expect(result.code).toBe('usage');
+      expect(result.message).toContain('Unknown option: --surface-id');
+      expect(harness.ship.files.has(STAGE_SPEC)).toBe(false);
+      expect(harness.ship.descriptionWrites).toHaveLength(0);
+    }
+  });
+});
+
+/**
+ * The fork that landed on somebody else's board.
+ *
+ * `resolveForkDestination` refuses any destination that already publishes an
+ * app, and that refusal is the whole of the emptiness rule — but it runs
+ * before the bundle is fetched, gated and uploaded, and `%groups` takes a
+ * complete channel value with no version or CAS token. So "the destination
+ * was empty when I looked" is not "the destination is empty now": a fork that
+ * checked an empty channel and wrote after somebody published into it would
+ * replace their revision with revision 1 of a different app and orphan every
+ * event under it — the exact outcome the emptiness rule exists to prevent,
+ * reached around it through the gap (D188).
+ *
+ * The fulcrum is the concurrent write fired during the upload
+ * (`onUploadBundle`): armed, the command must refuse having written nothing;
+ * unarmed, the identical command must fork.
+ */
+describe('surface fork — a publish into the destination during the upload', () => {
+  /** The app another admin publishes into the "empty" destination. */
+  const INTERLOPER = {
+    ...(COMPLIANT_FIXTURE.spec as Record<string, unknown>),
+    surfaceId: 'srf-the-other-admins-app',
+    specRevision: 1,
+  };
+
+  it('refuses, writes nothing, and leaves the other app standing', async () => {
+    const harness = setup({
+      onUploadBundle: (ship) => ship.setChannelSpec(DEST_CHANNEL, INTERLOPER),
+    });
+    // Empty at the check — the only thing `resolveForkDestination` can
+    // observe, and the reason this command believed it was safe to land.
+    expect(harness.ship.channelSpecText(DEST_CHANNEL)).toBeNull();
+
+    expect(await fork(harness)).toBe(1);
+
+    const result = harness.json();
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe('write-target-moved');
+    const details = result.details as Record<string, unknown>;
+    expect(details.operation).toBe('surface fork');
+    expect(details.channel).toBe(DEST_CHANNEL);
+    // The check saw nothing; the write found an app. Both are named.
+    expect(details.checkedIdentity).toBe('absent');
+    expect(details.observedIdentity).not.toBe('absent');
+
+    // Zero description writes, asserted on the write log rather than on the
+    // final value: a value can be restored, a write cannot be unsent.
+    expect(harness.ship.descriptionWrites).toHaveLength(0);
+
+    // The other admin's app is still the destination's app, at its own
+    // revision — not replaced by revision 1 of the copy.
+    const stored = JSON.parse(
+      harness.ship.channelSpecText(DEST_CHANNEL) as string
+    );
+    expect(stored.surfaceId).toBe('srf-the-other-admins-app');
+    expect(stored.specRevision).toBe(1);
+    // And nothing was posted into their channel either: a mirror record for a
+    // definition that never landed is a claim about a revision that does not
+    // exist.
+    expect(harness.ship.posts.get(DEST_CHANNEL) ?? []).toHaveLength(0);
+  });
+
+  it('forks when nothing raced it — the differential arm', async () => {
+    // Without this, the refusal above would pass equally against a build in
+    // which fork had simply stopped working.
     const harness = setup();
-    expect(await stage(harness, ['--surface-id', FORK_ID])).toBe(1);
-    expect(harness.json().message).toContain('--surface-id');
+    expect(await fork(harness)).toBe(0);
+    expect(harness.ship.descriptionWrites).toHaveLength(1);
+    expect(landedSpec(harness).surfaceId).toBe(FORK_ID);
   });
 });

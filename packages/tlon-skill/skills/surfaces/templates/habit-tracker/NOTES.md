@@ -62,9 +62,10 @@ pressed, so "45 minutes" and "add a habit" are both a different design.
   Angeles without telling either of them.
 - **Defaulted reads** (`objectAt(...)`, `has(...)`). State is shared, so one
   member's odd entry throws the board for the whole group, not just its author.
-- **`bundle` in `spec.json`.** `assetRef`, `sha256` and `size` are
-  placeholders; `surface publish` computes and overwrites all three, plus the
-  revision number. Do not hand-edit them.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is a
   populated example — five saved days and a day in progress, three members —
   that CI renders through the shell, because the starting state is empty and an
@@ -163,11 +164,11 @@ a day it never saved would be a board that lied.
 
 ## Previewing the archived half
 
-`surface preview` folds **declared actions only**, so on this app it can fill
-"today" and nothing else: the crew's runs, the strip and the past-days card are
-empty in all twelve cells, because only the host can produce them.
-`--host-ops <file>` is the fix — a JSON array of host events folded around the
-invokes, `"at": "before"` ahead of them:
+A plain `surface preview` run folds **declared actions only**, so it fills
+"today" and nothing else: the crew's runs, the strip and the past-days card
+read empty in all twelve cells, because only a host event produces them.
+`--host-ops <file>` folds real host events alongside the invokes and fills
+them — a JSON array of host events, `"at": "before"` ahead of the invokes:
 
 ```json
 [

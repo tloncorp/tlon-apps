@@ -76,13 +76,17 @@ count goes from 7 to 9 rather than from 7 to 14.
 
 ## Leave alone
 
-- **`clear-mine` is declared FIRST in the `actions` map.** The reducer does
-  not care about order, but `surface preview` folds the actions in the order
-  they are declared, rotating three members through them — so a reset
-  declared last lands on the last member and leaves them missing from the
-  populated screenshots. Declared first, all three appear across three
-  different courses with two markers between them, which is what those
-  screenshots are for.
+- **`clear-mine`'s position in the `actions` map no longer costs an actor.**
+  `surface preview` runs a restore pass after the rotation — every
+  constructive action, once per actor — so a reset no longer strands a
+  member off the populated screenshots regardless of where it sits in the
+  map. That pass is not a realistic spread, though: it folds `bring-mains`,
+  `bring-sides`, `bring-drinks`, `bring-dessert` and `mark-veg` in
+  declaration order for every actor, so the last one declared wins for all
+  three. The populated crew card shows three members all under **Dessert**,
+  all marked vegetarian, not spread across courses — read it for "does
+  every actor survive the fold," not for "what does a mixed sign-up look
+  like."
 - **`unmark-veg` is a `del`, not `set … false`.** `del` on a path that is not
   there does nothing, so pressing "No" before ever pressing "Yes" is a no-op
   rather than an entry that means "explicitly not vegetarian". The sheet
@@ -103,9 +107,10 @@ count goes from 7 to 9 rather than from 7 to 14.
   for one round: spelled out ("Mains 4 · Sides 3 · Drinks 2 · Dessert 2") it
   was far too long for the slot and squeezed the line beside it to one word
   per line on a phone. Every course row already carries its own "1 of 4".
-- **`bundle` in `spec.json`.** `assetRef`, `sha256` and `size` are
-  placeholders; `surface publish` computes and overwrites all three, plus
-  `specRevision`. Do not hand-edit them.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is a
   populated example — six members across four courses, three markers and one
   undecided entry — that CI renders through the shell, because the starting

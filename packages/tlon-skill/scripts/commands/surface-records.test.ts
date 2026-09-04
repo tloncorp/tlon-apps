@@ -980,3 +980,109 @@ describe('surface — an entry that stopped early', () => {
     );
   });
 });
+
+/**
+ * The D175 head guard, on the CLI side.
+ *
+ * The client refuses a snapshot claiming coverage beyond the channel's
+ * advertised head — a writer that put a millisecond timestamp in
+ * `upToSequenceNum` freezes every event below it forever, and selection takes
+ * the GREATEST boundary, so that snapshot wins for good. The cold review found
+ * `advertisedHead` appeared nowhere in this package: the CLI folded from the
+ * snapshot the client rejects, and `surface snapshot` would then write a fresh
+ * one out of that fold — laundering the bad boundary into a record the client
+ * WOULD accept, because the laundered one claims a boundary that exists.
+ *
+ * The head the CLI passes is the greatest sequence number the SHIP returned on
+ * this call. It has no local store to compare against itself; every post here
+ * came from the ship, and both commands already refuse a truncated page walk
+ * before reducing.
+ */
+describe('surface state / snapshot — a snapshot beyond the channel head', () => {
+  function withInflatedSnapshot() {
+    const harness = setup();
+    addEvent(
+      harness,
+      // `~0` is RFC 6901's escape for a literal `~`, so this writes the key
+      // `~ten`. A bare `/bringing/~ten` is a malformed escape and the reducer
+      // refuses the op.
+      hostEvent([{ op: 'set', path: '/bringing/~0ten', value: 'pie' }])
+    );
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/snapshot',
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: SURFACE_ID,
+          specRevision: 1,
+          upToSequenceNum: 1_000_000,
+          state: { bringing: { laundered: true } },
+        },
+      ]),
+    });
+    return harness;
+  }
+
+  it('state folds the real log and names the post it stepped over', async () => {
+    const harness = withInflatedSnapshot();
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const result = harness.json();
+
+    // the inflated snapshot did not win: the fold ran over the real events
+    expect(result.state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie' },
+    });
+    expect(result.baseSnapshotSeq).toBe(null);
+    // and the offending post is REPORTED, not merely skipped in silence
+    expect(result.headExceededSnapshots).toEqual([2]);
+  });
+
+  it('snapshot refuses rather than writing one the bad boundary still beats', async () => {
+    const harness = withInflatedSnapshot();
+    const before = (harness.ship.posts.get(CHANNEL) ?? []).length;
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('snapshot-head-exceeded');
+    expect(result.message).toContain('beyond the channel');
+    expect(
+      (result.details as Record<string, unknown>).headExceededSnapshots
+    ).toEqual([2]);
+
+    // nothing written: a fresh snapshot here would claim a LOWER boundary than
+    // the bad one, lose selection to it, and report a repair that changed
+    // nothing.
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(before);
+  });
+
+  it('an honest snapshot at the head is still folded from', async () => {
+    // The guard has to be able to NOT fire, or it is refusing the shape rather
+    // than the defect.
+    const harness = setup();
+    addEvent(
+      harness,
+      hostEvent([{ op: 'set', path: '/bringing/~0ten', value: 'pie' }])
+    );
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/snapshot',
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: SURFACE_ID,
+          specRevision: 1,
+          upToSequenceNum: 1,
+          state: { bringing: { frozen: true } },
+        },
+      ]),
+    });
+
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    expect(harness.json().headExceededSnapshots).toEqual([]);
+    expect(harness.json().baseSnapshotSeq).toBe(1);
+  });
+});

@@ -74,9 +74,10 @@ free-text notes, and per-member private boards.
   renamed column key — see below.
 - **Defaulted reads** (`state.tasks || {}`, `has(...)`). State is shared, so
   one odd entry throws the board for the whole group, not just its author.
-- **`bundle` in `spec.json`.** `assetRef`, `sha256` and `size` are
-  placeholders; `surface publish` computes and overwrites all three, plus the
-  version number. Do not hand-edit them.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is a
   populated example — cards spread across all four columns, three members with
   markers down — that CI renders through the shell, because the starting state

@@ -17,14 +17,20 @@ import {
   surfaceError,
   usageSurfaceError,
 } from './surface-common';
-import { requireCompletedRubric, uploadSurfaceBundle } from './surface-publish';
+import {
+  readRubricSurfaceId,
+  requireCompletedRubric,
+  uploadSurfaceBundle,
+} from './surface-publish';
 import { fetchVerifiedBundleBytes } from './surface-show';
 import {
   type ResolvedSurfaceChannel,
   type SurfaceSpecRead,
   postSurfaceRecord,
   readChannelSpec,
+  readDefinitionForWrite,
   readSurfacePreState,
+  surfaceDefinitionIdentity,
   requireChannelSpec,
   resolveSurfaceChannel,
 } from './surface-writer';
@@ -86,8 +92,10 @@ import {
  *   1. `--stage-bundle/--stage-spec` writes the verified bytes and the derived
  *      definition to disk, mints the fork's `surfaceId`, and touches no ship.
  *   2. `tlon surface preview <bundle> <spec>` renders and pre-keys the sheet.
- *   3. `--surface-id/--rubric` re-reads the source, re-derives, re-gates,
- *      creates nothing, uploads, writes, and reads back.
+ *   3. `--rubric` re-reads the source, re-derives, re-gates, creates nothing,
+ *      uploads, writes, and reads back. The fork's id comes out of the sheet,
+ *      which is the artifact that binds it to these bytes; there is no flag
+ *      for it (D193).
  *
  * Step 3 deliberately re-fetches the bundle from the source rather than
  * trusting the staged file: the staged copy is a convenience for previewing,
@@ -112,7 +120,7 @@ export const SURFACE_FORK_HELP = `Usage: tlon surface fork <source-channel> [opt
   stage:      tlon surface fork <source> --into <channel> \\
                 --stage-bundle <path> --stage-spec <path>
   fork:       tlon surface fork <source> --into <channel> \\
-                --surface-id <id> --rubric <path>
+                --rubric <path>
   regenerate: tlon surface fork <source> --regenerate [--brief-out <path>]
 
 Copy a dashboard app you can read into a channel your ship can write, or take
@@ -124,10 +132,13 @@ Forking is TWO commands, because the copy has to be looked at before it lands:
               mints the fork's surface id. Nothing is written to any ship.
   2. preview  \`tlon surface preview <bundle> <spec>\` renders the staged pair
               and writes a scoring sheet pre-keyed to this fork.
-  3. fork     re-reads the source, re-gates it, and publishes the copy. The
-              sheet must name this fork's surface id, these exact bytes and
-              the definition staged for them — a source that revised its spec
-              in between is a different copy, and needs a new preview.
+  3. fork     re-reads the source, re-gates it, and publishes the copy under
+              the id NAMED IN THE SHEET. The sheet must name this fork's
+              surface id, these exact bytes and the definition staged for them
+              — a source that revised its spec in between is a different copy,
+              and needs a new preview. There is no way to name a different id:
+              a fork under an id whose events are still in the destination
+              would fold them into the copy.
 
 The copy is byte-faithful: the source's definition arrives verbatim except for
 a fresh surfaceId, a revision reset to 1, the new storage pointer, the source
@@ -147,8 +158,9 @@ Options:
   --into <channel>       destination channel; must carry no definition yet
   --stage-bundle <path>  stage: write the verified source bundle here
   --stage-spec <path>    stage: write the fork's definition here
-  --surface-id <id>      fork: the id the staging run minted
-  --rubric <path>        fork: the completed sheet for THESE bytes and THAT id
+  --rubric <path>        fork: the completed sheet for THESE bytes and THAT
+                         id. It also supplies the id — staging minted it and
+                         preview wrote it into the sheet.
   --regenerate           read the source recipe as INPUT for a fresh app, and
                          copy no bytes at all
   --brief-out <path>     regenerate: write the regeneration brief here
@@ -163,7 +175,7 @@ Example:
     --stage-bundle ./app.js --stage-spec ./spec.json
   tlon surface preview ./app.js ./spec.json
   tlon surface fork chat/~ten/dash-poll --into chat/~zod/dash-abc \\
-    --surface-id dash-9f3a2c1b --rubric ./surface-preview/rubric.template.json`;
+    --rubric ./surface-preview/rubric.template.json`;
 
 /** A fork always starts over. Its history is empty, so nothing precedes 1. */
 export const FORK_SPEC_REVISION = 1;
@@ -465,7 +477,6 @@ interface ParsedFork {
   destination: string;
   stageBundle: string;
   stageSpec: string;
-  surfaceId: string;
   rubric: string;
   briefOut: string | undefined;
   includeSourceChannel: boolean;
@@ -489,7 +500,6 @@ export function parseForkInvocation(args: string[]): ParsedFork | null {
         '--into',
         '--stage-bundle',
         '--stage-spec',
-        '--surface-id',
         '--rubric',
         '--brief-out',
       ],
@@ -538,15 +548,11 @@ export function parseForkInvocation(args: string[]): ParsedFork | null {
     forbid('--into', 'the copy path');
     forbid('--stage-bundle', 'the copy path');
     forbid('--stage-spec', 'the copy path');
-    forbid('--surface-id', 'the copy path');
     // Regenerate does not land anything, so a sheet handed to it would be
     // scored work this command silently threw away.
     forbid('--rubric', 'the copy path');
   } else {
     forbid('--brief-out', '--regenerate');
-  }
-  if (mode === 'stage') {
-    forbid('--surface-id', 'the second half of the fork (with --rubric)');
   }
   if (mode === 'fork') {
     forbid('--stage-bundle', 'the first half of the fork (staging)');
@@ -567,10 +573,6 @@ export function parseForkInvocation(args: string[]): ParsedFork | null {
     stageSpec:
       mode === 'stage'
         ? requireValue(parsed, '--stage-spec', SURFACE_FORK_HELP)
-        : '',
-    surfaceId:
-      mode === 'fork'
-        ? requireValue(parsed, '--surface-id', SURFACE_FORK_HELP)
         : '',
     rubric: rubric ?? '',
     briefOut: singleValue(parsed, '--brief-out'),
@@ -682,7 +684,7 @@ async function runStage(
       'Next, render and score it:',
       `  tlon surface preview ${parsed.stageBundle} ${parsed.stageSpec}`,
       `  tlon surface fork ${source.resolved.channelId} --into ${parsed.destination} \\`,
-      `    --surface-id ${surfaceId} --rubric <the completed sheet>`,
+      `    --rubric <the sheet preview wrote for ${surfaceId}>`,
     ],
   };
   return emitReport(deps, report, parsed.asJson);
@@ -694,11 +696,19 @@ async function runStage(
 
 async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
   const source = await readForkSource(deps, parsed.sourceChannel);
-  if (parsed.surfaceId === source.surfaceId) {
+  // The id comes out of the sheet and nowhere else (D193). There is no flag to
+  // override it, so a fork cannot be aimed at an id that already has events in
+  // the destination — the reused-id fold is unconstructible rather than
+  // checked for.
+  const surfaceId = readRubricSurfaceId(deps, {
+    path: parsed.rubric,
+    channelId: parsed.destination,
+  });
+  if (surfaceId === source.surfaceId) {
     throw surfaceError(
-      'usage',
-      `--surface-id ${parsed.surfaceId} is the source's own id. A fork is a separate app with its own state; sharing the id would make the copy's events and the source's indistinguishable to anything reading either. Use the id the staging run minted.`,
-      { channel: parsed.destination, surfaceId: parsed.surfaceId }
+      'rubric-mismatch',
+      `${parsed.rubric} scores the source's own id "${surfaceId}". A fork is a separate app with its own state; sharing the id would make the copy's events and the source's indistinguishable to anything reading either. Score the sheet \`surface preview\` wrote for the staged fork.`,
+      { channel: parsed.destination, surfaceId }
     );
   }
   const destination = await resolveForkDestination(
@@ -706,6 +716,17 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
     parsed.destination,
     'surface fork'
   );
+  // What this fork believes it is landing in — an empty channel, in every
+  // path that reaches here, since `resolveForkDestination` refuses anything
+  // else. Captured at check time so the write can prove it is still true
+  // (D188): "the destination was empty when I looked" is not "the destination
+  // is empty now", and between the two sit a bundle fetch, a gate run and an
+  // upload.
+  const checkedDefinition = surfaceDefinitionIdentity(
+    deps,
+    destination.current
+  );
+
   // The other half of the bound: the right channel, but no longer the channel
   // anybody asserted anything about. Publish checks this for the same reason
   // and in the same place — after the current definition has been read, before
@@ -737,7 +758,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
   });
   const provisional = deriveForkSpec({
     sourceRaw: source.raw,
-    surfaceId: parsed.surfaceId,
+    surfaceId,
     assetRef: pendingAssetRef(source.sha256),
     size: bundle.bytes.byteLength,
     provenance,
@@ -760,7 +781,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
   const rubric = requireCompletedRubric(deps, {
     path: parsed.rubric,
     channelId: parsed.destination,
-    surfaceId: parsed.surfaceId,
+    surfaceId,
     sha256: source.sha256,
     spec: provisional,
     specSha256: surfaceCanonicalHash(provisional),
@@ -781,7 +802,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
   const assetRef = await uploadSurfaceBundle(deps, source.sha256, bundle.bytes);
   const published = deriveForkSpec({
     sourceRaw: source.raw,
-    surfaceId: parsed.surfaceId,
+    surfaceId,
     assetRef,
     size: bundle.bytes.byteLength,
     provenance,
@@ -796,7 +817,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
   const mirrorEntry = {
     type: 'surface-spec-mirror',
     version: 1,
-    surfaceId: parsed.surfaceId,
+    surfaceId,
     specRevision: FORK_SPEC_REVISION,
     spec: published,
   };
@@ -822,7 +843,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
     ? {
         type: 'surface-snapshot',
         version: 1,
-        surfaceId: parsed.surfaceId,
+        surfaceId,
         specRevision: FORK_SPEC_REVISION,
         upToSequenceNum: 0,
         state: isPlainObject(published.initialState)
@@ -837,17 +858,28 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
     });
   }
 
+  // Re-read at the write, not at the check (D188). A fork that saw an empty
+  // destination and lands after somebody published into it would otherwise
+  // replace their revision with revision 1 of a different app and orphan
+  // every event under it.
+  const { channel: fresh } = await readDefinitionForWrite(deps, {
+    groupId: destination.resolved.groupId,
+    channelId: parsed.destination,
+    operation: 'surface fork',
+    checked: checkedDefinition,
+  });
+
   const nextPayload = deps.description.encode({
-    ...deps.description.decode(destination.resolved.channel.meta.description),
+    ...deps.description.decode(fresh.meta.description),
     surfaceSpec: published,
   });
   await deps.writeGroupChannel({
     groupId: destination.resolved.groupId,
     channelId: parsed.destination,
     channel: {
-      ...destination.resolved.channel,
+      ...fresh,
       meta: {
-        ...destination.resolved.channel.meta,
+        ...fresh.meta,
         description: nextPayload,
       },
     },
@@ -935,7 +967,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
       channel: parsed.destination,
       group: destination.resolved.groupId,
       source: sourceJson(source),
-      surfaceId: parsed.surfaceId,
+      surfaceId,
       specRevision: FORK_SPEC_REVISION,
       sha256: source.sha256,
       size: bundle.bytes.byteLength,
@@ -958,7 +990,7 @@ async function runFork(deps: SurfaceDeps, parsed: ParsedFork): Promise<number> {
     },
     lines: [
       `Forked ${source.resolved.channelId} into ${parsed.destination} at revision ${FORK_SPEC_REVISION}`,
-      `  surface:  ${parsed.surfaceId} (copied from ${source.surfaceId} at revision ${source.specRevision})`,
+      `  surface:  ${surfaceId} (copied from ${source.surfaceId} at revision ${source.specRevision})`,
       `  sha256:   ${source.sha256} (${bundle.bytes.byteLength} bytes, re-hosted; content addressing survives the copy)`,
       `  bundle:   ${assetRef}`,
       '  recipe:   not copied — write this fork its own on the next publish',

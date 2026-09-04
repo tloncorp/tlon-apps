@@ -6121,3 +6121,259 @@ standing between untrusted model-generated JavaScript and the network.
   Two of the five were introduced by this session's own work (3 and, indirectly,
   the count in 5's neighbourhood), which is the argument for the index existing
   at all rather than being a one-off audit artifact.
+
+- **D187: a paginator whose ordering key is not a total order loses rows, and
+  duplicate sequence numbers are producible — the backend ships a repairer for
+  them.** `getSequencedChannelPosts` ordered by `sequenceNum` alone with a
+  `< N` page cursor. On rows `7/A, 7/B, 6, …` it took the first 7, read the
+  second as a GAP because it expected 6 next, and then paged with
+  `sequenceNum < 7` — excluding the sibling permanently. Hydration still saw
+  head 7, still loaded through 1, and still returned `hydrated`. So D174's
+  tie-break never saw both rows, and the tie it exists to break was decided by
+  whichever row SQLite happened to return first.
+
+  **The question this turned on: can two posts share a sequence number at all?**
+  Read out of the Hoon rather than assumed. The answer is **yes, and it has
+  already happened**:
+
+  - Normal posting cannot produce one. `++ca-c-post`'s `%add` branch is the only
+    place a fresh sequence number is minted (`desk/app/channels-server.hoon:1093`),
+    from a per-channel `count` that is incremented before every read and never
+    decremented. A rejected hook leaves a GAP, not a repeat.
+  - **Migrations did produce them.** `desk/lib/channel-utils.hoon:1584-1598` is
+    `+repair-channel`, whose docstring lists "duplicate sequence nrs in the
+    posts" among the things past migrations caused; it is wired into
+    `state-10-to-11` (`channels-server.hoon:303`). The 7→8 conversion numbered
+    `posts` and the `log` with two independent counters over different id sets
+    (`desk/lib/channel-conv.hoon:1132-1200`). There is a diagnostic thread whose
+    whole job is finding them (`desk/ted/channel/check-posts-integrity.hoon:45`,
+    `[%duplicate-seq seq id nest]`), and the type itself concedes the case
+    (`desk/sur/channels.hoon:483`, "0 indicates bad migration/broken state").
+  - **The client mirror can hold them even where the host does not.**
+    `++ca-apply-post` (`desk/app/channels.hoon:2661-2669`) keeps `old`'s `seq`
+    and overwrites only replies, reacts and the essay, so a checkpoint never
+    corrects a sequence number the client already holds. The corrective round
+    trip (`%request-seqs`) has no automatic trigger.
+
+  So this is not defense in depth. It is a real class with a backend repairer,
+  and the frontend had no equivalent.
+
+  **The fix, placed at the boundary the property has to hold at — the
+  paginator, not the reducer.** Ordering and the page cursor both become the
+  pair `(sequenceNum, id)`, and the contiguity walks treat a repeated sequence
+  number as another row on the same rung rather than a gap. The SQL order is
+  byte order on the id, which is NOT the reducer's canonical order and does not
+  need to be: its only job is to enumerate every row exactly once. Which tied
+  row WINS stays the reducer's decision, taken over the complete set the
+  paginator now delivers.
+
+  **Residual, recorded rather than fixed:** `mode: 'around'` gets the
+  deterministic secondary sort but not the tie retention. It indexes a single
+  cursor row out of its result and slices around it, so retaining a tie changes
+  the window arithmetic — and it is the chat scroller's jump-to path, not the
+  surface fold's. Changing it in a correctness round that has no control for the
+  scroller would be shipping an unmeasured change to a much larger blast radius.
+
+- **D188: "the pre-state must still hold at write time" was enforced at check
+  time, which is a different claim.** Publish, fork and `channels update`/
+  `rename` each read a channel, did seconds of asynchronous work — a gate run, a
+  bundle upload, an observation budget — and then submitted a COMPLETE stale
+  channel value. `%groups` takes the whole cell with no version and no CAS
+  token. So: publish reads revision 1, another admin publishes revision 2 during
+  the upload, and the first command overwrites revision 2 — after which **its
+  own read-back certifies its own overwrite**, which is what made the failure
+  silent. Fork sees an empty destination and lands over somebody's new revision.
+  `channels rename` sees an ordinary channel, another client publishes a
+  surface, and rename drops that definition with no `--allow-unpublish`.
+
+  The scope contract said "at write time" in as many words
+  (`surface-write-scope.ts:21`) and the tests only ever mutated state BEFORE the
+  command ran. A contract sentence is not a control.
+
+  **Fixed by re-reading the target immediately before the write**
+  (`readDefinitionForWrite`), refusing on any change and naming both
+  identities, with zero writes. The identity compared is deliberately NARROWER
+  than the operator's pre-state bound: that one folds the post head in, so a
+  member saying hello during the upload would fail a publish. This one is the
+  definition cell and nothing else.
+
+  Two things follow that are worth stating separately:
+
+  1. **The payload is now built from the FRESH channel**, not from the value
+     read minutes ago. The full-cell overwrite otherwise drops a concurrent edit
+     to an unrelated field — a title, an icon — by another admin, which is the
+     same race with a wider blast and no gate at all. Publish and fork now carry
+     those forward; `channels update` compares the whole cell and refuses.
+  2. **The residual is real and is not v0's to close.** A last-second re-read
+     narrows the window from "however long this command takes" to one round
+     trip. It does not close it. Closing it needs compare-and-swap on the
+     description cell in `%groups` — a backend change, recorded as a v1 item
+     alongside the `%surface` agent. v0 claims the narrowing and not the
+     guarantee.
+
+- **D189: an optional tie-break key is not a tie-break, and the comparator was
+  not a total order.** `SurfacePostView.id` was optional and `comparePostIds`
+  returned equality whenever either side was absent, so two tied posts without
+  ids sorted in CALLER order — and the exported "posts, any order" contract was
+  false for every producer that did not fill the field in. The production
+  adapter did fill it in, which is exactly why nothing noticed.
+
+  The comparator was also not a total order in two ways. `1.000` and `1000`
+  strip to the same digits at the same length, so neither `<` held and both
+  directions returned 1: `a > b` and `b > a` at once. And numeric and
+  non-numeric ids were compared raw against each other, closing a cycle —
+  `"2" > "1x" > "10" > "2"`.
+
+  `id` is now required at the type level and enforced at runtime (a post with no
+  string id is structurally unfoldable, like one with no sequence number, and is
+  skipped rather than folded in arrival order). The comparator orders the two
+  CLASSES first, then digit count, then digit string, then the raw string. The
+  synthetic post sets the gate, the preview and the transition walk build now
+  mint deterministic ids of their own — without them those tools would fold in
+  array order while a real channel folds in id order, and predicting what the
+  channel will do is the only thing they are for.
+
+- **D190: skipping a bad snapshot is not repairing it, and the CLI was not even
+  skipping.** `advertisedHead` appeared zero times in `packages/tlon-skill`. The
+  D175 guard was client-only, so a snapshot claiming `upTo: 1_000_000` — which
+  the client refuses — was folded by the CLI, and `surface snapshot` would then
+  write a fresh snapshot out of that fold. That laundered the bad boundary into
+  a record the client WOULD accept, while the original still stood.
+
+  The CLI now computes the head from the ship as it hydrates and passes it. It
+  has no local store to compare against itself: every post came from the ship on
+  this call, so the greatest sequence number IS the server's head, and both
+  commands already refuse a truncated page walk before reducing.
+
+  And the fold now REPORTS what it stepped over (`headExceededSnapshots`)
+  instead of only logging it, on both the reduced and the migration-pending
+  branch. `surface state` folds the real log and names the offending post;
+  `surface snapshot` REFUSES. Refusing rather than repairing is the whole point:
+  selection takes the GREATEST boundary, so a fresh honest snapshot loses to the
+  bad one and the command would report a repair that changed nothing. The repair
+  is retracting that post.
+
+- **D191: a marker that contradicts what it sits next to is refused by the
+  schema, not by the gate.** `memberInteraction` is the opt-out from a rule that
+  only fires on an EMPTY action map, so beside a nonempty one it asserts nothing
+  and contradicts the spec it is in. The schema permitted it, lint returned early
+  whenever actions existed, and the rubric keys check 8 off the marker's presence
+  alone — so an actionful spec could declare "members cannot act", pass the gate
+  clean, and generate a display-only check for a board full of controls.
+
+  Refused at the schema because the contradiction is readable by everything that
+  validates a spec: the reducer's read-back, `surface show`, the preview, the
+  client. A gate-only rule would leave every one of those agreeing that a
+  self-contradicting spec is fine.
+
+- **D192: a raw prefix compare is not a path compare.** `inert-action`
+  suppressed itself when another rule had already filed a finding against the
+  same action, using `specPath.startsWith('actions.' + id)`. `actions.vote` is a
+  prefix of `actions.vote-no`, so a malformed `vote-no` masked a genuinely dead
+  `vote`: the author repaired one defect, re-ran the gate, and met the other.
+  Comparison is now by segment — equal, or followed by `.` or `[`. The gate
+  stayed red throughout, so the cost was a wasted repair cycle rather than a
+  dead action shipping green; it is still a guard that reported one defect where
+  there were two.
+
+- **D193: `surface fork` has no `--surface-id`, so the reused-id fold is
+  unconstructible rather than checked for.** The flag let a caller name any id
+  but the source's own, and destination emptiness only ever checked the current
+  description — not retained posts. Unpublish a surface, leave its events, fork
+  a different source in under the old id, and revision-1 events from the old app
+  fold straight into the supposedly pristine copy. A boundary-0 snapshot does
+  not suppress later old events.
+
+  The landing run now takes the id from the completed rubric sheet, which is the
+  artifact that already binds it to these bytes and this definition and is
+  already required. Passing `--surface-id` is now an unknown-option refusal.
+
+  **Stated honestly:** this removes the OVERRIDE, not every path to a reused id.
+  A caller who hand-edits the staged spec before previewing gets a sheet keyed
+  to whatever they wrote. That is forging the binding artifact rather than using
+  a documented flag, and it is materially different — but it is not "impossible",
+  and claiming impossibility here would be the kind of sentence this project
+  keeps having to retract. If a genuine need for a caller-chosen id appears, it
+  is a report, not a reason to put the flag back.
+
+- **D194: a halt belongs to the session that failed, not to the component.**
+  `SurfaceSandboxContainer` stored an init error as a bare message and returned
+  the halted view ABOVE the keyed host — so a board halted on revision 1 could
+  not mount revision 2. An admin publishing the fix changed nothing for anybody
+  already looking at the broken board: every mounted viewer stayed on revision
+  1's error until they pressed Reload or navigated away, which is exactly the
+  population that cannot be told to do either.
+
+  The halt now names the session that produced it, and the render shows it only
+  when that session is the one being mounted. A new revision and a manual reload
+  are both new sessions, so `reloadSurface` no longer clears the halt
+  separately — clearing it would be a second representation of one fact, free to
+  disagree with the first.
+
+- **D195: the template notes are pinned, because the wording gets copied.**
+  Countdown's note said the whole `bundle` block was placeholders publish
+  overwrites. It is not: publish owns `assetRef`, `sha256` and `size`, and
+  preserves the author's `shellVersion` — the one field in the block whose loss
+  is not repaired by the next publish, because publish defaults an absent one to
+  1 and old clients then run a bundle that needs shell 2.
+
+  Every template is pinned, not just the one that drifted, because the wording
+  was copied between templates and the next drift will be too. Three templates
+  carried no bundle note at all, which is the same defect with nothing to read;
+  they have one now.
+
+- **D196: the third framing rule, stated as a rule.** Two rules already govern
+  this work: the class fix is the deliverable, not the incident; and a control
+  enters the tree with the mutation that should break it demonstrated. This
+  round found a third, and every one of its findings was an instance of it:
+
+  > **Where does the property have to hold, and is the control there?**
+
+  Both Highs and the survivor were controls placed one layer from the boundary.
+  The tie-break lived in the reducer while the rows were lost in the paginator
+  (D187). The pre-state check ran at check time while the write happened at
+  write time (D188). The head guard lived in the client while the CLI folded and
+  then wrote (D190). Each control was correct where it stood and enforced
+  nothing, because the thing it was protecting against happened somewhere else.
+  A control one layer off is the hardest kind to see: it passes, it is about the
+  right subject, and reading it tells you nothing about the gap. The question has
+  to be asked separately.
+
+- **D197: the claims index names a commit, and CI holds it to that — but the
+  exact-tree claim is a gate only where the index's owners are the ones moving
+  the file.** The index identified itself as a dirty working tree at
+  `2c62221d7b` and said in its own header that nothing in it was verified
+  against any commit. An index that cannot say which tree it describes is a
+  claim, not evidence — the exact failure it was written to catch in everyone
+  else's documents, uncaught in its own.
+
+  `scripts/check-claims-index.mjs` runs from `ci-config-check` — the one job
+  with no path filter, because the index is a root markdown that matches none
+  and a gated job would skip exactly when it is needed. Four checks, one per way
+  the document rots: a citation whose file or line is gone; a named test that no
+  longer exists; a recorded head that is not a real commit or not an ancestor of
+  HEAD; and the dirty-tree disclaimer coming back. Each was demonstrated by
+  making the break and watching the check fail.
+
+  **The fourth property — "no file the index cites has moved since the recorded
+  head" — is split by ownership, and that is a deliberate departure from how it
+  was specified.** As a flat repo-wide failure it is correct and unaffordable:
+  the index cites `DECISIONS.md`, `.github/workflows/ci.yml`,
+  `apps/tlon-web/e2e/test-fixtures.ts` and `packages/shared/src/db/queries.ts`
+  among its 113 paths, so after this branch merges, most pull requests in the
+  repository would go red until somebody regenerated a Surface Channels document
+  they have nothing to do with. That is machinery whose blast radius nobody
+  costed — the thing this project has already had to name once. So drift in a
+  surface-owned path (`packages/tlon-skill/`, the three surface source
+  directories, `packages/surface-shell/`, `SurfaceChannel/`, `sandbox-posture/`,
+  `hostCsp.ts`, the root `surface-channels-*.md` documents) fails; drift
+  anywhere else is reported by name and the run stays green. The hard gate sits
+  where the claims are load-bearing and where the person moving the file is the
+  person who owns the index.
+
+  Two mechanical consequences, recorded because both are easy to trip over.
+  The check needs the recorded commit to exist, so its job checks out with
+  `fetch-depth: 0`. And the index must be re-stamped in a commit of its OWN,
+  after the commit whose sha it names — a document cannot carry the sha of the
+  commit that contains it, and stamping it separately leaves only the index in
+  the diff the check reads.

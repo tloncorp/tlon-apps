@@ -62,6 +62,37 @@ describe('shipped surface templates', () => {
         }
       });
 
+      /**
+       * Who owns which half of the `bundle` block, pinned per template.
+       *
+       * The countdown's note said the whole `bundle` block was placeholders
+       * publish overwrites. It is not: publish owns `assetRef`, `sha256` and
+       * `size`, and PRESERVES the author's `shellVersion`
+       * (`surface-publish.ts`, and `SKILL.md`'s own table). A bot revising
+       * from that note omits or resets the field, publish defaults an absent
+       * one to 1, and old clients then run a bundle that needs shell 2 — the
+       * one field in the block whose loss is not repaired by the next
+       * publish. The note is the only thing standing between an author and
+       * that, so it is pinned rather than trusted (D195).
+       *
+       * Every template, not just the one that drifted: the wording was
+       * copied between templates, so the next drift will be too. Three
+       * templates carried no bundle note at all when this was written, which
+       * is the same defect with nothing to read.
+       */
+      it('says publish owns assetRef/sha256/size and NOT shellVersion', () => {
+        const notes = fs.readFileSync(path.join(dir, 'NOTES.md'), 'utf-8');
+        for (const owned of ['assetRef', 'sha256', 'size']) {
+          expect(notes).toContain(`bundle.${owned}`);
+        }
+        // Named, and named as the author's — an omission reads to a bot the
+        // same way the countdown's "the whole block" did.
+        expect(notes).toContain('bundle.shellVersion');
+        expect(notes).toMatch(
+          /`bundle\.shellVersion` is not one\s+of them — it is yours, and publish preserves it exactly as written\./
+        );
+      });
+
       it('passes the publish gate with no violations and no warnings', () => {
         const result = lintSurfaceBundle({
           bundleSource: fs.readFileSync(path.join(dir, 'app.js'), 'utf-8'),

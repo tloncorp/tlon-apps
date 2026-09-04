@@ -267,3 +267,67 @@ test('reloading after a halt builds a NEW frame rather than reusing the dead one
   expect(second).not.toBe(null);
   expect(second).not.toBe(first);
 });
+
+test('a healthy new revision clears a halted surface without a manual reload', async () => {
+  // The gap the cold review found (D194): the halt was a bare message and the
+  // early return sat ABOVE the keyed host, so a board halted on revision 1
+  // could not mount revision 2. An admin publishing the fix changed nothing
+  // for anyone already looking at the broken board — every mounted viewer
+  // stayed on revision 1's error until they pressed Reload or navigated away,
+  // which is exactly the population that cannot be told to do either.
+  const v1 = makeSpec(1);
+  const v2 = makeSpec(2);
+
+  await renderSpec(v1, {});
+  const first = frame()!;
+  await fromFrame(first, READY);
+  await fromFrame(first, {
+    type: 'error',
+    phase: 'init',
+    message: 'ReferenceError: thisIsNotDefined is not defined',
+  });
+  expect(
+    container.querySelector('[data-testid="SurfaceHaltedState"]')
+  ).not.toBe(null);
+  expect(frame()).toBe(null);
+
+  // the admin publishes the fix; nobody touches the broken tab
+  await renderSpec(v2, { n: 1 });
+
+  expect(container.querySelector('[data-testid="SurfaceHaltedState"]')).toBe(
+    null
+  );
+  const second = frame();
+  expect(second).not.toBe(null);
+  expect(second).not.toBe(first);
+
+  // and it is a live session, not just a visible element
+  const secondSent = watch(second!);
+  await fromFrame(second!, READY);
+  expect(secondSent).toEqual([
+    expect.objectContaining({ type: 'init', spec: v2, state: { n: 1 } }),
+  ]);
+});
+
+test('a halt survives a re-render of the SAME revision', async () => {
+  // The other half of keying the halt: it must clear on a NEW session and only
+  // on a new session. A parent re-render with the same spec — a state update
+  // arriving, a theme change — is the same session, and blinking the halted
+  // board back to a frame that has already failed to initialize would loop.
+  const v1 = makeSpec(1);
+
+  await renderSpec(v1, { n: 1 });
+  const first = frame()!;
+  await fromFrame(first, READY);
+  await fromFrame(first, { type: 'error', phase: 'init', message: 'boom' });
+  expect(
+    container.querySelector('[data-testid="SurfaceHaltedState"]')
+  ).not.toBe(null);
+
+  await renderSpec(v1, { n: 2 });
+
+  expect(
+    container.querySelector('[data-testid="SurfaceHaltedState"]')
+  ).not.toBe(null);
+  expect(frame()).toBe(null);
+});

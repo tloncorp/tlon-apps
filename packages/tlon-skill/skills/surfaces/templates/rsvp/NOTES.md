@@ -48,12 +48,16 @@ they pressed.
 - **`clear-answer` is `del /responses/$actor`.** `del` on a path that is not
   there does nothing and is therefore just as idempotent as the `set`. It is
   the whole of "take my name off", and it needs no guard.
-- **`clear-answer` is declared FIRST in the `actions` map.** The reducer does
-  not care about order, but `surface preview` folds the actions in the order
-  they are declared, rotating three members through them — so a reset
-  declared last lands on the last member and leaves them missing from the
-  populated screenshots. Declared first, all three members appear, one under
-  each answer, which is what those screenshots are for.
+- **`clear-answer`'s position in the `actions` map no longer costs an
+  actor.** `surface preview` runs a restore pass after the rotation — every
+  constructive action, once per actor — so a reset no longer strands a
+  member off the populated screenshots regardless of where it sits in the
+  map. That pass is not a realistic spread, though: it folds `answer-yes`,
+  `answer-maybe` and `answer-no` in declaration order for every actor, so
+  the last one declared wins for all three. The populated crew card shows
+  three members under **Can't make it**, not one under each answer — read
+  it for "does every actor survive the fold," not for "what does a mixed
+  RSVP look like."
 - **The literal `invoke('answer-…')` arguments.** Building the id from data
   (`invoke('answer-' + id)`) reads better and silently turns off the gate's
   only check that a button is wired to something that exists — for the whole
@@ -71,9 +75,10 @@ they pressed.
 - **The leftover-answer handling in `answerIds`.** A member holding an answer
   the sheet no longer offers still gets a group. Dropping an answer from the
   sheet must not drop the people who gave it.
-- **`bundle` in `spec.json`.** `assetRef`, `sha256` and `size` are
-  placeholders; `surface publish` computes and overwrites all three, plus
-  `specRevision`. Do not hand-edit them.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is a
   populated example — five members across all three answers — that CI renders
   through the shell, because the starting state is empty and an empty screen

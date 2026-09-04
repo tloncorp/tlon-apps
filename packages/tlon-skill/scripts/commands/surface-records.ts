@@ -1,4 +1,4 @@
-import type { SurfaceSpec } from '@tloncorp/api';
+import type { SurfaceReduction, SurfaceSpec } from '@tloncorp/api';
 
 import {
   type ParsedSurfaceArgs,
@@ -412,6 +412,7 @@ export async function runSurfaceState(
     spec,
     hostShip: resolved.hostShip,
     posts: hydrated.posts,
+    advertisedHead: hydrated.head,
   });
 
   if (reduction.status === 'migration-pending') {
@@ -427,6 +428,7 @@ export async function runSurfaceState(
           surfaceId: spec.surfaceId,
           specRevision: spec.specRevision,
           state: null,
+          headExceededSnapshots: reduction.headExceededSnapshots,
         },
         lines: [
           `${channelId} is waiting on its migration snapshot at revision ${spec.specRevision}.`,
@@ -456,6 +458,10 @@ export async function runSurfaceState(
       // sequence numbers rather than a count, because the repair is to go and
       // look at those posts.
       abortedSequenceNums: reduction.abortedSequenceNums,
+      // Reported, not merely logged: a reader that silently drops a snapshot
+      // shows correct state while the offending post keeps beating every
+      // honest one written after it (D190).
+      headExceededSnapshots: reduction.headExceededSnapshots,
       posts: hydrated.posts.length,
     },
     lines: [
@@ -478,6 +484,7 @@ export async function runSurfaceState(
         ? ['  the state cap was hit; some ops were refused']
         : []),
       JSON.stringify(reduction.state, null, 2),
+      ...headExceededLines(channelId, reduction.headExceededSnapshots),
     ],
   };
   return emitReport(deps, report, asJson);
@@ -559,7 +566,9 @@ export async function runSurfaceSnapshot(
     spec,
     hostShip: resolved.hostShip,
     posts: hydrated.posts,
+    advertisedHead: hydrated.head,
   });
+  refuseHeadExceededSnapshots(channelId, reduction);
 
   const newest = newestSequenceNum(hydrated.posts);
   const requested = singleValue(parsed, '--up-to');
@@ -681,6 +690,10 @@ export async function runSurfaceSnapshot(
           typeof post.sequenceNum === 'number' &&
           post.sequenceNum <= upToSequenceNum
       ),
+      // The ceiling is the boundary this fold claims, not the channel head:
+      // the population was cut to that boundary, so a snapshot above it is
+      // out of this fold's range by construction.
+      advertisedHead: upToSequenceNum,
     });
     if (bounded.status !== 'reduced') {
       // The snapshot this preserving revision folds from was posted above the
@@ -869,6 +882,41 @@ export function assertNoAbortedEntries(
       abortedSequenceNums: aborted,
       help: context.help ?? SURFACE_SNAPSHOT_HELP,
     }
+  );
+}
+
+/**
+ * A fold that had to step over a snapshot claiming coverage beyond the head.
+ *
+ * Skipping is not a repair (D190): the offending post still stands, and
+ * because snapshot selection takes the GREATEST boundary it still beats any
+ * honest snapshot written afterwards. So a reader says so, and a writer stops.
+ */
+function headExceededOf(reduction: SurfaceReduction): number[] {
+  return reduction.headExceededSnapshots;
+}
+
+/** `surface state`: fold the real log, and say what was stepped over. */
+function headExceededLines(channelId: string, skipped: number[]): string[] {
+  if (skipped.length === 0) return [];
+  const one = skipped.length === 1;
+  return [
+    `  ${one ? 'a snapshot' : `${skipped.length} snapshots`} at sequence ${skipped.join(', ')} claim${one ? 's' : ''} coverage beyond this channel's head and ${one ? 'was' : 'were'} ignored`,
+    `  the state above folds the real log; retract ${one ? 'that post' : 'those posts'} with \`tlon surface snapshot ${channelId} --retract <post>\` so every reader agrees`,
+  ];
+}
+
+/** `surface snapshot`: refuse rather than write a second snapshot it loses to. */
+function refuseHeadExceededSnapshots(
+  channelId: string,
+  reduction: SurfaceReduction
+): never | void {
+  const skipped = headExceededOf(reduction);
+  if (skipped.length === 0) return;
+  throw surfaceError(
+    'snapshot-head-exceeded',
+    `${channelId} carries ${skipped.length === 1 ? 'a snapshot' : `${skipped.length} snapshots`} claiming coverage beyond the channel's head, at post sequence ${skipped.join(', ')}. Writing a new snapshot would not fix that: selection takes the greatest boundary, so the bad one keeps winning and this command would report a repair that changed nothing. Retract the offending post first with \`tlon surface snapshot ${channelId} --retract <post>\`, then snapshot.`,
+    { channel: channelId, headExceededSnapshots: skipped }
   );
 }
 

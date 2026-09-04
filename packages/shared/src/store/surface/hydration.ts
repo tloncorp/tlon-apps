@@ -87,13 +87,19 @@ const DEFAULT_MAX_PAGES = 40;
 async function readOlderLocalFirst(
   channelId: string,
   cursorSequenceNum: number,
+  cursorPostId: string | undefined,
   count: number,
   backfill: HydrateSurfaceOptions['backfill']
 ): Promise<db.Post[]> {
+  // `cursorPostId` is the second half of the page cursor (D187). Without it a
+  // post tied on `sequenceNum` with the last row of the previous page is
+  // stepped over and never read again, and the reducer breaks a tie it can
+  // only see one side of.
   const local = await db.getSequencedChannelPosts({
     channelId,
     mode: 'older',
     cursorSequenceNum,
+    cursorPostId,
     count,
   });
   if (local.length > 0) {
@@ -107,6 +113,7 @@ async function readOlderLocalFirst(
     channelId,
     mode: 'older',
     cursorSequenceNum,
+    cursorPostId,
     count,
   });
 }
@@ -232,6 +239,7 @@ export async function hydrateSurface(
     const older = await readOlderLocalFirst(
       channelId,
       oldest,
+      oldestIdOf(posts),
       pageSize,
       backfill
     );
@@ -251,6 +259,16 @@ export async function hydrateSurface(
 
 function oldestOf(posts: db.Post[]): number | null {
   return posts.at(-1)?.sequenceNum ?? null;
+}
+
+/**
+ * The id of the oldest loaded row — the other half of the page cursor.
+ *
+ * The window is ordered `(sequenceNum, id)` descending, so the last element is
+ * the least row under that order and paging resumes strictly below it.
+ */
+function oldestIdOf(posts: db.Post[]): string | undefined {
+  return posts.at(-1)?.id ?? undefined;
 }
 
 function newestOf(posts: db.Post[]): number | null {

@@ -19,6 +19,7 @@ import * as shellSandboxModule from '@tloncorp/surface-shell/sandbox';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
+import { syntheticPostId } from './surface-activation';
 import { canonicalJson } from './surface-canonical-json';
 import {
   type GroupedDefect,
@@ -279,6 +280,8 @@ interface SurfacePostLike {
   authorId: string;
   sequenceNum: number;
   blob: string;
+  /** the reducer's required tie-break key (D189); minted, not host-stamped */
+  id: string;
 }
 
 function invokePost(
@@ -290,6 +293,7 @@ function invokePost(
   return {
     authorId: actor,
     sequenceNum,
+    id: syntheticPostId('invoke', sequenceNum),
     blob: JSON.stringify([
       {
         type: 'surface-event',
@@ -314,6 +318,7 @@ function migrationSnapshotPost(spec: SurfaceSpec): SurfacePostLike {
   return {
     authorId: PREVIEW_HOST_SHIP,
     sequenceNum: 0,
+    id: syntheticPostId('snapshot', 0),
     blob: JSON.stringify([
       {
         type: 'surface-snapshot',
@@ -447,6 +452,7 @@ function hostOpPost(
     // by anyone else is skipped, here exactly as on a channel.
     authorId: PREVIEW_HOST_SHIP,
     sequenceNum,
+    id: syntheticPostId('host', sequenceNum),
     blob: JSON.stringify([hostEventEntry(spec, entry)]),
   };
 }

@@ -8,7 +8,7 @@ import {
 } from '@tloncorp/surface-shell/artifact-strings';
 import { buildSandboxDocument } from '@tloncorp/surface-shell/sandbox';
 import * as store from '@tloncorp/shared';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useThemeName } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
@@ -56,20 +56,51 @@ export function SurfaceSandboxContainer({
    * is indistinguishable from the frame navigating itself, which the host
    * tears down as hostile.
    */
-  const [halted, setHalted] = useState<string | null>(null);
+  const [halted, setHalted] = useState<{
+    session: string;
+    detail: string;
+  } | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+
+  /**
+   * The session this render would mount: the spec's own session identity
+   * plus the reload counter. Both halves matter — a new revision is a new
+   * session because the running sandbox has never seen that spec, and a
+   * reload is a new session because a reused element's second load reads as
+   * the frame navigating itself.
+   */
+  const sessionKey = `${sandboxSessionKey(spec)}:${reloadNonce}`;
+
+  /**
+   * A halt belongs to the SESSION that failed, not to the component (D194).
+   *
+   * It used to be a bare message, and the early return below sat above the
+   * keyed host — so a board halted on revision 1 could not mount revision 2.
+   * An admin publishing the fix changed nothing for anyone already looking at
+   * the broken board: every mounted viewer stayed on revision 1's error until
+   * they pressed Reload or navigated away, which is precisely the population
+   * that cannot be told to do either. Keying the halt means a healthy
+   * revision arrives as a different session and clears it by not matching.
+   */
+  const sessionKeyRef = useRef(sessionKey);
+  useEffect(() => {
+    sessionKeyRef.current = sessionKey;
+  }, [sessionKey]);
 
   const handleShellError = useCallback((phase: string, message: string) => {
     // `render` errors already have a defined presentation: the shell swaps in
     // its own broken-state view inside the frame and the app keeps running.
     // Only a failure to initialize leaves nothing on screen.
     if (phase === 'init') {
-      setHalted(message);
+      setHalted({ session: sessionKeyRef.current, detail: message });
     }
   }, []);
 
+  // No `setHalted(null)` here: bumping the nonce is what makes the next
+  // render a different session, and a halt that names a session nobody is
+  // mounting is already not shown. Clearing it separately would be a second
+  // representation of the same fact, free to disagree with the first.
   const reloadSurface = useCallback(() => {
-    setHalted(null);
     setReloadNonce((nonce) => nonce + 1);
   }, []);
 
@@ -97,8 +128,10 @@ export function SurfaceSandboxContainer({
     [bundleSource]
   );
 
-  if (halted !== null) {
-    return <SurfaceHaltedState detail={halted} onReload={reloadSurface} />;
+  if (halted !== null && halted.session === sessionKey) {
+    return (
+      <SurfaceHaltedState detail={halted.detail} onReload={reloadSurface} />
+    );
   }
 
   return (
@@ -121,7 +154,7 @@ export function SurfaceSandboxContainer({
      * navigation.
      */
     <SurfaceSandboxHost
-      key={`${sandboxSessionKey(spec)}:${reloadNonce}`}
+      key={sessionKey}
       document={sandboxDocument}
       spec={spec}
       state={state}

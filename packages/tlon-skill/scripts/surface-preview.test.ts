@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 // @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import * as surfaceReducerModule from '@tloncorp/api/client/surface/reducer';
 
+import { syntheticPostId } from './surface-activation';
 import type { PreviewCellObservation } from './surface-preview-defects';
 import {
   PREVIEW_ACTORS,
@@ -51,7 +52,12 @@ const { reduceSurface } = surfaceReducerModule as {
   reduceSurface(input: {
     spec: SurfaceSpec;
     hostShip: string;
-    posts: { authorId: string; sequenceNum: number; blob: string }[];
+    posts: {
+      authorId: string;
+      sequenceNum: number;
+      blob: string;
+      id: string;
+    }[];
   }): { status: string; state?: Record<string, unknown> };
 };
 
@@ -324,6 +330,10 @@ describe('preview folds with the client reducer, not a copy of it', () => {
     const invokes = actionIds.map((actionId, index) => ({
       authorId: PREVIEW_ACTORS[index % PREVIEW_ACTORS.length],
       sequenceNum: index + 1,
+      // the reducer's tie-break key is required (D189); a post without one is
+      // structurally unfoldable and is skipped, so a fixture that omits it
+      // silently tests the empty fold
+      id: syntheticPostId('invoke', index + 1),
       blob: JSON.stringify([
         {
           type: 'surface-event',
@@ -338,6 +348,7 @@ describe('preview folds with the client reducer, not a copy of it', () => {
     const snapshot = (overrides: Record<string, unknown>) => ({
       authorId: PREVIEW_HOST_SHIP,
       sequenceNum: 0,
+      id: syntheticPostId('snapshot', 0),
       blob: JSON.stringify([
         {
           type: 'surface-snapshot',
@@ -378,6 +389,7 @@ describe('preview folds with the client reducer, not a copy of it', () => {
           {
             authorId: PREVIEW_HOST_SHIP,
             sequenceNum: 0,
+            id: syntheticPostId('snapshot', 0),
             blob: JSON.stringify([
               {
                 type: 'surface-snapshot',
@@ -433,6 +445,7 @@ describe('preview folds with the client reducer, not a copy of it', () => {
         {
           authorId: PREVIEW_HOST_SHIP,
           sequenceNum: 0,
+          id: syntheticPostId('snapshot', 0),
           blob: JSON.stringify([
             {
               type: 'surface-snapshot',
@@ -633,13 +646,19 @@ describe('foldPopulatedState and destructive actions', () => {
   it('would erase one without the restore pass', () => {
     const spec = resetLastSpec();
     const actionIds = Object.keys(spec.actions);
-    const posts: { authorId: string; sequenceNum: number; blob: string }[] = [];
+    const posts: {
+      authorId: string;
+      sequenceNum: number;
+      blob: string;
+      id: string;
+    }[] = [];
     let sequenceNum = 1;
     for (let round = 0; round < 2; round++) {
       actionIds.forEach((actionId, index) => {
         posts.push({
           authorId: PREVIEW_ACTORS[(index + round) % PREVIEW_ACTORS.length],
-          sequenceNum: sequenceNum++,
+          sequenceNum,
+          id: syntheticPostId('invoke', sequenceNum++),
           blob: JSON.stringify([
             {
               type: 'surface-event',

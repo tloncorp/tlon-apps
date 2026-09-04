@@ -27,7 +27,9 @@ import {
   postSurfaceRecord,
   hydratePosts,
   readChannelSpec,
+  readDefinitionForWrite,
   readSurfacePreState,
+  surfaceDefinitionIdentity,
   resolveSurfaceChannel,
 } from './surface-writer';
 import { assertPreStateInScope } from '../surface-write-scope';
@@ -163,6 +165,52 @@ const BUNDLE_CONTENT_TYPE = 'application/javascript';
  * opening screen. Only a discriminator that moves with the thing it names
  * discriminates (D138).
  */
+/**
+ * The surface id a completed sheet was scored against.
+ *
+ * `surface fork`'s landing half needs the id the staging half minted, and used
+ * to take it from `--surface-id` — which made the id a caller's choice and let
+ * a fork be aimed at an id whose events are still in the destination (D193).
+ * The sheet already carries it, already binds it to these bytes and this
+ * definition, and is already required, so it is the id's only source now.
+ *
+ * A cheap read on purpose: the id has to be known before the spec it validates
+ * can be derived. `requireCompletedRubric` then re-reads the same file and
+ * checks this field against the derived spec along with everything else, so
+ * nothing here is trusted twice.
+ */
+export function readRubricSurfaceId(
+  deps: SurfaceDeps,
+  input: { path: string; channelId: string }
+): string {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(deps.readTextFile(input.path));
+  } catch (error) {
+    throw surfaceError(
+      'rubric-unreadable',
+      `The completed rubric could not be read at ${input.path}: ${
+        error instanceof Error ? error.message : String(error)
+      }. \`surface preview\` writes a pre-keyed one next to its screenshots.`,
+      { channel: input.channelId, path: input.path }
+    );
+  }
+  const surfaceId =
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    typeof (parsed as { surfaceId?: unknown }).surfaceId === 'string'
+      ? (parsed as { surfaceId: string }).surfaceId
+      : '';
+  if (surfaceId.length === 0) {
+    throw surfaceError(
+      'rubric-unreadable',
+      `${input.path} does not name the surface it scored, so there is no id to fork under. \`surface preview\` writes that field; score the sheet it produced rather than one written by hand.`,
+      { channel: input.channelId, path: input.path }
+    );
+  }
+  return surfaceId;
+}
+
 export function requireCompletedRubric(
   deps: SurfaceDeps,
   input: {
@@ -502,6 +550,12 @@ export async function runSurfacePublish(
       { channel: channelId, version: currentRead.version }
     );
   }
+  // What this publish believes it is replacing, captured at check time so the
+  // write can prove it is still true (D188). The operator bound below is a
+  // different question and a wider identity; this one is only "is the
+  // definition I read still the definition I am about to overwrite".
+  const checkedDefinition = surfaceDefinitionIdentity(deps, currentRead);
+
   // The bound pre-state, before any of the branches below decide what to do
   // with the current definition. `resolveSurfaceChannel` has already refused a
   // write to the wrong channel or the wrong group; this is the other half of
@@ -790,8 +844,19 @@ export async function runSurfacePublish(
     });
   }
 
+  // Immediately before the write, and from the ship rather than from the
+  // value read before the gate and the upload (D188). Everything below is
+  // built from `fresh`, so a concurrent edit to an unrelated field survives
+  // this write instead of being carried away by the full-cell overwrite.
+  const { channel: fresh } = await readDefinitionForWrite(deps, {
+    groupId: resolved.groupId,
+    channelId,
+    operation: 'surface publish',
+    checked: checkedDefinition,
+  });
+
   const nextPayload = deps.description.encode({
-    ...deps.description.decode(resolved.channel.meta.description),
+    ...deps.description.decode(fresh.meta.description),
     surfaceSpec: published,
   });
 
@@ -799,8 +864,8 @@ export async function runSurfacePublish(
     groupId: resolved.groupId,
     channelId,
     channel: {
-      ...resolved.channel,
-      meta: { ...resolved.channel.meta, description: nextPayload },
+      ...fresh,
+      meta: { ...fresh.meta, description: nextPayload },
     },
   });
 

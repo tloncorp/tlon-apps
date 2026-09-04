@@ -155,7 +155,10 @@ button here.
   them lexically, and the reason is not the gate: the sandbox's clock is the
   VIEWER's, and a board that read it would show a different countdown to a
   member in Lisbon than to one in Los Angeles with nothing telling either.
-- **`bundle` in `spec.json`.** Placeholders; `surface publish` overwrites them.
+- **`bundle.assetRef`, `bundle.sha256` and `bundle.size` in `spec.json`.**
+  Placeholders; `surface publish` computes and overwrites all three, plus
+  `specRevision`. Do not hand-edit them. `bundle.shellVersion` is not one
+  of them — it is yours, and publish preserves it exactly as written.
 - **`state.json`** is not published and is not the starting state. It is the
   same board two days out with two run-up dates behind it, which is what a
   reviewer needs in order to score "Passed" and an hours-scale badge — the

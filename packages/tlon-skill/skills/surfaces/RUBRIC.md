@@ -405,14 +405,18 @@ Do not raise these as findings against the app.
   says so when it happens. That means folding every action changed nothing
   — which is a finding about the _spec_, not about the render.
 
-  **Unless the app declares `memberInteraction`**, in which case it is the
-  app being exactly what it says it is: nothing a member can press means
-  nothing to fold, and preview's own report says so correctly. For such an
-  app the twelve cells collapse to six pairs, so honest scoring is six
-  distinct images plus a separate `--state` run against the example board.
-  Publish on the sheet from the plain run — the `--state` run's sheet names
-  a board this app does not open on and is refused — and carry what the
-  `--state` run showed you into that sheet's notes.
+  **Unless the app declares `memberInteraction`** and the run carried no
+  `--host-ops`, in which case it is the app being exactly what it says it
+  is: nothing a member can press and no host event supplied means nothing
+  to fold, and preview's own report says so correctly. Hand such an app
+  `--host-ops` and folding resumes — a display-only app moves only by host
+  event, so that is the only run that ever populates its cells; score it
+  instead. Without `--host-ops`, the twelve cells collapse to six pairs, so
+  honest scoring is six distinct images plus a separate `--state` run
+  against the example board. Publish on the sheet from the plain run — the
+  `--state` run's sheet names a board this app does not open on and is
+  refused — and carry what the `--state` run showed you into that sheet's
+  notes.
 
 - **Blank space below a short app.** The captures are a fixed viewport; an
   app shorter than it leaves the rest as background. That is what the app
@@ -431,14 +435,17 @@ Do not raise these as findings against the app.
   — which is what a galaxy looks like everywhere in Tlon, not a rendering
   failure. `~palfun-foslup` is a planet and draws four glyphs, like most
   real members. All three are correct.
-- **Anything a host event would have produced.** The populated state folds
-  **declared actions only** — preview cannot post a host event, so it
-  cannot roll a period over, archive a session, or write a date. In any
-  host-is-the-clock app (`PARADIGM.md` §2) everything downstream of a
-  rollover — history lists, charts over past periods, streaks — is
-  **empty in all twelve cells**, and that is the harness, not the app.
-  Score the pre-rollover half; check the archived half by reading
-  `tlon surface state` on a live channel instead.
+- **Anything a host event would have produced.** `--host-ops <file>` folds
+  real host events into the populated state, validated against the same
+  schema the reducer applies, so a host-is-the-clock app (`PARADIGM.md`
+  §2) can be previewed rolling a period over, archiving a session, or
+  writing a date. Skip the flag and the populated state still folds
+  **declared actions only** — history lists, charts over past periods,
+  streaks read **empty in all twelve cells**, and that is the flag you
+  didn't pass, not the harness. Pass it and the same emptiness is a
+  finding to chase: check `manifest.json`'s `populated.hostOps` and
+  `populated.hostOpsSource` for what was actually folded, and
+  `tlon surface state` on a live channel if the two disagree.
 - **A `preserveState` spec's populated cell.** Preview stands in a snapshot
   of the spec's `initialState`, because a preserving spec holds no state
   until the host posts a migration snapshot. Production does the opposite —

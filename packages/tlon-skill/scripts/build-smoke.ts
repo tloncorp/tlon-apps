@@ -249,7 +249,8 @@ assertCase({
   stdoutIncludes: [
     'Usage: tlon surface fork <source-channel>',
     '--stage-bundle <path>',
-    '--surface-id <id>',
+    // The landing half is named by its sheet, not by an id flag (D193).
+    '--rubric <path>',
     'Provenance is a CLAIM, not an attestation',
     'The recipe is NOT copied',
   ],

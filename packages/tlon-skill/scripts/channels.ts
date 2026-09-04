@@ -520,6 +520,57 @@ export function unpublishRefusal(
   ].join('\n');
 }
 
+/**
+ * Everything `updateChannelMeta` is about to overwrite, in one comparable
+ * string.
+ *
+ * The whole cell, not just the surface definition. This command rewrites the
+ * description cell from the fields it knows about, so a concurrent edit to any
+ * of them — a title, an icon, another admin's published app — is dropped by
+ * the write whether or not the unpublish gate would have caught it. Comparing
+ * the narrow thing would fence the loud failure and leave the quiet one.
+ */
+function channelWriteIdentity(channel: {
+  surfaceSpec?: unknown;
+  description?: unknown;
+  title?: unknown;
+  iconImage?: unknown;
+  coverImage?: unknown;
+  contentConfiguration?: unknown;
+}): string {
+  return JSON.stringify([
+    channel.surfaceSpec ?? null,
+    channel.description ?? null,
+    channel.title ?? null,
+    channel.iconImage ?? null,
+    channel.coverImage ?? null,
+    channel.contentConfiguration ?? null,
+  ]);
+}
+
+/**
+ * The refusal when the channel moved between the gate and the write.
+ *
+ * The unpublish gate above runs on a value read one round trip earlier, and
+ * `updateChannel` sends a complete channel with no version token, so a
+ * definition published in between is overwritten by a command that checked and
+ * found nothing to protect. Re-reading at the write does not close that window
+ * — %groups has no compare-and-swap and closing it needs one (D188) — it
+ * narrows it from "however long this command takes" to one round trip.
+ */
+function movedUnderUsRefusal(nest: string): string {
+  return [
+    `Refusing to edit ${nest}: it changed while this command was running.`,
+    '',
+    'This command rewrites the whole description cell from the values it read a',
+    'moment ago, so writing now would silently discard whatever the other writer',
+    'just put there — possibly an app definition, which the gate above would have',
+    'refused had it been present when it looked.',
+    '',
+    'Nothing was written. Read the channel again and re-run.',
+  ].join('\n');
+}
+
 // Update channel metadata
 export async function updateChannelMeta(
   nest: string,
@@ -570,6 +621,15 @@ export async function updateChannelMeta(
   };
 
   console.log(`Updating channel ${nest}...`);
+
+  // Immediately before the write, not at the gate (D188).
+  const atWrite = await findChannelGroup(nest);
+  if (!atWrite) {
+    throw new Error(movedUnderUsRefusal(nest));
+  }
+  if (channelWriteIdentity(atWrite.channel) !== channelWriteIdentity(channel)) {
+    throw new Error(movedUnderUsRefusal(nest));
+  }
 
   await updateChannel({
     groupId: group.id,

@@ -164,6 +164,50 @@ describe('SurfaceSpecSchema', () => {
     expect(parsed).not.toHaveProperty('stillUnknown');
   });
 
+  test('refuses memberInteraction beside a nonempty action map (D191)', () => {
+    // The marker is an opt-out from a rule that only fires on an EMPTY action
+    // map, so beside a nonempty one it asserts nothing and contradicts what it
+    // sits next to. It was permitted: lint's own check returned early whenever
+    // actions existed, and the rubric keys check 8 off the marker's PRESENCE
+    // alone — so an actionful spec could declare "members cannot act", pass
+    // the gate clean, and generate a display-only check for a board full of
+    // controls. Refused at the schema so every reader of a spec agrees.
+    const contradictory = {
+      ...validSpec(),
+      memberInteraction: {
+        mode: 'none' as const,
+        because: 'the bot posts the rollover each morning',
+      },
+    };
+    expect(Object.keys(contradictory.actions).length).toBeGreaterThan(0);
+    const refused = SurfaceSpecSchema.safeParse(contradictory);
+    expect(refused.success).toBe(false);
+    // and it names the marker, not some downstream field — the repair loop
+    // reads the path to decide what to change
+    const issue = refused.success
+      ? undefined
+      : refused.error.issues.find(
+          (entry) => entry.path.join('.') === 'memberInteraction'
+        );
+    expect(issue).toBeDefined();
+    expect(issue?.message).toContain('members cannot act');
+
+    // Neither half alone is a contradiction, and refusing either would be
+    // refusing a legitimate shape. A display-only app declares the marker
+    // over an empty map ...
+    expect(
+      SurfaceSpecSchema.safeParse({
+        ...validSpec({ actions: {} }),
+        memberInteraction: {
+          mode: 'none',
+          because: 'the launch date is fixed at creation',
+        },
+      }).success
+    ).toBe(true);
+    // ... and an ordinary interactive app carries actions and no marker.
+    expect(SurfaceSpecSchema.safeParse(validSpec()).success).toBe(true);
+  });
+
   test('a spec survives validation carrying timeDisplay', () => {
     // Declared for the same reason `duplicatesTolerated` and
     // `memberInteraction` are: `z.object` strips what it does not declare, so

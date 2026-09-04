@@ -6,6 +6,7 @@ import { jsonByteLength } from '../client/surface/json';
 import {
   ReduceSurfaceInput,
   SurfacePostView,
+  __comparePostIdsForTest,
   reduceSurface,
 } from '../client/surface/reducer';
 import { SurfaceSpec } from '../client/surface/schemas';
@@ -35,6 +36,7 @@ function spec(overrides: Partial<SurfaceSpec> = {}): SurfaceSpec {
 }
 
 let nextSeq = 1;
+let nextPostId = 1;
 function post(
   authorId: string,
   entries: unknown[],
@@ -42,6 +44,11 @@ function post(
 ): SurfacePostView {
   return {
     authorId,
+    // Required since D189. A post with no tie-break id cannot be ordered
+    // against a post sharing its sequence number, so the reducer skips it
+    // outright — a helper that omitted it would build posts that silently
+    // never fold, and every assertion below would be about an empty log.
+    id: `default-post-id-${nextPostId++}`,
     sequenceNum: nextSeq++,
     blob: JSON.stringify(entries),
     ...overrides,
@@ -1266,15 +1273,180 @@ describe('total order under duplicate sequence numbers (D174)', () => {
     });
   });
 
-  test('posts with no id still fold deterministically', () => {
-    // The field is optional; absent, the sort falls back to the previous
-    // behaviour rather than throwing or reordering.
+  test('a post with no id is skipped, not folded in caller order', () => {
+    // The field is REQUIRED since D189, so this is the shape only a caller
+    // that is not typechecked against us can produce — and the reducer has
+    // to refuse it rather than fall back to arrival order, which is the
+    // dependence the key exists to remove. The cast is the point of the
+    // test: without it this does not compile.
     nextSeq = 1;
-    const posts = [
-      post(HOST, [hostEvent([{ op: 'set', path: '/title', value: 'x' }])]),
-      post(MEMBER, [invoke('vote')]),
-    ];
-    expect(reduce(posts)).toEqual(reduce([...posts].reverse()));
+    const withId = post(HOST, [
+      hostEvent([{ op: 'set', path: '/title', value: 'kept' }]),
+    ]);
+    const withoutId = post(HOST, [
+      hostEvent([{ op: 'set', path: '/title', value: 'dropped' }]),
+    ]);
+    delete (withoutId as { id?: string }).id;
+    const result = expectReduced(reduce([withId, withoutId]));
+    expect(result.state).toMatchObject({ title: 'kept' });
+    expect(result.foldedEventCount).toBe(1);
+    // and it is skipped whichever order it arrives in
+    expect(expectReduced(reduce([withoutId, withId])).state).toMatchObject({
+      title: 'kept',
+    });
+  });
+});
+
+/**
+ * THE TIE-BREAK KEY HAS TO BE A TOTAL ORDER, NOT A COMPARATOR (D189).
+ *
+ * `comparePostIds` is the second sort key, so the "posts, any order"
+ * contract on `reduceSurface` is worth exactly what the order underneath it
+ * is worth. It was not one, twice over:
+ *
+ *   - `1.000` and `1000` strip to the same digits at the same length, so
+ *     neither `<` held and BOTH directions returned 1 — `a > b` and `b > a`
+ *     at once, which makes `Array.prototype.sort` a function of arrival
+ *     order for the tied pair.
+ *   - Numeric and non-numeric ids were compared raw against each other,
+ *     closing a cycle across the two classes: `"2" > "1x" > "10" > "2"`.
+ *
+ * Neither defect is visible to a test that checks a handful of hand-picked
+ * pairs, because both are properties of the RELATION and not of any one
+ * comparison. So this asserts the three laws directly, over every pair and
+ * every triple of a corpus that spans both classes.
+ */
+describe('comparePostIds is a total order (D189)', () => {
+  /**
+   * Both id classes the fold can meet, plus the two shapes that broke it.
+   *
+   * Small enough that all 900 pairs and all 27,000 triples are cheap, which
+   * is why the assertion can be exhaustive rather than sampled — the defects
+   * live in specific pairs, and a sampler can miss a specific pair.
+   */
+  const ID_CORPUS = [
+    // canonical dotted @ud renders, the ordinary case
+    '170.141.184.505.988',
+    '170.141.184.505.989',
+    '170.141.184.506.000',
+    '170.141.184.505.987',
+    // plain digit strings, short and long
+    '0',
+    '1',
+    '2',
+    '9',
+    '10',
+    '11',
+    '100',
+    '12.345',
+    '12345',
+    '999999999999999999999999',
+    // the pair that returned 1 in both directions: same digits, same length,
+    // different rendering
+    '1.000',
+    '1000',
+    // sequence stubs — the non-numeric ids that really exist
+    'sequence-stub-chat-1',
+    'sequence-stub-chat-2',
+    'sequence-stub-chat-10',
+    'sequence-stub-other-1',
+    // the members of the cross-class cycle, and near neighbours of them
+    '1x',
+    '2x',
+    '10x',
+    'x',
+    '',
+    ' ',
+    '1.',
+    '.1',
+    '-1',
+    '1e3',
+  ];
+
+  const sign = (n: number) => (n === 0 ? 0 : n > 0 ? 1 : -1);
+  const cmp = (a: string, b: string) => sign(__comparePostIdsForTest(a, b));
+
+  test('reflexive: every id compares equal to itself', () => {
+    for (const id of ID_CORPUS) {
+      expect(__comparePostIdsForTest(id, id)).toBe(0);
+    }
+  });
+
+  test('antisymmetric: sign(cmp(a,b)) === -sign(cmp(b,a)) for every pair', () => {
+    for (const a of ID_CORPUS) {
+      for (const b of ID_CORPUS) {
+        expect([a, b, cmp(a, b)]).toEqual([a, b, sign(-cmp(b, a))]);
+      }
+    }
+  });
+
+  test('total: distinct ids never compare equal', () => {
+    // A tie-break that ties is not a tie-break — the sort falls through to
+    // arrival order exactly where the key was supposed to decide.
+    for (const a of ID_CORPUS) {
+      for (const b of ID_CORPUS) {
+        if (a === b) continue;
+        expect([a, b, cmp(a, b)]).not.toEqual([a, b, 0]);
+      }
+    }
+  });
+
+  test('transitive: a < b and b < c implies a < c, over every triple', () => {
+    for (const a of ID_CORPUS) {
+      for (const b of ID_CORPUS) {
+        if (cmp(a, b) >= 0) continue;
+        for (const c of ID_CORPUS) {
+          if (cmp(b, c) >= 0) continue;
+          expect([a, b, c, cmp(a, c)]).toEqual([a, b, c, -1]);
+        }
+      }
+    }
+  });
+
+  test('sorting the corpus is independent of its starting order', () => {
+    // The property the fold actually consumes: `events.sort` has to land on
+    // one arrangement whatever order the posts arrived in. An inconsistent
+    // comparator does not throw here — it silently returns a different
+    // permutation, which is how the defect reached a board.
+    const reference = [...ID_CORPUS].sort(__comparePostIdsForTest);
+    fc.assert(
+      fc.property(
+        fc.shuffledSubarray(ID_CORPUS, {
+          minLength: ID_CORPUS.length,
+          maxLength: ID_CORPUS.length,
+        }),
+        (shuffled) => {
+          expect([...shuffled].sort(__comparePostIdsForTest)).toEqual(
+            reference
+          );
+        }
+      )
+    );
+  });
+
+  test("the reviewer's tie: two conflicting host writes converge either way", () => {
+    // The reproduction, at the fold rather than at the comparator. Same
+    // sequence number, conflicting writes to one pointer, and ids that are
+    // the same number rendered two ways — the pair the old comparator
+    // ordered both ways at once. It reduced to {"x": 2} given one input
+    // order and {"x": 1} given the other.
+    nextSeq = 1;
+    const dotted = post(
+      HOST,
+      [hostEvent([{ op: 'set', path: '/x', value: 1 }])],
+      { sequenceNum: 7, id: '1.000' }
+    );
+    const plain = post(
+      HOST,
+      [hostEvent([{ op: 'set', path: '/x', value: 2 }])],
+      { sequenceNum: 7, id: '1000' }
+    );
+    const forward = expectReduced(reduce([dotted, plain]));
+    const backward = expectReduced(reduce([plain, dotted]));
+    expect(forward.state).toEqual(backward.state);
+    // and it is the higher id that wins, not whichever arrived last — an
+    // assertion of agreement alone would pass on a stable coin flip
+    expect(forward.state).toMatchObject({ x: 2 });
   });
 });
 
