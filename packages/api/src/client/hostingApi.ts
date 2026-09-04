@@ -25,6 +25,7 @@ import type {
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
   TlawnOAuthStatus,
+  TlawnOpenRouterZdrEndpoint,
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
@@ -54,6 +55,7 @@ export type {
   TlawnOAuthStartResponse,
   TlawnOAuthStatus,
   TlawnOAuthUpstream,
+  TlawnOpenRouterZdrEndpoint,
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
@@ -495,6 +497,22 @@ export async function getTlawnProviderModels(
 ): Promise<{ data: TlawnProviderModel[] }> {
   return hostingFetch<{ data: TlawnProviderModel[] }>(
     `/v1/tlawn/users/${userId}/provider-models?provider=${encodeURIComponent(provider)}`
+  );
+}
+
+export async function getTlawnOpenRouterRecommendedModels(
+  userId: string
+): Promise<string[]> {
+  return hostingFetch<string[]>(
+    `/v1/tlawn/users/${userId}/openrouter/recommended-models`
+  );
+}
+
+export async function getTlawnOpenRouterZdrEndpoints(
+  userId: string
+): Promise<TlawnOpenRouterZdrEndpoint[]> {
+  return hostingFetch<TlawnOpenRouterZdrEndpoint[]>(
+    `/v1/tlawn/users/${userId}/openrouter/zdr-endpoints`
   );
 }
 
