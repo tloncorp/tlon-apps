@@ -591,9 +591,7 @@ export default function ChannelScreen(props: Props) {
           }
           goBack={navigationRef.current.goBack}
           disableBackButton={agentOnboardingNavigationLocked}
-          onPressLogout={
-            agentOnboarding.locked ? handleLogout : undefined
-          }
+          onPressLogout={agentOnboarding.locked ? handleLogout : undefined}
           suppressEmptyState={agentGroupSetupActive}
           suppressAnimatedSendScroll={agentGroupSetupActive}
           pendingThinkingLabel={pendingThinkingLabel}
