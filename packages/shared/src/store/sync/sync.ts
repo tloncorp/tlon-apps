@@ -947,6 +947,12 @@ export async function syncUpdatedPosts(
   options: GetChangedPostsOptions,
   ctx?: SyncCtx
 ) {
+  // DMs and group DMs receive updates through syncLatestChanges. Reject
+  // cursor-bounded refreshes before they enter the group-channel sync queue.
+  if (!api.isGroupChannelId(options.channelId)) {
+    return;
+  }
+
   logger.log(
     'syncing updated posts',
     runIfDev(() => JSON.stringify(options))
