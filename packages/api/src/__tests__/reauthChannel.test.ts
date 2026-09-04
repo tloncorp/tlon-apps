@@ -9,7 +9,7 @@ import {
 } from '../client/urbit';
 import { Atom } from '@urbit/nockjs';
 
-import { AuthError, ChannelPutError } from '../http-api';
+import { AuthError, ChannelPutError, ReapError } from '../http-api';
 import { Urbit } from '../http-api/Urbit';
 
 // A stand-in for the singleton Urbit client with just enough surface for the
@@ -302,29 +302,55 @@ describe('seamlessReset', () => {
     const replayed = subs.get(1);
 
     rejectStale(new ChannelPutError(403));
-    await expect(stale).resolves.toMatchObject({ status: 403 });
-    // the stale failure must not evict the replayed subscription in its slot
+    // the caller gets the replayed subscription instead of a failure, and the
+    // stale failure must not evict it from its slot
+    await expect(stale).resolves.toBe(1);
     expect(subs.get(1)).toBe(replayed);
   });
 
-  test('aborts the old channel connection so its retry loop stops', async () => {
+  test('a subscribe without resubOnQuit still fails when its PUT fails after a reset', async () => {
+    let rejectStale!: (err: unknown) => void;
+    const fetch = vi
+      .fn()
+      .mockImplementationOnce(
+        () => new Promise((_, reject) => (rejectStale = reject))
+      )
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    urbit.nodeId = '~zod';
+    (urbit as any).sseClientInitialized = true;
+
+    const stale = urbit
+      .subscribe({
+        app: 'a',
+        path: '/old',
+        event: () => {},
+        resubOnQuit: false,
+      })
+      .catch((e) => e);
+    urbit.seamlessReset();
+    rejectStale(new ChannelPutError(403));
+    await expect(stale).resolves.toMatchObject({ status: 403 });
+  });
+
+  test('aborts the old event source but leaves in-flight PUTs alone', async () => {
     vi.useFakeTimers();
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
     urbit.nodeId = '~zod';
     (urbit as any).sseClientInitialized = true;
+    const sseSignal: AbortSignal = (urbit as any).sseAbort.signal;
     // the PUT goes out synchronously; the poke itself only settles on an ack
     void urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
-    const oldSignal: AbortSignal = (fetch.mock.calls[0] as any)[1].signal;
+    const putSignal: AbortSignal = (fetch.mock.calls[0] as any)[1].signal;
     const oldChannel = urbit.channelId;
 
     urbit.seamlessReset();
 
-    expect(oldSignal.aborted).toBe(true);
+    expect(sseSignal.aborted).toBe(true);
+    expect(putSignal.aborted).toBe(false);
     expect(urbit.channelId).not.toBe(oldChannel);
-    void urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
-    const newSignal: AbortSignal = (fetch.mock.calls[1] as any)[1].signal;
-    expect(newSignal.aborted).toBe(false);
+    expect((urbit as any).sseAbort.signal.aborted).toBe(false);
   });
 
   test('a noun PUT failure carries the status', async () => {
@@ -385,6 +411,46 @@ describe('storms', () => {
     await expect(Promise.all(pokes)).resolves.toEqual([1, 1, 1]);
     expect(client.seamlessReset).toHaveBeenCalledTimes(1);
     expect(client.poke).toHaveBeenCalledTimes(6);
+  });
+
+  test('a poke the rotation rejected goes again on the new channel', async () => {
+    const client = rotatingClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new ChannelPutError(403))
+        // the peer: outstanding when seamlessReset ran, so it was reaped
+        .mockRejectedValueOnce(new ReapError('Channel was reaped'))
+        .mockResolvedValue(5),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      Promise.all([
+        poke({ app: 'a', mark: 'm', json: 1 }),
+        poke({ app: 'b', mark: 'm', json: 2 }),
+      ])
+    ).resolves.toEqual([5, 5]);
+    expect(client.seamlessReset).toHaveBeenCalledTimes(1);
+    expect(client.poke).toHaveBeenCalledTimes(4);
+  });
+
+  test('a reap with no rotation behind it is still a failure', async () => {
+    const failure = new ReapError('Channel was reaped');
+    const client = rotatingClient({ poke: vi.fn().mockRejectedValue(failure) });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).rejects.toBe(failure);
+    expect(client.poke).toHaveBeenCalledTimes(1);
   });
 
   test('an auth failure that lands after a reauth retries without a second login', async () => {

@@ -118,6 +118,22 @@ export class Urbit {
   private channelAbort = new AbortController();
 
   /**
+   * Abort controller for the event source alone, so a channel rotation can
+   * drop the old stream's reconnect loop without cancelling PUTs in flight
+   */
+  private sseAbort = new AbortController();
+
+  /**
+   * Subscriptions replayed onto a new channel by +seamlessReset, keyed by the
+   * entry they replaced. A subscribe whose PUT was still in flight during the
+   * rotation resolves to its replacement instead of failing.
+   */
+  private replayedSubscriptions = new WeakMap<
+    SubscriptionRequestInterface,
+    Promise<number>
+  >();
+
+  /**
    * Identity of the ship we're connected to
    */
   nodeId?: string | null;
@@ -397,7 +413,7 @@ export class Urbit {
       }
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
-        signal: this.channelAbort.signal,
+        signal: this.sseAbort.signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
@@ -565,9 +581,11 @@ export class Urbit {
     // called if a channel was reaped by %eyre before we reconnected, or if
     // our session can no longer use it, so we have to make a new channel.
     // drop the old channel's event source first: its reconnect loop keeps
-    // the old channel url and would otherwise retry it forever
-    this.channelAbort.abort();
-    this.channelAbort = new AbortController();
+    // the old channel url and would otherwise retry it forever. PUTs still in
+    // flight are left alone; they fail or succeed on their own and their
+    // callers handle the rotation
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
     this.emit('seamless-reset', { uid: this.uid });
     this.emit('status-update', { status: 'initial' });
@@ -588,7 +606,9 @@ export class Urbit {
       });
 
       if (sub.resubOnQuit) {
-        this.subscribe(sub);
+        const replay = this.subscribe(sub);
+        replay.catch(() => {});
+        this.replayedSubscriptions.set(sub, replay);
       }
     });
 
@@ -885,10 +905,17 @@ export class Urbit {
     try {
       await this.sendJSONtoChannel(message);
     } catch (err) {
-      // the ship never saw this subscription, so don't let a later channel
-      // reset resubscribe it on the caller's behalf; the caller retries.
-      // a reset while this PUT was pending restarts the id sequence, so the
-      // slot may already belong to a live subscription on the new channel
+      // a reset while this PUT was pending has already replayed us onto the
+      // new channel; hand the caller that subscription rather than failing
+      const replay = this.replayedSubscriptions.get(entry);
+      if (replay) {
+        this.replayedSubscriptions.delete(entry);
+        return replay;
+      }
+      // otherwise the ship never saw this subscription, so don't let a later
+      // channel reset resubscribe it on the caller's behalf; the caller
+      // retries. a reset restarts the id sequence, so the slot may already
+      // belong to a live subscription on the new channel
       if (this.outstandingSubscriptions.get(message.id) === entry) {
         this.outstandingSubscriptions.delete(message.id);
         this.emit('subscription', { id: message.id, status: 'close' });
@@ -924,6 +951,8 @@ export class Urbit {
   async delete() {
     this.channelAbort.abort();
     this.channelAbort = new AbortController();
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     const body = JSON.stringify([
       {
         id: this.getEventId(),

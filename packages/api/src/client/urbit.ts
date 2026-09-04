@@ -5,6 +5,7 @@ import {
   AuthError,
   ChannelPutError,
   ChannelStatus,
+  ReapError,
   NounPokeInterface,
   Thread,
   Urbit,
@@ -380,6 +381,20 @@ function captureSendContext(client: Urbit | null): SendContext {
   return { authEpoch: config.authEpoch, channelId: client?.channelId };
 }
 
+// A poke that was outstanding when the channel rotated is rejected with a
+// ReapError; the channel it targeted is gone but nothing is wrong with the
+// request, so it should simply go again on the new channel.
+function rotatedUnderneath(
+  err: unknown,
+  client: Urbit,
+  sent: SendContext
+): boolean {
+  if (sent.channelId === undefined || client.channelId === sent.channelId) {
+    return false;
+  }
+  return err instanceof ReapError || (err as any)?.name === 'AbortError';
+}
+
 function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
   if (sent.channelId !== undefined && client.channelId !== sent.channelId) {
     logger.log('channel already rotated, retrying', context);
@@ -592,6 +607,8 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
       rotateChannelOnce(config.client, sent, `noun poke ${app}/${mark}`);
     } else if (err instanceof AuthError) {
       await reauthOnce(sent);
+    } else if (rotatedUnderneath(err, config.client, sent)) {
+      logger.log('channel rotated during noun poke, retrying', app, mark);
     } else {
       return fail(err);
     }
@@ -646,6 +663,8 @@ export async function poke({ app, mark, json }: PokeParams) {
       rotateChannelOnce(activeClient, sent, `poke ${app}/${mark}`);
     } else if (err instanceof AuthError) {
       await reauthOnce(sent);
+    } else if (rotatedUnderneath(err, activeClient, sent)) {
+      logger.log('channel rotated during poke, retrying', app, mark);
     } else {
       return fail(err);
     }
