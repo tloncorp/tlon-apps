@@ -902,25 +902,32 @@ export class Urbit {
       status: 'open',
     });
 
+    let putError: unknown = null;
     try {
       await this.sendJSONtoChannel(message);
     } catch (err) {
-      // a reset while this PUT was pending has already replayed us onto the
-      // new channel; hand the caller that subscription rather than failing
-      const replay = this.replayedSubscriptions.get(entry);
-      if (replay) {
-        this.replayedSubscriptions.delete(entry);
-        return replay;
-      }
-      // otherwise the ship never saw this subscription, so don't let a later
-      // channel reset resubscribe it on the caller's behalf; the caller
-      // retries. a reset restarts the id sequence, so the slot may already
-      // belong to a live subscription on the new channel
+      putError = err;
+    }
+
+    // a reset while this PUT was pending has already replayed us onto the new
+    // channel with a new id. whether the stale PUT then failed or landed on
+    // the abandoned channel, the replay is the subscription the caller owns
+    const replay = this.replayedSubscriptions.get(entry);
+    if (replay) {
+      this.replayedSubscriptions.delete(entry);
+      return replay;
+    }
+
+    if (putError !== null) {
+      // the ship never saw this subscription, so don't let a later channel
+      // reset resubscribe it on the caller's behalf; the caller retries. a
+      // reset restarts the id sequence, so the slot may already belong to a
+      // live subscription on the new channel
       if (this.outstandingSubscriptions.get(message.id) === entry) {
         this.outstandingSubscriptions.delete(message.id);
         this.emit('subscription', { id: message.id, status: 'close' });
       }
-      throw err;
+      throw putError;
     }
 
     return message.id;
