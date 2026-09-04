@@ -594,11 +594,7 @@ export async function getMainGroupRoute(
     );
   }
 
-  if (
-    group &&
-    group.channels &&
-    group.channels.length === 1
-  ) {
+  if (group && group.channels && group.channels.length === 1) {
     return {
       name: 'Channel',
       params: { channelId: group.channels[0].id, groupId },

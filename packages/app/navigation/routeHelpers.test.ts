@@ -51,9 +51,7 @@ describe('getDesktopGroupEntryRoute', () => {
   });
 
   test('keeps the single-channel desktop shortcut', () => {
-    expect(
-      getDesktopGroupEntryRoute(groupId, [chatId], null)
-    ).toMatchObject({
+    expect(getDesktopGroupEntryRoute(groupId, [chatId], null)).toMatchObject({
       name: 'Home',
       params: {
         screen: 'Channel',
