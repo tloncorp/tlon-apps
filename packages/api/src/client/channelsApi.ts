@@ -137,7 +137,7 @@ export const setupChannelFromTemplate = async (
   targetChannelId: string
 ) => {
   return thread({
-    desk: 'tlon',
+    desk: 'groups',
     inputMark: 'hook-setup-template-args',
     outputMark: 'json',
     threadName: 'channel-setup-from-template',

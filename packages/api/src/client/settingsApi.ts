@@ -77,7 +77,7 @@ export async function getBotReplyFeedback(
 ): Promise<BotReplyFeedbackEntry | null> {
   const settings = await scry<ub.GroupsDeskSettings>({
     app: 'settings',
-    path: '/desk/tlon',
+    path: '/desk/groups',
   });
   return parseBotReplyFeedbackValue(
     settings.desk.botReplyFeedback?.[messageId]
@@ -93,7 +93,7 @@ export async function setBotReplyFeedback(
     mark: 'settings-event',
     json: {
       'put-entry': {
-        desk: 'tlon',
+        desk: 'groups',
         'bucket-key': BOT_REPLY_FEEDBACK_BUCKET,
         'entry-key': messageId,
         // The settings wire type supports scalar values, so encode the
@@ -166,7 +166,7 @@ export const setSetting = async (key: string, val: any) => {
     mark: 'settings-event',
     json: {
       'put-entry': {
-        desk: 'tlon',
+        desk: 'groups',
         'bucket-key': getBucket(key),
         'entry-key': key,
         value: val,
@@ -183,7 +183,7 @@ export const getSettings = async (): Promise<{
 }> => {
   const results = await scry<ub.GroupsDeskSettings>({
     app: 'settings',
-    path: '/desk/tlon',
+    path: '/desk/groups',
   });
 
   const settings = toClientSettings(results);
@@ -209,7 +209,7 @@ export const getContextLensEnabledRaw = async (): Promise<
 > => {
   const results = await scry<ub.GroupsDeskSettings>({
     app: 'settings',
-    path: '/desk/tlon',
+    path: '/desk/groups',
   });
   return results.desk.groups?.contextLensEnabled;
 };
@@ -424,7 +424,7 @@ export function subscribeToSettings(handler: (update: SettingsUpdate) => void) {
   subscribe<ub.SettingsEvent>(
     {
       app: 'settings',
-      path: '/desk/tlon',
+      path: '/desk/groups',
     },
     (update) => {
       if (!('settings-event' in update)) {
