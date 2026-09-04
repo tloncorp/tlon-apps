@@ -11,6 +11,7 @@ export function NotesTreePane({
   canEdit,
   folderUnreadCounts,
   getPublishedNoteUrl,
+  hasPublishedUpdate,
   isDeletingFolder,
   isNotePublished,
   layout,
@@ -35,6 +36,7 @@ export function NotesTreePane({
   canEdit: boolean;
   folderUnreadCounts?: Map<number, number>;
   getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
+  hasPublishedUpdate: (noteId: number) => boolean;
   isDeletingFolder: boolean;
   isNotePublished: (noteId: number) => boolean;
   layout: 'stack' | 'takeover';
@@ -93,6 +95,7 @@ export function NotesTreePane({
           <NoteRow
             key={row.note.id}
             canEdit={canEdit}
+            hasPublishedUpdate={hasPublishedUpdate(row.note.noteId)}
             isPublished={isNotePublished(row.note.noteId)}
             note={row.note}
             publishDisabled={publishDisabled}

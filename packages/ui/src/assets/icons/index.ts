@@ -33,6 +33,7 @@ export { default as Discover } from './Discover.svg';
 export { default as Dragger } from './Dragger.svg';
 export { default as Draw } from './Draw.svg';
 export { default as EditList } from './EditList.svg';
+export { default as ExternalLink } from './ExternalLink.svg';
 export { default as Face } from './Face.svg';
 export { default as Filter } from './Filter.svg';
 export { default as Folder } from './Folder.svg';

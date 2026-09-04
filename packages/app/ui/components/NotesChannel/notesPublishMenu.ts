@@ -1,0 +1,71 @@
+import { publishedNoteTitle } from '@tloncorp/shared/logic/notesPublish';
+
+type PublishContent = {
+  title: string;
+  body: string;
+};
+
+type ReconcilableNote = {
+  noteId: number;
+  // What publishing this note right now would send: its retained draft when
+  // one exists, otherwise the saved row. Comparing against this — rather than
+  // against the saved row plus a guess about in-flight saves — is what keeps
+  // the action from offering an update that would republish identical content.
+  publishContent: PublishContent;
+};
+
+// Keyed by note id, holding the content key of the note's public copy.
+export type PublishedNoteBaselines = Map<number, string>;
+
+export function notePublishContentKey(content: PublishContent) {
+  // Key on the title the publish renderer would actually emit — trimmed, with
+  // the Untitled fallback — so drafts that differ only in whitespace, or in
+  // empty-vs-"Untitled", are recognised as producing the same public output.
+  return JSON.stringify([publishedNoteTitle(content.title), content.body]);
+}
+
+// Reconciliation runs on every keystroke of an open draft, so the caller
+// needs to tell an unchanged verdict from a fresh Set with the same members.
+export function sameNoteIds(a: ReadonlySet<number>, b: ReadonlySet<number>) {
+  if (a.size !== b.size) return false;
+  for (const noteId of a) {
+    if (!b.has(noteId)) return false;
+  }
+  return true;
+}
+
+export function reconcilePublishedNoteUpdates({
+  baselines,
+  notes,
+  publishedNoteIds,
+}: {
+  baselines: PublishedNoteBaselines;
+  notes: readonly ReconcilableNote[];
+  publishedNoteIds: ReadonlySet<number>;
+}) {
+  const noteIdsNeedingUpdate = new Set<number>();
+
+  for (const noteId of baselines.keys()) {
+    if (!publishedNoteIds.has(noteId)) {
+      baselines.delete(noteId);
+    }
+  }
+
+  for (const note of notes) {
+    if (!publishedNoteIds.has(note.noteId)) continue;
+
+    const publishedContentKey = baselines.get(note.noteId);
+    if (publishedContentKey === undefined) {
+      // The published API exposes neither content nor a revision, so on a
+      // fresh mount we cannot prove the note matches its public copy. Keep
+      // the explicit update action available rather than hide a stale one.
+      noteIdsNeedingUpdate.add(note.noteId);
+    } else if (
+      publishedContentKey !== notePublishContentKey(note.publishContent)
+    ) {
+      noteIdsNeedingUpdate.add(note.noteId);
+    }
+  }
+
+  return noteIdsNeedingUpdate;
+}
