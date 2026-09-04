@@ -1,10 +1,24 @@
 ::  aqua tests for %buckets: the host/replica protocol, across two ships
 ::
 ::  What the unit suite in /tests/app/buckets cannot reach. Those tests poke
-::  one agent with mocked scries, so a publisher/subscriber asymmetry -- the
-::  host doing something the replica does not answer, or the other way about
-::  -- passes them and fails in the world. Both bugs these cover were exactly
-::  that shape.
+::  one agent with mocked scries, so nothing there exercises a host and a
+::  replica together: a create that never registers, a snapshot that never
+::  arrives, a replica that crashes on a card the host now sends.
+::
+::  What these do NOT cover, measured rather than assumed: the leaked
+::  subscription a bucket deletion used to leave behind. Both tests pass
+::  against an agent with the kick and the leave taken back out. A repeat
+::  %watch on the same wire replaces the entry in the subscriber's .boat, so
+::  rejoining works either way, and the registration that leaks is the host's
+::  .bitt -- which gall exposes through no scry (its vane peeks are %u, %b,
+::  %d and %e only). There is no external signal to assert on. Covering it
+::  needs either a gall-level scry for subscription state or a probe that can
+::  see a stale registration deliver a fact to a replica that never rejoined.
+::
+::  So: these are cross-ship coverage of create, join, delete and rejoin, and
+::  they would catch a crash, a malformed card or a replica that dies on
+::  teardown. They are not a regression test for that fix. Do not read a pass
+::  here as one.
 ::
 /-  spider, b=buckets, g=groups, gv=groups-ver
 /+  *ph-io, *ph-test
