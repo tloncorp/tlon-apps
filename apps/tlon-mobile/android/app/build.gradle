@@ -157,6 +157,19 @@ android {
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+            firebaseCrashlytics {
+                // Symbolize native crash frames inside third-party .so files. With
+                // unstrippedNativeLibsDir left unset the plugin reads AGP's
+                // MERGED_NATIVE_LIBS artifact — every .so before stripping, from
+                // autolinked CMake modules (libworklets.so, libreanimated.so) and
+                // prebuilt AARs alike. Setting that property *replaces* the default
+                // rather than adding to it, so don't.
+                //
+                // Nothing wires the upload into assemble/bundle, so a build has to ask
+                // for :app:uploadCrashlyticsSymbolFile<Variant> by name — see the
+                // Android gradleCommand entries in eas.json.
+                nativeSymbolUploadEnabled true
+            }
         }
         releaseDebuggable {
             // Like release but with debuggable=true for testing
