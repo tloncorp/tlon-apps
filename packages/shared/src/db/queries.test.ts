@@ -19,10 +19,17 @@ import {
   setupDatabaseTestSuite,
 } from '../test/helpers';
 import initResponse from '../test/init.json';
+import { makeNotesNote, makeNotesNotebook } from '../test/notesFixtures';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import * as queries from './queries';
 import { queryClient } from './reactQuery';
-import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
+import {
+  ActivityEvent,
+  ChannelUnread,
+  GroupUnread,
+  Post,
+  ThreadUnreadState,
+} from './types';
 
 const groupsData = toClientGroups(
   groupsResponse as unknown as Record<string, ub.GroupV11>,
@@ -211,6 +218,47 @@ describe('getChats group recency workaround', () => {
     } as unknown as TestGroup;
   }
 
+  function noteActivityEvent({
+    id,
+    channelId,
+    groupId,
+    title,
+    timestamp,
+    type = 'note-create',
+  }: {
+    id: string;
+    channelId: string;
+    groupId: string;
+    title: string;
+    timestamp: number;
+    type?: 'note-create' | 'note-edit';
+  }): ActivityEvent {
+    return {
+      id,
+      bucketId: 'all',
+      sourceId: `channel/${channelId}`,
+      type,
+      timestamp,
+      postId: '42',
+      authorId: '~bus',
+      channelId,
+      groupId,
+      content: [{ inline: [title] }],
+    } as ActivityEvent;
+  }
+
+  async function insertNoteActivityEvent(event: ActivityEvent) {
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+
+    // The legacy activity-event contact-group FK names only `id` even though
+    // the parent key is `(id, bucketId)`. FK enforcement therefore rejects
+    // any direct activity event insert while FK enforcement is enabled. This
+    // focused selector seed does not exercise that unrelated legacy relation.
+    client.run($.sql`PRAGMA foreign_keys = OFF`);
+    await client.insert(schema.activityEvents).values(event);
+  }
+
   test('ignores broad group activity and legacy notebook activity', async () => {
     const recentGroupId = '~zod/recent-post';
     const noisyGroupId = '~zod/noisy-activity';
@@ -256,11 +304,211 @@ describe('getChats group recency workaround', () => {
       makeChannelUnread({ channelId: notesChannelId, updatedAt: 300 }),
     ]);
 
-    const groupIds = (await queries.getChats()).unpinned
+    const chats = (await queries.getChats()).unpinned;
+    const groupIds = chats
       .filter((chat) => chat.type === 'group')
       .map((chat) => chat.id);
 
     expect(groupIds).toEqual([notesGroupId, recentGroupId]);
+    const notesChat = chats.find((chat) => chat.id === notesGroupId);
+    expect(notesChat?.type).toBe('group');
+    if (notesChat?.type === 'group') {
+      expect(notesChat.notesActivity).toMatchObject({
+        channelId: notesChannelId,
+        noteTitle: null,
+        isNew: true,
+        timestamp: 300,
+      });
+    }
+  });
+
+  test('uses the newest local note for own activity and converts seconds to milliseconds', async () => {
+    const groupId = '~zod/local-note';
+    const channelId = 'notes/~zod/local-note';
+    const notebookFlag = '~zod/local-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 299_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'local-note',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Weekly plan', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: 250,
+          updatedAt: 300,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(300_000);
+      expect(chat.notesActivity).toEqual({
+        channelId,
+        notebookTitle: 'Journal',
+        noteId: '42',
+        noteTitle: 'Weekly plan',
+        authorId: '~zod',
+        isNew: false,
+        timestamp: 300_000,
+      });
+    }
+  });
+
+  test('prefers a newer persisted note event over an older local note', async () => {
+    const groupId = '~zod/remote-note';
+    const channelId = 'notes/~zod/remote-note';
+    const notebookFlag = '~zod/remote-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Team notebook',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 300_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'remote-note',
+        title: 'Team notebook',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(1, 1, 'Old local note', {
+          id: `${notebookFlag}/note/1`,
+          notebookFlag,
+          createdAt: 200,
+          updatedAt: 200,
+        }),
+      ],
+      members: [],
+    });
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'remote-note-event',
+        channelId,
+        groupId,
+        title: 'Launch checklist',
+        timestamp: 299_000,
+        type: 'note-edit',
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'Launch checklist',
+        authorId: '~bus',
+        isNew: false,
+        timestamp: 300_000,
+      });
+    }
+  });
+
+  test('does not label a new bump with a stale note event', async () => {
+    const groupId = '~zod/stale-detail';
+    const channelId = 'notes/~zod/stale-detail';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'stale-note-event',
+        channelId,
+        groupId,
+        title: 'Wrong old title',
+        timestamp: 99_000,
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('keeps a newer post as the group recency when notebook activity is older', async () => {
+    const groupId = '~zod/post-wins';
+    const channelId = 'notes/~zod/post-wins';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 400_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+    await client
+      .update(schema.groups)
+      .set({ lastPostAt: 400_000 })
+      .where($.eq(schema.groups.id, groupId));
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 300_000 }),
+    ]);
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(400_000);
+      expect(chat.notesActivity?.timestamp).toBe(300_000);
+    }
   });
 
   test('ignores stale Notes summaries after leaving a notebook', async () => {
@@ -2529,6 +2777,16 @@ describe('pins reordering (TLON-5948)', () => {
     test('getChats declares a dependency on pins', () => {
       // The reorder UI re-reads via getChats, so a pins write must invalidate it.
       expect(queries.getChats.meta.tableDependencies).toContain('pins');
+    });
+
+    test('getChats refreshes when notebook activity details change', () => {
+      expect(queries.getChats.meta.tableDependencies).toEqual(
+        expect.arrayContaining([
+          'activityEvents',
+          'notesNotebooks',
+          'notesNotes',
+        ])
+      );
     });
 
     test('a pins write invalidates an in-flight getChats query', async () => {

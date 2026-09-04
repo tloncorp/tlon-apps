@@ -1,7 +1,10 @@
 import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
+  formatNotesFlag,
   getCurrentUserId,
+  getTextContent,
+  parseNotesChannelId,
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
 import {
@@ -42,6 +45,7 @@ import {
   min,
   ne,
   not,
+  notExists,
   notInArray,
   or,
   sql,
@@ -51,7 +55,11 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  appendContactIdToReplies,
+  getCompositeGroups,
+  noteTimestampMs,
+} from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -120,6 +128,7 @@ import {
   Group,
   GroupJoinRequest,
   GroupNavSection,
+  GroupNotesActivity,
   GroupRole,
   GroupUnread,
   NotesFolder,
@@ -1396,6 +1405,235 @@ export const getMentionCandidates = createReadQuery(
   ['chatMembers', 'contacts']
 );
 
+// A note detail must be close to the notebook recency before we claim that it
+// describes that bump. Own edits use the host's note timestamp and the local
+// ship's activity timestamp, so exact equality is not expected.
+export const NOTES_ACTIVITY_DETAIL_WINDOW_MS = 5 * 60 * 1000;
+
+type NotesActivityDetail = Pick<
+  GroupNotesActivity,
+  'noteId' | 'noteTitle' | 'authorId' | 'isNew' | 'timestamp'
+>;
+
+type NotesActivityGroup = {
+  id: string;
+  channels: (Pick<Channel, 'id' | 'type' | 'title' | 'currentUserIsMember'> & {
+    unread?: Pick<ChannelUnread, 'updatedAt'> | null;
+  })[];
+};
+
+/**
+ * Find the newest joined notebook activity in each group. Notebook recency is
+ * authoritative for ordering, while the note identity can come from either a
+ * persisted activity event or the locally synced notebook snapshot.
+ */
+async function getGroupNotesActivity(
+  groups: NotesActivityGroup[],
+  ctx: QueryCtx
+): Promise<Map<string, GroupNotesActivity>> {
+  const notesChannels = groups.flatMap((group) =>
+    group.channels
+      .filter(
+        (channel) =>
+          channel.type === 'notes' && channel.currentUserIsMember === true
+      )
+      .map((channel) => {
+        const flag = parseNotesChannelId(channel.id);
+        return {
+          groupId: group.id,
+          channel,
+          notebookFlag: flag ? formatNotesFlag(flag) : null,
+        };
+      })
+  );
+  const activityByGroup = new Map<string, GroupNotesActivity>();
+  if (notesChannels.length === 0) {
+    return activityByGroup;
+  }
+
+  const notebookFlags = notesChannels.flatMap(({ notebookFlag }) =>
+    notebookFlag ? [notebookFlag] : []
+  );
+  const [eventsByChannel, notesByNotebook, notebookTitlesByFlag] =
+    await Promise.all([
+      getLatestNoteEventsByChannel(
+        notesChannels.map(({ channel }) => channel.id),
+        ctx
+      ),
+      getLatestNotesByNotebook(notebookFlags, ctx),
+      getNotesNotebookTitles(notebookFlags, ctx),
+    ]);
+
+  for (const { groupId, channel, notebookFlag } of notesChannels) {
+    const recency = channel.unread?.updatedAt ?? 0;
+    const detail = newestNotesActivityDetail(
+      eventsByChannel.get(channel.id),
+      notebookFlag ? notesByNotebook.get(notebookFlag) : undefined
+    );
+    const timestamp = Math.max(recency, detail?.timestamp ?? 0);
+    if (timestamp <= 0) {
+      continue;
+    }
+
+    const current = activityByGroup.get(groupId);
+    if (current && current.timestamp >= timestamp) {
+      continue;
+    }
+
+    const describes =
+      detail && detail.timestamp >= recency - NOTES_ACTIVITY_DETAIL_WINDOW_MS
+        ? detail
+        : null;
+    activityByGroup.set(groupId, {
+      channelId: channel.id,
+      notebookTitle:
+        channel.title ??
+        (notebookFlag ? notebookTitlesByFlag.get(notebookFlag) : null) ??
+        null,
+      noteId: describes?.noteId ?? null,
+      noteTitle: describes?.noteTitle ?? null,
+      authorId: describes?.authorId ?? null,
+      // Without a record of the note, the only safe generic copy is "New
+      // note"; the title can fill in when the notebook snapshot is warmed.
+      isNew: describes?.isNew ?? true,
+      timestamp,
+    });
+  }
+
+  return activityByGroup;
+}
+
+function newestNotesActivityDetail(
+  ...details: (NotesActivityDetail | undefined)[]
+): NotesActivityDetail | undefined {
+  return details.reduce<NotesActivityDetail | undefined>(
+    (newest, detail) =>
+      detail && (!newest || detail.timestamp > newest.timestamp)
+        ? detail
+        : newest,
+    undefined
+  );
+}
+
+async function getLatestNoteEventsByChannel(
+  channelIds: string[],
+  ctx: QueryCtx
+): Promise<Map<string, NotesActivityDetail>> {
+  const rows = await ctx.db
+    .select({
+      channelId: $activityEvents.channelId,
+      type: $activityEvents.type,
+      postId: $activityEvents.postId,
+      authorId: $activityEvents.authorId,
+      content: $activityEvents.content,
+      timestamp: $activityEvents.timestamp,
+    })
+    .from($activityEvents)
+    .where(
+      and(
+        inArray($activityEvents.type, ['note-create', 'note-edit']),
+        inArray($activityEvents.channelId, channelIds)
+      )
+    )
+    .orderBy(desc($activityEvents.timestamp));
+
+  const latest = new Map<string, NotesActivityDetail>();
+  for (const row of rows) {
+    if (!row.channelId || latest.has(row.channelId)) {
+      continue;
+    }
+    const title = row.content
+      ? getTextContent(
+          row.content as Parameters<typeof getTextContent>[0]
+        )?.trim() || null
+      : null;
+    latest.set(row.channelId, {
+      noteId: row.postId ?? null,
+      noteTitle: title,
+      authorId: row.authorId ?? null,
+      isNew: row.type === 'note-create',
+      timestamp: row.timestamp,
+    });
+  }
+
+  return latest;
+}
+
+async function getNotesNotebookTitles(
+  notebookFlags: string[],
+  ctx: QueryCtx
+): Promise<Map<string, string>> {
+  if (notebookFlags.length === 0) {
+    return new Map();
+  }
+
+  const rows = await ctx.db
+    .select({ id: $notesNotebooks.id, title: $notesNotebooks.title })
+    .from($notesNotebooks)
+    .where(inArray($notesNotebooks.id, notebookFlags));
+  return new Map(rows.map((row) => [row.id, row.title]));
+}
+
+// A notebook can contain thousands of notes, so select only the newest row
+// per notebook in SQLite instead of paging every note through JavaScript.
+async function getLatestNotesByNotebook(
+  notebookFlags: string[],
+  ctx: QueryCtx
+): Promise<Map<string, NotesActivityDetail>> {
+  const latest = new Map<string, NotesActivityDetail>();
+  if (notebookFlags.length === 0) {
+    return latest;
+  }
+
+  const $newerNotes = alias($notesNotes, 'newerNotes');
+  const rows = await ctx.db
+    .select({
+      notebookFlag: $notesNotes.notebookFlag,
+      noteId: $notesNotes.noteId,
+      title: $notesNotes.title,
+      updatedBy: $notesNotes.updatedBy,
+      createdAt: $notesNotes.createdAt,
+      updatedAt: $notesNotes.updatedAt,
+    })
+    .from($notesNotes)
+    .where(
+      and(
+        inArray($notesNotes.notebookFlag, notebookFlags),
+        isNotNull($notesNotes.updatedAt),
+        notExists(
+          ctx.db
+            .select({ id: $newerNotes.id })
+            .from($newerNotes)
+            .where(
+              and(
+                eq($newerNotes.notebookFlag, $notesNotes.notebookFlag),
+                isNotNull($newerNotes.updatedAt),
+                or(
+                  gt($newerNotes.updatedAt, $notesNotes.updatedAt),
+                  and(
+                    eq($newerNotes.updatedAt, $notesNotes.updatedAt),
+                    gt($newerNotes.noteId, $notesNotes.noteId)
+                  )
+                )
+              )
+            )
+        )
+      )
+    );
+
+  for (const row of rows) {
+    latest.set(row.notebookFlag, {
+      noteId: String(row.noteId),
+      noteTitle: row.title.trim() || null,
+      authorId: row.updatedBy ?? null,
+      isNew: row.createdAt != null && row.createdAt === row.updatedAt,
+      timestamp: noteTimestampMs(row.updatedAt) ?? 0,
+    });
+  }
+
+  return latest;
+}
+
 export const getChats = createReadQuery(
   'getChats',
   async (
@@ -1447,21 +1685,15 @@ export const getChats = createReadQuery(
       },
     });
 
+    const notesActivityByGroup = await getGroupNotesActivity(groups, ctx);
+
     const groupChats: Chat[] = groups.map((g) => {
       // Temporary client-side workaround for TLON-6417. Group activity
       // recency includes membership and other events that should not reorder
       // the chat list. Keep the old post-based ordering, plus the narrower
       // Notes source recency, until the backend provides a sidebar-specific
       // recency value.
-      const latestNotesActivityAt = Math.max(
-        0,
-        ...g.channels
-          .filter(
-            (channel) =>
-              channel.type === 'notes' && channel.currentUserIsMember === true
-          )
-          .map((channel) => channel.unread?.updatedAt ?? 0)
-      );
+      const notesActivity = notesActivityByGroup.get(g.id) ?? null;
 
       return {
         id: g.id,
@@ -1469,10 +1701,11 @@ export const getChats = createReadQuery(
         pin: g.pin,
         timestamp: g.haveInvite
           ? (g.unread?.updatedAt ?? 0)
-          : Math.max(g.lastPostAt ?? 0, latestNotesActivityAt),
+          : Math.max(g.lastPostAt ?? 0, notesActivity?.timestamp ?? 0),
         volumeSettings: g.volumeSettings,
         unreadCount: g.unread?.count ?? 0,
         group: g,
+        notesActivity,
         isPending:
           g.haveInvite === true ||
           !!g.joinStatus ||
@@ -1531,6 +1764,9 @@ export const getChats = createReadQuery(
     'threadUnreads',
     'volumeSettings',
     'pins',
+    'activityEvents',
+    'notesNotebooks',
+    'notesNotes',
   ]
 );
 
