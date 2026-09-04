@@ -61,6 +61,7 @@ type AgentRequest =
 export type OnboardingStepReport = {
   step: TlonOnboardingStep;
   outcome?: 'ok' | 'failed';
+  provisionId?: string | null;
   purposeId?: string | null;
   topicCount?: number | null;
   timezone?: string | null;
@@ -394,6 +395,7 @@ type FirstRunCorrelation = {
 
 function correlationFunnelFields(correlation: FirstRunCorrelation) {
   return {
+    provisionId: correlation.provisionId,
     purposeId: correlation.purposeId,
     topicCount: correlation.topics.length,
     notebookNest: correlation.notebookNest,
@@ -586,7 +588,15 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
-  await provision(context, history, request, deps, presentation);
+  try {
+    await provision(context, history, request, deps, presentation);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `agent onboarding provision ${request.provisionId} failed: ${detail}`,
+      { cause: error }
+    );
+  }
   return true;
 }
 
@@ -1074,6 +1084,7 @@ async function provision(
   // toward the response floor instead of adding an artificial delay later.
   await presentation.start();
   const stepFacts = {
+    provisionId: request.provisionId,
     purposeId: request.purposeId,
     topicCount: request.topics.length,
     timezone: request.timezone,
@@ -1152,9 +1163,13 @@ async function provision(
       ?.title ?? request.notebookTitle
   );
   if (!existingAck) {
+    // The authenticated durable provision is proof that the owner completed
+    // the topics picker. Emit this before any cron work so a provisioning
+    // failure appears as drop-off after topic submission.
+    context.trackStep?.({ step: 'topics_submitted', ...stepFacts });
+
     // Validation succeeded and this provision has not already been
-    // acknowledged. Reconciliation can replay the same durable request, so
-    // emit the successful funnel step only on the first pass.
+    // acknowledged. Reconciliation can replay the same durable request.
     if (!cron) throw new Error('cron service is not available');
     const providerConfig = findLatestProviderConfig(
       history,
