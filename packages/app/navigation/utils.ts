@@ -5,7 +5,6 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import { parseNotesChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -23,6 +22,8 @@ import type {
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
+  getDesktopChannelRoute,
+  getDesktopGroupEntryRoute,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
   isActivityBackTarget,
@@ -573,40 +574,6 @@ export function useRootNavigation() {
   );
 }
 
-export function getDesktopChannelRoute(
-  tab: 'Home' | 'Messages',
-  channelId: string,
-  groupId?: string,
-  selectedPostId?: string
-) {
-  const screenName = screenNameFromChannelId(channelId);
-  logger.log('getDesktopChannelRoute', screenName);
-  // Notes channels always open under Home: the notebook sidebar wiring
-  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
-  // only in that drawer, so under Messages the desktop split view would
-  // render a note detail with no tree or create actions.
-  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
-  return {
-    name: resolvedTab,
-    params: {
-      screen: screenName,
-      pop: true,
-      params: {
-        channelId,
-        selectedPostId,
-        ...(groupId ? { groupId } : {}),
-        screen: 'ChannelRoot',
-        pop: true,
-        params: {
-          channelId,
-          selectedPostId,
-          ...(groupId ? { groupId } : {}),
-        },
-      },
-    },
-  } as const;
-}
-
 export async function getMainGroupRoute(
   groupId: string,
   isWindowNarrow: boolean
@@ -618,25 +585,20 @@ export async function getMainGroupRoute(
     store.fetchGroup(groupId),
     isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
   ]);
+
+  if (!isWindowNarrow) {
+    return getDesktopGroupEntryRoute(
+      groupId,
+      group?.channels?.map((channel) => channel.id) ?? [],
+      lastVisitedChannelId
+    );
+  }
+
   if (
     group &&
     group.channels &&
-    (group.channels.length === 1 || !isWindowNarrow)
+    group.channels.length === 1
   ) {
-    if (!isWindowNarrow && lastVisitedChannelId) {
-      return getDesktopChannelRoute('Home', lastVisitedChannelId, groupId);
-    }
-
-    if (!isWindowNarrow) {
-      if (group.channels.length > 0) {
-        return getDesktopChannelRoute('Home', group.channels[0].id, groupId);
-      }
-      return {
-        name: 'GroupChannels',
-        params: { groupId },
-      } as const;
-    }
-
     return {
       name: 'Channel',
       params: { channelId: group.channels[0].id, groupId },

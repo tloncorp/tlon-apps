@@ -4,11 +4,64 @@ import {
   NavigationChainNode,
   getActiveNestedGroupId,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupEntryRoute,
   getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
   isActivityBackTarget,
 } from './routeHelpers';
+
+describe('getDesktopGroupEntryRoute', () => {
+  const groupId = '~zod/project';
+  const notebookId = 'notes/~zod/project/notebook';
+  const chatId = 'chat/~zod/project/general';
+
+  test('returns to the most recently visited current channel', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], chatId)
+    ).toMatchObject({
+      name: 'Home',
+      params: {
+        screen: 'Channel',
+        params: { channelId: chatId, groupId },
+      },
+    });
+  });
+
+  test('opens the group channel list when no channel has been visited', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], null)
+    ).toEqual({
+      name: 'Home',
+      params: {
+        screen: 'GroupChannels',
+        pop: true,
+        params: { groupId },
+      },
+    });
+  });
+
+  test('does not reopen a stale remembered channel', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], 'notes/deleted')
+    ).toMatchObject({
+      name: 'Home',
+      params: { screen: 'GroupChannels', params: { groupId } },
+    });
+  });
+
+  test('keeps the single-channel desktop shortcut', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [chatId], null)
+    ).toMatchObject({
+      name: 'Home',
+      params: {
+        screen: 'Channel',
+        params: { channelId: chatId, groupId },
+      },
+    });
+  });
+});
 
 describe('getActiveNestedGroupId', () => {
   test('finds the group on the active nested desktop channel route', () => {
