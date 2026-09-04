@@ -1422,6 +1422,11 @@ type NotesActivityGroup = {
   })[];
 };
 
+type NotesNotebookInfo = {
+  title: string;
+  syncedAt: number | null;
+};
+
 /**
  * Find the newest joined notebook activity in each group. Notebook recency is
  * authoritative for ordering, while the note identity can come from either a
@@ -1454,22 +1459,43 @@ async function getGroupNotesActivity(
   const notebookFlags = notesChannels.flatMap(({ notebookFlag }) =>
     notebookFlag ? [notebookFlag] : []
   );
-  const [eventsByChannel, notesByNotebook, notebookTitlesByFlag] =
-    await Promise.all([
+  const [eventsByChannel, notesByNotebook, notebooksByFlag] = await Promise.all(
+    [
       getLatestNoteEventsByChannel(
         notesChannels.map(({ channel }) => channel.id),
         ctx
       ),
       getLatestNotesByNotebook(notebookFlags, ctx),
-      getNotesNotebookTitles(notebookFlags, ctx),
-    ]);
+      getNotesNotebookInfo(notebookFlags, ctx),
+    ]
+  );
+  const storedEventNoteKeys = await getStoredEventNoteKeys(
+    notesChannels,
+    eventsByChannel,
+    ctx
+  );
 
   for (const { groupId, channel, notebookFlag } of notesChannels) {
     const recency = channel.unread?.updatedAt ?? 0;
-    const detail = newestNotesActivityDetail(
-      eventsByChannel.get(channel.id),
-      notebookFlag ? notesByNotebook.get(notebookFlag) : undefined
+    const event = eventsByChannel.get(channel.id);
+    const localNote = notebookFlag
+      ? notesByNotebook.get(notebookFlag)
+      : undefined;
+    const notebook = notebookFlag
+      ? notebooksByFlag.get(notebookFlag)
+      : undefined;
+    const eventConfirmedDeleted = Boolean(
+      event?.noteId &&
+      notebookFlag &&
+      notebook?.syncedAt != null &&
+      (noteTimestampMs(notebook.syncedAt) ?? 0) >= event.timestamp &&
+      !storedEventNoteKeys.has(noteKey(notebookFlag, event.noteId))
     );
+    const detail = eventConfirmedDeleted
+      ? localNote && event && localNote.timestamp > event.timestamp
+        ? localNote
+        : undefined
+      : newestNotesActivityDetail(event, localNote);
     const timestamp = Math.max(recency, detail?.timestamp ?? 0);
     if (timestamp <= 0) {
       continue;
@@ -1486,10 +1512,7 @@ async function getGroupNotesActivity(
         : null;
     activityByGroup.set(groupId, {
       channelId: channel.id,
-      notebookTitle:
-        channel.title ??
-        (notebookFlag ? notebookTitlesByFlag.get(notebookFlag) : null) ??
-        null,
+      notebookTitle: channel.title ?? notebook?.title ?? null,
       noteId: describes?.noteId ?? null,
       noteTitle: describes?.noteTitle ?? null,
       authorId: describes?.authorId ?? null,
@@ -1519,6 +1542,7 @@ async function getLatestNoteEventsByChannel(
   channelIds: string[],
   ctx: QueryCtx
 ): Promise<Map<string, NotesActivityDetail>> {
+  const $newerEvents = alias($activityEvents, 'newerNoteActivityEvents');
   const rows = await ctx.db
     .select({
       channelId: $activityEvents.channelId,
@@ -1532,10 +1556,32 @@ async function getLatestNoteEventsByChannel(
     .where(
       and(
         inArray($activityEvents.type, ['note-create', 'note-edit']),
-        inArray($activityEvents.channelId, channelIds)
+        inArray($activityEvents.channelId, channelIds),
+        notExists(
+          ctx.db
+            .select({ id: $newerEvents.id })
+            .from($newerEvents)
+            .where(
+              and(
+                eq($newerEvents.channelId, $activityEvents.channelId),
+                inArray($newerEvents.type, ['note-create', 'note-edit']),
+                or(
+                  gt($newerEvents.timestamp, $activityEvents.timestamp),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    gt($newerEvents.id, $activityEvents.id)
+                  ),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    eq($newerEvents.id, $activityEvents.id),
+                    gt($newerEvents.bucketId, $activityEvents.bucketId)
+                  )
+                )
+              )
+            )
+        )
       )
-    )
-    .orderBy(desc($activityEvents.timestamp));
+    );
 
   const latest = new Map<string, NotesActivityDetail>();
   for (const row of rows) {
@@ -1559,19 +1605,69 @@ async function getLatestNoteEventsByChannel(
   return latest;
 }
 
-async function getNotesNotebookTitles(
+async function getNotesNotebookInfo(
   notebookFlags: string[],
   ctx: QueryCtx
-): Promise<Map<string, string>> {
+): Promise<Map<string, NotesNotebookInfo>> {
   if (notebookFlags.length === 0) {
     return new Map();
   }
 
   const rows = await ctx.db
-    .select({ id: $notesNotebooks.id, title: $notesNotebooks.title })
+    .select({
+      id: $notesNotebooks.id,
+      title: $notesNotebooks.title,
+      syncedAt: $notesNotebooks.syncedAt,
+    })
     .from($notesNotebooks)
     .where(inArray($notesNotebooks.id, notebookFlags));
-  return new Map(rows.map((row) => [row.id, row.title]));
+  return new Map(
+    rows.map((row) => [
+      row.id,
+      { title: row.title, syncedAt: row.syncedAt ?? null },
+    ])
+  );
+}
+
+async function getStoredEventNoteKeys(
+  notesChannels: Array<{
+    channel: Pick<Channel, 'id'>;
+    notebookFlag: string | null;
+  }>,
+  eventsByChannel: Map<string, NotesActivityDetail>,
+  ctx: QueryCtx
+): Promise<Set<string>> {
+  const candidates = notesChannels.flatMap(({ channel, notebookFlag }) => {
+    const noteId = Number(eventsByChannel.get(channel.id)?.noteId);
+    return notebookFlag && Number.isSafeInteger(noteId)
+      ? [{ notebookFlag, noteId }]
+      : [];
+  });
+  if (candidates.length === 0) {
+    return new Set();
+  }
+
+  const rows = await ctx.db
+    .select({
+      notebookFlag: $notesNotes.notebookFlag,
+      noteId: $notesNotes.noteId,
+    })
+    .from($notesNotes)
+    .where(
+      or(
+        ...candidates.map(({ notebookFlag, noteId }) =>
+          and(
+            eq($notesNotes.notebookFlag, notebookFlag),
+            eq($notesNotes.noteId, noteId)
+          )
+        )
+      )
+    );
+  return new Set(rows.map((row) => noteKey(row.notebookFlag, row.noteId)));
+}
+
+function noteKey(notebookFlag: string, noteId: string | number) {
+  return `${notebookFlag}\0${noteId}`;
 }
 
 // A notebook can contain thousands of notes, so select only the newest row
@@ -1586,6 +1682,8 @@ async function getLatestNotesByNotebook(
   }
 
   const $newerNotes = alias($notesNotes, 'newerNotes');
+  const effectiveAt = sql<number>`coalesce(${$notesNotes.updatedAt}, ${$notesNotes.createdAt})`;
+  const newerEffectiveAt = sql<number>`coalesce(${$newerNotes.updatedAt}, ${$newerNotes.createdAt})`;
   const rows = await ctx.db
     .select({
       notebookFlag: $notesNotes.notebookFlag,
@@ -1594,12 +1692,13 @@ async function getLatestNotesByNotebook(
       updatedBy: $notesNotes.updatedBy,
       createdAt: $notesNotes.createdAt,
       updatedAt: $notesNotes.updatedAt,
+      effectiveAt,
     })
     .from($notesNotes)
     .where(
       and(
         inArray($notesNotes.notebookFlag, notebookFlags),
-        isNotNull($notesNotes.updatedAt),
+        isNotNull(effectiveAt),
         notExists(
           ctx.db
             .select({ id: $newerNotes.id })
@@ -1607,11 +1706,11 @@ async function getLatestNotesByNotebook(
             .where(
               and(
                 eq($newerNotes.notebookFlag, $notesNotes.notebookFlag),
-                isNotNull($newerNotes.updatedAt),
+                isNotNull(newerEffectiveAt),
                 or(
-                  gt($newerNotes.updatedAt, $notesNotes.updatedAt),
+                  gt(newerEffectiveAt, effectiveAt),
                   and(
-                    eq($newerNotes.updatedAt, $notesNotes.updatedAt),
+                    eq(newerEffectiveAt, effectiveAt),
                     gt($newerNotes.noteId, $notesNotes.noteId)
                   )
                 )
@@ -1626,8 +1725,10 @@ async function getLatestNotesByNotebook(
       noteId: String(row.noteId),
       noteTitle: row.title.trim() || null,
       authorId: row.updatedBy ?? null,
-      isNew: row.createdAt != null && row.createdAt === row.updatedAt,
-      timestamp: noteTimestampMs(row.updatedAt) ?? 0,
+      isNew:
+        row.updatedAt == null ||
+        (row.createdAt != null && row.createdAt === row.updatedAt),
+      timestamp: noteTimestampMs(row.effectiveAt) ?? 0,
     });
   }
 

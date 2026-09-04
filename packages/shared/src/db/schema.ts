@@ -411,6 +411,9 @@ export const activityEvents = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
+      channelTimestampIndex: index(
+        'activity_events_channel_id_timestamp_index'
+      ).on(table.channelId, table.timestamp),
     };
   }
 );

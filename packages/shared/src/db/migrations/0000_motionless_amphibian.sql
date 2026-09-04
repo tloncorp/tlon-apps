@@ -30,6 +30,7 @@ CREATE TABLE `activity_events` (
 	PRIMARY KEY(`id`, `bucket_id`)
 );
 --> statement-breakpoint
+CREATE INDEX `activity_events_channel_id_timestamp_index` ON `activity_events` (`channel_id`,`timestamp`);--> statement-breakpoint
 CREATE TABLE `attestations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`provider` text NOT NULL,
