@@ -894,6 +894,74 @@ describe('getChats group recency workaround', () => {
     }
   });
 
+  test('keeps a local note the deleted event outranks on a lagging host clock', async () => {
+    const groupId = '~zod/lagging-host-clock';
+    const channelId = 'notes/~zod/lagging-host-clock';
+    const notebookFlag = '~zod/lagging-host-clock';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    // Recency matches the surviving note, so it is the authority on what the
+    // bump describes even though the deleted event carries a higher stamp.
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 399_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'deleted-note-event',
+        channelId,
+        groupId,
+        postId: '42',
+        title: 'Deleted title',
+        timestamp: 400_000,
+      })
+    );
+    await queries.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: [42],
+    });
+    // Written after the deletion, but the notebook host's clock trails the
+    // activity ship's, so its stamp lands below the deleted event's.
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'lagging-host-clock',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(43, 1, 'Written after the delete', {
+          id: `${notebookFlag}/note/43`,
+          notebookFlag,
+          createdAt: 399,
+          updatedAt: 399,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '43',
+        noteTitle: 'Written after the delete',
+        isNew: true,
+        timestamp: 399_000,
+      });
+    }
+  });
+
   test('keeps a newer post as the group recency when notebook activity is older', async () => {
     const groupId = '~zod/post-wins';
     const channelId = 'notes/~zod/post-wins';

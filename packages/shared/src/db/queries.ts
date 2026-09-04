@@ -1561,11 +1561,15 @@ async function getGroupNotesActivity(
     const localNote = notebookFlag
       ? notesByNotebook.get(notebookFlag)
       : undefined;
-    const detail = event?.isConfirmedDeleted
-      ? localNote && localNote.timestamp > event.timestamp
-        ? localNote
-        : undefined
-      : newestNotesActivityDetail(event, localNote);
+    // A confirmed deletion disqualifies only the event describing it. The
+    // local candidate is not ranked against that event's timestamp: the note
+    // stamp comes from the notebook host and the event stamp from the
+    // activity ship, so ordering them directly would drop a valid note
+    // whenever the host's clock lags. Channel recency arbitrates below.
+    const detail = newestNotesActivityDetail(
+      event?.isConfirmedDeleted ? undefined : event,
+      localNote
+    );
     const now = Date.now();
     const describes =
       detail &&

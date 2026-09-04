@@ -1409,6 +1409,51 @@ test('deleteNotebookFolder tombstones descendant notes after confirmation', asyn
   });
 });
 
+test('deleteNotebookFolder tombstones a descendant note with no local row', async () => {
+  const confirmActivityEventsDeleted = vi.spyOn(
+    db,
+    'confirmNotesActivityEventsDeleted'
+  );
+  const childFolder = makeNotesFolder(
+    rootFolder.folderId + 1,
+    'Child',
+    rootFolder.folderId
+  );
+  // On the host and carrying an activity event, but never synced into
+  // notesNotes -- the state markNotesNotebookStaleForNoteEvent handles.
+  const hostOnlyNote = makeNotesNote(42, childFolder.folderId, 'Host only', {
+    folderId: childFolder.folderId,
+  });
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder, childFolder],
+    notes: [],
+    members: [],
+  });
+
+  let deleted = false;
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockImplementation(async () =>
+    deleted
+      ? [makeApiNotesFolder(rootFolder)]
+      : [makeApiNotesFolder(rootFolder), makeApiNotesFolder(childFolder)]
+  );
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(async () =>
+    deleted ? [] : [makeApiNotesNote(hostOnlyNote)]
+  );
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'deleteFolder').mockImplementation(async () => {
+    deleted = true;
+  });
+
+  await deleteNotebookFolder({ notebookFlag, folder: childFolder });
+
+  expect(confirmActivityEventsDeleted).toHaveBeenCalledWith({
+    notebookFlag,
+    noteIds: [hostOnlyNote.noteId],
+  });
+});
+
 test('publishNotebookNote renders current markdown and marks note published', async () => {
   const publishNotesNote = vi
     .spyOn(api.notes, 'publishNote')
