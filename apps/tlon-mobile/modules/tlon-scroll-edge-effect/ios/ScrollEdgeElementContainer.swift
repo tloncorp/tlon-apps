@@ -19,6 +19,7 @@ public final class TlonScrollEdgeEffectModule: Module {
 
 public final class ScrollEdgeElementContainer: ExpoView {
     private static let maxAttachmentAttempts = 100
+    private static let keyboardDismissalAttachmentDelay: TimeInterval = 0.25
 
     private var scrollViewNativeID: String?
     // Held as AnyObject because UIScrollEdgeElementContainerInteraction is iOS
@@ -27,6 +28,7 @@ public final class ScrollEdgeElementContainer: ExpoView {
     private var edgeInteraction: AnyObject?
     private var pendingAttachment: DispatchWorkItem?
     private var pendingAttachmentValidation: DispatchWorkItem?
+    private var pendingKeyboardDismissalAttachment: DispatchWorkItem?
     private var attachmentAttempts = 0
     private var didLogAttachmentFailure = false
     private var edge: UIRectEdge = .bottom
@@ -154,20 +156,33 @@ public final class ScrollEdgeElementContainer: ExpoView {
             // KeyboardStickyView moves the composer with a transform. UIKit's
             // edge interaction can retain the keyboard-open container geometry
             // after that transform settles, leaving a tall soft fade over the
-            // conversation. Reattach on the next main-loop turn so UIKit reads
-            // the composer's final, keyboard-closed position.
+            // conversation. Keep every attachment path paused while the sheet
+            // and composer finish their post-keyboard layout, then reattach
+            // once with the final keyboard-closed geometry.
             interaction.scrollView = nil
             cancelPendingAttachmentWork()
             resetAttachmentSearch()
 
-            DispatchQueue.main.async { [weak self] in
-                self?.attachToScrollViewIfPossible()
+            let workItem = DispatchWorkItem { [weak self] in
+                guard let self else {
+                    return
+                }
+                pendingKeyboardDismissalAttachment = nil
+                attachToScrollViewIfPossible()
             }
+            pendingKeyboardDismissalAttachment = workItem
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + Self.keyboardDismissalAttachmentDelay,
+                execute: workItem
+            )
         }
     }
 
     private func attachToScrollViewIfPossible() {
-        guard window != nil, let scrollViewNativeID else {
+        guard pendingKeyboardDismissalAttachment == nil,
+              window != nil,
+              let scrollViewNativeID
+        else {
             return
         }
 
@@ -276,6 +291,8 @@ public final class ScrollEdgeElementContainer: ExpoView {
         pendingAttachment = nil
         pendingAttachmentValidation?.cancel()
         pendingAttachmentValidation = nil
+        pendingKeyboardDismissalAttachment?.cancel()
+        pendingKeyboardDismissalAttachment = nil
     }
 
     private func resetAttachmentSearch() {
