@@ -1,21 +1,22 @@
-::  tests for %steward agent (lens module + gateway module)
+::  tests for %steward agent (lens module + gateway module + prompts module)
 ::
 /-  s=steward, a=activity, av=activity-ver
 /-  l=steward-lens
 /-  g=steward-gateway
+/-  p=steward-prompts
 /+  *test-agent
 /=  agent  /app/steward
 |%
 ++  dap  %steward
-::  agent state — single version (greenfield, no migration). `bots` is the
-::  owner-side trusted set.
+::  current agent state. `bots` is the owner-side trusted set.
 ::
-+$  state-0
-  $:  %0
++$  state-1
+  $:  %1
       owner=(unit ship)
       bots=(set ship)
       lens=state:v1:l
       gateway=state:v1:g
+      prompts=state:v1:p
   ==
 ::  lens run payloads are opaque $json; a simple value suffices for tests
 ::
@@ -97,7 +98,7 @@
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   ;<  ~  bind:m  (ex-cards caz ~)
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(owner.st) !>(`(unit ship)``~bus))
 ::
 ::  a completely foreign ship (not ourselves) must crash the local-only
@@ -360,7 +361,7 @@
   ;<  *  bind:m
     (do-poke %steward-lens-action-1 !>(`action:v1:l`[%configure 1]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(~(wyt by runs.lens.st)) !>(1))
 ::
 ::  /x/v1/lens/since/[da] returns entries with received >= cutoff, newest
@@ -500,7 +501,7 @@
     :~  (ex-task /activity [~dev %activity] %watch /v5)
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   (ex-equal !>(max-runs-per-bot.lens.st) !>(`@ud`3.000))
 ::
 ++  test-watch-rejects-foreign-ship
@@ -550,7 +551,7 @@
   ^-  form:m
   ;<  ~  bind:m  setup-gateway
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(active-window.gateway.st) !>(~m5))
   (ex-equal !>(reply-cooldown.gateway.st) !>(~m5))
 ::
@@ -576,7 +577,7 @@
         (ex-fact-paths ~[/v1/gateway])
     ==
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(lease-until.gateway.st) !>(`lease-time))
 ::
@@ -594,7 +595,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(|))
   (ex-equal !>(lease-until.gateway.st) !>(`new-lease))
@@ -610,7 +611,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -625,7 +626,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-old' 'stale']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(`'boot-1'))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
@@ -644,7 +645,7 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-heartbeat 'boot-1' new-lease]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   ;<  ~  bind:m  (ex-equal !>(boot-id.gateway.st) !>(~))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
@@ -660,7 +661,7 @@
   ;<  ~  bind:m  (wait ~s91)
   ;<  *  bind:m  (do-arvo /gateway/lease-check [%behn %wake ~])
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%down))
   (ex-equal !>(pending-restart.gateway.st) !>(&))
 ::
@@ -756,13 +757,13 @@
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-stop 'boot-1' 'test']))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(pending-restart.gateway.st) !>(&))
   =/  lease-time-2  (add ~2024.1.1 ~m4)
   ;<  *  bind:m
     (do-poke %steward-gateway-action-1 !>(`action:v1:g`[%gateway-start 'boot-2' lease-time-2]))
   ;<  res=cage  bind:m  (got-peek /x/dbug/state)
-  =/  st  !<(state-0 !<(vase q.res))
+  =/  st  !<(state-1 !<(vase q.res))
   ;<  ~  bind:m  (ex-equal !>(status.gateway.st) !>(%up))
   (ex-equal !>(pending-restart.gateway.st) !>(|))
 ::
@@ -778,4 +779,1143 @@
   =+  !<([=status:v1:g lut=(unit @da)] q.res)
   ;<  ~  bind:m  (ex-equal !>(status) !>(%up))
   (ex-equal !>(lut) !>(`lease-time))
+::
+::  ==========================================================
+::  PROMPTS MODULE TESTS
+::  ==========================================================
+::
+::  a gateway %seed stores the effective set and fans it to the owner
+::
+++  test-pr-seed-stores-and-syncs-to-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  =/  seed=(map @t @t)
+    (my ~[['SOUL.md' 'be kind'] ['AGENTS.md' 'do agent things']])
+  =/  expect=prompts:v1:p
+    %-  my
+    :~  ['SOUL.md' 'be kind' ~2024.1.1 %.n]
+        ['AGENTS.md' 'do agent things' ~2024.1.1 %.n]
+    ==
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%seed seed]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts ~dev expect])
+        ==
+        %-  ex-poke
+        :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%sync expect])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
+::
+::  gateways re-seed on every boot: an identical %seed skips the local
+::  fact but still re-fans to the owner (a previous fan may have been
+::  nacked while the owner's agent was restarting)
+::
+++  test-pr-seed-noop-still-refans-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  =/  seed=(map @t @t)  (my ~[['SOUL.md' 'be kind']])
+  ;<  *  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%seed seed]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%seed seed]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
+::
+::  a re-seed keeps the stored timestamp for entries whose text is unchanged
+::
+++  test-pr-seed-preserves-unchanged-timestamps
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind'] ['USER.md' 'james']])])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  =/  expect=prompts:v1:p
+    %-  my
+    :~  ['SOUL.md' 'be kind' ~2024.1.1 %.n]
+        ['USER.md' 'james' ~2024.1.2 %.n]
+    ==
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
+::
+::  %seed is local-only (the gateway pokes as the bot ship itself)
+::
+++  test-pr-seed-from-foreign-ship-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as ~zod)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'evil']])])
+::
+::  a local %set targeting ourselves stores the edit, notifies the local
+::  gateway on /v1/prompts, and refreshes the owner's mirror
+::
+++  test-pr-set-stores-and-notifies-gateway
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ::  a seed activates prompt sync; %set is rejected on an empty set
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'seeded']])])
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.y]])
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'be kind'])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%set 'SOUL.md' ['be kind' ~2024.1.1 %.y]])
+        ==
+        %-  ex-poke
+        :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%sync expect])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
+::
+::  a local %set targeting a remote bot relays to that bot's steward and
+::  leaves our own canonical set untouched
+::
+++  test-pr-set-relays-to-remote-bot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set moon 'SOUL.md' 'be kind'])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/set/(scot %p moon)/(scot %t 'SOUL.md')
+            [moon %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%set moon 'SOUL.md' 'be kind'])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev *prompts:v1:p]))
+::
+::  the configured owner may set prompts on its bot cross-ship
+::
+++  test-pr-set-from-owner-accepted
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'seeded']])])
+  ;<  *  bind:m
+    %-  (do-as ~bus)
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'from owner'])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'from owner' ~2024.1.1 %.y]])
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
+::
+::  a non-owner ship must not be able to edit prompts
+::
+++  test-pr-set-from-foreign-ship-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' 'evil'])
+::
+::  a cross-ship %set must target us — we never proxy a non-local edit on
+::  to a third ship
+::
+++  test-pr-set-relay-from-owner-to-third-ship-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set moon 'SOUL.md' 'proxy attempt'])
+::
+::  a nacked %set relay re-facts the bot's current mirror so the editing
+::  client's optimistic state reverts to what the bot actually holds
+::
+++  test-pr-set-relay-nack-refacts-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  =/  cur=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.n]])
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%sync cur]))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set moon 'SOUL.md' 'new text'])
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/set/(scot %p moon)/(scot %t 'SOUL.md')
+        [moon %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  %+  ex-cards  caz
+  :~  %-  ex-fact
+      :*  ~[/v1/prompts]
+          %steward-prompts-update-1
+          !>(`update:v1:p`[%prompts moon cur])
+      ==
+  ==
+::
+::  a trusted bot's %sync is stored in the mirror keyed by src
+::
+++  test-pr-sync-from-trusted-bot-stores-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  =/  synced=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.y]])
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%sync synced]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts moon synced])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts/(scot %p moon))
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts moon synced]))
+::
+::  an untrusted ship's %sync is rejected — trust is explicit, like lens
+::  %entry fan-in
+::
+++  test-pr-sync-from-untrusted-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  %-  ex-fail
+  %-  (do-as moon)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'sneaky' ~2024.1.1 %.y]])])
+::
+::  a self-owned bot stores its owner mirror directly, no network hop
+::
+++  test-pr-self-owned-set-stores-mirror-directly
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~dev)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'seeded']])])
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.y]])
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'be kind'])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%set 'SOUL.md' ['be kind' ~2024.1.1 %.y]])
+        ==
+        %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts ~dev expect])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts/(scot %p ~dev))
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev expect]))
+::
+::  an oversized prompt nacks at the first hop so the editing client sees
+::  the failure instead of a silent drop reading as success
+::
+++  test-pr-oversized-set-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  =/  big=@t  (fil 3 65.537 'a')
+  %-  ex-fail
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' big])
+::
+::  a re-seed with changed text updates an un-edited entry (upstream
+::  prompt-set updates flow through)
+::
+++  test-pr-seed-updates-unedited-entry
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v1']])])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v2 from upstream']])])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  %+  ex-equal  !>(update)
+  !>(`update:v1:p`[%prompts ~dev (my ~[['SOUL.md' 'v2 from upstream' ~2024.1.2 %.n]])])
+::
+::  a seed with different text never overwrites a pinned owner edit (the
+::  gateway simply hasn't applied it yet)
+::
+++  test-pr-seed-preserves-pinned-edit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v1']])])
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'owner edit'])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'stale file text'] ['TOOLS.md' 'tools']])])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  %+  ex-equal  !>(update)
+  !>
+  ^-  update:v1:p
+  :+  %prompts  ~dev
+  %-  my
+  :~  ['SOUL.md' 'owner edit' ~2024.1.1 %.y]
+      ['TOOLS.md' 'tools' ~2024.1.2 %.n]
+  ==
+::
+::  a pinned edit missing from the seed entirely is kept, not dropped
+::
+++  test-pr-seed-keeps-missing-pinned-edit
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'v1']])])
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev 'SOUL.md' 'owner edit'])
+  ;<  ~  bind:m  (jab-bowl |=(b=bowl b(now ~2024.1.2)))
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['TOOLS.md' 'tools']])])
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  %+  ex-equal  !>(update)
+  !>
+  ^-  update:v1:p
+  :+  %prompts  ~dev
+  %-  my
+  :~  ['SOUL.md' 'owner edit' ~2024.1.1 %.y]
+      ['TOOLS.md' 'tools' ~2024.1.2 %.n]
+  ==
+::
+::  trusting a bot asks it to re-fan its prompts: a %sync sent before trust
+::  was granted has already been nacked and won't retry on its own
+::
+++  test-pr-trust-bot-requests-resync
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%trust-bot moon]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/request/(scot %p moon)
+          [moon %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%request ~])
+      ==
+  ==
+::
+::  a %request from the configured owner re-fans the canonical set
+::
+++  test-pr-request-from-owner-resyncs
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    %-  (do-as ~bus)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%request ~]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
+::
+::  a %request from a ship that is not the configured owner is rejected
+::
+++  test-pr-request-from-non-owner-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  %-  ex-fail
+  %-  (do-as ~zod)
+  (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%request ~]))
+::
+::  revoking trust drops the bot's prompt mirror (the client's ownership
+::  signal) and facts the now-empty set
+::
+++  test-pr-untrust-bot-drops-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  =/  synced=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.y]])
+  ;<  *  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%sync synced]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts moon *prompts:v1:p])
+        ==
+    ==
+  ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/prompts/(scot %p moon))
+  (ex-equal !>(=(res `(unit (unit cage))`[~ ~])) !>(&))
+::
+::  changing the configured owner revokes the previous owner's mirror and
+::  re-fans the set to the new one
+::
+++  test-pr-owner-change-revokes-previous
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  %+  ex-cards  caz
+  ::  the revoke rides the sync wire so it shares the sync ames flow and
+  ::  can't be overtaken by an in-flight pre-transition %sync
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+      %-  ex-poke
+      :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
+::
+::  re-configuring the same owner is a no-op (gateways re-configure on
+::  every reconnect)
+::
+++  test-pr-reconfigure-same-owner-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  (ex-cards caz ~)
+::
+::  %unconfigure clears the owner and revokes the former owner's mirror
+::  (on the shared sync wire); the cleared owner may no longer edit
+::
+++  test-pr-unconfigure-revokes-owner
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%revoke ~])
+        ==
+    ==
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' 'stale owner edit'])
+::
+::  %unconfigure with no owner set is a no-op
+::
+++  test-pr-unconfigure-when-unset-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  (ex-cards caz ~)
+::
+::  a %revoke from a ship with a mirror entry drops that entry
+::
+++  test-pr-revoke-drops-callers-mirror
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    %-  (do-as moon)
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2023.12.31 %.n]])])
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts moon *prompts:v1:p])
+        ==
+    ==
+  ;<  res=(unit (unit cage))  bind:m  (get-peek /x/v1/prompts/(scot %p moon))
+  (ex-equal !>(=(res `(unit (unit cage))`[~ ~])) !>(&))
+::
+::  a %revoke from a ship without a mirror entry acks as a no-op (boot-time
+::  revoke retries must converge, not nack-loop); it still only ever drops
+::  the sender's own entry
+::
+++  test-pr-revoke-without-mirror-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    %-  (do-as moon)
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%revoke ~]))
+  (ex-cards caz ~)
+::
+::  restoring a former owner whose revoke was never confirmed must NOT
+::  re-issue that revoke — it rides a different flow than the re-fan and
+::  could land after it, deleting the restored owner's fresh mirror
+::
+++  test-pr-reconfigure-former-owner-skips-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  ~bus is replaced (its revoke goes unconfirmed, so it sits in .stale)
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ::  ...then restored. only the re-fan to ~bus and the revoke of ~fed may
+  ::  be emitted — no revoke to ~bus on the dedicated wire
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+      %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync expect])
+      ==
+  ==
+::
+::  one bot's nacked request must not re-poke another pending bot, and a
+::  stale timer (attempt count moved on) is a no-op
+::
+++  test-pr-request-retry-is-per-bot
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  other  (add ~fed (bex 32))
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (trust moon)
+  ;<  ~  bind:m  (trust other)
+  ::  both bots nack, each arming its own wire
+  ;<  *  bind:m
+    %-  do-agent
+    :*  /prompts/request/(scot %p moon)
+        [moon %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  *  bind:m
+    %-  do-agent
+    :*  /prompts/request/(scot %p other)
+        [other %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ::  moon's wake re-issues for moon ONLY
+  ;<  caz=(list card)  bind:m
+    %-  do-arvo
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/request/(scot %p moon)
+            [moon %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%request ~])
+        ==
+    ==
+  ::  a duplicate timer from an earlier attempt count is ignored
+  ;<  caz=(list card)  bind:m
+    %-  do-arvo
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 9)
+    [%behn %wake ~]
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  so is one whose tag was retired (another arm, or a fresh trust grant)
+  ;<  caz=(list card)  bind:m
+    %-  do-arvo
+    :-  /prompts/request-retry/(scot %p moon)/(scot %ud 9)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  a nacked fan-out to the owner is retried on a behn timer; an ack stops
+::  the retries, and the budget is bounded
+::
+++  test-pr-owner-sync-retry-until-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  sync-wire  /prompts/sync/(scot %p ~bus)
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  the owner rejected our fan-out: a retry is armed
+  ;<  caz=(list card)  bind:m
+    (do-agent [sync-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the wake re-fans the canonical set
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  sync-wire
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%sync expect])
+        ==
+    ==
+  ::  an ack stops the retries: a later wake emits nothing
+  ;<  *  bind:m  (do-agent [sync-wire [~bus %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  a revoke nacked on the shared sync wire is NOT treated as a failed
+::  owner sync — those retry via .stale on boot-shaped moments instead
+::
+++  test-pr-revoke-nack-on-sync-wire-arms-nothing
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  owner changes: ~bus is now a FORMER owner, revoked on the sync wire
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~bus)
+        [~bus %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ::  no sync-retry timer: this was a revoke, not a fan-out to our owner
+  (ex-cards caz ~)
+::
+::  a nacked %request is retried on a behn timer, an ack stops the retries,
+::  and the budget is bounded so a ship that never accepts is dropped
+::
+++  test-pr-request-retry-until-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  =/  nack
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ::  first nack schedules a retry
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the wake re-issues the request
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  req-wire
+            [moon %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%request ~])
+        ==
+    ==
+  ::  an ack clears the pending entry: the next wake emits nothing
+  ;<  *  bind:m  (do-agent [req-wire [moon %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  the retry budget is bounded — after max-request-tries nacks the bot is
+::  dropped and no further timer is armed
+::
+++  test-pr-request-retry-budget-exhausts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  =/  nack
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m  nack
+  ;<  *  bind:m  nack
+  ;<  *  bind:m  nack
+  ;<  *  bind:m  nack
+  ::  fifth nack spends the budget: no retry armed
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  and nothing is left pending for a stray wake to re-issue
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  untrusting a bot stops its pending request retries
+::
+++  test-pr-untrust-clears-pending-request
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ;<  *  bind:m
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  a request timer armed before an untrust/trust cycle must not re-poke on
+::  the fresh grant: that grant restarts the attempt count, so the old
+::  timer's count collides with the new era's first attempt and would spend
+::  the fresh budget ahead of the retry delay
+::
+++  test-pr-request-retry-retired-by-trust-grant
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  req-wire  /prompts/request/(scot %p moon)
+  =/  nack
+    (do-agent [req-wire [moon %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  trust-moon
+  ::  first nack arms tag 1, attempt 1
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  untrust then trust again: the entry is dropped, so the next nack's
+  ::  attempt count is back to 1
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%untrust-bot moon]))
+  ;<  *  bind:m  trust-moon
+  ;<  caz=(list card)  bind:m  nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/request-retry/(scot %p moon)/(scot %ud 2)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the old era's timer wakes: the tag retired it, so nothing is emitted
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/request-retry/(scot %p moon)/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  a timer armed in a previous owner's era must not fan out to the new
+::  owner: the attempt count restarts at 0 for a new owner, so an older
+::  era's SECOND attempt collides with the new era's first and would fire
+::  ahead of the retry delay, eating a budget meant to be spread over it
+::
+++  test-pr-sync-retry-retired-by-owner-change
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  bus-nack
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~bus)
+        [~bus %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  two nacked fan-outs to ~bus arm two timers in that era
+  ;<  caz=(list card)  bind:m  bus-nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ;<  caz=(list card)  bind:m  bus-nack
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 2)/(scot %ud 2)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the owner changes, and the new owner's first fan-out is nacked too:
+  ::  its attempt count is back to 1, matching ~bus's first timer
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~fed)
+        [~fed %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/sync-retry/(scot %ud 3)/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  ~bus's timer wakes: the tag retired it, so nothing is emitted
+  ;<  caz=(list card)  bind:m
+    %+  do-arvo
+      /prompts/sync-retry/(scot %ud 1)/(scot %ud 1)
+    [%behn %wake ~]
+  (ex-cards caz ~)
+::
+::  the initial owner-change revoke rides the sync wire; its ack must clear
+::  the ship from .stale, or every later boot-shaped moment re-revokes every
+::  historical owner and the set grows without bound
+::
+++  test-pr-revoke-ack-on-sync-wire-clears-stale
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ::  ~bus becomes a former owner: revoked on the shared sync wire
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  *  bind:m
+    (do-agent [/prompts/sync/(scot %p ~bus) [~bus %steward] [%poke-ack ~]])
+  ::  a later boot-shaped moment revokes only the CURRENT owner's mirror
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+  ==
+::
+::  a nacked owner-change revoke is retried on the next boot-shaped moment
+::  (on the dedicated revoke wire), and a confirming ack stops the retries
+::
+++  test-pr-revoke-retry-until-acked
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  ::  the initial revoke is unconfirmed: a second unconfigure re-issues it
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/revoke/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%revoke ~])
+        ==
+    ==
+  ::  the retry acks: the former owner dropped its mirror — stop retrying
+  ;<  *  bind:m
+    (do-agent [/prompts/revoke/(scot %p ~bus) [~bus %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
+  (ex-cards caz ~)
+::
+::  a repeated %clear still re-fans the empty set (a previous empty fan may
+::  have been nacked while the owner's agent restarted)
+::
+++  test-pr-clear-repeat-refans-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  *  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync *prompts:v1:p])
+      ==
+  ==
+::
+::  %clear (gateway lost prompt-syncing authority) wipes the canonical set
+::  and fans the empty set to the owner so its mirror stops offering edits
+::
+++  test-pr-clear-wipes-own-and-fans-empty
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-fact
+        :*  ~[/v1/prompts]
+            %steward-prompts-update-1
+            !>(`update:v1:p`[%prompts ~dev *prompts:v1:p])
+        ==
+        %-  ex-poke
+        :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%sync *prompts:v1:p])
+        ==
+    ==
+  ;<  res=cage  bind:m  (got-peek /x/v1/prompts)
+  =+  !<(=update:v1:p q.res)
+  (ex-equal !>(update) !>(`update:v1:p`[%prompts ~dev *prompts:v1:p]))
+::
+::  a %set that would push the whole canonical map past the sync payload
+::  cap is nacked — an oversized set could never fan to the owner again
+::
+++  test-pr-set-map-cap-nacks-overflow
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ::  each text must be distinct: jam deduplicates identical subtrees, so
+  ::  repeating one 64KB atom would never grow the jammed map past the cap
+  =/  set-big
+    |=  n=@t
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%set ~dev n (cat 3 (fil 3 65.000 'a') n)])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['S.md' 'x']])])
+  ;<  *  bind:m  (set-big 'P1.md')
+  ;<  *  bind:m  (set-big 'P2.md')
+  ;<  *  bind:m  (set-big 'P3.md')
+  ;<  *  bind:m  (set-big 'P4.md')
+  ;<  *  bind:m  (set-big 'P5.md')
+  ;<  *  bind:m  (set-big 'P6.md')
+  ;<  *  bind:m  (set-big 'P7.md')
+  ;<  *  bind:m  (set-big 'P8.md')
+  (ex-fail (set-big 'P9.md'))
+::
+::  after a %clear, a late owner %set (racing on its own ames flow) is
+::  rejected instead of recreating the mirror with text nothing applies
+::
+++  test-pr-set-after-clear-crashes
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  *  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  %-  ex-fail
+  %-  (do-as ~bus)
+  %+  do-poke  %steward-prompts-action-1
+  !>(`action:v1:p`[%set ~dev 'SOUL.md' 'late edit'])
+::
+::  %clear is local-only and a no-op when nothing is stored
+::
+++  test-pr-clear-auth-and-noop
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  %-  ex-fail
+  %-  (do-as moon)
+  (do-poke %steward-prompts-action-1 !>(`action:v1:p`[%clear ~]))
+::
+::  configuring a (new) owner re-fans the canonical set so the new owner's
+::  mirror doesn't stay empty until some prompt text changes
+::
+++  test-pr-configure-owner-resyncs
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])])
+      ==
+  ==
 --

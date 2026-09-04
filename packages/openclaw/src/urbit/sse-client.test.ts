@@ -27,6 +27,287 @@ describe('UrbitSSEClient', () => {
     vi.restoreAllMocks();
   });
 
+  describe('waitForSubscriptionAck', () => {
+    const okFetch = () => ({
+      response: { ok: true, status: 200 },
+      finalUrl: 'https://example.com',
+      release: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const makeClient = async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      return client;
+    };
+
+    const ackSubscribe = (client: UrbitSSEClient, id: number) =>
+      client.processEvent(
+        `id: 1\ndata: {"id":${id},"response":"subscribe","ok":"ok"}`
+      );
+
+    it('resolves acked once gall acks, and immediately thereafter', async () => {
+      const client = await makeClient();
+      ackSubscribe(client, 1);
+      // Recorded for the generation, so later callers do not wait at all —
+      // this is what lets a caller that timed out simply ask again.
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts')
+      ).resolves.toBe('acked');
+    });
+
+    it('resolves acked when the ack arrives while waiting', async () => {
+      const client = await makeClient();
+      const pending = client.waitForSubscriptionAck('steward', '/v1/prompts');
+      ackSubscribe(client, 1);
+      await expect(pending).resolves.toBe('acked');
+    });
+
+    it('reports timeout without recording an ack', async () => {
+      vi.useFakeTimers();
+      try {
+        const client = await makeClient();
+        const pending = client.waitForSubscriptionAck(
+          'steward',
+          '/v1/prompts',
+          1_000
+        );
+        await vi.advanceTimersByTimeAsync(1_100);
+        await expect(pending).resolves.toBe('timeout');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('reports superseded when the channel is rebuilt while waiting', async () => {
+      const client = await makeClient();
+      const pending = client.waitForSubscriptionAck('steward', '/v1/prompts');
+      // A rebuild bumps the epoch and clears acked keys; the waiter must not
+      // report a watch on the OLD generation as live.
+      (client as unknown as { channelEpoch: number }).channelEpoch += 1;
+      ackSubscribe(client, 1);
+      await expect(pending).resolves.toBe('superseded');
+    });
+
+    it('resolves closed when the caller aborts mid-wait', async () => {
+      const client = await makeClient();
+      const controller = new AbortController();
+      const pending = client.waitForSubscriptionAck(
+        'steward',
+        '/v1/prompts',
+        30_000,
+        controller.signal
+      );
+      // Teardown fires long before close(); the wait must not sit out its
+      // timer or it delays monitor retirement.
+      controller.abort();
+      await expect(pending).resolves.toBe('closed');
+    });
+
+    it('settles pending waits when the client closes', async () => {
+      const client = await makeClient();
+      const pending = client.waitForSubscriptionAck('steward', '/v1/prompts');
+      (client as unknown as { aborted: boolean }).aborted = true;
+      (
+        client as unknown as {
+          subscriptionKeyAckWaiters: Map<string, Set<() => void>>;
+        }
+      ).subscriptionKeyAckWaiters
+        .get('steward/v1/prompts')
+        ?.forEach((w) => w());
+      await expect(pending).resolves.toBe('closed');
+    });
+
+    it('reports unavailable once repeated nacks abandon the watch', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      // An older ship without the module nacks every attempt. Each nack
+      // mints a fresh subscription id, so without a cap this loops forever
+      // and grows `subscriptions` unboundedly.
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      for (let i = 0; i < 6; i += 1) {
+        const id = priv.subscriptions.filter((sub) =>
+          priv.eventHandlers.has(sub.id)
+        )[0]?.id;
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"no-such-path"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).toContain('abandoned');
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts', 1_000)
+      ).resolves.toBe('unavailable');
+      vi.useRealTimers();
+    });
+
+    it('emits a recovery when an abandoned watch is later accepted', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      const liveId = () =>
+        priv.subscriptions.filter((sub) => priv.eventHandlers.has(sub.id))[0]
+          ?.id;
+      for (let i = 0; i < 6; i += 1) {
+        const id = liveId();
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"nope"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).toContain('abandoned');
+      // The desk finishes restarting (or is updated) and a rebuild's
+      // re-send is accepted: consumers must hear about it, or they stay in
+      // their own unavailable state and never backfill.
+      recovery.length = 0;
+      client.processEvent(
+        `id: 99\ndata: {"id":${liveId()},"response":"subscribe","ok":"ok"}`
+      );
+      expect(recovery).toEqual(['recovered']);
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts', 1_000)
+      ).resolves.toBe('acked');
+      vi.useRealTimers();
+    });
+
+    it('never abandons a watch that has already been live', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      const liveId = () =>
+        priv.subscriptions.filter((sub) => priv.eventHandlers.has(sub.id))[0]
+          ?.id;
+      // Proven supported once...
+      client.processEvent(
+        `id: 1\ndata: {"id":${liveId()},"response":"subscribe","ok":"ok"}`
+      );
+      // ...so a later restart nacking repeatedly is transient, not a
+      // missing capability: abandoning would silence its facts for good.
+      for (let i = 0; i < 6; i += 1) {
+        const id = liveId();
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 2}\ndata: {"id":${id},"response":"subscribe","err":"restarting"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).not.toContain('abandoned');
+      vi.useRealTimers();
+    });
+
+    it('never abandons a required watch, however many nacks', async () => {
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      // No `optional` marker: this is a firehose. A long desk restart can
+      // nack replacements repeatedly, and giving up would silently stop
+      // the bot receiving messages.
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      for (let i = 0; i < 6; i += 1) {
+        const id = priv.subscriptions.filter((sub) =>
+          priv.eventHandlers.has(sub.id)
+        )[0]?.id;
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"boom"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).not.toContain('abandoned');
+      vi.useRealTimers();
+    });
+
+    it('reports closed after the client shuts down', async () => {
+      const client = await makeClient();
+      (client as unknown as { aborted: boolean }).aborted = true;
+      await expect(
+        client.waitForSubscriptionAck('steward', '/v1/prompts')
+      ).resolves.toBe('closed');
+    });
+  });
+
   describe('subscribe', () => {
     it('sends subscriptions added after connect', async () => {
       const { urbitFetch } = await import('./fetch.js');
@@ -520,10 +801,15 @@ describe('UrbitSSEClient', () => {
         expect.objectContaining({ phase: 'retrying', attempt: 5 })
       );
 
-      // Node comes back: the next attempt succeeds and reports recovery
-      // with the total downtime so PostHog can aggregate outage duration.
+      // Node comes back: the next attempt succeeds, gall acks the
+      // replacement subscribe, and recovery reports the total downtime so
+      // PostHog can aggregate outage duration.
       mockUrbitFetch.mockResolvedValue(okFetchResult());
       await vi.advanceTimersByTimeAsync(31_000);
+      client.processEvent(
+        'id: 9\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
       const recovered = recoverySpy.mock.calls
         .map((call) => call[0])
         .find((event) => event.phase === 'recovered');
@@ -1198,8 +1484,13 @@ describe('UrbitSSEClient', () => {
       client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
 
       // Resume keeps the epoch unchanged, so the loop sends the replacement
-      // PUT itself rather than concluding recovered_via_reconnect.
+      // PUT itself rather than concluding recovered_via_reconnect; gall's
+      // subscribe ack then confirms the watch is live.
       await vi.advanceTimersByTimeAsync(2_500);
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(recoverySpy).toHaveBeenCalledWith(
         expect.objectContaining({ phase: 'recovered' })
@@ -1213,6 +1504,67 @@ describe('UrbitSSEClient', () => {
       expect(subCall?.[0].path).toContain(client.channelId);
       const body = JSON.parse(subCall?.[0].init?.body as string);
       expect(body[0]).toMatchObject({ action: 'subscribe', id: 2 });
+    });
+
+    it('stops a timed-out resubscribe once a late nack moves the handlers', async () => {
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okPutResult());
+
+      const recoverySpy = vi.fn();
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: recoverySpy }
+      );
+      await client.subscribe({
+        app: 'chat',
+        path: '/v4',
+        event: vi.fn(),
+        quit: vi.fn(),
+      });
+      priv(client).isConnected = true;
+      priv(client).channelEpoch = 1;
+
+      // Gall quit kicks sub 1; the loop registers sub 2 and sends it.
+      client.processEvent('id: 1\ndata: {"id":1,"response":"quit"}');
+      await vi.advanceTimersByTimeAsync(2_500);
+      // Its ack never comes, so the 30s wait expires and the loop retries.
+      await vi.advanceTimersByTimeAsync(30_000);
+      // The nack finally lands: its handler spawns a fresh recovery for
+      // sub 3 and moves the handlers off sub 2.
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","err":"nope"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv(client).eventHandlers.has(2)).toBe(false);
+      recoverySpy.mockClear();
+
+      // Let the abandoned loop reach its next backoff: it must stop rather
+      // than re-send for an id whose handlers are gone.
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      // An ack for the abandoned id must not report the watch live: the
+      // prompt monitor would scry and reconcile before the real
+      // replacement is up and miss any owner edit in the gap.
+      client.processEvent(
+        'id: 2\ndata: {"id":2,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      const putIds = mockUrbitFetch.mock.calls
+        .filter((call) => call[0].init?.method === 'PUT')
+        .flatMap((call) => JSON.parse(call[0].init?.body as string))
+        .map(
+          (entry: { id: number; action: string }) =>
+            `${entry.action}:${entry.id}`
+        );
+      // Only the original sub 2 send and the replacement sub 3 send: the
+      // abandoned loop must not re-send for an id whose handlers are gone,
+      // since that send's ack would report the watch live.
+      expect(putIds).toEqual(['subscribe:2', 'subscribe:3']);
+      expect(recoverySpy).not.toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'recovered' })
+      );
     });
 
     it('a 404 rebuild resolves a pending resubscribe via epoch bump (no double PUT)', async () => {

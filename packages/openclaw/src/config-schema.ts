@@ -54,8 +54,9 @@ export const TlonContextLensSchema = z.object({
   visibilityDefault: z.enum(['owner', 'participants', 'internal']).optional(),
   authToken: z.string().min(16).optional(),
   allowedOrigins: z.array(z.string().min(1)).optional(),
-  // Owner ship that receives run records via the %steward agent (ship sync).
-  // Falls back to `ownerShip` when unset.
+  // Fallback owner for the %steward ship sync, used only when `ownerShip`
+  // is unset. `ownerShip` always wins: the value configures %steward's
+  // SHARED owner, which also gates prompt-edit authorization and routing.
   owner: ShipSchema.optional(),
   // Durable on-disk history of finalized runs (default on when the lens is
   // enabled). Hosted deployments with ephemeral disks can point `path` at a
@@ -99,6 +100,14 @@ export const TlonNudgeActiveHoursSchema = z.object({
   timezone: z.string().min(1).optional(),
 });
 
+/**
+ * Ship-managed system prompt overrides, keyed by workspace file name
+ * (e.g. "SOUL.md"). Prompt sync writes these when the owner edits a prompt
+ * via %steward; the ship remains the store of record and re-seeds them on
+ * every gateway boot.
+ */
+export const TlonPromptsSchema = z.record(z.string().min(1), z.string());
+
 export const TlonAccountSchema = z.object({
   name: z.string().optional(),
   enabled: z.boolean().optional(),
@@ -132,6 +141,11 @@ export const TlonAccountSchema = z.object({
   // global toggle is on. Owner messages in these channels still require an
   // @-mention to engage the bot.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
+  // Ship-managed system prompt overrides (see TlonPromptsSchema).
+  prompts: TlonPromptsSchema.optional(),
+  // Bot ship the prompts cache was generated for; a repointed account slot
+  // invalidates a cache stamped for a different ship.
+  promptsShip: z.string().optional(),
 });
 
 export const TlonConfigSchema = z.object({
@@ -176,6 +190,37 @@ export const TlonConfigSchema = z.object({
   // global toggle is on. Owner messages in these channels still require an
   // @-mention to engage the bot.
   ownerListenDisabledChannels: z.array(ChannelNestSchema).optional(),
+  // Ship-managed system prompt overrides (see TlonPromptsSchema).
+  prompts: TlonPromptsSchema.optional(),
+  // Bot ship the prompts cache was generated for; a repointed account slot
+  // invalidates a cache stamped for a different ship.
+  promptsShip: z.string().optional(),
+  // Prompt-sync shadow ledger, written by prompt sync alongside the
+  // per-account caches. Keyed by SHIP and living OUTSIDE the account
+  // blocks, so deleting or repointing an account keeps a record of the
+  // prompt text its owner edited onto the shared agent workspace — the
+  // next syncing authority filters those texts out of its seed instead of
+  // leaking them to a different ship.
+  promptSync: z
+    .object({
+      // Per-ship, per-name HISTORY of edited texts (bounded) — older texts
+      // may still sit on the shared workspace if an apply failed.
+      ships: z.record(
+        z.string().min(1),
+        z.record(z.string().min(1), z.array(z.string()))
+      ),
+      // Per-ship, per-name text last successfully APPLIED to the workspace
+      // files. Never evicted — it is by definition what may still be on
+      // disk, so the foreign filter must always recognize it.
+      applied: z.record(z.string().min(1), TlonPromptsSchema).optional(),
+      // Per-FILE owner stamp: which ship's stored edits last wrote this
+      // workspace file. Provenance by ownership, not text inference —
+      // entrypoints legitimately rewrite prompt files (re-appending marked
+      // blocks), so a former owner's file can differ from every recorded
+      // text while still carrying their content.
+      files: z.record(z.string().min(1), z.string()).optional(),
+    })
+    .optional(),
 });
 
 // Cast bridges a type-only mismatch: this repo's zod and openclaw's bundled

@@ -17,6 +17,9 @@
       %-  frond  :-  'owner'
       s+(scot %p owner.action)
     ::
+        %unconfigure
+      (frond 'unconfigure' ~)
+    ::
         %trust-bot
       %-  frond  :-  'trust-bot'
       %-  frond  :-  'ship'
@@ -35,6 +38,7 @@
     =,  dejs:format
     %-  of
     :~  [%configure (ot ~[owner+(se %p)])]
+        [%unconfigure ul]
         [%trust-bot (ot ~[ship+(se %p)])]
         [%untrust-bot (ot ~[ship+(se %p)])]
     ==

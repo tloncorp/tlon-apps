@@ -24,6 +24,7 @@ export async function pokeUrbitChannel(
     json: unknown;
     auditContext: string;
     pokeId?: number;
+    signal?: AbortSignal;
   }
 ): Promise<number> {
   const pokeId = params.pokeId ?? Date.now();
@@ -51,6 +52,7 @@ export async function pokeUrbitChannel(
     lookupFn: deps.lookupFn,
     fetchImpl: deps.fetchImpl,
     timeoutMs: 30_000,
+    signal: params.signal,
     auditContext: params.auditContext,
   });
 

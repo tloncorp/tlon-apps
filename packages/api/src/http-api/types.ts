@@ -179,6 +179,15 @@ export interface AuthenticationInterface {
  */
 export interface SubscriptionInterface {
   /**
+   * Handle positive %watch-ack: gall accepted the watch and it is live.
+   *
+   * subscribe() resolves on the channel PUT, which only means Eyre queued
+   * the subscribe — facts can still be dropped until this fires. Callers
+   * that backfill a gap (scry, then watch) must do it from here, or a fact
+   * landing in between is lost with nothing to trigger another read.
+   */
+  ack?(id: number): void;
+  /**
    * Handle negative %watch-ack
    */
   err?(error: any, id: string): void;

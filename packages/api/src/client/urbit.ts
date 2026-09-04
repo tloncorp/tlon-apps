@@ -332,7 +332,32 @@ function printEndpoint(endpoint: UrbitEndpoint) {
 
 export async function subscribe<T>(
   endpoint: UrbitEndpoint,
-  handler: (update: T, id?: number) => void
+  handler: (update: T, id?: number) => void,
+  opts?: {
+    /**
+     * Called when the agent quits the watch (desk restart/upgrade).
+     * Providing this DISABLES the client's automatic resubscription —
+     * which would otherwise create a replacement whose new id the caller
+     * can't track or unsubscribe — so quit recovery becomes the caller's
+     * job: re-subscribe and re-fetch backing state here.
+     */
+    onQuit?: () => void;
+    /**
+     * Called on a non-auth subscription error delivered AFTER registration
+     * (the subscribe promise resolves when the channel PUT completes; a
+     * gall nack arrives later on the event stream). The subscription is
+     * dead at that point — re-subscribe if the watch must stay live. Auth
+     * errors are excluded: the wrapper already re-authenticates and
+     * re-subscribes on those itself.
+     */
+    onError?: (error: unknown) => void;
+    /**
+     * Called on the positive watch-ack. The returned promise resolves on
+     * the channel PUT, so facts can still be dropped until this fires —
+     * anything backfilling a scry-then-watch gap has to read from here.
+     */
+    onAck?: () => void;
+  }
 ): Promise<number> {
   const doSub = async (err?: (error: any, id: string) => void) => {
     if (!config.client) {
@@ -345,6 +370,15 @@ export async function subscribe<T>(
     return config.client.subscribe({
       app: endpoint.app,
       path: endpoint.path,
+      // resubOnQuit defaults ON in Urbit.subscribe. With a caller-owned
+      // quit handler both recoveries would run: the auto-replacement (whose
+      // new id nobody tracks or can unsubscribe) plus the caller's own —
+      // duplicating the watch and every fact on each quit.
+      ...(opts?.onQuit ? { resubOnQuit: false } : {}),
+      ack: () => {
+        logger.log('subscription acked on', printEndpoint(endpoint));
+        opts?.onAck?.();
+      },
       event: (event: any, mark: string, id?: number) => {
         logger.debug(
           `got subscription event on ${printEndpoint(endpoint)}:`,
@@ -377,6 +411,7 @@ export async function subscribe<T>(
       quit: () => {
         logger.log('subscription quit on', printEndpoint(endpoint));
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
+        opts?.onQuit?.();
       },
       err: (error, id) => {
         logger.trackError(`subscribe error on ${printEndpoint(endpoint)}`, {
@@ -389,6 +424,9 @@ export async function subscribe<T>(
             printEndpoint(endpoint)
           );
           err(error, id);
+        }
+        if (!(error instanceof AuthError)) {
+          opts?.onError?.(error);
         }
       },
     });
