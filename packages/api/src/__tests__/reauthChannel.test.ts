@@ -7,6 +7,8 @@ import {
   poke,
   subscribe,
 } from '../client/urbit';
+import { Atom } from '@urbit/nockjs';
+
 import { AuthError, ChannelPutError } from '../http-api';
 import { Urbit } from '../http-api/Urbit';
 
@@ -130,6 +132,31 @@ describe('reauth', () => {
     expect(client.cookie).toBe('urbauth=refreshed');
   });
 
+  test('exhausted 401 retries hand off to the auth failure handler', async () => {
+    vi.useFakeTimers();
+    const handleAuthFailure = vi.fn();
+    const client = fakeClient({
+      poke: vi.fn().mockRejectedValue(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(401));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      handleAuthFailure,
+      client: client as any,
+    });
+
+    const pending = poke({ app: 'a', mark: 'm', json: {} }).catch((e) => e);
+    await vi.advanceTimersByTimeAsync(30_000);
+    await expect(pending).resolves.toMatchObject({
+      message: expect.stringContaining('Authentication failed with status 401'),
+    });
+    expect(loginFetch).toHaveBeenCalledTimes(4);
+    expect(handleAuthFailure).toHaveBeenCalledWith({ mustLogout: false });
+  });
+
   test('a rejected access code logs out instead of retrying', async () => {
     const handleAuthFailure = vi.fn();
     const client = fakeClient({
@@ -249,12 +276,45 @@ describe('channel identity mismatch', () => {
 });
 
 describe('seamlessReset', () => {
+  test('a stale subscribe PUT failing after a reset leaves the new subscription alone', async () => {
+    let rejectStale!: (err: unknown) => void;
+    const fetch = vi
+      .fn()
+      // the first subscribe PUT stays pending until we say so
+      .mockImplementationOnce(
+        () => new Promise((_, reject) => (rejectStale = reject))
+      )
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    urbit.nodeId = '~zod';
+    (urbit as any).sseClientInitialized = true;
+
+    const stale = urbit
+      .subscribe({ app: 'a', path: '/old', event: () => {} })
+      .catch((e) => e);
+    // rotation restarts the id sequence and replays the subscription, so the
+    // replacement lands on id 1 as well
+    urbit.seamlessReset();
+    // the replayed PUT would otherwise try to open an event source
+    (urbit as any).sseClientInitialized = true;
+    const subs = (urbit as any).outstandingSubscriptions as Map<number, any>;
+    expect(subs.get(1)?.path).toBe('/old');
+    const replayed = subs.get(1);
+
+    rejectStale(new ChannelPutError(403));
+    await expect(stale).resolves.toMatchObject({ status: 403 });
+    // the stale failure must not evict the replayed subscription in its slot
+    expect(subs.get(1)).toBe(replayed);
+  });
+
   test('aborts the old channel connection so its retry loop stops', async () => {
+    vi.useFakeTimers();
     const fetch = vi.fn(async () => new Response(null, { status: 204 }));
     const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
     urbit.nodeId = '~zod';
     (urbit as any).sseClientInitialized = true;
-    await urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
+    // the PUT goes out synchronously; the poke itself only settles on an ack
+    void urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
     const oldSignal: AbortSignal = (fetch.mock.calls[0] as any)[1].signal;
     const oldChannel = urbit.channelId;
 
@@ -262,9 +322,18 @@ describe('seamlessReset', () => {
 
     expect(oldSignal.aborted).toBe(true);
     expect(urbit.channelId).not.toBe(oldChannel);
-    await urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
+    void urbit.poke({ app: 'a', mark: 'm', json: {} }).catch(() => {});
     const newSignal: AbortSignal = (fetch.mock.calls[1] as any)[1].signal;
     expect(newSignal.aborted).toBe(false);
+  });
+
+  test('a noun PUT failure carries the status', async () => {
+    const fetch = vi.fn(async () => new Response('forbidden', { status: 403 }));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    urbit.nodeId = '~zod';
+    await expect(
+      (urbit as any).sendNounsToChannel(new Atom(0n))
+    ).rejects.toMatchObject({ name: 'ChannelPutError', status: 403 });
   });
 });
 

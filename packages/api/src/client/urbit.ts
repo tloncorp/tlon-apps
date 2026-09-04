@@ -1077,6 +1077,12 @@ async function performReauth(): Promise<string | void> {
       const staleCookie =
         e instanceof AuthFailureError && e.responseStatus === 401;
       if (!staleCookie || lastAttempt) {
+        if (staleCookie && config.handleAuthFailure) {
+          // we are out of retries with a cookie the ship keeps rejecting; let
+          // the app decide what an unrecoverable session means for it
+          logger.log('auth failed, calling auth failure handler');
+          config.handleAuthFailure({ mustLogout: false });
+        }
         throw new Error(`Error during reauth: ${e}`);
       }
     }

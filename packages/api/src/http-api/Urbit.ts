@@ -638,7 +638,7 @@ export class Urbit {
     });
     if (!response.ok) {
       console.log(response.status, response.statusText, await response.text());
-      throw new Error('Failed to PUT channel command(s)');
+      throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -865,14 +865,15 @@ export class Urbit {
       path,
     };
 
-    this.outstandingSubscriptions.set(message.id, {
+    const entry: SubscriptionRequestInterface = {
       app,
       path,
       resubOnQuit,
       err,
       event,
       quit,
-    });
+    };
+    this.outstandingSubscriptions.set(message.id, entry);
 
     this.emit('subscription', {
       id: message.id,
@@ -885,9 +886,13 @@ export class Urbit {
       await this.sendJSONtoChannel(message);
     } catch (err) {
       // the ship never saw this subscription, so don't let a later channel
-      // reset resubscribe it on the caller's behalf; the caller retries
-      this.outstandingSubscriptions.delete(message.id);
-      this.emit('subscription', { id: message.id, status: 'close' });
+      // reset resubscribe it on the caller's behalf; the caller retries.
+      // a reset while this PUT was pending restarts the id sequence, so the
+      // slot may already belong to a live subscription on the new channel
+      if (this.outstandingSubscriptions.get(message.id) === entry) {
+        this.outstandingSubscriptions.delete(message.id);
+        this.emit('subscription', { id: message.id, status: 'close' });
+      }
       throw err;
     }
 
