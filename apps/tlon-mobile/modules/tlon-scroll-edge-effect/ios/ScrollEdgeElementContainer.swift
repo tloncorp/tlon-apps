@@ -45,11 +45,19 @@ public final class ScrollEdgeElementContainer: ExpoView {
             interaction.edge = edge
             edgeInteraction = interaction
             addInteraction(interaction)
+
+            NotificationCenter.default.addObserver(
+                self,
+                selector: #selector(keyboardDidHide),
+                name: UIResponder.keyboardDidHideNotification,
+                object: nil
+            )
         }
     }
 
     deinit {
         cancelPendingAttachmentWork()
+        NotificationCenter.default.removeObserver(self)
 
         if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction {
             removeInteraction(interaction)
@@ -133,6 +141,29 @@ public final class ScrollEdgeElementContainer: ExpoView {
             : scrollView.bottomEdgeEffect
         edgeEffect.isHidden = false
         edgeEffect.style = .soft
+    }
+
+    @objc private func keyboardDidHide() {
+        guard edge == .bottom, window != nil else {
+            return
+        }
+
+        if #available(iOS 26.0, *), let interaction = scrollEdgeInteraction,
+           interaction.scrollView != nil
+        {
+            // KeyboardStickyView moves the composer with a transform. UIKit's
+            // edge interaction can retain the keyboard-open container geometry
+            // after that transform settles, leaving a tall soft fade over the
+            // conversation. Reattach on the next main-loop turn so UIKit reads
+            // the composer's final, keyboard-closed position.
+            interaction.scrollView = nil
+            cancelPendingAttachmentWork()
+            resetAttachmentSearch()
+
+            DispatchQueue.main.async { [weak self] in
+                self?.attachToScrollViewIfPossible()
+            }
+        }
     }
 
     private func attachToScrollViewIfPossible() {
