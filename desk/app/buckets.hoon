@@ -729,7 +729,7 @@
   ::  under the same flag is then watched twice, on the same wire, with the
   ::  old registration no longer reachable to repair.
   =.  cor  (give [%kick ~[(updates-path flag)] ~])
-  =.  sessions  (drop-bucket-sessions flag)
+  =.  cor  (drop-bucket-sessions flag)
   =.  cor  (drop-read-token flag)
   =.  spaces  (~(del by spaces) flag)
   cor
@@ -1030,6 +1030,85 @@
 ::  URL being issued against the session. A completion that arrives afterwards
 ::  is still honoured, because the broker knows something we do not.
 ::
+::  +us-core: one in-flight upload session.
+::
+::  Two things were conventions spread across arms that each had to remember
+::  them, and they did not.
+::
+::  .awaiting holds at most one waiter. The three session verbs each wrote it
+::  unconditionally, so a cancel arriving while a completion was in flight
+::  overwrote the finish's waiter -- the receipt then answered the cancel with
+::  %ok while the finish hung for good. +us-claim is the only way it is
+::  written now, and it answers whoever it displaces.
+::
+::  And every abandonment leaves through +us-give-up. The lapsed prune
+::  broker-cancelled and answered its waiter; +drop-bucket-sessions and
+::  +delete-entry dropped sessions where they stood, so the broker kept a
+::  reservation and its quota until it lapsed and the waiting request was
+::  never answered at all.
+::
+++  us-core
+  |_  [ses=upload-session:b gone=_|]
+  ++  us-core  .
+  ++  emit  |=(=card us-core(cor cor(cards [card cards])))
+  ++  emil  |=(caz=(list card) us-core(cor cor(cards (welp (flop caz) cards))))
+  ::  +us-abed: pick up session .sid.
+  ::
+  ++  us-abed
+    |=  sid=@uv
+    ^+  us-core
+    ?~  got=(~(get by sessions) sid)
+      ~|(us-abed-not-found+sid !!)
+    us-core(ses u.got)
+  ::  +us-abet: write the session back, or drop it if it is gone.
+  ::
+  ++  us-abet
+    ^+  cor
+    =.  sessions
+      ?:  gone  (~(del by sessions) id.ses)
+      (~(put by sessions) id.ses ses)
+    cor
+  ::  +us-claim: hold .rid open on this session.
+  ::
+  ::  A waiter this displaces is answered rather than dropped: it asked a
+  ::  question that will never be answered by the call now in flight, and
+  ::  leaving it hanging is how a local client polls %pending for good.
+  ::
+  ++  us-claim
+    |=  rid=(unit request-id:b)
+    ^+  us-core
+    =?  us-core  &(?=(^ awaiting.ses) !=(awaiting.ses rid))
+      %-  us-answer
+      [%error %unknown 'superseded by another request on this upload']
+    us-core(ses ses(awaiting rid))
+  ::  +us-answer: give the held request its one terminal answer.
+  ::
+  ++  us-answer
+    |=  body=response-body:b
+    ^+  us-core
+    ::  Bound to a leg before the test. ?~ on a field of this core's payload
+    ::  narrows the core, and clearing the field afterwards then fails to
+    ::  nest against the narrowed type.
+    =/  held=(unit request-id:b)  awaiting.ses
+    ?~  held  us-core
+    =.  us-core  us-core(ses ses(awaiting ~))
+    =.  cor  (respond u.held (answer-paths requested-by.ses u.held) body)
+    us-core
+  ::  +us-give-up: the one way a session ends without completing.
+  ::
+  ::  Tells the broker, so the reservation and its quota are released rather
+  ::  than held until they lapse, and answers whoever was waiting.
+  ::
+  ++  us-give-up
+    |=  why=@t
+    ^+  us-core
+    =.  us-core  us-core(ses ses(status %cancelled, error `why))
+    =?  cor  ?=(^ reservation.ses)
+      (reservation-call ses(awaiting ~) %cancel ~)
+    =.  us-core  (us-answer [%error %unknown why])
+    us-core(gone &)
+  --
+::
 ::  +uploader-session: the pending session this actor may act on.
 ::
 ::  The three session verbs differ only in what they then ask the broker, so
@@ -1061,7 +1140,11 @@
   =/  found  (uploader-session flag sid actor)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  =.  sessions  (~(put by sessions) sid ses(awaiting rid))
+  ::  Through +us-claim, which answers a waiter it displaces rather than
+  ::  dropping it: a cancel arriving while this call is in flight used to
+  ::  overwrite the waiter here, and the receipt then answered the cancel
+  ::  while this request hung for good.
+  =.  cor  us-abet:(us-claim:(us-abed:us-core sid) rid)
   =/  body=(unit json)
     ?~  reservation.ses  ~
     `(pairs:enjs:format ~[['reservationId' s+u.reservation.ses]])
@@ -1081,7 +1164,7 @@
   =/  found  (uploader-session flag sid actor)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  =.  sessions  (~(put by sessions) sid ses(awaiting rid))
+  =.  cor  us-abet:(us-claim:(us-abed:us-core sid) rid)
   =.  cor  (reservation-call ses(awaiting rid) %retry ~)
   (answer [%pending ~])
 ::
@@ -1102,6 +1185,7 @@
   ::  whether or not the broker is reachable to hear about it.
   =/  done=upload-session:b
     ses(status %cancelled, error `reason, awaiting rid)
+  =.  cor  us-abet:(us-claim:(us-abed:us-core sid) rid)
   =.  sessions  (~(put by sessions) sid done)
   ?~  reservation.ses  (answer [%ok ~])
   =.  cor  (reservation-call done %cancel ~)
@@ -1900,6 +1984,13 @@
     ^-  (unit upload-session:b)
     ?.  =(%pending status.ses)  ~
     ?:  (gth expires-at.ses now.bowl)  ~
+    ::  A call of ours is still in flight on this one, and %finish-upload is
+    ::  deliberately accepted past the window. Cancelling alongside a
+    ::  completion means the broker hears both: if it honours the complete,
+    ::  the object is stored and nothing publishes it, and the uploader is
+    ::  never told. The reader prune exempts a record with a waiter for the
+    ::  same reason.
+    ?^  awaiting.ses  ~
     ?~  reservation.ses  ~
     `ses
   =.  cor
@@ -1952,13 +2043,23 @@
     ==
   cor
 ::
+::  +drop-bucket-sessions: give up every session of a bucket that is going.
+::
+::  Was a skip over the map, which left the broker holding each reservation
+::  and its quota until they lapsed and left every waiting request
+::  unanswered. Each one leaves through +us-give-up now, the same path the
+::  lapsed prune uses.
+::
 ++  drop-bucket-sessions
   |=  =flag:b
-  ^-  (map @uv upload-session:b)
-  %-  malt
-  %+  skip  ~(tap by sessions)
-  |=  [sid=@uv ses=upload-session:b]
-  =(flag flag.ses)
+  ^+  cor
+  =/  doomed=(list @uv)
+    %+  murn  ~(tap by sessions)
+    |=  [sid=@uv ses=upload-session:b]
+    ?.(=(flag flag.ses) ~ `sid)
+  %+  roll  doomed
+  |=  [sid=@uv acc=_cor]
+  us-abet:(us-give-up:(us-abed:us-core:acc sid) 'the bucket was deleted')
 ::
 ::  +session-token: resolve the opaque string Memex presents back to the
 ::  session that minted it.
