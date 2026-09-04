@@ -73,10 +73,14 @@ import { canonicalJson } from './surface-canonical-json';
 
 type ApiModule = typeof import('@tloncorp/api');
 
-const { SURFACE_CAPS, SurfaceSpecSchema } = surfaceSchemasModule as Pick<
-  ApiModule,
-  'SURFACE_CAPS' | 'SurfaceSpecSchema'
->;
+// The gate validates against the PUBLISHABLE schema, not the reader's (D198).
+// A rule that refuses a shape already in the field belongs on the write path
+// only; applied to reads it turns live boards `invalid` on upgrade.
+const { SURFACE_CAPS, SurfaceSpecSchema, PublishableSurfaceSpecSchema } =
+  surfaceSchemasModule as Pick<
+    ApiModule,
+    'SURFACE_CAPS' | 'SurfaceSpecSchema' | 'PublishableSurfaceSpecSchema'
+  >;
 const { reduceSurface } = surfaceReducerModule as Pick<
   ApiModule,
   'reduceSurface'
@@ -1376,7 +1380,10 @@ function checkSpecSchema(
   collector: Collector,
   spec: unknown
 ): SurfaceSpec | null {
-  const result = SurfaceSpecSchema.safeParse(spec);
+  // The gate is the write path, so it holds the spec to the publishable
+  // rules — which are the reader's plus the ones that would be retroactive if
+  // a reader applied them (D198).
+  const result = PublishableSurfaceSpecSchema.safeParse(spec);
   if (result.success) {
     return result.data;
   }

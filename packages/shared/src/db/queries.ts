@@ -3662,6 +3662,13 @@ export type GetSequencedPostsOptions = {
   /**
    * The id half of the page cursor (D187).
    *
+   * Named `cursorTiePostId`, not `cursorPostId`, because `useChannelPosts`
+   * already uses THAT name for something else entirely — an unread-marker
+   * cursor naming the post to open at, which `normalizeCursor` resolves to a
+   * sequence number and then CLEARS. One field name carrying two meanings is
+   * how a caller ends up believing it passed a tie-break key when it passed a
+   * marker (D200).
+   *
    * `sequenceNum` alone is not a total order: there is no unique index on
    * `(channelId, sequenceNum)`, so two posts can share one. Paging on the
    * sequence number alone then drops a row permanently — the first of a tied
@@ -3680,7 +3687,7 @@ export type GetSequencedPostsOptions = {
    * sequence number, no id cursor needed" — paging behaves as it did before:
    * a bare `sequenceNum` cursor.
    */
-  cursorPostId?: string | null;
+  cursorTiePostId?: string | null;
 };
 
 const seqLogger = createDevLogger('seqPosts', false);
@@ -3853,7 +3860,7 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: older
     if (options.mode === 'older' && options.cursorSequenceNum) {
-      const olderCursorId = options.cursorPostId ?? undefined;
+      const olderCursorId = options.cursorTiePostId ?? undefined;
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),
@@ -3932,7 +3939,7 @@ export const getSequencedChannelPosts = createReadQuery(
 
     // mode: newer
     if (options.mode === 'newer' && options.cursorSequenceNum) {
-      const newerCursorId = options.cursorPostId ?? undefined;
+      const newerCursorId = options.cursorTiePostId ?? undefined;
       const dbPosts = await ctx.db.query.posts.findMany({
         where: and(
           eq($posts.channelId, options.channelId),

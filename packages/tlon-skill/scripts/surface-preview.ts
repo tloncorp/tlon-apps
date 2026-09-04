@@ -83,11 +83,16 @@ import {
 
 type ApiModule = typeof import('@tloncorp/api');
 
-const { SurfaceSpecSchema, SurfaceEventEntrySchema } =
-  surfaceSchemasModule as Pick<
-    ApiModule,
-    'SurfaceSpecSchema' | 'SurfaceEventEntrySchema'
-  >;
+const {
+  SurfaceSpecSchema,
+  SurfaceEventEntrySchema,
+  PublishableSurfaceSpecSchema,
+} = surfaceSchemasModule as Pick<
+  ApiModule,
+  | 'SurfaceSpecSchema'
+  | 'SurfaceEventEntrySchema'
+  | 'PublishableSurfaceSpecSchema'
+>;
 const { reduceSurface } = surfaceReducerModule as Pick<
   ApiModule,
   'reduceSurface'
@@ -1238,7 +1243,9 @@ export class PreviewError extends Error {}
 export const PREVIEW_RUBRIC_PATH = 'skills/surfaces/RUBRIC.md';
 
 function validateSpec(raw: unknown): SurfaceSpec {
-  const parsed = SurfaceSpecSchema.safeParse(raw);
+  // Preview renders a spec on its way to publication, so it holds it to the
+  // write-path rules (D198).
+  const parsed = PublishableSurfaceSpecSchema.safeParse(raw);
   if (!parsed.success) {
     const detail = parsed.error.issues
       .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)

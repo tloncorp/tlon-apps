@@ -520,31 +520,79 @@ export function unpublishRefusal(
   ].join('\n');
 }
 
+type ChannelMetaEdits = { title?: string; description?: string };
+
+/** Stands in for the clock in `channelWriteIdentity`; see there. */
+const IDENTITY_ADDED_FALLBACK = 0;
+
+/**
+ * The complete channel value `updateChannelMeta` sends.
+ *
+ * `updateChannel` hands %groups a whole channel and %groups replaces the whole
+ * thing, so every field built here is overwritten by the write whether or not
+ * the command was asked to change it. Three of them are not channel fields at
+ * all: `section` is derived from the GROUP's nav sections, `readers` from the
+ * channel's reader roles, `join` from this ship's membership.
+ *
+ * `addedFallback` is a parameter rather than a `Date.now()` call inside so the
+ * same payload can be built twice from the same inputs and compared — see
+ * `channelWriteIdentity`.
+ */
+function buildChannelUpdate(
+  group: ApiGroup,
+  channel: ApiChannel,
+  edits: ChannelMetaEdits,
+  addedFallback: number
+) {
+  const description = edits.description ?? channel.description ?? '';
+  const channelContentConfiguration = channel.contentConfiguration ?? undefined;
+  return {
+    added: channel.addedToGroupAt ?? addedFallback,
+    meta: {
+      title: edits.title ?? channel.title ?? '',
+      description: JSON.stringify({
+        description,
+        channelContentConfiguration,
+      }),
+      image: channel.iconImage || '',
+      cover: channel.coverImage || '',
+    },
+    section: findChannelSectionId(group, channel.id) || 'default',
+    readers: (channel.readerRoles || []).map((r) => r.roleId),
+    join: channel.currentUserIsMember ?? true,
+  };
+}
+
 /**
  * Everything `updateChannelMeta` is about to overwrite, in one comparable
  * string.
  *
- * The whole cell, not just the surface definition. This command rewrites the
- * description cell from the fields it knows about, so a concurrent edit to any
- * of them — a title, an icon, another admin's published app — is dropped by
- * the write whether or not the unpublish gate would have caught it. Comparing
- * the narrow thing would fence the loud failure and leave the quiet one.
+ * COMPUTED FROM THE PAYLOAD ITSELF — `buildChannelUpdate` for the channel as
+ * observed, with no caller edits applied, so every field the write replaces
+ * participates. It is derived rather than listed because the listed version
+ * drifted: it named six channel fields while the payload also replaced
+ * `section`, `readers` and `join`, so an admin changing only a channel's
+ * reader roles or moving it to another nav section between the two reads left
+ * all six comparands equal, and the write put the first read's roles and
+ * section back (Sol finding 4). A second hand-maintained list beside the
+ * payload is how that happened; a field added to `buildChannelUpdate` is
+ * covered here the day it is added.
+ *
+ * Two things are appended that the payload cannot carry, and they are the
+ * reason this guard exists at all: the write rebuilds the description cell
+ * from two keys, so the rest of the cell — `descriptionPayload` verbatim, and
+ * the `surfaceSpec` subtree the api decodes out of it — is replaced precisely
+ * by NOT being in the payload.
+ *
+ * `added`'s fallback is a constant here. It is fabricated at write time from
+ * the clock rather than read from the channel, and comparing two clock reads
+ * would refuse every edit to a channel with no `addedToGroupAt`.
  */
-function channelWriteIdentity(channel: {
-  surfaceSpec?: unknown;
-  description?: unknown;
-  title?: unknown;
-  iconImage?: unknown;
-  coverImage?: unknown;
-  contentConfiguration?: unknown;
-}): string {
+function channelWriteIdentity(group: ApiGroup, channel: ApiChannel): string {
   return JSON.stringify([
+    buildChannelUpdate(group, channel, {}, IDENTITY_ADDED_FALLBACK),
+    channel.descriptionPayload ?? null,
     channel.surfaceSpec ?? null,
-    channel.description ?? null,
-    channel.title ?? null,
-    channel.iconImage ?? null,
-    channel.coverImage ?? null,
-    channel.contentConfiguration ?? null,
   ]);
 }
 
@@ -599,26 +647,13 @@ export async function updateChannelMeta(
     throw new Error(unpublishRefusal(nest, surface));
   }
 
-  const sectionId = findChannelSectionId(group, channel.id) || 'default';
   const description = options.description ?? channel.description ?? '';
-  const channelContentConfiguration = channel.contentConfiguration ?? undefined;
-  const encodedDescription = JSON.stringify({
-    description,
-    channelContentConfiguration,
-  });
-
-  const channelUpdate = {
-    added: channel.addedToGroupAt ?? Date.now(),
-    meta: {
-      title: options.title ?? channel.title ?? '',
-      description: encodedDescription,
-      image: channel.iconImage || '',
-      cover: channel.coverImage || '',
-    },
-    section: sectionId,
-    readers: (channel.readerRoles || []).map((r) => r.roleId),
-    join: channel.currentUserIsMember ?? true,
-  };
+  const channelUpdate = buildChannelUpdate(
+    group,
+    channel,
+    { title: options.title, description },
+    Date.now()
+  );
 
   console.log(`Updating channel ${nest}...`);
 
@@ -627,7 +662,10 @@ export async function updateChannelMeta(
   if (!atWrite) {
     throw new Error(movedUnderUsRefusal(nest));
   }
-  if (channelWriteIdentity(atWrite.channel) !== channelWriteIdentity(channel)) {
+  if (
+    channelWriteIdentity(atWrite.group, atWrite.channel) !==
+    channelWriteIdentity(group, channel)
+  ) {
     throw new Error(movedUnderUsRefusal(nest));
   }
 

@@ -12,6 +12,13 @@ type ChannelFixture = {
   description?: string | null;
   descriptionPayload?: string | null;
   surfaceSpec?: string | null;
+  // Fields the write replaces without being asked to. `readerRoles` and
+  // `currentUserIsMember` ride on the channel; `sectionId` does NOT — it is
+  // the group nav section that lists this channel, which is where
+  // `updateChannelMeta` gets the `section` it writes back.
+  readerRoles?: Array<{ channelId: string; roleId: string }>;
+  currentUserIsMember?: boolean;
+  sectionId?: string;
 };
 
 const SPEC = {
@@ -38,7 +45,7 @@ function surfacePayload(description?: string): string {
 }
 
 /** The group listing `getGroups()` returns, with this channel in it. */
-function groupListing(channel: ChannelFixture) {
+function groupListing({ sectionId = 'default', ...channel }: ChannelFixture) {
   return [
     {
       id: '~zod/beach',
@@ -56,7 +63,7 @@ function groupListing(channel: ChannelFixture) {
           ...channel,
         },
       ],
-      navSections: [{ sectionId: 'default', channels: [{ channelId: NEST }] }],
+      navSections: [{ sectionId, channels: [{ channelId: NEST }] }],
     },
   ];
 }
@@ -86,11 +93,34 @@ function setChannelSequence(...fixtures: ChannelFixture[]) {
 /** The description cell the last `updateChannel` write carried, if any. */
 type Write = { description: string; title: string };
 
+/** The whole channel value the write carried — %groups replaces all of it. */
+type WriteChannel = {
+  meta: Write;
+  section: string;
+  readers: string[];
+  join: boolean;
+};
+
 function captureWrites(): Write[] {
   const writes: Write[] = [];
   mockedUpdateChannel.impl = async (...args: unknown[]) => {
     const input = args[0] as { channel: { meta: Write } };
     writes.push(input.channel.meta);
+    return undefined;
+  };
+  return writes;
+}
+
+/**
+ * The same capture, keeping the WHOLE channel value rather than its `meta`.
+ * The fields this finding is about — `section`, `readers`, `join` — live
+ * outside `meta`, so `captureWrites` above cannot see them.
+ */
+function captureChannelWrites(): WriteChannel[] {
+  const writes: WriteChannel[] = [];
+  mockedUpdateChannel.impl = async (...args: unknown[]) => {
+    const input = args[0] as { channel: WriteChannel };
+    writes.push(input.channel);
     return undefined;
   };
   return writes;
@@ -395,5 +425,92 @@ describe('channels update while another client publishes a surface', () => {
 
     expect(writes).toHaveLength(1);
     expect(writes[0].description).toContain('Still a chat');
+  });
+});
+
+/**
+ * The three fields the fence did not fence.
+ *
+ * `updateChannel` sends a COMPLETE channel and %groups replaces the whole
+ * thing, so the write puts back `section`, `readers` and `join` as they were
+ * at the first read — but the identity the pre-write re-read compared was a
+ * hand-maintained list of six description-cell fields, none of them these. An
+ * admin who changed only a channel's reader roles, or moved it to another nav
+ * section, or whose membership flipped, left all six equal: the guard passed
+ * and the write silently reverted them.
+ *
+ * The FULCRUM in each arm is one field of the second fixture, and only that
+ * field. The gate fixture is an ordinary channel in every arm, so nothing the
+ * unpublish gate looks at moves — these refusals can only be the concurrency
+ * fence. The differential arm at the bottom of the previous describe (two
+ * identical reads) is what keeps them from passing against a build that
+ * refuses everything.
+ */
+describe('channels update while another client changes readers, section or join', () => {
+  const ORDINARY: ChannelFixture = {
+    description: 'Just a chat',
+    descriptionPayload: 'Just a chat',
+    surfaceSpec: null,
+  };
+
+  async function expectRefusal(second: ChannelFixture) {
+    setChannelSequence(ORDINARY, second);
+    const writes = captureChannelWrites();
+    const stdout = captureStdout();
+    restores.push(stdout.restore);
+    const channels = await loadChannels();
+
+    let message = '';
+    try {
+      await channels.updateChannelMeta(NEST, { description: 'Beach fund' });
+      throw new Error('expected a refusal');
+    } catch (error) {
+      message = error instanceof Error ? error.message : String(error);
+    }
+
+    expect(message).toContain(NEST);
+    expect(message).toContain('changed while this command was running');
+    expect(message).toContain('Nothing was written');
+    expect(writes).toEqual([]);
+    expect(stdout.lines.join('\n')).not.toContain('✅');
+  }
+
+  it('refuses when only the reader roles changed', async () => {
+    await expectRefusal({
+      ...ORDINARY,
+      readerRoles: [{ channelId: NEST, roleId: 'admin' }],
+    });
+  });
+
+  it('refuses when only the nav section changed', async () => {
+    await expectRefusal({ ...ORDINARY, sectionId: 'events' });
+  });
+
+  it('refuses when only the join flag changed', async () => {
+    await expectRefusal({ ...ORDINARY, currentUserIsMember: false });
+  });
+
+  it('writes back exactly what it read when nothing moved — the differential arm', async () => {
+    // Both that the arms above are not a build refusing every edit, and that
+    // these three fields really are on the wire: the write carries them, so
+    // reverting them is a thing this command can do.
+    const restricted: ChannelFixture = {
+      ...ORDINARY,
+      readerRoles: [{ channelId: NEST, roleId: 'admin' }],
+      sectionId: 'events',
+      currentUserIsMember: false,
+    };
+    setChannelSequence(restricted, restricted);
+    const writes = captureChannelWrites();
+    const stdout = captureStdout();
+    restores.push(stdout.restore);
+    const channels = await loadChannels();
+
+    await channels.updateChannelMeta(NEST, { description: 'Still a chat' });
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0].readers).toEqual(['admin']);
+    expect(writes[0].section).toBe('events');
+    expect(writes[0].join).toBe(false);
   });
 });

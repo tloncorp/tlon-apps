@@ -588,15 +588,9 @@ export async function runSurfaceSnapshot(
         SURFACE_SNAPSHOT_HELP
       );
     }
-    const repair = repairPendingMigration(
-      deps,
-      resolved,
-      spec,
-      hydrated.posts,
-      {
-        allowAborted: parsed.flags.has(ALLOW_ABORTED_FLAG),
-      }
-    );
+    const repair = repairPendingMigration(deps, resolved, spec, hydrated, {
+      allowAborted: parsed.flags.has(ALLOW_ABORTED_FLAG),
+    });
     const entry = {
       type: 'surface-snapshot',
       version: 1,
@@ -906,8 +900,15 @@ function headExceededLines(channelId: string, skipped: number[]): string[] {
   ];
 }
 
-/** `surface snapshot`: refuse rather than write a second snapshot it loses to. */
-function refuseHeadExceededSnapshots(
+/**
+ * Any WRITER's fold: refuse rather than write a snapshot the bad one beats.
+ *
+ * Exported because the publish path folds for the same reason and must make
+ * the same refusal — a repair that folds past a head-exceeding snapshot and
+ * writes the result launders the corrupt boundary into one clients accept
+ * (D199).
+ */
+export function refuseHeadExceededSnapshots(
   channelId: string,
   reduction: SurfaceReduction
 ): never | void {
@@ -958,10 +959,18 @@ export function repairPendingMigration(
   deps: SurfaceDeps,
   resolved: { channelId: string; hostShip: string },
   spec: SurfaceSpec,
-  posts: SurfacePostRecord[],
+  /**
+   * The hydration this repair folds, head and all — not a bare post array
+   * (D199). The fold below is a WRITER's fold: its result becomes a snapshot
+   * post. Taking the posts without the head they arrived with is what let a
+   * head-exceeding snapshot be folded here and its state re-emitted under an
+   * honest-looking boundary, so the two travel together or not at all.
+   */
+  hydrated: { posts: SurfacePostRecord[]; head: number | null },
   options: MigrationRepairOptions
 ): MigrationRepair {
   const { channelId, hostShip } = resolved;
+  const posts = hydrated.posts;
   const host = deps.normalizeShip(hostShip);
   if (deps.normalizeShip(deps.actingShip()) !== host) {
     throw surfaceError(
@@ -991,7 +1000,17 @@ export function repairPendingMigration(
     };
   }
 
-  const carried = deps.reduce({ spec: previous, hostShip, posts });
+  const carried = deps.reduce({
+    spec: previous,
+    hostShip,
+    posts,
+    advertisedHead: hydrated.head,
+  });
+  // This repair WRITES the state it just folded. Skipping a head-exceeding
+  // snapshot silently here would carry the real log's state forward under a
+  // fresh boundary while the bad snapshot still wins selection — a repair
+  // that reports success and changes nothing (D190).
+  refuseHeadExceededSnapshots(channelId, carried);
   if (carried.status !== 'reduced') {
     throw surfaceError(
       'migration-pending',

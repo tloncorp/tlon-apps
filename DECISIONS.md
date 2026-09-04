@@ -6377,3 +6377,108 @@ standing between untrusted model-generated JavaScript and the network.
   after the commit whose sha it names — a document cannot carry the sha of the
   commit that contains it, and stamping it separately leaves only the index in
   the diff the check reads.
+
+- **D198: a rule that refuses a shape already in the field belongs on the write
+  path, not on the reader.** D191 put the `memberInteraction`-beside-actions
+  refusal in `SurfaceSpecSchema` itself, arguing that a self-contradicting spec
+  should be refused by everything that validates one. That was right about
+  publication and wrong about reading, and the difference is a live board going
+  dark.
+
+  `SurfaceSpecSchema` is the READER. `readSurfaceSpec` runs it over the
+  description cell of every channel a client opens, and a spec it rejects is
+  `invalid` — which hydration treats as "never fold, never fall back", by
+  design. So the refusal was retroactive: a definition published before the
+  rule existed stopped being readable the moment a client updated, with its
+  event log intact and unreachable underneath. And that shape WAS publishable —
+  this project's own fork fixture carried it — so it is a version-1 wire shape
+  in the field, not a hypothetical. Reproduced: the base publisher's own output
+  reads back `status: 'invalid'`.
+
+  Split into `PublishableSurfaceSpecSchema`, which every writer validates
+  against — the gate, the preview, publish, fork — while the reader stays
+  total. Nothing new can carry the contradiction; nothing already published
+  stops rendering. The alternative was a protocol version bump plus a
+  migration, which is the right answer to a change in what a spec MEANS and is
+  disproportionate to a marker that was always inert.
+
+  **The general rule, since this will come up again:** adding a constraint to a
+  validator that runs on persisted data is a data migration wearing a schema's
+  clothes. Ask which side of the read/write boundary it belongs on before
+  asking whether it is correct.
+
+- **D199: an optional ceiling gets left off exactly where the consequence is
+  worst.** D190 wired the channel head into `surface state` and `surface
+  snapshot` and left `advertisedHead` optional on the reduce input. Three other
+  folds in the same package did not pass it — the carry-across in
+  `repairPendingMigration`, the exact-republish repair, and the preserve-state
+  publish fold — and **all three write a snapshot from their result.** So a
+  snapshot claiming coverage beyond the real head was folded and its state
+  re-emitted under an honest-looking boundary that every client accepts:
+  corrupt state laundered into a record nothing downstream would refuse.
+
+  `advertisedHead` is now REQUIRED on that input, so an omission is a compile
+  error and `null` is a visible decision rather than an unwritten field. Making
+  it required found exactly the three sites the review named — no more, no
+  fewer. `repairPendingMigration` takes the whole hydration rather than a bare
+  post array, so the posts and the head they arrived with cannot be separated.
+  All three folds now refuse on `headExceededSnapshots` like `surface snapshot`
+  does, because all three write.
+
+  This is the third instance in two rounds of the same shape, and the reviewer
+  named it better than the fix does: *the optional parameter makes future
+  omissions easy, and this range already missed three.* The repair for a
+  repeated omission is to make it unrepresentable, not to remember harder.
+
+- **D200: one field name carrying two meanings.** The tuple page cursor added
+  in D187 was called `cursorPostId`. `useChannelPosts` already had a field of
+  that exact name meaning something else — the unread-marker cursor naming the
+  post to open at, which `normalizeCursor` resolves to a sequence number and
+  then CLEARS. So the scroller could not have passed the tie-break key even if
+  it had tried, and its own page params never set it: the query's strict tuple
+  branch was unreachable from the repo's other caller, and a tied row split
+  across a page boundary was still skipped permanently.
+
+  The paging field is `cursorTiePostId` now, and the two live side by side
+  without either meaning the other. Both page directions pass it.
+
+  The page-param builders are extracted from the hook as pure functions, not
+  for tidiness: the defect was an omitted field in an object literal buried in
+  a `useInfiniteQuery` config, where nothing could see it and no test could
+  reach it. A boundary that cannot be asserted is a boundary that drifts.
+
+- **D201: coverage is a claim about a rung; `oldest === 1` is a claim about a
+  number.** Hydration proved its window complete numerically — newest matches
+  the advertised head, oldest is sequence 1 — and neither test says anything
+  about how many rows sit on those rungs. The fetch that fills the window is
+  count-limited (`syncInitialPosts` asks for 30 or 50 posts, and the backend
+  serves a count, not a tuple cursor), so a tied pair straddling that boundary
+  arrives as one row. Both numeric tests pass, hydration reports `hydrated`,
+  and a fresh client folds one of two events while a client that was already
+  caught up folds both — cross-client divergence reached with nothing deleted
+  and nothing edited.
+
+  The page cursor fixed in D187 could not help: it orders rows the client
+  HOLDS, and this row was never acquired. The boundary was one layer further
+  out than the fix.
+
+  **The signal that makes the repair free is exact: a page that came back FULL
+  may have been cut mid-rung; a page that came back short proves it was not.**
+  A fetch returning fewer rows than it asked for reached the end of what
+  exists. So after a full page — and only then — hydration asks the boundary
+  rung whether it is whole, local-first, once per boundary tuple. The remote
+  fetch is a sequence RANGE (`syncSequencedPosts` derives `start`/`end`), so a
+  range covering the rung returns every row on it; the transport can answer
+  this question even though it cannot express a tuple cursor.
+
+  The probe takes only the rows ON the boundary rung and discards what lies
+  beneath. The question is whether the rung is whole, not what is below it — a
+  snapshot boundary means the rows below are deliberately not folded, and
+  dragging them in would page a covered channel back to its start for nothing.
+
+  What this preserves, deliberately: "everything was local, the network was
+  never touched" is a property the loop already held and the tests already
+  pinned. An unconditional probe would have cost a round trip on every board
+  open. Gating on the full-page signal keeps that property exactly where it was
+  true and spends the round trip only where the window could actually have been
+  cut.

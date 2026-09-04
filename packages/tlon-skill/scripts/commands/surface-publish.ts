@@ -39,6 +39,7 @@ import {
   assertNoAbortedEntries,
   hasSurfaceStateRecords,
   newestSequenceNum,
+  refuseHeadExceededSnapshots,
   repairPendingMigration,
 } from './surface-records';
 
@@ -1064,7 +1065,10 @@ async function repairMissingMigrationSnapshot(
     spec: current,
     hostShip: resolved.hostShip,
     posts: hydrated.posts,
+    advertisedHead: hydrated.head,
   });
+  // Everything below this fold writes a snapshot from it (D199).
+  refuseHeadExceededSnapshots(resolved.channelId, reduction);
   if (reduction.status !== 'migration-pending') return null;
   if (!hydrated.complete) {
     throw surfaceError(
@@ -1078,17 +1082,11 @@ async function repairMissingMigrationSnapshot(
     );
   }
 
-  const repair = repairPendingMigration(
-    deps,
-    resolved,
-    current,
-    hydrated.posts,
-    {
-      allowAborted,
-      abortRemedy: abortRemedy(resolved.channelId),
-      abortHelp: SURFACE_PUBLISH_HELP,
-    }
-  );
+  const repair = repairPendingMigration(deps, resolved, current, hydrated, {
+    allowAborted,
+    abortRemedy: abortRemedy(resolved.channelId),
+    abortHelp: SURFACE_PUBLISH_HELP,
+  });
   const entry = {
     type: 'surface-snapshot',
     version: 1,
@@ -1384,7 +1382,12 @@ async function foldForMigration(
     spec: current,
     hostShip: resolved.hostShip,
     posts: hydrated.posts,
+    advertisedHead: hydrated.head,
   });
+  // The state this fold produces is written as revision N+1's migration
+  // snapshot. Folding past a head-exceeding snapshot here is how corrupt state
+  // gets laundered into a boundary every client accepts (D199).
+  refuseHeadExceededSnapshots(resolved.channelId, reduction);
   if (reduction.status !== 'reduced') {
     throw surfaceError(
       'migration-pending',

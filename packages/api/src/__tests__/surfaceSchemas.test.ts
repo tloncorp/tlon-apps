@@ -2,6 +2,8 @@ import { describe, expect, test } from 'vitest';
 
 import { parsePostBlob } from '../client/content-helpers';
 import {
+  PublishableSurfaceSpecSchema,
+  readSurfaceSpec,
   SURFACE_CAPS,
   SurfaceEventEntrySchema,
   SurfaceSnapshotEntrySchema,
@@ -171,7 +173,8 @@ describe('SurfaceSpecSchema', () => {
     // actions existed, and the rubric keys check 8 off the marker's PRESENCE
     // alone — so an actionful spec could declare "members cannot act", pass
     // the gate clean, and generate a display-only check for a board full of
-    // controls. Refused at the schema so every reader of a spec agrees.
+    // controls. Refused on the WRITE path, so nothing new can carry it while
+    // definitions already published stay readable (D198).
     const contradictory = {
       ...validSpec(),
       memberInteraction: {
@@ -180,7 +183,7 @@ describe('SurfaceSpecSchema', () => {
       },
     };
     expect(Object.keys(contradictory.actions).length).toBeGreaterThan(0);
-    const refused = SurfaceSpecSchema.safeParse(contradictory);
+    const refused = PublishableSurfaceSpecSchema.safeParse(contradictory);
     expect(refused.success).toBe(false);
     // and it names the marker, not some downstream field — the repair loop
     // reads the path to decide what to change
@@ -196,7 +199,7 @@ describe('SurfaceSpecSchema', () => {
     // refusing a legitimate shape. A display-only app declares the marker
     // over an empty map ...
     expect(
-      SurfaceSpecSchema.safeParse({
+      PublishableSurfaceSpecSchema.safeParse({
         ...validSpec({ actions: {} }),
         memberInteraction: {
           mode: 'none',
@@ -205,7 +208,43 @@ describe('SurfaceSpecSchema', () => {
       }).success
     ).toBe(true);
     // ... and an ordinary interactive app carries actions and no marker.
-    expect(SurfaceSpecSchema.safeParse(validSpec()).success).toBe(true);
+    expect(PublishableSurfaceSpecSchema.safeParse(validSpec()).success).toBe(
+      true
+    );
+  });
+
+  test('the READER still accepts a spec the base publisher accepted (D198)', () => {
+    // The refusal above is retroactive if a reader applies it. `readSurfaceSpec`
+    // runs on the description cell of every channel a client opens, and a spec
+    // it rejects is `invalid` — which hydration treats as "never fold, never
+    // fall back". So a rule added to the reader takes a live board dark on
+    // upgrade, with its event log intact and unreachable underneath.
+    //
+    // This exact shape WAS publishable: this project's own fork fixture carried
+    // a nonempty action map beside the marker and treated the result as
+    // publishable, so it is a version-1 wire shape in the field and not a
+    // hypothetical. The protocol version did not change, so a reader that
+    // refuses it is a reader that broke compatibility with itself.
+    const alreadyPublished = {
+      ...validSpec(),
+      memberInteraction: {
+        mode: 'none' as const,
+        because: 'the bot posts the rollover every morning',
+      },
+    };
+    expect(Object.keys(alreadyPublished.actions).length).toBeGreaterThan(0);
+
+    // the writer refuses it ...
+    expect(
+      PublishableSurfaceSpecSchema.safeParse(alreadyPublished).success
+    ).toBe(false);
+    // ... and the reader does not, which is the whole of the split.
+    expect(SurfaceSpecSchema.safeParse(alreadyPublished).success).toBe(true);
+
+    // End to end, through the function a client actually calls: `invalid` here
+    // is the board going dark, so this is the assertion that matters.
+    const read = readSurfaceSpec(JSON.stringify(alreadyPublished));
+    expect(read.status).toBe('valid');
   });
 
   test('a spec survives validation carrying timeDisplay', () => {

@@ -1015,6 +1015,13 @@ describe('surface fork — landing the copy', () => {
       spec: landed,
       hostShip: '~zod',
       posts,
+      // this fold is a READER's — it asks what the channel currently says, and
+      // the post set it was handed is the whole channel, so its own newest
+      // sequence is the head
+      advertisedHead: posts.reduce(
+        (head, post) => Math.max(head, post.sequenceNum ?? 0),
+        0
+      ),
     });
     expect(reduction.status).toBe('reduced');
   });

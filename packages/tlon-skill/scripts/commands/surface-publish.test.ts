@@ -823,6 +823,123 @@ describe('surface publish — preserving state', () => {
 });
 
 /**
+ * The laundering shape, on the primary preserving path (D199).
+ *
+ * `surface state` and `surface snapshot` both refuse a host snapshot claiming
+ * coverage beyond the channel's head, because both pass the head they
+ * hydrated. This fold did not — and it is the one that matters most, because
+ * its result is WRITTEN: it becomes revision N+1's migration snapshot, bounded
+ * to the real newest sequence. So the state the bad boundary carried comes out
+ * of the reducer and goes straight back in under a boundary every client
+ * accepts, while the offending post still stands and still wins selection at
+ * revision 1. The corrupt state is not repaired by that publish; it is
+ * laundered by it.
+ */
+describe('surface publish — preserving over a snapshot beyond the channel head', () => {
+  /**
+   * Revision 1, one host event at sequence 2, and a host snapshot at sequence
+   * 3 claiming whatever boundary the caller names.
+   */
+  async function withSnapshotClaiming(
+    upToSequenceNum: number,
+    state: Record<string, unknown>
+  ) {
+    const harness = setup();
+    expect(await publish(harness)).toBe(0);
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/event',
+      blob: JSON.stringify([
+        {
+          type: 'surface-event',
+          version: 1,
+          surfaceId: 'srf-potluck',
+          specRevision: 1,
+          mode: 'host',
+          ops: [{ op: 'set', path: '/bringing/~0ten', value: 'pie' }],
+        },
+      ]),
+    });
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/snapshot',
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: 'srf-potluck',
+          specRevision: 1,
+          upToSequenceNum,
+          state,
+        },
+      ]),
+    });
+    return harness;
+  }
+
+  it('refuses, and writes neither the definition nor a single post', async () => {
+    const harness = await withSnapshotClaiming(1_000_000, {
+      bringing: { laundered: true },
+    });
+    revise(harness, specFile({ title: 'Potluck v2' }));
+
+    // The write log as it stands going in. Counts, not final values: a
+    // description cell can be written and put back, a mirror or a snapshot
+    // post cannot be unsent.
+    const writes = harness.ship.descriptionWrites.length;
+    const posts = (harness.ship.posts.get(CHANNEL) ?? []).length;
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('snapshot-head-exceeded');
+    expect(
+      (result.details as Record<string, unknown>).headExceededSnapshots
+    ).toEqual([3]);
+
+    expect(harness.ship.descriptionWrites).toHaveLength(writes);
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(posts);
+    // Named as well as counted: the two records this path writes are the
+    // revision-2 mirror and the revision-2 migration snapshot, and the point
+    // of the refusal is that the second one would look honest.
+    expect(
+      blobEntries(harness).filter(
+        (entry) => (entry as { specRevision?: number }).specRevision === 2
+      )
+    ).toHaveLength(0);
+    const stored = JSON.parse(harness.ship.channelSpecText(CHANNEL) ?? '{}');
+    expect(stored.specRevision).toBe(1);
+    expect(stored.preserveState).toBeUndefined();
+  });
+
+  it('publishes over an honest boundary, so the guard is seen not firing', async () => {
+    // The same fixture and the same code path with a boundary the channel can
+    // have. A guard that refused this would be refusing the shape — a
+    // preserving publish over a channel holding a snapshot — not the defect.
+    const harness = await withSnapshotClaiming(2, {
+      bringing: { '~zod': 'bread', '~ten': 'pie', '~bus': 'wine' },
+    });
+    revise(harness, specFile({ title: 'Potluck v2' }));
+
+    expect(await publish(harness, ['--preserve-state'])).toBe(0);
+    const result = harness.json();
+    expect(result.specRevision).toBe(2);
+    expect(result.snapshot).not.toBeNull();
+
+    // The state carried into revision 2 came THROUGH that snapshot: `~bus` is
+    // in it and in no event, so this is not the fold a skipped snapshot would
+    // have produced.
+    const snapshot = blobEntries(harness).find(
+      (entry) =>
+        (entry as { type?: string }).type === 'surface-snapshot' &&
+        (entry as { specRevision?: number }).specRevision === 2
+    ) as Record<string, unknown> | undefined;
+    expect(snapshot?.state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie', '~bus': 'wine' },
+    });
+  });
+});
+
+/**
  * The revision whose `initialState` edit lands nowhere.
  *
  * Reproduced live on a board during a nine-template session: revision 2's spec

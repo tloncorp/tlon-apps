@@ -14,11 +14,14 @@
  * Four checks, because the document can go stale in four independent ways:
  *
  *   1. ANCHORS — every `path/to/file.ts:NNN` citation resolves: the file
- *      exists and has at least that many lines. A citation that points past
- *      the end of a file is the ordinary way this document rots, because code
- *      moves and prose does not.
+ *      exists, and every line the citation names is a line that file has —
+ *      nothing past the end, and no line 0. A citation pointing off either end
+ *      is the ordinary way this document rots, because code moves and prose
+ *      does not.
  *   2. CITED TESTS — where a row names a test by its title next to a file, the
- *      file still contains that title. Deliberately conservative; see below.
+ *      file still contains that title IN A FORM THAT RUNS. A skipped, todo'd
+ *      or commented-out test is not a control. Deliberately conservative about
+ *      what it will call not-running; see below.
  *   3. HEAD — the header records a real commit, and no SURFACE file the index
  *      cites has moved between that commit and HEAD. The exact-tree claim
  *      cannot be a repo-wide gate: the index cites `DECISIONS.md`,
@@ -32,6 +35,10 @@
  *   4. NO DIRTY-TREE DISCLAIMER — the header does not say it was measured
  *      against a working tree. Naming a commit is the whole point.
  *
+ * A missing index is not a free pass either: the branch at the top asks git
+ * whether the file was deleted or never existed, because those are different
+ * events and only one of them is benign.
+ *
  * Deliberately dependency-free and run from `ci-config-check`, the one CI job
  * with no path filter — the index is a stray root markdown that matches no
  * filter, so a gated job would be skipped exactly when this is needed. Same
@@ -39,6 +46,7 @@
  * which are the precedent for this shape.
  *
  * Run: node scripts/check-claims-index.mjs
+ * Its own controls: node --test scripts/check-claims-index.test.mjs
  */
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
@@ -52,18 +60,6 @@ const indexPath = resolve(repoRoot, INDEX);
 
 const failures = [];
 
-if (!existsSync(indexPath)) {
-  // Not a failure: the index is a working document for one project and may not
-  // exist on every branch. Say so rather than failing a branch that never had
-  // one, and say it loudly enough that a DELETED index is visible in the log.
-  console.log(
-    `note: ${INDEX} is not present on this branch; nothing to check.`
-  );
-  process.exit(0);
-}
-
-const text = readFileSync(indexPath, 'utf8');
-
 function git(args) {
   return execFileSync('git', args, {
     cwd: repoRoot,
@@ -71,6 +67,42 @@ function git(args) {
     maxBuffer: 64 * 1024 * 1024,
   });
 }
+
+if (!existsSync(indexPath)) {
+  // Two different events look identical on disk, and only one of them is
+  // benign: a branch that never had an index, and a branch that had one until
+  // somebody deleted it. Exiting 0 for both makes deleting the evidence the
+  // cheapest way to make this check pass, which is the reverse of the point.
+  //
+  // The index is TRACKED, so git can tell them apart. If git knows the path
+  // and disk does not, the file was removed from the working tree and the
+  // removal has not been committed — a deletion in progress, and a failure.
+  // If git has never heard of it, this branch genuinely does not have one and
+  // the note-and-exit-0 is right.
+  //
+  // Asking git costs the same assumption the rest of this script already
+  // makes — it builds its tracked set from `git ls-files` a few lines down —
+  // so if git is unavailable this dies loudly here rather than passing
+  // quietly, which for a check about missing evidence is the correct end.
+  const knownToGit = git(['ls-files', '--', INDEX]).trim().length > 0;
+  if (knownToGit) {
+    console.error('Claims index check failed:\n');
+    console.error(
+      `  - ${INDEX} is tracked in this repository but is not on disk. The ` +
+        `index was deleted, and a deleted index is not an index that passes: ` +
+        `every claim it carried is now uncontrolled with nothing saying so. ` +
+        `Restore it, or commit its removal deliberately.\n`
+    );
+    process.exit(1);
+  }
+  console.log(
+    `note: ${INDEX} is not present on this branch and git does not track it; ` +
+      `nothing to check.`
+  );
+  process.exit(0);
+}
+
+const text = readFileSync(indexPath, 'utf8');
 
 // ---------------------------------------------------------------------------
 // citation extraction
@@ -195,6 +227,19 @@ for (const [name, path] of [...resolved]) {
   }
 }
 
+/**
+ * Every number in a citation is checked, and both ends of the file's range
+ * count.
+ *
+ * The ceiling was already caught by the old `Math.max(...)` form — if any
+ * number in `12-40, 300` is past EOF then the largest is too — so iterating
+ * changes nothing there, and this comment is not going to pretend otherwise.
+ * The FLOOR was not checked at all: `file.ts:0` names a line that cannot
+ * exist in any file, and it passed every time because zero is never the
+ * largest number and is never greater than a line count. A citation nobody
+ * can follow is the same dead anchor as one pointing past the end, arrived at
+ * from the other direction.
+ */
 for (const [name, path] of resolved) {
   const lineCount = readFileSync(resolve(repoRoot, path), 'utf8').split(
     '\n'
@@ -202,11 +247,19 @@ for (const [name, path] of resolved) {
   const lineSpecs = citations.get(name);
   for (const spec of lineSpecs) {
     const numbers = spec.split(/[-,]/).map((n) => Number(n.trim()));
-    const highest = Math.max(...numbers);
-    if (highest > lineCount) {
+    if (numbers.some((n) => n === 0)) {
+      failures.push(
+        `\`${name}:${spec}\` cites line 0 of ${path}. Files start at line 1, ` +
+          `so this anchor points nowhere and never has.`
+      );
+      continue;
+    }
+    const past = numbers.filter((n) => n > lineCount);
+    if (past.length > 0) {
       failures.push(
         `\`${name}:${spec}\` points past the end of ${path}, which has ` +
-          `${lineCount} lines. The code moved and the citation did not.`
+          `${lineCount} lines (line ${past.join(', ')}). The code moved and ` +
+          `the citation did not.`
       );
     }
   }
@@ -241,6 +294,57 @@ for (const [name, path] of resolved) {
 const TITLE_AFTER_CITATION =
   /`([A-Za-z0-9_@][A-Za-z0-9_.@/-]*\.(?:test\.tsx?|spec\.ts))(?::[\d,\s-]+)?`\s*(?:—|-|,)?\s*"([^"]{8,})"/g;
 
+/**
+ * A title is only evidence if the test RUNS.
+ *
+ * `source.includes(title)` answered a weaker question than the row asks. The
+ * string survives `test.skip`, `it.todo`, `xdescribe` and a commented-out
+ * block, so a control could be turned off — the ordinary way a test is
+ * silenced under deadline — and every row citing it stayed green while the
+ * claim went uncontrolled. Present is not running.
+ *
+ * This is a DENY-LIST, and deliberately so, in the same spirit as the
+ * conservatism above: an occurrence is disqualified when it can be SEEN not
+ * to run, and any form this does not recognise still counts. That keeps the
+ * check from inventing failures over table-driven or interpolated titles it
+ * cannot parse, at the price of the honest limits below.
+ *
+ * WHAT THIS CANNOT SEE, written down rather than implied:
+ *   - A live `it(...)` nested inside a `describe.skip(...)`. The check reads
+ *     the call the title is in, not the blocks around it.
+ *   - An `it.only(...)` elsewhere in the file, which silences every other
+ *     test in it under bun/vitest while each one still reads as live here.
+ *   - A test whose file is excluded by the runner's config, or a suite nobody
+ *     runs at all. Nothing in a grep can reach that; the CI wiring is what
+ *     answers it.
+ * A title in a form that does run but that this does not recognise (a
+ * `test.each` table, a template literal) is accepted, as it was before.
+ */
+const SKIPPED_CALL =
+  /(?:^|[^.\w$])(?:x(?:it|test|describe)|(?:it|test|describe)\.(?:skip|todo))\s*\($/;
+
+/** Where in `source` the title appears, and whether each occurrence runs. */
+function titleOccurrences(source, title) {
+  const found = [];
+  for (
+    let at = source.indexOf(title);
+    at !== -1;
+    at = source.indexOf(title, at + 1)
+  ) {
+    const before = source.slice(0, at);
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const line = before.slice(lineStart);
+    // A comment is the other way a control stops running while its title
+    // stays put. Both spellings: `// it('title')` on one line, and a JSDoc or
+    // block comment whose continuation lines begin with `*`.
+    const commented = line.includes('//') || /^\s*(?:\/\*|\*)/.test(line);
+    // Trim the opening quote and any whitespace to reach the call itself.
+    const call = before.replace(/['"`]$/, '').replace(/\s+$/, '');
+    found.push({ live: !commented && !SKIPPED_CALL.test(call) });
+  }
+  return found;
+}
+
 let titlesChecked = 0;
 for (const match of text.matchAll(TITLE_AFTER_CITATION)) {
   const file = match[1].replace(/^\.\//, '');
@@ -250,11 +354,19 @@ for (const match of text.matchAll(TITLE_AFTER_CITATION)) {
   if (!path) continue; // already reported as dead or ambiguous above
   const source = readFileSync(resolve(repoRoot, path), 'utf8');
   titlesChecked += 1;
-  if (!source.includes(title)) {
+  const occurrences = titleOccurrences(source, title);
+  if (occurrences.length === 0) {
     failures.push(
       `${path} no longer contains the test "${title}", which the index cites ` +
         `as the control. Either the test was renamed and the row was not, or ` +
         `the control is gone and the claim is uncontrolled.`
+    );
+  } else if (!occurrences.some((occurrence) => occurrence.live)) {
+    failures.push(
+      `${path} contains "${title}" only where it does not run — a skipped or ` +
+        `todo'd test, or a comment. The index cites it as the control for a ` +
+        `claim, so the claim is uncontrolled and the row says otherwise. ` +
+        `Re-enable the test or stop citing it.`
     );
   }
 }

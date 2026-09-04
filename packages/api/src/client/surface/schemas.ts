@@ -307,6 +307,37 @@ export const SurfaceSpecSchema = z
         message: `spec exceeds ${SURFACE_CAPS.specTotal} bytes`,
       });
     }
+  });
+
+/**
+ * The same spec, plus the rules that apply only to a spec being WRITTEN.
+ *
+ * ## Why this is a second schema and not another clause in the first
+ *
+ * D191 put the `memberInteraction`-beside-actions refusal in `SurfaceSpecSchema`
+ * itself, reasoning that a self-contradicting spec should be refused by
+ * everything that validates one. That reasoning was right about publication and
+ * wrong about reading, and the difference matters more than the symmetry did.
+ *
+ * `SurfaceSpecSchema` is the READER. `readSurfaceSpec` runs it over the cell of
+ * every channel a client opens, and a spec it rejects is `invalid` — which
+ * hydration treats as "never fold, never fall back", by design. So a refusal
+ * added here is retroactive: a definition published before the rule existed
+ * stops being readable the moment a client updates, and the board goes dark
+ * while its event log sits intact underneath. That shape WAS publishable —
+ * this project's own fork fixture carried it — so it is a version-1 wire shape
+ * in the field, not a hypothetical.
+ *
+ * Splitting the two is what lets the rule be strict without being retroactive:
+ * nothing new can be published with the contradiction, and nothing already
+ * published stops rendering. The alternative is a protocol version bump plus a
+ * migration, which is the right answer to a change in what a spec MEANS and is
+ * disproportionate to a marker that was always inert.
+ *
+ * Every writer validates against this one; `readSurfaceSpec` never does (D198).
+ */
+export const PublishableSurfaceSpecSchema = SurfaceSpecSchema.superRefine(
+  (spec, ctx) => {
     // The marker is an opt-out from a rule that only fires on an EMPTY action
     // map, so beside a nonempty one it asserts nothing and contradicts what it
     // sits next to (D191). It was permitted, and lint returned early whenever
@@ -314,12 +345,6 @@ export const SurfaceSpecSchema = z
     // and pass clean — while the rubric, which keys check 8 off the marker's
     // presence alone, generated a check about a display-only app for a board
     // full of controls.
-    //
-    // Refused at the SCHEMA and not in lint, because lint is the publish gate
-    // and the contradiction is readable by everything that validates a spec:
-    // the reducer's own read-back, `surface show`, the preview, the client.
-    // A gate-only rule would leave every one of those agreeing that a
-    // self-contradicting spec is fine.
     if (
       spec.memberInteraction !== undefined &&
       Object.keys(spec.actions ?? {}).length > 0
@@ -330,7 +355,8 @@ export const SurfaceSpecSchema = z
         message: `memberInteraction declares that members cannot act, but this spec declares ${Object.keys(spec.actions ?? {}).length} action(s) they can. Remove the marker, or remove the actions.`,
       });
     }
-  });
+  }
+);
 
 export type SurfaceSpec = z.infer<typeof SurfaceSpecSchema>;
 

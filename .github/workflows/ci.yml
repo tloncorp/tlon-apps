@@ -112,6 +112,13 @@ jobs:
       - name: The claims index names a commit and still describes it
         run: node scripts/check-claims-index.mjs
 
+      # And the validator's own controls, in the same job for the same reason:
+      # a checker that cannot fail certifies nothing, and this one runs where
+      # there is a checkout and node and no install. `node --test`, no
+      # dependencies, ~3s.
+      - name: The claims-index validator can still fail
+        run: node --test scripts/check-claims-index.test.mjs
+
   # The app-wide suite. Skipped only when the filter positively reported
   # app == 'false' (bot-/docs-only PRs). Written `!= 'false'` rather than
   # `== 'true'` to fail closed: if the changes job errors, its outputs are

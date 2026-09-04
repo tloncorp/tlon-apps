@@ -64,6 +64,16 @@ type BackfillOptions = {
   channelId: string;
   mode: 'newest' | 'older';
   cursorSequenceNum?: number;
+  /**
+   * The id half of the cursor, when the caller has one (D201).
+   *
+   * The remote fetch is a sequence RANGE, not a tuple cursor, so this does not
+   * narrow what comes back — a range covering the cursor's rung returns every
+   * row on it either way, which is exactly what the boundary probe needs. It
+   * travels so the request records which tie it was asked about, and so a
+   * later transport that CAN express a tuple has somewhere to read it from.
+   */
+  cursorTiePostId?: string;
   count: number;
 };
 
@@ -87,11 +97,11 @@ const DEFAULT_MAX_PAGES = 40;
 async function readOlderLocalFirst(
   channelId: string,
   cursorSequenceNum: number,
-  cursorPostId: string | undefined,
+  cursorTiePostId: string | undefined,
   count: number,
   backfill: HydrateSurfaceOptions['backfill']
 ): Promise<db.Post[]> {
-  // `cursorPostId` is the second half of the page cursor (D187). Without it a
+  // `cursorTiePostId` is the second half of the page cursor (D187). Without it a
   // post tied on `sequenceNum` with the last row of the previous page is
   // stepped over and never read again, and the reducer breaks a tie it can
   // only see one side of.
@@ -99,7 +109,7 @@ async function readOlderLocalFirst(
     channelId,
     mode: 'older',
     cursorSequenceNum,
-    cursorPostId,
+    cursorTiePostId,
     count,
   });
   if (local.length > 0) {
@@ -108,12 +118,18 @@ async function readOlderLocalFirst(
   if (!backfill) {
     return [];
   }
-  await backfill({ channelId, mode: 'older', cursorSequenceNum, count });
+  await backfill({
+    channelId,
+    mode: 'older',
+    cursorSequenceNum,
+    cursorTiePostId,
+    count,
+  });
   return db.getSequencedChannelPosts({
     channelId,
     mode: 'older',
     cursorSequenceNum,
-    cursorPostId,
+    cursorTiePostId,
     count,
   });
 }
@@ -194,6 +210,10 @@ export async function hydrateSurface(
     return partialState(spec, oldestOf(posts), newestOf(posts));
   }
 
+  const probedBoundaries = new Set<string>();
+  // Whether the fetch that produced the current oldest rung came back full.
+  // A full page may have been cut mid-rung; a short one proves it was not.
+  let lastPageWasFull = posts.length >= pageSize;
   for (let page = 0; page <= maxPages; page++) {
     const oldest = oldestOf(posts);
     const newest = newestOf(posts);
@@ -211,7 +231,67 @@ export async function hydrateSurface(
       oldest !== null &&
       reduction.baseSnapshotSeq >= oldest - 1;
 
+    /**
+     * Coverage is a claim about a RUNG, and `oldest === 1` is a claim about a
+     * NUMBER (D201).
+     *
+     * Two posts can share a sequence number, and the fetch that filled this
+     * client's window is count-limited: `syncInitialPosts` asks for 30 or 50
+     * posts, and the backend serves that as a count, not as a tuple cursor. So
+     * a tied pair straddling the count boundary arrives here as one row, the
+     * numeric tests below both pass, and a fresh client folds one of two events
+     * while a client that was already caught up folds both. That is the
+     * cross-client divergence §6 promises cannot happen, reached without any
+     * post being deleted or edited.
+     *
+     * A number cannot prove rung cardinality, so ask — but only when the local
+     * data gives a reason to, because "everything was local, the network was
+     * never touched" is a property this loop already holds and is worth
+     * keeping.
+     *
+     * The reason is exact and free: **a page that came back FULL may have been
+     * cut mid-rung; a page that came back short proves it was not.** A fetch
+     * that returns fewer rows than it was asked for reached the end of what
+     * exists, so its oldest rung is whole. A fetch that returns exactly its
+     * count may have stopped one row into a tie. So the probe fires only after
+     * a full page, which is precisely the case the count-limited initial sync
+     * produces and never the case a fully-local walk ends in.
+     *
+     * The probe itself is local first — `readOlderLocalFirst` only reaches the
+     * network when the local read is dry — and the remote fetch is a sequence
+     * RANGE, so a range covering this rung returns every row on it. If a
+     * sibling exists it lands and the fold continues with it.
+     *
+     * Bounded by construction: the probe key is the boundary tuple, which
+     * strictly decreases every time a row is added below it, so no tuple is
+     * probed twice and the loop's own page budget still bounds the whole walk.
+     */
     if (coveredToStart || coveredBySnapshot) {
+      const boundaryKey = `${oldest}:${oldestIdOf(posts) ?? ''}`;
+      if (
+        oldest !== null &&
+        lastPageWasFull &&
+        !probedBoundaries.has(boundaryKey)
+      ) {
+        probedBoundaries.add(boundaryKey);
+        const below = await readOlderLocalFirst(
+          channelId,
+          oldest,
+          oldestIdOf(posts),
+          pageSize,
+          backfill
+        );
+        // Only the rows on the BOUNDARY RUNG. The question is whether this rung
+        // is whole, not what lies beneath it — a snapshot boundary means the
+        // rows below are deliberately not folded, and dragging them in would
+        // page a covered channel back to its start for nothing.
+        const tied = below.filter((post) => post.sequenceNum === oldest);
+        if (tied.length > 0) {
+          posts = [...posts, ...tied];
+          lastPageWasFull = tied.length >= pageSize;
+          continue;
+        }
+      }
       if (reduction.status === 'migration-pending') {
         // full history searched, no current-revision snapshot (§6 step 3)
         return {
@@ -247,6 +327,7 @@ export async function hydrateSurface(
       logger.log('no older posts available below', oldest);
       return partialState(spec, oldest, newest);
     }
+    lastPageWasFull = older.length >= pageSize;
     posts = [...posts, ...older];
   }
 

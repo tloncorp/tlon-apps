@@ -2,6 +2,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import * as db from '../../db';
 import { getLatestChannelPostsInitialPage, queryKeyPrefix } from './queries';
+import {
+  newerPageParam,
+  normalizeCursor,
+  olderPageParam,
+} from './useChannelPosts';
 
 type TestPageParam = { mode: string; cursorPostId?: string; count?: number };
 
@@ -157,5 +162,60 @@ describe('getLatestChannelPostsInitialPage', () => {
     db.queryClient.setQueryData([...queryKey, 10], data(['newer', newer]));
 
     expect(getLatestChannelPostsInitialPage(queryKey, newest)).toBeUndefined();
+  });
+});
+
+/**
+ * The scroller's page cursor, which is the other caller of the tuple paging
+ * added for surface hydration (D200).
+ *
+ * The database query gained a `(sequenceNum, id)` predicate, and this caller
+ * did not pass the id — so its strict tuple branch was unreachable and a tied
+ * row split across a page boundary was still skipped forever. The page-param
+ * builders are extracted precisely so that omission is assertable: the defect
+ * was a missing field in an object literal inside a hook, where nothing could
+ * see it.
+ */
+describe('the scroller page cursor carries both halves', () => {
+  const oldest = { id: 'post-A', sequenceNum: 7 };
+  const newest = { id: 'post-Z', sequenceNum: 9 };
+
+  it('sends the oldest row of the page, id and all, going older', () => {
+    const param = olderPageParam({ channelId: 'chan', count: 20 }, oldest);
+    expect(param).toEqual({
+      channelId: 'chan',
+      count: 20,
+      mode: 'older',
+      cursorSequenceNum: 7,
+      cursorTiePostId: 'post-A',
+    });
+  });
+
+  it('sends the newest row of the page, id and all, going newer', () => {
+    const param = newerPageParam({ channelId: 'chan' }, newest);
+    expect(param).toEqual({
+      channelId: 'chan',
+      count: 50,
+      mode: 'newer',
+      cursorSequenceNum: 9,
+      cursorTiePostId: 'post-Z',
+    });
+  });
+
+  it('normalizing an unread-marker cursor leaves the tie cursor alone', async () => {
+    // `normalizeCursor` exists to turn a post-id entry point into a sequence
+    // number, and it CLEARS the field it consumed. The tie cursor lives in a
+    // different field for exactly this reason: one name carrying two meanings
+    // is how a caller ends up believing it passed a tie-break key when it
+    // passed a marker.
+    const normalized = await normalizeCursor({
+      channelId: 'chan',
+      mode: 'older',
+      count: 20,
+      cursorSequenceNum: 7,
+      cursorTiePostId: 'post-A',
+      cursorPostId: undefined,
+    });
+    expect(normalized.cursorTiePostId).toBe('post-A');
   });
 });

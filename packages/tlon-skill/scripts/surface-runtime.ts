@@ -64,6 +64,7 @@ const {
   SurfaceSnapshotEntrySchema,
   SurfaceSpecMirrorEntrySchema,
   SurfaceSpecSchema,
+  PublishableSurfaceSpecSchema,
   readSurfaceSpec,
 } = surfaceSchemasModule as Pick<
   ApiModule,
@@ -72,6 +73,7 @@ const {
   | 'SurfaceSnapshotEntrySchema'
   | 'SurfaceSpecMirrorEntrySchema'
   | 'SurfaceSpecSchema'
+  | 'PublishableSurfaceSpecSchema'
   | 'readSurfaceSpec'
 >;
 const { reduceSurface } = surfaceReducerModule as Pick<
@@ -800,7 +802,8 @@ export function createSurfaceDeps(): SurfaceDeps {
         SCDP.rawPersistenceFields(encoded).surfaceSpec,
     },
     readSpecText: (raw) => readSurfaceSpec(raw),
-    validateSpecValue: (value) => validate(SurfaceSpecSchema, value),
+    // Writers only — every caller of this is on the publish path (D198).
+    validateSpecValue: (value) => validate(PublishableSurfaceSpecSchema, value),
     validateEntry: (kind: SurfaceRecordKind, value) =>
       validate(ENTRY_SCHEMAS[kind], value),
     parsePointer: (pointerPath) => parsePointer(pointerPath),

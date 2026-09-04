@@ -528,3 +528,76 @@ test('a sequence-number tie folds identically in either insertion order', async 
     )
   );
 });
+
+test('a tied row the count-limited fetch left behind is acquired, not assumed away', async () => {
+  // The acquisition boundary, which is one layer further out than the page
+  // cursor (D201). `syncInitialPosts` asks the backend for a COUNT — 30 or 50
+  // posts — and the backend serves that as a count, not as a tuple cursor. So
+  // a tied pair straddling that boundary arrives as one row. Locally, nothing
+  // is wrong: the newest sequence matches the advertised head and the oldest
+  // sequence is 1, so both numeric coverage tests pass and hydration reports
+  // `hydrated` over a fold that is missing an event. A client that was already
+  // caught up folds both. That is two clients disagreeing about current, which
+  // is the one thing §6 promises cannot happen.
+  //
+  // The fix does not trust the numbers: after a FULL page — the only kind that
+  // can have been cut mid-rung — it asks the boundary rung whether it is whole.
+  await resetDb();
+  await insertSurfaceChannel(conflictSpec());
+
+  // what the count-limited fetch delivered: rung 2, and ONE of rung 1's two
+  const delivered = [
+    makePost(2, MEMBER, [invokeEntry('x-high')], { id: TIE_BASE_ID }),
+    makePost(1, MEMBER, [invokeEntry('x-low')], { id: TIE_LOW_ID }),
+  ];
+  await insertPosts(delivered);
+
+  // the sibling the server has and this client does not
+  const missing = makePost(1, '~bus', [invokeEntry('x-high')], {
+    id: TIE_HIGH_ID,
+  });
+
+  // the backfill source: a range request over the boundary rung returns it
+  const backfill = vi.fn(async () => {
+    await db.insertChannelPosts({ posts: [missing] });
+  });
+
+  const result = await hydrateSurface({
+    channelId: CHANNEL,
+    // a page size the delivered window exactly fills, which is what makes it
+    // indistinguishable from a window that was cut
+    pageSize: 2,
+    backfill,
+  });
+
+  expect(result.status).toBe('hydrated');
+  // the probe went to the network for the rung it could not vouch for
+  expect(backfill).toHaveBeenCalled();
+  // and both events are in the fold: the log carries two entries, and the
+  // canonically greater id won /x
+  expect(result.state).toEqual({ x: 2, log: ['low', 'high'] });
+});
+
+test('a short final page vouches for its own rung, and costs no network', async () => {
+  // The other half, and the reason the probe is conditional. A fetch that
+  // returns fewer rows than it asked for reached the end of what exists, so
+  // its oldest rung is whole and there is nothing to ask about. Without this
+  // arm the fix would be "always spend a round trip", which is a different
+  // change with a cost nobody asked for.
+  await resetDb();
+  await insertSurfaceChannel(conflictSpec());
+  await insertPosts([
+    makePost(2, MEMBER, [invokeEntry('x-high')], { id: TIE_BASE_ID }),
+    makePost(1, MEMBER, [invokeEntry('x-low')], { id: TIE_LOW_ID }),
+  ]);
+
+  const backfill = noopBackfill();
+  const result = await hydrateSurface({
+    channelId: CHANNEL,
+    pageSize: 50, // the window does not fill it, so it was not cut
+    backfill,
+  });
+
+  expect(result.status).toBe('hydrated');
+  expect(backfill).not.toHaveBeenCalled();
+});

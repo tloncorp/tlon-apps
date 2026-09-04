@@ -505,10 +505,20 @@ export interface SurfaceDeps extends CommandDeps {
     posts: SurfacePostRecord[];
     /**
      * The channel head from `hydratePosts`, so the CLI applies the same D175
-     * ceiling the client does. Omitted only where there is no hydration to
-     * take it from — a synthetic post set has no ship and no head.
+     * ceiling the client does.
+     *
+     * REQUIRED, and required is the fix (D199). It was optional, and three
+     * folds in this package that write snapshots from their result quietly
+     * did not pass it — so a snapshot claiming coverage beyond the real head
+     * was folded, and its state re-emitted under an honest-looking boundary
+     * that every client accepts. An optional ceiling is a ceiling that gets
+     * left off exactly where the consequence is worst.
+     *
+     * `null` is the way to say "there is no head here" — a synthetic post set
+     * has no ship — and saying it is a visible decision at the call site
+     * rather than a field nobody typed.
      */
-    advertisedHead?: number | null;
+    advertisedHead: number | null;
   }): SurfaceReduction;
   /** `SURFACE_CAPS`, for pre-flight refusals with a number in them */
   caps: { opsPerEvent: number; bundleSize: number };

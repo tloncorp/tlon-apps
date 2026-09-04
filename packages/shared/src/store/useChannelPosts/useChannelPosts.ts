@@ -155,12 +155,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         return undefined;
       }
 
-      return {
-        channelId: options.channelId,
-        count: options.count ?? 50,
-        mode: 'older',
-        cursorSequenceNum: oldestPost.sequenceNum!,
-      };
+      return olderPageParam(options, oldestPost);
     },
     getPreviousPageParam: (
       firstPage,
@@ -183,12 +178,7 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
         return undefined;
       }
 
-      return {
-        channelId: options.channelId,
-        count: options.count ?? 50,
-        mode: 'newer',
-        cursorSequenceNum: newestPost.sequenceNum,
-      };
+      return newerPageParam(options, newestPost);
     },
   });
 
@@ -273,11 +263,53 @@ export const useChannelPosts = (options: UseChannelPostsParams) => {
   );
 };
 
+/**
+ * The page cursor for the next older page: the oldest loaded row's rung AND
+ * its id (D200).
+ *
+ * Extracted from the query's `getNextPageParam` so the pair can be asserted
+ * without standing up React. That is not tidiness — the defect these exist to
+ * prevent was exactly an omitted field in an object literal buried in a hook,
+ * where nothing could see it.
+ *
+ * `cursorTiePostId` is NOT `cursorPostId`. Two posts can share a sequence
+ * number, so paging on the number alone reads the sibling as a gap and the
+ * next `< N` predicate excludes it permanently. `cursorPostId` means something
+ * else entirely here — the unread-marker cursor naming the post to open at,
+ * which `normalizeCursor` resolves to a sequence number and then clears.
+ */
+export function olderPageParam(
+  options: { channelId: string; count?: number },
+  oldestPost: { id: string; sequenceNum?: number | null }
+): PageParam {
+  return {
+    channelId: options.channelId,
+    count: options.count ?? 50,
+    mode: 'older',
+    cursorSequenceNum: oldestPost.sequenceNum!,
+    cursorTiePostId: oldestPost.id,
+  };
+}
+
+/** Symmetric with `olderPageParam`, for the newer direction. */
+export function newerPageParam(
+  options: { channelId: string; count?: number },
+  newestPost: { id: string; sequenceNum?: number | null }
+): PageParam {
+  return {
+    channelId: options.channelId,
+    count: options.count ?? 50,
+    mode: 'newer',
+    cursorSequenceNum: newestPost.sequenceNum!,
+    cursorTiePostId: newestPost.id,
+  };
+}
+
 /*
   We want to operate on sequence numbers, but our unread markers are keyed by postId.
   This encapsulate the logic for obtaining a sequence based cursor.
 */
-async function normalizeCursor(options: PageParam): Promise<PageParam> {
+export async function normalizeCursor(options: PageParam): Promise<PageParam> {
   // only attempt to transform if we have a postId shaped cursor
   if (!options.cursorPostId) {
     return options;

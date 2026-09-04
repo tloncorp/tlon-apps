@@ -798,6 +798,98 @@ describe('surface snapshot — repairing a pending migration', () => {
     ).toBe(0);
     expect(harness.json().abortedSequenceNums).toEqual([11, 17]);
   });
+
+  /**
+   * The laundering shape, one revision back (D199).
+   *
+   * The command's own fold, above, cannot see this one: the offending snapshot
+   * belongs to revision 1, and snapshot selection drops a wrong-revision
+   * candidate BEFORE it ever compares the boundary to the head. So the channel
+   * reads as an ordinary stranded one and the repair path is reached.
+   *
+   * That repair then folds revision 1 deliberately — and that fold is a
+   * WRITER's, because its state is posted as the revision-2 migration
+   * snapshot. Folded without the head, the invalid boundary's state is carried
+   * across into a snapshot every client accepts, while the bad snapshot goes on
+   * winning selection at revision 1. Nothing is repaired; the corrupt state is
+   * laundered.
+   */
+  function strandedOverSnapshot(
+    upToSequenceNum: number,
+    state: Record<string, unknown>
+  ) {
+    const harness = stranded();
+    harness.ship.addPost(CHANNEL, {
+      authorId: '~zod',
+      kind: '/chat/surface/snapshot',
+      blob: JSON.stringify([
+        {
+          type: 'surface-snapshot',
+          version: 1,
+          surfaceId: SURFACE_ID,
+          specRevision: 1,
+          upToSequenceNum,
+          state,
+        },
+      ]),
+    });
+    return harness;
+  }
+
+  it('refuses the repair over a previous-revision snapshot beyond the head', async () => {
+    const harness = strandedOverSnapshot(1_000_000, {
+      bringing: { laundered: true },
+    });
+    const posts = (harness.ship.posts.get(CHANNEL) ?? []).length;
+
+    // The premise: the CURRENT revision's fold is blind to it. This is not an
+    // ordinary head-exceeded channel that any fold would refuse — it reads as
+    // a plain stranded one, which is what makes the repair path the only
+    // place the defect can be caught.
+    expect(await run(['state', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const before = harness.json();
+    expect(before.status).toBe('migration-pending');
+    expect(before.headExceededSnapshots).toEqual([]);
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(1);
+    const result = harness.json();
+    expect(result.code).toBe('snapshot-head-exceeded');
+    expect(
+      (result.details as Record<string, unknown>).headExceededSnapshots
+    ).toEqual([4]);
+
+    // Counted against the write log, not read back off a final value: a
+    // snapshot post cannot be unsent, so the only honest assertion is that
+    // none was ever sent.
+    expect(harness.ship.posts.get(CHANNEL) ?? []).toHaveLength(posts);
+  });
+
+  it('repairs across an honest previous-revision boundary', async () => {
+    // The guard has to be able to NOT fire, or it is refusing the shape — a
+    // revision-1 snapshot under a stranded revision 2 — rather than the
+    // defect. Same fixture, same code path, a boundary the channel can have.
+    const harness = strandedOverSnapshot(2, {
+      bringing: { '~zod': 'bread', '~ten': 'pie', '~bus': 'wine' },
+    });
+
+    expect(await run(['snapshot', CHANNEL, '--json'], harness.deps)).toBe(0);
+    const result = harness.json();
+    expect(result.repairedMigration).toBe(true);
+    expect(result.carriedFromRevision).toBe(1);
+    // The boundary the SNAPSHOT covered, not the newest post: the event at
+    // sequence 2 is frozen under it, so nothing folded above it.
+    expect(result.upToSequenceNum).toBe(2);
+
+    // And the state carried across came THROUGH that snapshot — `~bus` is in
+    // it and in no event, so this cannot be the fold a skipped snapshot would
+    // have produced.
+    const posted = (harness.ship.posts.get(CHANNEL) ?? []).find(
+      (post) => post.id === result.post
+    );
+    expect(JSON.parse(posted?.blob ?? '[]')[0].state).toEqual({
+      bringing: { '~zod': 'bread', '~ten': 'pie', '~bus': 'wine' },
+    });
+  });
 });
 
 /**
