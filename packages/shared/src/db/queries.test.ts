@@ -894,6 +894,66 @@ describe('getChats group recency workaround', () => {
     }
   });
 
+  test('scopes a tombstone to its own notes channel', async () => {
+    const groups = ['tomb-scoped-a', 'tomb-scoped-b'];
+
+    await queries.insertGroups({
+      groups: groups.map((name) => testGroup(`~zod/${name}`, 100_000)),
+    });
+    await queries.insertChannels(
+      groups.map((name) => ({
+        id: `notes/~zod/${name}`,
+        type: 'notes' as const,
+        groupId: `~zod/${name}`,
+        currentUserIsMember: true,
+      }))
+    );
+    await queries.insertChannelUnreads(
+      groups.map((name) =>
+        makeChannelUnread({
+          channelId: `notes/~zod/${name}`,
+          updatedAt: 400_000,
+        })
+      )
+    );
+    // The same note id in both notebooks, so a tombstone lookup that ignored
+    // the channel would suppress each channel's event.
+    for (const name of groups) {
+      await insertNoteActivityEvent(
+        noteActivityEvent({
+          id: `${name}-note-event`,
+          channelId: `notes/~zod/${name}`,
+          groupId: `~zod/${name}`,
+          postId: '42',
+          title: `${name} title`,
+          timestamp: 399_000,
+        })
+      );
+    }
+    await queries.confirmNotesActivityEventsDeleted({
+      notebookFlag: '~zod/tomb-scoped-a',
+      noteIds: [42],
+    });
+
+    const chats = (await queries.getChats()).unpinned;
+    const deleted = chats.find((c) => c.id === '~zod/tomb-scoped-a');
+    const kept = chats.find((c) => c.id === '~zod/tomb-scoped-b');
+    expect(deleted?.type).toBe('group');
+    if (deleted?.type === 'group') {
+      expect(deleted.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+      });
+    }
+    expect(kept?.type).toBe('group');
+    if (kept?.type === 'group') {
+      expect(kept.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'tomb-scoped-b title',
+      });
+    }
+  });
+
   test('keeps a local note the deleted event outranks on a lagging host clock', async () => {
     const groupId = '~zod/lagging-host-clock';
     const channelId = 'notes/~zod/lagging-host-clock';

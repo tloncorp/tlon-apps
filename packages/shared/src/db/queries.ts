@@ -1630,51 +1630,64 @@ async function getLatestNoteEventsByChannel(
   ctx: QueryCtx
 ): Promise<Map<string, NotesActivityEventDetail>> {
   const $newerEvents = alias($activityEvents, 'newerNoteActivityEvents');
-  const [rows, tombstones] = await Promise.all([
-    ctx.db
-      .select({
-        channelId: $activityEvents.channelId,
-        type: $activityEvents.type,
-        postId: $activityEvents.postId,
-        authorId: $activityEvents.authorId,
-        content: $activityEvents.content,
-        timestamp: $activityEvents.timestamp,
-      })
-      .from($activityEvents)
-      .where(
-        and(
-          inArray($activityEvents.type, ['note-create', 'note-edit']),
-          inArray($activityEvents.channelId, channelIds),
-          notExists(
-            ctx.db
-              .select({ id: $newerEvents.id })
-              .from($newerEvents)
-              .where(
-                and(
-                  eq($newerEvents.channelId, $activityEvents.channelId),
-                  inArray($newerEvents.type, ['note-create', 'note-edit']),
-                  or(
-                    gt($newerEvents.timestamp, $activityEvents.timestamp),
-                    and(
-                      eq($newerEvents.timestamp, $activityEvents.timestamp),
-                      gt($newerEvents.id, $activityEvents.id)
-                    ),
-                    and(
-                      eq($newerEvents.timestamp, $activityEvents.timestamp),
-                      eq($newerEvents.id, $activityEvents.id),
-                      gt($newerEvents.bucketId, $activityEvents.bucketId)
-                    )
+  const rows = await ctx.db
+    .select({
+      channelId: $activityEvents.channelId,
+      type: $activityEvents.type,
+      postId: $activityEvents.postId,
+      authorId: $activityEvents.authorId,
+      content: $activityEvents.content,
+      timestamp: $activityEvents.timestamp,
+    })
+    .from($activityEvents)
+    .where(
+      and(
+        inArray($activityEvents.type, ['note-create', 'note-edit']),
+        inArray($activityEvents.channelId, channelIds),
+        notExists(
+          ctx.db
+            .select({ id: $newerEvents.id })
+            .from($newerEvents)
+            .where(
+              and(
+                eq($newerEvents.channelId, $activityEvents.channelId),
+                inArray($newerEvents.type, ['note-create', 'note-edit']),
+                or(
+                  gt($newerEvents.timestamp, $activityEvents.timestamp),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    gt($newerEvents.id, $activityEvents.id)
+                  ),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    eq($newerEvents.id, $activityEvents.id),
+                    gt($newerEvents.bucketId, $activityEvents.bucketId)
                   )
                 )
               )
+            )
+        )
+      )
+    );
+
+  // Only the selected events can be suppressed, and the filter above leaves
+  // at most one per channel. Tombstones outlive the notes they suppress, so
+  // scope the lookup to those ids -- a seek on the (channel_id, note_id)
+  // primary key -- instead of loading a notebook's whole deletion history.
+  const selectedNoteIds = rows.flatMap((row) =>
+    row.postId ? [row.postId] : []
+  );
+  const tombstones = selectedNoteIds.length
+    ? await ctx.db
+        .select()
+        .from($notesActivityEventTombstones)
+        .where(
+          and(
+            inArray($notesActivityEventTombstones.channelId, channelIds),
+            inArray($notesActivityEventTombstones.noteId, selectedNoteIds)
           )
         )
-      ),
-    ctx.db
-      .select()
-      .from($notesActivityEventTombstones)
-      .where(inArray($notesActivityEventTombstones.channelId, channelIds)),
-  ]);
+    : [];
   const tombstoneKeys = new Set(
     tombstones.map(({ channelId, noteId }) =>
       notesActivityEventKey(channelId, noteId)
