@@ -1034,7 +1034,7 @@
   |=  [grp=flag:n =flag:n who=ship]
   ^-  ?
   =/  gpath=path
-    /(scot %p our.bowl)/groups/(scot %da now.bowl)/v2/groups/(scot %p ship.grp)/[name.grp]/channels/can-read/noun
+    /(scot %p our.bowl)/tlon/(scot %da now.bowl)/v2/groups/(scot %p ship.grp)/[name.grp]/channels/can-read/noun
   =/  test=$-([ship nest:n] ?)  .^($-([ship nest:n] ?) %gx gpath)
   (test who [%notes ship.flag name.flag])
 ::  +group-synced: is group `grp` present in our local %groups replica? Used
@@ -1044,7 +1044,7 @@
   |=  grp=flag:n
   ^-  ?
   =/  gpath=path
-    /(scot %p our.bowl)/groups/(scot %da now.bowl)/groups/(scot %p ship.grp)/[name.grp]
+    /(scot %p our.bowl)/tlon/(scot %da now.bowl)/groups/(scot %p ship.grp)/[name.grp]
   .^(? %gu gpath)
 ::  +can-view-flag: check if ship can view a notebook by flag. Group-mode
 ::  notebooks defer to the group's can-read; others use the members map.
