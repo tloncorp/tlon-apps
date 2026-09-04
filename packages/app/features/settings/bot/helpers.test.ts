@@ -234,7 +234,43 @@ describe('provider config', () => {
     });
     expect(values.provider).toBe('anthropic');
     expect(values.model).toBe('claude-1');
+    expect(values.zdr).toBe(false);
     expect(values.fallbacks).toEqual([{ provider: 'openai', model: 'gpt-x' }]);
+  });
+
+  it('derives the primary OpenRouter ZDR preference', () => {
+    const values = getModelFormValues({
+      keys: { openrouter: 'sk-or-xxx' },
+      defaultKeys: {},
+      models: [
+        {
+          provider: 'openrouter',
+          model: 'x-ai/grok-4.6',
+          primary: true,
+          zdr: true,
+        },
+      ],
+    });
+
+    expect(values.zdr).toBe(true);
+  });
+
+  it('derives the primary Basic ZDR preference', () => {
+    const values = getModelFormValues({
+      keys: {},
+      defaultKeys: { basic: { key: 'shared' } },
+      models: [
+        {
+          provider: 'basic',
+          model: 'openai/gpt-5.6-luna',
+          primary: true,
+          zdr: true,
+        },
+      ],
+    });
+
+    expect(values.provider).toBe('basic');
+    expect(values.zdr).toBe(true);
   });
 
   it('treats the first non-channel model as primary when none is flagged', () => {
