@@ -1224,7 +1224,7 @@
   ++  groups-scry
     ^-  path
     :-  (scot %p our)
-    /tlon/(scot %da now)/v2/groups/(scot %p p.group)/[q.group]
+    /groups/(scot %da now)/v2/groups/(scot %p p.group)/[q.group]
   ::
   ++  is-admin
     |=  her=ship
