@@ -44,13 +44,13 @@ fi
 "$workdir/src/scripts/assemble-desk.sh" "$workdir/assembled"
 
 # Record the meaningful contents separately from the assembled desk.  The
-# assembly stamps commit.txt and the glob bot can update desk.docket-0 without
-# changing runnable Hoon, so neither should force an otherwise identical desk
-# through Clay.  Keeping the manifest beside the payload lets the remote skip
-# an expensive no-op commit (whose kiln hash would not change).
+# assembly stamps commit.txt, which does not affect the desk's runnable
+# contents. Keeping the manifest beside the payload lets the remote skip an
+# expensive no-op commit (whose kiln hash would not change). The docket stays
+# in the manifest: a new frontend glob is itself a deployable desk change.
 (
   cd "$workdir/assembled"
-  find . -type f ! -path './commit.txt' ! -path './desk.docket-0' -print0 \
+  find . -type f ! -path './commit.txt' -print0 \
     | sort -z \
     | xargs -0 sha256sum
 ) > "$workdir/manifest.sha256"
@@ -140,12 +140,36 @@ fi
 hood_command "unmount %$desk"
 hood_command "mount %$desk"
 mounted_manifest=\$(mktemp)
-(
-  cd $folder
-  find . -type f ! -path './commit.txt' ! -path './desk.docket-0' -print0 \
+read_mounted_manifest() {
+  (
+    cd $folder
+    find . -type f ! -path './commit.txt' -print0 \
     | sort -z \
     | xargs -0 sha256sum
-) > "\$mounted_manifest"
+  ) > "\$mounted_manifest"
+}
+# Hood returns before Clay has necessarily materialized the new mount. Wait
+# for two identical manifest samples so a first migration cannot hash a
+# missing or partially populated desk.
+previous_manifest_hash=''
+stable_samples=0
+for attempt in \$(seq 1 30); do
+  if read_mounted_manifest; then
+    manifest_hash=\$(sha256sum "\$mounted_manifest")
+    if [[ "\$manifest_hash" == "\$previous_manifest_hash" ]]; then
+      stable_samples=\$((stable_samples + 1))
+    else
+      stable_samples=1
+      previous_manifest_hash="\$manifest_hash"
+    fi
+    if (( stable_samples >= 2 )); then
+      break
+    fi
+  fi
+  sleep 1
+done
+(( stable_samples >= 2 )) \
+  || { echo "Timed out waiting for mounted %$desk desk to settle" >&2; exit 1; }
 if cmp -s \$staging/manifest.sha256 "\$mounted_manifest"; then
   echo "%$desk contents unchanged; skipping commit"
 else
