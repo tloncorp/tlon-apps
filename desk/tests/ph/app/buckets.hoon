@@ -10,9 +10,18 @@
 /+  *ph-io, *ph-test
 =,  strand=strand:spider
 |%
-++  test-group       ~zod^%my-test-group
-++  test-bucket      ~zod^%project-files
-++  bucket-nest      [%buckets ~zod %project-files]
+::  The bucket host is a planet, not a galaxy.
+::
+::  %buckets refuses a create whose group host is not a %duke -- the same gate
+::  that refuses moons -- so the aqua convention of numbering galaxies cannot
+::  be used here. ~sampel-palnet is sponsored by ~talpur under ~pur, and both
+::  have to be in the fleet for ames to route to it.
+::
+++  bucket-host      ~sampel-palnet
+++  bucket-member    ~bud
+++  test-group       ~sampel-palnet^%my-test-group
+++  test-bucket      ~sampel-palnet^%project-files
+++  bucket-nest      [%buckets ~sampel-palnet %project-files]
 ::  +create-test-group: the group the bucket is bound to.
 ::
 ++  create-test-group
@@ -47,6 +56,23 @@
     token.i.invites.u.foreign
   =/  =a-foreigns:v8:gv  [%foreign host^%my-test-group %join token]
   (poke-app [joiner %groups] group-foreign-2+a-foreigns)
+::  +ex-joined-group: wait for .ship to actually hold the group.
+::
+::  Without this the rest races: creating a bucket and subscribing to it while
+::  the membership is still in flight means the host has no seat to check, so
+::  it nacks the watch and no replica is ever made. The groups aqua tests
+::  synchronise the same way, which is why theirs pass and this did not.
+::
+++  ex-joined-group
+  |=  [=ship host=^ship]
+  =/  m  (strand ,~)
+  ^-  form:m
+  %^  (ex-app-fact-match r-groups:v10:gv)  /(scot %p ship)/groups/v1/groups
+    [ship %groups]
+  :-  %group-response-1
+  |=  rep=r-groups:v10:gv
+  ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(`flag:gv`host^%my-test-group))
+  (ex-equal !>(`@tas`-.r-group.rep) !>(%create))
 ::  +create-bucket: the host opens a bucket in the test group.
 ::
 ++  create-bucket
@@ -55,7 +81,7 @@
   ^-  form:m
   =/  act=a-buckets:b
     [%create %project-files 'Project Files' test-group ~ ~]
-  (poke-app [host %buckets] buckets-action-1+[rid act])
+  (poke-app [bucket-host %buckets] buckets-action-1+[rid act])
 ::  +join-bucket: what %groups pokes a member's %buckets with when it joins
 ::  the channel. Sent directly here so the test does not depend on the
 ::  group's channel bookkeeping to drive the subscription.
@@ -78,21 +104,23 @@
 ++  ph-test-bucket-delete-reaches-the-replica
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (create-test-group ~zod %public)
-  ;<  ~  bind:m  (join-test-group ~bud ~zod)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [bucket-member %groups] /v1/groups)
+  ;<  ~  bind:m  (create-test-group bucket-host %public)
+  ;<  ~  bind:m  (join-test-group bucket-member bucket-host)
+  ;<  ~  bind:m  (ex-joined-group bucket-member bucket-host)
   ::  ~bud watches its own %buckets, which is where a replica surfaces.
-  ;<  ~  bind:m  (watch-app /~bud/buckets/v1 [~bud %buckets] /v1)
-  ;<  ~  bind:m  (create-bucket ~zod 0v1)
+  ;<  ~  bind:m  (watch-app /~bud/buckets/v1 [bucket-member %buckets] /v1)
+  ;<  ~  bind:m  (create-bucket bucket-host 0v1)
   ::  subscribing hands the replica a whole snapshot
-  ;<  ~  bind:m  (join-bucket ~bud)
+  ;<  ~  bind:m  (join-bucket bucket-member)
   ;<  ~  bind:m
-    (ex-app-fact-mark /~bud/buckets/v1 [~bud %buckets] %buckets-response-1)
+    (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ::  and the deletion reaches it as an update
   ;<  ~  bind:m
-    %+  poke-app  [~zod %buckets]
+    %+  poke-app  [bucket-host %buckets]
     buckets-action-1+[0v2 `a-buckets:b`[%bucket test-bucket [%delete ~]]]
   ;<  ~  bind:m
-    (ex-app-fact-mark /~bud/buckets/v1 [~bud %buckets] %buckets-response-1)
+    (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   (pure:m ~)
 ::  A bucket the replica has left can be joined again.
 ::
@@ -105,22 +133,24 @@
 ++  ph-test-bucket-rejoin-after-delete
   =/  m  (strand ,~)
   ^-  form:m
-  ;<  ~  bind:m  (create-test-group ~zod %public)
-  ;<  ~  bind:m  (join-test-group ~bud ~zod)
-  ;<  ~  bind:m  (watch-app /~bud/buckets/v1 [~bud %buckets] /v1)
-  ;<  ~  bind:m  (create-bucket ~zod 0v1)
-  ;<  ~  bind:m  (join-bucket ~bud)
+  ;<  ~  bind:m  (watch-app /~bud/groups/v1/groups [bucket-member %groups] /v1/groups)
+  ;<  ~  bind:m  (create-test-group bucket-host %public)
+  ;<  ~  bind:m  (join-test-group bucket-member bucket-host)
+  ;<  ~  bind:m  (ex-joined-group bucket-member bucket-host)
+  ;<  ~  bind:m  (watch-app /~bud/buckets/v1 [bucket-member %buckets] /v1)
+  ;<  ~  bind:m  (create-bucket bucket-host 0v1)
+  ;<  ~  bind:m  (join-bucket bucket-member)
   ;<  ~  bind:m
-    (ex-app-fact-mark /~bud/buckets/v1 [~bud %buckets] %buckets-response-1)
+    (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ;<  ~  bind:m
-    %+  poke-app  [~zod %buckets]
+    %+  poke-app  [bucket-host %buckets]
     buckets-action-1+[0v2 `a-buckets:b`[%bucket test-bucket [%delete ~]]]
   ;<  ~  bind:m
-    (ex-app-fact-mark /~bud/buckets/v1 [~bud %buckets] %buckets-response-1)
+    (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   ::  the same flag again, and the replica has to arrive whole a second time
-  ;<  ~  bind:m  (create-bucket ~zod 0v3)
-  ;<  ~  bind:m  (join-bucket ~bud)
+  ;<  ~  bind:m  (create-bucket bucket-host 0v3)
+  ;<  ~  bind:m  (join-bucket bucket-member)
   ;<  ~  bind:m
-    (ex-app-fact-mark /~bud/buckets/v1 [~bud %buckets] %buckets-response-1)
+    (ex-app-fact-mark /~bud/buckets/v1 [bucket-member %buckets] %buckets-response-1)
   (pure:m ~)
 --
