@@ -2225,37 +2225,133 @@
   ^-  path
   /v1/buckets/(scot %p ship.flag)/[name.flag]/updates
 ::
-++  sub-wire
+::  +su-core: one replica of a bucket we do not host.
+::
+::  The subscriber half used to be arms scattered among the host's, telling
+::  the two apart with a .net check in a dozen places. That is what let the
+::  pair drift: a teardown the host did and the replica did not answer, and a
+::  prune that ran only from host-side arms so a %sub space never reached it.
+::  Inside here the role is not in question, and everything that ends a
+::  replica goes out through one arm.
+::
+++  su-core
+  |_  [=flag:b =space:b gone=_|]
+  ++  su-core  .
+  ++  emit  |=(=card su-core(cor cor(cards [card cards])))
+  ++  emil  |=(caz=(list card) su-core(cor cor(cards (welp (flop caz) cards))))
+  ++  give  |=(=gift:agent:gall (emit %give gift))
+  ::  +su-abed: pick up the replica of .f. Crashes if we hold none, as the
+  ::  sibling agents' cores do; +su-held is the check callers make first.
+  ::
+  ++  su-abed
+    |=  f=flag:b
+    ^+  su-core
+    ?~  sp=(~(get by spaces) f)
+      ~|(su-abed-not-found+f !!)
+    ?.  =(%sub net.u.sp)
+      ~|(su-abed-not-a-replica+f !!)
+    su-core(flag f, space u.sp)
+  ::  +su-abet: write the replica back, or drop it if it is gone.
+  ::
+  ++  su-abet
+    ^+  cor
+    =.  spaces
+      ?:  gone  (~(del by spaces) flag)
+      (~(put by spaces) flag space)
+    cor
+  ::
+  ++  su-wire  `wire`/buckets/sub/(scot %p ship.flag)/[name.flag]
+  ++  su-path  (updates-path flag)
+  ++  su-dock  `dock`[ship.flag %buckets]
+  ++  su-watch  (emit [%pass su-wire %agent su-dock %watch su-path])
+  ++  su-leave  (emit [%pass su-wire %agent su-dock %leave ~])
+  ::  +su-report: tell local %groups whether we hold this channel.
+  ::
+  ++  su-report
+    |=  joined=?
+    ^+  su-core
+    =/  grp=(unit flag:b)
+      ?~  state.space  pending-group.space
+      `group.u.state.space
+    ?~  grp  su-core
+    =/  nes=nest:b  [%buckets ship.flag name.flag]
+    %-  emit
+    :*  %pass  /report-active  %agent  [our.bowl %groups]
+        %poke  group-channel-active+!>([u.grp nes joined])
+    ==
+  ::  +su-end: the one way a replica stops.
+  ::
+  ::  Every caller that used to end a replica did its own subset of this and
+  ::  they disagreed -- +stop-sub left the host but the %delete branch did
+  ::  not, which is the leaked subscription. There is one path now.
+  ::
+  ++  su-end
+    ^+  su-core
+    =.  su-core  (su-report |)
+    =.  cor  (drop-read-token flag)
+    ::  Local clients watch our /v1, not the host's, so leaving the host says
+    ::  nothing to them. Without this a still-mounted client keeps showing the
+    ::  manifest of a replica this ship no longer has.
+    =/  rev=@ud  ?~(state.space 0 +(revision.u.state.space))
+    =/  res=response:b  [%update flag rev [%delete ~]]
+    =.  su-core  (give [%fact ~[/v1 su-path] buckets-response-1+!>(res)])
+    =.  su-core  su-leave
+    su-core(gone &)
+  ::  +su-resub: re-establish a dropped subscription, keeping the replica.
+  ::
+  ++  su-resub  su-watch
+  ::  +su-apply: a fact from the host.
+  ::
+  ++  su-apply
+    |=  res=response:b
+    ^+  su-core
+    ?-  -.res
+        %snapshot
+      =.  space  space(state `bucket-state.res, pending-group `group.bucket-state.res)
+      =.  su-core  (su-report &)
+      (give [%fact ~[/v1] buckets-response-1+!>(res)])
+    ::
+        %update
+      ::  Bound to a leg before the test: ?~ on a field of this core's own
+      ::  payload narrows the core, which changes its type and breaks the
+      ::  ^+ su-core cast every arm here is written against.
+      =/  held=(unit bucket-state:b)  state.space
+      ?~  held  su-core
+      =/  st=bucket-state:b  u.held
+      ::  Ignore duplicates and re-establish the subscription on a gap. The
+      ::  replacement watch begins with a full snapshot, so later deltas
+      ::  cannot be applied to a stale replica.
+      ?:  (lte revision.res revision.st)  su-core
+      ?.  =(revision.res +(revision.st))  su-resub
+      ?:  =(%delete -.u-bucket.res)
+        =.  su-core  (give [%fact ~[/v1] buckets-response-1+!>(res)])
+        su-end
+      =.  st  (apply-update st u-bucket.res)
+      =.  revision.st  revision.res
+      =.  space  [net.space `st `group.st]
+      (give [%fact ~[/v1] buckets-response-1+!>(res)])
+    ==
+  --
+::  +su-held: do we hold a replica of this bucket?
+::
+++  su-held
   |=  =flag:b
-  ^-  wire
-  /buckets/sub/(scot %p ship.flag)/[name.flag]
+  ^-  ?
+  ?~  sp=(~(get by spaces) flag)  |
+  =(%sub net.u.sp)
 ::
 ++  start-sub
   |=  [=flag:b group=flag:b]
   ^+  cor
   ?:  (~(has by spaces) flag)  cor
   =.  spaces  (~(put by spaces) flag [%sub ~ `group])
-  %-  emit
-  [%pass (sub-wire flag) %agent [ship.flag %buckets] %watch (updates-path flag)]
+  su-abet:su-watch:(su-abed:su-core flag)
 ::
 ++  stop-sub
   |=  =flag:b
   ^+  cor
-  ?~  sp=(~(get by spaces) flag)  cor
-  ?.  =(%sub net.u.sp)  cor
-  =.  cor  (drop-read-token flag)
-  =.  cor  (emil (drop (report-active flag u.sp |)))
-  ::  Local clients watch our /v1, not the host's, so leaving the host says
-  ::  nothing to them. Without this a still-mounted client keeps showing the
-  ::  manifest of a replica this ship no longer has -- it refreshes on mount,
-  ::  on an operation, or on a revision gap, and none of those arrive on
-  ::  their own.
-  =/  rev=@ud  ?~(state.u.sp 0 +(revision.u.state.u.sp))
-  =/  res=response:b  [%update flag rev [%delete ~]]
-  =.  cor  (give [%fact ~[/v1 (updates-path flag)] buckets-response-1+!>(res)])
-  =.  spaces  (~(del by spaces) flag)
-  %-  emit
-  [%pass (sub-wire flag) %agent [ship.flag %buckets] %leave ~]
+  ?.  (su-held flag)  cor
+  su-abet:su-end:(su-abed:su-core flag)
 ::
 ::  +resub: re-establish a dropped subscription without discarding the
 ::  replica. A kick is not a revocation — the host kicks deliberately when
@@ -2264,23 +2360,8 @@
 ++  resub
   |=  =flag:b
   ^+  cor
-  ?~  sp=(~(get by spaces) flag)  cor
-  ?.  =(%sub net.u.sp)  cor
-  %-  emit
-  [%pass (sub-wire flag) %agent [ship.flag %buckets] %watch (updates-path flag)]
-::
-++  report-active
-  |=  [=flag:b sp=space:b joined=?]
-  ^-  (unit card)
-  =/  grp=(unit flag:b)
-    ?~  state.sp  pending-group.sp
-    `group.u.state.sp
-  ?~  grp  ~
-  =/  nes=nest:b  [%buckets ship.flag name.flag]
-  :-  ~
-  :*  %pass  /report-active  %agent  [our.bowl %groups]
-      %poke  group-channel-active+!>([u.grp nes joined])
-  ==
+  ?.  (su-held flag)  cor
+  su-abet:su-resub:(su-abed:su-core flag)
 ::
 ++  watch
   |=  =(pole knot)
@@ -2622,47 +2703,8 @@
 ++  apply-response
   |=  res=response:b
   ^+  cor
-  ?-  -.res
-      %snapshot
-    =/  sp=space:b  (need-space flag.res)
-    ?>  =(%sub net.sp)
-    =.  sp  sp(state `bucket-state.res, pending-group `group.bucket-state.res)
-    =.  spaces  (~(put by spaces) flag.res sp)
-    =.  cor  (emil (drop (report-active flag.res sp &)))
-    (give [%fact ~[/v1] buckets-response-1+!>(res)])
-  ::
-      %update
-    =/  sp=space:b  (need-space flag.res)
-    ?>  =(%sub net.sp)
-    ?~  state.sp  cor
-    =/  st=bucket-state:b  u.state.sp
-    ::  Ignore duplicates and re-establish the subscription on a gap. The
-    ::  replacement watch begins with a full snapshot, so later deltas cannot
-    ::  be applied to a stale replica.
-    ?:  (lte revision.res revision.st)  cor
-    ?.  =(revision.res +(revision.st))
-      (resub flag.res)
-    ?:  =(%delete -.u-bucket.res)
-      =.  cor  (give [%fact ~[/v1] buckets-response-1+!>(res)])
-      =.  cor  (emil (drop (report-active flag.res sp |)))
-      ::  Drop the token with the bucket, as +stop-sub does. Left behind, the
-      ::  local scry keeps answering with it, so a bucket recreated under the
-      ::  same flag is read with a token the host has already revoked and the
-      ::  client never asks for a new one.
-      =.  cor  (drop-read-token flag.res)
-      =.  spaces  (~(del by spaces) flag.res)
-      ::  And leave, as +stop-sub does. The host kicks us in the same breath,
-      ::  so this is belt and braces -- but a host still running the version
-      ::  that does not kick, or one we hear the fact from while its kick is
-      ::  lost, would otherwise leave this subscription registered here for
-      ::  good, and a later rejoin would watch the same wire twice.
-      %-  emit
-      [%pass (sub-wire flag.res) %agent [ship.flag.res %buckets] %leave ~]
-    =.  st  (apply-update st u-bucket.res)
-    =.  revision.st  revision.res
-    =.  spaces  (~(put by spaces) flag.res [net.sp `st `group.st])
-    (give [%fact ~[/v1] buckets-response-1+!>(res)])
-  ==
+  ?.  (su-held flag.res)  cor
+  su-abet:(su-apply:(su-abed:su-core flag.res) res)
 ::
 ++  apply-update
   |=  [st=bucket-state:b upd=u-bucket:b]
