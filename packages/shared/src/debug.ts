@@ -273,7 +273,10 @@ export function createDevLogger(tag: string, enabled: boolean) {
             args[1] && typeof args[1] === 'object' ? args[1] : {};
           const errorMessage =
             typeof args[0] === 'string' ? `[${tag}] ${args[0]}` : 'no message';
-          const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
+          // Breadcrumbs recorded with `sensitiveCrumb` stay on the device; only the explicit debug-log upload (`uploadLogs`) reads them.
+          const breadcrumbs = useDebugStore
+            .getState()
+            .getBreadcrumbs({ includeSensitive: false });
 
           // Extract error from various patterns:
           // - logger.trackError('msg', error) -> customProps is Error

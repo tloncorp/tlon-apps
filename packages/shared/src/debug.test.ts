@@ -64,6 +64,21 @@ test('trackError without data', async () => {
   expect(payload.errorTitle).toBe('boom');
 });
 
+test('trackError breadcrumbs exclude sensitive crumbs', async () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.sensitiveCrumb('token abc');
+  logger.trackError('boom');
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('visited x'))
+  ).toBe(true);
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('token abc'))
+  ).toBe(false);
+});
+
 test('getBreadcrumbs filters sensitive entries when opted out', () => {
   const logger = createDevLogger('t', false);
   logger.crumb('visited', 'x');
