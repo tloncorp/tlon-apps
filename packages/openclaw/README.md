@@ -98,6 +98,14 @@ Diary migration (`/migrate`) emits `TlonBot Diary Migration` per accepted CLI ru
 
 The plugin does not enable telemetry automatically just because an API key is present. `enabled: true` is required so open-source installs do not phone home by default.
 
+## Steward automation mirror
+
+On pinned OpenClaw `2026.5.28`, the plugin keeps a best-effort ship-side mirror of cron definitions in the bot's local `%steward`. `gateway_start` and every `cron_changed` action trigger a complete `getCron().list({ includeDisabled: true })` read. The plugin normalizes supported `cron`, `at`, and `every` schedules (including ISO `at` text to Unix milliseconds) and submits the complete list through `%steward-automation-action-1` as one `%project` poke.
+
+Reconciliation is serialized and busy-period triggers are coalesced. Unavailable cron access, read failures, missing ship connections, and poke acknowledgement failures retry while the gateway is active. `gateway_stop` cancels retries and guards against a stale post-stop submission, but deliberately leaves the last successful Steward snapshot intact. The same process-lifetime worker is reused across OpenClaw plugin-registration passes. These behaviors repair the mirror after a later successful read; they do not guarantee continuous freshness.
+
+OpenClaw remains authoritative. The mirror includes disabled task definitions but excludes execution state and events, run history, delivery data, session keys, and runtime-only fields. It provides no task manipulation, owner administration, or subscription API. Local clients can read the latest accepted map from `/x/v1/automation/tasks`; an empty projection is `{ "tasks": {} }`. See the repository's [Steward backend documentation](../../docs/backend/desk/app/steward.md#module-automation) for the stored type, versioned migration, `%project` JSON shape, atomic replacement behavior, exclusions, and scry mark.
+
 ## Approval System
 
 The approval system lets you control who can interact with your bot. When `ownerShip` is configured, you'll receive DM notifications for:
