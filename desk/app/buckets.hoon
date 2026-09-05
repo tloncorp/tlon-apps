@@ -1420,6 +1420,75 @@
   ?.  ?=([%s *] jon)  ~
   `p.jon
 ::
+::  +rd-core: one reader's access to one bucket, as desired state.
+::
+::  The last of the four. What lived here as loose arms over the .readers map
+::  is the fail-open half of this agent: a refused revoke that stopped being
+::  owed, a replica token served past its expiry, a renewal that re-armed an
+::  instant already past. Each is a rule about one record that no one place
+::  owned.
+::
+++  rd-core
+  |_  [key=reader-key:b sync=reader-sync:b gone=_|]
+  ++  rd-core  .
+  ++  emit  |=(=card rd-core(cor cor(cards [card cards])))
+  ++  emil  |=(caz=(list card) rd-core(cor cor(cards (welp (flop caz) cards))))
+  ::  +rd-abed: pick up the record for .k.
+  ::
+  ++  rd-abed
+    |=  k=reader-key:b
+    ^+  rd-core
+    ?~  got=(~(get by readers) k)
+      ~|(rd-abed-not-found+k !!)
+    rd-core(key k, sync u.got)
+  ::  +rd-abet: write the record back, or drop it if it is gone.
+  ::
+  ++  rd-abet
+    ^+  cor
+    =.  readers
+      ?:  gone  (~(del by readers) key)
+      (~(put by readers) key sync)
+    cor
+  ::  +rd-status: what this record still asks of us.
+  ::
+  ++  rd-status  (reader-status sync)
+  ::  +rd-answer: give the held request its one terminal answer.
+  ::
+  ::  A record names at most one waiting request, and every transition that
+  ::  resolves or abandons one comes through here, so the clearing and the
+  ::  answering cannot drift apart -- doing them separately is how a request
+  ::  came to be answered twice.
+  ::
+  ++  rd-answer
+    |=  body=response-body:b
+    ^+  rd-core
+    =/  held=(unit request-id:b)  awaiting.sync
+    ?~  held  rd-core
+    =.  rd-core  rd-core(sync sync(awaiting ~))
+    =.  cor  (respond u.held (answer-paths reader.key u.held) body)
+    rd-core
+  ::  +rd-give-up: the broker refused this revision as invalid.
+  ::
+  ::  Giving up is right for a grant, which the next access change supersedes
+  ::  and whose requester is told now. A revoke has no next change to
+  ::  supersede it: marking it failed drops it out of +owed, off the retry
+  ::  timer and out of +revoke-readers, which is fed granted records only, so
+  ::  it would sit until the expiry prune while the reader went on reading.
+  ::  A revoke stays owed and the timer is its backoff.
+  ::
+  ++  rd-give-up
+    |=  why=@t
+    ^+  rd-core
+    =/  granted=?  ?=(%granted -.desired.sync)
+    =?  rd-core  granted  rd-core(sync sync(failed &))
+    =?  cor  !granted
+      %-  %-  slog
+          :_  ~
+          leaf+"buckets: broker refused a revoke for {<key>}, still owed"
+      cor
+    (rd-answer [%error %unknown why])
+  --
+::
 ::  +answer-waiter: give a reader record's held request its one terminal
 ::  answer, and stop holding it.
 ::
@@ -1431,11 +1500,8 @@
 ++  answer-waiter
   |=  [key=reader-key:b body=response-body:b]
   ^+  cor
-  ?~  got=(~(get by readers) key)  cor
-  ?~  awaiting.u.got  cor
-  =/  rid=request-id:b  u.awaiting.u.got
-  =.  readers  (~(put by readers) key u.got(awaiting ~))
-  (respond rid (answer-paths reader.key rid) body)
+  ?.  (~(has by readers) key)  cor
+  rd-abet:(rd-answer:(rd-abed:rd-core key) body)
 ::
 ::  +sync-reader: record what a reader's access should be, and tell the
 ::  broker. Grant, rotation and revoke are all this one operation.
@@ -1462,10 +1528,21 @@
   ::  A client still waiting on the grant this supersedes will never be
   ::  answered by it -- the broker will keep the newer state -- so tell it
   ::  now rather than leaving it to time out.
+  ::
+  ::  Which error matters. %not-authorized is what the replica reads as
+  ::  "access lost", and it answers by dropping the token it holds and its
+  ::  refresh with it. But a grant superseded by another grant is a race, not
+  ::  a revocation -- two panes opening a cold bucket inside one host round
+  ::  trip is enough -- and reporting it that way made a reader discard a
+  ::  token it could still use and see a permission error on a bucket it can
+  ::  read. Only a supersede by a revoke is a real loss of access.
   =/  stale=(unit request-id:b)  ?~(prior ~ awaiting.u.prior)
+  =/  revoked=?  ?=(%revoked -.desired)
   =?  cor  !=(awaiting stale)
     %+  answer-waiter  key
-    [%error %not-authorized 'access changed while the token was being issued']
+    ?:  revoked
+      [%error %not-authorized 'access changed while the token was being issued']
+    [%error %unknown 'another request for this token overtook it']
   =.  readers
     (~(put by readers) key [revision bucket-id desired expires synced | awaiting])
   =.  cor  (emil (sync-cards ~[[key revision bucket-id desired]]))
@@ -1816,30 +1893,17 @@
   |=  [key=reader-key:b sent=@ud]
   ^+  cor
   ?~  got=(~(get by readers) key)  cor
-  =/  sync=reader-sync:b  u.got
   ::  Only the revision we sent; a newer one may still be in flight.
-  ?.  =(sent revision.sync)  cor
-  ::  Giving up is safe for a grant and unsafe for a revoke. A refused grant
-  ::  is superseded by the next access change, and its requester is told now.
-  ::  A revoke has no next change to supersede it: marking it failed drops it
-  ::  out of +owed, off the retry timer, and out of +revoke-readers -- which
-  ::  is fed granted records only -- so it would sit until the expiry prune
-  ::  while the reader went on using a token the broker still honours. That
-  ::  is the one outcome this whole mechanism exists to prevent, so a revoke
-  ::  stays owed and the retry timer is its backoff. It stops being owed at
-  ::  its own expiry, by which time the token it names is worthless anyway.
-  =/  giving-up=?  ?=(%granted -.desired.sync)
-  =?  readers  giving-up  (~(put by readers) key sync(failed &))
-  =?  cor  !giving-up
-    %-  %-  slog
-        :_  ~
-        leaf+"buckets: broker refused a revoke for {<key>}, still owed"
-    cor
+  ?.  =(sent revision.u.got)  cor
+  ::  The grant/revoke asymmetry lives in +rd-give-up, which is the one place
+  ::  a record stops being owed.
+  =/  rdc  (rd-abed:rd-core key)
+  =.  cor
+    rd-abet:(rd-give-up:rdc 'storage refused this access change')
   ::  Nothing is owed for a failed revision, so for our own reader this is
   ::  where the renewal loop would otherwise stop for good.
-  =?  cor  =(reader.key our.bowl)  (recover-local-reader flag.key)
-  %+  answer-waiter  key
-  [%error %unknown 'storage refused this access change']
+  ?.  =(reader.key our.bowl)  cor
+  (recover-local-reader flag.key)
 ::
 ++  confirm-reader
   |=  [key=reader-key:b sent=@ud theirs=(unit @ud) applied=(unit ?)]
@@ -1924,7 +1988,20 @@
   ^+  cor
   ?~  sp=(~(get by spaces) flag)  cor
   ?.  =(%sub net.u.sp)  cor
+  ::  The same token back means the host still considers it live and we asked
+  ::  early -- our clock is ahead of its. Re-arming expiry-minus-margin would
+  ::  name an instant already behind us, behn would fire at once, and the two
+  ::  would spin a host round trip per iteration for the length of the skew.
+  ::  Waiting the push retry makes that a slow poll instead. Deliberately not
+  ::  clamped inside +arm-token-refresh: +disarm-token-refresh names the timer
+  ::  by recomputing expiry-minus-margin, so a clamp there would leave every
+  ::  disarm naming an instant that was never armed.
+  =/  same=?
+    ?~  held=(~(get by read-tokens) flag)  |
+    =(token.u.held token.tok)
   =.  read-tokens  (~(put by read-tokens) flag tok)
+  ?:  same
+    (emit [%pass (token-wire flag) %arvo %b %wait (add now.bowl push-retry)])
   (arm-token-refresh flag expires-at.tok)
 ::
 ::  +renew-read-token: keep this ship's token current without a client asking.
@@ -2609,6 +2686,15 @@
       [%x %v1 %buckets host=@ name=@ %read-token ~]
     =/  =flag:b  [(slav %p host.pole) `@tas`name.pole]
     ?~  tok=(~(get by read-tokens) flag)  ~
+    ::  Not past its expiry. +held-read-token has always checked this on the
+    ::  host side; the replica's copy is served straight out of the map, and
+    ::  the only prune runs from host-side arms, so a %sub space never
+    ::  reaches it. When the host is unreachable past the token's remaining
+    ::  life the renewal times out and this went on answering with a token
+    ::  the broker had already stopped honouring -- every open then exchanges
+    ::  a dead token, is refused, re-mints, and waits out the forward
+    ::  timeout. Answering nothing sends the client to ask for a new one.
+    ?.  (gth expires-at.u.tok now.bowl)  ~
     ``buckets-read-token-1+!>(`read-token:b`u.tok)
   ::
   ::  +ready: a constant, because the answer existing is the whole signal --
