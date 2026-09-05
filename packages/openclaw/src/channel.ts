@@ -164,7 +164,9 @@ export const tlonPlugin = createChatChannelPlugin({
           '',
           'IMPORTANT: media= accepts a public https URL only (normally the URL returned by `tlon upload`).',
           'Local file paths are NOT accepted on this channel (unlike other channels) — upload the file first, then pass the returned https URL.',
-          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.'
+          'Media that cannot be fetched will fail the send — never claim an image was delivered unless the tool call succeeded.',
+          '',
+          'To share a Tlon group (e.g. right after creating one), include its /1/group/~host/slug path as its own word in the message — it renders as a tappable group card. The same works for posts (/1/chan/<nest>/msg/<id>) and notes (/1/chan/notes/~host/<name>/note/<id>).'
         );
 
         const level = account.reactionLevel ?? 'minimal';

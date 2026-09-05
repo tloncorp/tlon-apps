@@ -1,3 +1,4 @@
+import { type Cite, extractReferencePaths } from '@tloncorp/api';
 import { valid } from '@urbit/aura';
 
 /**
@@ -31,7 +32,8 @@ export type StoryBlock =
   | { code: { code: string; lang: string } }
   | { image: { src: string; height: number; width: number; alt: string } }
   | { rule: null }
-  | { listing: StoryListing };
+  | { listing: StoryListing }
+  | { cite: Cite };
 
 export type StoryListing =
   | {
@@ -236,8 +238,11 @@ function processInlinesForImages(inlines: StoryInline[]): {
  * Convert markdown text to Tlon story format
  */
 export function markdownToStory(markdown: string): Story {
+  // Extract reference paths before any tokenization — after conversion the
+  // embedded ~ship of a path is already shredded into a mention.
+  const { text, cites } = extractReferencePaths(markdown);
   const story: Story = [];
-  const lines = markdown.split('\n');
+  const lines = text.split('\n');
   let i = 0;
 
   while (i < lines.length) {
@@ -313,7 +318,11 @@ export function markdownToStory(markdown: string): Story {
     while (
       i < lines.length &&
       lines[i].trim() !== '' &&
-      !lines[i].startsWith('#') &&
+      // Only a line that will actually parse as a heading ends the
+      // paragraph — a bare or malformed hash line (e.g. '#' left behind by
+      // reference extraction) must be consumed here, or the outer loop never
+      // advances and the converter spins forever.
+      !/^#{1,6}\s+.+$/.test(lines[i]) &&
       !lines[i].startsWith('```') &&
       !lines[i].startsWith('> ') &&
       !/^(-{3,}|\*{3,})$/.test(lines[i].trim())
@@ -355,7 +364,9 @@ export function markdownToStory(markdown: string): Story {
     }
   }
 
-  return story;
+  // Reference blocks come before the text, matching first-party chat
+  // ordering.
+  return [...cites.map((cite) => ({ block: { cite } })), ...story];
 }
 
 /**

@@ -94,6 +94,7 @@ import {
 } from './commands/groups-verification';
 import { createNotesChannelInGroup } from './notes-channel';
 import { createNotesChannelDeps } from './notes-channel-runtime';
+import { groupShareHintLines } from './share-hint';
 
 const ADMIN_ROLE_ID = 'admin';
 const GROUP_UPDATE_FLAGS = ['title', 'description', 'image', 'cover'] as const;
@@ -933,6 +934,9 @@ async function createOwnedGroup(
   console.log(`   Description: ${description || '(none)'}`);
   console.log(`   Owner: ${ownerShip}`);
   console.log(`   Channel: ${channelId}`);
+  for (const line of groupShareHintLines(groupId)) {
+    console.log(line);
+  }
 
   return { groupId, channelId, ownerShip };
 }
@@ -1464,7 +1468,10 @@ async function main() {
         printUsageAndExit(GROUPS_COMMAND_HELP.create);
       }
       const description = getOption(args, 'description', 2) || '';
-      await createGroupWithChannel(title, description);
+      const { groupId } = await createGroupWithChannel(title, description);
+      for (const line of groupShareHintLines(groupId)) {
+        console.log(line);
+      }
       break;
     }
 
