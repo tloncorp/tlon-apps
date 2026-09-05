@@ -836,9 +836,13 @@ export class Urbit {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(ackTimer);
-        this.outstandingPokes.delete(message.id);
+        // A reset reuses numeric ids while old PUTs can still finish. Only
+        // remove this poke, not a replacement that now occupies its slot.
+        if (this.outstandingPokes.get(message.id) === entry) {
+          this.outstandingPokes.delete(message.id);
+        }
       };
-      this.outstandingPokes.set(message.id, {
+      const entry: PokeHandlers = {
         onSuccess: () => {
           cleanup();
           onSuccess();
@@ -849,7 +853,8 @@ export class Urbit {
           onError(err);
           reject(err);
         },
-      });
+      };
+      this.outstandingPokes.set(message.id, entry);
 
       const ackTimer = setTimeout(() => {
         cleanup();
