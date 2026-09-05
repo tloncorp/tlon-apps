@@ -585,6 +585,77 @@ test('sequenced posts: gets newest posts', async () => {
   expect(newestPosts[4].sequenceNum).toEqual(15);
 });
 
+test('sequenced posts: ignores posts without a positive server sequence', async () => {
+  const channelId = 'unsequenced';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        id: 'optimistic',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate,
+        sentAt: refDate,
+        sequenceNum: 0,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+      {
+        id: 'unsequenced',
+        type: 'chat',
+        channelId,
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        sequenceNum: null,
+        authorId: 'test',
+        syncedAt: 0,
+      },
+    ],
+  });
+
+  await expect(
+    queries.getSequencedChannelPosts({
+      mode: 'newest',
+      channelId,
+      count: 5,
+    })
+  ).resolves.toEqual([]);
+});
+
+test('sequenced posts: older mode stops at sequence one', async () => {
+  const channelId = 'older-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'older',
+    channelId,
+    cursorSequenceNum: 2,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
+});
+
+test('sequenced posts: around mode excludes sequence zero', async () => {
+  const channelId = 'around-with-optimistic';
+  await queries.insertChannels([{ id: channelId, type: 'chat' }]);
+  await queries.insertChannelPosts({
+    posts: getRangedPosts(channelId, 0, 2),
+  });
+
+  const posts = await queries.getSequencedChannelPosts({
+    mode: 'around',
+    channelId,
+    cursorSequenceNum: 1,
+    count: 5,
+  });
+
+  expect(posts.map((post) => post.sequenceNum)).toEqual([1]);
+});
+
 test('sequenced posts: gets newer posts', async () => {
   const channelId = 'test';
   await queries.insertChannels([{ id: channelId, type: 'chat' }]);

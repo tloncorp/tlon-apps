@@ -35,6 +35,7 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 import { isAgentGroupSetupActive } from '../../ui/components/Channel/postVisibility';
+import { shouldAutoLoadOlderPosts } from './channelPagination';
 import { useAgentOnboardingChannel } from './useAgentOnboardingChannel';
 import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
@@ -361,12 +362,15 @@ export default function ChannelScreen(props: Props) {
     // since adding no visible rows will not retrigger the boundary callback.
     const ENOUGH_POSTS_TO_FILL_SCREEN = 20;
     if (
-      !postsQuery.isFetching &&
-      postsQuery.hasNextPage &&
-      unreadDidInitialize &&
-      (!posts ||
-        posts.length < ENOUGH_POSTS_TO_FILL_SCREEN ||
-        oldestPageHasOnlyDeletedPosts)
+      shouldAutoLoadOlderPosts({
+        isFetching: postsQuery.isFetching,
+        isError: postsQuery.isError,
+        hasNextPage: postsQuery.hasNextPage,
+        unreadDidInitialize,
+        postCount: posts?.length,
+        minimumPostCount: ENOUGH_POSTS_TO_FILL_SCREEN,
+        oldestPageHasOnlyDeletedPosts,
+      })
     ) {
       loadOlder();
     }
