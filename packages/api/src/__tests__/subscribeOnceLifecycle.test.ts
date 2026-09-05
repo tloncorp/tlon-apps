@@ -33,7 +33,9 @@ test.each(['before', 'after'] as const)(
   'cancellation %s the PUT finishes cannot unsubscribe a replacement channel subscription',
   async (timing) => {
     const { client, initialPut, unsubscribe } = setup();
-    const once = client.subscribeOnce('a', '/once', undefined, 1000).catch((e) => e);
+    const once = client
+      .subscribeOnce('a', '/once', undefined, 1000)
+      .catch((e) => e);
     if (timing === 'after') {
       initialPut.resolve(new Response(null, { status: 204 }));
       await vi.advanceTimersByTimeAsync(0);
@@ -55,9 +57,9 @@ test.each(['before', 'after'] as const)(
 
     await vi.advanceTimersByTimeAsync(1000);
     expect(unsubscribe).not.toHaveBeenCalled();
-    expect((client as any).outstandingSubscriptions.get(replacementId)?.path).toBe(
-      '/live'
-    );
+    expect(
+      (client as any).outstandingSubscriptions.get(replacementId)?.path
+    ).toBe('/live');
   }
 );
 
@@ -89,7 +91,9 @@ test('a failed PUT rejects the one-shot instead of leaving it pending', async ()
 
 test('a subscription error cancels its already scheduled timeout', async () => {
   const { client, initialPut, unsubscribe } = setup();
-  const once = client.subscribeOnce('a', '/once', undefined, 1000).catch((e) => e);
+  const once = client
+    .subscribeOnce('a', '/once', undefined, 1000)
+    .catch((e) => e);
   const entry = (client as any).outstandingSubscriptions.get(1);
   initialPut.resolve(new Response(null, { status: 204 }));
   await vi.advanceTimersByTimeAsync(0);
@@ -101,7 +105,9 @@ test('a subscription error cancels its already scheduled timeout', async () => {
 
 test('an unanswered one-shot still times out and unsubscribes once', async () => {
   const { client, initialPut, unsubscribe } = setup();
-  const once = client.subscribeOnce('a', '/once', undefined, 1000).catch((e) => e);
+  const once = client
+    .subscribeOnce('a', '/once', undefined, 1000)
+    .catch((e) => e);
   const entry = (client as any).outstandingSubscriptions.get(1);
   initialPut.resolve(new Response(null, { status: 204 }));
   await vi.advanceTimersByTimeAsync(1000);

@@ -778,19 +778,16 @@ export class Urbit {
         quit,
       };
 
-      this.subscribe(request).then(
-        (subId) => {
-          if (timeout && !done) {
-            timer = setTimeout(() => {
-              if (finish()) {
-                reject('timeout');
-                this.unsubscribe(subId);
-              }
-            }, timeout);
-          }
-        },
-        fail
-      );
+      this.subscribe(request).then((subId) => {
+        if (timeout && !done) {
+          timer = setTimeout(() => {
+            if (finish()) {
+              reject('timeout');
+              this.unsubscribe(subId);
+            }
+          }, timeout);
+        }
+      }, fail);
     });
   }
 
