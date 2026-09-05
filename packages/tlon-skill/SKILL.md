@@ -264,6 +264,10 @@ tlon groups leave ~host/slug                             # Leave a group
 tlon groups delete ~host/slug                            # Delete (host only)
 tlon groups update ~host/slug --title "..." [--description "..."]
 
+# Invite links (Lure)
+tlon groups invite-link ~host/slug                       # Retrieve the group's invite link (under a bot harness: the owner's)
+tlon groups invite-link ~host/slug --self                # Use the current credentials instead of the owner's
+
 # Members (shown with nicknames when available)
 tlon groups invite ~host/slug ~ship1 ~ship2              # Invite members
 tlon groups revoke-invite ~host/slug ~ship1              # Revoke pending member invite
@@ -319,6 +323,14 @@ Join behavior:
 - Invited groups and public groups use the backend join action.
 - Private groups without an invite use the invite-request action.
 - Secret groups require an invite.
+
+Invite link behavior (`invite-link`):
+
+-   Prints the canonical Lure URL (`https://invite.tlon.io/<token>`), minting one through the invite service if the group has none yet. Never compose or guess invite URLs — always retrieve them with this command.
+-   The link belongs to whichever ship the command runs as: that ship becomes the inviter of record, and the recipient's onboarding attributes the invite to it.
+-   Under a bot harness (the OpenClaw plugin or the Hermes adapter) the bare command runs as the **owner**, so invites attribute to the owner rather than the bot. `--self` opts back out and uses the current credentials; explicit credential flags (`--config`, `--url`, ...) do the same. A harness with no owner credentials provisioned fails loudly instead of quietly returning a bot-attributed link.
+-   Run directly (a terminal, a self-hosted setup) it uses the current credentials like every other command — there is no owner to resolve.
+-   For private/secret groups the acting ship must be the host or an admin — the command refuses otherwise, because a non-admin's link would not deliver the group invite on redemption.
 
 ### Hooks
 
@@ -463,13 +475,7 @@ Message text supports Markdown lists, task lists, blockquotes, code, links, and 
 
 Manage %notes notebooks (Markdown-first). Notebooks are nests of the form `notes/~host/name`; note bodies are plain Markdown (not Tlon Story).
 
-Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in
-note bodies or message text. No Tlon surface renders math: the delimiters
-display literally or get mangled (Markdown emphasis, mentions, and escaping can
-corrupt the text inside and around them), and in a note body the backslashes in
-`\(` and `\[` are silently eaten by Markdown escaping, so those delimiters
-vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and
-use code blocks or inline code for complex formulas.
+Do not use LaTeX math delimiters (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`) in note bodies or message text. No Tlon surface renders math: the delimiters display literally or get mangled (Markdown emphasis, mentions, and escaping can corrupt the text inside and around them), and in a note body the backslashes in `\(` and `\[` are silently eaten by Markdown escaping, so those delimiters vanish. Write math as plain text/Unicode (`x²`, `E = mc²`, `θ ∈ [0, 2π)`) and use code blocks or inline code for complex formulas.
 
 ```bash
 tlon notes status                                        # Check %notes reachability

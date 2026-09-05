@@ -19,7 +19,9 @@
  * The export shape here is the superset of what the mocked import graphs
  * pull in by value: `api-client.ts` (Urbit, client, configureClient,
  * internalRemoveClient, preSig, scry, subscribe), `dms.ts` (reactions,
- * posts, invites), and the notes runtimes (notesV1 et al.).
+ * posts, invites), the notes runtimes (notesV1 et al.), and
+ * `invite-link-runtime.ts` (subscribeOnce, createInviteLink, groupsDescribe,
+ * enableGroup, BadResponseError).
  */
 import type { NotesV1Api } from '@tloncorp/api';
 import { mock } from 'bun:test';
@@ -113,6 +115,32 @@ export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
 };
 
+export const mockedSubscribeOnce = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedCreateInviteLink = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedEnableGroup = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+// Mirrors the real class's shape (status + message) so instanceof/status
+// checks behave identically under the preloaded mock.
+export class MockBadResponseError extends Error {
+  constructor(
+    public status: number,
+    public body: string
+  ) {
+    const prefix = status > 0 ? `HTTP ${status}` : 'HTTP request failed';
+    const detail = body.trim();
+    super(detail ? `${prefix}: ${detail}` : prefix);
+    this.name = 'BadResponseError';
+  }
+}
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -150,4 +178,14 @@ mock.module('@tloncorp/api', () => ({
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,
+  // invite-link runtime value imports
+  subscribeOnce: (...args: unknown[]) => mockedSubscribeOnce.impl(...args),
+  createInviteLink: (...args: unknown[]) =>
+    mockedCreateInviteLink.impl(...args),
+  groupsDescribe: (meta: Record<string, unknown>) => ({
+    tag: 'groups-0',
+    fields: { ...meta },
+  }),
+  enableGroup: (...args: unknown[]) => mockedEnableGroup.impl(...args),
+  BadResponseError: MockBadResponseError,
 }));

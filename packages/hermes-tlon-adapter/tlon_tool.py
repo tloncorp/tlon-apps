@@ -8,7 +8,7 @@ import logging
 import os
 import shlex
 import shutil
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import (
     Any,
@@ -965,6 +965,75 @@ def check_tlon_tool_command(
     return None
 
 
+OWNER_INVITE_LINK_SELF_HINT = (
+    "Add --self to retrieve this bot's own invite link instead."
+)
+
+
+def should_inject_owner_credentials(args: Sequence[str]) -> bool:
+    """The shared owner-injection predicate — the OpenClaw plugin implements the
+    same truth table. Inject iff the parsed subcommand is ``groups invite-link``
+    with no credential flag in either form, no ``--self``, and no help token."""
+    for raw in args:
+        arg = str(raw)
+        flag = arg.split("=", 1)[0] if "=" in arg else arg
+        if flag in CREDENTIAL_FLAGS_WITH_VALUE:
+            return False
+
+    sub_idx = find_subcommand_index(args)
+    if sub_idx < 0:
+        return False
+    command_args = [str(arg) for arg in args[sub_idx:]]
+    if len(command_args) < 2:
+        return False
+    if command_args[0].lower() != "groups":
+        return False
+    if command_args[1].lower() != "invite-link":
+        return False
+    return not any(
+        arg == "--self" or _is_help_arg(arg) for arg in command_args
+    )
+
+
+def owner_invite_link_config(
+    cfg: TlonConfig, env: Mapping[str, str] | None = None
+) -> tuple[Optional[TlonConfig], Optional[str]]:
+    """Per-call credential config for an owner-attributed invite link.
+
+    A *replacement*, never an overlay. ``cli_env`` reinjects whatever cookie the
+    configured bot holds, the CLI's resolver prefers cookie-form over code-form,
+    and cookie resolution never compares the cookie's ship to the claimed env
+    ship — so an overlay would let an inherited bot cookie silently win over the
+    owner triple, exactly under the provisioning drift this guards against.
+
+    Credentials travel in the subprocess env only: the tool result echoes argv
+    back to the model, and executed argv is visible OS-wide. There is no
+    redaction fallback — missing or mismatched owner credentials fail closed.
+    """
+    owner = normalize_ship(cfg.owner_ship)
+    if not owner:
+        return None, (
+            "Retrieving the owner's invite link requires a configured owner ship. "
+            + OWNER_INVITE_LINK_SELF_HINT
+        )
+
+    source = os.environ if env is None else env
+    url = str(source.get("TLON_OWNER_URL") or "").strip()
+    env_owner = normalize_ship(str(source.get("TLON_OWNER_SHIP") or ""))
+    code = str(source.get("TLON_PLANET_CODE") or "").strip()
+    if not url or env_owner != owner or not code:
+        return None, (
+            f"Retrieving the invite link as {owner} requires hosted owner "
+            "credentials TLON_OWNER_URL, TLON_OWNER_SHIP, and TLON_PLANET_CODE. "
+            + OWNER_INVITE_LINK_SELF_HINT
+        )
+
+    return (
+        replace(cfg, ship_url=url, ship_name=owner, ship_code=code, cookie=""),
+        None,
+    )
+
+
 def _command_for_display(command: Sequence[str]) -> str:
     return " ".join(shlex.quote(str(part)) for part in command)
 
@@ -1025,6 +1094,12 @@ async def execute_tlon_tool(
                 )
             }
         )
+
+    if should_inject_owner_credentials(args):
+        owner_cfg, owner_error = owner_invite_link_config(cfg)
+        if owner_error:
+            return _json({"error": owner_error})
+        cfg = owner_cfg
 
     # Lazy import keeps this module importable standalone (no cycle at load).
     from .telemetry import cli_context, get_active_telemetry
