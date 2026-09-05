@@ -81,11 +81,46 @@
       remaining  t.remaining
       seen       (~(put in seen) id.i.remaining)
     ==
-  ++  action
+  ++  request-id  (se %uv)
+  ++  edit
     |=  jon=json
-    ^-  action:v1:a
+    ^-  edit:v1:a
     %.  jon
-    (of ~[[%project project]])
+    %-  of
+    :~  [%create task]
+        [%update identified-task]
+        [%delete (ot id+so ~)]
+    ==
+  ::  +response-body: type-discriminated like the %notes v1 envelope, so
+  ::  clients switch on body.type
+  ::
+  ++  response-body
+    |=  jon=json
+    ^-  response-body:v1:a
+    ?>  ?=([%o *] jon)
+    =/  type  (so (~(got by p.jon) 'type'))
+    ?:  =('created' type)  [%created (so (~(got by p.jon) 'id'))]
+    ?:  =('updated' type)  [%updated (so (~(got by p.jon) 'id'))]
+    ?:  =('deleted' type)  [%deleted (so (~(got by p.jon) 'id'))]
+    ?:  =('pending' type)
+      [%pending ;;(poke-status:v1:a (so:dejs:format (~(got by p.jon) 'status')))]
+    ?:  =('error' type)
+      :+  %error
+        ;;(action-error:v1:a (so (~(got by p.jon) 'errorType')))
+      =/  message  (~(get by p.jon) 'message')
+      ?~  message  ~
+      ((ar (cu |=(t=@t leaf+(trip t)) so)) u.message)
+    ~|(bad-response-type+type !!)
+  ++  a-automation
+    |=  jon=json
+    ^-  a-automation:v1:a
+    %.  jon
+    %-  of
+    :~  [%project project]
+        [%edit (ot 'requestId'^request-id bot+(se %p) action+edit ~)]
+        [%finalize (ot 'requestId'^request-id body+response-body ~)]
+    ==
+  ++  action  a-automation
   ::  +ship-tasks: the bare ship-keyed task-map object
   ::
   ++  ship-tasks
@@ -181,13 +216,75 @@
     =/  jon=json  (task task.entry)
     ?>  ?=([%o *] jon)
     [%o (~(put by p.jon) 'id' [%s id.entry])]
-  ++  action
-    |=  =action:v1:a
+  ++  request-id
+    |=  id=request-id:v1:a
     ^-  json
-    ?-  -.action
-        %project
-      (frond 'project' (frond 'tasks' a+(turn tasks.action identified-task)))
+    s+(scot %uv id)
+  ++  edit
+    |=  =edit:v1:a
+    ^-  json
+    ?-  -.edit
+      %create  (frond 'create' (task task.edit))
+      %update  (frond 'update' (identified-task [id task]:edit))
+      %delete  (frond 'delete' (frond 'id' s+id.edit))
     ==
+  ::  =, enjs:format shadows +tank, so reach past it for the type
+  ::
+  ++  tang-json
+    |=  ts=(list ^tank)
+    ^-  json
+    :-  %a
+    %+  turn  ts
+    |=  t=^tank
+    s+(crip (zing (join "\0a" (wash [0 80] t))))
+  ++  response-body
+    |=  body=response-body:v1:a
+    ^-  json
+    ?-  -.body
+        ?(%created %updated %deleted)
+      (pairs ~[['type' s+(scot %tas -.body)] ['id' s+id.body]])
+    ::
+        %error
+      %-  pairs
+      :~  ['type' s+'error']
+          ['errorType' s+(scot %tas type.body)]
+          ['message' (tang-json message.body)]
+      ==
+    ::
+        %pending
+      (pairs ~[['type' s+'pending'] ['status' s+(scot %tas status.body)]])
+    ==
+  ++  response
+    |=  =response:v1:a
+    ^-  json
+    (pairs ~[['requestId' (request-id id.response)] ['body' (response-body body.response)]])
+  ++  dispatch
+    |=  =dispatch:v1:a
+    ^-  json
+    (pairs ~[['requestId' (request-id id.dispatch)] ['action' (edit edit.dispatch)]])
+  ++  a-automation
+    |=  =a-automation:v1:a
+    ^-  json
+    ?-  -.a-automation
+        %project
+      (frond 'project' (frond 'tasks' a+(turn tasks.a-automation identified-task)))
+    ::
+        %edit
+      %+  frond  'edit'
+      %-  pairs
+      :~  ['requestId' (request-id request-id.a-automation)]
+          ['bot' s+(scot %p bot.a-automation)]
+          ['action' (edit edit.a-automation)]
+      ==
+    ::
+        %finalize
+      %+  frond  'finalize'
+      %-  pairs
+      :~  ['requestId' (request-id request-id.a-automation)]
+          ['body' (response-body body.a-automation)]
+      ==
+    ==
+  ++  action  a-automation
   ::  +tasks: the bare ID-keyed task object, without a wrapper key
   ::
   ++  tasks

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import capturedCronJobs from './fixtures/openclaw-2026.5.28-cron-jobs.sanitized.json';
-import { normalizeStewardAutomationProjection } from './steward-automation-projection.js';
+import {
+  normalizeStewardAutomationProjection,
+  normalizeStewardAutomationProjectionWithRejections,
+} from './steward-automation-projection.js';
 
 type HookCronJob = Parameters<
   typeof normalizeStewardAutomationProjection
@@ -284,18 +287,66 @@ describe('Steward automation projection normalization', () => {
       { id: 'bad-message', payload: { message: false } },
       /payload.message: expected a string/,
     ],
-  ])('rejects %s', (_name, job, error) => {
-    expect(() =>
-      normalizeStewardAutomationProjection([runtimeJob(job)])
-    ).toThrow(error);
+  ])('drops and reports %s', (_name, job, error) => {
+    const result = normalizeStewardAutomationProjectionWithRejections([
+      runtimeJob({ id: 'good', enabled: true }),
+      runtimeJob(job),
+    ]);
+    expect(result.projection).toEqual({
+      project: { tasks: [{ id: 'good', enabled: true }] },
+    });
+    expect(result.rejected).toHaveLength(1);
+    expect(result.rejected[0]?.kind).toBe('invalid');
+    expect(result.rejected[0]?.reason).toMatch(error);
   });
 
-  it('rejects duplicate IDs before producing a projection action', () => {
-    expect(() =>
+  it('keeps the first of duplicate IDs and reports the rest', () => {
+    const result = normalizeStewardAutomationProjectionWithRejections([
+      runtimeJob({ id: 'duplicate', name: 'first' }),
+      runtimeJob({ id: 'duplicate', name: 'second' }),
+    ]);
+    expect(result.projection).toEqual({
+      project: { tasks: [{ id: 'duplicate', name: 'first' }] },
+    });
+    expect(result.rejected).toEqual([
+      {
+        id: 'duplicate',
+        kind: 'duplicate',
+        reason: 'Duplicate cron job id: duplicate',
+      },
+    ]);
+  });
+
+  it('drops a newer host schedule kind without failing the snapshot', () => {
+    const result = normalizeStewardAutomationProjectionWithRejections([
+      runtimeJob({
+        id: 'watcher',
+        schedule: { kind: 'on-exit', command: 'x' },
+      }),
+      runtimeJob({
+        id: 'daily',
+        schedule: { kind: 'cron', expr: '0 9 * * *' },
+      }),
+    ]);
+    expect(result.projection.project.tasks.map((task) => task.id)).toEqual([
+      'daily',
+    ]);
+    expect(result.rejected).toEqual([
+      {
+        id: 'watcher',
+        kind: 'invalid',
+        reason:
+          'Invalid cron job watcher schedule.kind: unsupported value on-exit',
+      },
+    ]);
+  });
+
+  it('normalizeStewardAutomationProjection returns the projection alone', () => {
+    expect(
       normalizeStewardAutomationProjection([
-        runtimeJob({ id: 'duplicate' }),
-        runtimeJob({ id: 'duplicate' }),
+        runtimeJob({ id: 'a' }),
+        runtimeJob({}),
       ])
-    ).toThrow('Duplicate cron job id: duplicate');
+    ).toEqual({ project: { tasks: [{ id: 'a' }] } });
   });
 });

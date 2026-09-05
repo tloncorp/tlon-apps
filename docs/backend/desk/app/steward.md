@@ -43,9 +43,11 @@ state-1 (%1, current)
   gateway     state:v1:gateway   copied unchanged from state-0
   automation  state:v1:automation
     tasks     (map ship tasks)   per-ship ID-keyed task maps (+$ tasks is (map @t task))
+    requests  (map request-id incoming-request)   owner-side in-flight edits (see edit loop)
+    pending   (map request-id pending-command)    bot-side commands awaiting the harness
 ```
 
-The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields an empty map).
+The automation `tasks` map holds one entry per ship: the **local projection** lives under `our`, written only by accepted `%project` actions, and each **mirrored remote bot** lives under its own ship, written only by facts from the subscription to that bot. The writers are disjoint by key, so the two never collide. Every entry follows the same presence rule: absent until its first projection or snapshot arrives, present (possibly empty) afterward — an empty entry means "synced, zero tasks", an absent one means "never synced". `state-1` is unreleased, so this shape replaced the earlier flat task map in place with no extra state version, and the edit loop's `requests` and `pending` maps were added to it the same way; `state-0-to-1` is unchanged (it initializes automation from the bunt, which yields empty maps). Both request maps are transient bookkeeping swept on a timer, never durable data.
 
 `owner` is shared: the lens module sends runs to it, and the gateway module treats its DMs as owner activity worth auto-replying to. `bots` is the owner-side allowlist of ships permitted to fan lens runs in (see the `%entry` gate below); managed via the core `%trust-bot`/`%untrust-bot` pokes.
 
@@ -140,11 +142,11 @@ The inbound action and the feed/scry update use separate, independently versione
 }
 ```
 
-The list is the complete projection, not a delta. The action mark parses and validates the JSON fields, while `au-build-task-map` rejects duplicate IDs and constructs the entire replacement map before the agent assigns it to state. Any invalid field, unsupported schedule, duplicate ID, foreign source, or other validation failure leaves the previous map unchanged — the crash fires before any state change or fact, so a rejected projection emits nothing. A valid action replaces the `our` entry in one state transition: omitted IDs are removed, an empty `tasks` list clears the projection, and repeating the same logical snapshot produces the same state without duplicate records. After ingestion, each inbound `id` exists only as its map key.
+`%project` carries the complete task set, never a delta. Accepting one replaces the `our` entry in a single state transition: an ID missing from the list is removed, an empty list clears the entry, and resubmitting the same snapshot leaves state unchanged. Validation happens before anything is written — the mark parses the JSON, and `au-build-task-map` builds the whole replacement map, crashing on a duplicate ID — so a rejected projection (bad field, unsupported schedule, duplicate ID, foreign source) leaves the previous map untouched and emits nothing. Each inbound `id` lives only as its map key.
 
 An equal projection against an existing entry is a complete no-op: no state write, no facts — the harness reconciler re-reads on every `cron_changed` (including execution-only events), and those re-submissions must be silent. Equal-but-absent is the exception: the very first projection creates the `our` entry even when its task list is empty. Entry creation is inexpressible as task-level deltas, so the first accepted projection announces itself on the feed as one fresh full `%tasks` snapshot (even when empty); once the entry exists, a changed projection emits per-task `%set`/`%del` deltas naming the local ship, described below.
 
-Automation intentionally has no task mutation surface — tasks change only through the harness's `%project` — and excludes cron execution state, execution events, run history, delivery data, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries.
+The task map has exactly one writer per entry: the harness's `%project` for `our`, a bot's subscription for that bot. The [edit loop](#edit-loop) never writes it — an edit is relayed to the harness and becomes visible only through the harness's next `%project`. Automation excludes cron execution state, execution events, run history, delivery data, session keys, `deleteAfterRun`, and other runtime-only OpenClaw fields. Those values do not enter the Hoon task type, the automation facts, or the JSON scries.
 
 ### feed: `/v1/automation/tasks`
 
@@ -166,9 +168,51 @@ The owner's subscriptions are driven by the core `%trust-bot`/`%untrust-bot` pok
 
 Application is **wire-ship-scoped**: every received fact arrives on a wire naming its bot, and only content attributed to that ship is applied — the receiver-side transitive-relay guard. On a `%tasks` snapshot the owner replaces (and creates) that bot's entry with **the bot's own entry in the received map**, deleting the local entry when the snapshot lacks it (the wiped-bot repair) — entries in the map naming other ships are ignored. Any missed-delta window — kick, revive, upgrade — therefore self-heals on the next snapshot, and a snapshot equal to the stored entry changes nothing and emits nothing. `%set` upserts and `%del` removes within the entry; `%del` of an unknown ID is a no-op, a delta for a ship with no entry is ignored rather than creating one, and a delta or `%gone` naming any ship other than the wire's bot is ignored. On `%kick`, the owner resubscribes iff the bot is still trusted. A watch-nack is slogged and otherwise ignored — mirrored state is preserved, and the manual recovery is re-poking `%trust-bot`.
 
+### edit loop
+
+The owner creates, updates, and deletes a bot's tasks through a request/response loop laid out on the ACUR pattern (see channels, groups, notes, and tloncorp/hoon-reference): `a-automation` local-only actions, a `c-automation` owner-gated command, the existing `update` as `u-automation`, and a notes-style per-request `response`. Every edit carries a `request-id` (`@uv`, minted from entropy when the client supplies none) and terminates in exactly one typed `response-body`: `%created id`, `%updated id`, `%deleted id`, `%error type message`, or `%pending status`. `action-error` is `%not-authorized`, `%not-found`, `%invalid`, `%harness-offline`, `%harness-error`, `%unknown`. Errors are returned as data, never as a crash, so the client can tell them apart.
+
+The verb is flat and reuses `task`, whose all-optional fields make `%update` a natural patch:
+
+```
+[%create =task]
+[%update id=@t =task]
+[%delete id=@t]
+```
+
+**Steward is a pure relay.** No hop writes the task map. OpenClaw applies the edit, fires `cron_changed`, the plugin re-projects, and the mirror emits `%set`/`%del`; the response tells the client "accepted or rejected", the mirror delta confirms.
+
+The hops, and the response walking back the same way:
+
+1. **client → owner** (`a-automation` `%edit rid bot edit`, or `POST /steward/~/v1/automation`). The owner records an `incoming-request` (bot, held HTTP id, poke status, result, `final-at`, `fetched`).
+2. **owner → bot.** Watch the bot's `/v1/automation/request/<owner>/<uv>` first so the response cannot be missed, then poke `c-automation` `%edit rid edit` under `%steward-automation-command-1`, then arm a 20-second behn wake. The owner always pokes the bot; gall loops the poke back when the bot is this ship, so a self-owned bot takes the same path. Wires are `/automation/req/<bot>/<uv>/{watch,poke,wake}`.
+3. **bot → harness.** The bot admits the command only from its configured owner. If nothing local is subscribed to `/v1/automation/harness` (checked in `sup.bowl`), it answers `%error %harness-offline` at once. Otherwise it records a `pending-command` and gives a `dispatch` (`[rid edit]`) fact on the harness feed under `%steward-automation-dispatch-1`. A (re)subscribing harness receives every outstanding command, oldest first, so a plugin restart resumes in-flight work.
+4. **harness → bot** (`a-automation` `%finalize rid body`, local only). The bot gives the `response` on the requester's per-request path under `%steward-automation-response-1` and drops the pending record. A finalize for an unknown id is ignored. There is no bot-side deadline: a late answer still completes the request.
+5. **bot → owner → client.** On the response fact the owner finalizes: stores the body, gives the `response` on the local `/v1/automation/request/<uv>` path, completes a held HTTP request exactly once, and leaves the bot watch. A watch nack finalizes `%not-authorized`; a poke nack finalizes `%unknown`; a poke ack records `%acked`.
+
+**Pending.** When the 20-second wake fires before a terminal response, the owner completes the held HTTP request with `%pending status`, gives the same on the local path, and keeps the record. A late response overwrites it and is served by GET and on the per-request path, which replays a stored result at subscribe time.
+
+**Sweep.** `/automation/cleanup` fires every five minutes on both sides. Terminal records go once fetched or after a day; a `%pending` result and a bot-side `pending-command` each live an hour; a record with no result yet is left for its wake.
+
+#### HTTP surface
+
+`%steward` binds `/steward` in Eyre on init and on every load. Every route requires Eyre's authenticated session; a request id is not a capability, so GET is gated like POST.
+
+- `POST /steward/~/v1/automation` — body `{ "requestId"?: "0v…", "bot": "~ship", "action": { "create": { …task } } | { "update": { "id": "…", …task } } | { "delete": { "id": "…" } } }`. Held open until the terminal response or the pending wake; the body is the `response` JSON. Malformed input is a 400.
+- `GET /steward/~/v1/automation/request/<uv>` — the current record as `response` JSON (`%pending` with the poke status while in flight); marks it fetched. Unknown is 404.
+- `GET /steward/~/v1/automation/tasks` — the mirror, as the tasks scry's JSON.
+
+The `response` JSON is type-discriminated like the notes v1 envelope, with the message as an array of strings:
+
+```json
+{ "requestId": "0v4.jd3o0", "body": { "type": "created", "id": "job-id" } }
+{ "requestId": "0v4.jd3o0", "body": { "type": "error", "errorType": "harness-offline", "message": [] } }
+{ "requestId": "0v4.jd3o0", "body": { "type": "pending", "status": "acked" } }
+```
+
 ### OpenClaw reconciliation
 
-The implementation targets pinned OpenClaw `2026.5.28`, which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
+The implementation targets pinned OpenClaw `2026.7.1-2`, the hosted version, which provides `gateway_start`, `cron_changed`, `gateway_stop`, and `getCron()`, but not `cron_reconciled`. A job the plugin cannot represent (an unsupported schedule kind such as `on-exit`, a malformed field, a duplicate ID) is dropped from the snapshot and reported to telemetry rather than failing it, so one odd job cannot leave the mirror permanently stale. On `gateway_start` and on every `cron_changed` action—including execution-related `started` and `finished` actions—the Tlon plugin calls `getCron().list({ includeDisabled: true })`, normalizes the complete result, and submits one `%project` poke. A genuinely successful empty list therefore clears the projection; unavailable cron access or a failed read does not masquerade as an empty list.
 
 The v1 adapter uses one process-global monitor connection slot, so projection is enabled only when exactly one Tlon account is runnable (enabled with ship, URL, and code configured). Additional disabled or incomplete entries do not disable projection. With zero or multiple runnable accounts, gateway-start and cron-change hooks start no projection work; a one-to-many transition stops the active reconciliation epoch on the next trigger and preserves the last stored snapshots instead of targeting whichever monitor most recently published its connection.
 
@@ -229,21 +273,39 @@ Only the local gateway drives liveness, so this requires `src == our`.
 [%gateway-stop boot-id=@t reason=@t]                 graceful stop (boot-id must match)
 ```
 
-### `%steward-automation-action-1` (automation) — `src == our`
+### `%steward-automation-action-1` (automation, `a-automation`) — `src == our`
 
-Only the local harness may replace the automation projection.
+Every variant is local-only: the harness and the local client.
 
 ```
-[%project tasks=(list identified-task:v1:automation)]
+[%project tasks=(list identified-task:v1:automation)]   harness: replace the projection
+[%edit =request-id bot=ship =edit]                      client: edit one of .bot's tasks
+[%finalize =request-id body=response-body]              harness: report a dispatched command's outcome
 ```
 
-Each `identified-task` is `[id=@t task]` on the noun side. The mark's JSON form and complete-replacement behavior are described under [projection behavior](#projection-behavior). A `%project` that changes the `our` entry also emits facts on `/v1/automation/tasks`.
+Each `identified-task` is `[id=@t task]` on the noun side. The mark's JSON form and complete-replacement behavior for `%project` are described under [projection behavior](#projection-behavior). A `%project` that changes the `our` entry also emits facts on `/v1/automation/tasks`. `%edit` and `%finalize` are the [edit loop](#edit-loop); their JSON forms are `{ "edit": { "requestId", "bot", "action" } }` and `{ "finalize": { "requestId", "body" } }`.
+
+### `%steward-automation-command-1` (automation, `c-automation`) — `src == owner`
+
+The owner → bot leg of the edit loop. Noun only; it never crosses a JSON boundary.
+
+```
+[%edit =request-id =edit]
+```
+
+### `%handle-http-request` — Eyre
+
+The owner ship's HTTP surface for the edit loop, described under [HTTP surface](#http-surface).
 
 ## subscription surface
 
 - `/v1/lens` (local only, `?> =(src our)`): `%steward-lens-update-1` facts (`update:v1:lens`, a tagged union) — `%entry` (a stored run, one per insert; the owner-side client reads these) and `%retry-requested` (emitted on the bot ship for its local gateway to re-dispatch). No initial backfill fact — clients scry `/x/v1/lens/recent` for backfill.
 - `/v1/gateway` (local only): `%steward-gateway-update-1` facts (`update:v1:gateway`) — `%status` (on lifecycle transitions, plus an initial fact on subscribe), `%owner-activity`, and `%auto-reply`.
 - `/v1/automation/tasks` (local **or** configured owner): `%steward-automation-update-1` facts (`update:v1:automation`) — one initial `%tasks` snapshot of the complete ship-keyed map on subscribe (including when empty), then ship-attributed `%set`/`%del` deltas, fresh full `%tasks` snapshots when an entry appears, and `%gone` entry removals. See [feed](#feed-v1automationtasks).
+
+- `/v1/automation/harness` (local only): `%steward-automation-dispatch-1` facts (`dispatch`, `[rid edit]`) — the bot's pending edit commands for its harness; every outstanding command is replayed on subscribe, oldest first.
+- `/v1/automation/request/<owner>/<uv>` (the requester named in the path, and only when it is the configured owner): one `%steward-automation-response-1` fact (`response`) when the bot finalizes that request.
+- `/v1/automation/request/<uv>` (local only): one `%steward-automation-response-1` fact when the owner finalizes that request; a stored result is replayed at subscribe time.
 
 Bare `/v1/automation` binds nothing — the feed is `tasks`, not the namespace root.
 
@@ -259,8 +321,6 @@ The automation update grows to JSON with one shape per variant. `%tasks` carries
 With no entries at all the snapshot's exact JSON shape is `{ "tasks": {} }`. The field is `ship`, not `bot` — entries belong to ships (the local one included); "bot" is a role.
 
 ## scry surface
-
-Dotket scries execute locally against the agent's current state and do not carry a foreign caller source to authorize. Lens scries return the `%steward-lens-update-1` mark so the HTTP client reads them as JSON.
 
 - `/x/v1/lens/recent` → `[%recent entries]` — newest 50 runs across all bots, for backfill. Grows to `{ "recent": [ entry, … ] }` (a JSON array of entry objects).
 - `/x/v1/lens/recent/[count]` → `[%recent entries]` — newest `count` runs.
