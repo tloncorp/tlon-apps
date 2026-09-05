@@ -69,7 +69,8 @@ interface DebugStore {
   appendLog: (log: Log) => void;
   uploadLogs: () => Promise<string>;
   addBreadcrumb: (crumb: Breadcrumb) => void;
-  getBreadcrumbs: () => string[];
+  clearBreadcrumbs: () => void;
+  getBreadcrumbs: (options?: { includeSensitive?: boolean }) => string[];
   addCustomEnabledLoggers: (loggers: string[]) => void;
   initializeDebugInfo: (
     platform: PlatformState,
@@ -164,12 +165,15 @@ export const useDebugStore = create<DebugStore>(
             debugBreadcrumbs.shift();
           }
 
-          return state;
+          return { debugBreadcrumbs };
         });
       },
-      getBreadcrumbs: () => {
+      clearBreadcrumbs: () => {
+        set({ debugBreadcrumbs: [] });
+      },
+      getBreadcrumbs: (options) => {
         const { debugBreadcrumbs } = get();
-        const includeSensitiveContext = true; // TODO: handle accordingly
+        const includeSensitiveContext = options?.includeSensitive ?? true;
         return debugBreadcrumbs.map((crumb) => {
           return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
         });
@@ -203,6 +207,10 @@ export const useDebugStore = create<DebugStore>(
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
+}
+
+export function clearBreadcrumbs() {
+  return useDebugStore.getState().clearBreadcrumbs();
 }
 
 export function flushErrorLogger() {
@@ -273,11 +281,15 @@ export function createDevLogger(tag: string, enabled: boolean) {
             args[1] && typeof args[1] === 'object' ? args[1] : {};
           const errorMessage =
             typeof args[0] === 'string' ? `[${tag}] ${args[0]}` : 'no message';
-          const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
+          // Breadcrumbs recorded with `sensitiveCrumb` stay on the device; only the explicit debug-log upload (`uploadLogs`) reads them.
+          const breadcrumbs = useDebugStore
+            .getState()
+            .getBreadcrumbs({ includeSensitive: false });
 
           // Extract error from various patterns:
           // - logger.trackError('msg', error) -> customProps is Error
           // - logger.trackError('msg', { error }) -> customProps.error is Error
+          // - logger.trackError('msg', { stack: error }) -> customProps.stack is Error
           let errorObj: Error | undefined;
           if (customProps instanceof Error) {
             errorObj = customProps;
@@ -286,6 +298,11 @@ export function createDevLogger(tag: string, enabled: boolean) {
             customProps.error instanceof Error
           ) {
             errorObj = customProps.error;
+          } else if (
+            'stack' in customProps &&
+            customProps.stack instanceof Error
+          ) {
+            errorObj = customProps.stack;
           }
 
           const report = (debugInfo: any = undefined) => {
@@ -300,6 +317,9 @@ export function createDevLogger(tag: string, enabled: boolean) {
               jsContextId,
               buildInfo: _buildInfo,
               ...customProps,
+              errorObject: errorObj,
+              logger: tag,
+              errorTitle: typeof args[0] === 'string' ? args[0] : 'no message',
             });
           };
 

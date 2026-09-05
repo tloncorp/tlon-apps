@@ -180,6 +180,7 @@
     "fs-extra": "^11.1.1",
     "jsdom": "^23.2.0",
     "lint-staged": "^15.0.0",
+    "magic-string": "^0.30.21",
     "msw": "^0.44.2",
     "node-fetch": "^2.6.12",
     "postcss": "^8.4.12",

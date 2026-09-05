@@ -6,7 +6,14 @@ import {
   SENTRY_DSN,
 } from '@tloncorp/app/constants';
 import { loadConstants } from '@tloncorp/app/lib/constants';
-import { setDebugBuildInfo } from '@tloncorp/shared';
+import {
+  SENTRY_IGNORE_ERRORS,
+  scrubBreadcrumb,
+  scrubSentryEvent,
+  setDebugBuildInfo,
+  type SentryBreadcrumbLike,
+  type SentryEventLike,
+} from '@tloncorp/shared';
 import * as Application from 'expo-application';
 import { Platform } from 'react-native';
 
@@ -24,9 +31,18 @@ Sentry.init({
   // Disable logs in production
   enableLogs: false,
 
-  // Set environment and release for better error tracking
-  environment: __DEV__ ? 'development' : 'production',
+  // Set environment and release for better error tracking. In release builds
+  // the EAS profile decides `production` vs `preview`.
+  environment: __DEV__ ? 'development' : APP_VARIANT,
   release: GIT_HASH,
+
+  ignoreErrors: SENTRY_IGNORE_ERRORS,
+  beforeSend: (event) =>
+    scrubSentryEvent(
+      event as unknown as SentryEventLike
+    ) as unknown as typeof event,
+  beforeBreadcrumb: (crumb) =>
+    scrubBreadcrumb(crumb as unknown as SentryBreadcrumbLike) as typeof crumb,
 
   // Tag errors with build variant for filtering in Sentry UI
   initialScope: {

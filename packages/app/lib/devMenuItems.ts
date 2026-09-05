@@ -85,28 +85,6 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
   },
 ];
 
-const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
-  (isEmulator) => [
-    {
-      name: 'Delete local database',
-      callback: () => purgeDb(),
-    },
-    {
-      name: 'Run contact discovery',
-      callback: async () => {
-        const { newMatchCount } = await discoverContactsAndNotify({
-          context: { source: 'devMenu' },
-        });
-        Alert.alert(
-          'Contact discovery complete',
-          `${newMatchCount} new match${newMatchCount === 1 ? '' : 'es'}.`
-        );
-      },
-    },
-    ...(isEmulator ? simulatorOnlyMenuItems : []),
-  ]
-);
-
 async function sendBundlerRequest(
   path: string,
   params: Record<string, string>
@@ -128,4 +106,30 @@ async function sendBundlerRequest(
   }
 }
 
-devMenuItems.then((items) => registerDevMenuItems(items));
+// expo-dev-menu's native module is absent from production builds; registering
+// there rejects with "Cannot read property 'addDevMenuCallbacks' of null" on
+// every launch (REACT-NATIVE-3).
+if (__DEV__) {
+  const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
+    (isEmulator) => [
+      {
+        name: 'Delete local database',
+        callback: () => purgeDb(),
+      },
+      {
+        name: 'Run contact discovery',
+        callback: async () => {
+          const { newMatchCount } = await discoverContactsAndNotify({
+            context: { source: 'devMenu' },
+          });
+          Alert.alert(
+            'Contact discovery complete',
+            `${newMatchCount} new match${newMatchCount === 1 ? '' : 'es'}.`
+          );
+        },
+      },
+      ...(isEmulator ? simulatorOnlyMenuItems : []),
+    ]
+  );
+  devMenuItems.then((items) => registerDevMenuItems(items));
+}

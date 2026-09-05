@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
+  clearBreadcrumbs,
   createDevLogger,
   useCurrentSession,
 } from '@tloncorp/shared';
@@ -27,6 +28,8 @@ export function useClearTelemetryConfig() {
     logger.log('Clearing telemetry config');
     await posthog.flush();
     posthog?.reset();
+    // Breadcrumbs must not carry over from one account to the next on the same install.
+    clearBreadcrumbs();
     await didInitializeTelemetry.resetValue();
     await lastAnonymousAppOpenAt.resetValue();
   }, [posthog]);
