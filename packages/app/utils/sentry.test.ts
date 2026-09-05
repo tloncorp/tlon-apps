@@ -81,19 +81,26 @@ test('message path captures an event with message and fingerprint', () => {
 });
 
 test('breadcrumbs are added with URLs reduced', () => {
-  useDebugStore.getState().addBreadcrumb({
-    tag: 'nav',
-    message: 'opened https://tlon.network/apps/groups/invite/abc123',
-  });
   const logger = createSentryErrorLogger();
 
-  logger.capture('app_error', { logger: 'test-logger' });
+  logger.capture('app_error', {
+    logger: 'test-logger',
+    breadcrumbs: ['[t] saw https://a.tlon.network/apps/groups/invite/tok'],
+  });
 
   expect(scope.addBreadcrumb).toHaveBeenCalledWith(
     expect.objectContaining({
       category: 'app',
-      message: '[nav] opened https://tlon/invite',
+      message: '[t] saw https://tlon/invite',
       timestamp: expect.any(Number),
     })
   );
+});
+
+test('no breadcrumbs are added when data.breadcrumbs is absent', () => {
+  const logger = createSentryErrorLogger();
+
+  logger.capture('app_error', { logger: 'test-logger' });
+
+  expect(scope.addBreadcrumb).not.toHaveBeenCalled();
 });

@@ -69,6 +69,7 @@ interface DebugStore {
   appendLog: (log: Log) => void;
   uploadLogs: () => Promise<string>;
   addBreadcrumb: (crumb: Breadcrumb) => void;
+  clearBreadcrumbs: () => void;
   getBreadcrumbs: (options?: { includeSensitive?: boolean }) => string[];
   addCustomEnabledLoggers: (loggers: string[]) => void;
   initializeDebugInfo: (
@@ -167,6 +168,9 @@ export const useDebugStore = create<DebugStore>(
           return { debugBreadcrumbs };
         });
       },
+      clearBreadcrumbs: () => {
+        set({ debugBreadcrumbs: [] });
+      },
       getBreadcrumbs: (options) => {
         const { debugBreadcrumbs } = get();
         const includeSensitiveContext = options?.includeSensitive ?? true;
@@ -203,6 +207,10 @@ export const useDebugStore = create<DebugStore>(
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
+}
+
+export function clearBreadcrumbs() {
+  return useDebugStore.getState().clearBreadcrumbs();
 }
 
 export function flushErrorLogger() {

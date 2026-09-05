@@ -1,6 +1,6 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
-import { createDevLogger, useDebugStore } from './debug';
+import { clearBreadcrumbs, createDevLogger, useDebugStore } from './debug';
 
 let capture: ReturnType<typeof vi.fn>;
 
@@ -77,6 +77,15 @@ test('trackError breadcrumbs exclude sensitive crumbs', async () => {
   expect(
     payload.breadcrumbs.some((entry: string) => entry.includes('token abc'))
   ).toBe(false);
+});
+
+test('clearBreadcrumbs empties the store', () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('a');
+  logger.sensitiveCrumb('b');
+  expect(useDebugStore.getState().getBreadcrumbs().length).toBe(2);
+  clearBreadcrumbs();
+  expect(useDebugStore.getState().getBreadcrumbs()).toEqual([]);
 });
 
 test('getBreadcrumbs filters sensitive entries when opted out', () => {

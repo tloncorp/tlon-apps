@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-import {
-  SENTRY_DENY_URLS_WEB,
-  SENTRY_IGNORE_ERRORS,
-  useDebugStore,
-} from '@tloncorp/shared';
+import { SENTRY_DENY_URLS_WEB, SENTRY_IGNORE_ERRORS } from '@tloncorp/shared';
 
 const { scope, init, withScope, captureException, captureEvent, setUser } =
   vi.hoisted(() => {
@@ -138,16 +134,12 @@ describe('createSentryErrorLogger', () => {
     expect(captureException).not.toHaveBeenCalled();
   });
 
-  test('attaches reduced debug-store breadcrumbs', () => {
-    useDebugStore.getState().addBreadcrumb({
-      tag: 't',
-      message: 'saw https://a.tlon.network/apps/groups/invite/tok',
-    });
-
+  test('attaches reduced breadcrumbs from the error-time snapshot', () => {
     createSentryErrorLogger().capture('app_error', {
       logger: 'urbit',
       errorTitle: 'z',
       message: '[urbit] z',
+      breadcrumbs: ['[t] saw https://a.tlon.network/apps/groups/invite/tok'],
     });
 
     expect(scope.addBreadcrumb).toHaveBeenCalledWith(
@@ -157,5 +149,15 @@ describe('createSentryErrorLogger', () => {
         timestamp: expect.any(Number),
       })
     );
+  });
+
+  test('adds no breadcrumbs when data.breadcrumbs is absent', () => {
+    createSentryErrorLogger().capture('app_error', {
+      logger: 'urbit',
+      errorTitle: 'z',
+      message: '[urbit] z',
+    });
+
+    expect(scope.addBreadcrumb).not.toHaveBeenCalled();
   });
 });

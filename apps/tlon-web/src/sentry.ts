@@ -1,9 +1,5 @@
 import * as Sentry from '@sentry/react';
-import {
-  populateScope,
-  toSentryCapture,
-  useDebugStore,
-} from '@tloncorp/shared';
+import { populateScope, toSentryCapture } from '@tloncorp/shared';
 
 /**
  * Creates a Sentry error logger that implements the ErrorLoggerStub interface
@@ -17,9 +13,12 @@ export function createSentryErrorLogger() {
   return {
     capture: (event: string, data: Record<string, unknown>) => {
       const c = toSentryCapture(event, data);
-      const crumbs = useDebugStore
-        .getState()
-        .getBreadcrumbs({ includeSensitive: false });
+      // The payload's breadcrumbs are the non-sensitive snapshot taken when
+      // the error was logged; rereading the store later can attach unrelated
+      // post-error activity.
+      const crumbs = Array.isArray(data.breadcrumbs)
+        ? data.breadcrumbs.filter((c): c is string => typeof c === 'string')
+        : [];
       Sentry.withScope((scope) => {
         populateScope(scope, c, crumbs);
         if (c.kind === 'exception') {
