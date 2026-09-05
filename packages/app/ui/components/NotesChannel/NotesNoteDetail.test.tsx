@@ -11,6 +11,8 @@ import {
   vi,
 } from 'vitest';
 
+import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+
 import {
   NotesNoteDetail,
   deriveNotesNoteSaveFieldIntent,
@@ -72,12 +74,16 @@ vi.mock('../Channel/ChannelHeader', () => ({
   useRegisterChannelHeaderLoadingSubtitle: vi.fn(),
 }));
 
+vi.mock('../useScreenScrollProps', () => ({
+  useScreenScrollProps: () => ({}),
+}));
+
 vi.mock('../Form', () => ({ TextInput: 'TextInput' }));
 vi.mock('../NotebookPost/NotebookPost', () => ({
   NotebookContentRenderer: () => null,
 }));
-vi.mock('../ScreenHeader', () => ({
-  ScreenHeader: { TextButton: 'TextButton' },
+vi.mock('../ScreenHeader/primitives', () => ({
+  ScreenHeaderItemElements: 'ScreenHeaderItemElements',
 }));
 vi.mock('./NotesData', () => ({
   NotebookGateMessage: () => null,
@@ -197,6 +203,49 @@ describe('NotesNoteDetail note switching', () => {
       rootFolderId: 0,
       gate: null,
     }));
+  });
+
+  it('registers native actions that switch between editing and preview', async () => {
+    let renderer!: ReactTestRenderer;
+    const registeredActions = () => {
+      const actions = vi.mocked(useRegisterChannelHeaderItem).mock
+        .lastCall?.[0];
+      if (!Array.isArray(actions))
+        throw new Error('Expected declarative header actions');
+      return actions;
+    };
+
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail noteId={1} notebookFlag="~zod/notebook" startInEdit />
+      );
+    });
+    expect(registeredActions()[0]).toMatchObject({
+      text: 'Preview',
+      testID: 'NotesPreviewToggle',
+    });
+    expect(
+      renderer.root.findAllByProps({ testID: 'NotesBodyInput' })
+    ).toHaveLength(1);
+
+    await act(async () => {
+      const action = registeredActions()[0];
+      if ('onPress' in action) action.onPress?.();
+    });
+    expect(registeredActions()[0]).toMatchObject({ text: 'Edit' });
+    expect(
+      renderer.root.findAllByProps({ testID: 'NotesBodyInput' })
+    ).toHaveLength(0);
+
+    await act(async () => {
+      const action = registeredActions()[0];
+      if ('onPress' in action) action.onPress?.();
+    });
+    expect(registeredActions()[0]).toMatchObject({ text: 'Preview' });
+    expect(
+      renderer.root.findAllByProps({ testID: 'NotesBodyInput' })
+    ).toHaveLength(1);
+    await act(async () => renderer.unmount());
   });
 
   it('keeps same-note saves FIFO across A → B → A visits', async () => {

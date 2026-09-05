@@ -1,6 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
-import { ScrollView, YStack } from 'tamagui';
+import { YStack } from 'tamagui';
 
 import { ScreenScrollView } from '../ScreenScrollView';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
@@ -133,7 +133,7 @@ export function NotesTreePane({
   }
 
   return (
-    <ScrollView flex={1}>
+    <ScreenScrollView flex={1}>
       <YStack
         width="100%"
         maxWidth={760}
@@ -145,7 +145,7 @@ export function NotesTreePane({
       >
         {treeList}
       </YStack>
-    </ScrollView>
+    </ScreenScrollView>
   );
 }
 

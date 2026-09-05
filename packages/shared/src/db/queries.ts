@@ -4052,8 +4052,15 @@ export const insertLatestPosts = createWriteQuery(
 const insertPostsBatchSize = 300;
 
 async function insertPosts(posts: Post[], ctx: QueryCtx) {
-  for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
-    const batch = posts.slice(i, i + insertPostsBatchSize);
+  // Snapshots can include nested replies already reflected in the parent's
+  // replyCount. Persist both in the same transaction so later reply events
+  // recognize those rows instead of incrementing the count a second time.
+  const postsWithReplies = posts.flatMap((post) => [
+    post,
+    ...(post.replies ?? []),
+  ]);
+  for (let i = 0; i < postsWithReplies.length; i += insertPostsBatchSize) {
+    const batch = postsWithReplies.slice(i, i + insertPostsBatchSize);
     await insertPostsBatch(batch, ctx);
   }
 }

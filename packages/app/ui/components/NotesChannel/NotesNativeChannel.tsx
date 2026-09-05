@@ -53,6 +53,7 @@ import {
 } from './NotesFeedback';
 import {
   NotesHeaderActions,
+  createNotesHeaderActions,
   createNotesNewFolderAction,
   createNotesNewNoteAction,
 } from './NotesHeaderActions';
@@ -1010,24 +1011,24 @@ export function NotesNativeChannel({
       : []),
   ];
 
-  const headerActions = useMemo(() => {
-    if (!notebookFlag || gate === 'unjoinable') return null;
-    return (
-      <NotesHeaderActions
-        canEdit={canEdit}
-        onNew={() => setNewActionSheetOpen(true)}
-        onSearch={searchSupported ? openSearch : undefined}
-        primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
-      />
-    );
-  }, [
-    canEdit,
-    gate,
-    notebookFlag,
-    openSearch,
-    searchSupported,
-    useDesktopSplit,
-  ]);
+  const headerActionOptions = useMemo(
+    () => ({
+      canEdit,
+      onNew: () => setNewActionSheetOpen(true),
+      onSearch: searchSupported ? openSearch : undefined,
+      primaryActionVariant: useDesktopSplit
+        ? ('icon' as const)
+        : ('text' as const),
+    }),
+    [canEdit, openSearch, searchSupported, useDesktopSplit]
+  );
+  const headerActions = useMemo(
+    () =>
+      !notebookFlag || gate === 'unjoinable'
+        ? null
+        : createNotesHeaderActions(headerActionOptions),
+    [gate, notebookFlag, headerActionOptions]
+  );
 
   const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
     if (!notebookFlag || gate === 'unjoinable' || !canEdit) {
@@ -1078,7 +1079,9 @@ export function NotesNativeChannel({
     useDesktopSplit && isFocused && !gate
       ? {
           channelId,
-          actions: headerActions,
+          actions: headerActions ? (
+            <NotesHeaderActions {...headerActionOptions} />
+          ) : null,
           backAction: sidebarIsNested ? handleSidebarBack : undefined,
           content: notesTreePane,
           groupId,

@@ -44,7 +44,9 @@ import {
 } from '../Channel/ChannelHeader';
 import { TextInput, type TextInputRef } from '../Form';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
+import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
+import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
   NotebookGateMessage,
   NotesMessage,
@@ -1542,22 +1544,27 @@ export function NotesNoteDetail({
     []
   );
 
-  const headerSaveLabel = getHeaderSaveLabel(saveState);
-  const saveStatusLabel = getSaveStatusLabel(saveState);
-  const headerControls = useMemo(
+  const screenScrollProps = useScreenScrollProps({
+    enabled: headerActionsPlacement === 'channel-header',
+  });
+  const headerActions = useMemo<ScreenHeaderAction[]>(
     () =>
-      selectedNote ? (
-        <XStack alignItems="center" gap="$l">
-          <NotesPreviewToggle
-            isPreviewing={isPreviewing}
-            onPress={togglePreview}
-          />
-        </XStack>
-      ) : null,
+      selectedNote
+        ? [
+            {
+              id: 'NotesPreviewToggle',
+              text: isPreviewing ? 'Edit' : 'Preview',
+              onPress: togglePreview,
+              testID: 'NotesPreviewToggle',
+            },
+          ]
+        : [],
     [isPreviewing, selectedNote, togglePreview]
   );
+  const headerSaveLabel = getHeaderSaveLabel(saveState);
+  const saveStatusLabel = getSaveStatusLabel(saveState);
   useRegisterChannelHeaderItem(
-    headerActionsPlacement === 'channel-header' ? headerControls : null
+    headerActionsPlacement === 'channel-header' ? headerActions : null
   );
   useRegisterChannelHeaderLoadingSubtitle(
     headerActionsPlacement === 'channel-header' ? headerSaveLabel : null
@@ -1582,7 +1589,9 @@ export function NotesNoteDetail({
   }
 
   const inlineActions =
-    headerActionsPlacement === 'inline' ? <>{headerControls}</> : null;
+    headerActionsPlacement === 'inline' ? (
+      <ScreenHeaderItemElements actions={headerActions} />
+    ) : null;
 
   return (
     <YStack flex={1} backgroundColor="$background">
@@ -1601,6 +1610,7 @@ export function NotesNoteDetail({
         />
       ) : null}
       <ScrollView
+        {...screenScrollProps}
         ref={scrollViewRef}
         flex={1}
         automaticallyAdjustKeyboardInsets
@@ -1783,25 +1793,6 @@ export function NotesNoteDetail({
         </YStack>
       </ScrollView>
     </YStack>
-  );
-}
-
-function NotesPreviewToggle({
-  isPreviewing,
-  onPress,
-}: {
-  isPreviewing: boolean;
-  onPress: () => void;
-}) {
-  const label = isPreviewing ? 'Edit' : 'Preview';
-  return (
-    <ScreenHeader.TextButton
-      color="$primaryText"
-      onPress={onPress}
-      testID="NotesPreviewToggle"
-    >
-      {label}
-    </ScreenHeader.TextButton>
   );
 }
 

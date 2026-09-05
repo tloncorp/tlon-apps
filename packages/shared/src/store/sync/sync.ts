@@ -1923,28 +1923,38 @@ export async function handleAddPost(
       // first check if it's a reply. If it is and we haven't already cached
       // it, we need to add it to the parent post
       if (post.parentId) {
-        const cachedReply = await db.getPostByCacheId({
-          channelId: post.channelId,
-          sentAt: post.sentAt,
-          authorId: post.authorId,
-        });
-        if (!cachedReply) {
-          await perfTime('handleAddPost.addReplyToPost', () =>
-            db.addReplyToPost(
+        // Serialize the cache check with both writes. A snapshot or another
+        // event may otherwise insert the reply after this check but before
+        // the count update, causing the same reply to be counted twice.
+        await batchEffects('handleAddPost.reply', (defaultCtx) =>
+          withTransactionCtx(ctx ?? defaultCtx, async (txCtx) => {
+            const cachedReply = await db.getPostByCacheId(
               {
-                parentId: post.parentId!,
-                replyAuthor: post.authorId,
-                replyTime: post.sentAt,
-                replyMeta,
+                channelId: post.channelId,
+                sentAt: post.sentAt,
+                authorId: post.authorId,
               },
-              ctx
-            )
-          );
-        }
-        await perfTime(
-          'handleAddPost.insertChannelPosts',
-          () => db.insertChannelPosts({ posts: [post] }, ctx),
-          { isReply: 'true' }
+              txCtx
+            );
+            if (!cachedReply) {
+              await perfTime('handleAddPost.addReplyToPost', () =>
+                db.addReplyToPost(
+                  {
+                    parentId: post.parentId!,
+                    replyAuthor: post.authorId,
+                    replyTime: post.sentAt,
+                    replyMeta,
+                  },
+                  txCtx
+                )
+              );
+            }
+            await perfTime(
+              'handleAddPost.insertChannelPosts',
+              () => db.insertChannelPosts({ posts: [post] }, txCtx),
+              { isReply: 'true' }
+            );
+          })
         );
       } else {
         addToChannelPosts(post);
