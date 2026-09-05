@@ -43,6 +43,7 @@ import rawGroupsInit2 from '../../test/init.json';
 import { syncQueue } from '../syncQueue';
 import {
   ensureDmInviteChannel,
+  handleAddPost,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
@@ -69,6 +70,68 @@ const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit10;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
 setupDatabaseTestSuite();
+
+test.each(['before', 'concurrently with'] as const)(
+  'does not double-count a reply when the snapshot arrives %s the event',
+  async (order) => {
+    const channelId = 'chat/~zod/reply-snapshot';
+    await db.insertChannels([{ id: channelId, type: 'chat' }]);
+    const parent = {
+      id: 'snapshot-parent',
+      channelId,
+      type: 'chat',
+      authorId: '~zod',
+      sentAt: 1000,
+      receivedAt: 1000,
+      sequenceNum: 1,
+      content: JSON.stringify([{ inline: ['parent'] }]),
+      replyCount: 3,
+      replyTime: 4000,
+      replyContactIds: ['~ten', '~zod'],
+    } as db.Post;
+    const replies = [2000, 3000, 4000].map(
+      (sentAt) =>
+        ({
+          id: `snapshot-reply-${sentAt}`,
+          parentId: parent.id,
+          channelId,
+          type: 'reply',
+          authorId: '~zod',
+          sentAt,
+          receivedAt: sentAt,
+          sequenceNum: 0,
+          content: JSON.stringify([{ inline: [`reply ${sentAt}`] }]),
+        }) as db.Post
+    );
+
+    // /init-posts includes both the server count and nested reply rows.
+    const snapshot = db.insertChannelPosts({ posts: [{ ...parent, replies }] });
+    if (order === 'before') {
+      await snapshot;
+      await handleAddPost(replies[2]);
+    } else {
+      await Promise.all([snapshot, handleAddPost(replies[2])]);
+    }
+
+    expect((await db.getPost({ postId: parent.id }))?.replyCount).toBe(3);
+    for (const reply of replies) {
+      expect(await db.getPost({ postId: reply.id })).toMatchObject({
+        id: reply.id,
+        parentId: parent.id,
+      });
+    }
+
+    const nextReply = {
+      ...replies[2],
+      id: 'next-reply',
+      sentAt: 5000,
+      receivedAt: 5000,
+    };
+    await handleAddPost(nextReply);
+    await handleAddPost(nextReply);
+    expect((await db.getPost({ postId: parent.id }))?.replyCount).toBe(4);
+  }
+);
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
@@ -695,7 +758,10 @@ test('syncUpdatedPosts fetches and persists changed group-channel posts', async 
   expect(response?.posts.length).toBeGreaterThan(0);
   const savedPosts = await db.getPosts();
   expect(savedPosts.map((post) => post.id).sort()).toEqual(
-    response?.posts.map((post) => post.id).sort()
+    response?.posts
+      .flatMap((post) => [post, ...(post.replies ?? [])])
+      .map((post) => post.id)
+      .sort()
   );
   expect(savedPosts.every((post) => post.channelId === channelId)).toBe(true);
 });
