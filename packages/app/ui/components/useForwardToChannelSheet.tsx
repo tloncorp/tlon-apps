@@ -14,6 +14,8 @@ type UseForwardToChannelSheetParams = {
   successMessage: (channelTitle: string) => string | null;
   failureMessage: string;
   closeBeforeForward?: boolean;
+  submitLabel?: (channelTitle: string) => string;
+  submittingLabel?: string;
 };
 
 export const FORWARD_SHEET_SNAP_POINTS: number[] = [85];
@@ -46,6 +48,8 @@ export function useForwardToChannelSheet({
   successMessage,
   failureMessage,
   closeBeforeForward = false,
+  submitLabel = (channelTitle) => `Forward to ${channelTitle}`,
+  submittingLabel = 'Forwarding...',
 }: UseForwardToChannelSheetParams) {
   const isDelayedCloseOpen = useDelayedClose(isOpen);
   const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
@@ -134,10 +138,10 @@ export function useForwardToChannelSheet({
           disabled={isSending || !!errorMessage}
           label={
             isSending
-              ? 'Forwarding...'
+              ? submittingLabel
               : errorMessage
                 ? errorMessage
-                : `Forward to ${selectedChannelTitle}`
+                : submitLabel(selectedChannelTitle)
           }
           centered
         />
@@ -150,6 +154,8 @@ export function useForwardToChannelSheet({
     isSending,
     selectedChannel,
     selectedChannelTitle,
+    submitLabel,
+    submittingLabel,
   ]);
 
   return {

@@ -11,6 +11,8 @@ import { InviteSystemContactsScreen } from '../features/contacts/InviteSystemCon
 import { ContextLensRunScreen } from '../features/lens/ContextLensRunScreen';
 import { ContextLensRunsScreen } from '../features/lens/ContextLensRunsScreen';
 import { AttestationScreen } from '../features/profile/AttestationScreen';
+import { ScheduledTaskEditorScreen } from '../features/automations/ScheduledTaskEditorScreen';
+import { ScheduledTasksScreen } from '../features/automations/ScheduledTasksScreen';
 import { AppInfoScreen } from '../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../features/settings/BlockedUsersScreen';
 import { BotApiKeySettingsScreen } from '../features/settings/BotApiKeySettingsScreen';
@@ -228,7 +230,21 @@ export function RootStack() {
         component={PushNotificationSettingsScreen}
         options={nativeHeaderScreenOptions}
       />
-      <Root.Screen name="UserProfile" component={UserProfileScreen} />
+      <Root.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTasks"
+        component={ScheduledTasksScreen}
+        options={nativeHeaderScreenOptions}
+      />
+      <Root.Screen
+        name="ScheduledTaskEditor"
+        component={ScheduledTaskEditorScreen}
+        options={nativeHeaderScreenOptions}
+      />
       <Root.Screen name="Attestation" component={AttestationScreen} />
       <Root.Screen name="EditProfile" component={EditProfileScreen} />
       <Root.Screen
