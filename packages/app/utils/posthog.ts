@@ -1,6 +1,6 @@
 import crashlytics from '@react-native-firebase/crashlytics';
 import * as Sentry from '@sentry/react-native';
-import { useDebugStore } from '@tloncorp/shared';
+import { createCompositeLogger, useDebugStore } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Platform, TurboModuleRegistry } from 'react-native';
 
@@ -29,41 +29,38 @@ export type OnboardingProperties = {
   inviteType?: 'user' | 'group';
 };
 
-if (posthogEnabled) {
-  const distinctId = posthog.getDistinctId();
-
-  crashlytics().setAttribute('analyticsId', distinctId);
-
-  // Create composite error logger that sends to both PostHog and Sentry
-  const sentryLogger = createSentryErrorLogger();
-  const compositeLogger = {
-    capture: (event: string, data: Record<string, unknown>) => {
-      // Always send to PostHog (analytics + errors)
-      posthog.capture(event, data as Record<string, any>);
-
-      // Only send errors to Sentry (not general analytics events)
-      // Until logging is refactored to consistently use 'app_error',
-      // we also pass along any event with "error" in the name (case-insensitive)
-      if (
-        event === 'app_error' ||
-        event === 'Debug Logs' ||
-        /error/i.test(event)
-      ) {
-        sentryLogger.capture(event, data);
+const sentryLogger = createSentryErrorLogger();
+useDebugStore.getState().initializeErrorLogger(
+  createCompositeLogger({
+    posthog: posthogEnabled
+      ? (event, data) => posthog.capture(event, data as Record<string, any>)
+      : undefined,
+    sentry: sentryLogger.capture,
+    flush: async () => {
+      if (posthogEnabled) {
+        await posthog.flush();
       }
     },
-    flush: async () => posthog.flush(),
-  };
+  })
+);
 
-  useDebugStore.getState().initializeErrorLogger(compositeLogger);
-  posthog.register({
-    gitHash: GIT_HASH,
-  });
+if (posthogEnabled) {
+  crashlytics().setAttribute('analyticsId', posthog.getDistinctId());
+  posthog.register({ gitHash: GIT_HASH });
 
-  // Set Sentry user context with PostHog analytics ID
-  Sentry.setUser({
-    id: distinctId,
-  });
+  // One stable anonymous id per install; never the ship. The persisted id is
+  // empty until PostHog has loaded its storage.
+  void posthog
+    .ready()
+    .then(() => {
+      const anonymousId = posthog.getAnonymousId();
+      if (anonymousId) {
+        Sentry.setUser({ id: anonymousId });
+      }
+    })
+    .catch(() => {
+      /* persistence failed to load; leave Sentry identity unset */
+    });
 
   // Write PostHog API key to UserDefaults for iOS native access
   if (Platform.OS === 'ios' && POST_HOG_API_KEY) {

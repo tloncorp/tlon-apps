@@ -1,4 +1,7 @@
-import { usePostHog as useNativePosthog } from 'posthog-react-native';
+import {
+  PostHogPersistedProperty,
+  usePostHog as useNativePosthog,
+} from 'posthog-react-native';
 import { useMemo } from 'react';
 
 import { identifyUser } from '../utils/identifyUser';
@@ -16,7 +19,7 @@ export function usePosthog() {
       capture: (eventName, properties) =>
         posthog?.capture(eventName, properties),
       flush: async () => posthog?.flush(),
-      reset: () => posthog?.reset(),
+      reset: () => posthog?.reset([PostHogPersistedProperty.AnonymousId]),
       distinctId: () => {
         return posthog?.getDistinctId();
       },

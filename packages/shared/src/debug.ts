@@ -69,7 +69,7 @@ interface DebugStore {
   appendLog: (log: Log) => void;
   uploadLogs: () => Promise<string>;
   addBreadcrumb: (crumb: Breadcrumb) => void;
-  getBreadcrumbs: () => string[];
+  getBreadcrumbs: (options?: { includeSensitive?: boolean }) => string[];
   addCustomEnabledLoggers: (loggers: string[]) => void;
   initializeDebugInfo: (
     platform: PlatformState,
@@ -164,12 +164,12 @@ export const useDebugStore = create<DebugStore>(
             debugBreadcrumbs.shift();
           }
 
-          return state;
+          return { debugBreadcrumbs };
         });
       },
-      getBreadcrumbs: () => {
+      getBreadcrumbs: (options) => {
         const { debugBreadcrumbs } = get();
-        const includeSensitiveContext = true; // TODO: handle accordingly
+        const includeSensitiveContext = options?.includeSensitive ?? true;
         return debugBreadcrumbs.map((crumb) => {
           return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
         });
@@ -278,6 +278,7 @@ export function createDevLogger(tag: string, enabled: boolean) {
           // Extract error from various patterns:
           // - logger.trackError('msg', error) -> customProps is Error
           // - logger.trackError('msg', { error }) -> customProps.error is Error
+          // - logger.trackError('msg', { stack: error }) -> customProps.stack is Error
           let errorObj: Error | undefined;
           if (customProps instanceof Error) {
             errorObj = customProps;
@@ -286,6 +287,11 @@ export function createDevLogger(tag: string, enabled: boolean) {
             customProps.error instanceof Error
           ) {
             errorObj = customProps.error;
+          } else if (
+            'stack' in customProps &&
+            customProps.stack instanceof Error
+          ) {
+            errorObj = customProps.stack;
           }
 
           const report = (debugInfo: any = undefined) => {
@@ -300,6 +306,9 @@ export function createDevLogger(tag: string, enabled: boolean) {
               jsContextId,
               buildInfo: _buildInfo,
               ...customProps,
+              errorObject: errorObj,
+              logger: tag,
+              errorTitle: typeof args[0] === 'string' ? args[0] : 'no message',
             });
           };
 
