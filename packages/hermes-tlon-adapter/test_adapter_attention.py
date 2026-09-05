@@ -3447,6 +3447,62 @@ class CitationDispatchTests(unittest.TestCase):
 
         self.assertEqual(events[0].text, "[quoted message] body")
 
+    def test_group_cite_prepends_a_pointer_line_without_scrying(self):
+        adapter = self.make_adapter()
+        adapter._sse = self.RecordingSSE()
+        content = [
+            {"block": {"cite": {"group": "~host/slug"}}},
+            {"inline": ["look"]},
+        ]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(
+            events[0].text,
+            "> [ref: group ~host/slug]\n\n[quoted message] look",
+        )
+        self.assertEqual(adapter._sse.scries, [])
+
+    def test_group_pointer_renders_while_sse_is_down(self):
+        # Inbound events are queued and dispatched by a separate worker, so a
+        # message that arrived before a channel loss still drains while the SSE
+        # is being rebuilt. A group pointer costs no scry, so losing it in that
+        # window would be a free reference thrown away.
+        adapter = self.make_adapter()
+        adapter._sse = None
+        content = [
+            {"block": {"cite": {"group": "~host/slug"}}},
+            {"inline": ["look"]},
+        ]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(
+            events[0].text,
+            "> [ref: group ~host/slug]\n\n[quoted message] look",
+        )
+
+    def test_group_cite_naming_the_bot_ship_is_not_a_mention(self):
+        # The invariant the whole design rests on: group flags are rendered
+        # from the post-gate cite path, never from the body text the mention
+        # matcher reads. The bare ship could not match here regardless ("/" is
+        # not a mention terminator), so the alias equal to the full flag is
+        # what arms this test: a pointer line leaking into pre-gate body text
+        # would match it, wake the bot, and fail the empty-dispatch assertion.
+        adapter = self.make_adapter(
+            {"require_mention": True, "bot_mentions": ["~pen/thegroup"]}
+        )
+        adapter._sse = self.RecordingSSE()
+        content = [
+            {"block": {"cite": {"group": "~pen/thegroup"}}},
+            {"inline": ["ordinary chatter"]},
+        ]
+
+        events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._sse.scries, [])
+
 
 if __name__ == "__main__":
     unittest.main()
