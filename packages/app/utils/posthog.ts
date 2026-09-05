@@ -49,7 +49,8 @@ if (posthogEnabled) {
   posthog.register({ gitHash: GIT_HASH });
 
   // One stable anonymous id per install; never the ship. The persisted id is
-  // empty until PostHog has loaded its storage.
+  // empty until PostHog has loaded its storage. The id rotates on logout, so a
+  // re-login on the same install appears to Sentry as a new user.
   void posthog
     .ready()
     .then(() => {
