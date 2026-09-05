@@ -183,6 +183,7 @@ function HeaderItemMenu({ action }: { action: ScreenHeaderMenuAction }) {
               key={item.id}
               action={{
                 title: item.label,
+                accent: item.destructive ? 'negative' : undefined,
                 action: () => {
                   setOpen(false);
                   item.onPress();

@@ -4,6 +4,7 @@ import {
   findPostBlobEntry,
 } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
+import { convertContent } from '@tloncorp/shared/logic';
 
 const AGENT_ONBOARDING_FIRST_ENTRY_PENDING_MARKER = 'first-entry-pending';
 
@@ -81,7 +82,17 @@ export function matchAgentOnboardingFirstEntryNote(
     ) {
       continue;
     }
-    const content = Array.isArray(post.content) ? post.content : [];
+    // Posts persist their normalized story as JSON text. Renderers deserialize
+    // it through convertContent, but this telemetry path used to inspect only
+    // an already-decoded array. Consequently every real reveal looked like it
+    // had no note reference and Agent Entry First Opened never fired.
+    let content;
+    try {
+      content = convertContent(post.content, post.blob);
+    } catch {
+      // A malformed post must not prevent a later valid reveal from matching.
+      continue;
+    }
     for (const entry of content) {
       const isNoteReference =
         entry &&

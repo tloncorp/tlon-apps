@@ -78,6 +78,7 @@ type ScreenHeaderProps = SharedScreenHeaderProps &
   );
 
 const InlineScreenHeaderContext = createContext(false);
+const androidNativeTitleHeight = 56;
 
 export const InlineScreenHeaderProvider = InlineScreenHeaderContext.Provider;
 
@@ -108,6 +109,14 @@ export const ScreenHeaderComponent = ({
   const [rightControlsWidth, setRightControlsWidth] = useState(0);
 
   const shouldUseAnimatedTitleLayout = typeof title === 'string';
+  const nativeTitleHeight =
+    Platform.OS === 'android' &&
+    placement === 'navigation' &&
+    !forceInline &&
+    loadingSubtitle !== undefined &&
+    shouldUseAnimatedTitleLayout
+      ? androidNativeTitleHeight
+      : undefined;
   const activeLoadingText = loadingSubtitle ?? undefined;
   const isLoadingActive = !!activeLoadingText;
   const lastLoadingTextRef = useRef('');
@@ -210,7 +219,12 @@ export const ScreenHeaderComponent = ({
     );
 
   const titleCluster = (
-    <XStack alignItems="center" justifyContent="center" gap="$s" height="$4xl">
+    <XStack
+      alignItems="center"
+      justifyContent="center"
+      gap="$s"
+      height={nativeTitleHeight ?? '$4xl'}
+    >
       {titleIcon}
       {shouldUseAnimatedTitleLayout ? (
         <HeaderAnimatedTitle
@@ -220,6 +234,7 @@ export const ScreenHeaderComponent = ({
           leftAlignLoadingText={useHorizontalTitleLayout}
           titleMaxWidth={titleMaxWidth}
           loadingTextMaxWidth={loadingTextMaxWidth}
+          titleHeight={nativeTitleHeight}
         />
       ) : (
         <Text
@@ -283,21 +298,10 @@ export const ScreenHeaderComponent = ({
     titleIcon != null ||
     onTitlePress != null ||
     loadingSubtitle !== undefined;
-  const titlePresentationKey = JSON.stringify({
-    title: typeof title === 'string' ? title : null,
-    hasTitleIcon: titleIcon != null,
-    subtitle: resolvedSubtitle,
-    loadingText: displayLoadingText,
-    isLoadingActive,
-    showSubtitle,
-    useHorizontalTitleLayout,
-    isInteractive: onTitlePress != null,
-  });
   const shouldUseNativeHeader = useNativeHeader({
     enabled: placement === 'navigation' && !forceInline,
     title: typeof title === 'string' ? title : '',
     titleElement: interactiveTitleContent,
-    titlePresentationKey,
     usesCustomTitle: usesCustomNativeTitle,
     backgroundColor,
     left: navigationLeftActions,
@@ -455,6 +459,7 @@ function HeaderAnimatedTitle({
   leftAlignLoadingText = false,
   titleMaxWidth,
   loadingTextMaxWidth = 240,
+  titleHeight,
 }: {
   title: string;
   isLoading: boolean;
@@ -462,6 +467,7 @@ function HeaderAnimatedTitle({
   leftAlignLoadingText?: boolean;
   titleMaxWidth?: number | 'unset';
   loadingTextMaxWidth?: number;
+  titleHeight?: number;
 }) {
   const theme = useTheme();
   const loadingOpacity = useSharedValue(0);
@@ -541,7 +547,7 @@ function HeaderAnimatedTitle({
 
   return (
     <View
-      height="$4xl"
+      height={titleHeight ?? '$4xl'}
       alignItems="center"
       justifyContent="center"
       overflow="visible"

@@ -59,6 +59,7 @@ export function buildNativeHeaderItem(
           type: 'action' as const,
           label: item.label,
           onPress: item.onPress,
+          destructive: item.destructive,
         })),
       },
     } as NativeStackHeaderItem;

@@ -306,12 +306,12 @@ const materialChromeAlignment = usesAndroidMaterialChrome
   ? 'flex-end'
   : 'center';
 
-const materialSurfaceProps = {
-  backgroundColor: usesAndroidMaterialChrome
-    ? '$background'
-    : '$secondaryBackground',
-  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.24)',
-} as const;
+const materialSurfaceProps = usesAndroidMaterialChrome
+  ? ({ backgroundColor: '$secondaryBackground' } as const)
+  : ({
+      backgroundColor: '$secondaryBackground',
+      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.24)',
+    } as const);
 
 function MessageInputChromeRoot({
   children,
@@ -473,11 +473,7 @@ function MessageInputChromeBody({
           alignItems={materialChromeAlignment}
           gap={metrics.rowGap}
           backgroundColor={
-            isEditing
-              ? '$positiveBackground'
-              : usesAndroidMaterialChrome
-                ? '$background'
-                : '$secondaryBackground'
+            isEditing ? '$positiveBackground' : '$secondaryBackground'
           }
           overflow="hidden"
         >
