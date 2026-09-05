@@ -160,6 +160,7 @@ This plugin bundles [@tloncorp/tlon-skill](https://www.npmjs.com/package/@tlonco
 
 -   Contacts and profile management
 -   Channel listing and history
+-   Shared `%buckets` file channels using the bot ship's group permissions
 -   Group administration
 -   Message posting and reactions
 -   Notes channel management, note CRUD, and diary-to-notes migration

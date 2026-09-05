@@ -5,11 +5,13 @@ A CLI tool for interacting with Tlon/Urbit APIs.
 ## Installation
 
 **npm:**
+
 ```bash
 npm install @tloncorp/tlon-skill
 ```
 
 **Direct download (no Node required):**
+
 ```bash
 # macOS ARM64
 curl -L https://registry.npmjs.org/@tloncorp/tlon-skill-darwin-arm64/-/tlon-skill-darwin-arm64-0.4.0.tgz | tar -xz
@@ -28,6 +30,7 @@ curl -L https://registry.npmjs.org/@tloncorp/tlon-skill-linux-arm64/-/tlon-skill
 ## Configuration
 
 **Option 1: CLI flags (highest priority)**
+
 ```bash
 # Cookie-based auth (fastest - ship parsed from cookie)
 tlon --url https://your-ship.tlon.network --cookie "urbauth-~your-ship=0v..." contacts self
@@ -49,6 +52,7 @@ tlon --config ~/ships/my-ship.json contacts self
 Valid CLI credential forms are `--config <file>`, `--url <url> --cookie <cookie>` with optional `--ship` and fallback `--code`, `--url <url> --ship <ship> --code <code>`, and `--ship <ship>` when available in `TLON_SKILL_DIR` or cache. Incomplete or conflicting credential flag sets fail locally instead of merging with environment variables.
 
 Config file format:
+
 ```json
 // Cookie-based (ship derived from cookie)
 {"url": "https://your-ship.tlon.network", "cookie": "urbauth-~your-ship=0v..."}
@@ -58,6 +62,7 @@ Config file format:
 ```
 
 **Option 2: Environment variables**
+
 ```bash
 # Cookie-based (ship derived from cookie)
 export URBIT_URL="https://your-ship.tlon.network"
@@ -101,8 +106,8 @@ Cache entries are ship- and URL-specific. Clear cache: `rm ~/.tlon/cache/*.json`
 
 ## Cookie vs Code Authentication
 
-- **Cookie-based auth**: Uses a pre-authenticated session cookie. Faster since it skips login.
-- **Code-based auth**: Performs a login request to get a fresh session cookie.
+-   **Cookie-based auth**: Uses a pre-authenticated session cookie. Faster since it skips login.
+-   **Code-based auth**: Performs a login request to get a fresh session cookie.
 
 The ship name is embedded in the cookie (`urbauth-~ship=...`), so you don't need to specify it separately with cookie auth unless you want to override it. You can provide both cookie and code; the cookie is used first and the code is fallback if the cookie has expired.
 
@@ -131,6 +136,11 @@ tlon channels create ~host/group-slug "Projects" --kind chat
 # Rename a channel
 tlon channels rename chat/~host/project-updates "Team Updates"
 
+# Work with shared group files as the current ship
+tlon buckets list
+tlon buckets upload buckets/~host/project-files ./plan.md -t text/markdown
+tlon buckets read buckets/~host/project-files 12
+
 # Get recent mentions
 tlon activity mentions --limit 10
 
@@ -157,16 +167,17 @@ tlon groups reject-invite ~host/group-slug
 
 ## Features
 
-- **Activity**: Mentions, replies, unreads (with nicknames)
-- **Channels**: List DMs, group DMs, subscribed groups (nicknames shown), reader/writer permissions
-- **Contacts**: List, get, update profiles
-- **Groups**: Create, join, invite/request flows, roles, privacy (member nicknames shown)
-- **Hooks**: Manage channel hooks (add, edit, delete, order, config, cron)
-- **Messages**: History, search (author nicknames shown)
-- **DMs**: Group DM send/reply, react, accept/decline
-- **Posts**: React, edit, delete
-- **Notes**: %notes notebooks (list, show, request, note-create, note-update, join, leave)
-- **Settings**: Hot-reload plugin config via settings-store
+-   **Activity**: Mentions, replies, unreads (with nicknames)
+-   **Channels**: List DMs, group DMs, subscribed groups (nicknames shown), reader/writer permissions
+-   **Buckets**: List, search, read, upload, move, and delete shared group files through short-lived capabilities
+-   **Contacts**: List, get, update profiles
+-   **Groups**: Create, join, invite/request flows, roles, privacy (member nicknames shown)
+-   **Hooks**: Manage channel hooks (add, edit, delete, order, config, cron)
+-   **Messages**: History, search (author nicknames shown)
+-   **DMs**: Group DM send/reply, react, accept/decline
+-   **Posts**: React, edit, delete
+-   **Notes**: %notes notebooks (list, show, request, note-create, note-update, join, leave)
+-   **Settings**: Hot-reload plugin config via settings-store
 
 ## Development
 
