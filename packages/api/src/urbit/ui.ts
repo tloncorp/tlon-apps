@@ -2,6 +2,7 @@ import { Activity } from './activity';
 import { ChannelHeadsResponse, Channels, Posts } from './channel';
 import { ContactBookEntry } from './contact';
 import { ChatHeadsResponse, DMInit2, Writs } from './dms';
+import { BucketsSummary } from './buckets';
 import { Foreigns, GroupV11, Groups, GroupsV11 } from './groups';
 
 export interface GroupsInit10 {
@@ -14,6 +15,18 @@ export interface GroupsInit10 {
   activity: Activity;
   pins: string[];
   chat: DMInit2;
+}
+
+/**
+ * /v10 plus Buckets.
+ *
+ * They ride in init for the same reason channels do: their writer roles live
+ * in their own agent rather than in %groups, so a client that learns of a
+ * Bucket from the group alone cannot tell "no writers" from "not yet known"
+ * — and for a writer set those differ by everything.
+ */
+export interface GroupsInit11 extends GroupsInit10 {
+  buckets: BucketsSummary[];
 }
 
 export interface CombinedHeads {

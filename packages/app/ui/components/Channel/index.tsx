@@ -924,6 +924,7 @@ export function Channel({
               >
                 <View backgroundColor={backgroundColor} flex={1}>
                   <FileDrop
+                    dropEnabled={channel.type !== 'buckets'}
                     flexDirection="column"
                     justifyContent="space-between"
                     width="100%"

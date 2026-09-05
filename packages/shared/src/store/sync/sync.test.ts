@@ -1,3 +1,4 @@
+import * as api from '@tloncorp/api';
 import {
   StructuredChannelDescriptionPayload,
   scry,
@@ -39,13 +40,16 @@ import {
   setScryOutputs,
   setupDatabaseTestSuite,
 } from '../../test/helpers';
+import { batchEffects } from '../../db/query';
 import rawGroupsInit2 from '../../test/init.json';
 import { syncQueue } from '../syncQueue';
 import {
   ensureDmInviteChannel,
+  syncChannelThreadUnreads,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
+  handleBucketsUpdate,
   syncInitData,
   syncLatestPosts,
   syncPinnedItems,
@@ -68,7 +72,252 @@ const groupsInitData = rawGroupsInitData as unknown as GroupsInit10;
 const groupsInitData2 = rawGroupsInit2 as unknown as GroupsInit10;
 const headsData = rawHeadsData as unknown as CombinedHeads;
 
+function setInitSyncScryOutputs({
+  heads,
+  init,
+}: {
+  heads?: CombinedHeads;
+  init: GroupsInit10;
+}) {
+  vi.mocked(scry).mockImplementation(async ({ app, path }) => {
+    if (app === 'groups-ui' && /^\/v\d+\/init$/.test(path)) {
+      return init;
+    }
+    if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
+      if (!heads) throw new Error(`Unexpected heads scry: ${app}${path}`);
+      return heads;
+    }
+    throw new Error(`Unexpected scry: ${app}${path}`);
+  });
+}
+
 setupDatabaseTestSuite();
+
+test('does not sync thread unreads for Buckets', async () => {
+  const getThreadUnreads = vi.spyOn(api, 'getThreadUnreadsByChannel');
+  await db.insertChannels([
+    {
+      id: 'buckets/~zod/project-files',
+      type: 'buckets',
+    },
+  ]);
+
+  await syncChannelThreadUnreads('buckets/~zod/project-files');
+
+  expect(getThreadUnreads).not.toHaveBeenCalled();
+  getThreadUnreads.mockRestore();
+});
+
+// A Bucket's writers live in %buckets alone, so nothing else can supply
+// them. Init covers startup; this covers a Bucket created or edited while
+// the app is running. Without it the settings form cannot tell "no writers"
+// from "not yet known" and saving unrelated metadata submits set-writers [],
+// which opens a restricted Bucket to every reader.
+test('hydrates Bucket writers from a live subscription update', async () => {
+  const channelId = 'buckets/~zod/live-added';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const before = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(before?.writerRoles ?? []).toEqual([]);
+
+  // A Bucket arriving whole, as one created while we are running does.
+  await batchEffects('test:bucketSnapshot', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'live-added' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Live',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: ['admin'],
+          entries: [],
+          revision: 1,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const hydrated = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(hydrated?.writerRoles?.map((r) => r.roleId)).toEqual(['admin']);
+
+  // And an edit afterwards replaces the set rather than adding to it.
+  await batchEffects('test:bucketWriters', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'update',
+        flag: { host: '~zod', name: 'live-added' },
+        revision: 2,
+        update: { type: 'writers-updated', writers: ['editor'] },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const edited = await db.getChannel({ id: channelId, includeWriters: true });
+  expect(edited?.writerRoles?.map((r) => r.roleId)).toEqual(['editor']);
+});
+
+// Subscriptions are set up alongside the init fetch, not after it, so on a
+// cold start the first snapshot can land before init has written any channel
+// rows. It has to be kept: a rejected write is swallowed by the subscription
+// handler, and nothing asks again, so the Bucket would read as empty for the
+// rest of the connection.
+test('keeps a Bucket manifest that arrives before its channel row', async () => {
+  const channelId = 'buckets/~zod/early';
+
+  await batchEffects('test:earlyBucket', (ctx) =>
+    handleBucketsUpdate(
+      {
+        type: 'snapshot',
+        flag: { host: '~zod', name: 'early' },
+        state: {
+          bucket: {
+            id: 1,
+            title: 'Early',
+            createdBy: '~zod',
+            createdAt: 0,
+            updatedBy: '~zod',
+            updatedAt: 0,
+          },
+          group: { host: '~zod', name: 'group' },
+          writers: [],
+          entries: [
+            {
+              id: 1,
+              parentId: null,
+              name: 'plans',
+              kind: 'folder',
+              createdBy: '~zod',
+              createdAt: 0,
+              updatedBy: '~zod',
+              updatedAt: 0,
+            },
+          ],
+          revision: 4,
+        },
+      } as unknown as api.BucketsResponse,
+      ctx
+    )
+  );
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(4);
+  expect(stored?.entries.map((entry) => entry.name)).toEqual(['plans']);
+});
+
+// A Bucket's manifest arrives only through this subscription, so the database
+// is where it lands and views read it from there.
+test('reduces a Bucket manifest into the database', async () => {
+  const channelId = 'buckets/~zod/files';
+  await db.insertChannels([{ id: channelId, type: 'buckets' }]);
+
+  const folder = {
+    id: 1,
+    parentId: null,
+    name: 'plans',
+    kind: 'folder' as const,
+    createdBy: '~zod',
+    createdAt: 1,
+    updatedBy: '~zod',
+    updatedAt: 1,
+  };
+  const file = {
+    id: 2,
+    parentId: 1,
+    name: 'q3.pdf',
+    kind: 'file' as const,
+    createdBy: '~zod',
+    createdAt: 2,
+    updatedBy: '~zod',
+    updatedAt: 2,
+    file: {
+      mime: 'application/pdf',
+      size: 42,
+      checksum: null,
+      objectKey: 'object-2',
+      status: 'ready' as const,
+    },
+  };
+
+  const send = (response: unknown) =>
+    batchEffects('test:buckets', (ctx) =>
+      handleBucketsUpdate(response as api.BucketsResponse, ctx)
+    );
+
+  // A snapshot carries the whole manifest.
+  await send({
+    type: 'snapshot',
+    flag: { host: '~zod', name: 'files' },
+    state: {
+      bucket: {
+        id: 1,
+        title: 'Files',
+        createdBy: '~zod',
+        createdAt: 1,
+        updatedBy: '~zod',
+        updatedAt: 1,
+      },
+      group: { host: '~zod', name: 'group' },
+      writers: ['admin'],
+      entries: [folder, file],
+      revision: 4,
+    },
+  });
+
+  const stored = await db.getBucket({ channelId });
+  expect(stored?.revision).toBe(4);
+  expect(stored?.entries.map((entry) => entry.entryId).sort()).toEqual([1, 2]);
+  // A file's fields come along; a folder leaves them null.
+  const storedFile = stored?.entries.find((entry) => entry.entryId === 2);
+  expect(storedFile?.objectKey).toBe('object-2');
+  expect(storedFile?.status).toBe('ready');
+  const storedFolder = stored?.entries.find((entry) => entry.entryId === 1);
+  expect(storedFolder?.objectKey).toBeNull();
+
+  // An entry update replaces just that entry.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 5,
+    update: {
+      type: 'entry-updated',
+      id: 2,
+      entry: { ...file, name: 'q3-final.pdf' },
+    },
+  });
+  const renamed = await db.getBucket({ channelId });
+  expect(renamed?.revision).toBe(5);
+  expect(renamed?.entries.find((e) => e.entryId === 2)?.name).toBe(
+    'q3-final.pdf'
+  );
+
+  // A delete removes it, and the rest stay.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 6,
+    update: { type: 'entries-deleted', ids: [2] },
+  });
+  const pruned = await db.getBucket({ channelId });
+  expect(pruned?.entries.map((entry) => entry.entryId)).toEqual([1]);
+
+  // Losing the Bucket forgets it entirely.
+  await send({
+    type: 'update',
+    flag: { host: '~zod', name: 'files' },
+    revision: 7,
+    update: { type: 'bucket-deleted' },
+  });
+  expect(await db.getBucket({ channelId })).toBeNull();
+});
 
 const inputData = [
   '0v4.00000.qd4mk.d4htu.er4b8.eao21',
@@ -557,7 +806,7 @@ const testGroupData: db.Group = {
 // });
 
 test('syncs init data', async () => {
-  setScryOutput(rawGroupsInitData);
+  setInitSyncScryOutputs({ init: groupsInitData });
   await syncInitData();
   const groups = await db.getGroups({});
   expect(groups.length).toEqual(Object.values(groupsInitData.groups).length);
@@ -579,7 +828,7 @@ test('syncs init data', async () => {
 });
 
 test('syncs last posts', async () => {
-  setScryOutputs([groupsInitData2, headsData]);
+  setInitSyncScryOutputs({ init: groupsInitData2, heads: headsData });
   await syncInitData();
   await syncLatestPosts();
   const chats = await db.getChats();
@@ -609,7 +858,7 @@ test('init data repairs latest posts that arrived before channel rows', async ()
   if (!client) throw new Error('test db not initialized');
 
   await db.headsSyncedAt.resetValue();
-  setScryOutputs([headsData, groupsInitData2]);
+  setInitSyncScryOutputs({ init: groupsInitData2, heads: headsData });
 
   await syncLatestPosts();
   await syncInitData();

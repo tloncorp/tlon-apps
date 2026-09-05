@@ -47,9 +47,25 @@ export function setupDatabaseTestSuite() {
 }
 
 export function setScryOutput<T>(output: T) {
-  vi.mocked(scry).mockImplementationOnce(async () => output);
+  let consumed = false;
+  vi.mocked(scry).mockImplementation(async ({ app, path }) => {
+    // syncInitData intentionally fetches this optional desk in parallel with
+    // the required init scry. Keep that independent request from consuming
+    // the ordered response used by older tests.
+    if (app === 'buckets' && path === '/v1/buckets') {
+      return [];
+    }
+    if (consumed) return undefined;
+    consumed = true;
+    return output;
+  });
 }
 
 export function setScryOutputs<T>(outputs: T[]) {
-  vi.mocked(scry).mockImplementation(async () => outputs.shift()!);
+  vi.mocked(scry).mockImplementation(async ({ app, path }) => {
+    if (app === 'buckets' && path === '/v1/buckets') {
+      return [];
+    }
+    return outputs.shift()!;
+  });
 }

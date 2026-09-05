@@ -8,6 +8,7 @@ export { GroupAvatar } from './components/GroupAvatar';
 export type { GroupImageShim } from './components/Avatar';
 export * from './components/BigInput';
 export * from './components/BlockedContactsWidget';
+export * from './components/BucketsChannel';
 export * from './components/BotSettingsScreenView';
 export * from './components/Channel';
 export * from './components/Channel/ChannelDivider';
