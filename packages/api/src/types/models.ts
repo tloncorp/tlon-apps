@@ -96,6 +96,9 @@ export interface Contact extends WithId {
   // Raw JSON of the bot's self-published identity claim (harness and
   // versions), as published in its contact profile. Validated at read.
   botInfo?: string | null;
+  // Raw JSON of the bot's self-published liveness claim (`bot-liveness`
+  // contact key); validated at read by @tloncorp/shared `parseBotLiveness`.
+  botLiveness?: string | null;
 }
 
 export type ContactPinnedGroups = any[];
