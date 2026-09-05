@@ -745,13 +745,25 @@ export class Urbit {
   ) {
     return new Promise<T>((resolve, reject) => {
       let done = false;
-      const quit = () => {
-        if (!done) {
-          reject('quit');
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const finish = () => {
+        if (done) {
+          return false;
+        }
+        // A reset can reuse this subscription's id. Once settled, neither a
+        // late PUT nor an existing timeout may unsubscribe that replacement.
+        done = true;
+        clearTimeout(timer);
+        return true;
+      };
+      const fail = (error: unknown) => {
+        if (finish()) {
+          reject(error);
         }
       };
+      const quit = () => fail('quit');
       const event = (e: T, mark: string, id: number) => {
-        if (!done) {
+        if (finish()) {
           resolve(e);
           this.unsubscribe(id);
         }
@@ -762,21 +774,23 @@ export class Urbit {
         ship,
         resubOnQuit: false,
         event,
-        err: reject,
+        err: fail,
         quit,
       };
 
-      this.subscribe(request).then((subId) => {
-        if (timeout) {
-          setTimeout(() => {
-            if (!done) {
-              done = true;
-              reject('timeout');
-              this.unsubscribe(subId);
-            }
-          }, timeout);
-        }
-      });
+      this.subscribe(request).then(
+        (subId) => {
+          if (timeout && !done) {
+            timer = setTimeout(() => {
+              if (finish()) {
+                reject('timeout');
+                this.unsubscribe(subId);
+              }
+            }, timeout);
+          }
+        },
+        fail
+      );
     });
   }
 
