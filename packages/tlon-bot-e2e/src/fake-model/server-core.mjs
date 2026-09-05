@@ -266,6 +266,20 @@ async function handleChatCompletion(state, req, res) {
 
   state.callCounts.set(key, n + 1);
   const step = steps[n];
+  if (step.kind === 'http_error') {
+    callRecord.responseStatus = step.status;
+    console.log(
+      `[fake-model] POST /v1/chat/completions key="${key}"${streamFlag} -> ${step.status} step ${n + 1}/${steps.length} (${step.kind}) [${provenance}]`
+    );
+    sendJson(res, step.status, {
+      error: {
+        message: step.message,
+        type: step.status === 401 ? 'authentication_error' : 'api_error',
+        code: step.status === 401 ? 'invalid_api_key' : 'scripted_error',
+      },
+    });
+    return;
+  }
   const scripted =
     step.kind === 'tool_call'
       ? toolCallResponse({ name: step.name, args: step.args })
@@ -379,8 +393,19 @@ function validateScript(key, steps, extra, allowedAuxiliaryCalls) {
       ) {
         return `step ${i}: tool_call step requires object 'args'`;
       }
+    } else if (step.kind === 'http_error') {
+      if (
+        !Number.isInteger(step.status) ||
+        step.status < 400 ||
+        step.status > 599
+      ) {
+        return `step ${i}: http_error step requires integer 'status' from 400 to 599`;
+      }
+      if (typeof step.message !== 'string' || !step.message.trim()) {
+        return `step ${i}: http_error step requires non-empty string 'message'`;
+      }
     } else {
-      return `step ${i}: unknown kind "${step.kind}" (expected "text" or "tool_call")`;
+      return `step ${i}: unknown kind "${step.kind}" (expected "text", "tool_call", or "http_error")`;
     }
   }
   return null;

@@ -1,6 +1,7 @@
 export type Step =
   | { kind: 'text'; content: string }
-  | { kind: 'tool_call'; name: string; args: Record<string, unknown> };
+  | { kind: 'tool_call'; name: string; args: Record<string, unknown> }
+  | { kind: 'http_error'; status: number; message: string };
 
 export type ModelAuxiliaryCallKind = 'hermes_title_generation';
 
@@ -49,6 +50,8 @@ export interface ReceivedCall {
   responseText?: string | null;
   /** Finish reason emitted by the fake-model response for this request. */
   responseFinishReason?: string;
+  /** HTTP status emitted by a scripted provider failure. */
+  responseStatus?: number;
 }
 
 export interface FakeModelReceivedResponse {
