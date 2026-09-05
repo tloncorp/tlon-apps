@@ -17,6 +17,7 @@
  *                               framed plaintext
  */
 import {
+  getCanonicalPostId,
   getChannelPosts,
   getPostReference,
   getPostWithReplies,
@@ -37,6 +38,7 @@ import {
 import {
   type FetchRef,
   type RefBudget,
+  TARGET_ABSENT_NOTICE,
   createRefBudget,
   extractPostText,
   extractReferences,
@@ -48,6 +50,11 @@ import {
   formatQuoteLines,
   formatBodyLines,
 } from './message-content';
+import {
+  type WindowContext,
+  hasReceiptOrder,
+  windowFromPage,
+} from './messages-runtime';
 
 const MESSAGES_HELP = `Usage: tlon messages <command>
 
@@ -147,21 +154,33 @@ interface PrintPostsOptions {
   budget?: RefBudget;
   /** Emit NDJSON records only: no framing, no headers, no cite resolution. */
   json?: boolean;
+  /** Opt in to receipt/sent divergence analysis (history commands only). */
+  window?: WindowContext;
+  displayLimit?: number;
 }
 
 async function printPosts(
   posts: Post[],
   resolve: boolean,
-  { highlightId, budget, json }: PrintPostsOptions = {}
+  { highlightId, budget, json, window, displayLimit }: PrintPostsOptions = {}
 ) {
   if (json) {
-    for (const line of renderPostListJsonLines(posts)) {
+    for (const line of renderPostListJsonLines(posts, {
+      window,
+      displayLimit,
+      highlightId,
+    })) {
       console.log(line);
     }
     return;
   }
 
   if (!posts.length) {
+    // An empty %around page still means the requested target was not found.
+    if (highlightId) {
+      console.log(TARGET_ABSENT_NOTICE);
+      console.log('');
+    }
     console.log('No messages found.');
     return;
   }
@@ -171,6 +190,8 @@ async function printPosts(
     fetchRef,
     highlightId,
     budget,
+    window,
+    displayLimit,
   });
   for (const line of lines) {
     console.log(line);
@@ -194,19 +215,29 @@ async function fetchDmMessages(
   }
 
   try {
+    // Fetch one extra post as an analysis-only boundary probe: skew that
+    // crosses the window edge (a delivery burst wider than the limit) is
+    // detectable only by comparing against the next post beyond it.
     const data = await getChannelPosts({
       channelId: normalizedShip,
       mode: 'newest',
-      count: limit,
+      count: limit + 1,
       includeReplies: true,
+      skipGapFill: true,
     });
 
     if (!json) {
-      console.log(
-        `=== DMs with ${normalizedShip} (${data.posts.length}) ===\n`
-      );
+      const shown =
+        data.posts.length > limit && hasReceiptOrder(data.posts)
+          ? data.posts.length - 1
+          : data.posts.length;
+      console.log(`=== DMs with ${normalizedShip} (${shown}) ===\n`);
     }
-    await printPosts(data.posts, resolveCites, { json });
+    await printPosts(data.posts, resolveCites, {
+      json,
+      window: windowFromPage(data, limit),
+      displayLimit: limit,
+    });
   } catch (error: any) {
     console.error(`Error fetching DMs: ${error.message}`);
   }
@@ -227,17 +258,27 @@ async function fetchMessages(
   }
 
   try {
+    // One extra post as an analysis-only boundary probe; see fetchDmMessages.
     const data = await getChannelPosts({
       channelId: channel,
       mode: 'newest',
-      count: limit,
+      count: limit + 1,
       includeReplies: true,
+      skipGapFill: true,
     });
 
     if (!json) {
-      console.log(`=== Messages in ${channel} (${data.posts.length}) ===\n`);
+      const shown =
+        data.posts.length > limit && hasReceiptOrder(data.posts)
+          ? data.posts.length - 1
+          : data.posts.length;
+      console.log(`=== Messages in ${channel} (${shown}) ===\n`);
     }
-    await printPosts(data.posts, resolveCites, { json });
+    await printPosts(data.posts, resolveCites, {
+      json,
+      window: windowFromPage(data, limit),
+      displayLimit: limit,
+    });
   } catch (error: any) {
     console.error(`Error fetching messages: ${error.message}`);
     if (!json) {
@@ -307,6 +348,7 @@ async function fetchContext(
       mode: 'around' as any,
       count: limit,
       includeReplies: true,
+      skipGapFill: true,
     });
 
     if (!json) {
@@ -315,7 +357,11 @@ async function fetchContext(
       );
     }
 
-    await printPosts(data.posts, resolve, { highlightId: postId, json });
+    await printPosts(data.posts, resolve, {
+      highlightId: postId,
+      json,
+      window: windowFromPage(data),
+    });
   } catch (error: any) {
     console.error(`Error fetching context: ${error.message}`);
   }
@@ -487,7 +533,16 @@ async function main() {
         if (!target || !postId) {
           printUsageAndExit(MESSAGES_COMMAND_HELP.context);
         }
-        await fetchContext(target, postId, limit, resolveCites, json);
+        // Users paste undotted ids from ship logs; returned posts carry
+        // canonical dotted ids. Normalize once so the cursor, the target
+        // marker, and the absent-target checks all agree.
+        await fetchContext(
+          target,
+          getCanonicalPostId(postId),
+          limit,
+          resolveCites,
+          json
+        );
         break;
       }
 
@@ -502,7 +557,13 @@ async function main() {
         if (authorIdx !== -1 && args[authorIdx + 1]) {
           author = normalizeShip(args[authorIdx + 1]);
         }
-        await fetchPost(target, postId, author, resolveCites, json);
+        await fetchPost(
+          target,
+          getCanonicalPostId(postId),
+          author,
+          resolveCites,
+          json
+        );
         break;
       }
 
