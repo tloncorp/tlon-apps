@@ -2,6 +2,11 @@ import { metrics } from '@opentelemetry/api';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
+import {
+  type MessageJourneyLoggerLike,
+  type TlonMessageJourneyDestinationKind,
+  recordTlonMessageJourneyEvent,
+} from './message-journey.js';
 import { sharedMap } from './shared-state.js';
 
 export type TlonAgentTurnExecution =
@@ -26,6 +31,8 @@ export type TlonAgentTurnDelivery =
   | 'failed'
   | 'skipped'
   | 'not_applicable';
+
+export type TlonAgentTurnDispatch = 'attempted' | 'skipped' | 'not_applicable';
 
 export type TlonAgentTurnTrigger =
   | 'cron'
@@ -64,6 +71,7 @@ export type TlonAgentTurnStart = {
   accountId: string | null;
   agentId: string | null;
   destinationKind: 'dm' | 'group_channel';
+  inputMessageId: string;
   runId: string;
   sessionKey: string;
   ship: string;
@@ -84,6 +92,9 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
   delivery: TlonAgentTurnDelivery;
   deliveryFailureCount: number;
   deliverySuccessCount: number;
+  dispatch: TlonAgentTurnDispatch;
+  dispatchAttemptCount: number;
+  dispatchExpected: boolean;
   durationMs: number;
   execution: TlonAgentTurnExecution;
   finalErrorReplyCount: number;
@@ -96,16 +107,34 @@ export type TlonAgentTurnSummary = TlonAgentTurnStart & {
 };
 
 export type TlonAgentTurnObserver = {
+  recordDispatchAttempted?(event: TlonAgentTurnDispatchAttempt): void;
+  recordDispatchFailed?(event: TlonAgentTurnDispatchOutcome): void;
+  recordMoonReplyEnqueued?(event: TlonAgentTurnDispatchOutcome): void;
   recordStarted(turn: TlonAgentTurnStart): void;
   recordTerminal(summary: TlonAgentTurnSummary): void;
+};
+
+export type TlonAgentTurnDispatchAttempt = Omit<
+  TlonAgentTurnStart,
+  'destinationKind'
+> & {
+  attemptNumber: number;
+  destinationKind: TlonMessageJourneyDestinationKind;
+};
+
+export type TlonAgentTurnDispatchOutcome = TlonAgentTurnDispatchAttempt & {
+  errorKind?: string;
+  outputMessageId?: string;
 };
 
 type TlonAgentTurnState = TlonAgentTurnStart & {
   deliveryFailureCount: number;
   deliverySuccessCount: number;
+  dispatchAttemptCount: number;
   finalErrorReplyCount: number;
   finalNonErrorReplyCount: number;
   finalized: boolean;
+  observer: TlonAgentTurnObserver;
   lastToolError: { toolName: string; message: string } | null;
   outputCount: number;
   sourceReplyCount: number;
@@ -179,10 +208,36 @@ function terminalMetricAttributes(
   return {
     ...baseMetricAttributes(summary),
     delivery: summary.delivery,
+    dispatch: summary.dispatch,
     execution: summary.execution,
     reason: summary.reason,
     result: summary.result,
   };
+}
+
+function replyResultExpectsDispatch(result: TlonAgentTurnResult): boolean {
+  return (
+    result === 'reply' ||
+    result === 'error_reply' ||
+    result === 'reply_and_action' ||
+    result === 'error_reply_and_action'
+  );
+}
+
+function resolveDispatch(
+  state: TlonAgentTurnState,
+  result: TlonAgentTurnResult
+): {
+  dispatch: TlonAgentTurnDispatch;
+  dispatchExpected: boolean;
+} {
+  if (state.dispatchAttemptCount > 0) {
+    return { dispatch: 'attempted', dispatchExpected: true };
+  }
+  if (replyResultExpectsDispatch(result)) {
+    return { dispatch: 'skipped', dispatchExpected: true };
+  }
+  return { dispatch: 'not_applicable', dispatchExpected: false };
 }
 
 function resolveExecution(
@@ -265,7 +320,7 @@ function resolveDelivery(
   if (state.deliveryFailureCount > 0) {
     return 'failed';
   }
-  if (result === 'reply' || result === 'reply_and_action') {
+  if (replyResultExpectsDispatch(result)) {
     return 'skipped';
   }
   return 'not_applicable';
@@ -313,16 +368,21 @@ function buildSummary(
   const deliverySkipReason = resolveDeliverySkipReason(state, terminal);
   const result = resolveResult(state, deliverySkipReason);
   const delivery = resolveDelivery(state, result);
+  const dispatch = resolveDispatch(state, result);
   return {
     accountId: state.accountId,
     agentId: state.agentId,
     delivery,
     deliveryFailureCount: state.deliveryFailureCount,
     deliverySuccessCount: state.deliverySuccessCount,
+    dispatch: dispatch.dispatch,
+    dispatchAttemptCount: state.dispatchAttemptCount,
+    dispatchExpected: dispatch.dispatchExpected,
     destinationKind: state.destinationKind,
     durationMs: Math.max(0, terminal.durationMs),
     execution,
     finalErrorReplyCount: state.finalErrorReplyCount,
+    inputMessageId: state.inputMessageId,
     lastToolError: state.lastToolError,
     reason: resolveReason({
       delivery,
@@ -343,7 +403,7 @@ function buildSummary(
 
 export function createTlonAgentTurnOtelObserver(options?: {
   getMeterProvider?: () => MeterProviderLike;
-  logger?: TurnLoggerLike;
+  logger?: TurnLoggerLike & MessageJourneyLoggerLike;
 }): TlonAgentTurnObserver {
   const getMeterProvider =
     options?.getMeterProvider ??
@@ -382,6 +442,73 @@ export function createTlonAgentTurnOtelObserver(options?: {
       safeObserve(() => {
         getInstruments().started.add(1, baseMetricAttributes(turn));
       });
+      recordTlonMessageJourneyEvent(
+        {
+          accountId: turn.accountId,
+          agentId: turn.agentId,
+          botShip: turn.ship,
+          destinationKind: turn.destinationKind,
+          inputMessageId: turn.inputMessageId,
+          runId: turn.runId,
+          sessionKey: turn.sessionKey,
+          stage: 'turn_started',
+          trigger: turn.trigger,
+        },
+        logger
+      );
+    },
+    recordDispatchAttempted(event) {
+      recordTlonMessageJourneyEvent(
+        {
+          accountId: event.accountId,
+          agentId: event.agentId,
+          attemptNumber: event.attemptNumber,
+          botShip: event.ship,
+          destinationKind: event.destinationKind,
+          inputMessageId: event.inputMessageId,
+          runId: event.runId,
+          sessionKey: event.sessionKey,
+          stage: 'reply_dispatch_attempted',
+          trigger: event.trigger,
+        },
+        logger
+      );
+    },
+    recordDispatchFailed(event) {
+      recordTlonMessageJourneyEvent(
+        {
+          accountId: event.accountId,
+          agentId: event.agentId,
+          attemptNumber: event.attemptNumber,
+          botShip: event.ship,
+          destinationKind: event.destinationKind,
+          errorKind: event.errorKind,
+          inputMessageId: event.inputMessageId,
+          runId: event.runId,
+          sessionKey: event.sessionKey,
+          stage: 'reply_dispatch_failed',
+          trigger: event.trigger,
+        },
+        logger
+      );
+    },
+    recordMoonReplyEnqueued(event) {
+      recordTlonMessageJourneyEvent(
+        {
+          accountId: event.accountId,
+          agentId: event.agentId,
+          attemptNumber: event.attemptNumber,
+          botShip: event.ship,
+          destinationKind: event.destinationKind,
+          inputMessageId: event.inputMessageId,
+          outputMessageId: event.outputMessageId,
+          runId: event.runId,
+          sessionKey: event.sessionKey,
+          stage: 'moon_reply_enqueued',
+          trigger: event.trigger,
+        },
+        logger
+      );
     },
     recordTerminal(summary) {
       const attributes = terminalMetricAttributes(summary);
@@ -400,10 +527,14 @@ export function createTlonAgentTurnOtelObserver(options?: {
           'tlon.turn.delivery_failure_count': summary.deliveryFailureCount,
           'tlon.turn.delivery_success_count': summary.deliverySuccessCount,
           'tlon.turn.destination_kind': summary.destinationKind,
+          'tlon.turn.dispatch': summary.dispatch,
+          'tlon.turn.dispatch_attempt_count': summary.dispatchAttemptCount,
+          'tlon.turn.dispatch_expected': summary.dispatchExpected,
           'tlon.turn.duration_ms': summary.durationMs,
           'tlon.turn.event': 'tlon.agent_turn.terminal',
           'tlon.turn.execution': summary.execution,
           'tlon.turn.final_error_reply_count': summary.finalErrorReplyCount,
+          'tlon.turn.input_message_id': summary.inputMessageId,
           'tlon.turn.reason': summary.reason,
           'tlon.turn.result': summary.result,
           'tlon.turn.run_id': summary.runId,
@@ -431,9 +562,11 @@ export function startTlonAgentTurn(
     ship: normalizeShip(input.ship),
     deliveryFailureCount: 0,
     deliverySuccessCount: 0,
+    dispatchAttemptCount: 0,
     finalErrorReplyCount: 0,
     finalNonErrorReplyCount: 0,
     finalized: false,
+    observer,
     lastToolError: null,
     outputCount: 0,
     sourceReplyCount: 0,
@@ -526,12 +659,85 @@ export function recordTlonAgentRunTrace(
 
 export function recordActiveTlonTurnDelivery(success: boolean): void {
   updateActiveTurn((state) => {
+    state.dispatchAttemptCount += 1;
     if (success) {
       state.deliverySuccessCount += 1;
     } else {
       state.deliveryFailureCount += 1;
     }
   });
+}
+
+function activeDispatchAttempt(
+  destinationKind?: TlonMessageJourneyDestinationKind
+): TlonAgentTurnDispatchAttempt | null {
+  const state = turnStorage.getStore();
+  if (!state || state.finalized) {
+    return null;
+  }
+  state.dispatchAttemptCount += 1;
+  const event: TlonAgentTurnDispatchAttempt = {
+    accountId: state.accountId,
+    agentId: state.agentId,
+    attemptNumber: state.dispatchAttemptCount,
+    destinationKind: destinationKind ?? state.destinationKind,
+    inputMessageId: state.inputMessageId,
+    runId: state.runId,
+    sessionKey: state.sessionKey,
+    ship: state.ship,
+    trigger: state.trigger,
+  };
+  safeObserve(() => state.observer.recordDispatchAttempted?.(event));
+  return event;
+}
+
+function activeDispatchOutcome(params: {
+  attempt: TlonAgentTurnDispatchAttempt | null;
+  error?: unknown;
+  outputMessageId?: string;
+  success: boolean;
+}): void {
+  const state = turnStorage.getStore();
+  if (!state || state.finalized) {
+    return;
+  }
+  if (params.success) {
+    state.deliverySuccessCount += 1;
+  } else {
+    state.deliveryFailureCount += 1;
+  }
+  if (!params.attempt) {
+    return;
+  }
+  const event: TlonAgentTurnDispatchOutcome = {
+    ...params.attempt,
+    ...(params.outputMessageId
+      ? { outputMessageId: params.outputMessageId }
+      : {}),
+    ...(params.error
+      ? {
+          errorKind:
+            params.error instanceof Error
+              ? params.error.name
+              : typeof params.error,
+        }
+      : {}),
+  };
+  safeObserve(() => {
+    if (params.success) {
+      state.observer.recordMoonReplyEnqueued?.(event);
+    } else {
+      state.observer.recordDispatchFailed?.(event);
+    }
+  });
+}
+
+function extractOutputMessageId(result: unknown): string | undefined {
+  if (!result || typeof result !== 'object' || !('messageId' in result)) {
+    return undefined;
+  }
+  const messageId = (result as { messageId?: unknown }).messageId;
+  return typeof messageId === 'string' && messageId ? messageId : undefined;
 }
 
 export function claimActiveTlonTurnOutput(): {
@@ -553,14 +759,20 @@ export function claimActiveTlonTurnOutput(): {
 }
 
 export async function observeActiveTlonTurnDelivery<T>(
-  delivery: () => Promise<T>
+  delivery: () => Promise<T>,
+  options?: { destinationKind?: TlonMessageJourneyDestinationKind }
 ): Promise<T> {
+  const attempt = activeDispatchAttempt(options?.destinationKind);
   try {
     const result = await delivery();
-    recordActiveTlonTurnDelivery(true);
+    activeDispatchOutcome({
+      attempt,
+      outputMessageId: extractOutputMessageId(result),
+      success: true,
+    });
     return result;
   } catch (error) {
-    recordActiveTlonTurnDelivery(false);
+    activeDispatchOutcome({ attempt, error, success: false });
     throw error;
   }
 }
