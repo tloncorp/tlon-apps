@@ -31,7 +31,14 @@ export const checkConnectionStatus = async (
 
       if (shouldUnsubscribe && id) {
         unsubscribed = true;
-        unsubscribe(id);
+        // Fire-and-forget from a void callback. `unsubscribe` rejects on a
+        // failed channel PUT, so catch it here or it escapes unhandled.
+        unsubscribe(id).catch((e) => {
+          logger.log(
+            `Failed to unsubscribe connection check for ${contactId}:`,
+            e
+          );
+        });
       }
     }
   );
