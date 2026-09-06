@@ -1,3 +1,4 @@
+import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared';
 import { schema, setClient } from '@tloncorp/shared/db';
 import { handleChange } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
@@ -109,7 +110,12 @@ export class ElectronDb extends BaseDb {
 
       logger.log('Electron SQLite database initialized');
     } catch (e) {
-      logger.error('Failed to setup Electron SQLite db', e);
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'electronDb.setupDb: failed to set up SQLite db',
+        errorMessage: e.message,
+        errorStack: e.stack,
+        severity: AnalyticsSeverity.Critical,
+      });
       throw e;
     }
   }
@@ -147,7 +153,12 @@ export class ElectronDb extends BaseDb {
     }
 
     if (!this.client) {
-      logger.warn('runMigrations called before setupDb, ignoring');
+      // See webDb.runMigrations: the app carries on without a database, so this
+      // is the only signal that it happened.
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'electronDb.runMigrations: called without a database',
+        severity: AnalyticsSeverity.Critical,
+      });
       return;
     }
 
