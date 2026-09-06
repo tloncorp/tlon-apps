@@ -1,5 +1,7 @@
 import { beforeEach, expect, test, vi } from 'vitest';
 
+import { AnalyticsSeverity } from './domain';
+
 import { clearBreadcrumbs, createDevLogger, useDebugStore } from './debug';
 
 let capture: ReturnType<typeof vi.fn>;
@@ -74,6 +76,55 @@ test('trackError breadcrumbs exclude sensitive crumbs', async () => {
   expect(
     payload.breadcrumbs.some((entry: string) => entry.includes('visited x'))
   ).toBe(true);
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('token abc'))
+  ).toBe(false);
+});
+
+test('trackEvent attaches the error object for Critical events', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new RangeError('db gone');
+  logger.crumb('visited', 'x');
+  logger.trackEvent('Native DB Error', {
+    context: 'setupDb failed',
+    error,
+    severity: AnalyticsSeverity.Critical,
+  });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const [event, payload] = capture.mock.calls[0];
+  expect(event).toBe('Native DB Error');
+  expect(payload.errorObject).toBe(error);
+  expect(payload.errorTitle).toBe('Native DB Error');
+  expect(payload.logger).toBe('t');
+  expect(payload.message).toBe('[t] Native DB Error');
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('visited x'))
+  ).toBe(true);
+});
+
+test('trackEvent leaves ordinary analytics payloads alone', async () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.trackEvent('Attestation Error', {
+    error: new Error('nope'),
+    severity: AnalyticsSeverity.High,
+  });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorObject).toBeUndefined();
+  expect(payload.errorTitle).toBeUndefined();
+  expect(payload.breadcrumbs).toBeUndefined();
+});
+
+test('trackEvent Critical breadcrumbs exclude sensitive crumbs', async () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.sensitiveCrumb('token abc');
+  logger.trackEvent('Native DB Error', {
+    severity: AnalyticsSeverity.Critical,
+  });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
   expect(
     payload.breadcrumbs.some((entry: string) => entry.includes('token abc'))
   ).toBe(false);
