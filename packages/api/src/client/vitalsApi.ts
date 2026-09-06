@@ -1,5 +1,8 @@
+import { createDevLogger } from '../lib/logger';
 import * as ub from '../urbit';
 import { poke, scry, subscribe, unsubscribe } from './urbit';
+
+const logger = createDevLogger('vitalsApi', false);
 
 export const getLastConnectionStatus = async (contactId: string) => {
   const result = await scry<ub.ConnectionUpdate>({
@@ -33,10 +36,15 @@ export const checkConnectionStatus = async (
     }
   );
 
+  // Fire-and-forget: the subscription above delivers the result, so the poke
+  // is only a nudge. Catch so a failed poke doesn't surface as an unhandled
+  // rejection.
   poke({
     app: 'vitals',
     mark: 'run-check',
     json: contactId,
+  }).catch((e) => {
+    logger.log(`Failed to poke connection check for ${contactId}:`, e);
   });
 
   return subscription;

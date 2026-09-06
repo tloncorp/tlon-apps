@@ -36,44 +36,52 @@ export const useShipConnectionStatus = (
           `Initiating new connection check for ${contactId}`,
           Date.now()
         );
-        api.checkConnectionStatus(
-          contactId,
-          // we debounce updates to avoid flickering through rapid status changes
-          debounce(
-            // first we calculate a time diff to know if it's a recent
-            // update. if it is, we update the query data. this means
-            // that initially the query fn itself will return quickly
-            // with empty or previous data, and only later will it be
-            // updated when we receive a recent status update.
-            (status: ConnectionStatus) => {
-              const diff = Date.now() - (status.timestamp ?? 0);
-              logger.log(
-                `Received status update for ${contactId}:`,
-                status,
-                Date.now(),
-                `(${diff}ms since last update)`
-              );
-              // update the query data only if the status is recent.
-              // generally this happens because the subscription returns
-              // any data it has cached, which may be old
-              if (diff < staleTime) {
+        // Deliberately not awaited: the query fn returns immediately with
+        // cached or empty data, and the subscription callback below fills it
+        // in later. Catch so a failed subscribe doesn't surface as an
+        // unhandled rejection.
+        api
+          .checkConnectionStatus(
+            contactId,
+            // we debounce updates to avoid flickering through rapid status changes
+            debounce(
+              // first we calculate a time diff to know if it's a recent
+              // update. if it is, we update the query data. this means
+              // that initially the query fn itself will return quickly
+              // with empty or previous data, and only later will it be
+              // updated when we receive a recent status update.
+              (status: ConnectionStatus) => {
+                const diff = Date.now() - (status.timestamp ?? 0);
                 logger.log(
-                  `Updating query data for ${contactId} with status:`,
-                  status
+                  `Received status update for ${contactId}:`,
+                  status,
+                  Date.now(),
+                  `(${diff}ms since last update)`
                 );
-                queryClient.setQueryData<ConnectionStatus>(queryKey, status);
+                // update the query data only if the status is recent.
+                // generally this happens because the subscription returns
+                // any data it has cached, which may be old
+                if (diff < staleTime) {
+                  logger.log(
+                    `Updating query data for ${contactId} with status:`,
+                    status
+                  );
+                  queryClient.setQueryData<ConnectionStatus>(queryKey, status);
 
-                // unsubscribe if the status is complete
-                return status?.complete;
-              }
+                  // unsubscribe if the status is complete
+                  return status?.complete;
+                }
 
-              // do not unsubscribe yet, we haven't heard anything (recent)
-              return false;
-            },
-            500,
-            { trailing: true, leading: true }
+                // do not unsubscribe yet, we haven't heard anything (recent)
+                return false;
+              },
+              500,
+              { trailing: true, leading: true }
+            )
           )
-        );
+          .catch((e) => {
+            logger.log(`Connection check failed for ${contactId}:`, e);
+          });
 
         const lastStatus = queryClient.getQueryData<ConnectionStatus>(queryKey);
         return lastStatus || emptyConnectionStatus;

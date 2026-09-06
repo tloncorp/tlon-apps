@@ -193,7 +193,12 @@ export const HomeSidebar = memo(
             'markInvitesRead',
             { priority: store.SyncPriority.Medium },
             async () => {
-              markInvitesRead();
+              // Left unawaited so the queue thread isn't held for the ~14s of
+              // backoff retries. Catch so a failed poke doesn't surface as an
+              // unhandled rejection.
+              markInvitesRead().catch((e) => {
+                logger.log('Failed to mark invites read:', e);
+              });
             }
           );
         }, 1000);
