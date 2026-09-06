@@ -292,8 +292,7 @@ export async function withTransactionCtx<T>(
         isNested: true,
         rootTransactionLabel: ctx.rootTransaction,
         label: ctx.meta.label,
-        errorMessage: e.message,
-        errorStack: e.stack,
+        error: e,
       });
       throw e;
     }
@@ -321,16 +320,14 @@ export async function withTransactionCtx<T>(
         txLogger.log('tx:error', e);
         txLogger.trackError('DB Transaction Error', {
           label: ctx.meta.label,
-          errorMessage: e.message,
-          errorStack: e.stack,
+          error: e,
         });
         try {
           await ctx.db.run(sql`ROLLBACK`);
         } catch (rollbackError) {
           txLogger.trackError('DB Transaction Rollback Error', {
             label: ctx.meta.label,
-            errorMessage: rollbackError.message,
-            errorStack: rollbackError.stack,
+            error: rollbackError,
           });
         }
         ctx.rootTransaction = null;
