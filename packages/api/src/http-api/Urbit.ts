@@ -243,7 +243,15 @@ export class Urbit {
     fetchFn?: typeof fetch
   ) {
     if (isBrowser) {
-      window.addEventListener('beforeunload', this.delete);
+      // `delete` is a prototype method, so passing the bare reference would
+      // invoke it with `this` bound to `window`: it throws on
+      // `this.channelAbort` and, being async, surfaces that as an unhandled
+      // rejection rather than ever deleting the channel. Wrap it to keep
+      // `this`. Swallow the result — nothing can act on a failure during
+      // unload, and the browser path is a fire-and-forget sendBeacon anyway.
+      window.addEventListener('beforeunload', () => {
+        this.delete().catch(() => {});
+      });
     }
     if (fetchFn) {
       this.fetchFn = fetchFn;
@@ -467,7 +475,10 @@ export class Urbit {
           this.lastHeardEventId = eventId;
           this.emit('id-update', { lastHeard: this.lastHeardEventId });
           if (eventId - this.lastAcknowledgedEventId > 20) {
-            this.ack(eventId);
+            // Fire-and-forget: the next batch of events re-triggers the ack.
+            // Catch so a failed channel PUT doesn't escape this void callback
+            // as an unhandled rejection.
+            this.ack(eventId).catch(() => {});
           }
 
           if (event.data && JSON.parse(event.data)) {
@@ -523,7 +534,10 @@ export class Urbit {
                 status: 'close',
               });
               if (sub?.resubOnQuit) {
-                this.subscribe(sub);
+                // `subscribe` re-throws a failed PUT, and this callback
+                // returns void — same hazard the replay path in
+                // seamlessReset() already guards against.
+                this.subscribe(sub).catch(() => {});
               }
             } else if (this.verbose) {
               console.log([...this.outstandingSubscriptions.keys()]);
@@ -765,7 +779,10 @@ export class Urbit {
       const event = (e: T, mark: string, id: number) => {
         if (finish()) {
           resolve(e);
-          this.unsubscribe(id);
+          // `unsubscribe` chains a `.then` with no rejection handler, so a
+          // failed PUT rejects the promise it returns. The outer promise is
+          // already settled by `resolve` above, so catch here or it escapes.
+          this.unsubscribe(id).catch(() => {});
         }
       };
       const request = {
@@ -783,7 +800,10 @@ export class Urbit {
           timer = setTimeout(() => {
             if (finish()) {
               reject('timeout');
-              this.unsubscribe(subId);
+              // Same as the event path above. This runs from a timer, so it
+              // is outside the `.then(..., fail)` chain below and `fail`
+              // cannot catch it.
+              this.unsubscribe(subId).catch(() => {});
             }
           }, timeout);
         }
