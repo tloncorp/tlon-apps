@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import { startTrace } from '../perf';
 import { perfEnabled, perfLog } from '../perfLog';
 import * as changeListener from './changeListener';
@@ -143,7 +143,7 @@ export const createQuery = <TOptions, TReturn>(
           label: meta.label,
           error: e,
           errorMessage: e.message,
-          errorStack: e.stack,
+          severity: AnalyticsSeverity.Critical,
         });
         throw e;
       }
