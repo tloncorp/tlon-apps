@@ -1,9 +1,20 @@
 import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
+import { ConversationListDiagnosticsContext } from './diagnostics';
 import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
-import { Platform, type ScrollView } from 'react-native';
-import { type SharedValue, useSharedValue } from 'react-native-reanimated';
+import {
+  Platform,
+  type NativeScrollEvent,
+  type ScrollView,
+} from 'react-native';
+import {
+  type SharedValue,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useComposedEventHandler,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -469,13 +480,23 @@ const ConversationPostListAttempt = React.forwardRef<
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
+    const diagnostics = React.useContext(ConversationListDiagnosticsContext);
+    const scrollViewNativeID = useConversationScrollViewNativeID();
+    React.useEffect(() => {
+      if (diagnostics && listRef.current) {
+        return diagnostics.attach(
+          listRef.current,
+          channel.id,
+          scrollViewNativeID
+        );
+      }
+    }, [diagnostics, channel.id, scrollViewNativeID]);
     const composerContentInset = useSharedValue(0);
     const conversationKeyboardListProps =
       useConversationKeyboardListProps(composerContentInset);
     const { register: registerConversationComposerHeight } =
       useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
-    const scrollViewNativeID = useConversationScrollViewNativeID();
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
@@ -517,6 +538,17 @@ const ConversationPostListAttempt = React.forwardRef<
       onInitialScrollCompleted,
     });
     const { initialScrollIndex } = anchorTarget;
+    React.useEffect(() => {
+      diagnostics?.event('entry-state', {
+        ready: isInitialAnchorReady && didFinishInitialScroll,
+        count: postsWithNeighbors.length,
+      });
+    }, [
+      diagnostics,
+      didFinishInitialScroll,
+      isInitialAnchorReady,
+      postsWithNeighbors.length,
+    ]);
     React.useLayoutEffect(() => {
       postsWithNeighborsRef.current = postsWithNeighbors;
     }, [postsWithNeighbors]);
@@ -541,6 +573,23 @@ const ConversationPostListAttempt = React.forwardRef<
         atBottomThreshold: onScrolledToBottomThreshold,
         bottomAtEnd: true,
       });
+    const hasScrollDiagnostics = Boolean(diagnostics?.nativeScroll);
+    const reportDiagnosticScroll = React.useCallback(
+      (event: NativeScrollEvent) => diagnostics?.nativeScroll?.(event),
+      [diagnostics]
+    );
+    const diagnosticScrollHandler = useAnimatedScrollHandler(
+      (event) => {
+        if (hasScrollDiagnostics) runOnJS(reportDiagnosticScroll)(event);
+      },
+      [hasScrollDiagnostics, reportDiagnosticScroll]
+    );
+    // Reanimated handlers are processed event objects on native. Compose them
+    // on the UI thread instead of calling the production handler from JS.
+    const composedScrollHandler = useComposedEventHandler([
+      handleScroll,
+      diagnosticScrollHandler,
+    ]);
     // LegendList recalculates this when scrolling, content, or row measurements
     // change. React Native onScroll can retain an intermediate value while the
     // initial anchor settles, briefly showing the scroll-to-bottom control.
@@ -692,8 +741,24 @@ const ConversationPostListAttempt = React.forwardRef<
         onLoad={scheduleInitialScroll}
         onLayout={settleEmptyConversationAtEnd}
         onContentSizeChange={settleEmptyConversationAtEnd}
-        onScroll={handleScroll}
-        onScrollBeginDrag={markUserScrolled}
+        onScroll={hasScrollDiagnostics ? composedScrollHandler : handleScroll}
+        onScrollBeginDrag={
+          diagnostics
+            ? () => {
+                markUserScrolled();
+                diagnostics.event('drag-begin');
+              }
+            : markUserScrolled
+        }
+        onScrollEndDrag={
+          diagnostics ? () => diagnostics.event('drag-end') : undefined
+        }
+        onMomentumScrollBegin={
+          diagnostics ? () => diagnostics.event('momentum-begin') : undefined
+        }
+        onMomentumScrollEnd={
+          diagnostics ? () => diagnostics.event('momentum-end') : undefined
+        }
         onStartReached={onStartReached}
         onStartReachedThreshold={onStartReachedThreshold}
         onEndReached={onEndReached}

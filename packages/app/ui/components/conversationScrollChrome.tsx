@@ -162,6 +162,7 @@ function AnimatedScrollToBottomButton({
 
   return (
     <Animated.View
+      testID="ScrollToBottomButton"
       accessibilityElementsHidden={!visible}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
       pointerEvents={visible ? 'auto' : 'none'}

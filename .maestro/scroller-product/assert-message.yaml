@@ -1,0 +1,60 @@
+appId: ${APP_ID}
+---
+- extendedWaitUntil:
+    visible:
+      id: ^Post$
+      containsDescendants:
+        - text: ${output.scrollerProduct.current.scopePatterns[0]}
+        - text: ${output.scrollerProduct.current.scopePatterns[1]}
+        - text: ${output.scrollerProduct.current.scopePatterns[2]}
+    timeout: 5000
+- assertVisible:
+    id: ^Post$
+    containsDescendants:
+      - text: ${output.scrollerProduct.current.scopePatterns[0]}
+      - text: ${output.scrollerProduct.current.scopePatterns[1]}
+      - text: ${output.scrollerProduct.current.scopePatterns[2]}
+    index: 0
+- assertNotVisible:
+    id: ^Post$
+    containsDescendants:
+      - text: ${output.scrollerProduct.current.scopePatterns[0]}
+      - text: ${output.scrollerProduct.current.scopePatterns[1]}
+      - text: ${output.scrollerProduct.current.scopePatterns[2]}
+    index: 1
+- evalScript: ${output.scrollerProduct.paragraphIndex = 0}
+- repeat:
+    times: ${output.scrollerProduct.current.paragraphPatterns.length}
+    commands:
+      - assertVisible:
+          text: ${output.scrollerProduct.current.paragraphPatterns[output.scrollerProduct.paragraphIndex]}
+          childOf:
+            id: ^Post$
+            containsDescendants:
+              - text: ${output.scrollerProduct.current.scopePatterns[0]}
+              - text: ${output.scrollerProduct.current.scopePatterns[1]}
+              - text: ${output.scrollerProduct.current.scopePatterns[2]}
+      - assertNotVisible:
+          text: ${output.scrollerProduct.current.paragraphPatterns[output.scrollerProduct.paragraphIndex]}
+          index: 1
+      - runFlow:
+          when:
+            true: ${output.scrollerProduct.paragraphIndex > 0}
+          commands:
+            - assertVisible:
+                text: ${output.scrollerProduct.current.paragraphPatterns[output.scrollerProduct.paragraphIndex]}
+                childOf:
+                  id: ^Post$
+                  containsDescendants:
+                    - text: ${output.scrollerProduct.current.scopePatterns[0]}
+                    - text: ${output.scrollerProduct.current.scopePatterns[1]}
+                    - text: ${output.scrollerProduct.current.scopePatterns[2]}
+                below:
+                  text: ${output.scrollerProduct.current.paragraphPatterns[output.scrollerProduct.paragraphIndex - 1]}
+                  childOf:
+                    id: ^Post$
+                    containsDescendants:
+                      - text: ${output.scrollerProduct.current.scopePatterns[0]}
+                      - text: ${output.scrollerProduct.current.scopePatterns[1]}
+                      - text: ${output.scrollerProduct.current.scopePatterns[2]}
+      - evalScript: ${output.scrollerProduct.paragraphIndex = output.scrollerProduct.paragraphIndex + 1}

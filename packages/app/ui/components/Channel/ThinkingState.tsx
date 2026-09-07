@@ -1,9 +1,10 @@
 import type * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, Spinner, View, XStack } from 'tamagui';
 
 import { ContactAvatar } from '../Avatar';
+import { ConversationListDiagnosticsContext } from './PostList/diagnostics';
 import { useConversationComputingState } from './useConversationComputingState';
 
 const MAX_VISIBLE_AVATARS = 3;
@@ -21,6 +22,7 @@ export function ThinkingState({
   latestPostAuthorId?: string;
   forcedLabel?: string;
 }) {
+  const diagnostics = useContext(ConversationListDiagnosticsContext);
   const computingState = useConversationComputingState(conversationId);
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);
   const [responseObserved, setResponseObserved] = useState(false);
@@ -117,6 +119,15 @@ export function ThinkingState({
     computingState?.ships.slice(0, MAX_VISIBLE_AVATARS) ?? [];
   const overflowCount =
     (computingState?.ships.length ?? 0) - visibleShips.length;
+  const label = forcedLabel ?? computingState?.label ?? 'Thinking...';
+  useEffect(() => {
+    diagnostics?.event('thinking-commit', {
+      conversationId,
+      visible,
+      label,
+      forced: forcedLabel !== undefined,
+    });
+  }, [conversationId, diagnostics, forcedLabel, label, visible]);
 
   // Keep the footer mounted so presence changes do not replace the FlatList
   // footer in one frame. When a response arrives, remove its height in the same
@@ -124,6 +135,15 @@ export function ThinkingState({
   // then scrolls again for the new row, producing a visible two-step bounce.
   return (
     <View
+      onLayout={
+        diagnostics
+          ? (e) =>
+              diagnostics.event('thinking-layout', {
+                conversationId,
+                height: e.nativeEvent.layout.height,
+              })
+          : undefined
+      }
       accessibilityElementsHidden={!visible}
       height={visible ? 52 : 0}
       importantForAccessibility={visible ? 'auto' : 'no-hide-descendants'}
@@ -162,7 +182,7 @@ export function ThinkingState({
           )}
           <Spinner size="small" color="$tertiaryText" />
           <Text size="$label/m" color="$tertiaryText" flexShrink={1}>
-            {forcedLabel ?? computingState?.label ?? 'Thinking...'}
+            {label}
           </Text>
         </XStack>
       ) : null}

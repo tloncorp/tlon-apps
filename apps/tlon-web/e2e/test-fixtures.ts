@@ -1,6 +1,7 @@
 import { BrowserContext, Page, test as base } from '@playwright/test';
 
 import * as helpers from './helpers';
+import { dismissPersistedDevTools } from './helpers/scrollerWebAssets';
 import { RuntimeErrorDetector } from './runtime-error-detector';
 import shipManifest from './shipManifest.json';
 
@@ -73,13 +74,19 @@ async function performCleanup(page: Page, shipName: string) {
   }
 }
 
-export const testWithOptions = (options?: { installClock?: boolean }) =>
+export const testWithOptions = (options?: {
+  installClock?: boolean;
+  // App/database initialization precedes the scenario's measured actions.
+  appReadyTimeoutMs?: number;
+  /** Opt out when qualifying normal application sync and deferred UI paths. */
+  e2eMode?: boolean;
+}) =>
   base.extend<TestFixtures>({
     zodSetup: async ({ browser }, use) => {
       const context = await browser.newContext({
         storageState: shipManifest['~zod'].authFile,
       });
-      await markContextAsE2E(context);
+      if (options?.e2eMode !== false) await markContextAsE2E(context);
       const page = await context.newPage();
       if (options?.installClock) {
         await page.clock.install();
@@ -92,10 +99,11 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
       }
 
       await page.goto(zodUrl);
-      await page.waitForSelector('text=Home', { state: 'visible' });
-      await page.evaluate(() => {
-        window.toggleDevTools();
+      await page.waitForSelector('text=Home', {
+        state: 'visible',
+        timeout: options?.appReadyTimeoutMs,
       });
+      await dismissPersistedDevTools(page);
       await page.waitForTimeout(1000);
 
       await performCleanup(page, 'zod');
@@ -119,7 +127,7 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
       const context = await browser.newContext({
         storageState: shipManifest['~ten'].authFile,
       });
-      await markContextAsE2E(context);
+      if (options?.e2eMode !== false) await markContextAsE2E(context);
       const page = await context.newPage();
       if (options?.installClock) {
         await page.clock.install();
@@ -132,10 +140,11 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
       }
 
       await page.goto(tenUrl);
-      await page.waitForSelector('text=Home', { state: 'visible' });
-      await page.evaluate(() => {
-        window.toggleDevTools();
+      await page.waitForSelector('text=Home', {
+        state: 'visible',
+        timeout: options?.appReadyTimeoutMs,
       });
+      await dismissPersistedDevTools(page);
       await page.waitForTimeout(1000);
       await performCleanup(page, 'ten');
 
@@ -158,7 +167,7 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
       const context = await browser.newContext({
         storageState: shipManifest['~bus'].authFile,
       });
-      await markContextAsE2E(context);
+      if (options?.e2eMode !== false) await markContextAsE2E(context);
       const page = await context.newPage();
       if (options?.installClock) {
         await page.clock.install();
@@ -171,10 +180,11 @@ export const testWithOptions = (options?: { installClock?: boolean }) =>
       }
 
       await page.goto(busUrl);
-      await page.waitForSelector('text=Home', { state: 'visible' });
-      await page.evaluate(() => {
-        window.toggleDevTools();
+      await page.waitForSelector('text=Home', {
+        state: 'visible',
+        timeout: options?.appReadyTimeoutMs,
       });
+      await dismissPersistedDevTools(page);
 
       await page.waitForTimeout(1000);
       await performCleanup(page, 'bus');

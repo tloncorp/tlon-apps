@@ -1,0 +1,9 @@
+appId: ${APP_ID}
+---
+- evalScript: ${output.scrollerProduct.absentIndex = 0}
+- repeat:
+    times: ${output.scrollerProduct.absent.paragraphPatterns.length}
+    commands:
+      - assertNotVisible:
+          text: ${output.scrollerProduct.absent.paragraphPatterns[output.scrollerProduct.absentIndex]}
+      - evalScript: ${output.scrollerProduct.absentIndex = output.scrollerProduct.absentIndex + 1}

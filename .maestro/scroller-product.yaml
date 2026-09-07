@@ -1,0 +1,185 @@
+# Actual normal App.main, already logged in to an isolated local test ship on Home.
+# Required: APP_ID=io.tlon.groups.preview, unique GROUP_NAME/RUN_TAG, absolute SCROLLER_OUTPUT_DIR.
+# Contract: docs/tlon-apps/scroller-native-product-journey.md
+appId: ${APP_ID}
+---
+- runScript: scroller-product/data.js
+- assertVisible: '^Home$'
+- assertNotVisible: ${output.scrollerProduct.groupPattern}
+- tapOn: '^Add a chat$'
+- tapOn: '^New group$'
+- tapOn: '^Basic group, Group with chat, gallery, and notebook channels$'
+- assertVisible: '^Name your group$'
+- tapOn: '^Group name$'
+- inputText: ${GROUP_NAME}
+- assertVisible: '^Name your group$'
+- assertVisible:
+    text: ${output.scrollerProduct.groupPattern}
+    below: '^Name your group$'
+    above: '^Next$'
+- tapOn: '^Next$'
+- assertVisible: '^Select contacts to invite$'
+- tapOn: '^Create group$'
+- extendedWaitUntil:
+    visible: ${output.scrollerProduct.groupPattern}
+    timeout: 5000
+- assertVisible: '^Chat$'
+- tapOn: '^Chat$'
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: '^Message$'
+    timeout: 5000
+- assertVisible: '^Chat$'
+# Seventeen UI sends with exact bodies and terminal UI delivery-state checks.
+- repeat:
+    times: 17
+    commands:
+      - evalScript: ${output.scrollerProduct.current = output.scrollerProduct.messages[output.scrollerProduct.index]}
+      - runFlow:
+          file: scroller-product/send.yaml
+          env:
+            EMPTY_INPUT: '^Message$'
+      - evalScript: ${output.scrollerProduct.index = output.scrollerProduct.index + 1}
+# Eighteenth message grows from one line to three while focused.
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.messages[output.scrollerProduct.lastIndex]}
+- tapOn:
+    id: MessageInput
+- inputText: ${output.scrollerProduct.current.lines[0]}
+- assertVisible:
+    id: MessageInput
+    text: ${output.scrollerProduct.firstInputPattern}
+- takeScreenshot: ${output.scrollerProduct.outputDir}/captures/${RUN_TAG}-composer-one-line
+- inputText: ${'\n' + output.scrollerProduct.current.lines.slice(1).join('\n')}
+- assertVisible:
+    id: MessageInput
+    text: ${output.scrollerProduct.current.inputPattern}
+- takeScreenshot: ${output.scrollerProduct.outputDir}/captures/${RUN_TAG}-composer-expanded
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: '^Message$'
+    timeout: 5000
+- runFlow: scroller-product/assert-message.yaml
+- runFlow: scroller-product/delivery-state.yaml
+- takeScreenshot: ${output.scrollerProduct.outputDir}/captures/${RUN_TAG}-composer-cleared
+- hideKeyboard
+- assertNotVisible:
+    id: ScrollToBottomButton
+# Real scroll gesture/search to older content; do not write list offsets.
+# Two bounded real searches cover the longer declared history.
+- scrollUntilVisible:
+    element:
+      text: ${output.scrollerProduct.messages[8].paragraphPatterns[0]}
+      childOf:
+        id: ^Post$
+        containsDescendants:
+          - text: ${output.scrollerProduct.messages[8].scopePatterns[0]}
+          - text: ${output.scrollerProduct.messages[8].scopePatterns[1]}
+          - text: ${output.scrollerProduct.messages[8].scopePatterns[2]}
+    direction: UP
+    timeout: 5000
+    speed: 60
+- scrollUntilVisible:
+    element:
+      text: ${output.scrollerProduct.messages[0].paragraphPatterns[0]}
+      childOf:
+        id: ^Post$
+        containsDescendants:
+          - text: ${output.scrollerProduct.messages[0].paragraphPatterns[0]}
+    direction: UP
+    timeout: 5000
+    speed: 60
+- assertVisible: ${output.scrollerProduct.messages[0].paragraphPatterns[0]}
+- evalScript: ${output.scrollerProduct.absent = output.scrollerProduct.messages[output.scrollerProduct.lastIndex]}
+- runFlow: scroller-product/assert-absent.yaml
+- assertVisible:
+    id: ScrollToBottomButton
+- tapOn:
+    id: ScrollToBottomButton
+- runFlow: scroller-product/assert-message.yaml
+- assertNotVisible:
+    id: ScrollToBottomButton
+# iOS production context-menu label for startThread is Reply.
+- longPressOn:
+    text: ${output.scrollerProduct.current.paragraphPatterns[0]}
+    childOf:
+      id: ^Post$
+      containsDescendants:
+        - text: ${output.scrollerProduct.current.scopePatterns[0]}
+        - text: ${output.scrollerProduct.current.scopePatterns[1]}
+        - text: ${output.scrollerProduct.current.scopePatterns[2]}
+- tapOn: '^Reply$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Chat$'
+- assertVisible:
+    id: MessageInput
+    text: '^Reply$'
+- assertNotVisible:
+    id: MessageInput
+    text: '^Message$'
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.messages[output.scrollerProduct.lastIndex]}
+- runFlow: scroller-product/assert-message.yaml
+- evalScript: ${output.scrollerProduct.absent = output.scrollerProduct.messages[output.scrollerProduct.lastIndex - 1]}
+- runFlow: scroller-product/assert-absent.yaml
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.reply}
+- runFlow:
+    file: scroller-product/send.yaml
+    env:
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- tapOn: '^Back$'
+- assertVisible: '^Chat$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- assertNotVisible:
+    id: MessageInput
+    text: '^Reply$'
+- evalScript: ${output.scrollerProduct.absent = output.scrollerProduct.reply}
+- runFlow: scroller-product/assert-absent.yaml
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.messages[output.scrollerProduct.lastIndex]}
+- runFlow: scroller-product/assert-message.yaml
+- assertVisible: '^1 reply$'
+- tapOn:
+    text: '^1 reply$'
+    childOf:
+      id: ^Post$
+      containsDescendants:
+        - text: ${output.scrollerProduct.current.scopePatterns[0]}
+        - text: ${output.scrollerProduct.current.scopePatterns[1]}
+        - text: ${output.scrollerProduct.current.scopePatterns[2]}
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Chat$'
+- assertVisible:
+    id: MessageInput
+    text: '^Reply$'
+- assertNotVisible:
+    id: MessageInput
+    text: '^Message$'
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.messages[output.scrollerProduct.lastIndex]}
+- runFlow: scroller-product/assert-message.yaml
+- evalScript: ${output.scrollerProduct.absent = output.scrollerProduct.messages[output.scrollerProduct.lastIndex - 1]}
+- runFlow: scroller-product/assert-absent.yaml
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.reply}
+- runFlow: scroller-product/assert-message.yaml
+- tapOn: '^Back$'
+- assertVisible: '^Chat$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- assertNotVisible:
+    id: MessageInput
+    text: '^Reply$'
+- evalScript: ${output.scrollerProduct.absent = output.scrollerProduct.reply}
+- runFlow: scroller-product/assert-absent.yaml
+- evalScript: ${output.scrollerProduct.current = output.scrollerProduct.messages[output.scrollerProduct.lastIndex]}
+- runFlow: scroller-product/assert-message.yaml
+- assertVisible: '^1 reply$'
+- assertNotVisible:
+    id: ScrollToBottomButton
+- takeScreenshot: ${output.scrollerProduct.outputDir}/captures/${RUN_TAG}-final-channel

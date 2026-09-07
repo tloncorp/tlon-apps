@@ -1,0 +1,17 @@
+appId: ${APP_ID}
+---
+- tapOn:
+    id: MessageInput
+- inputText: ${output.scrollerProduct.current.input}
+- assertVisible:
+    id: MessageInput
+    text: ${output.scrollerProduct.current.inputPattern}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: ${EMPTY_INPUT}
+    timeout: 5000
+- runFlow: assert-message.yaml
+- runFlow: delivery-state.yaml

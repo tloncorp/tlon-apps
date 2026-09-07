@@ -122,6 +122,16 @@ post_install do |installer|
   # See https://github.com/facebook/react-native/issues/55601
   patch_fmt_consteval_for_xcode_26_4(installer)
 
+  # expo-share-intent still declares iOS 15.1, but imports ExpoModulesCore,
+  # whose Swift module requires the app's iOS 16.4 minimum.
+  installer.pods_project.targets.each do |target|
+    next unless target.name == 'ExpoShareIntentModule'
+
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.4'
+    end
+  end
+
   # This is necessary for Xcode 14, because it signs resource bundles by default
   # when building for devices.
   installer.target_installation_results.pod_target_installation_results

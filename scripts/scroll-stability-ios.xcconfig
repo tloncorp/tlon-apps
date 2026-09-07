@@ -1,0 +1,4 @@
+// The scroll suite targets an explicit Apple Silicon iOS Simulator.
+// Preserve the selected build configuration and production optimization flags.
+ONLY_ACTIVE_ARCH = YES
+ARCHS = arm64

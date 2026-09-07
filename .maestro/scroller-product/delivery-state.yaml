@@ -1,0 +1,12 @@
+appId: ${APP_ID}
+---
+# UI terminal state only; absence of these controls is not backend commit proof.
+- extendedWaitUntil:
+    notVisible:
+      id: ChatMessageDeliveryStatus
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible: '^Send failed, tap to retry$'
+    timeout: 5000
+# The status controls disappearing cannot qualify a vanished sent row.
+- runFlow: assert-message.yaml
