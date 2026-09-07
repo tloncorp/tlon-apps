@@ -503,8 +503,13 @@ export async function subscribeOnce<T>(
     await config.pendingAuth;
   }
   logger.log('subscribing once to', printEndpoint(endpoint));
+  const sent = captureSendContext(config.client);
+  // `return await`, not `return`: returning the promise hands it out of the
+  // try before it settles, so none of the handling below ever ran. Urbit's
+  // subscribeOnce rejects asynchronously with 'timeout'/'quit', so this catch
+  // has been dead for every failure it was written for.
   try {
-    return config.client.subscribeOnce<T>(
+    return await config.client.subscribeOnce<T>(
       endpoint.app,
       endpoint.path,
       ship,
@@ -531,13 +536,15 @@ export async function subscribeOnce<T>(
       throw err;
     }
 
-    await reauth();
-    return config.client.subscribeOnce<T>(
-      endpoint.app,
-      endpoint.path,
-      ship,
-      timeout
-    );
+    // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
+    // would start a second login for every caller that failed against the
+    // same dead session, and eyre closes the session each login arrives with.
+    await reauthOnce(sent);
+    const client = config.client;
+    if (!client) {
+      throw new Error('Client not initialized');
+    }
+    return client.subscribeOnce<T>(endpoint.app, endpoint.path, ship, timeout);
   }
 }
 
@@ -548,14 +555,25 @@ export async function unsubscribe(id: number) {
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
+  const sent = captureSendContext(config.client);
+  // See subscribeOnce: `return` handed the promise out of the try, so this
+  // catch never ran and the AuthError retry below was dead code.
   try {
-    return config.client.unsubscribe(id);
+    return await config.client.unsubscribe(id);
   } catch (err) {
     logger.error('bad unsubscribe', id, err);
-    if (err instanceof AuthError) {
-      await reauth();
-      return config.client.unsubscribe(id);
+    // Rethrow rather than falling through to `undefined`. The catch was dead,
+    // so callers already see this rejection today — swallowing it here would
+    // be the behavior change, not preserving it.
+    if (!(err instanceof AuthError)) {
+      throw err;
     }
+    await reauthOnce(sent);
+    const client = config.client;
+    if (!client) {
+      throw new Error('Client not initialized');
+    }
+    return client.unsubscribe(id);
   }
 }
 
