@@ -267,13 +267,14 @@
       ::  wire was a revoke to a former owner — those retry via .stale.
       =/  who  (slav %p i.t.t.wire)
       ?.  =(`who owner.state)
-        ?~  p.sign
-          ::  the initial revoke landed. pr-revoke-former put this ship in
-          ::  .stale before sending it, so without dropping it here every
-          ::  later configure/unconfigure/clear re-revokes every historical
-          ::  owner and the set grows without bound
-          ::
-          cor(stale.prompts.state (~(del in stale.prompts.state) who))
+        ::  a revoke to a former owner rides this wire so a %sync still in
+        ::  flight to that ship can't overtake it. that also means an ack
+        ::  here is unattributable — it may belong to the older %sync — so
+        ::  it must NOT clear .stale. pr-revoke-former sends a second copy
+        ::  on the dedicated revoke wire, whose acks are unambiguous, and
+        ::  that is what confirms the revoke.
+        ::
+        ?~  p.sign  cor
         ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
       ?~  p.sign
         ::  the owner holds our canonical set; stop retrying
@@ -1089,7 +1090,16 @@
     |=  =ship
     ^+  cor
     =.  stale.prompts.state  (~(put in stale.prompts.state) ship)
-    (pr-emit-revoke ship /prompts/sync/(scot %p ship))
+    ::  two copies, deliberately. the sync-wire one is ordered after any
+    ::  %sync still in flight to this ship, which would otherwise re-create
+    ::  the mirror the revoke just dropped; the dedicated-wire one is the
+    ::  only ack that can be attributed to a revoke (see the %sync wire's
+    ::  ack handler), so it is what clears .stale. both are idempotent at
+    ::  the receiver, and either order ends with the mirror dropped: no
+    ::  %sync can land after the sync-wire copy.
+    ::
+    =.  cor  (pr-emit-revoke ship /prompts/sync/(scot %p ship))
+    (pr-emit-revoke ship /prompts/revoke/(scot %p ship))
   ::
   ::  re-issue unconfirmed revokes, once per boot-shaped moment (configure,
   ::  unconfigure, clear). retries ride the dedicated revoke wire: by now

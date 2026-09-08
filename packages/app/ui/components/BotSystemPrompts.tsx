@@ -249,6 +249,12 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               if (cancelled) {
                 return;
               }
+              // A live watch proves this ship serves the module, which
+              // replaces a sticky `absent` verdict the bounded probe may
+              // have cached during a long %steward restart — that verdict
+              // is never revisited on its own, and would keep resolving
+              // per-bot nulls as settled "not owned" for the session.
+              queryClient.setQueryData(promptsModuleQueryKey, 'present');
               // The watch is live only now: subscribe() resolved on the
               // channel PUT, and a fact landing between that and this ack
               // is dropped. Re-read so the mirror cannot sit stale for the

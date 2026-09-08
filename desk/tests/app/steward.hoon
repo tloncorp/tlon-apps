@@ -1269,10 +1269,17 @@
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
   %+  ex-cards  caz
-  ::  the revoke rides the sync wire so it shares the sync ames flow and
-  ::  can't be overtaken by an in-flight pre-transition %sync
+  ::  one revoke rides the sync wire, so it shares the sync ames flow and
+  ::  can't be overtaken by an in-flight pre-transition %sync; the other
+  ::  rides the dedicated wire, whose ack is the one that confirms it
   :~  %-  ex-poke
       :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+      %-  ex-poke
+      :*  /prompts/revoke/(scot %p ~bus)
           [~bus %steward]
           %steward-prompts-action-1
           !>(`action:v1:p`[%revoke ~])
@@ -1319,6 +1326,13 @@
     %+  ex-cards  caz
     :~  %-  ex-poke
         :*  /prompts/sync/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%revoke ~])
+        ==
+      ::
+        %-  ex-poke
+        :*  /prompts/revoke/(scot %p ~bus)
             [~bus %steward]
             %steward-prompts-action-1
             !>(`action:v1:p`[%revoke ~])
@@ -1397,13 +1411,20 @@
   ::  ~bus is replaced (its revoke goes unconfirmed, so it sits in .stale)
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
-  ::  ...then restored. only the re-fan to ~bus and the revoke of ~fed may
-  ::  be emitted — no revoke to ~bus on the dedicated wire
+  ::  ...then restored. only the re-fan to ~bus and ~fed's revoke (on both
+  ::  its wires) may be emitted — nothing revokes ~bus, whose mirror is
+  ::  valid again
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
   %+  ex-cards  caz
   :~  %-  ex-poke
       :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+      %-  ex-poke
+      :*  /prompts/revoke/(scot %p ~fed)
           [~fed %steward]
           %steward-prompts-action-1
           !>(`action:v1:p`[%revoke ~])
@@ -1722,27 +1743,74 @@
     [%behn %wake ~]
   (ex-cards caz ~)
 ::
-::  the initial owner-change revoke rides the sync wire; its ack must clear
-::  the ship from .stale, or every later boot-shaped moment re-revokes every
-::  historical owner and the set grows without bound
+::  an owner-change revoke goes out on BOTH the shared sync wire (ordered
+::  after any %sync still in flight to that ship) and the dedicated revoke
+::  wire (whose ack can be attributed to a revoke)
 ::
-++  test-pr-revoke-ack-on-sync-wire-clears-stale
+++  test-pr-revoke-former-sends-both-wires
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
   ;<  ~  bind:m  setup
   ;<  ~  bind:m  (configure ~bus)
-  ::  ~bus becomes a former owner: revoked on the shared sync wire
+  ;<  caz=(list card)  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+    ::
+      %-  ex-poke
+      :*  /prompts/revoke/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+  ==
+::
+::  an ack on the SHARED sync wire cannot be attributed: it may belong to a
+::  %sync that was still in flight when the owner changed. clearing .stale
+::  on it would discard the revoke's only retry state, so a nacked revoke
+::  would leave the former owner's mirror in place forever
+::
+++  test-pr-sync-wire-ack-does-not-confirm-revoke
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ::  a %sync to ~bus is in flight when the owner changes to ~fed
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
   ;<  *  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ::  that older %sync acks first, on the wire the revoke also rides
   ;<  *  bind:m
     (do-agent [/prompts/sync/(scot %p ~bus) [~bus %steward] [%poke-ack ~]])
-  ::  a later boot-shaped moment revokes only the CURRENT owner's mirror
+  ::  ~bus must still be pending: a later boot-shaped moment re-revokes it
   ;<  caz=(list card)  bind:m
     (do-poke %steward-action-1 !>(`action:v1:s`[%unconfigure ~]))
   %+  ex-cards  caz
   :~  %-  ex-poke
+      :*  /prompts/revoke/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+    ::
+      %-  ex-poke
       :*  /prompts/sync/(scot %p ~fed)
+          [~fed %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%revoke ~])
+      ==
+    ::
+      %-  ex-poke
+      :*  /prompts/revoke/(scot %p ~fed)
           [~fed %steward]
           %steward-prompts-action-1
           !>(`action:v1:p`[%revoke ~])

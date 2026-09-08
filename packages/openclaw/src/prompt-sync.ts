@@ -18,7 +18,7 @@
  *   effect everywhere immediately.
  */
 import { randomUUID } from 'node:crypto';
-import { promises as fs } from 'node:fs';
+import nodeFs, { promises as fs } from 'node:fs';
 import path from 'node:path';
 import {
   DEFAULT_ACCOUNT_ID,
@@ -382,6 +382,38 @@ export function parsePromptSetFact(
  * or not a regular file (a symlink is never followed — see
  * readEffectivePrompts).
  */
+/**
+ * Open one prompt file with no-follow semantics and read it only if the
+ * descriptor itself is a regular file. Returns null when it is absent,
+ * unreadable, or not a regular file.
+ *
+ * lstat-then-open would leave a race: an untrusted workspace writer can
+ * swap the path for a symlink between the two, and the read would follow it
+ * to any file this process can read — whose contents get seeded to
+ * %steward and mirrored to the owner. O_NOFOLLOW rejects a symlinked final
+ * component at open time, O_NONBLOCK keeps a FIFO from hanging the open,
+ * and stat-then-read on the same fd cannot be swapped underneath.
+ */
+async function openPromptFileText(
+  filePath: string
+): Promise<string | null | 'not-regular'> {
+  const handle = await fs.open(
+    filePath,
+    nodeFs.constants.O_RDONLY |
+      nodeFs.constants.O_NOFOLLOW |
+      nodeFs.constants.O_NONBLOCK
+  );
+  try {
+    const info = await handle.stat();
+    if (!info.isFile()) {
+      return 'not-regular';
+    }
+    return await handle.readFile('utf8');
+  } finally {
+    await handle.close().catch(() => {});
+  }
+}
+
 async function readPromptFileIfRegular(
   workspaceDir: string,
   name: string,
@@ -389,11 +421,8 @@ async function readPromptFileIfRegular(
 ): Promise<string | null> {
   const filePath = path.join(workspaceDir, name);
   try {
-    const info = await fs.lstat(filePath);
-    if (!info.isFile()) {
-      return null;
-    }
-    return await fs.readFile(filePath, 'utf8');
+    const text = await openPromptFileText(filePath);
+    return text === 'not-regular' ? null : text;
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
       logger?.warn(`[tlon] Failed to read prompt file ${name}: ${error}`);
@@ -465,7 +494,19 @@ export async function readEffectivePrompts(
         );
         continue;
       }
-      const text = await fs.readFile(filePath, 'utf8');
+      // The lstat above only decided whether to REMOVE a link; the read
+      // itself must not trust it, since the path can be swapped for a
+      // symlink in between. openPromptFileText opens no-follow and stats
+      // the descriptor it will read from.
+      const opened = await openPromptFileText(filePath);
+      if (opened === null || opened === 'not-regular') {
+        ok = false;
+        logger?.warn(
+          `[tlon] Prompt file ${name} changed to a link or special file while being read; skipping the seed`
+        );
+        continue;
+      }
+      const text = opened;
       if (!isPromptTextWithinCap(text)) {
         // Same policy as a failed read: an omitted-but-running file must
         // not be dropped from the ship's canonical set by a partial seed.
@@ -520,18 +561,27 @@ export async function applyPromptsToWorkspace(opts: {
     try {
       let current: string | null = null;
       try {
-        // lstat before reading: a prepared workspace can plant an
-        // allowlisted name as a symlink or a FIFO, and reading one would
-        // either compare against an arbitrary file or (a FIFO, /dev/zero)
-        // block or balloon this reconcile forever. Anything but a regular
-        // file goes uncompared — the rename below replaces the node
-        // itself, since rename does not follow the final component.
-        const info = await fs.lstat(filePath);
-        if (info.isFile()) {
-          current = await fs.readFile(filePath, 'utf8');
-        }
+        // Opened no-follow, with the type checked on the descriptor that is
+        // read: a prepared workspace can plant an allowlisted name as a
+        // symlink or a FIFO — and can swap it in after any separate stat —
+        // so a check-then-open would still compare against an arbitrary
+        // file, or block forever on a FIFO. Anything but a regular file
+        // goes uncompared; the rename below replaces the node itself, since
+        // rename does not follow the final component.
+        const opened = await openPromptFileText(filePath);
+        current = opened === 'not-regular' ? null : opened;
       } catch (error) {
-        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+        const code = (error as NodeJS.ErrnoException)?.code;
+        // ELOOP: the final component is a symlink, so there is nothing of
+        // ours to compare against. ENXIO/EWOULDBLOCK: a FIFO with no
+        // writer. Both are replaced by the rename below.
+        if (
+          code !== 'ENOENT' &&
+          code !== 'ELOOP' &&
+          code !== 'ENXIO' &&
+          code !== 'EWOULDBLOCK' &&
+          code !== 'EAGAIN'
+        ) {
           throw error;
         }
       }

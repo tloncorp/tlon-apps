@@ -27,6 +27,18 @@ function makeAccountsConfig(tlon: Record<string, unknown>) {
 
 const logger = { log: vi.fn(), warn: vi.fn() };
 
+const failOpenFor = (needle: string, code = 'EACCES') => {
+  const realOpen = fs.promises.open.bind(fs.promises);
+  return vi
+    .spyOn(fs.promises, 'open')
+    .mockImplementation(async (file, ...rest) => {
+      if (String(file).endsWith(needle)) {
+        throw Object.assign(new Error(code), { code });
+      }
+      return realOpen(file as never, ...(rest as never[]));
+    });
+};
+
 let tmpDir: string;
 beforeEach(() => {
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'prompt-sync-'));
@@ -165,15 +177,9 @@ describe('applyPromptsToWorkspace / readEffectivePrompts', () => {
   it('reports ok=false when a prompt file read fails (non-ENOENT)', async () => {
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'readable');
     fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'unreadable');
-    const realReadFile = fs.promises.readFile.bind(fs.promises);
-    const readSpy = vi
-      .spyOn(fs.promises, 'readFile')
-      .mockImplementation(async (file, ...rest) => {
-        if (String(file).endsWith('SOUL.md')) {
-          throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
-        }
-        return realReadFile(file as never, ...(rest as never[]));
-      });
+    // The read opens no-follow and reads the descriptor, so the failure
+    // has to come from the open.
+    const readSpy = failOpenFor('SOUL.md');
     try {
       const effective = await readEffectivePrompts(tmpDir, logger);
       // The partial map must not be seeded as authoritative — %steward
@@ -835,6 +841,40 @@ describe('createPromptSync abort during foreign cleanup', () => {
   });
 });
 
+describe('prompt reads open no-follow', () => {
+  it('does not follow a symlink swapped in after the type check', async () => {
+    // A separate stat cannot protect the read: an untrusted workspace
+    // writer can replace the path between them, and the read would follow
+    // the link to any file this process can read — straight into %steward
+    // and the owner's mirror.
+    const secret = path.join(tmpDir, 'secret');
+    fs.writeFileSync(secret, 'private contents that must not be seeded');
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'ours');
+    const realLstat = fs.promises.lstat.bind(fs.promises);
+    const lstatSpy = vi
+      .spyOn(fs.promises, 'lstat')
+      .mockImplementation(async (target) => {
+        const info = await realLstat(target as never);
+        if (String(target).endsWith('USER.md')) {
+          // The window between the check and the open.
+          fs.unlinkSync(path.join(tmpDir, 'USER.md'));
+          fs.symlinkSync(secret, path.join(tmpDir, 'USER.md'));
+        }
+        return info;
+      });
+    try {
+      const effective = await readEffectivePrompts(tmpDir, logger);
+      expect(effective.prompts['USER.md']).toBeUndefined();
+      expect(effective.ok).toBe(false);
+      expect(fs.readFileSync(secret, 'utf8')).toBe(
+        'private contents that must not be seeded'
+      );
+    } finally {
+      lstatSpy.mockRestore();
+    }
+  });
+});
+
 describe('readEffectivePrompts teardown', () => {
   it('does not remove a symlinked prompt once torn down', async () => {
     // The lstat awaits, so a replacement monitor can atomically publish a
@@ -860,14 +900,16 @@ describe('createPromptSync abort before a foreign unlink', () => {
     // after its stamp pass finished leaves the new bot without that prompt.
     const controller = new AbortController();
     fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'former owner notes');
-    const realLstat = fs.promises.lstat.bind(fs.promises);
+    const realOpen = fs.promises.open.bind(fs.promises);
     const lstatSpy = vi
-      .spyOn(fs.promises, 'lstat')
-      .mockImplementation(async (target) => {
+      .spyOn(fs.promises, 'open')
+      .mockImplementation(async (target, ...rest) => {
+        // The text-inference read opens the file (no-follow) rather than
+        // lstat-ing it, so this is where the teardown lands.
         if (String(target).endsWith('USER.md')) {
           controller.abort();
         }
-        return realLstat(target as never);
+        return realOpen(target as never, ...(rest as never[]));
       });
     try {
       const sync = createPromptSync({
@@ -1168,15 +1210,7 @@ describe('createPromptSync startup with unreadable workspace', () => {
   it('skips the seed when a prompt file read fails', async () => {
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'readable');
     fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'unreadable');
-    const realReadFile = fs.promises.readFile.bind(fs.promises);
-    const readSpy = vi
-      .spyOn(fs.promises, 'readFile')
-      .mockImplementation(async (file, ...rest) => {
-        if (String(file).endsWith('SOUL.md')) {
-          throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
-        }
-        return realReadFile(file as never, ...(rest as never[]));
-      });
+    const readSpy = failOpenFor('SOUL.md');
     try {
       const poke = vi.fn(
         async (_params: { app: string; mark: string; json: unknown }) => ({})
