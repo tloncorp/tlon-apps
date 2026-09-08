@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-import { AnalyticsEvent } from '../types/analytics';
 
 type ApiLogger = Console & {
   crumb: (...args: unknown[]) => void;
@@ -97,14 +96,23 @@ export function createDevLogger(tag: string, enabled: boolean): ApiLogger {
 
 /** Curried for `.catch(reportBackgroundFailure(logger, 'mark invites read'))`. */
 export function reportBackgroundFailure(
-  logger: { trackEvent: (eventId: string, data?: Record<string, any>) => void },
+  logger: {
+    trackError: (
+      message: string,
+      data?: Error | Record<string, unknown>
+    ) => void;
+  },
   context: string
 ) {
   return (e: unknown) => {
-    logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
-      context,
-      errorMessage: e instanceof Error ? e.message : String(e),
-    });
+    // trackError, not trackEvent: a fire-and-forget failure is still a
+    // failure, and Sentry is where we want to see them. The context is part
+    // of the title because Sentry fingerprints on it, so each cause gets its
+    // own issue rather than one undifferentiated pile.
+    logger.trackError(
+      `background request failed: ${context}`,
+      e instanceof Error ? { error: e } : { errorMessage: String(e) }
+    );
   };
 }
 

@@ -50,7 +50,6 @@ export enum AnalyticsEvent {
   AuthFailedToGetCode = 'Failed to get access code',
   AuthForcedLogout = 'Auth Forced Logout',
   NodeConnectionDebug = 'Node Connection Debug',
-  BackgroundRequestFailed = 'Background Request Failed',
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
   OnNetworkInvite = 'Sent On Network Group Invite',
