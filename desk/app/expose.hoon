@@ -5,11 +5,10 @@
 ::  and remove the matching contacts metadata before this agent is deleted.
 ::
 /-  c=cite, co=contacts
-/+  default-agent, dbug, hutils, verb
+/+  hutils=http-utils, dbug, verb
 ::
 |%
 +$  card  card:agent:gall
-+$  state-3  [%3]
 +$  state-2
   $:  %2
       open=(set cite:c)
@@ -17,7 +16,7 @@
   ==
 +$  state-1  [%1 open=(set cite:c)]
 +$  state-0  [%0 open=(set cite:c)]
-+$  versioned-state  $%(state-3 state-2 state-1 state-0)
++$  versioned-state  $%(state-2 state-1 state-0)
 ::
 ++  e
   |%
@@ -41,7 +40,7 @@
     `[%pass /contacts/clear-expose %agent [our %contacts] %poke cage]
   ::
   ++  teardown-cards
-    |=  open=(set cite:c)
+    |=  [=bowl:gall open=(set cite:c)]
     ^-  (list card)
     =/  pages=(list card)
       (turn ~(tap in open) clear-page)
@@ -49,14 +48,13 @@
   --
 --
 ::
-=|  state-3
+=|  state-2
 =*  state  -
 %-  agent:dbug
 %^  verb  |  %warn
 ^-  agent:gall
 |_  =bowl:gall
 +*  this  .
-    def   ~(. (default-agent this %.n) bowl)
 ::
 ++  on-init
   ^-  (quip card _this)
@@ -69,16 +67,33 @@
   =+  !<(old=versioned-state vase)
   =?  old  ?=(%0 -.old)  [%1 open.old]
   =?  old  ?=(%1 -.old)  [%2 open.old &]
-  ?:  ?=(%3 -.old)
-    [~ this]
-  =.  state  [%3]
-  [(teardown-cards:e open.old) this]
+  ?>  ?=(%2 -.old)
+  =.  state  old
+  [(teardown-cards:e [bowl open.old]) this]
 ::
-++  on-poke   on-poke:def
-++  on-watch  on-watch:def
-++  on-peek   on-peek:def
-++  on-leave  on-leave:def
-++  on-agent  on-agent:def
-++  on-arvo   on-arvo:def
-++  on-fail   on-fail:def
+++  on-poke
+  |=  [=mark =vase]
+  ^-  (quip card _this)
+  [~ this]
+++  on-watch
+  |=  =path
+  ^-  (quip card _this)
+  [~ this]
+++  on-peek
+  |=  =path
+  ^-  (unit (unit cage))
+  [~ ~]
+++  on-leave  |=(* [~ this])
+++  on-agent
+  |=  [=wire =sign:agent:gall]
+  ^-  (quip card _this)
+  [~ this]
+++  on-arvo
+  |=  [=wire =sign-arvo]
+  ^-  (quip card _this)
+  [~ this]
+++  on-fail
+  |=  [=term =tang]
+  ^-  (quip card _this)
+  [~ this]
 --
