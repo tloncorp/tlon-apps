@@ -24,6 +24,7 @@ import {
   keyboardScenarios,
   replayKeyboardEvidence,
   pendingSendScenario,
+  failedSendRetryScenario,
   replayPendingSendEvidence,
 } from './scroll-stability-keyboard-evidence.mjs';
 import {
@@ -122,6 +123,22 @@ export const webScenarioRegistry = [
       pendingSendAttachment: pendingSendScenario.attachment,
       pendingSendRawAttachment: pendingSendScenario.rawAttachment,
       evidenceLevel: 'sampled-dom-pending-send-read',
+    }
+  ),
+  web(
+    'failed-send-retry',
+    failedSendRetryScenario.title,
+    failedSendRetryScenario.matrix,
+    [],
+    [],
+    'One exact test-owned send fails before forwarding; its real Retry keeps the provisional identity and newer reading intent through one durable commit. Sampled DOM/transport only; offline/background/reconnect, cross-scope cancellation and presentation remain unqualified.',
+    {
+      source: failedSendRetryScenario.source,
+      suite: null,
+      requirePendingSendProof: true,
+      pendingSendAttachment: failedSendRetryScenario.attachment,
+      pendingSendRawAttachment: failedSendRetryScenario.rawAttachment,
+      evidenceLevel: 'sampled-dom-failed-send-retry',
     }
   ),
   ...keyboardScenarios.map((item) =>

@@ -208,6 +208,212 @@ export function assessSeededInput(raw: any, grown: string, end: number) {
   return result;
 }
 
+// CDP retains the real navigation query; pathname owns the mounted scope.
+// Query IDs, when present, must agree with that scope rather than be discarded.
+function ownedWheelTarget(url: unknown, session: any) {
+  try {
+    if (typeof url !== 'string') return false;
+    const target = new URL(url);
+    if (
+      target.origin !== session.origin ||
+      target.pathname !== session.scope ||
+      target.username ||
+      target.password ||
+      target.hash
+    )
+      return false;
+    const route = /^\/apps\/groups\/group\/([^/]+)\/channel\/([^/]+)$/.exec(
+      session.scope
+    );
+    const expected: Record<string, string | undefined> = {
+      channelId: session.channel,
+      groupId: route ? decodeURIComponent(route[1]) : undefined,
+      screen: 'ChannelRoot',
+    };
+    if (route && decodeURIComponent(route[2]) !== session.channel) return false;
+    for (const [key, value] of Object.entries(expected)) {
+      const values = target.searchParams.getAll(key);
+      if (
+        values.length &&
+        (values.length !== 1 || value === undefined || values[0] !== value)
+      )
+        return false;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Chromium 136 keeps the native compositor scale while emulating DOM DPR.
+// Admit only raw, same-action metrics; a missing witness never implies 1x.
+function validSeededWheel(proof: any, entry: any, events: any[]) {
+  const { session } = proof;
+  const source = session.wheelSource,
+    dispatch = entry.wheelDispatch;
+  if (
+    source?.version?.product !== 'Chrome/136.0.7103.25' ||
+    source.version.revision !== '@97d495678dc307bfe6d6475901104e262ec7a487' ||
+    source.version.protocolVersion !== '1.3' ||
+    session.browser !== '136.0.7103.25' ||
+    !source.target?.targetId ||
+    source.target.type !== 'page' ||
+    !ownedWheelTarget(source.target.url, session) ||
+    !dispatch ||
+    dispatch.actionId !== entry.action.id ||
+    dispatch.sessionToken !== session.token ||
+    dispatch.targetId !== source.target.targetId ||
+    dispatch.deltaX !== 0 ||
+    dispatch.deltaY !== entry.action.wheelY ||
+    !Number.isFinite(dispatch.start) ||
+    !Number.isFinite(dispatch.end) ||
+    !Number.isFinite(dispatch.commandReturnedAt) ||
+    dispatch.commandReturnedAt < dispatch.start ||
+    dispatch.commandReturnedAt > dispatch.end ||
+    dispatch.end < dispatch.start ||
+    dispatch.end - dispatch.start > 250 ||
+    events.length !== 1
+  )
+    return false;
+  const event = events[0];
+  if (
+    !dispatch.receipt ||
+    dispatch.receipt.error ||
+    ['time', 'observedAt', 'timeOrigin', 'scope'].some(
+      (key) => dispatch.receipt[key] !== event[key]
+    )
+  )
+    return false;
+  const original = proof.deliveries?.events?.filter(
+    (e: any) =>
+      e.type === 'wheel' && e.time >= entry.start && e.time <= entry.end
+  );
+  if (
+    original?.length !== 1 ||
+    [
+      'type',
+      'time',
+      'observedAt',
+      'timeOrigin',
+      'scope',
+      'trusted',
+      'inConversation',
+      'deltaX',
+      'deltaY',
+      'deltaMode',
+    ].some((key) => original[0][key] !== event[key])
+  )
+    return false;
+  const keys = [
+    'dpr',
+    'width',
+    'height',
+    'visualWidth',
+    'visualHeight',
+    'visualScale',
+    'visualX',
+    'visualY',
+    'topFrame',
+  ];
+  let expectedSurface: any;
+  let nativeScale: number | undefined;
+  for (const [i, measurement] of [dispatch.before, dispatch.after].entries()) {
+    if (!measurement?.before || !measurement.after || !measurement.metrics)
+      return false;
+    const { before, after, metrics } = measurement;
+    if (
+      !Number.isFinite(before.time) ||
+      !Number.isFinite(after.time) ||
+      before.time < entry.start ||
+      after.time > entry.end ||
+      after.time < before.time ||
+      after.time - before.time > proof.plan.limits.maxMeasurementMs ||
+      (i === 0 ? after.time > dispatch.start : before.time < dispatch.end)
+    )
+      return false;
+    for (const snapshot of [before, after]) {
+      const surface = snapshot.surface;
+      if (
+        snapshot.timeOrigin !== session.timeOrigin ||
+        snapshot.scope !== session.scope ||
+        snapshot.origin !== session.origin ||
+        !surface ||
+        !Number.isFinite(surface.dpr) ||
+        surface.dpr <= 0 ||
+        surface.width !== session.viewport.width ||
+        surface.height !== session.viewport.height ||
+        surface.visualWidth !== surface.width ||
+        surface.visualHeight !== surface.height ||
+        surface.visualScale !== 1 ||
+        surface.visualX !== 0 ||
+        surface.visualY !== 0 ||
+        surface.topFrame !== true
+      )
+        return false;
+      if (
+        expectedSurface &&
+        keys.some((key) => surface[key] !== expectedSurface[key])
+      )
+        return false;
+      expectedSurface = surface;
+    }
+    const physical = metrics.visualViewport,
+      css = metrics.cssVisualViewport;
+    if (
+      !physical ||
+      !css ||
+      !Number.isFinite(physical.clientWidth) ||
+      physical.clientWidth <= 0 ||
+      !Number.isFinite(physical.clientHeight) ||
+      physical.clientHeight <= 0 ||
+      css.clientWidth !== expectedSurface.visualWidth ||
+      css.clientHeight !== expectedSurface.visualHeight ||
+      physical.zoom !== 1 ||
+      css.zoom !== 1 ||
+      physical.scale !== 1 ||
+      css.scale !== 1 ||
+      physical.offsetX !== 0 ||
+      physical.offsetY !== 0 ||
+      css.offsetX !== 0 ||
+      css.offsetY !== 0
+    )
+      return false;
+    // These floating-point visual dimensions share the same physical/CSS
+    // conversion; the rounded layout-viewport dimensions are deliberately unused.
+    const scale = physical.clientWidth / css.clientWidth;
+    if (
+      scale !== physical.clientHeight / css.clientHeight ||
+      (nativeScale !== undefined && scale !== nativeScale)
+    )
+      return false;
+    nativeScale = scale;
+  }
+  return (
+    event.trusted === true &&
+    event.type === 'wheel' &&
+    event.deltaMode === 0 &&
+    event.scope === session.scope &&
+    event.timeOrigin === session.timeOrigin &&
+    event.inConversation === true &&
+    Number.isFinite(event.time) &&
+    Number.isFinite(event.observedAt) &&
+    event.time >= dispatch.start &&
+    event.time <= dispatch.commandReturnedAt &&
+    event.observedAt >= event.time &&
+    event.observedAt <= dispatch.end &&
+    event.observedAt - event.time <= proof.plan.limits.maxGapMs &&
+    event.surface &&
+    original[0].surface &&
+    keys.every(
+      (key) =>
+        event.surface[key] === expectedSurface[key] &&
+        original[0].surface[key] === event.surface[key]
+    ) &&
+    event.deltaX === 0 &&
+    event.deltaY === (dispatch.deltaY * nativeScale!) / expectedSurface.dpr
+  );
+}
+
 /** This fixed-purpose composition never accepts an attached producer verdict. */
 export function assessSeededSession(proof: any) {
   const issues: {
@@ -479,14 +685,7 @@ export function assessSeededSession(proof: any) {
           proof.wheels?.filter(
             (w: any) => w.time >= wheel.start && w.time <= wheel.end
           ) ?? [];
-        if (
-          wheels.length !== 1 ||
-          !wheels[0].trusted ||
-          wheels[0].scope !== session.scope ||
-          wheels[0].timeOrigin !== session.timeOrigin ||
-          !wheels[0].inConversation ||
-          wheels[0].deltaY !== wheel.action.wheelY
-        )
+        if (!validSeededWheel(proof, wheel, wheels))
           add('wheel-not-delivered', 'incomplete', wheel.action.id);
         const clicks = trace.events.filter(
           (e: any) =>

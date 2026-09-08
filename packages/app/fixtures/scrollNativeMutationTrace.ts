@@ -43,6 +43,11 @@ const object = (x: unknown): x is Record<string, any> =>
   x !== null && typeof x === 'object' && !Array.isArray(x);
 const finite = (x: unknown): x is number =>
   typeof x === 'number' && Number.isFinite(x);
+const localBounds = (x: unknown) =>
+  object(x) &&
+  [x.x, x.y, x.width, x.height].every(finite) &&
+  x.width > 0 &&
+  x.height > 0;
 const text = (x: unknown): x is string =>
   typeof x === 'string' && x.length > 0 && x.length <= 4096;
 const stable = (x: any): any =>
@@ -316,6 +321,7 @@ function assessNativeBoundTrace(
   let lastQualifiedSemanticTime = -Infinity;
   const structuralIssueStart = sharedIssues.length;
   let anchorShape: unknown, stationarySurfaces: unknown;
+  let usesLocalBounds: boolean | undefined;
   for (const [index, frame] of recording.frames
     .slice(0, qualifiedFrameLimit)
     .entries()) {
@@ -323,6 +329,25 @@ function assessNativeBoundTrace(
     // manufacture deadline absence or revive a later owner's observations.
     if (hasIncomplete(sharedIssues.slice(structuralIssueStart))) break;
     const g = frame.geometry as any;
+    const declaredLocalBounds = g.localBoundsVersion !== undefined;
+    if (declaredLocalBounds && g.localBoundsVersion !== 1) {
+      add('native-local-bounds-version-invalid', index);
+      continue;
+    }
+    usesLocalBounds ??= declaredLocalBounds;
+    if (usesLocalBounds !== declaredLocalBounds) {
+      add('native-local-bounds-mode-changed', index);
+      continue;
+    }
+    if (
+      !usesLocalBounds &&
+      [...g.rows, ...g.ruler.cells].some(
+        (r: any) => r.view?.localBounds !== undefined
+      )
+    ) {
+      add('native-local-bounds-undeclared', index);
+      continue;
+    }
     if (g.scroll.tracking || g.scroll.dragging || g.scroll.decelerating)
       add('native-mutation-not-stationary', index);
     if (!mutation) {
@@ -491,6 +516,16 @@ function assessNativeBoundTrace(
         cell = g.ruler.cells.find((c: any) => c.id === `scroll-cell-${key}`),
         binding = b.rows.find((r: any) => r.rowId === row.id);
       if (
+        usesLocalBounds &&
+        (!localBounds(row.view?.localBounds) ||
+          !localBounds(cell?.view?.localBounds))
+      )
+        (key === contract.anchorKey
+          ? addAnchor
+          : key === mutation?.key
+            ? addMutation
+            : add)('native-local-bounds-unavailable', index);
+      if (
         !object(binding) ||
         binding.status !== 'ok' ||
         binding.key !== key ||
@@ -555,8 +590,11 @@ function assessNativeBoundTrace(
           meta?.signature,
           anchor.frame.width,
           anchor.frame.height,
-          anchorCell.frame.width,
-          anchorCell.frame.height,
+          // Local bounds define reserved shape only when the same native
+          // observation declares them. Legacy captures keep exact window shape.
+          ...(usesLocalBounds
+            ? [anchor.localBounds, anchorCell.localBounds]
+            : [anchorCell.frame.width, anchorCell.frame.height]),
         ];
         if (!signature(meta?.signature))
           addAnchor('native-anchor-signature-invalid', index);

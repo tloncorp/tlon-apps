@@ -34,6 +34,7 @@ export const pendingSendScenario: {
   rawAttachment: string;
   matrix: string[];
 };
+export const failedSendRetryScenario: typeof pendingSendScenario;
 export function replayPendingSendEvidence(
   attachment: unknown,
   raw: unknown,

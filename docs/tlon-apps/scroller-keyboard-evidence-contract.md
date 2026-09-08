@@ -133,3 +133,55 @@ reconciliation. A complete but wrong terminal UI identity is a failure; malforme
 or incomplete backend inventory remains incomplete evidence. A separately valid
 reading-position failure remains a failure when an unrelated wire receipt is
 unavailable. These checks tighten evidence qualification, not scroller policy.
+
+### Failed own send and trusted Retry (SND-05/08; AC-09/12/20)
+
+Declared before controls and execution. A separate normal-app case starts at
+Latest, sends the exact owned text once with Enter, and holds only that matching
+channel post-add request before forwarding. Once the actual pending row appears,
+fail that one request locally with `blockedbyclient`. No ship, authentication,
+global offline state or unrelated request changes. Require the actual failed-row
+Retry affordance, empty draft, unchanged provisional identity/text, zero backend
+copies, and measured legal-end gap at most1px throughout the failed interval.
+
+Click that exposed row's real Retry affordance once and hold its new PUT. Require
+a trusted click receipt with the actual provisional ID and unchanged
+channel/author/sent/content with a distinct poke ID. Then deliver real upward
+wheel input, acquire an exposed immutable reading-character baseline, and forward
+only the held Retry request unchanged. This deliberately puts newer READ intent
+after Retry; it never scrolls an offscreen Retry target back into view. Require
+one real success acknowledgement, one durable reconciled post, no restored draft
+or late return to Latest, and a reading point held within1px.
+
+Reuse the existing release+5000ms fixed capture, terminal-by4000ms, one-second
+tail, 100ms maximum sample gap and 32ms acquisition. Here release means forwarding
+the held retry. Observe the failed state for at least200ms before Retry. Missing
+Retry, unobserved/virtualized failed target, callback error or unavailable exact
+transport evidence is INCOMPLETE. Independently valid wrong identity, duplicate
+send or reading movement remains FAIL. Finalizers remove only this route and its
+listeners even if capture export or attachment fails.
+
+Canonical replay binds the distinct title, raw attachment and attempt; producer
+assessment cannot substitute for replay. Headless and headed Chromium both retain
+their actual mode, while presented pixels/caret stay unqualified. This closes only
+the failed-send/retry portion of SND-08. Offline, background, reconnect,
+navigation-away cancellation and duplicate server-event injection remain separate
+accepted situations. No product runtime has yet qualified this new case.
+
+#### Exact rendered-string correction after the first Retry attempt
+
+R1 observed the genuine failed row, but its rendered Retry label is exactly
+`Send failed,click to retry` (no space after the comma). The plain-message leaf
+retains the existing encoder's trailing space: input text plus one U+0020. Bind
+those exact strings in the locator, captured event, counter and reader; do not
+trim, collapse or generically normalize either. The original attempt remains
+INCOMPLETE, with no Retry/READ phase executed. All geometry, phase, acquisition,
+transport and fixed-tail limits remain unchanged.
+
+R1's retained screenshot and actual DOM show the complete message/Retry text while
+the row wrapper includes additional bottom padding. Visibility therefore measures
+the unique message leaf and actual Retry label boxes, their ancestor clipping and
+actual hit targets, not empty wrapper space. Retain these rectangles in the same
+sample. Dispatch the trusted mouse click at the freshly observed Retry box
+center, without locator scrolling. The existing one-pixel movement, sampling and
+phase limits are unchanged; clipped or intercepted content remains INCOMPLETE.

@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import {
   assessScrollKeyboardTrace,
   assessPendingSendEvidence,
+  FAILED_SEND_RETRY_TITLE,
   createKeyboardPlan,
 } from '../packages/app/fixtures/scrollKeyboardTrace.ts';
 
@@ -198,6 +199,15 @@ export const pendingSendScenario = {
   matrix: ['SND-04', 'RAC-08', 'AC-12'],
 };
 
+export const failedSendRetryScenario = {
+  scenario: 'web-failed-send-retry',
+  title: FAILED_SEND_RETRY_TITLE,
+  source: pendingSendScenario.source,
+  attachment: 'failed-send-retry-proof',
+  rawAttachment: 'failed-send-retry-raw',
+  matrix: ['SND-05', 'SND-08', 'AC-09', 'AC-12', 'AC-20'],
+};
+
 /** Exact raw association plus the bounded real-send contract. Assets are observed
  * browser resources, not a freshly qualified build receipt. */
 export function replayPendingSendEvidence(attachment, raw, attempt) {
@@ -213,7 +223,10 @@ export function replayPendingSendEvidence(attachment, raw, attempt) {
     if (
       !proof ||
       !isDeepStrictEqual(proof, raw) ||
-      attempt?.title !== pendingSendScenario.title ||
+      ![pendingSendScenario.title, failedSendRetryScenario.title].includes(
+        attempt?.title
+      ) ||
+      proof.title !== attempt.title ||
       !Number.isFinite(start) ||
       !Number.isFinite(attempt?.duration) ||
       !(attempt?.duration > 0) ||

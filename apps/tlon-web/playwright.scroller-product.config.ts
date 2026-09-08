@@ -8,6 +8,10 @@ import config from './playwright.scroller-warm.config';
  */
 export default defineConfig({
   ...config,
+  // Debug recording runs during the test even when artifacts are retained only
+  // on failure. Measurement runs keep explicit collectors and failure screenshots;
+  // use Playwright's --trace override for a separate diagnostic run.
+  use: { ...config.use, trace: 'off', video: 'off' },
   testMatch: [
     'scroller-stability.spec.ts',
     'scroller-reading-stability.spec.ts',

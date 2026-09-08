@@ -171,7 +171,7 @@ export async function startScrollInputTrace(
           (bounds.left + bounds.right) / 2,
           (bounds.top + bounds.bottom) / 2
         );
-        samples.push({
+        const next = {
           time: performance.now(),
           valid: element.isConnected && sendElement.isConnected,
           scopeKey: location.pathname,
@@ -185,7 +185,16 @@ export async function startScrollInputTrace(
           sendHitTestable:
             target !== null &&
             (target === sendElement || sendElement.contains(target)),
-        });
+        };
+        // Multiple input acknowledgements can share the browser clock's
+        // precision. An identical snapshot adds no time or state evidence;
+        // changed state at that same time must remain for the reader to reject.
+        const previous = samples.at(-1);
+        if (
+          previous?.time !== next.time ||
+          JSON.stringify(previous) !== JSON.stringify(next)
+        )
+          samples.push(next);
         if (active && schedule) raf = requestAnimationFrame(() => sample());
       }
       function record(

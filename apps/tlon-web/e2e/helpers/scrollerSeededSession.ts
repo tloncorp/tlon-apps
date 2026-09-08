@@ -1,6 +1,7 @@
 import {
   expect,
   type Browser,
+  type CDPSession,
   type Page,
   type TestInfo,
 } from '@playwright/test';
@@ -144,12 +145,46 @@ async function acquireReading(
   };
 }
 
+// Read only: the same retained Page owns the CDP session and both page-clock
+// brackets. No emulation command or product-derived conversion factor is used.
+async function readWheelSurface(page: Page, client: CDPSession | undefined) {
+  const snapshot = () =>
+    page.evaluate(() => ({
+      time: performance.now(),
+      timeOrigin: performance.timeOrigin,
+      scope: location.pathname,
+      origin: location.origin,
+      surface: {
+        dpr: devicePixelRatio,
+        width: innerWidth,
+        height: innerHeight,
+        visualWidth: visualViewport?.width,
+        visualHeight: visualViewport?.height,
+        visualScale: visualViewport?.scale,
+        visualX: visualViewport?.offsetLeft,
+        visualY: visualViewport?.offsetTop,
+        topFrame: window === window.top,
+      },
+    }));
+  try {
+    if (!client) return { error: 'Wheel CDP owner unavailable' };
+    const before = await snapshot();
+    const metrics = await client.send('Page.getLayoutMetrics');
+    const after = await snapshot();
+    return { before, metrics, after };
+  } catch (error) {
+    return { error: String(error) };
+  }
+}
+
 /** One scope-owned observation listener; it does not alter input or scrolling. */
 async function observeActions(page: Page) {
   return page.evaluateHandle(() => {
     const timeOrigin = performance.timeOrigin,
       events: any[] = [],
-      errors: string[] = [];
+      errors: string[] = [],
+      waiters = new Set<() => void>();
+    let stopped = false;
     const record = (event: Event) => {
       const target = event.target instanceof Element ? event.target : null;
       events.push({
@@ -161,7 +196,24 @@ async function observeActions(page: Page) {
         trusted: event.isTrusted,
         testId:
           target?.closest('[data-testid]')?.getAttribute('data-testid') ?? null,
-        deltaY: event instanceof WheelEvent ? event.deltaY : null,
+        ...(event instanceof WheelEvent
+          ? {
+              deltaX: event.deltaX,
+              deltaY: event.deltaY,
+              deltaMode: event.deltaMode,
+              surface: {
+                dpr: devicePixelRatio,
+                width: innerWidth,
+                height: innerHeight,
+                visualWidth: visualViewport?.width,
+                visualHeight: visualViewport?.height,
+                visualScale: visualViewport?.scale,
+                visualX: visualViewport?.offsetLeft,
+                visualY: visualViewport?.offsetTop,
+                topFrame: window === window.top,
+              },
+            }
+          : {}),
         ...(event instanceof KeyboardEvent
           ? {
               key: event.key,
@@ -186,6 +238,7 @@ async function observeActions(page: Page) {
           })(),
         value: target instanceof HTMLTextAreaElement ? target.value : null,
       });
+      for (const wake of waiters) wake();
       if (events.length > 10000) {
         errors.push('Action event capacity exceeded');
         stop();
@@ -202,10 +255,47 @@ async function observeActions(page: Page) {
     ];
     for (const kind of kinds) window.addEventListener(kind, record, true);
     function stop() {
+      stopped = true;
+      for (const wake of waiters) wake();
       for (const kind of kinds) window.removeEventListener(kind, record, true);
       return { events, errors };
     }
-    return { stop };
+    // The native command may return before this non-blocking DOM listener runs.
+    // Wait on this same observer, without selecting for a desirable payload.
+    function waitForWheel(start: number) {
+      return new Promise((resolve) => {
+        const deadline = start + 250;
+        const timer = setTimeout(
+          check,
+          Math.max(0, deadline - performance.now())
+        );
+        function finish(value: unknown) {
+          clearTimeout(timer);
+          waiters.delete(check);
+          resolve(value);
+        }
+        function check() {
+          const event = events.find(
+            (e) => e.type === 'wheel' && e.observedAt >= start
+          );
+          if (stopped) finish({ error: 'Wheel observer stopped' });
+          else if (!Number.isFinite(start))
+            finish({ error: 'Invalid wheel dispatch clock' });
+          else if (event && event.observedAt <= deadline)
+            finish({
+              time: event.time,
+              observedAt: event.observedAt,
+              timeOrigin: event.timeOrigin,
+              scope: event.scope,
+            });
+          else if (performance.now() >= deadline)
+            finish({ error: 'Wheel listener receipt exceeded 250ms' });
+        }
+        waiters.add(check);
+        check();
+      });
+    }
+    return { stop, waitForWheel };
   });
 }
 
@@ -348,6 +438,7 @@ export async function runSeededSession(
     stop: () => Promise<unknown>;
   }[] = [];
   let activePresence = false;
+  let wheelClient: CDPSession | undefined;
   try {
     await helpers.inviteMembersToGroup(page, ['ten']);
     await helpers.acceptGroupInvite(ten, '~ten, ~zod');
@@ -395,6 +486,16 @@ export async function runSeededSession(
       viewport: { width: 1280, height: 800 },
       browser: browser.version(),
     };
+    try {
+      wheelClient = await page.context().newCDPSession(page);
+      const version = await wheelClient.send('Browser.getVersion');
+      const { targetInfo: target } = await wheelClient.send(
+        'Target.getTargetInfo'
+      );
+      proof.session.wheelSource = { version, target };
+    } catch (error) {
+      proof.session.wheelSource = { error: String(error) };
+    }
     proof.session.sender = await ten.evaluate(() => ({
       timeOrigin: performance.timeOrigin,
       origin: location.origin,
@@ -520,7 +621,29 @@ export async function runSeededSession(
               viewport.x + viewport.width / 2,
               viewport.y + viewport.height / 2
             );
+            const dispatch = {
+              actionId: action.id,
+              sessionToken: proof.session.token,
+              targetId: proof.session.wheelSource?.target?.targetId,
+              deltaX: 0,
+              deltaY: action.wheelY,
+              before: await readWheelSurface(page, wheelClient),
+              start: await now(page),
+              commandReturnedAt: NaN,
+              receipt: undefined as unknown,
+              end: NaN,
+              after: undefined as unknown,
+            };
+            entry.wheelDispatch = dispatch;
+            // The seeded quantity remains the exact original driver command.
             await page.mouse.wheel(0, action.wheelY!);
+            dispatch.commandReturnedAt = await now(page);
+            dispatch.receipt = await events.evaluate(
+              (observer, start) => observer.waitForWheel(start),
+              dispatch.start
+            );
+            dispatch.end = await now(page);
+            dispatch.after = await readWheelSurface(page, wheelClient);
             await settlePostScroller(current);
             reading = await acquireReading(page, current, corpus);
             block.readingContract = reading.contract;
@@ -717,6 +840,10 @@ export async function runSeededSession(
           proof.errors.push(`Events disposal: ${String(error)}`);
         });
       }
+    if (wheelClient)
+      await wheelClient.detach().catch((error) => {
+        proof.errors.push(`Wheel CDP disposal: ${String(error)}`);
+      });
     proof.sessionAfter = await page
       .evaluate(() => ({
         timeOrigin: performance.timeOrigin,

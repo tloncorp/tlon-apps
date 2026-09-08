@@ -1212,3 +1212,557 @@ describe('pending-send proof integrity after independent review', () => {
     ).toBe('INCOMPLETE');
   });
 });
+
+import {
+  createFailedSendGate,
+  FAILED_SEND_RETRY_TITLE,
+  pendingSendTargetIsExposed,
+} from './scrollKeyboardTrace';
+import { failedSendRetryScenario } from '../../../scripts/scroll-stability-keyboard-evidence.mjs';
+
+function failedRetryEvidence(): PendingSendEvidence {
+  const p = pendingSendEvidence();
+  p.title = FAILED_SEND_RETRY_TITLE;
+  p.preparation.headed = false;
+  p.preparation.driver.headless = true;
+  const retryRequest = structuredClone(p.request!);
+  (retryRequest.actions as any[])[0].id = 43;
+  retryRequest.body = JSON.stringify(retryRequest.actions);
+  retryRequest.heldAt = 885;
+  retryRequest.releasedAt = 1205;
+  retryRequest.continuedAt = 1210;
+  retryRequest.abortedAt = null;
+  p.request!.continuedAt = null;
+  p.request!.releasedAt = 555;
+  p.request!.abortedAt = 560;
+  p.retry = {
+    version: 1,
+    failureCode: 'blockedbyclient',
+    failedAt: 600,
+    retryAt: 875,
+    postId: '1.100',
+    request: retryRequest,
+    requestCount: 2,
+    failedBackend: {
+      ...structuredClone(p.backend[0]),
+      startedAt: 620,
+      completedAt: 670,
+    },
+  };
+  p.events.push({
+    type: 'click',
+    time: 880,
+    observedAt: 881,
+    trusted: true,
+    scope: p.scope,
+    target: 'list',
+    postId: '1.100',
+    retryLabel: 'Send failed,click to retry',
+    clientX: 40,
+    clientY: 50,
+    value: '',
+  });
+  p.marks.find((m) => m.id === 'read')!.time = 1050;
+  p.marks.find((m) => m.id === 'release')!.time = 1200;
+  p.marks.at(-1)!.time = 1500;
+  p.events.find((e) => e.type === 'wheel')!.time = 910;
+  p.events.find((e) => e.type === 'wheel')!.observedAt = 912;
+  p.events.sort((a, b) => a.time - b.time);
+  p.plannedEnd = 6200;
+  p.backend[1].startedAt = 1400;
+  p.backend[1].completedAt = 1450;
+  p.sse.messages[0].raw = JSON.stringify({
+    id: 43,
+    response: 'poke',
+    ok: null,
+  });
+  p.sse.messages[0].receivedAt = 1390;
+  p.readingContract!.terminalTime = 1500;
+  p.readingContract!.coverage.startTime = 1050;
+  p.readingContract!.coverage.endTime = 2500;
+  p.reading!.marks[0].time = 1500;
+  for (const s of p.reading!.samples) s.time += 650;
+  p.samples.push(
+    ...Array.from({ length: 13 }, (_, i) => ({
+      ...structuredClone(p.samples.at(-1)!),
+      time: 5610 + i * 50,
+    }))
+  );
+  p.samples.at(-1)!.time = 6210;
+  for (const sample of p.samples) {
+    sample.offset = sample.time < 910 ? 1700 : 1580;
+    if (!sample.sentRows.length) continue;
+    sample.sentRows[0] = {
+      id: sample.time < 1400 ? '1.100' : '1.200',
+      text: p.text,
+      deliveryCount:
+        sample.time < 600 || (sample.time >= 885 && sample.time < 1400) ? 1 : 0,
+      retryCount: sample.time >= 600 && sample.time < 885 ? 1 : 0,
+      targets: {
+        message: {
+          rect: {
+            left: 10,
+            top: 10,
+            right: 100,
+            bottom: 30,
+            width: 90,
+            height: 20,
+          },
+          clip: {
+            left: 0,
+            top: 0,
+            right: 200,
+            bottom: 100,
+            width: 200,
+            height: 100,
+          },
+          visible: true,
+          hit: true,
+        },
+        retry:
+          sample.time >= 600 && sample.time < 885
+            ? {
+                rect: {
+                  left: 10,
+                  top: 40,
+                  right: 100,
+                  bottom: 60,
+                  width: 90,
+                  height: 20,
+                },
+                clip: {
+                  left: 0,
+                  top: 0,
+                  right: 200,
+                  bottom: 100,
+                  width: 200,
+                  height: 100,
+                },
+                visible: true,
+                hit: true,
+              }
+            : null,
+      },
+      contentTexts: [p.text + ' '],
+    };
+  }
+  return p;
+}
+const assessRetry = (p: PendingSendEvidence) =>
+  assessPendingSendEvidence(p, assessScrollReadingTrace);
+
+describe('failed-send retry exact product evidence', () => {
+  it('accepts the exact failed provisional row, real Retry and one durable echo under the existing reading limits', () => {
+    const result = assessRetry(
+      JSON.parse(JSON.stringify(failedRetryEvidence()))
+    );
+    expect(result.issues).toEqual([]);
+    expect(result.verdict).toBe('PASS');
+    expect(result.presentedFrames).toBe('INCOMPLETE');
+  });
+  for (const [name, corrupt] of [
+    [
+      'second initial request',
+      (p: PendingSendEvidence) => {
+        p.retry!.requestCount = 3;
+      },
+    ],
+    [
+      'untrusted retry',
+      (p: PendingSendEvidence) => {
+        p.events.find((e) => e.type === 'click')!.trusted = false;
+      },
+    ],
+    [
+      'another post retry',
+      (p: PendingSendEvidence) => {
+        p.events.find((e) => e.type === 'click')!.postId = 'another';
+      },
+    ],
+    [
+      'missing retry affordance',
+      (p: PendingSendEvidence) => {
+        p.samples.find((s) => s.time >= 600)!.sentRows[0].retryCount = 0;
+      },
+    ],
+    [
+      'failed row not exposed',
+      (p: PendingSendEvidence) => {
+        p.samples.find((s) => s.time >= 600)!.sentRows[0].targets!.retry!.hit =
+          false;
+      },
+    ],
+    [
+      'retry before failure',
+      (p: PendingSendEvidence) => {
+        p.retry!.retryAt = 500;
+      },
+    ],
+    [
+      'changed retry sent identity',
+      (p: PendingSendEvidence) => {
+        const r = p.retry!.request!;
+        (r.actions as any[])[0].json.channel.action.post.add.sent++;
+        r.body = JSON.stringify(r.actions);
+      },
+    ],
+    [
+      'changed retry content',
+      (p: PendingSendEvidence) => {
+        const r = p.retry!.request!;
+        (r.actions as any[])[0].json.channel.action.post.add.content = [
+          { inline: ['wrong'] },
+        ];
+        r.body = JSON.stringify(r.actions);
+      },
+    ],
+    [
+      'same poke identity',
+      (p: PendingSendEvidence) => {
+        const r = p.retry!.request!;
+        (r.actions as any[])[0].id = 42;
+        r.body = JSON.stringify(r.actions);
+      },
+    ],
+    [
+      'missing failure receipt',
+      (p: PendingSendEvidence) => {
+        p.request!.abortedAt = null;
+      },
+    ],
+    [
+      'failure accidentally forwarded',
+      (p: PendingSendEvidence) => {
+        p.request!.continuedAt = 555;
+      },
+    ],
+    [
+      'false successful initial acknowledgement',
+      (p: PendingSendEvidence) => {
+        p.sse.messages.push({
+          ...p.sse.messages[0],
+          raw: JSON.stringify({ id: 42, response: 'poke', ok: null }),
+        });
+      },
+    ],
+    [
+      'missing success callback',
+      (p: PendingSendEvidence) => {
+        p.sse.messages = [];
+      },
+    ],
+    [
+      'callback failure',
+      (p: PendingSendEvidence) => {
+        p.errors.push('route callback failed');
+      },
+    ],
+    [
+      'unsupported mode',
+      (p: PendingSendEvidence) => {
+        p.preparation.driver.headless = true;
+        p.preparation.headed = true;
+      },
+    ],
+  ] as const)
+    it(`does not pass ${name}`, () => {
+      const p = failedRetryEvidence();
+      corrupt(p);
+      expect(assessRetry(p).verdict).not.toBe('PASS');
+    });
+  it('reports a coherently observed changed failed-row identity as a failure', () => {
+    const p = failedRetryEvidence();
+    p.samples.find((s) => s.time >= 650)!.sentRows[0].id = 'different';
+    expect(assessRetry(p).issues).toContainEqual({
+      code: 'failed-provisional-row-identity-or-text-changed',
+      kind: 'failure',
+      dimension: 'routing',
+    });
+  });
+  it('rejects altered exact message text even when the old text remains a substring', () => {
+    const p = failedRetryEvidence();
+    p.samples.find((s) => s.time >= 650)!.sentRows[0].contentTexts = [
+      p.text + ' changed',
+    ];
+    expect(assessRetry(p).verdict).toBe('FAIL');
+  });
+  it('keeps independently qualified reading failure when the Retry callback is unavailable', () => {
+    const p = failedRetryEvidence();
+    p.sse.messages = [];
+    const s = p.reading!.samples[10];
+    s.point!.relativeY += 18;
+    s.point!.fragment.presentation.rect.top += 18;
+    s.point!.fragment.presentation.rect.bottom += 18;
+    s.point!.fragment.presentation.clip.top += 18;
+    s.point!.fragment.presentation.clip.bottom += 18;
+    for (const hit of s.point!.fragment.hits) hit.y += 18;
+    expect(assessRetry(p).verdict).toBe('FAIL');
+  });
+  it('rejects a duplicate complete backend echo', () => {
+    const p = failedRetryEvidence();
+    const body = p.backend[1].body as any;
+    body.posts['1300'] = structuredClone(body.posts['1.200']);
+    body.posts['1300'].seal = { id: '1300', seq: 38 };
+    body.total = body.newest = 38;
+    expect(assessRetry(p).verdict).toBe('FAIL');
+  });
+  it('replays the exact new title and JSON raw, refusing an old-title or edited attachment', () => {
+    const p = failedRetryEvidence();
+    const attempt = {
+      title: failedSendRetryScenario.title,
+      startTime: new Date(p.timeOrigin).toISOString(),
+      duration: 7000,
+    };
+    expect(
+      replayPendingSendEvidence({ proof: p }, structuredClone(p), attempt)
+        .verdict
+    ).toBe('PASS');
+    expect(
+      replayPendingSendEvidence({ proof: p }, p, {
+        ...attempt,
+        title: pendingSendScenario.title,
+      }).verdict
+    ).toBe('INCOMPLETE');
+    const altered = structuredClone(p);
+    altered.retry!.postId = 'other';
+    expect(
+      replayPendingSendEvidence({ proof: p }, altered, attempt).verdict
+    ).toBe('INCOMPLETE');
+  });
+});
+
+describe('actual test-owned failure gate callbacks', () => {
+  const request = (id = 42) => {
+    const r = structuredClone(pendingSendEvidence().request!);
+    (r.actions as any[])[0].id = id;
+    r.body = JSON.stringify(r.actions);
+    return { url: r.url, method: r.method, body: r.body };
+  };
+  function setup() {
+    const p = pendingSendEvidence();
+    const gate = createFailedSendGate({
+      origin: p.preparation.origin,
+      channel: p.channel,
+      text: p.text,
+    });
+    const calls: string[] = [];
+    let clock = 10;
+    const callbacks = {
+      now: async () => ++clock,
+      waitForFailure: async () => {},
+      waitForRetryRelease: async () => {},
+      isCurrent: () => true,
+      observed: () => {
+        calls.push('observed');
+      },
+      abort: async () => {
+        calls.push('abort');
+      },
+      forward: async () => {
+        calls.push('forward');
+      },
+    };
+    return { gate, calls, callbacks };
+  }
+  it('blocks only the first exact request and forwards one unchanged retry', async () => {
+    const { gate, calls, callbacks } = setup();
+    expect(await gate.dispatch(request(), callbacks)).toBe(true);
+    expect(await gate.dispatch(request(43), callbacks)).toBe(true);
+    expect(calls).toEqual(['observed', 'abort', 'observed', 'forward']);
+    expect(gate.requests).toHaveLength(2);
+    expect(gate.errors).toEqual([]);
+  });
+  for (const [name, edit] of [
+    [
+      'unrelated channel',
+      (r: ReturnType<typeof request>) => {
+        const a = JSON.parse(r.body);
+        a[0].json.channel.nest = 'chat/~zod/other';
+        r.body = JSON.stringify(a);
+      },
+    ],
+    [
+      'another origin',
+      (r: ReturnType<typeof request>) => {
+        r.url = 'http://localhost:3002/~/channel/test';
+      },
+    ],
+    [
+      'different text',
+      (r: ReturnType<typeof request>) => {
+        r.body = r.body.replace('Pending send', 'Unrelated');
+      },
+    ],
+    [
+      'malformed body',
+      (r: ReturnType<typeof request>) => {
+        r.body = '{';
+      },
+    ],
+    [
+      'unrelated method',
+      (r: ReturnType<typeof request>) => {
+        r.method = 'GET';
+      },
+    ],
+  ] as const)
+    it(`leaves ${name} untouched`, async () => {
+      const { gate, calls, callbacks } = setup();
+      const r = request();
+      edit(r);
+      expect(await gate.dispatch(r, callbacks)).toBe(false);
+      expect(calls).toEqual([]);
+      expect(gate.requests).toEqual([]);
+    });
+  it('does not forward a concurrent request before the first failure completes', async () => {
+    const { gate, calls, callbacks } = setup();
+    let release!: () => void;
+    const pending = gate.dispatch(request(), {
+      ...callbacks,
+      waitForFailure: () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    await gate.dispatch(request(43), callbacks);
+    release();
+    await pending;
+    expect(calls).not.toContain('forward');
+    expect(gate.errors).toContain('unexpected-or-changed-owned-retry-request');
+  });
+  for (const stage of [
+    'now',
+    'observed',
+    'waitForFailure',
+    'waitForRetryRelease',
+    'abort',
+    'forward',
+  ] as const)
+    it(`retains ${stage} callback failure and settles the route`, async () => {
+      const { gate, calls, callbacks } = setup();
+      if (stage === 'forward' || stage === 'waitForRetryRelease')
+        await gate.dispatch(request(), callbacks);
+      await gate.dispatch(
+        request(
+          stage === 'forward' || stage === 'waitForRetryRelease' ? 43 : 42
+        ),
+        {
+          ...callbacks,
+          [stage]: () => {
+            throw new Error('control callback failure');
+          },
+        }
+      );
+      expect(
+        gate.errors.some((e) => e.includes('owned-send-route-callback-error'))
+      ).toBe(true);
+      if (stage !== 'abort') expect(calls).toContain('abort');
+      else
+        expect(
+          gate.errors.some((e) => e.includes('owned-send-route-cleanup-error'))
+        ).toBe(true);
+    });
+  it('blocks an extra duplicate retry instead of sending a second durable post', async () => {
+    const { gate, calls, callbacks } = setup();
+    await gate.dispatch(request(), callbacks);
+    await gate.dispatch(request(43), callbacks);
+    await gate.dispatch(request(44), callbacks);
+    expect(calls.filter((c) => c === 'forward')).toHaveLength(1);
+    expect(gate.errors).toContain('unexpected-or-changed-owned-retry-request');
+  });
+});
+
+it('retires the held retry when its current page scope is replaced', async () => {
+  const p = pendingSendEvidence(),
+    gate = createFailedSendGate({
+      origin: p.preparation.origin,
+      channel: p.channel,
+      text: p.text,
+    });
+  const first = p.request!,
+    next = structuredClone(first);
+  (next.actions as any[])[0].id = 43;
+  next.body = JSON.stringify(next.actions);
+  let time = 1,
+    forwards = 0,
+    aborted = 0;
+  const callbacks = {
+    now: async () => ++time,
+    waitForFailure: async () => {},
+    waitForRetryRelease: async () => {},
+    isCurrent: () => true,
+    observed: () => {},
+    abort: async () => {
+      aborted++;
+    },
+    forward: async () => {
+      forwards++;
+    },
+  };
+  await gate.dispatch(first, callbacks);
+  await gate.dispatch(next, { ...callbacks, isCurrent: () => false });
+  expect(forwards).toBe(0);
+  expect(aborted).toBe(2);
+  expect(gate.errors.some((e) => e.includes('scope-retired'))).toBe(true);
+});
+
+it('does not derive failed-state geometry or identity failure from an invalid acquisition', () => {
+  const p = failedRetryEvidence();
+  const s = p.samples.find((s) => s.time >= 650)!;
+  s.valid = false;
+  s.height = -100;
+  s.sentRows[0].id = 'wrong';
+  const result = assessRetry(p);
+  expect(result.verdict).toBe('INCOMPLETE');
+  expect(result.issues.filter((i) => i.kind === 'failure')).toEqual([]);
+});
+
+it('binds the literal rendered Retry label and the encoder body space without normalization', () => {
+  const healthy = failedRetryEvidence();
+  expect(healthy.events.find((e) => e.type === 'click')!.retryLabel).toBe(
+    'Send failed,click to retry'
+  );
+  expect(
+    healthy.samples.find((s) => s.sentRows.length)!.sentRows[0].contentTexts
+  ).toEqual([healthy.text + ' ']);
+  expect(assessRetry(healthy).verdict).toBe('PASS');
+  const spaced = structuredClone(healthy);
+  spaced.events.find((e) => e.type === 'click')!.retryLabel =
+    'Send failed, click to retry';
+  expect(assessRetry(spaced).verdict).toBe('INCOMPLETE');
+  const trimmed = structuredClone(healthy);
+  trimmed.samples.find((s) => s.time >= 650)!.sentRows[0].contentTexts = [
+    trimmed.text,
+  ];
+  expect(assessRetry(trimmed).verdict).toBe('FAIL');
+});
+
+it('requires the actual text and Retry boxes, not extra row wrapper space', () => {
+  const p = failedRetryEvidence();
+  const row = p.samples.find((s) => s.time >= 650)!.sentRows[0];
+  // R1 has a fully visible message and Retry label while padded row space extends past the viewport.
+  const wrapper = {
+    left: 0,
+    top: 0,
+    right: 200,
+    bottom: 124,
+    width: 200,
+    height: 124,
+  };
+  expect(
+    pendingSendTargetIsExposed({ ...row.targets!.retry!, rect: wrapper })
+  ).toBe(false);
+  expect(pendingSendTargetIsExposed(row.targets!.message)).toBe(true);
+  expect(pendingSendTargetIsExposed(row.targets!.retry)).toBe(true);
+  expect(assessRetry(p).verdict).toBe('PASS');
+  row.targets!.retry!.clip.bottom = 55;
+  row.targets!.retry!.clip.height = 55;
+  expect(assessRetry(p).verdict).toBe('INCOMPLETE');
+});
+it('rejects a trusted click outside the observed same-post Retry target', () => {
+  const p = failedRetryEvidence();
+  p.events.find((e) => e.type === 'click')!.clientY = 200;
+  expect(assessRetry(p).verdict).toBe('INCOMPLETE');
+});

@@ -156,6 +156,19 @@ export function seededEvidence(seed = 20260908, count = 14): any {
   pending.trace.events[0].texts = ['18 replies'];
   const session = {
     token: 'one-page',
+    browser: '136.0.7103.25',
+    wheelSource: {
+      version: {
+        product: 'Chrome/136.0.7103.25',
+        revision: '@97d495678dc307bfe6d6475901104e262ec7a487',
+        protocolVersion: '1.3',
+      },
+      target: {
+        targetId: 'modeled-page',
+        type: 'page',
+        url: 'http://localhost:3000' + scope,
+      },
+    },
     sender: {
       timeOrigin: timeOrigin + 100,
       origin: 'http://localhost:3002',
@@ -266,11 +279,75 @@ export function seededEvidence(seed = 20260908, count = 14): any {
       entries.push(entry);
       proof.ledger.push(entry);
       t = entry.end + 10;
-      if (action.kind === 'wheel')
-        event(entry, 'wheel', entry.start + 10, {
+      if (action.kind === 'wheel') {
+        // Independently modeled compositor pixels (2560x1600), CSS viewport
+        // (1280x800), and DPR 1. No reader-derived or observed-product factor.
+        const surface = {
+          dpr: 1,
+          width: 1280,
+          height: 800,
+          visualWidth: 1280,
+          visualHeight: 800,
+          visualScale: 1,
+          visualX: 0,
+          visualY: 0,
+          topFrame: true,
+        };
+        const snapshot = (time: number) => ({
+          time,
+          timeOrigin,
+          scope,
+          origin: session.origin,
+          surface: clone(surface),
+        });
+        const measurement = (time: number) => ({
+          before: snapshot(time),
+          after: snapshot(time + 1),
+          metrics: {
+            visualViewport: {
+              clientWidth: 2560,
+              clientHeight: 1600,
+              scale: 1,
+              zoom: 1,
+              offsetX: 0,
+              offsetY: 0,
+            },
+            cssVisualViewport: {
+              clientWidth: 1280,
+              clientHeight: 800,
+              scale: 1,
+              zoom: 1,
+              offsetX: 0,
+              offsetY: 0,
+            },
+          },
+        });
+        entry.wheelDispatch = {
+          actionId: action.id,
+          sessionToken: session.token,
+          targetId: session.wheelSource.target.targetId,
+          deltaX: 0,
           deltaY: action.wheelY,
+          before: measurement(entry.start + 1),
+          start: entry.start + 5,
+          commandReturnedAt: entry.start + 15,
+          receipt: {
+            time: entry.start + 10,
+            observedAt: entry.start + 10,
+            timeOrigin,
+            scope,
+          },
+          end: entry.start + 15,
+          after: measurement(entry.start + 16),
+        };
+        event(entry, 'wheel', entry.start + 10, {
+          deltaX: 0,
+          deltaY: action.wheelY! * 2,
+          deltaMode: 0,
+          surface: clone(surface),
           inConversation: true,
         });
+      }
       if (['grow', 'delete', 'own-send'].includes(action.kind))
         event(entry, 'input', entry.start + 10, {
           testId: 'MessageInput',

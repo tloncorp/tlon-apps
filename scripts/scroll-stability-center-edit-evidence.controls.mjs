@@ -724,8 +724,8 @@ test('above proof cannot be recast as the below registered contract', () => {
   assert.notEqual(replayCenterEditEvidence(proof, attempt).verdict, 'PASS');
 });
 
-test('active registry replaces the old row test with BELOW and remains43 cases', () => {
-  assert.equal(webScenarioRegistry.length, 43);
+test('active registry keeps the BELOW replacement within the current44 cases', () => {
+  assert.equal(webScenarioRegistry.length, 44);
   assert.equal(
     webScenarioRegistry.filter((r) => r.requireCenterEditProof).length,
     2

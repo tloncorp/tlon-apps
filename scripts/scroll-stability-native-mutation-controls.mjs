@@ -856,8 +856,8 @@ invalidAnchor(
     const cell = t.nativeRecording.frames[30].geometry.ruler.cells.find((r) =>
       r.id.endsWith('111')
     ).view;
-    cell.frame.height += 1;
-    cell.clipFrame.height += 1;
+    cell.frame = { ...cell.frame, height: cell.frame.height + 1 };
+    cell.clipFrame = { ...cell.clipFrame, height: cell.clipFrame.height + 1 };
   }
 );
 invalidAnchor(
@@ -1281,6 +1281,168 @@ test('healthy HOLD continuity cannot qualify missing action or bridged acquisiti
   assert.equal(classifyEvidence(t), 'incomplete');
   assert.equal(qualifyEvidence(t).status, 'incomplete');
   assert.equal(coverageFor(t).fullMatrixVerified, false);
+});
+
+// Same native-operation intrinsic bounds are independent of the converted
+// window rectangle; legacy fixtures above intentionally retain their old shape.
+function localBoundsFixture() {
+  const t = fixture();
+  for (const { geometry: g } of t.nativeRecording.frames) {
+    g.localBoundsVersion = 1;
+    for (const list of [g.rows, g.ruler.cells])
+      for (const { view } of list) {
+        // Native JSON has separate rectangles for the two physical views.
+        view.frame = { ...view.frame };
+        view.clipFrame = { ...view.clipFrame };
+        view.localBounds = {
+          x: 0,
+          y: 0,
+          width: view.frame.width,
+          height: view.frame.height,
+        };
+      }
+  }
+  return t;
+}
+function boundsAnchor(t, frame = 30, cell = false) {
+  const g = t.nativeRecording.frames[frame].geometry;
+  return (cell ? g.ruler.cells : g.rows).find((r) => r.id.endsWith('111')).view;
+}
+function checkLocalBounds(name, change, expected = 'INCOMPLETE', code) {
+  test(`local bounds: ${name}`, () => {
+    const t = localBoundsFixture();
+    change(t);
+    const result = assess(t);
+    assert.equal(
+      result.anchorContinuity.verdict,
+      expected,
+      JSON.stringify(result)
+    );
+    if (code)
+      assert(
+        result.anchorContinuity.issues.some((i) => i.code === code),
+        JSON.stringify(result)
+      );
+  });
+}
+checkLocalBounds(
+  'unchanged actual local row and reserved cell shape',
+  () => {},
+  'PASS'
+);
+checkLocalBounds(
+  'converted cell extent may vary while exact local shape remains',
+  (t) => {
+    for (let i = 25; i < t.nativeRecording.frames.length; i++) {
+      const cell = boundsAnchor(t, i, true);
+      cell.frame.height += 1 / 1024;
+      cell.clipFrame.height += 1 / 1024;
+    }
+  },
+  'PASS'
+);
+checkLocalBounds('missing local row bounds cannot use legacy fallback', (t) => {
+  delete boundsAnchor(t).localBounds;
+});
+checkLocalBounds(
+  'missing local cell bounds cannot use legacy fallback',
+  (t) => {
+    delete boundsAnchor(t, 30, true).localBounds;
+  }
+);
+checkLocalBounds(
+  'measurement invalidated during conversion stays unavailable',
+  (t) => {
+    boundsAnchor(t, 30, true).localBounds = null;
+  }
+);
+for (const [name, value] of [
+  ['nonfinite', Infinity],
+  ['negative', -1],
+  ['zero', 0],
+])
+  checkLocalBounds(`${name} intrinsic extent`, (t) => {
+    boundsAnchor(t).localBounds.height = value;
+  });
+checkLocalBounds('nonfinite intrinsic origin', (t) => {
+  boundsAnchor(t, 30, true).localBounds.x = NaN;
+});
+checkLocalBounds('malformed intrinsic rectangle', (t) => {
+  boundsAnchor(t).localBounds = [0, 0, 400, 80];
+});
+checkLocalBounds('unknown declared observation version', (t) => {
+  t.nativeRecording.frames[30].geometry.localBoundsVersion = 2;
+});
+checkLocalBounds('version disappearing cannot revive the legacy path', (t) => {
+  delete t.nativeRecording.frames[30].geometry.localBoundsVersion;
+});
+checkLocalBounds('undeclared local data is not an opt-in', (t) => {
+  for (const { geometry: g } of t.nativeRecording.frames)
+    delete g.localBoundsVersion;
+});
+checkLocalBounds(
+  'version arriving after a legacy baseline is unavailable',
+  (t) => {
+    const g = t.nativeRecording.frames[0].geometry;
+    delete g.localBoundsVersion;
+    for (const list of [g.rows, g.ruler.cells])
+      for (const { view } of list) delete view.localBounds;
+  }
+);
+for (const cell of [false, true])
+  for (const field of ['x', 'y', 'width', 'height'])
+    checkLocalBounds(
+      `changed ${cell ? 'reserved cell' : 'inner row'} ${field} retires exact shape`,
+      (t) => {
+        boundsAnchor(t, 30, cell).localBounds[field] += 1 / 1024;
+      },
+      'INCOMPLETE',
+      'native-anchor-content-or-dimensions-changed'
+    );
+checkLocalBounds(
+  'one-frame intrinsic change cannot recover through ABA',
+  (t) => {
+    boundsAnchor(t, 20, true).localBounds.height += 1;
+  }
+);
+checkLocalBounds(
+  'bound window-origin displacement remains a failure',
+  (t) => {
+    moveAnchor(t);
+  },
+  'FAIL',
+  'native-anchor-drift'
+);
+checkLocalBounds(
+  'same-frame invalid bounds cannot fabricate drift failure',
+  (t) => {
+    delete boundsAnchor(t).localBounds;
+    moveAnchor(t);
+  },
+  'INCOMPLETE'
+);
+checkLocalBounds(
+  'an earlier qualified displacement survives later missing bounds',
+  (t) => {
+    moveAnchor(t, 20);
+    delete boundsAnchor(t).localBounds;
+  },
+  'FAIL',
+  'native-anchor-drift'
+);
+checkLocalBounds(
+  'new bounds do not authorize a replacement physical row',
+  (t) => {
+    const g = t.nativeRecording.frames[30].geometry;
+    g.nativeReading.rowBindings.rows.find((b) =>
+      b.key.endsWith('111')
+    ).hostIdentity += ':replacement';
+  }
+);
+checkLocalBounds('converted inner message dimensions remain exact', (t) => {
+  const row = boundsAnchor(t);
+  row.frame.height += 1;
+  row.clipFrame.height += 1;
 });
 
 test('actual direct Node CLI positive', () => {

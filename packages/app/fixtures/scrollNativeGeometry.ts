@@ -33,6 +33,8 @@ export type NativeGeometryView = {
   windowIdentity: string;
   frame: Rect;
   clipFrame: Rect;
+  /** Exact bounds used for this native window conversion; null if invalidated. */
+  localBounds?: Rect | null;
   attached: boolean;
   effectiveAlpha: number;
   hidden: boolean;
@@ -63,6 +65,8 @@ export type NativeGeometryRuler = {
   surfaces: NativeGeometryInventoryItem[];
 };
 export type NativeGeometryCapture = {
+  /** Additive same-operation shape evidence; older captures remain legacy. */
+  localBoundsVersion?: 1;
   /** Opt-in native diagnostics, validated by version-specific readers only. */
   nativeReading?: unknown;
   version: 1;

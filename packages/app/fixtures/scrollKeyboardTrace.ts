@@ -597,9 +597,161 @@ export function assessScrollKeyboardTrace(
   return finish(latencies);
 }
 
+export const FAILED_SEND_RETRY_TITLE =
+  'failed own send retries the same post without reclaiming latest' as const;
+
+export type PendingSendRequest = {
+  url: string;
+  method: string;
+  body: string;
+  actions: unknown;
+  heldAt: number;
+  releasedAt: number;
+  continuedAt: number | null;
+  abortedAt?: number | null;
+  overridesProvided: boolean;
+};
+
+/** The only injected failure is an exact, test-owned post-add before forwarding.
+ * Reserve each request before awaiting callbacks so concurrent duplicates cannot
+ * become additional sends. Unrelated traffic remains untouched. */
+export function createFailedSendGate(owner: {
+  origin: string;
+  channel: string;
+  text: string;
+}) {
+  const requests: PendingSendRequest[] = [];
+  const errors: string[] = [];
+  let initialAdd: unknown;
+  return {
+    requests,
+    errors,
+    async dispatch(
+      request: { url: string; method: string; body: string },
+      callbacks: {
+        now: () => Promise<number>;
+        waitForFailure: () => Promise<void>;
+        waitForRetryRelease: () => Promise<void>;
+        isCurrent: () => boolean;
+        abort: () => Promise<void>;
+        forward: () => Promise<void>;
+        observed: (request: PendingSendRequest, index: number) => void;
+      }
+    ) {
+      let actions: any;
+      try {
+        actions = JSON.parse(request.body);
+      } catch {
+        return false;
+      }
+      const action =
+        Array.isArray(actions) && actions.length === 1 ? actions[0] : null;
+      const add = action?.json?.channel?.action?.post?.add;
+      if (
+        request.method !== 'PUT' ||
+        !request.url.startsWith(`${owner.origin}/~/channel/`) ||
+        action?.action !== 'poke' ||
+        action?.app !== 'channels' ||
+        !Number.isInteger(action.id) ||
+        action?.json?.channel?.nest !== owner.channel ||
+        add?.author !== '~zod' ||
+        !Number.isFinite(add?.sent) ||
+        JSON.stringify(add?.content) !==
+          JSON.stringify([{ inline: [owner.text + ' '] }])
+      )
+        return false;
+      const index = requests.length;
+      const receipt: PendingSendRequest = {
+        ...request,
+        actions,
+        heldAt: NaN,
+        releasedAt: NaN,
+        continuedAt: null,
+        abortedAt: null,
+        overridesProvided: false,
+      };
+      requests.push(receipt);
+      try {
+        receipt.heldAt = await callbacks.now();
+        callbacks.observed(receipt, index);
+        if (index === 0) {
+          initialAdd = add;
+          await callbacks.waitForFailure();
+          receipt.releasedAt = await callbacks.now();
+          await callbacks.abort();
+          receipt.abortedAt = await callbacks.now();
+        } else if (
+          index === 1 &&
+          Number.isFinite(requests[0].abortedAt) &&
+          request.url === requests[0].url &&
+          action.id !== (requests[0].actions as any[])[0].id &&
+          JSON.stringify(add) === JSON.stringify(initialAdd)
+        ) {
+          await callbacks.waitForRetryRelease();
+          if (!callbacks.isCurrent())
+            throw new Error('scope-retired-before-retry-forward');
+          receipt.releasedAt = await callbacks.now();
+          receipt.continuedAt = await callbacks.now();
+          await callbacks.forward();
+        } else {
+          errors.push('unexpected-or-changed-owned-retry-request');
+          await callbacks.abort();
+          receipt.abortedAt = await callbacks.now();
+        }
+      } catch (error) {
+        errors.push(`owned-send-route-callback-error: ${String(error)}`);
+        // A failed observer/clock/forward callback must never leave a held route.
+        try {
+          await callbacks.abort();
+        } catch (cleanupError) {
+          errors.push(
+            `owned-send-route-cleanup-error: ${String(cleanupError)}`
+          );
+        }
+      }
+      return true;
+    },
+  };
+}
+
+export type PendingSendTarget = {
+  rect: import('./scrollContentTrace').ContentRect;
+  clip: import('./scrollContentTrace').ContentRect;
+  visible: boolean;
+  hit: boolean;
+};
+
+/** These are the actual text/control boxes. The row's trailing layout space is
+ * neither content nor a click target. No geometry tolerance is applied here. */
+export function pendingSendTargetIsExposed(
+  target: PendingSendTarget | null | undefined
+) {
+  if (!target || target.visible !== true || target.hit !== true) return false;
+  const { rect: r, clip: c } = target;
+  const valid = (b: typeof r) =>
+    b &&
+    [b.left, b.top, b.right, b.bottom, b.width, b.height].every(
+      Number.isFinite
+    ) &&
+    b.width > 0 &&
+    b.height > 0 &&
+    b.right === b.left + b.width &&
+    b.bottom === b.top + b.height;
+  return (
+    valid(r) &&
+    valid(c) &&
+    r.left >= c.left &&
+    r.right <= c.right &&
+    r.top >= c.top &&
+    r.bottom <= c.bottom
+  );
+}
+
 export type PendingSendEvidence = {
   version: 1;
-  title: 'pending Enter send cannot reclaim latest after deliberate upward scrolling';
+  title:
+    | 'pending Enter send cannot reclaim latest after deliberate upward scrolling'
+    | typeof FAILED_SEND_RETRY_TITLE;
   token: string;
   scope: string;
   channel: string;
@@ -630,6 +782,10 @@ export type PendingSendEvidence = {
     key?: string;
     deltaY?: number;
     value: string;
+    postId?: string;
+    retryLabel?: string;
+    clientX?: number;
+    clientY?: number;
   }[];
   samples: {
     time: number;
@@ -640,22 +796,33 @@ export type PendingSendEvidence = {
     offset: number;
     extent: number;
     height: number;
-    sentRows: { id: string; text: string; deliveryCount: number }[];
+    sentRows: {
+      id: string;
+      text: string;
+      deliveryCount: number;
+      retryCount?: number;
+      targets?: {
+        message: PendingSendTarget | null;
+        retry: PendingSendTarget | null;
+      };
+      contentTexts?: string[];
+    }[];
   }[];
   marks: {
     id: 'enter' | 'pending' | 'read' | 'release' | 'terminal';
     time: number;
   }[];
-  request: {
-    url: string;
-    method: string;
-    body: string;
-    actions: unknown;
-    heldAt: number;
-    releasedAt: number;
-    continuedAt: number;
-    overridesProvided: boolean;
-  } | null;
+  request: PendingSendRequest | null;
+  retry?: {
+    version: 1;
+    failureCode: 'blockedbyclient';
+    failedAt: number | null;
+    retryAt: number | null;
+    postId: string | null;
+    request: PendingSendRequest | null;
+    failedBackend: PendingSendEvidence['backend'][number] | null;
+    requestCount: number;
+  };
   backend: {
     phase: 'held' | 'terminal';
     url: string;
@@ -704,17 +871,23 @@ export function assessPendingSendEvidence(
   const finite = (n: unknown): n is number =>
     typeof n === 'number' && Number.isFinite(n);
   try {
+    const isRetry = proof.title === FAILED_SEND_RETRY_TITLE;
     if (
       proof.version !== 1 ||
-      proof.title !==
-        'pending Enter send cannot reclaim latest after deliberate upward scrolling' ||
+      (!isRetry &&
+        proof.title !==
+          'pending Enter send cannot reclaim latest after deliberate upward scrolling') ||
+      (isRetry ? proof.retry?.version !== 1 : proof.retry !== undefined) ||
       !/^[a-f0-9]{8}$/.test(proof.token) ||
       proof.text !==
         `Pending send ${proof.token} keeps later reading intent.` ||
       proof.preparation.ship !== 'zod' ||
       proof.preparation.e2eMode !== false ||
-      proof.preparation.headed !== true ||
-      proof.preparation.driver?.headless !== false ||
+      (isRetry
+        ? typeof proof.preparation.headed !== 'boolean' ||
+          proof.preparation.driver?.headless !== !proof.preparation.headed
+        : proof.preparation.headed !== true ||
+          proof.preparation.driver?.headless !== false) ||
       proof.preparation.driver?.channel !== 'chromium' ||
       !proof.preparation.driver?.project ||
       proof.preparation.origin !== 'http://localhost:3000' ||
@@ -866,14 +1039,22 @@ export function assessPendingSendEvidence(
       ![
         request.heldAt,
         request.releasedAt,
-        request.continuedAt,
+        ...(isRetry ? [request.abortedAt] : [request.continuedAt]),
         action.json.channel.action.post.add.sent,
       ].every(finite) ||
       request.heldAt < keys[0].time ||
       request.heldAt >= pending ||
-      request.releasedAt !== release ||
-      request.continuedAt < release ||
-      request.continuedAt > release + 100
+      (isRetry
+        ? request.releasedAt < pending || request.releasedAt >= read
+        : request.releasedAt !== release) ||
+      (isRetry
+        ? request.continuedAt !== null ||
+          !finite(request.abortedAt) ||
+          request.abortedAt < request.releasedAt ||
+          request.abortedAt >= read
+        : !finite(request.continuedAt) ||
+          request.continuedAt < release ||
+          request.continuedAt > release + 100)
     ) {
       add('missing-exact-held-and-unchanged-send-request');
       return finish();
@@ -943,6 +1124,149 @@ export function assessPendingSendEvidence(
       }
       return result;
     };
+    let successfulAction = action;
+    let successStart = release;
+    if (isRetry) {
+      const retry = proof.retry!;
+      const clicks = proof.events.filter((e) => e.type === 'click');
+      const retryRequest = retry.request;
+      const retryAction =
+        Array.isArray(retryRequest?.actions) &&
+        retryRequest.actions.length === 1
+          ? retryRequest.actions[0]
+          : null;
+      const failureSample = finite(retry.failedAt)
+        ? phaseSample(retry.failedAt)
+        : undefined;
+      const clickSample = [...samples]
+        .reverse()
+        .find((s) => s.time <= clicks[0]?.time);
+      const clickTarget =
+        clickSample?.sentRows.length === 1 &&
+        clickSample.sentRows[0].id === retry.postId
+          ? clickSample.sentRows[0].targets?.retry
+          : null;
+      const failedRead = retry.failedBackend;
+      const failedWindow =
+        failedRead &&
+        failedRead.url === url &&
+        failedRead.status === 200 &&
+        finite(failedRead.startedAt) &&
+        finite(failedRead.completedAt) &&
+        finite(retry.failedAt) &&
+        finite(retry.retryAt) &&
+        failedRead.startedAt >= retry.failedAt &&
+        failedRead.completedAt >= failedRead.startedAt &&
+        failedRead.completedAt < retry.retryAt
+          ? completeWindow(failedRead.body)
+          : null;
+      if (
+        retry.failureCode !== 'blockedbyclient' ||
+        retry.requestCount !== 2 ||
+        !finite(retry.failedAt) ||
+        !finite(retry.retryAt) ||
+        retry.failedAt <= request.abortedAt! ||
+        retry.retryAt < retry.failedAt + 200 ||
+        retry.retryAt >= read ||
+        retry.postId !== pendingSample.sentRows[0].id ||
+        !failureSample ||
+        failureSample.time - retry.failedAt > 100 ||
+        failureSample.sentRows.length !== 1 ||
+        failureSample.sentRows[0].retryCount !== 1 ||
+        !failedWindow ||
+        failedWindow.size !== 36 ||
+        [...failedWindow.values()].some((post) =>
+          JSON.stringify(post.essay.content).includes(proof.token)
+        ) ||
+        clicks.length !== 1 ||
+        !clicks[0].trusted ||
+        clicks[0].target !== 'list' ||
+        clicks[0].postId !== retry.postId ||
+        clicks[0].retryLabel !== 'Send failed,click to retry' ||
+        clicks[0].time < retry.retryAt ||
+        clicks[0].time > retry.retryAt + 100 ||
+        !clickSample?.valid ||
+        clickSample.scope !== proof.scope ||
+        !finite(clickSample.duration) ||
+        clickSample.duration < 0 ||
+        clickSample.duration > 32 ||
+        clicks[0].time - clickSample.time > 100 ||
+        !pendingSendTargetIsExposed(clickTarget) ||
+        !finite(clicks[0].clientX) ||
+        !finite(clicks[0].clientY) ||
+        clicks[0].clientX < clickTarget!.rect.left ||
+        clicks[0].clientX > clickTarget!.rect.right ||
+        clicks[0].clientY < clickTarget!.rect.top ||
+        clicks[0].clientY > clickTarget!.rect.bottom ||
+        !retryRequest ||
+        !retryAction ||
+        retryRequest.url !== request.url ||
+        retryRequest.method !== 'PUT' ||
+        retryRequest.overridesProvided !== false ||
+        JSON.stringify(JSON.parse(retryRequest.body)) !==
+          JSON.stringify(retryRequest.actions) ||
+        retryAction.action !== 'poke' ||
+        retryAction.app !== 'channels' ||
+        !Number.isInteger(retryAction.id) ||
+        retryAction.id === action.id ||
+        JSON.stringify(retryAction.json) !== JSON.stringify(action.json) ||
+        !finite(retryRequest.heldAt) ||
+        !finite(retryRequest.releasedAt) ||
+        !finite(retryRequest.continuedAt) ||
+        retryRequest.heldAt < clicks[0].time ||
+        retryRequest.heldAt > clicks[0].time + 100 ||
+        retryRequest.releasedAt < release ||
+        retryRequest.releasedAt > release + 100 ||
+        retryRequest.continuedAt < retryRequest.releasedAt ||
+        retryRequest.continuedAt > release + 100 ||
+        retryRequest.abortedAt !== null
+      )
+        add('missing-exact-failed-row-and-trusted-retry');
+      else {
+        successfulAction = retryAction;
+        successStart = retryRequest.continuedAt;
+      }
+      let retryPrefixValid = true;
+      for (const [index, sample] of samples.entries()) {
+        if (sample.time < pending || sample.time >= terminal) continue;
+        const valid =
+          sample.valid &&
+          sample.scope === proof.scope &&
+          finite(sample.time) &&
+          finite(sample.duration) &&
+          sample.duration >= 0 &&
+          sample.duration <= 32 &&
+          [sample.offset, sample.extent, sample.height].every(finite) &&
+          sample.height > 0 &&
+          (index === 0 ||
+            (sample.time > samples[index - 1].time &&
+              sample.time - samples[index - 1].time <= 100));
+        retryPrefixValid = retryPrefixValid && valid;
+        if (!retryPrefixValid) continue;
+        if (sample.time < retry.retryAt!) {
+          if (Math.abs(sample.extent - sample.height - sample.offset) > 1)
+            add('failed-send-left-latest', 'failure', 'geometry');
+          if (
+            sample.sentRows.length !== 1 ||
+            !pendingSendTargetIsExposed(sample.sentRows[0].targets?.message) ||
+            (sample.time >= retry.failedAt! &&
+              !pendingSendTargetIsExposed(sample.sentRows[0].targets?.retry))
+          )
+            add('failed-provisional-row-not-observed');
+          else if (
+            sample.sentRows[0].id !== pendingSample.sentRows[0].id ||
+            JSON.stringify(sample.sentRows[0].contentTexts) !==
+              JSON.stringify([proof.text + ' '])
+          )
+            add('failed-provisional-row-identity-or-text-changed', 'failure');
+          if (
+            sample.time >= retry.failedAt! &&
+            sample.sentRows[0]?.retryCount !== 1
+          )
+            add('failed-retry-affordance-not-retained');
+        }
+      }
+    }
     const heldReadValid =
       reads.length >= 1 &&
       reads[0].phase === 'held' &&
@@ -969,7 +1293,7 @@ export function assessPendingSendEvidence(
       reads[1].status === 200 &&
       finite(reads[1].startedAt) &&
       finite(reads[1].completedAt) &&
-      reads[1].startedAt >= release &&
+      reads[1].startedAt >= successStart &&
       reads[1].completedAt >= reads[1].startedAt &&
       reads[1].completedAt <= terminal;
     const terminalWindow = terminalReadValid
@@ -1048,6 +1372,7 @@ export function assessPendingSendEvidence(
       samples.at(-1)!.time > proof.plannedEnd! + 100
     )
       add('missing-pending-send-fixed-tail');
+    let samplePrefixValid = true;
     samples.forEach((sample, i) => {
       if (
         !finite(sample.time) ||
@@ -1061,8 +1386,11 @@ export function assessPendingSendEvidence(
         (i > 0 &&
           (sample.time <= samples[i - 1].time ||
             sample.time - samples[i - 1].time > 100))
-      )
+      ) {
         add('invalid-or-gapped-pending-send-sample');
+        samplePrefixValid = false;
+      }
+      if (isRetry && !samplePrefixValid) return;
       if (sample.time >= pending && sample.value !== '')
         add('late-send-draft-restoration', 'failure', 'input');
       if (sample.time >= pending && sample.sentRows.length > 1)
@@ -1077,6 +1405,16 @@ export function assessPendingSendEvidence(
       )
         add('terminal-delivery-row-not-reconciled');
       if (
+        isRetry &&
+        sample.time >= terminal &&
+        sample.valid &&
+        sample.scope === proof.scope &&
+        sample.sentRows.length === 1 &&
+        JSON.stringify(sample.sentRows[0].contentTexts) !==
+          JSON.stringify([proof.text + ' '])
+      )
+        add('terminal-retry-text-mismatch', 'failure');
+      if (
         sample.time >= terminal &&
         sample.valid &&
         sample.scope === proof.scope &&
@@ -1086,10 +1424,26 @@ export function assessPendingSendEvidence(
       )
         add('terminal-delivery-row-identity-mismatch', 'failure');
     });
+    if (
+      isRetry &&
+      proof.sse.messages.some((message) => {
+        try {
+          const data = JSON.parse(message.raw);
+          return (
+            message.url === request.url &&
+            data.response === 'poke' &&
+            data.id === action.id
+          );
+        } catch {
+          return false;
+        }
+      })
+    )
+      add('injected-failed-request-was-acknowledged');
     const acknowledgements = proof.sse.messages.flatMap((message) => {
       try {
         const data = JSON.parse(message.raw);
-        return data.response === 'poke' && data.id === action!.id
+        return data.response === 'poke' && data.id === successfulAction!.id
           ? [{ ...message, data }]
           : [];
       } catch {
@@ -1104,7 +1458,7 @@ export function assessPendingSendEvidence(
       !('ok' in acknowledgements[0].data) ||
       'err' in acknowledgements[0].data ||
       !finite(acknowledgements[0].receivedAt) ||
-      acknowledgements[0].receivedAt < release ||
+      acknowledgements[0].receivedAt < successStart ||
       acknowledgements[0].receivedAt > terminal
     )
       add('matching-real-send-acknowledgement-unavailable');

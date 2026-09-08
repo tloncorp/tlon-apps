@@ -71,10 +71,10 @@ describe('concurrent raw Playwright report integration', () => {
         expect(assessWebEvidence(record).status).toBe('recorded-sampled-pass');
       });
   it('adds eleven actual slices without registering keyboard calibration', () => {
-    expect(webScenarioRegistry).toHaveLength(43);
+    expect(webScenarioRegistry).toHaveLength(44);
     expect(
       webScenarioRegistry.filter((r) => r.requirePendingSendProof)
-    ).toHaveLength(1);
+    ).toHaveLength(2);
     expect(
       webScenarioRegistry.filter((r) => r.requireConcurrentContentProof)
     ).toHaveLength(4);

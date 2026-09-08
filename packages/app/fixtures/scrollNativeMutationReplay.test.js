@@ -21,5 +21,5 @@ it('independently validates native mutation raw geometry and corruptions with th
     report.failed,
     JSON.stringify(report.results.filter((result) => result.status === 'FAIL'))
   ).toBe(0);
-  expect(report.passed).toBe(122);
+  expect(report.passed).toBe(150);
 });

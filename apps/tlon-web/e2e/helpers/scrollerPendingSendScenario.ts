@@ -7,6 +7,9 @@ import {
 import { randomUUID } from 'node:crypto';
 import {
   assessPendingSendEvidence,
+  createFailedSendGate,
+  FAILED_SEND_RETRY_TITLE,
+  pendingSendTargetIsExposed,
   type PendingSendEvidence,
 } from '../../../../packages/app/fixtures/scrollKeyboardTrace';
 import { assessScrollReadingTrace } from '../../../../packages/app/fixtures/scrollReadingTrace';
@@ -113,14 +116,23 @@ async function observeSendAcknowledgements(page: Page) {
 export async function runPendingSendScenario(
   page: Page,
   browser: Browser,
-  testInfo: TestInfo
+  testInfo: TestInfo,
+  mode: 'pending' | 'failed-retry' = 'pending'
 ) {
   const token = randomUUID().slice(0, 8),
     text = `Pending send ${token} keeps later reading intent.`;
+  const isRetry = mode === 'failed-retry';
   const ack = await observeSendAcknowledgements(page);
+  let closing = false;
+  const failureOperations: Promise<boolean>[] = [];
+  let failureGate: ReturnType<typeof createFailedSendGate> | undefined;
   let releaseGate!: () => void;
   const gate = new Promise<void>((resolve) => {
     releaseGate = resolve;
+  });
+  let releaseFailure!: () => void;
+  const failure = new Promise<void>((resolve) => {
+    releaseFailure = resolve;
   });
   let released = false;
   let capture: Awaited<ReturnType<Page['evaluateHandle']>> | undefined;
@@ -131,6 +143,32 @@ export async function runPendingSendScenario(
   const routePattern = '**/~/channel/**';
   const routeHandler = async (route: import('@playwright/test').Route) => {
     const request = route.request();
+    if (failureGate) {
+      const operation = failureGate.dispatch(
+        {
+          url: request.url(),
+          method: request.method(),
+          body: request.postData() ?? '',
+        },
+        {
+          now: () => page.evaluate(() => performance.now()),
+          waitForFailure: () => failure,
+          waitForRetryRelease: () => gate,
+          isCurrent: () =>
+            !closing && new URL(page.url()).pathname === proof?.scope,
+          abort: () => route.abort('blockedbyclient'),
+          forward: () => route.continue(),
+          observed: (receipt, index) => {
+            if (index === 0) held = receipt;
+            else if (index === 1 && proof?.retry) proof.retry.request = receipt;
+          },
+        }
+      );
+      failureOperations.push(operation);
+      const owned = await operation;
+      if (!owned) await route.continue();
+      return;
+    }
     let actions: unknown;
     try {
       actions = request.postDataJSON();
@@ -215,7 +253,7 @@ export async function runPendingSendScenario(
     }));
     proof = {
       version: 1,
-      title: TITLE,
+      title: isRetry ? FAILED_SEND_RETRY_TITLE : TITLE,
       token,
       text,
       scope: preparation.scope,
@@ -242,11 +280,27 @@ export async function runPendingSendScenario(
       readingContract: null,
       plannedEnd: null,
       errors: [],
+      ...(isRetry
+        ? {
+            retry: {
+              version: 1 as const,
+              failureCode: 'blockedbyclient' as const,
+              failedAt: null,
+              retryAt: null,
+              postId: null,
+              request: null,
+              failedBackend: null,
+              requestCount: 0,
+            },
+          }
+        : {}),
     };
+    if (isRetry)
+      failureGate = createFailedSendGate({ origin, channel: channelId, text });
     const inputHandle = await input.elementHandle();
     if (!inputHandle) throw new Error('Actual input unavailable');
     capture = await page.evaluateHandle(
-      ({ list, input, token }) => {
+      ({ list, input, token, isRetry }) => {
         if (
           !(list instanceof HTMLElement) ||
           !(input instanceof HTMLTextAreaElement)
@@ -256,6 +310,79 @@ export async function runPendingSendScenario(
           events: PendingSendEvidence['events'] = [];
         let active = true,
           raf = 0;
+        let ownedPostId: string | null = null;
+        const measureTarget = (node: HTMLElement | undefined) => {
+          if (!node) return null;
+          const r = node.getBoundingClientRect();
+          const rect = {
+            left: r.left,
+            top: r.top,
+            right: r.right,
+            bottom: r.bottom,
+            width: r.width,
+            height: r.height,
+          };
+          const b = list.getBoundingClientRect();
+          let left = Math.max(0, b.left),
+            top = Math.max(0, b.top),
+            right = Math.min(innerWidth, b.right),
+            bottom = Math.min(innerHeight, b.bottom);
+          let visible = node.isConnected;
+          for (
+            let parent: HTMLElement | null = node;
+            parent;
+            parent = parent.parentElement
+          ) {
+            const style = getComputedStyle(parent);
+            visible =
+              visible &&
+              style.display !== 'none' &&
+              style.visibility === 'visible' &&
+              Number(style.opacity) > 0;
+            if (
+              parent !== node &&
+              /hidden|clip|auto|scroll/.test(style.overflowX + style.overflowY)
+            ) {
+              const clip = parent.getBoundingClientRect();
+              if (/hidden|clip|auto|scroll/.test(style.overflowX)) {
+                left = Math.max(left, clip.left);
+                right = Math.min(right, clip.right);
+              }
+              if (/hidden|clip|auto|scroll/.test(style.overflowY)) {
+                top = Math.max(top, clip.top);
+                bottom = Math.min(bottom, clip.bottom);
+              }
+            }
+          }
+          const hit = [
+            [0.5, 0.5],
+            [0.1, 0.1],
+            [0.9, 0.1],
+            [0.1, 0.9],
+            [0.9, 0.9],
+          ].every(([x, y]) => {
+            const actual = document.elementFromPoint(
+              r.left + r.width * x,
+              r.top + r.height * y
+            );
+            return (
+              actual !== null && (actual === node || node.contains(actual))
+            );
+          });
+          return {
+            rect,
+            clip: {
+              left,
+              top,
+              right,
+              bottom,
+              width: right - left,
+              height: bottom - top,
+            },
+            visible,
+            hit,
+          };
+        };
         const sample = () => {
           const time = performance.now();
           samples.push({
@@ -273,8 +400,10 @@ export async function runPendingSendScenario(
             sentRows: Array.from(
               list.querySelectorAll<HTMLElement>('[data-postid]')
             )
-              .filter((row) =>
-                row.textContent?.includes(`Pending send ${token} `)
+              .filter(
+                (row) =>
+                  row.dataset.postid === ownedPostId ||
+                  row.textContent?.includes(token)
               )
               .map((row) => ({
                 id: row.dataset.postid!,
@@ -282,6 +411,46 @@ export async function runPendingSendScenario(
                 deliveryCount: row.querySelectorAll(
                   '[data-testid="ChatMessageDeliveryStatus"]'
                 ).length,
+                ...(isRetry
+                  ? {
+                      contentTexts: Array.from(
+                        row.querySelectorAll<HTMLElement>('*')
+                      )
+                        .filter(
+                          (node) =>
+                            node.childElementCount === 0 &&
+                            node.textContent?.includes(token)
+                        )
+                        .map((node) => node.textContent!),
+                      retryCount: Array.from(
+                        row.querySelectorAll<HTMLElement>('*')
+                      ).filter(
+                        (node) =>
+                          node.childElementCount === 0 &&
+                          node.textContent === 'Send failed,click to retry'
+                      ).length,
+                      targets: {
+                        message: measureTarget(
+                          Array.from(
+                            row.querySelectorAll<HTMLElement>('*')
+                          ).filter(
+                            (node) =>
+                              node.childElementCount === 0 &&
+                              node.textContent?.includes(token)
+                          )[0]
+                        ),
+                        retry: measureTarget(
+                          Array.from(
+                            row.querySelectorAll<HTMLElement>('*')
+                          ).filter(
+                            (node) =>
+                              node.childElementCount === 0 &&
+                              node.textContent === 'Send failed,click to retry'
+                          )[0]
+                        ),
+                      },
+                    }
+                  : {}),
               })),
           });
           samples.at(-1)!.duration = performance.now() - time;
@@ -303,12 +472,29 @@ export async function runPendingSendScenario(
             value: input.value,
             ...(e instanceof KeyboardEvent ? { key: e.key } : {}),
             ...(e instanceof WheelEvent ? { deltaY: e.deltaY } : {}),
+            ...(isRetry && e.type === 'click' && e.target instanceof Element
+              ? {
+                  postId:
+                    e.target.closest<HTMLElement>('[data-postid]')?.dataset
+                      .postid,
+                  retryLabel: e.target.textContent ?? '',
+                  ...(e instanceof MouseEvent
+                    ? { clientX: e.clientX, clientY: e.clientY }
+                    : {}),
+                }
+              : {}),
           });
         document.addEventListener('keydown', event, true);
         document.addEventListener('input', event, true);
+        if (isRetry) list.addEventListener('click', event, true);
         list.addEventListener('wheel', event, { passive: true });
         sample();
         return {
+          bindPost: (id: string) => {
+            if (ownedPostId !== null)
+              throw new Error('Provisional post already bound');
+            ownedPostId = id;
+          },
           snapshot: () => samples.at(-1),
           data: () => ({ samples, events }),
           stop: () => {
@@ -318,11 +504,12 @@ export async function runPendingSendScenario(
             document.removeEventListener('keydown', event, true);
             document.removeEventListener('input', event, true);
             list.removeEventListener('wheel', event);
+            if (isRetry) list.removeEventListener('click', event, true);
             return { samples, events };
           },
         };
       },
-      { list, input: inputHandle, token }
+      { list, input: inputHandle, token, isRetry }
     );
     const mark = async (id: PendingSendEvidence['marks'][number]['id']) => {
       const time = await page.evaluate(() => performance.now());
@@ -356,8 +543,55 @@ export async function runPendingSendScenario(
       post(page, text).getByTestId('ChatMessageDeliveryStatus')
     ).toBeVisible();
     await expect(input).toHaveValue('');
+    if (isRetry) {
+      const id = await post(page, text).getAttribute('data-postid');
+      if (!id) throw new Error('Missing actual provisional post identity');
+      await capture.evaluate(
+        (state: any, id: string) => state.bindPost(id),
+        id
+      );
+    }
     await mark('pending');
     proof.backend.push(await readBackend('held'));
+    if (proof.retry) {
+      releaseFailure();
+      const failedRow = post(page, text);
+      const retryButton = failedRow.getByText('Send failed,click to retry', {
+        exact: true,
+      });
+      await expect(retryButton).toBeVisible({ timeout: 3000 });
+      proof.retry.failedAt = await page.evaluate(() => performance.now());
+      proof.retry.postId = await failedRow.getAttribute('data-postid');
+      proof.retry.failedBackend = await readBackend('held');
+      // Observe the failed state at Latest before the real Retry and newer wheel.
+      await page.waitForTimeout(220);
+      const snapshot = (await capture.evaluate((state: any) =>
+        state.snapshot()
+      )) as PendingSendEvidence['samples'][number];
+      const target = snapshot.sentRows[0]?.targets;
+      proof.retry.retryAt = await page.evaluate(() => performance.now());
+      if (
+        !snapshot.valid ||
+        snapshot.scope !== proof.scope ||
+        snapshot.duration > 32 ||
+        proof.retry.retryAt - snapshot.time > 100 ||
+        snapshot.sentRows.length !== 1 ||
+        snapshot.sentRows[0].id !== proof.retry.postId ||
+        !pendingSendTargetIsExposed(target?.message) ||
+        !pendingSendTargetIsExposed(target?.retry)
+      )
+        throw new Error(
+          'Actual failed text or Retry target is not exposed; no implicit scrolling is allowed'
+        );
+      const rect = target!.retry!.rect;
+      await page.mouse.click(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2
+      );
+      await expect
+        .poll(() => proof!.retry!.request !== null, { timeout: 3000 })
+        .toBe(true);
+    }
     const box = await list.boundingBox();
     if (!box) throw new Error('Missing actual scroll hit target');
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
@@ -422,7 +656,7 @@ export async function runPendingSendScenario(
       },
       terminalTime: release + 4000,
     };
-    held!.releasedAt = release;
+    if (!isRetry) held!.releasedAt = release;
     released = true;
     releaseGate();
     let terminalRead: Awaited<ReturnType<typeof readBackend>> | undefined;
@@ -440,7 +674,9 @@ export async function runPendingSendScenario(
           return (
             m.url === held!.url &&
             data.response === 'poke' &&
-            data.id === (held!.actions as { id: number }[])[0].id &&
+            data.id ===
+              ((proof!.retry?.request ?? held)!.actions as { id: number }[])[0]
+                .id &&
             'ok' in data
           );
         } catch {
@@ -470,21 +706,42 @@ export async function runPendingSendScenario(
     if (proof) proof.errors.push(String(error));
     else throw error;
   } finally {
+    closing = true;
+    releaseFailure();
     if (!released) {
       released = true;
       releaseGate();
     }
-    if (reading) await reading.freeze();
-    if (capture && proof) {
-      const data = (await capture.evaluate((state: any) =>
-        state.stop()
-      )) as Pick<PendingSendEvidence, 'events' | 'samples'>;
-      proof.samples = data.samples;
-      proof.events = data.events;
-    }
-    if (reading && proof) proof.reading = await reading.stop();
+    const finalize = async (
+      label: string,
+      operation: () => Promise<unknown>
+    ) => {
+      try {
+        await operation();
+      } catch (error) {
+        proof?.errors.push(`${label}: ${String(error)}`);
+      }
+    };
+    await Promise.allSettled(failureOperations);
+    if (reading) await finalize('reading-freeze', () => reading!.freeze());
+    if (capture && proof)
+      await finalize('capture-stop', async () => {
+        const data = (await capture!.evaluate((state: any) =>
+          state.stop()
+        )) as Pick<PendingSendEvidence, 'events' | 'samples'>;
+        proof!.samples = data.samples;
+        proof!.events = data.events;
+      });
+    if (reading && proof)
+      await finalize('reading-export', async () => {
+        proof!.reading = await reading!.stop();
+      });
     if (proof) {
       proof.request = held;
+      if (proof.retry && failureGate) {
+        proof.retry.requestCount = failureGate.requests.length;
+        proof.errors.push(...failureGate.errors);
+      }
       proof.sse = {
         supported: ack.supported(),
         errors: ack.errors,
@@ -495,22 +752,31 @@ export async function runPendingSendScenario(
         })),
       };
     }
-    if (routeInstalled) await page.unroute(routePattern, routeHandler);
-    await ack.stop();
+    if (routeInstalled)
+      await finalize('route-remove', () =>
+        page.unroute(routePattern, routeHandler)
+      );
+    await finalize('ack-stop', () => ack.stop());
     if (proof) {
-      await testInfo.attach('pending-send-read-raw', {
-        contentType: 'application/json',
-        body: JSON.stringify(proof),
-      });
+      const attachment = isRetry ? 'failed-send-retry' : 'pending-send-read';
+      await finalize('raw-attachment', () =>
+        testInfo.attach(`${attachment}-raw`, {
+          contentType: 'application/json',
+          body: JSON.stringify(proof),
+        })
+      );
       const assessment = assessPendingSendEvidence(
         proof,
         assessScrollReadingTrace
       );
-      await testInfo.attach('pending-send-read-proof', {
-        contentType: 'application/json',
-        body: JSON.stringify({ proof, assessment }),
-      });
+      await finalize('proof-attachment', () =>
+        testInfo.attach(`${attachment}-proof`, {
+          contentType: 'application/json',
+          body: JSON.stringify({ proof, assessment }),
+        })
+      );
       expect(assessment.verdict, JSON.stringify(assessment)).toBe('PASS');
+      expect(proof.errors, 'Collector/finalizer errors').toEqual([]);
     }
   }
 }

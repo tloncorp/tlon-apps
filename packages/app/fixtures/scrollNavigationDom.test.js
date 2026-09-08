@@ -43,6 +43,95 @@ const acquire = (expected = wireText) =>
   );
 
 describe('navigation text acquisition on captured production markup', () => {
+  it('shares ancestor reads only within each sample and rereads changed geometry/style on RAF and events', async () => {
+    vi.stubGlobal('window', dom.window);
+    vi.stubGlobal('Element', dom.window.Element);
+    vi.stubGlobal('location', dom.window.location);
+    vi.stubGlobal('MutationObserver', dom.window.MutationObserver);
+    vi.stubGlobal('innerWidth', 1200);
+    vi.stubGlobal('innerHeight', 800);
+    let frame;
+    vi.stubGlobal('requestAnimationFrame', (callback) => {
+      frame = callback;
+      return 1;
+    });
+    vi.stubGlobal('cancelAnimationFrame', () => {});
+    const list = document.querySelector('main');
+    const rectReads = new Map(),
+      styleReads = new Map();
+    let rowTop = 120,
+      ancestorOpacity = '1';
+    for (const element of document.querySelectorAll('*'))
+      element.getBoundingClientRect = () => {
+        rectReads.set(element, (rectReads.get(element) ?? 0) + 1);
+        return element === list
+          ? new dom.window.DOMRect(400, 20, 700, 500)
+          : element === row
+            ? new dom.window.DOMRect(400, rowTop, 700, 60)
+            : new dom.window.DOMRect(0, 0, 1200, 800);
+      };
+    vi.stubGlobal('getComputedStyle', (element) => {
+      styleReads.set(element, (styleReads.get(element) ?? 0) + 1);
+      return {
+        opacity: element === document.body ? ancestorOpacity : '1',
+        display: 'block',
+        visibility: 'visible',
+        contentVisibility: 'visible',
+        overflowX: 'visible',
+        overflowY: element === list ? 'auto' : 'visible',
+        pointerEvents: 'auto',
+      };
+    });
+    document.elementFromPoint = vi.fn(() => document.body);
+    const capture = await startScrollNavigationTrace(
+      {
+        evaluateHandle: async (callback, argument) => {
+          const collector = callback(argument);
+          return {
+            evaluate: async (method, value) => method(collector, value),
+            dispose: async () => {},
+          };
+        },
+      },
+      { commands: [], scopes: {} },
+      { left: 0, right: 1200, top: 0, bottom: 800 }
+    );
+    expect(rectReads.get(list)).toBe(1);
+    expect(styleReads.get(list)).toBe(1);
+    expect(rectReads.get(document.body)).toBe(1);
+    expect(styleReads.get(document.body)).toBe(1);
+    // List, row and message block each retain their own hit probe.
+    expect(document.elementFromPoint).toHaveBeenCalledTimes(3);
+    rowTop = 130;
+    ancestorOpacity = '0';
+    frame();
+    expect(rectReads.get(document.body)).toBe(2);
+    expect(styleReads.get(document.body)).toBe(2);
+    ancestorOpacity = '1';
+    row.dispatchEvent(new dom.window.MouseEvent('click', { bubbles: true }));
+    expect(rectReads.get(document.body)).toBe(3);
+    expect(styleReads.get(document.body)).toBe(3);
+    rowTop = 140;
+    row.setAttribute('data-observed-mutation', '1');
+    await Promise.resolve();
+    expect(rectReads.get(document.body)).toBe(4);
+    expect(styleReads.get(document.body)).toBe(4);
+    const raw = await capture.stop();
+    expect(raw.errors).toEqual([]);
+    expect(raw.samples).toHaveLength(5); // initial, RAF, event, mutation, final freeze
+    expect(
+      raw.samples.slice(0, 4).map((sample) => ({
+        exposed: sample.lists[0].exposed,
+        rowTop: sample.lists[0].rows[0].top,
+      }))
+    ).toEqual([
+      { exposed: true, rowTop: 100 },
+      { exposed: false, rowTop: 110 },
+      { exposed: true, rowTop: 110 },
+      { exposed: true, rowTop: 120 },
+    ]);
+    expect(raw.events).toHaveLength(1);
+  });
   it.each(['frame', 'caption', 'duplicate'])(
     'records actual event-path ownership for %s clicks',
     async (target) => {

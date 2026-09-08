@@ -84,7 +84,11 @@ export async function startScrollNavigationTrace(
       };
       function exposure(
         element: Element,
-        bounds = element.getBoundingClientRect()
+        reads: {
+          rect(element: Element): DOMRect;
+          style(element: Element): CSSStyleDeclaration;
+        },
+        bounds = reads.rect(element)
       ) {
         let left = Math.max(0, bounds.left),
           right = Math.min(innerWidth, bounds.right);
@@ -97,13 +101,13 @@ export async function startScrollNavigationTrace(
           ancestor;
           ancestor = ancestor.parentElement
         ) {
-          const style = getComputedStyle(ancestor);
+          const style = reads.style(ancestor);
           opacity *= Number(style.opacity);
           displayed &&=
             style.display !== 'none' &&
             style.visibility === 'visible' &&
             style.contentVisibility !== 'hidden';
-          const rect = ancestor.getBoundingClientRect();
+          const rect = reads.rect(ancestor);
           if (/^(auto|scroll|hidden|clip)$/.test(style.overflowX)) {
             left = Math.max(left, rect.left + ancestor.clientLeft);
             right = Math.min(
@@ -168,12 +172,30 @@ export async function startScrollNavigationTrace(
         if (!active) return;
         const time = performance.now();
         try {
+          // No DOM writes occur in a sample. Shared ancestors can reuse these
+          // reads; each invocation gets fresh maps, including mutation/events.
+          const rects = new Map<Element, DOMRect>();
+          const styles = new Map<Element, CSSStyleDeclaration>();
+          const reads = {
+            rect(element: Element) {
+              let value = rects.get(element);
+              if (!value)
+                rects.set(element, (value = element.getBoundingClientRect()));
+              return value;
+            },
+            style(element: Element) {
+              let value = styles.get(element);
+              if (!value)
+                styles.set(element, (value = getComputedStyle(element)));
+              return value;
+            },
+          };
           const grouped = new Map<HTMLElement, Element[]>();
           for (const row of document.querySelectorAll('[data-postid]')) {
             let list = row.parentElement;
             while (
               list &&
-              !['auto', 'scroll'].includes(getComputedStyle(list).overflowY)
+              !['auto', 'scroll'].includes(reads.style(list).overflowY)
             )
               list = list.parentElement;
             if (!list) continue;
@@ -184,9 +206,9 @@ export async function startScrollNavigationTrace(
           const lists: NavigationList[] = [];
           const attributedBodies = new Set<Element>();
           for (const [list, nodes] of grouped) {
-            const viewport = list.getBoundingClientRect();
+            const viewport = reads.rect(list);
             const viewportTop = viewport.top + list.clientTop;
-            const visibleList = exposure(list);
+            const visibleList = exposure(list, reads);
             // Exclude unrelated sidebar lists by physical conversation region,
             // never by whether their row IDs happen to satisfy the expected scope.
             const overlaps =
@@ -197,12 +219,12 @@ export async function startScrollNavigationTrace(
             if (!overlaps) continue;
             const rows: NavigationRow[] = nodes.map((row) => {
               const rowId = row.getAttribute('data-postid') ?? '';
-              const rect = row.getBoundingClientRect();
+              const rect = reads.rect(row);
               const shown =
                 visibleList.exposed &&
                 rect.bottom > viewportTop &&
                 rect.top < viewportTop + list.clientHeight &&
-                exposure(row).exposed;
+                exposure(row, reads).exposed;
               const blocks = [
                 ...row.querySelectorAll(
                   '.is_ContentFrame > .is_ContentBlock > span.is_TlonText'
@@ -221,7 +243,7 @@ export async function startScrollNavigationTrace(
               const block = blocks[pointBlockIndex];
               const measuredBlocks = blocks.map((part) => ({
                 text: part.textContent,
-                exposed: Boolean(shown && exposure(part).exposed),
+                exposed: Boolean(shown && exposure(part, reads).exposed),
               }));
               let pointTop: number | null = null;
               if (block && shown) {
@@ -266,7 +288,7 @@ export async function startScrollNavigationTrace(
           const loadingCount = [
             ...document.querySelectorAll('[role="progressbar"]'),
           ].filter((spinner) => {
-            const box = exposure(spinner);
+            const box = exposure(spinner, reads);
             return (
               box.exposed &&
               box.left >= conversation.left &&
@@ -281,7 +303,7 @@ export async function startScrollNavigationTrace(
             ),
           ].filter((block) => {
             if (attributedBodies.has(block)) return false;
-            const box = exposure(block);
+            const box = exposure(block, reads);
             return (
               box.exposed &&
               box.right > conversation.left &&
@@ -293,8 +315,8 @@ export async function startScrollNavigationTrace(
           // Supplemental actual PostScreen shell evidence shares this sampler.
           // Record mounted inventory; a retained but hidden route is not exposed.
           const shellMetric = (element: Element) => {
-            const rect = element.getBoundingClientRect();
-            const box = exposure(element);
+            const rect = reads.rect(element);
+            const box = exposure(element, reads);
             return {
               exposed: box.exposed,
               opacity: box.opacity,
@@ -357,7 +379,7 @@ export async function startScrollNavigationTrace(
                   disabled:
                     el.getAttribute('aria-disabled') === 'true' ||
                     el.hasAttribute('disabled'),
-                  pointerEvents: getComputedStyle(el).pointerEvents,
+                  pointerEvents: reads.style(el).pointerEvents,
                 };
               }),
             };

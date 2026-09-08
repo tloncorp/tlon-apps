@@ -101,6 +101,103 @@ describe('actual seeded collector freeze/export boundary', () => {
     vi.stubGlobal('scrollY', 0);
   };
 
+  async function clockedInput() {
+    globals();
+    let time = 10;
+    vi.stubGlobal('performance', { now: () => time, timeOrigin: 1000 });
+    const { startScrollInputTrace } =
+      await import('../../../apps/tlon-web/e2e/helpers/scrollInput');
+    const input = document.createElement('textarea');
+    const send = document.createElement('button');
+    input.dataset.testid = 'MessageInput';
+    input.value = 'same draft';
+    document.querySelector('main').append(input, send);
+    for (const node of [input, send])
+      node.getBoundingClientRect = () => new dom.window.DOMRect(0, 0, 100, 30);
+    document.elementFromPoint = () => send;
+    input.focus();
+    const capture = await startScrollInputTrace(
+      {
+        evaluateHandle: async (callback, args) => {
+          const recorder = callback(input, args);
+          return {
+            evaluate: async (method) => method(recorder),
+            dispose: disposed,
+          };
+        },
+      },
+      send
+    );
+    return {
+      input,
+      capture,
+      setTime: (value) => {
+        time = value;
+      },
+      deliver: async () => {
+        input.dispatchEvent(new dom.window.Event('input', { bubbles: true }));
+        await Promise.resolve();
+      },
+    };
+  }
+
+  // Clock precision can give two identical acknowledgements the same timestamp.
+  // Coalesce only that redundant snapshot; retain every input delivery and any
+  // changed state or different/backwards time. Strict reader chronology stays.
+  it('coalesces identical same-clock snapshots without losing input deliveries', async () => {
+    const { capture, setTime, deliver } = await clockedInput();
+    setTime(20);
+    await deliver();
+    await deliver();
+    setTime(40);
+    const raw = await capture.stop();
+    expect(raw.samples.map((sample) => sample.time)).toEqual([10, 20, 40]);
+    expect(raw.actions).toHaveLength(2);
+    expect(raw.actions.map((action) => action.payload)).toEqual([
+      'same draft',
+      'same draft',
+    ]);
+  });
+
+  it.each(['draft', 'selection', 'composition', 'connection'])(
+    'preserves a changed %s at an indistinguishable timestamp',
+    async (field) => {
+      const { capture, input, setTime, deliver } = await clockedInput();
+      setTime(20);
+      await deliver();
+      if (field === 'draft') input.value = 'changed draft';
+      if (field === 'selection') input.setSelectionRange(0, 0);
+      if (field === 'composition')
+        input.dispatchEvent(new dom.window.Event('compositionstart'));
+      if (field === 'connection') input.remove();
+      await deliver();
+      setTime(40);
+      const raw = await capture.stop();
+      const coincident = raw.samples.filter((sample) => sample.time === 20);
+      expect(coincident).toHaveLength(2);
+      expect(coincident[0]).not.toEqual(coincident[1]);
+    }
+  );
+
+  it.each([21, 19])(
+    'preserves identical state at a different clock value %s',
+    async (nextTime) => {
+      const { capture, setTime, deliver } = await clockedInput();
+      setTime(20);
+      await deliver();
+      setTime(nextTime);
+      await deliver();
+      setTime(40);
+      const raw = await capture.stop();
+      expect(raw.samples.map((sample) => sample.time)).toEqual([
+        10,
+        20,
+        nextTime,
+        40,
+      ]);
+    }
+  );
+
   it('freezes input samples/listeners and releases the same handle on later export', async () => {
     globals();
     const { startScrollInputTrace } =

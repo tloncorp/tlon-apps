@@ -413,7 +413,8 @@ enum ScrollGeometryCapture {
                         itinerary: [[String: String]]? = nil) -> [String: Any] {
         let startedAt = CACurrentMediaTime() * 1000
         var result: [String: Any] = [
-            "version": 1, "requestId": requestID, "rootId": rootID,
+            "version": 1, "localBoundsVersion": 1,
+            "requestId": requestID, "rootId": rootID,
             "scrollViewId": scrollID, "rowIds": rowIDs, "composerId": composerID,
             "clock": "CACurrentMediaTime milliseconds",
             "coordinateSpace": "window-model-points", "startedAt": startedAt
@@ -602,7 +603,10 @@ enum ScrollGeometryCapture {
     }
     private static func geometry(_ view: UIView, in window: UIWindow,
                                  scrollView: UIScrollView?) -> [String: Any] {
-        let frame = view.convert(view.bounds, to: window)
+        // Bind intrinsic shape to the exact bounds used for this conversion.
+        // Window-converted extents are still retained as observed geometry.
+        let localBounds = view.bounds
+        let frame = view.convert(localBounds, to: window)
         var clipped = frame.intersection(window.bounds)
         var alpha: CGFloat = 1
         var hidden = false
@@ -634,6 +638,11 @@ enum ScrollGeometryCapture {
         ]
         if let value = view.accessibilityValue { result["semanticValue"] = value }
         if let cell = containingCellIdentity { result["containingCellIdentity"] = cell }
+        if view.bounds == localBounds && view.window === window {
+            result["localBounds"] = rect(localBounds)
+        } else {
+            result["localBounds"] = NSNull()
+        }
         return result
     }
 }

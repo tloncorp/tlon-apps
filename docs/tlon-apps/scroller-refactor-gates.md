@@ -1,5 +1,37 @@
 # Scroller test hardening and refactor
 
+## Current capture checkpoint — September 8
+
+The structural refactor is committed as `2fed3a9567`. The latest combined app
+check passes **2,990 assertions**, with **three existing skips across 130 files**;
+TypeScript passes. Wheel evidence now binds the actual DOM receipt and browser
+scale, duplicate input snapshots are coalesced without losing input events,
+and native measurements retain local bounds independently of window conversion.
+The real failed-send → Retry case is implemented. Desktop recording stays
+headless; extra Playwright trace/video recording is disabled for measurement
+runs, while explicit collectors and failure screenshots remain enabled.
+
+Fresh iOS **R27 passes native reaction mutation and anchor continuity: 106 frames,
+0 pt drift**, with a complete native buffer. Total **184.458s** includes **138s
+build/install**; the native recording takes **1.825s**. The broader shared
+JavaScript/native acquisition check remains incomplete because three bridge
+brackets exceed 32 ms. This is bounded native model geometry, not presentation
+or normal App.main qualification.
+
+Fresh desktop **R8 completes 50/50 actions** in **111.515s total / 100.941s test
+time**. Wheel and input checks qualify, but the final Playwright assertion still
+fails: the independent result is **INCOMPLETE**, with two reading gaps and three
+thinking-related acquisition issues. The relevant gaps are 100.7–103.1 ms.
+Failed-send **R3** executes the real Retry and retains one successful reconciled
+post, but its **119.3 ms click-to-request interval exceeds the 100 ms binding
+limit**; that slice remains incomplete. No limit was widened.
+
+**Full suite qualification remains open.** The remaining cadence/request timing
+issues require diagnosis; wider overlap, production-build, presentation/input,
+platform, unread/pagination and soak coverage also remains open. Mobile web is
+excluded. Earlier attempts are preserved in the
+[results ledger](scroller-refactor-results-2026-09-07.md).
+
 ## Structural refactor checkpoint — September 8
 
 The tested baseline is committed as `025f83098b`. The subsequent refactor

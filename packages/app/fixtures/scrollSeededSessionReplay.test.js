@@ -177,7 +177,7 @@ describe('actual seeded helper unconditional finalization', () => {
 // Run the actual orchestration body. Protocol-return cost is modeled separately
 // from in-page freeze; no DOM or product geometry is inferred by these controls.
 describe('actual seeded helper defers bulk exports until actions finish', () => {
-  const run = async ({ failExport, failFreeze } = {}) => {
+  const run = async ({ failExport, failFreeze, failWheelMetrics } = {}) => {
     const ts = await import('typescript');
     const source = readFileSync(
       resolve(
@@ -192,12 +192,16 @@ describe('actual seeded helper defers bulk exports until actions finish', () => 
       ts.ScriptTarget.Latest,
       true
     );
-    const names = ['runSeededSession', 'finalizeSeededSessionEvidence'];
+    const names = [
+      'runSeededSession',
+      'finalizeSeededSessionEvidence',
+      'readWheelSurface',
+    ];
     const functions = ast.statements.filter(
       (node) =>
         ts.isFunctionDeclaration(node) && names.includes(node.name?.text)
     );
-    expect(functions).toHaveLength(2);
+    expect(functions).toHaveLength(3);
     const js = ts.transpileModule(
       functions.map((node) => node.getText(ast)).join('\n'),
       {
@@ -272,7 +276,56 @@ describe('actual seeded helper defers bulk exports until actions finish', () => 
       getByTestId: () => locator,
       getByText: () => locator,
       locator: () => locator,
-      mouse: { move: async () => {}, wheel: async () => {} },
+      mouse: {
+        move: async () => {},
+        wheel: async (x, y) => {
+          calls.push(`wheel:${x}:${y}`);
+        },
+      },
+      context: () => ({
+        newCDPSession: async () => ({
+          send: async (method) => {
+            calls.push(`cdp:${method}`);
+            if (method === 'Browser.getVersion')
+              return {
+                product: 'Chrome/136.0.7103.25',
+                revision: '@97d495678dc307bfe6d6475901104e262ec7a487',
+                protocolVersion: '1.3',
+              };
+            if (method === 'Target.getTargetInfo')
+              return {
+                targetInfo: {
+                  targetId: 'modeled-target',
+                  type: 'page',
+                  url: 'http://localhost:3000/channel/test',
+                },
+              };
+            expect(method).toBe('Page.getLayoutMetrics');
+            if (failWheelMetrics) throw Error('owned metrics unavailable');
+            return {
+              visualViewport: {
+                clientWidth: 2560,
+                clientHeight: 1600,
+                scale: 1,
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+              },
+              cssVisualViewport: {
+                clientWidth: 1280,
+                clientHeight: 800,
+                scale: 1,
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+              },
+            };
+          },
+          detach: async () => {
+            calls.push('cdp:detach');
+          },
+        }),
+      }),
       setViewportSize: async () => {},
       url: () => 'http://localhost:3000/channel/test',
       waitForTimeout: async (ms) => {
@@ -280,6 +333,18 @@ describe('actual seeded helper defers bulk exports until actions finish', () => 
       },
       evaluate: async () => ({
         start: clock,
+        time: clock,
+        surface: {
+          dpr: 1,
+          width: 1280,
+          height: 800,
+          visualWidth: 1280,
+          visualHeight: 800,
+          visualScale: 1,
+          visualX: 0,
+          visualY: 0,
+          topFrame: true,
+        },
         timeOrigin: 1,
         origin: 'http://localhost:3000',
         scope: '/channel/test',
@@ -346,13 +411,23 @@ describe('actual seeded helper defers bulk exports until actions finish', () => 
       startScrollNavigationTrace: async () => capture('global'),
       observeActions: async () => {
         const events = {
+          waitForWheel: async (start) => {
+            calls.push('await-wheel-listener');
+            clock += 8; // Non-blocking product listener runs after driver return.
+            return {
+              time: start,
+              observedAt: clock,
+              timeOrigin: 1,
+              scope: '/channel/test',
+            };
+          },
           stop: () => {
             calls.push('events-stop');
             return { events: [], errors: [] };
           },
         };
         return {
-          evaluate: async (fn) => fn(events),
+          evaluate: async (fn, arg) => fn(events, arg),
           dispose: async () => {
             calls.push('events-dispose');
           },
@@ -391,6 +466,60 @@ describe('actual seeded helper defers bulk exports until actions finish', () => 
     );
     return { calls, captures, proof: attachments.get('seeded-session-raw') };
   };
+  it('retains raw same-page CDP measurements around each unchanged wheel and detaches once', async () => {
+    const { calls, proof } = await run();
+    expect(calls.filter((c) => c.startsWith('wheel:'))).toEqual([
+      'wheel:0:-100',
+      'wheel:0:-560',
+      'wheel:0:-560',
+    ]);
+    expect(calls.filter((c) => c === 'cdp:Page.getLayoutMetrics')).toHaveLength(
+      4
+    );
+    expect(calls.filter((c) => c === 'cdp:detach')).toHaveLength(1);
+    expect(proof.session.wheelSource.target.targetId).toBe('modeled-target');
+    for (const entry of proof.ledger.filter((e) => e.action.kind === 'wheel')) {
+      expect(entry.wheelDispatch.receipt.observedAt).toBe(
+        entry.wheelDispatch.commandReturnedAt + 8
+      );
+      expect(entry.wheelDispatch.after.before.time).toBeGreaterThanOrEqual(
+        entry.wheelDispatch.receipt.observedAt
+      );
+      expect(entry.wheelDispatch.targetId).toBe('modeled-target');
+      expect(entry.wheelDispatch.deltaY).toBe(-560);
+      expect(
+        entry.wheelDispatch.before.metrics.visualViewport.clientWidth
+      ).toBe(2560);
+      expect(
+        entry.wheelDispatch.after.metrics.cssVisualViewport.clientWidth
+      ).toBe(1280);
+      expect(entry.wheelDispatch.before.after.time).toBeLessThanOrEqual(
+        entry.wheelDispatch.start
+      );
+      expect(entry.wheelDispatch.after.before.time).toBeGreaterThanOrEqual(
+        entry.wheelDispatch.end
+      );
+    }
+  });
+  it('retains unavailable CDP evidence while still executing original actions and owned cleanup', async () => {
+    const { calls, proof } = await run({ failWheelMetrics: true });
+    expect(calls).toContain('latest:1');
+    expect(calls.filter((c) => c.startsWith('wheel:'))).toEqual([
+      'wheel:0:-100',
+      'wheel:0:-560',
+      'wheel:0:-560',
+    ]);
+    expect(calls.filter((c) => c === 'cdp:detach')).toHaveLength(1);
+    expect(calls).toContain('fixture-cleanup');
+    for (const entry of proof.ledger.filter((e) => e.action.kind === 'wheel')) {
+      expect(entry.wheelDispatch.before.error).toContain(
+        'owned metrics unavailable'
+      );
+      expect(entry.wheelDispatch.after.error).toContain(
+        'owned metrics unavailable'
+      );
+    }
+  });
   it('dispatches both Latest actions before any bulk export, with unchanged deadlines and block records', async () => {
     const { calls, proof } = await run();
     expect(calls.findIndex((c) => c.startsWith('export:'))).toBeGreaterThan(
@@ -451,5 +580,180 @@ describe('actual seeded helper defers bulk exports until actions finish', () => 
     expect(
       proof.errors.some((error) => error.includes('freeze reading-0'))
     ).toBe(true);
+  });
+});
+
+// Actual installed listener body with only the browser clock/event boundary
+// modeled. A command acknowledgement does not synchronously deliver the event.
+describe('actual wheel observer receipt lifetime', () => {
+  async function observer() {
+    const ts = await import('typescript');
+    const source = readFileSync(
+      resolve(
+        import.meta.dirname,
+        '../../../apps/tlon-web/e2e/helpers/scrollerSeededSession.ts'
+      ),
+      'utf8'
+    );
+    const ast = ts.createSourceFile(
+      'helper.ts',
+      source,
+      ts.ScriptTarget.Latest,
+      true
+    );
+    const fn = ast.statements.find(
+      (n) => ts.isFunctionDeclaration(n) && n.name?.text === 'observeActions'
+    );
+    const js = ts.transpileModule(fn.getText(ast), {
+      compilerOptions: { target: ts.ScriptTarget.ES2022 },
+    }).outputText;
+    let clock = 100;
+    const listeners = new Map(),
+      timers = new Map();
+    class Element {}
+    class WheelEvent {}
+    class KeyboardEvent {}
+    class HTMLTextAreaElement {}
+    const context = {
+      performance: { now: () => clock, timeOrigin: 7 },
+      location: {
+        pathname: '/apps/groups/group/~zod%2Ftest/channel/chat%2F~zod%2Fsource',
+      },
+      window: {
+        addEventListener(kind, fn, capture) {
+          expect(capture).toBe(true);
+          listeners.set(kind, fn);
+        },
+        removeEventListener(kind, fn, capture) {
+          expect(capture).toBe(true);
+          expect(listeners.get(kind)).toBe(fn);
+          listeners.delete(kind);
+        },
+      },
+      setTimeout(fn, delay) {
+        const id = {};
+        timers.set(id, { fn, at: clock + delay });
+        return id;
+      },
+      clearTimeout(id) {
+        timers.delete(id);
+      },
+      Element,
+      WheelEvent,
+      KeyboardEvent,
+      HTMLTextAreaElement,
+      devicePixelRatio: 1,
+      innerWidth: 1280,
+      innerHeight: 800,
+      visualViewport: {
+        width: 1280,
+        height: 800,
+        scale: 1,
+        offsetLeft: 0,
+        offsetTop: 0,
+      },
+    };
+    context.window.top = context.window;
+    const start = new Function(
+      ...Object.keys(context),
+      `${js};return observeActions;`
+    )(...Object.values(context));
+    const handle = await start({ evaluateHandle: (fn) => fn() });
+    const advance = (time) => {
+      clock = time;
+      for (const timer of [...timers.values()])
+        if (timer.at <= clock) timer.fn();
+    };
+    const deliver = (time = 110, observedAt = 123, extra = {}) => {
+      clock = observedAt;
+      listeners.get('wheel')(
+        Object.assign(new WheelEvent(), {
+          type: 'wheel',
+          timeStamp: time,
+          target: null,
+          isTrusted: true,
+          deltaX: 0,
+          deltaY: -1120,
+          deltaMode: 0,
+          ...extra,
+        })
+      );
+    };
+    return { handle, advance, deliver, timers, listeners };
+  }
+  it('waits past native return for the unmodified non-blocking listener', async () => {
+    const o = await observer();
+    o.advance(115); // Original mouse.wheel return, not a DOM receipt.
+    let finished = false;
+    const pending = o.handle.waitForWheel(105).then((r) => {
+      finished = true;
+      return r;
+    });
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    o.deliver();
+    expect(await pending).toEqual({
+      time: 110,
+      observedAt: 123,
+      timeOrigin: 7,
+      scope: '/apps/groups/group/~zod%2Ftest/channel/chat%2F~zod%2Fsource',
+    });
+    expect(o.timers.size).toBe(0);
+    o.handle.stop();
+  });
+  it('returns an already recorded receipt without waiting for another event', async () => {
+    const o = await observer();
+    o.deliver();
+    o.advance(125);
+    expect(await o.handle.waitForWheel(105)).toMatchObject({
+      time: 110,
+      observedAt: 123,
+    });
+    expect(o.timers.size).toBe(0);
+    o.handle.stop();
+  });
+  it('does not select past an undesirable first receipt for a matching payload', async () => {
+    const o = await observer();
+    const pending = o.handle.waitForWheel(105);
+    o.deliver(104, 123, { isTrusted: false, deltaY: 1 });
+    expect(await pending).toMatchObject({ time: 104, observedAt: 123 });
+    o.deliver(125, 126);
+    expect(o.handle.stop().events).toHaveLength(2);
+  });
+  it('ignores prior observations but does not extend the original 250ms deadline', async () => {
+    const o = await observer();
+    o.deliver(90, 100);
+    o.advance(115);
+    let finished = false;
+    const pending = o.handle.waitForWheel(105).then((r) => {
+      finished = true;
+      return r;
+    });
+    o.advance(354);
+    await Promise.resolve();
+    expect(finished).toBe(false);
+    o.advance(355);
+    expect(await pending).toEqual({
+      error: 'Wheel listener receipt exceeded 250ms',
+    });
+    expect(o.timers.size).toBe(0);
+    o.handle.stop();
+  });
+  it('cannot certify a late queued receipt', async () => {
+    const o = await observer();
+    o.deliver(110, 356);
+    expect(await o.handle.waitForWheel(105)).toEqual({
+      error: 'Wheel listener receipt exceeded 250ms',
+    });
+    expect(o.timers.size).toBe(0);
+    o.handle.stop();
+  });
+  it('retires a pending receipt and timer when the owned observer stops', async () => {
+    const o = await observer();
+    const pending = o.handle.waitForWheel(105);
+    o.handle.stop();
+    expect(await pending).toEqual({ error: 'Wheel observer stopped' });
+    expect(o.timers.size).toBe(0);
+    expect(o.listeners.size).toBe(0);
   });
 });

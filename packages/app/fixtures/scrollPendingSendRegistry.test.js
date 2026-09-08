@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { pendingSendScenario } from '../../../scripts/scroll-stability-keyboard-evidence.mjs';
+import {
+  pendingSendScenario,
+  failedSendRetryScenario,
+} from '../../../scripts/scroll-stability-keyboard-evidence.mjs';
 import {
   readPlaywrightReport,
   assessWebEvidence,
@@ -52,15 +55,23 @@ const read = (d) =>
   readPlaywrightReport(d.report, '/tmp/pending-send-registry-control.json')[0];
 
 describe('pending-send shared product registry and raw replay boundary', () => {
-  it('registers exactly one bounded case with its exact partial matrix scope', () => {
+  it('registers the two distinct bounded cases with their exact partial matrix scope', () => {
     const entries = webScenarioRegistry.filter(
       (r) => r.requirePendingSendProof
     );
-    expect(entries).toHaveLength(1);
+    expect(entries).toHaveLength(2);
     expect(entries[0].scenario).toBe(pendingSendScenario.scenario);
     expect(entries[0].matrix).toEqual(['SND-04', 'RAC-08', 'AC-12']);
     expect(entries[0].traceNames).toEqual([]);
-    expect(webScenarioRegistry).toHaveLength(43);
+    expect(entries[1].scenario).toBe(failedSendRetryScenario.scenario);
+    expect(entries[1].matrix).toEqual([
+      'SND-05',
+      'SND-08',
+      'AC-09',
+      'AC-12',
+      'AC-20',
+    ]);
+    expect(webScenarioRegistry).toHaveLength(44);
   });
   it('extracts both raw attachments and refuses a producer pass on incomplete evidence', () => {
     const record = read(data());
@@ -110,5 +121,22 @@ describe('pending-send shared product registry and raw replay boundary', () => {
     ];
     expect(read(d).excluded).toBeNull();
     expect(assessWebEvidence(read(d)).status).toBe('incomplete');
+  });
+});
+
+describe('failed-send Retry public registry boundary', () => {
+  it('extracts the new exact attachments and never trusts producer PASS', () => {
+    const d = data();
+    const spec = d.report.suites[0].specs[0];
+    spec.title = failedSendRetryScenario.title;
+    d.attempt.attachments[0].name = failedSendRetryScenario.attachment;
+    d.attempt.attachments[1].name = failedSendRetryScenario.rawAttachment;
+    const record = read(d);
+    expect(record.scenario).toBe(failedSendRetryScenario.scenario);
+    expect(record.pendingSendProofs.map((p) => p.name)).toEqual([
+      failedSendRetryScenario.attachment,
+      failedSendRetryScenario.rawAttachment,
+    ]);
+    expect(assessWebEvidence(record).status).toBe('incomplete');
   });
 });

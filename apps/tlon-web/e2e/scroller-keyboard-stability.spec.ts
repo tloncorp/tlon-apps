@@ -267,3 +267,10 @@ test('pending Enter send cannot reclaim latest after deliberate upward scrolling
 }, testInfo) => {
   await runPendingSendScenario(page, browser, testInfo);
 });
+
+test('failed own send retries the same post without reclaiming latest', async ({
+  zodPage: page,
+  browser,
+}, testInfo) => {
+  await runPendingSendScenario(page, browser, testInfo, 'failed-retry');
+});

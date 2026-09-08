@@ -1,5 +1,67 @@
 # Scroller refactor validation — 2026-09-07
 
+## Capture corrections and failed-send coverage — September 8
+
+Baseline refactor: `2fed3a95678ffaa66748311e311b1d2a8e25a47d`.
+The new checks bind wheel commands to independently measured scale and the
+actual asynchronous DOM receipt, preserve same-clock input deliveries, and use
+native local bounds to distinguish reserved shape from converted cell extents.
+Failed-send coverage aborts only the exact owned request, uses the actual Retry
+control, and retains later READ ownership through the successful retry.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Combined app | 2,990 assertions pass; three existing skips, 130 files; TypeScript passes | `/private/tmp/scroller-final-capture-fixes-app-20260908.json`, `/private/tmp/scroller-final-capture-fixes-typescript-20260908.log` |
+| Native R27 | Reaction mutation and anchor continuity PASS, 106 frames, zero drift; native buffer COMPLETE; shared JS/native acquisition INCOMPLETE | `/private/tmp/scroller-native-reaction-r27-20260908/independent-replay.json` |
+| Desktop R6 | 50/50 actions; Playwright fails, independent INCOMPLETE with 14 issues | `/private/tmp/scroller-seeded-session-product-r6-20260908/independent.json` |
+| Desktop R7 | 50/50 actions; wheel/thinking checks clear; two remaining reading/input acquisition gaps | `/private/tmp/scroller-seeded-session-product-r7-20260908/independent.json` |
+| Desktop R8 | 50/50 actions; wheel/input checks clear; two reading gaps plus two thinking-acquisition flags and their downstream handoff flag; INCOMPLETE | `/private/tmp/scroller-seeded-session-product-r8-20260908/independent.json` |
+| Failed-send R1 | Real failure reached; Retry selector spacing mismatch stops before Retry/READ | `/private/tmp/scroller-failed-send-product-r1-20260908/playwright.json` |
+| Failed-send R2 / R3 | Real same-post Retry succeeds; 120.1 / 119.3 ms click-to-request intervals exceed the 100 ms binding limit; INCOMPLETE | `/private/tmp/scroller-failed-send-product-r2-20260908/canonical-replay.json`, `/private/tmp/scroller-failed-send-product-r3-20260908/canonical-replay.json` |
+
+R27 takes **184.458s total**: build/install 138s, launch 1s, readiness 20s.
+Ready-to-dispatch request takes 1.373s, and dispatch-to-collection takes 11.289s;
+the native recording itself lasts 1.825s. Shared acquisition brackets of
+76.454/50.278/44.221 ms exceed 32 ms; native measurement operations take only
+1.079–1.341 ms. Native-buffer continuity remains separately qualified. Exact
+artifact/source checks, one final screenshot and explicit-device cleanup finish.
+
+R6 exposes two wheel-binding mistakes that isolated controls missed: the real
+route has a query string, and DOM observation follows driver return by
+6.7–10.5 ms. Both are corrected with faithful controls and unchanged limits.
+R6's 37.4 ms metrics bracket remains incomplete in the preserved attempt.
+The original R5 duplicate input snapshots also remain preserved; the producer
+now coalesces only fully identical snapshots at the same timestamp.
+
+Per-sample ancestor read reuse reduces observed global-collector measurement
+time in the affected R6/R7 interval from 3.22 to 2.53 ms on average. Every
+sample, event and hit probe is preserved, and caches expire after each sample.
+This comparison supports reduced collector cost, not a controlled causal claim.
+R7 still has a shared 105.7 ms reading/input gap.
+
+Playwright's inherited retain-on-failure trace/video settings record throughout
+each test. They are now off for measurement runs; explicit raw collectors and
+failure screenshots are unchanged. R8 takes **111.515s total / 100.941s test**,
+compared with R7's **122.103s / 108.154s**. Cadence gaps remain: reading 1 has a
+100.7 ms quiet-tail gap; reading 2 and semantic/chrome have 103.0/103.1 ms gaps
+during remote send. The thinking handoff flag follows from that truncated
+qualified prefix. Removing debug recording does not establish a timing fix.
+
+Failed-send R3 retains exactly two owned requests, unchanged payload/identity,
+a real successful retry ACK, one reconciled post and an empty draft. Click
+observation takes 67.7 ms, followed by 51.6 ms to the captured request. The
+100 ms binding guard rejects their 119.3 ms total; the acknowledgement issue
+is downstream of the reader retaining the initial request ID. All three
+attempts clean up their exact owned groups. No timing limit is relaxed and no
+incomplete attempt is counted as a product pass.
+
+All runtime processes are terminal. Source/recipe checks and owned cleanup
+complete. Raw attempts and reviewed changes are retained in
+`artifacts/scroller-capture-fixes-2026-09-08.tgz`; compiled native executable,
+bundle and source map are excluded. Production-build, presented-frame,
+caret/IME, wider platform/overlap/unread/pagination and soak qualification is
+still open. Mobile web remains excluded.
+
 ## Structural refactor and fresh comparison — September 8
 
 Parent baseline: `025f83098b7baa7fa6bd864ebc38a56ff93ca08f`.

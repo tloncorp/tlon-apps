@@ -10,6 +10,288 @@ import {
   moveSeededReadingSample,
 } from './scrollSeededSessionTestData';
 
+// Expected DOM pixels come from independently modeled physical/CSS metadata,
+// never a product-observed event. Unsupported/missing ownership is incomplete.
+function wheelEvidence(dpr = 1) {
+  const proof = seededEvidence();
+  for (const entry of proof.ledger.filter(
+    (e: any) => e.action.kind === 'wheel'
+  )) {
+    const witness = entry.wheelDispatch;
+    for (const measurement of [witness.before, witness.after])
+      for (const snapshot of [measurement.before, measurement.after])
+        snapshot.surface.dpr = dpr;
+    const event = proof.wheels.find(
+      (e: any) => e.time >= entry.start && e.time <= entry.end
+    );
+    event.surface.dpr = dpr;
+    // Fixtures expressly use compositor scale 2, separately declared above.
+    event.deltaY = entry.action.wheelY * (2 / dpr);
+  }
+  const entry = proof.ledger.find((e: any) => e.action.kind === 'wheel');
+  return { proof, entry, witness: entry.wheelDispatch, event: proof.wheels[0] };
+}
+
+describe('seeded wheel uses raw owned scale metadata', () => {
+  it('derives compositor 1 from raw metrics instead of assuming the calibration machine scale', () => {
+    const { proof } = wheelEvidence();
+    for (const entry of proof.ledger.filter(
+      (e: any) => e.action.kind === 'wheel'
+    )) {
+      for (const measurement of [
+        entry.wheelDispatch.before,
+        entry.wheelDispatch.after,
+      ]) {
+        measurement.metrics.visualViewport.clientWidth = 1280;
+        measurement.metrics.visualViewport.clientHeight = 800;
+      }
+      proof.wheels.find(
+        (e: any) => e.time >= entry.start && e.time <= entry.end
+      ).deltaY = entry.action.wheelY;
+    }
+    expect(assessSeededSession(proof).issues).toEqual([]);
+  });
+  it.each([1, 2, 0.5])(
+    'binds compositor 2 / DOM DPR %s without changing the driver',
+    (dpr) => {
+      const { proof } = wheelEvidence(dpr);
+      expect(assessSeededSession(proof).issues).toEqual([]);
+      expect(proof.plan).toEqual(
+        seededSessionPlan(proof.plan.seed, proof.plan.actionCount)
+      );
+    }
+  );
+  it.each([
+    'missing witness',
+    'missing engine',
+    'wrong engine',
+    'wrong revision',
+    'foreign target',
+    'foreign session',
+    'foreign action',
+    'foreign scope',
+    'foreign clock',
+    'stale measurement',
+    'measurement too slow',
+    'dispatch too slow',
+    'nonfinite physical width',
+    'missing physical width',
+    'zero CSS width',
+    'negative DPR',
+    'axis disagreement',
+    'DPR change',
+    'viewport change',
+    'page scale',
+    'browser zoom',
+    'non-top frame',
+    'event DPR change',
+    'line mode',
+    'page mode',
+    'missing mode',
+    'duplicate event',
+    'missing event',
+    'untrusted event',
+    'foreign event scope',
+    'wrong X',
+    'wrong sign',
+    'wrong delta',
+    'wrong declared delta',
+    'event before dispatch',
+    'late observation',
+    'duplicate original observer',
+    'missing original observer',
+    'changed original observer',
+  ])('keeps %s incomplete', (fault) => {
+    const { proof, entry, witness: w, event } = wheelEvidence(2);
+    const metrics = w.before.metrics;
+    if (fault === 'missing witness') delete entry.wheelDispatch;
+    else if (fault === 'missing engine') delete proof.session.wheelSource;
+    else if (fault === 'wrong engine')
+      proof.session.wheelSource.version.product = 'Chrome/137.0.0.0';
+    else if (fault === 'wrong revision')
+      proof.session.wheelSource.version.revision = '@foreign';
+    else if (fault === 'foreign target') w.targetId = 'foreign-page';
+    else if (fault === 'foreign session') w.sessionToken = 'foreign';
+    else if (fault === 'foreign action') w.actionId = 'action-9';
+    else if (fault === 'foreign scope') w.before.before.scope = '/foreign';
+    else if (fault === 'foreign clock') w.after.after.timeOrigin++;
+    else if (fault === 'stale measurement')
+      w.before.before.time = entry.start - 1;
+    else if (fault === 'measurement too slow') w.after.after.time += 32;
+    else if (fault === 'dispatch too slow') w.end = w.start + 251;
+    else if (fault === 'nonfinite physical width')
+      metrics.visualViewport.clientWidth = NaN;
+    else if (fault === 'missing physical width')
+      delete metrics.visualViewport.clientWidth;
+    else if (fault === 'zero CSS width')
+      metrics.cssVisualViewport.clientWidth = 0;
+    else if (fault === 'negative DPR') w.before.before.surface.dpr = -1;
+    else if (fault === 'axis disagreement')
+      metrics.visualViewport.clientHeight++;
+    else if (fault === 'DPR change') w.after.after.surface.dpr = 1;
+    else if (fault === 'viewport change') w.after.after.surface.width++;
+    else if (fault === 'page scale') metrics.cssVisualViewport.scale = 2;
+    else if (fault === 'browser zoom') metrics.cssVisualViewport.zoom = 2;
+    else if (fault === 'non-top frame')
+      w.before.before.surface.topFrame = false;
+    else if (fault === 'event DPR change') event.surface.dpr = 1;
+    else if (fault === 'line mode') event.deltaMode = 1;
+    else if (fault === 'page mode') event.deltaMode = 2;
+    else if (fault === 'missing mode') delete event.deltaMode;
+    else if (fault === 'duplicate event')
+      proof.wheels.push(structuredClone(event));
+    else if (fault === 'missing event') proof.wheels.shift();
+    else if (fault === 'untrusted event') event.trusted = false;
+    else if (fault === 'foreign event scope') event.scope = '/foreign';
+    else if (fault === 'wrong X') event.deltaX = 1;
+    else if (fault === 'wrong sign') event.deltaY *= -1;
+    else if (fault === 'wrong delta') event.deltaY--;
+    else if (fault === 'wrong declared delta') w.deltaY--;
+    else if (fault === 'event before dispatch') event.time = w.start - 1;
+    else if (fault === 'duplicate original observer')
+      proof.deliveries.events.push(structuredClone(event));
+    else if (fault === 'missing original observer')
+      proof.deliveries.events.splice(proof.deliveries.events.indexOf(event), 1);
+    else if (fault === 'changed original observer') {
+      const index = proof.deliveries.events.indexOf(event);
+      proof.deliveries.events[index] = { ...event, deltaY: event.deltaY - 1 };
+    } else event.observedAt = w.end + 1;
+    expect(assessSeededSession(proof).issues).toContainEqual({
+      code: 'wheel-not-delivered',
+      kind: 'incomplete',
+      action: entry.action.id,
+    });
+  });
+});
+
+// Real ChannelRoot query shape, independently chosen IDs and asynchronous
+// listener clocks. Driver return is intentionally earlier than observation.
+function wheelReceiptEvidence() {
+  const original = seededEvidence();
+  const scope =
+    '/apps/groups/group/~zod%2Ffixture-group/channel/chat%2F~zod%2Fsource';
+  const proof = JSON.parse(
+    JSON.stringify(original).replaceAll(original.session.scope, scope)
+  );
+  proof.session.wheelSource.target.url =
+    proof.session.origin +
+    scope +
+    '?channelId=chat%2F~zod%2Fsource&groupId=~zod%2Ffixture-group&screen=ChannelRoot&pop=true&params=%5Bobject%20Object%5D';
+  for (const entry of proof.ledger.filter(
+    (e: any) => e.action.kind === 'wheel'
+  )) {
+    const w = entry.wheelDispatch;
+    const event = proof.wheels.find(
+      (e: any) => e.time >= entry.start && e.time <= entry.end
+    );
+    const originalEvent = proof.deliveries.events.find(
+      (e: any) => e.type === 'wheel' && e.time === event.time
+    );
+    event.observedAt = entry.start + 23;
+    originalEvent.observedAt = event.observedAt;
+    w.commandReturnedAt = entry.start + 15;
+    w.end = entry.start + 24;
+    w.receipt = {
+      time: event.time,
+      observedAt: event.observedAt,
+      timeOrigin: event.timeOrigin,
+      scope: event.scope,
+    };
+    w.after.before.time = entry.start + 25;
+    w.after.after.time = entry.start + 27;
+  }
+  const entry = proof.ledger.find((e: any) => e.action.kind === 'wheel');
+  const event = proof.wheels[0];
+  return { proof, entry, witness: entry.wheelDispatch, event };
+}
+
+describe('wheel route query and actual listener receipt', () => {
+  it('admits the real query shape and delayed listener within unchanged limits', () => {
+    const { proof, witness: w, event } = wheelReceiptEvidence();
+    expect(event.observedAt).toBeGreaterThan(w.commandReturnedAt);
+    expect(assessSeededSession(proof).issues).toEqual([]);
+  });
+  it('also binds a receipt delivered before the driver returns', () => {
+    const { proof } = wheelReceiptEvidence();
+    for (const entry of proof.ledger.filter(
+      (e: any) => e.action.kind === 'wheel'
+    ))
+      entry.wheelDispatch.commandReturnedAt = entry.start + 23.5;
+    expect(assessSeededSession(proof).issues).toEqual([]);
+  });
+  it.each([
+    'foreign host',
+    'foreign pathname',
+    'foreign channel query',
+    'foreign group query',
+    'duplicate channel query',
+    'duplicate group query',
+    'wrong screen',
+    'duplicate screen',
+    'fragment',
+    'credentials',
+    'missing return',
+    'return before dispatch',
+    'return after receipt end',
+    'missing receipt',
+    'foreign receipt scope',
+    'foreign receipt clock',
+    'wrong receipt timestamp',
+    'wrong receipt observation',
+    'receipt after deadline',
+    'post metrics before receipt',
+    '37.4ms post metrics',
+    'native timestamp after return',
+    'duplicate original wheel',
+  ])('retains %s as incomplete', (fault) => {
+    const { proof, entry, witness: w, event } = wheelReceiptEvidence();
+    const url = new URL(proof.session.wheelSource.target.url);
+    if (fault === 'foreign host') url.hostname = 'foreign.invalid';
+    else if (fault === 'foreign pathname') url.pathname += '/foreign';
+    else if (fault === 'foreign channel query')
+      url.searchParams.set('channelId', 'chat/~ten/foreign');
+    else if (fault === 'foreign group query')
+      url.searchParams.set('groupId', '~ten/foreign');
+    else if (fault === 'duplicate channel query')
+      url.searchParams.append('channelId', proof.session.channel);
+    else if (fault === 'duplicate group query')
+      url.searchParams.append('groupId', '~zod/fixture-group');
+    else if (fault === 'wrong screen') url.searchParams.set('screen', 'Thread');
+    else if (fault === 'duplicate screen')
+      url.searchParams.append('screen', 'ChannelRoot');
+    else if (fault === 'fragment') url.hash = '#foreign';
+    else if (fault === 'credentials') url.username = 'foreign';
+    else if (fault === 'missing return') delete w.commandReturnedAt;
+    else if (fault === 'return before dispatch')
+      w.commandReturnedAt = w.start - 1;
+    else if (fault === 'return after receipt end')
+      w.commandReturnedAt = w.end + 1;
+    else if (fault === 'missing receipt') delete w.receipt;
+    else if (fault === 'foreign receipt scope') w.receipt.scope = '/foreign';
+    else if (fault === 'foreign receipt clock') w.receipt.timeOrigin++;
+    else if (fault === 'wrong receipt timestamp') w.receipt.time++;
+    else if (fault === 'wrong receipt observation') w.receipt.observedAt++;
+    else if (fault === 'receipt after deadline') {
+      w.receipt.observedAt = w.start + 251;
+      w.end = w.start + 252;
+    } else if (fault === 'post metrics before receipt') {
+      w.after.before.time = w.commandReturnedAt + 1;
+      w.after.after.time = w.commandReturnedAt + 2;
+    } else if (fault === '37.4ms post metrics')
+      w.after.after.time = w.after.before.time + 37.4;
+    else if (fault === 'native timestamp after return')
+      w.commandReturnedAt = event.time - 1;
+    else if (fault === 'duplicate original wheel')
+      proof.deliveries.events.push(structuredClone(event));
+    proof.session.wheelSource.target.url = url.href;
+    expect(assessSeededSession(proof).issues).toContainEqual({
+      code: 'wheel-not-delivered',
+      kind: 'incomplete',
+      action: entry.action.id,
+    });
+  });
+});
+
 const codes = (proof: any) =>
   assessSeededSession(proof).issues.map((i) => i.code);
 
