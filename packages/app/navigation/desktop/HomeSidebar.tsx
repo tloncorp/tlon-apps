@@ -1,5 +1,5 @@
 import { useIsFocused } from '@react-navigation/native';
-import { markInvitesRead } from '@tloncorp/api';
+import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
@@ -193,15 +193,10 @@ export const HomeSidebar = memo(
             'markInvitesRead',
             { priority: store.SyncPriority.Medium },
             async () => {
-              // Left unawaited so the queue thread isn't held for the ~14s of
-              // backoff retries. Catch so a failed poke doesn't surface as an
-              // unhandled rejection.
-              markInvitesRead().catch((e) => {
-                logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
-                  context: 'mark invites read',
-                  errorMessage: e instanceof Error ? e.message : String(e),
-                });
-              });
+              // left unawaited so the queue thread isn't held for the backoff
+              markInvitesRead().catch(
+                reportBackgroundFailure(logger, 'mark invites read')
+              );
             }
           );
         }, 1000);

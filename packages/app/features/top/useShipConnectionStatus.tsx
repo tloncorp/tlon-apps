@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { ConnectionStatus } from '@tloncorp/api';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { reportBackgroundFailure } from '@tloncorp/api';
+import { createDevLogger } from '@tloncorp/shared';
 import { debounce } from 'lodash';
 
 import { useCurrentUserId } from '../../ui/contexts/appDataContext';
@@ -36,10 +37,6 @@ export const useShipConnectionStatus = (
           `Initiating new connection check for ${contactId}`,
           Date.now()
         );
-        // Deliberately not awaited: the query fn returns immediately with
-        // cached or empty data, and the subscription callback below fills it
-        // in later. Catch so a failed subscribe doesn't surface as an
-        // unhandled rejection.
         api
           .checkConnectionStatus(
             contactId,
@@ -79,12 +76,7 @@ export const useShipConnectionStatus = (
               { trailing: true, leading: true }
             )
           )
-          .catch((e) => {
-            logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
-              context: 'vitals subscribe',
-              errorMessage: e instanceof Error ? e.message : String(e),
-            });
-          });
+          .catch(reportBackgroundFailure(logger, 'vitals subscribe'));
 
         const lastStatus = queryClient.getQueryData<ConnectionStatus>(queryKey);
         return lastStatus || emptyConnectionStatus;

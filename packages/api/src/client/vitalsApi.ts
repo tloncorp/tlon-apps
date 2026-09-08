@@ -1,20 +1,8 @@
-import { createDevLogger } from '../lib/logger';
-import { AnalyticsEvent } from '../types/analytics';
+import { createDevLogger, reportBackgroundFailure } from '../lib/logger';
 import * as ub from '../urbit';
 import { poke, scry, subscribe, unsubscribe } from './urbit';
 
 const logger = createDevLogger('vitalsApi', false);
-
-// Counted, not silently dropped. trackEvent keeps this in PostHog; trackError
-// would report as `app_error`, which the composite logger forwards to Sentry —
-// the spray these catches exist to prevent.
-// No contactId in the payload — ship names should not go into analytics.
-function reportBackgroundFailure(context: string, e: unknown) {
-  logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
-    context,
-    errorMessage: e instanceof Error ? e.message : String(e),
-  });
-}
 
 export const getLastConnectionStatus = async (contactId: string) => {
   const result = await scry<ub.ConnectionUpdate>({
@@ -43,25 +31,18 @@ export const checkConnectionStatus = async (
 
       if (shouldUnsubscribe && id) {
         unsubscribed = true;
-        // Fire-and-forget from a void callback. `unsubscribe` rejects on a
-        // failed channel PUT, so catch it here or it escapes unhandled.
-        unsubscribe(id).catch((e) => {
-          reportBackgroundFailure('vitals unsubscribe', e);
-        });
+        unsubscribe(id).catch(
+          reportBackgroundFailure(logger, 'vitals unsubscribe')
+        );
       }
     }
   );
 
-  // Fire-and-forget: the subscription above delivers the result, so the poke
-  // is only a nudge. Catch so a failed poke doesn't surface as an unhandled
-  // rejection.
   poke({
     app: 'vitals',
     mark: 'run-check',
     json: contactId,
-  }).catch((e) => {
-    reportBackgroundFailure('vitals poke', e);
-  });
+  }).catch(reportBackgroundFailure(logger, 'vitals poke'));
 
   return subscription;
 };

@@ -50,8 +50,6 @@ export enum AnalyticsEvent {
   AuthFailedToGetCode = 'Failed to get access code',
   AuthForcedLogout = 'Auth Forced Logout',
   NodeConnectionDebug = 'Node Connection Debug',
-  // A fire-and-forget request that failed and was swallowed, counted so the
-  // rate stays visible without a Sentry report per occurrence.
   BackgroundRequestFailed = 'Background Request Failed',
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',

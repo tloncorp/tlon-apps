@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import { AnalyticsEvent } from '../types/analytics';
 
 type ApiLogger = Console & {
   crumb: (...args: unknown[]) => void;
@@ -92,6 +93,19 @@ export function createDevLogger(tag: string, enabled: boolean): ApiLogger {
     trackEvent: (eventId: string, data?: Record<string, unknown>) =>
       delegate((logger) => logger.trackEvent, eventId, data),
   } as ApiLogger;
+}
+
+/** Curried for `.catch(reportBackgroundFailure(logger, 'vitals poke'))`. */
+export function reportBackgroundFailure(
+  logger: { trackEvent: (eventId: string, data?: Record<string, any>) => void },
+  context: string
+) {
+  return (e: unknown) => {
+    logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
+      context,
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
+  };
 }
 
 export const runIfDev = <TReturn>(fn: () => TReturn) => {

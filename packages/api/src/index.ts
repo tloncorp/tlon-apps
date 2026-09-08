@@ -1,3 +1,4 @@
+export { reportBackgroundFailure } from './lib/logger';
 export {
   HostingError,
   awaitNodeTlonbotReady,
