@@ -1,4 +1,4 @@
-import { TlonText } from '@tloncorp/ui';
+import { Pressable, TlonText } from '@tloncorp/ui';
 import { ComponentProps, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { openComposer } from 'react-native-email-link';
@@ -28,25 +28,32 @@ export function EmailSupportLink({
     }
   }, [body, subject]);
 
+  // Press and accessibility live on the wrapper rather than on the address
+  // itself: nested text collapses into a single accessibility element, so a
+  // handler on the inner node is unreachable by screen readers.
   return (
-    <TlonText.Text
-      size="$label/s"
-      color="$secondaryText"
-      textAlign="center"
-      {...textProps}
+    <Pressable
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`${prompt} ${SUPPORT_EMAIL}`}
+      accessibilityHint="Opens your mail app"
+      pressStyle={{ opacity: 0.5 }}
+      onPress={handlePress}
     >
-      {prompt}{' '}
-      <TlonText.RawText
-        accessible
-        accessibilityRole="link"
-        accessibilityLabel={`Email ${SUPPORT_EMAIL}`}
-        pressStyle={{ opacity: 0.5 }}
-        textDecorationLine="underline"
-        textDecorationDistance={10}
-        onPress={handlePress}
+      <TlonText.Text
+        size="$label/s"
+        color="$secondaryText"
+        textAlign="center"
+        {...textProps}
       >
-        {SUPPORT_EMAIL}
-      </TlonText.RawText>
-    </TlonText.Text>
+        {prompt}{' '}
+        <TlonText.RawText
+          textDecorationLine="underline"
+          textDecorationDistance={10}
+        >
+          {SUPPORT_EMAIL}
+        </TlonText.RawText>
+      </TlonText.Text>
+    </Pressable>
   );
 }

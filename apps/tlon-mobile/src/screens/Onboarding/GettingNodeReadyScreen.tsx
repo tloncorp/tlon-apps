@@ -238,15 +238,17 @@ export function GettingNodeReadyScreen({
                 )}
               </ListItem.EndContent>
             </ListItem>
-            <TlonText.Text
-              size="$label/s"
-              color="$secondaryText"
-              textAlign="center"
-            >
-              Feel free to close the app if this takes too long. We’ll send you
-              a notification when your node is ready.
-            </TlonText.Text>
-            <EmailSupportLink subject="Help! My node won’t wake up." />
+            <YStack gap="$m">
+              <TlonText.Text
+                size="$label/s"
+                color="$secondaryText"
+                textAlign="center"
+              >
+                Feel free to close the app if this takes too long. We’ll send
+                you a notification when your node is ready.
+              </TlonText.Text>
+              <EmailSupportLink subject="Help! My node won’t wake up." />
+            </YStack>
           </YStack>
           <StoppedNodePushSheet
             notifPerms={notifPerms}
