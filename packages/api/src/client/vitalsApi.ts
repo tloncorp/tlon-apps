@@ -5,8 +5,9 @@ import { poke, scry, subscribe, unsubscribe } from './urbit';
 
 const logger = createDevLogger('vitalsApi', false);
 
-// Counted, not silently dropped. trackEvent routes to PostHog only; trackError
-// would also reach Sentry, which is the spray these catches exist to prevent.
+// Counted, not silently dropped. trackEvent keeps this in PostHog; trackError
+// would report as `app_error`, which the composite logger forwards to Sentry —
+// the spray these catches exist to prevent.
 // No contactId in the payload — ship names should not go into analytics.
 function reportBackgroundFailure(context: string, e: unknown) {
   logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {

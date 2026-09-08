@@ -50,9 +50,8 @@ export enum AnalyticsEvent {
   AuthFailedToGetCode = 'Failed to get access code',
   AuthForcedLogout = 'Auth Forced Logout',
   NodeConnectionDebug = 'Node Connection Debug',
-  // Fire-and-forget request that failed and was swallowed. Deliberately not
-  // named "...Error": the composite loggers forward any event matching
-  // /error/i to Sentry, and these are counted precisely to stay out of it.
+  // A fire-and-forget request that failed and was swallowed, counted so the
+  // rate stays visible without a Sentry report per occurrence.
   BackgroundRequestFailed = 'Background Request Failed',
   NodeConnectionError = 'Node Connection Error',
   SyncDiscontinuity = 'Sync Discontinuity',
