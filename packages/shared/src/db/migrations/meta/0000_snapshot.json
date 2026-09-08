@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "0600a58a-e10d-413a-ad55-37d795c117ad",
+  "id": "a355d062-727a-4ee5-98e5-61a970a77ecf",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "activity_event_contact_group_pins": {
@@ -208,7 +208,16 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "activity_events_channel_id_timestamp_index": {
+          "name": "activity_events_channel_id_timestamp_index",
+          "columns": [
+            "channel_id",
+            "timestamp"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "activity_events_id_bucket_id_pk": {
@@ -2215,6 +2224,38 @@
       "indexes": {},
       "foreignKeys": {},
       "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "notes_activity_event_tombstones": {
+      "name": "notes_activity_event_tombstones",
+      "columns": {
+        "channel_id": {
+          "name": "channel_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "note_id": {
+          "name": "note_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "notes_activity_event_tombstones_channel_id_note_id_pk": {
+          "columns": [
+            "channel_id",
+            "note_id"
+          ],
+          "name": "notes_activity_event_tombstones_channel_id_note_id_pk"
+        }
+      },
       "uniqueConstraints": {},
       "checkConstraints": {}
     },

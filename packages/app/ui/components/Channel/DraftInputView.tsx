@@ -3,7 +3,7 @@ import { ComponentProps, PropsWithChildren, useEffect } from 'react';
 import { Platform, StyleSheet } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View } from 'tamagui';
+import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { useComponentsKitContext } from '../../contexts/componentsKits';
 import {
@@ -64,6 +64,7 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
@@ -93,7 +94,12 @@ export function ConversationComposerPlacement({
         <ScrollEdgeElementContainer
           edge="bottom"
           scrollViewNativeID={scrollViewNativeID}
-          style={{ paddingBottom: insets.bottom }}
+          style={[
+            { paddingBottom: insets.bottom },
+            Platform.OS === 'android'
+              ? { backgroundColor: getVariableValue(theme.background) }
+              : undefined,
+          ]}
           onLayout={(event) => {
             const scrollControlClearance =
               Platform.OS === 'ios' && scrollToBottomControl?.visible

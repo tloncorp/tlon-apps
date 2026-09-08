@@ -4,6 +4,7 @@ export enum AnalyticsEvent {
   AppInstalled = 'App Installed',
   AppUpdated = 'App Updated',
   AppActive = 'App Active',
+  AppUpdateCheckFailed = 'App Update Check Failed',
   LoggedInBeforeSignup = 'Logged In Without Signing Up',
   FailedSignupOTP = 'Failed to send Signup OTP',
   FailedLoginOTP = 'Failed to send Login OTP',
@@ -41,6 +42,7 @@ export enum AnalyticsEvent {
   ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
   ErrorNativeDb = 'Native DB Error',
+  ErrorWebDb = 'Web DB Error',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
@@ -64,6 +66,7 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotSettingUpdated = 'Tlonbot Setting Updated',
   TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
   TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',
@@ -142,6 +145,11 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
+  /**
+   * Fires when the authenticated navigator reveals the furnished onboarding
+   * chat after account creation.
+   */
+  AgentOnboardingChatOpened = 'Agent Onboarding Chat Opened',
   /**
    * Fires once when the owner first opens the generated onboarding entry.
    */

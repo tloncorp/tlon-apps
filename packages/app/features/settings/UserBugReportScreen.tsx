@@ -45,7 +45,7 @@ export function UserBugReportScreen({ navigation }: Props) {
     (submission: { additionalNotes: string }) => {
       if (submission.additionalNotes) {
         logger.crumb(`User attached notes:`);
-        logger.crumb(submission.additionalNotes);
+        logger.sensitiveCrumb(submission.additionalNotes);
       }
       logger.trackError('User manually submitted a bug report');
       showAlert();

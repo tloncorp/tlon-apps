@@ -1,8 +1,21 @@
-import { queryClient } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, queryClient } from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import useKilnState, { usePike } from '@/state/kiln';
+
+const logger = createDevLogger('appUpdates', false);
+
+// A failed update check is expected and self-healing, so it must not reach
+// Sentry — that spray is what this module was fixed to stop. trackEvent keeps
+// the failure rate countable in PostHog; trackError would report as
+// `app_error`, which the composite logger forwards to Sentry.
+function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
+  logger.trackEvent(AnalyticsEvent.AppUpdateCheckFailed, {
+    context,
+    errorMessage: e instanceof Error ? e.message : String(e),
+  });
+}
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -21,20 +34,28 @@ function useServiceWorker() {
           return;
         }
 
-        if ('connection' in navigator && !navigator.onLine) {
+        if ('onLine' in navigator && !navigator.onLine) {
           return;
         }
 
-        const resp = await fetch(swUrl, {
-          cache: 'no-store',
-          headers: {
+        // A failed update check is expected and harmless — the ship may be
+        // asleep or briefly unreachable, and the next tick retries. Swallow it
+        // so it doesn't escape this async callback as an unhandled rejection
+        // and get reported to Sentry.
+        try {
+          const resp = await fetch(swUrl, {
             cache: 'no-store',
-            'cache-control': 'no-cache',
-          },
-        });
+            headers: {
+              cache: 'no-store',
+              'cache-control': 'no-cache',
+            },
+          });
 
-        if (resp?.status === 200) {
-          await r.update();
+          if (resp?.status === 200) {
+            await r.update();
+          }
+        } catch (e) {
+          reportCheckFailed('serviceWorker', e);
         }
       }, CHECK_FOR_UPDATES_INTERVAL);
     },
@@ -52,7 +73,13 @@ export default function useAppUpdates() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      useKilnState.getState().fetchPikes();
+      // Same rationale as the service-worker poll above: the scry fails
+      // whenever the ship is unreachable, and this floating promise would
+      // otherwise reject as an unhandled error.
+      useKilnState
+        .getState()
+        .fetchPikes()
+        .catch((e) => reportCheckFailed('pikes', e));
     }, CHECK_FOR_UPDATES_INTERVAL);
 
     return () => clearInterval(interval);

@@ -10,6 +10,7 @@ export * from './notesPermissionsCompat';
 export * from './notesSearch';
 export * from './notesSearchSupport';
 export * from './notesText';
+export * from './notesTime';
 export * from '@tloncorp/api/lib/types';
 export * from '@tloncorp/api/lib/utils';
 export * as featureFlags from '@tloncorp/api/lib/featureFlags';

@@ -2,6 +2,7 @@ import * as db from '@tloncorp/shared/db';
 import {
   getNoteBodyPreview,
   getNoteReferencePath,
+  noteTimestampMs,
 } from '@tloncorp/shared/logic';
 import { Icon, Pressable, useIsWindowNarrow } from '@tloncorp/ui';
 import type { IconType } from '@tloncorp/ui';
@@ -17,7 +18,6 @@ import { ListItem } from '../ListItem';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { UnreadDot } from '../UnreadDot';
 import { NotesActionMenu } from './NotesActions';
-import { noteTimestampMs } from './notesTree';
 
 export function FolderTreeRow({
   canEdit,

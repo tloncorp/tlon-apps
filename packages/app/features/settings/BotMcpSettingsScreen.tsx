@@ -22,6 +22,7 @@ import {
   trackMcpError,
   trackMcpEvent,
 } from './botMcpSettingsHelpers';
+import { trackTlonbotSettingUpdated } from './bot/botSettingsTelemetry';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BotMcpSettings'>;
 
@@ -161,6 +162,11 @@ export function BotMcpSettingsScreen(props: Props) {
         trackMcpEvent(MCP_TELEMETRY_EVENTS.connected, {
           providerId: completion.providerId,
         });
+        trackTlonbotSettingUpdated({
+          setting: 'connected_service',
+          action: 'connected',
+          provider: completion.providerId ?? undefined,
+        });
         triggerHaptic('success');
       }
       showMcpToast({
@@ -280,6 +286,11 @@ export function BotMcpSettingsScreen(props: Props) {
       try {
         await api.deleteTlawnOAuthGrant(currentUserId, providerId);
         trackMcpEvent(MCP_TELEMETRY_EVENTS.disconnected, { providerId });
+        trackTlonbotSettingUpdated({
+          setting: 'connected_service',
+          action: 'disconnected',
+          provider: providerId,
+        });
         triggerHaptic('success');
         showMcpToast({ message: 'Connection disconnected.' });
         await refreshStatus();
