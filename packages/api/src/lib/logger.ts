@@ -95,7 +95,7 @@ export function createDevLogger(tag: string, enabled: boolean): ApiLogger {
   } as ApiLogger;
 }
 
-/** Curried for `.catch(reportBackgroundFailure(logger, 'vitals poke'))`. */
+/** Curried for `.catch(reportBackgroundFailure(logger, 'mark invites read'))`. */
 export function reportBackgroundFailure(
   logger: { trackEvent: (eventId: string, data?: Record<string, any>) => void },
   context: string

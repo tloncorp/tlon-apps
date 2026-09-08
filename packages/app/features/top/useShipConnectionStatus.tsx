@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { ConnectionStatus } from '@tloncorp/api';
-import { reportBackgroundFailure } from '@tloncorp/api';
 import { createDevLogger } from '@tloncorp/shared';
 import { debounce } from 'lodash';
 
@@ -76,7 +75,7 @@ export const useShipConnectionStatus = (
               { trailing: true, leading: true }
             )
           )
-          .catch(reportBackgroundFailure(logger, 'vitals subscribe'));
+          .catch((e) => logger.log('vitals subscribe failed', e));
 
         const lastStatus = queryClient.getQueryData<ConnectionStatus>(queryKey);
         return lastStatus || emptyConnectionStatus;
