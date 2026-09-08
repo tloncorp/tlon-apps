@@ -206,6 +206,29 @@ function harness(
 
 describe('actual ScrollerItem with owned native host measurement callbacks', () => {
   it.each([
+    ['day', { showDayDivider: true, unreadCount: 3 }, 'Today'],
+    [
+      'unread within today',
+      { showUnreadDivider: true, unreadCount: 3 },
+      '3 new messages below',
+    ],
+    [
+      'unread at day boundary',
+      { showUnreadDivider: true, showDayDivider: true, unreadCount: 3 },
+      'Today • 3 new messages below',
+    ],
+    [
+      'unread count retired',
+      { showUnreadDivider: true, unreadCount: null },
+      'Today',
+    ],
+  ])('%s retains its visible divider label', (_label, props, expected) => {
+    harness(props as Record<string, unknown>);
+    expect(nodes('Text').map((node) => node.children.join(''))).toEqual([
+      expected,
+    ]);
+  });
+  it.each([
     ['grouped', {}, 128, 0, 0],
     ['trailing group', { isLastPostOfBlock: true }, 128, 0, 8],
     ['last', { index: 9 }, 128, 0, 0],

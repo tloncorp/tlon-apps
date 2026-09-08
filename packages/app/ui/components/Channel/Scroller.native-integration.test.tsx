@@ -26,6 +26,7 @@ import type { ConversationComputingState } from './useConversationComputingState
 // exposes production callbacks, without implementing scroll or ready policy.
 const state = vi.hoisted(() => ({
   glass: false,
+  narrow: true,
   collection: null as any,
   commands: vi.fn(),
   composer: vi.fn(),
@@ -52,7 +53,7 @@ vi.mock('@tloncorp/ui', () => ({
   Button: 'Button',
   Modal: 'Modal',
   Text: 'Text',
-  useIsWindowNarrow: () => true,
+  useIsWindowNarrow: () => state.narrow,
 }));
 vi.mock('react-native', () => ({
   Platform: { OS: 'ios', Version: '26.0' },
@@ -257,6 +258,7 @@ describe('native Scroller production integration', () => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     state.glass = false;
+    state.narrow = true;
     state.computing.clear();
     state.presenceListeners.clear();
     state.deliverInitialLayout = false;
@@ -1068,6 +1070,153 @@ describe('native Scroller production integration', () => {
     expect(list().scrollEnabled).toBe(true);
     expect(state.commands).not.toHaveBeenCalled();
   });
+
+  it('message actions retain the exact activated row ref and ignore notice long press', async () => {
+    const message = post('message');
+    const notice = { ...post('notice'), type: 'notice' } as db.Post;
+    await render({ posts: [message, notice] });
+    const messages = () => renderer!.root.findAllByType('Message' as any);
+    act(() => messages()[1].props.onLongPress(notice));
+    expect(props.setActiveMessage).not.toHaveBeenCalled();
+    act(() => messages()[0].props.onLongPress(message));
+    expect(props.setActiveMessage).toHaveBeenCalledTimes(1);
+    expect(props.setActiveMessage).toHaveBeenCalledWith(message);
+    await render({ activeMessage: message });
+    const item = renderer!.root.findAllByType(ScrollerItem)[0];
+    const actions = renderer!.root.findByType(
+      'ChatMessageActions' as any
+    ).props;
+    expect(item.props.messageRef).toBeDefined();
+    expect(actions.postRef).toBe(item.props.messageRef);
+    expect(actions.post).toBe(message);
+    expect(renderer!.root.findAllByType('RNView' as any)).toHaveLength(1);
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('actions open emoji without desktop modal dismissal and clear the controlled message on close', async () => {
+    const message = post('message');
+    state.narrow = false;
+    await render({ posts: [message], activeMessage: message });
+    expect(
+      renderer!.root.findByType('Modal' as any).props.onDismiss
+    ).toBeUndefined();
+    act(() =>
+      renderer!.root
+        .findByType('ChatMessageActions' as any)
+        .props.onShowEmojiPicker()
+    );
+    expect(
+      renderer!.root.findAllByType('ChatMessageActions' as any)
+    ).toHaveLength(0);
+    expect(renderer!.root.findAllByType('Modal' as any)).toHaveLength(0);
+    const picker = renderer!.root.findByType('EmojiPickerSheet' as any);
+    act(() => picker.props.onOpenChange(false));
+    expect(props.setActiveMessage).toHaveBeenCalledTimes(1);
+    expect(props.setActiveMessage).toHaveBeenCalledWith(null);
+    await render({ activeMessage: null });
+    expect(
+      renderer!.root.findAllByType('EmojiPickerSheet' as any)
+    ).toHaveLength(0);
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('row emoji and edit actions retain their controlled post targets', async () => {
+    const message = post('message');
+    await render({ posts: [message], setEditingPost: vi.fn() });
+    let row = renderer!.root.findByType('Message' as any);
+    act(() => row.props.onShowEmojiPicker(message));
+    expect(props.setActiveMessage).toHaveBeenLastCalledWith(message);
+    await render({ activeMessage: message });
+    expect(
+      renderer!.root.findAllByType('EmojiPickerSheet' as any)
+    ).toHaveLength(1);
+    act(() =>
+      renderer!.root
+        .findByType('EmojiPickerSheet' as any)
+        .props.onOpenChange(false)
+    );
+    await render({ activeMessage: message });
+    act(() =>
+      renderer!.root.findByType('ChatMessageActions' as any).props.onEdit()
+    );
+    expect(props.setEditingPost).toHaveBeenLastCalledWith(message);
+    expect(props.setActiveMessage).toHaveBeenLastCalledWith(null);
+    row = renderer!.root.findByType('Message' as any);
+    const other = post('other');
+    act(() => row.props.onPressEdit(other));
+    expect(props.setEditingPost).toHaveBeenLastCalledWith(other);
+    expect(props.setActiveMessage).toHaveBeenLastCalledWith(null);
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('reaction sheet retains its post after the controlled actions close and dismisses locally', async () => {
+    const message = post('message');
+    await render({ posts: [message], activeMessage: message });
+    act(() =>
+      renderer!.root
+        .findByType('ChatMessageActions' as any)
+        .props.onViewReactions(message)
+    );
+    expect(props.setActiveMessage).toHaveBeenCalledTimes(1);
+    expect(props.setActiveMessage).toHaveBeenCalledWith(null);
+    await render({ activeMessage: null });
+    const sheet = renderer!.root.findByType('ViewReactionsSheet' as any);
+    expect(sheet.props.post).toBe(message);
+    act(() => sheet.props.onOpenChange(false));
+    expect(
+      renderer!.root.findAllByType('ViewReactionsSheet' as any)
+    ).toHaveLength(0);
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    'bot run respects external routing=%s for row and modal actions',
+    async (external) => {
+      const message = post('message');
+      const open = vi.fn(),
+        expand = vi.fn();
+      await render({
+        posts: [message],
+        onOpenContextLens: external ? open : undefined,
+        onGoToBotRun: expand,
+      });
+      act(() =>
+        renderer!.root.findByType('Message' as any).props.onPressBotRun(message)
+      );
+      expect(props.setActiveMessage).not.toHaveBeenCalled();
+      if (external) {
+        expect(open).toHaveBeenCalledTimes(1);
+        expect(open).toHaveBeenCalledWith(message);
+        expect(
+          renderer!.root.findAllByType('ContextLensRunSheet' as any)
+        ).toHaveLength(0);
+      } else {
+        const sheet = renderer!.root.findByType('ContextLensRunSheet' as any);
+        expect(sheet.props.post).toBe(message);
+        expect(sheet.props.onExpand).toBe(expand);
+        act(() => sheet.props.onOpenChange(false));
+      }
+      await render({ activeMessage: message });
+      act(() =>
+        renderer!.root
+          .findByType('ChatMessageActions' as any)
+          .props.onViewBotRun(message)
+      );
+      expect(props.setActiveMessage).toHaveBeenCalledTimes(1);
+      expect(props.setActiveMessage).toHaveBeenCalledWith(null);
+      if (external) {
+        expect(open).toHaveBeenCalledTimes(2);
+        expect(
+          renderer!.root.findAllByType('ContextLensRunSheet' as any)
+        ).toHaveLength(0);
+      } else {
+        expect(
+          renderer!.root.findByType('ContextLensRunSheet' as any).props.post
+        ).toBe(message);
+      }
+      expect(state.commands).not.toHaveBeenCalled();
+    }
+  );
 
   it('row action changes reach an unchanged message', async () => {
     const oldDelete = vi.fn();

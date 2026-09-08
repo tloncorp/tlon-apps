@@ -1,3 +1,4 @@
+import { da, render } from '@urbit/aura';
 import { assessPendingNavigationTrace } from './scrollNavigationTrace';
 import { assessScrollReadingTrace } from './scrollReadingTrace';
 import {
@@ -112,7 +113,7 @@ export function seededSessionPlan(
   };
 }
 
-export function assessSeededInput(raw: any, grown: string, end: number) {
+function bindSeededInput(raw: any, grown: string) {
   const scopeKey = raw.originalScope;
   const expected = [
     { id: 'input-1', kind: 'input', payload: grown },
@@ -126,6 +127,12 @@ export function assessSeededInput(raw: any, grown: string, end: number) {
     events: raw.actions,
     keyboard: raw.keyboard,
   });
+  return { expected, binding };
+}
+
+export function assessSeededInput(raw: any, grown: string, end: number) {
+  const scopeKey = raw.originalScope;
+  const { expected, binding } = bindSeededInput(raw, grown);
   if (binding.issues.length)
     return {
       issues: binding.issues,
@@ -685,26 +692,133 @@ export function assessSeededSession(proof: any) {
     }
     const texts = new Map(Object.entries(proof.initialRows));
     for (const entry of sent) texts.set(entry.postId, entry.wireText);
+    // Production buildPost uses this timestamp-derived ID before the server
+    // assigns its canonical ID. The original request retains cachePost.sentAt;
+    // derive the alias from that wire fact, never from a rendered row.
+    const provisional = sent
+      .filter((e: any) => e.action.kind === 'own-send')
+      .map((entry: any) => {
+        const index = ledger.indexOf(entry);
+        const clicks =
+          proof.deliveries?.events?.filter(
+            (e: any) =>
+              e.type === 'click' && e.time >= entry.start && e.time <= entry.end
+          ) ?? [];
+        if (
+          JSON.stringify(entry.action) !==
+            JSON.stringify(plan.actions[index]) ||
+          entry.sessionToken !== session.token ||
+          entry.scope !== session.scope ||
+          entry.timeOrigin !== session.timeOrigin ||
+          entry.error ||
+          !Number.isFinite(entry.start) ||
+          !Number.isFinite(entry.end) ||
+          entry.end < entry.start ||
+          clicks.length !== 1 ||
+          !clicks[0].trusted ||
+          clicks[0].testId !== 'MessageInputSendButton' ||
+          clicks[0].scope !== session.scope ||
+          clicks[0].timeOrigin !== session.timeOrigin ||
+          !Number.isFinite(clicks[0].observedAt) ||
+          clicks[0].observedAt < clicks[0].time ||
+          clicks[0].observedAt - clicks[0].time > 100
+        )
+          return null;
+        let id: string | undefined;
+        if (sendProblems.get(entry)?.length === 0) {
+          const add = entry.request.actions.find(
+            (a: any) => a?.json?.channel?.action?.post?.add
+          ).json.channel.action.post.add;
+          const confirmed = Object.values(entry.backend.body.posts).find(
+            (p: any) =>
+              String(p.seal?.id).replaceAll('.', '') ===
+              entry.postId.replaceAll('.', '')
+          ) as any;
+          if (
+            Number.isSafeInteger(add.sent) &&
+            add.sent >= 0 &&
+            confirmed?.essay?.sent === add.sent
+          ) {
+            // getCanonicalPostId's numeric branch is render('ud', BigInt(id)).
+            id = render('ud', da.fromUnix(add.sent));
+            if (id !== entry.postId && texts.has(id)) id = undefined;
+          }
+        }
+        return { entry, id, start: clicks[0].time, confirmed: false };
+      })
+      .filter((p) => p !== null);
+    const aliases = new Map(
+      provisional.filter((p) => p.id).map((p) => [p.id!, p])
+    );
+    // Ambiguous independently derived IDs cannot authorize either pending row.
+    for (const p of provisional)
+      if (
+        p.id &&
+        provisional.filter((other) => other.id === p.id).length !== 1
+      ) {
+        aliases.delete(p.id);
+        p.id = undefined;
+      }
     for (const sample of qualifiedSamples.filter(
       (s: any) => s.time > proof.pendingEnd
-    ))
+    )) {
+      const ownIds = new Set<string>();
       for (const list of sample.lists.filter((l: any) => l.exposed)) {
         const ids = new Set();
         for (const row of list.rows.filter((r: any) => r.exposed)) {
+          const alias = aliases.get(row.id);
+          const active =
+            alias &&
+            !alias.confirmed &&
+            sample.time >= alias.start &&
+            sample.time < alias.entry.end;
+          const expected = active ? alias.entry.wireText : texts.get(row.id);
+          const logicalId = alias?.entry.postId ?? row.id;
+          const ownRow =
+            alias || provisional.find((p) => p.entry.postId === row.id);
+          const duplicate =
+            ids.has(row.id) || (ownRow && ownIds.has(logicalId));
+          // Unavailable wire ownership cannot turn an unknown provisional row
+          // into a PASS or a qualified mismatch. Its exact planned text and
+          // phase only identify the missing proof; they never admit its ID.
+          const unproven =
+            !texts.has(row.id) &&
+            !alias &&
+            provisional.some(
+              (p) =>
+                !p.id &&
+                !p.confirmed &&
+                sample.time >= p.start &&
+                sample.time < p.entry.end &&
+                row.body?.text === p.entry.action.payload + ' '
+            );
+          if (unproven) add('own-send-provisional-unproven');
           if (
-            ids.has(row.id) ||
+            duplicate ||
             sent.some(
               (e: any) => e.postId === row.id && sample.time < e.start
             ) ||
-            !texts.has(row.id) ||
-            row.body?.text !== texts.get(row.id) ||
+            (!unproven &&
+              (expected === undefined || row.body?.text !== expected)) ||
             row.body?.count !== 1 ||
             (!row.body?.exposed && row.top >= 0 && row.bottom <= list.height)
           )
             add('visible-message-identity-or-text', 'failure');
           ids.add(row.id);
+          if (ownRow) ownIds.add(logicalId);
         }
       }
+      for (const p of provisional)
+        if (
+          sample.time >= p.start &&
+          sample.lists.some(
+            (l: any) =>
+              l.exposed &&
+              l.rows.some((r: any) => r.exposed && r.id === p.entry.postId)
+          )
+        )
+          p.confirmed = true;
+    }
     const finalRows = seedBackendRows(proof.finalBackend, session.channel);
     if (
       !validSeededBackendBracket(
@@ -767,7 +881,52 @@ export function assessSeededSession(proof: any) {
           (e: any) =>
             e.type === 'input' && e.time >= entry.start && e.time <= entry.end
         ) ?? [];
-      if (inputs.length !== 1)
+      let joined = inputs.length === 1;
+      if (entry.action.kind === 'grow') {
+        joined = false;
+        try {
+          const block = proof.blocks[entry.action.block];
+          const input = block.input;
+          const { binding } = bindSeededInput(input, entry.action.payload);
+          const dispatch = input.dispatches[0];
+          // Native multiline insertion can emit several events. The existing
+          // binder validates them all against one independently timed command;
+          // neither observer may omit or add an event from that command.
+          const retained = input.actions.filter(
+            (e: any) => e.time >= dispatch.start && e.time <= dispatch.end
+          );
+          joined =
+            block.index === entry.action.block &&
+            input.originalScope === session.scope &&
+            input.inputId === 'MessageInput' &&
+            input.paintOwner?.timeOrigin === session.timeOrigin &&
+            input.declaredAt >= entry.start &&
+            binding.issues.length === 0 &&
+            dispatch.start >= entry.start &&
+            dispatch.end <= entry.end &&
+            inputs.length > 0 &&
+            inputs.length === retained.length &&
+            inputs.every((event: any, index: number) => {
+              const same = retained[index];
+              return (
+                event.time === same.time &&
+                event.value === same.payload &&
+                event.scope === same.scopeKey &&
+                event.testId === same.inputId &&
+                event.trusted === true &&
+                same.trusted === true &&
+                event.timeOrigin === session.timeOrigin &&
+                Number.isFinite(event.observedAt) &&
+                event.observedAt >= event.time &&
+                event.observedAt <= dispatch.end &&
+                event.observedAt - event.time <= 100
+              );
+            });
+        } catch {
+          /* unavailable retained dispatch cannot authorize native multiplicity */
+        }
+      }
+      if (!joined)
         add('input-delivery-cardinality', 'incomplete', entry.action.id);
     }
     for (const entry of ledger.filter((e: any) =>

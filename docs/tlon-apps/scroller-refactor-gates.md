@@ -1,5 +1,41 @@
 # Scroller test hardening and refactor
 
+## Structural refactor checkpoint — September 8
+
+The tested baseline is committed as `025f83098b`. The subsequent refactor
+separates message actions and overlays, keeps readiness private to each entry,
+names the Latest request ownership checks, and removes duplicate row-divider
+rendering. Independent review found no behavior changes. The combined app run
+passes **2,865 assertions**, with **three existing skips across 130 files**;
+TypeScript passes.
+
+Fresh desktop R5 completes **50/50 actions** in **2m22s total / 117.670s test
+time**. Its Playwright assertion remains **failed** because the independent
+assessment is **INCOMPLETE**: eight wheel-delivery mismatches, one reading
+capture gap and one invalid input-sample assessment. There are no qualified
+behavior failures. Temporary send IDs are now independently derived from the
+original wire timestamp; multiline input events are joined to their recorded
+dispatch. Neither correction changes acquisition limits. R4's earlier startup
+failure is retained; refreshing the two stale Vite resolvers repairs it without
+a source change. R5 source/reader/recipe checks and owned cleanup complete.
+
+Fresh iOS R26 retains all three native buffers. Selected-entry landing passes
+within **0.167 pt**; removal passes sampled geometry and native mutation/anchor
+continuity with **0 pt drift**. The broader entry assessment and reaction
+continuity remain incomplete. Total **7m04s** includes **135s build/install**
+and **3m12s held for capture release**; dispatch through collection takes
+28.653s. One final screenshot, source/artifact verification and scoped cleanup
+complete. These are fixture geometry results, not native overlay or presented
+frame qualification.
+
+**The structural checkpoint is ready; final suite qualification remains open.**
+Outstanding work includes wheel mapping and input acquisition, native overlap
+and interior content changes, presentation/caret/IME, remaining platform coverage
+and the accepted seed/soak runs. Mobile web remains excluded. Exact receipts and
+preserved attempts are linked in the [results ledger](scroller-refactor-results-2026-09-07.md).
+
+## Prior baseline checkpoint
+
 Current checkpoint: R20 removal passes native continuity and mutation semantics
 within **0.000326 pt**. R24's corrected end tail passes, and fresh **R25 away
 tail passes: 207 qualified frames, 0 pt error** through thinking growth/hide.

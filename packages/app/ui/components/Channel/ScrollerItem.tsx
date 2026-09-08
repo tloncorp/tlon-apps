@@ -115,42 +115,19 @@ const BaseScrollerItem = ({
   }, [nativeReadList, post.id]);
   const ruler = useContext(ConversationListDiagnosticsContext)?.ruler;
 
-  // Checking if the previous post exists
-  const hasPreviousPost = Boolean(previousPost);
-  // Get the live post for the previous post
-  const livePreviousPost = useLivePost(
-    // If there is a previous post, use it, otherwise use the empty post
-    hasPreviousPost ? previousPost! : EMPTY_POST
-  );
-  // Check if the previous post (A) exists and (B) is deleted
-  const isPrevDeleted = hasPreviousPost && livePreviousPost.isDeleted === true;
-  // If the previous post is deleted, show the author, otherwise fall back to the
-  // display rules calculated in the showAuthor prop
-  const showAuthorLive = useMemo(() => {
-    if (isPrevDeleted) {
-      return true;
-    }
-    return showAuthor;
-  }, [isPrevDeleted, showAuthor]);
-
-  const dividerType = useMemo(() => {
-    if (!dividersEnabled) {
-      return null;
-    }
-    if (showUnreadDivider) {
-      return 'unread';
-    }
-    if (showDayDivider) {
-      return 'day';
-    }
-    return null;
-  }, [dividersEnabled, showUnreadDivider, showDayDivider]);
+  // A live deletion of the previous message starts a new author block.
+  const livePreviousPost = useLivePost(previousPost ?? EMPTY_POST);
+  const showAuthorLive =
+    showAuthor ||
+    (Boolean(previousPost) && livePreviousPost.isDeleted === true);
+  const hasUnreadDivider = dividersEnabled && showUnreadDivider;
+  const hasDivider = dividersEnabled && (showUnreadDivider || showDayDivider);
 
   const targetLayout = usePostTargetLayout({
     registry: targetLayouts,
     scope: post.channelId ?? '',
     rowKey: post.id,
-    leading: dividerType !== null,
+    leading: hasDivider,
     trailing: isLastPostOfBlock,
   });
   const handleLayout = useCallback(
@@ -162,36 +139,27 @@ const BaseScrollerItem = ({
   );
 
   const divider = useMemo(() => {
-    switch (dividerType) {
-      case 'day':
-        return (
-          <>
-            <ChannelDivider
-              unreadCount={0}
-              post={post}
-              measurementRef={targetLayout?.divider.ref}
-              onLayout={targetLayout?.divider.onLayout}
-            />
-            <PostBlockSeparator {...targetLayout?.leadingSeparator} />
-          </>
-        );
-      case 'unread':
-        return (
-          <>
-            <ChannelDivider
-              post={post}
-              measurementRef={targetLayout?.divider.ref}
-              onLayout={targetLayout?.divider.onLayout}
-              unreadCount={unreadCount ?? 0}
-              isFirstPostOfDay={showDayDivider}
-            />
-            <PostBlockSeparator {...targetLayout?.leadingSeparator} />
-          </>
-        );
-      case null:
-        return null;
-    }
-  }, [dividerType, post, unreadCount, showDayDivider, targetLayout]);
+    if (!hasDivider) return null;
+    return (
+      <>
+        <ChannelDivider
+          post={post}
+          measurementRef={targetLayout?.divider.ref}
+          onLayout={targetLayout?.divider.onLayout}
+          unreadCount={hasUnreadDivider ? (unreadCount ?? 0) : 0}
+          isFirstPostOfDay={hasUnreadDivider ? showDayDivider : undefined}
+        />
+        <PostBlockSeparator {...targetLayout?.leadingSeparator} />
+      </>
+    );
+  }, [
+    hasDivider,
+    hasUnreadDivider,
+    post,
+    unreadCount,
+    showDayDivider,
+    targetLayout,
+  ]);
 
   const editPost = useCallback<
     Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>

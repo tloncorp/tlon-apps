@@ -39,6 +39,7 @@ export function useScrollerReadiness({
 
   const handlers = useMemo(
     () => ({
+      isEntryActive: () => entry.active,
       onStartReached: () => {
         if (!entry.active) return;
         if (entry.ready) callbacks.current.onStartReached?.();
@@ -86,5 +87,5 @@ export function useScrollerReadiness({
     }
   }, [entry, entry.ready, onStartReached, onEndReached]);
 
-  return { ...handlers, isReady: entry.ready, recovery: entry.recovery, entry };
+  return { ...handlers, isReady: entry.ready, recovery: entry.recovery };
 }

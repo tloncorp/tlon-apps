@@ -1,5 +1,63 @@
 # Scroller refactor validation — 2026-09-07
 
+## Structural refactor and fresh comparison — September 8
+
+Parent baseline: `025f83098b7baa7fa6bd864ebc38a56ff93ca08f`.
+Message actions and local overlays now share one module; Scroller keeps list
+lifecycle setup together, readiness exposes an entry-bound accessor, and Latest
+retirement retains its exact request/frame guards. Row divider rendering is
+shared without changing native hosts, refs or labels. Independent review found
+no behavior changes. Six added action transitions and four divider-label cases
+exercise the existing component seams. Twenty-five new seeded-reader controls
+cover independently derived provisional send IDs and the exact binding of all
+multiline input events to the original dispatch.
+
+| Check | Current result | Evidence |
+| --- | --- | --- |
+| Combined app checks | 2,865 assertions passed; three existing skips in 130 files; TypeScript passed | `/private/tmp/scroller-structural-final-app-20260908.json`, `/private/tmp/scroller-structural-final-typescript-20260908.log` |
+| Fresh desktop R5 | All 50 actions complete, zero action errors. Playwright assertion fails on ten incomplete issues; independent behavior and overall verdicts are INCOMPLETE, with no qualified behavior failures | `/private/tmp/scroller-seeded-session-product-r5-20260908/independent.json` |
+| Fresh iOS R26 | Three complete native buffers. Entry row model passes within 0.167 pt; removal passes with zero drift. Broader entry and reaction assessments remain incomplete | `/private/tmp/scroller-native-refactor-r26-20260908/independent-replay.json` |
+| Combined checkpoint | Source/reader/recipe and native artifact checks complete; both runs' owned cleanup complete | `/private/tmp/scroller-structural-checkpoint-20260908/results.json` |
+
+Raw attempts, readers, checks and receipts are retained in ignored local archive
+`artifacts/scroller-structural-checkpoint-2026-09-08.tgz` (58,263,569 bytes,
+SHA256 `c8dbb1713d271cd5f0800316b18346b9a8a8fd5d2dd19639b5bebe65b7516456`).
+Compiled native executables and bundles are excluded from this archive.
+
+Desktop R5 takes **141.604s total / 117.670s test time**, headless Chromium,
+one worker, zero retries and normal app flags. Its ten remaining issues are eight
+wheel-delivery mismatches, `reading-1:capture-gap` and
+`input-6:invalid-input-samples`. The exact created group `~zod/v20a3il2` is deleted,
+and the browser closes. The preceding R4 stops at startup when a stale Vite
+resolver cannot resolve the new `ScrollerMessageActions` file; its browser
+closes before any scenario. Both exact owned Vites are restarted with the same
+root, port and ship configuration, and four changed-module probes return HTTP
+200 JavaScript. Recovery: `/private/tmp/scroller-web-refactor-vite-recovery-20260908`.
+R3 was prepared but never captured. These attempts remain separate.
+
+The original R2 FAIL is unchanged. Supplemental replay with the corrected reader
+removes its 109 provisional-ID flags and four multiline-input cardinality gaps
+using retained wire/dispatch facts; its eight wheel mismatches and two capture
+gaps remain. Receipts: `/private/tmp/scroller-seeded-provisional-id-20260908` and
+`/private/tmp/scroller-seeded-grow-binding-20260908`.
+
+iOS R26 takes **424.349s total**, including **135s build/install**, **16s Ready
+check** and **192.151s waiting for capture release**. Suite dispatch through
+collection takes **28.653s**. Entry checks 200 content frames and 60 tail frames;
+removal retains 111 qualified anchor frames. Reaction continuity cannot qualify
+after its anchor content/dimensions change. Exact source, embedded bundle and
+installed executable match; one final screenshot and explicit-device service
+cleanup complete. Receipt and image:
+`/private/tmp/scroller-native-refactor-r26-20260908/report.md`,
+`/private/tmp/scroller-native-refactor-r26-20260908/final-screenshot.png`.
+
+This checkpoint supports the structural refactor. It does not close native
+keyboard/gesture, interior-content, presentation/caret/IME, remaining platform
+or seed/soak coverage. No native overlay interaction or complete matrix pass is
+claimed. Mobile web remains excluded.
+
+## Prior baseline checkpoint
+
 Current checkpoint: R24 end and R25 away post-gesture tails pass bounded native
 checks; keyboard/drag overlap remains incomplete. Seeded R2 completes all 50
 actions but fails the final canonical assessment. This tested baseline supports

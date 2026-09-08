@@ -5,17 +5,9 @@ import {
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
-import {
-  Button,
-  Text,
-  LoadingSpinner,
-  Modal,
-  useIsWindowNarrow,
-} from '@tloncorp/ui';
+import { Button, Text, LoadingSpinner, useIsWindowNarrow } from '@tloncorp/ui';
 import React, {
   ReactElement,
-  RefObject,
-  createRef,
   forwardRef,
   useCallback,
   useEffect,
@@ -23,23 +15,17 @@ import React, {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react';
-import { ListRenderItem, Platform, View as RNView } from 'react-native';
+import { ListRenderItem, Platform } from 'react-native';
 import { View, useTheme } from 'tamagui';
 
 import { useLifecyclePermit } from '../../../hooks/useLifecyclePermit';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import type { RenderItemType } from '../../contexts/componentsKits';
 import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
-import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
-import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
-import { ViewReactionsSheet } from '../ChatMessage/ViewReactionsSheet';
 import { getA2UIActionCompletions } from '../ChatMessage/a2uiActionCompletion';
-import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
-import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import {
   ConversationContentInsets,
   PostList,
@@ -51,6 +37,10 @@ import {
   getPostListScopeKey,
 } from './PostList/postListInitialization';
 import { ScrollerItem } from './ScrollerItem';
+import {
+  ScrollerMessageOverlays,
+  useScrollerMessageActions,
+} from './ScrollerMessageActions';
 import { createPostTargetLayoutRegistry } from './postTargetLayout';
 import { useScrollerReadiness } from './useScrollerReadiness';
 import { useScrollerLatest } from './useScrollerLatest';
@@ -155,23 +145,6 @@ const Scroller = forwardRef<PostListMethods, ScrollerProps>(
     );
     const isWindowNarrow = useIsWindowNarrow();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
-    const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
-      null
-    );
-    const [viewBotRunPost, setViewBotRunPost] = useState<null | db.Post>(null);
-    const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-
-    const handlePressBotRun = useCallback(
-      (post: db.Post) => {
-        if (onOpenContextLens) {
-          onOpenContextLens(post);
-          return;
-        }
-        setViewBotRunPost(post);
-      },
-      [onOpenContextLens]
-    );
-
     const listRef = useRef<PostListMethods>(null);
     const targetLayouts = useMemo(
       () =>
@@ -189,69 +162,65 @@ const Scroller = forwardRef<PostListMethods, ScrollerProps>(
       isFocused
     );
 
+    const readiness = useScrollerReadiness({
+      scopeKey: getPostListScopeKey(channel.id, anchor),
+      onStartReached,
+      onEndReached,
+    });
+    const readyToDisplayPosts = readiness.isReady;
+    const latest = useScrollerLatest({
+      scrollVisit,
+      conversationKey: `${channel.id}:${collectionLayoutType}:${anchorToEnd}`,
+      isEntryActive: readiness.isEntryActive,
+      anchorKey: getPostListAnchorKey(anchor),
+      isReady: readyToDisplayPosts,
+      isLoading: Boolean(isLoading),
+      hasNewerPosts: Boolean(hasNewerPosts),
+      listRef,
+      onPressScrollToBottom,
+    });
+
     useImperativeHandle(ref, () => ({
       captureScrollIntent: () => {
-        const entry = readiness.entry;
+        const isEntryActive = readiness.isEntryActive;
         const surface = listRef.current;
         const permit = surface?.captureScrollIntent?.() ?? (() => true);
         const stillVisiting = scrollVisit.capture();
         return () =>
-          surface !== null && entry.active && stillVisiting() && permit();
+          surface !== null && isEntryActive() && stillVisiting() && permit();
       },
       scrollToPost: (params: {
         postId: string;
         animated?: boolean;
         viewPosition?: number;
       }) => {
-        if (scrollVisit.isCurrent() && readiness.entry.active)
+        if (scrollVisit.isCurrent() && readiness.isEntryActive())
           listRef.current?.scrollToPost(params);
       },
       scrollToStart: (params: { animated?: boolean }) => {
-        if (scrollVisit.isCurrent() && readiness.entry.active)
+        if (scrollVisit.isCurrent() && readiness.isEntryActive())
           listRef.current?.scrollToStart(params);
       },
       scrollToEnd: (params: { animated?: boolean }) => {
-        if (scrollVisit.isCurrent() && readiness.entry.active)
+        if (scrollVisit.isCurrent() && readiness.isEntryActive())
           listRef.current?.scrollToEnd(params);
       },
     }));
 
-    const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
-      {}
-    );
-
-    const handleSetActive = useCallback(
-      (active: db.Post) => {
-        if (active.type !== 'notice') {
-          activeMessageRefs.current = { [active.id]: createRef() };
-          setActiveMessage(active);
-        }
-      },
-      [setActiveMessage]
-    );
-
-    const handleShowEmojiPicker = useCallback(
-      (post: db.Post) => {
-        setActiveMessage(post);
-        setEmojiPickerOpen(true);
-      },
-      [setActiveMessage]
-    );
-
-    const handlePressEdit = useCallback(
-      (post: db.Post) => {
-        setEditingPost?.(post);
-        setActiveMessage(null);
-      },
-      [setActiveMessage, setEditingPost]
-    );
-
-    const handlePostLongPressed = useCallback(
-      (post: db.Post) => {
-        handleSetActive(post);
-      },
-      [handleSetActive]
-    );
+    const messageActions = useScrollerMessageActions({
+      activeMessage,
+      setActiveMessage,
+      setEditingPost,
+      onOpenContextLens,
+    });
+    const {
+      refFor: messageRefFor,
+      onLongPressPost: handlePostLongPressed,
+      onShowEmojiPicker: handleShowEmojiPicker,
+      onPressEdit: handlePressEdit,
+      onPressBotRun: handlePressBotRun,
+      setViewReactionsPost,
+    } = messageActions;
 
     const { value: debugMessageJson } = db.debugMessageJson.useStorageItem();
 
@@ -361,7 +330,7 @@ const Scroller = forwardRef<PostListMethods, ScrollerProps>(
             onShowEmojiPicker={handleShowEmojiPicker}
             onPressEdit={handlePressEdit}
             activeMessage={activeMessage}
-            messageRef={activeMessageRefs.current[post.id]}
+            messageRef={messageRefFor(post.id)}
             dividersEnabled={collectionLayout.dividersEnabled}
             itemAspectRatio={collectionLayout.itemAspectRatio ?? undefined}
             itemWidth={itemWidth}
@@ -379,6 +348,7 @@ const Scroller = forwardRef<PostListMethods, ScrollerProps>(
         contextLensSelectedPostId,
         firstUnreadId,
         targetLayouts,
+        messageRefFor,
         renderItem,
         unreadCount,
         showReplies,
@@ -398,39 +368,16 @@ const Scroller = forwardRef<PostListMethods, ScrollerProps>(
         columns,
         itemWidth,
         a2uiActionCompletions,
-        setActiveMessage,
-        setEditingPost,
         debugMessageJson,
       ]
     );
 
-    const readiness = useScrollerReadiness({
-      scopeKey: getPostListScopeKey(channel.id, anchor),
-      onStartReached,
-      onEndReached,
-    });
-    const readyToDisplayPosts = readiness.isReady;
-    const latest = useScrollerLatest({
-      scrollVisit,
-      conversationKey: `${channel.id}:${collectionLayoutType}:${anchorToEnd}`,
-      entry: readiness.entry,
-      anchorKey: getPostListAnchorKey(anchor),
-      isReady: readyToDisplayPosts,
-      isLoading: Boolean(isLoading),
-      hasNewerPosts: Boolean(hasNewerPosts),
-      listRef,
-      onPressScrollToBottom,
-    });
     const showScrollButton =
       isFocused &&
       readyToDisplayPosts &&
       collectionLayoutType === 'compact-list-bottom-to-top' &&
       anchorToEnd &&
       !latest.atBottom;
-
-    const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>
-      setEmojiPickerOpen(false)
-    );
 
     const hostsScrollButtonInComposer =
       supportsLiquidGlass() && composerBottomInset > 0;
@@ -558,73 +505,13 @@ const Scroller = forwardRef<PostListMethods, ScrollerProps>(
             />
           </View>
         )}
-        {activeMessage !== null && !emojiPickerOpen && (
-          <Modal
-            visible={activeMessage !== null && !emojiPickerOpen}
-            onDismiss={
-              isWindowNarrow ? () => setActiveMessage(null) : undefined
-            }
-            // We don't pass an onDismiss function on desktop because
-            // a) the modal is dismissed by the actions in the
-            // ChatMessageActions component.
-            // b) Including it here will cause the modal to close before the
-            // EmojiPickerSheet can open when the user clicks the caretdown in
-            // the EmojiToolbar.
-          >
-            <ChatMessageActions
-              post={activeMessage}
-              postActionIds={collectionConfig.postActionIds}
-              postRef={activeMessageRefs.current[activeMessage!.id]}
-              onDismiss={() => setActiveMessage(null)}
-              onReply={onPressReplies}
-              onEdit={() => {
-                setEditingPost?.(activeMessage);
-                setActiveMessage(null);
-              }}
-              onShowEmojiPicker={() => {
-                setEmojiPickerOpen(true);
-              }}
-              onViewReactions={(post) => {
-                setViewReactionsPost(post);
-                setActiveMessage(null);
-              }}
-              onViewBotRun={(post) => {
-                setActiveMessage(null);
-                if (onOpenContextLens) {
-                  onOpenContextLens(post);
-                  return;
-                }
-                setViewBotRunPost(post);
-              }}
-              mode="immediate"
-            />
-          </Modal>
-        )}
-        {emojiPickerOpen && activeMessage ? (
-          <EmojiPickerSheet
-            open
-            onOpenChange={() => {
-              setActiveMessage(null);
-              setEmojiPickerOpen(false);
-            }}
-            onEmojiSelect={onEmojiSelect}
-          />
-        ) : null}
-        {viewReactionsPost ? (
-          <ViewReactionsSheet
-            post={viewReactionsPost}
-            open
-            onOpenChange={() => setViewReactionsPost(null)}
-          />
-        ) : null}
-        {viewBotRunPost ? (
-          <ContextLensRunSheet
-            post={viewBotRunPost}
-            open
-            onOpenChange={() => setViewBotRunPost(null)}
-            onExpand={onGoToBotRun}
-          />
-        ) : null}
+        <ScrollerMessageOverlays
+          actions={messageActions}
+          postActionIds={collectionConfig.postActionIds}
+          isWindowNarrow={isWindowNarrow}
+          onPressReplies={onPressReplies}
+          onGoToBotRun={onGoToBotRun}
+        />
       </View>
     );
   }

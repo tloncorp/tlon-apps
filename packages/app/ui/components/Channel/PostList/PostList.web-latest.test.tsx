@@ -97,14 +97,14 @@ let viewport = 699,
   extent = 1098;
 let frames: Map<number, FrameRequestCallback>, nextFrame: number;
 const list = createRef<PostListMethods>();
-const entry = { active: true };
+const isEntryActive = () => true;
 const onEndReached = vi.fn();
 function Harness({ focused = true }: { focused?: boolean }) {
   const scrollVisit = useLifecyclePermit(['chat/~zod/latest'], focused);
   const latest = useScrollerLatest({
     scrollVisit,
     conversationKey: 'chat/~zod/latest',
-    entry,
+    isEntryActive,
     isReady: true,
     isLoading: false,
     hasNewerPosts: false,

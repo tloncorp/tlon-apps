@@ -12,6 +12,202 @@ import {
 
 const codes = (proof: any) =>
   assessSeededSession(proof).issues.map((i) => i.code);
+
+// One declared multiline fill can deliver several native input events. Admit
+// all of them only when both retained observers join the same bounded dispatch;
+// event multiplicity is not a reason to omit a receipt or weaken its payload.
+function multilineGrowEvidence() {
+  const proof = seededEvidence();
+  const entry = proof.ledger.find((e: any) => e.action.kind === 'grow');
+  const input = proof.blocks[entry.action.block].input;
+  const index = proof.deliveries.events.findIndex(
+    (e: any) =>
+      e.type === 'input' && e.time >= entry.start && e.time <= entry.end
+  );
+  const original = proof.deliveries.events[index];
+  const globals = Array.from({ length: 11 }, (_, i) => ({
+    ...original,
+    time: original.time + i / 10,
+    observedAt: original.time + i / 10 + 0.01,
+  }));
+  proof.deliveries.events.splice(index, 1, ...globals);
+  const locals = globals.map((e, i) => ({
+    ...input.actions[0],
+    id: `native-${i}`,
+    time: e.time,
+    observedAt: e.time + 0.02,
+  }));
+  input.actions.splice(0, 1, ...locals);
+  return { proof, entry, input, globals, locals };
+}
+
+describe('seeded grow uses the existing bounded native input binder', () => {
+  it('joins all native multiline events to one declared grow without changing limits', () => {
+    const { proof } = multilineGrowEvidence();
+    expect(assessSeededSession(proof).issues).toEqual([]);
+    expect(proof.plan.limits).toEqual(seededSessionPlan().limits);
+  });
+  it.each([
+    'duplicate global',
+    'missing global',
+    'duplicate retained',
+    'missing retained',
+    'foreign scope',
+    'wrong global payload',
+    'wrong retained payload',
+    'wrong target',
+    'untrusted',
+    'outside dispatch',
+    'observed after dispatch',
+  ])(
+    'rejects %s instead of treating a native event count as authority',
+    (fault) => {
+      const { proof, input, globals, locals } = multilineGrowEvidence();
+      const events = proof.deliveries.events;
+      if (fault === 'duplicate global')
+        events.splice(events.indexOf(globals[0]), 0, { ...globals[0] });
+      else if (fault === 'missing global')
+        events.splice(events.indexOf(globals[0]), 1);
+      else if (fault === 'duplicate retained')
+        input.actions.unshift({ ...locals[0] });
+      else if (fault === 'missing retained') input.actions.shift();
+      else if (fault === 'foreign scope') globals[0].scope = '/foreign';
+      else if (fault === 'wrong global payload') globals[0].value = 'foreign';
+      else if (fault === 'wrong retained payload')
+        locals[0].payload = 'foreign';
+      else if (fault === 'wrong target') globals[0].testId = 'ForeignInput';
+      else if (fault === 'untrusted') globals[0].trusted = false;
+      else if (fault === 'outside dispatch') {
+        globals.at(-1)!.time = input.dispatches[0].end + 1;
+        globals.at(-1)!.observedAt = globals.at(-1)!.time;
+      } else globals[0].observedAt = input.dispatches[0].end + 1;
+      const result = assessSeededSession(proof);
+      expect(result.behaviorVerdict).not.toBe('PASS');
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({ code: 'input-delivery-cardinality' })
+      );
+    }
+  );
+});
+
+// Acceptance: an own-send's provisional ID comes only from its original wire
+// timestamp, never from a sampled row. The sole trusted Send bounds admission;
+// canonical presentation retires the alias. Both incarnations cannot coexist.
+// Missing ownership stays incomplete; wrong bodies/IDs with proven ownership
+// remain failures. All existing acquisition and terminal budgets still apply.
+function pendingOwnSendEvidence() {
+  const proof = seededEvidence();
+  const entry = proof.ledger.find((e: any) => e.action.kind === 'own-send');
+  const essay = entry.request.actions[0].json.channel.action.post.add;
+  const sent = proof.session.timeOrigin + entry.start + 25;
+  essay.sent = sent;
+  entry.request.startTime = entry.start + 40;
+  for (const receipt of [entry.backend, proof.finalBackend])
+    receipt.body.posts[entry.postId].essay.sent = sent;
+  // Independently spell the integer timestamp conversion for modeled data.
+  // The supplemental unchanged R2 replay supplies four real wire timestamps.
+  const provisionalId = (
+    170141184475152167957503069145530368000n +
+    (BigInt(sent) * 18446744073709551616n) / 1000n
+  )
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const pending: any[] = [],
+    canonical: any[] = [];
+  for (const sample of proof.trace.samples)
+    for (const list of sample.lists)
+      for (const row of list.rows)
+        if (row.id === entry.postId) {
+          if (sample.time < entry.start + 160) {
+            row.id = provisionalId;
+            pending.push({ sample, list, row });
+          } else canonical.push({ sample, list, row });
+        }
+  return { proof, entry, essay, provisionalId, pending, canonical };
+}
+
+describe('wire-owned provisional own-send identity', () => {
+  it('accepts the real-shaped pending to canonical transition without promoting presentation', () => {
+    const { proof } = pendingOwnSendEvidence();
+    expect(assessSeededSession(proof)).toMatchObject({
+      verdict: 'INCOMPLETE',
+      behaviorVerdict: 'PASS',
+      issues: [],
+    });
+  });
+  it.each(['missing timestamp', 'timestamp/backend disagreement'])(
+    'keeps %s incomplete without authorizing a sampled ID',
+    (fault) => {
+      const { proof, essay } = pendingOwnSendEvidence();
+      if (fault === 'missing timestamp') delete essay.sent;
+      else essay.sent++;
+      const result = assessSeededSession(proof);
+      expect(result.behaviorVerdict).toBe('INCOMPLETE');
+      expect(result.issues).toContainEqual(
+        expect.objectContaining({
+          code: 'own-send-provisional-unproven',
+          kind: 'incomplete',
+        })
+      );
+    }
+  );
+  it.each(['author', 'channel'])(
+    'does not admit a foreign %s receipt',
+    (fault) => {
+      const { proof, essay, entry } = pendingOwnSendEvidence();
+      if (fault === 'author') essay.author = '~ten';
+      else entry.request.actions[0].json.channel.nest = 'chat/~ten/foreign';
+      expect(assessSeededSession(proof).behaviorVerdict).not.toBe('PASS');
+      expect(codes(proof)).toContain('original-send-wire-binding');
+    }
+  );
+  it.each([
+    'wrong text',
+    'wrong same-text ID',
+    'coherent timestamp tamper',
+    'coexisting incarnations',
+    'reappearing provisional',
+    'provisional before Send',
+    'provisional after action',
+    'other corpus corruption',
+  ])('preserves a qualified failure for %s', (fault) => {
+    const { proof, entry, essay, provisionalId, pending, canonical } =
+      pendingOwnSendEvidence();
+    if (fault === 'wrong text') pending[0].row.body.text = 'foreign body';
+    else if (fault === 'wrong same-text ID') pending[0].row.id = '999.123';
+    else if (fault === 'coherent timestamp tamper') {
+      essay.sent++;
+      entry.backend.body.posts[entry.postId].essay.sent++;
+    } else if (fault === 'coexisting incarnations') {
+      pending[0].list.rows.push({
+        ...structuredClone(pending[0].row),
+        id: entry.postId,
+      });
+    } else if (fault === 'reappearing provisional')
+      canonical[1].row.id = provisionalId;
+    else if (fault === 'provisional before Send') {
+      const before = proof.trace.samples.findLast(
+        (s: any) => s.time < entry.start
+      );
+      before.lists[0].rows.push(structuredClone(pending[0].row));
+    } else if (fault === 'provisional after action') {
+      canonical.find((s) => s.sample.time > entry.end)!.row.id = provisionalId;
+    } else {
+      proof.trace.samples.find(
+        (s: any) => s.time > proof.pendingEnd
+      ).lists[0].rows[0].body.text = 'corrupt';
+    }
+    const result = assessSeededSession(proof);
+    expect(result.behaviorVerdict).toBe('FAIL');
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: 'visible-message-identity-or-text',
+        kind: 'failure',
+      })
+    );
+  });
+});
+
 describe('one seeded persistent-session declaration and independent raw composition', () => {
   it('declares 50 unique actions with four input and four thinking blocks', () => {
     const plan = seededSessionPlan();

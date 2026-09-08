@@ -11,17 +11,35 @@ import type { LifecyclePermit } from '../../../hooks/useLifecyclePermit';
 import type { PostListMethods } from './PostList/shared';
 
 type LatestRequest = {
-  permit: () => boolean;
-  stillVisiting: () => boolean;
+  ownsListIntent: () => boolean;
+  ownsFocusedVisit: () => boolean;
   canRetireAnchor: boolean;
   issued: boolean;
 };
+
+type LatestVisit = {
+  active: boolean;
+  atBottom: boolean;
+  anchorKey?: string;
+  request: LatestRequest | null;
+  frame?: number;
+};
+
+function cancelLatestFrame(visit: LatestVisit) {
+  if (visit.frame !== undefined) cancelAnimationFrame(visit.frame);
+  visit.frame = undefined;
+}
+
+function retireLatestRequest(visit: LatestVisit) {
+  visit.request = null;
+  cancelLatestFrame(visit);
+}
 
 /** Owns the latest action; geometry notifications only control its presentation. */
 export function useScrollerLatest({
   scrollVisit,
   conversationKey,
-  entry,
+  isEntryActive,
   anchorKey,
   isReady,
   isLoading,
@@ -31,7 +49,7 @@ export function useScrollerLatest({
 }: {
   scrollVisit: LifecyclePermit;
   conversationKey: string;
-  entry: { active: boolean };
+  isEntryActive: () => boolean;
   anchorKey?: string;
   isReady: boolean;
   isLoading: boolean;
@@ -39,13 +57,13 @@ export function useScrollerLatest({
   listRef: RefObject<PostListMethods | null>;
   onPressScrollToBottom?: () => void;
 }) {
-  const visit = useMemo(
+  const visit = useMemo<LatestVisit>(
     () => ({
       active: true,
       atBottom: true,
       anchorKey,
-      request: null as LatestRequest | null,
-      frame: undefined as number | undefined,
+      request: null,
+      frame: undefined,
     }),
     [conversationKey]
   );
@@ -56,9 +74,7 @@ export function useScrollerLatest({
     visit.active = true;
     return () => {
       visit.active = false;
-      visit.request = null;
-      if (visit.frame !== undefined) cancelAnimationFrame(visit.frame);
-      visit.frame = undefined;
+      retireLatestRequest(visit);
     };
   }, [visit]);
 
@@ -66,9 +82,7 @@ export function useScrollerLatest({
     () => () => {
       // A retained route may regain the same ID. Its old request is still
       // cancelled, and anchor retirement cannot grant it a new focus permit.
-      visit.request = null;
-      if (visit.frame !== undefined) cancelAnimationFrame(visit.frame);
-      visit.frame = undefined;
+      retireLatestRequest(visit);
     },
     [scrollVisit, visit]
   );
@@ -81,12 +95,10 @@ export function useScrollerLatest({
         // Latest deliberately retires its own selected/unread cursor. The
         // replacement list is part of that action, not a new navigation.
         request.canRetireAnchor = false;
-        request.permit =
+        request.ownsListIntent =
           listRef.current?.captureScrollIntent?.() ?? (() => true);
       } else {
-        visit.request = null;
-        if (visit.frame !== undefined) cancelAnimationFrame(visit.frame);
-        visit.frame = undefined;
+        retireLatestRequest(visit);
       }
       visit.anchorKey = anchorKey;
     }
@@ -98,7 +110,7 @@ export function useScrollerLatest({
       visit.frame !== undefined ||
       !visit.request ||
       visit.request.issued ||
-      !visit.request.stillVisiting()
+      !visit.request.ownsFocusedVisit()
     )
       return;
     const request = visit.request;
@@ -108,7 +120,7 @@ export function useScrollerLatest({
       if (visit.frame !== frame || visit.request !== request) return;
       visit.frame = undefined;
       if (!visit.active || request.issued) return;
-      if (!request.stillVisiting() || !request.permit()) {
+      if (!request.ownsFocusedVisit() || !request.ownsListIntent()) {
         visit.request = null;
         render();
         return;
@@ -127,20 +139,19 @@ export function useScrollerLatest({
   }, [hasNewerPosts, isLoading, isReady, scheduleLatest]);
 
   const onPress = useCallback(() => {
-    if (!visit.active || !entry.active || !scrollVisit.isCurrent()) return;
-    if (visit.frame !== undefined) cancelAnimationFrame(visit.frame);
-    visit.frame = undefined;
+    if (!visit.active || !isEntryActive() || !scrollVisit.isCurrent()) return;
+    cancelLatestFrame(visit);
     visit.request = {
       canRetireAnchor: visit.anchorKey !== undefined,
       issued: false,
-      stillVisiting: scrollVisit.capture(),
-      permit: listRef.current?.captureScrollIntent?.() ?? (() => true),
+      ownsFocusedVisit: scrollVisit.capture(),
+      ownsListIntent: listRef.current?.captureScrollIntent?.() ?? (() => true),
     };
     render();
     onPressScrollToBottom?.();
     scheduleLatest();
   }, [
-    entry,
+    isEntryActive,
     listRef,
     onPressScrollToBottom,
     scheduleLatest,
@@ -149,32 +160,28 @@ export function useScrollerLatest({
   ]);
 
   const onScrolledToBottom = useCallback(() => {
-    if (!visit.active || !entry.active) return;
+    if (!visit.active || !isEntryActive()) return;
     visit.atBottom = true;
     if (visit.request?.issued) visit.request = null;
     render();
-  }, [entry, visit]);
+  }, [isEntryActive, visit]);
   const onScrolledAwayFromBottom = useCallback(() => {
-    if (!visit.active || !entry.active) return;
+    if (!visit.active || !isEntryActive()) return;
     visit.atBottom = false;
     render();
-  }, [entry, visit]);
+  }, [isEntryActive, visit]);
 
   const cancel = useCallback(() => {
     if (
       !visit.active ||
-      !entry.active ||
+      !isEntryActive() ||
       !scrollVisit.isCurrent() ||
       !visit.request
     )
       return;
-    visit.request = null;
-    if (visit.frame !== undefined) {
-      cancelAnimationFrame(visit.frame);
-      visit.frame = undefined;
-    }
+    retireLatestRequest(visit);
     render();
-  }, [entry, scrollVisit, visit]);
+  }, [isEntryActive, scrollVisit, visit]);
 
   return {
     atBottom: visit.atBottom,
