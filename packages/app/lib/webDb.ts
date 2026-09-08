@@ -200,8 +200,8 @@ export class WebDb extends BaseDb {
         clientRegistered,
         storagePersistenceEnabled: this.enableStoragePersistence,
         secureContext: IS_SECURE_CONTEXT,
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
       });
     }
