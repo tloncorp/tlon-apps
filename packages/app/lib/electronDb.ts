@@ -11,6 +11,7 @@ import {
   resetDbSyncState,
   useMigrations as useMigrationsBase,
 } from './baseDb';
+import { formatElectronMigrations } from './electronMigrations';
 
 declare global {
   interface Window {
@@ -162,20 +163,7 @@ export class ElectronDb extends BaseDb {
       return;
     }
 
-    const formattedMigrations = [];
-
-    if (migrations.journal && migrations.journal.entries) {
-      for (const entry of migrations.journal.entries) {
-        const migrationHash = `m${entry.tag.split('_')[0]}`;
-        const sqlStatements = migrations.migrations[migrationHash];
-
-        if (sqlStatements) {
-          formattedMigrations.push({
-            sql: [sqlStatements], // Wrap in array if it's a single string
-          });
-        }
-      }
-    }
+    const formattedMigrations = formatElectronMigrations(migrations);
 
     try {
       logger.log('Running migrations in Electron SQLite');

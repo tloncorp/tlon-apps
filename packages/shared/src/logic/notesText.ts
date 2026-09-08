@@ -47,3 +47,23 @@ export function formatNotesChannelSubtitle({
 function countOf(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
+
+/** Format the status line for notebook activity shown on a group row. */
+export function formatNotesActivityLabel({
+  noteTitle,
+  notebookTitle,
+  isNew,
+}: {
+  noteTitle: string | null | undefined;
+  notebookTitle: string | null | undefined;
+  isNew: boolean;
+}): string {
+  const title = noteTitle?.trim();
+  const notebook = notebookTitle?.trim();
+  const quotedTitle = title ? ` “${title}”` : '';
+  const location = notebook ? ` in ${notebook}` : '';
+
+  return isNew
+    ? `New note${quotedTitle}${location}`
+    : `Note${quotedTitle} edited${location}`;
+}

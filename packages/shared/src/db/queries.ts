@@ -1,7 +1,10 @@
 import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
+  formatNotesFlag,
   getCurrentUserId,
+  getTextContent,
+  parseNotesChannelId,
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
 import {
@@ -42,6 +45,7 @@ import {
   min,
   ne,
   not,
+  notExists,
   notInArray,
   or,
   sql,
@@ -51,7 +55,11 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  appendContactIdToReplies,
+  getCompositeGroups,
+  noteTimestampMs,
+} from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -87,6 +95,7 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesActivityEventTombstones as $notesActivityEventTombstones,
   notesFolders as $notesFolders,
   notesMembers as $notesMembers,
   notesNotebooks as $notesNotebooks,
@@ -120,6 +129,7 @@ import {
   Group,
   GroupJoinRequest,
   GroupNavSection,
+  GroupNotesActivity,
   GroupRole,
   GroupUnread,
   NotesFolder,
@@ -687,6 +697,45 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       const currentByNoteId = new Map(
         currentNotes.map((note) => [note.noteId, note])
       );
+      const incomingNoteIds = new Set(notes.map((note) => note.noteId));
+      const channelId = `notes/${notebook.id}`;
+      // A previously synced row disappearing from a later serialized snapshot
+      // is the remote-deletion signal. Rows created locally have no syncedAt
+      // until the replica observes them, so a lagging post-create snapshot
+      // cannot incorrectly tombstone their activity.
+      const remotelyDeletedNotes = currentNotes.filter(
+        (note) => note.syncedAt != null && !incomingNoteIds.has(note.noteId)
+      );
+      await batchAction(
+        notes,
+        async (batch) => {
+          await txCtx.db.delete($notesActivityEventTombstones).where(
+            and(
+              eq($notesActivityEventTombstones.channelId, channelId),
+              inArray(
+                $notesActivityEventTombstones.noteId,
+                batch.map((note) => String(note.noteId))
+              )
+            )
+          );
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+      await batchAction(
+        remotelyDeletedNotes,
+        async (batch) => {
+          await txCtx.db
+            .insert($notesActivityEventTombstones)
+            .values(
+              batch.map((note) => ({
+                channelId,
+                noteId: String(note.noteId),
+              }))
+            )
+            .onConflictDoNothing();
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
       // Renames and moves don't bump the revision, so equal revisions are
       // ordered by updatedAt (both stamped by the host clock).
       const mergedNotes = notes.map((incoming) => {
@@ -724,7 +773,13 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       );
     });
   },
-  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+  [
+    'notesNotebooks',
+    'notesFolders',
+    'notesNotes',
+    'notesMembers',
+    'notesActivityEventTombstones',
+  ]
 );
 
 /** Persist one authoritative note without replacing concurrent notebook data. */
@@ -820,6 +875,36 @@ export const deleteNotesNote = createWriteQuery(
   ['notesNotes']
 );
 
+export const confirmNotesActivityEventsDeleted = createWriteQuery(
+  'confirmNotesActivityEventsDeleted',
+  async (
+    { notebookFlag, noteIds }: { notebookFlag: string; noteIds: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (noteIds.length === 0) {
+      return;
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await batchAction(
+        noteIds,
+        async (batch) => {
+          await txCtx.db
+            .insert($notesActivityEventTombstones)
+            .values(
+              batch.map((noteId) => ({
+                channelId: `notes/${notebookFlag}`,
+                noteId: String(noteId),
+              }))
+            )
+            .onConflictDoNothing();
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+    });
+  },
+  ['notesActivityEventTombstones']
+);
+
 export const deleteNotesFolders = createWriteQuery(
   'deleteNotesFolders',
   async (
@@ -880,11 +965,22 @@ export const deleteNotesNotebook = createWriteQuery(
         .delete($notesMembers)
         .where(eq($notesMembers.notebookFlag, notebookFlag));
       await txCtx.db
+        .delete($notesActivityEventTombstones)
+        .where(
+          eq($notesActivityEventTombstones.channelId, `notes/${notebookFlag}`)
+        );
+      await txCtx.db
         .delete($notesNotebooks)
         .where(eq($notesNotebooks.id, notebookFlag));
     });
   },
-  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+  [
+    'notesNotebooks',
+    'notesFolders',
+    'notesNotes',
+    'notesMembers',
+    'notesActivityEventTombstones',
+  ]
 );
 
 const NOTES_SNAPSHOT_BATCH_SIZE = 50;
@@ -1396,6 +1492,317 @@ export const getMentionCandidates = createReadQuery(
   ['chatMembers', 'contacts']
 );
 
+// A note detail must be close to the notebook recency before we claim that it
+// describes that bump. Own edits use the host's note timestamp and the local
+// ship's activity timestamp, so exact equality is not expected.
+export const NOTES_ACTIVITY_DETAIL_WINDOW_MS = 5 * 60 * 1000;
+
+type NotesActivityDetail = Pick<
+  GroupNotesActivity,
+  'noteId' | 'noteTitle' | 'authorId' | 'isNew' | 'timestamp'
+>;
+
+type NotesActivityEventDetail = NotesActivityDetail & {
+  isConfirmedDeleted: boolean;
+};
+
+type NotesActivityGroup = {
+  id: string;
+  channels: (Pick<Channel, 'id' | 'type' | 'title' | 'currentUserIsMember'> & {
+    unread?: Pick<ChannelUnread, 'updatedAt'> | null;
+  })[];
+};
+
+/**
+ * Find the newest joined notebook activity in each group. Notebook recency is
+ * authoritative for ordering, while the note identity can come from either a
+ * persisted activity event or the locally synced notebook snapshot.
+ */
+async function getGroupNotesActivity(
+  groups: NotesActivityGroup[],
+  ctx: QueryCtx
+): Promise<Map<string, GroupNotesActivity>> {
+  const notesChannels = groups.flatMap((group) =>
+    group.channels
+      .filter(
+        (channel) =>
+          channel.type === 'notes' && channel.currentUserIsMember === true
+      )
+      .map((channel) => {
+        const flag = parseNotesChannelId(channel.id);
+        return {
+          groupId: group.id,
+          channel,
+          notebookFlag: flag ? formatNotesFlag(flag) : null,
+        };
+      })
+  );
+  const activityByGroup = new Map<string, GroupNotesActivity>();
+  if (notesChannels.length === 0) {
+    return activityByGroup;
+  }
+
+  const notebookFlags = notesChannels.flatMap(({ notebookFlag }) =>
+    notebookFlag ? [notebookFlag] : []
+  );
+  const [eventsByChannel, notesByNotebook, notebookTitlesByFlag] =
+    await Promise.all([
+      getLatestNoteEventsByChannel(
+        notesChannels.map(({ channel }) => channel.id),
+        ctx
+      ),
+      getLatestNotesByNotebook(notebookFlags, ctx),
+      getNotesNotebookTitles(notebookFlags, ctx),
+    ]);
+
+  for (const { groupId, channel, notebookFlag } of notesChannels) {
+    const recency = channel.unread?.updatedAt ?? 0;
+    const event = eventsByChannel.get(channel.id);
+    const localNote = notebookFlag
+      ? notesByNotebook.get(notebookFlag)
+      : undefined;
+    // A confirmed deletion disqualifies only the event describing it. The
+    // local candidate is not ranked against that event's timestamp: the note
+    // stamp comes from the notebook host and the event stamp from the
+    // activity ship, so ordering them directly would drop a valid note
+    // whenever the host's clock lags. Channel recency arbitrates below.
+    const detail = newestNotesActivityDetail(
+      event?.isConfirmedDeleted ? undefined : event,
+      localNote
+    );
+    const now = Date.now();
+    const describes =
+      detail &&
+      (recency > 0
+        ? Math.abs(detail.timestamp - recency) <=
+          NOTES_ACTIVITY_DETAIL_WINDOW_MS
+        : detail.timestamp <= now + NOTES_ACTIVITY_DETAIL_WINDOW_MS)
+        ? detail
+        : null;
+    const detailTimestamp = describes
+      ? recency > 0
+        ? describes.timestamp
+        : Math.min(describes.timestamp, now)
+      : 0;
+    const timestamp = Math.max(recency, detailTimestamp);
+    if (timestamp <= 0) {
+      continue;
+    }
+
+    const current = activityByGroup.get(groupId);
+    if (current && current.timestamp >= timestamp) {
+      continue;
+    }
+
+    activityByGroup.set(groupId, {
+      channelId: channel.id,
+      notebookTitle:
+        channel.title ??
+        (notebookFlag ? notebookTitlesByFlag.get(notebookFlag) : null) ??
+        null,
+      noteId: describes?.noteId ?? null,
+      noteTitle: describes?.noteTitle ?? null,
+      authorId: describes?.authorId ?? null,
+      // Without a record of the note, the only safe generic copy is "New
+      // note"; the title can fill in when the notebook snapshot is warmed.
+      isNew: describes?.isNew ?? true,
+      timestamp,
+    });
+  }
+
+  return activityByGroup;
+}
+
+// The event stamp comes from the activity ship and the note stamp from the
+// notebook host, so this comparison spans two clocks. Newest-wins is still
+// the right rule for a note both sources describe: an edit event carries the
+// note's current title, and markNotesNotebookStaleForNoteEvent deliberately
+// leaves the snapshot alone for a note it already stores, so the row can sit
+// on a stale title for minutes while the event is current. A rename bumps
+// updatedAt, which already lifts the row above an older event. The recency
+// window in getGroupNotesActivity bounds how stale either choice can be.
+function newestNotesActivityDetail(
+  event: NotesActivityDetail | undefined,
+  localNote: NotesActivityDetail | undefined
+): NotesActivityDetail | undefined {
+  if (!event || !localNote) {
+    return event ?? localNote;
+  }
+  return event.timestamp > localNote.timestamp ? event : localNote;
+}
+
+async function getLatestNoteEventsByChannel(
+  channelIds: string[],
+  ctx: QueryCtx
+): Promise<Map<string, NotesActivityEventDetail>> {
+  const $newerEvents = alias($activityEvents, 'newerNoteActivityEvents');
+  const rows = await ctx.db
+    .select({
+      channelId: $activityEvents.channelId,
+      type: $activityEvents.type,
+      postId: $activityEvents.postId,
+      authorId: $activityEvents.authorId,
+      content: $activityEvents.content,
+      timestamp: $activityEvents.timestamp,
+    })
+    .from($activityEvents)
+    .where(
+      and(
+        inArray($activityEvents.type, ['note-create', 'note-edit']),
+        inArray($activityEvents.channelId, channelIds),
+        notExists(
+          ctx.db
+            .select({ id: $newerEvents.id })
+            .from($newerEvents)
+            .where(
+              and(
+                eq($newerEvents.channelId, $activityEvents.channelId),
+                inArray($newerEvents.type, ['note-create', 'note-edit']),
+                or(
+                  gt($newerEvents.timestamp, $activityEvents.timestamp),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    gt($newerEvents.id, $activityEvents.id)
+                  ),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    eq($newerEvents.id, $activityEvents.id),
+                    gt($newerEvents.bucketId, $activityEvents.bucketId)
+                  )
+                )
+              )
+            )
+        )
+      )
+    );
+
+  // Only the selected events can be suppressed, and the filter above leaves
+  // at most one per channel. Tombstones outlive the notes they suppress, so
+  // scope the lookup to those ids -- a seek on the (channel_id, note_id)
+  // primary key -- instead of loading a notebook's whole deletion history.
+  const selectedNoteIds = rows.flatMap((row) =>
+    row.postId ? [row.postId] : []
+  );
+  const tombstones = selectedNoteIds.length
+    ? await ctx.db
+        .select()
+        .from($notesActivityEventTombstones)
+        .where(
+          and(
+            inArray($notesActivityEventTombstones.channelId, channelIds),
+            inArray($notesActivityEventTombstones.noteId, selectedNoteIds)
+          )
+        )
+    : [];
+  const tombstoneKeys = new Set(
+    tombstones.map(({ channelId, noteId }) =>
+      notesActivityEventKey(channelId, noteId)
+    )
+  );
+
+  const latest = new Map<string, NotesActivityEventDetail>();
+  for (const row of rows) {
+    if (!row.channelId || latest.has(row.channelId)) {
+      continue;
+    }
+    const title = row.content
+      ? getTextContent(
+          row.content as Parameters<typeof getTextContent>[0]
+        )?.trim() || null
+      : null;
+    latest.set(row.channelId, {
+      noteId: row.postId ?? null,
+      noteTitle: title,
+      authorId: row.authorId ?? null,
+      isNew: row.type === 'note-create',
+      timestamp: row.timestamp,
+      isConfirmedDeleted: Boolean(
+        row.postId &&
+        tombstoneKeys.has(notesActivityEventKey(row.channelId, row.postId))
+      ),
+    });
+  }
+
+  return latest;
+}
+
+function notesActivityEventKey(channelId: string, noteId: string) {
+  return `${channelId}\0${noteId}`;
+}
+
+async function getNotesNotebookTitles(
+  notebookFlags: string[],
+  ctx: QueryCtx
+): Promise<Map<string, string>> {
+  if (notebookFlags.length === 0) {
+    return new Map();
+  }
+
+  const rows = await ctx.db
+    .select({ id: $notesNotebooks.id, title: $notesNotebooks.title })
+    .from($notesNotebooks)
+    .where(inArray($notesNotebooks.id, notebookFlags));
+  return new Map(rows.map((row) => [row.id, row.title]));
+}
+
+// A notebook can contain thousands of notes, so select only the newest row
+// per notebook in SQLite instead of paging every note through JavaScript.
+async function getLatestNotesByNotebook(
+  notebookFlags: string[],
+  ctx: QueryCtx
+): Promise<Map<string, NotesActivityDetail>> {
+  const latest = new Map<string, NotesActivityDetail>();
+  if (notebookFlags.length === 0) {
+    return latest;
+  }
+
+  const effectiveAt = sql<number>`coalesce(${$notesNotes.updatedAt}, ${$notesNotes.createdAt})`;
+  // Normalize before ranking so mixed seconds/milliseconds rows compare by
+  // their actual time, then let SQLite rank each notebook in one pass.
+  const normalizedEffectiveAt = sql<number>`case when ${effectiveAt} < 10000000000 then ${effectiveAt} * 1000 else ${effectiveAt} end`;
+  const $rankedNotes = ctx.db
+    .select({
+      notebookFlag: $notesNotes.notebookFlag,
+      noteId: $notesNotes.noteId,
+      title: $notesNotes.title,
+      updatedBy: $notesNotes.updatedBy,
+      createdAt: $notesNotes.createdAt,
+      updatedAt: $notesNotes.updatedAt,
+      effectiveAt: normalizedEffectiveAt.as('effectiveAt'),
+      rank: sql<number>`row_number() over (
+        partition by ${$notesNotes.notebookFlag}
+        order by ${normalizedEffectiveAt} desc, ${$notesNotes.noteId} desc
+      )`.as('rank'),
+    })
+    .from($notesNotes)
+    .where(
+      and(
+        inArray($notesNotes.notebookFlag, notebookFlags),
+        isNotNull(effectiveAt)
+      )
+    )
+    .as('rankedNotes');
+  const rows = await ctx.db
+    .select()
+    .from($rankedNotes)
+    .where(eq($rankedNotes.rank, 1));
+
+  for (const row of rows) {
+    latest.set(row.notebookFlag, {
+      noteId: String(row.noteId),
+      noteTitle: row.title.trim() || null,
+      authorId: row.updatedBy ?? null,
+      isNew:
+        row.updatedAt == null ||
+        (row.createdAt != null &&
+          noteTimestampMs(row.createdAt) === noteTimestampMs(row.updatedAt)),
+      timestamp: row.effectiveAt,
+    });
+  }
+
+  return latest;
+}
+
 export const getChats = createReadQuery(
   'getChats',
   async (
@@ -1447,21 +1854,15 @@ export const getChats = createReadQuery(
       },
     });
 
+    const notesActivityByGroup = await getGroupNotesActivity(groups, ctx);
+
     const groupChats: Chat[] = groups.map((g) => {
       // Temporary client-side workaround for TLON-6417. Group activity
       // recency includes membership and other events that should not reorder
       // the chat list. Keep the old post-based ordering, plus the narrower
       // Notes source recency, until the backend provides a sidebar-specific
       // recency value.
-      const latestNotesActivityAt = Math.max(
-        0,
-        ...g.channels
-          .filter(
-            (channel) =>
-              channel.type === 'notes' && channel.currentUserIsMember === true
-          )
-          .map((channel) => channel.unread?.updatedAt ?? 0)
-      );
+      const notesActivity = notesActivityByGroup.get(g.id) ?? null;
 
       return {
         id: g.id,
@@ -1469,10 +1870,11 @@ export const getChats = createReadQuery(
         pin: g.pin,
         timestamp: g.haveInvite
           ? (g.unread?.updatedAt ?? 0)
-          : Math.max(g.lastPostAt ?? 0, latestNotesActivityAt),
+          : Math.max(g.lastPostAt ?? 0, notesActivity?.timestamp ?? 0),
         volumeSettings: g.volumeSettings,
         unreadCount: g.unread?.count ?? 0,
         group: g,
+        notesActivity,
         isPending:
           g.haveInvite === true ||
           !!g.joinStatus ||
@@ -1531,6 +1933,10 @@ export const getChats = createReadQuery(
     'threadUnreads',
     'volumeSettings',
     'pins',
+    'activityEvents',
+    'notesActivityEventTombstones',
+    'notesNotebooks',
+    'notesNotes',
   ]
 );
 
