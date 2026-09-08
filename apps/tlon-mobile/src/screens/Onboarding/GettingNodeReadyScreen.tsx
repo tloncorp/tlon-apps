@@ -43,6 +43,10 @@ const BOTTOM_WIDGET_TITLES = [
   'Your node is ready',
 ];
 
+// A normal wake-up is expected to take a while, so hold the support link back
+// until the wait has gone on long enough that something might actually be wrong.
+const SUPPORT_LINK_DELAY = 20 * 1000;
+
 const BOTTOM_WIDGET_ICONS: IconType[] = [
   'ChannelGalleries',
   'Bang',
@@ -99,6 +103,15 @@ export function GettingNodeReadyScreen({
       });
     }
   }, [hostedNodeId, notifPerms.hasPermission]);
+
+  const [showSupportLink, setShowSupportLink] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setShowSupportLink(true),
+      SUPPORT_LINK_DELAY
+    );
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle stopped node sequence
   const { phase, shipInfo, resetSequence } = useStoppedNodeSequence({
@@ -247,7 +260,9 @@ export function GettingNodeReadyScreen({
                 Feel free to close the app if this takes too long. We’ll send
                 you a notification when your node is ready.
               </TlonText.Text>
-              <EmailSupportLink subject="Help! My node won’t wake up." />
+              {showSupportLink && (
+                <EmailSupportLink subject="Help! My node won’t wake up." />
+              )}
             </YStack>
           </YStack>
           <StoppedNodePushSheet
