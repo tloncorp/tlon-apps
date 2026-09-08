@@ -21,7 +21,7 @@
 ::  here as one.
 ::
 /-  spider, b=buckets, g=groups, gv=groups-ver
-/+  *ph-io, *ph-test
+/+  *ph-io, *ph-test, putil=ph-util
 =,  strand=strand:spider
 |%
 ::  The bucket host is a planet, not a galaxy.
@@ -87,6 +87,77 @@
   |=  rep=r-groups:v10:gv
   ;<  ~  bind:m  (ex-equal !>(flag.rep) !>(`flag:gv`host^%my-test-group))
   (ex-equal !>(`@tas`-.r-group.rep) !>(%create))
+::  +broker-base: where %buckets calls storage, absent a poke saying otherwise.
+::
+++  broker-base  'https://memex.tlon.network/v2/buckets'
+++  grant-url    (rap 3 broker-base '/uploads/grant' ~)
+::  +memex-take: wait for one outbound broker call to .dest and hand it back.
+::
+::  Aqua has no iris driver, so a %request goes out as an effect nobody
+::  answers and the host waits forever. Watching /effect/request and injecting
+::  the reply as an iris %receive is the whole of a broker for testing
+::  purposes -- the effect carries its own request id, which is what makes the
+::  correlation possible at all.
+::
+::  Calls to other endpoints are skipped rather than failed: the host mints
+::  and pushes read tokens on its own schedule, so an unrelated PUT can land
+::  in the middle of an upload.
+::
+++  memex-take
+  |=  [who=ship dest=@t]
+  =/  m  (strand ,[num=@ud =request:http])
+  ^-  form:m
+  |-
+  ;<  =aqua-effect  bind:m  (take-effect /effect/request)
+  ?.  =(who who.aqua-effect)  $
+  ?~  req=(extract-request:putil ufs.aqua-effect dest)  $
+  (pure:m u.req)
+::  +memex-answer: answer request .num on .who with .body.
+::
+++  memex-answer
+  |=  [who=ship num=@ud code=@ud body=json]
+  =/  m  (strand ,~)
+  ^-  form:m
+  =/  txt=@t  (en:json:html body)
+  =/  =http-event:http
+    :+  %start
+      [code ~[['content-type' 'application/json']]]
+    [`[(met 3 txt) txt] &]
+  %-  send-events
+  ~[[%event who /i/aqua/memex [%receive num http-event]]]
+::  +object-of: the object key the host told the broker it would store.
+::
+::  Read back out of its own request so the receipt names the same object,
+::  which is what +verify-receipt insists on. A real broker does the same.
+::
+++  object-of
+  |=  =request:http
+  ^-  @t
+  ?~  body.request  ~|(%memex-no-body !!)
+  =/  jon=json  (need (de:json:html q.u.body.request))
+  ?>  ?=(%o -.jon)
+  =/  got=json  (~(got by p.jon) 'gallObjectId')
+  ?>  ?=(%s -.got)
+  p.got
+::  +grant-json: a signed PUT, as the broker answers one.
+::
+++  grant-json
+  |=  reservation=@t
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['uploadUrl' s+'https://storage.test/put']
+      ['reservationId' s+reservation]
+  ==
+::  +receipt-json: what the broker says it stored.
+::
+++  receipt-json
+  |=  [object=@t mime=@t size=@ud]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['objectId' s+object]
+      ['mimeType' s+mime]
+      ['size' (numb:enjs:format size)]
+  ==
 ::  +bucket-with-replica: the state every test below starts from.
 ::
 ::  ~bud is in the group, the bucket exists, and ~bud holds a replica of it.
@@ -137,6 +208,57 @@
   ^-  form:m
   =/  =channel-join:b  [bucket-nest test-group]
   (poke-app [joiner %buckets] group-channel-join+channel-join)
+::  An upload runs the whole broker round trip.
+::
+::  Nothing in the unit suite reaches this: those tests poke a vase and mock
+::  the scries, so the two calls the host makes to storage are never made.
+::  Here they go out as real iris requests and come back as real responses.
+::
+::  What it pins: the grant answer is handed to the uploader as %upload, the
+::  completion receipt is verified against the entry the host reserved, and
+::  the entry only joins the manifest once the object has landed.
+::
+++  ph-test-bucket-upload-round-trips
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ::  the uploader asks, and the host calls storage rather than answering
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v9 [%bucket test-bucket [%begin-upload ~ 'plan.md' 'text/markdown' 12 ~]]]
+  ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
+  =/  object=@t  (object-of request.ask)
+  ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
+  ::  which comes back to the uploader as the signed PUT
+  ;<  granted=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?.  ?=(%upload -.body.granted)
+    (ex-equal !>(`@tas`-.body.granted) !>(%upload))
+  =/  session=@uv  session.upload-grant.body.granted
+  ::  the bytes land out of band, and the uploader says so
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v10 [%bucket test-bucket [%finish-upload session]]]
+  =/  done-url=@t  (rap 3 broker-base '/uploads/res-a/complete' ~)
+  ;<  fin=[num=@ud =request:http]  bind:m  (memex-take bucket-host done-url)
+  ;<  ~  bind:m
+    %-  memex-answer
+    [bucket-host num.fin 200 (receipt-json object 'text/markdown' 12)]
+  ::  and the entry joins the manifest, which the replica hears about
+  ;<  ~  bind:m  (ex-bucket-update %entry)
+  (pure:m ~)
 ::  Losing read access takes the replica with it.
 ::
 ::  This is the path +recheck-host-subs drives: the host kicks the reader off
