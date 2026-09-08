@@ -50,6 +50,17 @@
 ::          .resync is not — it restarts at 0 for a new owner, so an
 ::          attempt count alone can match a timer armed two nacks earlier
 ::          for a different owner and fan out ahead of the retry delay.
+::    .revoke-tries: attempts so far at re-issuing the revokes in .stale.
+::          a nacked revoke used to wait for the next boot-shaped moment
+::          (configure/unconfigure/clear), which on a stable gateway never
+::          comes — the former owner would keep the mirror until the bot's
+::          gateway happened to restart. one timer covers the whole set;
+::          receivers no-op redundant revokes, so retrying everyone is
+::          cheaper than tracking per-ship budgets.
+::    .revoke-tag: id of the newest armed revoke-retry timer, on the same
+::          principle as .sync-tag: .revoke-tries resets when the set drains
+::          or the budget is spent, so the count alone cannot retire a timer
+::          armed for an earlier round of revocations.
 ::    .req-tag: source of the same kind of id for %request retry timers,
 ::          which are per bot: each armed attempt stamps the NEXT value into
 ::          that bot's .pending entry, and the wake compares against the
@@ -66,6 +77,8 @@
       resync=@ud
       sync-tag=@ud
       req-tag=@ud
+      revoke-tries=@ud
+      revoke-tag=@ud
   ==
 ::  $action: prompts module inbound actions.
 ::

@@ -15,6 +15,15 @@ import { urbitFetch } from './fetch.js';
 // Consecutive subscribe nacks after which a watch is treated as
 // unsupported by this ship rather than transiently unavailable.
 const MAX_CONSECUTIVE_SUBSCRIBE_NACKS = 3;
+/**
+ * How long an abandoned (apparently unsupported) optional watch waits before
+ * one more attempt. Abandonment is a guess: everLiveSubscriptionKeys is
+ * process-local, so a gateway whose FIRST connection overlaps a %steward
+ * restart abandons a perfectly supported watch after a few seconds of nacks,
+ * and on a channel that stays healthy nothing would ever re-send it. A slow
+ * probe costs one poke per interval on a ship that really lacks the module.
+ */
+const ABANDONED_SUBSCRIBE_RETRY_MS = 5 * 60_000;
 
 const SUBSCRIPTION_RETRY_FLOOR_MS = 2_000;
 const SUBSCRIPTION_RETRY_CAP_MS = 30_000;
@@ -199,6 +208,10 @@ export class UrbitSSEClient {
   // and `subscriptions` grows without bound.
   private subscriptionNackCounts = new Map<string, number>();
   private abandonedSubscriptionKeys = new Set<string>();
+  private abandonedRetryTimers = new Map<
+    string,
+    ReturnType<typeof setTimeout>
+  >();
   // Only watches the caller marked optional may be abandoned. The message
   // firehoses (%chat, %channels, …) are required: a long desk restart can
   // nack their replacements too, and giving up there would silently stop
@@ -1061,10 +1074,12 @@ export class UrbitSSEClient {
             ) {
               // Treated as unsupported rather than transient: keep the
               // handlers (a channel rebuild re-sends and may succeed on a
-              // ship that has since updated) but stop the recovery loop,
-              // and release anyone waiting on the ack.
+              // ship that has since updated) but stop the fast recovery
+              // loop, and release anyone waiting on the ack. The nack count
+              // is deliberately kept, so a single nack after the slow retry
+              // below re-abandons instead of restarting the fast loop.
               this.abandonedSubscriptionKeys.add(key);
-              this.subscriptionNackCounts.delete(key);
+              this.scheduleAbandonedRetry(key, parsed.id);
               this.logger.error?.(
                 `[SSE] Subscribe to ${sub.app}${sub.path} nacked ${nacks} times; treating it as unsupported and stopping recovery`
               );
@@ -1719,6 +1734,43 @@ export class UrbitSSEClient {
     }
   }
 
+  /**
+   * One slow re-attempt for an abandoned optional watch. Abandonment can be
+   * wrong (see ABANDONED_SUBSCRIBE_RETRY_MS), and on a healthy channel
+   * nothing else would ever re-send: the ok-path's wasAbandoned branch turns
+   * a success into a `recovered` event, so the consumer backfills whatever
+   * it missed. Re-arms itself on each failure via the nack path.
+   */
+  private scheduleAbandonedRetry(key: string, oldSubId: number) {
+    if (this.abandonedRetryTimers.has(key)) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      this.abandonedRetryTimers.delete(key);
+      if (this.aborted || !this.abandonedSubscriptionKeys.has(key)) {
+        return;
+      }
+      if (!this.eventHandlers.has(oldSubId)) {
+        // Something else already took the handlers (a rebuild, or another
+        // recovery loop); that owner is responsible for the watch now.
+        return;
+      }
+      this.logger.log?.(
+        `[SSE] Re-probing abandoned watch ${key} in case the desk has returned`
+      );
+      void this.resubscribeAfterQuit(oldSubId);
+    }, ABANDONED_SUBSCRIBE_RETRY_MS);
+    timer.unref?.();
+    this.abandonedRetryTimers.set(key, timer);
+  }
+
+  private stopAbandonedRetries() {
+    for (const timer of this.abandonedRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.abandonedRetryTimers.clear();
+  }
+
   private stopStreamWatchdog() {
     if (this.watchdogTimer) {
       clearInterval(this.watchdogTimer);
@@ -1914,6 +1966,7 @@ export class UrbitSSEClient {
     }
     this.subscriptionKeyAckWaiters.clear();
     this.stopStreamWatchdog();
+    this.stopAbandonedRetries();
     this.streamController?.abort();
     this.stopSubscriptionRetryTimer();
     this.pendingSubscriptionIds.clear();

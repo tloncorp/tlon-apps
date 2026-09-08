@@ -53,7 +53,7 @@ import {
   collectAppliedPromptMarker,
   collectForeignPromptCaches,
   collectPromptFileStamps,
-  removeOwnPromptFiles,
+  removeRetiredPromptFiles,
   createPromptSync,
   shipHasPromptSyncAuthority,
   shouldRunPromptSync,
@@ -478,6 +478,51 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       authPhase: extra?.authPhase ?? null,
     };
     emitTlonPluginErrorTelemetry(event, { postHog: telemetry });
+  };
+  // name -> stamped ship, for prompt files whose ship no longer has
+  // syncing authority. Re-loads the config on every call so callers can
+  // use it as a just-in-time check rather than a snapshot (see
+  // removeRetiredPromptFiles).
+  const retiredPromptStamps = (): Record<string, string> => {
+    let now: OpenClawConfig;
+    try {
+      now = core.config.loadConfig();
+    } catch {
+      // Can't tell who is retired; removing nothing is the safe answer.
+      return {};
+    }
+    const out: Record<string, string> = {};
+    for (const [name, ship] of Object.entries(collectPromptFileStamps(now))) {
+      if (!shipHasPromptSyncAuthority(now, ship)) {
+        out[name] = ship;
+      }
+    }
+    return out;
+  };
+  const removeRetiredFiles = async (label: string): Promise<void> => {
+    try {
+      const now = core.config.loadConfig();
+      const removed = await removeRetiredPromptFiles({
+        workspaceDir: core.agent.resolveAgentWorkspaceDir(
+          now,
+          resolveDefaultAgentId(now)
+        ),
+        retiredStamps: retiredPromptStamps,
+        logger: {
+          log: (m: string) => runtime.log?.(m),
+          warn: (m: string) => runtime.error?.(m),
+        },
+      });
+      if (removed.length > 0) {
+        runtime.log?.(
+          `[tlon] Removed retired prompt files from the workspace (${label}): ${removed.join(', ')}`
+        );
+      }
+    } catch (error: any) {
+      runtime.error?.(
+        `[tlon] Retired prompt file cleanup failed (${label}): ${error?.message ?? String(error)}`
+      );
+    }
   };
   runtime.log?.(`[tlon] Starting monitor for ${botShipName}`);
   runtime.log?.(
@@ -6366,34 +6411,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             runtime.log?.(
               '[tlon] Prompt sync retired for this ship; cleared ship prompt state'
             );
-            // The ship state is only half of it: the owner-edited files sit
-            // in the agent workspace the gated-off accounts still share and
-            // re-read every turn, so leave them and this ship's private
-            // instructions keep steering another bot. Independent of the
-            // clear above — a failed poke must not strand the files.
-            const retiredFiles = await removeOwnPromptFiles({
-              workspaceDir: core.agent.resolveAgentWorkspaceDir(
-                freshCfg,
-                resolveDefaultAgentId(freshCfg)
-              ),
-              botShip: botShipName,
-              fileStamps: collectPromptFileStamps(freshCfg),
-              logger: {
-                log: (m) => runtime.log?.(m),
-                warn: (m) => runtime.error?.(m),
-              },
-            });
-            if (retiredFiles.length > 0) {
-              runtime.log?.(
-                `[tlon] Removed retired prompt files from the workspace: ${retiredFiles.join(', ')}`
-              );
-            }
           }
         } catch (error: any) {
           runtime.error?.(
             `[tlon] Prompt clear on retirement failed: ${error?.message ?? String(error)}`
           );
         }
+        // The ship state is only half of it: the owner-edited files sit in
+        // the agent workspace the gated-off accounts still share and re-read
+        // every turn, so leaving them lets a retired ship's private
+        // instructions keep steering another bot. Deliberately OUTSIDE the
+        // try above — an offline ship or an expired clear deadline must not
+        // strand the files — and the stamps are re-read per file, since the
+        // clear may have waited seconds while a replacement rewrote them.
+        await removeRetiredFiles('retirement');
       }
       try {
         await api?.close();

@@ -170,6 +170,67 @@ describe('UrbitSSEClient', () => {
       vi.useRealTimers();
     });
 
+    it('re-probes an abandoned watch after the slow interval', async () => {
+      // everLiveSubscriptionKeys is process-local, so a gateway whose first
+      // connection overlaps a %steward restart abandons a supported watch.
+      // On a channel that stays healthy nothing else re-sends it, and the
+      // owner's stored edits would never be applied.
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      const mockUrbitFetch = vi.mocked(urbitFetch);
+      mockUrbitFetch.mockResolvedValue(okFetch());
+      const recovery: string[] = [];
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123',
+        { onSubscriptionRecovery: (e) => recovery.push(e.phase) }
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+      };
+      const liveId = () =>
+        priv.subscriptions.filter((sub) => priv.eventHandlers.has(sub.id))[0]
+          ?.id;
+      for (let i = 0; i < 6; i += 1) {
+        const id = liveId();
+        if (id === undefined) break;
+        client.processEvent(
+          `id: ${i + 1}\ndata: {"id":${id},"response":"subscribe","err":"no-such-path"}`
+        );
+        await vi.advanceTimersByTimeAsync(3_000);
+      }
+      expect(recovery).toContain('abandoned');
+      const abandonedId = liveId();
+      expect(abandonedId).toBeDefined();
+      mockUrbitFetch.mockClear();
+
+      // Nothing more happens on its own...
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mockUrbitFetch).not.toHaveBeenCalled();
+
+      // ...until the slow re-probe fires, and the desk having returned turns
+      // it into a recovery the consumer can act on.
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      const retriedId = liveId();
+      expect(retriedId).not.toBe(abandonedId);
+      client.processEvent(
+        `id: 99\ndata: {"id":${retriedId},"response":"subscribe","ok":"ok"}`
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(recovery).toContain('recovered');
+      await client.close();
+      vi.useRealTimers();
+    });
+
     it('emits a recovery when an abandoned watch is later accepted', async () => {
       vi.useFakeTimers();
       const { urbitFetch } = await import('./fetch.js');

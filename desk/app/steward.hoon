@@ -280,7 +280,8 @@
         ?~  p.sign
           cor(stale.prompts.state (~(del in stale.prompts.state) who))
         %-  (slog 'steward: prompts revoke nacked' u.p.sign)
-        cor(stale.prompts.state (~(put in stale.prompts.state) who))
+        =.  stale.prompts.state  (~(put in stale.prompts.state) who)
+        pr-revoke-nacked:pr-core
       ?~  p.sign
         ::  the owner holds our canonical set; stop retrying
         cor(resync.prompts.state 0)
@@ -309,9 +310,14 @@
         ::  confirmed: the former owner dropped its mirror; stop retrying
         =/  who  (slav %p i.t.t.wire)
         =.  stale.prompts.state  (~(del in stale.prompts.state) who)
-        cor
-      ::  keep the ship in .stale; the next boot-shaped moment retries
-      ((slog 'steward: prompts revoke retry nacked' u.p.sign) cor)
+        ::  the set is empty, so the next nack starts from a fresh budget
+        ?.  =(~ stale.prompts.state)  cor
+        cor(revoke-tries.prompts.state 0)
+      ::  keep the ship in .stale and arm another retry: waiting for a
+      ::  boot-shaped moment leaves the former owner holding the mirror
+      ::  indefinitely on a gateway that never restarts
+      %-  (slog 'steward: prompts revoke retry nacked' u.p.sign)
+      pr-revoke-nacked:pr-core
     ==
   ::
       [%activity ~]
@@ -354,6 +360,10 @@
         (slav %p i.t.t.wire)
       (slav %ud i.t.t.t.wire)
     (slav %ud i.t.t.t.t.wire)
+  ::
+      [%prompts %revoke-retry @ ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    (pr-retry-revoke-wake:pr-core (slav %ud i.t.t.wire))
   ::
       [%prompts %sync-retry @ @ ~]
     ?.  ?=([%behn %wake *] sign)  cor
@@ -1110,6 +1120,37 @@
   ::  the transition-era sync flow has drained, so there is no in-flight
   ::  %sync to be ordered against, and the per-ship wire lets the ack
   ::  delete the right .stale entry. receivers no-op redundant revokes.
+  ::
+  ::  a revoke was nacked (the former owner's desk restarting, most often).
+  ::  arm a bounded timer so the retry doesn't wait for a boot-shaped moment
+  ::  that a stable gateway never produces. one timer serves the whole
+  ::  .stale set: pr-retry-revokes re-issues to everyone in it, and
+  ::  receivers no-op redundant revokes.
+  ::
+  ++  pr-revoke-nacked
+    ^+  cor
+    =/  tries  +(revoke-tries.prompts.state)
+    ?:  (gte tries max-retry-tries)
+      %-  (slog leaf+"steward: giving up on prompts revoke retries" ~)
+      cor(revoke-tries.prompts.state 0)
+    =.  revoke-tries.prompts.state  tries
+    =.  revoke-tag.prompts.state  +(revoke-tag.prompts.state)
+    %-  emit
+    :^  %pass
+        /prompts/revoke-retry/(scot %ud revoke-tag.prompts.state)
+      %arvo
+    [%b %wait (add now.bowl retry-delay)]
+  ::
+  ++  pr-retry-revoke-wake
+    |=  tag=@ud
+    ^+  cor
+    ::  a stale timer (superseded by a later arm, or by the set draining) is
+    ::  a no-op
+    ?.  =(tag revoke-tag.prompts.state)  cor
+    ?:  =(~ stale.prompts.state)
+      ::  everything acked in the meantime; start the next round fresh
+      cor(revoke-tries.prompts.state 0)
+    pr-retry-revokes
   ::
   ++  pr-retry-revokes
     ^+  cor

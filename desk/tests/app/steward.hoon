@@ -1512,10 +1512,10 @@
     [%behn %wake ~]
   (ex-cards caz ~)
 ::
-::  a revoke nacked on the shared sync wire is NOT treated as a failed
-::  owner sync — those retry via .stale on boot-shaped moments instead
+::  a revoke nacked on the shared sync wire is NOT treated as a failed owner
+::  sync: it arms the revoke retry, not the owner-sync fan-out retry
 ::
-++  test-pr-revoke-nack-on-sync-wire-arms-nothing
+++  test-pr-revoke-nack-on-sync-wire-arms-revoke-retry
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -1533,8 +1533,13 @@
         [~bus %steward]
         [%poke-ack `~[[%leaf "boom"]]]
     ==
-  ::  no sync-retry timer: this was a revoke, not a fan-out to our owner
-  (ex-cards caz ~)
+  ::  the revoke retry, and no sync-retry: this was a revoke to a former
+  ::  owner, not a fan-out to the current one
+  %+  ex-cards  caz
+  :~  %+  ex-arvo
+        /prompts/revoke-retry/(scot %ud 1)
+      [%b %wait (add ~2024.1.1 ~m5)]
+  ==
 ::
 ::  a nacked %request is retried on a behn timer, an ack stops the retries,
 ::  and the budget is bounded so a ship that never accepts is dropped
@@ -1764,6 +1769,75 @@
           !>(`action:v1:p`[%revoke ~])
       ==
   ==
+::
+::  a nacked revoke arms a bounded behn retry: waiting for a boot-shaped
+::  moment leaves the former owner holding the mirror indefinitely on a
+::  gateway that never restarts. a confirming ack ends the retries
+::
+++  test-pr-revoke-retry-on-timer
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  bus-wire  /prompts/sync/(scot %p ~bus)
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ::  ~bus is replaced and its revoke nacks: a retry timer is armed
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  caz=(list card)  bind:m
+    (do-agent [bus-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %+  ex-arvo
+          /prompts/revoke-retry/(scot %ud 1)
+        [%b %wait (add ~2024.1.1 ~m5)]
+    ==
+  ::  the wake re-issues the revoke on the dedicated wire
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/revoke-retry/(scot %ud 1) [%behn %wake ~])
+  ;<  ~  bind:m
+    %+  ex-cards  caz
+    :~  %-  ex-poke
+        :*  /prompts/revoke/(scot %p ~bus)
+            [~bus %steward]
+            %steward-prompts-action-1
+            !>(`action:v1:p`[%revoke ~])
+        ==
+    ==
+  ::  it acks: .stale drains, and a later wake emits nothing
+  ;<  *  bind:m
+    (do-agent [/prompts/revoke/(scot %p ~bus) [~bus %steward] [%poke-ack ~]])
+  ;<  caz=(list card)  bind:m
+    (do-arvo /prompts/revoke-retry/(scot %ud 1) [%behn %wake ~])
+  (ex-cards caz ~)
+::
+::  the revoke retry budget is bounded — a former owner that never acks is
+::  dropped rather than poked forever
+::
+++  test-pr-revoke-retry-budget-exhausts
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  bus-wire  /prompts/sync/(scot %p ~bus)
+  =/  rev-wire  /prompts/revoke/(scot %p ~bus)
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ::  first nack (on the ordered wire) arms tag 1
+  ;<  *  bind:m
+    (do-agent [bus-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ::  four more nacks on the retry wire spend the budget
+  ;<  *  bind:m
+    (do-agent [rev-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  *  bind:m
+    (do-agent [rev-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  *  bind:m
+    (do-agent [rev-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ;<  caz=(list card)  bind:m
+    (do-agent [rev-wire [~bus %steward] [%poke-ack `~[[%leaf "boom"]]]])
+  ::  fifth attempt: no further timer
+  (ex-cards caz ~)
 ::
 ::  a nacked owner-change revoke is retried on the next boot-shaped moment
 ::  (on the dedicated revoke wire), and a confirming ack stops the retries

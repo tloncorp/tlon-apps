@@ -57,8 +57,21 @@ export function useBotSystemPrompts(botShip: string) {
  * would strand ownership as unresolved, hiding Block on every profile
  * until the app restarted.
  */
+/**
+ * Set once a /v1/prompts watch has gone live on this ship. A live watch is
+ * stronger evidence than any probe: it means gall accepted the subscription,
+ * so the module exists regardless of what a 404 mid-restart suggested.
+ */
+let promptsModuleProven = false;
+const markPromptsModuleProven = () => {
+  promptsModuleProven = true;
+};
+
 async function probePromptsModule(): Promise<'present' | 'absent'> {
   for (let attempt = 0; ; attempt += 1) {
+    if (promptsModuleProven) {
+      return 'present';
+    }
     try {
       await api.probeBotSystemPromptsModule();
       return 'present';
@@ -72,7 +85,9 @@ async function probePromptsModule(): Promise<'present' | 'absent'> {
         throw error;
       }
       if (next === 'absent') {
-        return 'absent';
+        // Never conclude absence after a watch has been acked: that ack is
+        // proof the module is there, and `absent` is sticky.
+        return promptsModuleProven ? 'present' : 'absent';
       }
       await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** attempt));
     }
@@ -221,6 +236,13 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
     const writeAuthoritative = (value: api.BotSystemPrompt[] | null) => {
       const task = async () => {
         await queryClient.cancelQueries({ queryKey: promptsQueryKey(botShip) });
+        if (cancelled) {
+          // Unmounted while this task sat on the chain (or inside the await
+          // above). A replacement section may already have cached a newer
+          // mirror, and writing our older fact over it would stick for the
+          // session — staleTime is Infinity and no later fact is promised.
+          return;
+        }
         queryClient.setQueryData(promptsQueryKey(botShip), value);
       };
       factChain = factChain.then(task, task);
@@ -254,7 +276,20 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               // have cached during a long %steward restart — that verdict
               // is never revisited on its own, and would keep resolving
               // per-bot nulls as settled "not owned" for the session.
-              queryClient.setQueryData(promptsModuleQueryKey, 'present');
+              //
+              // The flag is what makes this stick: a probe already in
+              // flight can still be sitting on its last retry delay, and
+              // its late 404 would otherwise overwrite this with `absent`.
+              // Cancelling covers the in-flight fetch; the flag covers any
+              // probe that starts later.
+              markPromptsModuleProven();
+              void queryClient
+                .cancelQueries({ queryKey: promptsModuleQueryKey })
+                .then(() => {
+                  if (!cancelled) {
+                    queryClient.setQueryData(promptsModuleQueryKey, 'present');
+                  }
+                });
               // The watch is live only now: subscribe() resolved on the
               // channel PUT, and a fact landing between that and this ack
               // is dropped. Re-read so the mirror cannot sit stale for the

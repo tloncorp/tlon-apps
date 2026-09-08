@@ -432,36 +432,44 @@ async function readPromptFileIfRegular(
 }
 
 /**
- * Remove the prompt files this ship owns from the shared workspace.
+ * Remove prompt files belonging to ships that no longer have prompt-sync
+ * authority.
  *
- * Called when a ship loses prompt-sync authority for good (its account was
- * disabled or removed, or it became one of several named accounts with no
- * default) and no replacement monitor will run for it. Clearing the ship's
- * canonical set is not enough on its own: the files stay in the agent
- * workspace that the still-running gated-off accounts share and re-read
- * every turn, so the retired owner's private instructions would keep
- * steering another bot until some future authority cleaned them up.
+ * Needed wherever a ship stops syncing and no replacement takes over: a
+ * monitor tearing down after its account was disabled or removed, and a
+ * cold start whose config has several named accounts and no default (there
+ * every monitor is gated off, and no retiring monitor exists to clean up).
+ * Clearing the ship's canonical set is not enough on its own — the files
+ * stay in the agent workspace that the gated-off accounts share and re-read
+ * every turn, so a retired owner's private instructions would keep steering
+ * another bot until some future authority cleaned them up.
  *
- * Only files stamped for THIS ship are removed — an unstamped file may be
- * openclaw's own bootstrap default or a legacy file from another authority,
- * and deleting someone else's content is worse than leaving it. openclaw
- * regenerates the bootstrap defaults for whatever is missing.
+ * Only stamped files are removed. An unstamped file may be openclaw's own
+ * bootstrap default or a legacy file from an authority that predates
+ * stamping, and deleting someone else's content is worse than leaving it;
+ * openclaw regenerates the bootstrap defaults for whatever is missing.
  *
- * Stamps are deliberately NOT cleared here: this runs during teardown, and
- * a stamp naming a file that no longer exists is self-healing — the next
- * authority's cleanup reads ENOENT as already-removed and clears it.
+ * Stamps are deliberately NOT cleared: this runs during teardown or a
+ * gated-off boot, where a config write may be refused, and a stamp naming a
+ * file that no longer exists is self-healing — the next authority's cleanup
+ * reads ENOENT as already-removed and clears it then.
  */
-export async function removeOwnPromptFiles(opts: {
+export async function removeRetiredPromptFiles(opts: {
   workspaceDir: string;
-  botShip: string;
-  fileStamps: Record<string, string>;
+  /**
+   * name -> stamped ship, for files whose ship has no authority any more.
+   * Called immediately before EACH unlink rather than once up front: the
+   * caller may have awaited a multi-second poke since, and a replacement
+   * monitor can rewrite and restamp the shared workspace in that window —
+   * unlinking on a stale snapshot would delete its freshly applied prompts.
+   */
+  retiredStamps: () => Record<string, string>;
   logger?: PromptSyncLogger;
 }): Promise<PromptFileName[]> {
-  const mine = normalizeShip(opts.botShip);
   const removed: PromptFileName[] = [];
   for (const name of PROMPT_FILE_NAMES) {
-    const stamp = opts.fileStamps[name];
-    if (stamp === undefined || normalizeShip(stamp) !== mine) {
+    const stamp = opts.retiredStamps()[name];
+    if (stamp === undefined) {
       continue;
     }
     try {

@@ -17,7 +17,7 @@ import {
   parseStoredPromptsScry,
   promptsDiffer,
   readEffectivePrompts,
-  removeOwnPromptFiles,
+  removeRetiredPromptFiles,
   shouldRunPromptSync,
   writePromptsIntoConfigDraft,
 } from './prompt-sync.js';
@@ -842,35 +842,57 @@ describe('createPromptSync abort during foreign cleanup', () => {
   });
 });
 
-describe('removeOwnPromptFiles', () => {
-  it('removes only the files stamped for this ship', async () => {
+describe('removeRetiredPromptFiles', () => {
+  it('removes only the files whose stamped ship is retired', async () => {
     // The workspace is shared with the gated-off accounts that keep
     // running, so a retired authority's files would go on steering another
     // bot. Unstamped files may be openclaw's own bootstrap defaults.
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'ours');
-    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'someone else');
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'retired ship');
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'still syncing');
     fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'unstamped');
-    const removed = await removeOwnPromptFiles({
+    const removed = await removeRetiredPromptFiles({
       workspaceDir: tmpDir,
-      botShip: '~zod',
-      fileStamps: { 'AGENTS.md': '~zod', 'SOUL.md': '~bus' },
+      retiredStamps: () => ({ 'AGENTS.md': '~zod' }),
       logger,
     });
     expect(removed).toEqual(['AGENTS.md']);
     expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
     expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
-      'someone else'
+      'still syncing'
     );
     expect(fs.readFileSync(path.join(tmpDir, 'USER.md'), 'utf8')).toBe(
       'unstamped'
     );
   });
 
-  it('treats an already-missing file as removed without warning', async () => {
-    const removed = await removeOwnPromptFiles({
+  it('re-reads the stamps before each unlink', async () => {
+    // A replacement monitor can rewrite and restamp the workspace while the
+    // caller awaits its multi-second %clear; unlinking on the snapshot
+    // taken before that would delete the replacement's fresh prompts.
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'retired ship');
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'restamped mid-pass');
+    let calls = 0;
+    const removed = await removeRetiredPromptFiles({
       workspaceDir: tmpDir,
-      botShip: '~zod',
-      fileStamps: { 'AGENTS.md': '~zod' },
+      retiredStamps: () => {
+        calls += 1;
+        // SOUL.md stops being retired once the replacement claims it.
+        return calls > 1
+          ? { 'AGENTS.md': '~zod' }
+          : { 'AGENTS.md': '~zod', 'SOUL.md': '~zod' };
+      },
+      logger,
+    });
+    expect(removed).toEqual(['AGENTS.md']);
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'restamped mid-pass'
+    );
+  });
+
+  it('treats an already-missing file as removed without warning', async () => {
+    const removed = await removeRetiredPromptFiles({
+      workspaceDir: tmpDir,
+      retiredStamps: () => ({ 'AGENTS.md': '~zod' }),
       logger,
     });
     expect(removed).toEqual([]);
