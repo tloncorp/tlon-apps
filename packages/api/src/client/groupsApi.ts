@@ -466,14 +466,15 @@ export const createGroup = async ({
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
         status: err.status,
-        error: err.toString(),
+        error: err,
+        errorMessage: err.message,
         context: 'group-create-thread request failed',
       });
     } else {
       logger.trackEvent('Create Group Error', {
         severity: AnalyticsSeverity.Critical,
+        error: err,
         errorMessage: err.message,
-        errorStack: err.stack,
         context: 'group-create-thread unexpected error',
       });
     }

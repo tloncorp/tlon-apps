@@ -1,84 +1,189 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 
-import { createDevLogger, useDebugStore } from './debug';
+import { AnalyticsSeverity } from './domain';
 
-// `trackError` reports asynchronously: `getDebugInfo()` resolves first, then
-// `report()` calls `capture`. Flushing the microtask queue is enough.
-async function flushReport() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
-}
+import { clearBreadcrumbs, createDevLogger, useDebugStore } from './debug';
 
-function makeError() {
-  try {
-    // @ts-expect-error deliberate runtime failure so `stack` is real
-    null.boom();
-  } catch (e) {
-    return e as Error;
-  }
-  throw new Error('unreachable');
-}
+let capture: ReturnType<typeof vi.fn>;
 
-describe('createDevLogger trackError analytics payload', () => {
-  const capture = vi.fn();
-  const logger = createDevLogger('test', false);
+beforeEach(() => {
+  capture = vi.fn();
+  useDebugStore.getState().initializeErrorLogger({ capture });
+  useDebugStore.setState({ debugBreadcrumbs: [] });
+});
 
-  beforeEach(() => {
-    capture.mockClear();
-    useDebugStore.getState().initializeErrorLogger({ capture });
+test('trackError with an Error argument captures the full payload', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new TypeError('x');
+  logger.trackError('boom', error);
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const [event, payload] = capture.mock.calls[0];
+  expect(event).toBe('app_error');
+  expect(payload.errorObject).toBe(error);
+  expect(payload.logger).toBe('t');
+  expect(payload.errorTitle).toBe('boom');
+  expect(payload.message).toBe('[t] boom');
+  expect(payload.errorMessage).toBe('x');
+  expect(typeof payload.errorStack).toBe('string');
+});
+
+test('trackError extracts the error from { error } data', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new Error('nested');
+  logger.trackError('boom', { error });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  expect(capture.mock.calls[0][1].errorObject).toBe(error);
+});
+
+test('trackError extracts the error from { stack } data', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new Error('stacked');
+  logger.trackError('boom', { stack: error });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  expect(capture.mock.calls[0][1].errorObject).toBe(error);
+});
+
+test('trackError custom props cannot overwrite protected fields', async () => {
+  const logger = createDevLogger('t', false);
+  logger.trackError('boom', {
+    logger: 'evil',
+    errorTitle: 'evil',
+    errorObject: new Error('evil'),
   });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.logger).toBe('t');
+  expect(payload.errorTitle).toBe('boom');
+  expect(payload.errorObject).toBeUndefined();
+});
 
-  afterEach(() => {
-    useDebugStore.setState({ errorLogger: null });
+test('trackError without data', async () => {
+  const logger = createDevLogger('t', false);
+  logger.trackError('boom');
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorObject).toBeUndefined();
+  expect(payload.errorTitle).toBe('boom');
+});
+
+test('trackError breadcrumbs exclude sensitive crumbs', async () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.sensitiveCrumb('token abc');
+  logger.trackError('boom');
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('visited x'))
+  ).toBe(true);
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('token abc'))
+  ).toBe(false);
+});
+
+test('trackEvent attaches the error object for Critical events', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new RangeError('db gone');
+  logger.crumb('visited', 'x');
+  logger.trackEvent('Native DB Error', {
+    context: 'setupDb failed',
+    error,
+    severity: AnalyticsSeverity.Critical,
   });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const [event, payload] = capture.mock.calls[0];
+  expect(event).toBe('Native DB Error');
+  expect(payload.errorObject).toBe(error);
+  expect(payload.errorTitle).toBe('Native DB Error');
+  expect(payload.logger).toBe('t');
+  expect(payload.message).toBe('[t] Native DB Error');
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('visited x'))
+  ).toBe(true);
+});
 
-  async function captured(data?: Error | Record<string, unknown>) {
-    logger.trackError('failed to sync latest posts', data);
-    await flushReport();
-    expect(capture).toHaveBeenCalledTimes(1);
-    const [event, payload] = capture.mock.calls[0];
-    expect(event).toBe('app_error');
-    return payload as Record<string, unknown>;
-  }
-
-  // PostHog JSON-serializes properties, and an Error's `message`/`stack` are
-  // non-enumerable — so `error: e` alone reaches PostHog as `{}`. These derived
-  // string props are what keeps the error legible there.
-  test('derives errorMessage and errorStack strings from `{ error }`', async () => {
-    const error = makeError();
-    const payload = await captured({ error });
-
-    expect(payload.errorMessage).toBe(error.message);
-    expect(payload.errorStack).toBe(error.stack);
-    expect(typeof payload.errorMessage).toBe('string');
-    expect(typeof payload.errorStack).toBe('string');
-    expect(payload.message).toBe('[test] failed to sync latest posts');
+test('trackEvent leaves ordinary analytics payloads alone', async () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.trackEvent('Attestation Error', {
+    error: new Error('nope'),
+    severity: AnalyticsSeverity.High,
   });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorObject).toBeUndefined();
+  expect(payload.errorTitle).toBeUndefined();
+  expect(payload.breadcrumbs).toBeUndefined();
+});
 
-  test('derives them from a bare Error second argument too', async () => {
-    const error = makeError();
-    const payload = await captured(error);
-
-    expect(payload.errorMessage).toBe(error.message);
-    expect(payload.errorStack).toBe(error.stack);
+test('trackEvent Critical breadcrumbs exclude sensitive crumbs', async () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.sensitiveCrumb('token abc');
+  logger.trackEvent('Native DB Error', {
+    severity: AnalyticsSeverity.Critical,
   });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(
+    payload.breadcrumbs.some((entry: string) => entry.includes('token abc'))
+  ).toBe(false);
+});
 
-  test('caller-supplied errorMessage/errorStack strings still win', async () => {
-    const payload = await captured({
-      errorMessage: 'hand-rolled message',
-      errorStack: 'hand-rolled stack',
-    });
+test('clearBreadcrumbs empties the store', () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('a');
+  logger.sensitiveCrumb('b');
+  expect(useDebugStore.getState().getBreadcrumbs().length).toBe(2);
+  clearBreadcrumbs();
+  expect(useDebugStore.getState().getBreadcrumbs()).toEqual([]);
+});
 
-    expect(payload.errorMessage).toBe('hand-rolled message');
-    expect(payload.errorStack).toBe('hand-rolled stack');
+test('getBreadcrumbs filters sensitive entries when opted out', () => {
+  const logger = createDevLogger('t', false);
+  logger.crumb('visited', 'x');
+  logger.sensitiveCrumb('token abc');
+  const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
+  expect(breadcrumbs.some((entry) => entry.includes('token abc'))).toBe(true);
+  const sanitized = useDebugStore
+    .getState()
+    .getBreadcrumbs({ includeSensitive: false });
+  expect(sanitized.some((entry) => entry.includes('token abc'))).toBe(false);
+  expect(sanitized.some((entry) => entry.includes('visited x'))).toBe(true);
+});
+
+// PostHog never sees `errorObject` -- the composite logger strips it before the
+// PostHog sink -- so these two derived strings are the whole of what makes an
+// error legible there. A raw `Error` under `error` JSON-serializes to `{}`,
+// since `message` and `stack` are non-enumerable.
+test('trackError derives the PostHog error strings from { error }', async () => {
+  const logger = createDevLogger('t', false);
+  const error = new TypeError('serializable');
+  logger.trackError('boom', { error });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorMessage).toBe(error.message);
+  expect(payload.errorStack).toBe(error.stack);
+});
+
+test('trackError lets caller-supplied error strings win', async () => {
+  const logger = createDevLogger('t', false);
+  logger.trackError('boom', {
+    errorMessage: 'hand-rolled message',
+    errorStack: 'hand-rolled stack',
   });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.errorMessage).toBe('hand-rolled message');
+  expect(payload.errorStack).toBe('hand-rolled stack');
+});
 
-  test('a non-Error `error` value reports without message or stack', async () => {
-    const payload = await captured({ error: 'just a string' });
-
-    expect(payload.error).toBe('just a string');
-    expect(payload.errorMessage).toBeUndefined();
-    expect(payload.errorStack).toBeUndefined();
-  });
+test('trackError reports a non-Error `error` without message or stack', async () => {
+  const logger = createDevLogger('t', false);
+  logger.trackError('boom', { error: 'just a string' });
+  await vi.waitFor(() => expect(capture).toHaveBeenCalled());
+  const payload = capture.mock.calls[0][1];
+  expect(payload.error).toBe('just a string');
+  expect(payload.errorMessage).toBeUndefined();
+  expect(payload.errorStack).toBeUndefined();
 });

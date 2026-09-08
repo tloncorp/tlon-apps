@@ -5,6 +5,10 @@
 // runs before any transitive expo-modules-core consumer.
 // See expo-polyfill.ts for details on why this is needed.
 import './expo-polyfill';
+// Sentry and the composite logger must be installed before the app module
+// graph evaluates so that module-initialisation failures are reported.
+import './sentry-init';
+import { analyticsClient } from './logic/analytics';
 
 // if (import.meta.env.VITE_ENABLE_WDYR) {
 //   import.meta.glob('./wdyr.ts', { eager: true });
@@ -27,11 +31,7 @@ import { createRoot } from 'react-dom/client';
 
 import App from './app';
 import { isElectron } from './electron-bridge';
-import { analyticsClient } from './logic/analytics';
-import { initSentry } from './sentry';
 import './styles/index.css';
-
-initSentry();
 
 const logger = createDevLogger('main.tsx', false);
 

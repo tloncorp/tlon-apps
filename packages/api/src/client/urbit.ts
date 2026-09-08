@@ -447,10 +447,10 @@ export async function subscribe<T>(
         config.onQuitOrReset?.('subscriptionQuit', printEndpoint(endpoint));
       },
       err: (error, id) => {
-        logger.trackError(
-          `subscribe error on ${printEndpoint(endpoint)}`,
-          describeError(error)
-        );
+        logger.trackError('subscribe error', {
+          ...describeError(error),
+          endpoint: printEndpoint(endpoint),
+        });
 
         if (err) {
           logger.log(
@@ -512,8 +512,9 @@ export async function subscribeOnce<T>(
     );
   } catch (err) {
     if (err !== 'timeout' && err !== 'quit') {
-      logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
+      logger.trackError('bad subscribeOnce', {
         ...describeError(err),
+        endpoint: printEndpoint(endpoint),
       });
     } else if (err === 'timeout') {
       logger.error('subscribeOnce timed out', printEndpoint(endpoint));
@@ -578,10 +579,11 @@ export async function pokeNoun<T>({ app, mark, noun }: NounPokeParams) {
     });
   };
   const fail = (err: any) => {
-    logger.trackError(
-      `NOUN POKE: bad poke to ${app} with mark ${mark}`,
-      describeError(err)
-    );
+    logger.trackError('bad noun poke', {
+      ...describeError(err),
+      app,
+      mark,
+    });
     throw err;
   };
   const retry = async (err: any) => {
@@ -631,9 +633,10 @@ export async function poke({ app, mark, json }: PokeParams) {
     return activeClient.poke({ app, mark, json });
   };
   const fail = (err: any) => {
-    logger.trackError(`bad poke to ${app} with mark ${mark}`, {
+    logger.trackError('bad poke', {
       ...describeError(err),
-      body: json,
+      app,
+      mark,
     });
     trackDuration('error');
     throw err;
