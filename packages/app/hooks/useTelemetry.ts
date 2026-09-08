@@ -26,10 +26,12 @@ export function useClearTelemetryConfig() {
 
   const clearConfig = useCallback(async () => {
     logger.log('Clearing telemetry config');
+    // Breadcrumbs must not carry over from one account to the next on the same install.
+    // Clear before the first await: the native logout path does not await this
+    // callback, and a slow or rejected flush must not leave them behind.
+    clearBreadcrumbs();
     await posthog.flush();
     posthog?.reset();
-    // Breadcrumbs must not carry over from one account to the next on the same install.
-    clearBreadcrumbs();
     await didInitializeTelemetry.resetValue();
     await lastAnonymousAppOpenAt.resetValue();
   }, [posthog]);

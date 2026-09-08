@@ -129,26 +129,72 @@ export function hostingFromHostname(hostname: string): Hosting {
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>()]+/gi;
 
-export function reduceUrls(input: string): string {
-  return input.replace(URL_PATTERN, (match) => {
-    let hosting: Hosting = 'self';
-    let segment = '';
-    try {
-      const parsed = new URL(match);
-      hosting = hostingFromHostname(parsed.hostname);
-      const groupsPrefix = '/apps/groups/';
-      const pathname = parsed.pathname;
-      if (pathname.startsWith(groupsPrefix)) {
-        const rest = pathname.slice(groupsPrefix.length);
-        const slashIndex = rest.indexOf('/');
-        segment = slashIndex === -1 ? rest : rest.slice(0, slashIndex);
+// Hostnames that appear without a scheme: any host under a known hosting
+// suffix, and any quoted fully-qualified hostname (iOS/Android network errors
+// quote the host they failed against).
+const HOSTING_SUFFIX_HOST_PATTERN =
+  /\b(?:[a-z0-9-]+\.)+(?:tlon\.network|togten\.com)\b/gi;
+const QUOTED_HOST_PATTERN = /([“"'])((?:[a-z0-9-]+\.)+[a-z]{2,63})([”"'])/gi;
+// Quoted file names look like hostnames; leave them alone.
+const NOT_A_TLD = new Set([
+  'js',
+  'jsx',
+  'ts',
+  'tsx',
+  'mjs',
+  'cjs',
+  'json',
+  'map',
+  'css',
+  'html',
+  'hoon',
+  'wasm',
+  'png',
+  'jpg',
+  'jpeg',
+  'gif',
+  'svg',
+  'webp',
+  'mp4',
+  'mov',
+  'txt',
+  'md',
+]);
+
+function reduceBareHosts(input: string): string {
+  return input
+    .replace(HOSTING_SUFFIX_HOST_PATTERN, (host) => hostingFromHostname(host))
+    .replace(QUOTED_HOST_PATTERN, (match, open, host, close) => {
+      const tld = host.slice(host.lastIndexOf('.') + 1).toLowerCase();
+      if (NOT_A_TLD.has(tld)) {
+        return match;
       }
-    } catch {
-      hosting = 'self';
-      segment = '';
-    }
-    return `https://${hosting}/${segment}`;
-  });
+      return `${open}${hostingFromHostname(host)}${close}`;
+    });
+}
+
+export function reduceUrls(input: string): string {
+  return reduceBareHosts(
+    input.replace(URL_PATTERN, (match) => {
+      let hosting: Hosting = 'self';
+      let segment = '';
+      try {
+        const parsed = new URL(match);
+        hosting = hostingFromHostname(parsed.hostname);
+        const groupsPrefix = '/apps/groups/';
+        const pathname = parsed.pathname;
+        if (pathname.startsWith(groupsPrefix)) {
+          const rest = pathname.slice(groupsPrefix.length);
+          const slashIndex = rest.indexOf('/');
+          segment = slashIndex === -1 ? rest : rest.slice(0, slashIndex);
+        }
+      } catch {
+        hosting = 'self';
+        segment = '';
+      }
+      return `https://${hosting}/${segment}`;
+    })
+  );
 }
 
 // The browser SDK puts absolute script URLs (ship hostname) into frame

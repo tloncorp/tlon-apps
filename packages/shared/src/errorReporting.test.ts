@@ -123,6 +123,54 @@ describe('reduceUrls', () => {
   });
 });
 
+describe('reduceUrls bare hostnames', () => {
+  it('reduces the quoted host in the iOS certificate message', () => {
+    const output = reduceUrls(
+      'fetch failed: The certificate for this server is invalid. You might be connecting to a server that is pretending to be “sampel-palnet.tlon.network” which could put your confidential information at risk.'
+    );
+    expect(output).toContain('pretending to be “tlon” which');
+    expect(output).not.toContain('sampel-palnet');
+  });
+
+  it('reduces a quoted self-hosted host', () => {
+    expect(reduceUrls('Unable to resolve host "groups.example.org"')).toBe(
+      'Unable to resolve host "self"'
+    );
+  });
+
+  it('reduces a quoted local host', () => {
+    expect(reduceUrls('Unable to resolve host "ship.local"')).toBe(
+      'Unable to resolve host "local"'
+    );
+  });
+
+  it('reduces an unquoted hosting host', () => {
+    expect(
+      reduceUrls('channel closed on sampel-palnet.tlon.network after 3 retries')
+    ).toBe('channel closed on tlon after 3 retries');
+  });
+
+  it('leaves quoted file names untouched', () => {
+    expect(reduceUrls("Cannot find module 'index.js'")).toBe(
+      "Cannot find module 'index.js'"
+    );
+  });
+
+  it('leaves unquoted non-hosting domains untouched', () => {
+    expect(reduceUrls('see docs.example.com for details')).toBe(
+      'see docs.example.com for details'
+    );
+  });
+
+  it('still takes the url path for full urls', () => {
+    const output = reduceUrls(
+      'GET https://sampel-palnet.tlon.network/apps/groups/foo failed'
+    );
+    expect(output).toContain('https://tlon/foo');
+    expect(output).not.toContain('sampel-palnet');
+  });
+});
+
 describe('scrubExtra', () => {
   it('reduces urls in strings', () => {
     expect(scrubExtra('see https://a.tlon.network/apps/groups/dm/~x now')).toBe(
@@ -533,6 +581,24 @@ describe('scrubSentryEvent', () => {
     expect(frames[0].filename).toBe(scriptUrl);
     expect(frames[0].abs_path).toBe(scriptUrl);
     expect(images[0].code_file).toBe(scriptUrl);
+  });
+
+  it('reduces bare hostnames in exception values', () => {
+    const output = scrubSentryEvent({
+      exception: {
+        values: [
+          {
+            type: 'Error',
+            value:
+              'fetch failed: The certificate for this server is invalid. You might be connecting to a server that is pretending to be “sampel-palnet.tlon.network” which could put your confidential information at risk.',
+          },
+        ],
+      },
+    });
+    expect(output.exception?.values?.[0]?.value).toBe(
+      'fetch failed: The certificate for this server is invalid. You might be connecting to a server that is pretending to be “tlon” which could put your confidential information at risk.'
+    );
+    expect(output.exception?.values?.[0]?.value).not.toContain('sampel-palnet');
   });
 });
 
