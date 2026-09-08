@@ -85,6 +85,28 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
   },
 ];
 
+function getDevMenuItems(isEmulator: boolean): ExpoDevMenuItem[] {
+  return [
+    {
+      name: 'Delete local database',
+      callback: () => purgeDb(),
+    },
+    {
+      name: 'Run contact discovery',
+      callback: async () => {
+        const { newMatchCount } = await discoverContactsAndNotify({
+          context: { source: 'devMenu' },
+        });
+        Alert.alert(
+          'Contact discovery complete',
+          `${newMatchCount} new match${newMatchCount === 1 ? '' : 'es'}.`
+        );
+      },
+    },
+    ...(isEmulator ? simulatorOnlyMenuItems : []),
+  ];
+}
+
 async function sendBundlerRequest(
   path: string,
   params: Record<string, string>
@@ -106,30 +128,12 @@ async function sendBundlerRequest(
   }
 }
 
-// expo-dev-menu's native module is absent from production builds; registering
-// there rejects with "Cannot read property 'addDevMenuCallbacks' of null" on
-// every launch (REACT-NATIVE-3).
+// expo-dev-menu's native module is only linked into development builds. In
+// release builds registerDevMenuItems rejects with "Cannot read property
+// 'addDevMenuCallbacks' of null" on every launch (Sentry REACT-NATIVE-3), so
+// never touch it outside __DEV__.
 if (__DEV__) {
-  const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
-    (isEmulator) => [
-      {
-        name: 'Delete local database',
-        callback: () => purgeDb(),
-      },
-      {
-        name: 'Run contact discovery',
-        callback: async () => {
-          const { newMatchCount } = await discoverContactsAndNotify({
-            context: { source: 'devMenu' },
-          });
-          Alert.alert(
-            'Contact discovery complete',
-            `${newMatchCount} new match${newMatchCount === 1 ? '' : 'es'}.`
-          );
-        },
-      },
-      ...(isEmulator ? simulatorOnlyMenuItems : []),
-    ]
+  DeviceInfo.isEmulator().then((isEmulator) =>
+    registerDevMenuItems(getDevMenuItems(isEmulator))
   );
-  devMenuItems.then((items) => registerDevMenuItems(items));
 }
