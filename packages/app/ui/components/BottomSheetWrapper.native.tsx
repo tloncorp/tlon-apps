@@ -138,7 +138,9 @@ export const BottomSheetWrapper = forwardRef<
       overlayOpacity = 0.5,
       enablePanDownToClose = true,
       keyboardBehavior = 'interactive',
-      android_keyboardInputMode = 'adjustResize',
+      // KeyboardProvider keeps the root full height; Gorhom must offset the sheet
+      // itself instead of relying on Android to resize its container.
+      android_keyboardInputMode = 'adjustPan',
       snapPointsMode = 'fit',
       snapPoints,
       footerComponent,
@@ -346,6 +348,16 @@ export const BottomSheetWrapper = forwardRef<
       }
     }, [open]);
 
+    const handleSheetAnimate = useCallback(
+      (_fromIndex: number, toIndex: number) => {
+        if (toIndex === -1) {
+          // Blur while the input is still mounted, before Gorhom removes the modal.
+          Keyboard.dismiss();
+        }
+      },
+      []
+    );
+
     const handleSheetChanges = useCallback(
       (index: number) => {
         // When sheet is closed (index -1), handle cleanup and callbacks
@@ -425,6 +437,7 @@ export const BottomSheetWrapper = forwardRef<
         keyboardBlurBehavior: 'restore' as const,
         android_keyboardInputMode,
         animationConfigs: ANIMATION_CONFIGS[transition],
+        onAnimate: handleSheetAnimate,
         onChange: handleSheetChanges,
         backdropComponent: renderBackdrop,
         handleComponent: renderHandle,
@@ -447,6 +460,7 @@ export const BottomSheetWrapper = forwardRef<
         keyboardBehavior,
         android_keyboardInputMode,
         transition,
+        handleSheetAnimate,
         handleSheetChanges,
         renderBackdrop,
         renderHandle,
