@@ -41,7 +41,7 @@ const canonical = (id: string) =>
 
 /** Select an actual glyph nearest the current viewport center, from the already
  * committed plain-text corpus. The Range is not a mirror or a font estimate. */
-async function acquireReading(
+export async function acquireReading(
   page: Page,
   list: Awaited<ReturnType<typeof resolvePostScroller>>,
   corpus: Record<string, string>

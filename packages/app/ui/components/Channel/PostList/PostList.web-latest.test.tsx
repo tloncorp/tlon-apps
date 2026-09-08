@@ -94,7 +94,7 @@ vi.mock('react-native-reanimated', () => ({
 }));
 let host: HTMLDivElement, root: Root;
 let viewport = 699,
-  extent = 1098;
+  extent = viewport * 3;
 let frames: Map<number, FrameRequestCallback>, nextFrame: number;
 const list = createRef<PostListMethods>();
 const isEntryActive = () => true;
@@ -156,7 +156,7 @@ beforeEach(() => {
   (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
   document.head.innerHTML = '<style>*{opacity:1;visibility:visible}</style>';
   viewport = 699;
-  extent = 1098;
+  extent = viewport * 3;
   nextFrame = 0;
   frames = new Map();
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -203,10 +203,13 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 describe('actual web PostList to Latest presentation and command', () => {
-  it('exposes Latest399px away within699px viewport and its ordinary press lands at end', async () => {
+  it('keeps Latest hidden inside one viewport and its ordinary press lands at the exact end', async () => {
     await render();
     expectVisible(false);
     await observeGap(399);
+    expectVisible(false);
+    expect(scroller().scrollTop).toBe(extent - viewport - 399);
+    await observeGap(700);
     expectVisible(true);
     await act(async () => {
       control().querySelector('button')!.click();
@@ -220,22 +223,25 @@ describe('actual web PostList to Latest presentation and command', () => {
     expectVisible(false);
   });
   it.each([300, 699, 1100])(
-    'keeps the1px boundary independent of viewport%s',
+    'uses the measured viewport%s for Latest visibility without moving the reader',
     async (height) => {
       viewport = height;
-      extent = height + 399;
+      extent = height * 3;
       await render();
-      await observeGap(1);
+      await observeGap(height - 0.01);
       expectVisible(false);
-      await observeGap(1.01);
+      await observeGap(height);
+      expectVisible(false);
+      await observeGap(height + 0.01);
       expectVisible(true);
+      expect(scroller().scrollTop).toBeCloseTo(extent - height * 2 - 0.01);
       await observeGap(0);
       expectVisible(false);
       await observeGap(-2);
       expectVisible(false);
     }
   );
-  it('keeps pagination at one viewport while Latest uses the1px end distance', async () => {
+  it('keeps the one-viewport visibility and pagination boundaries independent of exact landing', async () => {
     extent = 3000;
     await render();
     onEndReached.mockClear();
@@ -243,11 +249,11 @@ describe('actual web PostList to Latest presentation and command', () => {
     expect(onEndReached).not.toHaveBeenCalled();
     await observeGap(699);
     expect(onEndReached).toHaveBeenCalledTimes(1);
-    expectVisible(true);
+    expectVisible(false);
   });
   it('keeps the current route interaction gate closed while covered and restores it on return', async () => {
     await render();
-    await observeGap(399);
+    await observeGap(700);
     expectVisible(true);
     await render(false);
     expectVisible(false);

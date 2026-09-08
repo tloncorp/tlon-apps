@@ -248,16 +248,14 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollerContentKey: scrollHeight,
     });
 
-    // Latest visibility uses the same absolute distance as the native lists.
-    // Pagination boundaries below intentionally remain viewport ratios.
-    const withinBottomDistance = React.useCallback(
-      (distance: number) => distance <= onScrolledToBottomThreshold,
-      [onScrolledToBottomThreshold]
-    );
+    // Button proximity is a viewport ratio. It does not grant FOLLOW ownership
+    // or satisfy the coordinator's exact bottom-landing requirement.
     const [insideScrolledToBottomBoundary] = useScrollBoundary(
       scrollerRef.current,
       {
-        isNearBoundary: withinBottomDistance,
+        isNearBoundary: withinViewportRatioOfBoundary(
+          onScrolledToBottomThreshold
+        ),
         side: 'bottom',
       }
     );

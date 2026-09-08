@@ -1,0 +1,15 @@
+# Older pagination failure and boundary retry
+
+Declared before implementation. This single normal-flag desktop product case covers DAT-03 and the retained-content portion of DAT-11. It does not cover send overlap, newer/catch-up, moving-release compensation, empty/deleted pages, exhausted cursors, native rendering or presentation.
+
+The fixture creates one real channel with120 distinct committed posts. A fresh reader context carries cookies/localStorage but no IndexedDB. Original backend GET receipts bind IDs, text and sequence; absent query-cache data alone is never treated as absent SQLite data. The ordinary newest/bootstrap requests run unchanged. Give the owned group a unique name through its real edit UI. After the fresh reader captures built assets at Home, open that exact group and General through SPA UI navigation and verify the owned channel route; do not load a second document.
+
+A real upward wheel crosses the one-viewport pagination boundary and must produce an uncached older range GET. The test holds that exact GET, captures the current exposed center glyph and records a270ms stationary baseline, then fails that range through the existing initial attempt plus four500ms retries. It observes the query reach error/idle with retained rows and requires those rows and the reading point to stay usable throughout the failed load and a1000ms quiet tail.
+
+There is no inline load-Retry button when this list retains content. The declared retry action is a real wheel away from the top boundary and back across it. The boundary dedupe resets through that user action. The new request must use the same exact range; no programmatic refetch, DOM scrollTop mutation, force-click or query reset is permitted.
+
+Hold that original retry GET and acquire a new center-glyph baseline after the intentional movement stops. Record a270ms stationary baseline before continuing the original GET unchanged. This supplies the existing minimum200ms baseline; the reader limits do not change. Its declared committed posts must appear once, in sequence order, and increase the retained query window while preserving the reading point through layout and a1000ms quiet tail. Compare raw backend and query-window identities separately from mounted virtual rows; a response's cursor overlap is not itself a duplicate UI row.
+
+The existing1px point/exposure,100ms maximum sampling gap and32ms acquisition limit remain unchanged. An invalid or missing observation is incomplete and cannot manufacture a qualified geometry failure. Capture stops before bulk raw export. Failures, request bodies, native wheel events, query-state readbacks, exact created-group cleanup and browser mode are retained. Failure of a prerequisite stops this case rather than retrying it automatically.
+
+Only exact test-owned range GETs receive the declared transport failures; other requests continue. All gates release and routes/context dispose in unconditional cleanup. Raw proof and the predeclared plan are independently replayed; producer verdicts do not establish success. Headless sampled behavior is distinct from presented-frame qualification.

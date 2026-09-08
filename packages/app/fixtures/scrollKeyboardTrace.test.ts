@@ -1243,6 +1243,22 @@ function failedRetryEvidence(): PendingSendEvidence {
     postId: '1.100',
     request: retryRequest,
     requestCount: 2,
+    initiations: {
+      version: 1,
+      timeOrigin: p.timeOrigin,
+      errors: [],
+      events: [p.request!, retryRequest].map((request, index) => ({
+        requestId: `network-${index}`,
+        loaderId: 'owned-document',
+        documentURL: p.preparation.origin + p.scope,
+        url: request.url,
+        method: request.method,
+        body: request.body,
+        timestamp: 1000 + (index === 0 ? 105 : 883) / 1000,
+        wallTime: (p.timeOrigin + (index === 0 ? 105 : 883)) / 1000,
+        redirected: false,
+      })),
+    },
     failedBackend: {
       ...structuredClone(p.backend[0]),
       startedAt: 620,
@@ -1719,7 +1735,7 @@ it('does not derive failed-state geometry or identity failure from an invalid ac
   expect(result.issues.filter((i) => i.kind === 'failure')).toEqual([]);
 });
 
-it('binds the literal rendered Retry label and the encoder body space without normalization', () => {
+it('binds both build-specific Retry labels and keeps the encoder body space exact', () => {
   const healthy = failedRetryEvidence();
   expect(healthy.events.find((e) => e.type === 'click')!.retryLabel).toBe(
     'Send failed,click to retry'
@@ -1731,7 +1747,7 @@ it('binds the literal rendered Retry label and the encoder body space without no
   const spaced = structuredClone(healthy);
   spaced.events.find((e) => e.type === 'click')!.retryLabel =
     'Send failed, click to retry';
-  expect(assessRetry(spaced).verdict).toBe('INCOMPLETE');
+  expect(assessRetry(spaced).verdict).toBe('PASS');
   const trimmed = structuredClone(healthy);
   trimmed.samples.find((s) => s.time >= 650)!.sentRows[0].contentTexts = [
     trimmed.text,
@@ -1765,4 +1781,168 @@ it('rejects a trusted click outside the observed same-post Retry target', () => 
   const p = failedRetryEvidence();
   p.events.find((e) => e.type === 'click')!.clientY = 200;
   expect(assessRetry(p).verdict).toBe('INCOMPLETE');
+});
+
+describe('Retry browser request initiation clock and identity', () => {
+  it('uses the actual browser start while retaining a later route receipt', () => {
+    const p = failedRetryEvidence();
+    p.retry!.request!.heldAt = 1005;
+    const wheel = p.events.find((event) => event.type === 'wheel')!;
+    wheel.time = 1010;
+    wheel.observedAt = 1012;
+    for (const sample of p.samples)
+      sample.offset = sample.time < 1010 ? 1700 : 1580;
+    expect(
+      p.retry!.request!.heldAt - p.events.find((e) => e.type === 'click')!.time
+    ).toBe(125);
+    expect(assessRetry(JSON.parse(JSON.stringify(p))).verdict).toBe('PASS');
+  });
+  for (const [name, corrupt] of [
+    [
+      'missing old-capture evidence',
+      (p: PendingSendEvidence) => {
+        delete p.retry!.initiations;
+      },
+    ],
+    [
+      'wrong epoch origin',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.timeOrigin += 1000;
+      },
+    ],
+    [
+      'wrong request URL',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].url += '-other';
+      },
+    ],
+    [
+      'wrong method',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].method = 'POST';
+      },
+    ],
+    [
+      'wrong body',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].body += ' ';
+      },
+    ],
+    [
+      'wrong poke ID',
+      (p: PendingSendEvidence) => {
+        const event = p.retry!.initiations!.events[1];
+        const body = JSON.parse(event.body);
+        body[0].id += 1;
+        event.body = JSON.stringify(body);
+      },
+    ],
+    [
+      'aliased request ID',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].requestId = 'network-0';
+      },
+    ],
+    [
+      'duplicate browser event',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events.push(
+          structuredClone(p.retry!.initiations!.events[1])
+        );
+      },
+    ],
+    [
+      'retired document loader',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].loaderId = 'new-document';
+      },
+    ],
+    [
+      'foreign document scope',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].documentURL += '/other';
+      },
+    ],
+    [
+      'redirect',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].redirected = true;
+      },
+    ],
+    [
+      'unavailable body observation',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.errors.push('request-body-unavailable');
+      },
+    ],
+    [
+      'missing monotonic time',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].timestamp = NaN;
+      },
+    ],
+    [
+      'reversed monotonic order',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].timestamp = 999;
+      },
+    ],
+    [
+      'missing epoch time',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].wallTime = NaN;
+      },
+    ],
+    [
+      'before actual click',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].wallTime = (p.timeOrigin + 879) / 1000;
+      },
+    ],
+    [
+      'before capture-listener entry',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].wallTime =
+          (p.timeOrigin + 880.5) / 1000;
+      },
+    ],
+    [
+      'after route hold',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].wallTime = (p.timeOrigin + 886) / 1000;
+      },
+    ],
+    [
+      'actual initiation exceeds unchanged 100ms',
+      (p: PendingSendEvidence) => {
+        p.retry!.initiations!.events[1].wallTime = (p.timeOrigin + 981) / 1000;
+        p.retry!.request!.heldAt = 990;
+      },
+    ],
+  ] as const) {
+    it(`rejects ${name}`, () => {
+      const p = failedRetryEvidence();
+      corrupt(p);
+      expect(assessRetry(p).verdict).toBe('INCOMPLETE');
+      expect(
+        assessRetry(p).issues.some(
+          (issue) => issue.code === 'missing-exact-browser-request-initiation'
+        )
+      ).toBe(true);
+    });
+  }
+});
+
+it.each([
+  'Retry',
+  'Send failed, click to resend',
+  'Send failed. click to retry',
+  'Other Send failed, click to retry',
+  'Send failed, click to retry other',
+  'Send failed,click to Retry',
+  ' Send failed,click to retry',
+])('rejects a different Retry label: %s', (label) => {
+  const proof = failedRetryEvidence();
+  proof.events.find((event) => event.type === 'click')!.retryLabel = label;
+  expect(assessRetry(proof).verdict).toBe('INCOMPLETE');
 });

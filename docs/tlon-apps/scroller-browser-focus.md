@@ -16,6 +16,14 @@ headless results do not qualify those visible-rendering or presented-frame gates
 The earlier headless cadence limitation remains a measured constraint to check,
 not a reason to steal focus or widen sampling tolerances.
 
+The four concurrent-image cases now explicitly separate sampled behavioral
+regression checks from headed and presentation qualification, as declared in
+[their contract](scroller-concurrent-content-evidence-contract.md#browser-mode-and-separate-qualification).
+Their routine assertions may pass in headless mode only on complete behavioral
+evidence; headed behavior and presented frames remain separately INCOMPLETE.
+This exception does not remove another reader's headed-only gate or amend any
+capture threshold. Original attempts retain their original provenance/verdicts.
+
 The normal app flags, local test accounts, selected scenarios, retries and
 browser channel are unchanged by this execution preference.
 

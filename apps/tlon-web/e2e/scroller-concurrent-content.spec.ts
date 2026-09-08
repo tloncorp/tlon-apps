@@ -207,7 +207,14 @@ for (const position of ['latest', 'history'] as const)
               performanceEndTime: proof.reading.contract.coverage.endTime,
             })
           ).toEqual([]);
+        // Routine checks assert sampled behavior; headed/presentation gates are
+        // retained separately in the attached assessment in either launch mode.
         expect(assessment.verdict, JSON.stringify(assessment)).toBe('PASS');
+        expect(assessment.headedBehavior).toBe(
+          proof.preparation.headed ? 'PASS' : 'INCOMPLETE'
+        );
+        expect(assessment.presentedFrames).toBe('INCOMPLETE');
+        expect(assessment.fullQualification).toBe('INCOMPLETE');
       } finally {
         assetCapture.dispose();
         if (!stopped) {

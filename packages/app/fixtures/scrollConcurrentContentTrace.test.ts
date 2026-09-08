@@ -299,3 +299,49 @@ describe('two-image concurrency evidence, controls only', () => {
     ).toBe(true);
   });
 });
+
+describe('concurrent image behavior versus headed and presentation qualification', () => {
+  for (const position of ['latest', 'history'] as const)
+    for (const first of ['portrait', 'landscape'])
+      for (const headed of [true, false])
+        it(`keeps ${position}/${first} ${headed ? 'headed' : 'headless'} behavior separate`, () => {
+          const proof = evidence(position, first);
+          proof.preparation.headed = headed;
+          for (const result of [
+            assess(proof),
+            replayConcurrentContentProof(proof),
+          ]) {
+            expect(result.verdict).toBe('PASS');
+            expect(result.headedBehavior).toBe(headed ? 'PASS' : 'INCOMPLETE');
+            expect(result.presentedFrames).toBe('INCOMPLETE');
+            expect(result.fullQualification).toBe('INCOMPLETE');
+          }
+        });
+  it.each([undefined, null, 'false', 0])(
+    'rejects unrecorded or malformed mode %s',
+    (mode) => {
+      const proof = evidence();
+      proof.preparation.headed = mode as any;
+      expect(assess(proof).verdict).toBe('INCOMPLETE');
+      expect(assess(proof).headedBehavior).toBe('INCOMPLETE');
+    }
+  );
+  it('keeps the accepted history button threshold and its failure in headless mode', () => {
+    const proof = evidence('history');
+    proof.preparation.headed = false;
+    proof.chrome.samples[10].controls[0].visible = true;
+    proof.chrome.samples[10].controls[0].opacity = 1;
+    const result = assess(proof);
+    expect(result.verdict).toBe('FAIL');
+    expect(result.headedBehavior).toBe('INCOMPLETE');
+    expect(result.fullQualification).toBe('FAIL');
+  });
+  it('does not turn missing original PNG evidence into headed qualification', () => {
+    const proof = evidence();
+    proof.media[0].png = Buffer.from('invalid bytes').toString('base64');
+    const result = replayConcurrentContentProof(proof);
+    expect(result.verdict).toBe('INCOMPLETE');
+    expect(result.headedBehavior).toBe('INCOMPLETE');
+    expect(result.fullQualification).toBe('INCOMPLETE');
+  });
+});

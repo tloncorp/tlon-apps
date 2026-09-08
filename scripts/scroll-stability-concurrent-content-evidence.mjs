@@ -85,6 +85,9 @@ export function replayConcurrentContentProof(proof, attempt) {
     : result.issues.length
       ? 'INCOMPLETE'
       : 'PASS';
+  result.headedBehavior =
+    proof?.preparation?.headed === true ? result.verdict : 'INCOMPLETE';
+  result.fullQualification = result.verdict === 'FAIL' ? 'FAIL' : 'INCOMPLETE';
   return result;
 }
 

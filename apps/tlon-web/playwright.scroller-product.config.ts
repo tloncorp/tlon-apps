@@ -21,6 +21,7 @@ export default defineConfig({
     'scroller-keyboard-stability.spec.ts',
     'scroller-navigation-stability.spec.ts',
     'scroller-center-edit-stability.spec.ts',
+    'scroller-pagination-stability.spec.ts',
   ],
   grepInvert: /Scroller detector self-tests/,
   fullyParallel: false,

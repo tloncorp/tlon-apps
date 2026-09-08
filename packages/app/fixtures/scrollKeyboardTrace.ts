@@ -612,6 +612,19 @@ export type PendingSendRequest = {
   overridesProvided: boolean;
 };
 
+export type PendingSendInitiation = {
+  requestId: string;
+  loaderId: string;
+  documentURL: string;
+  url: string;
+  method: string;
+  body: string;
+  /** Raw CDP seconds: monotonic timestamp and UTC epoch wallTime. */
+  timestamp: number;
+  wallTime: number;
+  redirected: boolean;
+};
+
 /** The only injected failure is an exact, test-owned post-add before forwarding.
  * Reserve each request before awaiting callbacks so concurrent duplicates cannot
  * become additional sends. Unrelated traffic remains untouched. */
@@ -822,6 +835,12 @@ export type PendingSendEvidence = {
     request: PendingSendRequest | null;
     failedBackend: PendingSendEvidence['backend'][number] | null;
     requestCount: number;
+    initiations?: {
+      version: 1;
+      timeOrigin: number;
+      events: PendingSendInitiation[];
+      errors: string[];
+    };
   };
   backend: {
     phase: 'held' | 'terminal';
@@ -1135,6 +1154,55 @@ export function assessPendingSendEvidence(
         retryRequest.actions.length === 1
           ? retryRequest.actions[0]
           : null;
+      const initiations = retry.initiations;
+      const starts = initiations?.events;
+      const initiationValid =
+        initiations?.version === 1 &&
+        initiations.timeOrigin === proof.timeOrigin &&
+        Array.isArray(initiations.errors) &&
+        initiations.errors.length === 0 &&
+        Array.isArray(starts) &&
+        starts.length === 2 &&
+        starts.every((start, index) => {
+          const route = index === 0 ? request : retryRequest;
+          const inputTime = index === 0 ? keys[0].time : clicks[0]?.time;
+          const inputObservedAt =
+            index === 0 ? keys[0].observedAt : clicks[0]?.observedAt;
+          const document = new URL(start.documentURL);
+          // Both CDP wallTime and performance.timeOrigin are browser UTC epoch
+          // values. Route callbacks and HAR receipts are not this start clock.
+          const time = start.wallTime * 1000 - proof.timeOrigin;
+          return (
+            route != null &&
+            typeof start.requestId === 'string' &&
+            start.requestId.length > 0 &&
+            typeof start.loaderId === 'string' &&
+            start.loaderId.length > 0 &&
+            document.origin === proof.preparation.origin &&
+            document.pathname === proof.scope &&
+            start.url === route.url &&
+            start.method === route.method &&
+            start.body === route.body &&
+            start.redirected === false &&
+            finite(start.timestamp) &&
+            start.timestamp > 0 &&
+            finite(start.wallTime) &&
+            finite(time) &&
+            finite(inputTime) &&
+            finite(inputObservedAt) &&
+            time >= inputTime &&
+            time >= proof.declaredAt &&
+            time >= inputObservedAt &&
+            time <= route.heldAt &&
+            (index === 0 ||
+              (time <= inputTime + 100 &&
+                start.requestId !== starts[0].requestId &&
+                start.loaderId === starts[0].loaderId &&
+                start.timestamp > starts[0].timestamp &&
+                start.wallTime > starts[0].wallTime))
+          );
+        });
+      if (!initiationValid) add('missing-exact-browser-request-initiation');
       const failureSample = finite(retry.failedAt)
         ? phaseSample(retry.failedAt)
         : undefined;
@@ -1182,7 +1250,7 @@ export function assessPendingSendEvidence(
         !clicks[0].trusted ||
         clicks[0].target !== 'list' ||
         clicks[0].postId !== retry.postId ||
-        clicks[0].retryLabel !== 'Send failed,click to retry' ||
+        !/^Send failed,\s*click to retry$/.test(clicks[0].retryLabel ?? '') ||
         clicks[0].time < retry.retryAt ||
         clicks[0].time > retry.retryAt + 100 ||
         !clickSample?.valid ||
@@ -1214,7 +1282,7 @@ export function assessPendingSendEvidence(
         !finite(retryRequest.releasedAt) ||
         !finite(retryRequest.continuedAt) ||
         retryRequest.heldAt < clicks[0].time ||
-        retryRequest.heldAt > clicks[0].time + 100 ||
+        retryRequest.heldAt >= read ||
         retryRequest.releasedAt < release ||
         retryRequest.releasedAt > release + 100 ||
         retryRequest.continuedAt < retryRequest.releasedAt ||

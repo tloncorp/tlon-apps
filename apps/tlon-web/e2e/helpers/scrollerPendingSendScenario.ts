@@ -25,7 +25,10 @@ const TITLE =
 
 /** Passive observation of the app's existing fetch-SSE channel. No fetch wrapper
  * or proxy; unsupported CDP streaming remains explicit incomplete evidence. */
-async function observeSendAcknowledgements(page: Page) {
+async function observeSendAcknowledgements(
+  page: Page,
+  getOwner: () => PendingSendEvidence | undefined
+) {
   const session = await page.context().newCDPSession(page);
   const messages: { url: string; wall: number; raw: string }[] = [];
   const errors: string[] = [];
@@ -41,6 +44,54 @@ async function observeSendAcknowledgements(page: Page) {
   >();
   let supported = false,
     active = true;
+  session.on('Network.requestWillBeSent', (event) => {
+    const owner = getOwner();
+    const capture = owner?.retry?.initiations;
+    const request = event.request;
+    if (
+      !active ||
+      !owner ||
+      !capture ||
+      request.method !== 'PUT' ||
+      !request.url.startsWith(`${owner.preparation.origin}/~/channel/`)
+    )
+      return;
+    // Without the body we cannot attribute this traffic. A missing owned start
+    // will fail the exact two-request join; unrelated payloads are not retained.
+    if (typeof request.postData !== 'string') return;
+    let actions: any;
+    try {
+      actions = JSON.parse(request.postData);
+    } catch {
+      return;
+    }
+    const action =
+      Array.isArray(actions) && actions.length === 1 ? actions[0] : null;
+    const add = action?.json?.channel?.action?.post?.add;
+    if (
+      action?.action !== 'poke' ||
+      action.app !== 'channels' ||
+      action.json?.channel?.nest !== owner.channel ||
+      JSON.stringify(add?.content) !==
+        JSON.stringify([{ inline: [owner.text + ' '] }])
+    )
+      return;
+    if (capture.events.length >= 3) {
+      capture.errors.push('owned-request-observation-capacity-exceeded');
+      return;
+    }
+    capture.events.push({
+      requestId: event.requestId,
+      loaderId: event.loaderId,
+      documentURL: event.documentURL,
+      url: request.url,
+      method: request.method,
+      body: request.postData,
+      timestamp: event.timestamp,
+      wallTime: event.wallTime,
+      redirected: event.redirectResponse !== undefined,
+    });
+  });
   const consume = (id: string, data: string, buffered = false) => {
     const stream = streams.get(id);
     if (!stream || !data || !active) return;
@@ -122,7 +173,8 @@ export async function runPendingSendScenario(
   const token = randomUUID().slice(0, 8),
     text = `Pending send ${token} keeps later reading intent.`;
   const isRetry = mode === 'failed-retry';
-  const ack = await observeSendAcknowledgements(page);
+  let proof: PendingSendEvidence | undefined;
+  const ack = await observeSendAcknowledgements(page, () => proof);
   let closing = false;
   const failureOperations: Promise<boolean>[] = [];
   let failureGate: ReturnType<typeof createFailedSendGate> | undefined;
@@ -137,7 +189,6 @@ export async function runPendingSendScenario(
   let released = false;
   let capture: Awaited<ReturnType<Page['evaluateHandle']>> | undefined;
   let reading: Awaited<ReturnType<typeof startScrollReadingTrace>> | undefined;
-  let proof: PendingSendEvidence | undefined;
   let routeInstalled = false;
   let held: PendingSendEvidence['request'] = null;
   const routePattern = '**/~/channel/**';
@@ -291,6 +342,12 @@ export async function runPendingSendScenario(
               request: null,
               failedBackend: null,
               requestCount: 0,
+              initiations: {
+                version: 1 as const,
+                timeOrigin: preparation.timeOrigin,
+                events: [],
+                errors: [],
+              },
             },
           }
         : {}),
@@ -427,7 +484,9 @@ export async function runPendingSendScenario(
                       ).filter(
                         (node) =>
                           node.childElementCount === 0 &&
-                          node.textContent === 'Send failed,click to retry'
+                          /^Send failed,\s*click to retry$/.test(
+                            node.textContent ?? ''
+                          )
                       ).length,
                       targets: {
                         message: measureTarget(
@@ -445,7 +504,9 @@ export async function runPendingSendScenario(
                           ).filter(
                             (node) =>
                               node.childElementCount === 0 &&
-                              node.textContent === 'Send failed,click to retry'
+                              /^Send failed,\s*click to retry$/.test(
+                                node.textContent ?? ''
+                              )
                           )[0]
                         ),
                       },
@@ -556,9 +617,9 @@ export async function runPendingSendScenario(
     if (proof.retry) {
       releaseFailure();
       const failedRow = post(page, text);
-      const retryButton = failedRow.getByText('Send failed,click to retry', {
-        exact: true,
-      });
+      const retryButton = failedRow.getByText(
+        /^Send failed,\s*click to retry$/
+      );
       await expect(retryButton).toBeVisible({ timeout: 3000 });
       proof.retry.failedAt = await page.evaluate(() => performance.now());
       proof.retry.postId = await failedRow.getAttribute('data-postid');
@@ -659,6 +720,14 @@ export async function runPendingSendScenario(
     if (!isRetry) held!.releasedAt = release;
     released = true;
     releaseGate();
+    // Resolving the hold starts an async route continuation. Read durable state
+    // only after that continuation, so the read cannot race its own send.
+    await expect
+      .poll(
+        () => Number.isFinite((proof!.retry?.request ?? held)?.continuedAt),
+        { timeout: 1000 }
+      )
+      .toBe(true);
     let terminalRead: Awaited<ReturnType<typeof readBackend>> | undefined;
     while ((await page.evaluate(() => performance.now())) < release + 3900) {
       const candidate = await readBackend('terminal');

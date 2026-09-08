@@ -71,7 +71,6 @@ describe('pending-send shared product registry and raw replay boundary', () => {
       'AC-12',
       'AC-20',
     ]);
-    expect(webScenarioRegistry).toHaveLength(44);
   });
   it('extracts both raw attachments and refuses a producer pass on incomplete evidence', () => {
     const record = read(data());

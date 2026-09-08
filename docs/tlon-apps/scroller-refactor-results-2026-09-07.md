@@ -1,5 +1,92 @@
 # Scroller refactor validation — 2026-09-07
 
+## Production recheck — September 8
+
+Production R3 takes **116.341s** for six cases with one headless Chromium worker
+and no retries. Independent replay confirms five sampled-behavior passes:
+both image completion orders at Latest and in history near the bottom, plus
+the real older-pagination failure/boundary-retry case. The restored viewport
+visibility policy now passes the same two cases that failed in R2. All six
+test-owned groups are deleted; no cleanup errors occur.
+
+The concurrent reader now reports sampled behavior separately from headed
+behavior and presented frames, as declared in its updated contract before the
+fresh run. Both browser modes use the same visibility, geometry, acquisition
+and cadence rules. Headless sampled passes do not qualify headed or presented
+behavior. Original reports and assessments remain unchanged.
+
+Retry remains incomplete in R3: the new continuation wait mistakenly watches
+the original aborted request. Its actual retry request continues, but the
+wait prevents collection of the terminal phase. The helper now waits for the
+active retry request, or the original request for the non-retry case. The
+isolated **R5 now passes** both Playwright and independent sampled-behavior
+replay with no reported issue: **22.371s total / 20.5s test**. The real same-post
+Retry keeps later READ ownership, reconciles once and completes the required
+tail. Its single test-owned group is deleted without error. Raw report and
+independent replay are in
+`/private/tmp/scroller-failed-send-product-r5-20260908/`. It runs against the
+production preview; this helper's script observations do not independently
+bind loaded asset bytes as the concurrent-image and pagination captures do.
+Presented frames and caret geometry remain incomplete.
+
+The combined app check has **3,056 passing assertions and three existing
+skips across 131 files**, with TypeScript passing. Build R3 completes in
+74.852s; its receipt digest is
+`de797c8e299eaff0090114d514a8e6326642deeed13720af58c934aee35d9a1f`.
+Raw R3 report and independent replay are in
+`/private/tmp/scroller-production-content-r3-20260908/`; checks are in
+`/private/tmp/scroller-production-fixes-app-r3-20260908.json` and
+`/private/tmp/scroller-production-fixes-ts-r3-20260908.log`.
+The subsequent helper-only request-selection correction is verified by the
+actual R5 case. The same production application output is unchanged between
+R3 and R4 builds; their broader source receipts differ because they include
+the helper. Original and corrected attempts are archived in
+`artifacts/scroller-production-regressions-2026-09-08.tgz`.
+
+## Production loading, pagination and Latest visibility — September 8
+
+The eight-case production batch takes **174.711s** with one headless Chromium
+worker, no retries and no extra Playwright trace/video. Both rich-text image
+loading cases pass, at Latest and in history. Independent replay records two
+sampled passes, two failures and four incomplete results. All eight test-owned
+groups are deleted successfully. Raw attempts and the original replay remain at
+`/private/tmp/scroller-production-content-r2-20260908/`.
+
+The two concurrent-image history cases expose a real refactor regression:
+Latest is visible at a 490px gap inside a 699px viewport, contrary to the
+accepted one-viewport visibility policy. Commit `025f83098b` had changed the web
+comparison to an absolute 1px distance. Native still uses its documented window
+ratio. The web fix restores the viewport comparison while leaving deliberate
+READ ownership and exact bottom landing unchanged. Five focused assertions fail
+before this fix; all 64 focused visibility/coordinator/registry assertions pass
+afterward. The concurrent-image cases also retain their headed-only qualification
+gap; the two Latest variants have no other reported issue.
+
+The failed-send case now captures the actual browser request initiation. In this
+run Retry starts its request **56.232ms** after the trusted click, within the
+unchanged 100ms limit, and the same post succeeds once. Its remaining incomplete
+result is test ordering: the terminal backend read starts 0.6ms before the
+asynchronous route-continuation timestamp. The helper now awaits continuation
+before beginning that read; it does not change the reader's causal requirement.
+The earlier standalone production R4 stops at the dev-only Retry whitespace
+assumption and remains preserved in
+`/private/tmp/scroller-failed-send-product-r4-20260908/`.
+
+The new real pagination case completes five failed older-range attempts and a
+sixth unchanged successful GET, then prepends the original committed rows once.
+The first recorded run is incomplete because full navigation creates two
+document observations, and its successful response arrives before the required
+200ms reading baseline. Setup now uses the real named-group navigation UI and
+records 270ms before releasing either held response. Asset, geometry, cadence
+and tail limits are unchanged. The acceptance is in
+[pagination failure and retry](scroller-pagination-retry-contract.md).
+
+The initial combined app check records 3,035 passes, two stale registry-total
+failures and three existing skips across 131 files; TypeScript passes. The two
+unrelated global-total assertions are removed while their exact family, scenario
+and matrix assertions remain. Updated final checks and fresh runtime results
+are required before this checkpoint is considered verified.
+
 ## Capture corrections and failed-send coverage — September 8
 
 Baseline refactor: `2fed3a95678ffaa66748311e311b1d2a8e25a47d`.

@@ -70,8 +70,7 @@ describe('concurrent raw Playwright report integration', () => {
         expect(replayWebConcurrent(record)).toEqual([]);
         expect(assessWebEvidence(record).status).toBe('recorded-sampled-pass');
       });
-  it('adds eleven actual slices without registering keyboard calibration', () => {
-    expect(webScenarioRegistry).toHaveLength(44);
+  it('registers the required product families without keyboard calibration', () => {
     expect(
       webScenarioRegistry.filter((r) => r.requirePendingSendProof)
     ).toHaveLength(2);
@@ -221,4 +220,24 @@ describe('concurrent raw Playwright report integration', () => {
         status === 'failed' ? 1 : 0
       );
     });
+});
+
+it('reports complete headless concurrency as sampled behavior without a headed claim', () => {
+  const d = data('history', 'landscape');
+  d.proof.preparation.headed = false;
+  const record = read(refresh(d));
+  expect(replayWebConcurrent(record)).toEqual([]);
+  expect(assessWebEvidence(record).status).toBe('recorded-sampled-pass');
+});
+
+it('retains the accepted near-bottom Latest failure in headless public replay', () => {
+  const d = data('history', 'portrait');
+  d.proof.preparation.headed = false;
+  d.proof.chrome.samples[10].controls[0].visible = true;
+  d.proof.chrome.samples[10].controls[0].opacity = 1;
+  expect(
+    replayWebConcurrent(read(refresh(d))).some(
+      (issue) => issue.kind === 'failure'
+    )
+  ).toBe(true);
 });

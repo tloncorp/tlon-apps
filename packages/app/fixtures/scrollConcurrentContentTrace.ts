@@ -102,16 +102,22 @@ export function assessConcurrentContentEvidence(
     stream?: string,
     sampleIndex?: number
   ) => issues.push({ code, kind, stream, sampleIndex });
-  const result = () => ({
-    verdict: issues.some((issue) => issue.kind === 'failure')
+  const result = () => {
+    const verdict = issues.some((issue) => issue.kind === 'failure')
       ? 'FAIL'
       : issues.length
         ? 'INCOMPLETE'
-        : 'PASS',
-    issues,
-    evidenceLevel: 'sampled-dom-overlapping-image-loads',
-    presentedFrames: 'INCOMPLETE',
-  });
+        : 'PASS';
+    return {
+      verdict,
+      issues,
+      evidenceLevel: 'sampled-dom-overlapping-image-loads',
+      headedBehavior:
+        proof?.preparation?.headed === true ? verdict : 'INCOMPLETE',
+      presentedFrames: 'INCOMPLETE',
+      fullQualification: verdict === 'FAIL' ? 'FAIL' : 'INCOMPLETE',
+    };
+  };
   const canonical = (value: unknown): unknown =>
     Array.isArray(value)
       ? value.map(canonical)
@@ -157,7 +163,7 @@ export function assessConcurrentContentEvidence(
       proof.preparation.ship !== 'zod' ||
       proof.preparation.e2eMode !== false ||
       proof.preparation.warmupMs < 2000 ||
-      proof.preparation.headed !== true ||
+      typeof proof.preparation.headed !== 'boolean' ||
       proof.preparation.channel !== 'chromium' ||
       !proof.preparation.browser ||
       !['Vite development assets', 'Built production assets'].includes(

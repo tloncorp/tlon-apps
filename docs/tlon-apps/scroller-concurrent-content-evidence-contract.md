@@ -53,6 +53,26 @@ video, upload/composer changes, user scrolling during decode and simultaneous
 resize callbacks are explicitly future cases. This first slice proves overlapping
 in-flight loads with controlled completion order, not every asynchronous race.
 
+## Browser mode and separate qualification
+
+Declared before the mode-split controls. These four cases report sampled behavior
+in either explicitly recorded Chromium mode. `verdict` remains that behavioral
+result, with every identity, asset, overlap, 1px position, 100ms gap, 32ms
+acquisition and 1000ms tail check unchanged. A missing or nonboolean launch mode
+is unavailable provenance, not permission to assume either mode. The accepted
+one-viewport Latest visibility threshold is unchanged.
+
+Routine tests assert this behavioral result and retain separate `headedBehavior`,
+`presentedFrames` and `fullQualification` fields. Headless evidence leaves
+`headedBehavior` INCOMPLETE. A headed run can qualify that behavior only when its
+actual checks pass; it still cannot establish presented-frame continuity.
+`presentedFrames` remains INCOMPLETE in both modes. Full qualification remains
+INCOMPLETE when behavior passes or is unavailable, and retains independently
+observed behavioral failures as FAIL. Neither mode closes the remaining platform
+or presentation gates. Headed execution is explicitly attended, never enabled
+automatically. Historical raw attempts and original verdicts remain unchanged;
+replay under this declared split is supplemental evidence.
+
 ## R1 accounting corrections, saved before recapture
 
 The actual backend preserved every declared field but serialized image-object

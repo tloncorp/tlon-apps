@@ -1,3 +1,8 @@
+import {
+  paginationTitle,
+  paginationAttachment,
+  replayPaginationEvidence,
+} from './scroll-stability-pagination-evidence.mjs';
 import { assessInputPaint } from './scroll-stability-input-paint.mjs';
 import {
   centerEditTitle,
@@ -76,6 +81,21 @@ const legacyEditGrowthShrink = web(
 );
 
 export const webScenarioRegistry = [
+  web(
+    'pagination-retry',
+    paginationTitle,
+    ['DAT-03', 'DAT-11'],
+    [],
+    [],
+    'One retained-content older range failure and genuine boundary retry, with exact request/window joins and sampled reading geometry; newer, send overlap, moving/empty pages and presentation remain unqualified.',
+    {
+      source: 'apps/tlon-web/e2e/scroller-pagination-stability.spec.ts',
+      suite: null,
+      requirePaginationProof: true,
+      paginationAttachment,
+      evidenceLevel: 'sampled-dom-pagination-retry',
+    }
+  ),
   ...referenceScenarioRegistry,
   ...concurrentScenarioRegistry,
   ...navigationScenarioRegistry,
@@ -1565,7 +1585,16 @@ export function readPlaywrightReport(
           const pendingSendProofs = [];
           const navigationProofs = [];
           const centerEditProofs = [];
+          const paginationProofs = [];
           if (contract && !excluded) {
+            if (contract.requirePaginationProof)
+              paginationProofs.push(
+                readJsonAttachment(
+                  attempt,
+                  contract.paginationAttachment,
+                  source
+                )
+              );
             if (contract.requireCenterEditProof)
               centerEditProofs.push(
                 readJsonAttachment(
@@ -1688,6 +1717,7 @@ export function readPlaywrightReport(
             pendingSendProofs,
             navigationProofs,
             centerEditProofs,
+            paginationProofs,
           });
         }
       }
@@ -1938,6 +1968,38 @@ function replayWebCenterEdit(record) {
   }));
 }
 
+function replayWebPagination(record) {
+  const registered = webScenarioRegistry.find(
+    (r) => r.scenario === 'web-pagination-retry'
+  );
+  const proofs = record.paginationProofs;
+  const duration =
+    record.attemptWallEndTime - Date.parse(record.attemptStartTime);
+  if (
+    !isDeepStrictEqual(record.contract, registered) ||
+    record.attemptClockError ||
+    !Number.isFinite(duration) ||
+    duration <= 0 ||
+    proofs?.length !== 1 ||
+    proofs[0].name !== paginationAttachment ||
+    proofs[0].error
+  )
+    return [
+      {
+        kind: 'incomplete',
+        message: 'Pagination: missing exact proof or enclosing clock',
+      },
+    ];
+  return replayPaginationEvidence(proofs[0].value, {
+    title: record.title,
+    startTime: record.attemptStartTime,
+    duration,
+  }).issues.map((issue) => ({
+    kind: issue.kind,
+    message: `Pagination: ${issue.code}`,
+  }));
+}
+
 export function assessWebEvidence(record) {
   if (record.executed === false) return { status: 'not-run', issues: [] };
   const issues = [];
@@ -2159,6 +2221,10 @@ export function assessWebEvidence(record) {
       ? replayWebPendingSend(record)
       : []),
     ...(navigationIssues ?? []),
+    ...(record.scenario === 'web-pagination-retry' ||
+    record.contract?.requirePaginationProof
+      ? replayWebPagination(record)
+      : []),
     ...(['web-center-edit-reading', 'web-center-edit-below-reading'].includes(
       record.scenario
     ) || record.contract?.requireCenterEditProof

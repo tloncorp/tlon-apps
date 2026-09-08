@@ -161,6 +161,19 @@ transport evidence is INCOMPLETE. Independently valid wrong identity, duplicate
 send or reading movement remains FAIL. Finalizers remove only this route and its
 listeners even if capture export or attachment fails.
 
+Retry timestamp correction, declared before its controls: preserve the existing
+100ms Retry-to-request bound and measure it from the trusted click's native
+timestamp to the browser's actual `Network.requestWillBeSent`, not the later
+route observer's `heldAt`. The existing CDP session records only the exact owned
+initial and Retry PUTs, including their unchanged bodies, distinct poke/request
+IDs, document/loader identity, monotonic timestamp and epoch `wallTime`. Bind the
+epoch timestamp to the same page's retained `performance.timeOrigin`; require
+finite, ordered initiation evidence within the declared scope and before each
+route hold. Preserve `heldAt` as a separate observation, not an initiation alias.
+Missing, duplicate, mismatched or unavailable browser evidence remains INCOMPLETE.
+This changes no sampling/acquisition limits and cannot upgrade old attempts that
+lack the browser initiation record. HAR observer times are not a substitute.
+
 Canonical replay binds the distinct title, raw attachment and attempt; producer
 assessment cannot substitute for replay. Headless and headed Chromium both retain
 their actual mode, while presented pixels/caret stay unqualified. This closes only
@@ -177,6 +190,13 @@ those exact strings in the locator, captured event, counter and reader; do not
 trim, collapse or generically normalize either. The original attempt remains
 INCOMPLETE, with no Retry/READ phase executed. All geometry, phase, acquisition,
 transport and fixed-tail limits remain unchanged.
+
+R4's production build preserves a space after the comma while Vite development
+omits it. The locator, Retry leaf/counter and reader therefore use only the
+anchored label pattern `/^Send failed,\s*click to retry$/`. Retain the actual raw
+label and every same-post, hit-target and timing check; message-body whitespace
+remains exact. Other wording, prefixes or suffixes are rejected. R1–R4 remain
+unchanged evidence, and this correction makes no product UI change.
 
 R1's retained screenshot and actual DOM show the complete message/Retry text while
 the row wrapper includes additional bottom padding. Visibility therefore measures
