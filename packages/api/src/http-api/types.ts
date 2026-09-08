@@ -248,6 +248,21 @@ export class ReapError extends Error {}
 
 export class AuthError extends Error {}
 
+/**
+ * A PUT to the channel endpoint came back non-2xx. Eyre answers 403 when the
+ * channel id already exists under a different identity (for example a channel
+ * created before login, as a guest, then reused after authenticating); the
+ * client must mint a new channel id to recover.
+ */
+export class ChannelPutError extends Error {
+  public status: number;
+  constructor(status: number) {
+    super('Failed to PUT channel');
+    this.name = 'ChannelPutError';
+    this.status = status;
+  }
+}
+
 export class SSETimeoutError extends Error {}
 
 export class SSEBadResponseError extends Error {
