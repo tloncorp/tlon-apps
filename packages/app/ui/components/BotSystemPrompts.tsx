@@ -65,13 +65,16 @@ export function useBotSystemPrompts(botShip: string) {
  * until the app restarted.
  */
 /**
- * Ships whose /v1/prompts watch has gone live. A live watch is stronger
- * evidence than any probe: gall accepted the subscription, so the module
- * exists regardless of what a 404 mid-restart suggested.
+ * Ships whose /v1/prompts watch has gone live at some point this session.
  *
- * Keyed by ship rather than a bare flag — the process outlives a logout, and
- * a proof carried over to the next account would settle ITS module as
- * present and expose Block on its own bot during a restart.
+ * Used only to rule OUT absence: gall accepted a subscription there, so a
+ * later run of 404s is a restarting %steward rather than a missing module.
+ * It is deliberately not treated as a current `present` — see the probe —
+ * because settling the module on a historical proof would let the per-bot
+ * 404 of that same restart resolve an owned bot to unowned.
+ *
+ * Keyed by ship rather than a bare flag: the process outlives a logout, and
+ * a proof carried over to the next account would answer for ITS ship.
  */
 const provenPromptsModuleShips = new Set<string>();
 const markPromptsModuleProven = (ourShip: string) => {
@@ -82,9 +85,6 @@ async function probePromptsModule(
   ourShip: string
 ): Promise<'present' | 'absent'> {
   for (let attempt = 0; ; attempt += 1) {
-    if (provenPromptsModuleShips.has(ourShip)) {
-      return 'present';
-    }
     try {
       await api.probeBotSystemPromptsModule();
       return 'present';
@@ -98,9 +98,17 @@ async function probePromptsModule(
         throw error;
       }
       if (next === 'absent') {
-        // Never conclude absence after a watch has been acked: that ack is
-        // proof the module is there, and `absent` is sticky.
-        return provenPromptsModuleShips.has(ourShip) ? 'present' : 'absent';
+        if (provenPromptsModuleShips.has(ourShip)) {
+          // A watch went live on this ship earlier, so the module is not
+          // missing — %steward is restarting. Rethrow rather than answer:
+          // `absent` is sticky and wrong, and a historical proof is no
+          // substitute for a current one either, since answering `present`
+          // would settle ownership on the per-bot 404 that the same restart
+          // turns into a successful null, exposing Block on an owned bot.
+          // An error leaves ownership unresolved and retryable instead.
+          throw error;
+        }
+        return 'absent';
       }
       await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** attempt));
     }

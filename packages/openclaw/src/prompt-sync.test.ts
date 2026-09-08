@@ -900,6 +900,59 @@ describe('removeRetiredPromptFiles', () => {
   });
 });
 
+describe('prompt reads are bounded before allocating', () => {
+  it('rejects an oversized file without reading it', async () => {
+    // A malformed workspace archive or a runaway agent write must not be
+    // pulled into memory on its way to being rejected as oversized.
+    const huge = 'x'.repeat(MAX_PROMPT_BYTES + 1_024);
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), huge);
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'fine');
+    // The read goes through the file HANDLE, so watch that rather than
+    // fs.promises.readFile — which this code path never calls.
+    const readPaths: string[] = [];
+    const realOpen = fs.promises.open.bind(fs.promises);
+    const openSpy = vi
+      .spyOn(fs.promises, 'open')
+      .mockImplementation(async (file, ...rest) => {
+        const handle = await realOpen(file as never, ...(rest as never[]));
+        const realHandleRead = handle.readFile.bind(handle);
+        handle.readFile = ((...args: never[]) => {
+          readPaths.push(String(file));
+          return realHandleRead(...args);
+        }) as typeof handle.readFile;
+        return handle;
+      });
+    try {
+      const effective = await readEffectivePrompts(tmpDir, logger);
+      expect(effective.prompts['USER.md']).toBeUndefined();
+      expect(effective.prompts['AGENTS.md']).toBe('fine');
+      // Fail closed: seeding without it would drop the name from the
+      // ship's canonical set even though the agent still loads the file.
+      expect(effective.ok).toBe(false);
+      expect(readPaths.some((p) => p.endsWith('USER.md'))).toBe(false);
+      expect(readPaths.some((p) => p.endsWith('AGENTS.md'))).toBe(true);
+    } finally {
+      openSpy.mockRestore();
+    }
+  });
+
+  it('replaces an oversized destination instead of comparing it', async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'SOUL.md'),
+      'y'.repeat(MAX_PROMPT_BYTES + 1_024)
+    );
+    const result = await applyPromptsToWorkspace({
+      workspaceDir: tmpDir,
+      prompts: { 'SOUL.md': 'be kind' },
+      logger,
+    });
+    expect(result.ok).toBe(true);
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'be kind'
+    );
+  });
+});
+
 describe('prompt reads open no-follow', () => {
   it('does not follow a symlink swapped in after the type check', async () => {
     // A separate stat cannot protect the read: an untrusted workspace

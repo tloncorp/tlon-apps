@@ -396,7 +396,7 @@ export function parsePromptSetFact(
  */
 async function openPromptFileText(
   filePath: string
-): Promise<string | null | 'not-regular'> {
+): Promise<string | null | 'not-regular' | 'too-large'> {
   const handle = await fs.open(
     filePath,
     nodeFs.constants.O_RDONLY |
@@ -407,6 +407,14 @@ async function openPromptFileText(
     const info = await handle.stat();
     if (!info.isFile()) {
       return 'not-regular';
+    }
+    if (info.size > MAX_PROMPT_BYTES) {
+      // Refuse before allocating. Both callers reject oversized content
+      // anyway, but they check AFTER reading — a malformed workspace
+      // archive or a runaway agent write would OOM the gateway on the way
+      // to being rejected. The size comes from the descriptor being read,
+      // so it can't be swapped for a smaller file in between.
+      return 'too-large';
     }
     return await handle.readFile('utf8');
   } finally {
@@ -422,7 +430,7 @@ async function readPromptFileIfRegular(
   const filePath = path.join(workspaceDir, name);
   try {
     const text = await openPromptFileText(filePath);
-    return text === 'not-regular' ? null : text;
+    return typeof text === 'string' ? text : null;
   } catch (error) {
     if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
       logger?.warn(`[tlon] Failed to read prompt file ${name}: ${error}`);
@@ -554,7 +562,16 @@ export async function readEffectivePrompts(
       // symlink in between. openPromptFileText opens no-follow and stats
       // the descriptor it will read from.
       const opened = await openPromptFileText(filePath);
-      if (opened === null || opened === 'not-regular') {
+      if (opened === 'too-large') {
+        // Same policy as a failed read: an omitted-but-running file must
+        // not be dropped from the ship's canonical set by a partial seed.
+        ok = false;
+        logger?.warn(
+          `[tlon] Prompt file ${name} exceeds ${MAX_PROMPT_BYTES} bytes; skipping the seed`
+        );
+        continue;
+      }
+      if (typeof opened !== 'string') {
         ok = false;
         logger?.warn(
           `[tlon] Prompt file ${name} changed to a link or special file while being read; skipping the seed`
@@ -563,8 +580,8 @@ export async function readEffectivePrompts(
       }
       const text = opened;
       if (!isPromptTextWithinCap(text)) {
-        // Same policy as a failed read: an omitted-but-running file must
-        // not be dropped from the ship's canonical set by a partial seed.
+        // Byte cap, not character count: a file under the size limit can
+        // still exceed it once multibyte content is counted.
         ok = false;
         logger?.warn(
           `[tlon] Prompt file ${name} exceeds ${MAX_PROMPT_BYTES} bytes; skipping the seed`
@@ -623,8 +640,10 @@ export async function applyPromptsToWorkspace(opts: {
         // file, or block forever on a FIFO. Anything but a regular file
         // goes uncompared; the rename below replaces the node itself, since
         // rename does not follow the final component.
+        // Anything that isn't readable regular content under the cap goes
+        // uncompared; the rename below replaces it.
         const opened = await openPromptFileText(filePath);
-        current = opened === 'not-regular' ? null : opened;
+        current = typeof opened === 'string' ? opened : null;
       } catch (error) {
         const code = (error as NodeJS.ErrnoException)?.code;
         // ELOOP: the final component is a symlink, so there is nothing of
