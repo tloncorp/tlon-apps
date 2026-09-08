@@ -26,7 +26,7 @@ class MainApplication : Application(), ReactApplication {
       packageList = PackageList(this).packages.apply {
         add(TalkPackage())
       },
-      jsMainModulePath = "index"
+      jsMainModulePath = ".expo/.virtual-metro-entry"
     )
   }
 
