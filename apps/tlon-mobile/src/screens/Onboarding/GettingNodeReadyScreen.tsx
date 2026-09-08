@@ -16,6 +16,7 @@ import {
 import {
   AppDataContextProvider,
   ArvosDiscussing,
+  EmailSupportLink,
   IconType,
   ListItem,
   LoadingSpinner,
@@ -41,6 +42,10 @@ const BOTTOM_WIDGET_TITLES = [
   'Establishing a connection',
   'Your node is ready',
 ];
+
+// A normal wake-up is expected to take a while, so hold the support link back
+// until the wait has gone on long enough that something might actually be wrong.
+const SUPPORT_LINK_DELAY = 20 * 1000;
 
 const BOTTOM_WIDGET_ICONS: IconType[] = [
   'ChannelGalleries',
@@ -98,6 +103,15 @@ export function GettingNodeReadyScreen({
       });
     }
   }, [hostedNodeId, notifPerms.hasPermission]);
+
+  const [showSupportLink, setShowSupportLink] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setShowSupportLink(true),
+      SUPPORT_LINK_DELAY
+    );
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle stopped node sequence
   const { phase, shipInfo, resetSequence } = useStoppedNodeSequence({
@@ -237,14 +251,19 @@ export function GettingNodeReadyScreen({
                 )}
               </ListItem.EndContent>
             </ListItem>
-            <TlonText.Text
-              size="$label/s"
-              color="$secondaryText"
-              textAlign="center"
-            >
-              Feel free to close the app if this takes too long. We’ll send you
-              a notification when your node is ready.
-            </TlonText.Text>
+            <YStack gap="$m">
+              <TlonText.Text
+                size="$label/s"
+                color="$secondaryText"
+                textAlign="center"
+              >
+                Feel free to close the app if this takes too long. We’ll send
+                you a notification when your node is ready.
+              </TlonText.Text>
+              {showSupportLink && (
+                <EmailSupportLink subject="Help! My node won’t wake up." />
+              )}
+            </YStack>
           </YStack>
           <StoppedNodePushSheet
             notifPerms={notifPerms}
