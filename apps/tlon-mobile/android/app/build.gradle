@@ -133,6 +133,15 @@ android {
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
         versionName "9.5.0"
+
+        // Read by RNFB as `rnfirebase_crashlytics_auto_collection_enabled`, ahead of
+        // its own `BuildConfig.DEBUG` check. That check can't be trusted here: RNGP
+        // generates a `debugOptimized` build type whose matchingFallbacks send every
+        // dependency lacking it to `release`, so the Crashlytics library believes it
+        // is in a production build while react-android — which does declare
+        // `debugOptimized` — turns Metro dev support on. Default off so a new build
+        // type never starts reporting into the production project by accident.
+        manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "false"
     }
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -153,6 +162,7 @@ android {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
+            manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "true"
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
@@ -177,6 +187,8 @@ android {
             debuggable true
             signingConfig signingConfigs.debug
             matchingFallbacks = ['release']
+            // initWith copied release's `true`; this variant is never shipped.
+            manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "false"
         }
     }
     packagingOptions {
