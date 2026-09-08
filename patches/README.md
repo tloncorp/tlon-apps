@@ -546,3 +546,110 @@ Drop this patch once we pin a `react-native-worklets` release that includes
 [#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278)
 (0.13.0 or later) together with the Reanimated release that pins it, and confirm
 the Crashlytics issue stays closed.
+
+## expo-modules-core@57.0.6
+
+Local patch:
+`patches/expo-modules-core@57.0.6.patch`
+
+Why:
+Android release builds crash at launch with a `ClassNotFoundException` inside
+`AppContextActivityResultRegistry.register$lambda$4` whenever an
+activity-result launch (image picker, document picker, file picker) was
+interrupted by the OS killing our Activity.
+
+`AppContextActivityResultRegistry.persistInstanceState` marshals its in-flight
+state — including the `androidx.activity.result.ActivityResult` pending
+result — into a base64 `Bundle` in `SharedPreferences` on `onHostDestroy`.
+`DataPersistor.toBundle()` read that `Bundle` back with `readBundle(null)`,
+which leaves the `Bundle`'s class loader at the framework default: the boot
+class loader, which cannot resolve *any* class from the app's dex. The
+`Bundle` unparcels lazily, so the failure does not surface at the read. It
+surfaces at the first strict read of a `Parcelable`, which is the pending-result
+lookup in the `ON_START` observer that `register` installs:
+
+```kotlin
+val activityResult = pendingResults.safeGetParcelable<ActivityResult>(key)
+```
+
+`expo-file-system` registers its picker contract at module initialization, so
+every launch of our app reaches that observer — a persisted pending result
+therefore crashes the next cold start rather than just dropping a picker
+result. R8 is on for release builds
+(`android.enableProguardInReleaseBuilds=true`), so Crashlytics reports the
+obfuscated name (`g.a`) instead of `androidx.activity.result.ActivityResult`.
+
+The record expires after 5 minutes and `DataPersistor.retrieveData()` clears
+the store as it reads, so this is one crash per interrupted launch rather than
+a boot loop — which is why it reads as a random launch crash.
+
+Crashlytics `64ea60afab69dc0c718aeada5d06e6c7`, first seen on 9.5.1 — exception
+and blamed frame (`register$lambda$4` is that `LifecycleEventObserver`, the only
+non-inline lambda in `register`):
+
+```
+java.lang.ClassNotFoundException: g.a
+  expo.modules.kotlin.activityresult.AppContextActivityResultRegistry.register$lambda$4
+```
+
+What it does:
+Carries upstream commit `ba1b90db769f` verbatim (minus its CHANGELOG entry):
+passes the `expo-modules-core` class loader to `readBundle` in
+`DataPersistor.toBundle()`, and drops the `@Suppress("ParcelClassLoader")` that
+hid the lint for it. Nested `Bundle`s inherit the parent's class loader while
+they unparcel, so setting it once at the read covers every `retrieve*` method.
+The persisted bytes, the keys and the write path are untouched.
+
+iOS is unaffected: `DataPersistor` and the whole
+`expo.modules.kotlin.activityresult` package are Android-only.
+
+No `buildFromSource` entry is needed: `expo-modules-core` declares no
+`android.publication` in its `expo-module.config.json`, so Expo autolinking
+always compiles it from `node_modules` sources rather than resolving a
+prebuilt AAR. (This is why `expo-notifications` and `expo-background-task`,
+which do publish prebuilt AARs, need their `buildFromSource` entries and this
+patch does not.)
+
+Upstream:
+- repo: `expo/expo`
+- issue: [#49782](https://github.com/expo/expo/issues/49782); earlier report
+  of the same crash: [#26446](https://github.com/expo/expo/issues/26446)
+  (closed as stale, never fixed)
+- fix: [#49836](https://github.com/expo/expo/pull/49836), merged 2026-09-08 as
+  `ba1b90db769f`
+- as of September 8, 2026 the fix is on `main` only. `origin/sdk-57` still
+  carries `readBundle(null)`, so no published `expo-modules-core@57.0.x`
+  includes it and bumping the pin does not help.
+- Linear: `TLON-6495`
+
+Validation done here:
+- `corepack pnpm install --frozen-lockfile` applies the patch and its lockfile
+  hash is current.
+- `./gradlew :expo-modules-core:compileReleaseKotlin` succeeds, and
+  `javap -c` on the resulting `DataPersistorKt.class` shows
+  `Parcel.readBundle(ClassLoader)` fed by
+  `DataPersistor.class.getClassLoader()`. Dropping the `@Suppress` raises no
+  lint in a consumer build.
+
+Still to validate on a device:
+- Reproducing needs our Activity destroyed while an activity-result launch is
+  in flight: enable "Don't keep activities" in Developer options, attach an
+  image in a chat to open the picker, pick an image, and let the app return.
+  Unpatched release builds crash on the following launch; patched builds
+  should restore the pending result and continue.
+- Watch Crashlytics issue `64ea60afab69dc0c718aeada5d06e6c7` on the release
+  after this lands.
+
+Removal:
+Drop this patch once we pin an `expo-modules-core` release that includes
+[#49836](https://github.com/expo/expo/pull/49836), and confirm the Crashlytics
+issue stays closed.
+
+Known limit (not fixed here):
+`restoreInstanceState` still propagates any value it cannot read, so a record
+that is unreadable for some *other* reason stays fatal. The realistic case is
+an app update landing between `persistInstanceState` and the restore, inside
+the 5-minute window: the persisted class names are R8-obfuscated and the
+mapping is per-build. Making the restore path non-fatal is a separate change
+that upstream deliberately left to a maintainer
+([option 3](https://github.com/expo/expo/pull/49836) in the PR description).
