@@ -48,9 +48,9 @@
     "test": "vitest",
     "types": "tsc --emitDeclarationOnly --noEmit false",
     "tsc": "tsc --noEmit",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix --quiet",
-    "lint:format": "prettier src/ --write",
+    "lint": "oxlint src/",
+    "lint:fix": "oxlint src/ --fix --quiet",
+    "lint:format": "oxfmt src/",
     "generate": "pnpm generate:migration",
     "generate:migration": "node reset-migrations",
     "watch-migrations": "pnpm generate:migration --watch"

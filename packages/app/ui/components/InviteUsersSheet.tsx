@@ -41,6 +41,7 @@ const InviteUsersSheetComponent = ({
       snapPoints={[85]}
       snapPointsMode="percent"
       disableDrag={isScrolling}
+      modal
     >
       <ActionSheet.Content
         // prevent the modal from going off screen

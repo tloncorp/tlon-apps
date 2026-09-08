@@ -1,0 +1,19 @@
+[
+  "/owner-listen",
+  "/migrate",
+  "/tlon",
+  "/tlon-version",
+  "/allow",
+  "/reject",
+  "/ban",
+  "/unban",
+  "/pending",
+  "/banned",
+  "/channel-access",
+  "/help",
+  "/status",
+  "/new",
+  "/stop",
+  "/usage",
+  "/model"
+]

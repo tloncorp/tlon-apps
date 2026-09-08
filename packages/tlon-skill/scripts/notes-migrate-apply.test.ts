@@ -105,7 +105,7 @@ function makeHarness(options: HarnessOptions = {}) {
       return {
         writers: drifted
           ? (options.writersAfterFirstRead as string[])
-          : options.writers ?? ['writers'],
+          : (options.writers ?? ['writers']),
         group: GROUP,
       };
     },

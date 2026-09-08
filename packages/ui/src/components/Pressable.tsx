@@ -29,7 +29,7 @@ const StackComponent = forwardRef<any, PressableProps>(
       return (
         <View
           ref={ref}
-          // eslint-disable-next-line no-restricted-syntax
+          // eslint-disable-next-line tlon/no-stack-press
           onPress={onPress}
           cursor={stackProps.cursor || 'pointer'}
           {...stackProps}
@@ -47,13 +47,13 @@ const StackComponent = forwardRef<any, PressableProps>(
         ref={ref}
         pressStyle={{ opacity: 0.5 }}
         {...stackProps}
-        // eslint-disable-next-line no-restricted-syntax
+        // eslint-disable-next-line tlon/no-stack-press
         onPress={onPress}
-        // eslint-disable-next-line no-restricted-syntax
+        // eslint-disable-next-line tlon/no-stack-press
         onPressIn={onPressIn}
-        // eslint-disable-next-line no-restricted-syntax
+        // eslint-disable-next-line tlon/no-stack-press
         onPressOut={onPressOut}
-        // eslint-disable-next-line no-restricted-syntax
+        // eslint-disable-next-line tlon/no-stack-press
         onLongPress={longPressHandler}
       >
         {children}

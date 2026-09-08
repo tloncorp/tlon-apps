@@ -2,12 +2,51 @@ import { describe, expect, test } from 'vitest';
 
 import {
   NavigationChainNode,
+  getActiveNestedGroupId,
   getActiveTopLevelDrawerRouteName,
   getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
   isActivityBackTarget,
 } from './routeHelpers';
+
+describe('getActiveNestedGroupId', () => {
+  test('finds the group on the active nested desktop channel route', () => {
+    expect(
+      getActiveNestedGroupId({
+        index: 0,
+        routes: [
+          {
+            name: 'Home',
+            state: {
+              index: 1,
+              routes: [
+                { name: 'ChatList' },
+                { name: 'Channel', params: { groupId: '~zod/agent' } },
+              ],
+            },
+          },
+          {
+            name: 'Messages',
+            params: { groupId: '~zod/inactive' },
+          },
+        ],
+      })
+    ).toBe('~zod/agent');
+  });
+
+  test('ignores inactive routes and missing group ids', () => {
+    expect(
+      getActiveNestedGroupId({
+        index: 0,
+        routes: [
+          { name: 'Home' },
+          { name: 'Messages', params: { groupId: '~zod/inactive' } },
+        ],
+      })
+    ).toBeUndefined();
+  });
+});
 
 // Build a `{ getState, getParent }` chain from innermost -> outermost so we can
 // exercise the parent-walk without a live React Navigation object. The first

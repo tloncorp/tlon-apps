@@ -201,7 +201,7 @@ const NoteBookReferenceContent = styled(View, {
 const NoteReferenceTitleText = styled(Text, {
   name: 'NoteReferenceTitleText',
   context: ReferenceContext,
-  size: '$title/l',
+  size: '$label/3xl',
   color: '$primaryText',
   variants: {
     contentSize: {

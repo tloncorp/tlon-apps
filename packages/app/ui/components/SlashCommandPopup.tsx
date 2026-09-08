@@ -1,6 +1,5 @@
 import type { SlashCommandOption } from '@tloncorp/shared/domain';
-import { type IconType, Pressable } from '@tloncorp/ui';
-import * as icons from '@tloncorp/ui/assets/icons';
+import { Pressable } from '@tloncorp/ui';
 import React, {
   PropsWithRef,
   useEffect,
@@ -13,19 +12,13 @@ import { Platform } from 'react-native';
 import { ContactList } from './ContactList';
 import { ListItem } from './ListItem';
 import { useBoundHandler } from './listItems/listItemUtils';
+import { toIconType } from './slashCommandIcon';
 
 export interface SlashCommandController {
   handleSlashCommandKey(key: 'ArrowUp' | 'ArrowDown' | 'Enter'): void;
 }
 export type SlashCommandPopupRef =
   React.RefObject<SlashCommandController | null>;
-
-// Manifest icons are plain name strings (they may come from a fetched, future
-// hosting-served manifest). Resolve to a known IconType, falling back to a
-// generic command glyph for anything unrecognized.
-function toIconType(name?: string): IconType {
-  return name && name in icons ? (name as IconType) : 'Command';
-}
 
 function SlashCommandOptionItem({
   selected,

@@ -28,7 +28,7 @@ export function ChatInput({
   const isWindowNarrow = useIsWindowNarrow();
   const showWayfindingTooltip = store.useShowChatInputWayfinding(channel.id);
   const showBotMentionTooltip = store.useShowBotMentionWayfinding(channel.id);
-  const slashCommandManifest = store.useBotSlashCommandManifest(channel);
+  const slashCommandManifest = store.useBotSlashCommandManifest(channel, group);
 
   return (
     // ConversationComposerPlacement owns the native bottom safe-area inset.

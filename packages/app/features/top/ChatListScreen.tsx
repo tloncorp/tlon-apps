@@ -40,6 +40,7 @@ import { ChatList, ChatListItemData } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
+import { useAgentOnboardingLandingConsumer } from './useAgentOnboardingLandingConsumer';
 import {
   getGroupInviteSheetState,
   isGroupInviteReady,
@@ -84,7 +85,7 @@ export function ChatListScreenView({
   // taps / deep links). Only this case gets the loading/gating/bounded-fallback treatment.
   const [inviteNotificationGroupId, setInviteNotificationGroupId] = useState<
     string | null
-  >(previewGroupFromInviteNotification ? previewGroupId ?? null : null);
+  >(previewGroupFromInviteNotification ? (previewGroupId ?? null) : null);
   const { data: selectedGroup } = store.useGroup({ id: selectedGroupId ?? '' });
 
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -94,6 +95,8 @@ export function ChatListScreenView({
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+
+  useAgentOnboardingLandingConsumer();
   const { performGroupAction } = useGroupActions();
 
   const handleInviteFriends = useCallback(() => {

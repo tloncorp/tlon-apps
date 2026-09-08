@@ -29,7 +29,7 @@ services:
 
         echo "==> fake ships runtime pin"
         echo "    vere pin: vere-v4.5"
-        echo "    pier generation: 29"
+        echo "    pier generation: 30"
         echo "    zod code: lidlut-tabwed-pillex-ridrup"
         echo "    ten code: lapseg-nolmel-riswen-hopryc"
         echo "    mug code: ravsut-bolryd-hapsum-pastul"
@@ -130,23 +130,23 @@ services:
         }
 
         zod_archive="$$(artifact \
-          rube-zod29.tgz \
-          https://bootstrap.urbit.org/rube-zod29.tgz \
+          rube-zod30.tgz \
+          https://bootstrap.urbit.org/rube-zod30.tgz \
           md5 \
-          e44ffc39c21b530554e6e40511c0d5b1 \
-          337897864)"
+          c156c20f2f16754433711a2ab1aab234 \
+          347494585)"
         ten_archive="$$(artifact \
-          rube-ten29.tgz \
-          https://bootstrap.urbit.org/rube-ten29.tgz \
+          rube-ten30.tgz \
+          https://bootstrap.urbit.org/rube-ten30.tgz \
           md5 \
-          15a83ddd6fcc47ccae9e7e92389bbc2a \
-          337258886)"
+          833d91b522bab7ed1c28cc528b20ba46 \
+          346581323)"
         mug_archive="$$(artifact \
-          rube-mug29.tgz \
-          https://bootstrap.urbit.org/rube-mug29.tgz \
+          rube-mug30.tgz \
+          https://bootstrap.urbit.org/rube-mug30.tgz \
           md5 \
-          88df26690f14f38f562e7bac7dc49cc6 \
-          338125881)"
+          29b6004ce1f6dfcf67253375d13dab90 \
+          347375646)"
         vere_archive="$$(artifact \
           linux-x86_64-vere-v4.5.tgz \
           https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz \

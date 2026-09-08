@@ -1,6 +1,6 @@
 {
   "name": "@tloncorp/api",
-  "version": "0.0.10",
+  "version": "0.0.13",
   "type": "module",
   "files": [
     "dist",
@@ -36,8 +36,8 @@
   },
   "scripts": {
     "build": "tsup",
-    "lint": "eslint src/",
-    "lint:format": "prettier ./ --write",
+    "lint": "oxlint src/",
+    "lint:format": "oxfmt ./",
     "prepare": "pnpm build",
     "test": "vitest",
     "watch": "tsup --watch",

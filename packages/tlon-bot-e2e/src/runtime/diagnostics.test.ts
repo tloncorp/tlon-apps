@@ -1,10 +1,15 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import type { ComposeHandle, RuntimeContext } from '../drivers/types.js';
 import {
   collectRuntimeDiagnostics,
   filterUploadLogLines,
+  writeDiagnosticsArtifacts,
 } from './diagnostics.js';
+import type { DockerCommandRunner } from './docker-direct.js';
 
 describe('collectRuntimeDiagnostics', () => {
   afterEach(() => {
@@ -55,10 +60,57 @@ describe('collectRuntimeDiagnostics', () => {
       })
     );
 
+    const dockerTimeouts: number[] = [];
+    const dockerRunner = vi.fn(
+      async (
+        _command: string,
+        args: string[],
+        opts: { timeoutMs?: number }
+      ) => {
+        dockerTimeouts.push(opts.timeoutMs ?? Number.NaN);
+        if (args[0] === 'container' && args[1] === 'ls') {
+          const service = args[args.length - 1].split('=').pop() ?? '';
+          return {
+            stdout: `${service}-container-id\n`,
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        if (args[0] === 'container' && args[1] === 'inspect') {
+          return {
+            stdout: JSON.stringify({
+              Status: 'exited',
+              Running: false,
+              OOMKilled: true,
+              ExitCode: 137,
+              StartedAt: '2026-01-01T00:00:00Z',
+              FinishedAt: '2026-01-01T00:01:00Z',
+            }),
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        if (args[0] === 'top') {
+          return {
+            stdout: [
+              'PID PPID COMMAND ARGS',
+              '1 0 bash bash -c ./vere -t --loom 31 --http-port 8080 zod',
+              '7 1 vere ./vere -t --loom 31 --http-port 8080 zod',
+              '8 1 vere ./vere -t --loom 31 --http-port 8081 ten',
+              '9 1 vere ./vere -t --loom 31 --http-port 8082 mug',
+            ].join('\n'),
+            stderr: '',
+            exitCode: 0,
+          };
+        }
+        throw new Error(`unexpected docker call: ${args.join(' ')}`);
+      }
+    );
+
     const diagnostics = await collectRuntimeDiagnostics(
       runtimeContext(),
       { ps, logs } as unknown as ComposeHandle,
-      { tail: 7 }
+      { tail: 7, dockerRunner }
     );
 
     expect(diagnostics).toContain('== compose services ==');
@@ -77,6 +129,16 @@ describe('collectRuntimeDiagnostics', () => {
     expect(diagnostics).toContain('urbauth=true');
     expect(diagnostics).toContain('== ships logs ==');
     expect(diagnostics).toContain('ships log line');
+    expect(diagnostics).toContain('== container states ==');
+    expect(diagnostics).toContain('openclaw:');
+    expect(diagnostics).toContain('fake-model:');
+    expect(diagnostics).toContain('ships:');
+    expect(diagnostics).toContain('"ExitCode": 137');
+    expect(diagnostics).toContain('"OOMKilled": true');
+    expect(diagnostics).toContain('== ships process table ==');
+    expect(diagnostics).toContain('./vere -t --loom 31 --http-port 8080 zod');
+    expect(diagnostics).toContain('./vere -t --loom 31 --http-port 8081 ten');
+    expect(diagnostics).toContain('./vere -t --loom 31 --http-port 8082 mug');
     expect(ps).toHaveBeenCalledWith({ timeoutMs: 10_000 });
     expect(logs).toHaveBeenCalledWith(['openclaw'], {
       tail: 7,
@@ -94,6 +156,30 @@ describe('collectRuntimeDiagnostics', () => {
       tail: 7,
       timeoutMs: 10_000,
     });
+    expect(dockerRunner).toHaveBeenCalledWith(
+      'docker',
+      [
+        'container',
+        'ls',
+        '--all',
+        '--quiet',
+        '--filter',
+        'label=com.docker.compose.project=tlon-bot-e2e-openclaw-test',
+        '--filter',
+        'label=com.docker.compose.service=ships',
+      ],
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+    expect(dockerRunner).toHaveBeenCalledWith(
+      'docker',
+      ['top', 'ships-container-id', '-eo', 'pid,ppid,comm,args'],
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
+    );
+    expect(dockerTimeouts.length).toBeGreaterThan(0);
+    for (const timeoutMs of dockerTimeouts) {
+      expect(timeoutMs).toBeGreaterThan(0);
+      expect(timeoutMs).toBeLessThanOrEqual(10_000);
+    }
   });
 
   test('renders failed-to-collect when upload log lines call rejects', async () => {
@@ -104,6 +190,10 @@ describe('collectRuntimeDiagnostics', () => {
       return `${services[0]} log line`;
     });
     const ps = vi.fn(async () => []);
+    // Keep the docker-direct sections off the real docker CLI.
+    const dockerRunner: DockerCommandRunner = vi.fn(async () => {
+      throw new Error('docker unavailable in unit tests');
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string | URL | Request) => {
@@ -120,7 +210,7 @@ describe('collectRuntimeDiagnostics', () => {
     const diagnostics = await collectRuntimeDiagnostics(
       runtimeContext(),
       { ps, logs } as unknown as ComposeHandle,
-      { tail: 7 }
+      { tail: 7, dockerRunner }
     );
 
     expect(diagnostics).toContain('== openclaw upload log lines ==');
@@ -136,6 +226,10 @@ describe('collectRuntimeDiagnostics', () => {
   test('bounds hanging HTTP diagnostics with probe timeouts', async () => {
     const logs = vi.fn(async (services: string[]) => `${services[0]} log line`);
     const ps = vi.fn(async () => []);
+    // Keep the docker-direct sections off the real docker CLI.
+    const dockerRunner: DockerCommandRunner = vi.fn(async () => {
+      throw new Error('docker unavailable in unit tests');
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn(
@@ -151,13 +245,104 @@ describe('collectRuntimeDiagnostics', () => {
     const diagnostics = await collectRuntimeDiagnostics(
       runtimeContext(),
       { ps, logs } as unknown as ComposeHandle,
-      { probeTimeoutMs: 1 }
+      { probeTimeoutMs: 1, dockerRunner }
     );
 
     expect(diagnostics).toContain('== fake-model received calls ==');
     expect(diagnostics).toContain('<failed to collect: probe aborted>');
     expect(diagnostics).toContain('zod ~zod http://localhost:8080/~/login');
     expect(diagnostics).toContain('error=probe aborted');
+  });
+
+  test('container states survive one service failing to resolve', async () => {
+    const logs = vi.fn(async (services: string[]) => `${services[0]} log line`);
+    const ps = vi.fn(async () => []);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ calls: [], count: 0, epoch: 0 }))
+    );
+    const dockerRunner = vi.fn(async (_command: string, args: string[]) => {
+      if (args[0] === 'container' && args[1] === 'ls') {
+        const service = args[args.length - 1].split('=').pop() ?? '';
+        if (service === 'fake-model') {
+          return { stdout: '', stderr: 'no such container', exitCode: 1 };
+        }
+        return { stdout: `${service}-container-id\n`, stderr: '', exitCode: 0 };
+      }
+      if (args[0] === 'container' && args[1] === 'inspect') {
+        return {
+          stdout: JSON.stringify({
+            Status: 'running',
+            Running: true,
+            OOMKilled: false,
+            ExitCode: 0,
+          }),
+          stderr: '',
+          exitCode: 0,
+        };
+      }
+      if (args[0] === 'top') {
+        return { stdout: 'PID PPID COMMAND\n', stderr: '', exitCode: 0 };
+      }
+      throw new Error(`unexpected docker call: ${args.join(' ')}`);
+    });
+
+    const diagnostics = await collectRuntimeDiagnostics(
+      runtimeContext(),
+      { ps, logs } as unknown as ComposeHandle,
+      { dockerRunner }
+    );
+
+    expect(diagnostics).toContain('== container states ==');
+    expect(diagnostics).toContain('openclaw:');
+    expect(diagnostics).toContain('"Status": "running"');
+    expect(diagnostics).toContain('ships:');
+    expect(diagnostics).toContain(
+      'fake-model: <failed to collect: docker resolve service fake-model ' +
+        'failed with exit 1: no such container>'
+    );
+    expect(diagnostics).toContain('== ships process table ==');
+    expect(diagnostics).toContain('PID PPID COMMAND');
+    expect(diagnostics).toContain('== openclaw logs ==');
+    expect(diagnostics).toContain('openclaw log line');
+  });
+
+  test('docker diagnostics degrade when the runner throws everywhere', async () => {
+    const logs = vi.fn(async (services: string[]) => `${services[0]} log line`);
+    const ps = vi.fn(async () => []);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Response.json({ calls: [], count: 0, epoch: 0 }))
+    );
+    const dockerRunner: DockerCommandRunner = vi.fn(async () => {
+      throw new Error('docker daemon unavailable');
+    });
+
+    const diagnostics = await collectRuntimeDiagnostics(
+      runtimeContext(),
+      { ps, logs } as unknown as ComposeHandle,
+      { dockerRunner }
+    );
+
+    expect(diagnostics).toContain('== container states ==');
+    expect(diagnostics).toContain(
+      'openclaw: <failed to collect: docker daemon unavailable>'
+    );
+    expect(diagnostics).toContain(
+      'fake-model: <failed to collect: docker daemon unavailable>'
+    );
+    expect(diagnostics).toContain(
+      'ships: <failed to collect: docker daemon unavailable>'
+    );
+    expect(diagnostics).toContain('== ships process table ==');
+    expect(diagnostics).toContain(
+      '== ships process table ==\n<failed to collect: docker daemon unavailable>'
+    );
+    expect(diagnostics).toContain('== compose services ==');
+    expect(diagnostics).toContain('== openclaw logs ==');
+    expect(diagnostics).toContain('openclaw log line');
+    expect(diagnostics).toContain('== ships logs ==');
+    expect(diagnostics).toContain('ships log line');
   });
 });
 
@@ -196,6 +381,57 @@ describe('filterUploadLogLines', () => {
 
   test('returns empty string when no lines match', () => {
     expect(filterUploadLogLines('foo\nbar\nbaz')).toBe('');
+  });
+});
+
+describe('writeDiagnosticsArtifacts', () => {
+  test('writes diagnostics.txt and the full untailed ships.log', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'tlon-bot-e2e-diag-'));
+    try {
+      const logs = vi.fn(async () => 'ships boot line\nships crash line');
+      const compose = { logs } as unknown as ComposeHandle;
+
+      const outDir = await writeDiagnosticsArtifacts(
+        runtimeContext(),
+        compose,
+        dir,
+        'the assembled dump'
+      );
+
+      expect(outDir).toBe(path.join(dir, 'test'));
+      expect(await readFile(path.join(outDir, 'diagnostics.txt'), 'utf8')).toBe(
+        'the assembled dump'
+      );
+      expect(await readFile(path.join(outDir, 'ships.log'), 'utf8')).toBe(
+        'ships boot line\nships crash line'
+      );
+      expect(logs).toHaveBeenCalledTimes(1);
+      expect(logs).toHaveBeenCalledWith(['ships'], {
+        timeoutMs: 30_000,
+        allowFailure: false,
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test('writes an error placeholder when ships logs fail', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'tlon-bot-e2e-diag-'));
+    try {
+      const logs = vi.fn(async () => {
+        throw new Error('docker compose logs ships failed with exit 1');
+      });
+      const compose = { logs } as unknown as ComposeHandle;
+
+      await expect(
+        writeDiagnosticsArtifacts(runtimeContext(), compose, dir, 'dump')
+      ).resolves.toBe(path.join(dir, 'test'));
+      expect(
+        await readFile(path.join(dir, 'test', 'ships.log'), 'utf8')
+      ).toContain('docker compose logs ships failed with exit 1');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 });
 

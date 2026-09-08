@@ -1,5 +1,6 @@
-interface ImportMetaEnv
-  extends Readonly<Record<string, string | boolean | undefined>> {
+interface ImportMetaEnv extends Readonly<
+  Record<string, string | boolean | undefined>
+> {
   readonly VITE_LAST_WIPE: string;
   readonly VITE_STORAGE_VERSION: string;
   readonly VITE_ENABLE_WDYR: 'true' | 'false' | undefined;

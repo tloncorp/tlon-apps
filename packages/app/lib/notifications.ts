@@ -19,15 +19,35 @@ import { connectNotifyProvider } from './notificationsApi';
 
 const logger = createDevLogger('notifications', true);
 
-export function initializeNotifications() {
+export function initializeNotifications(
+  shouldSuppressNotification?: (
+    notification: Notifications.Notification
+  ) => boolean
+) {
   if (Platform.OS !== 'web') {
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: true,
-      }),
+      handleNotification: async (notification) => {
+        let shouldSuppress = false;
+        try {
+          shouldSuppress = shouldSuppressNotification?.(notification) ?? false;
+        } catch (error) {
+          // A malformed or future payload must fail open. Losing a notification
+          // is worse than showing one while its channel cannot be identified.
+          logger.trackError(
+            'Failed to apply notification presentation policy',
+            {
+              error,
+            }
+          );
+        }
+
+        return {
+          shouldShowBanner: !shouldSuppress,
+          shouldShowList: !shouldSuppress,
+          shouldPlaySound: false,
+          shouldSetBadge: !shouldSuppress,
+        };
+      },
     });
   }
 }

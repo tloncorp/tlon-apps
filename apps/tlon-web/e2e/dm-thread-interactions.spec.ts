@@ -141,7 +141,7 @@ test('should test DM thread interactions and message operations', async ({
 
   // ZOD: Send another message and delete it
   await helpers.sendThreadReply(zodPage, 'Delete this thread message');
-  await helpers.deleteMessage(zodPage, 'Delete this thread message', true);
+  await helpers.deleteMessage(zodPage, 'Delete this thread message');
 
   // TEN: Navigate to thread and send a message to hide
   await expect(tenPage.getByText(/\d+ repl(y|ies)/).first()).toBeVisible({

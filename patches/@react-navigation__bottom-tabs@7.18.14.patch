@@ -1,0 +1,38 @@
+diff --git a/src/unstable/NativeBottomTabView.native.tsx b/src/unstable/NativeBottomTabView.native.tsx
+index e918b8247d230edd763434cc440ef4a00235fecd..c606f06fc24062773aa894f674e9b50f6e774034 100644
+--- a/src/unstable/NativeBottomTabView.native.tsx
++++ b/src/unstable/NativeBottomTabView.native.tsx
+@@ -588,6 +588,7 @@ function getPlatformIcon(icon: NativeBottomTabIcon): PlatformIcon {
+         shared: {
+           type: 'imageSource',
+           imageSource: icon.source,
++          tinted: icon.tinted !== false,
+         },
+       };
+     default: {
+diff --git a/lib/module/unstable/NativeBottomTabView.native.js b/lib/module/unstable/NativeBottomTabView.native.js
+--- a/lib/module/unstable/NativeBottomTabView.native.js
++++ b/lib/module/unstable/NativeBottomTabView.native.js
+@@ -433,7 +433,8 @@ function getPlatformIcon(icon) {
+         android: undefined,
+         shared: {
+           type: 'imageSource',
+-          imageSource: icon.source
++          imageSource: icon.source,
++          tinted: icon.tinted !== false
+         }
+       };
+     default:
+diff --git a/src/unstable/types.tsx b/src/unstable/types.tsx
+index a2471f55e4370b7c1a8950d03cf77453d1cbc8e2..274af880594e9f41f02cf32797cce4a5367b33cb 100644
+--- a/src/unstable/types.tsx
++++ b/src/unstable/types.tsx
+@@ -88,7 +88,7 @@ type IconImage = {
+    *
+    * Defaults to `true`.
+    *
+-   * @platform ios
++   * @platform ios, android
+    */
+   tinted?: boolean;
+ };

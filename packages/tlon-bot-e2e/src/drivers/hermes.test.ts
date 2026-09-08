@@ -23,6 +23,10 @@ describe('Hermes driver runtime spec', () => {
 
     const ctx = createRuntimeContext(seed, hermesDriver.resolveRuntime(seed));
 
+    expect(hermesDriver.streamFaultLogMarkers).toEqual([
+      'SSE stream error',
+      'SSE stream stale',
+    ]);
     expect(Object.isFrozen(ctx)).toBe(true);
     expect(Object.isFrozen(ctx.endpoints.ships.zod)).toBe(true);
     expect(ctx.composeProjectName).toBe('tlon-bot-e2e-hermes-unit');

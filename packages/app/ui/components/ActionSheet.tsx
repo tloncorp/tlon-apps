@@ -756,7 +756,7 @@ const ActionSheetAction = ActionSheetActionFrame.styleable<{
             ? 'selected'
             : action.disabled
               ? 'disabled'
-              : action.accent ?? accent
+              : (action.accent ?? accent)
         }
         accessible={false}
         ref={ref}

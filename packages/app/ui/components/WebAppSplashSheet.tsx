@@ -81,7 +81,7 @@ export function WebAppSplashSheet({
   onOpenWeb: () => void;
 }) {
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       <ActionSheet.Content>
         <YStack gap="$2xl" paddingHorizontal="$2xl">
           <Image

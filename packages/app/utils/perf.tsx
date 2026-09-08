@@ -7,9 +7,7 @@ import { useFeatureFlag } from '../lib/featureFlags';
 
 type Firebase = typeof firebase;
 
-class FirebasePerformanceMonitoringEndpoint
-  implements PerformanceMonitoringEndpoint
-{
+class FirebasePerformanceMonitoringEndpoint implements PerformanceMonitoringEndpoint {
   static shared = new FirebasePerformanceMonitoringEndpoint(firebase);
 
   constructor(private firebase: Firebase) {

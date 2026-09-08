@@ -217,6 +217,29 @@ def parse_parent_post(
     )
 
 
+def parse_post_author(payload: Any) -> Optional[str]:
+    """Author of a single post, without ``parse_parent_post``'s content gate.
+
+    ``_entry_from_content`` drops contentless posts entirely and stamps the
+    ``"unknown"`` sentinel on the rest, so it cannot answer "who wrote this
+    post" for a thread parent that is an image, a poll, or a deleted body —
+    which is exactly what an approval card's navigation target needs.
+    """
+    if not isinstance(payload, dict):
+        return None
+    post = payload.get("post") if isinstance(payload.get("post"), dict) else payload
+    post_set = post.get("r-post", {}).get("set") if isinstance(post.get("r-post"), dict) else None
+    content = (
+        post.get("essay")
+        or post.get("memo")
+        or (post_set or {}).get("essay")
+        or (post_set or {}).get("memo")
+    )
+    if not isinstance(content, dict):
+        return None
+    return extract_author_ship(content.get("author")) or None
+
+
 def parse_exact_reply(
     payload: Any,
     reply_id: str,
@@ -253,6 +276,20 @@ async def fetch_post(
         logger.debug("[tlon] exact post fetch failed for %s: %s", post_id, exc)
         return None
     return parse_parent_post(payload, post_id, nest)
+
+
+async def fetch_post_author(
+    scry: ScryFn,
+    nest: str,
+    post_id: str,
+) -> Optional[str]:
+    """Author of one top-level post, tolerating posts with no readable body."""
+    try:
+        payload = await scry(f"/channels/v4/{nest}/posts/post/{format_ud(post_id)}")
+    except Exception as exc:
+        logger.debug("[tlon] post author fetch failed for %s: %s", post_id, exc)
+        return None
+    return parse_post_author(payload)
 
 
 async def fetch_thread_context(

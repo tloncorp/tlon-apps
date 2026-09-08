@@ -162,6 +162,7 @@ export type EngageReason =
   | 'mention'
   | 'thread'
   | 'owner-blob'
+  | 'owner-command'
   | 'owner-owned'
   | 'skip';
 
@@ -171,6 +172,11 @@ export type EngageReason =
  * - Mentions and participated threads always engage (legacy behavior).
  * - Owner blob-only messages engage when the caller asserts `isOwnerBlob`
  *   (preserves existing behavior — caller still computes that flag).
+ * - Owner slash commands engage when the caller asserts `isOwnerCommand`
+ *   (the sender is the owner and the text matches a registered/core command
+ *   token). Escape-hatch semantics like the in-plugin /owner-listen special
+ *   case: no mention required, works in any watched channel regardless of
+ *   host, the global owner-listen toggle, or the per-channel disabled list.
  * - Otherwise: engage when the sender is the owner AND the channel host is
  *   the owner or the bot itself AND the global owner-listen toggle is on AND
  *   the channel is not in the per-channel disabled list.
@@ -179,6 +185,7 @@ export function shouldEngageInGroup(opts: {
   mentioned: boolean;
   inParticipatedThread: boolean;
   isOwnerBlob: boolean;
+  isOwnerCommand: boolean;
   senderShip: string;
   ownerShip: string | null;
   botShipName: string;
@@ -197,11 +204,16 @@ export function shouldEngageInGroup(opts: {
     return { engage: true, reason: 'owner-blob' };
   }
 
+  const isOwner = opts.ownerShip !== null && opts.senderShip === opts.ownerShip;
+
+  if (opts.isOwnerCommand && isOwner) {
+    return { engage: true, reason: 'owner-command' };
+  }
+
   if (!opts.ownerListenEnabled) {
     return { engage: false, reason: 'skip' };
   }
 
-  const isOwner = opts.ownerShip !== null && opts.senderShip === opts.ownerShip;
   const isOwned =
     opts.groupHost !== null &&
     (opts.groupHost === opts.ownerShip || opts.groupHost === opts.botShipName);
@@ -211,6 +223,26 @@ export function shouldEngageInGroup(opts: {
     return { engage: true, reason: 'owner-owned' };
   }
   return { engage: false, reason: 'skip' };
+}
+
+/**
+ * Whether the message text is one of the given slash-command tokens, bare at
+ * the start of the message (optionally followed by arguments). Matches
+ * case-insensitively on the trimmed text and is token-boundary safe: `/tlon`
+ * does not match `/tlon-version`.
+ */
+export function isRegisteredCommandText(
+  messageText: string,
+  tokens: readonly string[]
+): boolean {
+  const text = messageText.trim();
+  if (!text) {
+    return false;
+  }
+  return tokens.some((token) => {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`^${escaped}(?:\\s|$)`, 'i').test(text);
+  });
 }
 
 /** Parse "tlon:group:<nest>" → "<nest>", else null. */

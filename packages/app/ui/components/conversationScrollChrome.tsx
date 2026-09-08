@@ -32,15 +32,18 @@ export {
   floatingPinnedPostBannerGap,
   floatingPinnedPostBannerHeight,
   floatingScrollControlClearance,
+  getPostCollectionTopInset,
 } from './conversationInsets';
 
 /** Owns all measured geometry reserved around a conversation list. */
 export function useConversationInsets({
   hasFloatingComposer,
+  hasBottomSafeAreaClearance = false,
   hasTransparentHeader,
   hasFloatingPinnedPostBanner = false,
 }: {
   hasFloatingComposer: boolean;
+  hasBottomSafeAreaClearance?: boolean;
   hasTransparentHeader: boolean;
   hasFloatingPinnedPostBanner?: boolean;
 }) {
@@ -66,11 +69,13 @@ export function useConversationInsets({
         bottomSafeArea,
         measuredComposerHeight,
         hasFloatingComposer,
+        hasBottomSafeAreaClearance,
         hasTransparentHeader: usesTransparentHeader,
         hasFloatingPinnedPostBanner,
       }),
     [
       bottomSafeArea,
+      hasBottomSafeAreaClearance,
       hasFloatingComposer,
       hasFloatingPinnedPostBanner,
       headerHeight,
@@ -81,6 +86,7 @@ export function useConversationInsets({
 
   return {
     contentInsets,
+    navigationHeaderHeight: headerHeight,
     floatingHeaderHeight: usesTransparentHeader ? headerHeight : 0,
     onFloatingHeightChange:
       Platform.OS !== 'web' && hasFloatingComposer

@@ -5,6 +5,7 @@ import os
 import sys
 import types
 import unittest
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -816,6 +817,944 @@ class AdapterAttentionTests(unittest.TestCase):
             )
 
         self.assertEqual(len(events), 1)
+
+    def test_owner_core_command_dispatches_without_owner_listen(self):
+        # Third-party-hosted channel (host is neither owner nor bot), global
+        # owner-listen off: a bare owner core command must still reach the
+        # gateway, which dispatches /help itself.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("/help", nest="chat/~dev/random"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/help")
+
+    def test_owner_core_command_with_args_dispatches(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("/model claude", nest="chat/~dev/random"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+
+    def test_core_command_stays_bare_through_context_enrichment(self):
+        # The gateway classifies commands with MessageEvent.text.startswith("/")
+        # (pinned core's is_command), so group-context enrichment must never
+        # wrap a core command — otherwise /help with 20 messages of prepended
+        # history becomes an ordinary model prompt. This adapter HAS a fake SSE
+        # client and non-empty fetched history, so enrichment is genuinely
+        # armed (the control test below proves it fires for normal text).
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        adapter._sse = types.SimpleNamespace(scry=object(), poke=None)
+
+        async def fake_history(scry, chat_id, limit):
+            return [{"author": "~dev", "text": "earlier chatter"}]
+
+        def fake_build(entries, *, current_text, **kwargs):
+            return f"[context]\n{current_text}"
+
+        with (
+            patch.object(adapter_mod, "fetch_channel_history", fake_history),
+            patch.object(adapter_mod, "build_channel_context", fake_build),
+        ):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("/help", nest="chat/~dev/random"),
+                )
+            )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/help")
+        self.assertTrue(events[0].text.startswith("/"))
+
+    def test_normal_text_is_enriched_by_the_same_harness(self):
+        # Control for the bare-command test above: identical fake SSE and
+        # history, but ordinary owner-listen text — enrichment must fire, or
+        # the bare-command assertion would be vacuously true.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~mug/general"],
+            }
+        )
+        adapter._sse = types.SimpleNamespace(scry=object(), poke=None)
+
+        async def fake_history(scry, chat_id, limit):
+            return [{"author": "~dev", "text": "earlier chatter"}]
+
+        def fake_build(entries, *, current_text, **kwargs):
+            return f"[context]\n{current_text}"
+
+        with (
+            patch.object(adapter_mod, "fetch_channel_history", fake_history),
+            patch.object(adapter_mod, "build_channel_context", fake_build),
+        ):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("what did I miss?", nest="chat/~mug/general"),
+                )
+            )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "[context]\nwhat did I miss?")
+        self.assertFalse(events[0].text.startswith("/"))
+
+    def test_core_command_ignores_reaction_notes_and_metadata(self):
+        # Production-default reaction handling ("minimal") appends id markers
+        # to every dispatch, and a queued reaction note would be prepended —
+        # the prefix would hide the command from the gateway's startswith("/")
+        # classifier and the suffix would pollute its arguments. Both must be
+        # skipped for a core command, and the unpeeked note must stay queued
+        # for the next conversational dispatch.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+                "reaction_level": "minimal",
+            }
+        )
+        adapter._pending_reaction_notes["group:chat/~dev/random"] = deque(
+            ["~dev reacted ❤️ to a message"], maxlen=10
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("/model claude", nest="chat/~dev/random"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/model claude")
+        self.assertEqual(
+            list(adapter._pending_reaction_notes["group:chat/~dev/random"]),
+            ["~dev reacted ❤️ to a message"],
+        )
+
+    def test_normal_text_gets_reaction_notes_and_metadata(self):
+        # Control: identical reaction settings and queued note, ordinary
+        # owner-listen text — the note is prepended, the id marker appended,
+        # and the note is consumed once core accepts the event.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~mug/general"],
+                "reaction_level": "minimal",
+            }
+        )
+        adapter._pending_reaction_notes["group:chat/~mug/general"] = deque(
+            ["~dev reacted ❤️ to a message"], maxlen=10
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("what did I miss?", nest="chat/~mug/general"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        text = events[0].text
+        self.assertTrue(text.startswith("[Recent reactions in this conversation]"))
+        self.assertIn("~dev reacted ❤️ to a message", text)
+        self.assertIn("what did I miss?", text)
+        self.assertIn("[message id:", text)
+        self.assertFalse(
+            adapter._pending_reaction_notes.get("group:chat/~mug/general")
+        )
+
+    def test_core_command_skips_cite_prefix(self):
+        # A resolved cite prefix ("> quoted…") would displace the leading
+        # slash the gateway's command classifier looks for.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        adapter._sse = types.SimpleNamespace(scry=object(), poke=None)
+
+        async def fake_cites(scry, content, **kwargs):
+            return "> quoted earlier message"
+
+        with patch.object(adapter_mod, "resolve_cites", fake_cites):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("/help", nest="chat/~dev/random"),
+                )
+            )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/help")
+
+    def test_normal_text_gets_cite_prefix(self):
+        # Control: the same cite resolution decorates ordinary text.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~mug/general"],
+            }
+        )
+        adapter._sse = types.SimpleNamespace(scry=object(), poke=None)
+
+        async def fake_cites(scry, content, **kwargs):
+            return "> quoted earlier message"
+
+        async def fake_history(scry, chat_id, limit):
+            return []
+
+        def fake_build(entries, *, current_text, **kwargs):
+            return current_text
+
+        with (
+            patch.object(adapter_mod, "resolve_cites", fake_cites),
+            patch.object(adapter_mod, "fetch_channel_history", fake_history),
+            patch.object(adapter_mod, "build_channel_context", fake_build),
+        ):
+            events = asyncio.run(
+                self.dispatches(
+                    adapter,
+                    channel_event("what did I miss?", nest="chat/~mug/general"),
+                )
+            )
+
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("> quoted earlier message"))
+        self.assertIn("what did I miss?", events[0].text)
+
+    def test_dm_core_command_skips_nudge_context_and_reaction_notes(self):
+        # A fresh owner DM replying to a pending re-engagement nudge would get
+        # "[Context: …]" prepended before _dispatch_message ever sees it,
+        # hiding the command from every later guard — reaction notes would
+        # then be consumed and id markers appended. The command must stay
+        # exact and the queued note must survive for the next conversational
+        # dispatch, which delivers it exactly once.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "reaction_level": "minimal",
+            }
+        )
+        adapter._pending_reaction_notes["dm:~mug"] = deque(
+            ["~mug reacted ❤️ to a message"], maxlen=10
+        )
+        # Arm real nudge state: _handle_dm_event re-derives its hook from
+        # _observe_nudge_owner_message when parsing the raw event, so a
+        # hand-built hook argument would be discarded. dm_event stamps
+        # sent=1000ms, so the nudge must predate that.
+        adapter._pending_nudge_rehydrated = True
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge = adapter_mod.PendingNudge(
+            500, 1, "~mug", "hermes", "nudge body"
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("/model claude", author="~mug", whom="~mug"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/model claude")
+        self.assertEqual(
+            list(adapter._pending_reaction_notes["dm:~mug"]),
+            ["~mug reacted ❤️ to a message"],
+        )
+
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("hello again", author="~mug", whom="~mug", msg_id="dm-2"),
+            )
+        )
+        self.assertEqual(len(events), 2)
+        self.assertIn("~mug reacted ❤️ to a message", events[1].text)
+        self.assertFalse(adapter._pending_reaction_notes.get("dm:~mug"))
+
+    def test_dm_normal_text_still_gets_nudge_context(self):
+        # Control: ordinary owner text with the same hook gets the context
+        # prepended, keeping the command assertion above non-vacuous.
+        adapter = self.make_adapter({"owner_ship": "~mug"})
+        adapter._pending_nudge_rehydrated = True
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge = adapter_mod.PendingNudge(
+            500, 1, "~mug", "hermes", "nudge body"
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("I am back", author="~mug", whom="~mug"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("[Context: You recently sent"))
+        self.assertIn("I am back", events[0].text)
+
+    def test_cited_core_command_dispatches_bare_in_channel(self):
+        # A reply-with-quote renders as "[quoted message] /model claude" in
+        # message.text — the parser places block placeholders ahead of the
+        # typed text, upstream of every adapter guard. The command must be
+        # re-derived from the inline-only rendering and dispatched exactly.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~dev/random",
+                    content=[
+                        {
+                            "block": {
+                                "cite": {
+                                    "chan": {
+                                        "nest": "chat/~dev/random",
+                                        "where": "/msg/170.140",
+                                    }
+                                }
+                            }
+                        },
+                        {"inline": ["/model claude"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/model claude")
+
+    def test_image_block_core_command_dispatches_bare_in_channel(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~dev/random",
+                    content=[
+                        {"block": {"image": {"src": "https://x/y.png", "alt": "pic"}}},
+                        {"inline": ["/help"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/help")
+
+    def test_mentioned_cited_core_command_dispatches_bare(self):
+        # Mention + quote + command: the mention engages, and the override
+        # must strip the mention from the inline rendering before matching.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~dev/random",
+                    content=[
+                        {"block": {"cite": {"group": "~dev/some-group"}}},
+                        {"inline": ["~pen /help"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/help")
+
+    def test_cited_normal_text_keeps_quote_placeholder(self):
+        # Control: ordinary owner-listen text with a quote keeps the rendered
+        # placeholder — the override is command-only, owner-only.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~mug/general"],
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~mug/general",
+                    content=[
+                        {"block": {"cite": {"group": "~dev/some-group"}}},
+                        {"inline": ["what do you think of this?"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("[quoted message]", events[0].text)
+        self.assertIn("what do you think of this?", events[0].text)
+
+    def test_dm_cited_core_command_survives_nudge_and_reaction_state(self):
+        # The full composite: quote-rendered command in a DM with an armed
+        # nudge, a queued reaction note, and production-default reaction
+        # handling. The command must dispatch exactly and the note survive.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "reaction_level": "minimal",
+            }
+        )
+        adapter._pending_reaction_notes["dm:~mug"] = deque(
+            ["~mug reacted ❤️ to a message"], maxlen=10
+        )
+        adapter._pending_nudge_rehydrated = True
+        adapter._nudge_stage_shadow = 1
+        adapter._pending_nudge = adapter_mod.PendingNudge(
+            500, 1, "~mug", "hermes", "nudge body"
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event(
+                    "",
+                    author="~mug",
+                    whom="~mug",
+                    content=[
+                        {"block": {"cite": {"group": "~dev/some-group"}}},
+                        {"inline": ["/model claude"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/model claude")
+        self.assertEqual(
+            list(adapter._pending_reaction_notes["dm:~mug"]),
+            ["~mug reacted ❤️ to a message"],
+        )
+
+    def test_heap_inline_command_gains_no_reach(self):
+        # Scope rule: slash commands are offered in chat channels and DMs
+        # only. Even a genuinely typed bare command in a heap channel gets no
+        # owner-command engagement — heap stays mention/owner-listen
+        # conversational.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["heap/~dev/links"],
+                "owner_listen": False,
+            }
+        )
+        raw = {
+            "nest": "heap/~dev/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~mug",
+                                "sent": 1000,
+                                "content": [{"inline": ["/help"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        events = asyncio.run(self.dispatches(adapter, raw))
+
+        self.assertEqual(events, [])
+
+    def test_heap_title_command_gains_no_command_reach(self):
+        # Commands are a chat-channel/DM surface. A heap post whose TITLE
+        # renders as "/help" ahead of the body must not trip the
+        # owner-command attention fact: with owner-listen off in a
+        # third-party heap, nothing dispatches.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["heap/~dev/links"],
+                "owner_listen": False,
+            }
+        )
+        raw = {
+            "nest": "heap/~dev/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~mug",
+                                "sent": 1000,
+                                "meta": {"title": "/help"},
+                                "content": [{"inline": ["ordinary body"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        events = asyncio.run(self.dispatches(adapter, raw))
+
+        self.assertEqual(events, [])
+
+    def test_heap_title_command_dispatches_decorated_via_owner_listen(self):
+        # Control: the same message in an owner-hosted heap with owner-listen
+        # active is a conversational dispatch — decorations apply instead of
+        # being skipped by a false command classification.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["heap/~mug/links"],
+                "reaction_level": "minimal",
+            }
+        )
+        raw = {
+            "nest": "heap/~mug/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~mug",
+                                "sent": 1000,
+                                "meta": {"title": "/help"},
+                                "content": [{"inline": ["ordinary body"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        events = asyncio.run(self.dispatches(adapter, raw))
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("ordinary body", events[0].text)
+        self.assertIn("[message id:", events[0].text)
+        # The gateway classifies commands by startswith("/"): a forged title
+        # must not reach it slash-leading.
+        self.assertFalse(events[0].text.startswith("/"))
+
+    def test_heap_title_command_via_mention_stays_conversational(self):
+        # Mention path: the same forged title engages via mention, and must
+        # still reach the gateway as conversation, not a command.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["heap/~dev/links"],
+                "owner_listen": False,
+            }
+        )
+        raw = {
+            "nest": "heap/~dev/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~mug",
+                                "sent": 1000,
+                                "meta": {"title": "/help"},
+                                "content": [{"inline": ["~pen ordinary body"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        events = asyncio.run(self.dispatches(adapter, raw))
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("ordinary body", events[0].text)
+        self.assertFalse(events[0].text.startswith("/"))
+
+    def test_header_block_command_in_chat_channel_gains_no_reach(self):
+        # A header block renders without a protective prefix, so the rendered
+        # text is "/help ordinary body" — but the typed inline text is only
+        # the body. No command fact, no dispatch with owner-listen off.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~dev/random",
+                    content=[
+                        {"block": {"header": {"content": ["/help"]}}},
+                        {"inline": ["ordinary body"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(events, [])
+
+    def test_header_block_command_dispatches_decorated_via_owner_listen(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~mug/general"],
+                "reaction_level": "minimal",
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~mug/general",
+                    content=[
+                        {"block": {"header": {"content": ["/help"]}}},
+                        {"inline": ["ordinary body"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("ordinary body", events[0].text)
+        self.assertIn("[message id:", events[0].text)
+        self.assertFalse(events[0].text.startswith("/"))
+
+    def test_dm_header_block_forgery_without_notes_not_slash_leading(self):
+        # No queued reaction note to mask the position: the forged header is
+        # the leading text, and the final-boundary guard must keep it from
+        # reaching the gateway slash-leading.
+        adapter = self.make_adapter(
+            {"owner_ship": "~mug", "reaction_level": "minimal"}
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event(
+                    "",
+                    author="~mug",
+                    whom="~mug",
+                    content=[
+                        {"block": {"header": {"content": ["/help"]}}},
+                        {"inline": ["ordinary body"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("ordinary body", events[0].text)
+        self.assertFalse(events[0].text.startswith("/"))
+
+    def test_dm_header_block_command_stays_conversational(self):
+        # The same forgery shape in a DM: notes and markers apply, and the
+        # queued note is consumed like any conversational dispatch.
+        adapter = self.make_adapter(
+            {"owner_ship": "~mug", "reaction_level": "minimal"}
+        )
+        adapter._pending_reaction_notes["dm:~mug"] = deque(
+            ["~mug reacted ❤️ to a message"], maxlen=10
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event(
+                    "",
+                    author="~mug",
+                    whom="~mug",
+                    content=[
+                        {"block": {"header": {"content": ["/help"]}}},
+                        {"inline": ["ordinary body"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertIn("[Recent reactions in this conversation]", events[0].text)
+        self.assertIn("[message id:", events[0].text)
+        self.assertFalse(adapter._pending_reaction_notes.get("dm:~mug"))
+
+    def test_retry_reconstruction_preserves_command_fact(self):
+        # A /new <tail> turn can retry. The retry path reconstructs the
+        # message from the carried story, so the command fact must be
+        # recomputed there — the seed's cited command story must dispatch
+        # bare, with the queued note preserved.
+        adapter = self.make_adapter(
+            {"owner_ship": "~mug", "reaction_level": "minimal"}
+        )
+        adapter._pending_reaction_notes["group:chat/~dev/random"] = deque(
+            ["~dev reacted ❤️ to a message"], maxlen=10
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        dispatch = adapter_mod.RetryDispatch(
+            message_id="retry-1",
+            sender_ship="~mug",
+            message_text="/model claude",
+            is_group=True,
+            degraded=False,
+            message_content=[
+                {"block": {"cite": {"group": "~dev/some-group"}}},
+                {"inline": ["/model claude"]},
+            ],
+            channel_nest="chat/~dev/random",
+        )
+        asyncio.run(adapter._dispatch_retry(dispatch, retry_of="lens-1"))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].text, "/model claude")
+        self.assertEqual(
+            list(adapter._pending_reaction_notes["group:chat/~dev/random"]),
+            ["~dev reacted ❤️ to a message"],
+        )
+
+    def test_typed_nonpopup_core_command_passes_boundary(self):
+        # The popup suggests six core commands, but the pinned core registry
+        # has ~40 more that "work when typed" (slashCommands.ts audit note).
+        # A typed non-popup command must reach the gateway slash-leading —
+        # only forged or out-of-scope slash positions are defused.
+        adapter = self.make_adapter(
+            {"owner_ship": "~mug", "reaction_level": "minimal"}
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("/tools list", author="~mug", whom="~mug"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("/tools list"))
+
+    def test_nonowner_typed_help_passes_boundary(self):
+        # Core's slash-access policy always allows /help; the adapter must
+        # not demote an authorized non-owner's typed command to a prompt.
+        adapter = self.make_adapter(
+            {"owner_ship": "~zod", "allowed_users": ["~mug"]}
+        )
+        events = []
+
+        async def record(event):
+            events.append(event)
+
+        adapter.handle_message = record
+        asyncio.run(
+            adapter._handle_dm_event(
+                dm_event("/help", author="~mug", whom="~mug"),
+            )
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertTrue(events[0].text.startswith("/help"))
+
+    def test_heap_typed_slash_defused_at_boundary(self):
+        # Scope rule enforced at the gateway too: a genuinely typed slash in
+        # a heap channel dispatches conversationally, never as a command.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["heap/~mug/links"],
+            }
+        )
+        raw = {
+            "nest": "heap/~mug/links",
+            "response": {
+                "post": {
+                    "id": "170.141",
+                    "r-post": {
+                        "set": {
+                            "essay": {
+                                "author": "~mug",
+                                "sent": 1000,
+                                "content": [{"inline": ["/help"]}],
+                            },
+                        }
+                    },
+                }
+            },
+        }
+
+        events = asyncio.run(self.dispatches(adapter, raw))
+
+        self.assertEqual(len(events), 1)
+        self.assertFalse(events[0].text.startswith("/"))
+        self.assertIn("/help", events[0].text)
+
+    def test_quoted_registry_command_consumed_pre_gate(self):
+        # A reply-with-quote plus an adapter registry command: the inline
+        # override recognizes it with the dispatcher's own regexes, so the
+        # dispatcher consumes it pre-gate — a quoted /pending works like a
+        # quoted /help, and nothing reaches the model.
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        replies = []
+
+        async def fake_reply(chat_id, parent_id, text, **kwargs):
+            replies.append(text)
+
+        adapter._send_control_reply = fake_reply
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event(
+                    "",
+                    nest="chat/~dev/random",
+                    content=[
+                        {"block": {"cite": {"group": "~dev/some-group"}}},
+                        {"inline": ["/pending"]},
+                    ],
+                ),
+            )
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(len(replies), 1)
+
+    def test_non_owner_core_command_drops_in_unaddressed_channel(self):
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~zod",
+                "allowed_users": ["~mug"],
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("/help", nest="chat/~dev/random"),
+            )
+        )
+
+        self.assertEqual(events, [])
+
+    def test_owner_registry_command_still_consumed_pre_gate(self):
+        # The owner-command attention fact must not change how the adapter's
+        # own registry commands are handled: they are consumed before the
+        # attention gate (no dispatch event, reply sent by the handler).
+        adapter = self.make_adapter(
+            {
+                "owner_ship": "~mug",
+                "channels": ["chat/~dev/random"],
+                "owner_listen": False,
+            }
+        )
+        adapter._sse = FakeSSE()
+        adapter._cli = FakeCLI()
+        adapter._settings_loaded = True
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("/pending", nest="chat/~dev/random"),
+            )
+        )
+
+        self.assertEqual(events, [])
 
     def test_owner_blob_with_text_dispatches_without_mention(self):
         adapter = self.make_adapter(
@@ -1774,7 +2713,7 @@ class AdapterAttentionTests(unittest.TestCase):
         subscriptions = []
 
         class RecordingSSE:
-            def __init__(self, config):
+            def __init__(self, config, *, reap_detection=False):
                 pass
 
             async def authenticate(self):
@@ -1783,7 +2722,7 @@ class AdapterAttentionTests(unittest.TestCase):
             async def open(self):
                 return None
 
-            async def subscribe(self, app, path):
+            async def subscribe(self, app, path, *, optional=False):
                 subscriptions.append((app, path))
                 return len(subscriptions)
 
@@ -1866,21 +2805,79 @@ class AdapterAttentionTests(unittest.TestCase):
         f = adapter_mod.format_storage_status
         # forced hosting + presigned + token → memex
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=True,
-              service="presigned-url", has_s3_creds=False, genuine_reachable=True)
+              service="presigned-url", has_s3_creds=False, current_bucket="",
+              genuine_reachable=True)
         self.assertIn("*Upload path*: **memex (hosted)**", r)
         # forced hosting but no token → memex would fail
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=True,
-              service="presigned-url", has_s3_creds=False, genuine_reachable=False)
+              service="presigned-url", has_s3_creds=False, current_bucket="",
+              genuine_reachable=False)
         self.assertIn("would FAIL: no %genuine token", r)
         # not hosted, no creds → fails (the bug screenshot)
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
-              service="presigned-url", has_s3_creds=False, genuine_reachable=True)
+              service="presigned-url", has_s3_creds=False, current_bucket="",
+              genuine_reachable=True)
         self.assertIn("would FAIL: no storage credentials", r)
         self.assertIn("*TLON_HOSTING*: **unset**", r)
-        # custom S3 creds → S3
+        # custom S3 creds + a selected bucket → S3
         r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
-              service="credentials", has_s3_creds=True, genuine_reachable=False)
+              service="credentials", has_s3_creds=True, current_bucket="media",
+              genuine_reachable=False)
         self.assertIn("*Upload path*: **S3 (custom credentials)**", r)
+        self.assertIn("*Current bucket*: **media**", r)
+        # custom S3 creds without a bucket → the S3 PUT has no target
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
+              service="credentials", has_s3_creds=True, current_bucket="",
+              genuine_reachable=False)
+        self.assertIn("*Upload path*: **would FAIL: no storage bucket selected**", r)
+        self.assertIn("*Current bucket*: **none**", r)
+        # configuration scry failed → indeterminate, never a confident
+        # missing-bucket verdict (the ship may well have a bucket selected)
+        r = f(node_url="http://localhost:8080", url_hosted=False, hosting_forced=False,
+              service="unknown", has_s3_creds=True, current_bucket="",
+              genuine_reachable=False, config_known=False)
+        self.assertIn("*Upload path*: **unknown — storage configuration scry failed**", r)
+        self.assertIn("*Current bucket*: **unknown**", r)
+        self.assertNotIn("no storage bucket selected", r)
+
+    def test_storage_status_reply_reports_the_current_bucket(self):
+        class PathSSE:
+            def __init__(self, payloads):
+                self.payloads = payloads
+
+            async def scry(self, path):
+                if path in self.payloads:
+                    return self.payloads[path]
+                raise ConnectionError(f"no payload for {path}")
+
+        adapter = self.make_adapter({})
+        adapter._sse = PathSSE(
+            {
+                "/storage/configuration": {
+                    "storage-update": {
+                        "configuration": {
+                            "service": "credentials",
+                            "currentBucket": "tlon-media",
+                        }
+                    }
+                },
+                "/storage/credentials": {
+                    "storage-update": {
+                        "credentials": {
+                            "accessKeyId": "AKIA",
+                            "endpoint": "https://s3.example",
+                            "secretAccessKey": "secret",
+                        }
+                    }
+                },
+                "/genuine/secret": "token",
+            }
+        )
+
+        reply = asyncio.run(adapter._storage_status_reply())
+
+        self.assertIn("*Current bucket*: **tlon-media**", reply)
+        self.assertIn("*Upload path*: **S3 (custom credentials)**", reply)
 
     def test_env_enablement_does_not_infer_home_channel_from_allowlist(self):
         with patch.dict(
@@ -2059,8 +3056,14 @@ class LensTriggerMapTests(unittest.TestCase):
         self.assertEqual(t("mention", is_dm=False), "mention")
         self.assertEqual(t("participated-thread", is_dm=False), "thread")
         self.assertEqual(t("owner-listen", is_dm=False), "owner-listen")
+        # Owner-command engagement is the same class as owner-listen; it maps
+        # onto the existing trigger rather than growing the taxonomy.
+        self.assertEqual(t("owner-command", is_dm=False), "owner-listen")
         self.assertEqual(t("owner-blob", is_dm=False), "owner-blob")
         self.assertEqual(adapter_mod._lens_run_kind("owner-blob"), "owner_listen")
+        self.assertEqual(
+            adapter_mod._lens_run_kind("owner-command"), "owner_listen"
+        )
         # reaction dispatches report their own lens trigger (F-4), not
         # "unknown", regardless of conversation kind.
         self.assertEqual(t("reaction", is_dm=False), "reaction")
@@ -2323,13 +3326,64 @@ class CitationDispatchTests(unittest.TestCase):
         self.assertEqual(events[0].text, "[quoted message] body")
         self.assertEqual(len(cite_errors), 1)
 
+    def test_partial_results_survive_the_deadline(self):
+        adapter = self.make_adapter()
+        adapter._telemetry = self.RecordingTelemetry()
+        first_path = "/channels/v4/chat/~host/quoted/posts/post/123"
+        first_payload = self.cited_payload("first quote")
+
+        class PartialSSE:
+            def __init__(self):
+                self.scries = []
+
+            async def scry(self, path):
+                self.scries.append(path)
+                if path == first_path:
+                    return first_payload
+                await asyncio.Event().wait()
+
+        adapter._sse = PartialSSE()
+        content = [
+            self.cite_block("/msg/123"),
+            self.cite_block("/msg/456"),
+            {"inline": ["body"]},
+        ]
+
+        with patch.object(adapter_mod, "CITE_RESOLUTION_BUDGET_SECONDS", 0.05):
+            events = asyncio.run(self.dispatches(adapter, channel_event("", content=content)))
+
+        cite_errors = [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"]
+        self.assertTrue(
+            events[0].text.startswith("> ~quoted-author wrote: first quote"),
+            events[0].text,
+        )
+        self.assertEqual(len(cite_errors), 1)
+
+    def test_unauthorized_sender_cite_is_never_scried(self):
+        # Cite resolution lives behind the attention gate: an unauthorized
+        # sender's mention (drop path, reason "unauthorized") must never
+        # reach the scry phase, even with a valid cite in the story.
+        adapter = self.make_adapter()
+        adapter._sse = self.RecordingSSE()
+        content = [self.cite_block("/msg/123"), {"inline": ["~pen hello"]}]
+
+        events = asyncio.run(
+            self.dispatches(
+                adapter,
+                channel_event("~pen hello", author="~ral", content=content),
+            )
+        )
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._sse.scries, [])
+
     def test_resolver_phase_exception_emits_one_error_and_dispatches(self):
         adapter = self.make_adapter()
         adapter._telemetry = self.RecordingTelemetry()
         adapter._sse = self.RecordingSSE()
         content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
 
-        async def explode(scry, story_content, *, max_attempts=3):
+        async def explode(scry, story_content, *, max_attempts=3, collected=None):
             raise RuntimeError("unexpected resolver failure")
 
         with patch.object(adapter_mod, "resolve_cites", explode):
@@ -2338,6 +3392,8 @@ class CitationDispatchTests(unittest.TestCase):
         cite_errors = [item for item in adapter._telemetry.errors if item[0] == "cite_resolve"]
         self.assertEqual(events[0].text, "[quoted message] body")
         self.assertEqual(len(cite_errors), 1)
+        self.assertIsInstance(cite_errors[0][1], RuntimeError)
+        self.assertIn("unexpected resolver failure", str(cite_errors[0][1]))
 
     def test_resolver_cancelled_error_propagates_and_emits_no_telemetry(self):
         # CancelledError must escape _prepare_dispatch_payload rather than
@@ -2348,7 +3404,7 @@ class CitationDispatchTests(unittest.TestCase):
         adapter._sse = self.RecordingSSE()
         content = [self.cite_block("/msg/123"), {"inline": ["body"]}]
 
-        async def cancel(scry, story_content, *, max_attempts=3):
+        async def cancel(scry, story_content, *, max_attempts=3, collected=None):
             raise asyncio.CancelledError()
 
         async def attempt():

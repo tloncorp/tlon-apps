@@ -118,7 +118,7 @@ const HOOKS_COMMAND_HELP: Record<string, string> = {
 };
 
 function getHooksHelp(command?: string): string {
-  return command ? HOOKS_COMMAND_HELP[command] ?? HOOKS_HELP : HOOKS_HELP;
+  return command ? (HOOKS_COMMAND_HELP[command] ?? HOOKS_HELP) : HOOKS_HELP;
 }
 
 function getHookInitType(args: string[]): HookTemplateType {
