@@ -75,6 +75,9 @@ export const SENTRY_CONTENT_KEYS: readonly string[] = [
   'parsed',
   'entry',
   'draft',
+  'inviteId',
+  'tokenReceived',
+  'lure',
 ];
 
 const MAX_SCRUB_DEPTH = 4;
@@ -129,6 +132,14 @@ export function hostingFromHostname(hostname: string): Hosting {
 
 const URL_PATTERN = /https?:\/\/[^\s"'<>()]+/gi;
 
+// Hosts that `reduceUrls` itself emits. A second pass must leave them alone.
+const PLACEHOLDER_HOSTS: ReadonlySet<string> = new Set([
+  'tlon',
+  'togten',
+  'local',
+  'self',
+]);
+
 // Hostnames that appear without a scheme: any host under a known hosting
 // suffix, and any quoted fully-qualified hostname (iOS/Android network errors
 // quote the host they failed against).
@@ -173,27 +184,41 @@ function reduceBareHosts(input: string): string {
     });
 }
 
+// Relative app paths (Sentry navigation breadcrumbs, router state) can carry
+// query strings such as `?inviteToken=…`. Keep the path, drop query and hash.
+const RELATIVE_PATH_TAIL_PATTERN =
+  /(^|[\s"'“(])(\/[^\s"'”<>()?#]*)[?#][^\s"'”<>()]*/g;
+
+function stripRelativePathTails(input: string): string {
+  return input.replace(RELATIVE_PATH_TAIL_PATTERN, '$1$2');
+}
+
 export function reduceUrls(input: string): string {
-  return reduceBareHosts(
-    input.replace(URL_PATTERN, (match) => {
-      let hosting: Hosting = 'self';
-      let segment = '';
-      try {
-        const parsed = new URL(match);
-        hosting = hostingFromHostname(parsed.hostname);
-        const groupsPrefix = '/apps/groups/';
-        const pathname = parsed.pathname;
-        if (pathname.startsWith(groupsPrefix)) {
-          const rest = pathname.slice(groupsPrefix.length);
-          const slashIndex = rest.indexOf('/');
-          segment = slashIndex === -1 ? rest : rest.slice(0, slashIndex);
+  return stripRelativePathTails(
+    reduceBareHosts(
+      input.replace(URL_PATTERN, (match) => {
+        let hosting: Hosting = 'self';
+        let segment = '';
+        try {
+          const parsed = new URL(match);
+          if (PLACEHOLDER_HOSTS.has(parsed.hostname)) {
+            return match;
+          }
+          hosting = hostingFromHostname(parsed.hostname);
+          const groupsPrefix = '/apps/groups/';
+          const pathname = parsed.pathname;
+          if (pathname.startsWith(groupsPrefix)) {
+            const rest = pathname.slice(groupsPrefix.length);
+            const slashIndex = rest.indexOf('/');
+            segment = slashIndex === -1 ? rest : rest.slice(0, slashIndex);
+          }
+        } catch {
+          hosting = 'self';
+          segment = '';
         }
-      } catch {
-        hosting = 'self';
-        segment = '';
-      }
-      return `https://${hosting}/${segment}`;
-    })
+        return `https://${hosting}/${segment}`;
+      })
+    )
   );
 }
 
@@ -252,6 +277,19 @@ export function scrubExtra(value: unknown, depth = 0): unknown {
     return String(value);
   }
   return value;
+}
+
+const MAX_TEXT_LENGTH = 500;
+const TRUNCATION_MARKER = / \[truncated \d+ chars\]$/;
+
+// Head-truncate free text (exception values, messages, breadcrumb messages).
+// Unlike `scrubExtra`, keep the head: Sentry titles come from the first line.
+// Idempotent: a string that already carries the marker is left alone.
+function capText(input: string): string {
+  if (input.length <= MAX_TEXT_LENGTH || TRUNCATION_MARKER.test(input)) {
+    return input;
+  }
+  return `${input.slice(0, MAX_TEXT_LENGTH)} [truncated ${input.length - MAX_TEXT_LENGTH} chars]`;
 }
 
 export function toSentryCapture(
@@ -321,7 +359,7 @@ export function scrubBreadcrumb<B extends SentryBreadcrumbLike>(
   }
   const copy = { ...crumb };
   if (typeof copy.message === 'string') {
-    copy.message = reduceUrls(copy.message);
+    copy.message = capText(reduceUrls(copy.message));
   }
   if (
     copy.data !== undefined &&
@@ -379,7 +417,7 @@ export function scrubSentryEvent<E extends SentryEventLike>(event: E): E {
   }
 
   if (typeof event.message === 'string') {
-    result.message = reduceUrls(event.message);
+    result.message = capText(reduceUrls(event.message));
   }
 
   if (event.exception !== undefined && event.exception !== null) {
@@ -390,7 +428,7 @@ export function scrubSentryEvent<E extends SentryEventLike>(event: E): E {
       cleanedException.values = event.exception.values.map((value) => {
         const cleanedValue = { ...value };
         if (typeof cleanedValue.value === 'string') {
-          cleanedValue.value = reduceUrls(cleanedValue.value);
+          cleanedValue.value = capText(reduceUrls(cleanedValue.value));
         }
         if (
           cleanedValue.stacktrace !== undefined &&

@@ -8,7 +8,6 @@ import {
   toSentryCapture,
   scrubBreadcrumb,
   scrubSentryEvent,
-  SENTRY_CONTENT_KEYS,
   SENTRY_IGNORE_ERRORS,
   SENTRY_DENY_URLS_WEB,
 } from './errorReporting';
@@ -168,6 +167,81 @@ describe('reduceUrls bare hostnames', () => {
     );
     expect(output).toContain('https://tlon/foo');
     expect(output).not.toContain('sampel-palnet');
+  });
+});
+
+describe('reduceUrls idempotency', () => {
+  it('leaves its own tlon output unchanged', () => {
+    const once = reduceUrls('https://a.tlon.network/apps/groups/invite/tok');
+    expect(once).toBe('https://tlon/invite');
+    expect(reduceUrls(once)).toBe(once);
+  });
+
+  it('leaves its own self output unchanged', () => {
+    const once = reduceUrls('https://groups.example.org/apps/groups/messages');
+    expect(once).toBe('https://self/messages');
+    expect(reduceUrls(once)).toBe(once);
+  });
+
+  it('leaves its own local output unchanged', () => {
+    const once = reduceUrls('http://localhost:3000/apps/groups/');
+    expect(once).toBe('https://local/');
+    expect(reduceUrls(once)).toBe(once);
+  });
+
+  it('makes scrubExtra idempotent on urls', () => {
+    expect(
+      scrubExtra(
+        scrubExtra({ u: 'https://a.tlon.network/apps/groups/invite/tok' })
+      )
+    ).toEqual({ u: 'https://tlon/invite' });
+  });
+
+  it('keeps already-reduced extras and breadcrumb messages unchanged', () => {
+    const output = scrubSentryEvent({
+      extra: { u: 'https://tlon/invite' },
+      breadcrumbs: [
+        { category: 'custom', message: 'went to https://tlon/invite' },
+      ],
+    });
+    expect(output.extra).toEqual({ u: 'https://tlon/invite' });
+    expect(output.breadcrumbs?.[0]?.message).toBe(
+      'went to https://tlon/invite'
+    );
+  });
+});
+
+describe('reduceUrls relative paths', () => {
+  it('drops query and hash tails from navigation breadcrumb paths', () => {
+    const scrubbed = scrubBreadcrumb({
+      category: 'navigation',
+      data: {
+        from: '/apps/groups/?inviteToken=0v1.secret',
+        to: '/apps/groups/messages#x',
+      },
+    });
+    expect(scrubbed?.data).toEqual({
+      from: '/apps/groups/',
+      to: '/apps/groups/messages',
+    });
+  });
+
+  it('drops the tail of a relative path mid-sentence', () => {
+    expect(
+      reduceUrls('open /apps/groups/dm/~sampel?inviteToken=0v1.s now')
+    ).toBe('open /apps/groups/dm/~sampel now');
+  });
+
+  it('leaves a plain relative path unchanged', () => {
+    expect(reduceUrls('/apps/groups/messages')).toBe('/apps/groups/messages');
+  });
+
+  it('consumes absolute urls before the relative pass sees them', () => {
+    const output = reduceUrls(
+      'GET https://a.tlon.network/apps/groups/?inviteToken=0v1.s'
+    );
+    expect(output).toContain('https://tlon/');
+    expect(output).not.toContain('inviteToken');
   });
 });
 
@@ -602,16 +676,70 @@ describe('scrubSentryEvent', () => {
   });
 });
 
-describe('SENTRY_CONTENT_KEYS', () => {
-  it('covers inviteToken and uploadIntent', () => {
-    expect(SENTRY_CONTENT_KEYS).toContain('inviteToken');
-    expect(SENTRY_CONTENT_KEYS).toContain('uploadIntent');
+describe('text cap', () => {
+  const capped = (char: string) => `${char.repeat(500)} [truncated 100 chars]`;
+
+  it('caps a long event message at 500 chars plus the marker', () => {
+    const output = scrubSentryEvent({ message: 'x'.repeat(600) });
+    expect(output.message).toBe(capped('x'));
+    expect(output.message).toHaveLength(522);
+    expect(output.message).toMatch(/ \[truncated 100 chars\]$/);
   });
 
-  it('covers parsed, entry and draft', () => {
-    expect(SENTRY_CONTENT_KEYS).toContain('parsed');
-    expect(SENTRY_CONTENT_KEYS).toContain('entry');
-    expect(SENTRY_CONTENT_KEYS).toContain('draft');
+  it('caps a long exception value', () => {
+    const output = scrubSentryEvent({
+      exception: { values: [{ type: 'Error', value: 'x'.repeat(600) }] },
+    });
+    const value = output.exception?.values?.[0]?.value;
+    expect(value).toBe(capped('x'));
+    expect(value).toHaveLength(522);
+    expect(value).toMatch(/ \[truncated 100 chars\]$/);
+  });
+
+  it('caps a long breadcrumb message and leaves the result unchanged on a second pass', () => {
+    const once = scrubBreadcrumb({
+      category: 'http',
+      message: 'x'.repeat(600),
+    });
+    expect(once?.message).toBe(capped('x'));
+    expect(once?.message).toHaveLength(522);
+    expect(once?.message).toMatch(/ \[truncated 100 chars\]$/);
+    if (once === null) {
+      throw new Error('expected a breadcrumb');
+    }
+    const twice = scrubBreadcrumb(once);
+    expect(twice?.message).toBe(once.message);
+  });
+
+  it('leaves a 500-char string unchanged', () => {
+    const message = 'x'.repeat(500);
+    expect(scrubSentryEvent({ message }).message).toBe(message);
+  });
+});
+
+describe('SENTRY_CONTENT_KEYS', () => {
+  it('drops every content-bearing key from extras and keeps the rest', () => {
+    const scrubbed = scrubExtra({
+      noun: 1,
+      body: 'b',
+      json: {},
+      blob: 'x',
+      content: 'c',
+      text: 't',
+      story: [],
+      inviteToken: '0v1.a',
+      uploadIntent: {},
+      parsed: [],
+      entry: {},
+      draft: 'd',
+      inviteId: '0v1.b',
+      tokenReceived: '0v1.c',
+      lure: { id: '0v1.d' },
+      channelId: 'chat/~sampel/general',
+      status: 500,
+    }) as Record<string, unknown>;
+    expect(Object.keys(scrubbed).sort()).toEqual(['channelId', 'status']);
+    expect(scrubbed.channelId).toBe('chat/~sampel/general');
   });
 });
 

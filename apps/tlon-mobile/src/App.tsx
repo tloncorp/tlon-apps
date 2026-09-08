@@ -52,6 +52,12 @@ Sentry.init({
   },
 });
 
+// Metro inlines binding imports, so App.main's `import { posthog }` would
+// defer this module, and the composite logger it installs, until the first
+// screen renders. index.tsx gates <App /> on the database, so startup DB
+// failures would otherwise report into a null logger.
+require('@tloncorp/app/utils/posthog');
+
 loadConstants();
 
 export default __DEV__ && !IGNORE_COSMOS
