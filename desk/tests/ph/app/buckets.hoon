@@ -208,6 +208,94 @@
   ^-  form:m
   =/  =channel-join:b  [bucket-nest test-group]
   (poke-app [joiner %buckets] group-channel-join+channel-join)
+::  +begin-and-grant: open an upload and answer its grant. Yields the session.
+::
+++  begin-and-grant
+  |=  [rid=@uv name=@t]
+  =/  m  (strand ,@uv)
+  ^-  form:m
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [rid [%bucket test-bucket [%begin-upload ~ name 'text/markdown' 12 ~]]]
+  ;<  ask=[num=@ud =request:http]  bind:m  (memex-take bucket-host grant-url)
+  ;<  ~  bind:m  (memex-answer bucket-host num.ask 200 (grant-json 'res-a'))
+  ;<  granted=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?.  ?=(%upload -.body.granted)
+    ;<  ~  bind:m  (ex-equal !>(`@tas`-.body.granted) !>(%upload))
+    (pure:m *@uv)
+  (pure:m session.upload-grant.body.granted)
+::  A cancel arriving mid-completion does not steal the finish's answer.
+::
+::  One .awaiting slot, and the three session verbs each used to write it
+::  unconditionally: the cancel overwrote the finish's waiter, so the receipt
+::  answered the cancel with %ok while the finish hung for good and a local
+::  client polled %pending forever. Both requests get an answer now, and the
+::  one that gets %ok is the one that asked for it.
+::
+++  ph-test-bucket-cancel-does-not-steal-the-finish
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ;<  session=@uv  bind:m  (begin-and-grant 0v9 'plan.md')
+  ::  finish goes out and its completion call is in flight
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v10 [%bucket test-bucket [%finish-upload session]]]
+  =/  done-url=@t  (rap 3 broker-base '/uploads/res-a/complete' ~)
+  ;<  fin=[num=@ud =request:http]  bind:m  (memex-take bucket-host done-url)
+  ::  the uploader cancels before the receipt lands
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v11 [%bucket test-bucket [%cancel-upload session 'changed my mind']]]
+  ::  the displaced waiter is told, rather than left to hang
+  ;<  first=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  (ex-equal !>(?=(%error -.body.first)) !>(&))
+::  A bucket deletion releases its uploads at the broker.
+::
+::  +drop-bucket-sessions used to skip them out of the map where they stood,
+::  so the broker kept each reservation and its quota until it lapsed. It goes
+::  through +us-give-up now, which cancels -- and that cancel is an outbound
+::  call this test can watch for.
+::
+++  ph-test-bucket-delete-releases-uploads
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ;<  session=@uv  bind:m  (begin-and-grant 0v9 'plan.md')
+  ::  the bucket goes while that upload is still open
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v12 [%bucket test-bucket [%delete ~]]]
+  ::  which shows up as a cancel against the reservation
+  =/  stop-url=@t  (rap 3 broker-base '/uploads/res-a/cancel' ~)
+  ;<  *  bind:m  (memex-take bucket-host stop-url)
+  (pure:m ~)
 ::  An upload runs the whole broker round trip.
 ::
 ::  Nothing in the unit suite reaches this: those tests poke a vase and mock
