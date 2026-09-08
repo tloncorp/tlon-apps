@@ -95,6 +95,7 @@ export type ChatEvent =
   | { type: 'showPost'; postId: string }
   | { type: 'hidePost'; postId: string }
   | { type: 'syncDmInvites'; channels: db.Channel[] }
+  | { type: 'dmStatus'; channelId: string; net: ub.DmNet | null }
   | { type: 'groupDmsUpdate' }
   | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
   | { type: 'deletePost'; postId: string }
@@ -110,8 +111,20 @@ export function subscribeToChatUpdates(
       app: 'chat',
       path: '/v4',
     },
-    (event: ub.WritResponse | ub.ClubAction | string[]) => {
+    (event: ub.WritResponse | ub.ClubAction | ub.DmStatus | string[]) => {
       logger.log('raw chat sub event', event);
+
+      // a dm entered, changed, or left the backend's dm set. This is the
+      // only signal for a dm we didn't start from this client (e.g. the
+      // reciprocal dm created when someone redeems our personal invite).
+      if ('ship' in event && 'net' in event) {
+        logger.log('dm status', event);
+        return eventHandler({
+          type: 'dmStatus',
+          channelId: event.ship,
+          net: event.net,
+        });
+      }
 
       if ('show' in event) {
         // show/unhide post event

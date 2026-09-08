@@ -43,6 +43,7 @@ import rawGroupsInit2 from '../../test/init.json';
 import { syncQueue } from '../syncQueue';
 import {
   ensureDmInviteChannel,
+  handleDmStatus,
   syncChannelWithBackoff,
   syncDms,
   syncGroups,
@@ -493,6 +494,74 @@ test('ensureDmInviteChannel returns missing without deleting a non-invite local 
   expect(result).toEqual({ found: false, state: 'missing' });
   const channel = await db.getChannel({ id: '~sampel-palnet' });
   expect(channel?.isDmInvite).toBe(false);
+});
+
+// the %chat-dm-status fact is the only live signal for a dm this client
+// didn't start (e.g. the reciprocal dm %grouper creates when someone redeems
+// our personal invite): posts alone never create the channel row
+test('handleDmStatus keeps the channel row in step with the backend dm set', async () => {
+  // on the wire the writ fact precedes the status fact, so the post is
+  // already in the db when the row gets created
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'first-post',
+        type: 'chat',
+        channelId: '~sampel-palnet',
+        authorId: '~sampel-palnet',
+        sentAt: 1700000000000,
+        receivedAt: 1700000000000,
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hi'] }]),
+        syncedAt: 1700000000000,
+      } as unknown as db.Post,
+    ],
+  });
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  // a dm we started, not yet accepted, is a regular dm on our side
+  await handleDmStatus('~sampel-palnet', 'inviting');
+  let channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+  // and the chat list has something to sort and preview
+  expect(channel?.lastPostId).toBe('first-post');
+  expect(channel?.lastPostAt).toBe(1700000000000);
+
+  // a pending invite to us shows as an invite until we accept
+  await handleDmStatus('~wicdev-wisryt', 'invited');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.isDmInvite).toBe(true);
+  await handleDmStatus('~wicdev-wisryt', 'done');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.isDmInvite).toBe(false);
+
+  // accepting elsewhere must not wipe what we already know about the dm
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'kept-post',
+        type: 'chat',
+        channelId: '~wicdev-wisryt',
+        authorId: '~wicdev-wisryt',
+        sentAt: 1700000000000,
+        receivedAt: 1700000000000,
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hi'] }]),
+        syncedAt: 1700000000000,
+      } as unknown as db.Post,
+    ],
+  });
+  await handleDmStatus('~wicdev-wisryt', 'done');
+  channel = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(channel?.lastPostId).toBe('kept-post');
+
+  // gone (declined or left) and archived both drop out of the dm list
+  await handleDmStatus('~sampel-palnet', null);
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+  await handleDmStatus('~wicdev-wisryt', 'archive');
+  expect(await db.getChannel({ id: '~wicdev-wisryt' })).toBeNull();
 });
 
 const groupId = '~solfer-magfed/test-group';

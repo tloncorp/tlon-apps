@@ -1847,11 +1847,42 @@ export const handleChatUpdate = async (
       // We need to sync our local state with this list
       await handleSyncDmInvites(update.channels, ctx);
       break;
+    case 'dmStatus':
+      await handleDmStatus(update.channelId, update.net, ctx);
+      break;
     case 'groupDmsUpdate':
       syncDms();
       break;
   }
 };
+
+/**
+ * Keep the local channel row in step with the backend's dm set. Without this
+ * a dm we didn't start from this client only ever arrives as posts, and the
+ * chat list (built from the channels table) can't show it until the next
+ * init sync.
+ */
+export async function handleDmStatus(
+  channelId: string,
+  net: api.DmNet | null,
+  ctx?: QueryCtx
+) {
+  switch (net) {
+    case 'inviting':
+    case 'done':
+      await db.insertChannels([api.toClientDm(channelId, false)], ctx);
+      break;
+    case 'invited':
+      await db.insertChannels([api.toClientDm(channelId, true)], ctx);
+      break;
+    case 'archive':
+    case null:
+      // the dm list we sync from (`/dm`) excludes archived dms, so locally
+      // an archived dm and a removed one look the same
+      await db.deleteChannels([channelId], ctx);
+      break;
+  }
+}
 
 async function handleSyncDmInvites(invites: db.Channel[], ctx?: QueryCtx) {
   const allChannels = await db.getAllChannels(ctx);
