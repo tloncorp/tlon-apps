@@ -577,6 +577,57 @@ describe('subscribeOnce swept by a rotation', () => {
     expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
   });
 
+  test('a one-shot whose client was swapped out is not replayed', async () => {
+    // logout / account switch replaces the client while the request is still
+    // in flight; the epoch is global, so only the client identity can tell
+    // this apart from a rotation on our own client
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi.fn().mockImplementationOnce(async () => {
+        client.channelId = 'chan-2';
+        internalRemoveClient();
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://other.test',
+          getCode: vi.fn(async () => 'code'),
+          client: fakeClient({ channelId: 'chan-9' }) as any,
+        });
+        throw 'quit';
+      }),
+    });
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBe('quit');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('an auth failure is not retried when reauth gives up', async () => {
+    // a rejected access code sets loggingOut and returns without refreshing;
+    // retrying would fire at a session already known to be dead
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(400));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'bad-code'),
+      handleAuthFailure: vi.fn(),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
   test('the retry is bounded to one extra attempt', async () => {
     const client: Record<string, any> = fakeClient({
       channelId: 'chan-1',

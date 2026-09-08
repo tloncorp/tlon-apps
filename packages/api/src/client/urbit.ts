@@ -553,7 +553,13 @@ export async function subscribeOnce<T>(
         : err instanceof AuthError
           ? 'auth'
           : null;
-      const willRetry = !isRetry && retryReason !== null;
+      // Never retry on a client that is no longer the configured one. A
+      // logout or account switch can replace it while this request is still
+      // in flight, and attempt() reads config.client — so a retry would
+      // replay this endpoint against a different ship's session. The epoch is
+      // global, so sessionMovedSince alone cannot tell that case apart.
+      const willRetry =
+        !isRetry && retryReason !== null && config.client === client;
 
       if (err !== 'timeout' && err !== 'quit') {
         logger.trackError('bad subscribeOnce', {
@@ -590,10 +596,22 @@ export async function subscribeOnce<T>(
         // same dead session, and eyre closes the session each login arrives
         // with.
         await reauthOnce(sent);
+        // reauthOnce resolves without having refreshed anything when we are
+        // logging out, when there is no getCode, or when the ship rejected the
+        // code. Retrying then just fires at a session already known to be
+        // dead, and on mobile races the forced-logout alert. A refreshed
+        // session always advances the epoch, so this is the honest check.
+        if (config.loggingOut || !sessionMovedSince(client, sent)) {
+          throw err;
+        }
       } else if (config.pendingAuth) {
         // the rotation that swept us may be the tail of someone's login; do
         // not re-issue a PUT against a session still being replaced
         await config.pendingAuth;
+      }
+      // the client can be swapped out while we await above
+      if (config.client !== client) {
+        throw err;
       }
       return attempt(true);
     }
