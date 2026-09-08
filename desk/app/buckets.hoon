@@ -1030,7 +1030,7 @@
 ::  URL being issued against the session. A completion that arrives afterwards
 ::  is still honoured, because the broker knows something we do not.
 ::
-::  +us-core: one in-flight upload session.
+::  +up-core: one in-flight upload session.
 ::
 ::  Two things were conventions spread across arms that each had to remember
 ::  them, and they did not.
@@ -1038,75 +1038,75 @@
 ::  .awaiting holds at most one waiter. The three session verbs each wrote it
 ::  unconditionally, so a cancel arriving while a completion was in flight
 ::  overwrote the finish's waiter -- the receipt then answered the cancel with
-::  %ok while the finish hung for good. +us-claim is the only way it is
+::  %ok while the finish hung for good. +up-claim is the only way it is
 ::  written now, and it answers whoever it displaces.
 ::
-::  And every abandonment leaves through +us-give-up. The lapsed prune
+::  And every abandonment leaves through +up-give-up. The lapsed prune
 ::  broker-cancelled and answered its waiter; +drop-bucket-sessions and
 ::  +delete-entry dropped sessions where they stood, so the broker kept a
 ::  reservation and its quota until it lapsed and the waiting request was
 ::  never answered at all.
 ::
-++  us-core
+++  up-core
   |_  [ses=upload-session:b gone=_|]
-  ++  us-core  .
-  ++  emit  |=(=card us-core(cor cor(cards [card cards])))
-  ++  emil  |=(caz=(list card) us-core(cor cor(cards (welp (flop caz) cards))))
-  ::  +us-abed: pick up session .sid.
+  ++  up-core  .
+  ++  emit  |=(=card up-core(cor cor(cards [card cards])))
+  ++  emil  |=(caz=(list card) up-core(cor cor(cards (welp (flop caz) cards))))
+  ::  +up-abed: pick up session .sid.
   ::
-  ++  us-abed
+  ++  up-abed
     |=  sid=@uv
-    ^+  us-core
+    ^+  up-core
     ?~  got=(~(get by sessions) sid)
-      ~|(us-abed-not-found+sid !!)
-    us-core(ses u.got)
-  ::  +us-abet: write the session back, or drop it if it is gone.
+      ~|(up-abed-not-found+sid !!)
+    up-core(ses u.got)
+  ::  +up-abet: write the session back, or drop it if it is gone.
   ::
-  ++  us-abet
+  ++  up-abet
     ^+  cor
     =.  sessions
       ?:  gone  (~(del by sessions) id.ses)
       (~(put by sessions) id.ses ses)
     cor
-  ::  +us-claim: hold .rid open on this session.
+  ::  +up-claim: hold .rid open on this session.
   ::
   ::  A waiter this displaces is answered rather than dropped: it asked a
   ::  question that will never be answered by the call now in flight, and
   ::  leaving it hanging is how a local client polls %pending for good.
   ::
-  ++  us-claim
+  ++  up-claim
     |=  rid=(unit request-id:b)
-    ^+  us-core
-    =?  us-core  &(?=(^ awaiting.ses) !=(awaiting.ses rid))
-      %-  us-answer
+    ^+  up-core
+    =?  up-core  &(?=(^ awaiting.ses) !=(awaiting.ses rid))
+      %-  up-answer
       [%error %unknown 'superseded by another request on this upload']
-    us-core(ses ses(awaiting rid))
-  ::  +us-answer: give the held request its one terminal answer.
+    up-core(ses ses(awaiting rid))
+  ::  +up-answer: give the held request its one terminal answer.
   ::
-  ++  us-answer
+  ++  up-answer
     |=  body=response-body:b
-    ^+  us-core
+    ^+  up-core
     ::  Bound to a leg before the test. ?~ on a field of this core's payload
     ::  narrows the core, and clearing the field afterwards then fails to
     ::  nest against the narrowed type.
     =/  held=(unit request-id:b)  awaiting.ses
-    ?~  held  us-core
-    =.  us-core  us-core(ses ses(awaiting ~))
+    ?~  held  up-core
+    =.  up-core  up-core(ses ses(awaiting ~))
     =.  cor  (respond u.held (answer-paths requested-by.ses u.held) body)
-    us-core
-  ::  +us-give-up: the one way a session ends without completing.
+    up-core
+  ::  +up-give-up: the one way a session ends without completing.
   ::
   ::  Tells the broker, so the reservation and its quota are released rather
   ::  than held until they lapse, and answers whoever was waiting.
   ::
-  ++  us-give-up
+  ++  up-give-up
     |=  why=@t
-    ^+  us-core
-    =.  us-core  us-core(ses ses(status %cancelled, error `why))
+    ^+  up-core
+    =.  up-core  up-core(ses ses(status %cancelled, error `why))
     =?  cor  ?=(^ reservation.ses)
       (reservation-call ses(awaiting ~) %cancel ~)
-    =.  us-core  (us-answer [%error %unknown why])
-    us-core(gone &)
+    =.  up-core  (up-answer [%error %unknown why])
+    up-core(gone &)
   --
 ::
 ::  +uploader-session: the pending session this actor may act on.
@@ -1140,11 +1140,11 @@
   =/  found  (uploader-session flag sid actor)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  ::  Through +us-claim, which answers a waiter it displaces rather than
+  ::  Through +up-claim, which answers a waiter it displaces rather than
   ::  dropping it: a cancel arriving while this call is in flight used to
   ::  overwrite the waiter here, and the receipt then answered the cancel
   ::  while this request hung for good.
-  =.  cor  us-abet:(us-claim:(us-abed:us-core sid) rid)
+  =.  cor  up-abet:(up-claim:(up-abed:up-core sid) rid)
   =/  body=(unit json)
     ?~  reservation.ses  ~
     `(pairs:enjs:format ~[['reservationId' s+u.reservation.ses]])
@@ -1164,7 +1164,7 @@
   =/  found  (uploader-session flag sid actor)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  =.  cor  us-abet:(us-claim:(us-abed:us-core sid) rid)
+  =.  cor  up-abet:(up-claim:(up-abed:up-core sid) rid)
   =.  cor  (reservation-call ses(awaiting rid) %retry ~)
   (answer [%pending ~])
 ::
@@ -1185,7 +1185,7 @@
   ::  whether or not the broker is reachable to hear about it.
   =/  done=upload-session:b
     ses(status %cancelled, error `reason, awaiting rid)
-  =.  cor  us-abet:(us-claim:(us-abed:us-core sid) rid)
+  =.  cor  up-abet:(up-claim:(up-abed:up-core sid) rid)
   =.  sessions  (~(put by sessions) sid done)
   ?~  reservation.ses  (answer [%ok ~])
   =.  cor  (reservation-call done %cancel ~)
@@ -2124,7 +2124,7 @@
 ::
 ::  Was a skip over the map, which left the broker holding each reservation
 ::  and its quota until they lapsed and left every waiting request
-::  unanswered. Each one leaves through +us-give-up now, the same path the
+::  unanswered. Each one leaves through +up-give-up now, the same path the
 ::  lapsed prune uses.
 ::
 ++  drop-bucket-sessions
@@ -2136,7 +2136,7 @@
     ?.(=(flag flag.ses) ~ `sid)
   %+  roll  doomed
   |=  [sid=@uv acc=_cor]
-  us-abet:(us-give-up:(us-abed:us-core:acc sid) 'the bucket was deleted')
+  up-abet:(up-give-up:(up-abed:up-core:acc sid) 'the bucket was deleted')
 ::
 ::  +session-token: resolve the opaque string Memex presents back to the
 ::  session that minted it.
@@ -2478,7 +2478,7 @@
   ^-  path
   /v1/buckets/(scot %p ship.flag)/[name.flag]/updates
 ::
-::  +su-core: one replica of a bucket we do not host.
+::  +bu-core: one replica of a bucket we do not host.
 ::
 ::  The subscriber half used to be arms scattered among the host's, telling
 ::  the two apart with a .net check in a dozen places. That is what let the
@@ -2487,107 +2487,107 @@
 ::  Inside here the role is not in question, and everything that ends a
 ::  replica goes out through one arm.
 ::
-++  su-core
+++  bu-core
   |_  [=flag:b =space:b gone=_|]
-  ++  su-core  .
-  ++  emit  |=(=card su-core(cor cor(cards [card cards])))
-  ++  emil  |=(caz=(list card) su-core(cor cor(cards (welp (flop caz) cards))))
+  ++  bu-core  .
+  ++  emit  |=(=card bu-core(cor cor(cards [card cards])))
+  ++  emil  |=(caz=(list card) bu-core(cor cor(cards (welp (flop caz) cards))))
   ++  give  |=(=gift:agent:gall (emit %give gift))
-  ::  +su-abed: pick up the replica of .f. Crashes if we hold none, as the
-  ::  sibling agents' cores do; +su-held is the check callers make first.
+  ::  +bu-abed: pick up the replica of .f. Crashes if we hold none, as the
+  ::  sibling agents' cores do; +bu-held is the check callers make first.
   ::
-  ++  su-abed
+  ++  bu-abed
     |=  f=flag:b
-    ^+  su-core
+    ^+  bu-core
     ?~  sp=(~(get by spaces) f)
-      ~|(su-abed-not-found+f !!)
+      ~|(bu-abed-not-found+f !!)
     ?.  =(%sub net.u.sp)
-      ~|(su-abed-not-a-replica+f !!)
-    su-core(flag f, space u.sp)
-  ::  +su-abet: write the replica back, or drop it if it is gone.
+      ~|(bu-abed-not-a-replica+f !!)
+    bu-core(flag f, space u.sp)
+  ::  +bu-abet: write the replica back, or drop it if it is gone.
   ::
-  ++  su-abet
+  ++  bu-abet
     ^+  cor
     =.  spaces
       ?:  gone  (~(del by spaces) flag)
       (~(put by spaces) flag space)
     cor
   ::
-  ++  su-wire  `wire`/buckets/sub/(scot %p ship.flag)/[name.flag]
-  ++  su-path  (updates-path flag)
-  ++  su-dock  `dock`[ship.flag %buckets]
-  ++  su-watch  (emit [%pass su-wire %agent su-dock %watch su-path])
-  ++  su-leave  (emit [%pass su-wire %agent su-dock %leave ~])
-  ::  +su-report: tell local %groups whether we hold this channel.
+  ++  bu-wire  `wire`/buckets/sub/(scot %p ship.flag)/[name.flag]
+  ++  bu-path  (updates-path flag)
+  ++  bu-dock  `dock`[ship.flag %buckets]
+  ++  bu-watch  (emit [%pass bu-wire %agent bu-dock %watch bu-path])
+  ++  bu-leave  (emit [%pass bu-wire %agent bu-dock %leave ~])
+  ::  +bu-report: tell local %groups whether we hold this channel.
   ::
-  ++  su-report
+  ++  bu-report
     |=  joined=?
-    ^+  su-core
+    ^+  bu-core
     =/  grp=(unit flag:b)
       ?~  state.space  pending-group.space
       `group.u.state.space
-    ?~  grp  su-core
+    ?~  grp  bu-core
     =/  nes=nest:b  [%buckets ship.flag name.flag]
     %-  emit
     :*  %pass  /report-active  %agent  [our.bowl %groups]
         %poke  group-channel-active+!>([u.grp nes joined])
     ==
-  ::  +su-end: the one way a replica stops.
+  ::  +bu-end: the one way a replica stops.
   ::
   ::  Every caller that used to end a replica did its own subset of this and
   ::  they disagreed -- +stop-sub left the host but the %delete branch did
   ::  not, which is the leaked subscription. There is one path now.
   ::
-  ++  su-end
-    ^+  su-core
-    =.  su-core  (su-report |)
+  ++  bu-end
+    ^+  bu-core
+    =.  bu-core  (bu-report |)
     =.  cor  (drop-read-token flag)
     ::  Local clients watch our /v1, not the host's, so leaving the host says
     ::  nothing to them. Without this a still-mounted client keeps showing the
     ::  manifest of a replica this ship no longer has.
     =/  rev=@ud  ?~(state.space 0 +(revision.u.state.space))
     =/  res=response:b  [%update flag rev [%delete ~]]
-    =.  su-core  (give [%fact ~[/v1 su-path] buckets-response-1+!>(res)])
-    =.  su-core  su-leave
-    su-core(gone &)
-  ::  +su-resub: re-establish a dropped subscription, keeping the replica.
+    =.  bu-core  (give [%fact ~[/v1 bu-path] buckets-response-1+!>(res)])
+    =.  bu-core  bu-leave
+    bu-core(gone &)
+  ::  +bu-resub: re-establish a dropped subscription, keeping the replica.
   ::
-  ++  su-resub  su-watch
-  ::  +su-apply: a fact from the host.
+  ++  bu-resub  bu-watch
+  ::  +bu-apply: a fact from the host.
   ::
-  ++  su-apply
+  ++  bu-apply
     |=  res=response:b
-    ^+  su-core
+    ^+  bu-core
     ?-  -.res
         %snapshot
       =.  space  space(state `bucket-state.res, pending-group `group.bucket-state.res)
-      =.  su-core  (su-report &)
+      =.  bu-core  (bu-report &)
       (give [%fact ~[/v1] buckets-response-1+!>(res)])
     ::
         %update
       ::  Bound to a leg before the test: ?~ on a field of this core's own
       ::  payload narrows the core, which changes its type and breaks the
-      ::  ^+ su-core cast every arm here is written against.
+      ::  ^+ bu-core cast every arm here is written against.
       =/  held=(unit bucket-state:b)  state.space
-      ?~  held  su-core
+      ?~  held  bu-core
       =/  st=bucket-state:b  u.held
       ::  Ignore duplicates and re-establish the subscription on a gap. The
       ::  replacement watch begins with a full snapshot, so later deltas
       ::  cannot be applied to a stale replica.
-      ?:  (lte revision.res revision.st)  su-core
-      ?.  =(revision.res +(revision.st))  su-resub
+      ?:  (lte revision.res revision.st)  bu-core
+      ?.  =(revision.res +(revision.st))  bu-resub
       ?:  =(%delete -.u-bucket.res)
-        =.  su-core  (give [%fact ~[/v1] buckets-response-1+!>(res)])
-        su-end
+        =.  bu-core  (give [%fact ~[/v1] buckets-response-1+!>(res)])
+        bu-end
       =.  st  (apply-update st u-bucket.res)
       =.  revision.st  revision.res
       =.  space  [net.space `st `group.st]
       (give [%fact ~[/v1] buckets-response-1+!>(res)])
     ==
   --
-::  +su-held: do we hold a replica of this bucket?
+::  +bu-held: do we hold a replica of this bucket?
 ::
-++  su-held
+++  bu-held
   |=  =flag:b
   ^-  ?
   ?~  sp=(~(get by spaces) flag)  |
@@ -2598,13 +2598,13 @@
   ^+  cor
   ?:  (~(has by spaces) flag)  cor
   =.  spaces  (~(put by spaces) flag [%sub ~ `group])
-  su-abet:su-watch:(su-abed:su-core flag)
+  bu-abet:bu-watch:(bu-abed:bu-core flag)
 ::
 ++  stop-sub
   |=  =flag:b
   ^+  cor
-  ?.  (su-held flag)  cor
-  su-abet:su-end:(su-abed:su-core flag)
+  ?.  (bu-held flag)  cor
+  bu-abet:bu-end:(bu-abed:bu-core flag)
 ::
 ::  +resub: re-establish a dropped subscription without discarding the
 ::  replica. A kick is not a revocation — the host kicks deliberately when
@@ -2613,8 +2613,8 @@
 ++  resub
   |=  =flag:b
   ^+  cor
-  ?.  (su-held flag)  cor
-  su-abet:su-resub:(su-abed:su-core flag)
+  ?.  (bu-held flag)  cor
+  bu-abet:bu-resub:(bu-abed:bu-core flag)
 ::
 ++  watch
   |=  =(pole knot)
@@ -2965,8 +2965,8 @@
 ++  apply-response
   |=  res=response:b
   ^+  cor
-  ?.  (su-held flag.res)  cor
-  su-abet:(su-apply:(su-abed:su-core flag.res) res)
+  ?.  (bu-held flag.res)  cor
+  bu-abet:(bu-apply:(bu-abed:bu-core flag.res) res)
 ::
 ++  apply-update
   |=  [st=bucket-state:b upd=u-bucket:b]
