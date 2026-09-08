@@ -329,10 +329,16 @@ interface ChannelFirehoseEvent {
   response: ChannelResponse;
 }
 
+interface DmStatusEvent {
+  ship: string;
+  net: 'inviting' | 'invited' | 'archive' | 'done' | null;
+}
+
 /**
- * Chat/DM firehose can be an array of DM invites or a WritResponse
+ * Chat/DM firehose: an array of DM invites, a WritResponse, or a
+ * %chat-dm-status fact for a dm entering, changing, or leaving the dm set
  */
-type ChatFirehoseEvent = DmInvite[] | WritResponse;
+type ChatFirehoseEvent = DmInvite[] | WritResponse | DmStatusEvent;
 
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -4557,73 +4563,84 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Track which DM invites we've already processed to avoid duplicate accepts
     const processedDmInvites = new Set<string>();
 
+    const handleDmInvite = async (rawShip: string) => {
+      const ship = normalizeShip(rawShip || '');
+      if (!ship || processedDmInvites.has(ship)) {
+        return;
+      }
+
+      // Owner is always allowed
+      if (isOwner(ship)) {
+        try {
+          await api.poke({
+            app: 'chat',
+            mark: 'chat-dm-rsvp',
+            json: { ship, ok: true },
+          });
+          processedDmInvites.add(ship);
+          runtime.log?.(`[tlon] Auto-accepted DM invite from owner ${ship}`);
+        } catch (err) {
+          runtime.error?.(
+            `[tlon] Failed to auto-accept DM from owner: ${String(err)}`
+          );
+        }
+        return;
+      }
+
+      // Auto-accept if on allowlist and auto-accept is enabled
+      if (
+        effectiveAutoAcceptDmInvites &&
+        isDmAllowed(ship, effectiveDmAllowlist)
+      ) {
+        try {
+          await api.poke({
+            app: 'chat',
+            mark: 'chat-dm-rsvp',
+            json: { ship, ok: true },
+          });
+          processedDmInvites.add(ship);
+          runtime.log?.(`[tlon] Auto-accepted DM invite from ${ship}`);
+        } catch (err) {
+          runtime.error?.(
+            `[tlon] Failed to auto-accept DM from ${ship}: ${String(err)}`
+          );
+        }
+        return;
+      }
+
+      // If owner is configured and ship is not on allowlist, queue approval
+      if (effectiveOwnerShip && !isDmAllowed(ship, effectiveDmAllowlist)) {
+        const approval = createPendingApproval(
+          {
+            type: 'dm',
+            requestingShip: ship,
+            messagePreview: DM_INVITE_PREVIEW,
+          },
+          pendingApprovals.map((a) => a.id)
+        );
+        await queueApprovalRequest(approval);
+        processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
+      }
+    };
+
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
       try {
         // Handle DM invite lists (arrays)
         if (Array.isArray(event)) {
           for (const invite of event) {
-            const ship = normalizeShip(invite.ship || '');
-            if (!ship || processedDmInvites.has(ship)) {
-              continue;
-            }
-
-            // Owner is always allowed
-            if (isOwner(ship)) {
-              try {
-                await api.poke({
-                  app: 'chat',
-                  mark: 'chat-dm-rsvp',
-                  json: { ship, ok: true },
-                });
-                processedDmInvites.add(ship);
-                runtime.log?.(
-                  `[tlon] Auto-accepted DM invite from owner ${ship}`
-                );
-              } catch (err) {
-                runtime.error?.(
-                  `[tlon] Failed to auto-accept DM from owner: ${String(err)}`
-                );
-              }
-              continue;
-            }
-
-            // Auto-accept if on allowlist and auto-accept is enabled
-            if (
-              effectiveAutoAcceptDmInvites &&
-              isDmAllowed(ship, effectiveDmAllowlist)
-            ) {
-              try {
-                await api.poke({
-                  app: 'chat',
-                  mark: 'chat-dm-rsvp',
-                  json: { ship, ok: true },
-                });
-                processedDmInvites.add(ship);
-                runtime.log?.(`[tlon] Auto-accepted DM invite from ${ship}`);
-              } catch (err) {
-                runtime.error?.(
-                  `[tlon] Failed to auto-accept DM from ${ship}: ${String(err)}`
-                );
-              }
-              continue;
-            }
-
-            // If owner is configured and ship is not on allowlist, queue approval
-            if (
-              effectiveOwnerShip &&
-              !isDmAllowed(ship, effectiveDmAllowlist)
-            ) {
-              const approval = createPendingApproval(
-                {
-                  type: 'dm',
-                  requestingShip: ship,
-                  messagePreview: DM_INVITE_PREVIEW,
-                },
-                pendingApprovals.map((a) => a.id)
-              );
-              await queueApprovalRequest(approval);
-              processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
-            }
+            await handleDmInvite(invite.ship);
+          }
+          return;
+        }
+        // %chat-dm-status: a dm entered, changed, or left %chat's dm set.
+        // The invite list above is not emitted on /v4, so this is the live
+        // signal for a new invite. A removed dm can be invited again, so
+        // forget it.
+        if ('ship' in event && 'net' in event) {
+          if (event.net === 'invited') {
+            await handleDmInvite(event.ship);
+          } else if (event.net === null) {
+            processedDmInvites.delete(normalizeShip(event.ship));
           }
           return;
         }
