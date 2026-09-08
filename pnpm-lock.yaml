@@ -884,6 +884,9 @@ importers:
       lint-staged:
         specifier: ^15.0.0
         version: 15.2.0
+      magic-string:
+        specifier: ^0.30.21
+        version: 0.30.21
       msw:
         specifier: ^0.44.2
         version: 0.44.2(encoding@0.1.13)(typescript@5.9.3)
