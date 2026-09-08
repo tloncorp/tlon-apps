@@ -23,18 +23,26 @@ gitignored, and both are loaded by Expo CLI before `app.config.ts` is evaluated.
 `apps/tlon-mobile/.env.sample` lists the variables; the values production builds
 use live in EAS, not in the repo.
 
-### Hosted email/OTP login can't work in a locally-built app
+### Hosted signup and email/OTP login can't work in a locally-built app
 
 A local build has no reCAPTCHA site key. `app.config.ts` reads
 `RECAPTCHA_SITE_KEY_ANDROID` / `RECAPTCHA_SITE_KEY_IOS` from the environment,
 and those values come from EAS rather than from `eas.json` or a committed
-`.env`, so locally they're undefined. `useRecaptcha` then never initializes,
-`getToken()` throws, and the generic `catch` in `TlonLogin` reports "Something
-went wrong. Please try again." for _every_ attempt — including one with an
-address that has no account, which would otherwise get the 404-specific
-message. The symptom looks like an account or network problem. It isn't.
+`.env`, so locally they're undefined. `useRecaptcha` then never initializes and
+`getToken()` throws, which takes out every hosted flow that needs a token:
 
-Two login paths involve no reCAPTCHA and work in a local build as-is:
+-   **Email/OTP login:** the generic `catch` in `TlonLogin` reports "Something
+    went wrong. Please try again." for _every_ attempt — including one with an
+    address that has no account, which would otherwise get the 404-specific
+    message.
+-   **Signup:** `SignupScreen` needs a token before `requestSignupOtp` and
+    `CheckOTPScreen` needs another one to create the account, so signup can't be
+    completed locally at all. It fails with "Something went wrong. Please try
+    again later." — the same misleading shape.
+
+In both cases the symptom looks like an account or network problem. It isn't.
+
+For login, two paths involve no reCAPTCHA and work in a local build as-is:
 
 -   **Hosted account:** on the email login screen, tap "Or, log in with a
     password" (`TlonLoginLegacy` → `handleLogin` → `logInHostedUser`). This is
@@ -42,17 +50,25 @@ Two login paths involve no reCAPTCHA and work in a local build as-is:
 -   **Self-hosted ship:** from the welcome screen, tap "Or configure self
     hosted" and enter the ship's URL and access code (`getLandscapeAuthCookie`).
 
-To exercise the OTP path itself locally, put the reCAPTCHA site keys from EAS
-(`eas login`, then `eas env:pull` — which only works if they're stored as EAS
-environment variables rather than as classic write-only secrets) into
+Signup has no equivalent path — creating a hosted account needs a build that has
+the keys (preview or TestFlight), or the keys locally as below.
+
+To exercise the reCAPTCHA flows themselves locally, put the reCAPTCHA site keys
+from EAS (`eas login`, then `eas env:pull` — which only works if they're stored
+as EAS environment variables rather than as classic write-only secrets) into
 `apps/tlon-mobile/.env.local`, and set `AUTOMATED_TEST="true"`, the same flag
 the `e2e` build profile sets. The app then reads the `_TEST` site keys
 (`RECAPTCHA_SITE_KEY_ANDROID_TEST` / `RECAPTCHA_SITE_KEY_IOS_TEST`) and tells
-hosting to verify against the matching test platform. `AUTOMATED_TEST=true` also
-switches on e2e-only behavior (the sync-check overlay, a stubbed push token), so
-don't leave it set. Env vars are baked into the JS bundle at build time, so this
-needs a rebuild — but an incremental one is enough: only the assets change,
-dex/R8 stay cached.
+hosting to verify against the matching test platform. Env vars are baked into
+the JS bundle at build time, so this needs a rebuild — but an incremental one is
+enough: only the assets change, dex/R8 stay cached.
+
+`AUTOMATED_TEST=true` also switches on e2e-only behavior, so don't leave it set:
+the sync-check overlay, a stubbed push token, and `useAutomatedTestDbCommands`,
+which acts on any `<scheme>://e2e/db?op=drop-table&table=…` deep link the app
+receives and drops the `groups`, `channels`, `posts`, or `activity_events`
+table. While the flag is on, don't open untrusted links and don't keep local
+state you care about.
 
 ## Fakezod Development
 
