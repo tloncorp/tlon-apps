@@ -1,10 +1,21 @@
-import { createDevLogger, queryClient } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, queryClient } from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 import useKilnState, { usePike } from '@/state/kiln';
 
 const logger = createDevLogger('appUpdates', false);
+
+// A failed update check is expected and self-healing, so it must not reach
+// Sentry — that spray is what this module was fixed to stop. trackEvent routes
+// to PostHog only (trackError would hit both), which keeps the failure rate
+// countable without the noise.
+function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
+  logger.trackEvent(AnalyticsEvent.AppUpdateCheckFailed, {
+    context,
+    errorMessage: e instanceof Error ? e.message : String(e),
+  });
+}
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
 
@@ -44,7 +55,7 @@ function useServiceWorker() {
             await r.update();
           }
         } catch (e) {
-          logger.log('Service worker update check failed:', e);
+          reportCheckFailed('serviceWorker', e);
         }
       }, CHECK_FOR_UPDATES_INTERVAL);
     },
@@ -68,7 +79,7 @@ export default function useAppUpdates() {
       useKilnState
         .getState()
         .fetchPikes()
-        .catch((e) => logger.log('Failed to fetch pikes:', e));
+        .catch((e) => reportCheckFailed('pikes', e));
     }, CHECK_FOR_UPDATES_INTERVAL);
 
     return () => clearInterval(interval);
