@@ -268,14 +268,19 @@
       =/  who  (slav %p i.t.t.wire)
       ?.  =(`who owner.state)
         ::  a revoke to a former owner rides this wire so a %sync still in
-        ::  flight to that ship can't overtake it. that also means an ack
-        ::  here is unattributable — it may belong to the older %sync — so
-        ::  it must NOT clear .stale. pr-revoke-former sends a second copy
-        ::  on the dedicated revoke wire, whose acks are unambiguous, and
-        ::  that is what confirms the revoke.
+        ::  flight to that ship can't overtake it, which means an ack here
+        ::  can belong to either. it doesn't have to be attributed: the
+        ::  revoke is always the LAST poke this wire carries to a former
+        ::  owner (%syncs only ever go to the current one), and acks come
+        ::  back in order — so tracking .stale to whatever the newest ack
+        ::  says converges on the revoke's own result. an early clear from
+        ::  the older %sync's ack is undone by the revoke's nack, at worst
+        ::  skipping one retry opportunity in between.
         ::
-        ?~  p.sign  cor
-        ((slog 'steward: prompts revoke nacked' u.p.sign) cor)
+        ?~  p.sign
+          cor(stale.prompts.state (~(del in stale.prompts.state) who))
+        %-  (slog 'steward: prompts revoke nacked' u.p.sign)
+        cor(stale.prompts.state (~(put in stale.prompts.state) who))
       ?~  p.sign
         ::  the owner holds our canonical set; stop retrying
         cor(resync.prompts.state 0)
@@ -1090,16 +1095,15 @@
     |=  =ship
     ^+  cor
     =.  stale.prompts.state  (~(put in stale.prompts.state) ship)
-    ::  two copies, deliberately. the sync-wire one is ordered after any
-    ::  %sync still in flight to this ship, which would otherwise re-create
-    ::  the mirror the revoke just dropped; the dedicated-wire one is the
-    ::  only ack that can be attributed to a revoke (see the %sync wire's
-    ::  ack handler), so it is what clears .stale. both are idempotent at
-    ::  the receiver, and either order ends with the mirror dropped: no
-    ::  %sync can land after the sync-wire copy.
+    ::  one poke, on the sync wire: it is ordered after any %sync still in
+    ::  flight to this ship, which would otherwise re-create the mirror the
+    ::  revoke just dropped. a second copy on the dedicated wire would have
+    ::  no such ordering — it could ack (clearing .stale) before the older
+    ::  %sync re-created the mirror, leaving nothing to retry from if the
+    ::  ordered copy then nacked. .stale instead follows this wire's acks
+    ::  (see the ack handler), and the dedicated wire carries only retries.
     ::
-    =.  cor  (pr-emit-revoke ship /prompts/sync/(scot %p ship))
-    (pr-emit-revoke ship /prompts/revoke/(scot %p ship))
+    (pr-emit-revoke ship /prompts/sync/(scot %p ship))
   ::
   ::  re-issue unconfirmed revokes, once per boot-shaped moment (configure,
   ::  unconfigure, clear). retries ride the dedicated revoke wire: by now

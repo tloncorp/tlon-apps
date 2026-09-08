@@ -17,6 +17,7 @@ import {
   parseStoredPromptsScry,
   promptsDiffer,
   readEffectivePrompts,
+  removeOwnPromptFiles,
   shouldRunPromptSync,
   writePromptsIntoConfigDraft,
 } from './prompt-sync.js';
@@ -838,6 +839,42 @@ describe('createPromptSync abort during foreign cleanup', () => {
     } finally {
       unlinkSpy.mockRestore();
     }
+  });
+});
+
+describe('removeOwnPromptFiles', () => {
+  it('removes only the files stamped for this ship', async () => {
+    // The workspace is shared with the gated-off accounts that keep
+    // running, so a retired authority's files would go on steering another
+    // bot. Unstamped files may be openclaw's own bootstrap defaults.
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), 'ours');
+    fs.writeFileSync(path.join(tmpDir, 'SOUL.md'), 'someone else');
+    fs.writeFileSync(path.join(tmpDir, 'USER.md'), 'unstamped');
+    const removed = await removeOwnPromptFiles({
+      workspaceDir: tmpDir,
+      botShip: '~zod',
+      fileStamps: { 'AGENTS.md': '~zod', 'SOUL.md': '~bus' },
+      logger,
+    });
+    expect(removed).toEqual(['AGENTS.md']);
+    expect(fs.existsSync(path.join(tmpDir, 'AGENTS.md'))).toBe(false);
+    expect(fs.readFileSync(path.join(tmpDir, 'SOUL.md'), 'utf8')).toBe(
+      'someone else'
+    );
+    expect(fs.readFileSync(path.join(tmpDir, 'USER.md'), 'utf8')).toBe(
+      'unstamped'
+    );
+  });
+
+  it('treats an already-missing file as removed without warning', async () => {
+    const removed = await removeOwnPromptFiles({
+      workspaceDir: tmpDir,
+      botShip: '~zod',
+      fileStamps: { 'AGENTS.md': '~zod' },
+      logger,
+    });
+    expect(removed).toEqual([]);
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });
 

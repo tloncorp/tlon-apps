@@ -432,6 +432,53 @@ async function readPromptFileIfRegular(
 }
 
 /**
+ * Remove the prompt files this ship owns from the shared workspace.
+ *
+ * Called when a ship loses prompt-sync authority for good (its account was
+ * disabled or removed, or it became one of several named accounts with no
+ * default) and no replacement monitor will run for it. Clearing the ship's
+ * canonical set is not enough on its own: the files stay in the agent
+ * workspace that the still-running gated-off accounts share and re-read
+ * every turn, so the retired owner's private instructions would keep
+ * steering another bot until some future authority cleaned them up.
+ *
+ * Only files stamped for THIS ship are removed — an unstamped file may be
+ * openclaw's own bootstrap default or a legacy file from another authority,
+ * and deleting someone else's content is worse than leaving it. openclaw
+ * regenerates the bootstrap defaults for whatever is missing.
+ *
+ * Stamps are deliberately NOT cleared here: this runs during teardown, and
+ * a stamp naming a file that no longer exists is self-healing — the next
+ * authority's cleanup reads ENOENT as already-removed and clears it.
+ */
+export async function removeOwnPromptFiles(opts: {
+  workspaceDir: string;
+  botShip: string;
+  fileStamps: Record<string, string>;
+  logger?: PromptSyncLogger;
+}): Promise<PromptFileName[]> {
+  const mine = normalizeShip(opts.botShip);
+  const removed: PromptFileName[] = [];
+  for (const name of PROMPT_FILE_NAMES) {
+    const stamp = opts.fileStamps[name];
+    if (stamp === undefined || normalizeShip(stamp) !== mine) {
+      continue;
+    }
+    try {
+      await fs.unlink(path.join(opts.workspaceDir, name));
+      removed.push(name);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+        opts.logger?.warn(
+          `[tlon] Failed to remove retired prompt ${name}: ${error}`
+        );
+      }
+    }
+  }
+  return removed;
+}
+
+/**
  * Read the effective contents of every allowlisted prompt file. ok=false
  * when any file failed to read for a reason other than not existing —
  * seeding such a partial set would make %steward drop the unreadable

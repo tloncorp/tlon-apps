@@ -53,6 +53,7 @@ import {
   collectAppliedPromptMarker,
   collectForeignPromptCaches,
   collectPromptFileStamps,
+  removeOwnPromptFiles,
   createPromptSync,
   shipHasPromptSyncAuthority,
   shouldRunPromptSync,
@@ -6335,9 +6336,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             // mirror in place indefinitely. The monitor's own abort signal
             // is already fired here (that is why we are tearing down), so
             // bound the work with its own deadline rather than that signal —
-            // teardown must not hang, but it can wait a few seconds. A gall
-            // nack is permanent (e.g. a desk with no %clear), so it stops
-            // immediately rather than burning the budget.
+            // teardown must not hang, but it can wait a few seconds.
+            //
+            // Nacks are retried too. A nack is ambiguous: a desk with no
+            // %clear nacks permanently, but so does a %steward that happens
+            // to be restarting — and the cost of the two mistakes is not
+            // symmetric. Giving up on a transient nack leaves the canonical
+            // set and the owner's editable mirror in place for good, while
+            // retrying against an old desk costs two extra pokes inside
+            // this deadline.
             await withStartupRetries({
               label: '%steward prompt clear on retirement',
               run: () =>
@@ -6353,13 +6360,34 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
                 log: (m) => runtime.log?.(m),
                 warn: (m) => runtime.error?.(m),
               },
-              isPermanent: (error) => /Poke nacked/.test(String(error)),
               retryDelaysMs: [500, 1_500],
               abortSignal: clearDeadline,
             });
             runtime.log?.(
               '[tlon] Prompt sync retired for this ship; cleared ship prompt state'
             );
+            // The ship state is only half of it: the owner-edited files sit
+            // in the agent workspace the gated-off accounts still share and
+            // re-read every turn, so leave them and this ship's private
+            // instructions keep steering another bot. Independent of the
+            // clear above — a failed poke must not strand the files.
+            const retiredFiles = await removeOwnPromptFiles({
+              workspaceDir: core.agent.resolveAgentWorkspaceDir(
+                freshCfg,
+                resolveDefaultAgentId(freshCfg)
+              ),
+              botShip: botShipName,
+              fileStamps: collectPromptFileStamps(freshCfg),
+              logger: {
+                log: (m) => runtime.log?.(m),
+                warn: (m) => runtime.error?.(m),
+              },
+            });
+            if (retiredFiles.length > 0) {
+              runtime.log?.(
+                `[tlon] Removed retired prompt files from the workspace: ${retiredFiles.join(', ')}`
+              );
+            }
           }
         } catch (error: any) {
           runtime.error?.(
