@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+name: Login navigation iteration benchmark
+---
+# Isolated test simulator / fresh Cloud device only. No account login or writes.
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- assertVisible: '^Tlon Messenger$'
+- tapOn: '^Have an account\? Log in$'
+- assertVisible: '^Log in with phone number$'
+- assertVisible:
+    id: log-in-with-email
+- tapOn: '^Or configure self hosted$'
+- assertVisible: '^Connect Ship$'
+- assertVisible:
+    id: 'textInput shipUrl'
+- assertVisible:
+    id: 'textInput accessCode'
+- assertVisible: '^Connect$'

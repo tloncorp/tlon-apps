@@ -3,11 +3,17 @@ on:
   push:
     branches: [develop]
   workflow_dispatch:
+    inputs:
+      benchmark-run-id:
+        description: 'Existing successful build run whose iOS artifact to benchmark (blank runs the normal suite)'
+        type: string
+        required: false
 concurrency:
   group: ${{ format('{0}-{1}', github.ref, 'testing') }}
   cancel-in-progress: true
 jobs:
   build:
+    if: ${{ !inputs.benchmark-run-id }}
     runs-on: ubuntu-latest
     name: Build apps
     strategy:
@@ -48,10 +54,9 @@ jobs:
         id: build
         working-directory: ./apps/tlon-mobile
         run: |
-          eas build --profile local-testing --platform ${{ matrix.platform }} --non-interactive
-          URL=$(eas build:list --json --limit=1 --platform=${{ matrix.platform }} --non-interactive | jq '.[0].artifacts.buildUrl')
-          echo "url=$URL"
-          echo "url=$URL" >> $GITHUB_OUTPUT
+          eas build --profile local-testing --platform ${{ matrix.platform }} --non-interactive --wait --json > build-result.json
+          BUILD_URL=$(jq -er '.[0].artifacts.buildUrl | select(type == "string" and startswith("https://"))' build-result.json)
+          echo "url=$BUILD_URL" >> "$GITHUB_OUTPUT"
         env:
           EXPO_APPLE_ID: ${{ secrets.EXPO_APPLE_ID }}
           EXPO_APPLE_PASSWORD: ${{ secrets.EXPO_APPLE_PASSWORD }}
@@ -110,6 +115,8 @@ jobs:
             CODE=${{ secrets.MAESTRO_CODE }}
             EMAIL=${{ secrets.MAESTRO_EMAIL }}
             PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+            MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
 
   test-android:
     needs: test-ios
@@ -138,3 +145,85 @@ jobs:
             CODE=${{ secrets.MAESTRO_CODE }}
             EMAIL=${{ secrets.MAESTRO_EMAIL }}
             PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+            MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
+
+  benchmark-ios:
+    if: ${{ inputs.benchmark-run-id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: ios-build
+          path: ./ios-build
+          run-id: ${{ inputs.benchmark-run-id }}
+          github-token: ${{ github.token }}
+      - name: Record artifact identity
+        shell: bash
+        run: |
+          mkdir benchmark-results
+          find ios-build -type f -print0 | sort -z | xargs -0 sha256sum > benchmark-results/artifact-files.sha256
+          date +%s > benchmark-results/first-start.txt
+      - name: Cloud first upload
+        id: first
+        uses: mobile-dev-inc/action-maestro-cloud@854f4005c1ef637d20b7007d428d23afe17c9665
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          maestro-cli-version: '2.6.1'
+          app-file: ./ios-build/Landscape.app
+          workspace: .maestro/benchmark
+          name: iteration-benchmark-first
+          timeout: 10
+          env: |
+            MAESTRO_APP_ID=io.tlon.groups
+      - name: Record first run
+        env:
+          BINARY_ID: ${{ steps.first.outputs.MAESTRO_CLOUD_APP_BINARY_ID }}
+          CLOUD_URL: ${{ steps.first.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
+          FLOW_RESULTS: ${{ steps.first.outputs.MAESTRO_CLOUD_FLOW_RESULTS }}
+        shell: bash
+        run: |
+          test -n "$BINARY_ID"
+          date +%s > benchmark-results/first-end.txt
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          Path('benchmark-results/first.json').write_text(json.dumps({k: os.environ[k] for k in ['BINARY_ID', 'CLOUD_URL', 'FLOW_RESULTS']}, indent=2))
+          PYCODE
+          date +%s > benchmark-results/repeat-start.txt
+      - name: Cloud reuse uploaded app
+        id: repeat
+        uses: mobile-dev-inc/action-maestro-cloud@854f4005c1ef637d20b7007d428d23afe17c9665
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: ${{ secrets.ROBIN_PROJECT_ID }}
+          maestro-cli-version: '2.6.1'
+          app-binary-id: ${{ steps.first.outputs.MAESTRO_CLOUD_APP_BINARY_ID }}
+          workspace: .maestro/benchmark
+          name: iteration-benchmark-reuse
+          timeout: 10
+          env: |
+            MAESTRO_APP_ID=io.tlon.groups
+      - name: Record repeat run
+        env:
+          CLOUD_URL: ${{ steps.repeat.outputs.MAESTRO_CLOUD_CONSOLE_URL }}
+          FLOW_RESULTS: ${{ steps.repeat.outputs.MAESTRO_CLOUD_FLOW_RESULTS }}
+        shell: bash
+        run: |
+          date +%s > benchmark-results/repeat-end.txt
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          Path('benchmark-results/repeat.json').write_text(json.dumps({k: os.environ[k] for k in ['CLOUD_URL', 'FLOW_RESULTS']}, indent=2))
+          PYCODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: maestro-iteration-benchmark
+          path: benchmark-results
