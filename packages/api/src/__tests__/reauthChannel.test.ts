@@ -662,6 +662,30 @@ describe('subscribeOnce auth retry', () => {
     expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
   });
 
+  test('a reauth that throws still reports the original failure', async () => {
+    // with no getCode and no failure handler, reauth() throws rather than
+    // resolving; the caller gets that error, so the subscribe failure it
+    // replaced still has to be reported
+    const { trackError } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValue(new AuthError('invalid session')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toThrow('Unable to authenticate with urbit');
+    expect(trackError).toHaveBeenCalledTimes(1);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
   test('a recovered retry is counted', async () => {
     const { trackEvent } = stubLogger();
     const client: Record<string, any> = fakeClient({

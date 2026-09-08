@@ -584,7 +584,16 @@ export async function subscribeOnce<T>(
       // would start a second login for every caller that failed against the
       // same dead session, and eyre closes the session each login arrives
       // with.
-      await reauthOnce(sent);
+      try {
+        await reauthOnce(sent);
+      } catch (reauthErr) {
+        // reauth can throw outright — no getCode and no failure handler, or a
+        // login that exhausted its attempts. Report the failure the caller
+        // actually asked about before the reauth error replaces it, or both
+        // go unreported.
+        reportTerminalFailure();
+        throw reauthErr;
+      }
       // reauthOnce resolves without having refreshed anything when we are
       // logging out, when there is no getCode, or when the ship rejected the
       // code. Retrying then just fires at a session already known to be dead,
