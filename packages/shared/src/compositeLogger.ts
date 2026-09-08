@@ -1,17 +1,37 @@
+import { AnalyticsSeverity } from './domain';
+
 /**
  * Composite logger that fans analytics events out to PostHog and Sentry.
  *
- * PostHog receives every event. Sentry receives only the events listed in
- * `SENTRY_FORWARDED_EVENTS`: `app_error` (from `trackError`) and `App Error`
- * (from the debug-log upload failure path). Analytics events whose names
- * merely contain "error" (e.g. `Attestation Error`, `Error Sending Post`)
- * are PostHog-only; there is no name-based matching.
+ * PostHog receives every event. Sentry receives the events listed in
+ * `SENTRY_FORWARDED_EVENTS` -- `app_error` (from `trackError`) and `App Error`
+ * (from the debug-log upload failure path) -- plus any event tagged
+ * `severity: Critical`. Everything else is PostHog-only; names are never
+ * matched against a pattern, so an analytics event that merely contains
+ * "error" (e.g. `Attestation Error`, `Error Sending Post`) does not qualify.
  */
 
 export const SENTRY_FORWARDED_EVENTS: readonly string[] = [
   'app_error',
   'App Error',
 ];
+
+/**
+ * `trackEvent` analytics stay in PostHog unless they are tagged
+ * `severity: Critical`, which marks a failure the app cannot recover from --
+ * native DB setup and migration, group creation, contact matching. Those are
+ * worth a typed, symbolicated Sentry issue, so they ride the same path as
+ * `trackError` reports.
+ */
+export function isSentryForwarded(
+  event: string,
+  data: Record<string, unknown>
+): boolean {
+  return (
+    SENTRY_FORWARDED_EVENTS.includes(event) ||
+    data.severity === AnalyticsSeverity.Critical
+  );
+}
 
 export type CompositeSink = (
   event: string,
@@ -48,7 +68,7 @@ export function createCompositeLogger(
           console.warn('[compositeLogger] posthog sink failed', e);
         }
       }
-      if (SENTRY_FORWARDED_EVENTS.includes(event)) {
+      if (isSentryForwarded(event, data)) {
         try {
           options.sentry(event, data);
         } catch (e) {

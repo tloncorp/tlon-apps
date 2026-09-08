@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { createCompositeLogger } from './compositeLogger';
+import { AnalyticsSeverity } from './domain';
 
 describe('createCompositeLogger', () => {
   it('forwards app_error to both sinks with the same event name', () => {
@@ -47,6 +48,37 @@ describe('createCompositeLogger', () => {
 
     logger.capture('Attestation Error', { message: 'attestation' });
     logger.capture('Error Sending Post', { message: 'send' });
+
+    expect(posthog).toHaveBeenCalledTimes(2);
+    expect(sentry).not.toHaveBeenCalled();
+  });
+
+  it('forwards a Critical-severity analytics event to sentry', () => {
+    const posthog = vi.fn();
+    const sentry = vi.fn();
+    const logger = createCompositeLogger({ posthog, sentry });
+
+    logger.capture('Native DB Error', {
+      context: 'setupDb failed',
+      severity: AnalyticsSeverity.Critical,
+    });
+
+    expect(posthog).toHaveBeenCalledTimes(1);
+    expect(sentry).toHaveBeenCalledTimes(1);
+    expect(sentry.mock.calls[0][0]).toBe('Native DB Error');
+  });
+
+  it('keeps a non-Critical severity analytics event in posthog only', () => {
+    const posthog = vi.fn();
+    const sentry = vi.fn();
+    const logger = createCompositeLogger({ posthog, sentry });
+
+    logger.capture('Attestation Error', {
+      severity: AnalyticsSeverity.High,
+    });
+    logger.capture('Error Sending Post', {
+      severity: AnalyticsSeverity.Medium,
+    });
 
     expect(posthog).toHaveBeenCalledTimes(2);
     expect(sentry).not.toHaveBeenCalled();
