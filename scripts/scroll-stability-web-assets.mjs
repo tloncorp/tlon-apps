@@ -4,6 +4,8 @@ import { pathToFileURL } from 'node:url';
 
 export const {
   assetHash,
+  createWebTestIsolationPlugin,
+  sourceIdentities,
   snapshotWebSources,
   outputManifest,
   assessBuildReceipt,

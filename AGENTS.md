@@ -1,5 +1,21 @@
 # AGENTS.md
 
+## Native development workflow
+
+Use Stim for native builds, Metro, installation, launch, logs and cache reuse.
+Read the `stim` skill and run commands from `apps/tlon-mobile`. Start with
+`stim doctor`; use `stim status` when resuming. For Debug, run `stim start`,
+then `stim ios` or `stim android --variant productionDebug`. JavaScript-only
+edits use Fast Refresh; rerun the platform build when native inputs change.
+Use `stim ios --configuration Release` for iOS Simulator performance captures.
+
+Use the exact device ID, app ID and Metro port returned by Stim for subsequent
+Argent or Maestro interaction. Stim manages its own devices; keep other
+simulators and sessions untouched. Preserve scroller-specific source, entry,
+artifact and evidence checks around the Stim result. If Stim lacks a required
+capability, report the specific gap before using another build tool. Avoid
+cache clears and cold worktrees as routine setup.
+
 # Tlon Messenger frontend
 The TypeScript/React client is documented in `CLAUDE.md` at the repo root.
 

@@ -1,6 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  mkdtempSync,
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs';
+import { join, dirname, resolve } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
   assetHash,
+  snapshotWebSources,
+  outputManifest,
+  verifyCurrentWebBuild,
+  sourceIdentities,
+  createWebTestIsolationPlugin,
   assessBuildReceipt,
   assessProductionAssets,
 } from '../../../scripts/scroll-stability-web-assets.mjs';
@@ -528,4 +545,441 @@ describe('enclosing Playwright attempt clock', () => {
       expect(read(d).attemptClockError).toBeTruthy();
       expect(assessWebEvidence(read(d)).status).toBe('incomplete');
     });
+});
+
+// Receipt/control models do not execute Vite. Temporary Git and output bytes
+// exercise the actual current-workspace verifier, while plugin hooks are called
+// with an explicitly modeled Vite module inventory. A real v2 build remains due.
+function v2Evidence() {
+  const d = evidence(),
+    r = d.proof.receipt;
+  r.version = 2;
+  r.source.files.push(
+    file('apps/tlon-web/e2e/helpers/exact.ts', 'export const exact=1;')
+  );
+  r.source.files.sort((a, b) => a.path.localeCompare(b.path));
+  r.source.digest = digest(r.source.files);
+  r.sourceAfterDigest = r.source.digest;
+  r.source.identity = sourceIdentities(r.source.files);
+  r.build.environment.push({
+    name: 'SCROLLER_WEB_BUILD_RECEIPT_GUARD',
+    sha256: assetHash('1'),
+  });
+  r.isolation = {};
+  for (const scope of ['main', 'worker']) {
+    r.isolation[scope] = {
+      version: 1,
+      policy: 'existing-e2e-and-readers-v1',
+      scope,
+      root: r.source.root,
+      moduleCount: 2,
+    };
+    r.output.files.push(
+      file(
+        `scroller-build-isolation-${scope}.json`,
+        JSON.stringify(r.isolation[scope])
+      )
+    );
+  }
+  r.output.digest = digest(r.output.files);
+  resign(r);
+  Object.assign(d.proof.currentCheck, {
+    version: 2,
+    root: r.source.root,
+    head: r.source.head,
+    sourceDigest: r.source.digest,
+    identity: structuredClone(r.source.identity),
+    workspaceLinks: structuredClone(r.source.workspaceLinks),
+    outputDigest: r.output.digest,
+  });
+  return d;
+}
+function sourceRepository(run) {
+  const home = mkdtempSync(join(tmpdir(), 'scroller-web-receipt-control-'));
+  const root = join(home, 'repo'),
+    output = join(home, 'output');
+  const put = (path, body) => {
+    mkdirSync(dirname(join(root, path)), { recursive: true });
+    writeFileSync(join(root, path), body);
+  };
+  mkdirSync(root);
+  mkdirSync(output);
+  try {
+    put('apps/tlon-web/package.json', '{"scripts":{"build":"vite build"}}');
+    put('apps/tlon-web/src/main.ts', 'export const app=1;');
+    put('apps/tlon-web/e2e/helpers/exact.ts', 'export const input=1;');
+    put(
+      'apps/tlon-web/playwright.scroller-product.config.ts',
+      'export default {};'
+    );
+    put(
+      'packages/app/fixtures/NativeScrollerObservation.tsx',
+      'export const actualFixture=1;'
+    );
+    put('pnpm-lock.yaml', 'lockfileVersion:9');
+    put('tsconfig.json', '{}');
+    put('patches/react-native.patch', 'original installed dependency patch');
+    put('scripts/build-plugin.cjs', 'module.exports = {};');
+    put('scripts/scroll-stability-web-evidence.mjs', 'export const reader=1;');
+    put('scripts/scroll-stability-web-assets.cjs', 'module.exports = {};');
+    put('apps/tlon-web/.env', 'VITE_SOME_INPUT=original');
+    for (const folder of ['ui', 'app', 'api', 'shared']) {
+      put(
+        `packages/${folder}/package.json`,
+        JSON.stringify({ name: `@tloncorp/${folder}` })
+      );
+      const link = join(root, 'apps/tlon-web/node_modules/@tloncorp', folder);
+      mkdirSync(dirname(link), { recursive: true });
+      symlinkSync(join(root, 'packages', folder), link);
+    }
+    const git = (...args) =>
+      execFileSync('git', args, { cwd: root, stdio: 'pipe' });
+    git('init', '-q');
+    git('add', '.');
+    git(
+      '-c',
+      'user.name=ReceiptControl',
+      '-c',
+      'user.email=receipt@example.invalid',
+      'commit',
+      '-qm',
+      'base'
+    );
+    const source = snapshotWebSources(root);
+    const isolation = {};
+    for (const scope of ['main', 'worker']) {
+      const plugin = createWebTestIsolationPlugin(root, scope);
+      plugin.configResolved({
+        configFileDependencies: [join(root, 'scripts/build-plugin.cjs')],
+      });
+      plugin.generateBundle.call({
+        getModuleIds: () => [join(root, 'apps/tlon-web/src/main.ts')],
+        getModuleInfo: () => ({ isExternal: false }),
+        emitFile: (asset) => {
+          writeFileSync(join(output, asset.fileName), asset.source);
+          isolation[scope] = JSON.parse(asset.source);
+        },
+      });
+    }
+    mkdirSync(join(output, 'assets'));
+    writeFileSync(join(output, 'assets/index-abc.js'), 'built');
+    writeFileSync(join(output, 'index.html'), 'built html');
+    const files = outputManifest(output);
+    const payload = {
+      version: 2,
+      kind: 'vite-production-build',
+      source,
+      sourceAfterDigest: source.digest,
+      isolation,
+      build: {
+        environment: [
+          { name: 'SCROLLER_WEB_BUILD_RECEIPT_GUARD', sha256: assetHash('1') },
+          { name: 'VITE_BUILD_ONLY_NOT_ON_RUNNER', sha256: assetHash('on') },
+        ],
+        package: 'tlon-web',
+        script: 'vite build',
+        scriptSha256: assetHash('vite build'),
+        packageJsonSha256: source.files.find(
+          (f) => f.path === 'apps/tlon-web/package.json'
+        ).sha256,
+        argv: [
+          'corepack',
+          'pnpm',
+          '--filter',
+          'tlon-web',
+          'build',
+          '--outDir',
+          output,
+        ],
+        startedAt: 1,
+        completedAt: 2,
+        exitCode: 0,
+      },
+      output: { root: output, files, digest: digest(files) },
+    };
+    const receipt = { ...payload, digest: digest(payload) };
+    return run({ root, output, put, git, receipt });
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+}
+describe('v2 isolated runtime versus E2E identity', () => {
+  it('accepts the installed Vite production shim but still rejects unknown module paths', () =>
+    sourceRepository(({ root }) => {
+      const plugin = createWebTestIsolationPlugin(root, 'main');
+      expect(plugin.transform('', '__vite-browser-external')).toBeNull();
+      expect(() => plugin.transform('', 'unknown-relative.ts')).toThrow(
+        /Unknown build module path/
+      );
+      expect(() =>
+        plugin.transform('', '__vite-browser-external/../e2e/exact.ts')
+      ).toThrow(/Unknown build module path/);
+    }));
+  it('reuses unchanged app bytes after an existing helper-only commit and retains both identities', () =>
+    sourceRepository(({ root, put, git, receipt }) => {
+      const before = verifyCurrentWebBuild(receipt, root);
+      put('apps/tlon-web/e2e/helpers/exact.ts', 'export const input=2;');
+      git('add', '.');
+      git(
+        '-c',
+        'user.name=ReceiptControl',
+        '-c',
+        'user.email=receipt@example.invalid',
+        'commit',
+        '-qm',
+        'helper only'
+      );
+      const after = verifyCurrentWebBuild(receipt, root);
+      expect(after.identity.runtimeDigest).toBe(before.identity.runtimeDigest);
+      expect(after.sourceDigest).not.toBe(before.sourceDigest);
+      expect(after.identity.testDigest).not.toBe(before.identity.testDigest);
+      expect(after.head).not.toBe(before.head);
+      expect(after.outputDigest).toBe(before.outputDigest);
+    }));
+  it('reuses an existing Playwright config edit without requiring build env on the runner', () =>
+    sourceRepository(({ root, put, receipt }) => {
+      put(
+        'apps/tlon-web/playwright.scroller-product.config.ts',
+        'export default {retries:0};'
+      );
+      expect(verifyCurrentWebBuild(receipt, root).identity.runtimeDigest).toBe(
+        receipt.source.identity.runtimeDigest
+      );
+    }));
+  it('reuses an existing canonical reader edit and binds the new test bytes', () =>
+    sourceRepository(({ root, put, receipt }) => {
+      put(
+        'scripts/scroll-stability-web-evidence.mjs',
+        'export const reader=2;'
+      );
+      const current = verifyCurrentWebBuild(receipt, root);
+      expect(current.identity.runtimeDigest).toBe(
+        receipt.source.identity.runtimeDigest
+      );
+      expect(current.identity.testDigest).not.toBe(
+        receipt.source.identity.testDigest
+      );
+      expect(
+        current.identity.testFiles.find(
+          (f) => f.path === 'scripts/scroll-stability-web-evidence.mjs'
+        ).sha256
+      ).toBe(assetHash('export const reader=2;'));
+      const plugin = createWebTestIsolationPlugin(root, 'main');
+      expect(() =>
+        plugin.transform(
+          '',
+          join(root, 'scripts/scroll-stability-web-evidence.mjs')
+        )
+      ).toThrow(/test-only/);
+    }));
+  it.each([
+    'apps/tlon-web/src/main.ts',
+    'apps/tlon-web/package.json',
+    'packages/app/fixtures/NativeScrollerObservation.tsx',
+    'pnpm-lock.yaml',
+    'tsconfig.json',
+    'patches/react-native.patch',
+    'scripts/build-plugin.cjs',
+    'scripts/scroll-stability-web-assets.cjs',
+    'apps/tlon-web/.env',
+  ])('invalidates actual runtime input %s', (path) =>
+    sourceRepository(({ root, put, receipt }) => {
+      put(path, 'changed runtime bytes');
+      expect(() => verifyCurrentWebBuild(receipt, root)).toThrow();
+    })
+  );
+  it.each([
+    'apps/tlon-web/e2e/helpers/new.ts',
+    'apps/tlon-web/e2e/helpers/unknown.wasm',
+    'apps/tlon-web/src/new-entry.ts',
+  ])('does not guess a new input safe: %s', (path) =>
+    sourceRepository(({ root, put, receipt }) => {
+      put(path, 'new bytes');
+      expect(() => verifyCurrentWebBuild(receipt, root)).toThrow();
+    })
+  );
+  it('rejects deletion, symlink substitution and changed outputs', () =>
+    sourceRepository(({ root, output, put, receipt }) => {
+      const helper = 'apps/tlon-web/e2e/helpers/exact.ts';
+      rmSync(join(root, helper));
+      expect(() => verifyCurrentWebBuild(receipt, root)).toThrow();
+      symlinkSync(join(root, 'apps/tlon-web/src/main.ts'), join(root, helper));
+      expect(() => verifyCurrentWebBuild(receipt, root)).toThrow(/symlink/);
+      rmSync(join(root, helper));
+      put(helper, 'export const input=1;');
+      writeFileSync(join(output, 'assets/index-abc.js'), 'tampered');
+      expect(() => verifyCurrentWebBuild(receipt, root)).toThrow(
+        /output files changed/
+      );
+    }));
+  it.each(['main', 'worker'])(
+    'actual %s guard rejects test imports and accepts runtime modules',
+    (scope) =>
+      sourceRepository(({ root }) => {
+        const plugin = createWebTestIsolationPlugin(root, scope);
+        const forbidden = join(root, 'apps/tlon-web/e2e/helpers/exact.ts');
+        expect(() =>
+          plugin.configResolved({ configFileDependencies: [forbidden] })
+        ).toThrow(/test-only/);
+        plugin.configResolved({
+          configFileDependencies: [join(root, 'scripts/build-plugin.cjs')],
+        });
+        expect(() => plugin.transform('', forbidden + '?raw')).toThrow(
+          /test-only/
+        );
+        expect(
+          plugin.transform('', join(root, 'apps/tlon-web/src/main.ts'))
+        ).toBe(null);
+        expect(() =>
+          plugin.generateBundle.call({
+            getModuleIds: () => [forbidden],
+            getModuleInfo: () => ({ isExternal: false }),
+          })
+        ).toThrow(/test-only/);
+        expect(() => plugin.transform('', 'unknown-module')).toThrow(
+          /Unknown build/
+        );
+      })
+  );
+  it('reconstructs a changed test identity in independent served-asset replay', () => {
+    const d = v2Evidence(),
+      check = d.proof.currentCheck;
+    const changed = file(
+      'apps/tlon-web/e2e/helpers/exact.ts',
+      'export const exact=2;'
+    );
+    const files = d.proof.receipt.source.files.map((f) =>
+      f.path === changed.path ? changed : f
+    );
+    check.identity = sourceIdentities(files);
+    check.sourceDigest = digest(files);
+    check.head = 'b'.repeat(40);
+    expect(assessProductionAssets(d.proof, d.expected)).toEqual([]);
+    d.proof.responses[0].sha256 = '0'.repeat(64);
+    expect(assessProductionAssets(d.proof, d.expected)).not.toEqual([]);
+  });
+  it.each(['main', 'worker'])(
+    'requires the original %s guard artifact',
+    (scope) => {
+      const d = v2Evidence();
+      delete d.proof.receipt.isolation[scope];
+      resign(d.proof.receipt);
+      expect(assessProductionAssets(d.proof, d.expected)).not.toEqual([]);
+    }
+  );
+  it.each([
+    'opaque current digest',
+    'forged runtime digest',
+    'unknown policy',
+    'app fixture masquerades as test',
+    'new test input',
+  ])('rejects %s in independent current-source proof', (fault) => {
+    const d = v2Evidence(),
+      c = d.proof.currentCheck;
+    if (fault === 'opaque current digest') c.sourceDigest = '0'.repeat(64);
+    if (fault === 'forged runtime digest')
+      c.identity.runtimeDigest = '0'.repeat(64);
+    if (fault === 'unknown policy') c.identity.policy = 'other';
+    if (fault === 'app fixture masquerades as test')
+      c.identity.testFiles.push(
+        file(
+          'packages/app/fixtures/NativeScrollerObservation.tsx',
+          'test claim'
+        )
+      );
+    if (fault === 'new test input')
+      c.identity.testFiles.push(
+        file('apps/tlon-web/e2e/helpers/new.ts', 'new')
+      );
+    expect(assessProductionAssets(d.proof, d.expected)).not.toEqual([]);
+  });
+});
+
+// Actual installed Vite/esbuild config loader; no server or application build.
+function loadActualReceiptViteConfig(staticCjsImport = false) {
+  const root = resolve(import.meta.dirname, '../../..'),
+    web = join(root, 'apps/tlon-web');
+  const temp = mkdtempSync(join(tmpdir(), 'scroller-vite-loader-'));
+  try {
+    const dir = join(temp, 'apps/tlon-web');
+    mkdirSync(dir, { recursive: true });
+    for (const name of readdirSync(web)) {
+      if (
+        name === 'vite.config.mts' ||
+        name.startsWith('vite.config.mts.timestamp-')
+      )
+        continue;
+      symlinkSync(join(web, name), join(dir, name));
+    }
+    symlinkSync(join(root, 'scripts'), join(temp, 'scripts'));
+    symlinkSync(join(root, 'node_modules'), join(temp, 'node_modules'));
+    let config = readFileSync(join(web, 'vite.config.mts'), 'utf8');
+    if (staticCjsImport) {
+      const fixed =
+        /const webAssetReceipt = createRequire\(import\.meta\.url\)\([\s\S]*?\) as typeof import\([^\n]+\);/;
+      if (!fixed.test(config))
+        throw Error('Expected current typed createRequire boundary');
+      config = config.replace(
+        fixed,
+        "import webAssetReceipt from '../../scripts/scroll-stability-web-assets.cjs';"
+      );
+    }
+    const configPath = join(dir, 'vite.config.mts');
+    writeFileSync(configPath, config);
+    const loader = join(temp, 'load.mjs');
+    writeFileSync(
+      loader,
+      `
+      import {pathToFileURL} from 'node:url';
+      const {loadConfigFromFile}=await import(pathToFileURL(process.argv[2]));
+      const result=await loadConfigFromFile({command:'build',mode:'production'},process.argv[3],process.argv[4],'silent');
+      if(!result) throw Error('Actual Vite config unavailable');
+      const names=result.config.plugins.flat(Infinity).filter(Boolean).map(p=>p.name);
+      console.log('SCROLLER_CONFIG_RESULT:'+JSON.stringify({mainGuard:names.filter(n=>n==='scroller-test-isolation-main-v1').length,dependencies:result.dependencies.length}));
+    `
+    );
+    return spawnSync(
+      process.execPath,
+      [
+        loader,
+        join(root, 'node_modules/vite/dist/node/index.js'),
+        configPath,
+        dir,
+      ],
+      {
+        cwd: web,
+        encoding: 'utf8',
+        timeout: 10_000,
+        maxBuffer: 1024 * 1024,
+        env: {
+          ...process.env,
+          CI: 'false',
+          SCROLLER_WEB_BUILD_RECEIPT_GUARD: '1',
+        },
+      }
+    );
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+  }
+}
+describe('actual installed production Vite config boundary', () => {
+  it('loads the real receipt-enabled config with Node createRequire', () => {
+    const result = loadActualReceiptViteConfig();
+    expect(result.error).toBeUndefined();
+    expect(result.status, result.stderr).toBe(0);
+    const line = result.stdout
+      .split('\n')
+      .find((line) => line.startsWith('SCROLLER_CONFIG_RESULT:'));
+    expect(line).toBeTruthy();
+    expect(
+      JSON.parse(line.slice('SCROLLER_CONFIG_RESULT:'.length)).mainGuard
+    ).toBe(1);
+  });
+  it('retains the original static CJS import failure through that same loader', () => {
+    const result = loadActualReceiptViteConfig(true);
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      'Dynamic require of "node:crypto" is not supported'
+    );
+  });
 });

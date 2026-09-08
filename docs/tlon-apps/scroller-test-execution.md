@@ -7,6 +7,84 @@ combination of its linked matrix row.
 
 ## Fast iteration without changing acceptance
 
+For a focused desktop run against an existing production preview, use:
+
+```sh
+node scripts/run-scroll-stability-web.mjs \
+  --grep 'exact test title or regex' \
+  --receipt /private/tmp/EXISTING_BUILD/receipt.json \
+  --output /private/tmp/NEW_RUN
+```
+
+The command checks the build and replay imports, lists the selection before
+opening Chromium, runs headlessly, and independently replays the raw report.
+An empty selection, stale build, producer failure or incomplete replay exits
+unsuccessfully. It preserves selection/capture logs, raw Playwright attachments,
+replay verdicts and phase durations in the new output directory. A final check
+rejects application, test-source or evidence-reader changes during the run.
+Cancellation signals only the owned Playwright process, then retains its
+teardown/report and finalizes with an unsuccessful result. It uses the existing
+authenticated local frontends; it does not rebuild or restart them.
+
+Use Stim from `apps/tlon-mobile` for native development and ordinary app builds:
+
+```sh
+stim doctor
+stim start
+stim ios
+# For normal-app performance captures, with embedded current JavaScript:
+stim ios --configuration Release --json
+```
+
+Use the returned device ID, bundle ID, configuration, fingerprint and cache key
+in the existing capture evidence. A cached Release `appPath` may be a temporary
+copy removed after installation; retain installed bundle bytes using the exact
+returned device and bundle ID. Keep Debug/Fast Refresh for functional iteration
+and Release for performance qualification. The wrapper examples and measured
+runs later in this document are historical; they do not override this workflow.
+
+Stim 1.0.0-rc.7 has a custom-entry limitation: a cold Xcode build inherits
+`ENTRY_FILE`, but its cached Expo Release swap does not pass `--entry-file`.
+Do not use `ENTRY_FILE=index.scroll-stability.tsx` with cached Stim builds:
+the swap can select the ordinary app entry. The ordinary `index.tsx` path is
+consistent in both cases. Fixture captures require that specific capability
+to be fixed or an explicitly identified fallback; do not force routine cold
+builds to hide it. Normal-app capture remains the preferred product path.
+
+Check new test setup against the actual helper contracts before a native build:
+correct navigation screen, dotted versus canonical IDs, encoder output, and
+physical host readiness. Keep ordinary UI action timeouts at ten seconds; a
+longer scenario budget must not let a missing setup control wait for minutes.
+Retain raw backend responses before asserting their shape. Reuse unchanged web
+application assets for helper-only behavioral corrections; this does not grant
+loaded-asset qualification or permit reuse after application code changes.
+
+New version 2 web receipts separate application inputs from existing E2E,
+Playwright-config and evidence-reader files. The actual Vite build rejects
+imports of those test files from either the app or service worker, and records
+both guards in its output. Later edits to those existing test files can reuse
+the build; the run still records their current bytes. Application fixtures,
+build/dependency inputs, changed file sets or changed output bytes require a new
+build. Old version 1 receipts keep their strict original matching rules; create
+one new guarded receipt before using this reuse path.
+
+The run orchestration has focused controls that require no browser or simulator:
+
+```sh
+node --test scripts/test-scroll-stability-web-run.mjs
+corepack pnpm --dir packages/app exec vitest run fixtures/scrollWebAssetsCoverage.test.js
+```
+
+The September 8 iteration update passed 11 web orchestration controls and 82 asset
+controls, plus two actual Vite configuration-loader checks. A real guarded
+production build completed in 46.505 seconds with both
+app/service-worker guards, and its source/output comparison passed. A stale
+receipt stopped the actual runner in 0.419 seconds before browser startup.
+These validate the tooling; they add no scroller scenario or native performance
+qualification. The first two build attempts are retained separately: config
+module loading failed before compilation, then the guard rejected Vite's virtual
+browser shim after 5.34 seconds. Both integration cases were corrected.
+
 Use three loops: targeted controls for each change, focused product captures
 for each related batch, and full regression/Release qualification at milestones.
 Choose the smallest existing test that reproduces the failure, then include
@@ -24,10 +102,10 @@ Before a native build, prepare the exact case selection, run IDs, dispatch,
 collector and replay commands. Batch related app and dependency fixes into one
 snapshot. Execute inspection, incremental build/install, artifact verification,
 launch, all selected captures and final verification consecutively. Interpret
-and package the collected evidence afterward. Reuse an unchanged verified
-install; the wrapper's dirty-snapshot check still applies. Debug may support
-functional checks, but arbitrary source edits are not a verified warm-reload
-path through this wrapper, and Release remains the performance gate.
+and package the collected evidence afterward. Reuse verified native inputs
+through Stim and current JavaScript through Fast Refresh or the Release bundle
+swap. Record the source and installed bundle used by each capture. Release
+remains the performance gate.
 
 The latest full desktop selection is 43 cases and took 21m45s with one headless
 worker and no retries. All 43 scoped cleanup receipts completed, deleting only
@@ -366,10 +444,15 @@ passing results as the product baseline. The
 [product baseline](scroller-product-baseline-2026-09-07.md) records the actual
 app failures and remaining proof limits.
 
-## iOS Simulator
+## Historical iOS fixture recipe
 
-Use an explicit Simulator UDID. Follow the repository's build wrapper so the
-installed executable, dirty working-tree snapshot and target are verified.
+This recipe describes the retained custom-entry fixture runs. The current
+default is Stim, documented above. Stim's cached custom-entry limitation must
+be resolved or explicitly identified as the reason for a fallback before this
+recipe is used again. It is not the normal native build workflow.
+
+These runs used an explicit Simulator UDID and the older wrapper's installed
+executable, dirty working-tree snapshot and target checks.
 The fixture entry uses local data and actual channel/message/input components.
 It does not start the normal account database or send to another person.
 

@@ -20,7 +20,7 @@ const safePath = (value) =>
   value.length > 0 &&
   !value.startsWith('/') &&
   !value.split('/').some((p) => p === '..' || p === '.' || !p);
-const sourcePath = (path) =>
+const legacySourcePath = (path) =>
   (/^(?:apps\/tlon-web\/|packages\/)/.test(path) &&
     !/(?:^|\/)(?:dist|node_modules|test-results|playwright-report)\//.test(
       path
@@ -28,13 +28,110 @@ const sourcePath = (path) =>
   /^(?:package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.npmrc|babel\.config\.[cm]?js|scripts\/scroll-stability-web-assets\.[cm]js)$/.test(
     path
   );
+const TEST_INPUT_POLICY = 'existing-e2e-and-readers-v1';
+const testOnlyPath = (path) =>
+  /^apps\/tlon-web\/e2e\/.+\.(?:[cm]?[jt]sx?)$/.test(path) ||
+  /^apps\/tlon-web\/playwright(?:\.[a-z0-9-]+)*\.config\.[cm]?[jt]s$/.test(
+    path
+  ) ||
+  /^scripts\/run-scroll-stability-web\.mjs$/.test(path) ||
+  (/^scripts\/scroll-stability-.+\.(?:mjs|cjs)$/.test(path) &&
+    !/^scripts\/scroll-stability-web-assets\.(?:mjs|cjs)$/.test(path));
+
+const sourcePath = (path) =>
+  legacySourcePath(path) ||
+  /^[^/]+$/.test(path) ||
+  /^(?:patches|scripts)\//.test(path);
+function sourceIdentities(files) {
+  const testFiles = files.filter((f) => testOnlyPath(f.path));
+  const runtimeFiles = files.filter((f) => !testOnlyPath(f.path));
+  // File-set/ownership changes require a rebuild, even inside the test-only lane.
+  const testPaths = testFiles.map((f) => ({
+    path: f.path,
+    missing: f.missing === true,
+  }));
+  return {
+    policy: TEST_INPUT_POLICY,
+    runtimeDigest: hashJson({ runtimeFiles, testPaths }),
+    testDigest: hashJson(testFiles),
+    testFiles,
+  };
+}
+function buildEnvironment() {
+  return Object.entries({
+    ...process.env,
+    CI: 'false',
+    SCROLLER_WEB_BUILD_RECEIPT_GUARD: '1',
+  })
+    .filter(([name]) =>
+      /^(?:VITE_|TAMAGUI_|SHIP_URL|NODE_ENV$|CI$|SSL$|SCROLLER_WEB_BUILD_RECEIPT_GUARD$)/.test(
+        name
+      )
+    )
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([name, value]) => ({ name, sha256: assetHash(value ?? '') }));
+}
+function createWebTestIsolationPlugin(root, scope) {
+  root = realpathSync(root);
+  if (!['main', 'worker'].includes(scope))
+    throw Error('Unknown build isolation scope');
+  let configChecked = false;
+  const check = (id) => {
+    if (typeof id !== 'string') throw Error('Unknown build module identity');
+    if (id.startsWith('\0')) return; // Virtual IDs cannot be test-file owners.
+    // Vite 5's production browser shim is a virtual empty module, not a path.
+    if (id === '__vite-browser-external') return;
+    const path = id.split('?')[0];
+    if (!isAbsolute(path)) throw Error(`Unknown build module path: ${id}`);
+    const relativePath = relative(
+      root,
+      existsSync(path) ? realpathSync(path) : path
+    ).replaceAll('\\', '/');
+    if (testOnlyPath(relativePath))
+      throw Error(`Production build imports test-only input: ${relativePath}`);
+  };
+  return {
+    name: `scroller-test-isolation-${scope}-v1`,
+    enforce: 'pre',
+    configResolved(config) {
+      if (!Array.isArray(config.configFileDependencies))
+        throw Error('Missing Vite configuration dependency identity');
+      config.configFileDependencies.forEach(check);
+      configChecked = true;
+    },
+    transform(_code, id) {
+      check(id);
+      return null;
+    },
+    generateBundle() {
+      if (!configChecked) throw Error('Missing build configuration isolation');
+      const ids = [...this.getModuleIds()];
+      ids.forEach((id) => {
+        if (isAbsolute(id) || !this.getModuleInfo(id)?.isExternal) check(id);
+      });
+      const payload = {
+        version: 1,
+        policy: TEST_INPUT_POLICY,
+        scope,
+        root,
+        moduleCount: ids.length,
+      };
+      if (!payload.moduleCount) throw Error('Empty build module inventory');
+      this.emitFile({
+        type: 'asset',
+        fileName: `scroller-build-isolation-${scope}.json`,
+        source: JSON.stringify(payload),
+      });
+    },
+  };
+}
 const command = (root, args) => {
   const result = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
   if (result.status !== 0)
     throw new Error(`Cannot read Git source manifest: ${result.stderr}`);
   return result.stdout;
 };
-function snapshotWebSources(root) {
+function snapshotWebSources(root, options = {}) {
   root = realpathSync(root);
   const listed = command(root, [
     'ls-files',
@@ -44,7 +141,7 @@ function snapshotWebSources(root) {
     '--exclude-standard',
   ])
     .split('\0')
-    .filter(sourcePath);
+    .filter(options.version === 1 ? legacySourcePath : sourcePath);
   const envFiles = readdirSync(join(root, 'apps/tlon-web'))
     .filter((name) => /^\.env(?:\.|$)/.test(name))
     .map((name) => `apps/tlon-web/${name}`);
@@ -77,10 +174,27 @@ function snapshotWebSources(root) {
     const full = join(root, path);
     if (!existsSync(full)) return { path, missing: true };
     const stat = lstatSync(full);
+    const resolved = realpathSync(full);
+    const indirect = stat.isSymbolicLink() || resolved !== resolve(root, path);
+    if (
+      options.version !== 1 &&
+      indirect &&
+      (testOnlyPath(path) || !resolved.startsWith(root + '/'))
+    )
+      throw new Error(
+        `Source symlink cannot certify isolated build input ${path}`
+      );
     if (!stat.isFile() && !stat.isSymbolicLink())
       throw new Error(`Unsupported source input ${path}`);
     const body = readFileSync(full);
-    return { path, bytes: body.length, sha256: assetHash(body) };
+    return {
+      path,
+      bytes: body.length,
+      sha256: assetHash(body),
+      ...(options.version !== 1 && indirect
+        ? { resolvedPath: relative(root, resolved).replaceAll('\\', '/') }
+        : {}),
+    };
   });
   return {
     root,
@@ -88,6 +202,7 @@ function snapshotWebSources(root) {
     files,
     workspaceLinks,
     digest: hashJson(files),
+    ...(options.version === 1 ? {} : { identity: sourceIdentities(files) }),
   };
 }
 function outputManifest(root) {
@@ -116,7 +231,7 @@ function assessBuildReceipt(receipt) {
   const errors = [];
   if (
     !receipt ||
-    receipt.version !== 1 ||
+    ![1, 2].includes(receipt.version) ||
     receipt.kind !== 'vite-production-build'
   )
     return ['Missing production build receipt'];
@@ -206,16 +321,62 @@ function assessBuildReceipt(receipt) {
     !isAbsolute(receipt.output?.root ?? '')
   )
     errors.push('Missing absolute build roots');
+  if (receipt.version === 2) {
+    if (
+      !Array.isArray(inputs) ||
+      inputs.some(
+        (f) =>
+          (f.missing !== undefined && f.missing !== true) ||
+          (f.resolvedPath !== undefined &&
+            (!safePath(f.resolvedPath) || testOnlyPath(f.path)))
+      ) ||
+      JSON.stringify(receipt.source?.identity) !==
+        JSON.stringify(sourceIdentities(inputs))
+    )
+      errors.push('Invalid runtime/test source identities');
+    if (
+      !receipt.build?.environment?.some(
+        (e) =>
+          e.name === 'SCROLLER_WEB_BUILD_RECEIPT_GUARD' &&
+          e.sha256 === assetHash('1')
+      )
+    )
+      errors.push('Missing receipt build isolation flag');
+    for (const scope of ['main', 'worker']) {
+      const guard = receipt.isolation?.[scope];
+      const output = outputs?.find(
+        (f) => f.path === `scroller-build-isolation-${scope}.json`
+      );
+      const body = JSON.stringify(guard);
+      if (
+        guard?.version !== 1 ||
+        guard.policy !== TEST_INPUT_POLICY ||
+        guard.scope !== scope ||
+        guard.root !== receipt.source.root ||
+        !Number.isSafeInteger(guard.moduleCount) ||
+        guard.moduleCount < 1 ||
+        !output ||
+        output.sha256 !== assetHash(body) ||
+        output.bytes !== Buffer.byteLength(body)
+      )
+        errors.push(`Missing actual ${scope} build isolation artifact`);
+    }
+  }
   return errors;
 }
 function verifyCurrentWebBuild(receipt, root) {
   const errors = assessBuildReceipt(receipt);
   if (errors.length) throw new Error(errors.join('; '));
-  const current = snapshotWebSources(root);
+  const current = snapshotWebSources(root, { version: receipt.version });
   if (
     current.root !== receipt.source.root ||
-    current.head !== receipt.source.head ||
-    current.digest !== receipt.source.digest
+    (receipt.version === 1
+      ? current.head !== receipt.source.head ||
+        current.digest !== receipt.source.digest
+      : current.identity.runtimeDigest !==
+          receipt.source.identity.runtimeDigest ||
+        JSON.stringify(current.workspaceLinks) !==
+          JSON.stringify(receipt.source.workspaceLinks))
   )
     throw new Error(
       'Current workspace differs from production build source receipt'
@@ -231,7 +392,55 @@ function verifyCurrentWebBuild(receipt, root) {
     checkedAt: Date.now(),
     sourceDigest: current.digest,
     outputDigest: receipt.output.digest,
+    ...(receipt.version === 2
+      ? {
+          version: 2,
+          root: current.root,
+          head: current.head,
+          identity: current.identity,
+          workspaceLinks: current.workspaceLinks,
+        }
+      : {}),
   };
+}
+function validCurrentIdentity(check, receipt) {
+  try {
+    if (
+      check?.version !== 2 ||
+      check.root !== receipt.source.root ||
+      !/^[a-f0-9]{40}$/.test(check.head ?? '') ||
+      JSON.stringify(check.workspaceLinks) !==
+        JSON.stringify(receipt.source.workspaceLinks)
+    )
+      return false;
+    const identity = check.identity,
+      files = identity?.testFiles;
+    if (
+      !Array.isArray(files) ||
+      files.some(
+        (f) =>
+          !testOnlyPath(f?.path) ||
+          !safePath(f.path) ||
+          f.resolvedPath !== undefined ||
+          (f.missing !== undefined && f.missing !== true) ||
+          (!f.missing &&
+            (!hex(f.sha256) || !Number.isInteger(f.bytes) || f.bytes < 0))
+      ) ||
+      new Set(files.map((f) => f.path)).size !== files.length
+    )
+      return false;
+    const all = [
+      ...receipt.source.files.filter((f) => !testOnlyPath(f.path)),
+      ...files,
+    ].sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    return (
+      hashJson(all) === check.sourceDigest &&
+      JSON.stringify(sourceIdentities(all)) === JSON.stringify(identity) &&
+      identity.runtimeDigest === receipt.source.identity.runtimeDigest
+    );
+  } catch {
+    return false;
+  }
 }
 function assessProductionAssets(proof, expected = {}) {
   const issues = [];
@@ -266,7 +475,9 @@ function assessProductionAssets(proof, expected = {}) {
     )
       reject('Build/load observation is not scoped to this attempt');
     if (
-      proof.currentCheck?.sourceDigest !== receipt.source.digest ||
+      (receipt.version === 1
+        ? proof.currentCheck?.sourceDigest !== receipt.source.digest
+        : !validCurrentIdentity(proof.currentCheck, receipt)) ||
       proof.currentCheck?.outputDigest !== receipt.output.digest ||
       !Number.isFinite(proof.currentCheck?.checkedAt) ||
       proof.currentCheck.checkedAt > proof.startedAt ||
@@ -409,16 +620,11 @@ function buildWebReceipt({ root, output, receiptPath }) {
       output,
     ],
     startedAt = Date.now();
-  const environment = Object.entries({ ...process.env, CI: 'false' })
-    .filter(([name]) =>
-      /^(?:VITE_|TAMAGUI_|SHIP_URL|NODE_ENV$|CI$|SSL$)/.test(name)
-    )
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([name, value]) => ({ name, sha256: assetHash(value ?? '') }));
+  const environment = buildEnvironment();
   const result = spawnSync(argv[0], argv.slice(1), {
     cwd: root,
     stdio: 'inherit',
-    env: { ...process.env, CI: 'false' },
+    env: { ...process.env, CI: 'false', SCROLLER_WEB_BUILD_RECEIPT_GUARD: '1' },
   });
   const completedAt = Date.now(),
     after = snapshotWebSources(root);
@@ -428,10 +634,21 @@ function buildWebReceipt({ root, output, receiptPath }) {
     throw new Error('Source changed during production build');
   const files = outputManifest(output);
   const payload = {
-    version: 1,
+    version: 2,
     kind: 'vite-production-build',
     source,
     sourceAfterDigest: after.digest,
+    isolation: Object.fromEntries(
+      ['main', 'worker'].map((scope) => [
+        scope,
+        JSON.parse(
+          readFileSync(
+            join(output, `scroller-build-isolation-${scope}.json`),
+            'utf8'
+          )
+        ),
+      ])
+    ),
     build: {
       environment,
       package: 'tlon-web',
@@ -454,6 +671,8 @@ function buildWebReceipt({ root, output, receiptPath }) {
 }
 module.exports = {
   assetHash,
+  createWebTestIsolationPlugin,
+  sourceIdentities,
   snapshotWebSources,
   outputManifest,
   assessBuildReceipt,

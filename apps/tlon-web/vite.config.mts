@@ -5,6 +5,7 @@ import { urbitPlugin } from '@urbit/vite-plugin-urbit';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
+import { createRequire } from 'node:module';
 import analyze from 'rollup-plugin-analyzer';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { fileURLToPath } from 'url';
@@ -23,6 +24,11 @@ import expo52PatchPlugin from './expo52PatchPlugin';
 import packageJson from './package.json';
 import reactNativeWeb from './reactNativeWebPlugin';
 import manifest from './src/manifest';
+
+// Keep Node-only receipt helpers external to Vite's bundled ESM config.
+const webAssetReceipt = createRequire(import.meta.url)(
+  '../../scripts/scroll-stability-web-assets.cjs'
+) as typeof import('../../scripts/scroll-stability-web-assets.cjs');
 
 // https://vitejs.dev/config/
 export default ({ mode }: { mode: string }) => {
@@ -51,6 +57,16 @@ export default ({ mode }: { mode: string }) => {
     process.env.VITE_ENABLE_WDYR === 'true'
       ? '@welldone-software/why-did-you-render'
       : undefined;
+
+  const isolation = (scope: 'main' | 'worker') =>
+    process.env.SCROLLER_WEB_BUILD_RECEIPT_GUARD === '1'
+      ? [
+          webAssetReceipt.createWebTestIsolationPlugin(
+            fileURLToPath(new URL('../..', import.meta.url)),
+            scope
+          ),
+        ]
+      : [];
 
   // eslint-disable-next-line
   const base = (mode: string) => {
@@ -107,6 +123,7 @@ export default ({ mode }: { mode: string }) => {
     }
 
     return [
+      ...isolation('main'),
       process.env.SSL === 'true' ? (basicSsl() as PluginOption) : null,
       exportingRawText(/\.sql$/),
       expo52PatchPlugin(), // Fix Expo 52 static name assignments
@@ -152,7 +169,7 @@ export default ({ mode }: { mode: string }) => {
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           maximumFileSizeToCacheInBytes: 100000000,
-          plugins: [reactNativeWeb()],
+          plugins: [reactNativeWeb(), ...isolation('worker')],
         },
       }),
       // Sentry source map upload - only enabled in CI
