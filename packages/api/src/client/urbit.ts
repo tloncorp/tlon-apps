@@ -503,49 +503,58 @@ export async function subscribeOnce<T>(
     await config.pendingAuth;
   }
   logger.log('subscribing once to', printEndpoint(endpoint));
-  const sent = captureSendContext(config.client);
+
+  // Both the first attempt and the post-reauth retry go through here, so a
+  // retry that times out reports the same telemetry the first attempt would.
   // `return await`, not `return`: returning the promise hands it out of the
-  // try before it settles, so none of the handling below ever ran. Urbit's
-  // subscribeOnce rejects asynchronously with 'timeout'/'quit', so this catch
-  // has been dead for every failure it was written for.
-  try {
-    return await config.client.subscribeOnce<T>(
-      endpoint.app,
-      endpoint.path,
-      ship,
-      timeout
-    );
-  } catch (err) {
-    if (err !== 'timeout' && err !== 'quit') {
-      logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
-        ...describeError(err),
-      });
-    } else if (err === 'timeout') {
-      logger.error('subscribeOnce timed out', printEndpoint(endpoint));
-      logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
-        requestTag: requestConfig?.tag,
-        subEndpoint: printEndpoint(endpoint),
-        connectionStatus: config.lastStatus,
-        timeoutDuration: timeout,
-      });
-    } else {
-      logger.error('subscribeOnce quit', printEndpoint(endpoint));
-    }
-
-    if (!(err instanceof AuthError)) {
-      throw err;
-    }
-
-    // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
-    // would start a second login for every caller that failed against the
-    // same dead session, and eyre closes the session each login arrives with.
-    await reauthOnce(sent);
+  // try before it settles, which is why none of this reporting ever ran.
+  const attempt = async (isRetry: boolean): Promise<T> => {
     const client = config.client;
     if (!client) {
       throw new Error('Client not initialized');
     }
-    return client.subscribeOnce<T>(endpoint.app, endpoint.path, ship, timeout);
-  }
+    const sent = captureSendContext(client);
+    try {
+      return await client.subscribeOnce<T>(
+        endpoint.app,
+        endpoint.path,
+        ship,
+        timeout
+      );
+    } catch (err) {
+      if (err !== 'timeout' && err !== 'quit') {
+        logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
+          ...describeError(err),
+          isRetry,
+        });
+      } else if (err === 'timeout') {
+        logger.error('subscribeOnce timed out', printEndpoint(endpoint));
+        logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
+          requestTag: requestConfig?.tag,
+          subEndpoint: printEndpoint(endpoint),
+          connectionStatus: config.lastStatus,
+          timeoutDuration: timeout,
+          isRetry,
+        });
+      } else {
+        logger.error('subscribeOnce quit', printEndpoint(endpoint));
+      }
+
+      // isRetry bounds this to a single reauth round trip
+      if (isRetry || !(err instanceof AuthError)) {
+        throw err;
+      }
+
+      // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
+      // would start a second login for every caller that failed against the
+      // same dead session, and eyre closes the session each login arrives
+      // with.
+      await reauthOnce(sent);
+      return attempt(true);
+    }
+  };
+
+  return attempt(false);
 }
 
 export async function unsubscribe(id: number) {
@@ -555,25 +564,21 @@ export async function unsubscribe(id: number) {
   if (config.pendingAuth) {
     await config.pendingAuth;
   }
-  const sent = captureSendContext(config.client);
   // See subscribeOnce: `return` handed the promise out of the try, so this
-  // catch never ran and the AuthError retry below was dead code.
+  // catch never ran and the AuthError retry it contained was dead code.
   try {
     return await config.client.unsubscribe(id);
   } catch (err) {
     logger.error('bad unsubscribe', id, err);
-    // Rethrow rather than falling through to `undefined`. The catch was dead,
-    // so callers already see this rejection today — swallowing it here would
-    // be the behavior change, not preserving it.
-    if (!(err instanceof AuthError)) {
-      throw err;
-    }
-    await reauthOnce(sent);
-    const client = config.client;
-    if (!client) {
-      throw new Error('Client not initialized');
-    }
-    return client.unsubscribe(id);
+    // Deliberately no reauth-and-retry, unlike the other verbs. A successful
+    // reauth rotates the channel (performReauth -> rotateChannel ->
+    // seamlessReset), which resets lastEventId to 0 and replays outstanding
+    // subscriptions under freshly allocated ids. `id` would then be stale and
+    // could well name a *different* subscription, so retrying risks
+    // unsubscribing the wrong one. No retry happened here before either --
+    // the catch was unreachable -- so rethrowing keeps today's behavior and
+    // only makes the logging live.
+    throw err;
   }
 }
 
