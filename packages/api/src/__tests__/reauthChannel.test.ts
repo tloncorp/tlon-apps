@@ -628,6 +628,33 @@ describe('subscribeOnce swept by a rotation', () => {
     expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
   });
 
+  test('an auth failure is not retried when only the channel moved', async () => {
+    // getCode rejects, so performReauth bails to handleAuthFailure without
+    // advancing the epoch. An unrelated reset rotates the channel during that
+    // await — which is not evidence that a login succeeded.
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => {
+        client.channelId = 'chan-2';
+        throw new Error('no code available');
+      }),
+      handleAuthFailure: vi.fn(),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
   test('the retry is bounded to one extra attempt', async () => {
     const client: Record<string, any> = fakeClient({
       channelId: 'chan-1',

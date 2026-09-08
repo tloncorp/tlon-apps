@@ -388,12 +388,19 @@ function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
   rotateChannel(client, context);
 }
 
+// Did a login actually complete since the request went out? Only an epoch
+// advance proves that. A channel that merely rotated does not: an SSE reap or
+// 500 rotates it without authenticating anything.
+function sessionRefreshedSince(sent: SendContext) {
+  return config.authEpoch !== sent.authEpoch;
+}
+
 // Did the session or channel move out from under a request after it went out?
 // Takes the client the request actually used rather than reading the singleton,
 // so a logout that nulls config.client mid-flight is not mistaken for a rotation.
 function sessionMovedSince(client: Urbit, sent: SendContext) {
   return (
-    config.authEpoch !== sent.authEpoch ||
+    sessionRefreshedSince(sent) ||
     (sent.channelId !== undefined && client.channelId !== sent.channelId)
   );
 }
@@ -599,9 +606,12 @@ export async function subscribeOnce<T>(
         // reauthOnce resolves without having refreshed anything when we are
         // logging out, when there is no getCode, or when the ship rejected the
         // code. Retrying then just fires at a session already known to be
-        // dead, and on mobile races the forced-logout alert. A refreshed
-        // session always advances the epoch, so this is the honest check.
-        if (config.loggingOut || !sessionMovedSince(client, sent)) {
+        // dead, and on mobile races the forced-logout alert.
+        //
+        // Specifically an epoch advance, not sessionMovedSince: an unrelated
+        // reap or SSE 500 can rotate the channel while we await, and a rotated
+        // channel is no evidence that a login succeeded.
+        if (config.loggingOut || !sessionRefreshedSince(sent)) {
           throw err;
         }
       } else if (config.pendingAuth) {
