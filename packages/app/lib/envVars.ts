@@ -36,6 +36,7 @@ const envVars = {
   forceSplashSequence: env.VITE_FORCE_SPLASH_SEQUENCE,
   automatedTest: env.VITE_AUTOMATED_TEST,
   sentryDsn: env.VITE_SENTRY_DSN,
+  sentryEnvironment: env.VITE_SENTRY_ENVIRONMENT,
   agentShipOverride: env.VITE_AGENT_SHIP_OVERRIDE,
 } as Record<string, string | undefined>;
 
@@ -83,6 +84,7 @@ export const GIT_HASH = envVars.gitHash ?? 'unknown';
 export const DISABLE_SPLASH_MODAL = envVars.disableSplashModal === 'true';
 export const FORCE_SPLASH_SEQUENCE = envVars.forceSplashSequence === 'true';
 export const SENTRY_DSN = envVars.sentryDsn ?? '';
+export const SENTRY_ENVIRONMENT = envVars.sentryEnvironment ?? '';
 /** Dev/self-hosted agent identity for environments without Hosting. */
 export const AGENT_SHIP_OVERRIDE = envVars.agentShipOverride ?? '';
 
@@ -121,5 +123,6 @@ export const ENV_VARS = {
   DISABLE_SPLASH_MODAL,
   FORCE_SPLASH_SEQUENCE,
   SENTRY_DSN,
+  SENTRY_ENVIRONMENT,
   AGENT_SHIP_OVERRIDE,
 };

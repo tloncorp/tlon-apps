@@ -814,7 +814,11 @@ function parseRawPostBlobData(blob: string): unknown[] | null {
       parsed,
     });
   } catch (error) {
-    logger.trackError('Failed to parse PostBlob data', { blob, error });
+    // The parser's own message quotes the input, which is message content.
+    logger.trackError('Failed to parse PostBlob data', {
+      blob,
+      errorName: error instanceof Error ? error.name : typeof error,
+    });
   }
   return null;
 }

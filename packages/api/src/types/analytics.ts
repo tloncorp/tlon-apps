@@ -44,6 +44,7 @@ export enum AnalyticsEvent {
   ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
   ErrorNativeDb = 'Native DB Error',
+  ErrorWebDb = 'Web DB Error',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
