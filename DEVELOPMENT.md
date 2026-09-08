@@ -16,6 +16,44 @@ To develop, you'll need a running ship to point to. To do so you first need to a
 
 Regardless of what you run to develop, Vite will hot-reload code changes as you work so you don't have to constantly refresh.
 
+## Mobile Development
+
+Mobile env vars come from `apps/tlon-mobile/.env.local` (or `.env`) — both are
+gitignored, and both are loaded by Expo CLI before `app.config.ts` is evaluated.
+`apps/tlon-mobile/.env.sample` lists the variables; the values production builds
+use live in EAS, not in the repo.
+
+### Hosted email/OTP login can't work in a locally-built app
+
+A local build has no reCAPTCHA site key. `app.config.ts` reads
+`RECAPTCHA_SITE_KEY_ANDROID` / `RECAPTCHA_SITE_KEY_IOS` from the environment,
+and those values come from EAS rather than from `eas.json` or a committed
+`.env`, so locally they're undefined. `useRecaptcha` then never initializes,
+`getToken()` throws, and the generic `catch` in `TlonLogin` reports "Something
+went wrong. Please try again." for _every_ attempt — including one with an
+address that has no account, which would otherwise get the 404-specific
+message. The symptom looks like an account or network problem. It isn't.
+
+Two login paths involve no reCAPTCHA and work in a local build as-is:
+
+-   **Hosted account:** on the email login screen, tap "Or, log in with a
+    password" (`TlonLoginLegacy` → `handleLogin` → `logInHostedUser`). This is
+    the easiest path.
+-   **Self-hosted ship:** from the welcome screen, tap "Or configure self
+    hosted" and enter the ship's URL and access code (`getLandscapeAuthCookie`).
+
+To exercise the OTP path itself locally, put the reCAPTCHA site keys from EAS
+(`eas login`, then `eas env:pull` — which only works if they're stored as EAS
+environment variables rather than as classic write-only secrets) into
+`apps/tlon-mobile/.env.local`, and set `AUTOMATED_TEST="true"`, the same flag
+the `e2e` build profile sets. The app then reads the `_TEST` site keys
+(`RECAPTCHA_SITE_KEY_ANDROID_TEST` / `RECAPTCHA_SITE_KEY_IOS_TEST`) and tells
+hosting to verify against the matching test platform. `AUTOMATED_TEST=true` also
+switches on e2e-only behavior (the sync-check overlay, a stubbed push token), so
+don't leave it set. Env vars are baked into the JS bundle at build time, so this
+needs a rebuild — but an incremental one is enough: only the assets change,
+dex/R8 stay cached.
+
 ## Fakezod Development
 
 To get started, make sure your %groups desk is mounted:
