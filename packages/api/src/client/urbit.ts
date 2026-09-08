@@ -395,16 +395,6 @@ function sessionRefreshedSince(sent: SendContext) {
   return config.authEpoch !== sent.authEpoch;
 }
 
-// Did the session or channel move out from under a request after it went out?
-// Takes the client the request actually used rather than reading the singleton,
-// so a logout that nulls config.client mid-flight is not mistaken for a rotation.
-function sessionMovedSince(client: Urbit, sent: SendContext) {
-  return (
-    sessionRefreshedSince(sent) ||
-    (sent.channelId !== undefined && client.channelId !== sent.channelId)
-  );
-}
-
 async function reauthOnce(sent: SendContext) {
   if (config.authEpoch !== sent.authEpoch) {
     logger.log('session already refreshed, retrying');
@@ -522,9 +512,9 @@ export async function subscribeOnce<T>(
   logger.log('subscribing once to', printEndpoint(endpoint));
 
   // Both the first attempt and the post-reauth retry go through here, so a
-  // retry that times out reports the same telemetry the first attempt would.
-  // `return await`, not `return`: returning the promise hands it out of the
-  // try before it settles, which is why none of this reporting ever ran.
+  // retry reports the same telemetry the first attempt would. `return await`,
+  // not `return`: returning the promise hands it out of the try before it
+  // settles, which is why none of this reporting ever ran.
   const attempt = async (isRetry: boolean): Promise<T> => {
     const client = config.client;
     if (!client) {
@@ -532,41 +522,28 @@ export async function subscribeOnce<T>(
     }
     const sent = captureSendContext(client);
     try {
-      return await client.subscribeOnce<T>(
+      const result = await client.subscribeOnce<T>(
         endpoint.app,
         endpoint.path,
         ship,
         timeout
       );
+      if (isRetry) {
+        // the reauth earned its keep; counted in PostHog rather than reported
+        // as an error, since the caller never saw a failure
+        logger.trackEvent(AnalyticsEvent.SubscribeOnceRecovered, {
+          requestTag: requestConfig?.tag,
+          subEndpoint: printEndpoint(endpoint),
+        });
+      }
+      return result;
     } catch (err) {
-      // A rotation — reauth, an eyre reap, an SSE 500, a 403 identity
-      // mismatch — quits every outstanding subscription, and one-shots carry
-      // resubOnQuit:false, so a healthy sibling that happened to be in flight
-      // rejects with a bare 'quit'. That is collateral from our own recovery
-      // rather than the ship ending the subscription, and it is worth
-      // re-issuing on the channel that replaced it.
-      //
-      // Only when the caller gave a timeout, though. Untimed one-shots
-      // (getGroupPreview, getChannelPreview, the lanyard queries) would retry
-      // with no deadline, and lanyard subscribes to a single-use nonce path
-      // whose response the dead subscription already consumed — so a retry
-      // there would hang for good instead of failing fast.
-      const collateralQuit =
-        err === 'quit' &&
-        timeout !== undefined &&
-        sessionMovedSince(client, sent);
-      const retryReason = collateralQuit
-        ? 'quit'
-        : err instanceof AuthError
-          ? 'auth'
-          : null;
       // Never retry on a client that is no longer the configured one. A
       // logout or account switch can replace it while this request is still
       // in flight, and attempt() reads config.client — so a retry would
-      // replay this endpoint against a different ship's session. The epoch is
-      // global, so sessionMovedSince alone cannot tell that case apart.
+      // replay this endpoint against a different ship's session.
       const willRetry =
-        !isRetry && retryReason !== null && config.client === client;
+        !isRetry && err instanceof AuthError && config.client === client;
 
       // Only report once we know the caller is actually going to see a
       // failure. A first attempt that recovers on retry was never visible to
@@ -578,7 +555,6 @@ export async function subscribeOnce<T>(
             ...describeError(err),
             endpoint: printEndpoint(endpoint),
             isRetry,
-            retryReason,
           });
         } else if (err === 'timeout') {
           logger.error('subscribeOnce timed out', printEndpoint(endpoint));
@@ -588,7 +564,6 @@ export async function subscribeOnce<T>(
             connectionStatus: config.lastStatus,
             timeoutDuration: timeout,
             isRetry,
-            retryReason,
           });
         } else {
           logger.error('subscribeOnce quit', printEndpoint(endpoint), {
@@ -603,34 +578,21 @@ export async function subscribeOnce<T>(
         throw err;
       }
 
-      logger.log(
-        'subscribeOnce retrying',
-        printEndpoint(endpoint),
-        retryReason
-      );
+      logger.log('subscribeOnce retrying after auth', printEndpoint(endpoint));
 
-      if (retryReason === 'auth') {
-        // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
-        // would start a second login for every caller that failed against the
-        // same dead session, and eyre closes the session each login arrives
-        // with.
-        await reauthOnce(sent);
-        // reauthOnce resolves without having refreshed anything when we are
-        // logging out, when there is no getCode, or when the ship rejected the
-        // code. Retrying then just fires at a session already known to be
-        // dead, and on mobile races the forced-logout alert.
-        //
-        // Specifically an epoch advance, not sessionMovedSince: an unrelated
-        // reap or SSE 500 can rotate the channel while we await, and a rotated
-        // channel is no evidence that a login succeeded.
-        if (config.loggingOut || !sessionRefreshedSince(sent)) {
-          reportTerminalFailure();
-          throw err;
-        }
-      } else if (config.pendingAuth) {
-        // the rotation that swept us may be the tail of someone's login; do
-        // not re-issue a PUT against a session still being replaced
-        await config.pendingAuth;
+      // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
+      // would start a second login for every caller that failed against the
+      // same dead session, and eyre closes the session each login arrives
+      // with.
+      await reauthOnce(sent);
+      // reauthOnce resolves without having refreshed anything when we are
+      // logging out, when there is no getCode, or when the ship rejected the
+      // code. Retrying then just fires at a session already known to be dead,
+      // and on mobile races the forced-logout alert. Only an epoch advance
+      // proves a login completed.
+      if (config.loggingOut || !sessionRefreshedSince(sent)) {
+        reportTerminalFailure();
+        throw err;
       }
       // the client can be swapped out while we await above
       if (config.client !== client) {

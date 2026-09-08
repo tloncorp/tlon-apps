@@ -9,6 +9,7 @@ import {
   subscribeOnce,
 } from '../client/urbit';
 import { configureLoggerFactory } from '../lib/logger';
+import { AnalyticsEvent } from '../types/analytics';
 import { Atom } from '@urbit/nockjs';
 
 import { AuthError, ChannelPutError, ReapError } from '../http-api';
@@ -524,11 +525,7 @@ describe('storms', () => {
   });
 });
 
-describe('subscribeOnce swept by a rotation', () => {
-  // A rotation quits every outstanding subscription, and one-shots carry
-  // resubOnQuit:false, so a sibling that was merely in flight rejects with a
-  // bare 'quit'. That is collateral from our own recovery, not the ship
-  // ending the subscription.
+describe('subscribeOnce auth retry', () => {
   function configure(client: Record<string, any>) {
     internalConfigureClient({
       shipName: '~zod',
@@ -538,55 +535,17 @@ describe('subscribeOnce swept by a rotation', () => {
     });
   }
 
-  test('a timed one-shot retries on the channel that replaced it', async () => {
-    const client: Record<string, any> = fakeClient({
-      channelId: 'chan-1',
-      subscribeOnce: vi
-        .fn()
-        .mockImplementationOnce(async () => {
-          client.channelId = 'chan-2';
-          throw 'quit';
-        })
-        .mockResolvedValueOnce('fact'),
-    });
-    configure(client);
-
-    await expect(
-      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
-    ).resolves.toBe('fact');
-    expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
-  });
-
-  test('an untimed one-shot is left alone even when the channel moved', async () => {
-    // lanyard subscribes to a single-use nonce path with no timeout. Its
-    // response died with the old channel, so a retry would wait for good.
-    const client: Record<string, any> = fakeClient({
-      channelId: 'chan-1',
-      subscribeOnce: vi.fn().mockImplementationOnce(async () => {
-        client.channelId = 'chan-2';
-        throw 'quit';
-      }),
-    });
-    configure(client);
-
-    await expect(
-      subscribeOnce({ app: 'lanyard', path: '/v1/query/0v123' })
-    ).rejects.toBe('quit');
-    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
-  });
-
-  test('a quit with no rotation behind it is passed through', async () => {
-    const client: Record<string, any> = fakeClient({
-      channelId: 'chan-1',
-      subscribeOnce: vi.fn().mockRejectedValueOnce('quit'),
-    });
-    configure(client);
-
-    await expect(
-      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
-    ).rejects.toBe('quit');
-    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
-  });
+  function stubLogger() {
+    const stub = {
+      ...console,
+      crumb: vi.fn(),
+      sensitiveCrumb: vi.fn(),
+      trackError: vi.fn(),
+      trackEvent: vi.fn(),
+    };
+    configureLoggerFactory(() => stub as any);
+    return stub;
+  }
 
   test('a one-shot whose client was swapped out is not replayed', async () => {
     // logout / account switch replaces the client while the request is still
@@ -595,7 +554,6 @@ describe('subscribeOnce swept by a rotation', () => {
     const client: Record<string, any> = fakeClient({
       channelId: 'chan-1',
       subscribeOnce: vi.fn().mockImplementationOnce(async () => {
-        client.channelId = 'chan-2';
         internalRemoveClient();
         internalConfigureClient({
           shipName: '~bus',
@@ -603,14 +561,14 @@ describe('subscribeOnce swept by a rotation', () => {
           getCode: vi.fn(async () => 'code'),
           client: fakeClient({ channelId: 'chan-9' }) as any,
         });
-        throw 'quit';
+        throw new AuthError('invalid session');
       }),
     });
     configure(client);
 
     await expect(
       subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
-    ).rejects.toBe('quit');
+    ).rejects.toBeInstanceOf(AuthError);
     expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
   });
 
@@ -638,46 +596,6 @@ describe('subscribeOnce swept by a rotation', () => {
     ).rejects.toBeInstanceOf(AuthError);
     expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
   });
-
-  test('an auth failure is not retried when only the channel moved', async () => {
-    // getCode rejects, so performReauth bails to handleAuthFailure without
-    // advancing the epoch. An unrelated reset rotates the channel during that
-    // await — which is not evidence that a login succeeded.
-    const client: Record<string, any> = fakeClient({
-      channelId: 'chan-1',
-      subscribeOnce: vi
-        .fn()
-        .mockRejectedValueOnce(new AuthError('invalid session')),
-    });
-    internalConfigureClient({
-      shipName: '~zod',
-      shipUrl: 'http://example.test',
-      getCode: vi.fn(async () => {
-        client.channelId = 'chan-2';
-        throw new Error('no code available');
-      }),
-      handleAuthFailure: vi.fn(),
-      client: client as any,
-    });
-
-    await expect(
-      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
-    ).rejects.toBeInstanceOf(AuthError);
-    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
-  });
-
-  function stubLogger(overrides: Record<string, unknown> = {}) {
-    const stub = {
-      ...console,
-      crumb: vi.fn(),
-      sensitiveCrumb: vi.fn(),
-      trackError: vi.fn(),
-      trackEvent: vi.fn(),
-      ...overrides,
-    };
-    configureLoggerFactory(() => stub as any);
-    return stub;
-  }
 
   test('an auth failure that recovers on retry is not reported as an error', async () => {
     // trackError is the branch that reaches Sentry, and AuthError is the only
@@ -731,16 +649,37 @@ describe('subscribeOnce swept by a rotation', () => {
   test('the retry is bounded to one extra attempt', async () => {
     const client: Record<string, any> = fakeClient({
       channelId: 'chan-1',
-      subscribeOnce: vi.fn().mockImplementation(async () => {
-        client.channelId = `chan-${client.subscribeOnce.mock.calls.length + 1}`;
-        throw 'quit';
-      }),
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValue(new AuthError('invalid session')),
     });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
     configure(client);
 
     await expect(
       subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
-    ).rejects.toBe('quit');
+    ).rejects.toBeInstanceOf(AuthError);
     expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
+  });
+
+  test('a recovered retry is counted', async () => {
+    const { trackEvent } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValueOnce('fact'),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).resolves.toBe('fact');
+    expect(trackEvent).toHaveBeenCalledWith(
+      AnalyticsEvent.SubscribeOnceRecovered,
+      expect.objectContaining({ subEndpoint: 'vitals/status/~zod' })
+    );
   });
 });
