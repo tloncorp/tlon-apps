@@ -4,8 +4,6 @@ export enum AnalyticsEvent {
   AppInstalled = 'App Installed',
   AppUpdated = 'App Updated',
   AppActive = 'App Active',
-  // Deliberately not named "...Error": tlon-web's composite logger forwards any
-  // event matching /error/i to Sentry, and this exists to stay out of Sentry.
   AppUpdateCheckFailed = 'App Update Check Failed',
   LoggedInBeforeSignup = 'Logged In Without Signing Up',
   FailedSignupOTP = 'Failed to send Signup OTP',

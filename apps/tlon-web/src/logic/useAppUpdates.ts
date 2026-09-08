@@ -7,9 +7,9 @@ import useKilnState, { usePike } from '@/state/kiln';
 const logger = createDevLogger('appUpdates', false);
 
 // A failed update check is expected and self-healing, so it must not reach
-// Sentry — that spray is what this module was fixed to stop. trackEvent routes
-// to PostHog only (trackError would hit both), which keeps the failure rate
-// countable without the noise.
+// Sentry — that spray is what this module was fixed to stop. trackEvent keeps
+// the failure rate countable in PostHog; trackError would report as
+// `app_error`, which the composite logger forwards to Sentry.
 function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
   logger.trackEvent(AnalyticsEvent.AppUpdateCheckFailed, {
     context,
