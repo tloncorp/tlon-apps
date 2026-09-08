@@ -1,9 +1,14 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { createChannel, useNotesDeskAvailable } from '@tloncorp/shared';
+import {
+  canGroupHostBuckets,
+  createChannel,
+  useBucketsDeskAvailable,
+  useNotesDeskAvailable,
+} from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button } from '@tloncorp/ui';
-import { type ComponentProps, useCallback, useMemo } from 'react';
+import { Button, useToast } from '@tloncorp/ui';
+import { type ComponentProps, useCallback, useMemo, useState } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
@@ -15,13 +20,19 @@ import * as Form from '../Form';
 import SystemNotices from '../SystemNotices';
 import { PrivateChannelToggle } from './ChannelPermissions';
 
-export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'notes';
+export type ChannelTypeName =
+  | 'chat'
+  | 'notebook'
+  | 'gallery'
+  | 'notes'
+  | 'buckets';
 
 // When the notes desk is installed, we offer 'Notebook' as the new
 // %notes-backed type and rename the legacy diary type to 'Bulletin'.
 // Without the notes desk, the legacy diary type keeps its 'Notebook' label.
 function buildChannelTypes(
-  notesAvailable: boolean
+  notesAvailable: boolean,
+  bucketsAvailable: boolean
 ): Form.ListItemInputOption<ChannelTypeName>[] {
   const chat: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Chat',
@@ -47,9 +58,16 @@ function buildChannelTypes(
     value: 'gallery',
     icon: 'ChannelGalleries',
   };
-  return notesAvailable
+  const buckets: Form.ListItemInputOption<ChannelTypeName> = {
+    title: 'Buckets',
+    subtitle: 'Shared files for members and agents',
+    value: 'buckets',
+    icon: 'Folder',
+  };
+  const channelTypes = notesAvailable
     ? [chat, notes, diary, gallery]
     : [chat, diary, gallery];
+  return bucketsAvailable ? [...channelTypes, buckets] : channelTypes;
 }
 
 interface CreateChannelFormSchema {
@@ -90,15 +108,22 @@ export function CreateChannelSheet({
   const { control, handleSubmit, watch, setValue } = form;
 
   const currentUserId = useCurrentUserId();
+  const toast = useToast();
+  const [isCreating, setIsCreating] = useState(false);
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
   const { data: notesAvailable = false } = useNotesDeskAvailable();
+  const { data: bucketsDeskAvailable = false } = useBucketsDeskAvailable();
+  const bucketsHostSupported = canGroupHostBuckets(group.hostUserId);
+  const bucketsAvailable =
+    bucketsDeskAvailable && isGroupAdmin && bucketsHostSupported;
   const channelTypes = useMemo(
-    () => buildChannelTypes(notesAvailable),
-    [notesAvailable]
+    () => buildChannelTypes(notesAvailable, bucketsAvailable),
+    [bucketsAvailable, notesAvailable]
   );
 
   const isPrivate = useWatch({ control, name: 'isPrivate' });
+  const selectedChannelType = useWatch({ control, name: 'channelType' });
 
   // Only toggles isPrivate without setting readers/writers because:
   // - If private: the user proceeds to CreateChannelPermissionsScreen to configure permissions
@@ -125,16 +150,28 @@ export function CreateChannelSheet({
 
   const handlePressSave = useCallback(
     async (data: CreateChannelFormSchema) => {
-      createChannel({
-        groupId: group.id,
-        title: data.title,
-        channelType: data.channelType,
-        readers: [],
-        writers: [],
-      });
-      onOpenChange(false);
+      try {
+        setIsCreating(true);
+        await createChannel({
+          groupId: group.id,
+          title: data.title,
+          channelType: data.channelType,
+          readers: [],
+          writers: [],
+        });
+        onOpenChange(false);
+      } catch (cause) {
+        toast({
+          message:
+            cause instanceof Error
+              ? cause.message
+              : 'Could not create this channel',
+        });
+      } finally {
+        setIsCreating(false);
+      }
     },
-    [group.id, onOpenChange]
+    [group.id, onOpenChange, toast]
   );
 
   return (
@@ -175,9 +212,20 @@ export function CreateChannelSheet({
               name={'channelType'}
             />
           </ActionSheet.FormBlock>
+          {bucketsDeskAvailable && isGroupAdmin && !bucketsHostSupported && (
+            <ActionSheet.FormBlock>
+              <SystemNotices.NoticeFrame>
+                <SystemNotices.NoticeBody>
+                  Buckets are currently available only in groups hosted on Tlon.
+                </SystemNotices.NoticeBody>
+              </SystemNotices.NoticeFrame>
+            </ActionSheet.FormBlock>
+          )}
           {isNonHostAdmin && (
             <ActionSheet.FormBlock>
-              <SystemNotices.NonHostAdminChannelNotice />
+              <SystemNotices.NonHostAdminChannelNotice
+                bucketHostedByGroup={selectedChannelType === 'buckets'}
+              />
             </ActionSheet.FormBlock>
           )}
           <ActionSheet.FormBlock>
@@ -187,6 +235,8 @@ export function CreateChannelSheet({
                 isPrivate ? handlePressNext : handleSubmit(handlePressSave)
               }
               label={isPrivate ? 'Next' : 'Create channel'}
+              loading={isCreating}
+              disabled={isCreating}
               centered
             />
           </ActionSheet.FormBlock>

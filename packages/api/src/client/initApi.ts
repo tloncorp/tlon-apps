@@ -1,6 +1,7 @@
 import { createDevLogger } from '../lib/logger';
 import type * as db from '../types/models';
 import type * as ub from '../urbit';
+import type { BucketsSummary } from '../urbit/buckets';
 import { toClientUnreads } from './activityApi';
 import { ChannelInit, toClientChannelsInit } from './channelsApi';
 import { toClientDms, toClientGroupDms } from './chatApi';
@@ -20,6 +21,7 @@ export interface InitData {
   unjoinedGroups: db.Group[];
   channels: db.Channel[];
   channelPerms: ChannelInit[];
+  buckets: BucketsSummary[];
   joinedGroups: string[];
   joinedGroupChannels: string[];
   hiddenPostIds: string[];
@@ -32,12 +34,15 @@ type InitDataOptions = {
 };
 
 export const getInitData = async () => {
-  // /v10/init is /v9 plus the group blob: v10-native activity (notebook/note
-  // sources) so a fresh init hydrates pre-existing note unreads, over v11
-  // groups so it also carries blob. Old backends don't serve it.
-  const response = await scry<ub.GroupsInit10>({
+  // /v11/init is /v10 plus Buckets and their writer roles, which no agent
+  // but %buckets models — so a Bucket learned from the group alone arrives
+  // without them. /v10 is /v9 plus the group blob: v10-native activity
+  // (notebook/note sources) so a fresh init hydrates pre-existing note
+  // unreads, over v11 groups so it also carries blob. Old backends don't
+  // serve it.
+  const response = await scry<ub.GroupsInit11>({
     app: 'groups-ui',
-    path: '/v10/init',
+    path: '/v11/init',
   });
 
   logger.crumb('got init data from api');
@@ -74,7 +79,9 @@ function extractJoinedGroupChannelsFromV7Groups(
 }
 
 export const toInitData = (
-  response: ub.GroupsInit10,
+  // Accepts a /v10 payload too: fixtures and older captures have no buckets
+  // field, and an absent one is simply no buckets.
+  response: ub.GroupsInit10 & { buckets?: ub.BucketsSummary[] },
   options: InitDataOptions
 ): InitData => {
   logger.crumb('converting init data to client data');
@@ -152,5 +159,6 @@ export const toInitData = (
     joinedGroupChannels,
     hiddenPostIds,
     blockedUsers,
+    buckets: response.buckets ?? [],
   };
 };

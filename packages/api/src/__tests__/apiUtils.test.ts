@@ -2,7 +2,10 @@ import { describe, expect, test } from 'vitest';
 
 import {
   getBotUserIdForUser,
+  getChannelIdType,
   isBotUserIdForUser,
+  isChannelId,
+  isGroupChannelId,
   isMoonOfUser,
 } from '../client/apiUtils';
 
@@ -50,5 +53,15 @@ describe('isMoonOfUser', () => {
         '~sampel-palnet'
       )
     ).toBe(false);
+  });
+});
+
+describe('bucket channel ids', () => {
+  const channelId = 'buckets/~zod/project-files';
+
+  test('treats Buckets as group channels', () => {
+    expect(isGroupChannelId(channelId)).toBe(true);
+    expect(isChannelId(channelId)).toBe(true);
+    expect(getChannelIdType(channelId)).toBe('channel');
   });
 });

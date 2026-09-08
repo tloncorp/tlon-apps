@@ -3,6 +3,8 @@ import * as content from './content';
 import * as dms from './dms';
 import * as groups from './groups';
 
+export * from './buckets';
+
 // These re-exports are necessary in order to resolve overlaps between the below
 // types so that everything can fit in a single namespace.
 export type Ship = channel.Ship;

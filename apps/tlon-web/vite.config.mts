@@ -257,6 +257,17 @@ export default ({ mode }: { mode: string }) => {
     // `platform`" at boot.
     define: {
       'process.env.EXPO_OS': JSON.stringify('web'),
+      // Nothing else reaches the browser through process.env -- envPrefix only
+      // exposes VITE_* via import.meta.env -- so without this the storage
+      // broker override is inert on web and uploads silently go to production
+      // while the host pushes read grants somewhere else.
+      //
+      // Both spellings, for the same reason SHIP_URL takes both above: only
+      // VITE_* names survive loadEnv into an .env file, while the shell can
+      // set the bare name.
+      'process.env.TLON_MEMEX_URL': JSON.stringify(
+        process.env.TLON_MEMEX_URL ?? process.env.VITE_TLON_MEMEX_URL ?? ''
+      ),
     },
     base: base(mode),
     server: {

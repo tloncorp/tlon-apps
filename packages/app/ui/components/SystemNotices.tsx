@@ -585,27 +585,30 @@ export function hasRelevantJoinRequests(group?: db.Group | null) {
 
 export function NonHostAdminChannelNotice({
   presentation: presentationOverride,
+  bucketHostedByGroup = false,
 }: {
   presentation?: SystemNoticePresentation;
+  // A Bucket is always hosted by the group host, so the notice says the
+  // opposite of what it says for a channel on your own node.
+  bucketHostedByGroup?: boolean;
 } = {}) {
   const presentation = useSystemNoticePresentation(
     presentationOverride,
     'expanded'
   );
+  const title = bucketHostedByGroup
+    ? "Hosted on the group host's node"
+    : 'Hosted on your node';
 
   if (presentation === 'compact') {
-    return (
-      <NoticeBanner
-        icon="Info"
-        title="Hosted on your node"
-        horizontalInset={false}
-      />
-    );
+    return <NoticeBanner icon="Info" title={title} horizontalInset={false} />;
   }
 
   return (
-    <NoticeCard icon="Info" title="Hosted on your node" horizontalInset={false}>
-      This channel will run independently from the group host.
+    <NoticeCard icon="Info" title={title} horizontalInset={false}>
+      {bucketHostedByGroup
+        ? "This Bucket will be hosted by the group host and will use the group host's storage."
+        : 'This channel will run independently from the group host.'}
     </NoticeCard>
   );
 }

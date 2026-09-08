@@ -103,6 +103,24 @@ export const useNotesDeskAvailable = () => {
   });
 };
 
+// Probe %buckets once so channel creation only offers the type when the desk
+// is installed on the current ship.
+export const useBucketsDeskAvailable = () => {
+  return useQuery({
+    queryKey: ['bucketsDeskAvailable'],
+    queryFn: async () => {
+      try {
+        await api.getBucketsReady();
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    retry: false,
+    staleTime: 60_000,
+  });
+};
+
 export const useUnjoinedGroupChannels = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
   return useQuery({
@@ -730,6 +748,46 @@ export const useChannelSearchResults = (
   return useQuery({
     queryKey: [['channelSearchResults', channelId, postIds], deps],
     queryFn: () => db.getChannelSearchResults({ channelId, postIds }),
+  });
+};
+
+/**
+ * One Bucket's manifest, as reduced from the %buckets subscription.
+ *
+ * Invalidated by the tables the reducer writes, so an update arriving on that
+ * subscription refreshes every pane looking at the Bucket -- rather than each
+ * pane holding a copy it reduced itself.
+ */
+export const useBucket = (options: { channelId?: string }) => {
+  const { channelId } = options;
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: ['bucket', useKeyFromQueryDeps(db.getBucket), channelId],
+    queryFn: () => {
+      if (!channelId) {
+        throw new Error('missing channel id');
+      }
+      return db.getBucket({ channelId });
+    },
+  });
+};
+
+/** One Bucket's in-flight uploads. */
+export const useBucketUploads = (options: { channelId?: string }) => {
+  const { channelId } = options;
+  return useQuery({
+    enabled: !!channelId,
+    queryKey: [
+      'bucketUploads',
+      useKeyFromQueryDeps(db.getBucketUploads),
+      channelId,
+    ],
+    queryFn: () => {
+      if (!channelId) {
+        throw new Error('missing channel id');
+      }
+      return db.getBucketUploads({ channelId });
+    },
   });
 };
 

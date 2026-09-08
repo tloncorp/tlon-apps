@@ -103,16 +103,43 @@ export function useChatDescription(
   return null;
 }
 
+/**
+ * Whether a channel's notification volume means anything.
+ *
+ * Volume settings route through %activity, and a Bucket has no activity or
+ * unread protocol for them to act on — offering the setting presents a
+ * control that cannot do anything.
+ */
+// Notes and Buckets are channels in the group's registry but carry no posts:
+// their renderers are deliberately empty and their content lives in their own
+// agent. Anything that forwards, shares, or attaches to a post needs to know
+// that, and enumerating the two types at each call site is how they keep
+// getting missed.
+export function channelHasPosts(channel?: db.Channel | null): boolean {
+  return !!channel && channel.type !== 'notes' && channel.type !== 'buckets';
+}
+
+export function channelSupportsNotifications(
+  channel?: db.Channel | null
+): boolean {
+  return channel?.type !== 'buckets';
+}
+
 export function getChannelActionCapabilities(channel?: db.Channel | null): {
+  canDelete: boolean;
   canLeave: boolean;
   deleteDescription: string;
 } {
   return {
-    canLeave: !!channel && channel.type !== 'notes',
+    canDelete: !!channel && channel.type !== 'buckets',
+    canLeave:
+      !!channel && channel.type !== 'notes' && channel.type !== 'buckets',
     deleteDescription:
       channel?.type === 'notes'
         ? 'This action cannot be undone. The notebook and its notes will be permanently deleted.'
-        : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
+        : channel?.type === 'buckets'
+          ? 'Bucket deletion will be available once stored objects can be removed atomically.'
+          : 'This action cannot be undone. All messages in this channel will be permanently deleted.',
   };
 }
 
@@ -288,6 +315,8 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
       return 'ChannelNotebooks';
     case 'gallery':
       return 'ChannelGalleries';
+    case 'buckets':
+      return 'Folder';
     default:
       return 'ChannelTalk';
   }

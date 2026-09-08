@@ -111,6 +111,31 @@ export const syncInitData = async (
     await db
       .insertChannelPerms(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel perms'));
+    // Straight from init now, alongside the channels whose writers arrive the
+    // same way. Reading them separately meant a Bucket that appeared after
+    // startup never got its writer roles at all.
+    const buckets = initData.buckets;
+    if (buckets.length > 0) {
+      // Writers only. %groups does not model a channel's writer roles, so a
+      // bucket keeps its own and this is the only place they come from --
+      // but readability is %groups' alone, and insertGroups above has
+      // already written those. updateChannel preserves them; passing them
+      // here as [] would wipe every reader role off the channel.
+      for (const snapshot of buckets) {
+        const channelId = api.formatBucketsChannelId(snapshot.flag);
+        await db.updateChannel(
+          {
+            id: channelId,
+            writerRoles: snapshot.state.writers.map((roleId) => ({
+              channelId,
+              roleId,
+            })),
+          },
+          queryCtx
+        );
+      }
+      logger.crumb('inserted Bucket channel writers');
+    }
     await db
       .insertChannelOrder(initData.channelPerms, queryCtx)
       .then(() => logger.crumb('inserted channel order'));
@@ -847,6 +872,11 @@ export const syncChannelThreadUnreads = async (
       'cannot get thread unreads for non-existent channel',
       channelId
     );
+    return;
+  }
+  // Buckets are file manifests, not post collections. They have no activity
+  // thread endpoint, so never enqueue a thread-unread scry for them.
+  if (channel.type === 'buckets') {
     return;
   }
   const unreads = await syncQueue.add('thread unreads', ctx, () =>
@@ -1686,6 +1716,86 @@ export const handleSettingsUpdate = async (
   }
 };
 
+/**
+ * The one place %buckets responses are applied.
+ *
+ * A Bucket's manifest and its writer roles arrive only here -- no other agent
+ * models either -- so this reduces them into the database and views read what
+ * has been reduced. Panes used to hold their own copy of the snapshot and
+ * reduce into it, which meant two subscriptions to the same firehose, state
+ * that died when a pane unmounted, and no shared view between two panes on
+ * the same Bucket.
+ *
+ * A snapshot carries the whole manifest, so it replaces; the entry arms carry
+ * one entry, so they upsert.
+ */
+export const handleBucketsUpdate = async (
+  response: api.BucketsResponse,
+  ctx: QueryCtx
+) => {
+  const channelId = api.formatBucketsChannelId(response.flag);
+
+  if (response.type === 'snapshot') {
+    await db.replaceBucketEntries(
+      {
+        channelId,
+        entries: response.state.entries,
+        revision: response.state.revision,
+      },
+      ctx
+    );
+    await writeBucketWriters(channelId, response.state.writers, ctx);
+    return;
+  }
+
+  const { revision, update } = response;
+  switch (update.type) {
+    case 'bucket-deleted':
+      await db.deleteBucket(channelId, ctx);
+      return;
+    case 'writers-updated':
+      await writeBucketWriters(channelId, update.writers, ctx);
+      return;
+    case 'entry-created':
+    case 'entry-updated':
+      await db.upsertBucketEntry(
+        { channelId, entry: update.entry, revision },
+        ctx
+      );
+      return;
+    case 'entries-deleted':
+      await db.deleteBucketEntries(
+        { channelId, entryIds: update.ids, revision },
+        ctx
+      );
+      return;
+    // Metadata lives on the channel, which %groups already maintains.
+    case 'bucket-created':
+    case 'bucket-updated':
+      return;
+  }
+};
+
+/**
+ * Writers are a channel column, as they are for every channel type.
+ *
+ * Empty is meaningful rather than absent -- it is what "any reader may write"
+ * looks like -- so it is written through as given.
+ */
+async function writeBucketWriters(
+  channelId: string,
+  writers: string[],
+  ctx: QueryCtx
+) {
+  await db.updateChannel(
+    {
+      id: channelId,
+      writerRoles: writers.map((roleId) => ({ channelId, roleId })),
+    },
+    ctx
+  );
+}
+
 export const handleChannelsUpdate = async (
   update: api.ChannelsUpdate,
   ctx: QueryCtx
@@ -2485,6 +2595,7 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
   return syncQueue.add('setupHighPrioritySubscriptions', ctx, () => {
     return Promise.all([
       api.subscribeToChannelsUpdates(createHandler(handleChannelsUpdate)),
+      api.subscribeToBuckets(createHandler(handleBucketsUpdate)),
       api.subscribeToChatUpdates(createHandler(handleChatUpdate)),
       api.subscribeGroups(createHandler(handleGroupUpdate)),
       api.subscribeToPresenceUpdates(handlePresenceEvent),
