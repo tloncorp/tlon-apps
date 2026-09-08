@@ -568,34 +568,46 @@ export async function subscribeOnce<T>(
       const willRetry =
         !isRetry && retryReason !== null && config.client === client;
 
-      if (err !== 'timeout' && err !== 'quit') {
-        logger.trackError('bad subscribeOnce', {
-          ...describeError(err),
-          endpoint: printEndpoint(endpoint),
-          isRetry,
-          retryReason,
-        });
-      } else if (err === 'timeout') {
-        logger.error('subscribeOnce timed out', printEndpoint(endpoint));
-        logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
-          requestTag: requestConfig?.tag,
-          subEndpoint: printEndpoint(endpoint),
-          connectionStatus: config.lastStatus,
-          timeoutDuration: timeout,
-          isRetry,
-          retryReason,
-        });
-      } else {
-        logger.error('subscribeOnce quit', printEndpoint(endpoint), {
-          isRetry,
-          willRetry,
-        });
-      }
+      // Only report once we know the caller is actually going to see a
+      // failure. A first attempt that recovers on retry was never visible to
+      // the user, and reporting it would fill Sentry with errors that did not
+      // happen from their point of view.
+      const reportTerminalFailure = () => {
+        if (err !== 'timeout' && err !== 'quit') {
+          logger.trackError('bad subscribeOnce', {
+            ...describeError(err),
+            endpoint: printEndpoint(endpoint),
+            isRetry,
+            retryReason,
+          });
+        } else if (err === 'timeout') {
+          logger.error('subscribeOnce timed out', printEndpoint(endpoint));
+          logger.trackEvent(AnalyticsEvent.ErrorSubscribeOnceTimeout, {
+            requestTag: requestConfig?.tag,
+            subEndpoint: printEndpoint(endpoint),
+            connectionStatus: config.lastStatus,
+            timeoutDuration: timeout,
+            isRetry,
+            retryReason,
+          });
+        } else {
+          logger.error('subscribeOnce quit', printEndpoint(endpoint), {
+            isRetry,
+          });
+        }
+      };
 
       // isRetry bounds this to a single extra round trip
       if (!willRetry) {
+        reportTerminalFailure();
         throw err;
       }
+
+      logger.log(
+        'subscribeOnce retrying',
+        printEndpoint(endpoint),
+        retryReason
+      );
 
       if (retryReason === 'auth') {
         // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
@@ -612,6 +624,7 @@ export async function subscribeOnce<T>(
         // reap or SSE 500 can rotate the channel while we await, and a rotated
         // channel is no evidence that a login succeeded.
         if (config.loggingOut || !sessionRefreshedSince(sent)) {
+          reportTerminalFailure();
           throw err;
         }
       } else if (config.pendingAuth) {
@@ -621,6 +634,7 @@ export async function subscribeOnce<T>(
       }
       // the client can be swapped out while we await above
       if (config.client !== client) {
+        reportTerminalFailure();
         throw err;
       }
       return attempt(true);

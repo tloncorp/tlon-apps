@@ -8,6 +8,7 @@ import {
   subscribe,
   subscribeOnce,
 } from '../client/urbit';
+import { configureLoggerFactory } from '../lib/logger';
 import { Atom } from '@urbit/nockjs';
 
 import { AuthError, ChannelPutError, ReapError } from '../http-api';
@@ -43,6 +44,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   internalRemoveClient();
+  configureLoggerFactory(
+    () =>
+      ({
+        ...console,
+        crumb: () => {},
+        sensitiveCrumb: () => {},
+        trackError: () => {},
+        trackEvent: () => {},
+      }) as any
+  );
 });
 
 describe('reauth', () => {
@@ -653,6 +664,68 @@ describe('subscribeOnce swept by a rotation', () => {
       subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
     ).rejects.toBeInstanceOf(AuthError);
     expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  function stubLogger(overrides: Record<string, unknown> = {}) {
+    const stub = {
+      ...console,
+      crumb: vi.fn(),
+      sensitiveCrumb: vi.fn(),
+      trackError: vi.fn(),
+      trackEvent: vi.fn(),
+      ...overrides,
+    };
+    configureLoggerFactory(() => stub as any);
+    return stub;
+  }
+
+  test('an auth failure that recovers on retry is not reported as an error', async () => {
+    // trackError is the branch that reaches Sentry, and AuthError is the only
+    // rejection that takes it while still being retryable. The user saw no
+    // failure here, so Sentry should not either.
+    const { trackError } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValueOnce('fact'),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).resolves.toBe('fact');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
+    expect(trackError).not.toHaveBeenCalled();
+  });
+
+  test('a failure that exhausts its retry is reported once', async () => {
+    const { trackError } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValue(new AuthError('invalid session')),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(trackError).toHaveBeenCalledTimes(1);
   });
 
   test('the retry is bounded to one extra attempt', async () => {
