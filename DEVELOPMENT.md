@@ -23,7 +23,7 @@ gitignored, and both are loaded by Expo CLI before `app.config.ts` is evaluated.
 `apps/tlon-mobile/.env.sample` lists the variables; the values production builds
 use live in EAS, not in the repo.
 
-### Hosted signup and email/OTP login can't work in a locally-built app
+### Hosted signup and OTP login can't work in a locally-built app
 
 A local build has no reCAPTCHA site key. `app.config.ts` reads
 `RECAPTCHA_SITE_KEY_ANDROID` / `RECAPTCHA_SITE_KEY_IOS` from the environment,
@@ -31,10 +31,11 @@ and those values come from EAS rather than from `eas.json` or a committed
 `.env`, so locally they're undefined. `useRecaptcha` then never initializes and
 `getToken()` throws, which takes out every hosted flow that needs a token:
 
--   **Email/OTP login:** the generic `catch` in `TlonLogin` reports "Something
-    went wrong. Please try again." for _every_ attempt — including one with an
-    address that has no account, which would otherwise get the 404-specific
-    message.
+-   **Phone or email OTP login:** `TlonLogin` fetches the token before it
+    branches on `otpMethod` (which defaults to `phone`), so both variants fail
+    the same way — the generic `catch` reports "Something went wrong. Please try
+    again." for _every_ attempt, masking even the 404-specific message for a
+    number or address that has no account.
 -   **Signup:** `SignupScreen` needs a token before `requestSignupOtp` and
     `CheckOTPScreen` needs another one to create the account, so signup can't be
     completed locally at all. It fails with "Something went wrong. Please try
@@ -44,9 +45,10 @@ In both cases the symptom looks like an account or network problem. It isn't.
 
 For login, two paths involve no reCAPTCHA and work in a local build as-is:
 
--   **Hosted account:** on the email login screen, tap "Or, log in with a
-    password" (`TlonLoginLegacy` → `handleLogin` → `logInHostedUser`). This is
-    the easiest path.
+-   **Hosted account:** the login screen opens in phone mode, so tap "Normally
+    log in with email?" first — the password link only renders on the email
+    variant — then "Or, log in with a password" (`TlonLoginLegacy` →
+    `handleLogin` → `logInHostedUser`). This is the easiest path.
 -   **Self-hosted ship:** from the welcome screen, tap "Or configure self
     hosted" and enter the ship's URL and access code (`getLandscapeAuthCookie`).
 
