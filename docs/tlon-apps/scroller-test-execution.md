@@ -26,18 +26,25 @@ Cancellation signals only the owned Playwright process, then retains its
 teardown/report and finalizes with an unsuccessful result. It uses the existing
 authenticated local frontends; it does not rebuild or restart them.
 
-Use Stim from `apps/tlon-mobile` for native development and ordinary app builds:
+Use the repo-local Stim from `apps/tlon-mobile` for native development and
+ordinary preview app builds:
 
 ```sh
-stim doctor
-stim start
-stim ios
+corepack pnpm exec stim doctor
+corepack pnpm exec stim start
+APP_VARIANT=preview corepack pnpm exec stim ios --scheme Landscape-preview
 # For normal-app performance captures, with embedded current JavaScript:
-stim ios --configuration Release --json
+APP_VARIANT=preview corepack pnpm exec stim ios --scheme Landscape-preview --configuration Release --json
 ```
 
-Use the returned device ID, bundle ID, configuration, fingerprint and cache key
-in the existing capture evidence. A cached Release `appPath` may be a temporary
+The pinned package includes a small explicit-scheme patch: upstream rc.7 picks
+`Landscape` from the workspace name, which builds the production target even
+when Expo's `APP_VARIANT` is preview. The local command validates the requested
+shared scheme and separates its cache and build-lock keys. Verify this patch
+with `node --test scripts/test-stim-ios-scheme.mjs` from the repo root.
+
+Use the returned device ID, bundle ID, `xcodeScheme`, configuration, fingerprint
+and cache key in the existing capture evidence. A cached Release `appPath` may be a temporary
 copy removed after installation; retain installed bundle bytes using the exact
 returned device and bundle ID. Keep Debug/Fast Refresh for functional iteration
 and Release for performance qualification. The wrapper examples and measured

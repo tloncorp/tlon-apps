@@ -9,6 +9,20 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## stim-cli@1.0.0-rc.7
+
+Adds `ios --scheme` so the preview app can use Stim without selecting the default
+production target. The command validates the requested shared scheme, forwards
+it to Xcode and reports `xcodeScheme`. Explicit schemes have separate lookup,
+storage and build-lock keys, including after Pods changes. Fingerprint-only
+project providers are bypassed for explicit schemes; local and key-based caches
+still work.
+
+Derived from official Stim commit `95782a3120f7963333e9af9586dc0775506e2c1f`.
+Remove when the pinned upstream version supports explicit scheme selection with
+equivalent cache isolation. Validate with `node --test scripts/test-stim-ios-scheme.mjs`.
+The custom `ENTRY_FILE` Release-swap limitation is separate and remains open.
+
 ## @legendapp/list@3.3.3
 
 Local patch:

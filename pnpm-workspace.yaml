@@ -27,6 +27,7 @@ peerDependencyRules:
     - electron-builder-squirrel-windows
 
 patchedDependencies:
+  stim-cli@1.0.0-rc.7: patches/stim-cli@1.0.0-rc.7.patch
   "@react-navigation/bottom-tabs@7.18.14": patches/@react-navigation__bottom-tabs@7.18.14.patch
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
@@ -58,6 +59,12 @@ blockExoticSubdeps: true
 minimumReleaseAge: 0
 
 overrides:
+  # Keep the pinned Stim CLI on its matching prerelease packages.
+  "stim-cli@1.0.0-rc.7>@stim-cli/core": 1.0.0-rc.7
+  "stim-cli@1.0.0-rc.7>@stim-cli/cache": 1.0.0-rc.7
+  "stim-cli@1.0.0-rc.7>@stim-cli/metro": 1.0.0-rc.7
+  "@stim-cli/metro@1.0.0-rc.7>@stim-cli/core": 1.0.0-rc.7
+  "@stim-cli/metro@1.0.0-rc.7>@stim-cli/cache": 1.0.0-rc.7
   # electron-builder's @electron/rebuild pins this to a git commit; the
   # registry publishes the same version, and a registry resolution is required
   # by blockExoticSubdeps.

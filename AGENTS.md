@@ -2,12 +2,21 @@
 
 ## Native development workflow
 
-Use Stim for native builds, Metro, installation, launch, logs and cache reuse.
-Read the `stim` skill and run commands from `apps/tlon-mobile`. Start with
-`stim doctor`; use `stim status` when resuming. For Debug, run `stim start`,
-then `stim ios` or `stim android --variant productionDebug`. JavaScript-only
+Use repo-local Stim (`corepack pnpm exec stim`) for native builds, Metro,
+installation, launch, logs and cache reuse. Read the `stim` skill and run
+commands from `apps/tlon-mobile`. Start with `corepack pnpm exec stim doctor`;
+use `corepack pnpm exec stim status` when resuming. For Debug, start Metro with
+`corepack pnpm exec stim start`, then run the platform command. JavaScript-only
 edits use Fast Refresh; rerun the platform build when native inputs change.
-Use `stim ios --configuration Release` for iOS Simulator performance captures.
+For the preview iOS app, use `APP_VARIANT=preview corepack pnpm exec stim ios
+--scheme Landscape-preview`; add `--configuration Release` for Simulator
+performance captures. For Android, use `corepack pnpm exec stim android
+--variant productionDebug`.
+
+The pinned Stim package adds explicit iOS scheme selection and separate cache
+keys. Use the repo-local command so the preview app cannot silently build the
+default production target. Normal `index.tsx` is supported; the custom-entry
+Release cache limitation is documented in `docs/tlon-apps/scroller-test-execution.md`.
 
 Use the exact device ID, app ID and Metro port returned by Stim for subsequent
 Argent or Maestro interaction. Stim manages its own devices; keep other
