@@ -123,6 +123,8 @@ import {
 } from '../version.js';
 import {
   type OnboardingStepReport,
+  createAgentOnboardingCatchUpScheduler,
+  createAgentOnboardingReconciliationPresence,
   drainAgentOnboardingRuntime,
   handleAgentOnboardingRequest,
   scanAgentOnboardingChannel,
@@ -3868,6 +3870,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             outcome: report.outcome ?? 'ok',
             nest,
             groupFlag: report.groupFlag ?? groupId ?? null,
+            provisionId: report.provisionId ?? null,
             purposeId: report.purposeId ?? null,
             topicCount: report.topicCount ?? null,
             timezone: report.timezone ?? null,
@@ -3893,12 +3896,16 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     const onboardingRetryFlights = new Set<Promise<void>>();
     let drainingAgentOnboarding = false;
     const onboardingRetryAttempts = new Map<string, number>();
+    let onboardingCatchUp: ReturnType<
+      typeof createAgentOnboardingCatchUpScheduler
+    > | null = null;
     clearAgentOnboardingRetries = () => {
       for (const timer of onboardingRetryTimers.values()) {
         clearTimeout(timer);
       }
       onboardingRetryTimers.clear();
       onboardingRetryAttempts.clear();
+      onboardingCatchUp?.stop();
     };
     const scheduleAgentOnboardingRetry = (nest: string) => {
       if (
@@ -3913,7 +3920,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       const timer = setTimeout(() => {
         onboardingRetryTimers.delete(nest);
         if (!opts.abortSignal?.aborted) {
-          const flight = scanAgentOnboardingNest(nest);
+          const flight = scanAgentOnboardingNest(nest).then((reconciled) => {
+            if (reconciled === false) onboardingCatchUp?.schedule(nest);
+          });
           onboardingRetryFlights.add(flight);
           void flight.then(
             () => onboardingRetryFlights.delete(flight),
@@ -3931,7 +3940,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       onboardingRetryAttempts.delete(nest);
     };
 
-    const scanAgentOnboardingNest = async (nest: string) => {
+    const scanAgentOnboardingNest = async (
+      nest: string
+    ): Promise<boolean | undefined> => {
       if (opts.abortSignal?.aborted) return;
       if (!nest.startsWith('chat/')) return;
       let groupId = channelToGroup.get(nest);
@@ -3953,7 +3964,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         return;
       }
       try {
-        await scanAgentOnboardingChannel({
+        const presentation = createAgentOnboardingReconciliationPresence({
+          conversationId: nest,
+          createRunId: () => `onboarding-reconcile:${randomUUID()}`,
+          refreshRun: (params) => computingPresence.refreshRun(params),
+          stopRun: (params) => computingPresence.stopRun(params),
+        });
+        const reconciled = await scanAgentOnboardingChannel({
           accountId: account.accountId,
           api,
           abortSignal: opts.abortSignal,
@@ -3964,9 +3981,11 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           ownerShip: effectiveOwnerShip,
           log: (message) => runtime.log?.(message),
           trackStep: trackOnboardingStep(nest, groupId),
+          presentation,
         });
         if (opts.abortSignal?.aborted) return;
         clearAgentOnboardingRetry(nest);
+        return reconciled;
       } catch (error) {
         if (opts.abortSignal?.aborted) return;
         runtime.error?.(
@@ -3978,14 +3997,20 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         // stops. The per-nest timer deduplicates overlapping firehose/boot
         // attempts.
         scheduleAgentOnboardingRetry(nest);
+        return undefined;
       }
     };
 
-    const onboardingDiscoveryFlights = new Set<Promise<void>>();
+    onboardingCatchUp = createAgentOnboardingCatchUpScheduler({
+      scan: scanAgentOnboardingNest,
+      abortSignal: opts.abortSignal,
+    });
+
+    const onboardingDiscoveryFlights = new Set<Promise<boolean | undefined>>();
     let drainingOnboardingDiscovery = false;
     const scanDiscoveredAgentOnboardingNest = async (nest: string) => {
       if (drainingOnboardingDiscovery || opts.abortSignal?.aborted) return;
-      const flight = scanAgentOnboardingNest(nest);
+      const flight = onboardingCatchUp.reconcile(nest);
       onboardingDiscoveryFlights.add(flight);
       try {
         await flight;
@@ -4019,7 +4044,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         ) {
           watchedChannels.add(nest);
           runtime.log?.(`[tlon] Auto-watching channel from firehose: ${nest}`);
-          await scanAgentOnboardingNest(nest);
+          await onboardingCatchUp.reconcile(nest);
         }
 
         // Only process channels we're watching
@@ -5914,6 +5939,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       clearAgentOnboardingRetries = null;
       removeBridge(accountKey, commandBridge);
       await Promise.allSettled([...onboardingRetryFlights]);
+      await onboardingCatchUp?.drain();
       drainingOnboardingDiscovery = true;
       await Promise.allSettled([...onboardingDiscoveryFlights]);
       drainingChannelFirehose = true;

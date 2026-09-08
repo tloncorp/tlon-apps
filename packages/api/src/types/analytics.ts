@@ -64,6 +64,7 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotSettingUpdated = 'Tlonbot Setting Updated',
   TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
   TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',
@@ -142,6 +143,11 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
+  /**
+   * Fires when the authenticated navigator reveals the furnished onboarding
+   * chat after account creation.
+   */
+  AgentOnboardingChatOpened = 'Agent Onboarding Chat Opened',
   /**
    * Fires once when the owner first opens the generated onboarding entry.
    */

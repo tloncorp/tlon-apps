@@ -37,7 +37,12 @@ import {
   useSyncBotSettingsDraft,
 } from './bot/useBotSettingsDraft';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'BotSettings'> & {
+  zdrRowLayout?: {
+    descriptionGap?: number;
+    paddingVertical?: number;
+  };
+};
 
 const logger = createDevLogger('BotSettingsScreen', false);
 
@@ -236,6 +241,29 @@ export function BotSettingsScreen(props: Props) {
                 disabled={controlsReadOnly}
                 onPress={() =>
                   navigate('BotModelSettings', { mode: 'fallbacks' })
+                }
+              />
+            </BotSettingsSection>
+          ) : null}
+
+          {settingsReady &&
+          draft.model.provider === BASIC_PROVIDER_ID &&
+          draft.model.model ? (
+            <BotSettingsSection title="Privacy">
+              <BotSwitchRow
+                label="Zero data retention"
+                description="Avoid model providers that retain data. May use your included credits faster."
+                descriptionNumberOfLines={3}
+                multilineDescriptionGap={props.zdrRowLayout?.descriptionGap}
+                multilinePaddingVertical={props.zdrRowLayout?.paddingVertical}
+                checked={draft.model.zdr}
+                pending={pending.zdr}
+                disabled={controlsReadOnly}
+                onCheckedChange={(value) =>
+                  commitDraft((current) => ({
+                    ...current,
+                    model: { ...current.model, zdr: value },
+                  }))
                 }
               />
             </BotSettingsSection>
