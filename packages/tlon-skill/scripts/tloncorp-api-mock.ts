@@ -113,6 +113,48 @@ export const mockedGetGroup = {
   impl: async (..._args: unknown[]): Promise<unknown> => ({ channels: [] }),
 };
 
+export const mockedGetBuckets = {
+  impl: async (..._args: unknown[]): Promise<unknown> => [],
+};
+
+export const mockedGetBucket = {
+  impl: async (..._args: unknown[]): Promise<unknown> => null,
+};
+
+export const mockedGetBucketReadToken = {
+  impl: async (..._args: unknown[]): Promise<unknown> => null,
+};
+
+export const mockedRequestBucketReadToken = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedRequestBucketsGrant = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+export const mockedRequestBucketsUpload = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+export const mockedSendBucketsAction = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+export const mockedSubmitBucketsAction = {
+  impl: async (..._args: unknown[]): Promise<unknown> => undefined,
+};
+
+// The real class, so `instanceof` in the runtime works against what the mock
+// throws -- the upload path distinguishes a typed refusal from a transport
+// failure that way.
+export class MockBucketsActionFailed extends Error {
+  errorType: string;
+  constructor(errorType: string, message: string) {
+    super(message);
+    this.errorType = errorType;
+    this.name = 'BucketsActionFailed';
+  }
+}
+
 export class MockUrbit {
   cookie = '';
   nodeId = '';
@@ -144,9 +186,25 @@ mock.module('@tloncorp/api', () => ({
   updateChannel: async () => undefined,
   // notes runtime value imports
   NotesV1PendingWriteError: MockNotesV1PendingWriteError,
+  BucketsActionFailed: MockBucketsActionFailed,
   notesV1: mockedNotesV1,
   getGroups: (...args: unknown[]) => mockedGetGroups.impl(...args),
   getGroup: (...args: unknown[]) => mockedGetGroup.impl(...args),
+  getBuckets: (...args: unknown[]) => mockedGetBuckets.impl(...args),
+  getBucket: (...args: unknown[]) => mockedGetBucket.impl(...args),
+  getBucketReadToken: (...args: unknown[]) =>
+    mockedGetBucketReadToken.impl(...args),
+  requestBucketReadToken: (...args: unknown[]) =>
+    mockedRequestBucketReadToken.impl(...args),
+  requestBucketsGrant: (...args: unknown[]) =>
+    mockedRequestBucketsGrant.impl(...args),
+  requestBucketsUpload: (...args: unknown[]) =>
+    mockedRequestBucketsUpload.impl(...args),
+  sendBucketsAction: (...args: unknown[]) =>
+    mockedSendBucketsAction.impl(...args),
+  submitBucketsAction: (...args: unknown[]) =>
+    mockedSubmitBucketsAction.impl(...args),
+  mintRequestId: () => '0vtest',
   deleteNotesNotebookStrict: async () => undefined,
   joinNotesChannel: async () => undefined,
   leaveNotesChannel: async () => undefined,

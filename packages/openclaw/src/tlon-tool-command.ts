@@ -30,7 +30,7 @@ const PROFILE_UPDATE_FIELDS = [
 export type TlonProfileUpdateField =
   (typeof PROFILE_UPDATE_FIELDS)[number]['field'];
 export type TlonToolIntent = 'read' | 'write' | 'admin' | 'config' | 'utility';
-export type TlonChannelKind = 'chat' | 'heap' | 'notes';
+export type TlonChannelKind = 'buckets' | 'chat' | 'heap' | 'notes';
 export type TlonDmTargetKind = 'ship' | 'club' | 'unknown';
 export type TlonUploadSource = 'url' | 'local' | 'stdin' | 'unknown';
 
@@ -70,6 +70,23 @@ const INVALID_OPERATION = 'invalid';
 
 const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
   ['activity', new Set(['mentions', 'replies', 'all', 'unreads'])],
+  [
+    'buckets',
+    new Set([
+      'list',
+      'show',
+      'files',
+      'search',
+      'create',
+      'mkdir',
+      'upload',
+      'read',
+      'rename',
+      'move',
+      'delete',
+      'set-writers',
+    ]),
+  ],
   [
     'channels',
     new Set([
@@ -442,6 +459,8 @@ function summarizeKnownTlonCommand(
   switch (subcommand) {
     case 'activity':
       return build('read');
+    case 'buckets':
+      return summarizeBucketsOperation(operation, remainder, build);
     case 'channels':
       return summarizeChannelsOperation(operation, remainder, build);
     case 'contacts':
@@ -475,6 +494,52 @@ function summarizeKnownTlonCommand(
     case 'help':
     case 'version':
       return build('utility');
+    default:
+      return build('utility');
+  }
+}
+
+function summarizeBucketsOperation(
+  operation: string,
+  args: string[],
+  build: (
+    intent: TlonToolIntent,
+    extra?: Omit<
+      Partial<TlonToolCallContext>,
+      | 'kind'
+      | 'summaryKey'
+      | 'subcommand'
+      | 'operation'
+      | 'intent'
+      | 'isKnownSubcommand'
+      | 'blockedSendOperation'
+    >
+  ) => TlonToolCallContext
+): TlonToolCallContext {
+  switch (operation) {
+    case 'list':
+    case 'show':
+    case 'files':
+    case 'search':
+    case 'read':
+      return build('read', { channelKind: 'buckets' });
+    case 'delete':
+    case 'set-writers':
+      return build('admin', { channelKind: 'buckets' });
+    case 'create':
+    case 'mkdir':
+    case 'rename':
+    case 'move':
+      return build('write', {
+        channelKind: 'buckets',
+        hasTitle: operation === 'create' || operation === 'rename',
+      });
+    case 'upload':
+      return build('write', {
+        channelKind: 'buckets',
+        uploadSource: detectUploadSource(args.slice(1)),
+        contentTypeProvided: hasFlag(args, '-t', '--type'),
+      });
     default:
       return build('utility');
   }
@@ -1022,7 +1087,10 @@ function parseChannelKind(
     parts[0] === '' && parts[1] === '1' && parts[2] === 'chan'
       ? parts[3]
       : parts[0];
-  return kind === 'chat' || kind === 'heap' || kind === 'notes'
+  return kind === 'buckets' ||
+    kind === 'chat' ||
+    kind === 'heap' ||
+    kind === 'notes'
     ? kind
     : undefined;
 }

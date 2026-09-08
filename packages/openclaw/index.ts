@@ -78,10 +78,7 @@ import {
   reportTelemetryError,
 } from './src/telemetry.js';
 import { resolveTlonBinary } from './src/tlon-binary.js';
-import {
-  DEFAULT_TLON_CLI_TIMEOUT_MS,
-  runTlonCommand,
-} from './src/tlon-command-runner.js';
+import { runTlonCommand } from './src/tlon-command-runner.js';
 import {
   createTlonToolExecutor,
   summarizeTlonCommand,
@@ -948,8 +945,12 @@ export default defineBundledChannelEntry({
       account.configured && account.url && account.ship && account.code
         ? { url: account.url, ship: account.ship, code: account.code }
         : undefined;
-    const toolTimeoutMs =
-      account.lifecycle.toolTimeoutMs ?? DEFAULT_TLON_CLI_TIMEOUT_MS;
+    // Undefined when nothing is configured, so the runner picks per command.
+    // Filling in the 45s default here meant it was always passed, and
+    // +defaultTlonCliTimeoutMs never got to apply the longer Buckets one --
+    // capability propagation plus state polling can outlast 45s on an
+    // otherwise fine Bucket operation. An explicit setting still wins.
+    const toolTimeoutMs = account.lifecycle.toolTimeoutMs ?? undefined;
     const handleMigrateCommand = createMigrateCommandHandler({
       runCommand: (args, commandCredentials, timeoutMs, onDeadline) =>
         runTlonCommand(tlonBinary, args, commandCredentials, {
@@ -981,12 +982,12 @@ export default defineBundledChannelEntry({
       name: 'tlon',
       label: 'Tlon CLI',
       description:
-        'Tlon/Urbit API for reading data and administration: activity, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
+        'Tlon/Urbit API for reading data and administration: activity, Buckets shared files, channels, contacts, groups, messages, notes, posts, settings, upload, expose, hooks. ' +
         'DO NOT use this tool to send messages — use the `message` tool instead. ' +
         '%diary channels are deprecated and unsupported by this CLI tool; ask the owner to type `/migrate <diary-nest>` to move one to %notes. ' +
         'OpenClaw message delivery still accepts diary/ targets, including writable archives. ' +
         'Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) in note bodies or message text — Tlon renders no math; write math as plain text/Unicode or in code blocks. ' +
-        "Examples: 'activity mentions --limit 10', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
+        "Examples: 'activity mentions --limit 10', 'buckets list', 'channels groups', 'contacts self', 'groups list', 'notes list'. " +
         'If a command fails and you cannot complete what the user asked, tell them what failed before ending your turn — never end the turn silently after a failure.',
       parameters: {
         type: 'object',
@@ -998,7 +999,7 @@ export default defineBundledChannelEntry({
               'To send messages, use the `message` tool, not this tool. ' +
               'Do not try migration writes through this model tool: ask the owner to type `/migrate <diary-nest>`. ' +
               'The message tool can still send to diary/ targets; migration only renames the source and does not make it read-only. ' +
-              "Examples: 'activity mentions --limit 10', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
+              "Examples: 'activity mentions --limit 10', 'buckets list', 'contacts get ~sampel-palnet', 'groups list', 'messages dm ~ship --limit 20', 'notes list'",
           },
         },
         required: ['command'],
