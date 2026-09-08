@@ -2,9 +2,9 @@
 ::
 ::  This replaces the retired renderer for one release.  Existing %expose
 ::  state records every page it installed in Eyre; on load, clear those pages
-::  and remove the matching contacts metadata before this agent is deleted.
+::  before this agent is deleted.
 ::
-/-  c=cite, co=contacts
+/-  c=cite
 /+  hutils=http-utils, dbug, verb
 ::
 |%
@@ -25,26 +25,10 @@
     ^-  card
     (store:hutils (cat 3 '/expose' (spat (print:c ref))) ~)
   ::
-  ++  clear-contact-metadata
-    |=  [our=@p now=@da]
-    ^-  (unit card)
-    ?.  .^(? %gu /(scot %p our)/(scot %da now)/contacts/$)
-      ~
-    =+  =>  [our=our now=now co=co ..lull]  ~+
-        .^(orig=contact:co %gx /(scot %p our)/contacts/(scot %da now)/v1/self/contact-1)
-    =/  cleaned  (~(del by orig) %expose-cites)
-    ?:  =(orig cleaned)
-      ~
-    =/  =action:co  [%self cleaned]
-    =/  =cage  [%contact-action-1 !>(action)]
-    `[%pass /contacts/clear-expose %agent [our %contacts] %poke cage]
-  ::
   ++  teardown-cards
     |=  [=bowl:gall open=(set cite:c)]
     ^-  (list card)
-    =/  pages=(list card)
-      (turn ~(tap in open) clear-page)
-    (weld pages (drop (clear-contact-metadata [our now]:bowl)))
+    (turn ~(tap in open) clear-page)
   --
 --
 ::
