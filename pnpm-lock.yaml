@@ -53,7 +53,7 @@ patchedDependencies:
   react-native-reanimated: dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f
   react-native-screens@4.25.2: de4533f0f5ad546405d53898e894866c697e6bd8ca49dcfe319cc159e6b4ff08
   react-native@0.86.0: f7ec995b3e40c031ac52b00942963a78f9d7f91825858d0f9178184bf281378e
-  stim-cli@1.0.0-rc.7: a7119d5e2161c4405f65f677c2fe08d84fc0f92c1e7ad35bf01131186c765c57
+  stim-cli@1.0.0-rc.7: 390fd3cd851de81a8712fc0f722f42ac41df6ca784bc25072649de012741eff8
 
 importers:
 
@@ -86,7 +86,7 @@ importers:
         version: 7.2.0(patch_hash=658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
       stim-cli:
         specifier: 1.0.0-rc.7
-        version: 1.0.0-rc.7(patch_hash=a7119d5e2161c4405f65f677c2fe08d84fc0f92c1e7ad35bf01131186c765c57)(metro-cache@0.84.4)
+        version: 1.0.0-rc.7(patch_hash=390fd3cd851de81a8712fc0f722f42ac41df6ca784bc25072649de012741eff8)(metro-cache@0.84.4)
       tsup:
         specifier: ^8.0.1
         version: 8.0.1(@swc/core@1.15.11(@swc/helpers@0.5.18))(postcss@8.5.15)(typescript@5.9.3)
@@ -26728,7 +26728,7 @@ snapshots:
 
   std-env@4.1.0: {}
 
-  stim-cli@1.0.0-rc.7(patch_hash=a7119d5e2161c4405f65f677c2fe08d84fc0f92c1e7ad35bf01131186c765c57)(metro-cache@0.84.4):
+  stim-cli@1.0.0-rc.7(patch_hash=390fd3cd851de81a8712fc0f722f42ac41df6ca784bc25072649de012741eff8)(metro-cache@0.84.4):
     dependencies:
       '@expo/fingerprint': 0.20.12
       '@stim-cli/cache': 1.0.0-rc.7

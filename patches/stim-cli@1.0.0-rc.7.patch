@@ -1,11 +1,11 @@
 --- a/dist/cli.mjs
 +++ b/dist/cli.mjs
-@@ -9827,13 +9827,14 @@
+@@ -9827,13 +9827,15 @@
  	if (errorCode) record.errorCode = errorCode;
  	return record;
  }
 -function iosFacts({ udid, deviceName, fingerprint, configuration = null, cacheKey, cacheHit, cacheSkipped = false, compilationCache = COMPILATION_CACHE_NOT_RUN, waitedForBuild = null, appPath, bundleId, installSkipped = false, metroPort, logsDir, durationMs, launched = true, webPreviewUrl = null }) {
-+function iosFacts({ udid, deviceName, fingerprint, xcodeScheme = null, configuration = null, cacheKey, cacheHit, cacheSkipped = false, compilationCache = COMPILATION_CACHE_NOT_RUN, waitedForBuild = null, appPath, bundleId, installSkipped = false, metroPort, logsDir, durationMs, launched = true, webPreviewUrl = null }) {
++function iosFacts({ udid, deviceName, fingerprint, simulatorArchitecture = null, xcodeScheme = null, configuration = null, cacheKey, cacheHit, cacheSkipped = false, compilationCache = COMPILATION_CACHE_NOT_RUN, waitedForBuild = null, appPath, bundleId, installSkipped = false, metroPort, logsDir, durationMs, launched = true, webPreviewUrl = null }) {
  	return {
  		platform: "ios",
  		udid,
@@ -13,10 +13,11 @@
  		fingerprint,
  		configuration: configuration ?? null,
 +		...xcodeScheme ? { xcodeScheme } : {},
++		...simulatorArchitecture ? { simulatorArchitecture } : {},
  		cacheKey,
  		cacheHit: cacheLevel(cacheHit),
  		cacheSkipped: Boolean(cacheSkipped),
-@@ -9917,6 +9918,8 @@
+@@ -9917,6 +9919,8 @@
  }
  const DEFAULT_DEPS = {
  	findProjectRoot,
@@ -25,53 +26,64 @@
  	resolveSettings,
  	gitCommonDir,
  	repoRoot,
-@@ -9977,7 +9980,7 @@
+@@ -9977,7 +9981,7 @@
  	registerIos(program);
  }
  function registerIos(program, deps = {}) {
 -	program.command("ios").description("Build (or restore from the fingerprint cache), install and launch this workspace's app on its owned simulator, wired to the reserved Metro port. Requires a running dev server (`stim start`).").option("--json", "Emit the facts as a single JSON line on stdout; every other line goes to stderr").option("--no-metro-check", "Skip the \"is this workspace's dev server running?\" gate and build anyway").option("--no-build-cache", "Build fresh, ignoring cached artifacts (local and the project's build-cache provider); the fresh build still replaces the cache entry").option("--configuration <name>", "Xcode configuration to build (e.g. Release; simulator only). A non-Debug configuration embeds the JS bundle and skips Metro entirely. Overrides the ios.configuration setting. Default: Debug").option("--remote <backend>", "Install and launch on a remote device with proxy or EAS. The build still happens here.", (value) => {
-+	program.command("ios").description("Build (or restore from the fingerprint cache), install and launch this workspace's app on its owned simulator, wired to the reserved Metro port. Requires a running dev server (`stim start`).").option("--json", "Emit the facts as a single JSON line on stdout; every other line goes to stderr").option("--no-metro-check", "Skip the \"is this workspace's dev server running?\" gate and build anyway").option("--no-build-cache", "Build fresh, ignoring cached artifacts (local and the project's build-cache provider); the fresh build still replaces the cache entry").option("--scheme <name>", "Existing shared Xcode scheme to build; cache entries stay separate from other schemes.").option("--configuration <name>", "Xcode configuration to build (e.g. Release; simulator only). A non-Debug configuration embeds the JS bundle and skips Metro entirely. Overrides the ios.configuration setting. Default: Debug").option("--remote <backend>", "Install and launch on a remote device with proxy or EAS. The build still happens here.", (value) => {
++	program.command("ios").description("Build (or restore from the fingerprint cache), install and launch this workspace's app on its owned simulator, wired to the reserved Metro port. Requires a running dev server (`stim start`).").option("--json", "Emit the facts as a single JSON line on stdout; every other line goes to stderr").option("--no-metro-check", "Skip the \"is this workspace's dev server running?\" gate and build anyway").option("--no-build-cache", "Build fresh, ignoring cached artifacts (local and the project's build-cache provider); the fresh build still replaces the cache entry").option("--simulator-arch <arch>", "Build for exactly arm64 or x86_64 on the owned local simulator; architecture-specific cache entries.").option("--scheme <name>", "Existing shared Xcode scheme to build; cache entries stay separate from other schemes.").option("--configuration <name>", "Xcode configuration to build (e.g. Release; simulator only). A non-Debug configuration embeds the JS bundle and skips Metro entirely. Overrides the ios.configuration setting. Default: Debug").option("--remote <backend>", "Install and launch on a remote device with proxy or EAS. The build still happens here.", (value) => {
  		if (REMOTE_DEVICE_BACKENDS.includes(value)) return value;
  		throw new InvalidArgumentError(`expected one of: ${REMOTE_DEVICE_BACKENDS.join(", ")}`);
  	}).action(async (opts) => {
-@@ -10061,7 +10064,7 @@
+@@ -10061,7 +10065,7 @@
  	}
  	return false;
  }
 -function reportIosResult({ d, root, json, release, configuration, metroCheck, metroPort, logsDir, device, udid, appPath, bundleId, installSkipped, elapsed, startedAt, storeHash, storeKey, cacheHit, compilationCache, useBuildCache, waitedForBuild, launchState, remote, providerName, closeWriter, webPreviewUrl }) {
-+function reportIosResult({ d, root, json, release, configuration, xcodeScheme = null, metroCheck, metroPort, logsDir, device, udid, appPath, bundleId, installSkipped, elapsed, startedAt, storeHash, storeKey, cacheHit, compilationCache, useBuildCache, waitedForBuild, launchState, remote, providerName, closeWriter, webPreviewUrl }) {
++function reportIosResult({ d, root, json, release, configuration, simulatorArchitecture = null, xcodeScheme = null, metroCheck, metroPort, logsDir, device, udid, appPath, bundleId, installSkipped, elapsed, startedAt, storeHash, storeKey, cacheHit, compilationCache, useBuildCache, waitedForBuild, launchState, remote, providerName, closeWriter, webPreviewUrl }) {
  	const durationMs = elapsed();
  	writeLastBuild(root, lastBuildRecord$1({
  		fingerprint: storeHash,
-@@ -10080,6 +10083,7 @@
+@@ -10080,6 +10084,8 @@
  		deviceName: device?.deviceName ?? null,
  		fingerprint: storeHash,
  		configuration,
++		simulatorArchitecture,
 +		xcodeScheme,
  		cacheKey: storeKey,
  		cacheHit,
  		compilationCache,
-@@ -10114,7 +10118,7 @@
+@@ -10114,7 +10120,7 @@
  	}
  	return facts;
  }
 -async function finishIosRun({ d, root, json, release, configuration, isExpo, metroCheck, metroPort, logsDir, logFile, device, udid, remoteDevice, bootPromise, bootDuration, appPath, bundleId: initialBundleId, swapDir, buildFailure, fail, phase, note, logWriter, uploadPending, providerUpload, providerName, remote, abandonedRemote: remoteWasAbandoned, elapsed, startedAt, storeHash, storeKey, cacheHit, compilationCache, useBuildCache, waitedForBuild, closeWriter }) {
-+async function finishIosRun({ d, root, json, release, configuration, xcodeScheme = null, isExpo, metroCheck, metroPort, logsDir, logFile, device, udid, remoteDevice, bootPromise, bootDuration, appPath, bundleId: initialBundleId, swapDir, buildFailure, fail, phase, note, logWriter, uploadPending, providerUpload, providerName, remote, abandonedRemote: remoteWasAbandoned, elapsed, startedAt, storeHash, storeKey, cacheHit, compilationCache, useBuildCache, waitedForBuild, closeWriter }) {
++async function finishIosRun({ d, root, json, release, configuration, simulatorArchitecture = null, xcodeScheme = null, isExpo, metroCheck, metroPort, logsDir, logFile, device, udid, remoteDevice, bootPromise, bootDuration, appPath, bundleId: initialBundleId, swapDir, buildFailure, fail, phase, note, logWriter, uploadPending, providerUpload, providerName, remote, abandonedRemote: remoteWasAbandoned, elapsed, startedAt, storeHash, storeKey, cacheHit, compilationCache, useBuildCache, waitedForBuild, closeWriter }) {
  	let bundleId = initialBundleId;
  	if (appPath && !bundleId) {
  		bundleId = d.readBundleId(appPath) || d.detectBundleId(root);
-@@ -10238,6 +10242,7 @@
+@@ -10238,6 +10244,8 @@
  		else phase("cache", providerOutcome.line);
  	}
  	const facts = reportIosResult({
++		simulatorArchitecture,
 +		xcodeScheme,
  		d,
  		root,
  		json,
-@@ -10371,6 +10376,25 @@
+@@ -10371,6 +10379,35 @@
  		remedy: `Set ios.remote and android.remote to one of: ${REMOTE_DEVICE_BACKENDS.join(", ")}.`
  	});
  	const configuration = resolveConfiguration(opts.configuration, settings);
++	const simulatorArchitecture = opts.simulatorArch ?? null;
++	if (opts.simulatorArch != null && !["arm64", "x86_64"].includes(simulatorArchitecture)) return fail({
++		code: "STIM_BAD_ARG",
++		message: "--simulator-arch requires exactly arm64 or x86_64."
++	});
++	if (simulatorArchitecture && (opts.device != null || (opts.remote ?? remoteIosSetting(settings)))) return fail({
++		code: "STIM_BAD_ARG",
++		message: "--simulator-arch supports only the owned local simulator, not a remote or physical device."
++	});
 +	const scheme = typeof opts.scheme === "string" ? opts.scheme.trim() : null;
 +	if (opts.scheme != null && !scheme) return fail({
 +		code: "STIM_BAD_ARG",
@@ -89,12 +101,13 @@
 +	}
 +	const selectedCacheKey = (hash) => {
 +		const key = buildCacheKey$1("ios", hash, configuration ? { configuration } : {});
-+		return scheme ? `${key}-scheme-${createHash("sha256").update(scheme).digest("hex")}` : key;
++		const schemeKey = scheme ? `${key}-scheme-${createHash("sha256").update(scheme).digest("hex")}` : key;
++		return simulatorArchitecture ? `${schemeKey}-arch-${simulatorArchitecture}` : schemeKey;
 +	};
  	const release = isReleaseConfiguration(configuration);
  	const isExpo = d.detectIsExpo(root);
  	const remoteBackend = opts.remote ?? remoteIosSetting(settings);
-@@ -10564,7 +10588,7 @@
+@@ -10564,7 +10601,7 @@
  			return false;
  		}
  		fingerprint = computedFingerprint;
@@ -103,16 +116,16 @@
  		storeHash = fingerprint;
  		storeKey = cacheKey;
  		storeSources = fingerprintSources;
-@@ -10619,6 +10643,8 @@
+@@ -10619,6 +10656,8 @@
  		return true;
  	}
  	async function resolveRemoteArtifact() {
-+		// Legacy project providers key only by fingerprint, not the selected scheme.
-+		if (scheme) return;
++		// Legacy project providers key only by fingerprint, not scheme or architecture.
++		if (scheme || simulatorArchitecture) return;
  		if (!appPath) {
  			const loaded = await d.loadProjectProvider(root, { isExpo });
  			if (loaded?.unavailable) note(chalk.yellow(phaseLine("cache", `provider not usable: ${loaded.unavailable}`)));
-@@ -10827,7 +10853,7 @@
+@@ -10827,7 +10866,7 @@
  				if (after?.moved) {
  					storeHash = after.hash;
  					storeSources = after.sources;
@@ -121,18 +134,20 @@
  					note(chalk.dim(phaseLine("fingerprint", `${shortHash(fingerprint)} -> ${shortHash(storeHash)} after ${mutatingSteps.join(" + ")}; storing under the new key, which is the one the next run looks up`)));
  					const late = useBuildCache ? d.resolveBuild("ios", storeKey) : null;
  					if (late) {
-@@ -10844,6 +10870,7 @@
+@@ -10844,6 +10883,8 @@
  				phase("build", `compiling ${configuration || "Debug"} with xcodebuild`);
  				const result = await d.buildIos({
  					root,
 +					...scheme ? { scheme } : {},
++					...simulatorArchitecture ? { extraArgs: [`ARCHS=${simulatorArchitecture}`, "ONLY_ACTIVE_ARCH=YES"] } : {},
  					udid,
  					destination: remoteDevice ? GENERIC_SIM_DESTINATION : null,
  					logWriter: logWriter(),
-@@ -10910,6 +10937,7 @@
+@@ -10910,6 +10951,8 @@
  	await prepareCachedArtifact();
  	if (!await buildArtifact()) return null;
  	return finishIosRun({
++		simulatorArchitecture,
 +		xcodeScheme: scheme,
  		d,
  		root,

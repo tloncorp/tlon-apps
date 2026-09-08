@@ -69,12 +69,13 @@ const { Command } = await import(
 const HASH = 'a'.repeat(40),
   NEW_HASH = 'b'.repeat(40);
 const UDID = 'C4020000-0000-4000-8000-000000000000';
-const expectedKey = (hash, scheme) =>
+const expectedKey = (hash, scheme, architecture = null) =>
   hash +
   '-release-sim' +
   (scheme
     ? '-scheme-' + createHash('sha256').update(scheme).digest('hex')
-    : '');
+    : '') +
+  (architecture ? '-arch-' + architecture : '');
 
 async function run(opts = {}, changes = {}, parse = null) {
   const root = mkdtempSync(join(dir, 'test-project-'));
@@ -436,6 +437,298 @@ test('real cache copy/resolve, source manifest and real lock preserve each schem
     }
     assert.notEqual(handles[0].path, handles[1].path);
     assert.equal(api.resolveBuild('ios', expectedKey(HASH), cache), null);
+  } finally {
+    for (const held of handles) api.releaseBuildLock(held);
+  }
+});
+
+test('CLI architecture reaches actual Xcode argv and returned cold facts with exact owned UDID', async () => {
+  for (const architecture of ['arm64', 'x86_64']) {
+    const r = await run({}, {}, [
+      'ios',
+      '--scheme',
+      'Landscape-preview',
+      '--simulator-arch',
+      architecture,
+      '--configuration',
+      'Release',
+      '--json',
+    ]);
+    assert.equal(r.exitCode, null);
+    const build = named(r, 'buildIos')[0].args;
+    assert.deepEqual(build.extraArgs, [
+      `ARCHS=${architecture}`,
+      'ONLY_ACTIVE_ARCH=YES',
+    ]);
+    const argv = api.xcodebuildArgs({
+      ...build,
+      project: { flag: '-workspace', path: '/tmp/Landscape.xcworkspace' },
+      derivedDataPath: '/tmp/dd',
+    });
+    assert.equal(argv[argv.indexOf('-destination') + 1], `id=${UDID}`);
+    assert.equal(argv[argv.indexOf('-configuration') + 1], 'Release');
+    assert.equal(argv[argv.indexOf('-scheme') + 1], 'Landscape-preview');
+    assert.equal(argv.filter((v) => v.startsWith('ARCHS=')).length, 1);
+    assert(argv.includes(`ARCHS=${architecture}`));
+    assert(argv.includes('ONLY_ACTIVE_ARCH=YES'));
+    assert.equal(
+      JSON.parse(r.outputs.at(-1)).simulatorArchitecture,
+      architecture
+    );
+  }
+});
+test('invalid architecture rejects before scheme listing, device or cache work', async () => {
+  for (const simulatorArch of [
+    '',
+    ' arm64 ',
+    'all',
+    'arm64 x86_64',
+    true,
+    ['arm64'],
+  ]) {
+    const r = await run({ simulatorArch, scheme: 'Landscape-preview' });
+    assert.equal(r.exitCode, 1);
+    assert.match(r.outputs.join('\n'), /STIM_BAD_ARG/);
+    for (const name of [
+      'listSchemes',
+      'ensureOwnedDevice',
+      'ensureBooted',
+      'fingerprintProject',
+      'resolveBuild',
+      'acquireBuildLock',
+      'buildIos',
+      'installIosApp',
+    ])
+      assert.equal(named(r, name).length, 0, name);
+  }
+});
+test('architecture rejects flag/settings remote or direct physical-device request before actions', async () => {
+  for (const [opts, settings] of [
+    [{ remote: 'proxy' }, {}],
+    [{ remote: 'eas' }, {}],
+    [{}, { ios: { remote: 'proxy' } }],
+    [{ device: 'physical-device-id' }, {}],
+  ]) {
+    let remoteCalls = 0;
+    const r = await run(
+      { simulatorArch: 'arm64', ...opts },
+      {
+        resolveSettings: () => settings,
+        resolveRemoteContext: async () => {
+          remoteCalls++;
+          return {
+            failed: 'controlled no-device fallback',
+            code: 'CONTROLLED',
+          };
+        },
+      }
+    );
+    assert.equal(r.exitCode, 1);
+    assert.match(r.outputs.join('\n'), /STIM_BAD_ARG/);
+    assert.equal(remoteCalls, 0);
+    for (const name of [
+      'ensureOwnedDevice',
+      'ensureBooted',
+      'fingerprintProject',
+      'resolveBuild',
+      'buildIos',
+      'installIosApp',
+    ])
+      assert.equal(named(r, name).length, 0, name);
+  }
+  let devices = 0;
+  await assert.rejects(
+    run(
+      {},
+      {
+        ensureOwnedDevice: () => {
+          devices++;
+          throw Error('must not be reached');
+        },
+      },
+      ['ios', '--simulator-arch', 'arm64', '--device', 'physical-device-id']
+    ),
+    /unknown option/
+  );
+  assert.equal(devices, 0);
+});
+test('architecture scopes cold lookup/lock/store/provider keys without changing default or scheme-only keys', async () => {
+  const keys = [];
+  for (const scheme of [undefined, 'Landscape-preview'])
+    for (const architecture of ['arm64', 'x86_64']) {
+      const r = await run({ scheme, simulatorArch: architecture });
+      const key = expectedKey(HASH, scheme, architecture);
+      keys.push(key);
+      assert.equal(r.exitCode, null);
+      for (const name of ['resolveBuild', 'acquireBuildLock', 'storeBuild'])
+        assert.equal(named(r, name)[0].args.key, key, name);
+      assert.equal(r.result.cacheKey, key);
+      assert.equal(r.result.simulatorArchitecture, architecture);
+      assert.equal(named(r, 'loadProjectProvider').length, 0);
+    }
+  assert.equal(new Set(keys).size, 4);
+  for (const scheme of [undefined, 'Landscape-preview']) {
+    const r = await run({ scheme });
+    assert.equal(r.result.cacheKey, expectedKey(HASH, scheme));
+    assert.equal(r.result.simulatorArchitecture, undefined);
+    assert.equal(named(r, 'buildIos')[0].args.extraArgs, undefined);
+  }
+  const seen = [];
+  const r = await run(
+    { scheme: 'Landscape-preview', simulatorArch: 'arm64' },
+    {
+      resolveCacheProviderConfig: () => ({
+        provider: './controlled-cache.mjs',
+        options: {},
+        baseDir: dir,
+      }),
+      loadCacheProvider: async () => ({
+        name: 'controlled',
+        provider: {
+          builds: {
+            resolve: (v) => {
+              seen.push(['resolve', v.key]);
+              return null;
+            },
+            store: (v) => {
+              seen.push(['store', v.key]);
+            },
+          },
+        },
+      }),
+    }
+  );
+  assert.equal(r.exitCode, null);
+  assert.deepEqual(seen, [
+    ['resolve', expectedKey(HASH, 'Landscape-preview', 'arm64')],
+    ['store', expectedKey(HASH, 'Landscape-preview', 'arm64')],
+  ]);
+});
+test('post-Pods fingerprint carries selected architecture into lookup/store/facts', async () => {
+  let fingerprints = 0;
+  const lookups = [];
+  const r = await run(
+    { scheme: 'Landscape-preview', simulatorArch: 'arm64' },
+    {
+      podsAreStale: () => ({ stale: true }),
+      fingerprintProject: async () => ({
+        hash: ++fingerprints === 1 ? HASH : NEW_HASH,
+        sources: [],
+      }),
+      resolveBuild: (platform, key) => {
+        lookups.push(key);
+        return null;
+      },
+    }
+  );
+  assert.equal(r.exitCode, null);
+  assert.deepEqual(lookups, [
+    expectedKey(HASH, 'Landscape-preview', 'arm64'),
+    expectedKey(NEW_HASH, 'Landscape-preview', 'arm64'),
+  ]);
+  assert.equal(
+    named(r, 'storeBuild')[0].args.key,
+    expectedKey(NEW_HASH, 'Landscape-preview', 'arm64')
+  );
+  assert.deepEqual(named(r, 'buildIos')[0].args.extraArgs, [
+    'ARCHS=arm64',
+    'ONLY_ACTIVE_ARCH=YES',
+  ]);
+  assert.equal(r.result.simulatorArchitecture, 'arm64');
+  assert.equal(r.result.fingerprint, NEW_HASH);
+});
+test('initial and post-Pods architecture warm hits preserve JS swap and architecture facts', async () => {
+  for (const late of [false, true]) {
+    let fingerprints = 0;
+    const hash = late ? NEW_HASH : HASH;
+    const r = await run(
+      { scheme: 'Landscape-preview', simulatorArch: 'arm64' },
+      {
+        podsAreStale: () => ({ stale: late }),
+        fingerprintProject: async () => ({
+          hash: ++fingerprints === 1 ? HASH : NEW_HASH,
+          sources: [],
+        }),
+        resolveBuild: (platform, key) =>
+          key === expectedKey(hash, 'Landscape-preview', 'arm64')
+            ? '/cache/arm64-preview.app'
+            : null,
+      }
+    );
+    assert.equal(r.exitCode, null);
+    assert.equal(named(r, 'buildIos').length, 0);
+    assert.equal(named(r, 'swapJsBundle').length, 1);
+    assert.equal(
+      named(r, 'swapJsBundle')[0].args.cachedAppPath,
+      '/cache/arm64-preview.app'
+    );
+    assert.equal(
+      r.result.cacheKey,
+      expectedKey(hash, 'Landscape-preview', 'arm64')
+    );
+    assert.equal(r.result.simulatorArchitecture, 'arm64');
+  }
+});
+test('architecture warm lock and failed swap retain exact architecture selection', async () => {
+  const waited = [];
+  const r = await run(
+    { scheme: 'Landscape-preview', simulatorArch: 'arm64' },
+    {
+      acquireBuildLock: () => ({
+        held: { pid: 23456, projectRoot: '/other/workspace' },
+      }),
+      waitForBuild: async (v) => {
+        waited.push(v.key);
+        return { hit: '/cache/arm64.app', waitedMs: 12 };
+      },
+    }
+  );
+  assert.equal(r.exitCode, null);
+  assert.deepEqual(waited, [expectedKey(HASH, 'Landscape-preview', 'arm64')]);
+  assert.equal(named(r, 'buildIos').length, 0);
+  assert.equal(r.result.simulatorArchitecture, 'arm64');
+  const fallback = await run(
+    { scheme: 'Landscape-preview', simulatorArch: 'arm64' },
+    {
+      resolveBuild: () => '/cache/arm64.app',
+      swapJsBundle: async () => ({ ok: false, reason: 'controlled failure' }),
+    }
+  );
+  assert.equal(fallback.exitCode, null);
+  assert.deepEqual(named(fallback, 'buildIos')[0].args.extraArgs, [
+    'ARCHS=arm64',
+    'ONLY_ACTIVE_ARCH=YES',
+  ]);
+  assert.equal(fallback.result.simulatorArchitecture, 'arm64');
+});
+test('real cache copy/source manifest/lock accept separated architecture keys', () => {
+  const cache = mkdtempSync(join(dir, 'real-arch-cache-')),
+    source = mkdtempSync(join(dir, 'real-arch-artifact-'));
+  const handles = [];
+  try {
+    for (const architecture of ['arm64', 'x86_64']) {
+      const app = join(source, architecture + '.app');
+      mkdirSync(app);
+      writeFileSync(join(app, 'main.jsbundle'), architecture);
+      const key = expectedKey(HASH, 'Landscape-preview', architecture),
+        sources = [{ filePath: 'ios/project.pbxproj', hash: HASH }];
+      const stored = api.storeBuild('ios', key, app, { root: cache, sources });
+      assert.equal(api.resolveBuild('ios', key, cache), stored);
+      assert.equal(
+        readFileSync(join(stored, 'main.jsbundle'), 'utf8'),
+        architecture
+      );
+      assert.deepEqual(api.storedSources('ios', key, cache), sources);
+      const held = api.acquireBuildLock({ platform: 'ios', key, root: source });
+      handles.push(held);
+      assert.equal(held.acquired, true);
+      assert.equal(held.path, api.buildLockPath('ios', key));
+    }
+    assert.notEqual(handles[0].path, handles[1].path);
+    assert.equal(
+      api.resolveBuild('ios', expectedKey(HASH, 'Landscape-preview'), cache),
+      null
+    );
   } finally {
     for (const held of handles) api.releaseBuildLock(held);
   }

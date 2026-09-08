@@ -34,7 +34,7 @@ corepack pnpm exec stim doctor
 corepack pnpm exec stim start
 APP_VARIANT=preview corepack pnpm exec stim ios --scheme Landscape-preview
 # For normal-app performance captures, with embedded current JavaScript:
-APP_VARIANT=preview corepack pnpm exec stim ios --scheme Landscape-preview --configuration Release --json
+APP_VARIANT=preview corepack pnpm exec stim ios --scheme Landscape-preview --simulator-arch arm64 --configuration Release --json
 ```
 
 The pinned package includes a small explicit-scheme patch: upstream rc.7 picks
@@ -43,8 +43,17 @@ when Expo's `APP_VARIANT` is preview. The local command validates the requested
 shared scheme and separates its cache and build-lock keys. Verify this patch
 with `node --test scripts/test-stim-ios-scheme.mjs` from the repo root.
 
-Use the returned device ID, bundle ID, `xcodeScheme`, configuration, fingerprint
-and cache key in the existing capture evidence. A cached Release `appPath` may be a temporary
+The preview Release configuration otherwise compiles both arm64 and x86_64.
+Use `--simulator-arch arm64` on Apple Silicon (`x86_64` on Intel) to select one
+local simulator architecture. This option passes explicit Xcode build settings,
+separates every cache/lock key and reports `simulatorArchitecture`; it rejects
+remote/device use. Without the option, Stim's existing architecture behavior
+is unchanged. Do not use untracked environment overrides to change architecture
+under a shared cache key.
+
+Use the returned device ID, bundle ID, `xcodeScheme`, `simulatorArchitecture`,
+configuration, fingerprint and cache key in the existing capture evidence.
+A cached Release `appPath` may be a temporary
 copy removed after installation; retain installed bundle bytes using the exact
 returned device and bundle ID. Keep Debug/Fast Refresh for functional iteration
 and Release for performance qualification. The wrapper examples and measured

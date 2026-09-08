@@ -18,9 +18,15 @@ storage and build-lock keys, including after Pods changes. Fingerprint-only
 project providers are bypassed for explicit schemes; local and key-based caches
 still work.
 
+Adds `--simulator-arch arm64|x86_64` for local simulator builds so Release does
+not compile an unused second architecture. It forwards `ARCHS` and
+`ONLY_ACTIVE_ARCH`, reports `simulatorArchitecture`, and separates architecture
+keys at both fingerprint stages. Remote and physical-device use is rejected.
+
 Derived from official Stim commit `95782a3120f7963333e9af9586dc0775506e2c1f`.
-Remove when the pinned upstream version supports explicit scheme selection with
-equivalent cache isolation. Validate with `node --test scripts/test-stim-ios-scheme.mjs`.
+Remove when the pinned upstream version supports explicit scheme and simulator
+architecture selection with equivalent cache isolation. Validate with
+`node --test scripts/test-stim-ios-scheme.mjs`.
 The custom `ENTRY_FILE` Release-swap limitation is separate and remains open.
 
 ## @legendapp/list@3.3.3

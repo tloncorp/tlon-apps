@@ -10,12 +10,14 @@ use `corepack pnpm exec stim status` when resuming. For Debug, start Metro with
 edits use Fast Refresh; rerun the platform build when native inputs change.
 For the preview iOS app, use `APP_VARIANT=preview corepack pnpm exec stim ios
 --scheme Landscape-preview`; add `--configuration Release` for Simulator
-performance captures. For Android, use `corepack pnpm exec stim android
---variant productionDebug`.
+performance captures. On Apple Silicon, also pass `--simulator-arch arm64` to
+avoid compiling an unused Intel simulator architecture. For Android, use
+`corepack pnpm exec stim android --variant productionDebug`.
 
-The pinned Stim package adds explicit iOS scheme selection and separate cache
-keys. Use the repo-local command so the preview app cannot silently build the
-default production target. Normal `index.tsx` is supported; the custom-entry
+The pinned Stim package adds explicit iOS scheme and simulator architecture
+selection with separate cache keys. Use the repo-local command so the preview
+app cannot silently build the default production target. Normal `index.tsx` is
+supported; the custom-entry
 Release cache limitation is documented in `docs/tlon-apps/scroller-test-execution.md`.
 
 Use the exact device ID, app ID and Metro port returned by Stim for subsequent
