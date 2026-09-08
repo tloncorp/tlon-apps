@@ -4,7 +4,6 @@ import { generateSafeId } from '@tloncorp/shared/logic';
 import { ConfirmDialog, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
@@ -368,7 +367,6 @@ export function RoleFormScreen({ navigation, route }: Props) {
                   onBlur={() => {
                     onBlur();
                     trigger('title');
-                    Keyboard.dismiss();
                   }}
                   value={value}
                   editable={!isAdminRole}
@@ -385,10 +383,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
                 <TextInput
                   placeholder="Role description"
                   onChangeText={onChange}
-                  onBlur={() => {
-                    onBlur();
-                    Keyboard.dismiss();
-                  }}
+                  onBlur={onBlur}
                   value={value}
                   editable={!isAdminRole}
                   testID="RoleDescriptionInput"
