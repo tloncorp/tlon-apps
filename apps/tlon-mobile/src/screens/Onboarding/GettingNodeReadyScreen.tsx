@@ -16,6 +16,7 @@ import {
 import {
   AppDataContextProvider,
   ArvosDiscussing,
+  EmailSupportLink,
   IconType,
   ListItem,
   LoadingSpinner,
@@ -245,6 +246,7 @@ export function GettingNodeReadyScreen({
               Feel free to close the app if this takes too long. We’ll send you
               a notification when your node is ready.
             </TlonText.Text>
+            <EmailSupportLink subject="Help! My node won’t wake up." />
           </YStack>
           <StoppedNodePushSheet
             notifPerms={notifPerms}
