@@ -706,6 +706,64 @@ describe('initContextLensShipSync retirement', () => {
     }
   });
 
+  it('waits for the repointed account transport before asserting', async () => {
+    // A reload can repoint the sole account at a different bot ship while
+    // the unkeyed slot still holds the retiring monitor's transport.
+    // Asserting through it would configure the new owner on the OLD bot,
+    // which would then mirror prompts to a ship its account never named.
+    const pokes: RecordedPoke[] = [];
+    const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);
+    const previousParams = slot.get();
+    const stale: SharedApiClientParams = {
+      ship: '~bus',
+      poke: async (params) => {
+        pokes.push({ ...(params as RecordedPoke), via: '~bus' } as never);
+        return undefined;
+      },
+    };
+    slot.set(stale);
+    const api = {
+      config: {
+        channels: {
+          tlon: {
+            ship: '~zod',
+            url: 'https://example.com',
+            code: 'code-123',
+            contextLens: {
+              enabled: true,
+              authToken: 'a-token-of-sufficient-length',
+              owner: '~dev',
+            },
+          },
+        },
+      } as OpenClawConfig,
+      logger: silentLogger,
+    };
+    try {
+      expect(initContextLensShipSync(api)).toBe(true);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      // Nothing goes to ~bus's transport.
+      expect(pokes).toEqual([]);
+
+      // The replacement monitor publishes the matching transport, and the
+      // bounded retry picks it up.
+      const fresh: RecordedPoke[] = [];
+      slot.set({
+        ship: '~zod',
+        poke: async (params) => {
+          fresh.push(params as RecordedPoke);
+          return undefined;
+        },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 1_200));
+      expect(fresh.map((poke) => JSON.stringify(poke.json))).toEqual([
+        JSON.stringify({ configure: { owner: '~dev' } }),
+      ]);
+    } finally {
+      slot.set(previousParams);
+    }
+  });
+
   it('disables itself when several accounts share the transport slot', async () => {
     const pokes: RecordedPoke[] = [];
     const slot = sharedSlot<SharedApiClientParams>(API_CLIENT_PARAMS_SLOT);

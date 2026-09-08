@@ -1770,6 +1770,48 @@
       ==
   ==
 ::
+::  a revoke that lands after its ship was configured back can erase the
+::  freshly valid mirror (it has no ordering against the re-fan), so its ack
+::  for the CURRENT owner triggers a repairing re-fan
+::
+++  test-pr-revoke-ack-for-restored-owner-refans
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  =/  expect=prompts:v1:p  (my ~[['SOUL.md' 'be kind' ~2024.1.1 %.n]])
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (configure ~bus)
+  ;<  *  bind:m
+    %+  do-poke  %steward-prompts-action-1
+    !>(`action:v1:p`[%seed (my ~[['SOUL.md' 'be kind']])])
+  ::  ~bus is replaced, its revoke nacks (so a retry goes out), and then it
+  ::  is configured back before that retry settles
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~fed]))
+  ;<  *  bind:m
+    %-  do-agent
+    :*  /prompts/sync/(scot %p ~bus)
+        [~bus %steward]
+        [%poke-ack `~[[%leaf "boom"]]]
+    ==
+  ;<  *  bind:m
+    (do-poke %steward-action-1 !>(`action:v1:s`[%configure ~bus]))
+  ::  the in-flight revoke finally acks — for the ship that is now owner
+  ;<  caz=(list card)  bind:m
+    %-  do-agent
+    :*  /prompts/revoke/(scot %p ~bus)
+        [~bus %steward]
+        [%poke-ack ~]
+    ==
+  %+  ex-cards  caz
+  :~  %-  ex-poke
+      :*  /prompts/sync/(scot %p ~bus)
+          [~bus %steward]
+          %steward-prompts-action-1
+          !>(`action:v1:p`[%sync expect])
+      ==
+  ==
+::
 ::  a nacked revoke arms a bounded behn retry: waiting for a boot-shaped
 ::  moment leaves the former owner holding the mirror indefinitely on a
 ::  gateway that never restarts. a confirming ack ends the retries

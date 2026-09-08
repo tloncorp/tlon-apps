@@ -17,6 +17,14 @@ import { withTlonApiPoke } from './urbit/api-client.js';
 export const API_CLIENT_PARAMS_SLOT = '@tloncorp/openclaw.api-client-params';
 
 export interface SharedApiClientParams {
+  /**
+   * The bot ship this transport talks to. The slot is unkeyed and every
+   * monitor publishes to it, so a consumer whose correctness depends on
+   * reaching a PARTICULAR ship (the lens sync's ownership assertions) must
+   * check this rather than assume the newest publisher is theirs — a reload
+   * that repoints the account leaves the retiring monitor's transport here.
+   */
+  ship?: string;
   poke: (params: {
     app: string;
     mark: string;

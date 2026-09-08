@@ -1019,7 +1019,16 @@ export class UrbitSSEClient {
           this.pendingSubscribeAcks.delete(parsed.id);
           waiter(!parsed.err);
         }
-        if (!parsed.err && typeof parsed.id === 'number') {
+        if (
+          !parsed.err &&
+          typeof parsed.id === 'number' &&
+          // A superseded id must not report its key live: after an ack wait
+          // times out, a duplicate send can be nacked and start a
+          // replacement, and this delayed positive ack would then wake
+          // waitForSubscriptionAck before the real watch is up — prompt
+          // sync would reconcile into the gap and miss an owner edit.
+          this.eventHandlers.has(parsed.id)
+        ) {
           const sub = this.subscriptions.find((s) => s.id === parsed.id);
           if (sub) {
             const key = `${sub.app}${sub.path}`;

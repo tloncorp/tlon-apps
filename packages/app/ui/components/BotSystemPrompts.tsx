@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { Keyboard } from 'react-native';
 import { ScrollView, View, XStack, YStack } from 'tamagui';
 
+import { useCurrentUserId } from '../contexts/appDataContext';
 import { ActionSheet } from './ActionSheet';
 import {
   classifyProbeFailure,
@@ -22,7 +23,13 @@ import { SettingsDivider, SettingsSection } from './SettingsSection';
 const promptsQueryKey = (botShip: string) => ['botSystemPrompts', botShip];
 // Not per-bot: the module either exists on our ship or it doesn't, so one
 // probe serves every profile in the session.
-const promptsModuleQueryKey = ['botSystemPromptsModule'];
+// Per OUR ship: the module either exists on it or it doesn't, so one probe
+// serves every profile in the session — but a different login is a
+// different ship, and its verdict must not be inherited.
+const promptsModuleQueryKey = (ourShip: string) => [
+  'botSystemPromptsModule',
+  ourShip,
+];
 
 // How many times a "module missing" probe result is retried before the
 // ship is taken at its word (see the first-mount ambiguity below).
@@ -58,18 +65,24 @@ export function useBotSystemPrompts(botShip: string) {
  * until the app restarted.
  */
 /**
- * Set once a /v1/prompts watch has gone live on this ship. A live watch is
- * stronger evidence than any probe: it means gall accepted the subscription,
- * so the module exists regardless of what a 404 mid-restart suggested.
+ * Ships whose /v1/prompts watch has gone live. A live watch is stronger
+ * evidence than any probe: gall accepted the subscription, so the module
+ * exists regardless of what a 404 mid-restart suggested.
+ *
+ * Keyed by ship rather than a bare flag — the process outlives a logout, and
+ * a proof carried over to the next account would settle ITS module as
+ * present and expose Block on its own bot during a restart.
  */
-let promptsModuleProven = false;
-const markPromptsModuleProven = () => {
-  promptsModuleProven = true;
+const provenPromptsModuleShips = new Set<string>();
+const markPromptsModuleProven = (ourShip: string) => {
+  provenPromptsModuleShips.add(ourShip);
 };
 
-async function probePromptsModule(): Promise<'present' | 'absent'> {
+async function probePromptsModule(
+  ourShip: string
+): Promise<'present' | 'absent'> {
   for (let attempt = 0; ; attempt += 1) {
-    if (promptsModuleProven) {
+    if (provenPromptsModuleShips.has(ourShip)) {
       return 'present';
     }
     try {
@@ -87,7 +100,7 @@ async function probePromptsModule(): Promise<'present' | 'absent'> {
       if (next === 'absent') {
         // Never conclude absence after a watch has been acked: that ack is
         // proof the module is there, and `absent` is sticky.
-        return promptsModuleProven ? 'present' : 'absent';
+        return provenPromptsModuleShips.has(ourShip) ? 'present' : 'absent';
       }
       await new Promise((resolve) => setTimeout(resolve, 1_000 * 2 ** attempt));
     }
@@ -99,19 +112,21 @@ async function probePromptsModule(): Promise<'present' | 'absent'> {
  * per-bot mirror query because that one's 404 is ambiguous — see
  * probeBotSystemPromptsModule.
  */
-function usePromptsModule() {
+function usePromptsModule(ourShip: string) {
   const queryClient = useQueryClient();
   return useQuery({
-    queryKey: promptsModuleQueryKey,
+    queryKey: promptsModuleQueryKey(ourShip),
     queryFn: () => {
       // `absent` is sticky: re-burning the retry budget on every profile
       // view of a ship without the module would hide Block for seconds
       // each time, and a ship that gains the module mid-session still
       // surfaces it through the subscription's fact.
-      if (queryClient.getQueryData(promptsModuleQueryKey) === 'absent') {
+      if (
+        queryClient.getQueryData(promptsModuleQueryKey(ourShip)) === 'absent'
+      ) {
         return Promise.resolve('absent' as const);
       }
-      return probePromptsModule();
+      return probePromptsModule(ourShip);
     },
     // `present` is revalidated on every profile view: %steward can restart
     // between them, and a stale `present` plus a per-bot 404 (which reads
@@ -127,8 +142,9 @@ function usePromptsModule() {
  * trusted, so mirror presence is itself the ownership signal.
  */
 export function useIsOwnedBot(botShip: string) {
+  const ourShip = useCurrentUserId();
   const promptsQuery = useBotSystemPrompts(botShip);
-  const moduleQuery = usePromptsModule();
+  const moduleQuery = usePromptsModule(ourShip);
   // A cached answer only counts once it has been reconfirmed after this
   // mount (staleTime is Infinity, so the cache can be a whole session
   // old): dataUpdatedAt advances on every successful fetch AND on the
@@ -203,6 +219,7 @@ const promptOrder = new Map(
  */
 export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
   const queryClient = useQueryClient();
+  const ourShip = useCurrentUserId();
   const promptsQuery = useBotSystemPrompts(botShip);
   const [editing, setEditing] = useState<api.BotSystemPrompt | null>(null);
   const [mountedAt] = useState(() => Date.now());
@@ -266,7 +283,8 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
             // false). A 404 now is a restart, not an old ship.
             assumeSupported:
               everSubscribed ||
-              queryClient.getQueryData(promptsModuleQueryKey) === 'present',
+              queryClient.getQueryData(promptsModuleQueryKey(ourShip)) ===
+                'present',
             onAck: () => {
               if (cancelled) {
                 return;
@@ -282,12 +300,15 @@ export function BotSystemPromptsSection({ botShip }: { botShip: string }) {
               // its late 404 would otherwise overwrite this with `absent`.
               // Cancelling covers the in-flight fetch; the flag covers any
               // probe that starts later.
-              markPromptsModuleProven();
+              markPromptsModuleProven(ourShip);
               void queryClient
-                .cancelQueries({ queryKey: promptsModuleQueryKey })
+                .cancelQueries({ queryKey: promptsModuleQueryKey(ourShip) })
                 .then(() => {
                   if (!cancelled) {
-                    queryClient.setQueryData(promptsModuleQueryKey, 'present');
+                    queryClient.setQueryData(
+                      promptsModuleQueryKey(ourShip),
+                      'present'
+                    );
                   }
                 });
               // The watch is live only now: subscribe() resolved on the

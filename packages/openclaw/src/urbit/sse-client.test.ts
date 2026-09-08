@@ -170,6 +170,48 @@ describe('UrbitSSEClient', () => {
       vi.useRealTimers();
     });
 
+    it('ignores a positive ack for a superseded subscription id', async () => {
+      // After an ack wait times out, a duplicate send can be nacked and
+      // start a replacement; the delayed ok for the original id must not
+      // report the key live, or prompt sync reconciles before the real
+      // watch is up and misses whatever lands in the gap.
+      vi.useFakeTimers();
+      const { urbitFetch } = await import('./fetch.js');
+      vi.mocked(urbitFetch).mockResolvedValue(okFetch());
+      const client = new UrbitSSEClient(
+        'https://example.com',
+        'urbauth-~zod=123'
+      );
+      (client as unknown as { isConnected: boolean }).isConnected = true;
+      await client.subscribe({
+        app: 'steward',
+        path: '/v1/prompts',
+        event: vi.fn(),
+        quit: vi.fn(),
+        optional: true,
+      });
+      const priv = client as unknown as {
+        subscriptions: { id: number }[];
+        eventHandlers: Map<number, unknown>;
+        ackedSubscriptionKeys: Set<string>;
+      };
+      // A nack transfers the handlers to a replacement id.
+      client.processEvent(
+        'id: 1\ndata: {"id":1,"response":"subscribe","err":"restarting"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv.eventHandlers.has(1)).toBe(false);
+
+      // The original send's late ok arrives.
+      client.processEvent(
+        'id: 2\ndata: {"id":1,"response":"subscribe","ok":"ok"}'
+      );
+      await vi.advanceTimersByTimeAsync(0);
+      expect(priv.ackedSubscriptionKeys.has('steward/v1/prompts')).toBe(false);
+      await client.close();
+      vi.useRealTimers();
+    });
+
     it('re-probes an abandoned watch after the slow interval', async () => {
       // everLiveSubscriptionKeys is process-local, so a gateway whose first
       // connection overlaps a %steward restart abandons a supported watch.

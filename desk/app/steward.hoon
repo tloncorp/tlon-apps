@@ -306,9 +306,18 @@
       [%prompts %revoke @ ~]
     ?+  -.sign  cor
         %poke-ack
+      =/  who  (slav %p i.t.t.wire)
+      ::  this ship was configured back while our revoke was in flight, and
+      ::  a sent poke can't be recalled: %configure dropped it from .stale
+      ::  and re-fanned, but this revoke has no ordering against that %sync
+      ::  and may have erased the freshly valid mirror. re-fan to repair —
+      ::  harmless if the revoke was nacked or arrived first.
+      ::
+      ?:  =(`who owner.state)
+        %-  (slog 'steward: prompts revoke landed on a restored owner' ~)
+        pr-sync-owner:pr-core
       ?~  p.sign
         ::  confirmed: the former owner dropped its mirror; stop retrying
-        =/  who  (slav %p i.t.t.wire)
         =.  stale.prompts.state  (~(del in stale.prompts.state) who)
         ::  the set is empty, so the next nack starts from a fresh budget
         ?.  =(~ stale.prompts.state)  cor

@@ -53,6 +53,25 @@ const shipSyncUnsubscribeSlot = sharedSlot<{
   flush: () => Promise<void>;
 }>('contextLens.shipSync.unsubscribe');
 
+/**
+ * The slot's transport, but only when it belongs to the bot ship we mean to
+ * reach. `undefined` expectations (older callers) accept anything.
+ */
+function matchingParams(
+  params: SharedApiClientParams | null,
+  botShip?: string
+): SharedApiClientParams | null {
+  if (!params || botShip === undefined) {
+    return params;
+  }
+  if (params.ship === undefined) {
+    // A publisher that carries no identity predates this check; treating it
+    // as a mismatch would disable the sync entirely.
+    return params;
+  }
+  return normalizeShip(params.ship) === normalizeShip(botShip) ? params : null;
+}
+
 function truncateSummary(value: string | undefined): string | undefined {
   if (value === undefined || value.length <= MAX_SUMMARY_CHARS) {
     return value;
@@ -206,6 +225,15 @@ export type ContextLensShipSync = {
 export function createContextLensShipSync(opts: {
   owner: string;
   logger: SyncLogger;
+  /**
+   * The bot ship whose %steward these pokes must reach. The params slot is
+   * unkeyed, so a reload that repoints the account can leave the retiring
+   * monitor's transport in it — configuring THIS owner on the old bot would
+   * have it mirror prompts to, and accept edits from, a ship its account
+   * never named. Transports for any other ship are ignored (treated as
+   * "not connected yet"), so the assertion waits for the replacement.
+   */
+  botShip?: string;
   getParams?: () => SharedApiClientParams | null;
   /**
    * Work this sync must not overlap: the queue starts chained after it.
@@ -217,7 +245,9 @@ export function createContextLensShipSync(opts: {
   after?: Promise<void>;
 }): ContextLensShipSync {
   const { owner, logger } = opts;
-  const getParams = opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
+  const readParams =
+    opts.getParams ?? (() => apiClientParamsSlot.get() ?? null);
+  const getParams = () => matchingParams(readParams(), opts.botShip);
 
   const lastStatusByLensId = new Map<string, ContextLensStatus>();
   let configuredFor: SharedApiClientParams | null = null;
@@ -347,6 +377,12 @@ export function initContextLensShipSync(api: {
   // prompts (and edit rights) there.
   const runnable = listRunnableTlonAccountIds(api.config);
   const accountId = runnable.length === 1 ? runnable[0] : undefined;
+  // The bot ship this config means. Checked against the transport before
+  // every ownership poke: a reload can repoint the account, and the slot
+  // still holds the retiring monitor's transport to the OLD bot.
+  const botShip = normalizeShip(
+    resolveTlonAccount(api.config, accountId).ship ?? ''
+  );
   // Retire any previous listener BEFORE a disabled/no-owner return: a
   // reload that turns the lens off must not leave the old closure
   // subscribed — a later lens event would %configure %steward's SHARED
@@ -429,7 +465,10 @@ export function initContextLensShipSync(api: {
         : { unconfigure: null };
       let failure: unknown = 'no monitor transport available';
       for (let attempt = 0; !superseded; attempt += 1) {
-        const params = apiClientParamsSlot.get();
+        const params = matchingParams(
+          apiClientParamsSlot.get(),
+          botShip.length > 0 ? botShip : undefined
+        );
         if (params) {
           try {
             await params.poke({
@@ -509,6 +548,7 @@ export function initContextLensShipSync(api: {
   const sync = createContextLensShipSync({
     owner,
     logger: api.logger,
+    ...(botShip.length > 0 ? { botShip } : {}),
     after: assertion,
   });
   noteConfigured = sync.noteConfigured;

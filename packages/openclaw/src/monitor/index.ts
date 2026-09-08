@@ -993,6 +993,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
   // reference: a config-reload restart may publish a replacement before the old
   // monitor aborts, and the old cleanup must not clear the replacement.
   const myApiClientParams = {
+    ship: botShipName,
     poke: api.poke.bind(api),
   };
   apiClientParamsSlot.set(myApiClientParams);
@@ -6125,6 +6126,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
             `[tlon] Prompt clear skipped: ${error?.message ?? String(error)}`
           );
         }
+        // A cold start has no retiring monitor to do this: with several
+        // runnable named accounts and no default, every monitor lands here
+        // and promptSync is null for all of them, so the former sole
+        // authority's stamped files would go on steering every one of them.
+        // Outside the try above — a failed clear must not strand the files.
+        await removeRetiredFiles('gated-off boot');
       }
       const startupOnboardingNests = [...watchedChannels];
       let nextOnboardingNest = 0;
