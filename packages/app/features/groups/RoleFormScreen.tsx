@@ -4,7 +4,9 @@ import { generateSafeId } from '@tloncorp/shared/logic';
 import { ConfirmDialog, useToast } from '@tloncorp/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { getTokenValue } from 'tamagui';
 
 import { useGroupContext } from '../../hooks/useGroupContext';
 import { GroupSettingsStackParamList } from '../../navigation/types';
@@ -15,7 +17,6 @@ import {
   ListItem,
   Pressable,
   ScreenHeader,
-  ScrollView,
   Text,
   TextInput,
   View,
@@ -327,11 +328,13 @@ export function RoleFormScreen({ navigation, route }: Props) {
         title={screenTitle}
         backgroundColor="$secondaryBackground"
       />
-      <ScrollView
-        flex={1}
+      <KeyboardAwareScrollView
+        style={{ flex: 1 }}
+        bottomOffset={24}
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={{
-          padding: '$l',
-          paddingTop: '$xl',
+          padding: getTokenValue('$l', 'size'),
+          paddingTop: getTokenValue('$xl', 'size'),
           paddingBottom: bottom,
         }}
       >
@@ -444,7 +447,7 @@ export function RoleFormScreen({ navigation, route }: Props) {
             </YStack>
           )}
         </YStack>
-      </ScrollView>
+      </KeyboardAwareScrollView>
       <ConfirmDialog
         open={discardDialogOpen}
         onOpenChange={setDiscardDialogOpen}

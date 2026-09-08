@@ -35,7 +35,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 
    const {
      layout,
-@@ -59,177 +71,194 @@
+@@ -59,177 +71,205 @@
      onContentSizeChange,
    } = useScrollState(scrollViewRef);
 
@@ -51,10 +51,6 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 -        if (freeze.value) {
 -          return;
 -        }
-+    if (e.height > 0) {
-+      // eslint-disable-next-line react-compiler/react-compiler
-+      targetKeyboardHeight.value = e.height;
-+    }
 
 -        if (e.height > 0) {
 -          // eslint-disable-next-line react-compiler/react-compiler
@@ -327,6 +323,9 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 +    {
 +      onStart: (e) => {
 +        "worklet";
++        if (e.height > 0) {
++          targetKeyboardHeight.value = e.height;
++        }
 +        if (freeze.value) {
 +          transition.value = { ...transition.value, active: false };
            return;
@@ -363,6 +362,18 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
 -        // iOS doesn't need per-frame updates (contentOffset handles it)
 -      },
 +      onMove: move,
++      onInteractive: (e) => {
++        "worklet";
++        // Interactive frames arrive after onEnd, without a new onStart. Apply
++        // each observed height directly and preserve the user's scroll delta.
++        transition.value = { ...transition.value, active: false };
++        currentHeight.value = e.height;
++        if (freeze.value) return;
++
++        const target = getTarget(e);
++        padding.value = target.padding;
++        contentOffsetY.value = target.scroll;
++      },
        onEnd: (e) => {
          "worklet";
 
@@ -372,7 +383,7 @@ diff --git a/src/components/KeyboardChatScrollView/useChatKeyboard/index.ios.ts 
            return;
          }
 
-@@ -239,6 +268,9 @@
+@@ -239,6 +279,9 @@
            offset,
          );
 
