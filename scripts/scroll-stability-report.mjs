@@ -23,6 +23,14 @@ const entry = (scenario, matrix, history, scope) => ({
 // These are implemented fixture actions, each only a slice of the linked rows.
 // Related history is a replay lead, never a claim that the whole bug is covered.
 export const nativeScenarioRegistry = [
+  ...['end', 'away'].map((outcome) =>
+    entry(
+      `armed-post-gesture-thinking-${outcome}`,
+      [outcome === 'end' ? 'THK-02' : 'THK-03'],
+      [],
+      `Actual completed native gesture then forced thinking show/hide: ${outcome === 'end' ? 'legal-end continuity' : 'bound unchanged central-row continuity'}; no during-gesture overlap, finger-trajectory or presentation proof`
+    )
+  ),
   entry('entry-latest', ['ENT-01'], [], 'Mixed-height channel latest entry'),
   entry('entry-selected', ['ENT-03'], ['REG-026'], 'Loaded selected row entry'),
   entry(
@@ -253,9 +261,21 @@ function flattenEvidence(
 }
 
 export function classifyEvidence(trace) {
+  if (/^armed-post-gesture-thinking-(end|away)$/.test(trace?.scenario ?? ''))
+    return assessNativeEvidence(trace).status;
   if (trace.kind === 'playwright') return assessWebEvidence(trace).status;
   const result = trace.result;
   if (trace.verdict === 'FAIL' || result?.verdict === 'FAIL') return 'fail';
+  const replay =
+    trace.fixtureVersion === 2 &&
+    ['ios', 'android'].includes(trace.platform) &&
+    trace.assertion !== 'observe' &&
+    trace.verdict !== 'OBSERVED'
+      ? assessNativeEvidence(trace)
+      : undefined;
+  // Independently bound native failure survives producer/acquisition limits.
+  // Those limits still prevent any pass promotion below.
+  if (replay?.status === 'fail') return 'fail';
   // An explicit failed precondition disqualifies the scenario, while the
   // producer may retain geometry residuals as diagnostics. Raw FAIL still wins.
   if (
@@ -304,11 +324,13 @@ export function classifyEvidence(trace) {
     )
   )
     return 'incomplete';
-  return assessNativeEvidence(trace).status;
+  return replay?.status ?? 'incomplete';
 }
 
 /** Keep raw failures while separating whether the named product scope ran. */
 export function qualifyEvidence(trace) {
+  if (/^armed-post-gesture-thinking-(end|away)$/.test(trace?.scenario ?? ''))
+    return assessNativeEvidence(trace);
   if (trace.kind === 'playwright') return assessWebEvidence(trace);
   if (trace.assertion === 'observe')
     return {
@@ -323,17 +345,23 @@ export function qualifyEvidence(trace) {
       status: 'incomplete',
       issues: ['Unsupported native fixture identity'],
     };
-  if (
+  const scopeIssues =
     trace.scenario?.startsWith('near-') ||
     trace.positioningCoverage === 'programmatic-near-end-no-user-drag'
-  )
-    return {
-      status: 'incomplete',
-      issues: [
-        'Programmatic near-end setup does not establish deliberate user READ inside the follow threshold; raw geometry is retained separately',
-      ],
-    };
+      ? [
+          'Programmatic near-end setup does not establish deliberate user READ inside the follow threshold; raw geometry is retained separately',
+        ]
+      : [];
   const replay = assessNativeEvidence(trace);
+  // A geometry failure can be qualified while the broader READ scope is not.
+  if (replay.status === 'fail') return { ...replay, scopeIssues };
+  if (scopeIssues.length)
+    return {
+      ...replay,
+      status: 'incomplete',
+      issues: [...replay.issues, ...scopeIssues],
+      scopeIssues,
+    };
   if (replay.status !== 'recorded-sampled-pass') return replay;
   if (classifyEvidence(trace) === 'recorded-sampled-pass') return replay;
   return {
@@ -376,37 +404,46 @@ export function createCoverageReport({
   );
   const scenarios = registry.map((item) => {
     const matching = traces.filter((trace) => trace.scenario === item.scenario);
-    const runs = matching.map((trace) => ({
-      source: trace.source,
-      platform: trace.platform ?? null,
-      runId: trace.runId ?? null,
-      reportedVerdict:
-        trace.kind === 'playwright'
-          ? trace.reportedStatus
-          : (trace.verdict ?? trace.result?.verdict ?? null),
-      executed: trace.executed !== false,
-      evidenceIssues:
-        trace.kind === 'playwright'
-          ? assessWebEvidence(trace).issues
-          : trace.result?.verdict === 'PASS'
-            ? assessNativeEvidence(trace).issues
-            : (trace.result?.issues ?? []).map((issue) => issue.code),
-      status: classifyEvidence(trace),
-      qualifiedStatus: qualifyEvidence(trace).status,
-      qualificationIssues: qualifyEvidence(trace).issues,
-      // The collector copies summaries and detailed per-case traces. Matching
-      // details supply missing samples; they never erase a recorded failure.
-      supersededSummary:
-        !Array.isArray(trace.samples) &&
-        !!trace.runId &&
-        classifyEvidence(trace) !== 'fail' &&
-        matching.some(
-          (detail) =>
-            Array.isArray(detail.samples) &&
-            detail.runId === trace.runId &&
-            detail.platform === trace.platform
-        ),
-    }));
+    const runs = matching.map((trace) => {
+      const qualified = qualifyEvidence(trace);
+      return {
+        source: trace.source,
+        platform: trace.platform ?? null,
+        runId: trace.runId ?? null,
+        reportedVerdict:
+          trace.kind === 'playwright'
+            ? trace.reportedStatus
+            : (trace.verdict ?? trace.result?.verdict ?? null),
+        executed: trace.executed !== false,
+        evidenceIssues:
+          trace.kind === 'playwright'
+            ? assessWebEvidence(trace).issues
+            : trace.result?.verdict === 'PASS'
+              ? assessNativeEvidence(trace).issues
+              : [
+                  ...new Set([
+                    ...(trace.result?.issues ?? []).map((issue) => issue.code),
+                    ...(qualified.status === 'fail' ? qualified.issues : []),
+                  ]),
+                ],
+        status: classifyEvidence(trace),
+        qualifiedStatus: qualified.status,
+        qualificationIssues: qualified.issues,
+        qualificationScopeIssues: qualified.scopeIssues ?? [],
+        // The collector copies summaries and detailed per-case traces. Matching
+        // details supply missing samples; they never erase a recorded failure.
+        supersededSummary:
+          !Array.isArray(trace.samples) &&
+          !!trace.runId &&
+          classifyEvidence(trace) !== 'fail' &&
+          matching.some(
+            (detail) =>
+              Array.isArray(detail.samples) &&
+              detail.runId === trace.runId &&
+              detail.platform === trace.platform
+          ),
+      };
+    });
     // Retain failures across reruns; later success never silently erases them.
     const status =
       ['fail', 'incomplete', 'observed', 'recorded-sampled-pass'].find(

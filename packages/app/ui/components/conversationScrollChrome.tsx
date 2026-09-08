@@ -19,6 +19,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { supportsNativeScrollEdgeChrome } from '../../navigation/nativeHeaderOptions';
+import { ConversationListDiagnosticsContext } from './Channel/PostList/diagnostics';
 import { GlassSurface, supportsLiquidGlass } from './GlassSurface';
 import {
   floatingChromeMetrics,
@@ -108,6 +109,7 @@ export function ConversationScrollToBottomButton({
   onPress: () => void;
   visible: boolean;
 }) {
+  const ruler = useContext(ConversationListDiagnosticsContext)?.ruler;
   const content = loading ? (
     <LoadingSpinner size="small" />
   ) : (
@@ -130,6 +132,9 @@ export function ConversationScrollToBottomButton({
 
   return (
     <GlassSurface
+      {...(ruler && inComposer
+        ? { testID: 'scroll-surface-latest', collapsable: false }
+        : {})}
       glassEffectStyle="regular"
       isInteractive
       style={[styles.control, inComposer ? styles.composerControl : undefined]}

@@ -290,7 +290,81 @@ export async function startScrollNavigationTrace(
               box.top < conversation.bottom
             );
           }).length;
-          const value: NavigationSample = {
+          // Supplemental actual PostScreen shell evidence shares this sampler.
+          // Record mounted inventory; a retained but hidden route is not exposed.
+          const shellMetric = (element: Element) => {
+            const rect = element.getBoundingClientRect();
+            const box = exposure(element);
+            return {
+              exposed: box.exposed,
+              opacity: box.opacity,
+              rect: {
+                left: rect.left,
+                right: rect.right,
+                top: rect.top,
+                bottom: rect.bottom,
+              },
+              clip: {
+                left: box.left,
+                right: box.right,
+                top: box.top,
+                bottom: box.bottom,
+              },
+            };
+          };
+          const threadShells = [
+            ...document.querySelectorAll(
+              '[data-testid="PostScreenLoadingShell"]'
+            ),
+          ].map((shell) => {
+            const texts = [];
+            const walker = document.createTreeWalker(
+              shell,
+              NodeFilter.SHOW_TEXT
+            );
+            let node: Node | null;
+            while ((node = walker.nextNode())) {
+              if (node.textContent && node.parentElement)
+                texts.push({
+                  text: node.textContent,
+                  ...shellMetric(node.parentElement),
+                });
+            }
+            return {
+              identity: id(shell),
+              ...shellMetric(shell),
+              texts,
+              titles: [
+                ...shell.querySelectorAll('[data-testid="ScreenHeaderTitle"]'),
+              ].map((el) => ({ text: el.textContent, ...shellMetric(el) })),
+              progressCount: [
+                ...shell.querySelectorAll('[role="progressbar"]'),
+              ].filter((el) => {
+                const m = shellMetric(el);
+                return m.exposed && m.opacity >= 0.99;
+              }).length,
+              back: [
+                ...shell.querySelectorAll('[data-testid="HeaderBackButton"]'),
+              ].map((el) => {
+                const m = shellMetric(el);
+                const owner = document.elementFromPoint(
+                  (m.rect.left + m.rect.right) / 2,
+                  (m.rect.top + m.rect.bottom) / 2
+                );
+                return {
+                  ...m,
+                  hit: !!owner && (owner === el || el.contains(owner)),
+                  disabled:
+                    el.getAttribute('aria-disabled') === 'true' ||
+                    el.hasAttribute('disabled'),
+                  pointerEvents: getComputedStyle(el).pointerEvents,
+                };
+              }),
+            };
+          });
+          const value: NavigationSample & {
+            threadShells: typeof threadShells;
+          } = {
             time,
             durationMs: performance.now() - time,
             route: location.pathname,
@@ -298,6 +372,7 @@ export async function startScrollNavigationTrace(
             lists,
             loadingCount,
             unattributedBodies,
+            threadShells,
           };
           if (trace.samples.length >= 10000)
             throw new Error('Navigation trace capacity exceeded');
@@ -363,6 +438,18 @@ export async function startScrollNavigationTrace(
       });
       sample();
       request = requestAnimationFrame(tick);
+      let frozen = false;
+      const freeze = () => {
+        if (frozen) return;
+        sample();
+        active = false;
+        cancelAnimationFrame(request);
+        mutations.disconnect();
+        document.removeEventListener('click', delivery, true);
+        window.removeEventListener('popstate', delivery, true);
+        trace.end = performance.now();
+        frozen = true;
+      };
       return {
         begin(commandId: string) {
           const next = declaration.commands[trace.commands.length];
@@ -384,14 +471,9 @@ export async function startScrollNavigationTrace(
           command.end = performance.now();
           sample();
         },
+        freeze,
         stop() {
-          sample();
-          active = false;
-          cancelAnimationFrame(request);
-          mutations.disconnect();
-          document.removeEventListener('click', delivery, true);
-          window.removeEventListener('popstate', delivery, true);
-          trace.end = performance.now();
+          freeze();
           return trace;
         },
       };
@@ -403,6 +485,7 @@ export async function startScrollNavigationTrace(
       handle.evaluate((collector, name) => collector.begin(name), id),
     end: (id: string) =>
       handle.evaluate((collector, name) => collector.end(name), id),
+    freeze: () => handle.evaluate((collector) => collector.freeze()),
     async stop() {
       try {
         return await handle.evaluate((collector) => collector.stop());

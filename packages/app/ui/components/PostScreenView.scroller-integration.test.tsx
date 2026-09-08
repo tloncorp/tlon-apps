@@ -34,6 +34,8 @@ function deferred<T>(): Deferred<T> {
 }
 const state = vi.hoisted(() => ({
   active: true,
+  navigationFocused: true,
+  scrollIntentRevision: 0,
   liveUnread: { count: 1, notify: false },
   replies: new Map<string, db.Post[]>(),
   loading: false,
@@ -51,6 +53,10 @@ const state = vi.hoisted(() => ({
   attachAssets: vi.fn(),
   drafts: { getDraft: vi.fn(), storeDraft: vi.fn(), clearDraft: vi.fn() },
   draftKeys: vi.fn(),
+}));
+
+vi.mock('@react-navigation/native', () => ({
+  useIsFocused: () => state.navigationFocused,
 }));
 
 vi.mock('@tloncorp/api', () => ({ ChannelContentConfiguration: {} }));
@@ -123,7 +129,20 @@ vi.mock('../utils', () => ({
   useIsAdmin: () => false,
   useCanWrite: () => true,
 }));
-vi.mock('./BareChatInput', () => ({ default: 'ThreadComposerBoundary' }));
+vi.mock('./BareChatInput', async () => {
+  const React = await vi.importActual<typeof import('react')>('react');
+  return {
+    default: function RetainedComposerBoundary(props: Record<string, unknown>) {
+      // This probes the screen's mounted draft ownership, not native editing.
+      const [draftText, setDraftText] = React.useState('');
+      return React.createElement('ThreadComposerBoundary', {
+        ...props,
+        draftText,
+        setDraftText,
+      });
+    },
+  };
+});
 vi.mock('./BigInput', () => ({ BigInput: 'BigInput' }));
 vi.mock('./Channel/ChannelHeader', () => ({
   ChannelHeader: 'ChannelHeader',
@@ -158,6 +177,10 @@ vi.mock('./DetailView', async () => {
       React.useImperativeHandle(
         props.scrollerRef,
         () => ({
+          captureScrollIntent: () => {
+            const revision = state.scrollIntentRevision;
+            return () => revision === state.scrollIntentRevision;
+          },
           scrollToEnd: (options: unknown) =>
             state.commands('end', props.post.id, options),
           scrollToPost: (options: unknown) =>
@@ -219,6 +242,7 @@ describe('native PostScreenView send read and navigation integration', () => {
     vi.useFakeTimers();
     vi.stubGlobal('__DEV__', false);
     state.active = true;
+    state.navigationFocused = true;
     state.liveUnread = { count: 1, notify: false };
     state.loading = false;
     state.showDeletes = false;
@@ -548,6 +572,166 @@ describe('native PostScreenView send read and navigation integration', () => {
       ['end', 'parent-a', { animated: true }],
     ]);
   });
+
+  it('covering the retained route blocks old and newly arriving unread work until a fresh focused interval', async () => {
+    await render();
+    advance(100);
+    state.navigationFocused = false;
+    await render();
+    advance(200);
+    expect(state.markRead).not.toHaveBeenCalled();
+
+    const incoming = post('reply-covered', { parentId: 'parent-a' });
+    state.replies.set('parent-a', [incoming]);
+    state.liveUnread = { count: 2, notify: true };
+    await render();
+    advance(200);
+    expect(state.markRead).not.toHaveBeenCalled();
+
+    state.navigationFocused = true;
+    await render();
+    advance(149);
+    expect(state.markRead).not.toHaveBeenCalled();
+    advance(1);
+    expect(state.markRead.mock.calls).toEqual([
+      [
+        {
+          channel: props.channel,
+          parentPost: props.parentPost,
+          post: incoming,
+        },
+      ],
+    ]);
+    advance(300);
+    expect(state.markRead).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(['while-covered', 'after-return'])(
+    'covering the route permanently retires pending send-follow completed %s',
+    async (completion) => {
+      const task = deferred<void>();
+      state.send.mockReturnValue(task.promise);
+      await render();
+      let pending!: Promise<void>;
+      act(() => {
+        pending = composer().sendPostFromDraft(replyDraft());
+      });
+      expect(state.send).toHaveBeenCalledTimes(1);
+      state.navigationFocused = false;
+      await render();
+      if (completion === 'after-return') {
+        state.navigationFocused = true;
+        await render();
+      }
+      await act(async () => {
+        task.resolve();
+        await pending;
+      });
+      flushFrame();
+      expect(state.commands).not.toHaveBeenCalled();
+      if (completion === 'while-covered') {
+        state.navigationFocused = true;
+        await render();
+        flushFrame();
+      }
+      expect(state.commands).not.toHaveBeenCalled();
+      expect(state.send).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('an already dequeued send frame cannot scroll after route cover and return', async () => {
+    await render();
+    await act(async () => {
+      await composer().sendPostFromDraft(replyDraft());
+    });
+    expect(frames.size).toBe(1);
+    const oldFrame = [...frames.values()][0];
+    frames.clear();
+    state.navigationFocused = false;
+    await render();
+    state.navigationFocused = true;
+    await render();
+    act(() => oldFrame(16));
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('route cover and return retain the draft owner while only a fresh visible send may dispatch', async () => {
+    await render();
+    const originalComposer = host('ThreadComposerBoundary');
+    const oldSend = composer().sendPostFromDraft;
+    act(() => composer().setDraftText('Retained reply draft'));
+    state.navigationFocused = false;
+    await render();
+    expect(host('ThreadComposerBoundary')).toBe(originalComposer);
+    expect(composer().draftText).toBe('Retained reply draft');
+    expect(detail().isFocused).toBe(false);
+    await act(async () => {
+      await composer().sendPostFromDraft(replyDraft());
+    });
+    expect(state.send).not.toHaveBeenCalled();
+
+    state.navigationFocused = true;
+    await render();
+    expect(host('ThreadComposerBoundary')).toBe(originalComposer);
+    expect(composer().draftText).toBe('Retained reply draft');
+    expect(detail().isFocused).toBe(true);
+    expect(state.drafts.clearDraft).not.toHaveBeenCalled();
+    await act(async () => {
+      await oldSend(replyDraft());
+    });
+    expect(state.send).not.toHaveBeenCalled();
+    const draft = { ...replyDraft(), content: ['Retained reply draft'] };
+    await act(async () => {
+      await composer().sendPostFromDraft(draft);
+    });
+    expect(state.send.mock.calls).toEqual([
+      [{ ...draft, replyToPostId: 'parent-a' }, undefined],
+    ]);
+    flushFrame();
+    expect(state.commands.mock.calls).toEqual([
+      ['end', 'parent-a', { animated: true }],
+    ]);
+  });
+
+  it('a focused Send after idle still dispatches and follows while read acknowledgement remains ineligible', async () => {
+    state.active = false;
+    await render();
+    await act(async () => {
+      await composer().sendPostFromDraft(replyDraft());
+    });
+    expect(state.send).toHaveBeenCalledTimes(1);
+    flushFrame();
+    expect(state.commands.mock.calls).toEqual([
+      ['end', 'parent-a', { animated: true }],
+    ]);
+    advance(200);
+    expect(state.markRead).not.toHaveBeenCalled();
+  });
+
+  it.each(['before-completion', 'after-frame-queued'])(
+    'a user READ intent retires reply send-follow %s',
+    async (boundary) => {
+      const task = deferred<void>();
+      state.send.mockReturnValue(task.promise);
+      await render();
+      let pending!: Promise<void>;
+      act(() => {
+        pending = composer().sendPostFromDraft(replyDraft());
+      });
+      if (boundary === 'before-completion') state.scrollIntentRevision += 1;
+      await act(async () => {
+        task.resolve();
+        await pending;
+      });
+      if (boundary === 'after-frame-queued') {
+        expect(frames.size).toBe(1);
+        state.scrollIntentRevision += 1;
+      }
+      flushFrame();
+      expect(state.send).toHaveBeenCalledTimes(1);
+      expect(state.commands).not.toHaveBeenCalled();
+    }
+  );
 
   it('PS-03 editing retains original reply target and does not issue send-follow scroll', async () => {
     await render();

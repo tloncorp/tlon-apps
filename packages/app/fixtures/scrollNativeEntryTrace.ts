@@ -1,3 +1,4 @@
+import type { adaptNativeEntryRuler } from './scrollNativeGeometry';
 import type {
   assessNativeRecording,
   NativeRecording,
@@ -8,6 +9,7 @@ import type { assessClampedScrollLanding } from './scrollStabilityTrace';
 
 export type NativeEntryContract = {
   version: 1;
+  ruler?: 'indexed-cell-and-surfaces-v1';
   recordingId: string;
   requestId: string;
   mode: 'latest' | 'selected' | 'delayed';
@@ -73,7 +75,8 @@ export function assessNativeEntryTrace(
   recordingContract: NativeRecordingContract,
   contract: NativeEntryContract,
   evaluateRecording: RecordingEvaluator,
-  evaluateLanding: typeof assessClampedScrollLanding
+  evaluateLanding: typeof assessClampedScrollLanding,
+  evaluateRuler?: typeof adaptNativeEntryRuler
 ) {
   const issues: Issue[] = [];
   const add = (
@@ -113,6 +116,8 @@ export function assessNativeEntryTrace(
   if (
     !object(contract) ||
     contract.version !== 1 ||
+    (contract.ruler !== undefined &&
+      contract.ruler !== 'indexed-cell-and-surfaces-v1') ||
     !['latest', 'selected', 'delayed'].includes(contract.mode) ||
     contract.recordingId !== recordingContract?.recordingId ||
     contract.requestId !== `${contract.recordingId}:entry` ||
@@ -147,6 +152,13 @@ export function assessNativeEntryTrace(
   }
   acquisition = measured.verdict;
   const recording = raw as NativeRecording;
+  if (
+    !contract.ruler &&
+    recording.frames?.some((frame) => frame.geometry.ruler !== undefined)
+  ) {
+    add('undeclared-native-entry-ruler');
+    return finish();
+  }
   let qualifiedFrameLimit = recording.frames?.length ?? 0;
   if (acquisition !== 'COMPLETE') {
     measured.issues.forEach((issue) =>
@@ -286,9 +298,46 @@ export function assessNativeEntryTrace(
     add('native-entry-content-precedes-data-action');
     return finish();
   }
-  firstContentFrame =
-    measured.firstContentDestinationFrame !== null &&
-    measured.firstContentDestinationFrame < qualifiedFrameLimit
+  const ruledFrames = new Map<
+    number,
+    ReturnType<typeof adaptNativeEntryRuler>
+  >();
+  if (contract.ruler) {
+    if (!evaluateRuler) {
+      add('native-entry-ruler-evaluator-missing');
+      return finish();
+    }
+    for (const owner of qualifiedOwners) {
+      if (owner.index !== 1) continue;
+      const ruled = evaluateRuler(
+        recording.frames[owner.frame].geometry,
+        contract.destinationScope
+      );
+      ruledFrames.set(owner.frame, ruled);
+      for (const issue of ruled.issues) add(issue, 'incomplete', owner.frame);
+    }
+  }
+  const hasVisibleInner = (owner: (typeof qualifiedOwners)[number]) => {
+    const ruled = ruledFrames.get(owner.frame);
+    if (!ruled || ruled.issues.length || !owner.viewportVisible) return false;
+    return recording.frames[owner.frame].geometry.rows?.some(
+      ({ view }) =>
+        view &&
+        view.attached &&
+        !view.hidden &&
+        view.effectiveAlpha > 0 &&
+        view.clipFrame.width > 0 &&
+        view.clipFrame.height > 0 &&
+        view.clipFrame.y < ruled.viewportBottom &&
+        view.clipFrame.y + view.clipFrame.height > ruled.viewportTop
+    );
+  };
+  firstContentFrame = contract.ruler
+    ? (qualifiedOwners.find(
+        (owner) => owner.index === 1 && hasVisibleInner(owner)
+      )?.frame ?? null)
+    : measured.firstContentDestinationFrame !== null &&
+        measured.firstContentDestinationFrame < qualifiedFrameLimit
       ? measured.firstContentDestinationFrame
       : null;
   const firstContent = qualifiedOwners.find(
@@ -298,7 +347,9 @@ export function assessNativeEntryTrace(
     (qualifiedOwners.at(-1)?.time ?? 0) >= deadline;
   if (
     (!firstContent || firstContent.time > deadline) &&
-    observedThroughDeadline
+    observedThroughDeadline &&
+    (!contract.ruler ||
+      ![...ruledFrames.values()].some((frame) => frame.issues.length))
   )
     add('native-entry-missed-reveal-deadline', 'failure', firstContent?.frame);
   else if (!firstContent && !observedThroughDeadline)
@@ -316,7 +367,16 @@ export function assessNativeEntryTrace(
   for (const owner of qualifiedOwners) {
     if (owner.index !== 1) continue;
     const frame = recording.frames[owner.frame];
-    const sample = measured.samples[owner.sampleIndex];
+    const originalSample = measured.samples[owner.sampleIndex];
+    const ruled = ruledFrames.get(owner.frame);
+    if (contract.ruler && (!ruled || ruled.issues.length)) continue;
+    const sample = ruled
+      ? {
+          ...originalSample,
+          viewportTop: ruled.viewportTop,
+          viewportBottom: ruled.viewportBottom,
+        }
+      : originalSample;
     const semantics = measured.semanticSamples[owner.sampleIndex];
     const viewport = frame.geometry.scroll!.view;
     const visibleRows = (frame.geometry.rows ?? []).filter((row) => {
@@ -380,9 +440,50 @@ export function assessNativeEntryTrace(
       if (!target || !targetExposed)
         add('native-entry-target-not-exposed', 'failure', owner.frame);
       else {
+        const cell = ruled?.cells.get(targetKey);
+        const landingTarget =
+          contract.ruler && contract.mode === 'selected'
+            ? cell
+              ? { key: targetKey, y: cell.frame.y, height: cell.frame.height }
+              : undefined
+            : target;
+        if (!landingTarget) {
+          add('native-entry-target-cell-unmeasured', 'incomplete', owner.frame);
+          continue;
+        }
+        if (ruled) {
+          const inner = visibleRows.find(
+            (row) =>
+              row.id === `${recordingContract.request.rowPrefix}${targetKey}`
+          )!.view!;
+          const exposed = {
+            x: Math.max(inner.clipFrame.x, viewport.clipFrame.x),
+            y: Math.max(inner.clipFrame.y, sample.viewportTop),
+            right: Math.min(
+              inner.clipFrame.x + inner.clipFrame.width,
+              viewport.clipFrame.x + viewport.clipFrame.width
+            ),
+            bottom: Math.min(
+              inner.clipFrame.y + inner.clipFrame.height,
+              sample.viewportBottom
+            ),
+          };
+          if (
+            ruled.surfaces.some((surface) => {
+              const rect = surface.clipFrame;
+              return (
+                Math.min(exposed.right, rect.x + rect.width) >
+                  Math.max(exposed.x, rect.x) &&
+                Math.min(exposed.bottom, rect.y + rect.height) >
+                  Math.max(exposed.y, rect.y)
+              );
+            })
+          )
+            add('native-entry-message-obscured', 'failure', owner.frame);
+        }
         const landing = evaluateLanding(
           sample,
-          target,
+          landingTarget,
           contract.mode === 'selected' ? 'center' : 'bottom'
         );
         if (!landing)

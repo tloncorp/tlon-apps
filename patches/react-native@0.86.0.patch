@@ -1,5 +1,1357 @@
+diff --git a/Libraries/Components/ScrollView/ScrollView.d.ts b/Libraries/Components/ScrollView/ScrollView.d.ts
+index bd9f15396e756f15b4f7a2255083b2388b6fe463..08bbf0b9a3b152a1a4b2a700cfa72d0a8f6b8840 100644
+--- a/Libraries/Components/ScrollView/ScrollView.d.ts
++++ b/Libraries/Components/ScrollView/ScrollView.d.ts
+@@ -454,6 +454,7 @@ export interface ScrollViewPropsIOS {
+    * Occlusion, transforms, and other complexity won't be taken into account as to whether
+    * content is "visible" or not.
+    */
++  nativeReadPointAdjustment?: string | undefined;
+   maintainVisibleContentPosition?:
+     | null
+     | {
+diff --git a/Libraries/Components/ScrollView/ScrollView.js b/Libraries/Components/ScrollView/ScrollView.js
+index c8392ea6e461f6d5ecf581ab0f1dc4c13fe479d8..5bcd384f8f80cf647b565f9abfa6675cba9c33a7 100644
+--- a/Libraries/Components/ScrollView/ScrollView.js
++++ b/Libraries/Components/ScrollView/ScrollView.js
+@@ -522,6 +522,7 @@ type ScrollViewBaseProps = Readonly<{
+    * whether content is "visible" or not.
+    *
+    */
++  nativeReadPointAdjustment?: ?string,
+   maintainVisibleContentPosition?: ?Readonly<{
+     minIndexForVisible: number,
+     autoscrollToTopThreshold?: ?number,
+diff --git a/Libraries/Components/ScrollView/ScrollViewNativeComponent.js b/Libraries/Components/ScrollView/ScrollViewNativeComponent.js
+index eeee1a603e7211afa2441c4eb10d9f25a8c3bb48..53293ed9ec645e653ea7cac4fda55200c8fb8232 100644
+--- a/Libraries/Components/ScrollView/ScrollViewNativeComponent.js
++++ b/Libraries/Components/ScrollView/ScrollViewNativeComponent.js
+@@ -46,6 +46,7 @@ export const __INTERNAL_VIEW_CONFIG: PartialViewConfig =
+           decelerationRate: true,
+           disableIntervalMomentum: true,
+           maintainVisibleContentPosition: true,
++          nativeReadPointAdjustment: true,
+           pagingEnabled: true,
+           scrollEnabled: true,
+           showsVerticalScrollIndicator: true,
+@@ -128,6 +129,7 @@ export const __INTERNAL_VIEW_CONFIG: PartialViewConfig =
+           inverted: true,
+           keyboardDismissMode: true,
+           maintainVisibleContentPosition: true,
++          nativeReadPointAdjustment: true,
+           maximumZoomScale: true,
+           minimumZoomScale: true,
+           pagingEnabled: true,
+diff --git a/Libraries/Components/ScrollView/ScrollViewNativeComponentType.js b/Libraries/Components/ScrollView/ScrollViewNativeComponentType.js
+index 9cd18a3d2bac4acb5b1b9e634239a1704e391e79..5a78133c505f264157010b47f828c681c07e57c1 100644
+--- a/Libraries/Components/ScrollView/ScrollViewNativeComponentType.js
++++ b/Libraries/Components/ScrollView/ScrollViewNativeComponentType.js
+@@ -46,6 +46,7 @@ export type ScrollViewNativeProps = Readonly<{
+   indicatorStyle?: ?('default' | 'black' | 'white'),
+   isInvertedVirtualizedList?: ?boolean,
+   keyboardDismissMode?: ?('none' | 'on-drag' | 'interactive'),
++  nativeReadPointAdjustment?: ?string,
+   maintainVisibleContentPosition?: ?Readonly<{
+     minIndexForVisible: number,
+     autoscrollToTopThreshold?: ?number,
+diff --git a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.h b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.h
+index c59154f956bdf8f1e9d76069b436b1afe48f6b33..8f81ee300d52b4144bd2aac54c648e5025faaa8f 100644
+--- a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.h
++++ b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.h
+@@ -15,6 +15,10 @@
+ 
+ #import "RCTVirtualViewContainerProtocol.h"
+ 
++#ifdef __cplusplus
++#include "RCTScrollViewReadPointCoordinator.h"
++#endif
++
+ NS_ASSUME_NONNULL_BEGIN
+ 
+ /*
+@@ -38,6 +42,22 @@ NS_ASSUME_NONNULL_BEGIN
+  */
+ @property (nonatomic, strong, readwrite) UIScrollView *scrollView;
+ 
++#ifdef __cplusplus
++/** Main-thread optional native READ visit. Every begin creates a new lease.
++ * The provider must not strongly retain this component. No JS/provider is
++ * installed by default; callers explicitly revoke on a covered/ended visit. */
++- (void)beginReadPointLease:(std::shared_ptr<facebook::react::scroll_read::Provider>)provider;
++// Register once per physical scope/visit. Empty factory unregisters.
++- (void)setReadPointProviderFactory:(std::function<std::shared_ptr<facebook::react::scroll_read::Provider>()>)factory;
++// Admit only a current pre-mutation candidate; otherwise retain this mount's legacy owner.
++- (void)beginReadPointLeaseFromResident:(NSString *)intent;
++// Explicit completed FOLLOW intent; native lifecycle invalidation retires it.
++- (void)beginFollowEndLease:(NSString *)intent isCurrent:(std::function<bool()>)isCurrent;
++#endif
++- (void)invalidateReadPointLease;
++// Read-only coordinator state for existing diagnostics; no geometry/provider call.
++- (NSDictionary *)readPointDiagnostic;
++
+ /** Focus area of newly-activated text input relative to the window to compare against UIKeyboardFrameBegin/End */
+ @property (nonatomic, assign) CGRect firstResponderFocus;
+ 
+diff --git a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
+index a087536f3af0d33b13fe38d8abd1bc6d7935def2..0fc71ecd5c7774b1f8c8ec57de83dc1359ff55c6 100644
+--- a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewComponentView.mm
+@@ -89,10 +89,15 @@ RCTSendScrollEventForNativeAnimations_DEPRECATED(UIScrollView *scrollView, NSInt
+     RCTScrollViewProtocol,
+     RCTScrollableProtocol,
+     RCTEnhancedScrollViewOverridingDelegate>
+-
++- (scroll_read::Mount)_readPointMount:(const MountingTransaction &)transaction;
++- (std::optional<scroll_read::Viewport>)_readPointViewport;
++- (void)_scrollTo:(double)x y:(double)y animated:(BOOL)animated preservingRead:(BOOL)preservingRead;
++- (void)_scrollToOffset:(CGPoint)offset animated:(BOOL)animated preservingRead:(BOOL)preservingRead;
+ @end
+ 
+ @implementation RCTScrollViewComponentView {
++  UIScrollView *_scrollView;
++  scroll_read::Coordinator _readPointCoordinator;
+   ScrollViewShadowNode::ConcreteState::Shared _state;
+   CGSize _contentSize;
+   NSTimeInterval _lastScrollEventDispatchTime;
+@@ -111,6 +116,8 @@ RCTSendScrollEventForNativeAnimations_DEPRECATED(UIScrollView *scrollView, NSInt
+ 
+   CGRect _prevFirstVisibleFrame;
+   __weak UIView *_firstVisibleView;
++  __weak UIView *_preparedMVCPContentView;
++  NSUInteger _mvcpPreparationRevision;
+   NSInteger _firstVisibleViewTag;
+ 
+   CGFloat _endDraggingSensitivityMultiplier;
+@@ -260,7 +267,7 @@ RCTSendScrollEventForNativeAnimations_DEPRECATED(UIScrollView *scrollView, NSInt
+                    animations:^{
+                      self->_scrollView.contentInset = newEdgeInsets;
+                      self->_scrollView.verticalScrollIndicatorInsets = newEdgeInsets;
+-                     [self scrollTo:newContentOffset.x y:newContentOffset.y animated:NO];
++                     [self _scrollTo:newContentOffset.x y:newContentOffset.y animated:NO preservingRead:YES];
+                    }
+                    completion:nil];
+ }
+@@ -286,6 +293,11 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ - (void)mountingTransactionWillMount:(const facebook::react::MountingTransaction &)transaction
+                 withSurfaceTelemetry:(const facebook::react::SurfaceTelemetry &)surfaceTelemetry
+ {
++  if (_readPointCoordinator.prepare(
++          [&]() { return [self _readPointMount:transaction]; },
++          [&]() { return [self _readPointViewport]; }, [self _readPointRelativeSignal])) {
++    return;
++  }
+   [self _prepareForMaintainVisibleScrollPosition];
+ }
+ 
+@@ -293,9 +305,158 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+                withSurfaceTelemetry:(const facebook::react::SurfaceTelemetry &)surfaceTelemetry
+ {
+   [self _remountChildren];
++  if (_readPointCoordinator.engaged()) {
++    auto readMount = [&]() { return [self _readPointMount:transaction]; };
++    auto readViewport = [&]() { return [self _readPointViewport]; };
++    auto decision = _readPointCoordinator.consume(readMount, readViewport, [self _readPointRelativeSignal]);
++    if (decision.status != scroll_read::Status::Default) {
++      bool applied = false;
++      if (decision.target) {
++        [self _forceDispatchNextScrollEvent];
++        // Provider callbacks/native getters may reenter; check the exact lease,
++        // transaction, native owner and viewport again immediately before write.
++        if (_readPointCoordinator.canApply(decision, readMount, readViewport)) {
++          _scrollView.contentOffset = CGPointMake(_scrollView.contentOffset.x, *decision.target);
++          applied = true;
++        }
++      }
++      // UIKit need not emit didScroll for an already bounded target. Confirm
++      // this decision after native callbacks, then deliver its exact ACK once.
++      const auto ack = _readPointCoordinator.acknowledgeApplied(decision, applied, readMount, readViewport);
++      if (ack && _eventEmitter) {
++        auto metrics = [self _scrollViewMetrics];
++        const auto &operation = ack->signal.operation;
++        metrics.nativeReadPointAdjustmentAck = NativeReadPointAdjustmentAck{
++            ack->signal.intent, operation.id, operation.startOffset, operation.startAmount, ack->signal.amount, ack->target};
++        static_cast<const ScrollViewEventEmitter &>(*_eventEmitter).onScroll(metrics);
++      }
++      return;
++    }
++  }
+   [self _adjustForMaintainVisibleContentPosition];
+ }
+ 
++
++#pragma mark - Optional native READ provider
++
++- (UIScrollView *)scrollView
++{
++  return _scrollView;
++}
++
++- (void)setScrollView:(UIScrollView *)scrollView
++{
++  [self invalidateReadPointLease];
++  _scrollView = scrollView;
++}
++
++- (void)beginReadPointLease:(std::shared_ptr<scroll_read::Provider>)provider
++{
++  RCTAssertMainQueue();
++  _readPointCoordinator.begin(std::move(provider));
++}
++
++- (void)setReadPointProviderFactory:(std::function<std::shared_ptr<scroll_read::Provider>()>)factory
++{
++  RCTAssertMainQueue();
++  _readPointCoordinator.setResident(std::move(factory));
++}
++
++- (void)beginReadPointLeaseFromResident:(NSString *)intent
++{
++  RCTAssertMainQueue();
++  if ([intent isKindOfClass:NSString.class] && intent.length > 0)
++    _readPointCoordinator.beginResident(std::string(intent.UTF8String));
++}
++
++- (void)beginFollowEndLease:(NSString *)intent isCurrent:(std::function<bool()>)isCurrent
++{
++  RCTAssertMainQueue();
++  if ([intent isKindOfClass:NSString.class] && intent.length > 0)
++    _readPointCoordinator.beginFollow(std::string(intent.UTF8String), std::move(isCurrent));
++}
++
++- (scroll_read::RelativeSignal)_readPointRelativeSignal
++{
++  const auto &props = static_cast<const ScrollViewProps &>(*_props);
++  if (props.nativeReadPointAdjustment.empty()) return {};
++  NSData *data = [NSData dataWithBytes:props.nativeReadPointAdjustment.data() length:props.nativeReadPointAdjustment.size()];
++  id value = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
++  if (![value isKindOfClass:NSDictionary.class] || [value count] != 3) return {"", 0, false};
++  id intent = value[@"intent"], amount = value[@"amount"];
++  if (![intent isKindOfClass:NSString.class] || [intent length] == 0 || ![amount isKindOfClass:NSNumber.class] ||
++      CFGetTypeID((__bridge CFTypeRef)amount) == CFBooleanGetTypeID() || !std::isfinite([amount doubleValue])) return {"", 0, false};
++  scroll_read::RelativeSignal result{std::string([intent UTF8String]), [amount doubleValue]};
++  {
++    id operation = value[@"operation"];
++    if (![operation isKindOfClass:NSDictionary.class] || [operation count] != 3) return {"", 0, false};
++    for (NSString *key in @[@"id", @"startOffset", @"startAmount"]) {
++      id number = operation[key];
++      if (![number isKindOfClass:NSNumber.class] || CFGetTypeID((__bridge CFTypeRef)number) == CFBooleanGetTypeID() || !std::isfinite([number doubleValue])) return {"", 0, false};
++    }
++    const double identifier = [operation[@"id"] doubleValue];
++    if (identifier < 1 || identifier > 9007199254740991.0 || std::floor(identifier) != identifier) return {"", 0, false};
++    result.operation = scroll_read::RelativeOperation{static_cast<uint64_t>(identifier), [operation[@"startOffset"] doubleValue], [operation[@"startAmount"] doubleValue]};
++  }
++  return result;
++}
++
++- (NSDictionary *)readPointDiagnostic
++{
++  RCTAssertMainQueue();
++  const auto state = _readPointCoordinator.diagnostic();
++  return @{@"engaged": @(state.engaged), @"resident": @(state.resident),
++           @"admitted": @(state.admitted), @"pendingAdmission": @(state.pendingAdmission),
++           @"provisional": @(state.provisional), @"consumed": @(state.consumed),
++           @"surface": @(state.surface), @"transaction": @(state.transaction),
++           @"generation": @(state.generation), @"preparedOwner": @(state.preparedOwner),
++           @"lastDecision": @(state.lastDecision)};
++}
++
++- (void)invalidateReadPointLease
++{
++  _readPointCoordinator.invalidate();
++}
++
++- (scroll_read::Mount)_readPointMount:(const MountingTransaction &)transaction
++{
++  UIWindow *window = self.window;
++  return {transaction.getSurfaceId(), transaction.getNumber(), (__bridge const void *)self,
++          (__bridge const void *)_scrollView,
++          _scrollView.window == window ? (__bridge const void *)window : nullptr};
++}
++
++- (std::optional<scroll_read::Viewport>)_readPointViewport
++{
++  if (!self.window || self.window.hidden || !std::isfinite(self.window.alpha) || self.window.alpha <= 0 ||
++      _scrollView.window != self.window || _scrollView.zoomScale != 1 ||
++      _scrollView.isTracking || _scrollView.isDragging || _scrollView.isDecelerating) {
++    return std::nullopt;
++  }
++  // A window-y displacement maps to a vertical UIKit offset only when the
++  // ancestry is untranslated-by-scale/rotation. Translation via frame is fine.
++  UIView *ancestor = _scrollView;
++  unsigned depth = 0;
++  while (ancestor && ancestor != self.window && depth++ < 64) {
++    if (!CGAffineTransformIsIdentity(ancestor.transform) || ancestor.hidden ||
++        !std::isfinite(ancestor.alpha) || ancestor.alpha <= 0) return std::nullopt;
++    ancestor = ancestor.superview;
++  }
++  if (ancestor != self.window) return std::nullopt;
++  const CGPoint offset = _scrollView.contentOffset;
++  const CGRect bounds = _scrollView.bounds;
++  const CGSize content = _scrollView.contentSize;
++  if (content.width > bounds.size.width) return std::nullopt; // Vertical provider only.
++  const UIEdgeInsets insets = _scrollView.adjustedContentInset;
++  const CGRect window = [_scrollView convertRect:bounds toView:self.window];
++  const double minimum = -insets.top;
++  scroll_read::Viewport viewport{offset.x, offset.y, minimum,
++      std::max(minimum, content.height - bounds.size.height + insets.bottom),
++      bounds.size.width, bounds.size.height, window.origin.x, window.origin.y,
++      content.width, content.height, insets.top, insets.left, insets.bottom, insets.right};
++  return viewport.valid() ? std::optional<scroll_read::Viewport>(viewport) : std::nullopt;
++}
++
+ #pragma mark - RCTComponentViewProtocol
+ 
+ + (ComponentDescriptorProvider)componentDescriptorProvider
+@@ -675,6 +836,9 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)prepareForRecycle
+ {
++  [self invalidateReadPointLease];
++  ++_mvcpPreparationRevision;
++  _preparedMVCPContentView = nil;
+   [super prepareForRecycle];
+   // Must invalidate state before setting contentOffset on ScrollView.
+   // Otherwise the state will be propagated to shadow tree.
+@@ -760,6 +924,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (BOOL)scrollViewShouldScrollToTop:(UIScrollView *)scrollView
+ {
++  [self invalidateReadPointLease];
+   _isUserTriggeredScrolling = YES;
+   return YES;
+ }
+@@ -777,6 +942,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView
+ {
++  [self invalidateReadPointLease];
+   [self _forceDispatchNextScrollEvent];
+ 
+   if (!_eventEmitter) {
+@@ -807,6 +973,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)scrollViewWillBeginDecelerating:(UIScrollView *)scrollView
+ {
++  [self invalidateReadPointLease];
+   [self _forceDispatchNextScrollEvent];
+ 
+   if (!_eventEmitter) {
+@@ -838,6 +1005,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)didMoveToWindow
+ {
++  [self invalidateReadPointLease];
+   [super didMoveToWindow];
+ 
+   if (!self.window) {
+@@ -922,6 +1090,11 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ }
+ 
+ - (void)scrollTo:(double)x y:(double)y animated:(BOOL)animated
++{
++  [self _scrollTo:x y:y animated:animated preservingRead:NO];
++}
++
++- (void)_scrollTo:(double)x y:(double)y animated:(BOOL)animated preservingRead:(BOOL)preservingRead
+ {
+   CGPoint offset = CGPointMake(x, y);
+   CGRect maxRect = CGRectMake(
+@@ -945,7 +1118,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+     offset = CGPointMake(localX, localY);
+   }
+ 
+-  [self scrollToOffset:offset animated:animated];
++  [self _scrollToOffset:offset animated:animated preservingRead:preservingRead];
+ }
+ 
+ - (void)scrollToEnd:(BOOL)animated
+@@ -1012,6 +1185,21 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)scrollToOffset:(CGPoint)offset animated:(BOOL)animated
+ {
++  [self _scrollToOffset:offset animated:animated preservingRead:NO];
++}
++
++- (void)_scrollToOffset:(CGPoint)offset animated:(BOOL)animated preservingRead:(BOOL)preservingRead
++{
++  if (!preservingRead) {
++    // Explicit native navigation also retires a generic MVCP preparation. Its
++    // older native-delivery continuation must not autoscroll over this command.
++    ++_mvcpPreparationRevision;
++    _firstVisibleView = nil;
++    _preparedMVCPContentView = nil;
++    _firstVisibleViewTag = 0;
++    _prevFirstVisibleFrame = CGRectZero;
++    [self invalidateReadPointLease];
++  }
+   if (_layoutMetrics.layoutDirection == LayoutDirection::RightToLeft) {
+     // Adjusting offset.x in right to left layout direction.
+     offset.x = self.contentSize.width - _scrollView.frame.size.width - offset.x;
+@@ -1034,6 +1222,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)zoomToRect:(CGRect)rect animated:(BOOL)animated
+ {
++  [self invalidateReadPointLease];
+   [_scrollView zoomToRect:rect animated:animated];
+ }
+ 
+@@ -1051,6 +1240,13 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)_prepareForMaintainVisibleScrollPosition
+ {
++  // Each mounting phase owns a fresh preparation, including disabled phases.
++  ++_mvcpPreparationRevision;
++  _firstVisibleView = nil;
++  _preparedMVCPContentView = nil;
++  _firstVisibleViewTag = 0;
++  _prevFirstVisibleFrame = CGRectZero;
++
+   const auto &props = static_cast<const ScrollViewProps &>(*_props);
+   if (!props.maintainVisibleContentPosition || _avoidAdjustmentForMaintainVisibleContentPosition) {
+     return;
+@@ -1070,6 +1266,7 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+     if (hasNewView || ii == _contentView.subviews.count - 1) {
+       _prevFirstVisibleFrame = subview.frame;
+       _firstVisibleView = subview;
++      _preparedMVCPContentView = _contentView;
+       _firstVisibleViewTag = subview.tag;
+       break;
+     }
+@@ -1078,28 +1275,42 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+ 
+ - (void)_adjustForMaintainVisibleContentPosition
+ {
+-  const auto &props = static_cast<const ScrollViewProps &>(*_props);
+-  if (!props.maintainVisibleContentPosition || _avoidAdjustmentForMaintainVisibleContentPosition) {
+-    return;
+-  }
++  // Consume before callbacks; a repeated adjustment cannot reuse this frame.
++  UIView *firstVisibleView = _firstVisibleView;
++  UIView *preparedContentView = _preparedMVCPContentView;
++  const NSInteger firstVisibleViewTag = _firstVisibleViewTag;
++  const CGRect previousFrame = _prevFirstVisibleFrame;
++  const NSUInteger preparationRevision = _mvcpPreparationRevision;
++  _firstVisibleView = nil;
++  _preparedMVCPContentView = nil;
++  _firstVisibleViewTag = 0;
++  _prevFirstVisibleFrame = CGRectZero;
+ 
+-  if (ReactNativeFeatureFlags::enableViewCulling()) {
+-    // Abort if the first visible view has changed (different tag)
+-    if (_firstVisibleView && _firstVisibleView.tag != _firstVisibleViewTag) {
+-      return;
+-    }
++  auto isCurrentPreparation = [&]() {
++    const auto &currentProps = static_cast<const ScrollViewProps &>(*_props);
++    return preparationRevision == _mvcpPreparationRevision &&
++        currentProps.maintainVisibleContentPosition && !_avoidAdjustmentForMaintainVisibleContentPosition &&
++        firstVisibleView && preparedContentView && preparedContentView == _contentView &&
++        firstVisibleView.superview == preparedContentView && firstVisibleView.tag == firstVisibleViewTag;
++  };
++  if (!isCurrentPreparation()) {
++    return;
+   }
+ 
++  const auto &props = static_cast<const ScrollViewProps &>(*_props);
+   std::optional<int> autoscrollThreshold = props.maintainVisibleContentPosition.value().autoscrollToTopThreshold;
+   BOOL horizontal = _scrollView.contentSize.width > self.frame.size.width;
+   // TODO: detect and handle/ignore re-ordering
+   if (horizontal) {
+-    CGFloat deltaX = _firstVisibleView.frame.origin.x - _prevFirstVisibleFrame.origin.x;
++    CGFloat deltaX = firstVisibleView.frame.origin.x - previousFrame.origin.x;
+     if (ABS(deltaX) > 0.5) {
+       CGFloat x = _scrollView.contentOffset.x;
+       [self _forceDispatchNextScrollEvent];
++      if (!isCurrentPreparation()) {
++        return;
++      }
+       _scrollView.contentOffset = CGPointMake(_scrollView.contentOffset.x + deltaX, _scrollView.contentOffset.y);
+-      if (autoscrollThreshold) {
++      if (autoscrollThreshold && isCurrentPreparation()) {
+         // If the offset WAS within the threshold of the start, animate to the start.
+         if (x <= autoscrollThreshold.value()) {
+           [self scrollToOffset:CGPointMake(0, _scrollView.contentOffset.y) animated:YES];
+@@ -1107,13 +1318,16 @@ static inline UIViewAnimationOptions animationOptionsWithCurve(UIViewAnimationCu
+       }
+     }
+   } else {
+-    CGRect newFrame = _firstVisibleView.frame;
+-    CGFloat deltaY = newFrame.origin.y - _prevFirstVisibleFrame.origin.y;
++    CGRect newFrame = firstVisibleView.frame;
++    CGFloat deltaY = newFrame.origin.y - previousFrame.origin.y;
+     if (ABS(deltaY) > 0.5) {
+       CGFloat y = _scrollView.contentOffset.y;
+       [self _forceDispatchNextScrollEvent];
++      if (!isCurrentPreparation()) {
++        return;
++      }
+       _scrollView.contentOffset = CGPointMake(_scrollView.contentOffset.x, _scrollView.contentOffset.y + deltaY);
+-      if (autoscrollThreshold) {
++      if (autoscrollThreshold && isCurrentPreparation()) {
+         // If the offset WAS within the threshold of the start, animate to the start.
+         if (y <= autoscrollThreshold.value()) {
+           [self scrollToOffset:CGPointMake(_scrollView.contentOffset.x, 0) animated:YES];
+diff --git a/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewReadPointCoordinator.h b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewReadPointCoordinator.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..236f274bade4b3a35b6c075037971d246f111d8e
+--- /dev/null
++++ b/React/Fabric/Mounting/ComponentViews/ScrollView/RCTScrollViewReadPointCoordinator.h
+@@ -0,0 +1,485 @@
++/* Optional vertical native READ coordination. Geometry comes from a native
++ * provider in the actual Fabric will/did mount; this header acquires no glyphs. */
++#pragma once
++#include <algorithm>
++#include <cmath>
++#include <cstdint>
++#include <functional>
++#include <memory>
++#include <map>
++#include <optional>
++#include <set>
++#include <string>
++#include <utility>
++#include <vector>
++
++namespace facebook::react::scroll_read {
++struct Mount {
++  int surface;
++  int64_t transaction;
++  const void *component, *scrollView, *window;
++  bool operator==(const Mount &) const = default;
++  bool valid() const { return surface > 0 && transaction > 0 && component && scrollView && window; }
++  bool sameOwner(const Mount &other) const {
++    return surface == other.surface && component == other.component && scrollView == other.scrollView && window == other.window;
++  }
++};
++struct Viewport {
++  double offsetX, offsetY, minimum, maximum, width, height, windowX, windowY;
++  double contentWidth, contentHeight, insetTop, insetLeft, insetBottom, insetRight;
++  bool operator==(const Viewport &) const = default;
++  bool valid() const {
++    for (double n : {offsetX, offsetY, minimum, maximum, width, height, windowX, windowY,
++                     contentWidth, contentHeight, insetTop, insetLeft, insetBottom, insetRight})
++      if (!std::isfinite(n)) return false;
++    return width > 0 && height > 0 && contentWidth >= 0 && contentHeight >= 0 && maximum >= minimum;
++  }
++};
++enum class Role { Primary, SameRow, Next, Previous };
++struct Witness {
++  std::string rowKey, pointKey;
++  Role role;
++  int originalOrder;
++  double savedWindowY;
++};
++enum class PointStatus { Measured, Removed, Unavailable };
++struct Point {
++  PointStatus status;
++  std::string rowKey, pointKey;
++  double windowY = 0;
++};
++struct Capture {
++  // Unavailable capture never overwrites a saved lease. Empty is unavailable.
++  bool available = false;
++  std::vector<Witness> witnesses;
++};
++class Provider {
++ public:
++  virtual ~Provider() = default;
++  // Admission acquires no geometry. Resident capture precedes mutation and may
++  // occur before the current scope is READ; admission binds its current intent.
++  virtual bool admit() { return true; }
++  // Called before mutation for an active lease or a resident provisional frame.
++  // Implementations must bind exact native/semantic text or media identity and
++  // authoritative removal membership to this actual mounted transaction.
++  virtual Capture capture(const Mount &, const Viewport &) = 0;
++  virtual Point resolve(const Witness &, const Mount &, const Viewport &) = 0;
++};
++struct RelativeOperation {
++  uint64_t id = 0;
++  double startOffset = 0, startAmount = 0;
++  bool operator==(const RelativeOperation &) const = default;
++  bool valid() const { return id > 0 && id <= 9007199254740991ULL && std::isfinite(startOffset) && std::isfinite(startAmount); }
++};
++struct RelativeSignal {
++  std::string intent;
++  double amount = 0;
++  bool empty = true;
++  RelativeOperation operation;
++  bool valid() const { return !intent.empty() && std::isfinite(amount) && operation.valid(); }
++};
++enum class Status { Default, Unavailable, Retired, Aligned, Adjust, Clamp, LegacyAdjust };
++class Coordinator {
++  struct Saved { Witness witness; bool removed = false; };
++  struct Lease {
++    std::shared_ptr<Provider> provider;
++    std::optional<Mount> owner;
++    std::vector<Saved> saved;
++    std::string intent;
++  };
++  // FOLLOW owns the current legal end, not a synthetic READ witness.
++  struct FollowLease {
++    std::string intent;
++    std::function<bool()> isCurrent;
++    std::optional<Mount> owner;
++  };
++  struct Resident { std::function<std::shared_ptr<Provider>()> factory; };
++  struct Frame {
++    Mount mount;
++    std::shared_ptr<Lease> lease;
++    bool consumed = false;
++    std::shared_ptr<Lease> provisional;
++    std::shared_ptr<Resident> resident;
++    uint64_t generation = 0;
++    std::optional<Status> decision;
++    RelativeSignal previousRelative;
++    std::string relativeIntent;
++    uint64_t relativeRequest = 0;
++    std::shared_ptr<FollowLease> follow;
++  };
++  struct RelativeCompletion {
++    RelativeSignal signal;
++    double target;
++    Mount mount;
++    std::shared_ptr<Resident> resident;
++    uint64_t generation, request;
++  };
++  std::optional<RelativeCompletion> relativeCompletion_;
++  bool engaged_ = false;
++  bool pendingAdmission_ = false;
++  uint64_t generation_ = 0, admissionRequest_ = 0;
++  std::string pendingIntent_;
++  std::set<std::string> revokedRelativeIntents_;
++  std::shared_ptr<Resident> resident_;
++  std::shared_ptr<Lease> lease_;
++  std::shared_ptr<FollowLease> follow_;
++  std::shared_ptr<Frame> frame_;
++  bool owns(const std::shared_ptr<Frame> &frame, const Mount &mount) const {
++    return frame && frame_ == frame && frame->mount == mount && mount.valid() &&
++        frame->lease && lease_ == frame->lease && frame->lease->owner &&
++        frame->lease->owner->sameOwner(mount);
++  }
++  bool ownsFollow(const std::shared_ptr<Frame> &frame, const Mount &mount) const {
++    return frame && frame_ == frame && frame->mount == mount && mount.valid() &&
++        frame->follow && follow_ == frame->follow && !lease_ && frame->follow->owner &&
++        frame->follow->owner->sameOwner(mount);
++  }
++  bool validateFollow(const std::shared_ptr<Frame> &frame, const std::function<Mount()> &readMount) {
++    const auto follow = frame ? frame->follow : nullptr;
++    bool valid = false;
++    if (ownsFollow(frame, readMount())) {
++      try { valid = follow->isCurrent(); } catch (...) {}
++    }
++    if (valid && ownsFollow(frame, readMount())) return true;
++    // A failed current-owner check is retirement, not a mode-only permit that
++    // can revive after cover/owner ABA. Reentrant newer leases survive.
++    if (follow && follow_ == follow) invalidate();
++    return false;
++  }
++  bool ownsRelative(const std::shared_ptr<Frame> &frame, const Mount &mount) const {
++    return frame && frame_ == frame && frame->mount == mount && mount.valid() && !frame->lease && !lease_ && !follow_ &&
++        frame->resident && frame->resident == resident_ && frame->generation == generation_ && pendingAdmission_ &&
++        frame->relativeRequest == admissionRequest_ && !frame->relativeIntent.empty() && frame->relativeIntent == pendingIntent_ &&
++        !revokedRelativeIntents_.count(frame->relativeIntent);
++  }
++  static bool validCapture(const Capture &capture, const Viewport &viewport) {
++    if (!capture.available || capture.witnesses.empty() || capture.witnesses.size() > 128) return false;
++    std::set<std::pair<std::string, std::string>> identities;
++    int primaries = 0;
++    for (const auto &w : capture.witnesses) {
++      if (w.rowKey.empty() || w.pointKey.empty() || !std::isfinite(w.savedWindowY) ||
++          w.savedWindowY < viewport.windowY || w.savedWindowY > viewport.windowY + viewport.height || w.originalOrder < 0 ||
++          !identities.emplace(w.rowKey, w.pointKey).second || w.role < Role::Primary || w.role > Role::Previous) return false;
++      if (w.role == Role::Primary) ++primaries;
++    }
++    if (primaries != 1) return false;
++    const auto primary = std::find_if(capture.witnesses.begin(), capture.witnesses.end(),
++        [](const Witness &w) { return w.role == Role::Primary; });
++    std::map<int, std::string> rowsAtOrder;
++    std::map<std::string, int> orderOfRow;
++    for (const auto &w : capture.witnesses) {
++      if ((w.role == Role::SameRow && (w.rowKey != primary->rowKey || w.originalOrder != primary->originalOrder)) ||
++          (w.role == Role::Next && w.originalOrder <= primary->originalOrder) ||
++          (w.role == Role::Previous && w.originalOrder >= primary->originalOrder)) return false;
++      if ((rowsAtOrder.count(w.originalOrder) && rowsAtOrder[w.originalOrder] != w.rowKey) ||
++          (orderOfRow.count(w.rowKey) && orderOfRow[w.rowKey] != w.originalOrder)) return false;
++      rowsAtOrder[w.originalOrder] = w.rowKey;
++      orderOfRow[w.rowKey] = w.originalOrder;
++    }
++    return true;
++  }
++  bool ownsProvisional(const std::shared_ptr<Frame> &frame) const {
++    return frame && frame_ == frame && !frame->consumed && !frame->lease && !lease_ && !follow_ &&
++        frame->resident && frame->resident == resident_ && frame->generation == generation_;
++  }
++  static void saveCapture(const std::shared_ptr<Lease> &lease, Capture capture) {
++    std::stable_sort(capture.witnesses.begin(), capture.witnesses.end(), [](const Witness &a, const Witness &b) {
++      if (a.role != b.role) return a.role < b.role;
++      return a.role == Role::Previous ? a.originalOrder > b.originalOrder : a.originalOrder < b.originalOrder;
++    });
++    for (auto &witness : capture.witnesses) lease->saved.push_back({std::move(witness), false});
++  }
++  void promote(const std::shared_ptr<Frame> &frame) {
++    if (!pendingAdmission_ || !ownsProvisional(frame) || !frame->provisional) return;
++    // Consume before callback: recursive admission cannot publish twice.
++    auto candidate = std::move(frame->provisional);
++    const auto request = admissionRequest_;
++    const auto intent = pendingIntent_;
++    bool admitted = false;
++    try { admitted = candidate->provider->admit(); } catch (...) {}
++    if (!admitted || !pendingAdmission_ || admissionRequest_ != request || pendingIntent_ != intent || !ownsProvisional(frame)) return;
++    candidate->intent = intent;
++    lease_ = candidate;
++    frame->lease = candidate;
++    pendingAdmission_ = false;
++  }
++ public:
++  struct Decision {
++    Status status = Status::Unavailable;
++    std::optional<double> target;
++   private:
++    std::shared_ptr<Frame> frame;
++    std::optional<Viewport> viewport;
++    bool relative = false;
++    bool follow = false;
++    RelativeSignal relativeSignal;
++    double relativeTarget = 0;
++    friend class Coordinator;
++  };
++  struct Diagnostic {
++    bool engaged, resident, admitted, pendingAdmission, provisional, consumed;
++    int surface;
++    int64_t transaction;
++    uint64_t generation;
++    const char *preparedOwner, *lastDecision;
++  };
++  Diagnostic diagnostic() const {
++    const char *status = "none";
++    if (frame_ && frame_->decision) switch (*frame_->decision) {
++      case Status::Default: status = "default"; break;
++      case Status::Unavailable: status = "unavailable"; break;
++      case Status::Retired: status = "retired"; break;
++      case Status::Aligned: status = "aligned"; break;
++      case Status::Adjust: status = "adjust"; break;
++      case Status::Clamp: status = "clamp"; break;
++      case Status::LegacyAdjust: status = "legacy-adjust"; break;
++    }
++    return {engaged_, !!resident_, !!lease_, pendingAdmission_, frame_ && !!frame_->provisional,
++        frame_ && frame_->consumed, frame_ ? frame_->mount.surface : 0,
++        frame_ ? frame_->mount.transaction : 0, generation_,
++        !frame_ ? "none" : frame_->follow ? "follow" : frame_->lease ? "read" : "legacy", status};
++  }
++  using ReadMount = std::function<Mount()>;
++  using ReadViewport = std::function<std::optional<Viewport>()>;
++  bool engaged() const { return engaged_; }
++  void begin(std::shared_ptr<Provider> provider) {
++    invalidate();
++    engaged_ = true;
++    // A new object owns every visit. Retained decisions keep old objects alive,
++    // so returning to an equal provider/window pointer cannot create owner ABA.
++    lease_ = provider ? std::make_shared<Lease>(Lease{std::move(provider), {}, {}}) : nullptr;
++  }
++  void beginFollow(std::string intent, std::function<bool()> isCurrent) {
++    if (intent.empty() || !isCurrent) return;
++    invalidate();
++    engaged_ = true;
++    follow_ = std::make_shared<FollowLease>(FollowLease{std::move(intent), std::move(isCurrent), {}});
++    // A completed TARGET may publish FOLLOW during this mount. End geometry
++    // needs no pre-mutation point, but still belongs to this exact transaction.
++    if (frame_ && !frame_->consumed && frame_->mount.valid()) {
++      follow_->owner = frame_->mount;
++      frame_->lease.reset();
++      frame_->follow = follow_;
++    }
++  }
++  void invalidate() {
++    if (follow_ && !follow_->intent.empty()) revokedRelativeIntents_.insert(follow_->intent);
++    follow_.reset();
++    relativeCompletion_.reset();
++    ++generation_;
++    ++admissionRequest_;
++    if (!pendingIntent_.empty()) revokedRelativeIntents_.insert(pendingIntent_);
++    if (lease_ && !lease_->intent.empty()) revokedRelativeIntents_.insert(lease_->intent);
++    pendingIntent_.clear();
++    lease_.reset();
++    pendingAdmission_ = false;
++    if (frame_) frame_->provisional.reset();
++  }
++  void setResident(std::function<std::shared_ptr<Provider>()> factory) {
++    invalidate();
++    // A factory detach/reattach must not revive an old queued intent. Tokens
++    // include scope+visit, so later visits have distinct relative authority.
++    resident_ = factory ? std::make_shared<Resident>(Resident{std::move(factory)}) : nullptr;
++    if (resident_) engaged_ = true;
++  }
++  void beginResident(std::string intent) {
++    if (!resident_ || intent.empty()) return;
++    relativeCompletion_.reset();
++    // The registry calls only for a fresh READ intent, never data duplicates.
++    // A new intent cannot inherit the previous admitted witness.
++    if (lease_ || follow_) invalidate();
++    ++admissionRequest_;
++    pendingIntent_ = std::move(intent);
++    pendingAdmission_ = true;
++    promote(frame_);
++  }
++
++  // true means the optional READ path owns this mount, including unavailable.
++  bool prepare(const ReadMount &readMount, const ReadViewport &readViewport, RelativeSignal previousRelative = {}) {
++    // Record ownership even before first registration during finalizeUpdates.
++    // Disabled mode performs no viewport/provider reads and retains legacy writes.
++    const Mount mount = readMount();
++    // Observing a different physical owner retires this operation even if this
++    // mount has no signal or geometry. Returning to the old owner is not a lease.
++    if (relativeCompletion_ && !relativeCompletion_->mount.sameOwner(mount)) invalidate();
++    if (frame_ && frame_->mount.sameOwner(mount) && mount.transaction <= frame_->mount.transaction) return true;
++    if (lease_ && lease_->owner && !lease_->owner->sameOwner(mount)) invalidate();
++    if (follow_ && follow_->owner && !follow_->owner->sameOwner(mount)) invalidate();
++    auto frame = std::make_shared<Frame>(Frame{mount, lease_, false, {}, resident_, generation_});
++    frame_ = frame;
++    frame->follow = follow_;
++    if (follow_) {
++      if (!follow_->owner && mount.valid()) follow_->owner = mount;
++      return true;
++    }
++    frame->previousRelative = std::move(previousRelative);
++    frame->relativeIntent = pendingAdmission_ ? pendingIntent_ : "";
++    frame->relativeRequest = admissionRequest_;
++    if (!frame->lease) {
++      if (!frame->resident || !mount.valid()) return false;
++      const auto retired = [&]() { return !ownsProvisional(frame) || readMount() != mount; };
++      const auto before = readViewport();
++      if (!before || !before->valid() || retired()) return retired();
++      std::shared_ptr<Provider> provider;
++      Capture capture;
++      try {
++        provider = frame->resident->factory();
++        if (!provider || retired()) return retired();
++        capture = provider->capture(mount, *before);
++      } catch (...) { return retired(); }
++      if (retired()) return true;
++      const auto after = readViewport();
++      if (!after || !after->valid() || *after != *before || !ownsProvisional(frame) ||
++          readMount() != mount || !validCapture(capture, *before)) return retired();
++      frame->provisional = std::make_shared<Lease>(Lease{std::move(provider), mount, {}});
++      saveCapture(frame->provisional, std::move(capture));
++      promote(frame);
++      // Without admission, prepare the legacy owner for this exact transaction.
++      return frame_ != frame || frame->lease != nullptr || !ownsProvisional(frame);
++    }
++    if (!mount.valid()) return true;
++    if (!frame->lease->owner) frame->lease->owner = mount;
++    if (!frame->lease->saved.empty()) return true;
++    const auto before = readViewport();
++    if (!before || !before->valid() || !owns(frame, readMount())) return true;
++    Capture capture;
++    try { capture = frame->lease->provider->capture(mount, *before); }
++    catch (...) { return true; }
++    if (!owns(frame, readMount())) return true;
++    const auto after = readViewport();
++    if (!after || !after->valid() || *before != *after || frame->consumed || !owns(frame, readMount()) || !validCapture(capture, *before)) return true;
++    saveCapture(frame->lease, std::move(capture));
++    return true;
++  }
++
++  Decision consume(const ReadMount &readMount, const ReadViewport &readViewport, const RelativeSignal &relative = {}) {
++    Decision decision;
++    const auto frame = frame_;
++    const Mount mount = readMount();
++    if (follow_ && follow_->owner && !follow_->owner->sameOwner(mount)) invalidate();
++    const auto finish = [&]() {
++      if (frame_ == frame && frame && frame->mount == mount) frame->decision = decision.status;
++      return decision;
++    };
++    if (!engaged_) { decision.status = Status::Default; return finish(); }
++    // A stale didMount cannot consume/clear a newer transaction's preparation.
++    if (!frame || frame->consumed || frame->mount != mount) { decision.status = Status::Retired; return finish(); }
++    frame->consumed = true;
++    if (frame->follow) {
++      if (!validateFollow(frame, readMount)) { decision.status = Status::Retired; return finish(); }
++      const auto viewport = readViewport();
++      if (!viewport || !viewport->valid() || !ownsFollow(frame, readMount())) return finish();
++      decision.status = viewport->offsetY == viewport->maximum ? Status::Aligned : Status::Adjust;
++      if (viewport->offsetY != viewport->maximum) decision.target = viewport->maximum;
++      decision.frame = frame;
++      decision.viewport = viewport;
++      decision.follow = true;
++      return finish();
++    }
++    if (!frame->lease && !lease_) {
++      decision.status = Status::Default;
++      if (relative.valid() && (frame->previousRelative.valid() || frame->previousRelative.empty) &&
++          relative.intent == frame->relativeIntent && ownsRelative(frame, mount)) {
++        const double previous = frame->previousRelative.intent == relative.intent ? frame->previousRelative.amount : 0;
++        const double delta = relative.amount - previous;
++        const auto &oldOperation = frame->previousRelative.operation;
++        const auto &operation = relative.operation;
++        const bool sameIntent = frame->previousRelative.intent == relative.intent;
++        const bool operationOwned = !sameIntent || !frame->previousRelative.valid() ||
++            operation.id > oldOperation.id || (operation.id == oldOperation.id && operation == oldOperation);
++        if (operationOwned && std::isfinite(previous) && std::isfinite(delta) && delta != 0) {
++          if (relativeCompletion_ && (relativeCompletion_->signal.intent != relative.intent ||
++              relativeCompletion_->signal.operation != operation || !relativeCompletion_->mount.sameOwner(mount) ||
++              relativeCompletion_->resident != resident_ || relativeCompletion_->generation != generation_ ||
++              relativeCompletion_->request != admissionRequest_)) relativeCompletion_.reset();
++          const auto viewport = readViewport();
++          if (viewport && viewport->valid() && ownsRelative(frame, readMount())) {
++            // The operation retains the actual native offset sampled before
++            // the logical row changes. UIKit may already have clamped that
++            // offset in this or an earlier mount; never add that movement twice.
++            const double requested = relativeCompletion_
++                ? relativeCompletion_->target + (relative.amount - relativeCompletion_->signal.amount)
++                : operation.startOffset + (relative.amount - operation.startAmount);
++            if (std::isfinite(requested)) {
++              const double target = std::clamp(requested, viewport->minimum, viewport->maximum);
++              decision.status = Status::LegacyAdjust;
++              if (target != viewport->offsetY) decision.target = target;
++              decision.frame = frame;
++              decision.viewport = viewport;
++              decision.relative = true;
++              decision.relativeSignal = relative;
++              decision.relativeTarget = target;
++            }
++          }
++        }
++      }
++      return finish();
++    }
++    if (!owns(frame, mount)) { decision.status = Status::Retired; return finish(); }
++    if (frame->lease->saved.empty()) return finish();
++    for (auto &saved : frame->lease->saved) {
++      if (saved.removed) continue;
++      const auto before = readViewport();
++      if (!before || !before->valid() || !owns(frame, readMount())) return finish();
++      Point point;
++      try { point = frame->lease->provider->resolve(saved.witness, mount, *before); }
++      catch (...) { return finish(); }
++      if (!owns(frame, readMount())) { decision.status = Status::Retired; return finish(); }
++      const auto after = readViewport();
++      if (!after || !after->valid() || *before != *after || !owns(frame, readMount()) ||
++          point.rowKey != saved.witness.rowKey || point.pointKey != saved.witness.pointKey) return finish();
++      if (point.status == PointStatus::Removed) { saved.removed = true; continue; }
++      if (point.status != PointStatus::Measured || !std::isfinite(point.windowY)) return finish();
++      const double requested = before->offsetY + point.windowY - saved.witness.savedWindowY;
++      if (!std::isfinite(requested)) return finish();
++      const double target = std::clamp(requested, before->minimum, before->maximum);
++      decision.status = target == before->offsetY ? Status::Aligned : target == requested ? Status::Adjust : Status::Clamp;
++      if (target != before->offsetY) decision.target = target;
++      decision.frame = frame;
++      decision.viewport = before;
++      return finish();
++    }
++    // Every saved candidate was explicitly removed; use only the legal clamp.
++    const auto viewport = readViewport();
++    if (!viewport || !viewport->valid() || !owns(frame, readMount())) return finish();
++    const double target = std::clamp(viewport->offsetY, viewport->minimum, viewport->maximum);
++    decision.status = target == viewport->offsetY ? Status::Aligned : Status::Clamp;
++    if (target != viewport->offsetY) decision.target = target;
++    decision.frame = frame;
++    decision.viewport = viewport;
++    return finish();
++  }
++  // One completed operation basis handles a later amount before its ACK reaches
++  // JS. It is not credit for an unrelated or merely automatic native clamp.
++  struct RelativeAcknowledgement { RelativeSignal signal; double target; };
++  std::optional<RelativeAcknowledgement> acknowledgeApplied(const Decision &decision, bool applied,
++      const ReadMount &readMount, const ReadViewport &readViewport) {
++    if (!decision.relative || (decision.target && !applied) || !decision.frame || !decision.viewport ||
++        !ownsRelative(decision.frame, readMount())) return std::nullopt;
++    const auto viewport = readViewport();
++    if (!viewport || !viewport->valid() || !ownsRelative(decision.frame, readMount()) ||
++        std::abs(viewport->offsetY - decision.relativeTarget) > 1) return std::nullopt;
++    auto expected = *decision.viewport;
++    expected.offsetY = viewport->offsetY;
++    if (*viewport != expected) return std::nullopt;
++    relativeCompletion_ = RelativeCompletion{decision.relativeSignal, viewport->offsetY, decision.frame->mount,
++        resident_, generation_, admissionRequest_};
++    return RelativeAcknowledgement{decision.relativeSignal, viewport->offsetY};
++  }
++  bool canApply(const Decision &decision, const ReadMount &readMount, const ReadViewport &readViewport) {
++    if (decision.follow) {
++      if (!decision.target || !decision.viewport || !validateFollow(decision.frame, readMount)) return false;
++      const auto viewport = readViewport();
++      return viewport && viewport->valid() && *viewport == *decision.viewport && ownsFollow(decision.frame, readMount());
++    }
++    if (decision.relative) {
++      if (!decision.target || !decision.frame || !decision.viewport || !ownsRelative(decision.frame, readMount())) return false;
++      const auto viewport = readViewport();
++      return viewport && viewport->valid() && *viewport == *decision.viewport && ownsRelative(decision.frame, readMount());
++    }
++    if (!decision.target || !decision.frame || !decision.viewport || !owns(decision.frame, readMount())) return false;
++    const auto viewport = readViewport();
++    return viewport && viewport->valid() && *viewport == *decision.viewport && owns(decision.frame, readMount());
++  }
++};
++} // namespace facebook::react::scroll_read
+diff --git a/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.h b/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.h
+index 0744e4a530c86bf1cd9251f3108a311ec3d6d8b7..f4893b3138eaf5020f21853d515ed826eeb1aac2 100644
+--- a/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.h
++++ b/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.h
+@@ -9,6 +9,10 @@
+ 
+ #import <React/RCTViewComponentView.h>
+ 
++#ifdef __cplusplus
++#import <react/renderer/textlayoutmanager/RCTTextReadingPoint.h>
++#endif
++
+ NS_ASSUME_NONNULL_BEGIN
+ 
+ /*
+@@ -22,6 +26,22 @@ NS_ASSUME_NONNULL_BEGIN
+  */
+ @property (nonatomic, nullable, readonly) NSAttributedString *attributedText;
+ 
++#ifdef __cplusplus
++// Supported mounted-renderer query; this does not use the debug attributedText
++// property. Owner tokens cannot be reused after prepareForRecycle.
++- (facebook::react::TextReadingPointResult)readingPointAtPoint:(CGPoint)point;
++- (facebook::react::TextReadingPointResult)readingPointForRange:(NSRange)range
++                                          expectedCurrentText:(NSString *)expectedCurrentText
++                                                        owner:(id)owner;
++// Use one stack-local query for a single synchronous candidate; never save it.
++- (facebook::react::TextReadingPointResult)readingPointAtPoint:(CGPoint)point
++                                                       query:(facebook::react::TextReadingPointQuery *)query;
++- (facebook::react::TextReadingPointResult)readingPointForRange:(NSRange)range
++                                          expectedCurrentText:(NSString *)expectedCurrentText
++                                                        owner:(id)owner
++                                                        query:(facebook::react::TextReadingPointQuery *)query;
++#endif
++
+ @end
+ 
+ NS_ASSUME_NONNULL_END
+diff --git a/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.mm b/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.mm
+index 07fb9c4e7b674182a40d57b7ad5f70fc71503d34..61378f8532d70b0417c6b14b92c14b4706f17045 100644
+--- a/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.mm
++++ b/React/Fabric/Mounting/ComponentViews/Text/RCTParagraphComponentView.mm
+@@ -50,6 +50,8 @@ using namespace facebook::react;
+   RCTParagraphComponentAccessibilityProvider *_accessibilityProvider;
+   UILongPressGestureRecognizer *_longPressGestureRecognizer;
+   RCTParagraphTextView *_textView;
++  NSObject *_readingPointOwner;
++  uint64_t _readingPointRevision;
+ }
+ 
+ - (instancetype)initWithFrame:(CGRect)frame
+@@ -59,6 +61,7 @@ using namespace facebook::react;
+ 
+     self.opaque = NO;
+     _textView = [RCTParagraphTextView new];
++    _readingPointOwner = [NSObject new];
+     _textView.backgroundColor = UIColor.clearColor;
+     self.contentView = _textView;
+   }
+@@ -87,6 +90,123 @@ using namespace facebook::react;
+   return RCTNSAttributedStringFromAttributedString(_textView.state->getData().attributedString);
+ }
+ 
++#pragma mark - Mounted reading point geometry
++
++- (TextReadingPointResult)readingPointAtPoint:(CGPoint)point
++{
++  return [self _readingPointAtPoint:point characterRange:NSMakeRange(NSNotFound, 0) expectedCurrentText:nil owner:nil query:nullptr];
++}
++
++- (TextReadingPointResult)readingPointForRange:(NSRange)range expectedCurrentText:(NSString *)text owner:(id)owner
++{
++  if (!owner || !text) {
++    TextReadingPointResult result;
++    result.reason = TextReadingPointReason::OwnerChanged;
++    return result;
++  }
++  return [self _readingPointAtPoint:CGPointZero characterRange:range expectedCurrentText:text owner:owner query:nullptr];
++}
++
++- (TextReadingPointResult)readingPointAtPoint:(CGPoint)point query:(TextReadingPointQuery *)query
++{
++  return [self _readingPointAtPoint:point characterRange:NSMakeRange(NSNotFound, 0) expectedCurrentText:nil owner:nil query:query];
++}
++
++- (TextReadingPointResult)readingPointForRange:(NSRange)range expectedCurrentText:(NSString *)text owner:(id)owner query:(TextReadingPointQuery *)query
++{
++  if (!owner || !text) {
++    if (query) query->retire();
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  return [self _readingPointAtPoint:CGPointZero characterRange:range expectedCurrentText:text owner:owner query:query];
++}
++
++- (TextReadingPointResult)_readingPointAtPoint:(CGPoint)point
++                              characterRange:(NSRange)range
++                         expectedCurrentText:(NSString *)text
++                                       owner:(id)owner
++                                       query:(TextReadingPointQuery *)query
++{
++  TextReadingPointResult result;
++  if (![NSThread isMainThread]) {
++    result.reason = TextReadingPointReason::WrongThread;
++    if (query) query->retire();
++    return result;
++  }
++  if (!self.window) {
++    result.reason = TextReadingPointReason::Detached;
++    if (query) query->retire();
++    return result;
++  }
++  for (UIView *view = self; view; view = view.superview) {
++    if (view.hidden || view.alpha <= 0) {
++      result.reason = TextReadingPointReason::Invisible;
++      if (query) query->retire();
++      return result;
++    }
++  }
++  if (owner && owner != _readingPointOwner) {
++    result.reason = TextReadingPointReason::OwnerChanged;
++    if (query) query->retire();
++    return result;
++  }
++  const auto state = _textView.state;
++  if (!state) {
++    if (query) query->retire();
++    return result;
++  }
++  const auto &data = state->getData();
++  auto manager = data.layoutManager.lock();
++  if (!manager) {
++    if (query) query->retire();
++    return result;
++  }
++  RCTTextLayoutManager *nativeManager =
++      (RCTTextLayoutManager *)unwrapManagedObject(manager->getNativeTextLayoutManager());
++  if (!nativeManager) { if (query) query->retire(); return result; }
++  const auto revision = _readingPointRevision;
++  NSObject *currentOwner = _readingPointOwner;
++  CGRect frame = RCTCGRectFromRect(_layoutMetrics.getContentFrame());
++  if (query && !query->bindOwner(self, currentOwner, revision, state.get(), nativeManager, frame)) {
++    result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  result = text ? [nativeManager readingPointWithAttributedString:data.attributedString
++                                              paragraphAttributes:_paragraphAttributes
++                                                            frame:frame
++                                                   characterRange:range
++                                              expectedCurrentText:text query:query]
++                : [nativeManager readingPointWithAttributedString:data.attributedString
++                                              paragraphAttributes:_paragraphAttributes
++                                                            frame:frame
++                                                          atPoint:point query:query];
++  if (revision != _readingPointRevision || currentOwner != _readingPointOwner || state != _textView.state || !self.window) {
++    result = {};
++    result.reason = TextReadingPointReason::OwnerChanged;
++    if (query) query->retire();
++    return result;
++  }
++  if (query) {
++    auto currentManager = data.layoutManager.lock();
++    id currentNativeManager = currentManager
++        ? unwrapManagedObject(currentManager->getNativeTextLayoutManager()) : nil;
++    if (currentManager != manager || currentNativeManager != nativeManager ||
++        (query->paragraphAttributes && !(*query->paragraphAttributes == _paragraphAttributes)) ||
++        !query->bindOwner(self, _readingPointOwner, _readingPointRevision,
++                          _textView.state.get(), currentNativeManager,
++                          RCTCGRectFromRect(_layoutMetrics.getContentFrame()))) {
++      query->retire(); result = {}; result.reason = TextReadingPointReason::OwnerChanged; return result;
++    }
++    for (UIView *view = self; view; view = view.superview) {
++      if (view.hidden || view.alpha <= 0) {
++        query->retire(); result = {}; result.reason = TextReadingPointReason::Invisible; return result;
++      }
++    }
++  }
++  result.owner = currentOwner;
++  result.revision = revision;
++  return result;
++}
++
+ #pragma mark - RCTComponentViewProtocol
+ 
+ + (ComponentDescriptorProvider)componentDescriptorProvider
+@@ -106,6 +226,7 @@ using namespace facebook::react;
+   const auto &oldParagraphProps = static_cast<const ParagraphProps &>(*_props);
+   const auto &newParagraphProps = static_cast<const ParagraphProps &>(*props);
+ 
++  ++_readingPointRevision;
+   _paragraphAttributes = newParagraphProps.paragraphAttributes;
+   _textView.paragraphAttributes = _paragraphAttributes;
+ 
+@@ -122,6 +243,7 @@ using namespace facebook::react;
+ 
+ - (void)updateState:(const State::Shared &)state oldState:(const State::Shared &)oldState
+ {
++  ++_readingPointRevision;
+   _textView.state = std::static_pointer_cast<const ParagraphShadowNode::ConcreteState>(state);
+   [_textView setNeedsDisplay];
+   [self setNeedsLayout];
+@@ -130,6 +252,7 @@ using namespace facebook::react;
+ - (void)updateLayoutMetrics:(const LayoutMetrics &)layoutMetrics
+            oldLayoutMetrics:(const LayoutMetrics &)oldLayoutMetrics
+ {
++  ++_readingPointRevision;
+   // Using stored `_layoutMetrics` as `oldLayoutMetrics` here to avoid
+   // re-applying individual sub-values which weren't changed.
+   [super updateLayoutMetrics:layoutMetrics oldLayoutMetrics:_layoutMetrics];
+@@ -141,10 +264,20 @@ using namespace facebook::react;
+ - (void)prepareForRecycle
+ {
+   [super prepareForRecycle];
++  _readingPointOwner = [NSObject new];
++  ++_readingPointRevision;
+   _textView.state = nullptr;
+   _accessibilityProvider = nil;
+ }
+ 
++- (void)didMoveToWindow
++{
++  [super didMoveToWindow];
++  // Detaching and reattaching the same view cannot revive an old witness.
++  _readingPointOwner = [NSObject new];
++  ++_readingPointRevision;
++}
++
+ - (void)layoutSubviews
+ {
+   [super layoutSubviews];
+diff --git a/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.cpp b/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.cpp
+index a683cb87f825661b6fc039b6b066c20e620eab16..0e671255e05dc8d17deb520d8567985ef0d2628d 100644
+--- a/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.cpp
++++ b/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.cpp
+@@ -157,6 +157,10 @@ BaseScrollViewProps::BaseScrollViewProps(
+                     "maintainVisibleContentPosition",
+                     sourceProps.maintainVisibleContentPosition,
+                     {})),
++      nativeReadPointAdjustment(
++          ReactNativeFeatureFlags::enableCppPropsIteratorSetter()
++              ? sourceProps.nativeReadPointAdjustment
++              : convertRawProp(context, rawProps, "nativeReadPointAdjustment", sourceProps.nativeReadPointAdjustment, {})),
+       maximumZoomScale(
+           ReactNativeFeatureFlags::enableCppPropsIteratorSetter()
+               ? sourceProps.maximumZoomScale
+@@ -400,6 +404,7 @@ void BaseScrollViewProps::setProp(
+     RAW_SET_PROP_SWITCH_CASE_BASIC(indicatorStyle);
+     RAW_SET_PROP_SWITCH_CASE_BASIC(keyboardDismissMode);
+     RAW_SET_PROP_SWITCH_CASE_BASIC(maintainVisibleContentPosition);
++    RAW_SET_PROP_SWITCH_CASE_BASIC(nativeReadPointAdjustment);
+     RAW_SET_PROP_SWITCH_CASE_BASIC(maximumZoomScale);
+     RAW_SET_PROP_SWITCH_CASE_BASIC(minimumZoomScale);
+     RAW_SET_PROP_SWITCH_CASE_BASIC(scrollEnabled);
+diff --git a/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.h b/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.h
+index f6de1cd07fd58ad6cf521524e0326e2a76f8e775..74367f4040fa5d580203255e3bcc95d8263f56fb 100644
+--- a/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.h
++++ b/ReactCommon/react/renderer/components/scrollview/BaseScrollViewProps.h
+@@ -12,6 +12,7 @@
+ #include <react/renderer/core/PropsParserContext.h>
+ 
+ #include <optional>
++#include <string>
+ 
+ namespace facebook::react {
+ 
+@@ -44,6 +45,7 @@ class BaseScrollViewProps : public ViewProps {
+   ScrollViewIndicatorStyle indicatorStyle{};
+   ScrollViewKeyboardDismissMode keyboardDismissMode{};
+   std::optional<ScrollViewMaintainVisibleContentPosition> maintainVisibleContentPosition{};
++  std::string nativeReadPointAdjustment{};
+   Float maximumZoomScale{1.0f};
+   Float minimumZoomScale{1.0f};
+   bool scrollEnabled{true};
+diff --git a/ReactCommon/react/renderer/components/scrollview/ScrollEvent.cpp b/ReactCommon/react/renderer/components/scrollview/ScrollEvent.cpp
+index 7adacc575272d6d8329b933d4709185e3f6ff2a1..53806e74a5e0eb860fdf34b9e0c6b3fe9c10dbac 100644
+--- a/ReactCommon/react/renderer/components/scrollview/ScrollEvent.cpp
++++ b/ReactCommon/react/renderer/components/scrollview/ScrollEvent.cpp
+@@ -45,6 +45,17 @@ jsi::Value ScrollEvent::asJSIValue(jsi::Runtime& runtime) const {
+   payload.setProperty(runtime, "zoomScale", zoomScale);
+   payload.setProperty(runtime, "timestamp", timestamp * 1000);
+ 
++  if (nativeReadPointAdjustmentAck) {
++    const auto& ack = *nativeReadPointAdjustmentAck;
++    auto value = jsi::Object(runtime);
++    value.setProperty(runtime, "intent", jsi::String::createFromUtf8(runtime, ack.intent));
++    value.setProperty(runtime, "operationId", static_cast<double>(ack.operationId));
++    value.setProperty(runtime, "startOffset", ack.startOffset);
++    value.setProperty(runtime, "startAmount", ack.startAmount);
++    value.setProperty(runtime, "amount", ack.amount);
++    value.setProperty(runtime, "target", ack.target);
++    payload.setProperty(runtime, "nativeReadPointAdjustmentAck", std::move(value));
++  }
+   return payload;
+ }
+ 
+@@ -62,13 +73,19 @@ folly::dynamic ScrollEvent::asDynamic() const {
+   auto containerSizeObj = folly::dynamic::object("width", containerSize.width)(
+       "height", containerSize.height);
+ 
+-  auto metrics =
++  folly::dynamic metrics =
+       folly::dynamic::object("contentOffset", std::move(contentOffsetObj))(
+           "contentInset", std::move(contentInsetObj))(
+           "contentSize", std::move(contentSizeObj))(
+           "layoutMeasurement", std::move(containerSizeObj))(
+           "zoomScale", zoomScale)("timestamp", timestamp * 1000);
+ 
++  if (nativeReadPointAdjustmentAck) {
++    const auto& ack = *nativeReadPointAdjustmentAck;
++    metrics["nativeReadPointAdjustmentAck"] = folly::dynamic::object("intent", ack.intent)(
++        "operationId", static_cast<double>(ack.operationId))("startOffset", ack.startOffset)(
++        "startAmount", ack.startAmount)("amount", ack.amount)("target", ack.target);
++  }
+   return metrics;
+ };
+ 
+diff --git a/ReactCommon/react/renderer/components/scrollview/ScrollEvent.h b/ReactCommon/react/renderer/components/scrollview/ScrollEvent.h
+index fb2cd8b44fd5ce3903642e9093c585047d41d22d..78d0a0aaf1eade40a84070b567b5c700de8dd872 100644
+--- a/ReactCommon/react/renderer/components/scrollview/ScrollEvent.h
++++ b/ReactCommon/react/renderer/components/scrollview/ScrollEvent.h
+@@ -8,6 +8,9 @@
+ #pragma once
+ 
+ #include <folly/dynamic.h>
++#include <cstdint>
++#include <optional>
++#include <string>
+ #include <react/renderer/core/EventPayload.h>
+ #include <react/renderer/debug/DebugStringConvertible.h>
+ #include <react/renderer/graphics/RectangleEdges.h>
+@@ -15,6 +18,12 @@
+ 
+ namespace facebook::react {
+ 
++struct NativeReadPointAdjustmentAck {
++  std::string intent;
++  uint64_t operationId;
++  double startOffset, startAmount, amount, target;
++};
++
+ struct ScrollEvent : public EventPayload {
+   Size contentSize;
+   Point contentOffset;
+@@ -26,6 +35,7 @@ struct ScrollEvent : public EventPayload {
+    * The time in seconds when the touch occurred or when it was last mutated.
+    */
+   Float timestamp{};
++  std::optional<NativeReadPointAdjustmentAck> nativeReadPointAdjustmentAck;
+ 
+   ScrollEvent() = default;
+ 
+diff --git a/ReactCommon/react/renderer/components/scrollview/ScrollViewEventEmitter.cpp b/ReactCommon/react/renderer/components/scrollview/ScrollViewEventEmitter.cpp
+index 2f2babe499182d944b4e2d17374c27c4bf20aa55..b69b68e1738cfccdcd6bb4b27e29a5863a2cef11 100644
+--- a/ReactCommon/react/renderer/components/scrollview/ScrollViewEventEmitter.cpp
++++ b/ReactCommon/react/renderer/components/scrollview/ScrollViewEventEmitter.cpp
+@@ -10,7 +10,12 @@
+ namespace facebook::react {
+ 
+ void ScrollViewEventEmitter::onScroll(const ScrollEvent& scrollEvent) const {
+-  dispatchUniqueEvent("scroll", std::make_shared<ScrollEvent>(scrollEvent));
++  if (scrollEvent.nativeReadPointAdjustmentAck) {
++    // A later ordinary scroll may coalesce ordinary geometry, never this ACK.
++    dispatchEvent("scroll", std::make_shared<ScrollEvent>(scrollEvent));
++  } else {
++    dispatchUniqueEvent("scroll", std::make_shared<ScrollEvent>(scrollEvent));
++  }
+ }
+ 
+ void ScrollViewEventEmitter::onScrollToTop(
 diff --git a/ReactCommon/react/renderer/textlayoutmanager/TextMeasurementRounding.h b/ReactCommon/react/renderer/textlayoutmanager/TextMeasurementRounding.h
 new file mode 100644
+index 0000000000000000000000000000000000000000..fcf158fdf16eb5e1534c9dc0149c7b6f30632081
 --- /dev/null
 +++ b/ReactCommon/react/renderer/textlayoutmanager/TextMeasurementRounding.h
 @@ -0,0 +1,43 @@
@@ -46,21 +1398,175 @@ new file mode 100644
 +}
 +
 +} // namespace facebook::react
+diff --git a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.h b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.h
+index a4b9be72c453574998499d3b41bb013e05a3ba3b..d15e69541d423be54490d1d37ca0c523cbb56b60 100644
+--- a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.h
++++ b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.h
+@@ -7,6 +7,8 @@
+ 
+ #import <UIKit/UIKit.h>
+ 
++#import "RCTTextReadingPoint.h"
++
+ #import <react/renderer/attributedstring/AttributedString.h>
+ #import <react/renderer/attributedstring/ParagraphAttributes.h>
+ #import <react/renderer/core/LayoutConstraints.h>
+@@ -59,6 +61,32 @@ using RCTTextLayoutFragmentEnumerationBlock =
+                               frame:(CGRect)frame
+                          usingBlock:(RCTTextLayoutFragmentEnumerationBlock)block;
+ 
++// Supported glyph query surface for mounted Paragraph reading-point owners.
++// Point and result rectangles are in paragraph-local coordinates.
++- (facebook::react::TextReadingPointResult)readingPointWithAttributedString:(facebook::react::AttributedString)attributedString
++                                                       paragraphAttributes:(facebook::react::ParagraphAttributes)paragraphAttributes
++                                                                     frame:(CGRect)frame
++                                                                   atPoint:(CGPoint)point;
++
++- (facebook::react::TextReadingPointResult)readingPointWithAttributedString:(facebook::react::AttributedString)attributedString
++                                                       paragraphAttributes:(facebook::react::ParagraphAttributes)paragraphAttributes
++                                                                     frame:(CGRect)frame
++                                                            characterRange:(NSRange)range
++                                                       expectedCurrentText:(NSString *)expectedCurrentText;
++
++// Query-local overloads; caller owns the bounded synchronous query lifetime.
++- (facebook::react::TextReadingPointResult)readingPointWithAttributedString:(facebook::react::AttributedString)attributedString
++                                                       paragraphAttributes:(facebook::react::ParagraphAttributes)paragraphAttributes
++                                                                     frame:(CGRect)frame
++                                                                   atPoint:(CGPoint)point
++                                                                     query:(facebook::react::TextReadingPointQuery *)query;
++- (facebook::react::TextReadingPointResult)readingPointWithAttributedString:(facebook::react::AttributedString)attributedString
++                                                       paragraphAttributes:(facebook::react::ParagraphAttributes)paragraphAttributes
++                                                                     frame:(CGRect)frame
++                                                            characterRange:(NSRange)range
++                                                       expectedCurrentText:(NSString *)expectedCurrentText
++                                                                     query:(facebook::react::TextReadingPointQuery *)query;
++
+ @end
+ 
+ NS_ASSUME_NONNULL_END
 diff --git a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.mm b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.mm
+index ac553045a9c0ce77e288277912538d9e131ebc01..a27994e81f3ebfc2230c5042669c47904567411e 100644
 --- a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.mm
 +++ b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextLayoutManager.mm
-@@ -14,6 +14,7 @@
+@@ -7,11 +7,14 @@
+ 
+ #import "RCTTextLayoutManager.h"
+ 
++#include <cmath>
++
+ #import "RCTAttributedTextUtils.h"
+ 
  #import <React/NSTextStorage+FontScaling.h>
  #import <React/RCTUtils.h>
  #import <react/featureflags/ReactNativeFeatureFlags.h>
 +#import <react/renderer/textlayoutmanager/TextMeasurementRounding.h>
  #import <react/utils/ManagedObjectWrapper.h>
  #import <react/utils/SimpleThreadSafeCache.h>
-
-@@ -389,8 +390,11 @@ - (TextMeasurement)_measureTextStorage:(NSTextStorage *)textStorage
+ 
+@@ -66,6 +69,99 @@ static NSLineBreakMode RCTNSLineBreakModeFromEllipsizeMode(EllipsizeMode ellipsi
+                        layoutConstraints:layoutConstraints];
+ }
+ 
++- (TextReadingPointResult)readingPointWithAttributedString:(AttributedString)attributedString
++                                       paragraphAttributes:(ParagraphAttributes)paragraphAttributes
++                                                     frame:(CGRect)frame
++                                                   atPoint:(CGPoint)point
++{
++  return [self readingPointWithAttributedString:attributedString paragraphAttributes:paragraphAttributes
++                                         frame:frame atPoint:point query:nullptr];
++}
++
++- (TextReadingPointResult)readingPointWithAttributedString:(AttributedString)attributedString
++                                       paragraphAttributes:(ParagraphAttributes)paragraphAttributes
++                                                     frame:(CGRect)frame
++                                            characterRange:(NSRange)range
++                                       expectedCurrentText:(NSString *)expectedCurrentText
++{
++  return [self readingPointWithAttributedString:attributedString paragraphAttributes:paragraphAttributes
++                                         frame:frame characterRange:range expectedCurrentText:expectedCurrentText query:nullptr];
++}
++
++- (TextReadingPointResult)readingPointWithAttributedString:(AttributedString)attributedString
++                                       paragraphAttributes:(ParagraphAttributes)paragraphAttributes
++                                                     frame:(CGRect)frame
++                                                   atPoint:(CGPoint)point
++                                                     query:(TextReadingPointQuery *)query
++{
++  if (!std::isfinite(frame.origin.x) || !std::isfinite(frame.origin.y) ||
++      !std::isfinite(frame.size.width) || !std::isfinite(frame.size.height) ||
++      frame.size.width <= 0 || frame.size.height <= 0) {
++    TextReadingPointResult result;
++    result.reason = TextReadingPointReason::OutsideContainer;
++    return result;
++  }
++  NSAttributedString *text = [self _nsAttributedStringFromAttributedString:attributedString];
++  if (query && query->paragraphAttributes && !(*query->paragraphAttributes == paragraphAttributes)) {
++    query->retire();
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  if (query && !query->paragraphAttributes) query->paragraphAttributes = std::make_shared<ParagraphAttributes>(paragraphAttributes);
++  if (query && !query->bindSource(self, text, frame)) {
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  // Match the renderer's existing empty-string guard: do not ask TextKit to
++  // layout/scale an empty string just to classify a removed witness.
++  NSTextStorage *storage = query && query->storage ? query->storage : text.length == 0 ? [[NSTextStorage alloc] initWithAttributedString:text]
++      : [self _textStorageAndLayoutManagerWithAttributesString:text
++                                          paragraphAttributes:paragraphAttributes
++                                                         size:frame.size];
++  if (query && !query->bindSource(self, text, frame)) {
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  if (query) query->storage = storage;
++  return RCTTextReadingPointAtPoint(storage, frame, point, query);
++}
++
++- (TextReadingPointResult)readingPointWithAttributedString:(AttributedString)attributedString
++                                       paragraphAttributes:(ParagraphAttributes)paragraphAttributes
++                                                     frame:(CGRect)frame
++                                            characterRange:(NSRange)range
++                                       expectedCurrentText:(NSString *)expectedCurrentText
++                                                     query:(TextReadingPointQuery *)query
++{
++  NSAttributedString *text = [self _nsAttributedStringFromAttributedString:attributedString];
++  if (query && query->paragraphAttributes && !(*query->paragraphAttributes == paragraphAttributes)) {
++    query->retire();
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  if (query && !query->paragraphAttributes) query->paragraphAttributes = std::make_shared<ParagraphAttributes>(paragraphAttributes);
++  if (query && !query->bindSource(self, text, frame)) {
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  // An empty committed paragraph often has zero height. Source removal can be
++  // classified without any glyph geometry or layout/scale request.
++  if (text.length == 0) {
++    return RCTTextReadingPointForRange(
++        [[NSTextStorage alloc] initWithAttributedString:text], frame, range, expectedCurrentText, query);
++  }
++  if (!std::isfinite(frame.origin.x) || !std::isfinite(frame.origin.y) ||
++      !std::isfinite(frame.size.width) || !std::isfinite(frame.size.height) ||
++      frame.size.width <= 0 || frame.size.height <= 0) {
++    TextReadingPointResult result;
++    result.reason = TextReadingPointReason::OutsideContainer;
++    return result;
++  }
++  NSTextStorage *storage = query && query->storage ? query->storage : [self _textStorageAndLayoutManagerWithAttributesString:text
++                                                             paragraphAttributes:paragraphAttributes
++                                                                            size:frame.size];
++  if (query && !query->bindSource(self, text, frame)) {
++    TextReadingPointResult result; result.reason = TextReadingPointReason::OwnerChanged; return result;
++  }
++  if (query) query->storage = storage;
++  return RCTTextReadingPointForRange(storage, frame, range, expectedCurrentText, query);
++}
++
+ - (void)drawAttributedString:(AttributedString)attributedString
+          paragraphAttributes:(ParagraphAttributes)paragraphAttributes
+                        frame:(CGRect)frame
+@@ -389,8 +485,11 @@ static NSLineBreakMode RCTNSLineBreakModeFromEllipsizeMode(EllipsizeMode ellipsi
      size.height = enumeratedLinesHeight;
    }
-
+ 
 -  size = (CGSize){ceil(size.width * layoutContext.pointScaleFactor) / layoutContext.pointScaleFactor,
 -                  ceil(size.height * layoutContext.pointScaleFactor) / layoutContext.pointScaleFactor};
 +  facebook::react::Size roundedSize = facebook::react::internal_roundTextMeasurementToPixelGrid(
@@ -68,26 +1574,455 @@ diff --git a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/ren
 +       .height = static_cast<facebook::react::Float>(size.height)},
 +      layoutContext.pointScaleFactor);
 +  size = CGSize{roundedSize.width, roundedSize.height};
-
+ 
    NSRange visibleGlyphRange = [layoutManager glyphRangeForTextContainer:textContainer];
-
+ 
+diff --git a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextReadingPoint.h b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextReadingPoint.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..19e26d4f17aaeeb9bd75f753398be311fbf3d49b
+--- /dev/null
++++ b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextReadingPoint.h
+@@ -0,0 +1,109 @@
++/*
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ * Licensed under the MIT license in the root LICENSE file.
++ */
++
++#pragma once
++
++#import <UIKit/UIKit.h>
++
++#include <cstdint>
++#include <memory>
++#include <vector>
++
++namespace facebook::react {
++
++enum class TextReadingPointStatus { Measured, Unavailable, Removed };
++enum class TextReadingPointReason {
++  None,
++  NoLayout,
++  InvalidRange,
++  SplitComposedCharacter,
++  SourceChanged,
++  EmptyCurrentText,
++  Attachment,
++  Truncated,
++  OutsideContainer,
++  NonRenderedRange,
++  OwnerChanged,
++  Detached,
++  WrongThread,
++  Invisible,
++};
++
++struct TextReadingPointFragment {
++  // Actual TextKit glyph bounds in paragraph-local coordinates. Separate
++  // fragments preserve multiline and bidirectional visual ordering.
++  CGRect rect;
++  NSRange characterRange;
++};
++
++struct TextReadingPointResult {
++  TextReadingPointStatus status{TextReadingPointStatus::Unavailable};
++  TextReadingPointReason reason{TextReadingPointReason::NoLayout};
++  NSString *__strong sourceText{nil};
++  NSRange characterRange{NSNotFound, 0};
++  std::vector<TextReadingPointFragment> fragments;
++  // Set by the mounted Paragraph, never by the layout manager. The owner
++  // identifies this physical mount lifetime; revision is not a Fabric epoch.
++  id __strong owner{nil};
++  uint64_t revision{0};
++};
++
++class ParagraphAttributes;
++
++// One synchronous mounted candidate only. Never retained on a view or across
++// mount callbacks; source/owner mismatches permanently retire this query.
++struct TextReadingPointQuery {
++  TextReadingPointQuery() = default;
++  TextReadingPointQuery(const TextReadingPointQuery &) = delete;
++  TextReadingPointQuery &operator=(const TextReadingPointQuery &) = delete;
++  id __weak physicalView{nil};
++  id __strong owner{nil};
++  uint64_t revision{0};
++  const void *state{nullptr};
++  id __strong nativeManager{nil};
++  CGRect contentFrame{CGRectZero};
++  bool ownerBound{false};
++  bool retired{false};
++  std::shared_ptr<const ParagraphAttributes> paragraphAttributes;
++  NSAttributedString *__strong attributedSource{nil};
++  CGRect storageFrame{CGRectZero};
++  NSTextStorage *__strong storage{nil};
++  id __strong glyphFonts{nil};
++  // One exact request only, inside this query's private renderer layout.
++  // Paragraph and manager guards still run before the helper may reuse it.
++  NSRange measuredRange{NSNotFound, 0};
++  TextReadingPointResult rangeResult;
++  void clearRangeResult() { measuredRange = NSMakeRange(NSNotFound, 0); rangeResult = {}; }
++  void retire() { retired = true; storage = nil; glyphFonts = nil; clearRangeResult(); }
++  bool bindOwner(id view, id token, uint64_t currentRevision, const void *currentState,
++                 id manager, CGRect frame) {
++    if (retired || (ownerBound && (physicalView != view || owner != token || revision != currentRevision ||
++        state != currentState || nativeManager != manager || !CGRectEqualToRect(contentFrame, frame)))) {
++      retire(); return false;
++    }
++    physicalView = view; owner = token; revision = currentRevision; state = currentState;
++    nativeManager = manager; contentFrame = frame; ownerBound = true; return true;
++  }
++  bool bindSource(id manager, NSAttributedString *source, CGRect frame) {
++    if (retired || (nativeManager && nativeManager != manager) ||
++        (attributedSource && (![attributedSource isEqualToAttributedString:source] ||
++                              !CGRectEqualToRect(storageFrame, frame)))) {
++      retire(); return false;
++    }
++    nativeManager = manager;
++    if (!attributedSource) { attributedSource = [source copy]; storageFrame = frame; }
++    return true;
++  }
++};
++
++// The storage must come from the renderer's drawing layout factory. These
++// operations do not reconstruct attributed text or infer offsets from lengths.
++TextReadingPointResult RCTTextReadingPointAtPoint(NSTextStorage *storage, CGRect contentFrame, CGPoint point,
++    TextReadingPointQuery *query = nullptr);
++TextReadingPointResult RCTTextReadingPointForRange(
++    NSTextStorage *storage, CGRect contentFrame, NSRange range, NSString *expectedCurrentText,
++    TextReadingPointQuery *query = nullptr);
++
++} // namespace facebook::react
+diff --git a/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextReadingPoint.mm b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextReadingPoint.mm
+new file mode 100644
+index 0000000000000000000000000000000000000000..f722b233764481b24e849e33feb0497d6883f410
+--- /dev/null
++++ b/ReactCommon/react/renderer/textlayoutmanager/platform/ios/react/renderer/textlayoutmanager/RCTTextReadingPoint.mm
+@@ -0,0 +1,306 @@
++/*
++ * Copyright (c) Meta Platforms, Inc. and affiliates.
++ * Licensed under the MIT license in the root LICENSE file.
++ */
++
++#import "RCTTextReadingPoint.h"
++
++#include <cmath>
++#import <CoreText/CoreText.h>
++
++// A passive glyph-generation delegate records the actual substituted font.
++// NSTextStorage font attributes alone cannot describe fallback/emoji shaping.
++@interface RCTReadingGlyphFonts : NSObject <NSLayoutManagerDelegate>
++@property (nonatomic, strong) NSMutableDictionary<NSNumber *, UIFont *> *fonts;
++@property (nonatomic, strong) NSMutableDictionary<NSNumber *, NSNumber *> *shapes;
++@end
++
++@implementation RCTReadingGlyphFonts
++- (instancetype)init
++{
++  if ((self = [super init])) { _fonts = [NSMutableDictionary new]; _shapes = [NSMutableDictionary new]; }
++  return self;
++}
++- (NSUInteger)layoutManager:(NSLayoutManager *)manager
++       shouldGenerateGlyphs:(const CGGlyph *)glyphs
++                 properties:(const NSGlyphProperty *)properties
++           characterIndexes:(const NSUInteger *)characterIndexes
++                       font:(UIFont *)font
++              forGlyphRange:(NSRange)range
++{
++  for (NSUInteger i = range.location; i < NSMaxRange(range); i++) {
++    _fonts[@(i)] = font; _shapes[@(i)] = @(glyphs[i - range.location]);
++  }
++  return 0; // Retain all default TextKit glyph generation and layout.
++}
++@end
++
++namespace facebook::react {
++namespace {
++
++bool validFrame(CGRect frame)
++{
++  return std::isfinite(frame.origin.x) && std::isfinite(frame.origin.y) &&
++      std::isfinite(frame.size.width) && std::isfinite(frame.size.height) &&
++      frame.size.width > 0 && frame.size.height > 0;
++}
++
++bool validRange(NSRange range, NSUInteger length)
++{
++  return range.location != NSNotFound && range.length > 0 && range.location <= length &&
++      range.length <= length - range.location;
++}
++
++bool containsRange(NSRange outer, NSRange inner)
++{
++  return inner.location >= outer.location && inner.location - outer.location <= outer.length &&
++      inner.length <= outer.length - (inner.location - outer.location);
++}
++
++TextReadingPointResult unavailable(NSString *text, TextReadingPointReason reason)
++{
++  TextReadingPointResult result;
++  result.sourceText = [text copy];
++  result.reason = reason;
++  return result;
++}
++
++bool composedRange(NSString *text, NSRange range)
++{
++  return validRange(range, text.length) &&
++      NSEqualRanges([text rangeOfComposedCharacterSequencesForRange:range], range);
++}
++
++bool renderedCharacter(NSString *text, NSRange range)
++{
++  return [[text substringWithRange:range]
++      rangeOfCharacterFromSet:[[NSCharacterSet whitespaceAndNewlineCharacterSet] invertedSet]].location != NSNotFound;
++}
++
++RCTReadingGlyphFonts *prepareGlyphs(NSTextStorage *storage, NSLayoutManager *manager, NSTextContainer *container, TextReadingPointQuery *query)
++{
++  if (query && query->glyphFonts && query->storage == storage) return (RCTReadingGlyphFonts *)query->glyphFonts;
++  // Query storage is created by the draw factory and never shared with the
++  // displayed paragraph. Regenerate after font scaling to observe final fonts.
++  RCTReadingGlyphFonts *fonts = [RCTReadingGlyphFonts new];
++  manager.delegate = fonts;
++  [manager invalidateGlyphsForCharacterRange:NSMakeRange(0, storage.length)
++                            changeInLength:0 actualCharacterRange:nullptr];
++  [manager ensureLayoutForTextContainer:container];
++  if (query) { query->storage = storage; query->glyphFonts = fonts; }
++  return fonts;
++}
++
++bool syntheticGlyph(NSLayoutManager *manager, RCTReadingGlyphFonts *fonts, NSUInteger glyph)
++{
++  NSNumber *generated = fonts.shapes[@(glyph)];
++  UIFont *font = fonts.fonts[@(glyph)];
++  if (!generated || !font || generated.unsignedShortValue == [manager CGGlyphAtIndex:glyph] ||
++      ([manager propertyForGlyphAtIndex:glyph] & NSGlyphPropertyNull) != 0) { return false; }
++  // Ordinary shaping changes source glyph IDs too (ligatures and composed
++  // emoji). Only synthetic ellipsis is disallowed by this extra check.
++  UniChar character = 0x2026;
++  CGGlyph ellipsis;
++  return CTFontGetGlyphsForCharacters((__bridge CTFontRef)font, &character, &ellipsis, 1) &&
++      ellipsis == [manager CGGlyphAtIndex:glyph];
++}
++
++// Only mounted Paragraph queries own a private, source-bound drawing layout.
++// Legacy helper/manager calls without that binding remain uncached.
++bool ownsRangeLayout(TextReadingPointQuery *query, NSTextStorage *storage, CGRect frame)
++{
++  return query && !query->retired && query->ownerBound && query->physicalView && query->owner &&
++      query->nativeManager && query->paragraphAttributes && query->attributedSource &&
++      query->storage == storage && CGRectEqualToRect(query->contentFrame, frame) &&
++      CGRectEqualToRect(query->storageFrame, frame);
++}
++
++TextReadingPointResult measureRange(NSTextStorage *storage, CGRect frame, NSRange range, TextReadingPointQuery *query)
++{
++  if (query) query->clearRangeResult();
++  NSString *text = storage.string;
++  if (query && query->retired) return unavailable(text, TextReadingPointReason::OwnerChanged);
++  NSLayoutManager *manager = storage.layoutManagers.firstObject;
++  NSTextContainer *container = manager.textContainers.firstObject;
++  if (!manager || !container || !validFrame(frame) || !CGSizeEqualToSize(container.size, frame.size)) {
++    return unavailable(text, TextReadingPointReason::NoLayout);
++  }
++  RCTReadingGlyphFonts *fonts = prepareGlyphs(storage, manager, container, query);
++  NSRange actualCharacters;
++  NSRange glyphs = [manager glyphRangeForCharacterRange:range actualCharacterRange:&actualCharacters];
++  if (!validRange(actualCharacters, text.length) || !validRange(glyphs, manager.numberOfGlyphs)) {
++    return unavailable(text, TextReadingPointReason::NonRenderedRange);
++  }
++  // TextKit may expand a ligature. The composed range may in turn include more
++  // glyphs (e.g. ZWJ emoji); settle using the actual bidirectional mappings.
++  while (true) {
++    NSRange cluster = [text rangeOfComposedCharacterSequencesForRange:actualCharacters];
++    NSRange nextCharacters;
++    NSRange nextGlyphs = [manager glyphRangeForCharacterRange:cluster actualCharacterRange:&nextCharacters];
++    if (NSEqualRanges(actualCharacters, nextCharacters) && NSEqualRanges(glyphs, nextGlyphs)) {
++      break;
++    }
++    if (!containsRange(nextCharacters, actualCharacters) || !validRange(nextCharacters, text.length)) {
++      return unavailable(text, TextReadingPointReason::NonRenderedRange);
++    }
++    actualCharacters = nextCharacters;
++    glyphs = nextGlyphs;
++  }
++  if (!validRange(actualCharacters, text.length) || !validRange(glyphs, manager.numberOfGlyphs)) {
++    return unavailable(text, TextReadingPointReason::NonRenderedRange);
++  }
++  NSRange laidOut = [manager glyphRangeForTextContainer:container];
++  if (!containsRange(laidOut, glyphs)) {
++    return unavailable(text, TextReadingPointReason::OutsideContainer);
++  }
++  __block bool attachment = false;
++  [storage enumerateAttribute:NSAttachmentAttributeName
++                      inRange:actualCharacters
++                      options:0
++                   usingBlock:^(id value, NSRange attributeRange, BOOL *stop) {
++                     if (value) {
++                       attachment = true;
++                       *stop = YES;
++                     }
++                   }];
++  if (attachment || [[text substringWithRange:actualCharacters] rangeOfString:@"\uFFFC"].location != NSNotFound) {
++    return unavailable(text, TextReadingPointReason::Attachment);
++  }
++  __block bool invisible = false;
++  [storage enumerateAttribute:NSForegroundColorAttributeName inRange:actualCharacters options:0
++                   usingBlock:^(id value, NSRange attributeRange, BOOL *stop) {
++    if (value && CGColorGetAlpha([value CGColor]) <= 0) { invisible = true; *stop = YES; }
++  }];
++  if (invisible) { return unavailable(text, TextReadingPointReason::Invisible); }
++  TextReadingPointResult result;
++  result.sourceText = [text copy];
++  result.characterRange = actualCharacters;
++  CGRect localContainer = {CGPointZero, frame.size};
++  for (NSUInteger glyph = glyphs.location; glyph < NSMaxRange(glyphs); glyph++) {
++    // Some TextKit implementations replace a head/middle run with ellipsis
++    // but expose no truncatedGlyphRange. The final glyph differs from the
++    // actual generated source glyph; it cannot certify a source character.
++    if (syntheticGlyph(manager, fonts, glyph)) {
++      return unavailable(text, TextReadingPointReason::Truncated);
++    }
++    NSRange truncated = [manager truncatedGlyphRangeInLineFragmentForGlyphAtIndex:glyph];
++    if (truncated.location != NSNotFound && NSIntersectionRange(truncated, glyphs).length > 0) {
++      return unavailable(text, TextReadingPointReason::Truncated);
++    }
++    NSRange characters = [manager characterRangeForGlyphRange:NSMakeRange(glyph, 1) actualGlyphRange:nullptr];
++    if (!validRange(characters, text.length)) {
++      return unavailable(text, TextReadingPointReason::NonRenderedRange);
++    }
++    if (([manager propertyForGlyphAtIndex:glyph] & NSGlyphPropertyControlCharacter) != 0 ||
++        [manager notShownAttributeForGlyphAtIndex:glyph] || !renderedCharacter(text, characters)) {
++      continue;
++    }
++    UIFont *font = fonts.fonts[@(glyph)];
++    if (!font) { return unavailable(text, TextReadingPointReason::NoLayout); }
++    CGGlyph shape = [manager CGGlyphAtIndex:glyph];
++    if (([manager propertyForGlyphAtIndex:glyph] & NSGlyphPropertyNull) != 0) { continue; }
++    CGRect ink;
++    CTFontGetBoundingRectsForGlyphs((__bridge CTFontRef)font, kCTFontOrientationHorizontal, &shape, &ink, 1);
++    CGPoint location = [manager locationForGlyphAtIndex:glyph];
++    CGRect line = [manager lineFragmentRectForGlyphAtIndex:glyph effectiveRange:nullptr];
++    // Font ink is y-up relative to the baseline; TextKit positions are y-down
++    // within the line fragment. No character-width interpolation is involved.
++    CGRect rect = CGRectMake(line.origin.x + location.x + ink.origin.x,
++                             line.origin.y + location.y - CGRectGetMaxY(ink),
++                             ink.size.width, ink.size.height);
++    if (!validFrame(rect)) {
++      continue;
++    }
++    if (!CGRectContainsRect(localContainer, rect)) {
++      return unavailable(text, TextReadingPointReason::OutsideContainer);
++    }
++    result.fragments.push_back({CGRectOffset(rect, frame.origin.x, frame.origin.y), characters});
++  }
++  if (result.fragments.empty()) {
++    return unavailable(text, TextReadingPointReason::NonRenderedRange);
++  }
++  result.status = TextReadingPointStatus::Measured;
++  result.reason = TextReadingPointReason::None;
++  if (ownsRangeLayout(query, storage, frame)) {
++    query->measuredRange = range;
++    query->rangeResult = result;
++  }
++  return result;
++}
++
++} // namespace
++
++TextReadingPointResult RCTTextReadingPointForRange(
++    NSTextStorage *storage, CGRect frame, NSRange range, NSString *expectedCurrentText, TextReadingPointQuery *query)
++{
++  NSString *text = storage.string;
++  if (query && query->retired) return unavailable(text, TextReadingPointReason::OwnerChanged);
++  if (!storage || !expectedCurrentText || !validRange(range, expectedCurrentText.length)) {
++    return unavailable(text, TextReadingPointReason::InvalidRange);
++  }
++  if (!composedRange(expectedCurrentText, range)) {
++    return unavailable(text, TextReadingPointReason::SplitComposedCharacter);
++  }
++  if (text.length == 0) {
++    auto result = unavailable(text, TextReadingPointReason::EmptyCurrentText);
++    result.status = TextReadingPointStatus::Removed;
++    return result;
++  }
++  if (![text isEqualToString:expectedCurrentText]) {
++    return unavailable(text, TextReadingPointReason::SourceChanged);
++  }
++  if (ownsRangeLayout(query, storage, frame) && NSEqualRanges(query->measuredRange, range) &&
++      query->rangeResult.status == TextReadingPointStatus::Measured) {
++    return query->rangeResult;
++  }
++  return measureRange(storage, frame, range, query);
++}
++
++TextReadingPointResult RCTTextReadingPointAtPoint(NSTextStorage *storage, CGRect frame, CGPoint point, TextReadingPointQuery *query)
++{
++  NSString *text = storage.string;
++  if (query && query->retired) return unavailable(text, TextReadingPointReason::OwnerChanged);
++  if (!storage || text.length == 0) {
++    return unavailable(text, TextReadingPointReason::NoLayout);
++  }
++  if (!validFrame(frame) || !std::isfinite(point.x) || !std::isfinite(point.y) || !CGRectContainsPoint(frame, point)) {
++    return unavailable(text, TextReadingPointReason::OutsideContainer);
++  }
++  NSLayoutManager *manager = storage.layoutManagers.firstObject;
++  NSTextContainer *container = manager.textContainers.firstObject;
++  if (!manager || !container || !CGSizeEqualToSize(container.size, frame.size)) {
++    return unavailable(text, TextReadingPointReason::NoLayout);
++  }
++  RCTReadingGlyphFonts *fonts = prepareGlyphs(storage, manager, container, query);
++  CGPoint local = CGPointMake(point.x - frame.origin.x, point.y - frame.origin.y);
++  NSUInteger glyph = [manager glyphIndexForPoint:local inTextContainer:container fractionOfDistanceThroughGlyph:nullptr];
++  if (glyph >= manager.numberOfGlyphs) {
++    return unavailable(text, TextReadingPointReason::NonRenderedRange);
++  }
++  // Ellipsis is synthetic, not a character in the attributed string. Do not
++  // certify a snapped source index anywhere on a truncated line during a hit.
++  if ([manager truncatedGlyphRangeInLineFragmentForGlyphAtIndex:glyph].location != NSNotFound) {
++    return unavailable(text, TextReadingPointReason::Truncated);
++  }
++  NSRange line;
++  [manager lineFragmentRectForGlyphAtIndex:glyph effectiveRange:&line];
++  for (NSUInteger i = line.location; i < NSMaxRange(line); i++) {
++    if (syntheticGlyph(manager, fonts, i)) { return unavailable(text, TextReadingPointReason::Truncated); }
++  }
++  NSRange characters = [manager characterRangeForGlyphRange:NSMakeRange(glyph, 1) actualGlyphRange:nullptr];
++  if (!validRange(characters, text.length)) {
++    return unavailable(text, TextReadingPointReason::NonRenderedRange);
++  }
++  auto result = measureRange(storage, frame, [text rangeOfComposedCharacterSequencesForRange:characters], query);
++  if (result.status != TextReadingPointStatus::Measured) {
++    return result;
++  }
++  for (const auto &fragment : result.fragments) {
++    if (CGRectContainsPoint(fragment.rect, point)) {
++      return result;
++    }
++  }
++  return unavailable(text, TextReadingPointReason::NonRenderedRange);
++}
++
++} // namespace facebook::react
 diff --git a/ReactCommon/react/renderer/textlayoutmanager/tests/TextLayoutManagerTest.cpp b/ReactCommon/react/renderer/textlayoutmanager/tests/TextLayoutManagerTest.cpp
+index 40258861855b6a7e8fe6bdd526fa02d0d5c93bbf..dec19b45235ce8a677b882ec6ba16f2b32998e2a 100644
 --- a/ReactCommon/react/renderer/textlayoutmanager/tests/TextLayoutManagerTest.cpp
 +++ b/ReactCommon/react/renderer/textlayoutmanager/tests/TextLayoutManagerTest.cpp
-@@ -6,10 +6,12 @@
+@@ -5,14 +5,60 @@
+  * LICENSE file in the root directory of this source tree.
   */
-
+ 
 +#include <cmath>
  #include <memory>
-
+ 
  #include <gtest/gtest.h>
-
+ 
  #include <react/renderer/textlayoutmanager/TextLayoutManager.h>
 +#include <react/renderer/textlayoutmanager/TextMeasurementRounding.h>
-
+ 
  using namespace facebook::react;
-
-@@ -16,2 +18,46 @@ TEST(TextLayoutManagerTest, testSomething) {
+ 
+ TEST(TextLayoutManagerTest, testSomething) {
    // TODO:
  }
 +

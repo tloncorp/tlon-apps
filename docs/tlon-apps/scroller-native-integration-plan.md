@@ -168,3 +168,50 @@ Raw baseline and matching source/report hashes are preserved at
 The six production source hashes are unchanged from the 110-case baseline.
 App TypeScript checking passes; scoped lint has no errors and only the same
 15 existing explicit-any warnings. Test formatting completed.
+
+### Refactor cancellation controls
+
+Declared before execution of the new controls. A renderer reports a direct user
+intent change independently of its bottom-proximity callback. While latest is
+loading, that event must immediately retire the pressed state and prevent a
+command after loading finishes. It must also neutralize a captured frame even
+if cancellation cannot prevent delivery. After a selected-anchor visit changes,
+its captured control action and bottom callback cannot act on the replacement.
+These extend NINT-05/06; native gestures and visual geometry remain separate.
+
+The row extraction also retains two failures reproduced against the original
+row comparator: changing only the renderer or delete action must update an
+otherwise unchanged message. Both are ordinary prop-delivery assertions.
+
+### Native READ integration awaiting R9 runtime qualification
+
+The production list now publishes physical scope/visit/intent and ordered row
+membership. ContentRenderer owns the actual rendered block manifest; supported
+Paragraph and image hosts register their text/media identity and readiness.
+Ambiguous block replacement stays unavailable rather than pretending deletion.
+The native provider binds to the nearest actual scroll view and RNSScreen.
+Screen coverage, detach, commands and gestures retire prior reading authority.
+The fixture now runs inside an actual active RNSScreen on iOS.
+
+RN captures a provisional reading point before a mounting transaction. Current
+scope admission may promote only that candidate; an admitted unavailable point
+cannot silently hand movement to another writer. Legend sends relative READ
+adjustments with the exact committed intent. Native command/gesture invalidation
+prevents queued adjustments for an older intent from moving the new viewport.
+Offscreen target dispatch re-resolves geometry and retains the outgoing native
+viewport until the current target receives native acknowledgement.
+
+Installed-source checks pass 87 RN READ and 408 Legend controls, plus 17 existing
+RN MVCP controls. The affected app batch passes 129 tests; full app typechecking
+passes after adding the animated wrapper's missing type declarations. Separate
+screen lifecycle, actual text-layout, provider and content-carrier controls are
+recorded in their contracts and receipts. These are host/component results,
+not UIKit/Fabric or presented-frame qualification. Integration receipts are in
+`/private/tmp/scroller-native-tagged-integration-20260907`; prior failing source
+controls remain in `/private/tmp/scroller-native-read-handoff-20260907`.
+
+The next runtime batch repeats the same nine R8 cases and thresholds. Supported
+text/image carriers do not cover moderation replacement, complex custom blocks,
+all covered-route restoration, native media loading or presentation timing.
+Native diagnostic ownership fields aid diagnosis; geometric acceptance remains
+independent of those fields.

@@ -11,10 +11,11 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     channel: 'chromium',
-    headless: false,
+    headless: process.env.SCROLLER_HEADED !== '1',
     viewport: { width: 1280, height: 800 },
-    // Full headed Chromium avoids this host's independently measured 10 Hz
-    // headless scheduling. Raw DOM traces remain the detector evidence.
+    // Visible runs are opt-in so worker restarts do not interrupt desktop work.
+    // Cadence checks remain strict in either mode; a headless pass does not
+    // replace visible-rendering or presentation evidence.
     trace: 'off',
     screenshot: 'only-on-failure',
   },

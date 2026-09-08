@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { replayNativeRecording } from '../../../scripts/scroll-stability-native-recording-evidence.mjs';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   adaptBufferedNativeScrollGeometry,
+  adaptNativeScrollGeometry,
   type NativeGeometryView,
 } from './scrollNativeGeometry';
 import {
@@ -9,6 +12,17 @@ import {
   type NativeRecording,
   type NativeRecordingContract,
 } from './scrollNativeRecording';
+
+import {
+  replayNativeRecording,
+  // @ts-expect-error The existing JavaScript CLI export has no declaration.
+  replayNativeBottomContinuity,
+} from '../../../scripts/scroll-stability-native-recording-evidence.mjs';
+// @ts-expect-error This deliberately tests the untyped JavaScript CLI boundary.
+import { assessNativeEvidence } from '../../../scripts/scroll-stability-native-evidence.mjs';
+// @ts-expect-error This deliberately tests the untyped JavaScript report boundary.
+import * as reporter from '../../../scripts/scroll-stability-report.mjs';
+const { classifyEvidence, qualifyEvidence } = reporter;
 
 function evidence() {
   const contract: NativeRecordingContract = {
@@ -126,52 +140,396 @@ function evidence() {
 const assess = ({ raw, contract }: ReturnType<typeof evidence>) =>
   assessNativeRecording(raw, contract, adaptBufferedNativeScrollGeometry);
 
-describe('native buffered acquisition', () => {
-  it('independently binds the recording to the declared native scenario and duration', () => {
-    const { raw, contract } = evidence();
-    const recordingId = 'run:append-history:1';
-    raw.recordingId = contract.recordingId = recordingId;
-    raw.request.durationMs = contract.request.durationMs = 3300;
-    contract.minimumDurationMs = 1675;
-    const template = raw.frames[1];
-    raw.frames = Array.from({ length: 111 }, (_, sequence) => {
-      const frame = structuredClone(template);
-      frame.sequence = sequence;
-      frame.trigger = sequence === 0 ? 'start' : 'display-link';
-      frame.geometry.requestId = `${recordingId}:${sequence}`;
-      frame.geometry.startedAt = 10_000 + sequence * 16;
-      frame.geometry.finishedAt = frame.geometry.startedAt + 1;
-      frame.displayLinkTimestamp = frame.geometry.startedAt - 1;
-      frame.displayLinkTargetTimestamp = frame.geometry.startedAt + 15;
-      return frame;
-    });
-    raw.stoppedAt = 11_770;
-    const trace = {
-      fixtureVersion: 2,
-      platform: 'ios',
-      productCoverage: 'local-component-fixture',
-      runId: 'run',
-      scenario: 'append-history',
-      originalDataKeys: ['reading', 'newer'],
-      nativeRecording: raw,
-      nativeRecordingContract: contract,
-      nativeRecordingAcquisition: { verdict: 'PASS' },
+// Synthetic native-walk controls. The real R15/R17 recordings are separate
+// replay evidence and are not required by this durable test.
+function bottomEvidence() {
+  const { raw, contract } = evidence();
+  const scenario = 'thinking-show-hide-end';
+  const recordingId = `bottom-run:${scenario}:1`;
+  raw.recordingId = contract.recordingId = recordingId;
+  raw.request.durationMs = contract.request.durationMs = 3900;
+  contract.minimumDurationMs = 2275;
+  contract.requiredKeys = [];
+  const template = raw.frames[1];
+  raw.frames = Array.from({ length: 151 }, (_, sequence) => {
+    const frame = structuredClone(template);
+    frame.sequence = sequence;
+    frame.trigger = sequence ? 'display-link' : 'start';
+    frame.geometry.requestId = `${recordingId}:${sequence}`;
+    frame.geometry.startedAt = 10000 + sequence * 16;
+    frame.geometry.finishedAt = frame.geometry.startedAt + 1;
+    frame.displayLinkTimestamp = frame.geometry.startedAt - 1;
+    frame.displayLinkTargetTimestamp = frame.geometry.startedAt + 15;
+    const g = frame.geometry;
+    g.scroll!.offset.y = g.scroll!.bounds.y = 1500;
+    for (const view of [g.root!, g.scroll!.view, g.composer!]) {
+      view.lifetimeIdentity = `lifetime:${view.identity}`;
+    }
+    g.nativeReading = {
+      committedMembership: {
+        version: 1,
+        status: 'ok',
+        scopeIdentity: 'scope-lifetime',
+        scope: 'channel',
+        visit: 'visit-7',
+        dataRevision: '1',
+        rows: [
+          { key: 'reading', revision: '1' },
+          { key: 'newer', revision: '2' },
+        ],
+      },
     };
-    expect(replayNativeRecording(trace)).toMatchObject({
-      verdict: 'COMPLETE',
-      productVerdict: 'UNASSESSED',
-    });
-    contract.minimumDurationMs = 100;
-    expect(replayNativeRecording(trace).issues[0].code).toBe(
-      'native-recording-duration-contract-changed'
-    );
-    contract.minimumDurationMs = 1675;
-    trace.runId = 'other-run';
-    expect(replayNativeRecording(trace).verdict).toBe('INCOMPLETE');
-    trace.runId = 'run';
-    raw.frames[20].geometry.finishedAt += 40;
-    expect(replayNativeRecording(trace).verdict).toBe('INCOMPLETE');
+    return frame;
   });
+  raw.stoppedAt = 12410;
+  return {
+    fixtureVersion: 2,
+    platform: 'ios',
+    productCoverage: 'local-component-fixture',
+    runId: 'bottom-run',
+    scenario,
+    assertion: 'bottom',
+    originalDataKeys: ['reading', 'newer'],
+    expectations: { bottom: { tailKey: 'newer', tolerancePt: 1 } },
+    nativeRecording: raw,
+    nativeRecordingContract: contract,
+    emptyEndThroughout: false,
+  };
+}
+
+describe('buffered native bottom continuity', () => {
+  it('preserves a native failure when the sampled contract is incomplete', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.offset.y -= 52;
+    trace.nativeRecording.frames[40].geometry.scroll!.bounds.y -= 52;
+    expect(assessNativeEvidence(trace)).toMatchObject({
+      status: 'fail',
+      sampledGeometry: { status: 'incomplete' },
+      nativeContinuity: { verdict: 'FAIL' },
+    });
+  });
+  it('does not grant a full pass from native continuity alone', () => {
+    expect(assessNativeEvidence(bottomEvidence())).toMatchObject({
+      status: 'incomplete',
+      sampledGeometry: { status: 'incomplete' },
+      nativeContinuity: { verdict: 'PASS', nativePresentation: 'INCOMPLETE' },
+    });
+  });
+  it.each([0, 250, 2000.375])(
+    'uses the legal end for content height %s',
+    (height) => {
+      const trace = bottomEvidence();
+      for (const { geometry } of trace.nativeRecording.frames) {
+        const scroll = geometry.scroll!;
+        scroll.contentSize.height = height;
+        scroll.offset.y = scroll.bounds.y = Math.max(0, height - 600 + 100);
+      }
+      expect(replayNativeBottomContinuity(trace)).toMatchObject({
+        verdict: 'PASS',
+        metrics: { observedFrames: 151, maxEndDistancePt: 0 },
+      });
+    }
+  );
+  it('qualifies the complete stationary native geometry, without claiming actions or presentation', () => {
+    expect(replayNativeBottomContinuity(bottomEvidence())).toMatchObject({
+      verdict: 'PASS',
+      productActions: 'UNASSESSED',
+      nativePresentation: 'INCOMPLETE',
+      metrics: { observedFrames: 151, maxEndDistancePt: 0 },
+    });
+  });
+  it('catches a single 52pt gap followed by perfect recovery', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.contentSize.height += 52;
+    expect(replayNativeRecording(trace).verdict).toBe('COMPLETE');
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'FAIL',
+      metrics: { observedFrames: 151, maxEndDistancePt: 52 },
+      issues: [{ code: 'native-bottom-gap', frame: 40, kind: 'failure' }],
+    });
+  });
+  it('does not use producer PASS flags or sparse JavaScript samples to erase a native gap', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.contentSize.height += 52;
+    expect(
+      replayNativeBottomContinuity({
+        ...trace,
+        samples: [
+          { time: 0, scroll: 1500 },
+          { time: 2000, scroll: 1500 },
+        ],
+        result: { verdict: 'PASS' },
+        nativeContinuity: { verdict: 'PASS' },
+        changedData: false,
+      }).verdict
+    ).toBe('FAIL');
+  });
+  it('preserves a qualified failure before a later coverage gap', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.contentSize.height += 52;
+    for (const f of trace.nativeRecording.frames.slice(100)) {
+      f.geometry.startedAt += 200;
+      f.geometry.finishedAt += 200;
+      f.displayLinkTimestamp! += 200;
+      f.displayLinkTargetTimestamp! += 200;
+    }
+    trace.nativeRecording.stoppedAt += 200;
+    const result = replayNativeBottomContinuity(trace);
+    expect(result.verdict).toBe('FAIL');
+    expect(result.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'acquisition:native-recording-coverage-gap',
+          frame: 100,
+        }),
+        expect.objectContaining({ code: 'native-bottom-gap', frame: 40 }),
+      ])
+    );
+    expect(result.metrics.observedFrames).toBe(100);
+  });
+  it('does not interpret an invalid starting position as an action-caused failure', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[0].geometry.scroll!.contentSize.height += 52;
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'INCOMPLETE',
+      metrics: { observedFrames: 0 },
+      issues: [
+        {
+          code: 'native-bottom-baseline-not-at-end',
+          frame: 0,
+          kind: 'incomplete',
+        },
+      ],
+    });
+  });
+  it.each(['tracking', 'dragging', 'decelerating'] as const)(
+    'retires stationary evidence at native %s',
+    (flag) => {
+      const trace = bottomEvidence();
+      trace.nativeRecording.frames[50].geometry.scroll![flag] = true;
+      trace.nativeRecording.frames[51].geometry.scroll!.contentSize.height += 52;
+      expect(replayNativeBottomContinuity(trace)).toMatchObject({
+        verdict: 'INCOMPLETE',
+        metrics: { observedFrames: 50, maxEndDistancePt: 0 },
+        issues: [
+          { code: 'native-bottom-gesture', frame: 50, kind: 'incomplete' },
+        ],
+      });
+    }
+  );
+  it('does not revive evidence after a same-value physical-owner return', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[50].geometry.root!.lifetimeIdentity =
+      'different-lifetime';
+    trace.nativeRecording.frames[51].geometry.scroll!.contentSize.height += 52;
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'INCOMPLETE',
+      metrics: { observedFrames: 50, maxEndDistancePt: 0 },
+      issues: [
+        { code: 'native-bottom-owner-replaced', frame: 50, kind: 'incomplete' },
+      ],
+    });
+  });
+  it('retains a valid earlier failure alongside later lost ownership', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.contentSize.height += 52;
+    trace.nativeRecording.frames[50].geometry.root!.lifetimeIdentity =
+      'different-lifetime';
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'FAIL',
+      metrics: { observedFrames: 50, maxEndDistancePt: 52 },
+    });
+  });
+  it('retains a qualified gap before the acquisition reader sees a later pointer replacement', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.contentSize.height += 52;
+    trace.nativeRecording.frames[50].geometry.root!.identity =
+      'different-pointer';
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'FAIL',
+      metrics: { observedFrames: 50, maxEndDistancePt: 52 },
+    });
+  });
+  it('retains a qualified gap before a later malformed frame, without zipping across the hole', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[40].geometry.scroll!.contentSize.height += 52;
+    // The input reader accepts unknown data; simulate a malformed serialized frame.
+    Object.assign(trace.nativeRecording.frames[50], { geometry: null });
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'FAIL',
+      metrics: { observedFrames: 50, maxEndDistancePt: 52 },
+    });
+  });
+  it('requires actual native lifetime identity', () => {
+    const trace = bottomEvidence();
+    delete trace.nativeRecording.frames[0].geometry.composer!.lifetimeIdentity;
+    expect(replayNativeBottomContinuity(trace).verdict).toBe('INCOMPLETE');
+  });
+  it('rejects a changed native scope even when geometry is identical', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[50].geometry.nativeReading = {
+      committedMembership: {
+        version: 1,
+        status: 'ok',
+        scopeIdentity: 'scope-lifetime',
+        scope: 'channel',
+        visit: 'other-visit',
+      },
+    };
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'INCOMPLETE',
+      metrics: { observedFrames: 50 },
+    });
+  });
+  it('does not treat native dictionary field ordering as a layout change', () => {
+    const trace = bottomEvidence();
+    const frame = trace.nativeRecording.frames[50].geometry.root!.frame;
+    trace.nativeRecording.frames[50].geometry.root!.frame = {
+      height: frame.height,
+      width: frame.width,
+      y: frame.y,
+      x: frame.x,
+    };
+    expect(replayNativeBottomContinuity(trace).verdict).toBe('PASS');
+  });
+  it('rejects a changed stationary viewport and keeps it out of gap arithmetic', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[50].geometry.scroll!.adjustedContentInset.bottom += 2;
+    expect(replayNativeBottomContinuity(trace)).toMatchObject({
+      verdict: 'INCOMPLETE',
+      metrics: { maxEndDistancePt: 0 },
+    });
+  });
+  it('does not zip a shortened sample list to remaining raw frames', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.frames[50].geometry.rowIds = [];
+    expect(replayNativeBottomContinuity(trace).verdict).toBe('INCOMPLETE');
+  });
+  it('requires acquisition to begin before its native action marker', () => {
+    const trace = bottomEvidence();
+    trace.nativeRecording.markers[0].time = trace.nativeRecording.startedAt;
+    expect(replayNativeBottomContinuity(trace).verdict).toBe('INCOMPLETE');
+  });
+  it('rejects a weakened position tolerance', () => {
+    const trace = bottomEvidence();
+    trace.expectations.bottom.tolerancePt = 60;
+    expect(replayNativeBottomContinuity(trace).verdict).toBe('INCOMPLETE');
+  });
+  it.each([
+    'entry-latest',
+    'command-center',
+    'gesture',
+    'armed-thinking-gesture',
+    'unknown',
+  ])('does not claim the %s policy', (scenario) => {
+    expect(
+      replayNativeBottomContinuity({ ...bottomEvidence(), scenario }).verdict
+    ).toBe('UNASSESSED');
+  });
+});
+
+describe('native buffered acquisition', () => {
+  it.each([
+    ['append-history', 1800],
+    ['command-center', 2800],
+    ['command-offscreen', 2800],
+  ] as const)(
+    'independently binds %s to its declared native duration',
+    (scenario, duration) => {
+      const { raw, contract } = evidence();
+      const recordingId = `run:${scenario}:1`;
+      raw.recordingId = contract.recordingId = recordingId;
+      raw.request.durationMs = contract.request.durationMs = duration + 1500;
+      contract.minimumDurationMs = duration - 125;
+      const template = raw.frames[1];
+      raw.frames = Array.from(
+        { length: Math.ceil((duration - 40) / 16) + 1 },
+        (_, sequence) => {
+          const frame = structuredClone(template);
+          frame.sequence = sequence;
+          frame.trigger = sequence === 0 ? 'start' : 'display-link';
+          frame.geometry.requestId = `${recordingId}:${sequence}`;
+          frame.geometry.startedAt = 10_000 + sequence * 16;
+          frame.geometry.finishedAt = frame.geometry.startedAt + 1;
+          frame.displayLinkTimestamp = frame.geometry.startedAt - 1;
+          frame.displayLinkTargetTimestamp = frame.geometry.startedAt + 15;
+          return frame;
+        }
+      );
+      raw.stoppedAt = 10_000 + duration - 30;
+      const trace = {
+        fixtureVersion: 2,
+        platform: 'ios',
+        productCoverage: 'local-component-fixture',
+        runId: 'run',
+        scenario,
+        originalDataKeys: ['reading', 'newer'],
+        nativeRecording: raw,
+        nativeRecordingContract: contract,
+        nativeRecordingAcquisition: { verdict: 'PASS' },
+      };
+      if (scenario === 'command-offscreen') {
+        const changedMinimum = structuredClone(trace);
+        changedMinimum.nativeRecordingContract.minimumDurationMs = 100;
+        const changedCapacity = structuredClone(trace);
+        changedCapacity.nativeRecordingContract.request.durationMs = 3300;
+        const cwd = [process.cwd(), resolve(process.cwd(), '../..')].find(
+          (path) =>
+            existsSync(
+              resolve(
+                path,
+                'scripts/scroll-stability-native-recording-evidence.mjs'
+              )
+            )
+        );
+        if (!cwd) throw new Error('Native replay repository root unavailable');
+        const output = execFileSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            '--input-type=module',
+            '--eval',
+            `import { readFileSync } from 'node:fs';
+import { replayNativeRecording } from './scripts/scroll-stability-native-recording-evidence.mjs';
+process.stdout.write(JSON.stringify(JSON.parse(readFileSync(0, 'utf8')).map(replayNativeRecording)));`,
+          ],
+          {
+            cwd,
+            env: { ...process.env, NODE_OPTIONS: '' },
+            input: JSON.stringify([trace, changedMinimum, changedCapacity]),
+            encoding: 'utf8',
+            timeout: 10000,
+            stdio: ['pipe', 'pipe', 'pipe'],
+          }
+        );
+        const [healthy, minimum, capacity] = JSON.parse(output);
+        expect(healthy).toMatchObject({
+          verdict: 'COMPLETE',
+          productVerdict: 'UNASSESSED',
+        });
+        for (const rejected of [minimum, capacity]) {
+          expect(rejected).toMatchObject({
+            verdict: 'INCOMPLETE',
+            issues: [{ code: 'native-recording-duration-contract-changed' }],
+          });
+        }
+      }
+      expect(replayNativeRecording(trace)).toMatchObject({
+        verdict: 'COMPLETE',
+        productVerdict: 'UNASSESSED',
+      });
+      contract.minimumDurationMs = 100;
+      expect(replayNativeRecording(trace).issues[0].code).toBe(
+        'native-recording-duration-contract-changed'
+      );
+      contract.minimumDurationMs = duration - 125;
+      trace.runId = 'other-run';
+      expect(replayNativeRecording(trace).verdict).toBe('INCOMPLETE');
+      trace.runId = 'run';
+      raw.frames[20].geometry.finishedAt += 40;
+      expect(replayNativeRecording(trace).verdict).toBe('INCOMPLETE');
+    }
+  );
   it('replays synchronous native samples without inventing a JS bracket or product pass', () => {
     const result = assess(evidence());
     expect(result.verdict).toBe('COMPLETE');
@@ -768,5 +1126,422 @@ describe('predeclared native entry ownership', () => {
     expect(replayNativeRecording(trace).issues[0].code).toBe(
       'unexpected-native-scenario-itinerary'
     );
+  });
+});
+
+// Exact new native tail source contract, using the existing synthetic native
+// capture builder. No local recording file or device is needed by these tests.
+function postGestureEvidence(outcome: 'end' | 'away' = 'end'): any {
+  const { raw, contract } = evidence();
+  const scenario = `armed-post-gesture-thinking-${outcome}`,
+    runId = 'gesture-tail-controls';
+  const rid = `${runId}:${scenario}:1`,
+    scope = contract.scope;
+  contract.recordingId = raw.recordingId = rid;
+  contract.minimumDurationMs = 4375;
+  contract.requiredKeys = [];
+  contract.request.durationMs = raw.request.durationMs = 6000;
+  const c = {
+    version: 1,
+    recordingId: rid,
+    scope,
+    outcome,
+    declaredAt: 0,
+    probeId: `${rid}:post-gesture`,
+    quietTailMs: 1000,
+    tolerancePt: 1,
+  };
+  const template = structuredClone(raw.frames[1]);
+  raw.frames = Array.from({ length: 282 }, (_, sequence) => {
+    const f = structuredClone(template),
+      g = f.geometry as any;
+    f.sequence = sequence;
+    f.trigger = sequence ? 'display-link' : 'start';
+    f.displayLinkTimestamp = 10000 + sequence * 16 - 1;
+    f.displayLinkTargetTimestamp = 10000 + sequence * 16 + 15;
+    g.requestId = `${rid}:${sequence}`;
+    g.startedAt = 10000 + sequence * 16;
+    g.finishedAt = g.startedAt + 1;
+    const extent = sequence >= 60 && sequence <= 75 ? 52 : 0;
+    const moving = sequence >= 10 && sequence <= 50;
+    const endpoint = outcome === 'end' ? 1500 : 1450;
+    const offset = moving
+      ? outcome === 'end'
+        ? 1500 + (sequence - 10) / 4
+        : 1500 - (sequence - 10) * 1.25
+      : sequence < 10
+        ? 1500
+        : endpoint;
+    g.scroll.offset.y = g.scroll.bounds.y =
+      offset + (outcome === 'end' ? extent : 0);
+    g.scroll.contentSize.height = 2000 + extent;
+    g.scroll.tracking = g.scroll.dragging = moving;
+    g.scroll.decelerating = false;
+    const row = g.rows[0].view;
+    row.frame.y = row.clipFrame.y =
+      300 + endpoint - offset - (outcome === 'end' ? extent : 0);
+    const cell = structuredClone(row);
+    cell.identity = 'reading-cell';
+    cell.containingCellIdentity = cell.identity;
+    row.containingCellIdentity = cell.identity;
+    const body = structuredClone(g.composer);
+    body.identity = 'body';
+    const manifest = structuredClone(g.root);
+    manifest.identity = 'manifest';
+    manifest.frame = manifest.clipFrame = { x: 0, y: 0, width: 0, height: 0 };
+    manifest.semanticValue = JSON.stringify({
+      version: 1,
+      scope,
+      surfaceIds: ['scroll-surface-body'],
+    });
+    for (const v of [g.root, g.composer, g.scroll.view, row, cell])
+      v.lifetimeIdentity = `lifetime:${v.identity}`;
+    g.ruler = {
+      version: 1,
+      cells: [{ id: 'scroll-cell-reading', matches: 1, view: cell }],
+      surfaces: [{ id: 'scroll-surface-body', matches: 1, view: body }],
+      manifest: { id: 'scroll-surface-manifest', matches: 1, view: manifest },
+    };
+    const m = {
+      version: 1,
+      status: 'ok',
+      scopeIdentity: 'scope-lifetime',
+      scope: 'channel',
+      visit: 'visit-7',
+      dataRevision: '1',
+      rows: [
+        { key: 'reading', revision: '1' },
+        { key: 'newer', revision: '2' },
+      ],
+    };
+    g.nativeReading = {
+      generation: 1,
+      committedMembership: m,
+      rowBindings: {
+        ...m,
+        rows: [
+          {
+            status: 'ok',
+            rowId: 'scroll-row-reading',
+            cellId: 'scroll-cell-reading',
+            key: 'reading',
+            revision: '1',
+            fixtureScope: scope,
+            rowViewIdentity: row.lifetimeIdentity,
+            cellViewIdentity: cell.lifetimeIdentity,
+            registrationIdentity: 'registration',
+            hostIdentity: 'row-host',
+          },
+        ],
+      },
+    };
+    return f;
+  });
+  raw.stoppedAt = 14506;
+  raw.markers = [
+    { sequence: 0, name: 'action-start', time: 10030 },
+    { sequence: 1, name: `c`, time: 10920 },
+    { sequence: 2, name: `c`, time: 11220 },
+  ];
+  raw.markers[1].name = `${c.probeId}:start`;
+  raw.markers[2].name = `${c.probeId}:hidden`;
+  const base: any = structuredClone(raw.frames[56].geometry);
+  base.requestId = 'baseline';
+  base.startedAt = 10905;
+  base.finishedAt = 10906;
+  const request = {
+    requestId: base.requestId,
+    rootId: contract.request.rootId,
+    scrollViewId: contract.request.scrollViewId,
+    composerId: contract.request.composerId,
+    rows: [{ key: 'reading', id: 'scroll-row-reading' }],
+  };
+  const bracket = {
+    requestedAt: 906,
+    receivedAt: 909,
+    requiredKeys: [],
+    populated: true,
+    ruler: { version: 'indexed-cell-and-surfaces-v2' as const, scope },
+  };
+  const adapted = adaptNativeScrollGeometry(base, request, bracket);
+  const baseline = adapted.snapshot as any;
+  baseline.measurement.durationMs = 3;
+  baseline.acquisition.jsCoherence = { coherent: true };
+  const completion = { name: 'drag-end', time: 900 };
+  return {
+    fixtureVersion: 2,
+    platform: 'ios',
+    productCoverage: 'local-component-fixture',
+    runId,
+    scenario,
+    assertion: 'observe',
+    expectations: null,
+    result: null,
+    originalDataKeys: ['reading', 'newer'],
+    nativeRecording: raw,
+    nativeRecordingContract: contract,
+    nativeRecordingTransfer: { startAcknowledgedAt: 10 },
+    events: [
+      {
+        name: 'native-post-gesture-plan',
+        time: 0,
+        values: { contract: JSON.stringify(c) },
+      },
+      {
+        name: 'scenario-start',
+        time: 11,
+        values: { scenario, assertion: 'observe' },
+      },
+      {
+        name: 'native-post-gesture-armed',
+        time: 12,
+        values: { probeId: c.probeId },
+      },
+      { name: 'drag-begin', time: 100 },
+      completion,
+      {
+        name: 'thinking-request',
+        time: 931,
+        values: { visible: true, label: 'Thinking...', layoutChange: true },
+      },
+      {
+        name: 'thinking-commit',
+        time: 960,
+        values: { visible: true, label: 'Thinking...' },
+      },
+      { name: 'thinking-layout', time: 970, values: { height: 52 } },
+      {
+        name: 'thinking-request',
+        time: 1190,
+        values: { visible: false, label: '', layoutChange: true },
+      },
+      {
+        name: 'thinking-commit',
+        time: 1218,
+        values: { visible: false, label: '' },
+      },
+      { name: 'thinking-layout', time: 1219, values: { height: 0 } },
+    ],
+    nativePostGestureProbe: {
+      contract: c,
+      armedAt: 12,
+      completion,
+      baseline,
+      ...(outcome === 'away' ? { anchorKey: 'reading' } : {}),
+      markerTransfers: [
+        {
+          name: `${c.probeId}:start`,
+          requestedAt: 910,
+          receivedAt: 930,
+          clock: 'performance.now milliseconds',
+        },
+        {
+          name: `${c.probeId}:hidden`,
+          requestedAt: 1220,
+          receivedAt: 1230,
+          clock: 'performance.now milliseconds',
+        },
+      ],
+    },
+  };
+}
+describe('two canonical native post-gesture tail assertions', () => {
+  it.each(['end', 'away'] as const)(
+    'asserts %s via public importer and canonical reporter instead of manual observe',
+    (outcome) => {
+      const t = postGestureEvidence(outcome),
+        r = assessNativeEvidence(t);
+      expect(r).toMatchObject({
+        status: 'recorded-sampled-pass',
+        geometryEvidenceLevel: 'native-buffered-post-gesture-tail-v1',
+        nativePostGestureTail: {
+          verdict: 'PASS',
+          nativePresentation: 'INCOMPLETE',
+        },
+      });
+      expect(classifyEvidence(t)).toBe('recorded-sampled-pass');
+      expect(qualifyEvidence(t).status).toBe('recorded-sampled-pass');
+    }
+  );
+  it.each(['end', 'away'] as const)(
+    'accepts %s baseline bounds after the actual JSON roundtrip',
+    (outcome) => {
+      const source = postGestureEvidence(outcome);
+      expect(
+        Object.is(source.nativePostGestureProbe.baseline.scrollBounds.min, -0)
+      ).toBe(true);
+      const trace = JSON.parse(JSON.stringify(source));
+      expect(
+        Object.is(trace.nativePostGestureProbe.baseline.scrollBounds.min, -0)
+      ).toBe(false);
+      expect(assessNativeEvidence(trace).nativePostGestureTail.verdict).toBe(
+        'PASS'
+      );
+      expect(qualifyEvidence(trace).status).toBe('recorded-sampled-pass');
+    }
+  );
+  it.each(['min', 'max'] as const)(
+    'rejects a different serialized baseline bound %s',
+    (bound) => {
+      const trace = JSON.parse(JSON.stringify(postGestureEvidence()));
+      trace.nativePostGestureProbe.baseline.scrollBounds[bound] += 1;
+      expect(assessNativeEvidence(trace)).toMatchObject({
+        status: 'incomplete',
+        nativePostGestureTail: {
+          verdict: 'INCOMPLETE',
+          issues: [{ code: 'native-post-gesture-baseline-unqualified' }],
+          metrics: { qualifiedFrames: 0, maxErrorPt: 0 },
+        },
+      });
+    }
+  );
+  it.each(['end', 'away'] as const)(
+    'reports actual 18pt %s geometry through canonical importer',
+    (outcome) => {
+      const t = postGestureEvidence(outcome),
+        g = t.nativeRecording.frames[100].geometry;
+      if (outcome === 'end') g.scroll.offset.y = g.scroll.bounds.y -= 18;
+      else {
+        g.rows[0].view.frame.y += 18;
+        g.rows[0].view.clipFrame.y += 18;
+        g.ruler.cells[0].view.frame.y += 18;
+        g.ruler.cells[0].view.clipFrame.y += 18;
+      }
+      expect(assessNativeEvidence(t)).toMatchObject({
+        status: 'fail',
+        nativePostGestureTail: { verdict: 'FAIL', metrics: { maxErrorPt: 18 } },
+      });
+      expect(classifyEvidence(t)).toBe('fail');
+    }
+  );
+  const corruptions: [string, (t: any) => void][] = [
+    [
+      'missing declared contract',
+      (t) => delete t.nativePostGestureProbe.contract,
+    ],
+    [
+      'command after completion before snapshot',
+      (t) => {
+        t.events.push({ name: 'center-command-request', time: 903 });
+        t.events.sort((a: any, b: any) => a.time - b.time);
+      },
+    ],
+    [
+      'missing real completion',
+      (t) => (t.events = t.events.filter((e: any) => e.name !== 'drag-end')),
+    ],
+    [
+      'snapshot requested before completion',
+      (t) =>
+        (t.nativePostGestureProbe.baseline.acquisition.nativeGeometry.bracket.requestedAt = 899),
+    ],
+    [
+      'native baseline still decelerating',
+      (t) =>
+        (t.nativePostGestureProbe.baseline.acquisition.nativeGeometry.capture.scroll.decelerating = true),
+    ],
+    [
+      'native baseline owner unbound',
+      (t) =>
+        (t.nativePostGestureProbe.baseline.acquisition.nativeGeometry.capture.nativeReading.rowBindings.status =
+          'unavailable'),
+    ],
+    [
+      'baseline wrong endpoint',
+      (t) => {
+        const p = t.nativePostGestureProbe;
+        p.baseline.scroll -= 50;
+        p.baseline.acquisition.nativeGeometry.capture.scroll.offset.y -= 50;
+        p.baseline.acquisition.nativeGeometry.capture.scroll.bounds.y -= 50;
+      },
+    ],
+    [
+      'thinking begins before probe marker ACK',
+      (t) =>
+        (t.events.find((e: any) => e.name === 'thinking-request').time = 929),
+    ],
+    [
+      'missing actual shown layout',
+      (t) =>
+        (t.events = t.events.filter(
+          (e: any) => !(e.name === 'thinking-layout' && e.values.height === 52)
+        )),
+    ],
+    [
+      'no native drag displacement',
+      (t) => {
+        for (const { geometry: g } of t.nativeRecording.frames)
+          if (g.scroll.dragging) g.scroll.offset.y = g.scroll.bounds.y = 1500;
+      },
+    ],
+    [
+      'later native motion',
+      (t) => (t.nativeRecording.frames[100].geometry.scroll.tracking = true),
+    ],
+    [
+      'native owner generation changed',
+      (t) => t.nativeRecording.frames[100].geometry.nativeReading.generation++,
+    ],
+    [
+      'short native tail',
+      (t) => {
+        t.nativeRecording.markers[2].time = 14000;
+      },
+    ],
+    [
+      'unknown scenario',
+      (t) => (t.scenario = 'armed-post-gesture-thinking-foreign'),
+    ],
+  ];
+  it.each(corruptions)('retains incomplete %s', (_name, change) => {
+    const t = postGestureEvidence();
+    change(t);
+    expect(assessNativeEvidence(t).status).toBe('incomplete');
+  });
+  it('cannot measure an unbound anchor drift', () => {
+    const t = postGestureEvidence('away'),
+      g = t.nativeRecording.frames[100].geometry;
+    g.rows[0].view.frame.y += 18;
+    g.rows[0].view.clipFrame.y += 18;
+    g.nativeReading.rowBindings.rows[0].status = 'unavailable';
+    expect(assessNativeEvidence(t)).toMatchObject({
+      status: 'incomplete',
+      nativePostGestureTail: { metrics: { maxErrorPt: 0 } },
+    });
+  });
+  it('preserves an observed bad end before a later coverage gap', () => {
+    const t = postGestureEvidence();
+    t.nativeRecording.frames[100].geometry.scroll.offset.y =
+      t.nativeRecording.frames[100].geometry.scroll.bounds.y -= 18;
+    for (let i = 180; i < t.nativeRecording.frames.length; i++) {
+      const f = t.nativeRecording.frames[i];
+      f.geometry.startedAt += 150;
+      f.geometry.finishedAt += 150;
+      f.displayLinkTimestamp += 150;
+      f.displayLinkTargetTimestamp += 150;
+    }
+    t.nativeRecording.stoppedAt += 150;
+    expect(assessNativeEvidence(t)).toMatchObject({
+      status: 'fail',
+      nativePostGestureTail: { verdict: 'FAIL', metrics: { maxErrorPt: 18 } },
+    });
+  });
+  it('keeps a healthy gap incomplete without a fabricated deadline failure', () => {
+    const t = postGestureEvidence();
+    for (let i = 180; i < t.nativeRecording.frames.length; i++) {
+      const f = t.nativeRecording.frames[i];
+      f.geometry.startedAt += 150;
+      f.geometry.finishedAt += 150;
+      f.displayLinkTimestamp += 150;
+      f.displayLinkTargetTimestamp += 150;
+    }
+    t.nativeRecording.stoppedAt += 150;
+    expect(assessNativeEvidence(t)).toMatchObject({
+      status: 'incomplete',
+      nativePostGestureTail: {
+        verdict: 'INCOMPLETE',
+        metrics: { maxErrorPt: 0 },
+      },
+    });
   });
 });

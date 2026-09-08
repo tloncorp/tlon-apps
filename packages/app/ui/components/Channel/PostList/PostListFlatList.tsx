@@ -8,6 +8,8 @@ import {
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
 } from '../../../contexts/scroll';
+import { createNativeScrollOwnership } from './nativeScrollOwnership';
+import { getPostListScopeKey } from './postListInitialization';
 import { useAnchorScrollLock } from '../useAnchorScrollLock';
 import {
   PostListComponent,
@@ -24,6 +26,10 @@ export const PostList: PostListComponent = React.forwardRef(
   (
     {
       postsWithNeighbors,
+      channel,
+      onScrollIntentChanged,
+      isFocused = true,
+      scrollVisit,
       scrollEnabled = true,
       numColumns,
       contentContainerStyle,
@@ -47,6 +53,25 @@ export const PostList: PostListComponent = React.forwardRef(
   ) => {
     const listRef =
       React.useRef<React.ElementRef<typeof Animated.FlatList>>(null);
+    const scopeKey = getPostListScopeKey(channel.id, anchor);
+    const owner = React.useMemo(
+      () => createNativeScrollOwnership('read'),
+      [scopeKey]
+    );
+    React.useLayoutEffect(() => {
+      owner.activate();
+      return () => owner.dispose();
+    }, [owner]);
+    const captureIntent = React.useCallback(() => {
+      const intent = owner.capture();
+      const visit = scrollVisit?.capture();
+      return () => intent() && (visit?.() ?? true);
+    }, [owner, scrollVisit]);
+    const canIssueCommand = React.useCallback(
+      () =>
+        isFocused && (scrollVisit?.isCurrent() ?? true) && owner.capture()(),
+      [isFocused, scrollVisit, owner]
+    );
     const scrollViewNativeID = useConversationScrollViewNativeID();
     const selectedAnchor = anchor?.type === 'selected' ? anchor : null;
     const insets = useSafeAreaInsets();
@@ -59,6 +84,7 @@ export const PostList: PostListComponent = React.forwardRef(
 
     const {
       readyToDisplayPosts,
+      cancelPendingAnchorScroll,
       // setNeedsScrollToAnchor,
       // setDidAnchorSearchTimeout,
       scrollerItemProps: anchorScrollLockScrollerItemProps,
@@ -69,6 +95,15 @@ export const PostList: PostListComponent = React.forwardRef(
       flatListRef: listRef,
       columnsCount: numColumns,
     });
+
+    React.useLayoutEffect(() => {
+      if (isFocused) {
+        owner.activate();
+      } else {
+        owner.suspend();
+        cancelPendingAnchorScroll();
+      }
+    }, [owner, isFocused, cancelPendingAnchorScroll]);
 
     React.useEffect(() => {
       if (readyToDisplayPosts) {
@@ -99,7 +134,15 @@ export const PostList: PostListComponent = React.forwardRef(
     React.useImperativeHandle(
       forwardedRef,
       (): PostListMethods => ({
+        captureScrollIntent: captureIntent,
         scrollToStart: (opts) => {
+          if (!canIssueCommand()) return;
+          owner.navigate('read');
+          const isCurrent = captureIntent();
+          if (!isCurrent()) return;
+          cancelPendingAnchorScroll();
+          onScrollIntentChanged?.();
+          if (!isCurrent()) return;
           if (listRef.current) {
             listRef.current.scrollToOffset({
               offset: 0,
@@ -108,11 +151,25 @@ export const PostList: PostListComponent = React.forwardRef(
           }
         },
         scrollToEnd: (opts) => {
+          if (!canIssueCommand()) return;
+          owner.navigate('follow');
+          const isCurrent = captureIntent();
+          if (!isCurrent()) return;
+          cancelPendingAnchorScroll();
+          onScrollIntentChanged?.();
+          if (!isCurrent()) return;
           if (listRef.current) {
             listRef.current.scrollToEnd({ animated: opts.animated });
           }
         },
         scrollToPost: ({ postId, animated, viewPosition }) => {
+          if (!canIssueCommand()) return;
+          owner.navigate('read');
+          const isCurrent = captureIntent();
+          if (!isCurrent()) return;
+          cancelPendingAnchorScroll();
+          onScrollIntentChanged?.();
+          if (!isCurrent()) return;
           const rawIndex = postsWithNeighbors.findIndex(
             ({ post }) => post.id === postId
           );
@@ -167,6 +224,12 @@ export const PostList: PostListComponent = React.forwardRef(
         automaticallyAdjustsScrollIndicatorInsets={false}
         onScroll={handleScroll}
         {...anchorScrollLockFlatlistProps}
+        onScrollBeginDrag={() => {
+          if (!canIssueCommand()) return;
+          owner.beginGesture();
+          cancelPendingAnchorScroll();
+          onScrollIntentChanged?.();
+        }}
       />
     );
   }

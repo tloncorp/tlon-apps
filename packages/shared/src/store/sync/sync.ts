@@ -1,3 +1,8 @@
+import {
+  beginReplySnapshot,
+  endReplySnapshot,
+  completeReplyMembership,
+} from '../../db/replySnapshot';
 import * as api from '@tloncorp/api';
 import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
@@ -1894,28 +1899,40 @@ export async function handleAddPost(
       // first check if it's a reply. If it is and we haven't already cached
       // it, we need to add it to the parent post
       if (post.parentId) {
-        const cachedReply = await db.getPostByCacheId({
-          channelId: post.channelId,
-          sentAt: post.sentAt,
-          authorId: post.authorId,
-        });
-        if (!cachedReply) {
-          await perfTime('handleAddPost.addReplyToPost', () =>
-            db.addReplyToPost(
-              {
-                parentId: post.parentId!,
-                replyAuthor: post.authorId,
-                replyTime: post.sentAt,
-                replyMeta,
-              },
-              ctx
-            )
-          );
-        }
-        await perfTime(
-          'handleAddPost.insertChannelPosts',
-          () => db.insertChannelPosts({ posts: [post] }, ctx),
-          { isReply: 'true' }
+        await batchEffects('handleAddReply', async (defaultCtx) =>
+          withTransactionCtx(ctx ?? defaultCtx, async (txCtx) => {
+            const cachedReply =
+              (await db.getPost({ postId: post.id }, txCtx)) ??
+              (await db.getPostByCacheId(
+                {
+                  channelId: post.channelId,
+                  sentAt: post.sentAt,
+                  authorId: post.authorId,
+                },
+                txCtx
+              ));
+            // A delayed add is not an intentional restoration of a deleted
+            // incarnation. Failed-delete rollback uses updatePost explicitly.
+            if (cachedReply?.isDeleted && !post.isDeleted) return;
+            if (!cachedReply && !post.isDeleted) {
+              await perfTime('handleAddPost.addReplyToPost', () =>
+                db.addReplyToPost(
+                  {
+                    parentId: post.parentId!,
+                    replyAuthor: post.authorId,
+                    replyTime: post.sentAt,
+                    replyMeta,
+                  },
+                  txCtx
+                )
+              );
+            }
+            await perfTime(
+              'handleAddPost.insertChannelPosts',
+              () => db.insertChannelPosts({ posts: [post] }, txCtx),
+              { isReply: 'true' }
+            );
+          })
         );
       } else {
         addToChannelPosts(post);
@@ -1980,6 +1997,7 @@ export async function syncSequencedPosts(
 export async function syncInitialPosts(config: {
   syncSize: 'heavy' | 'light';
 }) {
+  let replySnapshot: ReturnType<typeof beginReplySnapshot> | undefined;
   try {
     const params = {
       // TODO: set defaults once we have perf data that's not
@@ -1990,11 +2008,57 @@ export async function syncInitialPosts(config: {
     const posts = await syncQueue.add(
       'initialPosts',
       { priority: SyncPriority.Medium },
-      () => api.getInitialPosts(params)
+      () => {
+        replySnapshot = beginReplySnapshot();
+        return api.getInitialPosts(params);
+      }
     );
     if (posts.length) {
-      await db.insertChannelPosts({ posts });
+      await db.insertChannelPosts({ posts, replySnapshot });
     }
+    const conflicts = [...(replySnapshot?.conflicts.values() ?? [])];
+    if (replySnapshot) endReplySnapshot(replySnapshot);
+    replySnapshot = undefined;
+    const unresolvedReplyParentIds: string[] = [];
+    // At most one authoritative reread per conflicted parent. No request runs
+    // inside a SQLite transaction; continued ambiguity is returned explicitly.
+    for (const parent of conflicts) {
+      let retrySnapshot: ReturnType<typeof beginReplySnapshot> | undefined;
+      try {
+        const fresh = await syncQueue.add(
+          'replyMetadataReconciliation',
+          undefined,
+          () => {
+            retrySnapshot = beginReplySnapshot();
+            return api.getPostWithReplies({
+              postId: parent.id,
+              channelId: parent.channelId,
+              authorId: parent.authorId,
+            });
+          }
+        );
+        if (!completeReplyMembership(fresh)) {
+          unresolvedReplyParentIds.push(parent.id);
+          continue;
+        }
+        await db.insertChannelPosts({
+          posts: [fresh],
+          replySnapshot: retrySnapshot,
+        });
+      } catch (error) {
+        unresolvedReplyParentIds.push(parent.id);
+        logger.trackError('Reply metadata reconciliation failed', {
+          parentId: parent.id,
+          error: String(error),
+        });
+      } finally {
+        if (retrySnapshot) endReplySnapshot(retrySnapshot);
+      }
+    }
+    if (unresolvedReplyParentIds.length)
+      logger.trackError('Reply metadata remains unresolved', {
+        parentIds: unresolvedReplyParentIds,
+      });
 
     await db.didSyncInitialPosts.setValue(true);
 
@@ -2002,10 +2066,13 @@ export async function syncInitialPosts(config: {
       syncSize: config.syncSize,
       numPostsSynced: posts.length,
     });
+    return { unresolvedReplyParentIds };
   } catch (err) {
     logger.trackError('Failed to sync initial posts', {
       errorMessage: err.toString(),
     });
+  } finally {
+    if (replySnapshot) endReplySnapshot(replySnapshot);
   }
 }
 

@@ -21,7 +21,11 @@ import {
 } from './helpers/scrollers';
 import { testWithOptions } from './test-fixtures';
 
-const test = testWithOptions({ appReadyTimeoutMs: 60_000, e2eMode: false });
+const test = testWithOptions({
+  appReadyTimeoutMs: 60_000,
+  e2eMode: false,
+  createdGroupCleanup: true,
+});
 test.use({ actionTimeout: 10_000 });
 
 for (const position of ['latest', 'history'] as const) {
@@ -182,7 +186,7 @@ for (const position of ['latest', 'history'] as const) {
                 ...fixture.preparation,
                 browser: browser.version(),
                 channel: 'chromium',
-                headed: true,
+                headed: testInfo.project.use.headless === false,
                 assets: 'Vite development assets',
               },
               clockDomains: {

@@ -21,11 +21,39 @@ export type ScrollSnapshot = {
     visibleMeasuredRowCount: number;
     nativeMetricsReceivedAt: number | null;
     nativeMetricsAgeMs: number | null;
+    /** Diagnostic breakdown only; it never replaces native geometry validation. */
+    jsCoherence?: {
+      listPresent: boolean;
+      listIdentityStable: boolean;
+      composerIdentityStable: boolean;
+      requiredRowsStable: boolean;
+      membershipStable: boolean;
+      scopeStable: boolean;
+      semanticStable: boolean;
+      coherent: boolean;
+      before: {
+        scope: string;
+        keys: string[] | null;
+        semanticCommit:
+          | import('./scrollStabilityMutation').RowMutationState
+          | null;
+      };
+      after: {
+        scope: string;
+        keys: string[] | null;
+        semanticCommit:
+          | import('./scrollStabilityMutation').RowMutationState
+          | null;
+      };
+      changedRequiredRows: string[];
+      semanticTarget: { key: string; scope: string } | null;
+    };
     nativeGeometry?: {
       request: import('./scrollNativeGeometry').NativeGeometryRequest;
       capture: unknown;
       issues: string[];
       nativePresentation: 'INCOMPLETE';
+      ruler?: import('./scrollNativeGeometry').NativeSampledRulerObservation;
     } & (
       | {
           source: 'ios-main-thread-model-v1';
@@ -52,6 +80,14 @@ const visibleHeight = (sample: ScrollSnapshot, row: MeasuredRow) =>
     Math.min(row.y + row.height, sample.viewportBottom) -
       Math.max(row.y, sample.viewportTop)
   );
+
+const rowObscured = (sample: ScrollSnapshot, key: string) => {
+  const ruler = sample.acquisition?.nativeGeometry?.ruler;
+  return (
+    ruler?.version === 'indexed-cell-and-surfaces-v2' &&
+    ruler.obscuredKeys.includes(key)
+  );
+};
 
 /** One measured landing, shared by first-reveal and settled-trace checks. */
 export function assessClampedScrollLanding(
@@ -289,7 +325,21 @@ export function assessScrollPreconditions(
       'reading-anchor-precondition-not-established',
       'A visible, independently measured reading row must exist before the action.'
     );
+  if (
+    options.requireReadingAnchor &&
+    anchor &&
+    rowObscured(baseline, anchor.key)
+  )
+    add(
+      'reading-anchor-obscured',
+      'A measured native surface intersects the required reading row.'
+    );
   const tail = baseline.rows.find((row) => row.key === options.initialTailKey);
+  if (options.requireInitialEnd && tail && rowObscured(baseline, tail.key))
+    add(
+      'initial-tail-obscured',
+      'A measured native surface intersects the required newest row.'
+    );
   const tailVisible =
     tail &&
     visibleHeight(baseline, tail) > 0 &&
@@ -595,6 +645,13 @@ export function assessScrollTrace(
         'failure'
       );
     }
+    if (anchor && rowObscured(sample, anchor.key))
+      add(
+        'anchor-obscured',
+        'A measured native surface intersects the required reading row.',
+        index,
+        'failure'
+      );
     if (anchor) {
       const row = sample.rows.find((candidate) => candidate.key === anchor.key);
       if (!row) {
@@ -648,6 +705,13 @@ export function assessScrollTrace(
           );
         }
       }
+      if (bottom.tailKey && rowObscured(sample, bottom.tailKey))
+        add(
+          'tail-obscured',
+          'A measured native surface intersects the required newest row.',
+          index,
+          'failure'
+        );
       if (bottom.tailKey) {
         const row = sample.rows.find(
           (candidate) => candidate.key === bottom.tailKey
@@ -667,6 +731,13 @@ export function assessScrollTrace(
       }
     }
     if (landing && sample.time >= landing.settleStartTime) {
+      if (rowObscured(sample, landing.key))
+        add(
+          'target-obscured',
+          'A measured native surface intersects the requested target.',
+          index,
+          'failure'
+        );
       const row = sample.rows.find(
         (candidate) => candidate.key === landing.key
       );

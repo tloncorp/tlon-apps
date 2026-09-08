@@ -1,6 +1,7 @@
 import { BrowserContext, Page, test as base } from '@playwright/test';
 
 import * as helpers from './helpers';
+import { startCreatedGroupCleanup } from './helpers/scrollerCreatedGroups';
 import { dismissPersistedDevTools } from './helpers/scrollerWebAssets';
 import { RuntimeErrorDetector } from './runtime-error-detector';
 import shipManifest from './shipManifest.json';
@@ -76,13 +77,15 @@ async function performCleanup(page: Page, shipName: string) {
 
 export const testWithOptions = (options?: {
   installClock?: boolean;
+  /** Scroller fixtures may clean only their acknowledged local group-create IDs. */
+  createdGroupCleanup?: boolean;
   // App/database initialization precedes the scenario's measured actions.
   appReadyTimeoutMs?: number;
   /** Opt out when qualifying normal application sync and deferred UI paths. */
   e2eMode?: boolean;
 }) =>
   base.extend<TestFixtures>({
-    zodSetup: async ({ browser }, use) => {
+    zodSetup: async ({ browser }, use, testInfo) => {
       const context = await browser.newContext({
         storageState: shipManifest['~zod'].authFile,
       });
@@ -106,21 +109,34 @@ export const testWithOptions = (options?: {
       await dismissPersistedDevTools(page);
       await page.waitForTimeout(1000);
 
-      await performCleanup(page, 'zod');
-
-      await use({ context, page });
-
-      await performCleanup(page, 'zod');
-
-      // Check for errors after test
-      if (process.env.USE_PRODUCTION_BUILD === 'true') {
-        await errorDetector.checkForErrors(page).catch((error) => {
-          console.error('Runtime errors detected in ship:', error.message);
-          throw error;
-        });
+      const created = options?.createdGroupCleanup
+        ? await startCreatedGroupCleanup(page, shipManifest['~zod'])
+        : undefined;
+      if (!created) await performCleanup(page, 'zod');
+      try {
+        await use({ context, page });
+      } finally {
+        try {
+          if (created) {
+            const receipt = await created.finish();
+            await testInfo.attach('scroller-created-group-cleanup', {
+              body: JSON.stringify(receipt),
+              contentType: 'application/json',
+            });
+            if (receipt.status !== 'complete')
+              throw new Error(
+                `Scoped fixture cleanup incomplete: ${receipt.errors.join('; ')}`
+              );
+          } else {
+            await performCleanup(page, 'zod');
+          }
+          if (process.env.USE_PRODUCTION_BUILD === 'true') {
+            await errorDetector.checkForErrors(page);
+          }
+        } finally {
+          await context.close();
+        }
       }
-
-      await context.close();
     },
 
     tenSetup: async ({ browser }, use) => {

@@ -18,19 +18,10 @@ import { useCurrentUserId } from '../../contexts/appDataContext';
 import { usePostCollectionContext } from '../../contexts/postCollection';
 import { EmptyChannelNotice } from '../Channel/EmptyChannelNotice';
 import Scroller, { ScrollAnchor } from '../Channel/Scroller';
+import type { PostListMethods } from '../Channel/PostList';
 import { ThinkingState } from '../Channel/ThinkingState';
 import { useShouldShowThinkingState } from '../Channel/useShouldShowThinkingState';
 import { IPostCollectionView } from './shared';
-
-interface ScrollerHandle {
-  scrollToPost: (params: {
-    postId: string;
-    animated?: boolean;
-    viewPosition?: number;
-  }) => void;
-  scrollToStart: (params: { animated?: boolean }) => void;
-  scrollToEnd: (params: { animated?: boolean }) => void;
-}
 
 export const ListPostCollection: IPostCollectionView = forwardRef(
   function ListPostCollection(_props, forwardedRef) {
@@ -38,7 +29,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
     const currentUserId = useCurrentUserId();
     const shouldShowThinkingState = useShouldShowThinkingState(ctx.channel);
-    const scrollerRef = useRef<ScrollerHandle>(null);
+    const scrollerRef = useRef<PostListMethods>(null);
     const collectionLayoutType = useMemo(
       () => layoutTypeFromChannel(ctx.channel),
       [ctx.channel]
@@ -136,6 +127,9 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     }, []);
 
     useImperativeHandle(forwardedRef, () => ({
+      captureScrollIntent() {
+        return scrollerRef.current?.captureScrollIntent?.() ?? (() => false);
+      },
       scrollToPost(postId: string, viewPosition?: number) {
         scrollerRef.current?.scrollToPost({
           postId,
@@ -189,6 +183,7 @@ export const ListPostCollection: IPostCollectionView = forwardRef(
     ]);
     return (
       <Scroller
+        isFocused={ctx.isFocused}
         anchorToEnd={anchorToEnd}
         renderItem={ctx.LegacyPostView}
         renderEmptyComponent={renderEmptyComponent}

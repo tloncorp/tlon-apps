@@ -1,0 +1,356 @@
+{
+  "schemaVersion": 1,
+  "acceptance": "Refresh cached visible IDs before returning for all callback configurations; clear empty visible ranges, fall through invalid ranges, preserve explicit targets/bootstrap/full-layout ownership and callback deduplication. A below-reader growth must emit zero after refresh. Forced stale IDs must still reproduce 1392pt. Removal/regrouping remains a separate policy gap.",
+  "boundary": "Extracted native outer-cell y/height and scroll geometry, not synthetic replacement of dependency logic. Native dispatch, clocks/batching, optional viewability delivery and layout updates are modeled. Full-layout paths stop at a sentinel. This is an algorithm regression control, not native/presentation proof or unique runtime causality.",
+  "algorithmBaseline": {
+    "react-native.js": "9d1783647919ffab0922c9f04e0c443e3eff047738c99e8f718e5dc93d5ee1f9",
+    "react-native.mjs": "b07e1ee2d56c8d630ec839dd189d7a87246eb96a597ff1ebab92d45bab68081d"
+  },
+  "extraction": "First and final nativeRecording.frames geometry: scroll viewport/offset/contentSize plus ruler.cells with measured view, id stripped only of scroll-cell- prefix. No row/frame data is rounded. Raw captures remain external; no runtime read of them is needed.",
+  "scenarios": {
+    "history-grow": {
+      "provenance": {
+        "rawFile": "scroll-stability-refactor-buffer-core-r2-20260907-history-grow.json",
+        "rawSha256": "bf31ef5048c810acb40431414f937c589b4e0a96460419368b9866d163cc26a8",
+        "runId": "refactor-buffer-core-r2-20260907",
+        "scenario": "history-grow",
+        "fixtureVersion": 2,
+        "firstFrame": 0,
+        "terminalFrame": 111
+      },
+      "first": {
+        "scroll": {
+          "view": {
+            "frame": {
+              "y": 203,
+              "height": 671,
+              "width": 402,
+              "x": 0
+            }
+          },
+          "offset": {
+            "y": 9524.333333333334,
+            "x": 0
+          },
+          "contentSize": {
+            "width": 402,
+            "height": 11562.3330078125
+          }
+        }
+      },
+      "baseline": {
+        "scroll-fixture-106": {
+          "y": -201.33333333333394,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-107": {
+          "y": -71.66634114583394,
+          "height": 129.666015625
+        },
+        "scroll-fixture-108": {
+          "y": 57.99967447916606,
+          "height": 609.6669921875
+        },
+        "scroll-fixture-109": {
+          "y": 667.6666666666661,
+          "height": 129.3330078125
+        },
+        "scroll-fixture-110": {
+          "y": 797.3336588541661,
+          "height": 129.3330078125
+        },
+        "scroll-fixture-111": {
+          "y": 926.6666666666661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-112": {
+          "y": 1056.333658854166,
+          "height": 129.666015625
+        },
+        "scroll-fixture-113": {
+          "y": 1185.999674479166,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-114": {
+          "y": 1315.666666666666,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-115": {
+          "y": 1445.333658854166,
+          "height": 129.666015625
+        }
+      },
+      "terminal": {
+        "scroll-fixture-106": {
+          "y": -1593.333333333334,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-107": {
+          "y": -1463.666341145834,
+          "height": 129.666015625
+        },
+        "scroll-fixture-108": {
+          "y": -1334.000325520834,
+          "height": 609.6669921875
+        },
+        "scroll-fixture-109": {
+          "y": -724.3333333333339,
+          "height": 1521.3330078125
+        },
+        "scroll-fixture-110": {
+          "y": 796.6666666666661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-111": {
+          "y": 926.3336588541661,
+          "height": 129.666015625
+        },
+        "scroll-fixture-112": {
+          "y": 1055.999674479166,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-113": {
+          "y": 1185.666666666666,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-114": {
+          "y": 1315.333658854166,
+          "height": 129.666015625
+        },
+        "scroll-fixture-115": {
+          "y": 1444.999674479166,
+          "height": 129.6669921875
+        }
+      },
+      "offsetDelta": 1392.0
+    },
+    "history-cache": {
+      "provenance": {
+        "rawFile": "scroll-stability-refactor-buffer-core-r2-20260907-history-cache.json",
+        "rawSha256": "7b8a172292f99b2a2803766dc234b1e91623a404286abe78f7697135cee46a7a",
+        "runId": "refactor-buffer-core-r2-20260907",
+        "scenario": "history-cache",
+        "fixtureVersion": 2,
+        "firstFrame": 0,
+        "terminalFrame": 110
+      },
+      "first": {
+        "scroll": {
+          "view": {
+            "frame": {
+              "height": 671,
+              "y": 203,
+              "width": 402,
+              "x": 0
+            }
+          },
+          "offset": {
+            "x": 0,
+            "y": 9524.333333333334
+          },
+          "contentSize": {
+            "width": 402,
+            "height": 11562.3330078125
+          }
+        }
+      },
+      "baseline": {
+        "scroll-fixture-106": {
+          "y": -201.33333333333394,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-107": {
+          "y": -71.66634114583394,
+          "height": 129.666015625
+        },
+        "scroll-fixture-108": {
+          "y": 57.99967447916606,
+          "height": 609.6669921875
+        },
+        "scroll-fixture-109": {
+          "y": 667.6666666666661,
+          "height": 129.3330078125
+        },
+        "scroll-fixture-110": {
+          "y": 797.3336588541661,
+          "height": 129.3330078125
+        },
+        "scroll-fixture-111": {
+          "y": 926.6666666666661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-112": {
+          "y": 1056.333658854166,
+          "height": 129.666015625
+        },
+        "scroll-fixture-113": {
+          "y": 1185.999674479166,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-114": {
+          "y": 1315.666666666666,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-115": {
+          "y": 1445.333658854166,
+          "height": 129.666015625
+        }
+      },
+      "terminal": {
+        "scroll-fixture-106": {
+          "y": -1593.333333333334,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-107": {
+          "y": -1463.666341145834,
+          "height": 129.666015625
+        },
+        "scroll-fixture-108": {
+          "y": -1334.000325520834,
+          "height": 609.6669921875
+        },
+        "scroll-fixture-109": {
+          "y": -724.3333333333339,
+          "height": 1521.3330078125
+        },
+        "scroll-fixture-110": {
+          "y": 796.6666666666661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-111": {
+          "y": 926.3336588541661,
+          "height": 129.666015625
+        },
+        "scroll-fixture-112": {
+          "y": 1055.999674479166,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-113": {
+          "y": 1185.666666666666,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-114": {
+          "y": 1315.333658854166,
+          "height": 129.666015625
+        },
+        "scroll-fixture-115": {
+          "y": 1444.999674479166,
+          "height": 129.6669921875
+        }
+      },
+      "offsetDelta": 1392.0
+    },
+    "history-remove": {
+      "provenance": {
+        "rawFile": "scroll-stability-refactor-buffer-core-r2-20260907-history-remove.json",
+        "rawSha256": "3c7ce4bbf4ff79d025e5441863c87d10276290c4776d3fcaf8561b62110b0977",
+        "runId": "refactor-buffer-core-r2-20260907",
+        "scenario": "history-remove",
+        "fixtureVersion": 2,
+        "firstFrame": 0,
+        "terminalFrame": 110
+      },
+      "first": {
+        "scroll": {
+          "view": {
+            "frame": {
+              "height": 671,
+              "x": 0,
+              "width": 402,
+              "y": 203
+            }
+          },
+          "offset": {
+            "y": 10026.333333333334,
+            "x": 0
+          },
+          "contentSize": {
+            "width": 402,
+            "height": 11562.3330078125
+          }
+        }
+      },
+      "baseline": {
+        "scroll-fixture-106": {
+          "y": -703.3333333333339,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-107": {
+          "y": -573.6663411458339,
+          "height": 129.666015625
+        },
+        "scroll-fixture-108": {
+          "y": -444.00032552083394,
+          "height": 609.6669921875
+        },
+        "scroll-fixture-109": {
+          "y": 165.66666666666606,
+          "height": 129.3330078125
+        },
+        "scroll-fixture-110": {
+          "y": 295.33365885416606,
+          "height": 129.3330078125
+        },
+        "scroll-fixture-111": {
+          "y": 424.66666666666606,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-112": {
+          "y": 554.3336588541661,
+          "height": 129.666015625
+        },
+        "scroll-fixture-113": {
+          "y": 683.9996744791661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-114": {
+          "y": 813.6666666666661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-115": {
+          "y": 943.3336588541661,
+          "height": 129.666015625
+        }
+      },
+      "terminal": {
+        "scroll-fixture-106": {
+          "y": -565.3333333333339,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-107": {
+          "y": -435.66634114583394,
+          "height": 129.666015625
+        },
+        "scroll-fixture-108": {
+          "y": -306.00032552083394,
+          "height": 601.6669921875
+        },
+        "scroll-fixture-110": {
+          "y": 295.66666666666606,
+          "height": 91.3330078125
+        },
+        "scroll-fixture-111": {
+          "y": 386.66666666666606,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-112": {
+          "y": 516.3336588541661,
+          "height": 129.666015625
+        },
+        "scroll-fixture-113": {
+          "y": 645.9996744791661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-114": {
+          "y": 775.6666666666661,
+          "height": 129.6669921875
+        },
+        "scroll-fixture-115": {
+          "y": 905.3336588541661,
+          "height": 129.666015625
+        }
+      },
+      "offsetDelta": -138.0
+    }
+  }
+}

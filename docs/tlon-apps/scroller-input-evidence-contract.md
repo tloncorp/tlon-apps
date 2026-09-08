@@ -77,3 +77,51 @@ browser launch outside it succeeded. The first healthy capture then had an
 Chromium headed with a fixed 2 s setup warmup and the same evidence limits. Keep
 those browser conditions with its results rather than generalizing them to
 headless production execution.
+
+Optional PNG transport v3 preserves the configured viewport: capture the entire
+viewport through a dedicated CDP session without a `clip` or emulation command,
+retain original PNG bytes, and crop only in the independent reader. The reader
+checks full image dimensions, CRC and allocation limits, then includes only
+complete pixels inside the actual retained textarea rectangle. Any observed
+viewport/DPR change from recorder initialization invalidates paint attribution
+for the attempt. The 100 ms limit, action holds, selection/focus checks and
+continuous-caret/presentation limitations remain unchanged. The unchanged “abc”
+calibration also checks every capture bracket and the surface after detach.
+
+R3/R4 are preserved at `/private/tmp/scroller-input-paint-product-r{3,4}-20260908`.
+Their first clipped PNG changed the surface from 1280×800/DPR1 to 1280×713/DPR2;
+the PNG was 1546×76 for a declared 773×38/DPR1 crop. Their sampled 0 px end gaps
+remain observations under the altered viewport, not qualification of intended
+fixed-viewport behavior. R4’s screenshot request took 88.504 ms and its full
+observation bracket took 112.5 ms; no separate cleanup timing was recorded.
+This is a collector effect, not evidence of a product resize defect.
+
+The installed browser pin is Chromium 136.0.7103.25, revision 1169. Its
+[PageHandler screenshot implementation](https://chromium.googlesource.com/chromium/src/+/136.0.7103.25/content/browser/devtools/protocol/page_handler.cc)
+applies and restores the calling session’s metrics for clipped surface capture.
+A fresh session’s
+[EmulationHandler defaults](https://chromium.googlesource.com/chromium/src/+/136.0.7103.25/content/browser/devtools/protocol/emulation_handler.cc)
+can therefore disable the shared renderer’s existing Playwright emulation.
+Exact source/version receipts and diagnosis are retained at
+`/private/tmp/scroller-cdp-viewport-diagnosis-20260908`. The v3 pretest contract,
+65-pass/4-fail original controls and 69-pass candidate controls are retained at
+`/private/tmp/scroller-input-paint-viewport-20260908`; R5 v3 calibration preserved
+1280×800/DPR1 across every bracket and after stopping, with a maximum 69.7 ms
+start gap. Its 36 PNGs were 2560×1426 host bitmaps and correctly exceeded the
+unchanged 2M-pixel limit; blinking was unassessed and the product case did not
+run. Raw artifacts remain at `/private/tmp/scroller-input-paint-product-r5-20260908`.
+Nonempty product UA Range attribution stays paused.
+
+The reviewed v4 candidate uses public `page.screenshot` with `caret:'initial'`,
+`animations:'allow'`, `fullPage:false` and `scale:'css'`, through Playwright’s
+existing viewport-owning session. It retains the entire CSS-sized PNG and crops
+only in the reader. Queue, font readiness, capture and cleanup time remain inside
+the original timing limits; no font bypass or cancellation claim is introduced.
+R2’s retained trace showed 1.392 ms to screenshot work and a 0.602 ms font wait,
+then timed out after fonts loaded; the later protocol stage was not recorded.
+The integrated v4 controls pass 78/78, including all 59 unchanged legacy/v3 reader
+and finalization controls. One unchanged “abc” calibration followed conditionally
+by one exact-draft latest case is prepared at
+`/private/tmp/scroller-input-paint-product-r6-20260908`; actual v4 qualification
+is pending. Acceptance and source-path controls are retained at
+`/private/tmp/scroller-input-paint-public-20260908`.

@@ -5,6 +5,116 @@ criteria. The [history inventory](scroller-regression-history.md) supplies past
 regression leads. A registered test covers its stated variant, not every
 combination of its linked matrix row.
 
+## Fast iteration without changing acceptance
+
+Use three loops: targeted controls for each change, focused product captures
+for each related batch, and full regression/Release qualification at milestones.
+Choose the smallest existing test that reproduces the failure, then include
+adjacent ownership and cancellation cases affected by the fix. A focused pass
+does not qualify omitted cases. Repeat a broad run only after a substantive
+batch, before the final commit, or when a new failure gives a specific reason.
+
+Keep independent review parallel with useful work. Review the substantive
+change once; use follow-up review for material corrections. Avoid serial review
+handoffs and repeated full app runs for unchanged source. Browser and simulator
+performance captures run separately from builds and CPU-heavy checks so the
+measurement environment is interpretable.
+
+Before a native build, prepare the exact case selection, run IDs, dispatch,
+collector and replay commands. Batch related app and dependency fixes into one
+snapshot. Execute inspection, incremental build/install, artifact verification,
+launch, all selected captures and final verification consecutively. Interpret
+and package the collected evidence afterward. Reuse an unchanged verified
+install; the wrapper's dirty-snapshot check still applies. Debug may support
+functional checks, but arbitrary source edits are not a verified warm-reload
+path through this wrapper, and Release remains the performance gate.
+
+The latest full desktop selection is 43 cases and took 21m45s with one headless
+worker and no retries. All 43 scoped cleanup receipts completed, deleting only
+38 acknowledged newly created groups; five second-account setup failures created
+none. Before another broad run, verify both local accounts reach their actual
+ready Home state. Listening Vite ports and successful module requests did not
+establish fake TEN readiness in this run.
+
+R15's full native selection took 7m46s, including 182s build/install and 215.338s
+dispatch/collection. It retained 42 of 44 requested recordings because its local
+image server was unavailable. The corrected two-image warm recovery takes 47.615s
+and reuses the same verified artifact. Always include asset-server readiness and
+the existing post-launch Ready gate in warm recipes: the wrapper launch command
+restarts the app. Including the preserved first warm timeout and its correction,
+recovery cost 5m15.615s. See the source-bound results and limitations in the
+[current results](scroller-refactor-results-2026-09-07.md).
+
+Keep desktop Chromium headless. Diagnose frontend/authentication readiness
+failures before repeating product tests; do not spend another readiness timeout
+on unchanged broken setup. Keep setup failures distinct from scroller verdicts.
+
+R9b and R10 retain the installed RN script's default Metro cache reset and set
+`EXTRA_PACKAGER_ARGS='--max-workers 2'`. Their speed improvement does not depend
+on disabling that reset. Xcode may reuse unchanged native objects only when the
+recorded source, headers, configuration and object bytes match. The transform
+input ledger records external inputs for review; it does not itself establish
+safe Metro cache reuse. Do not disable the reset until tracking of those inputs
+is verified. Two workers bound resource contention; their individual speed
+benefit has not been measured.
+
+Record preparation, build/install, launch and capture timestamps in the run
+artifacts. R9b's successful prepared pipeline took **380 seconds**: build/install
+299 seconds, build-end-to-launch 2 seconds, launch-end-to-first-capture
+20.5968 seconds and nine captures 45.058 seconds. Including the preserved failed
+R9 build, one-line Objective-C correction and retry, elapsed time was
+**805 seconds**. App-only timing was not isolated; capture intervals include
+dispatch and collection. The corresponding R8 pipeline took 2,176 seconds,
+including 1,984 seconds for build/install and 46.637 seconds for nine captures.
+These are different source/build states, not a controlled same-source benchmark
+or proof of a particular cache/worker optimization. Exact timing and attempt
+boundaries: `/private/tmp/scroller-native-batch-r9b-20260907/timings.json`.
+
+The next R10 cycle took **200 seconds**, with **125 seconds** for build/install,
+15 seconds for readiness and **43.194 seconds** for the same nine captures.
+There were no retries. Source and native artifact verification passed before
+launch and after capture. App-only timing remains unisolated. R10 still has
+five sampled geometry passes, three incomplete results and one failure; its
+offscreen landing pass also leaves an intermediate-jump blind spot. See
+`/private/tmp/scroller-native-batch-r10-20260907/timings.json` and the
+[current results](scroller-refactor-results-2026-09-07.md).
+
+R11 took **214 seconds**, including **136 seconds** for build/install and
+**43.607 seconds** for nine captures, with no retries. It also runs the stronger
+command-trajectory reader. Five geometry cases sampled-pass and four remain
+incomplete; eight native acquisitions are complete and one remains incomplete.
+Actual READ admission is recorded, but a padding regression and measured native
+stalls remain open. Preparation and investigation time are additional to these
+pipeline timings. For this next batch, finish the two measured defects and their
+focused controls, then capture once; do not expand into unrelated matrix work
+between the source freeze and collection. Performance profiling is a separate
+diagnostic action on the same verified install, started immediately before the
+prepared scenario dispatch.
+
+R12 changed native renderer headers and took **349 seconds** for its successful
+pipeline: **251 seconds** build/install, 30 seconds readiness and 44.375 seconds
+for the same nine captures. A first wrapper inspection was blocked by the
+sandbox's read-only `.git` receipt directory before any build or product action;
+including that retained setup failure, the interval was **457 seconds**. There
+were no product retries. Use the wrapper's required receipt-directory access
+from the start. Profiling and manual gesture checks add separate overhead:
+the bounded R12 touch check took 504 seconds including setup/verification,
+with 114.927 seconds in the requested gesture sequence. These costs remain
+visible; the earlier 200/214-second pipelines are not a fixed build-time promise.
+
+Keep broader preparation overhead visible too: the earlier R8 preparation-to-
+final-verification interval was 62 minutes 53 seconds. R7 took 41 minutes end to
+end, with a 14 minute 42 second gap before launch. The R9b acquisition reader
+qualifies all nine recordings complete, while independent geometry remains five
+sampled passes, three incomplete cases and one failure. Resident native READ
+registration has no admitted sampled state in these traces; faster execution does not
+close READ, full-suite or presentation qualification.
+
+Keep environment/startup failures separate from scroller failures and run the
+actual Node replay-import control before an expensive capture. Preserve every
+raw attempt, independent replay, tolerance, deadline and required
+presentation/platform gate.
+
 ## Oracle controls
 
 Use Node 22.22.0 and the repository's pnpm installation. From the repository root:
@@ -87,9 +197,12 @@ corepack pnpm exec playwright test \
   --config=playwright.scroller-product.config.ts
 ```
 
-This command uses headed desktop Chromium, one worker and no retries. Its
-42 currently registered cases retain their individual acceptance limits and
-instrumentation. A successful runner result still needs raw-evidence replay;
+This command defaults to headless desktop Chromium, one worker and no retries. Its
+42 shared-registry cases retain their individual acceptance limits and
+instrumentation. The config also selects one center-character Edit/Save case
+with its own independent reader; this is 42 registered cases plus one separate
+case, not 43 cases qualified by the shared registry. A successful runner result
+still needs raw-evidence replay;
 missing caret or presentation evidence cannot be qualified by the exit code.
 Run `--list` to inspect selection without executing product actions.
 All 42 cases use normal application flags. Historical captures of the older
@@ -214,7 +327,7 @@ sampling does not establish presented-frame continuity or all browser support.
 
 ### Actual content and exact input
 
-The newer product configs use normal application flags and headed Chromium at
+The newer product configs use normal application flags and headless Chromium at
 1280 × 800. With the isolated app on port 3000 and its local ships already
 verified, run from `apps/tlon-web`:
 
@@ -392,3 +505,21 @@ Keep initial failures alongside any rerun. A passing rerun does not erase the
 first failure. Record the reason for rerunning, device/browser identity, build
 configuration, source snapshot, run ID, raw samples and action events. Do not
 increase tolerances to convert an unexplained failure into a pass.
+
+
+R13 timing checkpoint: the complete nine-case native runner took 229 seconds
+(build/install 147, launch 2, readiness 20), with the verified R12 warm native
+inputs and no product retry. This execution window excludes dispatch overhead;
+measured from the pre-dispatch UTC observation it was approximately 251 seconds.
+App-only runtime was not isolated. Keep CPU-heavy tests out of runtime capture;
+freeze repository sources only for the actual capture/verification window,
+after collection and exact-module preflight are already ready. TMP-only candidate
+editing can continue without changing the tested checkout; pause compilations
+and other heavy work during performance capture.
+
+Desktop R3 exposed a separate iteration bottleneck: its product body finished
+before an unrelated group-deletion teardown spent 179.7 seconds attempting an action intercepted by the
+details header/overlay. Retain that cleanup failure and its overall incomplete verdict.
+Fix the exact fixture cleanup path before repeating a broad corpus; avoid paying
+three minutes per test or increasing its timeout. Its ordinary product geometry
+and exact-input evidence remain independently assessed.

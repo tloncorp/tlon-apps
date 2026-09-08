@@ -109,9 +109,17 @@ export function useAnchorScrollLock({
     [columnsCount]
   );
 
-  const handleScrollBeginDrag = useCallback(() => {
+  const cancelPendingAnchorScroll = useCallback(() => {
+    // Intent invalidates retries synchronously, before React commits the next
+    // render and before scrollToIndex can report another synchronous failure.
+    userHasScrolledRef.current = true;
+    scrollPhaseRef.current = 'done';
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    retryTimerRef.current = null;
     setUserHasScrolled(true);
+    setDidScrollToAnchor(true);
   }, []);
+  const handleScrollBeginDrag = cancelPendingAnchorScroll;
 
   const handleScrollToIndexFailed = useMutableCallback(
     (info: {
@@ -119,6 +127,7 @@ export function useAnchorScrollLock({
       highestMeasuredFrameIndex: number;
       averageItemLength: number;
     }) => {
+      if (userHasScrolledRef.current) return;
       logger.log('scroll to index failed', { info });
 
       // Cancel the done-timeout — the initial scroll did not reach the target.
@@ -310,9 +319,15 @@ export function useAnchorScrollLock({
   return useMemo(
     () => ({
       readyToDisplayPosts,
+      cancelPendingAnchorScroll,
       scrollerItemProps,
       flatlistProps,
     }),
-    [readyToDisplayPosts, scrollerItemProps, flatlistProps]
+    [
+      readyToDisplayPosts,
+      cancelPendingAnchorScroll,
+      scrollerItemProps,
+      flatlistProps,
+    ]
   );
 }

@@ -24,6 +24,7 @@ export type ScrollInputAction = {
   time: number;
   kind:
     | 'input'
+    | 'select-all'
     | 'send'
     | 'composition-start'
     | 'composition-end'
@@ -35,7 +36,7 @@ export type ScrollInputAction = {
 };
 
 export type ScrollInputContract = {
-  version: 1;
+  version: 1 | 2;
   declaredAt: number;
   start: number;
   end: number;
@@ -56,17 +57,36 @@ export type ScrollInputDispatch = Omit<ScrollInputAction, 'time'> & {
   end: number;
 };
 
+/** Raw trusted key delivery, separate from the resulting selection/input state. */
+export type ScrollInputKey = {
+  time: number;
+  observedAt: number;
+  scopeKey: string;
+  inputId: string;
+  trusted: boolean;
+  targetIsInput: boolean;
+  key: string;
+  code: string;
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+  repeat: boolean;
+};
+
 /** Bind all raw deliveries to independently timed, predeclared driver commands. */
 export function bindScrollInputDeliveries({
   declaredAt,
   expected,
   dispatches,
   events,
+  keyboard,
 }: {
   declaredAt: number;
   expected: Omit<ScrollInputAction, 'time'>[];
   dispatches: ScrollInputDispatch[];
   events: (ScrollInputAction & { trusted: boolean; observedAt: number })[];
+  keyboard?: ScrollInputKey[];
 }) {
   const issues: { code: string; kind: 'failure' | 'incomplete' }[] = [];
   const actions: ScrollInputAction[] = [];
@@ -141,6 +161,106 @@ export function bindScrollInputDeliveries({
     )
   )
     issues.push({ code: 'input-event-outside-dispatch', kind: 'failure' });
+  if (expected.some((command) => command.kind === 'select-all')) {
+    if (
+      !Array.isArray(keyboard) ||
+      keyboard.some(
+        (key, index) =>
+          !key ||
+          !Number.isFinite(key.time) ||
+          !Number.isFinite(key.observedAt) ||
+          key.observedAt < key.time ||
+          (index > 0 && key.time < keyboard[index - 1].time) ||
+          typeof key.key !== 'string' ||
+          typeof key.code !== 'string' ||
+          [
+            'trusted',
+            'targetIsInput',
+            'ctrlKey',
+            'metaKey',
+            'altKey',
+            'shiftKey',
+            'repeat',
+          ].some(
+            (field) => typeof key[field as keyof ScrollInputKey] !== 'boolean'
+          )
+      )
+    ) {
+      issues.push({
+        code: 'invalid-input-keyboard-evidence',
+        kind: 'incomplete',
+      });
+    } else {
+      const selectIndex = expected.findIndex(
+        (command) => command.kind === 'select-all'
+      );
+      const clearIndex = selectIndex + 1;
+      const nonModifiers = keyboard.filter(
+        (key) => !['Control', 'Meta'].includes(key.key)
+      );
+      const selectKey = nonModifiers[0],
+        deleteKey = nonModifiers[1];
+      const selectAction = actions.find(
+        (action) => action.id === expected[selectIndex]?.id
+      );
+      const clearAction = actions.find(
+        (action) => action.id === expected[clearIndex]?.id
+      );
+      if (
+        nonModifiers.length !== 2 ||
+        !selectKey ||
+        selectKey.key.toLowerCase() !== 'a' ||
+        selectKey.code !== 'KeyA' ||
+        selectKey.ctrlKey === selectKey.metaKey ||
+        !deleteKey ||
+        deleteKey.key !== 'Delete' ||
+        deleteKey.code !== 'Delete' ||
+        deleteKey.ctrlKey ||
+        deleteKey.metaKey ||
+        !selectAction ||
+        selectAction.time !== selectKey.time ||
+        !clearAction ||
+        expected[clearIndex]?.kind !== 'input' ||
+        expected[clearIndex]?.payload !== '' ||
+        deleteKey.time > clearAction.time ||
+        keyboard.some((key) => {
+          const index = key === deleteKey ? clearIndex : selectIndex;
+          const command = dispatches[index];
+          return (
+            !command ||
+            !key.trusted ||
+            !key.targetIsInput ||
+            key.altKey ||
+            key.shiftKey ||
+            key.repeat ||
+            key.scopeKey !== command.scopeKey ||
+            key.inputId !== command.inputId ||
+            key.time < command.start ||
+            key.time > command.end ||
+            (key.key === 'Control' &&
+              (!key.ctrlKey || key.metaKey || !selectKey?.ctrlKey)) ||
+            (key.key === 'Meta' &&
+              (!key.metaKey || key.ctrlKey || !selectKey?.metaKey))
+          );
+        })
+      )
+        issues.push({
+          code: 'input-keyboard-delivery-mismatch',
+          kind: 'failure',
+        });
+      if (
+        keyboard.some((key) => {
+          const command =
+            dispatches[key === deleteKey ? clearIndex : selectIndex];
+          return command && key.observedAt > command.end;
+        })
+      )
+        issues.push({
+          code: 'input-key-observed-after-dispatch',
+          kind: 'incomplete',
+        });
+    }
+  }
   return { actions, issues };
 }
 
@@ -244,7 +364,7 @@ export function assessScrollInputTrace({
       : null,
   });
   if (
-    contract.version !== 1 ||
+    (contract.version !== 1 && contract.version !== 2) ||
     ![
       contract.declaredAt,
       contract.start,

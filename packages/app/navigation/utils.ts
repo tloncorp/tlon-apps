@@ -336,6 +336,19 @@ export function useNavigateBackFromPost() {
         navigation.navigate(route.name, route.params, { pop: true });
         return;
       }
+      const retainedChannelScreen = isWindowNarrow
+        ? screenNameFromChannelId(channel.id)
+        : 'ChannelRoot';
+      if (
+        previousRoute?.name === retainedChannelScreen &&
+        previousRouteParams?.channelId === channel.id
+      ) {
+        // Returning to this existing surface preserves its reading position
+        // and entry params. Selecting the parent again would create a new
+        // landing request after replies have changed the row's height.
+        navigation.goBack();
+        return;
+      }
       if (isWindowNarrow) {
         const screenName = screenNameFromChannelId(channel.id);
         const params = {
@@ -345,9 +358,9 @@ export function useNavigateBackFromPost() {
           selectedPostId: isChatShaped ? postId : undefined,
           ...(channel.groupId ? { groupId: channel.groupId } : {}),
         };
-        // popTo pops back to the target channel if it's already in the stack
-        // (the normal in-channel thread case), or replaces the focused Post in
-        // place if it isn't (e.g. a thread opened from a reference in a DM) —
+        // With no immediate matching surface to reveal, popTo finds an older
+        // target channel or replaces the focused Post in place if it isn't in
+        // the stack (e.g. a thread opened from a reference in a DM) —
         // never pushing a duplicate channel that would leave Post underneath
         // and create a back-stack loop. Note: with no getId on the stack
         // screens, popTo matches by name only, so it won't preserve a stacked

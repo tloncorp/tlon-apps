@@ -1,0 +1,2542 @@
+diff --git a/animated.d.ts b/animated.d.ts
+index 4b38f24e3bab601930efe71cff129363ac8f117a..4d461493f9ea571036fc5228f1efe94c83138f3c 100644
+--- a/animated.d.ts
++++ b/animated.d.ts
+@@ -283,6 +283,11 @@ interface LegendListSpecificProps<ItemT, TItemType extends string | undefined> {
+      * - undefined (default) enables scroll stabilization but skips data-change anchoring.
+      * - true enables both behaviors; false disables both.
+      */
++    /** Ordinary vertical iOS READ routes relative compensation through the
++     * tagged native mount signal; native provider admission stays authoritative. */
++    nativeReadPointCorrection?: boolean;
++    /** Exact committed native scope/visit/intent token for READ routing. */
++    nativeReadPointIntent?: string;
+     maintainVisibleContentPosition?: boolean | MaintainVisibleContentPositionConfig<ItemT>;
+     /**
+      * Keeps an item visually anchored to the start by adding trailing space when the content below it underflows.
+diff --git a/react-native.d.ts b/react-native.d.ts
+index 82040150cafff1fea60573be2fb0aea60958b383..546ca84527e62409dfc58cda534c5bca0a8ec53a 100644
+--- a/react-native.d.ts
++++ b/react-native.d.ts
+@@ -8,7 +8,7 @@ interface MaintainVisibleContentPositionNormalized<ItemT = any> {
+     shouldRestorePosition?: (item: ItemT, index: number, data: readonly ItemT[]) => boolean;
+ }
+ 
+-type ListenerType = "activeStickyIndex" | "alignItemsAtEndPadding" | "anchoredEndSpaceSize" | "containerLayoutEpoch" | "debugComputedScroll" | "debugRawScroll" | "extraData" | "footerSize" | "headerSize" | "lastItemKeys" | "lastPositionUpdate" | "maintainVisibleContentPosition" | "numColumns" | "numContainers" | "numContainersPooled" | "otherAxisSize" | "readyToRender" | "scrollAdjust" | "scrollAdjustPending" | "scrollAdjustUserOffset" | "scrollSize" | "snapToOffsets" | "stylePaddingTop" | "totalSize" | "isAtEnd" | "isAtStart" | "isNearEnd" | "isNearStart" | "isWithinMaintainScrollAtEndThreshold" | "adaptiveRender" | `containerColumn${number}` | `containerSpan${number}` | `containerItemData${number}` | `containerItemIndex${number}` | `containerItemKey${number}` | `containerPosition${number}` | `containerSticky${number}`;
++type ListenerType = "activeStickyIndex" | "alignItemsAtEndPadding" | "anchoredEndSpaceSize" | "containerLayoutEpoch" | "debugComputedScroll" | "debugRawScroll" | "extraData" | "footerSize" | "headerSize" | "lastItemKeys" | "lastPositionUpdate" | "maintainVisibleContentPosition" | "numColumns" | "numContainers" | "numContainersPooled" | "otherAxisSize" | "readyToRender" | "nativeReadPointAdjustment" | "scrollAdjust" | "scrollAdjustPending" | "scrollAdjustUserOffset" | "scrollSize" | "snapToOffsets" | "stylePaddingTop" | "totalSize" | "isAtEnd" | "isAtStart" | "isNearEnd" | "isNearStart" | "isWithinMaintainScrollAtEndThreshold" | "adaptiveRender" | `containerColumn${number}` | `containerSpan${number}` | `containerItemData${number}` | `containerItemIndex${number}` | `containerItemKey${number}` | `containerPosition${number}` | `containerSticky${number}`;
+ type LegendListListenerType = Extract<ListenerType, "activeStickyIndex" | "anchoredEndSpaceSize" | "footerSize" | "headerSize" | "isAtEnd" | "isAtStart" | "isNearEnd" | "isNearStart" | "isWithinMaintainScrollAtEndThreshold" | "adaptiveRender" | "lastItemKeys" | "lastPositionUpdate" | "numContainers" | "numContainersPooled" | "otherAxisSize" | "readyToRender" | "snapToOffsets" | "totalSize">;
+ type ListenerTypeValueMap = {
+     activeStickyIndex: number;
+@@ -34,6 +34,7 @@ type ListenerTypeValueMap = {
+     numContainersPooled: number;
+     otherAxisSize: number;
+     readyToRender: boolean;
++    nativeReadPointAdjustment: string;
+     scrollAdjust: number;
+     scrollAdjustPending: number;
+     scrollAdjustUserOffset: number;
+@@ -283,6 +284,12 @@ interface LegendListSpecificProps<ItemT, TItemType extends string | undefined> {
+      * - undefined (default) enables scroll stabilization but skips data-change anchoring.
+      * - true enables both behaviors; false disables both.
+      */
++    /** Ordinary vertical iOS READ only. Routes relative compensation through the
++     * native mount's legacy sentinel; resident native READ admission remains
++     * authoritative. Requires the matching RN native READ provider integration. */
++    nativeReadPointCorrection?: boolean;
++    /** Exact committed native scope/visit/intent token; required for READ routing. */
++    nativeReadPointIntent?: string;
+     maintainVisibleContentPosition?: boolean | MaintainVisibleContentPositionConfig<ItemT>;
+     /**
+      * Keeps an item visually anchored to the start by adding trailing space when the content below it underflows.
+@@ -547,6 +554,8 @@ type LegendListState$1 = {
+     startBuffered: number;
+ };
+ type LegendListRef$1 = {
++    /** Retire only this handle's still-owned request; does not cancel delivered UIKit animation. */
++    cancelScroll(request: Promise<void>): boolean;
+     /**
+      * Clears internal virtualization caches.
+      * @param options - Cache clearing options.
+@@ -638,6 +647,8 @@ type LegendListRef$1 = {
+         item: any;
+         viewOffset?: number | undefined;
+         viewPosition?: number | undefined;
++        /** Ordinary iOS explicit-key items only. Full current offset; unavailable geometry must return undefined. */
++        getViewOffset?: ((target: { item: any; key: string; index: number; itemSize: number }) => number | undefined) | undefined;
+     }): Promise<void>;
+     /**
+      * Scrolls to a specific offset in pixels.
+diff --git a/react-native.js b/react-native.js
+index 229f09a8230ab24079d471f65d28d36908f0f2ea..8b76dc4bce2269bf86d0ef561bd4c4b3da9921a4 100644
+--- a/react-native.js
++++ b/react-native.js
+@@ -1275,13 +1275,133 @@ function clampScrollOffset(ctx, offset, scrollTarget) {
+ }
+ 
+ // src/core/finishScrollTo.ts
++function findKeyedScrollItemIndex(state, key) {
++  const { data, keyExtractor } = state.props;
++  if (!keyExtractor) return -1;
++  const cached = state.indexByKey.get(key);
++  if (cached !== undefined && cached >= 0 && cached < data.length && keyExtractor(data[cached], cached) === key) return cached;
++  return data.findIndex((item, index) => keyExtractor(item, index) === key);
++}
++function refreshKeyedScrollTarget(ctx, target) {
++  if (!target.keyedTarget) return true;
++  if (target.keyedFailureReason) return false;
++  const state = ctx.state;
++  // New props can precede rebuilt positions. Neither old positions nor a
++  // speculative requested offset establish current keyed target geometry.
++  if (state.scrollItemLayoutData !== state.props.data || state.scrollItemLayoutVersion !== state.props.dataVersion || state.scrollItemLayoutKey !== state.props.dataKey) return false;
++  const index = findKeyedScrollItemIndex(state, target.targetKey);
++  if (index < 0) {
++    target.keyedFailureReason = "target-missing";
++    return false;
++  }
++  if (state.indexByKey.get(target.targetKey) !== index || state.idCache[index] !== target.targetKey) return false;
++  target.index = index;
++  return true;
++}
++function readKeyedViewOffset(ctx, getter, key, index) {
++  if (typeof getter !== "function") return undefined;
++  const state = ctx.state;
++  const data = state.props.data;
++  const item = data[index];
++  const dataVersion = state.props.dataVersion;
++  const dataKey = state.props.dataKey;
++  const position = state.positions[index];
++  const itemSize = getItemSizeAtIndex(ctx, index);
++  if (!Number.isFinite(itemSize) || itemSize < 0 || !Number.isFinite(position) || state.scrollItemLayoutData !== data || state.scrollItemLayoutVersion !== dataVersion || state.scrollItemLayoutKey !== dataKey || state.indexByKey.get(key) !== index || state.idCache[index] !== key) return undefined;
++  try {
++    const value = getter({ item, key, index, itemSize });
++    // The callback may publish data or run a layout pass without accepting a
++    // new command. Its result is usable only for the same coherent snapshot.
++    if (state.props.data !== data || state.props.dataVersion !== dataVersion || state.props.dataKey !== dataKey || state.scrollItemLayoutData !== data || state.scrollItemLayoutVersion !== dataVersion || state.scrollItemLayoutKey !== dataKey || state.props.data[index] !== item || findKeyedScrollItemIndex(state, key) !== index || state.indexByKey.get(key) !== index || state.idCache[index] !== key || state.positions[index] !== position || getItemSizeAtIndex(ctx, index) !== itemSize) return undefined;
++    return Number.isFinite(value) ? value : undefined;
++  } catch (_error) { return undefined; }
++}
++function resolveKeyedViewOffset(ctx, target) {
++  if (!target || target.getViewOffset === undefined) return true;
++  const state = ctx.state;
++  if (!target.keyedTarget || !ownsScrollCompletion(state, target) || !refreshKeyedScrollTarget(ctx, target)) return false;
++  const value = readKeyedViewOffset(ctx, target.getViewOffset, target.targetKey, target.index);
++  // A user-supplied resolver may synchronously revoke or replace this request.
++  if (!ownsScrollCompletion(state, target)) return false;
++  const currentTarget = refreshKeyedScrollTarget(ctx, target);
++  const available = currentTarget && value !== undefined;
++  if (!available || !target.dynamicOffsetAvailable || value !== target.viewOffset) {
++    target.nativeCompletionRevision = state.nativeScrollEventRevision || 0;
++    target.nativeCompletionCanUseExisting = false;
++  }
++  target.dynamicOffsetAvailable = available;
++  if (available) target.viewOffset = value;
++  return available;
++}
++function createKeyedScrollFailure(ctx, key, index, reason) {
++  const error = new Error("Item scroll did not retain its requested target");
++  error.code = "LEGEND_SCROLL_UNALIGNED";
++  error.reason = reason;
++  error.key = key === undefined ? null : key;
++  error.index = index === undefined ? null : index;
++  error.requestedOffset = null;
++  error.currentOffset = null;
++  error.observedOffset = Number.isFinite(ctx.state.lastNativeScroll) ? ctx.state.lastNativeScroll : null;
++  return error;
++}
++function isObservedIOSIndexedScroll(state, target) {
++  return Platform.OS === "ios" && !!target && !target.isInitialScroll && Number.isInteger(target.index);
++}
++function ownsScrollCompletion(state, target) {
++  return state.scrollingTo === target && (target.scrollCommandRevision === undefined || target.scrollCommandRevision === (state.scrollCommandRevision || 0));
++}
++function takePendingScrollSettlement(state, target) {
++  const request = state.pendingScrollRequest;
++  if (request && request.target !== target) return {};
++  const resolve = request ? request.resolve : state.pendingScrollResolve;
++  const reject = request ? request.reject : state.pendingScrollReject;
++  if (request) state.pendingScrollRequest = undefined;
++  if (state.pendingScrollResolve === resolve) state.pendingScrollResolve = undefined;
++  if (state.pendingScrollReject === reject) state.pendingScrollReject = undefined;
++  if (state.pendingScrollToEnd && state.pendingScrollToEnd.resolve === resolve) state.pendingScrollToEnd = undefined;
++  return { resolve, reject };
++}
++function failIndexedScrollTo(ctx, target, error) {
++  const state = ctx.state;
++  if (!ownsScrollCompletion(state, target)) return;
++  const settlement = takePendingScrollSettlement(state, target);
++  state.scrollingTo = undefined;
++  state.scrollTargetPinnedRange = undefined;
++  state.scrollHistory.length = 0;
++  if (state.animFrameCheckFinishedScroll !== undefined) {
++    cancelAnimationFrame(state.animFrameCheckFinishedScroll);
++    state.animFrameCheckFinishedScroll = undefined;
++  }
++  if (state.timeoutCheckFinishedScrollFallback !== undefined) {
++    clearTimeout(state.timeoutCheckFinishedScrollFallback);
++    state.timeoutCheckFinishedScrollFallback = undefined;
++  }
++  // Relative-adjustment accounting and initial readiness are not success-cleaned.
++  try { recalculateSettledScroll(ctx); }
++  catch (cleanupError) { if (error && error.cause === undefined) error.cause = cleanupError; }
++  finally { if (settlement.reject) settlement.reject(error); }
++}
++function createIndexedScrollFailure(ctx, target) {
++  const error = new Error("Indexed scroll did not reach its current native target");
++  error.code = "LEGEND_SCROLL_UNALIGNED";
++  error.index = target.index;
++  if (target.keyedTarget) {
++    error.key = target.targetKey;
++    error.reason = target.keyedFailureReason || (target.getViewOffset !== undefined && !target.dynamicOffsetAvailable ? "target-offset-unavailable" : "target-unaligned");
++  }
++  error.requestedOffset = Number.isFinite(target.targetOffset) ? target.targetOffset : null;
++  const current = getCurrentTargetOffset(ctx, target);
++  error.currentOffset = Number.isFinite(current) ? current : null;
++  error.observedOffset = Number.isFinite(ctx.state.lastNativeScroll) ? ctx.state.lastNativeScroll : null;
++  return error;
++}
+ function finishScrollTo(ctx) {
+   var _a3, _b;
+   const state = ctx.state;
+   if (state == null ? void 0 : state.scrollingTo) {
+-    const resolvePendingScroll = state.pendingScrollResolve;
+-    state.pendingScrollResolve = void 0;
+     const scrollingTo = state.scrollingTo;
++    const settlement = takePendingScrollSettlement(state, scrollingTo);
++    const resolvePendingScroll = settlement.resolve;
+     state.scrollHistory.length = 0;
+     state.scrollingTo = void 0;
+     state.scrollTargetPinnedRange = void 0;
+@@ -1327,7 +1447,7 @@ function checkFinishedScroll(ctx, options) {
+       return;
+     }
+   }
+-  ctx.state.animFrameCheckFinishedScroll = requestAnimationFrame(() => checkFinishedScrollFrame(ctx));
++  ctx.state.animFrameCheckFinishedScroll = requestAnimationFrame(() => checkFinishedScrollFrame(ctx, scrollingTo));
+ }
+ function hasScrollCompletionOwnership(state, options) {
+   const { clampedTargetOffset, scrollingTo } = options;
+@@ -1371,13 +1491,29 @@ function isEndAlignedLastItemTarget(ctx, scrollingTo) {
+ }
+ function getCurrentTargetOffset(ctx, scrollingTo) {
+   var _a3;
++  if (!refreshKeyedScrollTarget(ctx, scrollingTo) || !resolveKeyedViewOffset(ctx, scrollingTo)) return NaN;
+   const index = scrollingTo.index;
++  if (isObservedIOSIndexedScroll(ctx.state, scrollingTo)) {
++    if (index < 0 || index >= ctx.state.props.data.length || !Number.isFinite(ctx.state.positions[index])) return NaN;
++    const currentOffset = calculateOffsetWithOffsetPosition(ctx, ctx.state.positions[index], scrollingTo);
++    return Number.isFinite(currentOffset) ? clampScrollOffset(ctx, currentOffset, scrollingTo) : NaN;
++  }
+   const shouldRecomputeEndTarget = isEndAlignedLastItemTarget(ctx, scrollingTo);
+   const requestedTargetOffset = shouldRecomputeEndTarget && index !== void 0 ? calculateOffsetWithOffsetPosition(ctx, calculateOffsetForIndex(ctx, index), scrollingTo) : (_a3 = scrollingTo.targetOffset) != null ? _a3 : clampScrollOffset(ctx, scrollingTo.offset - (scrollingTo.viewOffset || 0), scrollingTo);
+   return clampScrollOffset(ctx, requestedTargetOffset, scrollingTo);
+ }
+ function getResolvedScrollCompletionState(ctx, scrollingTo) {
+   const { state } = ctx;
++  if (isObservedIOSIndexedScroll(state, scrollingTo)) {
++    const scroll = state.lastNativeScroll;
++    const clampedTargetOffset = getCurrentTargetOffset(ctx, scrollingTo);
++    const hasObservation = Number.isFinite(scroll);
++    const hasCommandObservation = scrollingTo.nativeCompletionCanUseExisting || (state.nativeScrollEventRevision || 0) > (scrollingTo.nativeCompletionRevision || 0);
++    return {
++      clampedTargetOffset,
++      isAtResolvedTarget: !!hasObservation && !!hasCommandObservation && Number.isFinite(clampedTargetOffset) && Math.abs(scroll - clampScrollOffset(ctx, scroll, scrollingTo)) < 1 && Math.abs(scroll - clampedTargetOffset) < 1
++    };
++  }
+   const scroll = state.scrollPending;
+   const adjust = state.scrollAdjustHandler.getAdjust();
+   const clampedTargetOffset = getCurrentTargetOffset(ctx, scrollingTo);
+@@ -1391,14 +1527,19 @@ function getResolvedScrollCompletionState(ctx, scrollingTo) {
+     isAtResolvedTarget: Math.abs(scroll - maxOffset) < 1 && (diff1 < 1 || canUseAdjustedCompletion && diff2 < 1)
+   };
+ }
+-function checkFinishedScrollFrame(ctx) {
++function checkFinishedScrollFrame(ctx, expectedTarget = ctx.state.scrollingTo) {
+   const scrollingTo = ctx.state.scrollingTo;
+-  if (!scrollingTo) {
++  if (!scrollingTo || expectedTarget !== scrollingTo || !ownsScrollCompletion(ctx.state, scrollingTo)) {
+     return;
+   }
+   const { state } = ctx;
+   state.animFrameCheckFinishedScroll = void 0;
+   const completionState = getResolvedScrollCompletionState(ctx, scrollingTo);
++  if (!ownsScrollCompletion(state, scrollingTo)) return;
++  if (scrollingTo.keyedFailureReason) {
++    failIndexedScrollTo(ctx, scrollingTo, createIndexedScrollFailure(ctx, scrollingTo));
++    return;
++  }
+   if (completionState.isAtResolvedTarget && hasScrollCompletionOwnership(state, {
+     clampedTargetOffset: completionState.clampedTargetOffset,
+     scrollingTo
+@@ -1422,13 +1563,16 @@ function checkFinishedScrollFallback(ctx) {
+   const canFinishInitialWithoutNativeProgress = scrollingTo !== void 0 ? shouldFinishInitialScrollWithoutNativeProgress(state, scrollingTo) : false;
+   const slowTimeout = (scrollingTo == null ? void 0 : scrollingTo.isInitialScroll) && !shouldFinishInitialZeroTarget && !canFinishInitialWithoutNativeProgress || !state.didContainersLayout;
+   const initialDelay = shouldFinishInitialZeroTarget || canFinishInitialWithoutNativeProgress ? 0 : silentInitialDispatch ? SILENT_INITIAL_SCROLL_RETRY_DELAY_MS : slowTimeout ? 500 : 100;
++  const commandRevision = state.scrollCommandRevision || 0;
+   state.timeoutCheckFinishedScrollFallback = setTimeout(() => {
++    if (state.scrollingTo !== scrollingTo || commandRevision !== (state.scrollCommandRevision || 0)) return;
+     let numChecks = 0;
+     const scheduleFallbackCheck = (delay) => {
+       state.timeoutCheckFinishedScrollFallback = setTimeout(checkHasScrolled, delay);
+     };
+     const checkHasScrolled = () => {
+       var _a3, _b, _c, _d;
++      if (state.scrollingTo !== scrollingTo || commandRevision !== (state.scrollCommandRevision || 0)) return;
+       state.timeoutCheckFinishedScrollFallback = void 0;
+       const isStillScrollingTo = state.scrollingTo;
+       if (isStillScrollingTo) {
+@@ -1441,6 +1585,20 @@ function checkFinishedScrollFallback(ctx) {
+           isStillScrollingTo
+         );
+         const completionState = getResolvedScrollCompletionState(ctx, isStillScrollingTo);
++        if (!ownsScrollCompletion(state, isStillScrollingTo)) return;
++        if (isObservedIOSIndexedScroll(state, isStillScrollingTo)) {
++          if (isStillScrollingTo.keyedFailureReason) {
++            failIndexedScrollTo(ctx, isStillScrollingTo, createIndexedScrollFailure(ctx, isStillScrollingTo));
++          } else if (completionState.isAtResolvedTarget) {
++            finishScrollTo(ctx);
++          } else if (numChecks <= 5) {
++            if (Number.isFinite(completionState.clampedTargetOffset)) scrollToFallbackOffset(ctx, completionState.clampedTargetOffset);
++            scheduleFallbackCheck(100);
++          } else {
++            failIndexedScrollTo(ctx, isStillScrollingTo, createIndexedScrollFailure(ctx, isStillScrollingTo));
++          }
++          return;
++        }
+         const canFinishAfterSilentNativeDispatch = Platform.OS === "android" && silentInitialDispatch && completionState.isAtResolvedTarget && numChecks >= 1;
+         const shouldRetrySilentInitialNativeScroll = Platform.OS === "android" && canFinishAfterSilentNativeDispatch && !initialScrollCompletion.didRetrySilentInitialScroll(state);
+         const shouldFinishAfterObservedScroll = state.hasScrolled && (!isStillScrollingTo.isInitialScroll || completionState.isAtResolvedTarget);
+@@ -1567,10 +1725,73 @@ function doMaintainScrollAtEnd(ctx) {
+   return false;
+ }
+ 
++// RN's resident provider decides admission at the native mount. This flag
++// routes only ordinary READ compensation to that mount's legacy sentinel; it
++// never claims native admission and never predicts the resulting native offset.
++function routesNativeReadAdjustment(state) {
++  return Platform.OS === "ios" && state.props.nativeReadPointCorrection === true &&
++    typeof state.props.nativeReadPointIntent === "string" && state.props.nativeReadPointIntent.length > 0 &&
++    !state.props.horizontal && state.didFinishInitialScroll && state.didContainersLayout &&
++    !state.scrollingTo && !state.pendingScrollRequest && !state.pendingScrollToEnd &&
++    !state.maintainingScrollAtEnd && !state.pendingMaintainScrollAtEnd && !state.adjustingFromInitialMount;
++}
++
++function captureNativeReadPreparation(state) {
++  if (!routesNativeReadAdjustment(state)) return undefined;
++  const preparation = {
++    intent: state.props.nativeReadPointIntent,
++    commandRevision: state.scrollCommandRevision || 0,
++    nativeOffset: state.nativeReadAcknowledgedSignal === state.nativeReadRelativeSignal && state.nativeReadAcknowledgedTimestamp > state.lastNativeScrollTimestamp ? state.nativeReadAcknowledgedOffset : state.lastNativeScroll,
++    nativeTimestamp: state.nativeReadAcknowledgedSignal === state.nativeReadRelativeSignal && state.nativeReadAcknowledgedTimestamp > state.lastNativeScrollTimestamp ? state.nativeReadAcknowledgedTimestamp : state.lastNativeScrollTimestamp,
++    nativeRevision: state.nativeScrollEventRevision || 0,
++    signal: state.nativeReadRelativeSignal,
++    acknowledged: state.nativeReadAcknowledgedSignal === state.nativeReadRelativeSignal
++  };
++  state.nativeReadMVCPPreparation = preparation;
++  return preparation;
++}
++function ownsNativeReadPreparation(state, preparation) {
++  return !preparation || state.nativeReadMVCPPreparation === preparation &&
++    routesNativeReadAdjustment(state) && state.props.nativeReadPointIntent === preparation.intent &&
++    (state.scrollCommandRevision || 0) === preparation.commandRevision &&
++    state.nativeReadRelativeSignal === preparation.signal;
++}
++
+ // src/utils/requestAdjust.ts
+-function requestAdjust(ctx, positionDiff, dataChanged) {
++function requestAdjust(ctx, positionDiff, dataChanged, nativeReadPreparation) {
+   const state = ctx.state;
++  const adjustmentCommandRevision = state.scrollCommandRevision || 0;
++  const adjustmentNativeEventRevision = state.nativeScrollEventRevision || 0;
+   if (Math.abs(positionDiff) > 0.1) {
++    if (routesNativeReadAdjustment(state)) {
++      if (!ownsNativeReadPreparation(state, nativeReadPreparation)) return;
++      const intent = state.props.nativeReadPointIntent;
++      const previous = state.nativeReadRelativeSignal;
++      const previousAmount = previous && previous.intent === intent ? previous.amount : 0;
++      const acknowledged = state.nativeReadAcknowledgedSignal === previous;
++      const ackDuringPreparation = acknowledged && nativeReadPreparation && !nativeReadPreparation.acknowledged;
++      const preferAck = acknowledged && state.nativeReadAcknowledgedTimestamp > state.lastNativeScrollTimestamp;
++      const basisOffset = ackDuringPreparation || !nativeReadPreparation && preferAck ? state.nativeReadAcknowledgedOffset : nativeReadPreparation ? nativeReadPreparation.nativeOffset : state.lastNativeScroll;
++      const basisTimestamp = ackDuringPreparation || !nativeReadPreparation && preferAck ? state.nativeReadAcknowledgedTimestamp : nativeReadPreparation ? nativeReadPreparation.nativeTimestamp : state.lastNativeScrollTimestamp;
++      const basisRevision = nativeReadPreparation ? nativeReadPreparation.nativeRevision : state.nativeScrollEventRevision || 0;
++      if (!Number.isFinite(basisOffset) || !Number.isFinite(basisTimestamp)) return;
++      const reuse = previous && previous.intent === intent && previous.operation && !acknowledged &&
++        state.nativeReadRelativeCommandRevision === adjustmentCommandRevision;
++      const operation = reuse ? previous.operation : {
++        id: (state.nativeReadOperationRevision || 0) + 1,
++        startOffset: basisOffset,
++        startAmount: previousAmount
++      };
++      if (!Number.isSafeInteger(operation.id) || !Number.isFinite(previousAmount + positionDiff)) return;
++      state.nativeReadOperationRevision = operation.id;
++      state.nativeReadRelativeSignal = { intent, amount: previousAmount + positionDiff, operation };
++      state.nativeReadRelativeCommandRevision = adjustmentCommandRevision;
++      state.nativeReadRelativeNativeRevision = basisRevision;
++      state.nativeReadRelativeNativeTimestamp = basisTimestamp;
++      state.scrollForNextCalculateItemsInView = void 0;
++      set$(ctx, "nativeReadPointAdjustment", JSON.stringify(state.nativeReadRelativeSignal));
++      return;
++    }
+     const needsScrollWorkaround = Platform.OS === "android" && !IsNewArchitecture && dataChanged && state.scroll <= positionDiff;
+     const doit = () => {
+       if (needsScrollWorkaround) {
+@@ -1601,8 +1822,24 @@ function requestAdjust(ctx, positionDiff, dataChanged) {
+           clearTimeout(state.ignoreScrollFromMVCPTimeout);
+         }
+         const delay = needsScrollWorkaround ? 250 : 100;
+-        state.ignoreScrollFromMVCPTimeout = setTimeout(() => {
++        const suppressionTimeout = setTimeout(() => {
+           var _a3;
++          if (Platform.OS === "ios") {
++            // Expire only this adjustment's suppression. A queued older timer
++            // cannot clear newer work, even after command completion ABA.
++            if (state.ignoreScrollFromMVCPTimeout !== suppressionTimeout) return;
++            state.ignoreScrollFromMVCPTimeout = void 0;
++            state.ignoreScrollFromMVCP = void 0;
++            state.ignoreScrollFromMVCPIgnored = false;
++            const sameCommand = (state.scrollCommandRevision || 0) === adjustmentCommandRevision;
++            const observedAfterAdjustment = (state.nativeScrollEventRevision || 0) > adjustmentNativeEventRevision;
++            const observedOffset = state.lastNativeScroll;
++            if (sameCommand && observedAfterAdjustment && state.scrollProcessingEnabled !== false && Number.isFinite(observedOffset)) {
++              state.scrollPending = observedOffset;
++              updateScroll(ctx, observedOffset, true, { markHasScrolled: false });
++            }
++            return;
++          }
+           state.ignoreScrollFromMVCP = void 0;
+           const shouldForceUpdate = state.ignoreScrollFromMVCPIgnored && state.scrollProcessingEnabled !== false;
+           if (shouldForceUpdate) {
+@@ -1611,6 +1848,7 @@ function requestAdjust(ctx, positionDiff, dataChanged) {
+             (_a3 = state.reprocessCurrentScroll) == null ? void 0 : _a3.call(state);
+           }
+         }, delay);
++        state.ignoreScrollFromMVCPTimeout = suppressionTimeout;
+       }
+     } else {
+       state.adjustingFromInitialMount = (state.adjustingFromInitialMount || 0) + 1;
+@@ -1664,6 +1902,7 @@ function updateAnchorLock(state, params) {
+   }
+ }
+ function shouldQueueNativeMVCPAdjust(dataChanged, state, positionDiff, prevTotalSize, prevScroll, scrollTarget) {
++  if (routesNativeReadAdjustment(state)) return false;
+   if (!dataChanged || Platform.OS === "web" || !state.props.maintainVisibleContentPosition.data || scrollTarget !== void 0 || positionDiff >= -MVCP_POSITION_EPSILON) {
+     return false;
+   }
+@@ -1759,6 +1998,7 @@ function resolvePendingNativeMVCPAdjust(ctx, newScroll) {
+ }
+ function prepareMVCP(ctx, dataChanged) {
+   const state = ctx.state;
++  if (routesNativeReadAdjustment(state)) state.pendingNativeMVCPAdjust = void 0;
+   const { idsInView, positions, props } = state;
+   const {
+     maintainVisibleContentPosition: { data: mvcpData, size: mvcpScroll, shouldRestorePosition }
+@@ -1767,6 +2007,13 @@ function prepareMVCP(ctx, dataChanged) {
+   const now = Date.now();
+   const enableMVCPAnchorLock = isWeb && (!!dataChanged || !!state.mvcpAnchorLock);
+   const scrollingTo = state.scrollingTo;
++  const preparedCommandRevision = state.scrollCommandRevision || 0;
++  const nativeReadPreparation = captureNativeReadPreparation(state);
++  const ownsPreparation = () => Platform.OS !== "ios" || (state.scrollCommandRevision || 0) === preparedCommandRevision && state.scrollingTo === scrollingTo && ownsNativeReadPreparation(state, nativeReadPreparation);
++  // An active nonanimated keyed command owns absolute movement until its
++  // current native acknowledgement completes. Relative compensation here
++  // would instead move the still-outgoing viewport, competing with that target.
++  if (getNativeAcquisitionPositions(ctx) || Platform.OS === "ios" && scrollingTo && scrollingTo.keyedTarget && !scrollingTo.animated && !scrollingTo.isInitialScroll) return undefined;
+   if (isWeb && dataChanged && state.pendingScrollToEnd && scrollingTo === void 0) {
+     state.mvcpAnchorLock = void 0;
+     return void 0;
+@@ -1777,7 +2024,7 @@ function prepareMVCP(ctx, dataChanged) {
+   const idsInViewWithPositions = [];
+   const scrollTarget = scrollingTo == null ? void 0 : scrollingTo.index;
+   const scrollingToViewPosition = scrollingTo == null ? void 0 : scrollingTo.viewPosition;
+-  const isEndAnchoredScrollTarget = scrollTarget !== void 0 && state.props.data.length > 0 && scrollTarget >= state.props.data.length - 1 && (scrollingToViewPosition != null ? scrollingToViewPosition : 0) > 0;
++  const isEndAnchoredScrollTarget = !(scrollingTo == null ? void 0 : scrollingTo.keyedTarget) && scrollTarget !== void 0 && state.props.data.length > 0 && scrollTarget >= state.props.data.length - 1 && (scrollingToViewPosition != null ? scrollingToViewPosition : 0) > 0;
+   const shouldMVCP = dataChanged ? mvcpData : mvcpScroll;
+   const indexByKey = state.indexByKey;
+   const prevScroll = state.scroll;
+@@ -1794,7 +2041,7 @@ function prepareMVCP(ctx, dataChanged) {
+       if (!IsNewArchitecture && (scrollingTo == null ? void 0 : scrollingTo.isInitialScroll)) {
+         return void 0;
+       }
+-      targetId = getId(state, scrollTarget);
++      targetId = scrollingTo.keyedTarget ? scrollingTo.targetKey : getId(state, scrollTarget);
+     } else if (idsInView.length > 0 && state.didContainersLayout && !dataChanged) {
+       targetId = idsInView.find((id) => indexByKey.get(id) !== void 0);
+     }
+@@ -1817,6 +2064,7 @@ function prepareMVCP(ctx, dataChanged) {
+       }
+     }
+     return () => {
++      if (!ownsPreparation()) return;
+       let positionDiff = 0;
+       let anchorIdForLock = anchorLock == null ? void 0 : anchorLock.id;
+       let anchorPositionForLock;
+@@ -1881,7 +2129,8 @@ function prepareMVCP(ctx, dataChanged) {
+         }
+       }
+       if (scrollingToViewPosition && scrollingToViewPosition > 0) {
+-        const newSize = getItemSize(ctx, targetId, scrollTarget, state.props.data[scrollTarget]);
++        const sizeIndex = scrollingTo.keyedTarget ? indexByKey.get(targetId) : scrollTarget;
++        const newSize = sizeIndex === undefined ? undefined : getItemSize(ctx, targetId, sizeIndex, state.props.data[sizeIndex]);
+         const prevSize = scrollingTo == null ? void 0 : scrollingTo.itemSize;
+         if (newSize !== void 0 && prevSize !== void 0 && newSize !== prevSize) {
+           const diff = newSize - prevSize;
+@@ -1898,6 +2147,7 @@ function prepareMVCP(ctx, dataChanged) {
+         now,
+         positionDiff
+       });
++      if (!ownsPreparation()) return;
+       if (shouldQueueNativeMVCPAdjust(dataChanged, state, positionDiff, prevTotalSize, prevScroll, scrollTarget)) {
+         state.pendingNativeMVCPAdjust = {
+           amount: positionDiff,
+@@ -1911,7 +2161,7 @@ function prepareMVCP(ctx, dataChanged) {
+       if (Math.abs(positionDiff) > MVCP_POSITION_EPSILON) {
+         const shouldSkipAdjustForMaintainedEnd = (state.maintainingScrollAtEnd === "pending-animated" || state.maintainingScrollAtEnd === "animated") && peek$(ctx, "isWithinMaintainScrollAtEndThreshold");
+         if (!shouldSkipAdjustForMaintainedEnd) {
+-          requestAdjust(ctx, positionDiff, dataChanged && mvcpData);
++          requestAdjust(ctx, positionDiff, dataChanged && mvcpData, nativeReadPreparation);
+         }
+       }
+     };
+@@ -2118,14 +2368,14 @@ function getItemBottom(ctx, index) {
+   const itemSize = (_a3 = getItemSizeAtIndex(ctx, index)) != null ? _a3 : 0;
+   return top + (Number.isFinite(itemSize) ? itemSize : 0);
+ }
+-function getTargetViewportRenderRange(ctx, targetOffset, targetIndex) {
++function getTargetViewportRenderRange(ctx, targetOffset, targetIndex, renderBuffer = 0) {
+   const state = ctx.state;
+   const dataLength = state.props.data.length;
+   if (dataLength === 0) {
+     return void 0;
+   }
+-  const viewportStart = Math.max(0, targetOffset);
+-  const viewportEnd = Math.max(viewportStart, targetOffset + state.scrollLength);
++  const viewportStart = Math.max(0, targetOffset - renderBuffer);
++  const viewportEnd = Math.max(viewportStart, targetOffset + state.scrollLength + renderBuffer);
+   let start = targetIndex !== void 0 ? Math.max(0, Math.min(dataLength - 1, targetIndex)) : findPositionIndexAtOrBeforeOffset(ctx, viewportStart);
+   if (start === void 0) {
+     return void 0;
+@@ -2164,7 +2414,10 @@ function getTargetViewportRenderRange(ctx, targetOffset, targetIndex) {
+   return { end, start };
+ }
+ function pinScrollTargetRenderRange(ctx, targetOffset, targetIndex) {
++  const expectedTarget = ctx.state.scrollingTo;
++  const guardOwner = Platform.OS === "ios" && expectedTarget && expectedTarget.keyedTarget && !expectedTarget.animated && !expectedTarget.isInitialScroll;
+   const range = getTargetViewportRenderRange(ctx, targetOffset, targetIndex);
++  if (guardOwner && !ownsScrollCompletion(ctx.state, expectedTarget)) return;
+   if (range) {
+     ctx.state.scrollTargetPinnedRange = range;
+     ctx.state.scrollForNextCalculateItemsInView = void 0;
+@@ -2172,6 +2425,77 @@ function pinScrollTargetRenderRange(ctx, targetOffset, targetIndex) {
+     ctx.state.scrollTargetPinnedRange = void 0;
+   }
+ }
++function getNativeAcquisitionPositions(ctx) {
++  const state = ctx.state;
++  const request = state.pendingScrollRequest;
++  const held = request && request.nativeAcquisition;
++  if (!held) return undefined;
++  if (Platform.OS !== "ios" || state.props.horizontal || peek$(ctx, "numColumns") !== 1 || request.revision !== (state.scrollCommandRevision || 0) || !state.refScroller.current || held.scroller !== state.refScroller.current || request.target && !ownsScrollCompletion(state, request.target)) {
++    request.nativeAcquisition = undefined;
++    return undefined;
++  }
++  return held.positions;
++}
++function captureNativeAcquisitionPositions(ctx, request) {
++  const state = ctx.state;
++  if (state.pendingScrollRequest !== request || request.revision !== (state.scrollCommandRevision || 0) || request.nativeAcquisition || Platform.OS !== "ios" || state.props.horizontal || peek$(ctx, "numColumns") !== 1 || !state.refScroller.current || !Number.isFinite(state.lastNativeScroll)) return;
++  const padding = (peek$(ctx, "headerSize") || 0) + (peek$(ctx, "stylePaddingTop") || 0) + (peek$(ctx, "alignItemsAtEndPadding") || 0);
++  const end = state.lastNativeScroll + state.scrollLength - getContentInsetEnd(ctx);
++  const positions = new Map();
++  for (const [key, container] of state.containerItemKeys) {
++    const position = peek$(ctx, `containerPosition${container}`);
++    const size = state.sizesKnown.get(key);
++    if (Number.isFinite(position) && Number.isFinite(size) && position + padding < end && position + padding + size > state.lastNativeScroll) {
++      positions.set(key, { container, generation: state.containerItemGenerations[container] || 0, position: position + padding });
++    }
++  }
++  // This is a snapshot of published physical-container coordinates, not the
++  // rebuilt positions table. It belongs to the new request, before acquisition
++  // can mount an unknown row and revise estimates above the native viewport.
++  if (state.pendingScrollRequest === request && request.revision === (state.scrollCommandRevision || 0)) request.nativeAcquisition = { scroller: state.refScroller.current, positions };
++}
++function getNativeAcquisitionPosition(ctx, key, container) {
++  const positions = getNativeAcquisitionPositions(ctx);
++  const held = positions && positions.get(key);
++  if (!held) return undefined;
++  const state = ctx.state;
++  if (!state.indexByKey.has(key) || state.containerItemKeys.get(key) !== held.container || container !== held.container || (state.containerItemGenerations[container] || 0) !== held.generation) {
++    positions.delete(key);
++    return undefined;
++  }
++  const padding = (peek$(ctx, "headerSize") || 0) + (peek$(ctx, "stylePaddingTop") || 0) + (peek$(ctx, "alignItemsAtEndPadding") || 0);
++  return held.position - padding;
++}
++function retainOwnedNativeViewport(ctx, target = ctx.state.scrollingTo) {
++  const state = ctx.state;
++  const indices = new Set();
++  const acquisition = getNativeAcquisitionPositions(ctx);
++  if (acquisition) {
++    for (const [key, held] of acquisition) {
++      if (getNativeAcquisitionPosition(ctx, key, held.container) === undefined) continue;
++      const index = state.indexByKey.get(key);
++      if (index !== undefined) indices.add(index);
++    }
++  }
++  if (Platform.OS !== "ios" || !target || !target.keyedTarget || target.animated || target.isInitialScroll || !ownsScrollCompletion(state, target)) return indices;
++  const keys = target.nativeRetainedKeys || (target.nativeRetainedKeys = new Set());
++  const range = Number.isFinite(state.lastNativeScroll) ? getTargetViewportRenderRange(ctx, state.lastNativeScroll) : undefined;
++  if (range) {
++    for (let index = range.start; index <= range.end; index++) {
++      const key = getId(state, index);
++      if (key !== null && key !== undefined) keys.add(key);
++    }
++  }
++  // Keep previously observed viewport rows, and allocate rows newly entering
++  // that viewport after relayout. Only the exact command owns this retention;
++  // removed data is never resurrected.
++  for (const key of keys) {
++    const index = state.indexByKey.get(key);
++    if (index !== undefined) indices.add(index);
++  }
++  if (!ownsScrollCompletion(state, target)) indices.clear();
++  return indices;
++}
+ function scrollTo(ctx, params) {
+   var _a3, _b;
+   const state = ctx.state;
+@@ -2192,11 +2516,27 @@ function scrollTo(ctx, params) {
+   if (state.timeoutCheckFinishedScrollFallback) {
+     clearTimeout(ctx.state.timeoutCheckFinishedScrollFallback);
+   }
++  const previousScrollingTo = state.scrollingTo;
++  const dispatchRequest = state.dispatchingScrollRequest;
++  const ownsPublicDispatch = dispatchRequest && state.pendingScrollRequest === dispatchRequest && dispatchRequest.revision === (state.scrollCommandRevision || 0);
++  if (!noScrollingTo && !ownsPublicDispatch) {
++    state.scrollCommandRevision = (state.scrollCommandRevision || 0) + 1;
++    const pending = state.pendingScrollRequest;
++    const acquisition = pending && pending.acquisitionRange;
++    if (acquisition) {
++      pending.acquisitionRange = undefined;
++      if (state.scrollTargetPinnedRange === acquisition) {
++        state.scrollTargetPinnedRange = undefined;
++        state.scrollForNextCalculateItemsInView = undefined;
++      }
++    }
++  }
+   const requestedOffset = precomputedWithViewOffset ? scrollTargetOffset : calculateOffsetWithOffsetPosition(ctx, scrollTargetOffset, scrollTarget);
+   const shouldPreserveRawInitialOffsetRequest = !!isInitialScroll && ((_a3 = state.initialScrollSession) == null ? void 0 : _a3.kind) === "offset";
+   const targetOffset = clampScrollOffset(ctx, requestedOffset, scrollTarget);
+   const offset = shouldPreserveRawInitialOffsetRequest ? requestedOffset : targetOffset;
+   state.scrollHistory.length = 0;
++  let dispatchTarget;
+   if (!noScrollingTo) {
+     if (isInitialScroll) {
+       initialScrollCompletion.resetFlags(state);
+@@ -2206,12 +2546,25 @@ function scrollTo(ctx, params) {
+       ...scrollTarget,
+       ...averageSizeSnapshot ? { averageSizeSnapshot } : {},
+       targetOffset,
+-      waitForInitialScrollCompletionFrame
++      waitForInitialScrollCompletionFrame,
++      scrollCommandRevision: state.scrollCommandRevision || 0
+     };
++    dispatchTarget = state.scrollingTo;
++    if (isObservedIOSIndexedScroll(state, state.scrollingTo)) {
++      state.scrollingTo.nativeCompletionRevision = state.nativeScrollEventRevision || 0;
++      state.scrollingTo.nativeCompletionCanUseExisting = !previousScrollingTo && !state.pendingNativeMVCPAdjust && !state.scrollAdjustHandler.pendingAdjust && Number.isFinite(state.lastNativeScroll) && Math.abs(state.lastNativeScroll - state.scroll) < 1 && Math.abs(state.lastNativeScroll - targetOffset) < 1;
++    }
++    if (ownsPublicDispatch) dispatchRequest.target = state.scrollingTo;
+     if (!isInitialScroll) {
+       pinScrollTargetRenderRange(ctx, targetOffset, scrollTarget.index);
+     }
+   }
++  const ownsNativeHandoff = Platform.OS === "ios" && !noScrollingTo && !isInitialScroll && !animated && !!(dispatchTarget && dispatchTarget.keyedTarget);
++  if (ownsNativeHandoff) {
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++    retainOwnedNativeViewport(ctx, dispatchTarget);
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++  }
+   state.scrollPending = targetOffset;
+   syncInitialScrollNativeWatchdog(state, { isInitialScroll, requestedOffset: offset, targetOffset });
+   if (!isInitialScroll && !noScrollingTo && Math.abs(state.scroll - targetOffset) > 1) {
+@@ -2223,8 +2576,24 @@ function scrollTo(ctx, params) {
+       updateScroll(ctx, targetOffset, true, { markHasScrolled: false });
+     }
+   }
++  let dispatchOffset = offset;
++  if (ownsNativeHandoff) {
++    // Synchronous range calculation above can publish new sizes/positions or
++    // accept a newer command. Never send the earlier captured target afterward.
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++    dispatchOffset = getCurrentTargetOffset(ctx, dispatchTarget);
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++    if (!Number.isFinite(dispatchOffset)) {
++      checkFinishedScrollFallback(ctx);
++      return;
++    }
++    dispatchTarget.targetOffset = dispatchOffset;
++    state.scrollPending = dispatchOffset;
++    pinScrollTargetRenderRange(ctx, dispatchOffset, dispatchTarget.index);
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++  }
+   if (forceScroll || !isInitialScroll || Platform.OS === "android") {
+-    doScrollTo(ctx, { animated, horizontal, isInitialScroll, offset });
++    doScrollTo(ctx, { animated, horizontal, isInitialScroll, offset: dispatchOffset });
+   } else {
+     state.scroll = offset;
+   }
+@@ -2249,7 +2618,10 @@ function scrollToIndex(ctx, {
+   animated = true,
+   forceScroll,
+   isInitialScroll,
+-  viewPosition
++  viewPosition,
++  keyedTarget,
++  targetKey,
++  getViewOffset
+ }) {
+   const state = ctx.state;
+   const { data } = state.props;
+@@ -2268,6 +2640,7 @@ function scrollToIndex(ctx, {
+     isInitialScroll,
+     itemSize,
+     offset: firstIndexOffset,
++    ...(keyedTarget ? { keyedTarget: true, targetKey, ...(getViewOffset !== undefined ? { getViewOffset, dynamicOffsetAvailable: true } : {}) } : {}),
+     viewOffset,
+     viewPosition: viewPosition != null ? viewPosition : 0
+   });
+@@ -3193,7 +3566,8 @@ function syncMountedContainer(ctx, containerIndex, itemIndex, options) {
+     }
+     const logicalPosition = (positionValue || 0) - ((_c = options == null ? void 0 : options.scrollAdjustPending) != null ? _c : 0);
+     const itemSize = (_d = state.sizes.get(itemKey)) != null ? _d : getItemSize(ctx, itemKey, itemIndex, item);
+-    const position = toPhysicalHorizontalItemPosition(state, logicalPosition, itemSize, peek$(ctx, "totalSize"));
++    const acquisitionPosition = getNativeAcquisitionPosition(ctx, itemKey, containerIndex);
++    const position = acquisitionPosition !== undefined ? acquisitionPosition : toPhysicalHorizontalItemPosition(state, logicalPosition, itemSize, peek$(ctx, "totalSize"));
+     const column = columns[itemIndex] || 1;
+     const span = columnSpans[itemIndex] || 1;
+     const prevPos = peek$(ctx, `containerPosition${containerIndex}`);
+@@ -3523,6 +3897,18 @@ function updateItemPositions(ctx, dataChanged, {
+   }
+   if (!didBreakEarly) {
+     updateTotalSize(ctx);
++    state.scrollItemLayoutData = data;
++    state.scrollItemLayoutVersion = state.props.dataVersion;
++    state.scrollItemLayoutKey = state.props.dataKey;
++    if (scrollingTo && scrollingTo.keyedTarget && ownsScrollCompletion(state, scrollingTo)) {
++      if (refreshKeyedScrollTarget(ctx, scrollingTo)) {
++        const targetOffset = getCurrentTargetOffset(ctx, scrollingTo);
++        if (ownsScrollCompletion(state, scrollingTo)) {
++          if (Number.isFinite(targetOffset)) pinScrollTargetRenderRange(ctx, targetOffset, scrollingTo.index);
++          else state.scrollTargetPinnedRange = undefined;
++        }
++      } else state.scrollTargetPinnedRange = undefined;
++    }
+   }
+   if (snapToIndices) {
+     updateSnapToOffsets(ctx);
+@@ -4109,7 +4495,7 @@ function updateViewabilityForCachedRange(ctx, viewabilityConfigCallbackPairs, sc
+     startBuffered
+   } = state;
+   if (startBuffered === null || endBuffered === null || startBuffered < 0 || endBuffered < startBuffered) {
+-    return;
++    return false;
+   }
+   const visibleRange = {
+     endNoBuffer: null,
+@@ -4132,7 +4518,7 @@ function updateViewabilityForCachedRange(ctx, viewabilityConfigCallbackPairs, sc
+     startNoBuffer: visibleRange.startNoBuffer
+   });
+   maybeEmitFirstVisibleItemChanged(state, visibleRange.startNoBuffer);
+-  if (visibleRange.startNoBuffer !== null && visibleRange.endNoBuffer !== null) {
++  if (viewabilityConfigCallbackPairs && visibleRange.startNoBuffer !== null && visibleRange.endNoBuffer !== null) {
+     updateViewableItems(
+       state,
+       ctx,
+@@ -4144,6 +4530,7 @@ function updateViewabilityForCachedRange(ctx, viewabilityConfigCallbackPairs, sc
+       endBuffered
+     );
+   }
++  return true;
+ }
+ function calculateItemsInView(ctx, params = {}) {
+   const state = ctx.state;
+@@ -4253,19 +4640,19 @@ function calculateItemsInView(ctx, params = {}) {
+         state.scrollForNextCalculateItemsInView = void 0;
+       } else if ((top === null || scrollTopBuffered > top) && (bottom === null || scrollBottomBuffered < bottom)) {
+         if (Platform.OS !== "web" || !isInMVCPActiveMode(state)) {
+-          if (viewabilityConfigCallbackPairs) {
+-            updateViewabilityForCachedRange(
+-              ctx,
+-              viewabilityConfigCallbackPairs,
+-              scrollLength,
+-              scroll,
+-              scrollBottom
+-            );
+-          } else if (state.props.onFirstVisibleItemChanged) {
+-            maybeEmitFirstVisibleItemChanged(state, findFirstVisibleIndexInCachedRange(ctx, scroll));
++          // MVCP consumes these IDs on the next data/size pass, even when
++          // no viewability callback is configured. Never retain a stale anchor
++          // merely because the current viewport fits the rendered buffer.
++          if (updateViewabilityForCachedRange(
++            ctx,
++            viewabilityConfigCallbackPairs,
++            scrollLength,
++            scroll,
++            scrollBottom
++          )) {
++            (_d = stickyState == null ? void 0 : stickyState.finishCalculateItemsInView) == null ? void 0 : _d.call(stickyState);
++            return;
+           }
+-          (_d = stickyState == null ? void 0 : stickyState.finishCalculateItemsInView) == null ? void 0 : _d.call(stickyState);
+-          return;
+         }
+       }
+     }
+@@ -4287,10 +4674,11 @@ function calculateItemsInView(ctx, params = {}) {
+     if (minIndexSizeChanged !== void 0) {
+       state.minIndexSizeChanged = void 0;
+     }
+-    let protectedContainerKeys;
++    const nativeRetainedIndices = retainOwnedNativeViewport(ctx);
++    let protectedContainerKeys = nativeRetainedIndices.size ? new Set(Array.from(nativeRetainedIndices, index => getId(state, index))) : undefined;
+     if (dataChanged && doMVCP && state.props.maintainVisibleContentPosition.data && state.didContainersLayout && state.idsInView.length > 0) {
+       const shouldRestorePosition = state.props.maintainVisibleContentPosition.shouldRestorePosition;
+-      protectedContainerKeys = /* @__PURE__ */ new Set();
++      protectedContainerKeys = protectedContainerKeys || new Set();
+       for (const id of state.idsInView) {
+         const index = indexByKey.get(id);
+         if (index === void 0) continue;
+@@ -4415,7 +4803,7 @@ function calculateItemsInView(ctx, params = {}) {
+       );
+     }
+     const hasScrollTargetPinnedRange = scrollTargetPinnedStart <= scrollTargetPinnedEnd;
+-    const isPinnedRenderIndex = (index) => alwaysRenderIndicesSet.has(index) || hasScrollTargetPinnedRange && index >= scrollTargetPinnedStart && index <= scrollTargetPinnedEnd;
++    const isPinnedRenderIndex = (index) => nativeRetainedIndices.has(index) || alwaysRenderIndicesSet.has(index) || hasScrollTargetPinnedRange && index >= scrollTargetPinnedStart && index <= scrollTargetPinnedEnd;
+     if (startBuffered !== null && endBuffered !== null) {
+       const needNewContainers = [];
+       const needNewContainersSet = /* @__PURE__ */ new Set();
+@@ -4442,6 +4830,7 @@ function calculateItemsInView(ctx, params = {}) {
+       for (const index of alwaysRenderIndicesArr) {
+         addPinnedIndex(index);
+       }
++      for (const index of nativeRetainedIndices) addPinnedIndex(index);
+       if (hasScrollTargetPinnedRange) {
+         for (let index = scrollTargetPinnedStart; index <= scrollTargetPinnedEnd; index++) {
+           addPinnedIndex(index);
+@@ -5672,13 +6061,16 @@ var ContainersLayer = typedMemo(function ContainersLayer2({ children, horizontal
+   const ctx = useStateContext();
+   const columnWrapperStyle = ctx.columnWrapperStyle;
+   const animSize = useValue$("totalSize");
+-  const [readyToRender, numColumns, otherAxisSize = 0] = useArr$(["readyToRender", "numColumns", "otherAxisSize"]);
++  const [readyToRender, numColumns, otherAxisSize = 0, totalSize = 0] = useArr$(IsNewArchitecture ? ["readyToRender", "numColumns", "otherAxisSize", "totalSize"] : ["readyToRender", "numColumns", "otherAxisSize"]);
++  // Fabric row positions commit through React. Publish their extent in that
++  // same commit instead of applying an Animated height before those rows.
++  const contentSize = IsNewArchitecture ? totalSize : animSize;
+   const style = horizontal ? {
+     height: otherAxisSize || "100%",
+     minHeight: otherAxisSize,
+     opacity: readyToRender ? 1 : 0,
+-    width: animSize
+-  } : { height: animSize, minWidth: otherAxisSize, opacity: readyToRender ? 1 : 0 };
++    width: contentSize
++  } : { height: contentSize, minWidth: otherAxisSize, opacity: readyToRender ? 1 : 0 };
+   if (columnWrapperStyle) {
+     const { columnGap, rowGap, gap } = columnWrapperStyle;
+     const gapX = columnGap || gap || 0;
+@@ -5897,7 +6289,7 @@ var ListComponent = typedMemo(function ListComponent2({
+ }) {
+   const ctx = useStateContext();
+   const maintainVisibleContentPosition = ctx.state.props.maintainVisibleContentPosition;
+-  const [otherAxisSize = 0] = useArr$(["otherAxisSize"]);
++  const [otherAxisSize = 0, nativeReadPointAdjustment] = useArr$(["otherAxisSize", "nativeReadPointAdjustment"]);
+   const shouldRenderAlignItemsAtEndSpacer = ctx.state.props.alignItemsAtEndPaddingEnabled;
+   const autoOtherAxisStyle = getAutoOtherAxisStyle({
+     horizontal,
+@@ -5959,6 +6351,7 @@ var ListComponent = typedMemo(function ListComponent2({
+       contentOffset: initialContentOffset !== void 0 ? horizontal ? { x: initialContentOffset, y: 0 } : { x: 0, y: initialContentOffset } : void 0,
+       horizontal,
+       maintainVisibleContentPosition: maintainVisibleContentPosition.size || maintainVisibleContentPosition.data ? { minIndexForVisible: 0 } : void 0,
++      ...Platform.OS === "ios" ? { nativeReadPointAdjustment } : {},
+       onLayout,
+       onScroll: onScroll2,
+       ref: refScrollView,
+@@ -6258,6 +6651,23 @@ function cloneScrollEvent(event) {
+     }
+   };
+ }
++function acknowledgeNativeReadAdjustment(state, event, newScroll) {
++  const relativeSignal = state.nativeReadRelativeSignal;
++  const relativeAck = event.nativeEvent.nativeReadPointAdjustmentAck;
++  if (relativeAck && routesNativeReadAdjustment(state) && relativeSignal && relativeSignal.operation &&
++      relativeSignal.intent === state.props.nativeReadPointIntent &&
++      state.nativeReadRelativeCommandRevision === (state.scrollCommandRevision || 0) &&
++      Number.isFinite(event.nativeEvent.timestamp) &&
++      event.nativeEvent.timestamp > state.nativeReadRelativeNativeTimestamp &&
++      relativeAck.intent === relativeSignal.intent && relativeAck.operationId === relativeSignal.operation.id &&
++      relativeAck.startOffset === relativeSignal.operation.startOffset && relativeAck.startAmount === relativeSignal.operation.startAmount &&
++      relativeAck.amount === relativeSignal.amount && Number.isFinite(relativeAck.target) &&
++      Math.abs(newScroll - relativeAck.target) <= NATIVE_END_CLAMP_EPSILON) {
++    state.nativeReadAcknowledgedSignal = relativeSignal;
++    state.nativeReadAcknowledgedOffset = relativeAck.target;
++    state.nativeReadAcknowledgedTimestamp = event.nativeEvent.timestamp;
++  }
++}
+ function onScroll(ctx, event) {
+   var _a3, _b, _c, _d, _e, _f;
+   const state = ctx.state;
+@@ -6284,10 +6694,25 @@ function onScroll(ctx, event) {
+   const isFinishedEndInitialScroll = state.didFinishInitialScroll && ((_f = state.initialScroll) == null ? void 0 : _f.viewPosition) === 1 && state.scroll > state.scrollLength;
+   const shouldIgnoreNegativeInsetChange = Platform.OS !== "web" && insetChanged && newScroll < 0 && isFinishedEndInitialScroll;
+   if (shouldIgnoreNegativeInsetChange) {
++    acknowledgeNativeReadAdjustment(state, event, newScroll);
+     return;
+   }
++  // Resolve current owned geometry before accepting this native event. A
++  // changed offset cannot reuse an older acknowledgement, while this exact
++  // newly delivered event may still establish the updated target.
++  const commandBeforeOffsetResolver = state.scrollCommandRevision || 0;
++  if (state.scrollingTo && state.scrollingTo.getViewOffset !== undefined) resolveKeyedViewOffset(ctx, state.scrollingTo);
+   state.lastNativeScroll = newScroll;
+   state.lastNativeScrollTime = Date.now();
++  state.nativeScrollEventRevision = (state.nativeScrollEventRevision || 0) + 1;
++  state.lastNativeScrollTimestamp = event.nativeEvent.timestamp;
++  acknowledgeNativeReadAdjustment(state, event, newScroll);
++  // The event began before any command accepted by the resolver. Keep the
++  // native observation, but require a later event to acknowledge that command.
++  if (commandBeforeOffsetResolver !== (state.scrollCommandRevision || 0) && state.scrollingTo && ownsScrollCompletion(state, state.scrollingTo)) {
++    state.scrollingTo.nativeCompletionRevision = state.nativeScrollEventRevision;
++    state.scrollingTo.nativeCompletionCanUseExisting = false;
++  }
+   if (state.scrollingTo && state.scrollingTo.offset >= newScroll) {
+     const maxOffset = clampScrollOffset(ctx, newScroll, state.scrollingTo);
+     if (newScroll !== maxOffset && Math.abs(newScroll - maxOffset) > 1) {
+@@ -6491,6 +6916,84 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+   const IMPERATIVE_SCROLL_SETTLE_MAX_WAIT_MS = 800;
+   const IMPERATIVE_SCROLL_SETTLE_STABLE_FRAMES = 2;
+   let imperativeScrollToken = 0;
++  // A promise is an opaque request identity, never a list-wide cancel signal.
++  const acceptedScrollPromises = new WeakMap();
++  const ownedScrollPromise = (executor) => {
++    let acceptedResolve;
++    const promise = new Promise((resolve, reject) => {
++      acceptedResolve = resolve;
++      executor(resolve, reject);
++    });
++    const request = state.pendingScrollRequest;
++    if (request && request.resolve === acceptedResolve) acceptedScrollPromises.set(promise, request);
++    const release = () => { acceptedScrollPromises.delete(promise); };
++    void promise.then(release, release);
++    return promise;
++  };
++  const ownsRequest = request => !!request && state.pendingScrollRequest === request && request.revision === (state.scrollCommandRevision || 0);
++  const releaseAcquisition = (request, retirePositions = false) => {
++    const heldPositions = retirePositions && request && request.nativeAcquisition;
++    if (heldPositions) request.nativeAcquisition = undefined;
++    const range = request && request.acquisitionRange;
++    if (!range) return !!heldPositions;
++    request.acquisitionRange = undefined;
++    if (state.scrollTargetPinnedRange !== range) return !!heldPositions;
++    state.scrollTargetPinnedRange = undefined;
++    state.scrollForNextCalculateItemsInView = undefined;
++    return true;
++  };
++  const requestAcquisition = (request, index, destinationRange) => {
++    if (!ownsRequest(request)) return;
++    const prior = request.acquisitionRange;
++    const start = destinationRange ? destinationRange.start : index;
++    const end = destinationRange ? destinationRange.end : index;
++    if (prior && state.scrollTargetPinnedRange === prior && prior.start === start && prior.end === end) return false;
++    releaseAcquisition(request);
++    // First acquire the keyed cell; once its offset is known, acquire the
++    // destination viewport too. Neither stage moves the native scroll view.
++    const range = { start, end };
++    request.acquisitionRange = range;
++    state.scrollTargetPinnedRange = range;
++    state.scrollForNextCalculateItemsInView = undefined;
++    state.triggerCalculateItemsInView?.();
++    return true;
++  };
++  const isAcquisitionWindowReady = (request, index, options) => {
++    if (!ownsRequest(request)) return false;
++    if (options.animated) return true;
++    if (!request.nativeAcquisition && (options.getViewOffset === undefined || Platform.OS !== "ios" || state.props.horizontal || peek$(ctx, "numColumns") !== 1)) return true;
++    const target = { index, viewPosition: options.viewPosition ?? 0, viewOffset: options.viewOffset ?? 0 };
++    const offset = clampScrollOffset(ctx, calculateOffsetWithOffsetPosition(ctx, state.positions[index], target), target);
++    // The native dispatch calculates a draw buffer up to 1.5 times the
++    // effective distance on either side. Acquire that envelope before moving.
++    const renderBuffer = Math.max(0, getEffectiveDrawDistance(ctx)) * 1.5;
++    const range = getTargetViewportRenderRange(ctx, offset, index, renderBuffer);
++    if (!ownsRequest(request) || !range || !Number.isFinite(offset)) return false;
++    const measuredWindow = () => {
++      for (let i = range.start; i <= range.end; i++) {
++        const key = getId(state, i);
++        if (!Number.isFinite(state.sizesKnown.get(key)) || !state.containerItemKeys.has(key)) return false;
++      }
++      // Allocation can include draw-buffer predecessors outside the exact
++      // viewport. Their pending native measurement also changes this target.
++      for (const key of state.containerItemKeys.keys()) {
++        const at = state.indexByKey.get(key);
++        if (at !== undefined && at <= index && !Number.isFinite(state.sizesKnown.get(key))) return false;
++      }
++      return true;
++    };
++    // A ready keyed cell can still have an unmeasured destination window.
++    // Preserve the native outgoing geometry before allocating that window.
++    const measured = measuredWindow();
++    if (!ownsRequest(request)) return false;
++    if (!request.nativeAcquisition && measured) return true;
++    captureNativeAcquisitionPositions(ctx, request);
++    if (!ownsRequest(request) || !request.nativeAcquisition) return false;
++    const changed = requestAcquisition(request, index, range);
++    if (!ownsRequest(request) || changed) return false;
++    const currentMeasured = measuredWindow();
++    return ownsRequest(request) && currentMeasured;
++  };
+   const isSettlingAfterDataChange = () => !!state.didDataChange || !!state.didColumnsChange || state.queuedMVCPRecalculate !== void 0 || state.ignoreScrollFromMVCP !== void 0;
+   const isScrollToIndexReady = (targetIndex, allowEmpty = false) => {
+     var _a3;
+@@ -6508,13 +7011,38 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+     }
+     return areKnownOrFixedItemSizesAvailable(ctx, anchorIndex, dataLength - 1);
+   };
+-  const runWhenReady = (token, run, isReady) => {
++  const failRequest = (resolve, error) => {
++    const request = state.pendingScrollRequest;
++    if (!request || request.resolve !== resolve || request.revision !== (state.scrollCommandRevision || 0)) return;
++    const releasedAcquisition = releaseAcquisition(request, true);
++    if (request.target && state.scrollingTo === request.target) {
++      failIndexedScrollTo(ctx, request.target, error);
++    } else {
++      const outgoing = state.scrollingTo;
++      if (outgoing && outgoing.scrollCommandRevision !== request.revision) {
++        state.scrollingTo = undefined;
++        state.scrollTargetPinnedRange = undefined;
++        state.scrollHistory.length = 0;
++      }
++      state.pendingScrollRequest = undefined;
++      if (state.pendingScrollResolve === request.resolve) state.pendingScrollResolve = undefined;
++      if (state.pendingScrollReject === request.reject) state.pendingScrollReject = undefined;
++      if (state.pendingScrollToEnd && state.pendingScrollToEnd.resolve === resolve) state.pendingScrollToEnd = undefined;
++      request.reject(error);
++    }
++    // Settlement is final; an unmounted or throwing render cleanup must not
++    // resurrect the request or escape a queued frame callback.
++    try { if (releasedAcquisition && state.refScroller.current) state.triggerCalculateItemsInView?.(); } catch (_cleanupError) {}
++  };
++  const runWhenReady = (token, run, isReady, onError) => {
+     const startedAt = Date.now();
+     let stableFrames = 0;
++    const request = state.pendingScrollRequest;
+     const check = () => {
+-      if (token !== imperativeScrollToken) {
++      if (token !== imperativeScrollToken || !ownsRequest(request)) {
+         return;
+       }
++      try {
+       if (isSettlingAfterDataChange() || !isReady()) {
+         stableFrames = 0;
+       } else {
+@@ -6526,38 +7054,61 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+         return;
+       }
+       requestAnimationFrame(check);
++      } catch (error) { onError(error); }
+     };
+     requestAnimationFrame(check);
+   };
+   const runScrollRequest = (token, resolve, run, isReady = () => true) => {
++    if (token !== imperativeScrollToken || !state.pendingScrollRequest || state.pendingScrollRequest.resolve !== resolve || !ownsRequest(state.pendingScrollRequest)) return;
++    let didRun = false;
+     const runNow = () => {
+-      if (token !== imperativeScrollToken) {
+-        return;
+-      }
+-      const didStartScroll = run();
+-      if (!didStartScroll || !state.scrollingTo) {
+-        if (state.pendingScrollResolve === resolve) {
+-          state.pendingScrollResolve = void 0;
++      const request = state.pendingScrollRequest;
++      if (didRun || token !== imperativeScrollToken || !request || request.resolve !== resolve || request.revision !== (state.scrollCommandRevision || 0)) return;
++      didRun = true;
++      const priorDispatch = state.dispatchingScrollRequest;
++      state.dispatchingScrollRequest = request;
++      try {
++        const didStartScroll = run();
++        const releasedAcquisition = releaseAcquisition(request, !didStartScroll || !state.scrollingTo);
++        if (state.pendingScrollRequest !== request) return;
++        if (!didStartScroll || !state.scrollingTo) {
++          state.pendingScrollRequest = undefined;
++          if (state.pendingScrollResolve === resolve) state.pendingScrollResolve = undefined;
++          if (state.pendingScrollReject === request.reject) state.pendingScrollReject = undefined;
++          resolve();
+         }
+-        resolve();
+-      }
++        if (releasedAcquisition) state.triggerCalculateItemsInView?.();
++      } catch (error) { failRequest(resolve, error); }
++      finally { if (state.dispatchingScrollRequest === request) state.dispatchingScrollRequest = priorDispatch; }
+     };
+-    if (isSettlingAfterDataChange() || !isReady()) {
+-      runWhenReady(token, runNow, isReady);
+-    } else {
+-      runNow();
+-    }
++    const preparingRequest = state.pendingScrollRequest;
++    try {
++      if (isSettlingAfterDataChange() || !isReady()) {
++        // Acquisition can synchronously accept a new command from another
++        // published imperative handle. Never bind this old checker to it.
++        if (!ownsRequest(preparingRequest) || preparingRequest.resolve !== resolve) return;
++        runWhenReady(token, runNow, isReady, error => failRequest(resolve, error));
++      } else { runNow(); }
++    } catch (error) { failRequest(resolve, error); }
+   };
+-  const startImperativeScroll = (resolve) => {
+-    var _a3;
++  const startImperativeScroll = (resolve, reject) => {
+     const token = ++imperativeScrollToken;
+-    state.pendingScrollToEnd = void 0;
+-    (_a3 = state.pendingScrollResolve) == null ? void 0 : _a3.call(state);
++    state.scrollCommandRevision = (state.scrollCommandRevision || 0) + 1;
++    state.pendingScrollToEnd = undefined;
++    const releasedAcquisition = releaseAcquisition(state.pendingScrollRequest, true);
++    const previous = state.pendingScrollResolve;
++    state.pendingScrollResolve = undefined;
++    state.pendingScrollReject = undefined;
++    state.pendingScrollRequest = undefined;
++    if (previous) previous();
+     state.pendingScrollResolve = resolve;
++    state.pendingScrollReject = reject;
++    state.pendingScrollRequest = { revision: state.scrollCommandRevision, resolve, reject, target: undefined };
++    try { if (releasedAcquisition) state.triggerCalculateItemsInView?.(); } catch (error) { failRequest(resolve, error); }
+     return token;
+   };
+-  const runScrollWithPromise = (run, isReady = () => true) => new Promise((resolve) => {
+-    const token = startImperativeScroll(resolve);
++  const runScrollWithPromise = (run, isReady = () => true) => ownedScrollPromise((resolve, reject) => {
++    const token = startImperativeScroll(resolve, reject);
+     runScrollRequest(token, resolve, run, isReady);
+   });
+   state.runPendingScrollToEnd = () => {
+@@ -6665,6 +7216,18 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+         retargetActiveInitialScrollAtEnd(ctx);
+       }
+     },
++    cancelScroll: (promise) => {
++      const request = acceptedScrollPromises.get(promise);
++      if (!ownsRequest(request)) return false;
++      acceptedScrollPromises.delete(promise);
++      // Retire queued checks before cleanup can reenter and accept newer work.
++      ++imperativeScrollToken;
++      const error = new Error("Scroll request was cancelled by its owner");
++      error.code = "LEGEND_SCROLL_CANCELLED";
++      failRequest(request.resolve, error);
++      if ((state.scrollCommandRevision || 0) === request.revision) state.scrollCommandRevision = request.revision + 1;
++      return true;
++    },
+     scrollIndexIntoView: (options) => runScrollWithPromise(() => scrollIndexIntoView(options)),
+     scrollItemIntoView: ({ item, ...props }) => runScrollWithPromise(() => {
+       const data = state.props.data;
+@@ -6675,19 +7238,22 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+       }
+       return false;
+     }),
+-    scrollToEnd: (options) => new Promise((resolve) => {
++    scrollToEnd: (options) => ownedScrollPromise((resolve, reject) => {
+       var _a3;
+-      const token = startImperativeScroll(resolve);
++      const token = startImperativeScroll(resolve, reject);
++      if (token !== imperativeScrollToken || !state.pendingScrollRequest || state.pendingScrollRequest.resolve !== resolve || !ownsRequest(state.pendingScrollRequest)) return;
+       state.pendingScrollToEnd = {
+         options,
+         resolve,
+         token
+       };
+-      if (scheduleImperativeScrollCommit) {
+-        scheduleImperativeScrollCommit();
+-      } else {
+-        (_a3 = state.runPendingScrollToEnd) == null ? void 0 : _a3.call(state);
+-      }
++      try {
++        if (scheduleImperativeScrollCommit) {
++          scheduleImperativeScrollCommit();
++        } else {
++          (_a3 = state.runPendingScrollToEnd) == null ? void 0 : _a3.call(state);
++        }
++      } catch (error) { failRequest(resolve, error); }
+     }),
+     scrollToIndex: (params) => {
+       return runScrollWithPromise(
+@@ -6698,15 +7264,85 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+         params.index >= 0 ? () => isScrollToIndexReady(params.index) : void 0
+       );
+     },
+-    scrollToItem: ({ item, ...props }) => runScrollWithPromise(() => {
+-      const data = state.props.data;
+-      const index = data.indexOf(item);
+-      if (index !== -1) {
+-        scrollToIndex(ctx, { index, ...props });
++    scrollToItem: ({ item, ...props }) => {
++      if (Platform.OS !== "ios" || state.props.keyExtractorProvided !== true) return runScrollWithPromise(() => {
++        const data = state.props.data;
++        const index = data.indexOf(item);
++        if (index !== -1) {
++          scrollToIndex(ctx, { index, ...props });
++          return true;
++        }
++        return false;
++      });
++      let key;
++      let acceptanceError;
++      try {
++        const index = state.props.data.indexOf(item);
++        if (index < 0) throw createKeyedScrollFailure(ctx, undefined, undefined, "target-missing");
++        key = state.props.keyExtractor(item, index);
++        if (key === undefined || key === null) throw createKeyedScrollFailure(ctx, key, index, "target-key-unavailable");
++      } catch (error) { acceptanceError = error; }
++      const hasDynamicViewOffset = props.getViewOffset !== undefined;
++      const currentDynamicOffset = (index) => {
++        const request = state.pendingScrollRequest;
++        if (!ownsRequest(request)) return { value: undefined, owned: false };
++        const value = readKeyedViewOffset(ctx, props.getViewOffset, key, index);
++        const owned = !!request && state.pendingScrollRequest === request && request.revision === (state.scrollCommandRevision || 0);
++        return { value, owned };
++      };
++      return runScrollWithPromise(() => {
++        if (acceptanceError) throw acceptanceError;
++        if (hasDynamicViewOffset && !state.refScroller.current) throw createKeyedScrollFailure(ctx, key, undefined, "target-unmounted");
++        const index = findKeyedScrollItemIndex(state, key);
++        if (index < 0) throw createKeyedScrollFailure(ctx, key, undefined, "target-missing");
++        if (state.scrollItemLayoutData !== state.props.data || state.scrollItemLayoutVersion !== state.props.dataVersion || state.scrollItemLayoutKey !== state.props.dataKey || state.indexByKey.get(key) !== index || state.idCache[index] !== key || !Number.isFinite(state.positions[index])) throw createKeyedScrollFailure(ctx, key, index, "target-geometry-unavailable");
++        let viewOffset = props.viewOffset;
++        if (hasDynamicViewOffset) {
++          const resolved = currentDynamicOffset(index);
++          if (!resolved.owned) return false;
++          const currentIndex = findKeyedScrollItemIndex(state, key);
++          if (currentIndex < 0) throw createKeyedScrollFailure(ctx, key, undefined, "target-missing");
++          if (currentIndex !== index || resolved.value === undefined) throw createKeyedScrollFailure(ctx, key, currentIndex, "target-offset-unavailable");
++          viewOffset = resolved.value;
++        }
++        if (!isAcquisitionWindowReady(state.pendingScrollRequest, index, { ...props, viewOffset })) throw createKeyedScrollFailure(ctx, key, index, "target-geometry-unavailable");
++        scrollToIndex(ctx, { index, ...props, viewOffset, keyedTarget: true, targetKey: key });
+         return true;
+-      }
+-      return false;
+-    }),
++      }, () => {
++        if (acceptanceError) return true;
++        const request = state.pendingScrollRequest;
++        if (!ownsRequest(request)) return false;
++        if (hasDynamicViewOffset && !state.refScroller.current) throw createKeyedScrollFailure(ctx, key, undefined, "target-unmounted");
++        const index = findKeyedScrollItemIndex(state, key);
++        if (index < 0) {
++          if (releaseAcquisition(request)) state.triggerCalculateItemsInView?.();
++          return true;
++        }
++        const coherent = state.scrollItemLayoutData === state.props.data && state.scrollItemLayoutVersion === state.props.dataVersion && state.scrollItemLayoutKey === state.props.dataKey && state.indexByKey.get(key) === index && state.idCache[index] === key;
++        const ready = coherent && isScrollToIndexReady(index);
++        if (!hasDynamicViewOffset) return ready;
++        if (!coherent) {
++          if (releaseAcquisition(request)) state.triggerCalculateItemsInView?.();
++          return false;
++        }
++        const resolved = currentDynamicOffset(index);
++        if (!resolved.owned) return false;
++        // The resolver may commit a data/layout change without a new command.
++        // Acquire the current key, never the pre-callback numeric occupant.
++        const currentIndex = findKeyedScrollItemIndex(state, key);
++        const currentCoherent = currentIndex >= 0 && state.scrollItemLayoutData === state.props.data && state.scrollItemLayoutVersion === state.props.dataVersion && state.scrollItemLayoutKey === state.props.dataKey && state.indexByKey.get(key) === currentIndex && state.idCache[currentIndex] === key;
++        if (!currentCoherent) {
++          if (releaseAcquisition(request)) state.triggerCalculateItemsInView?.();
++          return currentIndex < 0;
++        }
++        if (currentIndex !== index || !isScrollToIndexReady(currentIndex) || resolved.value === undefined) {
++          if (!props.animated) captureNativeAcquisitionPositions(ctx, request);
++          requestAcquisition(request, currentIndex);
++          return false;
++        }
++        return isAcquisitionWindowReady(request, currentIndex, { ...props, viewOffset: resolved.value });
++      });
++    },
+     scrollToOffset: (params) => runScrollWithPromise(() => {
+       scrollTo(ctx, params);
+       return true;
+@@ -6981,6 +7617,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     maintainScrollAtEnd = false,
+     maintainScrollAtEndThreshold = 0.1,
+     maintainVisibleContentPosition: maintainVisibleContentPositionProp,
++    nativeReadPointCorrection,
++    nativeReadPointIntent,
+     numColumns: numColumnsProp = 1,
+     overrideItemLayout,
+     onEndReached,
+@@ -7189,6 +7827,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   const didDataKeyChangeLocal = state.props.dataKey !== dataKey;
+   const didDataVersionChangeLocal = state.props.dataVersion !== dataVersion;
+   const didDataChangeLocal = didDataKeyChangeLocal || didDataVersionChangeLocal || didDataReferenceChangeLocal && checkStructuralDataChange(state, dataProp, state.props.data);
++  // Equivalent arrays retain the same committed position cache. Transfer its
++  // provenance only when the old stamp is valid and no geometry rebuild is due.
++  if (didDataReferenceChangeLocal && !didDataChangeLocal && !state.didColumnsChange && state.scrollItemLayoutData === state.props.data && state.scrollItemLayoutVersion === state.props.dataVersion && state.scrollItemLayoutKey === state.props.dataKey) {
++    state.scrollItemLayoutData = dataProp;
++  }
+   const shouldResetFreshDataLayout = !isFirstLocal && didDataChangeLocal && state.hasHadNonEmptyData && (didDataKeyChangeLocal || previousDataLength === 0) && dataProp.length > 0;
+   if (didDataChangeLocal && !initialScrollAtEnd && state.didFinishInitialScroll && ((_o = state.initialScroll) == null ? void 0 : _o.viewPosition) === 1 && state.props.data.length > 0) {
+     clearPreservedInitialScrollTarget(state);
+@@ -7225,9 +7868,12 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     horizontal: !!horizontal,
+     itemsAreEqual,
+     keyExtractor: useWrapIfItem(keyExtractor),
++    keyExtractorProvided: keyExtractorProp != null,
+     maintainScrollAtEnd: maintainScrollAtEndConfig,
+     maintainScrollAtEndThreshold,
+     maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
++    nativeReadPointCorrection,
++    nativeReadPointIntent,
+     numColumns: numColumnsProp,
+     onEndReached,
+     onEndReachedThreshold,
+diff --git a/react-native.mjs b/react-native.mjs
+index c2e0f3823f524e31e2105a5fbda76be78c926226..c9c4a4f4ab6e2ae236cad57f8dbcaedeed47df6a 100644
+--- a/react-native.mjs
++++ b/react-native.mjs
+@@ -1254,13 +1254,133 @@ function clampScrollOffset(ctx, offset, scrollTarget) {
+ }
+ 
+ // src/core/finishScrollTo.ts
++function findKeyedScrollItemIndex(state, key) {
++  const { data, keyExtractor } = state.props;
++  if (!keyExtractor) return -1;
++  const cached = state.indexByKey.get(key);
++  if (cached !== undefined && cached >= 0 && cached < data.length && keyExtractor(data[cached], cached) === key) return cached;
++  return data.findIndex((item, index) => keyExtractor(item, index) === key);
++}
++function refreshKeyedScrollTarget(ctx, target) {
++  if (!target.keyedTarget) return true;
++  if (target.keyedFailureReason) return false;
++  const state = ctx.state;
++  // New props can precede rebuilt positions. Neither old positions nor a
++  // speculative requested offset establish current keyed target geometry.
++  if (state.scrollItemLayoutData !== state.props.data || state.scrollItemLayoutVersion !== state.props.dataVersion || state.scrollItemLayoutKey !== state.props.dataKey) return false;
++  const index = findKeyedScrollItemIndex(state, target.targetKey);
++  if (index < 0) {
++    target.keyedFailureReason = "target-missing";
++    return false;
++  }
++  if (state.indexByKey.get(target.targetKey) !== index || state.idCache[index] !== target.targetKey) return false;
++  target.index = index;
++  return true;
++}
++function readKeyedViewOffset(ctx, getter, key, index) {
++  if (typeof getter !== "function") return undefined;
++  const state = ctx.state;
++  const data = state.props.data;
++  const item = data[index];
++  const dataVersion = state.props.dataVersion;
++  const dataKey = state.props.dataKey;
++  const position = state.positions[index];
++  const itemSize = getItemSizeAtIndex(ctx, index);
++  if (!Number.isFinite(itemSize) || itemSize < 0 || !Number.isFinite(position) || state.scrollItemLayoutData !== data || state.scrollItemLayoutVersion !== dataVersion || state.scrollItemLayoutKey !== dataKey || state.indexByKey.get(key) !== index || state.idCache[index] !== key) return undefined;
++  try {
++    const value = getter({ item, key, index, itemSize });
++    // The callback may publish data or run a layout pass without accepting a
++    // new command. Its result is usable only for the same coherent snapshot.
++    if (state.props.data !== data || state.props.dataVersion !== dataVersion || state.props.dataKey !== dataKey || state.scrollItemLayoutData !== data || state.scrollItemLayoutVersion !== dataVersion || state.scrollItemLayoutKey !== dataKey || state.props.data[index] !== item || findKeyedScrollItemIndex(state, key) !== index || state.indexByKey.get(key) !== index || state.idCache[index] !== key || state.positions[index] !== position || getItemSizeAtIndex(ctx, index) !== itemSize) return undefined;
++    return Number.isFinite(value) ? value : undefined;
++  } catch (_error) { return undefined; }
++}
++function resolveKeyedViewOffset(ctx, target) {
++  if (!target || target.getViewOffset === undefined) return true;
++  const state = ctx.state;
++  if (!target.keyedTarget || !ownsScrollCompletion(state, target) || !refreshKeyedScrollTarget(ctx, target)) return false;
++  const value = readKeyedViewOffset(ctx, target.getViewOffset, target.targetKey, target.index);
++  // A user-supplied resolver may synchronously revoke or replace this request.
++  if (!ownsScrollCompletion(state, target)) return false;
++  const currentTarget = refreshKeyedScrollTarget(ctx, target);
++  const available = currentTarget && value !== undefined;
++  if (!available || !target.dynamicOffsetAvailable || value !== target.viewOffset) {
++    target.nativeCompletionRevision = state.nativeScrollEventRevision || 0;
++    target.nativeCompletionCanUseExisting = false;
++  }
++  target.dynamicOffsetAvailable = available;
++  if (available) target.viewOffset = value;
++  return available;
++}
++function createKeyedScrollFailure(ctx, key, index, reason) {
++  const error = new Error("Item scroll did not retain its requested target");
++  error.code = "LEGEND_SCROLL_UNALIGNED";
++  error.reason = reason;
++  error.key = key === undefined ? null : key;
++  error.index = index === undefined ? null : index;
++  error.requestedOffset = null;
++  error.currentOffset = null;
++  error.observedOffset = Number.isFinite(ctx.state.lastNativeScroll) ? ctx.state.lastNativeScroll : null;
++  return error;
++}
++function isObservedIOSIndexedScroll(state, target) {
++  return Platform.OS === "ios" && !!target && !target.isInitialScroll && Number.isInteger(target.index);
++}
++function ownsScrollCompletion(state, target) {
++  return state.scrollingTo === target && (target.scrollCommandRevision === undefined || target.scrollCommandRevision === (state.scrollCommandRevision || 0));
++}
++function takePendingScrollSettlement(state, target) {
++  const request = state.pendingScrollRequest;
++  if (request && request.target !== target) return {};
++  const resolve = request ? request.resolve : state.pendingScrollResolve;
++  const reject = request ? request.reject : state.pendingScrollReject;
++  if (request) state.pendingScrollRequest = undefined;
++  if (state.pendingScrollResolve === resolve) state.pendingScrollResolve = undefined;
++  if (state.pendingScrollReject === reject) state.pendingScrollReject = undefined;
++  if (state.pendingScrollToEnd && state.pendingScrollToEnd.resolve === resolve) state.pendingScrollToEnd = undefined;
++  return { resolve, reject };
++}
++function failIndexedScrollTo(ctx, target, error) {
++  const state = ctx.state;
++  if (!ownsScrollCompletion(state, target)) return;
++  const settlement = takePendingScrollSettlement(state, target);
++  state.scrollingTo = undefined;
++  state.scrollTargetPinnedRange = undefined;
++  state.scrollHistory.length = 0;
++  if (state.animFrameCheckFinishedScroll !== undefined) {
++    cancelAnimationFrame(state.animFrameCheckFinishedScroll);
++    state.animFrameCheckFinishedScroll = undefined;
++  }
++  if (state.timeoutCheckFinishedScrollFallback !== undefined) {
++    clearTimeout(state.timeoutCheckFinishedScrollFallback);
++    state.timeoutCheckFinishedScrollFallback = undefined;
++  }
++  // Relative-adjustment accounting and initial readiness are not success-cleaned.
++  try { recalculateSettledScroll(ctx); }
++  catch (cleanupError) { if (error && error.cause === undefined) error.cause = cleanupError; }
++  finally { if (settlement.reject) settlement.reject(error); }
++}
++function createIndexedScrollFailure(ctx, target) {
++  const error = new Error("Indexed scroll did not reach its current native target");
++  error.code = "LEGEND_SCROLL_UNALIGNED";
++  error.index = target.index;
++  if (target.keyedTarget) {
++    error.key = target.targetKey;
++    error.reason = target.keyedFailureReason || (target.getViewOffset !== undefined && !target.dynamicOffsetAvailable ? "target-offset-unavailable" : "target-unaligned");
++  }
++  error.requestedOffset = Number.isFinite(target.targetOffset) ? target.targetOffset : null;
++  const current = getCurrentTargetOffset(ctx, target);
++  error.currentOffset = Number.isFinite(current) ? current : null;
++  error.observedOffset = Number.isFinite(ctx.state.lastNativeScroll) ? ctx.state.lastNativeScroll : null;
++  return error;
++}
+ function finishScrollTo(ctx) {
+   var _a3, _b;
+   const state = ctx.state;
+   if (state == null ? void 0 : state.scrollingTo) {
+-    const resolvePendingScroll = state.pendingScrollResolve;
+-    state.pendingScrollResolve = void 0;
+     const scrollingTo = state.scrollingTo;
++    const settlement = takePendingScrollSettlement(state, scrollingTo);
++    const resolvePendingScroll = settlement.resolve;
+     state.scrollHistory.length = 0;
+     state.scrollingTo = void 0;
+     state.scrollTargetPinnedRange = void 0;
+@@ -1306,7 +1426,7 @@ function checkFinishedScroll(ctx, options) {
+       return;
+     }
+   }
+-  ctx.state.animFrameCheckFinishedScroll = requestAnimationFrame(() => checkFinishedScrollFrame(ctx));
++  ctx.state.animFrameCheckFinishedScroll = requestAnimationFrame(() => checkFinishedScrollFrame(ctx, scrollingTo));
+ }
+ function hasScrollCompletionOwnership(state, options) {
+   const { clampedTargetOffset, scrollingTo } = options;
+@@ -1350,13 +1470,29 @@ function isEndAlignedLastItemTarget(ctx, scrollingTo) {
+ }
+ function getCurrentTargetOffset(ctx, scrollingTo) {
+   var _a3;
++  if (!refreshKeyedScrollTarget(ctx, scrollingTo) || !resolveKeyedViewOffset(ctx, scrollingTo)) return NaN;
+   const index = scrollingTo.index;
++  if (isObservedIOSIndexedScroll(ctx.state, scrollingTo)) {
++    if (index < 0 || index >= ctx.state.props.data.length || !Number.isFinite(ctx.state.positions[index])) return NaN;
++    const currentOffset = calculateOffsetWithOffsetPosition(ctx, ctx.state.positions[index], scrollingTo);
++    return Number.isFinite(currentOffset) ? clampScrollOffset(ctx, currentOffset, scrollingTo) : NaN;
++  }
+   const shouldRecomputeEndTarget = isEndAlignedLastItemTarget(ctx, scrollingTo);
+   const requestedTargetOffset = shouldRecomputeEndTarget && index !== void 0 ? calculateOffsetWithOffsetPosition(ctx, calculateOffsetForIndex(ctx, index), scrollingTo) : (_a3 = scrollingTo.targetOffset) != null ? _a3 : clampScrollOffset(ctx, scrollingTo.offset - (scrollingTo.viewOffset || 0), scrollingTo);
+   return clampScrollOffset(ctx, requestedTargetOffset, scrollingTo);
+ }
+ function getResolvedScrollCompletionState(ctx, scrollingTo) {
+   const { state } = ctx;
++  if (isObservedIOSIndexedScroll(state, scrollingTo)) {
++    const scroll = state.lastNativeScroll;
++    const clampedTargetOffset = getCurrentTargetOffset(ctx, scrollingTo);
++    const hasObservation = Number.isFinite(scroll);
++    const hasCommandObservation = scrollingTo.nativeCompletionCanUseExisting || (state.nativeScrollEventRevision || 0) > (scrollingTo.nativeCompletionRevision || 0);
++    return {
++      clampedTargetOffset,
++      isAtResolvedTarget: !!hasObservation && !!hasCommandObservation && Number.isFinite(clampedTargetOffset) && Math.abs(scroll - clampScrollOffset(ctx, scroll, scrollingTo)) < 1 && Math.abs(scroll - clampedTargetOffset) < 1
++    };
++  }
+   const scroll = state.scrollPending;
+   const adjust = state.scrollAdjustHandler.getAdjust();
+   const clampedTargetOffset = getCurrentTargetOffset(ctx, scrollingTo);
+@@ -1370,14 +1506,19 @@ function getResolvedScrollCompletionState(ctx, scrollingTo) {
+     isAtResolvedTarget: Math.abs(scroll - maxOffset) < 1 && (diff1 < 1 || canUseAdjustedCompletion && diff2 < 1)
+   };
+ }
+-function checkFinishedScrollFrame(ctx) {
++function checkFinishedScrollFrame(ctx, expectedTarget = ctx.state.scrollingTo) {
+   const scrollingTo = ctx.state.scrollingTo;
+-  if (!scrollingTo) {
++  if (!scrollingTo || expectedTarget !== scrollingTo || !ownsScrollCompletion(ctx.state, scrollingTo)) {
+     return;
+   }
+   const { state } = ctx;
+   state.animFrameCheckFinishedScroll = void 0;
+   const completionState = getResolvedScrollCompletionState(ctx, scrollingTo);
++  if (!ownsScrollCompletion(state, scrollingTo)) return;
++  if (scrollingTo.keyedFailureReason) {
++    failIndexedScrollTo(ctx, scrollingTo, createIndexedScrollFailure(ctx, scrollingTo));
++    return;
++  }
+   if (completionState.isAtResolvedTarget && hasScrollCompletionOwnership(state, {
+     clampedTargetOffset: completionState.clampedTargetOffset,
+     scrollingTo
+@@ -1401,13 +1542,16 @@ function checkFinishedScrollFallback(ctx) {
+   const canFinishInitialWithoutNativeProgress = scrollingTo !== void 0 ? shouldFinishInitialScrollWithoutNativeProgress(state, scrollingTo) : false;
+   const slowTimeout = (scrollingTo == null ? void 0 : scrollingTo.isInitialScroll) && !shouldFinishInitialZeroTarget && !canFinishInitialWithoutNativeProgress || !state.didContainersLayout;
+   const initialDelay = shouldFinishInitialZeroTarget || canFinishInitialWithoutNativeProgress ? 0 : silentInitialDispatch ? SILENT_INITIAL_SCROLL_RETRY_DELAY_MS : slowTimeout ? 500 : 100;
++  const commandRevision = state.scrollCommandRevision || 0;
+   state.timeoutCheckFinishedScrollFallback = setTimeout(() => {
++    if (state.scrollingTo !== scrollingTo || commandRevision !== (state.scrollCommandRevision || 0)) return;
+     let numChecks = 0;
+     const scheduleFallbackCheck = (delay) => {
+       state.timeoutCheckFinishedScrollFallback = setTimeout(checkHasScrolled, delay);
+     };
+     const checkHasScrolled = () => {
+       var _a3, _b, _c, _d;
++      if (state.scrollingTo !== scrollingTo || commandRevision !== (state.scrollCommandRevision || 0)) return;
+       state.timeoutCheckFinishedScrollFallback = void 0;
+       const isStillScrollingTo = state.scrollingTo;
+       if (isStillScrollingTo) {
+@@ -1420,6 +1564,20 @@ function checkFinishedScrollFallback(ctx) {
+           isStillScrollingTo
+         );
+         const completionState = getResolvedScrollCompletionState(ctx, isStillScrollingTo);
++        if (!ownsScrollCompletion(state, isStillScrollingTo)) return;
++        if (isObservedIOSIndexedScroll(state, isStillScrollingTo)) {
++          if (isStillScrollingTo.keyedFailureReason) {
++            failIndexedScrollTo(ctx, isStillScrollingTo, createIndexedScrollFailure(ctx, isStillScrollingTo));
++          } else if (completionState.isAtResolvedTarget) {
++            finishScrollTo(ctx);
++          } else if (numChecks <= 5) {
++            if (Number.isFinite(completionState.clampedTargetOffset)) scrollToFallbackOffset(ctx, completionState.clampedTargetOffset);
++            scheduleFallbackCheck(100);
++          } else {
++            failIndexedScrollTo(ctx, isStillScrollingTo, createIndexedScrollFailure(ctx, isStillScrollingTo));
++          }
++          return;
++        }
+         const canFinishAfterSilentNativeDispatch = Platform.OS === "android" && silentInitialDispatch && completionState.isAtResolvedTarget && numChecks >= 1;
+         const shouldRetrySilentInitialNativeScroll = Platform.OS === "android" && canFinishAfterSilentNativeDispatch && !initialScrollCompletion.didRetrySilentInitialScroll(state);
+         const shouldFinishAfterObservedScroll = state.hasScrolled && (!isStillScrollingTo.isInitialScroll || completionState.isAtResolvedTarget);
+@@ -1546,10 +1704,73 @@ function doMaintainScrollAtEnd(ctx) {
+   return false;
+ }
+ 
++// RN's resident provider decides admission at the native mount. This flag
++// routes only ordinary READ compensation to that mount's legacy sentinel; it
++// never claims native admission and never predicts the resulting native offset.
++function routesNativeReadAdjustment(state) {
++  return Platform.OS === "ios" && state.props.nativeReadPointCorrection === true &&
++    typeof state.props.nativeReadPointIntent === "string" && state.props.nativeReadPointIntent.length > 0 &&
++    !state.props.horizontal && state.didFinishInitialScroll && state.didContainersLayout &&
++    !state.scrollingTo && !state.pendingScrollRequest && !state.pendingScrollToEnd &&
++    !state.maintainingScrollAtEnd && !state.pendingMaintainScrollAtEnd && !state.adjustingFromInitialMount;
++}
++
++function captureNativeReadPreparation(state) {
++  if (!routesNativeReadAdjustment(state)) return undefined;
++  const preparation = {
++    intent: state.props.nativeReadPointIntent,
++    commandRevision: state.scrollCommandRevision || 0,
++    nativeOffset: state.nativeReadAcknowledgedSignal === state.nativeReadRelativeSignal && state.nativeReadAcknowledgedTimestamp > state.lastNativeScrollTimestamp ? state.nativeReadAcknowledgedOffset : state.lastNativeScroll,
++    nativeTimestamp: state.nativeReadAcknowledgedSignal === state.nativeReadRelativeSignal && state.nativeReadAcknowledgedTimestamp > state.lastNativeScrollTimestamp ? state.nativeReadAcknowledgedTimestamp : state.lastNativeScrollTimestamp,
++    nativeRevision: state.nativeScrollEventRevision || 0,
++    signal: state.nativeReadRelativeSignal,
++    acknowledged: state.nativeReadAcknowledgedSignal === state.nativeReadRelativeSignal
++  };
++  state.nativeReadMVCPPreparation = preparation;
++  return preparation;
++}
++function ownsNativeReadPreparation(state, preparation) {
++  return !preparation || state.nativeReadMVCPPreparation === preparation &&
++    routesNativeReadAdjustment(state) && state.props.nativeReadPointIntent === preparation.intent &&
++    (state.scrollCommandRevision || 0) === preparation.commandRevision &&
++    state.nativeReadRelativeSignal === preparation.signal;
++}
++
+ // src/utils/requestAdjust.ts
+-function requestAdjust(ctx, positionDiff, dataChanged) {
++function requestAdjust(ctx, positionDiff, dataChanged, nativeReadPreparation) {
+   const state = ctx.state;
++  const adjustmentCommandRevision = state.scrollCommandRevision || 0;
++  const adjustmentNativeEventRevision = state.nativeScrollEventRevision || 0;
+   if (Math.abs(positionDiff) > 0.1) {
++    if (routesNativeReadAdjustment(state)) {
++      if (!ownsNativeReadPreparation(state, nativeReadPreparation)) return;
++      const intent = state.props.nativeReadPointIntent;
++      const previous = state.nativeReadRelativeSignal;
++      const previousAmount = previous && previous.intent === intent ? previous.amount : 0;
++      const acknowledged = state.nativeReadAcknowledgedSignal === previous;
++      const ackDuringPreparation = acknowledged && nativeReadPreparation && !nativeReadPreparation.acknowledged;
++      const preferAck = acknowledged && state.nativeReadAcknowledgedTimestamp > state.lastNativeScrollTimestamp;
++      const basisOffset = ackDuringPreparation || !nativeReadPreparation && preferAck ? state.nativeReadAcknowledgedOffset : nativeReadPreparation ? nativeReadPreparation.nativeOffset : state.lastNativeScroll;
++      const basisTimestamp = ackDuringPreparation || !nativeReadPreparation && preferAck ? state.nativeReadAcknowledgedTimestamp : nativeReadPreparation ? nativeReadPreparation.nativeTimestamp : state.lastNativeScrollTimestamp;
++      const basisRevision = nativeReadPreparation ? nativeReadPreparation.nativeRevision : state.nativeScrollEventRevision || 0;
++      if (!Number.isFinite(basisOffset) || !Number.isFinite(basisTimestamp)) return;
++      const reuse = previous && previous.intent === intent && previous.operation && !acknowledged &&
++        state.nativeReadRelativeCommandRevision === adjustmentCommandRevision;
++      const operation = reuse ? previous.operation : {
++        id: (state.nativeReadOperationRevision || 0) + 1,
++        startOffset: basisOffset,
++        startAmount: previousAmount
++      };
++      if (!Number.isSafeInteger(operation.id) || !Number.isFinite(previousAmount + positionDiff)) return;
++      state.nativeReadOperationRevision = operation.id;
++      state.nativeReadRelativeSignal = { intent, amount: previousAmount + positionDiff, operation };
++      state.nativeReadRelativeCommandRevision = adjustmentCommandRevision;
++      state.nativeReadRelativeNativeRevision = basisRevision;
++      state.nativeReadRelativeNativeTimestamp = basisTimestamp;
++      state.scrollForNextCalculateItemsInView = void 0;
++      set$(ctx, "nativeReadPointAdjustment", JSON.stringify(state.nativeReadRelativeSignal));
++      return;
++    }
+     const needsScrollWorkaround = Platform.OS === "android" && !IsNewArchitecture && dataChanged && state.scroll <= positionDiff;
+     const doit = () => {
+       if (needsScrollWorkaround) {
+@@ -1580,8 +1801,24 @@ function requestAdjust(ctx, positionDiff, dataChanged) {
+           clearTimeout(state.ignoreScrollFromMVCPTimeout);
+         }
+         const delay = needsScrollWorkaround ? 250 : 100;
+-        state.ignoreScrollFromMVCPTimeout = setTimeout(() => {
++        const suppressionTimeout = setTimeout(() => {
+           var _a3;
++          if (Platform.OS === "ios") {
++            // Expire only this adjustment's suppression. A queued older timer
++            // cannot clear newer work, even after command completion ABA.
++            if (state.ignoreScrollFromMVCPTimeout !== suppressionTimeout) return;
++            state.ignoreScrollFromMVCPTimeout = void 0;
++            state.ignoreScrollFromMVCP = void 0;
++            state.ignoreScrollFromMVCPIgnored = false;
++            const sameCommand = (state.scrollCommandRevision || 0) === adjustmentCommandRevision;
++            const observedAfterAdjustment = (state.nativeScrollEventRevision || 0) > adjustmentNativeEventRevision;
++            const observedOffset = state.lastNativeScroll;
++            if (sameCommand && observedAfterAdjustment && state.scrollProcessingEnabled !== false && Number.isFinite(observedOffset)) {
++              state.scrollPending = observedOffset;
++              updateScroll(ctx, observedOffset, true, { markHasScrolled: false });
++            }
++            return;
++          }
+           state.ignoreScrollFromMVCP = void 0;
+           const shouldForceUpdate = state.ignoreScrollFromMVCPIgnored && state.scrollProcessingEnabled !== false;
+           if (shouldForceUpdate) {
+@@ -1590,6 +1827,7 @@ function requestAdjust(ctx, positionDiff, dataChanged) {
+             (_a3 = state.reprocessCurrentScroll) == null ? void 0 : _a3.call(state);
+           }
+         }, delay);
++        state.ignoreScrollFromMVCPTimeout = suppressionTimeout;
+       }
+     } else {
+       state.adjustingFromInitialMount = (state.adjustingFromInitialMount || 0) + 1;
+@@ -1643,6 +1881,7 @@ function updateAnchorLock(state, params) {
+   }
+ }
+ function shouldQueueNativeMVCPAdjust(dataChanged, state, positionDiff, prevTotalSize, prevScroll, scrollTarget) {
++  if (routesNativeReadAdjustment(state)) return false;
+   if (!dataChanged || Platform.OS === "web" || !state.props.maintainVisibleContentPosition.data || scrollTarget !== void 0 || positionDiff >= -MVCP_POSITION_EPSILON) {
+     return false;
+   }
+@@ -1738,6 +1977,7 @@ function resolvePendingNativeMVCPAdjust(ctx, newScroll) {
+ }
+ function prepareMVCP(ctx, dataChanged) {
+   const state = ctx.state;
++  if (routesNativeReadAdjustment(state)) state.pendingNativeMVCPAdjust = void 0;
+   const { idsInView, positions, props } = state;
+   const {
+     maintainVisibleContentPosition: { data: mvcpData, size: mvcpScroll, shouldRestorePosition }
+@@ -1746,6 +1986,13 @@ function prepareMVCP(ctx, dataChanged) {
+   const now = Date.now();
+   const enableMVCPAnchorLock = isWeb && (!!dataChanged || !!state.mvcpAnchorLock);
+   const scrollingTo = state.scrollingTo;
++  const preparedCommandRevision = state.scrollCommandRevision || 0;
++  const nativeReadPreparation = captureNativeReadPreparation(state);
++  const ownsPreparation = () => Platform.OS !== "ios" || (state.scrollCommandRevision || 0) === preparedCommandRevision && state.scrollingTo === scrollingTo && ownsNativeReadPreparation(state, nativeReadPreparation);
++  // An active nonanimated keyed command owns absolute movement until its
++  // current native acknowledgement completes. Relative compensation here
++  // would instead move the still-outgoing viewport, competing with that target.
++  if (getNativeAcquisitionPositions(ctx) || Platform.OS === "ios" && scrollingTo && scrollingTo.keyedTarget && !scrollingTo.animated && !scrollingTo.isInitialScroll) return undefined;
+   if (isWeb && dataChanged && state.pendingScrollToEnd && scrollingTo === void 0) {
+     state.mvcpAnchorLock = void 0;
+     return void 0;
+@@ -1756,7 +2003,7 @@ function prepareMVCP(ctx, dataChanged) {
+   const idsInViewWithPositions = [];
+   const scrollTarget = scrollingTo == null ? void 0 : scrollingTo.index;
+   const scrollingToViewPosition = scrollingTo == null ? void 0 : scrollingTo.viewPosition;
+-  const isEndAnchoredScrollTarget = scrollTarget !== void 0 && state.props.data.length > 0 && scrollTarget >= state.props.data.length - 1 && (scrollingToViewPosition != null ? scrollingToViewPosition : 0) > 0;
++  const isEndAnchoredScrollTarget = !(scrollingTo == null ? void 0 : scrollingTo.keyedTarget) && scrollTarget !== void 0 && state.props.data.length > 0 && scrollTarget >= state.props.data.length - 1 && (scrollingToViewPosition != null ? scrollingToViewPosition : 0) > 0;
+   const shouldMVCP = dataChanged ? mvcpData : mvcpScroll;
+   const indexByKey = state.indexByKey;
+   const prevScroll = state.scroll;
+@@ -1773,7 +2020,7 @@ function prepareMVCP(ctx, dataChanged) {
+       if (!IsNewArchitecture && (scrollingTo == null ? void 0 : scrollingTo.isInitialScroll)) {
+         return void 0;
+       }
+-      targetId = getId(state, scrollTarget);
++      targetId = scrollingTo.keyedTarget ? scrollingTo.targetKey : getId(state, scrollTarget);
+     } else if (idsInView.length > 0 && state.didContainersLayout && !dataChanged) {
+       targetId = idsInView.find((id) => indexByKey.get(id) !== void 0);
+     }
+@@ -1796,6 +2043,7 @@ function prepareMVCP(ctx, dataChanged) {
+       }
+     }
+     return () => {
++      if (!ownsPreparation()) return;
+       let positionDiff = 0;
+       let anchorIdForLock = anchorLock == null ? void 0 : anchorLock.id;
+       let anchorPositionForLock;
+@@ -1860,7 +2108,8 @@ function prepareMVCP(ctx, dataChanged) {
+         }
+       }
+       if (scrollingToViewPosition && scrollingToViewPosition > 0) {
+-        const newSize = getItemSize(ctx, targetId, scrollTarget, state.props.data[scrollTarget]);
++        const sizeIndex = scrollingTo.keyedTarget ? indexByKey.get(targetId) : scrollTarget;
++        const newSize = sizeIndex === undefined ? undefined : getItemSize(ctx, targetId, sizeIndex, state.props.data[sizeIndex]);
+         const prevSize = scrollingTo == null ? void 0 : scrollingTo.itemSize;
+         if (newSize !== void 0 && prevSize !== void 0 && newSize !== prevSize) {
+           const diff = newSize - prevSize;
+@@ -1877,6 +2126,7 @@ function prepareMVCP(ctx, dataChanged) {
+         now,
+         positionDiff
+       });
++      if (!ownsPreparation()) return;
+       if (shouldQueueNativeMVCPAdjust(dataChanged, state, positionDiff, prevTotalSize, prevScroll, scrollTarget)) {
+         state.pendingNativeMVCPAdjust = {
+           amount: positionDiff,
+@@ -1890,7 +2140,7 @@ function prepareMVCP(ctx, dataChanged) {
+       if (Math.abs(positionDiff) > MVCP_POSITION_EPSILON) {
+         const shouldSkipAdjustForMaintainedEnd = (state.maintainingScrollAtEnd === "pending-animated" || state.maintainingScrollAtEnd === "animated") && peek$(ctx, "isWithinMaintainScrollAtEndThreshold");
+         if (!shouldSkipAdjustForMaintainedEnd) {
+-          requestAdjust(ctx, positionDiff, dataChanged && mvcpData);
++          requestAdjust(ctx, positionDiff, dataChanged && mvcpData, nativeReadPreparation);
+         }
+       }
+     };
+@@ -2097,14 +2347,14 @@ function getItemBottom(ctx, index) {
+   const itemSize = (_a3 = getItemSizeAtIndex(ctx, index)) != null ? _a3 : 0;
+   return top + (Number.isFinite(itemSize) ? itemSize : 0);
+ }
+-function getTargetViewportRenderRange(ctx, targetOffset, targetIndex) {
++function getTargetViewportRenderRange(ctx, targetOffset, targetIndex, renderBuffer = 0) {
+   const state = ctx.state;
+   const dataLength = state.props.data.length;
+   if (dataLength === 0) {
+     return void 0;
+   }
+-  const viewportStart = Math.max(0, targetOffset);
+-  const viewportEnd = Math.max(viewportStart, targetOffset + state.scrollLength);
++  const viewportStart = Math.max(0, targetOffset - renderBuffer);
++  const viewportEnd = Math.max(viewportStart, targetOffset + state.scrollLength + renderBuffer);
+   let start = targetIndex !== void 0 ? Math.max(0, Math.min(dataLength - 1, targetIndex)) : findPositionIndexAtOrBeforeOffset(ctx, viewportStart);
+   if (start === void 0) {
+     return void 0;
+@@ -2143,7 +2393,10 @@ function getTargetViewportRenderRange(ctx, targetOffset, targetIndex) {
+   return { end, start };
+ }
+ function pinScrollTargetRenderRange(ctx, targetOffset, targetIndex) {
++  const expectedTarget = ctx.state.scrollingTo;
++  const guardOwner = Platform.OS === "ios" && expectedTarget && expectedTarget.keyedTarget && !expectedTarget.animated && !expectedTarget.isInitialScroll;
+   const range = getTargetViewportRenderRange(ctx, targetOffset, targetIndex);
++  if (guardOwner && !ownsScrollCompletion(ctx.state, expectedTarget)) return;
+   if (range) {
+     ctx.state.scrollTargetPinnedRange = range;
+     ctx.state.scrollForNextCalculateItemsInView = void 0;
+@@ -2151,6 +2404,77 @@ function pinScrollTargetRenderRange(ctx, targetOffset, targetIndex) {
+     ctx.state.scrollTargetPinnedRange = void 0;
+   }
+ }
++function getNativeAcquisitionPositions(ctx) {
++  const state = ctx.state;
++  const request = state.pendingScrollRequest;
++  const held = request && request.nativeAcquisition;
++  if (!held) return undefined;
++  if (Platform.OS !== "ios" || state.props.horizontal || peek$(ctx, "numColumns") !== 1 || request.revision !== (state.scrollCommandRevision || 0) || !state.refScroller.current || held.scroller !== state.refScroller.current || request.target && !ownsScrollCompletion(state, request.target)) {
++    request.nativeAcquisition = undefined;
++    return undefined;
++  }
++  return held.positions;
++}
++function captureNativeAcquisitionPositions(ctx, request) {
++  const state = ctx.state;
++  if (state.pendingScrollRequest !== request || request.revision !== (state.scrollCommandRevision || 0) || request.nativeAcquisition || Platform.OS !== "ios" || state.props.horizontal || peek$(ctx, "numColumns") !== 1 || !state.refScroller.current || !Number.isFinite(state.lastNativeScroll)) return;
++  const padding = (peek$(ctx, "headerSize") || 0) + (peek$(ctx, "stylePaddingTop") || 0) + (peek$(ctx, "alignItemsAtEndPadding") || 0);
++  const end = state.lastNativeScroll + state.scrollLength - getContentInsetEnd(ctx);
++  const positions = new Map();
++  for (const [key, container] of state.containerItemKeys) {
++    const position = peek$(ctx, `containerPosition${container}`);
++    const size = state.sizesKnown.get(key);
++    if (Number.isFinite(position) && Number.isFinite(size) && position + padding < end && position + padding + size > state.lastNativeScroll) {
++      positions.set(key, { container, generation: state.containerItemGenerations[container] || 0, position: position + padding });
++    }
++  }
++  // This is a snapshot of published physical-container coordinates, not the
++  // rebuilt positions table. It belongs to the new request, before acquisition
++  // can mount an unknown row and revise estimates above the native viewport.
++  if (state.pendingScrollRequest === request && request.revision === (state.scrollCommandRevision || 0)) request.nativeAcquisition = { scroller: state.refScroller.current, positions };
++}
++function getNativeAcquisitionPosition(ctx, key, container) {
++  const positions = getNativeAcquisitionPositions(ctx);
++  const held = positions && positions.get(key);
++  if (!held) return undefined;
++  const state = ctx.state;
++  if (!state.indexByKey.has(key) || state.containerItemKeys.get(key) !== held.container || container !== held.container || (state.containerItemGenerations[container] || 0) !== held.generation) {
++    positions.delete(key);
++    return undefined;
++  }
++  const padding = (peek$(ctx, "headerSize") || 0) + (peek$(ctx, "stylePaddingTop") || 0) + (peek$(ctx, "alignItemsAtEndPadding") || 0);
++  return held.position - padding;
++}
++function retainOwnedNativeViewport(ctx, target = ctx.state.scrollingTo) {
++  const state = ctx.state;
++  const indices = new Set();
++  const acquisition = getNativeAcquisitionPositions(ctx);
++  if (acquisition) {
++    for (const [key, held] of acquisition) {
++      if (getNativeAcquisitionPosition(ctx, key, held.container) === undefined) continue;
++      const index = state.indexByKey.get(key);
++      if (index !== undefined) indices.add(index);
++    }
++  }
++  if (Platform.OS !== "ios" || !target || !target.keyedTarget || target.animated || target.isInitialScroll || !ownsScrollCompletion(state, target)) return indices;
++  const keys = target.nativeRetainedKeys || (target.nativeRetainedKeys = new Set());
++  const range = Number.isFinite(state.lastNativeScroll) ? getTargetViewportRenderRange(ctx, state.lastNativeScroll) : undefined;
++  if (range) {
++    for (let index = range.start; index <= range.end; index++) {
++      const key = getId(state, index);
++      if (key !== null && key !== undefined) keys.add(key);
++    }
++  }
++  // Keep previously observed viewport rows, and allocate rows newly entering
++  // that viewport after relayout. Only the exact command owns this retention;
++  // removed data is never resurrected.
++  for (const key of keys) {
++    const index = state.indexByKey.get(key);
++    if (index !== undefined) indices.add(index);
++  }
++  if (!ownsScrollCompletion(state, target)) indices.clear();
++  return indices;
++}
+ function scrollTo(ctx, params) {
+   var _a3, _b;
+   const state = ctx.state;
+@@ -2171,11 +2495,27 @@ function scrollTo(ctx, params) {
+   if (state.timeoutCheckFinishedScrollFallback) {
+     clearTimeout(ctx.state.timeoutCheckFinishedScrollFallback);
+   }
++  const previousScrollingTo = state.scrollingTo;
++  const dispatchRequest = state.dispatchingScrollRequest;
++  const ownsPublicDispatch = dispatchRequest && state.pendingScrollRequest === dispatchRequest && dispatchRequest.revision === (state.scrollCommandRevision || 0);
++  if (!noScrollingTo && !ownsPublicDispatch) {
++    state.scrollCommandRevision = (state.scrollCommandRevision || 0) + 1;
++    const pending = state.pendingScrollRequest;
++    const acquisition = pending && pending.acquisitionRange;
++    if (acquisition) {
++      pending.acquisitionRange = undefined;
++      if (state.scrollTargetPinnedRange === acquisition) {
++        state.scrollTargetPinnedRange = undefined;
++        state.scrollForNextCalculateItemsInView = undefined;
++      }
++    }
++  }
+   const requestedOffset = precomputedWithViewOffset ? scrollTargetOffset : calculateOffsetWithOffsetPosition(ctx, scrollTargetOffset, scrollTarget);
+   const shouldPreserveRawInitialOffsetRequest = !!isInitialScroll && ((_a3 = state.initialScrollSession) == null ? void 0 : _a3.kind) === "offset";
+   const targetOffset = clampScrollOffset(ctx, requestedOffset, scrollTarget);
+   const offset = shouldPreserveRawInitialOffsetRequest ? requestedOffset : targetOffset;
+   state.scrollHistory.length = 0;
++  let dispatchTarget;
+   if (!noScrollingTo) {
+     if (isInitialScroll) {
+       initialScrollCompletion.resetFlags(state);
+@@ -2185,12 +2525,25 @@ function scrollTo(ctx, params) {
+       ...scrollTarget,
+       ...averageSizeSnapshot ? { averageSizeSnapshot } : {},
+       targetOffset,
+-      waitForInitialScrollCompletionFrame
++      waitForInitialScrollCompletionFrame,
++      scrollCommandRevision: state.scrollCommandRevision || 0
+     };
++    dispatchTarget = state.scrollingTo;
++    if (isObservedIOSIndexedScroll(state, state.scrollingTo)) {
++      state.scrollingTo.nativeCompletionRevision = state.nativeScrollEventRevision || 0;
++      state.scrollingTo.nativeCompletionCanUseExisting = !previousScrollingTo && !state.pendingNativeMVCPAdjust && !state.scrollAdjustHandler.pendingAdjust && Number.isFinite(state.lastNativeScroll) && Math.abs(state.lastNativeScroll - state.scroll) < 1 && Math.abs(state.lastNativeScroll - targetOffset) < 1;
++    }
++    if (ownsPublicDispatch) dispatchRequest.target = state.scrollingTo;
+     if (!isInitialScroll) {
+       pinScrollTargetRenderRange(ctx, targetOffset, scrollTarget.index);
+     }
+   }
++  const ownsNativeHandoff = Platform.OS === "ios" && !noScrollingTo && !isInitialScroll && !animated && !!(dispatchTarget && dispatchTarget.keyedTarget);
++  if (ownsNativeHandoff) {
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++    retainOwnedNativeViewport(ctx, dispatchTarget);
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++  }
+   state.scrollPending = targetOffset;
+   syncInitialScrollNativeWatchdog(state, { isInitialScroll, requestedOffset: offset, targetOffset });
+   if (!isInitialScroll && !noScrollingTo && Math.abs(state.scroll - targetOffset) > 1) {
+@@ -2202,8 +2555,24 @@ function scrollTo(ctx, params) {
+       updateScroll(ctx, targetOffset, true, { markHasScrolled: false });
+     }
+   }
++  let dispatchOffset = offset;
++  if (ownsNativeHandoff) {
++    // Synchronous range calculation above can publish new sizes/positions or
++    // accept a newer command. Never send the earlier captured target afterward.
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++    dispatchOffset = getCurrentTargetOffset(ctx, dispatchTarget);
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++    if (!Number.isFinite(dispatchOffset)) {
++      checkFinishedScrollFallback(ctx);
++      return;
++    }
++    dispatchTarget.targetOffset = dispatchOffset;
++    state.scrollPending = dispatchOffset;
++    pinScrollTargetRenderRange(ctx, dispatchOffset, dispatchTarget.index);
++    if (!ownsScrollCompletion(state, dispatchTarget)) return;
++  }
+   if (forceScroll || !isInitialScroll || Platform.OS === "android") {
+-    doScrollTo(ctx, { animated, horizontal, isInitialScroll, offset });
++    doScrollTo(ctx, { animated, horizontal, isInitialScroll, offset: dispatchOffset });
+   } else {
+     state.scroll = offset;
+   }
+@@ -2228,7 +2597,10 @@ function scrollToIndex(ctx, {
+   animated = true,
+   forceScroll,
+   isInitialScroll,
+-  viewPosition
++  viewPosition,
++  keyedTarget,
++  targetKey,
++  getViewOffset
+ }) {
+   const state = ctx.state;
+   const { data } = state.props;
+@@ -2247,6 +2619,7 @@ function scrollToIndex(ctx, {
+     isInitialScroll,
+     itemSize,
+     offset: firstIndexOffset,
++    ...(keyedTarget ? { keyedTarget: true, targetKey, ...(getViewOffset !== undefined ? { getViewOffset, dynamicOffsetAvailable: true } : {}) } : {}),
+     viewOffset,
+     viewPosition: viewPosition != null ? viewPosition : 0
+   });
+@@ -3172,7 +3545,8 @@ function syncMountedContainer(ctx, containerIndex, itemIndex, options) {
+     }
+     const logicalPosition = (positionValue || 0) - ((_c = options == null ? void 0 : options.scrollAdjustPending) != null ? _c : 0);
+     const itemSize = (_d = state.sizes.get(itemKey)) != null ? _d : getItemSize(ctx, itemKey, itemIndex, item);
+-    const position = toPhysicalHorizontalItemPosition(state, logicalPosition, itemSize, peek$(ctx, "totalSize"));
++    const acquisitionPosition = getNativeAcquisitionPosition(ctx, itemKey, containerIndex);
++    const position = acquisitionPosition !== undefined ? acquisitionPosition : toPhysicalHorizontalItemPosition(state, logicalPosition, itemSize, peek$(ctx, "totalSize"));
+     const column = columns[itemIndex] || 1;
+     const span = columnSpans[itemIndex] || 1;
+     const prevPos = peek$(ctx, `containerPosition${containerIndex}`);
+@@ -3502,6 +3876,18 @@ function updateItemPositions(ctx, dataChanged, {
+   }
+   if (!didBreakEarly) {
+     updateTotalSize(ctx);
++    state.scrollItemLayoutData = data;
++    state.scrollItemLayoutVersion = state.props.dataVersion;
++    state.scrollItemLayoutKey = state.props.dataKey;
++    if (scrollingTo && scrollingTo.keyedTarget && ownsScrollCompletion(state, scrollingTo)) {
++      if (refreshKeyedScrollTarget(ctx, scrollingTo)) {
++        const targetOffset = getCurrentTargetOffset(ctx, scrollingTo);
++        if (ownsScrollCompletion(state, scrollingTo)) {
++          if (Number.isFinite(targetOffset)) pinScrollTargetRenderRange(ctx, targetOffset, scrollingTo.index);
++          else state.scrollTargetPinnedRange = undefined;
++        }
++      } else state.scrollTargetPinnedRange = undefined;
++    }
+   }
+   if (snapToIndices) {
+     updateSnapToOffsets(ctx);
+@@ -4088,7 +4474,7 @@ function updateViewabilityForCachedRange(ctx, viewabilityConfigCallbackPairs, sc
+     startBuffered
+   } = state;
+   if (startBuffered === null || endBuffered === null || startBuffered < 0 || endBuffered < startBuffered) {
+-    return;
++    return false;
+   }
+   const visibleRange = {
+     endNoBuffer: null,
+@@ -4111,7 +4497,7 @@ function updateViewabilityForCachedRange(ctx, viewabilityConfigCallbackPairs, sc
+     startNoBuffer: visibleRange.startNoBuffer
+   });
+   maybeEmitFirstVisibleItemChanged(state, visibleRange.startNoBuffer);
+-  if (visibleRange.startNoBuffer !== null && visibleRange.endNoBuffer !== null) {
++  if (viewabilityConfigCallbackPairs && visibleRange.startNoBuffer !== null && visibleRange.endNoBuffer !== null) {
+     updateViewableItems(
+       state,
+       ctx,
+@@ -4123,6 +4509,7 @@ function updateViewabilityForCachedRange(ctx, viewabilityConfigCallbackPairs, sc
+       endBuffered
+     );
+   }
++  return true;
+ }
+ function calculateItemsInView(ctx, params = {}) {
+   const state = ctx.state;
+@@ -4232,19 +4619,19 @@ function calculateItemsInView(ctx, params = {}) {
+         state.scrollForNextCalculateItemsInView = void 0;
+       } else if ((top === null || scrollTopBuffered > top) && (bottom === null || scrollBottomBuffered < bottom)) {
+         if (Platform.OS !== "web" || !isInMVCPActiveMode(state)) {
+-          if (viewabilityConfigCallbackPairs) {
+-            updateViewabilityForCachedRange(
+-              ctx,
+-              viewabilityConfigCallbackPairs,
+-              scrollLength,
+-              scroll,
+-              scrollBottom
+-            );
+-          } else if (state.props.onFirstVisibleItemChanged) {
+-            maybeEmitFirstVisibleItemChanged(state, findFirstVisibleIndexInCachedRange(ctx, scroll));
++          // MVCP consumes these IDs on the next data/size pass, even when
++          // no viewability callback is configured. Never retain a stale anchor
++          // merely because the current viewport fits the rendered buffer.
++          if (updateViewabilityForCachedRange(
++            ctx,
++            viewabilityConfigCallbackPairs,
++            scrollLength,
++            scroll,
++            scrollBottom
++          )) {
++            (_d = stickyState == null ? void 0 : stickyState.finishCalculateItemsInView) == null ? void 0 : _d.call(stickyState);
++            return;
+           }
+-          (_d = stickyState == null ? void 0 : stickyState.finishCalculateItemsInView) == null ? void 0 : _d.call(stickyState);
+-          return;
+         }
+       }
+     }
+@@ -4266,10 +4653,11 @@ function calculateItemsInView(ctx, params = {}) {
+     if (minIndexSizeChanged !== void 0) {
+       state.minIndexSizeChanged = void 0;
+     }
+-    let protectedContainerKeys;
++    const nativeRetainedIndices = retainOwnedNativeViewport(ctx);
++    let protectedContainerKeys = nativeRetainedIndices.size ? new Set(Array.from(nativeRetainedIndices, index => getId(state, index))) : undefined;
+     if (dataChanged && doMVCP && state.props.maintainVisibleContentPosition.data && state.didContainersLayout && state.idsInView.length > 0) {
+       const shouldRestorePosition = state.props.maintainVisibleContentPosition.shouldRestorePosition;
+-      protectedContainerKeys = /* @__PURE__ */ new Set();
++      protectedContainerKeys = protectedContainerKeys || new Set();
+       for (const id of state.idsInView) {
+         const index = indexByKey.get(id);
+         if (index === void 0) continue;
+@@ -4394,7 +4782,7 @@ function calculateItemsInView(ctx, params = {}) {
+       );
+     }
+     const hasScrollTargetPinnedRange = scrollTargetPinnedStart <= scrollTargetPinnedEnd;
+-    const isPinnedRenderIndex = (index) => alwaysRenderIndicesSet.has(index) || hasScrollTargetPinnedRange && index >= scrollTargetPinnedStart && index <= scrollTargetPinnedEnd;
++    const isPinnedRenderIndex = (index) => nativeRetainedIndices.has(index) || alwaysRenderIndicesSet.has(index) || hasScrollTargetPinnedRange && index >= scrollTargetPinnedStart && index <= scrollTargetPinnedEnd;
+     if (startBuffered !== null && endBuffered !== null) {
+       const needNewContainers = [];
+       const needNewContainersSet = /* @__PURE__ */ new Set();
+@@ -4421,6 +4809,7 @@ function calculateItemsInView(ctx, params = {}) {
+       for (const index of alwaysRenderIndicesArr) {
+         addPinnedIndex(index);
+       }
++      for (const index of nativeRetainedIndices) addPinnedIndex(index);
+       if (hasScrollTargetPinnedRange) {
+         for (let index = scrollTargetPinnedStart; index <= scrollTargetPinnedEnd; index++) {
+           addPinnedIndex(index);
+@@ -5651,13 +6040,16 @@ var ContainersLayer = typedMemo(function ContainersLayer2({ children, horizontal
+   const ctx = useStateContext();
+   const columnWrapperStyle = ctx.columnWrapperStyle;
+   const animSize = useValue$("totalSize");
+-  const [readyToRender, numColumns, otherAxisSize = 0] = useArr$(["readyToRender", "numColumns", "otherAxisSize"]);
++  const [readyToRender, numColumns, otherAxisSize = 0, totalSize = 0] = useArr$(IsNewArchitecture ? ["readyToRender", "numColumns", "otherAxisSize", "totalSize"] : ["readyToRender", "numColumns", "otherAxisSize"]);
++  // Fabric row positions commit through React. Publish their extent in that
++  // same commit instead of applying an Animated height before those rows.
++  const contentSize = IsNewArchitecture ? totalSize : animSize;
+   const style = horizontal ? {
+     height: otherAxisSize || "100%",
+     minHeight: otherAxisSize,
+     opacity: readyToRender ? 1 : 0,
+-    width: animSize
+-  } : { height: animSize, minWidth: otherAxisSize, opacity: readyToRender ? 1 : 0 };
++    width: contentSize
++  } : { height: contentSize, minWidth: otherAxisSize, opacity: readyToRender ? 1 : 0 };
+   if (columnWrapperStyle) {
+     const { columnGap, rowGap, gap } = columnWrapperStyle;
+     const gapX = columnGap || gap || 0;
+@@ -5876,7 +6268,7 @@ var ListComponent = typedMemo(function ListComponent2({
+ }) {
+   const ctx = useStateContext();
+   const maintainVisibleContentPosition = ctx.state.props.maintainVisibleContentPosition;
+-  const [otherAxisSize = 0] = useArr$(["otherAxisSize"]);
++  const [otherAxisSize = 0, nativeReadPointAdjustment] = useArr$(["otherAxisSize", "nativeReadPointAdjustment"]);
+   const shouldRenderAlignItemsAtEndSpacer = ctx.state.props.alignItemsAtEndPaddingEnabled;
+   const autoOtherAxisStyle = getAutoOtherAxisStyle({
+     horizontal,
+@@ -5938,6 +6330,7 @@ var ListComponent = typedMemo(function ListComponent2({
+       contentOffset: initialContentOffset !== void 0 ? horizontal ? { x: initialContentOffset, y: 0 } : { x: 0, y: initialContentOffset } : void 0,
+       horizontal,
+       maintainVisibleContentPosition: maintainVisibleContentPosition.size || maintainVisibleContentPosition.data ? { minIndexForVisible: 0 } : void 0,
++      ...Platform.OS === "ios" ? { nativeReadPointAdjustment } : {},
+       onLayout,
+       onScroll: onScroll2,
+       ref: refScrollView,
+@@ -6237,6 +6630,23 @@ function cloneScrollEvent(event) {
+     }
+   };
+ }
++function acknowledgeNativeReadAdjustment(state, event, newScroll) {
++  const relativeSignal = state.nativeReadRelativeSignal;
++  const relativeAck = event.nativeEvent.nativeReadPointAdjustmentAck;
++  if (relativeAck && routesNativeReadAdjustment(state) && relativeSignal && relativeSignal.operation &&
++      relativeSignal.intent === state.props.nativeReadPointIntent &&
++      state.nativeReadRelativeCommandRevision === (state.scrollCommandRevision || 0) &&
++      Number.isFinite(event.nativeEvent.timestamp) &&
++      event.nativeEvent.timestamp > state.nativeReadRelativeNativeTimestamp &&
++      relativeAck.intent === relativeSignal.intent && relativeAck.operationId === relativeSignal.operation.id &&
++      relativeAck.startOffset === relativeSignal.operation.startOffset && relativeAck.startAmount === relativeSignal.operation.startAmount &&
++      relativeAck.amount === relativeSignal.amount && Number.isFinite(relativeAck.target) &&
++      Math.abs(newScroll - relativeAck.target) <= NATIVE_END_CLAMP_EPSILON) {
++    state.nativeReadAcknowledgedSignal = relativeSignal;
++    state.nativeReadAcknowledgedOffset = relativeAck.target;
++    state.nativeReadAcknowledgedTimestamp = event.nativeEvent.timestamp;
++  }
++}
+ function onScroll(ctx, event) {
+   var _a3, _b, _c, _d, _e, _f;
+   const state = ctx.state;
+@@ -6263,10 +6673,25 @@ function onScroll(ctx, event) {
+   const isFinishedEndInitialScroll = state.didFinishInitialScroll && ((_f = state.initialScroll) == null ? void 0 : _f.viewPosition) === 1 && state.scroll > state.scrollLength;
+   const shouldIgnoreNegativeInsetChange = Platform.OS !== "web" && insetChanged && newScroll < 0 && isFinishedEndInitialScroll;
+   if (shouldIgnoreNegativeInsetChange) {
++    acknowledgeNativeReadAdjustment(state, event, newScroll);
+     return;
+   }
++  // Resolve current owned geometry before accepting this native event. A
++  // changed offset cannot reuse an older acknowledgement, while this exact
++  // newly delivered event may still establish the updated target.
++  const commandBeforeOffsetResolver = state.scrollCommandRevision || 0;
++  if (state.scrollingTo && state.scrollingTo.getViewOffset !== undefined) resolveKeyedViewOffset(ctx, state.scrollingTo);
+   state.lastNativeScroll = newScroll;
+   state.lastNativeScrollTime = Date.now();
++  state.nativeScrollEventRevision = (state.nativeScrollEventRevision || 0) + 1;
++  state.lastNativeScrollTimestamp = event.nativeEvent.timestamp;
++  acknowledgeNativeReadAdjustment(state, event, newScroll);
++  // The event began before any command accepted by the resolver. Keep the
++  // native observation, but require a later event to acknowledge that command.
++  if (commandBeforeOffsetResolver !== (state.scrollCommandRevision || 0) && state.scrollingTo && ownsScrollCompletion(state, state.scrollingTo)) {
++    state.scrollingTo.nativeCompletionRevision = state.nativeScrollEventRevision;
++    state.scrollingTo.nativeCompletionCanUseExisting = false;
++  }
+   if (state.scrollingTo && state.scrollingTo.offset >= newScroll) {
+     const maxOffset = clampScrollOffset(ctx, newScroll, state.scrollingTo);
+     if (newScroll !== maxOffset && Math.abs(newScroll - maxOffset) > 1) {
+@@ -6470,6 +6895,84 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+   const IMPERATIVE_SCROLL_SETTLE_MAX_WAIT_MS = 800;
+   const IMPERATIVE_SCROLL_SETTLE_STABLE_FRAMES = 2;
+   let imperativeScrollToken = 0;
++  // A promise is an opaque request identity, never a list-wide cancel signal.
++  const acceptedScrollPromises = new WeakMap();
++  const ownedScrollPromise = (executor) => {
++    let acceptedResolve;
++    const promise = new Promise((resolve, reject) => {
++      acceptedResolve = resolve;
++      executor(resolve, reject);
++    });
++    const request = state.pendingScrollRequest;
++    if (request && request.resolve === acceptedResolve) acceptedScrollPromises.set(promise, request);
++    const release = () => { acceptedScrollPromises.delete(promise); };
++    void promise.then(release, release);
++    return promise;
++  };
++  const ownsRequest = request => !!request && state.pendingScrollRequest === request && request.revision === (state.scrollCommandRevision || 0);
++  const releaseAcquisition = (request, retirePositions = false) => {
++    const heldPositions = retirePositions && request && request.nativeAcquisition;
++    if (heldPositions) request.nativeAcquisition = undefined;
++    const range = request && request.acquisitionRange;
++    if (!range) return !!heldPositions;
++    request.acquisitionRange = undefined;
++    if (state.scrollTargetPinnedRange !== range) return !!heldPositions;
++    state.scrollTargetPinnedRange = undefined;
++    state.scrollForNextCalculateItemsInView = undefined;
++    return true;
++  };
++  const requestAcquisition = (request, index, destinationRange) => {
++    if (!ownsRequest(request)) return;
++    const prior = request.acquisitionRange;
++    const start = destinationRange ? destinationRange.start : index;
++    const end = destinationRange ? destinationRange.end : index;
++    if (prior && state.scrollTargetPinnedRange === prior && prior.start === start && prior.end === end) return false;
++    releaseAcquisition(request);
++    // First acquire the keyed cell; once its offset is known, acquire the
++    // destination viewport too. Neither stage moves the native scroll view.
++    const range = { start, end };
++    request.acquisitionRange = range;
++    state.scrollTargetPinnedRange = range;
++    state.scrollForNextCalculateItemsInView = undefined;
++    state.triggerCalculateItemsInView?.();
++    return true;
++  };
++  const isAcquisitionWindowReady = (request, index, options) => {
++    if (!ownsRequest(request)) return false;
++    if (options.animated) return true;
++    if (!request.nativeAcquisition && (options.getViewOffset === undefined || Platform.OS !== "ios" || state.props.horizontal || peek$(ctx, "numColumns") !== 1)) return true;
++    const target = { index, viewPosition: options.viewPosition ?? 0, viewOffset: options.viewOffset ?? 0 };
++    const offset = clampScrollOffset(ctx, calculateOffsetWithOffsetPosition(ctx, state.positions[index], target), target);
++    // The native dispatch calculates a draw buffer up to 1.5 times the
++    // effective distance on either side. Acquire that envelope before moving.
++    const renderBuffer = Math.max(0, getEffectiveDrawDistance(ctx)) * 1.5;
++    const range = getTargetViewportRenderRange(ctx, offset, index, renderBuffer);
++    if (!ownsRequest(request) || !range || !Number.isFinite(offset)) return false;
++    const measuredWindow = () => {
++      for (let i = range.start; i <= range.end; i++) {
++        const key = getId(state, i);
++        if (!Number.isFinite(state.sizesKnown.get(key)) || !state.containerItemKeys.has(key)) return false;
++      }
++      // Allocation can include draw-buffer predecessors outside the exact
++      // viewport. Their pending native measurement also changes this target.
++      for (const key of state.containerItemKeys.keys()) {
++        const at = state.indexByKey.get(key);
++        if (at !== undefined && at <= index && !Number.isFinite(state.sizesKnown.get(key))) return false;
++      }
++      return true;
++    };
++    // A ready keyed cell can still have an unmeasured destination window.
++    // Preserve the native outgoing geometry before allocating that window.
++    const measured = measuredWindow();
++    if (!ownsRequest(request)) return false;
++    if (!request.nativeAcquisition && measured) return true;
++    captureNativeAcquisitionPositions(ctx, request);
++    if (!ownsRequest(request) || !request.nativeAcquisition) return false;
++    const changed = requestAcquisition(request, index, range);
++    if (!ownsRequest(request) || changed) return false;
++    const currentMeasured = measuredWindow();
++    return ownsRequest(request) && currentMeasured;
++  };
+   const isSettlingAfterDataChange = () => !!state.didDataChange || !!state.didColumnsChange || state.queuedMVCPRecalculate !== void 0 || state.ignoreScrollFromMVCP !== void 0;
+   const isScrollToIndexReady = (targetIndex, allowEmpty = false) => {
+     var _a3;
+@@ -6487,13 +6990,38 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+     }
+     return areKnownOrFixedItemSizesAvailable(ctx, anchorIndex, dataLength - 1);
+   };
+-  const runWhenReady = (token, run, isReady) => {
++  const failRequest = (resolve, error) => {
++    const request = state.pendingScrollRequest;
++    if (!request || request.resolve !== resolve || request.revision !== (state.scrollCommandRevision || 0)) return;
++    const releasedAcquisition = releaseAcquisition(request, true);
++    if (request.target && state.scrollingTo === request.target) {
++      failIndexedScrollTo(ctx, request.target, error);
++    } else {
++      const outgoing = state.scrollingTo;
++      if (outgoing && outgoing.scrollCommandRevision !== request.revision) {
++        state.scrollingTo = undefined;
++        state.scrollTargetPinnedRange = undefined;
++        state.scrollHistory.length = 0;
++      }
++      state.pendingScrollRequest = undefined;
++      if (state.pendingScrollResolve === request.resolve) state.pendingScrollResolve = undefined;
++      if (state.pendingScrollReject === request.reject) state.pendingScrollReject = undefined;
++      if (state.pendingScrollToEnd && state.pendingScrollToEnd.resolve === resolve) state.pendingScrollToEnd = undefined;
++      request.reject(error);
++    }
++    // Settlement is final; an unmounted or throwing render cleanup must not
++    // resurrect the request or escape a queued frame callback.
++    try { if (releasedAcquisition && state.refScroller.current) state.triggerCalculateItemsInView?.(); } catch (_cleanupError) {}
++  };
++  const runWhenReady = (token, run, isReady, onError) => {
+     const startedAt = Date.now();
+     let stableFrames = 0;
++    const request = state.pendingScrollRequest;
+     const check = () => {
+-      if (token !== imperativeScrollToken) {
++      if (token !== imperativeScrollToken || !ownsRequest(request)) {
+         return;
+       }
++      try {
+       if (isSettlingAfterDataChange() || !isReady()) {
+         stableFrames = 0;
+       } else {
+@@ -6505,38 +7033,61 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+         return;
+       }
+       requestAnimationFrame(check);
++      } catch (error) { onError(error); }
+     };
+     requestAnimationFrame(check);
+   };
+   const runScrollRequest = (token, resolve, run, isReady = () => true) => {
++    if (token !== imperativeScrollToken || !state.pendingScrollRequest || state.pendingScrollRequest.resolve !== resolve || !ownsRequest(state.pendingScrollRequest)) return;
++    let didRun = false;
+     const runNow = () => {
+-      if (token !== imperativeScrollToken) {
+-        return;
+-      }
+-      const didStartScroll = run();
+-      if (!didStartScroll || !state.scrollingTo) {
+-        if (state.pendingScrollResolve === resolve) {
+-          state.pendingScrollResolve = void 0;
++      const request = state.pendingScrollRequest;
++      if (didRun || token !== imperativeScrollToken || !request || request.resolve !== resolve || request.revision !== (state.scrollCommandRevision || 0)) return;
++      didRun = true;
++      const priorDispatch = state.dispatchingScrollRequest;
++      state.dispatchingScrollRequest = request;
++      try {
++        const didStartScroll = run();
++        const releasedAcquisition = releaseAcquisition(request, !didStartScroll || !state.scrollingTo);
++        if (state.pendingScrollRequest !== request) return;
++        if (!didStartScroll || !state.scrollingTo) {
++          state.pendingScrollRequest = undefined;
++          if (state.pendingScrollResolve === resolve) state.pendingScrollResolve = undefined;
++          if (state.pendingScrollReject === request.reject) state.pendingScrollReject = undefined;
++          resolve();
+         }
+-        resolve();
+-      }
++        if (releasedAcquisition) state.triggerCalculateItemsInView?.();
++      } catch (error) { failRequest(resolve, error); }
++      finally { if (state.dispatchingScrollRequest === request) state.dispatchingScrollRequest = priorDispatch; }
+     };
+-    if (isSettlingAfterDataChange() || !isReady()) {
+-      runWhenReady(token, runNow, isReady);
+-    } else {
+-      runNow();
+-    }
++    const preparingRequest = state.pendingScrollRequest;
++    try {
++      if (isSettlingAfterDataChange() || !isReady()) {
++        // Acquisition can synchronously accept a new command from another
++        // published imperative handle. Never bind this old checker to it.
++        if (!ownsRequest(preparingRequest) || preparingRequest.resolve !== resolve) return;
++        runWhenReady(token, runNow, isReady, error => failRequest(resolve, error));
++      } else { runNow(); }
++    } catch (error) { failRequest(resolve, error); }
+   };
+-  const startImperativeScroll = (resolve) => {
+-    var _a3;
++  const startImperativeScroll = (resolve, reject) => {
+     const token = ++imperativeScrollToken;
+-    state.pendingScrollToEnd = void 0;
+-    (_a3 = state.pendingScrollResolve) == null ? void 0 : _a3.call(state);
++    state.scrollCommandRevision = (state.scrollCommandRevision || 0) + 1;
++    state.pendingScrollToEnd = undefined;
++    const releasedAcquisition = releaseAcquisition(state.pendingScrollRequest, true);
++    const previous = state.pendingScrollResolve;
++    state.pendingScrollResolve = undefined;
++    state.pendingScrollReject = undefined;
++    state.pendingScrollRequest = undefined;
++    if (previous) previous();
+     state.pendingScrollResolve = resolve;
++    state.pendingScrollReject = reject;
++    state.pendingScrollRequest = { revision: state.scrollCommandRevision, resolve, reject, target: undefined };
++    try { if (releasedAcquisition) state.triggerCalculateItemsInView?.(); } catch (error) { failRequest(resolve, error); }
+     return token;
+   };
+-  const runScrollWithPromise = (run, isReady = () => true) => new Promise((resolve) => {
+-    const token = startImperativeScroll(resolve);
++  const runScrollWithPromise = (run, isReady = () => true) => ownedScrollPromise((resolve, reject) => {
++    const token = startImperativeScroll(resolve, reject);
+     runScrollRequest(token, resolve, run, isReady);
+   });
+   state.runPendingScrollToEnd = () => {
+@@ -6644,6 +7195,18 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+         retargetActiveInitialScrollAtEnd(ctx);
+       }
+     },
++    cancelScroll: (promise) => {
++      const request = acceptedScrollPromises.get(promise);
++      if (!ownsRequest(request)) return false;
++      acceptedScrollPromises.delete(promise);
++      // Retire queued checks before cleanup can reenter and accept newer work.
++      ++imperativeScrollToken;
++      const error = new Error("Scroll request was cancelled by its owner");
++      error.code = "LEGEND_SCROLL_CANCELLED";
++      failRequest(request.resolve, error);
++      if ((state.scrollCommandRevision || 0) === request.revision) state.scrollCommandRevision = request.revision + 1;
++      return true;
++    },
+     scrollIndexIntoView: (options) => runScrollWithPromise(() => scrollIndexIntoView(options)),
+     scrollItemIntoView: ({ item, ...props }) => runScrollWithPromise(() => {
+       const data = state.props.data;
+@@ -6654,19 +7217,22 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+       }
+       return false;
+     }),
+-    scrollToEnd: (options) => new Promise((resolve) => {
++    scrollToEnd: (options) => ownedScrollPromise((resolve, reject) => {
+       var _a3;
+-      const token = startImperativeScroll(resolve);
++      const token = startImperativeScroll(resolve, reject);
++      if (token !== imperativeScrollToken || !state.pendingScrollRequest || state.pendingScrollRequest.resolve !== resolve || !ownsRequest(state.pendingScrollRequest)) return;
+       state.pendingScrollToEnd = {
+         options,
+         resolve,
+         token
+       };
+-      if (scheduleImperativeScrollCommit) {
+-        scheduleImperativeScrollCommit();
+-      } else {
+-        (_a3 = state.runPendingScrollToEnd) == null ? void 0 : _a3.call(state);
+-      }
++      try {
++        if (scheduleImperativeScrollCommit) {
++          scheduleImperativeScrollCommit();
++        } else {
++          (_a3 = state.runPendingScrollToEnd) == null ? void 0 : _a3.call(state);
++        }
++      } catch (error) { failRequest(resolve, error); }
+     }),
+     scrollToIndex: (params) => {
+       return runScrollWithPromise(
+@@ -6677,15 +7243,85 @@ function createImperativeHandle(ctx, scheduleImperativeScrollCommit) {
+         params.index >= 0 ? () => isScrollToIndexReady(params.index) : void 0
+       );
+     },
+-    scrollToItem: ({ item, ...props }) => runScrollWithPromise(() => {
+-      const data = state.props.data;
+-      const index = data.indexOf(item);
+-      if (index !== -1) {
+-        scrollToIndex(ctx, { index, ...props });
++    scrollToItem: ({ item, ...props }) => {
++      if (Platform.OS !== "ios" || state.props.keyExtractorProvided !== true) return runScrollWithPromise(() => {
++        const data = state.props.data;
++        const index = data.indexOf(item);
++        if (index !== -1) {
++          scrollToIndex(ctx, { index, ...props });
++          return true;
++        }
++        return false;
++      });
++      let key;
++      let acceptanceError;
++      try {
++        const index = state.props.data.indexOf(item);
++        if (index < 0) throw createKeyedScrollFailure(ctx, undefined, undefined, "target-missing");
++        key = state.props.keyExtractor(item, index);
++        if (key === undefined || key === null) throw createKeyedScrollFailure(ctx, key, index, "target-key-unavailable");
++      } catch (error) { acceptanceError = error; }
++      const hasDynamicViewOffset = props.getViewOffset !== undefined;
++      const currentDynamicOffset = (index) => {
++        const request = state.pendingScrollRequest;
++        if (!ownsRequest(request)) return { value: undefined, owned: false };
++        const value = readKeyedViewOffset(ctx, props.getViewOffset, key, index);
++        const owned = !!request && state.pendingScrollRequest === request && request.revision === (state.scrollCommandRevision || 0);
++        return { value, owned };
++      };
++      return runScrollWithPromise(() => {
++        if (acceptanceError) throw acceptanceError;
++        if (hasDynamicViewOffset && !state.refScroller.current) throw createKeyedScrollFailure(ctx, key, undefined, "target-unmounted");
++        const index = findKeyedScrollItemIndex(state, key);
++        if (index < 0) throw createKeyedScrollFailure(ctx, key, undefined, "target-missing");
++        if (state.scrollItemLayoutData !== state.props.data || state.scrollItemLayoutVersion !== state.props.dataVersion || state.scrollItemLayoutKey !== state.props.dataKey || state.indexByKey.get(key) !== index || state.idCache[index] !== key || !Number.isFinite(state.positions[index])) throw createKeyedScrollFailure(ctx, key, index, "target-geometry-unavailable");
++        let viewOffset = props.viewOffset;
++        if (hasDynamicViewOffset) {
++          const resolved = currentDynamicOffset(index);
++          if (!resolved.owned) return false;
++          const currentIndex = findKeyedScrollItemIndex(state, key);
++          if (currentIndex < 0) throw createKeyedScrollFailure(ctx, key, undefined, "target-missing");
++          if (currentIndex !== index || resolved.value === undefined) throw createKeyedScrollFailure(ctx, key, currentIndex, "target-offset-unavailable");
++          viewOffset = resolved.value;
++        }
++        if (!isAcquisitionWindowReady(state.pendingScrollRequest, index, { ...props, viewOffset })) throw createKeyedScrollFailure(ctx, key, index, "target-geometry-unavailable");
++        scrollToIndex(ctx, { index, ...props, viewOffset, keyedTarget: true, targetKey: key });
+         return true;
+-      }
+-      return false;
+-    }),
++      }, () => {
++        if (acceptanceError) return true;
++        const request = state.pendingScrollRequest;
++        if (!ownsRequest(request)) return false;
++        if (hasDynamicViewOffset && !state.refScroller.current) throw createKeyedScrollFailure(ctx, key, undefined, "target-unmounted");
++        const index = findKeyedScrollItemIndex(state, key);
++        if (index < 0) {
++          if (releaseAcquisition(request)) state.triggerCalculateItemsInView?.();
++          return true;
++        }
++        const coherent = state.scrollItemLayoutData === state.props.data && state.scrollItemLayoutVersion === state.props.dataVersion && state.scrollItemLayoutKey === state.props.dataKey && state.indexByKey.get(key) === index && state.idCache[index] === key;
++        const ready = coherent && isScrollToIndexReady(index);
++        if (!hasDynamicViewOffset) return ready;
++        if (!coherent) {
++          if (releaseAcquisition(request)) state.triggerCalculateItemsInView?.();
++          return false;
++        }
++        const resolved = currentDynamicOffset(index);
++        if (!resolved.owned) return false;
++        // The resolver may commit a data/layout change without a new command.
++        // Acquire the current key, never the pre-callback numeric occupant.
++        const currentIndex = findKeyedScrollItemIndex(state, key);
++        const currentCoherent = currentIndex >= 0 && state.scrollItemLayoutData === state.props.data && state.scrollItemLayoutVersion === state.props.dataVersion && state.scrollItemLayoutKey === state.props.dataKey && state.indexByKey.get(key) === currentIndex && state.idCache[currentIndex] === key;
++        if (!currentCoherent) {
++          if (releaseAcquisition(request)) state.triggerCalculateItemsInView?.();
++          return currentIndex < 0;
++        }
++        if (currentIndex !== index || !isScrollToIndexReady(currentIndex) || resolved.value === undefined) {
++          if (!props.animated) captureNativeAcquisitionPositions(ctx, request);
++          requestAcquisition(request, currentIndex);
++          return false;
++        }
++        return isAcquisitionWindowReady(request, currentIndex, { ...props, viewOffset: resolved.value });
++      });
++    },
+     scrollToOffset: (params) => runScrollWithPromise(() => {
+       scrollTo(ctx, params);
+       return true;
+@@ -6960,6 +7596,8 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     maintainScrollAtEnd = false,
+     maintainScrollAtEndThreshold = 0.1,
+     maintainVisibleContentPosition: maintainVisibleContentPositionProp,
++    nativeReadPointCorrection,
++    nativeReadPointIntent,
+     numColumns: numColumnsProp = 1,
+     overrideItemLayout,
+     onEndReached,
+@@ -7168,6 +7806,11 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+   const didDataKeyChangeLocal = state.props.dataKey !== dataKey;
+   const didDataVersionChangeLocal = state.props.dataVersion !== dataVersion;
+   const didDataChangeLocal = didDataKeyChangeLocal || didDataVersionChangeLocal || didDataReferenceChangeLocal && checkStructuralDataChange(state, dataProp, state.props.data);
++  // Equivalent arrays retain the same committed position cache. Transfer its
++  // provenance only when the old stamp is valid and no geometry rebuild is due.
++  if (didDataReferenceChangeLocal && !didDataChangeLocal && !state.didColumnsChange && state.scrollItemLayoutData === state.props.data && state.scrollItemLayoutVersion === state.props.dataVersion && state.scrollItemLayoutKey === state.props.dataKey) {
++    state.scrollItemLayoutData = dataProp;
++  }
+   const shouldResetFreshDataLayout = !isFirstLocal && didDataChangeLocal && state.hasHadNonEmptyData && (didDataKeyChangeLocal || previousDataLength === 0) && dataProp.length > 0;
+   if (didDataChangeLocal && !initialScrollAtEnd && state.didFinishInitialScroll && ((_o = state.initialScroll) == null ? void 0 : _o.viewPosition) === 1 && state.props.data.length > 0) {
+     clearPreservedInitialScrollTarget(state);
+@@ -7204,9 +7847,12 @@ var LegendListInner = typedForwardRef(function LegendListInner2(props, forwarded
+     horizontal: !!horizontal,
+     itemsAreEqual,
+     keyExtractor: useWrapIfItem(keyExtractor),
++    keyExtractorProvided: keyExtractorProp != null,
+     maintainScrollAtEnd: maintainScrollAtEndConfig,
+     maintainScrollAtEndThreshold,
+     maintainVisibleContentPosition: maintainVisibleContentPositionConfig,
++    nativeReadPointCorrection,
++    nativeReadPointIntent,
+     numColumns: numColumnsProp,
+     onEndReached,
+     onEndReachedThreshold,
+diff --git a/reanimated.d.ts b/reanimated.d.ts
+index 940da281a851bd7c87525b9c96f9b2cfd4162ccc..530a0a8b6ed96e9cb8146ac4c5fe091ef453db9e 100644
+--- a/reanimated.d.ts
++++ b/reanimated.d.ts
+@@ -284,6 +284,11 @@ interface LegendListSpecificProps<ItemT, TItemType extends string | undefined> {
+      * - undefined (default) enables scroll stabilization but skips data-change anchoring.
+      * - true enables both behaviors; false disables both.
+      */
++    /** Ordinary vertical iOS READ routes relative compensation through the
++     * tagged native mount signal; native provider admission stays authoritative. */
++    nativeReadPointCorrection?: boolean;
++    /** Exact committed native scope/visit/intent token for READ routing. */
++    nativeReadPointIntent?: string;
+     maintainVisibleContentPosition?: boolean | MaintainVisibleContentPositionConfig<ItemT>;
+     /**
+      * Keeps an item visually anchored to the start by adding trailing space when the content below it underflows.

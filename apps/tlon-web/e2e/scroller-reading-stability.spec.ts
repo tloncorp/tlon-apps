@@ -24,7 +24,11 @@ import {
 } from './helpers/scrollers';
 import { testWithOptions } from './test-fixtures';
 
-const test = testWithOptions({ appReadyTimeoutMs: 60_000, e2eMode: false });
+const test = testWithOptions({
+  appReadyTimeoutMs: 60_000,
+  e2eMode: false,
+  createdGroupCleanup: true,
+});
 test.use({ actionTimeout: 10_000 });
 
 // Real application, committed content, actual image bytes and ImageBlock state.
@@ -149,7 +153,7 @@ for (const position of ['latest', 'history'] as const) {
           ...preparation,
           browser: browser.version(),
           channel: 'chromium',
-          headed: true,
+          headed: testInfo.project.use.headless === false,
           assets: assetCapture.assets,
           semantic,
           expectedText: text,

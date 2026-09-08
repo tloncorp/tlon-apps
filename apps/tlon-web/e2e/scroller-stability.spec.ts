@@ -1,3 +1,5 @@
+import { centerEditBelowTitle } from '../../../scripts/scroll-stability-center-edit-evidence.mjs';
+import { runCenterEditScenario } from './helpers/scrollerCenterEditScenario';
 import {
   expect,
   type Locator,
@@ -5,6 +7,7 @@ import {
   type TestInfo,
 } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
+import { setComputingPresence } from './helpers/scrollerComputingPresence';
 import {
   assessScrollContentTrace,
   type ScrollContentContract,
@@ -44,8 +47,17 @@ import {
   prepareDelayedImage,
 } from './helpers/scrollerContentScenario';
 import { testWithOptions } from './test-fixtures';
+import {
+  startConversationSemanticTrace,
+  establishConversationFollow,
+} from './helpers/scrollerConversationSemantic';
+import { assessConversationSemantics } from '../../../packages/app/fixtures/scrollConversationSemantic';
 
-const test = testWithOptions({ appReadyTimeoutMs: 60_000, e2eMode: false });
+const test = testWithOptions({
+  appReadyTimeoutMs: 60_000,
+  e2eMode: false,
+  createdGroupCleanup: true,
+});
 
 // Continuous DOM evidence for AC-01/02/04/18. These are sampled browser
 // geometry regressions, not a substitute for native/compositor frame pacing.
@@ -77,81 +89,6 @@ async function prepareHistory(page: Page, inThread = false) {
 // authenticated request context shares this test's browser cookies; a fresh
 // Eyre channel is closed after every operation, and the scry confirms the
 // mutation was applied (an HTTP PUT alone is only transport acknowledgement).
-async function setComputingPresence(
-  page: Page,
-  active: boolean,
-  observer: Page
-) {
-  const origin = new URL(page.url()).origin;
-  expect(['http://localhost:3000', 'http://localhost:3002']).toContain(origin);
-  const channelId = decodeURIComponent(
-    new URL(page.url()).pathname.split('/channel/')[1] ?? ''
-  ).replace(/\/$/, '');
-  expect(channelId).toMatch(/^chat\/~[^/]+\/[^/]+$/);
-  const context = `/channel/${channelId}`;
-  const ship = await page.evaluate(() => (window as any).ship as string);
-  expect(['zod', 'ten']).toContain(ship);
-  const key = { context, ship: `~${ship}`, topic: 'computing' };
-  const json = active
-    ? {
-        set: {
-          key,
-          disclose: [],
-          timeout: null,
-          display: {
-            icon: null,
-            text: 'Scroll stability computing',
-            blob: JSON.stringify({
-              protocol: 'tlon.computing-status.v1',
-              thinking: true,
-              toolCalls: [],
-            }),
-          },
-        },
-      }
-    : { clear: key };
-  const airlock = `${origin}/~/channel/scroller-${randomUUID()}`;
-  try {
-    const response = await page.request.put(airlock, {
-      data: [
-        {
-          id: 1,
-          action: 'poke',
-          ship,
-          app: 'presence',
-          mark: 'presence-action-1',
-          json,
-        },
-      ],
-    });
-    expect(response.ok(), 'Presence poke transport succeeded').toBe(true);
-    await expect
-      .poll(
-        async () => {
-          // The host excludes the sender from its fanout, so verify the
-          // actual observer/host whose UI this test records.
-          const observerOrigin = new URL(observer.url()).origin;
-          expect(['http://localhost:3000', 'http://localhost:3002']).toContain(
-            observerOrigin
-          );
-          const state = await observer.request.get(
-            `${observerOrigin}/~/scry/presence/v1/init.json`
-          );
-          expect(state.ok(), 'Presence agent is available').toBe(true);
-          const body = await state.json();
-          expect(body).toHaveProperty('init');
-          return Boolean(body.init[context]?.computing?.[`~${ship}`]);
-        },
-        { timeout: 10_000 }
-      )
-      .toBe(active);
-  } finally {
-    const closed = await page.request.post(airlock, {
-      data: [{ id: 2, action: 'delete' }],
-    });
-    expect(closed.ok(), 'Test-owned presence airlock closed').toBe(true);
-  }
-}
 
 async function expectFullyInViewport(
   row: Locator,
@@ -1054,44 +991,9 @@ test.describe('Real conversation geometry', () => {
     ).toBeGreaterThan(trace.frames[0].scrollHeight);
   });
 
-  test('editing a visible message to grow and shrink preserves history', async ({
-    zodPage: page,
-  }, testInfo) => {
-    const scroller = await prepareHistory(page);
-    // The 1280x500 desktop first run exposed an offscreen Edit menu item.
-    // Use a viewport with room for the real action menu for this resize case.
-    await page.setViewportSize({ ...viewport, height: 800 });
-    await settlePostScroller(scroller);
-    await wheelToHistory(page, scroller);
-    const anchor = await postId(post(page, history[0]));
-    const changedPostId = await postId(post(page, history[2]));
-    const expanded =
-      `Edited tall message: ${'A growing post must retain the reader position. '.repeat(16)}`.trim();
-    const trace = await recordMutation(
-      scroller,
-      testInfo,
-      'edit-growth-shrink',
-      async () => {
-        await helpers.editMessage(page, history[2], expanded);
-        await expect(post(page, expanded)).toBeVisible();
-        await helpers.editMessage(page, expanded, 'Edited short message');
-        await expect(post(page, 'Edited short message')).toBeVisible();
-      },
-      [anchor, changedPostId]
-    );
-    expectAnchorStable(trace, anchor);
-    const heights = trace.frames.map(
-      (frame) => frame.anchors[changedPostId].height
-    );
-    expect(Math.max(...heights), 'Edited row actually grows').toBeGreaterThan(
-      heights[0]
-    );
-    expect(heights.at(-1)!, 'Edited row actually shrinks').toBeLessThan(
-      Math.max(...heights)
-    );
-    expect(
-      Math.max(...trace.frames.map((frame) => frame.scrollHeight))
-    ).toBeGreaterThan(trace.frames[0].scrollHeight);
+  test(centerEditBelowTitle, async ({ zodPage: page, browser }, testInfo) => {
+    test.setTimeout(180_000);
+    await runCenterEditScenario(page, browser, testInfo, centerEditBelowTitle);
   });
 
   test('quoted attachment preview keeps the reading anchor while composer resizes', async ({
@@ -1171,29 +1073,61 @@ test.describe('Real conversation geometry', () => {
         post(zodPage, history.at(-1)!)
       );
       await settlePostScroller(scroller);
+      const followSetup = browsing
+        ? undefined
+        : await establishConversationFollow(
+            zodPage,
+            scroller,
+            post(zodPage, history.at(-1)!),
+            testInfo,
+            'conversation-semantic'
+          );
       if (browsing) await wheelToHistory(zodPage, scroller);
       const anchor = await postId(post(zodPage, history[0]));
-      const trace = await recordMutation(
+      const semantic = await startConversationSemanticTrace(
         scroller,
-        testInfo,
-        'remote-burst',
-        async () => {
-          for (let index = 0; index < 5; index++) {
-            const text = `Remote burst ${index}`;
-            await send(tenPage, text);
-            await expect(post(zodPage, text)).toBeVisible();
-          }
-          if (browsing)
-            await expect(post(zodPage, 'Remote burst 4')).not.toBeInViewport();
-          else
-            await expectFullyInViewport(
-              post(zodPage, 'Remote burst 4'),
-              scroller,
-              testInfo
-            );
-        },
-        browsing ? [anchor] : []
+        followSetup
       );
+      let trace: ScrollTrace;
+      let semanticProof: Awaited<ReturnType<typeof semantic.stop>>;
+      try {
+        trace = await recordMutation(
+          scroller,
+          testInfo,
+          'remote-burst',
+          async () => {
+            for (let index = 0; index < 5; index++) {
+              const text = `Remote burst ${index}`;
+              await send(tenPage, text);
+              await expect(post(zodPage, text)).toBeVisible();
+              await semantic.mark(`delivered-${index}`, {
+                text,
+                postId: await postId(post(zodPage, text)),
+              });
+            }
+            if (browsing)
+              await expect(
+                post(zodPage, 'Remote burst 4')
+              ).not.toBeInViewport();
+            else
+              await expectFullyInViewport(
+                post(zodPage, 'Remote burst 4'),
+                scroller,
+                testInfo
+              );
+            await semantic.mark('terminal');
+          },
+          browsing ? [anchor] : []
+        );
+      } finally {
+        semanticProof = await semantic.stop(testInfo, 'remote-burst', 'remote');
+      }
+      const semantics = assessConversationSemantics(
+        semanticProof.trace,
+        semanticProof.contract,
+        assessScrollChromeTrace
+      );
+      expect(semantics.issues, JSON.stringify(semantics, null, 2)).toEqual([]);
       if (browsing) expectAnchorStable(trace, anchor);
       else expectBottomPinned(trace);
     });
@@ -1215,6 +1149,15 @@ test.describe('Real conversation geometry', () => {
         post(zodPage, history.at(-1)!)
       );
       await settlePostScroller(scroller);
+      const followSetup = browsing
+        ? undefined
+        : await establishConversationFollow(
+            zodPage,
+            scroller,
+            post(zodPage, history.at(-1)!),
+            testInfo,
+            'conversation-semantic'
+          );
       if (browsing) await wheelToHistory(zodPage, scroller);
       const anchor = await postId(post(zodPage, history[0]));
       const thinking = zodPage.getByText('Scroll stability computing', {
@@ -1224,18 +1167,38 @@ test.describe('Real conversation geometry', () => {
       const initialExtent = await scroller.evaluate(
         (element) => element.scrollHeight
       );
+      const semantic = await startConversationSemanticTrace(
+        scroller,
+        followSetup
+      );
+      let semanticProof: Awaited<ReturnType<typeof semantic.stop>>;
+      let trace: ScrollTrace;
       try {
-        const trace = await recordMutation(
+        await semantic.wait(100);
+        trace = await recordMutation(
           scroller,
           testInfo,
           'computing-presence',
           async () => {
-            await setComputingPresence(tenPage, true, zodPage);
+            await semantic.mark('show-1');
+            await semantic.presence(
+              'show-1',
+              await setComputingPresence(tenPage, true, zodPage)
+            );
             await expect(thinking).toBeVisible();
             await expect
               .poll(() => scroller.evaluate((element) => element.scrollHeight))
               .toBe(initialExtent + 52);
-            await setComputingPresence(tenPage, false, zodPage);
+            await semantic.mark('show-ready-1');
+            await semantic.wait(100);
+            const clearTime = await semantic.mark('clear-1');
+            await semantic.presence(
+              'clear-1',
+              await setComputingPresence(tenPage, false, zodPage)
+            );
+            await expect(heldThinking).toBeVisible();
+            await semantic.mark('held-ready');
+            await semantic.waitUntil(clearTime + 2000);
             // A clear without a response deliberately retains the footer for
             // two seconds. Wait on the real disappearance, not a guessed delay.
             await expect(thinking).toHaveCount(0);
@@ -1243,33 +1206,59 @@ test.describe('Real conversation geometry', () => {
             await expect
               .poll(() => scroller.evaluate((element) => element.scrollHeight))
               .toBe(initialExtent);
-            await setComputingPresence(tenPage, true, zodPage);
+            await semantic.mark('hidden-ready-1');
+            await semantic.wait(100);
+            await semantic.mark('show-2');
+            await semantic.presence(
+              'show-2',
+              await setComputingPresence(tenPage, true, zodPage)
+            );
             await expect(thinking).toBeVisible();
+            await semantic.mark('show-ready-2');
+            await semantic.wait(100);
             await send(tenPage, 'Response before computing presence cleared');
             const response = post(
               zodPage,
               'Response before computing presence cleared'
             );
             await expect(response).toBeVisible();
+            await semantic.mark('delivered-0', {
+              text: 'Response before computing presence cleared',
+              postId: await postId(response),
+            });
             // This exercises response-before-clear ordering. The delivered
             // reply must consume the hold when presence is subsequently cleared.
             await expect(thinking).toBeVisible();
-            await setComputingPresence(tenPage, false, zodPage);
+            await semantic.mark('clear-2');
+            await semantic.presence(
+              'clear-2',
+              await setComputingPresence(tenPage, false, zodPage)
+            );
             await expect(thinking).toHaveCount(0);
             await expect(heldThinking).toHaveCount(0);
+            await semantic.mark('hidden-ready-2');
             if (browsing) await expect(response).not.toBeInViewport();
             else await expectFullyInViewport(response, scroller, testInfo);
+            await semantic.mark('terminal');
           },
           browsing ? [anchor] : []
         );
-        if (browsing) expectAnchorStable(trace, anchor);
-        else expectBottomPinned(trace);
-        expect(
-          Math.max(...trace.frames.map((frame) => frame.scrollHeight))
-        ).toBeGreaterThanOrEqual(trace.frames[0].scrollHeight + 52);
       } finally {
+        semanticProof = await semantic.stop(
+          testInfo,
+          'computing-presence',
+          'thinking'
+        );
         await setComputingPresence(tenPage, false, zodPage);
       }
+      const semantics = assessConversationSemantics(
+        semanticProof.trace,
+        semanticProof.contract,
+        assessScrollChromeTrace
+      );
+      expect(semantics.issues, JSON.stringify(semantics, null, 2)).toEqual([]);
+      if (browsing) expectAnchorStable(trace, anchor);
+      else expectBottomPinned(trace);
     });
   }
 

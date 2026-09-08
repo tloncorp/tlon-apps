@@ -1,3 +1,13 @@
+import { assessInputPaint } from './scroll-stability-input-paint.mjs';
+import {
+  centerEditTitle,
+  centerEditBelowTitle,
+  replayCenterEditEvidence,
+} from './scroll-stability-center-edit-evidence.mjs';
+import {
+  replayConversationSemantics,
+  conversationFollowSetupIssue,
+} from './scroll-stability-conversation-semantic-evidence.mjs';
 import { assessProductionAssets } from './scroll-stability-web-assets.mjs';
 import { readAttemptClock } from '../apps/tlon-web/e2e/helpers/scrollerAttemptClockReporter.cjs';
 import { readFileSync } from 'node:fs';
@@ -53,10 +63,51 @@ const web = (
   ...options,
 });
 
+// Historical first-row raw retains its exact oracle; it is no longer an active case.
+const legacyEditGrowthShrink = web(
+  'edit-growth-shrink',
+  'editing a visible message to grow and shrink preserves history',
+  ['DAT-07', 'SND-07'],
+  [],
+  ['edit-growth-shrink'],
+  'One visible message edit to grow and shrink',
+  { requireAnchors: true }
+);
+
 export const webScenarioRegistry = [
   ...referenceScenarioRegistry,
   ...concurrentScenarioRegistry,
   ...navigationScenarioRegistry,
+  web(
+    'center-edit-reading',
+    centerEditTitle,
+    ['DAT-07', 'AC-01', 'AC-09', 'AC-22'],
+    [],
+    [],
+    'Two actual Edit/Save revisions above a retained center character, with exact durable readback and sampled character geometry. Menu exposure and presented frames remain separate unqualified dimensions.',
+    {
+      source: 'apps/tlon-web/e2e/scroller-center-edit-stability.spec.ts',
+      suite: null,
+      requireCenterEditProof: true,
+      centerEditAttachment: 'center-edit-reading-proof',
+      evidenceLevel: 'sampled-dom-center-character-edit',
+    }
+  ),
+  web(
+    'center-edit-below-reading',
+    centerEditBelowTitle,
+    ['DAT-07', 'AC-01', 'AC-09', 'AC-22'],
+    [],
+    [],
+    'Two actual Edit/Save revisions below a retained center character, with exact durable readback and sampled character geometry. Menu exposure and presented frames remain separate unqualified dimensions.',
+    {
+      source: 'apps/tlon-web/e2e/scroller-stability.spec.ts',
+      suite: 'Real conversation geometry',
+      requireCenterEditProof: true,
+      centerEditAttachment: 'center-edit-reading-proof',
+      evidenceLevel: 'sampled-dom-center-character-edit',
+    }
+  ),
   web(
     'pending-send-read',
     pendingSendScenario.title,
@@ -192,7 +243,7 @@ export const webScenarioRegistry = [
       [],
       ['computing-presence'],
       'Local participant computing presence: show/clear hold, then reply-before-clear; no bot process or other handoff orders',
-      { requireAnchors: browsing }
+      { requireAnchors: browsing, requireConversationSemanticProof: true }
     )
   ),
   web(
@@ -273,15 +324,6 @@ export const webScenarioRegistry = [
     { requireAnchors: true }
   ),
   web(
-    'edit-growth-shrink',
-    'editing a visible message to grow and shrink preserves history',
-    ['DAT-07', 'SND-07'],
-    [],
-    ['edit-growth-shrink'],
-    'One visible message edit to grow and shrink',
-    { requireAnchors: true }
-  ),
-  web(
     'quote-preview',
     'quoted attachment preview keeps the reading anchor while composer resizes',
     ['CMP-04'],
@@ -304,7 +346,8 @@ export const webScenarioRegistry = [
     ['DAT-01', 'DAT-02'],
     ['REG-053'],
     ['remote-burst'],
-    'Five staggered real remote sends while at latest'
+    'Five staggered real remote sends while at latest',
+    { requireConversationSemanticProof: true }
   ),
   web(
     'remote-burst-history',
@@ -313,7 +356,7 @@ export const webScenarioRegistry = [
     ['REG-054'],
     ['remote-burst'],
     'Five staggered real remote sends while reading history',
-    { requireAnchors: true }
+    { requireAnchors: true, requireConversationSemanticProof: true }
   ),
   web(
     'thread-read-update',
@@ -367,6 +410,18 @@ function replayWebGeometry(record) {
   for (const attachment of record.browserTraces) {
     const { frames } = attachment.value;
     const first = frames[0];
+    const semanticProof = record.conversationSemanticProofs?.find(
+      (item) => item.name === `${attachment.name}-semantic-proof`
+    )?.value;
+    const followSetupIssue = conversationFollowSetupIssue(
+      semanticProof,
+      attachment.value,
+      scenario
+    );
+    if (followSetupIssue) {
+      reject(followSetupIssue, 'incomplete');
+      continue;
+    }
     const last = frames.at(-1);
     const tail = frames.filter((frame) => frame.time >= last.time - 1000);
     const proof = record.loadingProofs?.find(
@@ -1429,7 +1484,7 @@ function readJsonAttachment(attempt, name, source) {
 export function readPlaywrightReport(
   report,
   source,
-  registry = webScenarioRegistry
+  registry = [...webScenarioRegistry, legacyEditGrowthShrink]
 ) {
   const records = [];
   function walk(suite, parents = []) {
@@ -1483,6 +1538,7 @@ export function readPlaywrightReport(
           const browserTraces = [];
           const loadingProofs = [];
           const chromeProofs = [];
+          const conversationSemanticProofs = [];
           const contentProofs = [];
           const inputProofs = [];
           const readingProofs = [];
@@ -1491,7 +1547,16 @@ export function readPlaywrightReport(
           const keyboardProofs = [];
           const pendingSendProofs = [];
           const navigationProofs = [];
+          const centerEditProofs = [];
           if (contract && !excluded) {
+            if (contract.requireCenterEditProof)
+              centerEditProofs.push(
+                readJsonAttachment(
+                  attempt,
+                  contract.centerEditAttachment,
+                  source
+                )
+              );
             if (contract.requirePendingSendProof)
               for (const name of [
                 contract.pendingSendAttachment,
@@ -1550,6 +1615,10 @@ export function readPlaywrightReport(
               );
             for (const name of contract.traceNames) {
               browserTraces.push(readJsonAttachment(attempt, name, source));
+              if (contract.requireConversationSemanticProof)
+                conversationSemanticProofs.push(
+                  readJsonAttachment(attempt, `${name}-semantic-proof`, source)
+                );
               if (contract.requireImageLoadingProof)
                 loadingProofs.push(
                   readJsonAttachment(attempt, `${name}-loading-proof`, source)
@@ -1592,6 +1661,7 @@ export function readPlaywrightReport(
             browserTraces,
             loadingProofs,
             chromeProofs,
+            conversationSemanticProofs,
             contentProofs,
             inputProofs,
             readingProofs,
@@ -1600,6 +1670,7 @@ export function readPlaywrightReport(
             keyboardProofs,
             pendingSendProofs,
             navigationProofs,
+            centerEditProofs,
           });
         }
       }
@@ -1632,17 +1703,24 @@ export function replayWebInput(record) {
   const contract = proof?.contract;
   const raw = proof?.raw;
   const frames = record.browserTraces?.[0]?.value?.frames;
-  const expectedActions = [SCROLL_INPUT_GROWTH_DRAFT, ''].map(
-    (payload, index) => ({
-      id: `input-${index + 1}`,
-      kind: 'input',
-      scopeKey: raw?.originalScope,
-      inputId: 'MessageInput',
-      payload,
-    })
-  );
+  const explicitSelection = contract?.version === 2;
+  const expectedActions = [
+    { id: 'input-1', kind: 'input', payload: SCROLL_INPUT_GROWTH_DRAFT },
+    ...(explicitSelection
+      ? [{ id: 'select-all-1', kind: 'select-all', payload: 'ControlOrMeta+A' }]
+      : []),
+    { id: 'input-2', kind: 'input', payload: '' },
+  ].map((action) => ({
+    ...action,
+    scopeKey: raw?.originalScope,
+    inputId: 'MessageInput',
+  }));
+  const phaseNames = explicitSelection
+    ? ['before', 'grown', 'selected', 'cleared']
+    : ['before', 'grown', 'cleared'];
   if (
     !contract ||
+    (contract.version !== 1 && contract.version !== 2) ||
     !raw ||
     !Array.isArray(frames) ||
     !frames.length ||
@@ -1655,25 +1733,33 @@ export function replayWebInput(record) {
     !Array.isArray(raw.actions) ||
     raw.actions.some((action) => action.trusted !== true) ||
     !Array.isArray(contract.phases) ||
-    contract.phases.length !== 3 ||
-    contract.phases.some(
-      (phase, index) =>
+    contract.phases.length !== phaseNames.length ||
+    contract.phases.some((phase, index) => {
+      const hasDraft =
+        phaseNames[index] === 'grown' || phaseNames[index] === 'selected';
+      const selected = phaseNames[index] === 'selected';
+      return (
+        (explicitSelection && phase.id !== phaseNames[index]) ||
         !isDeepStrictEqual(phase.expected, {
           scopeKey: raw.originalScope,
           inputId: 'MessageInput',
-          draft: index === 1 ? SCROLL_INPUT_GROWTH_DRAFT : '',
+          draft: hasDraft ? SCROLL_INPUT_GROWTH_DRAFT : '',
           selection: {
-            start: index === 1 ? SCROLL_INPUT_GROWTH_DRAFT.length : 0,
-            end: index === 1 ? SCROLL_INPUT_GROWTH_DRAFT.length : 0,
+            start: hasDraft && !selected ? SCROLL_INPUT_GROWTH_DRAFT.length : 0,
+            end: hasDraft ? SCROLL_INPUT_GROWTH_DRAFT.length : 0,
           },
           composing: false,
           focused: true,
           caretVisible: true,
           sendVisible: true,
-          sendHitTestable: index === 1,
-        }) || phase.triggerActionId !== (index ? `input-${index}` : undefined)
-    ) ||
+          sendHitTestable: hasDraft,
+        }) ||
+        phase.triggerActionId !== expectedActions[index - 1]?.id
+      );
+    }) ||
     contract.phases[1].end - contract.phases[1].start < 300 ||
+    (explicitSelection &&
+      contract.phases[2].end - contract.phases[2].start < 100) ||
     frames[0].time > contract.start ||
     frames.at(-1).time < contract.end
   )
@@ -1686,16 +1772,22 @@ export function replayWebInput(record) {
       expected: expectedActions,
       dispatches: raw.dispatches,
       events: raw.actions,
+      keyboard: raw.keyboard,
     });
     const replay = assessScrollInputTrace({
       contract,
       samples: raw.samples,
       actions: binding.actions,
     });
-    return [...binding.issues, ...replay.issues].map((issue) => ({
-      message: issue.code,
-      kind: issue.kind,
-    }));
+    const paint = raw.paintedCaret
+      ? assessInputPaint(raw.paintedCaret, contract, raw)
+      : null;
+    return [...binding.issues, ...replay.issues, ...(paint?.issues ?? [])].map(
+      (issue) => ({
+        message: issue.code,
+        kind: issue.kind,
+      })
+    );
   } catch {
     return incomplete('Malformed raw composer input proof');
   }
@@ -1767,6 +1859,65 @@ function replayWebPendingSend(record) {
   return replay.issues.map((issue) => ({
     kind: issue.kind,
     message: `Pending send: ${issue.dimension}:${issue.code}`,
+  }));
+}
+
+function replayConversationSemanticRecord(record) {
+  const issues = [];
+  for (const name of record.contract.traceNames) {
+    const proofs = (record.conversationSemanticProofs ?? []).filter(
+      (item) => item.name === `${name}-semantic-proof`
+    );
+    const geometry = record.browserTraces.find(
+      (item) => item.name === name
+    )?.value;
+    if (proofs.length !== 1 || proofs[0].error) {
+      issues.push({
+        kind: 'incomplete',
+        message: `${name}: missing actual conversation semantic proof`,
+      });
+      continue;
+    }
+    for (const issue of replayConversationSemantics(
+      proofs[0].value,
+      geometry,
+      record.scenario
+    ).issues)
+      issues.push({ kind: issue.kind, message: `${name}: ${issue.code}` });
+  }
+  return issues;
+}
+
+function replayWebCenterEdit(record) {
+  const registered = webScenarioRegistry.find(
+    (item) => item.scenario === record.scenario && item.requireCenterEditProof
+  );
+  const proofs = record.centerEditProofs;
+  const duration =
+    record.attemptWallEndTime - Date.parse(record.attemptStartTime);
+  if (
+    !isDeepStrictEqual(record.contract, registered) ||
+    record.attemptClockError ||
+    !Number.isFinite(duration) ||
+    duration <= 0 ||
+    !Array.isArray(proofs) ||
+    proofs.length !== 1 ||
+    proofs[0].name !== registered.centerEditAttachment ||
+    proofs[0].error
+  )
+    return [
+      {
+        kind: 'incomplete',
+        message: 'Center edit: missing exact proof or enclosing wall clock',
+      },
+    ];
+  return replayCenterEditEvidence(proofs[0].value, {
+    title: record.title,
+    startTime: record.attemptStartTime,
+    duration,
+  }).issues.map((issue) => ({
+    kind: issue.kind,
+    message: `Center edit: ${issue.code}`,
   }));
 }
 
@@ -1962,12 +2113,21 @@ export function assessWebEvidence(record) {
       }
     }
   }
+  const navigationIssues = record.contract?.requireNavigationProof
+    ? replayWebNavigation(record)
+    : undefined;
+  const navigationBehaviorIssues = navigationIssues?.filter(
+    (issue) => issue.dimension !== 'presentation'
+  );
   const replayIssues = [
     ...(record.attemptClockError
       ? [{ kind: 'incomplete', message: record.attemptClockError }]
       : []),
     ...(issues.length ? [] : replayWebGeometry(record)),
     ...(record.contract?.requireChromeProof ? replayWebChrome(record) : []),
+    ...(record.contract?.requireConversationSemanticProof
+      ? replayConversationSemanticRecord(record)
+      : []),
     ...(record.contract?.requireContentProof ? replayWebContent(record) : []),
     ...(record.contract?.requireReadingProof ? replayWebReading(record) : []),
     ...(record.contract?.requireInputProof ? replayWebInput(record) : []),
@@ -1981,8 +2141,11 @@ export function assessWebEvidence(record) {
     ...(record.contract?.requirePendingSendProof
       ? replayWebPendingSend(record)
       : []),
-    ...(record.contract?.requireNavigationProof
-      ? replayWebNavigation(record)
+    ...(navigationIssues ?? []),
+    ...(['web-center-edit-reading', 'web-center-edit-below-reading'].includes(
+      record.scenario
+    ) || record.contract?.requireCenterEditProof
+      ? replayWebCenterEdit(record)
       : []),
   ];
   // Independently witnessed failures survive gaps in other proof dimensions.
@@ -2000,5 +2163,22 @@ export function assessWebEvidence(record) {
           ? 'recorded-sampled-pass'
           : 'fail',
     issues: [...issues, ...replayIssues.map((issue) => issue.message)],
+    ...(navigationBehaviorIssues
+      ? {
+          navigationBehavior: {
+            verdict: navigationBehaviorIssues.some(
+              (issue) => issue.kind === 'failure'
+            )
+              ? 'FAIL'
+              : navigationBehaviorIssues.length
+                ? 'INCOMPLETE'
+                : 'PASS',
+            evidenceLevel: 'sampled-dom-navigation',
+            issues: navigationBehaviorIssues.map((issue) => issue.message),
+            presentation: 'INCOMPLETE',
+            durableReads: 'INCOMPLETE',
+          },
+        }
+      : {}),
   };
 }

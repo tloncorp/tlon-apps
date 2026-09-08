@@ -18,7 +18,11 @@ import {
 import { resolvePostScroller, settlePostScroller } from './helpers/scrollers';
 import { testWithOptions } from './test-fixtures';
 
-const test = testWithOptions({ appReadyTimeoutMs: 60_000, e2eMode: false });
+const test = testWithOptions({
+  appReadyTimeoutMs: 60_000,
+  e2eMode: false,
+  createdGroupCleanup: true,
+});
 test.setTimeout(180_000);
 for (const position of ['latest', 'history'] as const) {
   test(`real keyboard edits, selection, undo and Enter routing (${position})`, async ({
@@ -171,7 +175,7 @@ for (const position of ['latest', 'history'] as const) {
           preparation: {
             ...preparation,
             browser: browser.version(),
-            headed: true,
+            headed: testInfo.project.use.headless === false,
             assets: 'Vite development assets',
           },
           wheel,
@@ -238,7 +242,7 @@ for (const position of ['latest', 'history'] as const) {
         preparation: {
           ...preparation,
           browser: browser.version(),
-          headed: true,
+          headed: testInfo.project.use.headless === false,
           assets: 'Vite development assets',
         },
         wheel,

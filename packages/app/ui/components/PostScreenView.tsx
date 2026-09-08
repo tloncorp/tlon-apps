@@ -1,3 +1,4 @@
+import { useIsFocused } from '@react-navigation/native';
 import { ChannelContentConfiguration } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
@@ -29,6 +30,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text, View, XStack, YStack } from 'tamagui';
 
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
+import { useLifecyclePermit } from '../../hooks/useLifecyclePermit';
 import { useIsUserActive } from '../../hooks/useUserActivity';
 import { useCurrentUserId } from '../contexts/appDataContext';
 import { useAttachmentContext } from '../contexts/attachment';
@@ -51,6 +53,7 @@ import {
   DraftInputView,
 } from './Channel/DraftInputView';
 import { ScrollAnchor } from './Channel/Scroller';
+import type { PostListMethods } from './Channel/PostList';
 import { DetailView } from './DetailView';
 import { FileDrop } from './FileDrop';
 import { GroupPreviewAction, GroupPreviewSheet } from './GroupPreviewSheet';
@@ -210,7 +213,14 @@ export function PostScreenView({
   // If this screen is showing a single post, this is equivalent to `parentPost`.
   // If this screen is a carousel, this is the currently-focused post
   // (`parentPost` does not change when swiping).
-  const [focusedPost, setFocusedPost] = useState<db.Post | null>(parentPost);
+  const focusScope = useMemo(() => ({}), [channel.id, parentPost?.id]);
+  const [focus, setFocus] = useState({ scope: focusScope, post: parentPost });
+  const focusedPost = focus.scope === focusScope ? focus.post : parentPost;
+  const setFocusedPost = useCallback(
+    (post: db.Post | null) => setFocus({ scope: focusScope, post }),
+    [focusScope]
+  );
+
   const {
     contextLensAvailable,
     contextLensOpen,
@@ -371,7 +381,7 @@ export function PostScreenView({
                 focusedPost,
                 setFocusedPost,
               }),
-              [focusedPost]
+              [focusedPost, setFocusedPost]
             )}
           >
             <FileDrop
@@ -553,7 +563,19 @@ function useMarkThreadAsReadEffect(
 ) {
   const shouldMarkRead = opts?.shouldMarkRead ?? false;
   const latestReplyId = opts?.mostRecentlyReceivedReply?.id ?? null;
+  const channelId = opts?.channel.id;
+  const parentId = opts?.parent.id;
   const hasThreadUnreadActivity = opts?.hasThreadUnreadActivity ?? false;
+  const readPermit = useLifecyclePermit(
+    [
+      channelId,
+      parentId,
+      latestReplyId,
+      shouldMarkRead,
+      hasThreadUnreadActivity,
+    ],
+    shouldMarkRead && hasThreadUnreadActivity
+  );
 
   // Ref captures the latest opts so the effect can read current values
   // without depending on the unstable inline object identity.
@@ -576,7 +598,9 @@ function useMarkThreadAsReadEffect(
     const { channel, parent, mostRecentlyReceivedReply } = current;
     if (!channel || !parent || !mostRecentlyReceivedReply) return;
 
+    const stillCurrent = readPermit.capture();
     const timeoutId = setTimeout(() => {
+      if (!stillCurrent()) return;
       store.markThreadRead({
         channel,
         parentPost: parent,
@@ -584,7 +608,14 @@ function useMarkThreadAsReadEffect(
       });
     }, 150);
     return () => clearTimeout(timeoutId);
-  }, [shouldMarkRead, hasThreadUnreadActivity, latestReplyId]);
+  }, [
+    readPermit,
+    channelId,
+    parentId,
+    shouldMarkRead,
+    hasThreadUnreadActivity,
+    latestReplyId,
+  ]);
 }
 
 function SinglePostView({
@@ -629,18 +660,17 @@ function SinglePostView({
   const groupMembers = group?.members ?? [];
   const groupRoles = group?.roles ?? [];
   const { focusedPost } = useContext(FocusedPostContext);
-  const isFocusedPost = focusedPost?.id === parentPost.id;
+  const isScreenFocused = useIsFocused();
+  const isFocusedPost = isScreenFocused && focusedPost?.id === parentPost.id;
   const isUserActive = useIsUserActive();
+  const threadPermit = useLifecyclePermit([channel.id, parentPost.id]);
+  const initialThreadPermit = useRef(threadPermit);
+  const visitPermit = useLifecyclePermit(
+    [threadPermit, isFocusedPost],
+    isFocusedPost
+  );
 
-  const scrollerRef = useRef<{
-    scrollToStart: (opts: { animated?: boolean }) => void;
-    scrollToEnd: (opts: { animated?: boolean }) => void;
-    scrollToPost: (params: {
-      postId: string;
-      animated?: boolean;
-      viewPosition?: number;
-    }) => void;
-  }>(null);
+  const scrollerRef = useRef<PostListMethods>(null);
 
   const { getDraft, storeDraft, clearDraft } = store.usePostDraftCallbacks({
     draftKey: store.draftKeyFor.thread({ parentPostId: parentPost.id }),
@@ -649,15 +679,27 @@ function SinglePostView({
 
   // for the unread thread divider, we care about the unread state when you enter but don't want it to update over
   // time
-  const [initialThreadUnread, setInitialThreadUnread] =
-    useState<db.ThreadUnreadState | null>(null);
+  const [unreadSnapshot, setUnreadSnapshot] = useState<{
+    visit: typeof threadPermit;
+    unread: db.ThreadUnreadState | null;
+  } | null>(null);
+  const initialThreadUnread =
+    unreadSnapshot?.visit === threadPermit ? unreadSnapshot.unread : null;
   useEffect(() => {
-    async function initializeChannelUnread() {
-      const unread = await db.getThreadUnreadState({ parentId: parentPost.id });
-      setInitialThreadUnread(unread ?? null);
-    }
-    initializeChannelUnread();
-  }, [parentPost.id]);
+    if (!threadPermit.isCurrent()) return;
+    const stillCurrent = threadPermit.capture();
+    void db.getThreadUnreadState({ parentId: parentPost.id }).then(
+      (unread) => {
+        if (stillCurrent()) {
+          setUnreadSnapshot({ visit: threadPermit, unread: unread ?? null });
+        }
+      },
+      () => {
+        if (stillCurrent())
+          setUnreadSnapshot({ visit: threadPermit, unread: null });
+      }
+    );
+  }, [parentPost.id, threadPermit]);
 
   const { data: liveThreadUnread } = store.useLiveThreadUnreadByParentId(
     parentPost.id
@@ -709,15 +751,20 @@ function SinglePostView({
   const [highlightPostId, setHighlightPostId] = useState<string | null>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
-  const highlightPost = useCallback((postId: string) => {
-    setHighlightPostId(postId);
-    if (highlightTimeoutRef.current) {
-      clearTimeout(highlightTimeoutRef.current);
-    }
-    highlightTimeoutRef.current = setTimeout(() => {
-      setHighlightPostId(null);
-    }, HIGHLIGHT_DURATION_MS);
-  }, []);
+  const highlightPost = useCallback(
+    (postId: string) => {
+      if (!visitPermit.isCurrent()) return;
+      const stillCurrent = visitPermit.capture();
+      setHighlightPostId(postId);
+      if (highlightTimeoutRef.current) {
+        clearTimeout(highlightTimeoutRef.current);
+      }
+      highlightTimeoutRef.current = setTimeout(() => {
+        if (stillCurrent()) setHighlightPostId(null);
+      }, HIGHLIGHT_DURATION_MS);
+    },
+    [visitPermit]
+  );
 
   // Keep chatThreadHandleRef in sync (chat threads only).
   // useLayoutEffect ensures the ref is populated before paint so
@@ -746,14 +793,15 @@ function SinglePostView({
     };
   }, [chatThreadHandleRef, isChatChannel, posts, highlightPost]);
 
-  // Clear pending highlight timer on unmount.
+  // A replacement thread owns its highlight and its own full timeout.
   useEffect(() => {
+    setHighlightPostId(null);
     return () => {
       if (highlightTimeoutRef.current) {
         clearTimeout(highlightTimeoutRef.current);
       }
     };
-  }, []);
+  }, [visitPermit]);
 
   // Compute a ScrollAnchor from selectedPostId for chat threads.
   // This wires into Scroller's anchor initialization, giving us retry/recovery
@@ -770,6 +818,10 @@ function SinglePostView({
   useEffect(() => {
     if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       highlightPost(selectedPostId);
+    } else if (selectedReplyIsHidden) {
+      if (highlightTimeoutRef.current)
+        clearTimeout(highlightTimeoutRef.current);
+      setHighlightPostId(null);
     }
   }, [isChatChannel, selectedPostId, selectedReplyIsHidden, highlightPost]);
 
@@ -784,13 +836,18 @@ function SinglePostView({
           maxWidth: 600,
         };
   }, [isChatChannel]);
-  const scrollToNewReply = useCallback(() => {
-    requestAnimationFrame(() => {
-      scrollerRef.current?.scrollToEnd({ animated: true });
-    });
-  }, []);
+  const sendPermit = useLifecyclePermit(
+    [visitPermit, canWrite, negotiationMatch],
+    canWrite && negotiationMatch
+  );
 
-  const hasLoadedReplies = !!(posts && channel && parentPost);
+  // The first mount can use its already-scoped cached replies. An in-place
+  // replacement must finish its own snapshot before inheriting read activity
+  // from the previously visible thread.
+  const entryReadReady =
+    threadPermit === initialThreadPermit.current ||
+    unreadSnapshot?.visit === threadPermit;
+  const hasLoadedReplies = !!(posts && channel && parentPost) && entryReadReady;
   // Only mark thread as read when user is actively using the app (not idle)
   useMarkThreadAsReadEffect(
     channel == null || parentPost == null || threadPosts?.[0] == null
@@ -806,6 +863,13 @@ function SinglePostView({
 
   const sendFromThreadComposer = useCallback(
     async (draft: domain.PostDataDraft, options?: store.PostSendOptions) => {
+      if (!visitPermit.isCurrent() || !sendPermit.isCurrent()) return;
+      const stillVisiting = visitPermit.capture();
+      const stillEligible = sendPermit.capture();
+      const surface = scrollerRef.current;
+      const stillFollowing = surface?.captureScrollIntent?.() ?? (() => true);
+      const mayFollow = () =>
+        stillVisiting() && stillEligible() && stillFollowing();
       setEditingPost?.(undefined);
       if (draft.isEdit) {
         await store.finalizeAndSendPost(draft, options);
@@ -814,9 +878,13 @@ function SinglePostView({
 
       draft.replyToPostId = parentPost.id;
       await store.finalizeAndSendPost(draft, options);
-      scrollToNewReply();
+      if (mayFollow()) {
+        requestAnimationFrame(() => {
+          if (mayFollow()) surface?.scrollToEnd({ animated: true });
+        });
+      }
     },
-    [parentPost, scrollToNewReply, setEditingPost]
+    [parentPost.id, visitPermit, sendPermit, setEditingPost]
   );
 
   const startReplyDraft = useCallback((mode?: 'text' | 'link') => {
@@ -898,6 +966,7 @@ function SinglePostView({
       <DraftInputContextProvider value={threadComposerContext}>
         {parentPost ? (
           <DetailView
+            isFocused={isFocusedPost}
             post={parentPost}
             channel={channel}
             initialPostUnread={initialThreadUnread}

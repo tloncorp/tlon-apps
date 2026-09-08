@@ -6,7 +6,13 @@ import type * as domain from '@tloncorp/shared/domain';
 import { Button, FloatingActionButton, Icon } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import type { ReactNode } from 'react';
-import { ComponentProps, PropsWithChildren, memo, useState } from 'react';
+import {
+  ComponentProps,
+  PropsWithChildren,
+  memo,
+  useState,
+  useContext,
+} from 'react';
 import { LayoutChangeEvent, Platform, StyleSheet } from 'react-native';
 import { SpaceTokens } from 'tamagui';
 import {
@@ -18,6 +24,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { ConversationListDiagnosticsContext } from '../Channel/PostList/diagnostics';
 import { useAttachmentContext } from '../../contexts/attachment';
 import { useConversationScrollToBottomControl } from '../../contexts/scroll';
 import { MentionOption } from '../BareChatInput/useMentions';
@@ -155,6 +162,11 @@ export const MessageInputContainer = memo(
     contentBackgroundColor?: ThemeTokens;
   }>) => {
     const { canUpload } = useAttachmentContext();
+    const sendActionLabel = isEditing
+      ? 'Save edit'
+      : sendError
+        ? 'Retry sending message'
+        : 'Send message';
     const theme = useTheme();
     const defaultBackgroundColor = getVariableValue(theme.background);
     const secondaryBackgroundColor = getVariableValue(
@@ -198,9 +210,16 @@ export const MessageInputContainer = memo(
           />
         ) : null}
         {!frameless ? (
-          <MessageInputChromeRow onHeightChange={handleInputHeightChange}>
+          <MessageInputChromeRow
+            onHeightChange={handleInputHeightChange}
+            actionIds={[
+              ...(goBack ? ['back'] : []),
+              ...(isEditing ? ['cancel'] : []),
+              ...(canUpload && showAttachmentButton ? ['attachment'] : []),
+            ]}
+          >
             {goBack ? (
-              <MessageInputChromeAction>
+              <MessageInputChromeAction role="back">
                 <MessageInputChromeButton
                   preset="secondary"
                   icon="ChevronLeft"
@@ -210,7 +229,7 @@ export const MessageInputContainer = memo(
             ) : null}
 
             {isEditing ? (
-              <MessageInputChromeAction>
+              <MessageInputChromeAction role="cancel">
                 <MessageInputChromeButton
                   preset="secondary"
                   icon="Close"
@@ -219,7 +238,7 @@ export const MessageInputContainer = memo(
               </MessageInputChromeAction>
             ) : null}
             {canUpload && showAttachmentButton ? (
-              <MessageInputChromeAction>
+              <MessageInputChromeAction role="attachment">
                 <AttachmentButton setShouldBlur={setShouldBlur} />
               </MessageInputChromeAction>
             ) : null}
@@ -263,6 +282,21 @@ export const MessageInputContainer = memo(
                     disabled={disableSend}
                     loading={isSending}
                     testID="MessageInputSendButton"
+                    render={
+                      Platform.OS === 'web' ? (
+                        <button
+                          type="button"
+                          disabled={disableSend || isSending}
+                          aria-label={sendActionLabel}
+                        />
+                      ) : undefined
+                    }
+                    accessibilityRole={
+                      Platform.OS === 'web' ? undefined : 'button'
+                    }
+                    accessibilityLabel={
+                      Platform.OS === 'web' ? undefined : sendActionLabel
+                    }
                     onPress={isEditing ? onPressEdit : onPressSend}
                     icon={
                       isEditing ? (
@@ -342,11 +376,33 @@ function MessageInputChromeRoot({
 function MessageInputChromeRow({
   children,
   onHeightChange,
+  actionIds,
 }: PropsWithChildren<{
   onHeightChange: (height: number) => void;
+  actionIds: string[];
 }>) {
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const showsScrollToBottomControl = scrollToBottomControl?.visible;
+  const ruler = useContext(ConversationListDiagnosticsContext)?.ruler;
+  const marker = ruler
+    ? {
+        testID: 'scroll-surface-manifest',
+        collapsable: false,
+        accessibilityValue: {
+          text: JSON.stringify({
+            version: 1,
+            scope: ruler.scope,
+            surfaceIds: [
+              'scroll-surface-body',
+              ...actionIds.map((id) => `scroll-surface-${id}`),
+              ...(usesIOSGlass && showsScrollToBottomControl
+                ? ['scroll-surface-latest']
+                : []),
+            ],
+          }),
+        },
+      }
+    : {};
   const handleLayout = (event: LayoutChangeEvent) => {
     onHeightChange(
       event.nativeEvent.layout.height -
@@ -359,6 +415,7 @@ function MessageInputChromeRow({
   if (usesIOSGlass) {
     return (
       <GlassSurfaceGroup
+        {...marker}
         spacing={metrics.rowGap}
         style={[
           inputChromeStyles.row,
@@ -382,6 +439,7 @@ function MessageInputChromeRow({
   if (usesFloatingChrome) {
     return (
       <XStack
+        {...marker}
         width="100%"
         alignItems={materialChromeAlignment}
         gap={metrics.rowGap}
@@ -411,10 +469,17 @@ function MessageInputChromeRow({
   );
 }
 
-function MessageInputChromeAction({ children }: PropsWithChildren) {
+function MessageInputChromeAction({
+  children,
+  role,
+}: PropsWithChildren<{ role: string }>) {
+  const ruler = useContext(ConversationListDiagnosticsContext)?.ruler;
+  const marker = ruler
+    ? { testID: `scroll-surface-${role}`, collapsable: false }
+    : {};
   if (usesIOSGlass) {
     return (
-      <GlassSurface isInteractive style={inputChromeStyles.action}>
+      <GlassSurface {...marker} isInteractive style={inputChromeStyles.action}>
         {children}
       </GlassSurface>
     );
@@ -423,6 +488,7 @@ function MessageInputChromeAction({ children }: PropsWithChildren) {
   if (usesFloatingChrome) {
     return (
       <View
+        {...marker}
         {...materialSurfaceProps}
         width={metrics.controlSize}
         height={metrics.controlSize}
@@ -449,9 +515,14 @@ function MessageInputChromeBody({
   editingTintColor: string;
   overlay: ReactNode;
 }>) {
+  const ruler = useContext(ConversationListDiagnosticsContext)?.ruler;
+  const marker = ruler
+    ? { testID: 'scroll-surface-body', collapsable: false }
+    : {};
   if (usesIOSGlass) {
     return (
       <GlassSurface
+        {...marker}
         glassEffectStyle="regular"
         tintColor={isEditing ? editingTintColor : undefined}
         style={inputChromeStyles.body}
@@ -466,6 +537,7 @@ function MessageInputChromeBody({
     return (
       <XStack flex={1} position="relative">
         <XStack
+          {...marker}
           {...materialSurfaceProps}
           flex={1}
           minHeight={metrics.controlSize}

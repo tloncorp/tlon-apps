@@ -32,6 +32,7 @@ vi.mock('react-native-gesture-handler', () => ({
 vi.mock('tamagui', () => {
   const styledComponent: any = () => null;
   styledComponent.styleable = () => styledComponent;
+  styledComponent.staticConfig = {};
   return {
     ScrollView: () => null,
     Text: () => null,
@@ -39,6 +40,7 @@ vi.mock('tamagui', () => {
     XStack: () => null,
     YStack: () => null,
     createStyledContext: () => ({ Provider: () => null }),
+    createComponent: () => styledComponent,
     styled: () => styledComponent,
     withStaticProperties: (component: any, statics: any) =>
       Object.assign(component, statics),

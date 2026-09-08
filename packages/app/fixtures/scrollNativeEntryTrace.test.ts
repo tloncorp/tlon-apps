@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { replayNativeEntry } from '../../../scripts/scroll-stability-native-entry-evidence.mjs';
 import {
   adaptBufferedNativeScrollGeometry,
+  adaptNativeEntryRuler,
   type NativeGeometryView,
 } from './scrollNativeGeometry';
 import {
@@ -234,7 +235,8 @@ const assess = (d: ReturnType<typeof evidence>) =>
     d.contract,
     (raw, contract) =>
       assessNativeRecording(raw, contract, adaptBufferedNativeScrollGeometry),
-    assessClampedScrollLanding
+    assessClampedScrollLanding,
+    adaptNativeEntryRuler
   );
 const changeY = (
   d: ReturnType<typeof evidence>,
@@ -480,5 +482,200 @@ describe('native entry row-model product evidence', () => {
     expect(
       replayNativeEntry({ ...evidence().trace, scenario: 'append-end' }).verdict
     ).toBe('INCOMPLETE');
+  });
+});
+
+function rulerEvidence() {
+  const d = evidence('selected');
+  d.contract.ruler = 'indexed-cell-and-surfaces-v1';
+  for (const f of d.raw.frames) {
+    const g = f.geometry;
+    const inner = g.rows![0].view!;
+    // Real indexed cell is100pt; independently measured message is92pt.
+    const cell = structuredClone(inner);
+    cell.identity = `cell-${f.owner!.index}`;
+    cell.containingCellIdentity = inner.containingCellIdentity = cell.identity;
+    inner.frame.height = inner.clipFrame.height = 92;
+    const surface = structuredClone(g.composer!);
+    surface.frame.y = surface.clipFrame.y = 608;
+    surface.frame.height = surface.clipFrame.height = 48;
+    surface.identity = 'body';
+    const manifest = structuredClone(g.composer!);
+    manifest.identity = 'manifest';
+    manifest.semanticValue = JSON.stringify({
+      version: 1,
+      scope: f.owner!.scope,
+      surfaceIds: ['scroll-surface-body'],
+    });
+    g.ruler = {
+      version: 1,
+      cells: [{ id: 'scroll-cell-scroll-fixture-65', matches: 1, view: cell }],
+      manifest: { id: 'scroll-surface-manifest', matches: 1, view: manifest },
+      surfaces: [{ id: 'scroll-surface-body', matches: 1, view: surface }],
+    };
+    // Transparent wrapper includes a56pt floating-control reservation.
+    g.composer!.frame.y = g.composer!.clipFrame.y = 544;
+    g.composer!.frame.height = g.composer!.clipFrame.height = 136;
+  }
+  return d;
+}
+
+describe('native selected entry measured cell and surface ruler', () => {
+  it('centers the actual cell, retains the independent inner message, and ignores transparent reservation', () => {
+    const d = rulerEvidence();
+    const result = assess(d);
+    expect(result.verdict).toBe('PASS');
+    expect(result.metrics.maxLandingErrorPt).toBe(0);
+  });
+  it.each([0.99, 1.01])(
+    'keeps the declared1pt boundary at a measured cell shift of%s',
+    (shift) => {
+      const d = rulerEvidence();
+      for (const f of d.raw.frames) {
+        for (const v of [
+          f.geometry.ruler!.cells[0].view!,
+          f.geometry.rows![0].view!,
+        ]) {
+          v.frame.y += shift;
+          v.clipFrame.y += shift;
+        }
+      }
+      expect(assess(d).verdict).toBe(shift <= 1 ? 'PASS' : 'FAIL');
+    }
+  );
+  it('requires the new ruler instead of inferring cell bounds from the inner message', () => {
+    const d = rulerEvidence();
+    for (const f of d.raw.frames) delete f.geometry.ruler;
+    expect(assess(d).verdict).toBe('INCOMPLETE');
+  });
+  it('rejects actually covered message despite a correct cell center', () => {
+    const d = rulerEvidence();
+    const f = d.raw.frames[40];
+    f.geometry.ruler!.surfaces[0].view!.frame.y = 340;
+    f.geometry.ruler!.surfaces[0].view!.clipFrame.y = 340;
+    expect(
+      assess(d).issues.some((i) => i.code === 'native-entry-message-obscured')
+    ).toBe(true);
+    expect(assess(d).verdict).toBe('FAIL');
+  });
+  it.each(['missing', 'duplicate', 'unlisted', 'wrong-scope'])(
+    'rejects %s surface inventory',
+    (fault) => {
+      const d = rulerEvidence();
+      const r = d.raw.frames[40].geometry.ruler!;
+      if (fault === 'missing') r.surfaces = [];
+      if (fault === 'duplicate') r.surfaces[0].matches = 2;
+      if (fault === 'unlisted')
+        r.surfaces.push({ ...r.surfaces[0], id: 'scroll-surface-foreign' });
+      if (fault === 'wrong-scope')
+        r.manifest.view!.semanticValue = JSON.stringify({
+          version: 1,
+          scope: 'channel::7',
+          surfaceIds: ['scroll-surface-body'],
+        });
+      expect(assess(d).verdict).toBe('INCOMPLETE');
+    }
+  );
+  it('rejects a cell with a different semantic revision or an inner message outside its cell', () => {
+    const d = rulerEvidence();
+    const cell = d.raw.frames[40].geometry.ruler!.cells[0].view!;
+    const metadata = JSON.parse(cell.semanticValue!);
+    metadata.signature.content = 'different';
+    cell.semanticValue = JSON.stringify(metadata);
+    expect(assess(d).verdict).toBe('INCOMPLETE');
+    const outside = rulerEvidence();
+    outside.raw.frames[40].geometry.ruler!.cells[0].view!.frame.height = 50;
+    outside.raw.frames[40].geometry.ruler!.cells[0].view!.clipFrame.height = 50;
+    expect(assess(outside).verdict).toBe('INCOMPLETE');
+  });
+  it('uses actual increased composer inset exactly once', () => {
+    const d = rulerEvidence();
+    for (const f of d.raw.frames) {
+      f.geometry.scroll!.adjustedContentInset.bottom =
+        f.geometry.scroll!.contentInset.bottom = 140;
+      for (const v of [
+        f.geometry.ruler!.cells[0].view!,
+        f.geometry.rows![0].view!,
+      ]) {
+        v.frame.y -= 20;
+        v.clipFrame.y -= 20;
+      }
+    }
+    expect(assess(d).verdict).toBe('PASS');
+  });
+  it('preserves an independently valid cell displacement before later incomplete role evidence', () => {
+    const d = rulerEvidence();
+    for (const v of [
+      d.raw.frames[40].geometry.ruler!.cells[0].view!,
+      d.raw.frames[40].geometry.rows![0].view!,
+    ]) {
+      v.frame.y += 10;
+      v.clipFrame.y += 10;
+    }
+    delete d.raw.frames[80].geometry.ruler;
+    expect(assess(d).verdict).toBe('FAIL');
+    expect(assess(d).issues.some((i) => i.kind === 'incomplete')).toBe(true);
+  });
+});
+
+describe('native ruler serialization and association controls', () => {
+  it('replays serialized raw through the independent importer', () => {
+    const d = rulerEvidence();
+    expect(replayNativeEntry(JSON.parse(JSON.stringify(d.trace))).verdict).toBe(
+      'PASS'
+    );
+  });
+  it('does not accept undeclared new role evidence as an old-ruler proof', () => {
+    const d = rulerEvidence();
+    delete d.contract.ruler;
+    expect(
+      assess(d).issues.some((i) => i.code === 'undeclared-native-entry-ruler')
+    ).toBe(true);
+    expect(assess(d).verdict).toBe('INCOMPLETE');
+  });
+  it.each(['cell-parent', 'surface-window', 'cell-duplicate', 'zero-clip'])(
+    'rejects corrupted %s evidence after JSON roundtrip',
+    (fault) => {
+      const d = rulerEvidence();
+      const g = d.raw.frames[40].geometry;
+      if (fault === 'cell-parent')
+        g.rows![0].view!.containingCellIdentity = 'different-cell';
+      if (fault === 'surface-window')
+        g.ruler!.surfaces[0].view!.windowIdentity = 'foreign-window';
+      if (fault === 'cell-duplicate')
+        g.ruler!.cells.push(structuredClone(g.ruler!.cells[0]));
+      if (fault === 'zero-clip')
+        g.ruler!.surfaces[0].view!.clipFrame.height = 0;
+      expect(
+        replayNativeEntry(JSON.parse(JSON.stringify(d.trace))).verdict
+      ).toBe('INCOMPLETE');
+    }
+  );
+  it('counts a partial floating button as its actual rectangle, not the transparent wrapper', () => {
+    const d = rulerEvidence();
+    for (const f of d.raw.frames) {
+      const r = f.geometry.ruler!;
+      const button = structuredClone(r.surfaces[0].view!);
+      button.identity = 'latest';
+      button.frame = { x: 176, y: 548, width: 48, height: 48 };
+      button.clipFrame = { ...button.frame };
+      r.surfaces.push({
+        id: 'scroll-surface-latest',
+        matches: 1,
+        view: button,
+      });
+      r.manifest.view!.semanticValue = JSON.stringify({
+        version: 1,
+        scope: f.owner!.scope,
+        surfaceIds: ['scroll-surface-body', 'scroll-surface-latest'],
+      });
+    }
+    expect(assess(d).verdict).toBe('PASS');
+    const control = d.raw.frames[40].geometry.ruler!.surfaces[1].view!;
+    control.frame.y = control.clipFrame.y = 344;
+    expect(
+      assess(d).issues.some((i) => i.code === 'native-entry-message-obscured')
+    ).toBe(true);
+    expect(assess(d).verdict).toBe('FAIL');
   });
 });

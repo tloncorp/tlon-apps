@@ -48,12 +48,15 @@ export function useInstalledNavigationOptions(
 
       // Route options disappear with the route. Resetting them while native
       // stack is animating that route away makes the outgoing header jump.
+      // A covered stack route still owns its options: its loading header may
+      // be replaced with an inline header before returning. Only tabs share
+      // their parent header and must not reset it while another tab is focused.
       if (
         !routeIsBeingRemoved &&
-        (navigation.isFocused == null || navigation.isFocused())
+        (!isTabScreen || navigation.isFocused == null || navigation.isFocused())
       ) {
         optionsNavigation.setOptions(resetOptions);
       }
     };
-  }, [enabled, navigation, optionsNavigation, resetOptions]);
+  }, [enabled, isTabScreen, navigation, optionsNavigation, resetOptions]);
 }

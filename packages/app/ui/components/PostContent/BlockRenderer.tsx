@@ -43,6 +43,12 @@ import {
 import { ScrollView, View, ViewStyle, XStack, YStack, styled } from 'tamagui';
 
 import { useNowPlayingController } from '../../contexts/nowPlaying';
+import {
+  NativeReadBlockContext,
+  type NativeReadBlockDescriptor,
+} from '../../contexts/nativeRead';
+import type { NativeReadBlockLineage } from '../Channel/PostList/nativeReadMetadata';
+import { createNativeReadFrame, NativeReadImageFrame } from './nativeReadFrame';
 import { Waveform } from '../AudioRecorder/Waveform';
 import { Reference } from '../ContentReference/Reference';
 import {
@@ -88,6 +94,9 @@ export const BlockWrapper = styled(View, {
     type: {} as Record<cn.BlockData['type'], ViewStyle>,
   } as const,
 });
+
+const NativeBlockWrapper =
+  createNativeReadFrame<ComponentProps<typeof BlockWrapper>>(BlockWrapper);
 
 export function ListBlock({
   block,
@@ -205,6 +214,13 @@ export const LineText = styled(Text, {
   } as const,
 });
 
+const NativeCodeFrame = createNativeReadFrame<
+  ComponentProps<typeof Reference.Frame>
+>(Reference.Frame);
+const NativeCodeHeader = createNativeReadFrame<
+  ComponentProps<typeof Reference.Header>
+>(Reference.Header);
+
 export function CodeBlock({
   block,
   textProps,
@@ -213,18 +229,32 @@ export function CodeBlock({
     textProps?: ComponentProps<typeof Text>;
   }) {
   const { doCopy, didCopy } = useCopy(block.content);
+  const reading = useContext(NativeReadBlockContext);
+  const descriptor =
+    Platform.OS === 'ios' &&
+    reading?.kind === 'text' &&
+    !props.render &&
+    !props.asChild &&
+    !textProps?.render &&
+    !textProps?.asChild
+      ? JSON.stringify(reading)
+      : undefined;
+  const Frame = descriptor ? NativeCodeFrame : Reference.Frame;
+  // Header labels are controls, not source text. This equivalent native host
+  // owns no descriptor and bounds the existing provider's descendant search.
+  const Header = descriptor ? NativeCodeHeader : Reference.Header;
   const handleStartShouldSetResponder = useCallback(() => true, []);
 
   return (
-    <Reference.Frame {...props}>
-      <Reference.Header paddingVertical="$l">
+    <Frame {...props} {...(descriptor ? { descriptor } : {})}>
+      <Header paddingVertical="$l">
         <Reference.Title>
           <Reference.TitleText>{'Code'}</Reference.TitleText>
         </Reference.Title>
         <Reference.TitleText onPress={doCopy}>
           {didCopy ? 'Copied' : 'Copy'}
         </Reference.TitleText>
-      </Reference.Header>
+      </Header>
       <ScrollView horizontal>
         <Reference.Body
           pointerEvents="auto"
@@ -237,7 +267,7 @@ export function CodeBlock({
           </Text>
         </Reference.Body>
       </ScrollView>
-    </Reference.Frame>
+    </Frame>
   );
 }
 
@@ -641,6 +671,77 @@ export function ImageBlock({
   });
 
   const isInsideReference = useContext(IsInsideReferenceContext);
+  const blockReading = useContext(NativeReadBlockContext);
+  const actualSource = nativeReadImageSource(block, imageProps);
+  const tracking =
+    Platform.OS === 'ios' &&
+    !isInsideReference &&
+    blockReading?.kind === 'media' &&
+    blockReading.assetKey === actualSource.assetKey &&
+    !props.render &&
+    !props.asChild;
+  const sourceIdentity = tracking
+    ? JSON.stringify([
+        actualSource.assetKey,
+        blockReading.scope,
+        blockReading.visit,
+        blockReading.key,
+        blockReading.rowRevision,
+        blockReading.blockId,
+      ])
+    : '';
+  const [loading, setLoading] = useState({
+    identity: sourceIdentity,
+    ticket: 0,
+    ready: false,
+    failed: false,
+  });
+  if (loading.identity !== sourceIdentity) {
+    setLoading({
+      identity: sourceIdentity,
+      ticket: loading.ticket + 1,
+      ready: false,
+      failed: false,
+    });
+  }
+  const ticket = loading.ticket;
+  const committedLoad = useRef<{
+    identity: string;
+    ticket: number;
+    failed: boolean;
+  } | null>(null);
+  useLayoutEffect(() => {
+    committedLoad.current = tracking
+      ? { identity: sourceIdentity, ticket, failed: loading.failed }
+      : null;
+    return () => {
+      committedLoad.current = null;
+    };
+  }, [tracking, sourceIdentity, ticket, loading.failed]);
+  const ownsLoad = () =>
+    committedLoad.current?.identity === sourceIdentity &&
+    committedLoad.current.ticket === ticket &&
+    !committedLoad.current.failed;
+  const readiness = useCallback(
+    (ready: boolean) => {
+      setLoading((current) =>
+        current.identity === sourceIdentity &&
+        current.ticket === ticket &&
+        !current.failed
+          ? current.ready === ready
+            ? current
+            : { ...current, ready }
+          : current
+      );
+    },
+    [sourceIdentity, ticket]
+  );
+  const readingDescriptor = tracking
+    ? JSON.stringify({
+        ...blockReading,
+        mediaReady: loading.identity === sourceIdentity && loading.ready,
+      })
+    : undefined;
 
   const handlePress = useCallback(() => {
     onPressImage?.(block.src);
@@ -683,12 +784,87 @@ export function ImageBlock({
     ...remainingImageProps
   } = imageProps ?? {};
 
+  const renderedImage = (
+    <ContentImage
+      key={tracking ? ticket : undefined}
+      source={{
+        uri: block.src,
+      }}
+      {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
+      {...(shouldUseAspectRatio && !constrainedSize
+        ? { aspectRatio: dimensions.aspect || 1 }
+        : {})}
+      {...(isInsideReference
+        ? {
+            maxHeight: 250,
+            resizeMode: 'contain',
+          }
+        : {})}
+      contentFit="contain"
+      borderRadius="$s"
+      alt={block.alt}
+      {...{
+        onLoad: handleImageLoaded,
+        ...(constrainedSize ? remainingImageProps : imageProps),
+        ...(tracking
+          ? {
+              onLoad: (event: ImageLoadEventData) => {
+                if (!ownsLoad()) return;
+                readiness(
+                  Boolean(
+                    actualSource.uri &&
+                    event.source.url === actualSource.uri &&
+                    Number.isFinite(event.source.width) &&
+                    Number.isFinite(event.source.height) &&
+                    event.source.width > 0 &&
+                    event.source.height > 0
+                  )
+                );
+                // A caller's onLoad previously replaced the default dimension callback.
+                (imageProps?.onLoad ?? handleImageLoaded)(event);
+              },
+              onLoadStart: () => {
+                if (ownsLoad()) {
+                  readiness(false);
+                  imageProps?.onLoadStart?.();
+                }
+              },
+              onError: (
+                event: Parameters<
+                  NonNullable<ComponentProps<typeof ContentImage>['onError']>
+                >[0]
+              ) => {
+                if (ownsLoad()) {
+                  if (committedLoad.current)
+                    committedLoad.current.failed = true;
+                  setLoading((current) =>
+                    current.identity === sourceIdentity &&
+                    current.ticket === ticket
+                      ? { ...current, ready: false, failed: true }
+                      : current
+                  );
+                  imageProps?.onError?.(event);
+                }
+              },
+            }
+          : {}),
+      }}
+    />
+  );
+
   const imagePressable = (
     <Pressable
       overflow="hidden"
       onPress={handlePress}
       onLongPress={onLongPress}
       {...props}
+      {...(readingDescriptor
+        ? {
+            renderFrame: (
+              <NativeReadImageFrame descriptor={readingDescriptor} />
+            ),
+          }
+        : {})}
       {...(constrainedSize
         ? {
             alignSelf: 'flex-start' as const,
@@ -700,26 +876,7 @@ export function ImageBlock({
           ? { maxWidth: dimensions.width }
           : {})}
     >
-      <ContentImage
-        source={{
-          uri: block.src,
-        }}
-        {...(constrainedSize ? { width: '100%', height: '100%' } : {})}
-        {...(shouldUseAspectRatio && !constrainedSize
-          ? { aspectRatio: dimensions.aspect || 1 }
-          : {})}
-        {...(isInsideReference
-          ? {
-              maxHeight: 250,
-              resizeMode: 'contain',
-            }
-          : {})}
-        contentFit="contain"
-        borderRadius="$s"
-        alt={block.alt}
-        onLoad={handleImageLoaded}
-        {...(constrainedSize ? remainingImageProps : imageProps)}
-      />
+      {renderedImage}
     </Pressable>
   );
 
@@ -1023,6 +1180,47 @@ interface BlockRendererContextValue {
 
 const BlockRendererContext = createContext<BlockRendererContextValue>({});
 
+function nativeReadImageSource(
+  block: cn.ImageBlockData,
+  imageProps?: ComponentProps<typeof ContentImage>
+) {
+  const source =
+    imageProps && 'source' in imageProps
+      ? imageProps.source
+      : { uri: block.src };
+  const uri =
+    typeof source === 'string'
+      ? source
+      : source &&
+          typeof source === 'object' &&
+          !Array.isArray(source) &&
+          'uri' in source &&
+          typeof source.uri === 'string'
+        ? source.uri
+        : null;
+  return { assetKey: JSON.stringify(source) ?? 'unavailable-source', uri };
+}
+
+/** Unsupported blocks stay in membership, with no inner geometry admission. */
+export function useNativeReadBlockManifest(
+  content: cn.PostContent,
+  lineage: NativeReadBlockLineage
+) {
+  const { settings } = useContext(BlockRendererContext);
+  return lineage.blocks.map((identity, index) => {
+    const block = content[index];
+    return block.type === 'image'
+      ? {
+          id: identity.id,
+          revision: identity.revision,
+          kind: 'media' as const,
+          assetKey: nativeReadImageSource(block, settings?.image?.imageProps)
+            .assetKey,
+        }
+      : { id: identity.id, revision: identity.revision, kind: 'text' as const };
+  });
+}
+
 export const BlockRendererProvider = React.memo(function BlockRendererProvider({
   children,
   ...props
@@ -1034,7 +1232,13 @@ export const BlockRendererProvider = React.memo(function BlockRendererProvider({
   );
 });
 
-export function BlockRenderer({ block }: { block: cn.BlockData }) {
+export function BlockRenderer({
+  block,
+  nativeRead,
+}: {
+  block: cn.BlockData;
+  nativeRead?: NativeReadBlockDescriptor;
+}) {
   const { renderers, settings: defaultProps } =
     useContext(BlockRendererContext);
   const Wrapper = renderers?.blockWrapper ?? BlockWrapper;
@@ -1043,10 +1247,38 @@ export function BlockRenderer({ block }: { block: cn.BlockData }) {
   const { wrapperProps, ...defaultPropsForBlock } =
     defaultProps?.[block.type] ?? {};
   const defaultPropsForBlockWrapper = defaultProps?.blockWrapper;
+  const supported =
+    Renderer === defaultBlockRenderers[block.type] &&
+    Wrapper === BlockWrapper &&
+    !wrapperProps?.render &&
+    !defaultPropsForBlockWrapper?.render &&
+    !wrapperProps?.asChild &&
+    !defaultPropsForBlockWrapper?.asChild;
+  const textDescriptor =
+    Platform.OS === 'ios' &&
+    supported &&
+    nativeRead?.kind === 'text' &&
+    ['paragraph', 'header', 'bigEmoji'].includes(block.type)
+      ? JSON.stringify(nativeRead)
+      : undefined;
 
-  return (
-    <Wrapper {...defaultPropsForBlockWrapper} {...wrapperProps} block={block}>
+  const renderedBlock = (
+    <NativeReadBlockContext.Provider
+      value={supported ? (nativeRead ?? null) : null}
+    >
       <Renderer {...defaultPropsForBlock} block={block} />
-    </Wrapper>
+    </NativeReadBlockContext.Provider>
+  );
+
+  const Frame = textDescriptor ? NativeBlockWrapper : Wrapper;
+  return (
+    <Frame
+      {...defaultPropsForBlockWrapper}
+      {...wrapperProps}
+      block={block}
+      {...(textDescriptor ? { descriptor: textDescriptor } : {})}
+    >
+      {renderedBlock}
+    </Frame>
   );
 }

@@ -38,6 +38,7 @@ export interface QueryCtx {
    * falsely detect each other as "nested", bypassing the transaction queue.
    */
   rootTransaction?: string | null;
+  afterCommit?: (() => void)[];
 }
 
 export type WrappedQuery<TOptions, TReturn> = (TOptions extends QueryCtx
@@ -307,6 +308,7 @@ export async function withTransactionCtx<T>(
       try {
         await ctx.db.run(sql`BEGIN`);
         ctx.rootTransaction = ctx.meta.label;
+        ctx.afterCommit = [];
         txLogger.log(ctx.meta.label, 'tx:begin');
 
         const result = await handler(ctx);
@@ -314,6 +316,9 @@ export async function withTransactionCtx<T>(
 
         await ctx.db.run(sql`COMMIT`);
         ctx.rootTransaction = null;
+        const committed = ctx.afterCommit;
+        ctx.afterCommit = undefined;
+        for (const callback of committed ?? []) callback();
         txLogger.log(ctx.meta.label, 'tx:commit');
         resolve(result);
         return result;
@@ -334,6 +339,7 @@ export async function withTransactionCtx<T>(
           });
         }
         ctx.rootTransaction = null;
+        ctx.afterCommit = undefined;
         reject(e);
       }
     });
@@ -347,4 +353,10 @@ function setsOverlap(setA: Set<unknown>, setB: Set<unknown>) {
     }
   }
   return false;
+}
+
+// Register only observational bookkeeping; callbacks must not throw or write.
+export function afterTransactionCommit(ctx: QueryCtx, callback: () => void) {
+  if (ctx.rootTransaction) (ctx.afterCommit ??= []).push(callback);
+  else callback();
 }

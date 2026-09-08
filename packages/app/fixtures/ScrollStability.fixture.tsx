@@ -22,6 +22,7 @@ import {
 } from 'react';
 import {
   Button,
+  Dimensions,
   Keyboard,
   Linking,
   Modal,
@@ -39,11 +40,13 @@ import {
   ConversationListDiagnosticsContext,
   type ConversationListDiagnostics,
 } from '../ui/components/Channel/PostList/diagnostics';
+import type { PostListMethods } from '../ui/components/Channel/PostList/shared';
 import {
   ComponentsKitContext,
   useComponentsKitContext,
 } from '../ui/contexts/componentsKits';
 import { ChannelFixture } from './Channel.fixture';
+import { ScrollStabilityScreenHost } from './ScrollStabilityScreenHost';
 import { block, verse, referencedChatPost } from './contentHelpers';
 import { createFakePost, initialContacts, tlonLocalIntros } from './fakeData';
 import {
@@ -74,14 +77,38 @@ import {
 
 import {
   adaptNativeScrollGeometry,
+  nativeThinkingGestureExtentIsMeasured,
   adaptBufferedNativeScrollGeometry,
   type NativeGeometryRequest,
+  type NativeSampledRulerContract,
 } from './scrollNativeGeometry';
 import {
   assessNativeRecording,
   type NativeRecordingContract,
 } from './scrollNativeRecording';
 import type { NativeEntryContract } from './scrollNativeEntryTrace';
+import type { NativeMutationContract } from './scrollNativeMutationTrace';
+import { positionFixtureList } from './scrollFixturePosition';
+import {
+  nativeCenterCommand,
+  nativeCenterCommandEvidenceIssues,
+  type NativeCenterCommandContract,
+  nativeOffscreenCommand,
+  nativeOffscreenCommandEvidenceIssues,
+  type NativeOffscreenCommandContract,
+} from './scrollNativeTargetCommand';
+import {
+  observeScrollCorrections,
+  type ScrollCorrectionRecording,
+} from './scrollCorrectionDiagnostics';
+import {
+  automatedScrollScenarios as automatedScenarios,
+  declareFixtureSampledRuler,
+  selectFixtureSuiteScenarios,
+  parseFixtureSuiteRequest,
+  parseFixtureCorrectionDiagnostics,
+  parseFixtureNativeReadTimingSession,
+} from './scrollFixtureCaptureContract';
 
 type NativeEntryActionMarkers = {
   reset: () => Promise<void>;
@@ -189,9 +216,48 @@ type Trace = {
   fixtureVersion: number;
   assertionSchemaVersion: 1;
   nativeGeometrySchemaVersion?: 1;
+  nativeSampledRulerContract?: NativeSampledRulerContract;
+  nativeLatestVisibilityInputs?: {
+    source: 'React Native Dimensions.get(window).height';
+    before: { windowHeight: number; atBottomThreshold: 1 };
+    after: { windowHeight: number; atBottomThreshold: 1 };
+    changes: { time: number; windowHeight: number }[];
+  };
   nativeRecording?: unknown;
+  nativeCorrections?: ScrollCorrectionRecording;
+  nativeCenterCommandContract?: NativeCenterCommandContract;
+  nativeOffscreenCommandContract?: NativeOffscreenCommandContract;
   nativeRecordingContract?: NativeRecordingContract;
   nativeEntryContract?: NativeEntryContract;
+  nativePostGestureProbe?: {
+    contract: {
+      version: 1;
+      recordingId: string;
+      scope: string;
+      outcome: 'end' | 'away';
+      declaredAt: number;
+      probeId: string;
+      quietTailMs: 1000;
+      tolerancePt: 1;
+    };
+    armedAt?: number;
+    completion?: FixtureEvent;
+    baseline?: ScrollSnapshot;
+    anchorKey?: string;
+    markerTransfers: {
+      name: string;
+      requestedAt: number;
+      receivedAt: number;
+      clock: 'performance.now milliseconds';
+    }[];
+  };
+  nativeMutationContract?: NativeMutationContract;
+  nativeMutationMarkerTransfer?: {
+    name: string;
+    requestedAt: number;
+    receivedAt: number;
+    clock: 'performance.now milliseconds';
+  };
   nativeEntryMarkerTransfers?: {
     name: string;
     requestedAt: number;
@@ -445,6 +511,7 @@ export function ScrollStabilityFixture() {
   const [panel, setPanel] = useState(false);
   const [media, setMedia] = useState(false);
   const list = useRef<LegendListRef | null>(null);
+  const commands = useRef<PostListMethods | null>(null);
   const attachedChannel = useRef<string | null>(null);
   const attachedScrollViewID = useRef<string | null>(null);
   const nativeCaptureSequence = useRef(0);
@@ -474,6 +541,10 @@ export function ScrollStabilityFixture() {
   });
   const events = useRef<FixtureEvent[]>([]);
   const traces = useRef<Trace[]>([]);
+  const correctionsEnabled = useRef(false);
+  const correctionObservation = useRef<ReturnType<
+    typeof observeScrollCorrections
+  > | null>(null);
   const postsRef = useRef(posts);
   const sampling = useRef(false);
   const preparingCapture = useRef(false);
@@ -548,9 +619,34 @@ export function ScrollStabilityFixture() {
     },
     []
   );
-  const diagnostics = useMemo<ConversationListDiagnostics>(
+  const [nativeReadTimingSession, setNativeReadTimingSession] =
+    useState<string>();
+  const committedTimingSession = useRef<string | undefined>(undefined);
+  useLayoutEffect(() => {
+    committedTimingSession.current = nativeReadTimingSession;
+  }, [nativeReadTimingSession]);
+  const listDiagnostics = useMemo<ConversationListDiagnostics>(
     () => ({
+      ruler: {
+        scope: `${fixtureChannel.id}::${generation}`,
+        rowMetadata: (post) => ({
+          scope: `${post.channelId ?? ''}::${generation}`,
+          key: post.id,
+          signature: mutationSignature(post),
+        }),
+      },
+      attachMethods: (methods) => {
+        commands.current = methods;
+        return () => {
+          if (commands.current === methods) commands.current = null;
+        };
+      },
       attach: (ref, channelId, scrollViewTestID) => {
+        correctionObservation.current?.dispose();
+        const correction = correctionsEnabled.current
+          ? observeScrollCorrections(ref, `${channelId}::${generation}`)
+          : null;
+        correctionObservation.current = correction;
         list.current = ref;
         attachedChannel.current = channelId;
         attachedScrollViewID.current = scrollViewTestID ?? null;
@@ -558,6 +654,7 @@ export function ScrollStabilityFixture() {
         nativeMetricsReceivedAt.current = null;
         event('list-attached', { channelId });
         return () => {
+          correction?.dispose();
           if (list.current === ref) {
             list.current = null;
             attachedChannel.current = null;
@@ -572,7 +669,11 @@ export function ScrollStabilityFixture() {
         nativeMetricsReceivedAt.current = performance.now();
       },
     }),
-    [event]
+    [event, generation]
+  );
+  const diagnostics = useMemo<ConversationListDiagnostics>(
+    () => ({ ...listDiagnostics, nativeReadTimingSession }),
+    [listDiagnostics, nativeReadTimingSession]
   );
 
   const update = useCallback((next: db.Post[]) => {
@@ -607,250 +708,334 @@ export function ScrollStabilityFixture() {
         composer.current = view;
       },
       send: async (draft) => {
+        const surface = commands.current;
+        const isCurrent = surface?.captureScrollIntent?.() ?? (() => false);
         event('local-send', {
           content: JSON.stringify(draft),
           productSend: false,
         });
         await append();
-        requestAnimationFrame(
-          () => void list.current?.scrollToEnd({ animated: true })
-        );
+        requestAnimationFrame(() => {
+          if (isCurrent()) surface?.scrollToEnd({ animated: true });
+        });
       },
     }),
     [append, event, generation]
   );
 
-  const snapshot = useCallback(async (): Promise<ScrollSnapshot> => {
-    const started = performance.now();
-    const ref = list.current;
-    const state = ref?.getState();
-    const target = semanticTarget.current;
-    const targetMapKey = target ? `${target.scope}\0${target.key}` : undefined;
-    const beforeCommit = targetMapKey
-      ? renderCommits.current.get(targetMapKey)
-      : undefined;
-    const beforeKeys = state?.data.map((item) => item.post?.id ?? item.id);
-    const registeredRowCount = rows.current.size;
-    // Native keyboard insets can put an actually visible row outside the list's
-    // estimated range. Measure every mounted wrapper; virtualization bounds this
-    // set, and the coherence budget still rejects slow acquisitions.
-    const measuredViews = [...rows.current];
-    const scopeBefore = `${attachedChannel.current ?? ''}::${generationRef.current}`;
-    const composerBefore = composer.current;
-    const requiredBefore = [...requiredRows.current];
-    let nativeAdapted: ReturnType<typeof adaptNativeScrollGeometry> | undefined;
-    if (Platform.OS === 'ios') {
-      const request: NativeGeometryRequest = {
-        requestId: `native-${++nativeCaptureSequence.current}`,
+  const declareSampledRuler = useCallback(
+    (scenario: string) =>
+      declareFixtureSampledRuler(Platform.OS, scenario, {
+        scope: attachedChannel.current
+          ? `${attachedChannel.current}::${generationRef.current}`
+          : '',
         rootId: NATIVE_ROOT_ID,
         scrollViewId: attachedScrollViewID.current ?? '',
         composerId: 'scroll-stability-composer',
-        rows: measuredViews.map(([key]) => ({ key, id: `scroll-row-${key}` })),
-      };
-      let raw: unknown;
-      try {
-        const module = requireOptionalNativeModule<{
-          captureScrollGeometry?: (
-            requestId: string,
-            rootId: string,
-            scrollViewId: string,
-            rowIds: string[],
-            composerId: string
-          ) => Promise<unknown>;
-        }>('TlonScrollEdgeEffect');
-        if (module?.captureScrollGeometry) {
-          raw = await new Promise<unknown>((resolve, reject) => {
-            const timer = setTimeout(
-              () =>
-                resolve({
-                  status: 'unavailable',
-                  issues: ['native-capture-timeout'],
-                }),
-              250
-            );
-            module.captureScrollGeometry!(
-              request.requestId,
-              request.rootId,
-              request.scrollViewId,
-              request.rows.map((row) => row.id),
-              request.composerId
-            ).then(
-              (value) => {
-                clearTimeout(timer);
-                resolve(value);
-              },
-              (error) => {
-                clearTimeout(timer);
-                reject(error);
-              }
-            );
-          });
-        } else {
+      }),
+    []
+  );
+
+  const snapshot = useCallback(
+    async (
+      nativeSampledRulerContract?: NativeSampledRulerContract
+    ): Promise<ScrollSnapshot> => {
+      const started = performance.now();
+      const ref = list.current;
+      const state = ref?.getState();
+      const target = semanticTarget.current;
+      const targetMapKey = target
+        ? `${target.scope}\0${target.key}`
+        : undefined;
+      const beforeCommit = targetMapKey
+        ? renderCommits.current.get(targetMapKey)
+        : undefined;
+      const beforeKeys = state?.data.map((item) => item.post?.id ?? item.id);
+      const registeredRowCount = rows.current.size;
+      // Native keyboard insets can put an actually visible row outside the list's
+      // estimated range. Measure every mounted wrapper; virtualization bounds this
+      // set, and the coherence budget still rejects slow acquisitions.
+      const measuredViews = [...rows.current];
+      const scopeBefore = `${attachedChannel.current ?? ''}::${generationRef.current}`;
+      const composerBefore = composer.current;
+      const requiredBefore = [...requiredRows.current];
+      let nativeAdapted:
+        | ReturnType<typeof adaptNativeScrollGeometry>
+        | undefined;
+      if (Platform.OS === 'ios') {
+        const request: NativeGeometryRequest = {
+          requestId: `native-${++nativeCaptureSequence.current}`,
+          rootId: NATIVE_ROOT_ID,
+          scrollViewId: attachedScrollViewID.current ?? '',
+          composerId: 'scroll-stability-composer',
+          rows: measuredViews.map(([key]) => ({
+            key,
+            id: `scroll-row-${key}`,
+          })),
+        };
+        let raw: unknown;
+        try {
+          const module = requireOptionalNativeModule<{
+            captureScrollGeometry?: (
+              requestId: string,
+              rootId: string,
+              scrollViewId: string,
+              rowIds: string[],
+              composerId: string
+            ) => Promise<unknown>;
+          }>('TlonScrollEdgeEffect');
+          if (module?.captureScrollGeometry) {
+            raw = await new Promise<unknown>((resolve, reject) => {
+              const timer = setTimeout(
+                () =>
+                  resolve({
+                    status: 'unavailable',
+                    issues: ['native-capture-timeout'],
+                  }),
+                250
+              );
+              module.captureScrollGeometry!(
+                request.requestId,
+                request.rootId,
+                request.scrollViewId,
+                request.rows.map((row) => row.id),
+                request.composerId
+              ).then(
+                (value) => {
+                  clearTimeout(timer);
+                  resolve(value);
+                },
+                (error) => {
+                  clearTimeout(timer);
+                  reject(error);
+                }
+              );
+            });
+          } else {
+            raw = {
+              status: 'unavailable',
+              issues: ['native-module-unavailable'],
+            };
+          }
+        } catch (error) {
           raw = {
             status: 'unavailable',
-            issues: ['native-module-unavailable'],
+            issues: ['native-capture-error'],
+            error: String(error),
           };
         }
-      } catch (error) {
-        raw = {
-          status: 'unavailable',
-          issues: ['native-capture-error'],
-          error: String(error),
-        };
+        nativeAdapted = adaptNativeScrollGeometry(raw, request, {
+          requestedAt: started,
+          receivedAt: performance.now(),
+          requiredKeys: requiredBefore,
+          populated: (state?.data.length ?? 0) > 0,
+          ...(nativeSampledRulerContract
+            ? {
+                ruler: {
+                  version: nativeSampledRulerContract.version,
+                  scope: nativeSampledRulerContract.scope,
+                },
+              }
+            : {}),
+        });
+        if (
+          nativeSampledRulerContract &&
+          (scopeBefore !== nativeSampledRulerContract.scope ||
+            request.rootId !== nativeSampledRulerContract.rootId ||
+            request.scrollViewId !== nativeSampledRulerContract.scrollViewId ||
+            request.composerId !== nativeSampledRulerContract.composerId)
+        ) {
+          nativeAdapted.issues.push(
+            'native-sampled-ruler-owner-contract-changed'
+          );
+          nativeAdapted.snapshot.acquisition!.nativeGeometry!.issues.push(
+            'native-sampled-ruler-owner-contract-changed'
+          );
+          nativeAdapted.snapshot.measurement!.valid = false;
+        }
       }
-      nativeAdapted = adaptNativeScrollGeometry(raw, request, {
-        requestedAt: started,
-        receivedAt: performance.now(),
-        requiredKeys: requiredBefore,
-        populated: (state?.data.length ?? 0) > 0,
-      });
-    }
-    // Legacy Android/web fixture diagnostics remain explicitly mixed-source.
-    const [viewport, input, measured] = nativeAdapted
-      ? ([null, null, []] as const)
-      : await Promise.all([
-          measure(
-            ref?.getNativeScrollRef() as unknown as Measurable | undefined
-          ),
-          measure(composer.current),
-          Promise.all(
-            measuredViews.map(async ([key, view]) => {
-              const frame = await measure(view);
-              return frame && frame.height > 0 ? { key, ...frame } : null;
-            })
-          ),
-        ]);
-    const viewportTop = viewport?.y ?? 0;
-    const viewportHeight = viewport?.height ?? state?.scrollLength ?? 0;
-    const viewportBottom = Math.min(
-      viewportTop + viewportHeight,
-      input?.y ?? Infinity
-    );
-    const native = nativeScroll.current;
-    const min = -(native?.contentInset?.top ?? 0);
-    const max = native
-      ? Math.max(
-          min,
-          native.contentSize.height -
-            native.layoutMeasurement.height +
-            (native.contentInset?.bottom ?? 0)
-        )
-      : undefined;
-    const sampledAt = performance.now();
-    const afterCommit = targetMapKey
-      ? renderCommits.current.get(targetMapKey)
-      : undefined;
-    const afterKeys = ref
-      ?.getState()
-      .data.map((item) => item.post?.id ?? item.id);
-    const semanticStable =
-      !target ||
-      (!!beforeCommit &&
-        !!afterCommit &&
-        JSON.stringify(beforeCommit.state) ===
-          JSON.stringify(afterCommit.state) &&
-        JSON.stringify(beforeKeys) === JSON.stringify(afterKeys) &&
-        (afterCommit.state.presence === 'present'
-          ? afterKeys?.includes(target.key) === true
-          : afterKeys?.includes(target.key) === false) &&
-        semanticTarget.current === target &&
-        target.scope ===
-          `${attachedChannel.current ?? ''}::${generationRef.current}`);
-    const result: ScrollSnapshot = nativeAdapted?.snapshot ?? {
-      time: sampledAt,
-      acquisition: {
-        registeredRowCount,
-        selectedRowCount: measuredViews.length,
-        measuredRowCount: measured.filter((frame) => frame !== null).length,
-        visibleMeasuredRowCount: measured.filter(
-          (frame) =>
-            frame &&
-            frame.y < viewportBottom &&
-            frame.y + frame.height > viewportTop
-        ).length,
-        nativeMetricsReceivedAt: nativeMetricsReceivedAt.current,
-        nativeMetricsAgeMs:
-          nativeMetricsReceivedAt.current === null
-            ? null
-            : sampledAt - nativeMetricsReceivedAt.current,
-      },
-      measurement: {
-        valid:
-          !!viewport &&
-          !!input &&
-          !!state &&
-          !!native &&
-          semanticStable &&
-          (state.data.length === 0 ||
-            measured.some((frame) => frame !== null)) &&
-          [...requiredRows.current].every((key) =>
-            measured.some((frame) => frame?.key === key)
-          ) &&
-          list.current === ref &&
-          measuredViews.every(([key, view], index) => {
-            const frame = measured[index];
-            const visible =
+      // Legacy Android/web fixture diagnostics remain explicitly mixed-source.
+      const [viewport, input, measured] = nativeAdapted
+        ? ([null, null, []] as const)
+        : await Promise.all([
+            measure(
+              ref?.getNativeScrollRef() as unknown as Measurable | undefined
+            ),
+            measure(composer.current),
+            Promise.all(
+              measuredViews.map(async ([key, view]) => {
+                const frame = await measure(view);
+                return frame && frame.height > 0 ? { key, ...frame } : null;
+              })
+            ),
+          ]);
+      const viewportTop = viewport?.y ?? 0;
+      const viewportHeight = viewport?.height ?? state?.scrollLength ?? 0;
+      const viewportBottom = Math.min(
+        viewportTop + viewportHeight,
+        input?.y ?? Infinity
+      );
+      const native = nativeScroll.current;
+      const min = -(native?.contentInset?.top ?? 0);
+      const max = native
+        ? Math.max(
+            min,
+            native.contentSize.height -
+              native.layoutMeasurement.height +
+              (native.contentInset?.bottom ?? 0)
+          )
+        : undefined;
+      const sampledAt = performance.now();
+      const afterCommit = targetMapKey
+        ? renderCommits.current.get(targetMapKey)
+        : undefined;
+      const afterKeys = ref
+        ?.getState()
+        .data.map((item) => item.post?.id ?? item.id);
+      const semanticStable =
+        !target ||
+        (!!beforeCommit &&
+          !!afterCommit &&
+          JSON.stringify(beforeCommit.state) ===
+            JSON.stringify(afterCommit.state) &&
+          JSON.stringify(beforeKeys) === JSON.stringify(afterKeys) &&
+          (afterCommit.state.presence === 'present'
+            ? afterKeys?.includes(target.key) === true
+            : afterKeys?.includes(target.key) === false) &&
+          semanticTarget.current === target &&
+          target.scope ===
+            `${attachedChannel.current ?? ''}::${generationRef.current}`);
+      const result: ScrollSnapshot = nativeAdapted?.snapshot ?? {
+        time: sampledAt,
+        acquisition: {
+          registeredRowCount,
+          selectedRowCount: measuredViews.length,
+          measuredRowCount: measured.filter((frame) => frame !== null).length,
+          visibleMeasuredRowCount: measured.filter(
+            (frame) =>
               frame &&
               frame.y < viewportBottom &&
-              frame.y + frame.height > viewportTop;
-            // A clipped offscreen native child may return zero/null geometry.
-            // It is not required evidence. Reading witnesses remain mandatory.
-            return (
-              (!requiredRows.current.has(key) && !visible) ||
-              (frame !== null && rows.current.get(key) === view)
-            );
-          }),
-        durationMs: performance.now() - started,
-      },
-      ...(max !== undefined ? { scrollBounds: { min, max } } : {}),
-      scroll: native?.contentOffset.y ?? state?.scroll ?? 0,
-      contentLength: state?.contentLength ?? 0,
-      viewportHeight,
-      viewportTop,
-      viewportBottom,
-      keyboardHeight: Keyboard.metrics()?.height ?? 0,
-      nearEnd: state?.isNearEnd ?? false,
-      rows: measured.filter(
-        (row): row is NonNullable<typeof row> => row !== null
-      ),
-    };
-    if (nativeAdapted) {
-      const registryStable = measuredViews.every(
-        ([key, view]) =>
-          !requiredBefore.includes(key) || rows.current.get(key) === view
-      );
-      const membershipStable =
-        JSON.stringify(beforeKeys) === JSON.stringify(afterKeys);
-      const scopeStable =
-        scopeBefore ===
-        `${attachedChannel.current ?? ''}::${generationRef.current}`;
-      const coherent =
-        !!ref &&
-        list.current === ref &&
-        composer.current === composerBefore &&
-        registryStable &&
-        membershipStable &&
-        scopeStable &&
-        semanticStable;
-      if (!coherent) {
-        nativeAdapted.issues.push('native-js-ownership-changed');
-        result.acquisition!.nativeGeometry!.issues.push(
-          'native-js-ownership-changed'
+              frame.y + frame.height > viewportTop
+          ).length,
+          nativeMetricsReceivedAt: nativeMetricsReceivedAt.current,
+          nativeMetricsAgeMs:
+            nativeMetricsReceivedAt.current === null
+              ? null
+              : sampledAt - nativeMetricsReceivedAt.current,
+        },
+        measurement: {
+          valid:
+            !!viewport &&
+            !!input &&
+            !!state &&
+            !!native &&
+            semanticStable &&
+            (state.data.length === 0 ||
+              measured.some((frame) => frame !== null)) &&
+            [...requiredRows.current].every((key) =>
+              measured.some((frame) => frame?.key === key)
+            ) &&
+            list.current === ref &&
+            measuredViews.every(([key, view], index) => {
+              const frame = measured[index];
+              const visible =
+                frame &&
+                frame.y < viewportBottom &&
+                frame.y + frame.height > viewportTop;
+              // A clipped offscreen native child may return zero/null geometry.
+              // It is not required evidence. Reading witnesses remain mandatory.
+              return (
+                (!requiredRows.current.has(key) && !visible) ||
+                (frame !== null && rows.current.get(key) === view)
+              );
+            }),
+          durationMs: performance.now() - started,
+        },
+        ...(max !== undefined ? { scrollBounds: { min, max } } : {}),
+        scroll: native?.contentOffset.y ?? state?.scroll ?? 0,
+        contentLength: state?.contentLength ?? 0,
+        viewportHeight,
+        viewportTop,
+        viewportBottom,
+        keyboardHeight: Keyboard.metrics()?.height ?? 0,
+        nearEnd: state?.isNearEnd ?? false,
+        rows: measured.filter(
+          (row): row is NonNullable<typeof row> => row !== null
+        ),
+      };
+      if (nativeAdapted) {
+        const registryStable = measuredViews.every(
+          ([key, view]) =>
+            !requiredBefore.includes(key) || rows.current.get(key) === view
         );
-        result.measurement!.valid = false;
+        const membershipStable =
+          JSON.stringify(beforeKeys) === JSON.stringify(afterKeys);
+        const scopeStable =
+          scopeBefore ===
+          `${attachedChannel.current ?? ''}::${generationRef.current}`;
+        const coherent =
+          !!ref &&
+          list.current === ref &&
+          composer.current === composerBefore &&
+          registryStable &&
+          membershipStable &&
+          scopeStable &&
+          semanticStable;
+        // Record why a bracket failed without changing the existing predicate.
+        // Membership arrays and commit states are copied so a later mutation
+        // cannot rewrite the diagnostic observation exported with this sample.
+        result.acquisition!.jsCoherence = {
+          listPresent: !!ref,
+          listIdentityStable: list.current === ref,
+          composerIdentityStable: composer.current === composerBefore,
+          requiredRowsStable: registryStable,
+          membershipStable,
+          scopeStable,
+          semanticStable,
+          coherent,
+          before: {
+            scope: scopeBefore,
+            keys: beforeKeys ? [...beforeKeys] : null,
+            semanticCommit: beforeCommit
+              ? JSON.parse(JSON.stringify(beforeCommit.state))
+              : null,
+          },
+          after: {
+            scope: `${attachedChannel.current ?? ''}::${generationRef.current}`,
+            keys: afterKeys ? [...afterKeys] : null,
+            semanticCommit: afterCommit
+              ? JSON.parse(JSON.stringify(afterCommit.state))
+              : null,
+          },
+          changedRequiredRows: measuredViews
+            .filter(
+              ([key, view]) =>
+                requiredBefore.includes(key) && rows.current.get(key) !== view
+            )
+            .map(([key]) => key),
+          semanticTarget: target ? { ...target } : null,
+        };
+        if (!coherent) {
+          nativeAdapted.issues.push('native-js-ownership-changed');
+          result.acquisition!.nativeGeometry!.issues.push(
+            'native-js-ownership-changed'
+          );
+          result.measurement!.valid = false;
+        }
+        // This includes JS validation work as well as the explicit bridge bracket.
+        result.measurement!.durationMs = performance.now() - started;
       }
-      // This includes JS validation work as well as the explicit bridge bracket.
-      result.measurement!.durationMs = performance.now() - started;
-    }
-    if (target)
-      semanticSnapshots.current.set(result, {
-        commit: afterCommit,
-        committedKeys: afterKeys ?? [],
-        valid: semanticStable && result.measurement?.valid === true,
-        durationMs: performance.now() - started,
-      });
-    return result;
-  }, []);
+      if (target)
+        semanticSnapshots.current.set(result, {
+          commit: afterCommit,
+          committedKeys: afterKeys ?? [],
+          valid: semanticStable && result.measurement?.valid === true,
+          durationMs: performance.now() - started,
+        });
+      return result;
+    },
+    []
+  );
 
   const capture = useCallback(
     async (
@@ -867,6 +1052,41 @@ export function ScrollStabilityFixture() {
     ) => {
       if (sampling.current || preparingCapture.current)
         throw new Error('A trace is already running');
+      const nativeCorrectionOwner = correctionsEnabled.current
+        ? correctionObservation.current
+        : null;
+      const targetCommand =
+        scenario === nativeCenterCommand.scenario
+          ? nativeCenterCommand
+          : scenario === nativeOffscreenCommand.scenario
+            ? nativeOffscreenCommand
+            : undefined;
+      // Fix semantic scope and native tags before baseline acquisition/action.
+      const nativeSampledRulerContract = declareSampledRuler(scenario);
+      const initialWindowHeight = Dimensions.get('window').height;
+      const nativeLatestVisibilityInputs: Trace['nativeLatestVisibilityInputs'] =
+        nativeSampledRulerContract
+          ? {
+              source: 'React Native Dimensions.get(window).height',
+              before: {
+                windowHeight: initialWindowHeight,
+                atBottomThreshold: 1,
+              },
+              after: {
+                windowHeight: initialWindowHeight,
+                atBottomThreshold: 1,
+              },
+              changes: [],
+            }
+          : undefined;
+      const windowSubscription = nativeLatestVisibilityInputs
+        ? Dimensions.addEventListener('change', ({ window }) => {
+            nativeLatestVisibilityInputs.changes.push({
+              time: performance.now(),
+              windowHeight: window.height,
+            });
+          })
+        : undefined;
       preparingCapture.current = true;
       semanticTarget.current = preparedMutation
         ? {
@@ -880,8 +1100,9 @@ export function ScrollStabilityFixture() {
       let baseline: ScrollSnapshot;
       try {
         await pause(100);
-        baseline = await snapshot();
+        baseline = await snapshot(nativeSampledRulerContract);
       } catch (error) {
+        windowSubscription?.remove();
         preparingCapture.current = false;
         semanticTarget.current = null;
         requiredRows.current.clear();
@@ -908,6 +1129,26 @@ export function ScrollStabilityFixture() {
       const samples: ScrollSnapshot[] = [baseline];
       const startedAt = performance.now();
       const deadline = startedAt + duration;
+      const nativeCenterCommandContract:
+        | NativeCenterCommandContract
+        | undefined =
+        scenario === nativeCenterCommand.scenario
+          ? {
+              version: 1,
+              scope: nativeSampledRulerContract?.scope ?? '',
+              startedAt,
+            }
+          : undefined;
+      const nativeOffscreenCommandContract:
+        | NativeOffscreenCommandContract
+        | undefined =
+        scenario === nativeOffscreenCommand.scenario
+          ? {
+              version: 1,
+              scope: nativeSampledRulerContract?.scope ?? '',
+              startedAt,
+            }
+          : undefined;
       const baselineRender = semanticSnapshots.current.get(baseline)?.commit;
       let mutationPlan: RowMutationContract | undefined;
       if (preparedMutation && baselineRender?.state.presence === 'present') {
@@ -1015,6 +1256,57 @@ export function ScrollStabilityFixture() {
                 : {}),
             }
           : undefined;
+      // Declare this independent native proof before the recorder or action starts.
+      // The mixed JS/native mutation witness below keeps its existing contract.
+      const nativeMutationContract: NativeMutationContract | undefined =
+        nativeRecordingContract && mutationPlan && anchor
+          ? {
+              version: 1,
+              recordingId: nativeRecordingContract.recordingId,
+              requestId: mutationPlan.phases[0].requestId,
+              requestMarker: `${mutationPlan.phases[0].requestId}:native-request`,
+              declaredAt: performance.now(),
+              scope: mutationPlan.scope,
+              key: mutationPlan.key,
+              kind: mutationPlan.kind,
+              baseline: mutationPlan.baseline.state,
+              expected: mutationPlan.phases[0].state,
+              anchorKey: anchor.key,
+              readyDeadlineMs: 400,
+              quietTailMs: 1000,
+              minimumDurationMs: 1800,
+            }
+          : undefined;
+      if (nativeMutationContract)
+        event(
+          'native-mutation-plan',
+          { contract: JSON.stringify(nativeMutationContract) },
+          nativeMutationContract.declaredAt
+        );
+      const nativePostGestureProbe: Trace['nativePostGestureProbe'] =
+        nativeRecordingContract &&
+        /^armed-post-gesture-thinking-(end|away)$/.test(scenario)
+          ? {
+              contract: {
+                version: 1,
+                recordingId: nativeRecordingContract.recordingId,
+                scope: nativeRecordingContract.scope,
+                outcome: scenario.endsWith('-end') ? 'end' : 'away',
+                declaredAt: performance.now(),
+                probeId: `${nativeRecordingContract.recordingId}:post-gesture`,
+                quietTailMs: 1000,
+                tolerancePt: 1,
+              },
+              markerTransfers: [],
+            }
+          : undefined;
+      if (nativePostGestureProbe)
+        event(
+          'native-post-gesture-plan',
+          { contract: JSON.stringify(nativePostGestureProbe.contract) },
+          nativePostGestureProbe.contract.declaredAt
+        );
+      let nativeMutationMarkerTransfer: Trace['nativeMutationMarkerTransfer'];
       const entryMode = scenario.slice('entry-'.length);
       const nativeEntryContract: NativeEntryContract | undefined =
         nativeRecordingContract?.itinerary &&
@@ -1023,6 +1315,7 @@ export function ScrollStabilityFixture() {
           entryMode === 'delayed')
           ? {
               version: 1,
+              ruler: 'indexed-cell-and-surfaces-v1',
               recordingId: nativeRecordingContract.recordingId,
               requestId: `${nativeRecordingContract.recordingId}:entry`,
               mode: entryMode,
@@ -1114,11 +1407,176 @@ export function ScrollStabilityFixture() {
         event('scenario-start', { scenario, assertion });
         const actionDone = Promise.resolve()
           .then(async () => {
-            if (nativeRecordingOwned)
-              await nativeRecordingModule!.markScrollGeometryRecording(
-                nativeRecordingContract!.recordingId,
-                'action-start'
+            const armedInput =
+              /^(armed-thinking-|armed-image-load-|armed-post-gesture-thinking-)/.test(
+                scenario
               );
+            if (armedInput && Platform.OS === 'ios' && !nativeRecordingOwned)
+              throw new Error(
+                'Armed input requires its native recording acknowledgement'
+              );
+            if (nativeRecordingOwned) {
+              const marker =
+                await nativeRecordingModule!.markScrollGeometryRecording(
+                  nativeRecordingContract!.recordingId,
+                  'action-start'
+                );
+              if (
+                armedInput &&
+                (!marker ||
+                  typeof marker !== 'object' ||
+                  !('status' in marker) ||
+                  marker.status !== 'ok' ||
+                  !('recordingId' in marker) ||
+                  marker.recordingId !== nativeRecordingContract!.recordingId ||
+                  !('marker' in marker) ||
+                  !marker.marker ||
+                  typeof marker.marker !== 'object' ||
+                  !('name' in marker.marker) ||
+                  marker.marker.name !== 'action-start')
+              )
+                throw new Error(
+                  'Armed input requires its native action marker acknowledgement'
+                );
+            }
+            if (nativePostGestureProbe) {
+              const probe = nativePostGestureProbe;
+              const listOwner = list.current;
+              const commandOwner = commands.current;
+              const scope = `${attachedChannel.current ?? ''}::${generationRef.current}`;
+              const armedAt = performance.now();
+              probe.armedAt = armedAt;
+              event(
+                'native-post-gesture-armed',
+                { probeId: probe.contract.probeId },
+                armedAt
+              );
+              setStatus(`Armed ${scenario}`);
+              let completion: FixtureEvent | undefined;
+              await waitUntil(
+                () => {
+                  const current = events.current.filter(
+                    (e) => e.time >= armedAt
+                  );
+                  const begins = current.filter((e) => e.name === 'drag-begin');
+                  if (begins.length !== 1) return false;
+                  const after = current.filter((e) => e.time >= begins[0].time);
+                  const dragEnd = after.find((e) => e.name === 'drag-end');
+                  if (!dragEnd) return false;
+                  const momentum = after.find(
+                    (e) => e.name === 'momentum-begin'
+                  );
+                  completion = momentum
+                    ? after.find(
+                        (e) =>
+                          e.name === 'momentum-end' && e.time >= momentum.time
+                      )
+                    : dragEnd;
+                  return !!completion;
+                },
+                'No matching actual gesture completion for the declared native tail.',
+                2800
+              );
+              probe.completion = completion;
+              const isCurrentIntent = commandOwner?.captureScrollIntent?.();
+              if (!isCurrentIntent)
+                throw new Error(
+                  'No current command owner for the native tail.'
+                );
+              const settled = await snapshot(nativeSampledRulerContract);
+              probe.baseline = settled;
+              const g = settled.acquisition?.nativeGeometry?.capture as
+                | import('./scrollNativeGeometry').NativeGeometryCapture
+                | undefined;
+              const newer = events.current.some(
+                (e) =>
+                  e.time > completion!.time &&
+                  /^(drag-begin|momentum-begin|reset|position|media-open|reference-open|center-command-request|offscreen-command-request|local-send|keyboard|composer-input)/.test(
+                    e.name
+                  )
+              );
+              if (
+                list.current !== listOwner ||
+                commands.current !== commandOwner ||
+                scope !==
+                  `${attachedChannel.current ?? ''}::${generationRef.current}` ||
+                !isCurrentIntent() ||
+                newer ||
+                !settled.measurement?.valid ||
+                settled.measurement.durationMs > 32 ||
+                !g?.scroll ||
+                g.scroll.tracking ||
+                g.scroll.dragging ||
+                g.scroll.decelerating
+              )
+                throw new Error(
+                  'The post-gesture baseline is not the same current stationary native owner.'
+                );
+              const distance = settled.scrollBounds
+                ? settled.scrollBounds.max - settled.scroll
+                : NaN;
+              if (
+                !Number.isFinite(distance) ||
+                (probe.contract.outcome === 'end'
+                  ? Math.abs(distance) > 1
+                  : distance <= 1)
+              )
+                throw new Error(
+                  'Actual gesture endpoint differs from the declared probe.'
+                );
+              if (probe.contract.outcome === 'away') {
+                const anchor = chooseReadingAnchor(settled);
+                if (!anchor)
+                  throw new Error('No exposed post-gesture reading anchor.');
+                probe.anchorKey = anchor.key;
+                requiredRows.current.add(anchor.key);
+              }
+              // The accepted recording window is fixed; no late-input extension.
+              if (performance.now() > deadline - 1100)
+                throw new Error(
+                  'Post-gesture probe cannot retain its quiet tail.'
+                );
+              const mark = async (phase: 'start' | 'hidden') => {
+                const name = `${probe.contract.probeId}:${phase}`;
+                const requestedAt = performance.now();
+                const ack =
+                  await nativeRecordingModule!.markScrollGeometryRecording(
+                    probe.contract.recordingId,
+                    name
+                  );
+                const receivedAt = performance.now();
+                probe.markerTransfers.push({
+                  name,
+                  requestedAt,
+                  receivedAt,
+                  clock: 'performance.now milliseconds',
+                });
+                if (
+                  !ack ||
+                  typeof ack !== 'object' ||
+                  !('status' in ack) ||
+                  ack.status !== 'ok' ||
+                  !('recordingId' in ack) ||
+                  ack.recordingId !== probe.contract.recordingId ||
+                  !('marker' in ack) ||
+                  !ack.marker ||
+                  typeof ack.marker !== 'object' ||
+                  !('name' in ack.marker) ||
+                  ack.marker.name !== name
+                )
+                  throw new Error(
+                    'Native post-gesture marker did not acknowledge its exact owner.'
+                  );
+              };
+              await mark('start');
+              if (!isCurrentIntent())
+                throw new Error(
+                  'A newer intent retired the pending native tail.'
+                );
+              await action?.();
+              await mark('hidden');
+              return;
+            }
             if (!preparedMutation)
               return action?.(
                 nativeEntryContract
@@ -1132,6 +1590,38 @@ export function ScrollStabilityFixture() {
               throw new Error('No committed semantic baseline was acquired');
             await pause(Math.max(0, baseline.time + 300 - performance.now()));
             const phase = mutationPlan.phases[0];
+            if (nativeMutationContract && nativeRecordingOwned) {
+              const requestedAt = performance.now();
+              const acknowledgement =
+                await nativeRecordingModule!.markScrollGeometryRecording(
+                  nativeMutationContract.recordingId,
+                  nativeMutationContract.requestMarker
+                );
+              const receivedAt = performance.now();
+              nativeMutationMarkerTransfer = {
+                name: nativeMutationContract.requestMarker,
+                requestedAt,
+                receivedAt,
+                clock: 'performance.now milliseconds',
+              };
+              if (
+                !acknowledgement ||
+                typeof acknowledgement !== 'object' ||
+                !('status' in acknowledgement) ||
+                acknowledgement.status !== 'ok'
+              )
+                throw new Error(
+                  'Native mutation request marker was not recorded'
+                );
+              // Preserve the declared native tail without delaying the mutation
+              // behind the independent JS geometry observer.
+              nativeEarliestStopAt = Math.max(
+                nativeEarliestStopAt,
+                receivedAt +
+                  nativeMutationContract.readyDeadlineMs +
+                  nativeMutationContract.quietTailMs
+              );
+            }
             event('row-change', preparedMutation.selection);
             event('row-mutation-request', {
               key: preparedMutation.key,
@@ -1156,10 +1646,10 @@ export function ScrollStabilityFixture() {
           await new Promise<void>((resolve) =>
             requestAnimationFrame(() => resolve())
           );
-          samples.push(await snapshot());
+          samples.push(await snapshot(nativeSampledRulerContract));
         }
         await Promise.race([actionDone, pause(1000)]);
-        samples.push(await snapshot());
+        samples.push(await snapshot(nativeSampledRulerContract));
         if (nativeRecordingOwned) {
           // Preserve the native window even if starting its bridge request
           // consumed part of the older JavaScript collector's fixed window.
@@ -1178,6 +1668,9 @@ export function ScrollStabilityFixture() {
             clock: 'performance.now milliseconds',
           };
         }
+        if (nativeLatestVisibilityInputs)
+          nativeLatestVisibilityInputs.after.windowHeight =
+            Dimensions.get('window').height;
         const nativeAcquisition = nativeRecordingContract
           ? assessNativeRecording(
               nativeRecording,
@@ -1365,19 +1858,27 @@ export function ScrollStabilityFixture() {
         ];
         if (causalCompletions.length)
           completedAt = Math.max(completedAt, causalCompletions.at(-1)!.time);
-        const interactionWitness = keyboardCase
-          ? keyboardCompletions.length > 0 &&
-            samples.some((s) => s.keyboardHeight !== baseline.keyboardHeight)
-          : composerCase
-            ? capturedEvents.some((e) => e.name === 'composer-input') &&
-              composerLayouts.length > 0
-            : gestureCase
-              ? capturedEvents.some((e) => e.name === 'drag-begin') &&
-                gestureCompletions.length > 0 &&
-                geometryChanged
-              : (changedData && dataCommitted) ||
-                (interaction && (changedRows || geometryChanged)) ||
-                (assertion === 'target' && geometryChanged);
+        const interactionWitness = targetCommand
+          ? capturedEvents.some(
+              (e) =>
+                e.name ===
+                (nativeOffscreenCommandContract
+                  ? 'offscreen-command-request'
+                  : 'center-command-request')
+            )
+          : keyboardCase
+            ? keyboardCompletions.length > 0 &&
+              samples.some((s) => s.keyboardHeight !== baseline.keyboardHeight)
+            : composerCase
+              ? capturedEvents.some((e) => e.name === 'composer-input') &&
+                composerLayouts.length > 0
+              : gestureCase
+                ? capturedEvents.some((e) => e.name === 'drag-begin') &&
+                  gestureCompletions.length > 0 &&
+                  geometryChanged
+                : (changedData && dataCommitted) ||
+                  (interaction && (changedRows || geometryChanged)) ||
+                  (assertion === 'target' && geometryChanged);
         if (
           mutationWitness &&
           mutationWitness.verdict !== 'INCOMPLETE' &&
@@ -1401,7 +1902,9 @@ export function ScrollStabilityFixture() {
         const assessment = anchor
           ? assessAnchorTrace(samples, anchor.key, anchor.y)
           : null;
-        const settleStartTime = deadline - 300;
+        const settleStartTime = targetCommand
+          ? startedAt + targetCommand.landingDeadlineMs
+          : deadline - 300;
         const expectations: ScrollTraceExpectations | null =
           assertion === 'observe'
             ? null
@@ -1577,9 +2080,16 @@ export function ScrollStabilityFixture() {
                 !imageExplainsExtent &&
                 !(
                   thinkingCase &&
-                  thinkingLayouts.some(
-                    (e) => e.time >= previous.time && e.time <= current.time
-                  )
+                  (Platform.OS === 'ios'
+                    ? nativeThinkingGestureExtentIsMeasured(
+                        previous,
+                        current,
+                        capturedEvents,
+                        postsRef.current.map((post) => post.id)
+                      )
+                    : thinkingLayouts.some(
+                        (e) => e.time >= previous.time && e.time <= current.time
+                      ))
                 )) ||
               changedData
             ) {
@@ -1681,9 +2191,10 @@ export function ScrollStabilityFixture() {
             scenario.endsWith('-history') ||
             gestureCase,
           requireInitialEnd:
-            assertion === 'bottom' &&
-            !scenario.startsWith('entry-') &&
-            scenario !== 'empty-first-post',
+            !!targetCommand ||
+            (assertion === 'bottom' &&
+              !scenario.startsWith('entry-') &&
+              scenario !== 'empty-first-post'),
           requireReadingAnchor: assertion === 'hold' || gestureCase,
           readingAnchorKey: anchor?.key,
           excludedAnchorKeys: [
@@ -1731,6 +2242,26 @@ export function ScrollStabilityFixture() {
           result.verdict = 'INCOMPLETE';
           result.passed = false;
         }
+        if (
+          result &&
+          nativeLatestVisibilityInputs &&
+          (!Number.isFinite(initialWindowHeight) ||
+            initialWindowHeight <= 0 ||
+            nativeLatestVisibilityInputs.after.windowHeight !==
+              initialWindowHeight ||
+            nativeLatestVisibilityInputs.changes.some(
+              (change) => change.windowHeight !== initialWindowHeight
+            ))
+        ) {
+          result.issues.push({
+            code: 'native-window-height-changed',
+            kind: 'incomplete',
+            message:
+              'The fixed-window capture lost its declared native threshold geometry.',
+          });
+          result.verdict = 'INCOMPLETE';
+          result.passed = false;
+        }
         const trace: Trace = {
           scenario,
           runId: runId.current,
@@ -1762,8 +2293,26 @@ export function ScrollStabilityFixture() {
           ...(Platform.OS === 'ios'
             ? { nativeGeometrySchemaVersion: 1 as const }
             : {}),
+          nativeSampledRulerContract,
+          nativeCenterCommandContract,
+          nativeOffscreenCommandContract,
+          nativeLatestVisibilityInputs,
           nativeRecording,
+          nativeCorrections: nativeCorrectionOwner
+            ? {
+                ...nativeCorrectionOwner.read(),
+                ...(correctionObservation.current !== nativeCorrectionOwner
+                  ? {
+                      status: 'unavailable' as const,
+                      error: 'Diagnostic list owner changed during capture',
+                    }
+                  : {}),
+              }
+            : undefined,
           nativeRecordingContract,
+          nativeMutationContract,
+          nativePostGestureProbe,
+          nativeMutationMarkerTransfer,
           nativeEntryContract,
           nativeEntryMarkerTransfers: nativeEntryContract
             ? nativeEntryMarkerTransfers
@@ -1791,6 +2340,20 @@ export function ScrollStabilityFixture() {
           imageLoadEvidence,
           platform: Platform.OS,
         };
+        if (scenario === nativeCenterCommand.scenario) {
+          for (const issue of nativeCenterCommandEvidenceIssues(trace))
+            incomplete(
+              issue,
+              'The fixed native center command contract was not established.'
+            );
+        }
+        if (scenario === nativeOffscreenCommand.scenario) {
+          for (const issue of nativeOffscreenCommandEvidenceIssues(trace))
+            incomplete(
+              issue,
+              'The fixed unmounted native target contract was not established.'
+            );
+        }
         traces.current.push(trace);
         new File(
           Paths.document,
@@ -1802,6 +2365,7 @@ export function ScrollStabilityFixture() {
         );
         return { scenario, verdict, result, samples: samples.length };
       } finally {
+        windowSubscription?.remove();
         if (nativeRecordingOwned)
           await nativeRecordingModule!
             .stopScrollGeometryRecording(nativeRecordingContract!.recordingId)
@@ -1811,31 +2375,25 @@ export function ScrollStabilityFixture() {
         requiredRows.current.clear();
       }
     },
-    [event, snapshot]
+    [event, snapshot, declareSampledRuler]
   );
 
   const position = useCallback(
     async (where: 'end' | 'near' | 'history' | 'top') => {
       const ref = list.current;
-      if (!ref) throw new Error('List is not ready');
-      await ref.scrollToEnd({ animated: false });
-      await pause(500);
-      if (where !== 'end') {
-        const state = ref.getState();
-        await ref.scrollToOffset({
-          offset:
-            where === 'top'
-              ? 0
-              : Math.max(
-                  0,
-                  state.scroll -
-                    (where === 'near' ? 220 : state.scrollLength * 3)
-                ),
-          animated: false,
-        });
-      }
-      await pause(600);
-      event('positioned', { where });
+      const surface = commands.current;
+      if (!ref || !surface) throw new Error('List commands are not ready');
+      const result = await positionFixtureList(
+        surface,
+        () => ref.getState(),
+        where,
+        pause
+      );
+      event('positioned', {
+        where,
+        source: result.source,
+        ...(result.postId ? { postId: result.postId } : {}),
+      });
     },
     [event]
   );
@@ -1852,7 +2410,7 @@ export function ScrollStabilityFixture() {
         | 'reply'
         | 'cache'
     ): Promise<PreparedRowMutation> => {
-      const before = await snapshot();
+      const before = await snapshot(declareSampledRuler(`history-${kind}`));
       const readingAnchor = chooseReadingAnchor(before);
       const visible = before.rows
         .filter(
@@ -1968,7 +2526,7 @@ export function ScrollStabilityFixture() {
         },
       };
     },
-    [event, snapshot, update]
+    [event, snapshot, declareSampledRuler, update]
   );
 
   const changeVisibleNonAnchorRow = useCallback(
@@ -2024,6 +2582,17 @@ export function ScrollStabilityFixture() {
     []
   );
 
+  const configureNativeReadTiming = useCallback(
+    async (session?: string) => {
+      setNativeReadTimingSession(session);
+      await waitUntil(
+        () => committedTimingSession.current === session,
+        'The native timing diagnostic session did not commit.'
+      );
+    },
+    [waitUntil]
+  );
+
   const transitionThinking = useCallback(
     async (label?: string) => {
       const visible = label !== undefined;
@@ -2063,7 +2632,7 @@ export function ScrollStabilityFixture() {
   const prepareGatedImage = useCallback(
     async (name: string, where: 'end' | 'history'): Promise<ImageLoadGate> => {
       await position(where);
-      const before = await snapshot();
+      const before = await snapshot(declareSampledRuler(name));
       const readingAnchor = chooseReadingAnchor(before);
       const candidate = before.rows
         .filter(
@@ -2113,11 +2682,10 @@ export function ScrollStabilityFixture() {
           'Image request did not reach its unreleased native asset gate.'
         );
       if (where === 'history' && readingAnchor) {
-        const index = postsRef.current.findIndex(
-          (post) => post.id === readingAnchor.key
-        );
-        await list.current?.scrollToIndex({
-          index,
+        const surface = commands.current;
+        if (!surface) throw new Error('List commands are not ready');
+        surface.scrollToPost({
+          postId: readingAnchor.key,
           viewPosition: 0.5,
           animated: false,
         });
@@ -2134,7 +2702,7 @@ export function ScrollStabilityFixture() {
         released: false,
       };
     },
-    [position, snapshot, update]
+    [position, snapshot, declareSampledRuler, update]
   );
   const releaseGatedImage = useCallback(
     async (gate: ImageLoadGate) => {
@@ -2148,6 +2716,52 @@ export function ScrollStabilityFixture() {
   const run = useCallback(
     async (name: string) => {
       const kind = name.split('-').at(-1);
+      if (
+        name === nativeCenterCommand.scenario ||
+        name === nativeOffscreenCommand.scenario
+      ) {
+        const offscreen = name === nativeOffscreenCommand.scenario;
+        const command = offscreen
+          ? nativeOffscreenCommand
+          : nativeCenterCommand;
+        if (offscreen) await reset();
+        else await position('end');
+        return capture(
+          name,
+          'target',
+          () => {
+            const surface = commands.current;
+            if (!surface) throw new Error('List commands are not ready');
+            const mountedKeys = [...rows.current.keys()];
+            if (offscreen && mountedKeys.includes(command.key))
+              throw new Error(
+                'Offscreen target is already mounted before request'
+              );
+            event(
+              offscreen
+                ? 'offscreen-command-request'
+                : 'center-command-request',
+              {
+                scope: `${attachedChannel.current ?? ''}::${generationRef.current}`,
+                key: command.key,
+                viewPosition: command.viewPosition,
+                animated: command.animated,
+                source: 'PostList.scrollToPost',
+                ...(offscreen
+                  ? { mountedKeys: JSON.stringify(mountedKeys) }
+                  : {}),
+              }
+            );
+            surface.scrollToPost({
+              postId: command.key,
+              viewPosition: command.viewPosition,
+              animated: command.animated,
+            });
+          },
+          command.durationMs,
+          command.key
+        );
+      }
       if (name.startsWith('entry-'))
         return capture(
           name,
@@ -2227,6 +2841,30 @@ export function ScrollStabilityFixture() {
           2400
         );
       }
+      if (/^armed-post-gesture-thinking-(end|away)$/.test(name)) {
+        const initialThinking = thinkingEvidence.current;
+        if (initialThinking.visible || initialThinking.height !== 0)
+          await transitionThinking(undefined);
+        await waitUntil(
+          () =>
+            !thinkingEvidence.current.visible &&
+            thinkingEvidence.current.height === 0 &&
+            thinkingEvidence.current.committedAt > 0 &&
+            thinkingEvidence.current.laidOutAt > 0,
+          'The hidden thinking baseline has not committed and laid out.'
+        );
+        await position('end');
+        return capture(
+          name,
+          'observe',
+          async () => {
+            await transitionThinking('Thinking...');
+            await pause(100);
+            await transitionThinking(undefined);
+          },
+          4500
+        );
+      }
       if (/^armed-thinking-(keyboard-(end|history)|gesture)$/.test(name)) {
         const keyboardRace = name.includes('-keyboard-');
         const where = name.endsWith('-end') ? 'end' : 'history';
@@ -2237,6 +2875,7 @@ export function ScrollStabilityFixture() {
           async () => {
             const armedAt = performance.now();
             event('thinking-race-armed');
+            setStatus(`Armed ${name}`);
             await waitUntil(
               () =>
                 events.current.some(
@@ -2280,6 +2919,7 @@ export function ScrollStabilityFixture() {
           async () => {
             const armedAt = performance.now();
             event('image-load-race-armed', { key: gate.key, interaction });
+            setStatus(`Armed ${name}`);
             await waitUntil(
               () =>
                 events.current.some(
@@ -2417,48 +3057,23 @@ export function ScrollStabilityFixture() {
     ]
   );
 
-  const automatedScenarios = [
-    'entry-latest',
-    'entry-selected',
-    'entry-delayed',
-    'empty-first-post',
-    'append-end',
-    'append-history',
-    'burst-end',
-    'burst-history',
-    'prepend-history',
-    'stateful-image-load-history',
-    'stateful-image-load-end',
-    'thinking-empty-show-hide',
-    ...['end', 'history'].flatMap((position) => [
-      `thinking-show-hide-${position}`,
-      `thinking-label-${position}`,
-      `thinking-handoff-message-first-${position}`,
-      `thinking-handoff-same-frame-${position}`,
-      `thinking-handoff-hide-first-${position}`,
-    ]),
-    ...['near', 'history'].flatMap((position) =>
-      [
-        'grow',
-        'shrink',
-        'media',
-        'reference',
-        'remove',
-        'reaction',
-        'reply',
-        'cache',
-      ].map((kind) => `${position}-${kind}`)
-    ),
-  ];
   const runSuite = useCallback(
-    async (id = String(Date.now())) => {
+    async (
+      id = String(Date.now()),
+      names: readonly string[] = automatedScenarios,
+      withCorrections = false,
+      timingSession?: string
+    ) => {
+      const selectedScenarios = selectFixtureSuiteScenarios(names);
       if (suiteRunning.current) throw new Error('Suite already running');
       suiteRunning.current = true;
+      correctionsEnabled.current = withCorrections;
       runId.current = id;
       traces.current = [];
       const results: unknown[] = [];
       try {
-        for (const name of automatedScenarios) {
+        await configureNativeReadTiming(timingSession);
+        for (const name of selectedScenarios) {
           try {
             await reset();
             events.current = [];
@@ -2479,16 +3094,21 @@ export function ScrollStabilityFixture() {
             productCoverage: 'local-component-fixture',
             evidenceLevel: 'sampled-geometry',
             nativeFrames: 'INCOMPLETE',
+            nativeReadTimingSession: timingSession,
+            selectedScenarios,
             results,
           })
         );
         setStatus(`Suite complete: ${results.length} cases; see JSON report`);
         return results;
       } finally {
+        correctionObservation.current?.dispose();
+        correctionsEnabled.current = false;
         suiteRunning.current = false;
+        setNativeReadTimingSession(undefined);
       }
     },
-    [reset, run]
+    [reset, run, configureNativeReadTiming]
   );
 
   useEffect(() => {
@@ -2538,21 +3158,38 @@ export function ScrollStabilityFixture() {
       if (!url.includes('scroll-stability')) return;
       const parsed = new URL(url);
       const scenario = parsed.searchParams.get('scenario');
-      const suite = parsed.searchParams.get('suite');
       const id = parsed.searchParams.get('runId');
-      if (id) runId.current = id;
       const target = parsed.searchParams.get('position');
       for (let attempt = 0; !list.current && attempt < 20; attempt++)
         await pause(150);
       if (cancelled) return;
       try {
-        if (suite) {
-          await runSuite(id ?? undefined);
+        const suiteNames = parseFixtureSuiteRequest(parsed.searchParams);
+        const withCorrections = parseFixtureCorrectionDiagnostics(
+          parsed.searchParams
+        );
+        const timingSession = parseFixtureNativeReadTimingSession(
+          parsed.searchParams
+        );
+        if (suiteNames) {
+          await runSuite(
+            id ?? undefined,
+            suiteNames,
+            withCorrections,
+            timingSession
+          );
           return;
         }
-        if (target)
-          await position(target as 'end' | 'near' | 'history' | 'top');
-        if (scenario) await run(scenario);
+        if (suiteRunning.current) throw new Error('Suite already running');
+        if (id) runId.current = id;
+        await configureNativeReadTiming(timingSession);
+        try {
+          if (target)
+            await position(target as 'end' | 'near' | 'history' | 'top');
+          if (scenario) await run(scenario);
+        } finally {
+          setNativeReadTimingSession(undefined);
+        }
       } catch (error) {
         setStatus(String(error));
       }
@@ -2568,10 +3205,12 @@ export function ScrollStabilityFixture() {
       cancelled = true;
       listener.remove();
     };
-  }, [position, run, runSuite]);
+  }, [position, run, runSuite, configureNativeReadTiming]);
 
   const scenarios = [
     ...automatedScenarios,
+    'command-center',
+    'command-offscreen',
     'entry-latest',
     'entry-selected',
     'entry-delayed',
@@ -2595,6 +3234,8 @@ export function ScrollStabilityFixture() {
     'armed-thinking-keyboard-end',
     'armed-thinking-keyboard-history',
     'armed-thinking-gesture',
+    'armed-post-gesture-thinking-end',
+    'armed-post-gesture-thinking-away',
     'armed-image-load-gesture',
     'armed-image-load-keyboard-end',
     'armed-image-load-keyboard-history',
@@ -2608,118 +3249,120 @@ export function ScrollStabilityFixture() {
     <RuntimeContext.Provider value={runtime}>
       <ConversationListDiagnosticsContext.Provider value={diagnostics}>
         <FixtureKit>
-          <View
-            testID={NATIVE_ROOT_ID}
-            accessibilityValue={{
-              text: JSON.stringify({
-                version: 1,
-                scope: `${fixtureChannel.id}::${generation}`,
-                requestedKeys: posts.map((post) => post.id),
-              }),
-            }}
-            collapsable={false}
-            style={{ flex: 1 }}
-          >
+          <ScrollStabilityScreenHost>
             <View
-              style={{
-                height: 92,
-                paddingTop: 30,
-                backgroundColor: '#e7eef6',
-                paddingHorizontal: 8,
+              testID={NATIVE_ROOT_ID}
+              accessibilityValue={{
+                text: JSON.stringify({
+                  version: 1,
+                  scope: `${fixtureChannel.id}::${generation}`,
+                  requestedKeys: posts.map((post) => post.id),
+                }),
               }}
-            >
-              <Text
-                testID="scroll-stability-status"
-                numberOfLines={2}
-                style={{ fontSize: 11, color: '#15263d' }}
-              >
-                {status}
-              </Text>
-              <View style={{ flexDirection: 'row' }}>
-                <Button title="Scenarios" onPress={() => setPanel(true)} />
-                <Button title="Latest" onPress={() => void position('end')} />
-                <Button
-                  title="History"
-                  onPress={() => void position('history')}
-                />
-                <Button title="Reset" onPress={() => void reset()} />
-              </View>
-            </View>
-            <View style={{ flex: 1 }}>
-              <HeaderHeightContext.Provider value={0}>
-                <ChannelFixture
-                  key={generation}
-                  passedProps={() => ({
-                    channel: fixtureChannel,
-                    // Production queries supply newest first; ListPostCollection
-                    // reverses that once for the upright native chat list.
-                    posts: newestFirstPosts,
-                    selectedPostId,
-                    isLoadingPosts: loading,
-                    pendingThinkingLabel: thinking,
-                    onLoadOlderPosts: noop,
-                    onLoadNewerPosts: noop,
-                    goToMediaViewer: () => {
-                      event('media-open');
-                      setMedia(true);
-                    },
-                    onPressRef: (_channel, post) => {
-                      event('reference-open', { key: post.id });
-                      setSelectedPostId(post.id);
-                    },
-                    markRead: noop,
-                  })}
-                />
-              </HeaderHeightContext.Provider>
-            </View>
-            <Modal
-              visible={panel}
-              animationType="none"
-              onRequestClose={() => setPanel(false)}
-            >
-              <View style={{ flex: 1, paddingTop: 60 }}>
-                <Button title="Close" onPress={() => setPanel(false)} />
-                <ScrollView>
-                  {[...new Set(scenarios)].map((name) => (
-                    <Button
-                      key={name}
-                      title={name}
-                      onPress={() => {
-                        setPanel(false);
-                        void run(name).catch((error) =>
-                          setStatus(String(error))
-                        );
-                      }}
-                    />
-                  ))}
-                </ScrollView>
-              </View>
-            </Modal>
-            <Modal
-              visible={media}
-              animationType="fade"
-              onRequestClose={() => setMedia(false)}
+              collapsable={false}
+              style={{ flex: 1 }}
             >
               <View
                 style={{
-                  flex: 1,
-                  justifyContent: 'center',
-                  backgroundColor: '#182537',
+                  height: 92,
+                  paddingTop: 30,
+                  backgroundColor: '#e7eef6',
+                  paddingHorizontal: 8,
                 }}
               >
-                <Text style={{ color: 'white', textAlign: 'center' }}>
-                  Fixture media destination
+                <Text
+                  testID="scroll-stability-status"
+                  numberOfLines={2}
+                  style={{ fontSize: 11, color: '#15263d' }}
+                >
+                  {status}
                 </Text>
-                <Button
-                  title="Return to conversation"
-                  onPress={() => {
-                    event('media-close');
-                    setMedia(false);
-                  }}
-                />
+                <View style={{ flexDirection: 'row' }}>
+                  <Button title="Scenarios" onPress={() => setPanel(true)} />
+                  <Button title="Latest" onPress={() => void position('end')} />
+                  <Button
+                    title="History"
+                    onPress={() => void position('history')}
+                  />
+                  <Button title="Reset" onPress={() => void reset()} />
+                </View>
               </View>
-            </Modal>
-          </View>
+              <View style={{ flex: 1 }}>
+                <HeaderHeightContext.Provider value={0}>
+                  <ChannelFixture
+                    key={generation}
+                    passedProps={() => ({
+                      channel: fixtureChannel,
+                      // Production queries supply newest first; ListPostCollection
+                      // reverses that once for the upright native chat list.
+                      posts: newestFirstPosts,
+                      selectedPostId,
+                      isLoadingPosts: loading,
+                      pendingThinkingLabel: thinking,
+                      onLoadOlderPosts: noop,
+                      onLoadNewerPosts: noop,
+                      goToMediaViewer: () => {
+                        event('media-open');
+                        setMedia(true);
+                      },
+                      onPressRef: (_channel, post) => {
+                        event('reference-open', { key: post.id });
+                        setSelectedPostId(post.id);
+                      },
+                      markRead: noop,
+                    })}
+                  />
+                </HeaderHeightContext.Provider>
+              </View>
+              <Modal
+                visible={panel}
+                animationType="none"
+                onRequestClose={() => setPanel(false)}
+              >
+                <View style={{ flex: 1, paddingTop: 60 }}>
+                  <Button title="Close" onPress={() => setPanel(false)} />
+                  <ScrollView>
+                    {[...new Set(scenarios)].map((name) => (
+                      <Button
+                        key={name}
+                        title={name}
+                        onPress={() => {
+                          setPanel(false);
+                          void run(name).catch((error) =>
+                            setStatus(String(error))
+                          );
+                        }}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
+              </Modal>
+              <Modal
+                visible={media}
+                animationType="fade"
+                onRequestClose={() => setMedia(false)}
+              >
+                <View
+                  style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    backgroundColor: '#182537',
+                  }}
+                >
+                  <Text style={{ color: 'white', textAlign: 'center' }}>
+                    Fixture media destination
+                  </Text>
+                  <Button
+                    title="Return to conversation"
+                    onPress={() => {
+                      event('media-close');
+                      setMedia(false);
+                    }}
+                  />
+                </View>
+              </Modal>
+            </View>
+          </ScrollStabilityScreenHost>
         </FixtureKit>
       </ConversationListDiagnosticsContext.Provider>
     </RuntimeContext.Provider>

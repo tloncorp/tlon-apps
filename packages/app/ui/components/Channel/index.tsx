@@ -32,6 +32,7 @@ import {
   useTheme,
 } from 'tamagui';
 
+import { useLifecyclePermit } from '../../../hooks/useLifecyclePermit';
 import { useIsUserActive } from '../../../hooks/useUserActivity';
 import type { ChannelShareIntent } from '../../../types/shareIntent';
 import { normalizeUploadIntent } from '../../../utils/filepicker';
@@ -695,12 +696,17 @@ export function Channel({
   // Agent setup drives its scroll from the durable post list below. Starting
   // an animated send scroll while that list is preserving its end anchor makes
   // the two corrections visibly fight.
-  const scrollToNewMessage = useCallback(() => {
-    if (suppressAnimatedSendScroll) return;
-    requestAnimationFrame(() => {
-      collectionRef.current?.scrollToLatest?.({ animated: true });
-    });
-  }, [suppressAnimatedSendScroll]);
+  const sendPermit = useLifecyclePermit(
+    [
+      channel.id,
+      inView,
+      canRead,
+      canWrite,
+      negotiationMatch,
+      suppressAnimatedSendScroll,
+    ],
+    inView && canRead && canWrite && negotiationMatch
+  );
 
   const handleOpenDraft = useCallback((mode?: 'text' | 'link') => {
     draftInputRef.current?.startDraft?.(mode);
@@ -722,10 +728,18 @@ export function Channel({
       group: stableGroup,
       onPresentationModeChange: setDraftInputPresentationMode,
       sendPostFromDraft: async (draft, options) => {
+        if (!sendPermit.isCurrent()) return;
+        const stillCurrent = sendPermit.capture();
+        const surface = collectionRef.current;
+        const stillFollowing = surface?.captureScrollIntent?.() ?? (() => true);
+        const mayFollow = () =>
+          !suppressAnimatedSendScroll && stillCurrent() && stillFollowing();
         setEditingPost?.(undefined);
         await finalizeAndSendPost(draft, options);
-        if (!draft.isEdit) {
-          scrollToNewMessage();
+        if (!draft.isEdit && mayFollow()) {
+          requestAnimationFrame(() => {
+            if (mayFollow()) surface?.scrollToLatest?.({ animated: true });
+          });
         }
       },
       setEditingPost,
@@ -736,7 +750,8 @@ export function Channel({
     }),
     [
       canStartDraft,
-      scrollToNewMessage,
+      sendPermit,
+      suppressAnimatedSendScroll,
       channel,
       clearDraft,
       editingPost,
@@ -1026,6 +1041,7 @@ export function Channel({
                                   <View flex={1}>
                                     <PostCollectionContext.Provider
                                       value={{
+                                        isFocused: inView,
                                         contentInsets: postCollectionInsets,
                                         channel,
                                         collectionConfiguration:

@@ -6,6 +6,8 @@ import type { ConversationContentInsets } from '../components/conversationInsets
 import type { MinimalRenderItemType, RenderItemType } from './componentsKits';
 
 export interface PostCollectionContextValue {
+  /** Route focus combined with the active carousel item, when applicable. */
+  isFocused?: boolean;
   contentInsets?: ConversationContentInsets;
   channel: db.Channel;
   collectionConfiguration?: Record<string, JSONValue>;

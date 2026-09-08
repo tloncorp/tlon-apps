@@ -1,4 +1,5 @@
 import { expect } from '@playwright/test';
+import { assessInputPaint } from '../../../scripts/scroll-stability-input-paint.cjs';
 import {
   assessScrollInputTrace,
   bindScrollInputDeliveries,
@@ -18,7 +19,11 @@ import {
 } from './helpers/scrollers';
 import { testWithOptions } from './test-fixtures';
 
-const test = testWithOptions({ appReadyTimeoutMs: 60_000, e2eMode: false });
+const test = testWithOptions({
+  appReadyTimeoutMs: 60_000,
+  e2eMode: false,
+  createdGroupCleanup: true,
+});
 
 test.describe('Real composer input and geometry', () => {
   test.setTimeout(180_000);
@@ -76,6 +81,10 @@ test.describe('Real composer input and geometry', () => {
       const plan = {
         before: expected(''),
         grown: expected(expanded),
+        selected: {
+          ...expected(expanded),
+          selection: { start: 0, end: expanded.length },
+        },
         cleared: expected(''),
       };
       await page.bringToFront();
@@ -123,7 +132,7 @@ test.describe('Real composer input and geometry', () => {
           plan,
           assets: 'Vite development assets',
           browser: testInfo.project.use.channel,
-          headed: true,
+          headed: testInfo.project.use.headless === false,
         }),
         contentType: 'application/json',
       });
@@ -156,10 +165,16 @@ test.describe('Real composer input and geometry', () => {
         scroller,
         anchorId ? [anchorId] : []
       );
-      const inputs = await startScrollInputTrace(inputHandle!, sendHandle!, [
-        expanded,
-        '',
-      ]);
+      const inputs = await startScrollInputTrace(
+        inputHandle!,
+        sendHandle!,
+        [
+          { kind: 'input', payload: expanded },
+          { kind: 'select-all', payload: 'ControlOrMeta+A' },
+          { kind: 'input', payload: '' },
+        ],
+        process.env.SCROLLER_INPUT_PAINT === '1' ? page : undefined
+      );
       let geometryTrace: Awaited<ReturnType<typeof geometry.stop>>;
       let inputTrace: Awaited<ReturnType<typeof inputs.stop>>;
       let plannedEnd = 0;
@@ -172,8 +187,13 @@ test.describe('Real composer input and geometry', () => {
         // a poll that waits until a desired state appears.
         await page.waitForTimeout(350);
         await inputs.beginInput(1);
-        await input.fill('');
+        await page.keyboard.press('ControlOrMeta+A');
         await inputs.endInput(1);
+        // Keep the explicitly selected state observable before Delete.
+        await page.waitForTimeout(150);
+        await inputs.beginInput(2);
+        await page.keyboard.press('Delete');
+        await inputs.endInput(2);
         await geometry.mark('composer-exact-geometry:terminal-state');
         plannedEnd = await page.evaluate(() => performance.now() + 1300);
         await page.evaluate(async (end) => {
@@ -196,18 +216,25 @@ test.describe('Real composer input and geometry', () => {
           contentType: 'application/json',
         });
       }
-      const expectedActions = [expanded, ''].map((payload, index) => ({
-        id: `input-${index + 1}`,
-        kind: 'input' as const,
+      const expectedActions = [
+        { id: 'input-1', kind: 'input' as const, payload: expanded },
+        {
+          id: 'select-all-1',
+          kind: 'select-all' as const,
+          payload: 'ControlOrMeta+A',
+        },
+        { id: 'input-2', kind: 'input' as const, payload: '' },
+      ].map((action) => ({
+        ...action,
         scopeKey: scope,
         inputId: 'MessageInput',
-        payload,
       }));
       const binding = bindScrollInputDeliveries({
         declaredAt: inputTrace.declaredAt,
         expected: expectedActions,
         dispatches: inputTrace.dispatches,
         events: inputTrace.actions,
+        keyboard: inputTrace.keyboard,
       });
       await testInfo.attach('composer-exact-delivery-binding', {
         body: JSON.stringify(binding),
@@ -216,7 +243,7 @@ test.describe('Real composer input and geometry', () => {
       expect(binding.issues).toEqual([]);
       const delivered = binding.actions;
       const contract: ScrollInputContract = {
-        version: 1,
+        version: 2,
         declaredAt: inputTrace.declaredAt,
         start: inputTrace.samples[0].time,
         end: plannedEnd,
@@ -237,14 +264,29 @@ test.describe('Real composer input and geometry', () => {
             expected: plan.grown,
           },
           {
-            id: 'cleared',
+            id: 'selected',
             start: delivered[1].time,
+            end: delivered[2].time,
+            triggerActionId: 'select-all-1',
+            expected: plan.selected,
+          },
+          {
+            id: 'cleared',
+            start: delivered[2].time,
             end: plannedEnd,
             triggerActionId: 'input-2',
             expected: plan.cleared,
           },
         ],
       };
+      if (inputTrace.paintedCaret) {
+        await testInfo.attach('composer-exact-caret-paint-assessment', {
+          body: JSON.stringify(
+            assessInputPaint(inputTrace.paintedCaret, contract, inputTrace)
+          ),
+          contentType: 'application/json',
+        });
+      }
       const inputResult = assessScrollInputTrace({
         contract,
         samples: inputTrace.samples,

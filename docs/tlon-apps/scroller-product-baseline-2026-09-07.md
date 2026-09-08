@@ -208,25 +208,25 @@ load/reflow behavior, not the complete content renderer or media experience.
 
 The one bounded real-app case independently **fails with zero incomplete issues**.
 The actual Enter key created one optimistic message while its exact outbound
-post-add request was held before forwarding. During that1,035.6ms hold, the
+post-add request was held before forwarding. During that 1,035.6 ms hold, the
 backend contained zero matching posts. Trusted upward wheel input established a
-120px bottom gap and an exposed unchanged reading character. After unchanged
+120 px bottom gap and an exposed unchanged reading character. After unchanged
 request release, the matching successful wire poke acknowledgement arrived;
-the list then returned to latest and moved that character upward120px.
+the list then returned to latest and moved that character upward120 px.
 
-The first observed movement was47.4ms after wire acknowledgement receipt. This
+The first observed movement was 47.4 ms after wire acknowledgement receipt. This
 is a network-observer receipt timestamp, not a direct observation of the app's
 `onSuccess` callback. Final backend and UI evidence independently establish one
 committed message and reconciliation from the optimistic ID to that exact
-canonical backend ID. Both backend windows are complete:36 original posts,
-then37 posts, unique canonical IDs, no older/newer cursor, and unchanged original
+canonical backend ID. Both backend windows are complete: 36 original posts,
+then 37 posts, unique canonical IDs, no older/newer cursor, and unchanged original
 essays. There is no duplicate send or late draft restoration.
 
-The retained capture has425 DOM samples and319 reading samples. Maximum sample
-gaps are56.1/55.9ms; acquisition costs are0.5/5.6ms. It covers the independently
-fixed five seconds after release and4.658s after terminal reconciliation. All
+The retained capture has 425 DOM samples and 319 reading samples. Maximum sample
+gaps are 56.1/55.9 ms; acquisition costs are 0.5/5.6 ms. It covers the independently
+fixed five seconds after release and 4.658 s after terminal reconciliation. All
 1,668 captured source hashes were unchanged during execution. The scenario took
-21.007s in headed Chromium with normal application flags; actual bundled
+21.007 s in headed Chromium with normal application flags; actual bundled
 `index-lbl3h7gl.js` was observed and no Vite runtime was present. Reusing that warm
 preview is not a fresh build-receipt qualification. Presented frames and native
 caret geometry remain outside this sampled contract.
@@ -239,12 +239,12 @@ ordinary failing assertion remains in the baseline; no rerun was needed.
 - Raw report: `/private/tmp/scroller-pending-send-product-r2-20260907.json`.
 - Original independent replay: `/private/tmp/scroller-pending-send-product-r2-20260907-independent.json`.
 - Tightened independent replay: `/private/tmp/scroller-pending-send-product-r2-20260907-independent-v2.json`.
-- Initial71 controls: `/private/tmp/scroller-pending-send-controls-20260907.json`.
-- After three identified proof corrections,83 controls: `/private/tmp/scroller-pending-send-integrity-controls-20260907.json`.
+- Initial 71 controls: `/private/tmp/scroller-pending-send-controls-20260907.json`.
+- After three identified proof corrections, 83 controls: `/private/tmp/scroller-pending-send-integrity-controls-20260907.json`.
 
 The later proof corrections require finite hold/forward/ACK times, exact
 canonical terminal UI identity and a complete canonical-ID-unique backend
-window. Replaying the untouched r2 data under these rules retains the same120px
+window. Replaying the untouched r2 data under these rules retains the same120 px
 failure with no new incomplete issues. Exact run-source bytes and later replay
 sources are retained separately; tightening the evaluator does not rewrite the
 collector that ran. The separate supplemental archive is

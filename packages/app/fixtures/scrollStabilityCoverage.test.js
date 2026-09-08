@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { conversationFollowSetupIssue } from '../../../scripts/scroll-stability-conversation-semantic-evidence.mjs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { assessScrollTrace } from './scrollStabilityTrace';
@@ -1159,8 +1160,8 @@ describe('image-content raw evidence replay (reporter controls, not product proo
     ).toHaveLength(1);
     expect(
       scenarioRegistry.filter((item) => !item.scenario.startsWith('web-'))
-    ).toHaveLength(56);
-    expect(scenarioRegistry).toHaveLength(56 + webScenarioRegistry.length);
+    ).toHaveLength(58);
+    expect(scenarioRegistry).toHaveLength(58 + webScenarioRegistry.length);
     expect(evidence.registry.matrix).toEqual(['FLK-07', 'FLK-12', 'STA-01']);
     expect(evidence.registry.requireContentProof).toBe(true);
     expect(evidence.registry.requireImageLoadingProof).toBe(true);
@@ -2185,11 +2186,17 @@ describe('scroller coverage accounting (reporter controls, not device proof)', (
 
   it('replays a strict single-phase mutation with a real pre-baseline commit and a post-baseline plan', () => {
     const trace = strictNativeMutation();
-    expect(classifyEvidence(trace)).toBe('recorded-sampled-pass');
-    expect(qualifyEvidence(trace)).toEqual({
-      status: 'recorded-sampled-pass',
-      issues: [],
-      geometryEvidenceLevel: 'legacy-mixed-source-diagnostic',
+    // This control supplies only the legacy sampled contract. Its semantic
+    // success must survive, but cannot substitute for buffered continuity.
+    expect(classifyEvidence(trace)).toBe('incomplete');
+    expect(qualifyEvidence(trace)).toMatchObject({
+      status: 'incomplete',
+      sampledGeometry: {
+        status: 'recorded-sampled-pass',
+        issues: [],
+        geometryEvidenceLevel: 'legacy-mixed-source-diagnostic',
+      },
+      nativeMutation: { verdict: 'INCOMPLETE' },
     });
     trace.mutationEvidence.contract.declaredAt = -20;
     trace.events[1].time = -20;
@@ -2197,7 +2204,10 @@ describe('scroller coverage accounting (reporter controls, not device proof)', (
       trace.mutationEvidence.contract
     );
     trace.events.sort((a, b) => a.time - b.time);
-    expect(qualifyEvidence(trace).status).toBe('recorded-sampled-pass');
+    expect(qualifyEvidence(trace)).toMatchObject({
+      status: 'incomplete',
+      sampledGeometry: { status: 'recorded-sampled-pass' },
+    });
   });
 
   it.each([
@@ -2335,7 +2345,10 @@ describe('scroller coverage accounting (reporter controls, not device proof)', (
     corrupt(trace);
     syncNativeMutation(trace);
     expect(classifyEvidence(trace)).toBe('incomplete');
-    expect(qualifyEvidence(trace).status).toBe('incomplete');
+    expect(qualifyEvidence(trace)).toMatchObject({
+      status: 'incomplete',
+      sampledGeometry: { status: 'incomplete' },
+    });
   });
 
   it('retains a strict stale terminal semantic failure despite producer PASS', () => {
@@ -3078,5 +3091,257 @@ describe('native main-thread acquisition import', () => {
     );
     expect(trace.result.verdict).toBe('PASS');
     expect(assessNativeEvidence(trace).status).toBe('fail');
+  });
+});
+
+// Reporter negative controls only: these objects do not represent a browser run.
+describe('conversation semantic attachments are independently required', () => {
+  function remoteEvidence() {
+    const registry = webScenarioRegistry.find(
+      (item) => item.scenario === 'web-remote-burst-end'
+    );
+    const scope = '/groups/~zod/group/channel/chat%2F~zod%2Fsample';
+    const expectedTexts = Array.from(
+      { length: 5 },
+      (_, i) => `Remote burst ${i}`
+    );
+    const frames = Array.from({ length: 51 }, (_, i) => ({
+      time: 1000 + i * 50,
+      scrollTop: 1400,
+      scrollHeight: 2000,
+      clientHeight: 600,
+      viewportTop: 0,
+      viewportBottom: 600,
+      bottomGap: 0,
+      anchors: {},
+    }));
+    const geometry = {
+      frames,
+      errors: [],
+      marks: [
+        { label: 'remote-burst:start', time: 1050 },
+        { label: 'remote-burst:terminal-state', time: 2500 },
+      ],
+    };
+    const proof = {
+      contract: {
+        version: 1,
+        mode: 'remote',
+        scope,
+        expectedTexts,
+        startTime: 1000,
+        terminalTime: 2450,
+        endTime: 3450,
+      },
+      trace: {
+        scope,
+        errors: [],
+        presence: [],
+        chrome: { samples: [], actions: [] },
+        marks: [
+          ...expectedTexts.map((text, i) => ({
+            id: `delivered-${i}`,
+            text,
+            postId: `post-${i}`,
+            time: 1100 + i * 200,
+          })),
+          { id: 'terminal', time: 2450 },
+        ],
+        samples: frames.map((f) => ({
+          time: f.time,
+          scope,
+          measurement: { valid: true, durationMs: 1 },
+          posts: expectedTexts.flatMap((text, i) =>
+            f.time >= 1100 + i * 200
+              ? [{ id: `post-${i}`, texts: [`${text} `] }]
+              : []
+          ),
+        })),
+      },
+    };
+    const record = () =>
+      readPlaywrightReport(
+        browserReport(
+          [
+            browserAttempt(registry, {
+              attachments: [
+                ['remote-burst', geometry],
+                ...(proof ? [['remote-burst-semantic-proof', proof]] : []),
+              ].map(([name, value]) => ({
+                name,
+                contentType: 'application/json',
+                body: Buffer.from(JSON.stringify(value)).toString('base64'),
+              })),
+            }),
+          ],
+          registry
+        ),
+        '/tmp/semantic-reporter-control.json'
+      )[0];
+    return { registry, geometry, proof, record };
+  }
+  it('requires semantic proof for exactly the existing four thinking/remote variants', () => {
+    expect(
+      webScenarioRegistry
+        .filter((item) => item.requireConversationSemanticProof)
+        .map((item) => item.scenario)
+        .sort()
+    ).toEqual([
+      'web-remote-burst-end',
+      'web-remote-burst-history',
+      'web-thinking-end',
+      'web-thinking-history',
+    ]);
+  });
+  it('extracts and independently accepts a healthy delivered-ID/text tail', () => {
+    const d = remoteEvidence();
+    const record = d.record();
+    expect(record.conversationSemanticProofs).toHaveLength(1);
+    expect(assessWebEvidence(record)).toEqual({
+      status: 'recorded-sampled-pass',
+      issues: [],
+    });
+  });
+  it('cannot accept a producer PASS without its raw semantic proof', () => {
+    const record = remoteEvidence().record();
+    record.conversationSemanticProofs = [];
+    expect(assessWebEvidence(record).status).toBe('incomplete');
+  });
+  it('rejects a reused semantic window from another geometry interval', () => {
+    const d = remoteEvidence();
+    d.geometry.marks[0].time = 900;
+    expect(assessWebEvidence(d.record()).status).toBe('incomplete');
+  });
+  it('replays a lost earlier message as failure despite producer PASS and pinned geometry', () => {
+    const d = remoteEvidence();
+    d.proof.trace.samples.find((s) => s.time === 2600).posts.shift();
+    expect(assessWebEvidence(d.record()).status).toBe('fail');
+  });
+  it('retains an independently witnessed geometry failure when semantic evidence is incomplete', () => {
+    const record = remoteEvidence().record();
+    record.conversationSemanticProofs = [];
+    const frame = record.browserTraces[0].value.frames[20];
+    frame.scrollTop -= 20;
+    frame.bottomGap = 20;
+    expect(assessWebEvidence(record).status).toBe('fail');
+  });
+});
+
+it('does not call an invalid latest setup a FOLLOW regression after a later recovery', () => {
+  const registry = webScenarioRegistry.find(
+    (item) => item.scenario === 'web-remote-burst-end'
+  );
+  const raw = browserReport(
+    [
+      browserAttempt(registry, {
+        attachments: [
+          {
+            name: 'remote-burst',
+            contentType: 'application/json',
+            body: Buffer.from(
+              JSON.stringify({
+                errors: [],
+                marks: [
+                  { label: 'remote-burst:start', time: 1050 },
+                  { label: 'remote-burst:terminal-state', time: 2500 },
+                ],
+                frames: Array.from({ length: 51 }, (_, i) => ({
+                  time: 1000 + i * 50,
+                  scrollTop: i === 0 ? 0 : 499,
+                  scrollHeight: 898,
+                  clientHeight: 399,
+                  viewportTop: 45,
+                  viewportBottom: 444,
+                  bottomGap: i === 0 ? 499 : 0,
+                  anchors: {},
+                })),
+              })
+            ).toString('base64'),
+          },
+        ],
+      }),
+    ],
+    registry
+  );
+  const record = readPlaywrightReport(
+    raw,
+    '/tmp/invalid-follow-setup-control.json'
+  )[0];
+  expect(assessWebEvidence(record).status).toBe('incomplete');
+  expect(
+    assessWebEvidence(record).issues.some((issue) =>
+      issue.includes('conversation-follow-baseline-not-at-end')
+    )
+  ).toBe(true);
+});
+
+describe('fresh latest precondition evidence', () => {
+  const baseline = {
+    frames: [
+      {
+        time: 1000,
+        scrollHeight: 900,
+        clientHeight: 400,
+        scrollTop: 500,
+        bottomGap: 0,
+      },
+    ],
+  };
+  function proof() {
+    return {
+      contract: { version: 2, scope: '/channel/one', startTime: 900 },
+      trace: {
+        samples: [{ posts: [{ id: 'latest' }] }],
+        followSetup: {
+          scope: '/channel/one',
+          requestedAt: 750,
+          completedAt: 850,
+          postId: 'latest',
+          bottomGap: 0,
+          targetClipPixels: 0,
+          actions: [
+            {
+              eventTime: 800,
+              capturedAt: 801,
+              isTrusted: true,
+              sameControl: true,
+              scope: '/channel/one',
+              button: 0,
+              detail: 1,
+            },
+          ],
+        },
+      },
+    };
+  }
+  it('accepts the captured fresh actual latest press before the valid end baseline', () => {
+    expect(
+      conversationFollowSetupIssue(proof(), baseline, 'web-thinking-end')
+    ).toBeUndefined();
+  });
+  it.each([
+    'missing-time',
+    'reversed-clock',
+    'untrusted',
+    'wrong-scope',
+    'wrong-row',
+    'clipped-row',
+    'duplicate-click',
+    'late-completion',
+  ])('does not grant FOLLOW from %s setup', (fault) => {
+    const p = proof(),
+      setup = p.trace.followSetup;
+    if (fault === 'missing-time') delete setup.actions[0].eventTime;
+    if (fault === 'reversed-clock') setup.actions[0].capturedAt = 799;
+    if (fault === 'untrusted') setup.actions[0].isTrusted = false;
+    if (fault === 'wrong-scope') setup.actions[0].scope = '/channel/other';
+    if (fault === 'wrong-row') setup.postId = 'older';
+    if (fault === 'clipped-row') setup.targetClipPixels = 2;
+    if (fault === 'duplicate-click')
+      setup.actions.push({ ...setup.actions[0] });
+    if (fault === 'late-completion') setup.completedAt = 901;
+    expect(conversationFollowSetupIssue(p, baseline, 'web-thinking-end')).toBe(
+      'conversation-fresh-follow-setup-unwitnessed'
+    );
   });
 });

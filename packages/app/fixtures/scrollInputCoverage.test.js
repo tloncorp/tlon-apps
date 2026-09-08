@@ -303,3 +303,225 @@ describe('independent composer input replay', () => {
     ).toBe(true);
   });
 });
+
+function selectionEvidence() {
+  const record = evidence();
+  const p = proof(record);
+  p.contract.version = 2;
+  const selected = {
+    ...p.contract.phases[1].expected,
+    selection: { start: 0, end: SCROLL_INPUT_GROWTH_DRAFT.length },
+  };
+  const select = {
+    ...p.contract.actions[0],
+    id: 'select-all-1',
+    kind: 'select-all',
+    payload: 'ControlOrMeta+A',
+  };
+  p.contract.actions.splice(1, 0, select);
+  p.contract.phases.splice(2, 0, {
+    id: 'selected',
+    start: 500,
+    end: 700,
+    triggerActionId: select.id,
+    expected: selected,
+  });
+  p.contract.phases[3].start = 700;
+  p.raw.commandPlan = structuredClone(p.contract.actions);
+  p.raw.dispatches = p.contract.actions.map((a, i) => ({
+    ...a,
+    start: [95, 495, 695][i],
+    end: [110, 510, 710][i],
+  }));
+  p.raw.actions = p.contract.actions.map((a, i) => ({
+    ...a,
+    time: [100, 500, 700][i],
+    observedAt: [100, 500, 700][i],
+    trusted: true,
+  }));
+  p.raw.keyboard = [
+    {
+      time: 500,
+      observedAt: 500,
+      key: 'a',
+      code: 'KeyA',
+      ctrlKey: true,
+      metaKey: false,
+    },
+    {
+      time: 699,
+      observedAt: 699,
+      key: 'Delete',
+      code: 'Delete',
+      ctrlKey: false,
+      metaKey: false,
+    },
+  ].map((k) => ({
+    ...k,
+    scopeKey: p.raw.originalScope,
+    inputId: 'MessageInput',
+    trusted: true,
+    targetIsInput: true,
+    altKey: false,
+    shiftKey: false,
+    repeat: false,
+  }));
+  for (const sample of p.raw.samples) {
+    if (sample.time >= 500 && sample.time < 700)
+      Object.assign(sample, structuredClone(selected));
+  }
+  for (const f of record.browserTraces[0].value.frames) {
+    if (f.time >= 500 && f.time < 700) {
+      f.clientHeight = 60;
+      f.scrollTop = 940;
+      f.viewportBottom = 70;
+    }
+  }
+  record.browserTraces[0].value.marks[1].time = 710;
+  return record;
+}
+
+describe('explicit keyboard select-all and Delete input coverage', () => {
+  it.each(['Control', 'Meta'])(
+    'accepts an intentional %s select-all phase followed by real Delete',
+    (modifier) => {
+      const record = selectionEvidence();
+      const p = proof(record);
+      if (modifier === 'Meta')
+        Object.assign(p.raw.keyboard[0], { ctrlKey: false, metaKey: true });
+      p.raw.keyboard.unshift({
+        ...p.raw.keyboard[0],
+        key: modifier,
+        code: `${modifier}Left`,
+        time: 499,
+        observedAt: 499,
+      });
+      expect(replayWebInput(record)).toEqual([]);
+      expect(assessWebEvidence(record).status).toBe('recorded-sampled-pass');
+    }
+  );
+  it('retains the old fill-clear selection prelude failure with its original phase contract', () => {
+    const record = evidence();
+    proof(record).raw.samples[24].selection = {
+      start: 0,
+      end: SCROLL_INPUT_GROWTH_DRAFT.length,
+    };
+    expect(replayWebInput(record)).toContainEqual({
+      message: 'input-selection-changed',
+      kind: 'failure',
+    });
+  });
+  it.each([
+    'unsolicited-before-shortcut',
+    'wrong-selection',
+    'selection-reverts',
+    'lost-focus',
+    'changed-draft',
+    'covered-send',
+    'late-selection',
+  ])('rejects %s without exempting dispatch intervals', (fault) => {
+    const record = selectionEvidence(),
+      p = proof(record);
+    if (fault === 'unsolicited-before-shortcut')
+      Object.assign(p.raw.samples[24], {
+        time: 498,
+        selection: { start: 0, end: 70 },
+      });
+    if (fault === 'wrong-selection')
+      p.raw.samples[28].selection = { start: 1, end: 70 };
+    if (fault === 'selection-reverts')
+      p.raw.samples[28].selection = { start: 70, end: 70 };
+    if (fault === 'lost-focus') p.raw.samples[28].focused = false;
+    if (fault === 'changed-draft') p.raw.samples[28].draft = 'x'.repeat(70);
+    if (fault === 'covered-send') p.raw.samples[28].sendHitTestable = false;
+    if (fault === 'late-selection')
+      for (const sample of p.raw.samples)
+        if (sample.time >= 500 && sample.time < 620)
+          sample.selection = { start: 70, end: 70 };
+    expect(replayWebInput(record).some((i) => i.kind === 'failure')).toBe(true);
+  });
+  it.each([
+    'out-of-scope',
+    'wrong-target',
+    'untrusted',
+    'wrong-shortcut',
+    'repeated-key',
+    'late-key',
+    'missing-delete',
+    'wrong-delete',
+    'extra-key',
+    'missing-keyboard',
+  ])('rejects %s keyboard delivery evidence', (fault) => {
+    const record = selectionEvidence(),
+      p = proof(record);
+    if (fault === 'out-of-scope') p.raw.keyboard[0].scopeKey = '/channel/other';
+    if (fault === 'wrong-target') p.raw.keyboard[0].targetIsInput = false;
+    if (fault === 'untrusted') p.raw.keyboard[0].trusted = false;
+    if (fault === 'wrong-shortcut') p.raw.keyboard[0].ctrlKey = false;
+    if (fault === 'repeated-key') p.raw.keyboard[0].repeat = true;
+    if (fault === 'late-key') p.raw.keyboard[0].observedAt = 520;
+    if (fault === 'missing-delete') p.raw.keyboard.pop();
+    if (fault === 'wrong-delete') p.raw.keyboard[1].key = 'Backspace';
+    if (fault === 'extra-key')
+      p.raw.keyboard.splice(1, 0, {
+        ...p.raw.keyboard[0],
+        key: 'x',
+        time: 501,
+        observedAt: 501,
+      });
+    if (fault === 'missing-keyboard') delete p.raw.keyboard;
+    expect(replayWebInput(record).length).toBeGreaterThan(0);
+    expect(assessWebEvidence(record).status).not.toBe('recorded-sampled-pass');
+  });
+  it.each([
+    'short-selected-hold',
+    'wrong-expected-selection',
+    'missing-select-action',
+    'missing-phase',
+    'unknown-version',
+  ])('rejects a weakened %s contract', (fault) => {
+    const record = selectionEvidence(),
+      p = proof(record);
+    if (fault === 'short-selected-hold') p.contract.phases[2].end = 550;
+    if (fault === 'wrong-expected-selection')
+      p.contract.phases[2].expected.selection.start = 70;
+    if (fault === 'missing-select-action') p.contract.actions.splice(1, 1);
+    if (fault === 'missing-phase') p.contract.phases.splice(2, 1);
+    if (fault === 'unknown-version') p.contract.version = 3;
+    expect(assessWebEvidence(record).status).toBe('incomplete');
+  });
+});
+
+describe('optional input paint cannot promote other gates', () => {
+  it('preserves legacy input evidence when paint is not requested', () => {
+    expect(replayWebInput(evidence())).toEqual([]);
+  });
+  it('ignores producer paint success and retains unmeasured textarea caret', () => {
+    const record = evidence();
+    proof(record).raw.samples.forEach((sample) => {
+      sample.caretVisible = null;
+    });
+    proof(record).raw.paintedCaret = {
+      version: 1,
+      frames: [],
+      result: { verdict: 'PASS' },
+    };
+    const issues = replayWebInput(record).map((issue) => issue.message);
+    expect(issues).toContain('input-caret-unmeasured');
+    expect(issues).toContain('input-caret-paint-missing-or-invalid-binding');
+    expect(assessWebEvidence(record).status).toBe('incomplete');
+  });
+  it('preserves actual draft failure behind a producer paint success', () => {
+    const record = evidence();
+    proof(record).raw.samples[40].draft = 'unexpected';
+    proof(record).raw.paintedCaret = {
+      version: 1,
+      frames: [],
+      result: { verdict: 'PASS' },
+    };
+    expect(assessWebEvidence(record).status).toBe('fail');
+    expect(
+      replayWebInput(record).some((issue) => issue.kind === 'failure')
+    ).toBe(true);
+  });
+});

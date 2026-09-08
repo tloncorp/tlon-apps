@@ -1,16 +1,118 @@
 import { isDeepStrictEqual } from 'node:util';
 import {
   assessScrollTrace,
+  assessClampedScrollLanding,
   assessScrollPreconditions,
   hasThinkingMotionOverlap,
 } from '../packages/app/fixtures/scrollStabilityTrace.ts';
 import { assessRowMutationWitness } from '../packages/app/fixtures/scrollStabilityMutation.ts';
 import { assessImageLoadWitness } from '../packages/app/fixtures/scrollStabilityImageLoad.ts';
-import { adaptNativeScrollGeometry } from '../packages/app/fixtures/scrollNativeGeometry.ts';
+import {
+  adaptNativeScrollGeometry,
+  nativeThinkingGestureExtentIsMeasured,
+} from '../packages/app/fixtures/scrollNativeGeometry.ts';
+import {
+  nativeCenterCommandEvidenceIssues,
+  nativeOffscreenCommandEvidenceIssues,
+} from '../packages/app/fixtures/scrollNativeTargetCommand.ts';
+import {
+  replayNativeBottomContinuity,
+  replayNativePostGestureTail,
+} from './scroll-stability-native-recording-evidence.mjs';
+import {
+  assessNativeMutationEvidence,
+  assessNativeHoldEvidence,
+} from './scroll-stability-native-mutation-evidence.mjs';
+
+// Keep supplemental native evaluation outside the bridged reader's early exits.
+// A missing JS bracket cannot erase an independently qualified native jump.
+export function assessNativeEvidence(trace) {
+  const sampled = assessSampledNativeEvidence(trace);
+  // These two declarations assert only the bounded native tail. The fixture's
+  // observe capture does not provide a whole-gesture sampled assertion.
+  if (/^armed-post-gesture-thinking-(end|away)$/.test(trace?.scenario ?? '')) {
+    const tail = replayNativePostGestureTail(trace);
+    return {
+      status:
+        tail.verdict === 'FAIL'
+          ? 'fail'
+          : tail.verdict === 'PASS'
+            ? 'recorded-sampled-pass'
+            : 'incomplete',
+      issues: tail.issues.map(
+        (i) => `buffered:${i.code}${i.frame === undefined ? '' : `:${i.frame}`}`
+      ),
+      geometryEvidenceLevel: 'native-buffered-post-gesture-tail-v1',
+      sampledGeometry: sampled,
+      nativeContinuity: tail,
+      nativePostGestureTail: tail,
+      nativePresentation: 'INCOMPLETE',
+    };
+  }
+  const nativeBottom = replayNativeBottomContinuity(trace);
+  const mutation =
+    /^(?:near|history)-(?:grow|shrink|reference|media|remove|reaction|reply|cache)$/.test(
+      trace?.scenario ?? ''
+    );
+  const nativeMutation = mutation
+    ? assessNativeMutationEvidence(trace)
+    : undefined;
+  const stationaryHold =
+    /^(?:(?:append|burst)-history|prepend-history|stateful-image-load-history|thinking-(?:show-hide|label|handoff-(?:message-first|same-frame|hide-first))-history)$/.test(
+      trace?.scenario ?? ''
+    );
+  const nativeContinuity =
+    nativeMutation?.anchorContinuity ??
+    (stationaryHold ? assessNativeHoldEvidence(trace) : nativeBottom);
+  const required =
+    mutation || stationaryHold || nativeBottom.verdict !== 'UNASSESSED';
+  const supplemental = {
+    sampledGeometry: sampled,
+    nativeContinuity,
+    ...(nativeMutation ? { nativeMutation } : {}),
+  };
+  const failures = [nativeContinuity, nativeMutation].filter(
+    (r) => r?.verdict === 'FAIL'
+  );
+  if (failures.length)
+    return {
+      ...sampled,
+      ...supplemental,
+      status: 'fail',
+      geometryEvidenceLevel: 'ios-buffered-main-thread-model',
+      issues: [
+        ...sampled.issues,
+        ...failures.flatMap((r) =>
+          r.issues
+            .filter((i) => i.kind === 'failure')
+            .map(
+              (i) =>
+                `buffered:${i.code}${i.frame === undefined ? '' : `:${i.frame}`}`
+            )
+        ),
+      ],
+    };
+  if (
+    required &&
+    (nativeContinuity.verdict !== 'PASS' ||
+      (nativeMutation && nativeMutation.verdict !== 'PASS')) &&
+    sampled.status === 'recorded-sampled-pass'
+  )
+    return {
+      ...sampled,
+      ...supplemental,
+      status: 'incomplete',
+      issues: [
+        ...sampled.issues,
+        'Required buffered native continuity or mutation evidence is incomplete',
+      ],
+    };
+  return { ...sampled, ...supplemental };
+}
 
 // Replay the pure geometry oracle from raw measurements. A producer's PASS
 // flag, aggregate metrics, or list of registered scenarios is not evidence.
-export function assessNativeEvidence(trace) {
+function assessSampledNativeEvidence(trace) {
   const incomplete = (reason) => ({ status: 'incomplete', issues: [reason] });
   const geometryEvidenceLevel =
     trace.nativeGeometrySchemaVersion === 1
@@ -53,6 +155,28 @@ export function assessNativeEvidence(trace) {
   const hasNativeGeometry = samples.some(
     (sample) => sample?.acquisition?.nativeGeometry
   );
+  const sampledRuler = trace.nativeSampledRulerContract;
+  const hasSampledRuler = samples.some(
+    (sample) =>
+      sample?.acquisition?.nativeGeometry?.ruler !== undefined ||
+      sample?.acquisition?.nativeGeometry?.bracket?.ruler !== undefined
+  );
+  const declaredFields = ['scope', 'rootId', 'scrollViewId', 'composerId'];
+  if (
+    (sampledRuler !== undefined ||
+      hasSampledRuler ||
+      trace.nativeSampledRulerVersion !== undefined) &&
+    (!sampledRuler ||
+      sampledRuler.version !== 'indexed-cell-and-surfaces-v2' ||
+      declaredFields.some(
+        (key) => typeof sampledRuler[key] !== 'string' || !sampledRuler[key]
+      ) ||
+      trace.nativeGeometrySchemaVersion !== 1 ||
+      trace.platform !== 'ios')
+  )
+    return incomplete(
+      'Missing or unsupported sampled native ruler owner contract'
+    );
   if (trace.nativeGeometrySchemaVersion !== undefined || hasNativeGeometry) {
     if (trace.nativeGeometrySchemaVersion !== 1 || trace.platform !== 'ios')
       return incomplete(
@@ -61,6 +185,7 @@ export function assessNativeEvidence(trace) {
     const seenRequests = new Set();
     let nativeEnd = -Infinity;
     let previousReceipt = -Infinity;
+    let sampledNativeOwner;
     for (const sample of samples) {
       const evidence = sample?.acquisition?.nativeGeometry;
       if (
@@ -71,6 +196,17 @@ export function assessNativeEvidence(trace) {
         evidence.issues.length
       )
         return incomplete('Missing or invalid coherent native acquisition');
+      if (
+        sampledRuler &&
+        (evidence.bracket?.ruler?.version !== sampledRuler.version ||
+          evidence.bracket?.ruler?.scope !== sampledRuler.scope ||
+          ['rootId', 'scrollViewId', 'composerId'].some(
+            (key) => evidence.request?.[key] !== sampledRuler[key]
+          ))
+      )
+        return incomplete(
+          'Sampled native ruler contract differs from the declared owner'
+        );
       let replay;
       try {
         replay = adaptNativeScrollGeometry(
@@ -93,6 +229,17 @@ export function assessNativeEvidence(trace) {
       )
         return incomplete(
           'Invalid, stale or reused coherent native acquisition'
+        );
+      // Every derived ruler field consumed by a product oracle must reproduce
+      // from the same raw native walk, including absence, identity and surfaces.
+      if (
+        !isDeepStrictEqual(
+          evidence.ruler,
+          replay.snapshot.acquisition.nativeGeometry.ruler
+        )
+      )
+        return incomplete(
+          'Native acquisition does not reproduce sampled ruler'
         );
       for (const key of [
         'time',
@@ -142,6 +289,25 @@ export function assessNativeEvidence(trace) {
         )
           return incomplete(`Native acquisition count/source mismatch: ${key}`);
       }
+      if (sampledRuler) {
+        // Establish identity only after this complete acquisition was independently
+        // reproduced. A retained tag is insufficient if its native object changed.
+        const currentOwner = {
+          root: evidence.capture.root.identity,
+          window: evidence.capture.root.windowIdentity,
+          scroll: evidence.capture.scroll.view.identity,
+          host: evidence.capture.scroll.hostIdentity,
+          composer: evidence.capture.composer.identity,
+        };
+        if (
+          sampledNativeOwner &&
+          !isDeepStrictEqual(currentOwner, sampledNativeOwner)
+        )
+          return incomplete(
+            'Sampled native ruler mounted owner changed during capture'
+          );
+        sampledNativeOwner ??= currentOwner;
+      }
       seenRequests.add(evidence.request.requestId);
       nativeEnd = evidence.capture.finishedAt;
       previousReceipt = evidence.bracket.receivedAt;
@@ -183,18 +349,21 @@ export function assessNativeEvidence(trace) {
       );
   }
   const { action, coverage, anchor, bottom, landing } = expectations;
-  const minimumDuration = trace.scenario.startsWith('entry-')
-    ? 2800
-    : trace.scenario === 'thinking-empty-show-hide'
-      ? 2200
-      : trace.scenario.startsWith('armed-') ||
-          /^(keyboard|composer)-(end|history)$/.test(trace.scenario) ||
-          trace.scenario === 'gesture'
-        ? 4500
-        : trace.scenario.startsWith('thinking-') ||
-            trace.scenario.startsWith('stateful-image-load-')
-          ? 2400
-          : 1800;
+  const minimumDuration =
+    trace.scenario.startsWith('entry-') ||
+    trace.scenario === 'command-center' ||
+    trace.scenario === 'command-offscreen'
+      ? 2800
+      : trace.scenario === 'thinking-empty-show-hide'
+        ? 2200
+        : trace.scenario.startsWith('armed-') ||
+            /^(keyboard|composer)-(end|history)$/.test(trace.scenario) ||
+            trace.scenario === 'gesture'
+          ? 4500
+          : trace.scenario.startsWith('thinking-') ||
+              trace.scenario.startsWith('stateful-image-load-')
+            ? 2400
+            : 1800;
   if (
     !action ||
     !coverage ||
@@ -258,9 +427,11 @@ export function assessNativeEvidence(trace) {
         trace.scenario.endsWith('-history') ||
         trace.assertion === 'gesture') ||
     preconditions.requireInitialEnd !==
-      (trace.assertion === 'bottom' &&
-        !trace.scenario.startsWith('entry-') &&
-        trace.scenario !== 'empty-first-post') ||
+      (trace.scenario === 'command-center' ||
+        trace.scenario === 'command-offscreen' ||
+        (trace.assertion === 'bottom' &&
+          !trace.scenario.startsWith('entry-') &&
+          trace.scenario !== 'empty-first-post')) ||
     preconditions.requireReadingAnchor !==
       (trace.assertion === 'hold' || trace.assertion === 'gesture') ||
     !Array.isArray(preconditions.excludedAnchorKeys) ||
@@ -280,6 +451,14 @@ export function assessNativeEvidence(trace) {
     return incomplete(
       baselineCheck.issues.map((issue) => issue.code).join(', ')
     );
+  if (trace.scenario === 'command-center') {
+    const issues = nativeCenterCommandEvidenceIssues(trace);
+    if (issues.length) return incomplete(issues.join(', '));
+  }
+  if (trace.scenario === 'command-offscreen') {
+    const issues = nativeOffscreenCommandEvidenceIssues(trace);
+    if (issues.length) return incomplete(issues.join(', '));
+  }
   if (mutationCase) {
     const evidence = trace.mutationEvidence;
     if (
@@ -553,6 +732,33 @@ export function assessNativeEvidence(trace) {
   } catch {
     return incomplete('Malformed raw geometry contract');
   }
+  if (['command-center', 'command-offscreen'].includes(trace.scenario)) {
+    const requestName =
+      trace.scenario === 'command-center'
+        ? 'center-command-request'
+        : 'offscreen-command-request';
+    const request = trace.events.find((event) => event.name === requestName);
+    const trajectory = assessNonanimatedCommandTrajectory(
+      samples,
+      landing,
+      request.time,
+      coverage.maxMeasurementDurationMs ?? 32
+    );
+    if (trajectory.length)
+      return {
+        status:
+          trajectory.some((issue) => issue.kind === 'failure') ||
+          replay.verdict === 'FAIL'
+            ? 'fail'
+            : 'incomplete',
+        geometryEvidenceLevel,
+        issues: [
+          ...replay.issues.map((issue) => issue.code),
+          ...trajectory.map((issue) => issue.code),
+          ...semanticFailures,
+        ],
+      };
+  }
   if (replay.verdict !== 'PASS')
     return {
       status: replay.verdict === 'FAIL' ? 'fail' : 'incomplete',
@@ -636,11 +842,11 @@ export function assessNativeEvidence(trace) {
         Math.abs(current.contentLength - previous.contentLength) > 1 &&
         !(
           trace.scenario.startsWith('armed-thinking-') &&
-          trace.events.some(
-            (event) =>
-              event.name === 'thinking-layout' &&
-              event.time >= previous.time &&
-              event.time <= current.time
+          nativeThinkingGestureExtentIsMeasured(
+            previous,
+            current,
+            trace.events,
+            trace.committedDataKeys
           )
         )
       )
@@ -665,4 +871,119 @@ export function assessNativeEvidence(trace) {
   return semanticFailures.length
     ? { status: 'fail', issues: semanticFailures, geometryEvidenceLevel }
     : { status: 'recorded-sampled-pass', issues: [], geometryEvidenceLevel };
+}
+
+// Called only after the fixed command's real native scope/request validation.
+// Exported for narrow detector controls; it does not grant acquisition proof.
+export function assessNonanimatedCommandTrajectory(
+  samples,
+  landing,
+  requestTime,
+  maxMeasurementDurationMs = 32
+) {
+  const issues = [];
+  const finite = Number.isFinite;
+  const tolerance = landing?.tolerancePt ?? 1;
+  const valid = (sample) =>
+    sample &&
+    finite(sample.time) &&
+    finite(sample.scroll) &&
+    finite(sample.viewportTop) &&
+    finite(sample.viewportBottom) &&
+    sample.viewportBottom > sample.viewportTop &&
+    sample.measurement?.valid === true &&
+    finite(sample.measurement.durationMs) &&
+    sample.measurement.durationMs >= 0 &&
+    sample.measurement.durationMs <= maxMeasurementDurationMs &&
+    sample.scrollBounds &&
+    finite(sample.scrollBounds.min) &&
+    finite(sample.scrollBounds.max) &&
+    sample.scrollBounds.min <= sample.scrollBounds.max &&
+    Array.isArray(sample.rows) &&
+    new Set(sample.rows.map((row) => row?.key)).size === sample.rows.length &&
+    sample.rows.every(
+      (row) =>
+        row &&
+        typeof row.key === 'string' &&
+        row.key &&
+        finite(row.y) &&
+        finite(row.height) &&
+        row.height > 0
+    );
+  if (
+    !finite(maxMeasurementDurationMs) ||
+    maxMeasurementDurationMs < 0 ||
+    maxMeasurementDurationMs > 32 ||
+    !Array.isArray(samples) ||
+    !samples.length ||
+    !valid(samples[0]) ||
+    !finite(requestTime) ||
+    !landing?.key ||
+    landing.alignment !== 'center' ||
+    !finite(tolerance) ||
+    tolerance < 0 ||
+    tolerance > 1
+  )
+    return [
+      { code: 'command-trajectory-invalid-baseline', kind: 'incomplete' },
+    ];
+  const baseline = samples[0].scroll;
+  let moved = false;
+  for (let i = 0; i < samples.length; i++) {
+    const sample = samples[i];
+    if (!valid(sample) || (i && sample.time <= samples[i - 1].time)) {
+      issues.push({
+        code: 'command-trajectory-invalid-sample',
+        kind: 'incomplete',
+        sampleIndex: i,
+      });
+      continue;
+    }
+    if (sample.time < requestTime) continue;
+    if (Math.abs(sample.scroll - baseline) > tolerance) moved = true;
+    if (!moved) continue;
+    const row = sample.rows.find((row) => row.key === landing.key);
+    if (!row) {
+      issues.push({
+        code: 'command-trajectory-target-missing',
+        kind: 'failure',
+        sampleIndex: i,
+      });
+      continue;
+    }
+    const result = assessClampedScrollLanding(
+      sample,
+      row,
+      landing.alignment,
+      landing.offsetPt ?? 0,
+      tolerance
+    );
+    if (!result) {
+      issues.push({
+        code: 'command-trajectory-invalid-geometry',
+        kind: 'incomplete',
+        sampleIndex: i,
+      });
+      continue;
+    }
+    const ruler = sample.acquisition?.nativeGeometry?.ruler;
+    if (result.errorPt > tolerance)
+      issues.push({
+        code: 'command-trajectory-wrong-landing',
+        kind: 'failure',
+        sampleIndex: i,
+        errorPt: result.errorPt,
+      });
+    if (
+      !result.exposed ||
+      (ruler?.version === 'indexed-cell-and-surfaces-v2' &&
+        ruler.obscuredKeys.includes(landing.key))
+    )
+      issues.push({
+        code: 'command-trajectory-target-occluded',
+        kind: 'failure',
+        sampleIndex: i,
+      });
+  }
+  return issues;
 }

@@ -8,7 +8,7 @@ export default defineConfig({
   use: {
     browserName: 'chromium',
     channel: 'chromium',
-    headless: false,
+    headless: process.env.SCROLLER_HEADED !== '1',
     viewport: { width: 1280, height: 800 },
   },
   outputDir: './test-results/scroller-input-detectors',

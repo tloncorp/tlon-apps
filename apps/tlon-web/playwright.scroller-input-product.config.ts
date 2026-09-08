@@ -7,6 +7,10 @@ export default defineConfig({
   testMatch: 'scroller-input-stability.spec.ts',
   projects: config.projects?.map((project) => ({
     ...project,
-    use: { ...project.use, channel: 'chromium', headless: false },
+    use: {
+      ...project.use,
+      channel: 'chromium',
+      headless: process.env.SCROLLER_HEADED !== '1',
+    },
   })),
 });

@@ -14,6 +14,10 @@ import {
 
 import { DetailView, DetailViewProps } from '../DetailView';
 import Scroller from './Scroller';
+import { ScrollerItem } from './ScrollerItem';
+import type { PostTargetLayoutRegistry } from './postTargetLayout';
+import type { PostListMethods } from './PostList/shared';
+import { ListPostCollection } from '../postCollectionViews/ListPostCollectionView';
 import { ThinkingState } from './ThinkingState';
 import type { ConversationComputingState } from './useConversationComputingState';
 
@@ -22,6 +26,7 @@ import type { ConversationComputingState } from './useConversationComputingState
 // exposes production callbacks, without implementing scroll or ready policy.
 const state = vi.hoisted(() => ({
   glass: false,
+  collection: null as any,
   commands: vi.fn(),
   composer: vi.fn(),
   computing: new Map<string, ConversationComputingState>(),
@@ -32,6 +37,7 @@ const state = vi.hoisted(() => ({
 
 vi.mock('@tloncorp/shared', async () => ({
   ...(await vi.importActual('@tloncorp/api/types/PostCollectionConfiguration')),
+  ...(await vi.importActual('@tloncorp/api/lib/types')),
   createDevLogger: () => ({ log: vi.fn() }),
 }));
 vi.mock('@tloncorp/shared/db', () => ({
@@ -43,6 +49,7 @@ vi.mock('@tloncorp/ui', () => ({
   DESKTOP_SIDEBAR_WIDTH: 0,
   DESKTOP_TOPLEVEL_SIDEBAR_WIDTH: 0,
   LoadingSpinner: 'LoadingSpinner',
+  Button: 'Button',
   Modal: 'Modal',
   Text: 'Text',
   useIsWindowNarrow: () => true,
@@ -92,6 +99,12 @@ vi.mock('../Emoji', () => ({ EmojiPickerSheet: 'EmojiPickerSheet' }));
 vi.mock('../GlassSurface', () => ({ supportsLiquidGlass: () => state.glass }));
 vi.mock('../conversationScrollChrome', () => ({
   ConversationScrollToBottomButton: 'LatestControl',
+}));
+vi.mock('../../contexts/postCollection', () => ({
+  usePostCollectionContext: () => state.collection,
+}));
+vi.mock('./EmptyChannelNotice', () => ({
+  EmptyChannelNotice: 'EmptyChannelNotice',
 }));
 vi.mock('./ChannelDivider', () => ({ ChannelDivider: 'ChannelDivider' }));
 vi.mock('./ContextLens/ContextLensRunSheet', () => ({
@@ -176,13 +189,18 @@ vi.mock('./PostList', async () => {
 
 type ScrollerProps = React.ComponentProps<typeof Scroller>;
 type BoundaryProps = {
+  targetLayouts?: PostTargetLayoutRegistry;
   anchor?: ScrollerProps['anchor'];
   onStartReached: () => void;
   onEndReached: () => void;
   onInitialScrollPending: () => void;
   onInitialScrollCompleted: () => void;
+  onInitialScrollRecoveryChange: (
+    recovery: { retry: () => void } | null
+  ) => void;
   onScrolledAwayFromBottom: () => void;
   onScrolledToBottom: () => void;
+  onScrollIntentChanged: () => void;
   postsWithNeighbors: { post: db.Post }[];
   contentInsets: { top: number; bottom: number };
   contentContainerStyle: Record<string, unknown>;
@@ -312,6 +330,7 @@ describe('native Scroller production integration', () => {
       | 'onInitialScrollCompleted'
       | 'onScrolledAwayFromBottom'
       | 'onScrolledToBottom'
+      | 'onScrollIntentChanged'
     >
   ) => act(() => list()[event]());
   function flushFrame() {
@@ -322,6 +341,82 @@ describe('native Scroller production integration', () => {
     });
   }
 
+  it('shares one scoped decoration registry with non-recycled chat rows', async () => {
+    await render();
+    const registry = list().targetLayouts;
+    expect(registry?.scope).toBe(props.channel.id);
+    const rows = renderer!.root.findAllByType(ScrollerItem);
+    expect(rows).toHaveLength(2);
+    for (const row of rows) expect(row.props.targetLayouts).toBe(registry);
+    await render({ posts: [...props.posts!] });
+    expect(list().targetLayouts).toBe(registry);
+  });
+
+  it('keeps recycled non-chat DetailView comments on their existing targeting path', async () => {
+    await renderDetail({ channel: { ...channel(), type: 'notebook' } });
+    expect(list().targetLayouts).toBeUndefined();
+    const rows = renderer!.root.findAllByType(ScrollerItem);
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.props.targetLayouts).toBeUndefined();
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('removes the registry on an anchorToEnd change without replacing the mounted list', async () => {
+    await render();
+    const mounted = renderer!.root.findByType('PostListBoundary' as any);
+    expect(list().targetLayouts).toBeDefined();
+    await render({ anchorToEnd: false });
+    expect(renderer!.root.findByType('PostListBoundary' as any)).toBe(mounted);
+    expect(list().targetLayouts).toBeUndefined();
+    for (const row of renderer!.root.findAllByType(ScrollerItem))
+      expect(row.props.targetLayouts).toBeUndefined();
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('initial position error exposes retry without readiness, pagination flush or remount', async () => {
+    await render();
+    const mounted = renderer!.root.findByType('PostListBoundary' as any);
+    const retry = vi.fn();
+    act(() => {
+      list().onStartReached();
+      list().onEndReached();
+      list().onInitialScrollRecoveryChange({ retry });
+    });
+    expect(renderer!.root.findAllByType('LoadingSpinner' as any)).toHaveLength(
+      0
+    );
+    const retryButton = renderer!.root
+      .findAllByType('Button' as any)
+      .find((node) => node.props.label === 'Try again');
+    expect(retryButton).toBeTruthy();
+    act(() => retryButton!.props.onPress());
+    expect(retry).toHaveBeenCalledTimes(1);
+    expect(props.onStartReached).not.toHaveBeenCalled();
+    expect(props.onEndReached).not.toHaveBeenCalled();
+    expect(renderer!.root.findByType('PostListBoundary' as any)).toBe(mounted);
+    act(() => list().onInitialScrollCompleted());
+    expect(props.onStartReached).toHaveBeenCalledTimes(1);
+    expect(props.onEndReached).toHaveBeenCalledTimes(1);
+    expect(renderer!.root.findAllByType('Button' as any)).toHaveLength(0);
+  });
+  it('old entry error cannot replace current scope recovery', async () => {
+    await render();
+    const old = list().onInitialScrollRecoveryChange;
+    await render({
+      channel: channel('chat/~zod/b'),
+      posts: [post('new', '~ten', 'chat/~zod/b')],
+    });
+    const currentRetry = vi.fn();
+    const oldRetry = vi.fn();
+    act(() => list().onInitialScrollRecoveryChange({ retry: currentRetry }));
+    act(() => old({ retry: oldRetry }));
+    const button = renderer!.root
+      .findAllByType('Button' as any)
+      .find((node) => node.props.label === 'Try again');
+    act(() => button!.props.onPress());
+    expect(currentRetry).toHaveBeenCalledTimes(1);
+    expect(oldRetry).not.toHaveBeenCalled();
+  });
   it('NINT-15 child layout pagination survives parent activation', async () => {
     state.deliverInitialLayout = true;
     await render();
@@ -530,6 +625,126 @@ describe('native Scroller production integration', () => {
     expect(button().visible).toBe(false);
   });
 
+  it.each(['covered', 'returned'])(
+    'retained route blur permanently cancels pending latest completed while %s',
+    async (completion) => {
+      await render({ isFocused: true, isLoading: true, hasNewerPosts: true });
+      emit('onInitialScrollCompleted');
+      emit('onScrolledAwayFromBottom');
+      act(() => button().onPress());
+      flushFrame();
+      const mounted = renderer!.root.findByType('PostListBoundary' as any);
+      await render({ isFocused: false });
+      if (completion === 'returned') await render({ isFocused: true });
+      await render({ isLoading: false, hasNewerPosts: false });
+      flushFrame();
+      expect(state.commands).not.toHaveBeenCalled();
+      if (completion === 'covered') await render({ isFocused: true });
+      flushFrame();
+      expect(state.commands).not.toHaveBeenCalled();
+      expect(renderer!.root.findByType('PostListBoundary' as any)).toBe(
+        mounted
+      );
+      expect(props.onPressScrollToBottom).toHaveBeenCalledTimes(1);
+      act(() => button().onPress());
+      flushFrame();
+      expect(state.commands.mock.calls).toEqual([
+        ['end', channel().id, { animated: true }],
+      ]);
+    }
+  );
+
+  it('forced old latest RAF and old press cannot steal a fresh request after route focus ABA', async () => {
+    await render({ isFocused: true });
+    emit('onInitialScrollCompleted');
+    emit('onScrolledAwayFromBottom');
+    const oldPress = button().onPress;
+    act(oldPress);
+    const oldFrame = [...frames.values()][0];
+    frames.clear();
+    await render({ isFocused: false });
+    await render({ isFocused: true });
+    act(oldPress);
+    expect(props.onPressScrollToBottom).toHaveBeenCalledTimes(1);
+    act(() => button().onPress());
+    act(() => oldFrame(16));
+    expect(state.commands).not.toHaveBeenCalled();
+    expect(frames.size).toBe(1);
+    flushFrame();
+    expect(state.commands.mock.calls).toEqual([
+      ['end', channel().id, { animated: true }],
+    ]);
+  });
+
+  it('DetailView forwards focus without replacing the list and Scroller captures a unique visible visit', async () => {
+    const ref = React.createRef<PostListMethods>();
+    await renderDetail({ isFocused: true, scrollerRef: ref });
+    emit('onInitialScrollCompleted');
+    const mounted = renderer!.root.findByType('PostListBoundary' as any);
+    const oldPermit = ref.current!.captureScrollIntent!();
+    expect(oldPermit()).toBe(true);
+    await renderDetail({ isFocused: false });
+    expect((list() as any).isFocused).toBe(false);
+    expect(oldPermit()).toBe(false);
+    expect(ref.current!.captureScrollIntent!()()).toBe(false);
+    act(() => ref.current!.scrollToEnd({ animated: true }));
+    expect(state.commands).not.toHaveBeenCalled();
+    await renderDetail({ isFocused: true });
+    expect(oldPermit()).toBe(false);
+    expect(ref.current!.captureScrollIntent!()()).toBe(true);
+    expect(renderer!.root.findByType('PostListBoundary' as any)).toBe(mounted);
+    flushFrame();
+    expect(state.commands).not.toHaveBeenCalled();
+    act(() => ref.current!.scrollToEnd({ animated: true }));
+    expect(state.commands).toHaveBeenCalledTimes(1);
+  });
+
+  it('real ListPostCollection forwards context focus and cancels pending latest without remount', async () => {
+    state.collection = {
+      channel: channel(),
+      posts: [post('last'), post('first')],
+      isFocused: true,
+      isLoadingPosts: true,
+      hasNewerPosts: true,
+      LegacyPostView: 'Message',
+      onPressDelete: vi.fn(),
+      onPressRetryLoad: vi.fn(),
+      scrollToBottom: vi.fn(),
+    };
+    const updateCollection = async () => {
+      await act(async () => {
+        const element = <ListPostCollection />;
+        if (renderer) renderer.update(element);
+        else renderer = create(element);
+      });
+    };
+    await updateCollection();
+    emit('onInitialScrollCompleted');
+    emit('onScrolledAwayFromBottom');
+    act(() => button().onPress());
+    flushFrame();
+    const mounted = renderer!.root.findByType('PostListBoundary' as any);
+    state.collection = { ...state.collection, isFocused: false };
+    await updateCollection();
+    expect((list() as any).isFocused).toBe(false);
+    state.collection = {
+      ...state.collection,
+      isLoadingPosts: false,
+      hasNewerPosts: false,
+    };
+    await updateCollection();
+    flushFrame();
+    expect(state.commands).not.toHaveBeenCalled();
+    state.collection = { ...state.collection, isFocused: true };
+    await updateCollection();
+    flushFrame();
+    expect(state.commands).not.toHaveBeenCalled();
+    expect(renderer!.root.findByType('PostListBoundary' as any)).toBe(mounted);
+    act(() => button().onPress());
+    flushFrame();
+    expect(state.commands).toHaveBeenCalledTimes(1);
+  });
+
   it('NINT-04 cached latest calls the real supplied action before one next-frame end command', async () => {
     const chronology: string[] = [];
     await render({
@@ -589,6 +804,61 @@ describe('native Scroller production integration', () => {
     renderer = undefined;
     flushFrame();
     expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('pending latest is immediately cancelled by a newer reading intent', async () => {
+    await render({ isLoading: true, hasNewerPosts: true });
+    emit('onInitialScrollCompleted');
+    emit('onScrolledAwayFromBottom');
+    act(() => button().onPress());
+    expect(button().loading).toBe(true);
+    emit('onScrollIntentChanged');
+    expect(button().loading).toBe(false);
+    await render({ isLoading: false, hasNewerPosts: false });
+    flushFrame();
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('a cancelled frame cannot consume a newer latest request', async () => {
+    await render();
+    emit('onInitialScrollCompleted');
+    emit('onScrolledAwayFromBottom');
+    act(() => button().onPress());
+    const oldFrame = [...frames.values()][0];
+    expect(oldFrame).toBeTypeOf('function');
+    emit('onScrollIntentChanged');
+    act(() => button().onPress());
+    expect(frames.size).toBe(1);
+    act(() => oldFrame(16));
+    expect(state.commands).not.toHaveBeenCalled();
+    expect(frames.size).toBe(1);
+    flushFrame();
+    expect(state.commands.mock.calls).toEqual([
+      ['end', channel().id, { animated: true }],
+    ]);
+  });
+
+  it('an old selected visit cannot activate latest for its replacement', async () => {
+    await render({ anchor: { type: 'selected', postId: 'first' } });
+    emit('onInitialScrollCompleted');
+    emit('onScrolledAwayFromBottom');
+    const oldPress = button().onPress;
+    await render({ anchor: { type: 'selected', postId: 'last' } });
+    emit('onInitialScrollCompleted');
+    act(oldPress);
+    flushFrame();
+    expect(props.onPressScrollToBottom).not.toHaveBeenCalled();
+    expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('an old bottom callback cannot hide the replacement visit control', async () => {
+    await render({ anchor: { type: 'selected', postId: 'first' } });
+    const oldBottom = list().onScrolledToBottom;
+    await render({ anchor: { type: 'selected', postId: 'last' } });
+    emit('onInitialScrollCompleted');
+    emit('onScrolledAwayFromBottom');
+    act(oldBottom);
+    expect(button().visible).toBe(true);
   });
 
   it('NINT-06 readiness, unread removal and bottom transitions do not steal scroll ownership', async () => {
@@ -797,6 +1067,28 @@ describe('native Scroller production integration', () => {
     await render({ editingPost: undefined });
     expect(list().scrollEnabled).toBe(true);
     expect(state.commands).not.toHaveBeenCalled();
+  });
+
+  it('row action changes reach an unchanged message', async () => {
+    const oldDelete = vi.fn();
+    const currentDelete = vi.fn();
+    await render({ onPressDelete: oldDelete });
+    await render({ onPressDelete: currentDelete });
+    const message = renderer!.root.findAllByType('Message' as any)[0];
+    act(() => message.props.onPressDelete(message.props.post));
+    expect(oldDelete).not.toHaveBeenCalled();
+    expect(currentDelete.mock.calls).toEqual([[message.props.post]]);
+  });
+
+  it('a replacement renderer reaches unchanged rows', async () => {
+    await render();
+    await render({
+      renderItem: (props) => React.createElement('ReplacementMessage', props),
+    });
+    expect(renderer!.root.findAllByType('Message' as any)).toHaveLength(0);
+    expect(
+      renderer!.root.findAllByType('ReplacementMessage' as any)
+    ).toHaveLength(2);
   });
 
   it('NINT-12 imperative navigation forwards exact parameters to the current native list', async () => {

@@ -18,6 +18,7 @@ jobs:
       app: ${{ steps.filter-app.outputs.app }}
       backend: ${{ steps.filter.outputs.backend }}
       bots: ${{ steps.filter.outputs.bots }}
+      rn-mvcp: ${{ steps.filter.outputs.rn-mvcp }}
     steps:
       # An ignore-list filter only works with predicate-quantifier `every`:
       # a file counts only if it matches every pattern — `**` AND each `!`
@@ -47,6 +48,27 @@ jobs:
             backend:
               - 'desk/**'
               - 'backend/**'
+            rn-mvcp:
+              - 'patches/react-native@*.patch'
+              - 'patches/react-native-screens@*.patch'
+              - 'scripts/test-rn-mvcp.mjs'
+              - 'scripts/fixtures/rn-mvcp.controls.mm'
+              - 'scripts/test-rn-read-point.mjs'
+              - 'scripts/test-rn-text-reading-point.mjs'
+              - 'scripts/test-rn-screen-reading-lifecycle.mjs'
+              - 'apps/tlon-mobile/modules/tlon-scroll-edge-effect/ios/**'
+              - 'scripts/lib/rn-host-controls.mjs'
+              - 'scripts/fixtures/rn-read-point.controls.mm'
+              - 'scripts/fixtures/rn-text-reading-point.controls.mm'
+              - 'scripts/fixtures/rn-screen-reading-lifecycle.controls.mm'
+              - 'package.json'
+              - 'packages/app/package.json'
+              - 'apps/tlon-mobile/package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+              - '.npmrc'
+              - '.nvmrc'
+              - '.github/workflows/ci.yml'
             bots:
               - 'packages/openclaw/**'
               - 'packages/hermes-tlon-adapter/**'
@@ -85,6 +107,9 @@ jobs:
       - name: Check native navigation icons
         run: pnpm check:native-navigation-icons
 
+      - name: Check native scroller dependency behavior
+        run: pnpm test:scroller:dependencies
+
       - name: Check formatting
         run: pnpm format:check
 
@@ -107,6 +132,86 @@ jobs:
         run: pnpm build:all
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+  # Foundation host controls exercise the installed patched RN methods. This
+  # job does not build the app, install Pods, or launch a simulator.
+  rn-mvcp:
+    name: React Native MVCP and Reading Host Controls
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.rn-mvcp != 'false' }}
+    runs-on: macos-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v3
+        with:
+          run_install: false
+
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: 'pnpm'
+
+      - name: Install dependencies without lifecycle builds
+        id: install
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Check native MVCP preparation ownership
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          mkdir -p artifacts/rn-mvcp
+          set -o pipefail
+          pnpm test:scroller:rn-mvcp --report artifacts/rn-mvcp/report.json 2>&1 | tee artifacts/rn-mvcp/output.log
+
+      - name: Check native READ provider ownership
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          mkdir -p artifacts/rn-mvcp
+          set -o pipefail
+          pnpm test:scroller:rn-read-point --report artifacts/rn-mvcp/read-point.json 2>&1 | tee artifacts/rn-mvcp/read-point.log
+
+      - name: Check native text reading geometry
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          mkdir -p artifacts/rn-mvcp
+          set -o pipefail
+          pnpm test:scroller:rn-text-reading-point --report artifacts/rn-mvcp/text-reading-point.json 2>&1 | tee artifacts/rn-mvcp/text-reading-point.log
+
+      - name: Check native screen reading lifecycle
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          mkdir -p artifacts/rn-mvcp
+          set -o pipefail
+          pnpm test:scroller:rn-screen-reading-lifecycle --report artifacts/rn-mvcp/screen-reading-lifecycle.json 2>&1 | tee artifacts/rn-mvcp/screen-reading-lifecycle.log
+
+      - name: Check app native READ descriptors, lifecycle and capture diagnostics
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          mkdir -p artifacts/rn-mvcp
+          set -o pipefail
+          pnpm test:scroller:native-read-provider "$PWD/artifacts/rn-mvcp/provider" 2>&1 | tee artifacts/rn-mvcp/provider.log
+
+      - name: Upload native MVCP control evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rn-mvcp-host-controls-${{ github.run_attempt }}
+          path: artifacts/rn-mvcp/
+          if-no-files-found: warn
+          retention-days: 7
 
   # Unit-level checks for the bot/plugin packages, mirroring what test-build's
   # repo-wide format/lint/tsc/test:ci ran for them before gating. Only
@@ -186,7 +291,7 @@ jobs:
   # When adding a new filter-gated job, append it to `needs` here.
   ci-ok:
     name: CI OK
-    needs: [changes, test-build, bot-checks]
+    needs: [changes, test-build, bot-checks, rn-mvcp]
     if: ${{ always() }}
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:

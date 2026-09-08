@@ -1,23 +1,18 @@
 import {
   PostCollectionLayoutType,
   configurationFromChannel,
-  createDevLogger,
   layoutForType,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { isSameDay } from '@tloncorp/shared/logic';
-import * as store from '@tloncorp/shared/store';
 import {
-  DESKTOP_SIDEBAR_WIDTH,
-  DESKTOP_TOPLEVEL_SIDEBAR_WIDTH,
+  Button,
+  Text,
   LoadingSpinner,
   Modal,
   useIsWindowNarrow,
 } from '@tloncorp/ui';
-import { isEqual } from 'lodash';
 import React, {
-  ComponentPropsWithoutRef,
-  PropsWithChildren,
   ReactElement,
   RefObject,
   createRef,
@@ -30,24 +25,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {
-  LayoutChangeEvent,
-  ListRenderItem,
-  Platform,
-  View as RNView,
-  StyleProp,
-  ViewStyle,
-  useWindowDimensions,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, getTokens, styled, useStyle, useTheme } from 'tamagui';
+import { ListRenderItem, Platform, View as RNView } from 'react-native';
+import { View, useTheme } from 'tamagui';
 
-import { useLivePost } from '../../../hooks/useLivePost';
+import { useLifecyclePermit } from '../../../hooks/useLifecyclePermit';
 import { useCurrentUserId } from '../../contexts/appDataContext';
-import type {
-  A2UIActionCompletion,
-  RenderItemType,
-} from '../../contexts/componentsKits';
+import type { RenderItemType } from '../../contexts/componentsKits';
 import { useSetConversationScrollToBottomControl } from '../../contexts/scroll';
 import useOnEmojiSelect from '../../hooks/useOnEmojiSelect';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
@@ -56,7 +39,6 @@ import { getA2UIActionCompletions } from '../ChatMessage/a2uiActionCompletion';
 import { EmojiPickerSheet } from '../Emoji';
 import { supportsLiquidGlass } from '../GlassSurface';
 import { ConversationScrollToBottomButton } from '../conversationScrollChrome';
-import { ChannelDivider } from './ChannelDivider';
 import { ContextLensRunSheet } from './ContextLens/ContextLensRunSheet';
 import {
   ConversationContentInsets,
@@ -64,13 +46,58 @@ import {
   PostListMethods,
   PostWithNeighbors,
 } from './PostList';
-import { getPostListScopeKey } from './PostList/postListInitialization';
+import {
+  getPostListAnchorKey,
+  getPostListScopeKey,
+} from './PostList/postListInitialization';
+import { ScrollerItem } from './ScrollerItem';
+import { createPostTargetLayoutRegistry } from './postTargetLayout';
+import { useScrollerReadiness } from './useScrollerReadiness';
+import { useScrollerLatest } from './useScrollerLatest';
+import { useScrollerLayout } from './useScrollerLayout';
 import { isVisibleChannelPost } from './postVisibility';
 import type { ScrollAnchor } from './scrollerTypes';
 
-const logger = createDevLogger('scroller', false);
-
 export type { ScrollAnchor } from './scrollerTypes';
+
+export type ScrollerProps = {
+  /** Route focus combined with the active carousel item, when applicable. */
+  isFocused?: boolean;
+  anchor?: ScrollAnchor | null;
+  showDividers?: boolean;
+  anchorToEnd: boolean;
+  renderItem: RenderItemType;
+  renderEmptyComponent?: () => ReactElement;
+  posts: db.Post[] | null;
+  channel: db.Channel;
+  collectionLayoutType: PostCollectionLayoutType;
+  firstUnreadId?: string | null;
+  unreadCount?: number | null;
+  onStartReached?: () => void;
+  onEndReached?: () => void;
+  onPressPost?: (post: db.Post) => void;
+  onPressImage?: (post: db.Post, imageUri?: string) => void;
+  onPressReplies?: (post: db.Post) => void;
+  showReplies?: boolean;
+  editingPost?: db.Post;
+  setEditingPost?: (post: db.Post | undefined) => void;
+  onPressRetry?: (post: db.Post) => Promise<void>;
+  onPressDelete: (post: db.Post) => void;
+  hasNewerPosts?: boolean;
+  activeMessage: db.Post | null;
+  setActiveMessage: (post: db.Post | null) => void;
+  isLoading?: boolean;
+  // Unused
+  hasOlderPosts?: boolean;
+  onPressScrollToBottom?: () => void;
+  listHeaderComponent?: React.ReactElement;
+  listBottomComponent?: React.ReactElement;
+  highlightPostId?: string | null;
+  onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
+  onOpenContextLens?: (post: db.Post) => void;
+  contextLensSelectedPostId?: string | null;
+  contentInsets?: ConversationContentInsets;
+};
 
 /**
  * This scroller makes some assumptions you should not break!
@@ -78,9 +105,10 @@ export type { ScrollAnchor } from './scrollerTypes';
  * - Posts should be supplied in their visual top-to-bottom order
  * - If we're scrolling to an anchor, that anchor should be in the first page of posts
  */
-const Scroller = forwardRef(
+const Scroller = forwardRef<PostListMethods, ScrollerProps>(
   (
     {
+      isFocused = true,
       anchor,
       showDividers = true,
       anchorToEnd,
@@ -113,49 +141,7 @@ const Scroller = forwardRef(
       onOpenContextLens,
       contextLensSelectedPostId,
       contentInsets = { top: 0, bottom: 0 },
-    }: {
-      anchor?: ScrollAnchor | null;
-      showDividers?: boolean;
-      anchorToEnd: boolean;
-      renderItem: RenderItemType;
-      renderEmptyComponent?: () => ReactElement;
-      posts: db.Post[] | null;
-      channel: db.Channel;
-      collectionLayoutType: PostCollectionLayoutType;
-      firstUnreadId?: string | null;
-      unreadCount?: number | null;
-      onStartReached?: () => void;
-      onEndReached?: () => void;
-      onPressPost?: (post: db.Post) => void;
-      onPressImage?: (post: db.Post, imageUri?: string) => void;
-      onPressReplies?: (post: db.Post) => void;
-      showReplies?: boolean;
-      editingPost?: db.Post;
-      setEditingPost?: (post: db.Post | undefined) => void;
-      onPressRetry?: (post: db.Post) => Promise<void>;
-      onPressDelete: (post: db.Post) => void;
-      hasNewerPosts?: boolean;
-      activeMessage: db.Post | null;
-      setActiveMessage: (post: db.Post | null) => void;
-      ref?: RefObject<{
-        scrollToPost: (params: {
-          postId: string;
-          animated?: boolean;
-          viewPosition?: number;
-        }) => void;
-      }>;
-      isLoading?: boolean;
-      // Unused
-      hasOlderPosts?: boolean;
-      onPressScrollToBottom?: () => void;
-      listHeaderComponent?: React.ReactElement;
-      listBottomComponent?: React.ReactElement;
-      highlightPostId?: string | null;
-      onGoToBotRun?: (params: { botShip: string; lensId: string }) => void;
-      onOpenContextLens?: (post: db.Post) => void;
-      contextLensSelectedPostId?: string | null;
-      contentInsets?: ConversationContentInsets;
-    },
+    }: ScrollerProps,
     ref
   ) => {
     const collectionLayout = useMemo(
@@ -167,31 +153,8 @@ const Scroller = forwardRef(
       () => configurationFromChannel(channel),
       [channel]
     );
-    const { width } = useWindowDimensions();
     const isWindowNarrow = useIsWindowNarrow();
     const setScrollToBottomControl = useSetConversationScrollToBottomControl();
-    const availableSpace = useMemo(() => {
-      const sidebarsTotalWidth = isWindowNarrow
-        ? 0
-        : DESKTOP_TOPLEVEL_SIDEBAR_WIDTH + DESKTOP_SIDEBAR_WIDTH;
-      return Math.floor(
-        width - sidebarsTotalWidth - 2 * getTokens().space.m.val
-      );
-    }, [width]);
-
-    const columns = useMemo(() => {
-      const gap = getTokens().space.l.val;
-      return collectionLayout.columnCount === 1
-        ? 1
-        : Math.max(2, Math.floor((availableSpace + gap) / (250 + gap)));
-    }, [availableSpace, collectionLayout.columnCount]);
-
-    const itemWidth = useMemo(() => {
-      const totalGap = (columns - 1) * getTokens().space.l.val;
-      return Math.floor((availableSpace - totalGap) / columns);
-    }, [availableSpace, columns]);
-
-    const [hasPressedGoToBottom, setHasPressedGoToBottom] = useState(false);
     const [viewReactionsPost, setViewReactionsPost] = useState<null | db.Post>(
       null
     );
@@ -210,40 +173,78 @@ const Scroller = forwardRef(
     );
 
     const listRef = useRef<PostListMethods>(null);
+    const targetLayouts = useMemo(
+      () =>
+        Platform.OS === 'ios' &&
+        anchorToEnd &&
+        collectionLayoutType === 'compact-list-bottom-to-top'
+          ? createPostTargetLayoutRegistry(channel.id)
+          : undefined,
+      [channel.id, collectionLayoutType, anchorToEnd]
+    );
+    // Route cover retires movement authority without replacing list readiness,
+    // mounted content, or the draft. Own cursor retirement keeps this visit.
+    const scrollVisit = useLifecyclePermit(
+      [channel.id, collectionLayoutType, anchorToEnd, isFocused],
+      isFocused
+    );
 
     useImperativeHandle(ref, () => ({
+      captureScrollIntent: () => {
+        const entry = readiness.entry;
+        const surface = listRef.current;
+        const permit = surface?.captureScrollIntent?.() ?? (() => true);
+        const stillVisiting = scrollVisit.capture();
+        return () =>
+          surface !== null && entry.active && stillVisiting() && permit();
+      },
       scrollToPost: (params: {
         postId: string;
         animated?: boolean;
         viewPosition?: number;
-      }) => listRef.current?.scrollToPost(params),
-      scrollToStart: (params: { animated?: boolean }) =>
-        listRef.current?.scrollToStart(params),
-      scrollToEnd: (params: { animated?: boolean }) =>
-        listRef.current?.scrollToEnd(params),
+      }) => {
+        if (scrollVisit.isCurrent() && readiness.entry.active)
+          listRef.current?.scrollToPost(params);
+      },
+      scrollToStart: (params: { animated?: boolean }) => {
+        if (scrollVisit.isCurrent() && readiness.entry.active)
+          listRef.current?.scrollToStart(params);
+      },
+      scrollToEnd: (params: { animated?: boolean }) => {
+        if (scrollVisit.isCurrent() && readiness.entry.active)
+          listRef.current?.scrollToEnd(params);
+      },
     }));
-
-    const pressedGoToBottom = useCallback(() => {
-      setHasPressedGoToBottom(true);
-      onPressScrollToBottom?.();
-
-      if (listRef.current && !isLoading) {
-        requestAnimationFrame(() => {
-          listRef.current?.scrollToEnd({ animated: true });
-        });
-      }
-    }, [isLoading, onPressScrollToBottom]);
 
     const activeMessageRefs = useRef<Record<string, RefObject<RNView | null>>>(
       {}
     );
 
-    const handleSetActive = useCallback((active: db.Post) => {
-      if (active.type !== 'notice') {
-        activeMessageRefs.current[active.id] = createRef();
-        setActiveMessage(active);
-      }
-    }, []);
+    const handleSetActive = useCallback(
+      (active: db.Post) => {
+        if (active.type !== 'notice') {
+          activeMessageRefs.current = { [active.id]: createRef() };
+          setActiveMessage(active);
+        }
+      },
+      [setActiveMessage]
+    );
+
+    const handleShowEmojiPicker = useCallback(
+      (post: db.Post) => {
+        setActiveMessage(post);
+        setEmojiPickerOpen(true);
+      },
+      [setActiveMessage]
+    );
+
+    const handlePressEdit = useCallback(
+      (post: db.Post) => {
+        setEditingPost?.(post);
+        setActiveMessage(null);
+      },
+      [setActiveMessage, setEditingPost]
+    );
 
     const handlePostLongPressed = useCallback(
       (post: db.Post) => {
@@ -291,6 +292,23 @@ const Scroller = forwardRef(
       };
     }, [theme.background.val]);
 
+    const {
+      columns,
+      itemWidth,
+      contentContainerStyle,
+      columnWrapperStyle,
+      composerBottomInset,
+      scrollButtonBottom,
+      listOwnsComposerInset,
+      handleListFrameLayout,
+    } = useScrollerLayout({
+      collectionLayoutType,
+      collectionLayout,
+      visiblePostCount: visiblePosts?.length ?? 0,
+      contentInsets,
+      isWindowNarrow,
+    });
+
     const listRenderItem: ListRenderItem<PostWithNeighbors> = useCallback(
       ({ item: { post, previous, next, ...rest }, index }) => {
         const isFirstPostOfDay = !isSameDay(
@@ -321,6 +339,7 @@ const Scroller = forwardRef(
         return (
           <ScrollerItem
             item={post}
+            targetLayouts={targetLayouts}
             index={index}
             isSelected={isSelected}
             showUnreadDivider={showDividers && isFirstUnread}
@@ -339,15 +358,8 @@ const Scroller = forwardRef(
             onPressReplies={onPressReplies}
             onPressPost={onPressPost}
             onLongPressPost={handlePostLongPressed}
-            onShowEmojiPicker={(livePost) => {
-              setActiveMessage(livePost);
-              setEmojiPickerOpen(true);
-            }}
-            onPressEdit={(livePost) => {
-              setEditingPost?.(livePost);
-
-              setActiveMessage(null);
-            }}
+            onShowEmojiPicker={handleShowEmojiPicker}
+            onPressEdit={handlePressEdit}
             activeMessage={activeMessage}
             messageRef={activeMessageRefs.current[post.id]}
             dividersEnabled={collectionLayout.dividersEnabled}
@@ -366,6 +378,7 @@ const Scroller = forwardRef(
         highlightPostId,
         contextLensSelectedPostId,
         firstUnreadId,
+        targetLayouts,
         renderItem,
         unreadCount,
         showReplies,
@@ -376,6 +389,8 @@ const Scroller = forwardRef(
         onPressRetry,
         handlePostLongPressed,
         handlePressBotRun,
+        handleShowEmojiPicker,
+        handlePressEdit,
         activeMessage,
         showDividers,
         collectionLayout.dividersEnabled,
@@ -389,220 +404,34 @@ const Scroller = forwardRef(
       ]
     );
 
-    const insets = useSafeAreaInsets();
-    const rootVerticalPadding = getTokens().space.l.val;
-    const composerBottomInset = contentInsets.bottom;
-    // iOS conversation lists keep the composer inset native so the list can
-    // own keyboard and composer clearance; every other layout pads for it.
-    const listOwnsComposerInset =
-      Platform.OS === 'ios' &&
-      collectionLayoutType === 'compact-list-bottom-to-top';
-    const scrollContentBottomInset = listOwnsComposerInset
-      ? 0
-      : contentInsets.bottom;
-    const [listFrameHeight, setListFrameHeight] = useState<number | null>(null);
-    const handleListFrameLayout = useCallback((event: LayoutChangeEvent) => {
-      const { height } = event.nativeEvent.layout;
-      setListFrameHeight((current) => (current === height ? current : height));
-    }, []);
-    const standaloneBottomSafeArea =
-      composerBottomInset > 0 ? 0 : insets.bottom;
-    const scrollButtonBottom =
-      composerBottomInset > 0
-        ? composerBottomInset + getTokens().space.s.val
-        : getTokens().space.m.val;
-    const contentContainerStyle = useStyle(
-      useMemo(() => {
-        if (!visiblePosts?.length) {
-          if (
-            collectionLayoutType === 'comfy-list-top-to-bottom' ||
-            collectionLayoutType === 'grid'
-          ) {
-            return {
-              flexGrow: 1,
-              paddingTop: rootVerticalPadding + contentInsets.top,
-              paddingBottom:
-                standaloneBottomSafeArea +
-                rootVerticalPadding +
-                scrollContentBottomInset,
-            };
-          }
-          // LegendList end-aligns rows within the area above the native composer
-          // inset, but only once it has rows. With none it falls back to a
-          // viewport-sized container whose footer (the thinking indicator)
-          // lands wherever the scroll offset happens to be. Give the empty
-          // conversation that same above-the-composer height so the footer
-          // rests in place at offset 0 with no scroll range to drift into.
-          if (listOwnsComposerInset && listFrameHeight != null) {
-            return {
-              minHeight: Math.max(0, listFrameHeight - contentInsets.bottom),
-              paddingTop: contentInsets.top,
-            };
-          }
-          return {
-            flexGrow: 1,
-            paddingTop: contentInsets.top,
-            paddingBottom: scrollContentBottomInset,
-          };
-        }
-
-        switch (collectionLayoutType) {
-          case 'compact-list-bottom-to-top': {
-            return {
-              paddingHorizontal: '$m',
-              paddingTop: contentInsets.top,
-              paddingBottom: scrollContentBottomInset,
-            };
-          }
-
-          case 'comfy-list-top-to-bottom': {
-            return {
-              paddingHorizontal: '$m',
-              gap: '$l',
-              paddingTop: rootVerticalPadding + contentInsets.top,
-              paddingBottom:
-                standaloneBottomSafeArea +
-                rootVerticalPadding +
-                scrollContentBottomInset,
-            };
-          }
-
-          case 'grid': {
-            return {
-              paddingHorizontal: '$m',
-              gap: '$l',
-              paddingTop: rootVerticalPadding + contentInsets.top,
-              paddingBottom:
-                standaloneBottomSafeArea +
-                rootVerticalPadding +
-                scrollContentBottomInset,
-            };
-          }
-        }
-      }, [
-        standaloneBottomSafeArea,
-        visiblePosts?.length,
-        collectionLayoutType,
-        contentInsets.bottom,
-        contentInsets.top,
-        listFrameHeight,
-        listOwnsComposerInset,
-        rootVerticalPadding,
-        scrollContentBottomInset,
-      ])
-    ) as StyleProp<ViewStyle>;
-
-    const columnWrapperStyle = useStyle(
-      collectionLayout.columnCount === 1
-        ? {}
-        : {
-            gap: '$l',
-            width: '100%',
-          }
-    ) as StyleProp<ViewStyle>;
-
-    const pendingEvents = useRef({
-      onEndReached: false,
-      onStartReached: false,
+    const readiness = useScrollerReadiness({
+      scopeKey: getPostListScopeKey(channel.id, anchor),
+      onStartReached,
+      onEndReached,
     });
-
-    const anchorKey = getPostListScopeKey(channel.id, anchor);
-    const [completedAnchorKey, setCompletedAnchorKey] = useState<string | null>(
-      null
-    );
-    const readyToDisplayPosts = completedAnchorKey === anchorKey;
-
-    useLayoutEffect(() => {
-      pendingEvents.current.onEndReached = false;
-      pendingEvents.current.onStartReached = false;
-    }, [anchorKey]);
-
-    // We don't want to trigger onEndReached or onStartReached until we've found
-    // the anchor as additional page loads during the initial render can wreak
-    // havoc on layout, but if we drop the events completely they may not get
-    // called again until the user scrolls, even if we need more content to fill
-    // the page. Instead, we use `pendingEvents` to record the attempt, and call
-    // the events after we've found the anchor.
-    useEffect(() => {
-      if (readyToDisplayPosts) {
-        if (pendingEvents.current.onEndReached) {
-          logger.log('trigger pending onEndReached');
-          onEndReached?.();
-          pendingEvents.current.onEndReached = false;
-        }
-        if (pendingEvents.current.onStartReached) {
-          logger.log('trigger pending onStartReached');
-          onStartReached?.();
-          pendingEvents.current.onStartReached = false;
-        }
-      }
-    }, [readyToDisplayPosts, onEndReached, onStartReached]);
-
-    const handleEndReached = useCallback(() => {
-      if (!readyToDisplayPosts) {
-        pendingEvents.current.onEndReached = true;
-        return;
-      }
-      onEndReached?.();
-    }, [onEndReached, readyToDisplayPosts]);
-
-    const handleStartReached = useCallback(() => {
-      if (!readyToDisplayPosts) {
-        pendingEvents.current.onStartReached = true;
-        return;
-      }
-      onStartReached?.();
-    }, [onStartReached, readyToDisplayPosts]);
-
-    const [isAtBottom, setIsAtBottom] = useState(true);
-
-    const shouldShowScrollButton = useCallback(() => {
-      if (!isAtBottom && hasPressedGoToBottom && !isLoading && !hasNewerPosts) {
-        setHasPressedGoToBottom(false);
-      }
-
-      const shouldShowForUnreads =
-        collectionLayoutType === 'compact-list-bottom-to-top' &&
-        anchorToEnd &&
-        unreadCount &&
-        !isAtBottom;
-      const shouldShowForScroll =
-        collectionLayoutType === 'compact-list-bottom-to-top' &&
-        anchorToEnd &&
-        !isAtBottom &&
-        (!hasPressedGoToBottom || isLoading || hasNewerPosts);
-
-      return shouldShowForUnreads || shouldShowForScroll;
-    }, [
-      isAtBottom,
-      hasPressedGoToBottom,
-      collectionLayoutType,
-      anchorToEnd,
-      unreadCount,
-      isLoading,
-      hasNewerPosts,
-    ]);
+    const readyToDisplayPosts = readiness.isReady;
+    const latest = useScrollerLatest({
+      scrollVisit,
+      conversationKey: `${channel.id}:${collectionLayoutType}:${anchorToEnd}`,
+      entry: readiness.entry,
+      anchorKey: getPostListAnchorKey(anchor),
+      isReady: readyToDisplayPosts,
+      isLoading: Boolean(isLoading),
+      hasNewerPosts: Boolean(hasNewerPosts),
+      listRef,
+      onPressScrollToBottom,
+    });
+    const showScrollButton =
+      isFocused &&
+      readyToDisplayPosts &&
+      collectionLayoutType === 'compact-list-bottom-to-top' &&
+      anchorToEnd &&
+      !latest.atBottom;
 
     const onEmojiSelect = useOnEmojiSelect(activeMessage, () =>
       setEmojiPickerOpen(false)
     );
 
-    const onScrolledToBottom = useCallback(() => {
-      setIsAtBottom(true);
-    }, []);
-    const onScrolledAwayFromBottom = useCallback(() => {
-      setIsAtBottom(false);
-    }, []);
-    const onInitialScrollCompleted = useCallback(() => {
-      setCompletedAnchorKey(anchorKey);
-    }, [anchorKey]);
-    const onInitialScrollPending = useCallback(() => {
-      setCompletedAnchorKey(null);
-    }, []);
-    // The control is outside the list's initialization opacity boundary. Keep
-    // it hidden until the exact anchor position is ready to display.
-    const showScrollButton =
-      readyToDisplayPosts && Boolean(shouldShowScrollButton());
     const hostsScrollButtonInComposer =
       supportsLiquidGlass() && composerBottomInset > 0;
 
@@ -610,17 +439,17 @@ const Scroller = forwardRef(
       setScrollToBottomControl(
         hostsScrollButtonInComposer
           ? {
-              isLoading: Boolean(isLoading && hasPressedGoToBottom),
-              onPress: pressedGoToBottom,
+              isLoading: latest.loading,
+              onPress: latest.onPress,
               visible: showScrollButton,
             }
           : null
       );
     }, [
-      hasPressedGoToBottom,
+      latest.loading,
       hostsScrollButtonInComposer,
       isLoading,
-      pressedGoToBottom,
+      latest.onPress,
       setScrollToBottomControl,
       showScrollButton,
     ]);
@@ -639,6 +468,9 @@ const Scroller = forwardRef(
       >
         {postsWithNeighbors != null && (
           <PostList
+            isFocused={isFocused}
+            targetLayouts={targetLayouts}
+            scrollVisit={scrollVisit}
             anchor={anchor}
             channel={channel}
             collectionLayoutType={collectionLayoutType}
@@ -651,14 +483,18 @@ const Scroller = forwardRef(
             // we need to switch from 1 to 2 columns or vice versa.
             key={channel.type + '-' + columns}
             numColumns={columns}
-            onEndReached={handleEndReached}
+            onEndReached={readiness.onEndReached}
             onEndReachedThreshold={1}
-            onInitialScrollPending={onInitialScrollPending}
-            onInitialScrollCompleted={onInitialScrollCompleted}
-            onScrolledAwayFromBottom={onScrolledAwayFromBottom}
-            onScrolledToBottom={onScrolledToBottom}
+            onInitialScrollPending={readiness.onInitialScrollPending}
+            onInitialScrollCompleted={readiness.onInitialScrollCompleted}
+            onInitialScrollRecoveryChange={
+              readiness.onInitialScrollRecoveryChange
+            }
+            onScrollIntentChanged={latest.cancel}
+            onScrolledAwayFromBottom={latest.onScrolledAwayFromBottom}
+            onScrolledToBottom={latest.onScrolledToBottom}
             onScrolledToBottomThreshold={1}
-            onStartReached={handleStartReached}
+            onStartReached={readiness.onStartReached}
             onStartReachedThreshold={1}
             postsWithNeighbors={postsWithNeighbors}
             ref={listRef}
@@ -683,7 +519,26 @@ const Scroller = forwardRef(
               justifyContent="center"
               pointerEvents="auto"
             >
-              <LoadingSpinner size="small" />
+              {readiness.recovery ? (
+                <View
+                  gap="$l"
+                  alignItems="center"
+                  padding="$l"
+                  testID="InitialScrollRecovery"
+                >
+                  <Text color="$secondaryText">
+                    Could not open this conversation.
+                  </Text>
+                  <Button
+                    preset="secondary"
+                    label="Try again"
+                    centered
+                    onPress={readiness.recovery.retry}
+                  />
+                </View>
+              ) : (
+                <LoadingSpinner size="small" />
+              )}
             </View>
           )}
         {!hostsScrollButtonInComposer && (
@@ -697,8 +552,8 @@ const Scroller = forwardRef(
             zIndex={1000}
           >
             <ConversationScrollToBottomButton
-              loading={Boolean(isLoading && hasPressedGoToBottom)}
-              onPress={pressedGoToBottom}
+              loading={latest.loading}
+              onPress={latest.onPress}
               visible={showScrollButton}
             />
           </View>
@@ -779,236 +634,4 @@ Scroller.displayName = 'Scroller';
 
 export default React.memo(Scroller);
 
-// Create empty post object to avoid recreating it on every render
-const EMPTY_POST: db.Post = {
-  id: '',
-  authorId: '',
-  channelId: '',
-  type: 'chat',
-  receivedAt: 0,
-  sentAt: 0,
-  isDeleted: false,
-  replyCount: 0,
-};
-
-const BaseScrollerItem = ({
-  item,
-  index,
-  showUnreadDivider,
-  showDayDivider,
-  showAuthor,
-  Component,
-  unreadCount,
-  onLayout,
-  setViewReactionsPost,
-  onPressBotRun,
-  showReplies,
-  onPressImage,
-  onPressReplies,
-  onPressPost,
-  onLongPressPost,
-  onPressRetry,
-  onPressDelete,
-  onShowEmojiPicker,
-  onPressEdit,
-  activeMessage,
-  messageRef,
-  isSelected,
-  displayDebugMode,
-  isLastPostOfBlock,
-  dividersEnabled,
-  itemAspectRatio,
-  itemWidth,
-  columnCount,
-  previousPost,
-  a2uiActionCompletion,
-}: {
-  showUnreadDivider: boolean;
-  showAuthor: boolean;
-  showDayDivider: boolean;
-  item: db.Post;
-  index: number;
-  Component: RenderItemType;
-  unreadCount?: number | null;
-  onLayout?: (post: db.Post, index: number, e: LayoutChangeEvent) => void;
-  onPressImage?: (post: db.Post, imageUri?: string) => void;
-  onPressReplies?: (post: db.Post) => void;
-  showReplies?: boolean;
-  setViewReactionsPost?: (post: db.Post) => void;
-  onPressBotRun?: (post: db.Post) => void;
-  onPressPost?: (post: db.Post) => void;
-  onLongPressPost: (post: db.Post) => void;
-  onPressRetry?: (post: db.Post) => Promise<void>;
-  onPressDelete: (post: db.Post) => void;
-  onShowEmojiPicker: (post: db.Post) => void;
-  onPressEdit?: (post: db.Post) => void;
-  activeMessage?: db.Post | null;
-  messageRef: RefObject<RNView | null>;
-  isSelected: boolean;
-  displayDebugMode?: boolean;
-  isLastPostOfBlock: boolean;
-  dividersEnabled: boolean;
-  itemAspectRatio?: number;
-  itemWidth?: number;
-  columnCount: number;
-  previousPost?: db.Post | null;
-  a2uiActionCompletion?: A2UIActionCompletion;
-}) => {
-  const post = useLivePost(item);
-
-  // Checking if the previous post exists
-  const hasPreviousPost = Boolean(previousPost);
-  // Get the live post for the previous post
-  const livePreviousPost = useLivePost(
-    // If there is a previous post, use it, otherwise use the empty post
-    hasPreviousPost ? previousPost! : EMPTY_POST
-  );
-  // Check if the previous post (A) exists and (B) is deleted
-  const isPrevDeleted = hasPreviousPost && livePreviousPost.isDeleted === true;
-  // If the previous post is deleted, show the author, otherwise fall back to the
-  // display rules calculated in the showAuthor prop
-  const showAuthorLive = useMemo(() => {
-    if (isPrevDeleted) {
-      return true;
-    }
-    return showAuthor;
-  }, [isPrevDeleted, showAuthor]);
-
-  const handleLayout = useCallback(
-    (e: LayoutChangeEvent) => {
-      onLayout?.(post, index, e);
-    },
-    [onLayout, post, index]
-  );
-
-  const dividerType = useMemo(() => {
-    if (!dividersEnabled) {
-      return null;
-    }
-    if (showUnreadDivider) {
-      return 'unread';
-    }
-    if (showDayDivider) {
-      return 'day';
-    }
-    return null;
-  }, [dividersEnabled, showUnreadDivider, showDayDivider]);
-
-  const divider = useMemo(() => {
-    switch (dividerType) {
-      case 'day':
-        return (
-          <>
-            <ChannelDivider unreadCount={0} post={post} />
-            <PostBlockSeparator />
-          </>
-        );
-      case 'unread':
-        return (
-          <>
-            <ChannelDivider
-              post={post}
-              unreadCount={unreadCount ?? 0}
-              isFirstPostOfDay={showDayDivider}
-            />
-            <PostBlockSeparator />
-          </>
-        );
-      case null:
-        return null;
-    }
-  }, [dividerType, post, unreadCount, showDayDivider]);
-
-  const editPost = useCallback<
-    Exclude<ComponentPropsWithoutRef<RenderItemType>['editPost'], undefined>
-  >(async (post, content) => {
-    await store.editPost({
-      post,
-      content,
-    });
-  }, []);
-
-  return (
-    <View
-      onLayout={handleLayout}
-      width={columnCount === 1 ? '100%' : itemWidth}
-      aspectRatio={itemAspectRatio}
-    >
-      {divider}
-      <PressableMessage
-        ref={messageRef}
-        isActive={activeMessage?.id === post.id}
-      >
-        <Component
-          editPost={editPost}
-          isHighlighted={isSelected}
-          displayDebugMode={displayDebugMode}
-          post={post}
-          a2uiActionCompletion={a2uiActionCompletion}
-          setViewReactionsPost={setViewReactionsPost}
-          onPressBotRun={onPressBotRun}
-          showAuthor={showAuthorLive}
-          showReplies={showReplies}
-          onPressReplies={post.isDeleted ? undefined : onPressReplies}
-          onPressImage={post.isDeleted ? undefined : onPressImage}
-          onLongPress={post.isDeleted ? undefined : onLongPressPost}
-          onPress={post.isDeleted ? undefined : onPressPost}
-          onPressRetry={onPressRetry}
-          onPressDelete={onPressDelete}
-          onShowEmojiPicker={onShowEmojiPicker}
-          onPressEdit={onPressEdit}
-        />
-      </PressableMessage>
-      {isLastPostOfBlock && <PostBlockSeparator />}
-    </View>
-  );
-};
-
-export const PostBlockSeparator = styled(View, {
-  name: 'PostBlockSeparator',
-  height: '$m',
-  width: '100%',
-});
-
-const ScrollerItem = React.memo(BaseScrollerItem, (prev, next) => {
-  const isItemEqual = isEqual(prev.item, next.item);
-  const isIndexEqual = prev.index === next.index;
-
-  const areOtherPropsEqual =
-    prev.isSelected === next.isSelected &&
-    prev.showAuthor === next.showAuthor &&
-    prev.showDayDivider === next.showDayDivider &&
-    prev.showUnreadDivider === next.showUnreadDivider &&
-    prev.unreadCount === next.unreadCount &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock &&
-    prev.a2uiActionCompletion?.sentMessageText ===
-      next.a2uiActionCompletion?.sentMessageText &&
-    prev.previousPost?.id === next.previousPost?.id &&
-    prev.showReplies === next.showReplies &&
-    prev.onPressReplies === next.onPressReplies &&
-    prev.onPressImage === next.onPressImage &&
-    prev.onPressPost === next.onPressPost &&
-    prev.onLongPressPost === next.onLongPressPost &&
-    prev.onPressBotRun === next.onPressBotRun &&
-    prev.activeMessage === next.activeMessage &&
-    prev.itemWidth === next.itemWidth &&
-    prev.displayDebugMode === next.displayDebugMode &&
-    prev.isLastPostOfBlock === next.isLastPostOfBlock;
-
-  return isItemEqual && areOtherPropsEqual && isIndexEqual;
-});
-
-const PressableMessage = React.memo(
-  forwardRef<RNView, PropsWithChildren<{ isActive: boolean }>>(
-    function PressableMessageComponent({ isActive, children }, ref) {
-      return isActive ? (
-        // need the extra React Native View for ref measurement
-        <RNView ref={ref}>{children}</RNView>
-      ) : (
-        // this fragment is necessary to avoid the TS error about not being able to
-        // return undefined
-        <>{children}</>
-      );
-    }
-  )
-);
+export { PostBlockSeparator } from './ScrollerItem';

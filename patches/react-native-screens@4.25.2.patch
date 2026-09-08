@@ -60,6 +60,176 @@ index 60059b4c4ad08987b51f34ce77f79af48642d29b..36f011e06b808dddc98a78cc5b45d236
      override fun setSelectedImageIconResource(
          view: TabsScreen,
          value: ReadableMap?,
+diff --git a/ios/RNSNativeReadingLifecycle.h b/ios/RNSNativeReadingLifecycle.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..a92b8840f010dc37dd463c2d619c45e6d4c5719e
+--- /dev/null
++++ b/ios/RNSNativeReadingLifecycle.h
+@@ -0,0 +1,16 @@
++#import <Foundation/Foundation.h>
++
++NS_ASSUME_NONNULL_BEGIN
++@class RNSScreenView;
++
++@protocol RNSNativeReadingLifecycleListener <NSObject>
++- (void)screen:(RNSScreenView *)screen readingVisibilityDidChange:(BOOL)visible;
++@end
++
++/** Optional weak observers; all registration and delivery occur on main. */
++@interface RNSNativeReadingLifecycle : NSObject
++- (void)addListener:(id<RNSNativeReadingLifecycleListener>)listener;
++- (void)removeListener:(id<RNSNativeReadingLifecycleListener>)listener;
++- (BOOL)notifyScreen:(RNSScreenView *)screen visible:(BOOL)visible;
++@end
++NS_ASSUME_NONNULL_END
+diff --git a/ios/RNSNativeReadingLifecycle.mm b/ios/RNSNativeReadingLifecycle.mm
+new file mode 100644
+index 0000000000000000000000000000000000000000..3fbe3cddbe7a9db869763084c7d9779272dd30a3
+--- /dev/null
++++ b/ios/RNSNativeReadingLifecycle.mm
+@@ -0,0 +1,42 @@
++#import "RNSNativeReadingLifecycle.h"
++
++@implementation RNSNativeReadingLifecycle {
++  NSHashTable<id<RNSNativeReadingLifecycleListener>> *_listeners;
++  NSUInteger _revision;
++}
++
++- (instancetype)init
++{
++  if (self = [super init]) {
++    _listeners = [NSHashTable weakObjectsHashTable];
++  }
++  return self;
++}
++
++- (void)addListener:(id<RNSNativeReadingLifecycleListener>)listener
++{
++  NSAssert(NSThread.isMainThread, @"Native screen listeners must register on main");
++  [_listeners addObject:listener];
++}
++
++- (void)removeListener:(id<RNSNativeReadingLifecycleListener>)listener
++{
++  NSAssert(NSThread.isMainThread, @"Native screen listeners must unregister on main");
++  [_listeners removeObject:listener];
++}
++
++- (BOOL)notifyScreen:(RNSScreenView *)screen visible:(BOOL)visible
++{
++  NSAssert(NSThread.isMainThread, @"Native screen visibility must be delivered on main");
++  const NSUInteger revision = ++_revision;
++  // A callback may remove another observer or synchronously begin a newer
++  // visibility transition. A snapshot never grants the old transition authority.
++  for (id<RNSNativeReadingLifecycleListener> listener in _listeners.allObjects) {
++    if (_revision != revision) break;
++    if ([_listeners containsObject:listener]) {
++      [listener screen:screen readingVisibilityDidChange:visible];
++    }
++  }
++  return _revision == revision;
++}
++@end
+diff --git a/ios/RNSScreen.h b/ios/RNSScreen.h
+index 232824844177bc85ad56a88f661441d8a5d776ef..c6222c7d296e655e969407350e2838ced0f9f068 100644
+--- a/ios/RNSScreen.h
++++ b/ios/RNSScreen.h
+@@ -4,6 +4,7 @@
+ #import <React/RCTViewManager.h>
+ 
+ #import "RNSEnums.h"
++#import "RNSNativeReadingLifecycle.h"
+ #import "RNSSafeAreaProviding.h"
+ #import "RNSScreenContainer.h"
+ #import "RNSScreenContentWrapper.h"
+@@ -135,6 +136,11 @@ NS_ASSUME_NONNULL_BEGIN
+ - (void)notifyFinishTransitioning;
+ - (void)notifyHeaderHeightChange:(double)height;
+ 
++/** Native lease retirement precedes keyboard work and asynchronous JS focus. */
++@property (nonatomic, readonly) BOOL nativeReadingVisible;
++- (void)addNativeReadingLifecycleListener:(id<RNSNativeReadingLifecycleListener>)listener;
++- (void)removeNativeReadingLifecycleListener:(id<RNSNativeReadingLifecycleListener>)listener;
++
+ - (void)notifyWillAppear;
+ - (void)notifyWillDisappear;
+ - (void)notifyAppear;
+diff --git a/ios/RNSScreen.mm b/ios/RNSScreen.mm
+index 69d4d9a4704a7bef3fa207de2dbb2d5119846ccb..f4832e9ff5d374b9bce277e9e37f8e128f361a5a 100644
+--- a/ios/RNSScreen.mm
++++ b/ios/RNSScreen.mm
+@@ -54,6 +54,8 @@ struct ContentWrapperBox {
+ @end
+ 
+ @implementation RNSScreenView {
++  BOOL _nativeReadingVisible;
++  RNSNativeReadingLifecycle *_nativeReadingLifecycle;
+   __weak RNS_REACT_SCROLL_VIEW_COMPONENT *_sheetsScrollView;
+ 
+   /// Up-to-date only when sheet is in `fitToContents` mode.
+@@ -517,6 +519,28 @@ RNS_IGNORE_SUPER_CALL_END
+   }
+ }
+ 
++- (BOOL)nativeReadingVisible
++{
++  return _nativeReadingVisible;
++}
++
++- (void)addNativeReadingLifecycleListener:(id<RNSNativeReadingLifecycleListener>)listener
++{
++  if (!_nativeReadingLifecycle) _nativeReadingLifecycle = [RNSNativeReadingLifecycle new];
++  [_nativeReadingLifecycle addListener:listener];
++}
++
++- (void)removeNativeReadingLifecycleListener:(id<RNSNativeReadingLifecycleListener>)listener
++{
++  [_nativeReadingLifecycle removeListener:listener];
++}
++
++- (BOOL)setNativeReadingVisible:(BOOL)visible
++{
++  _nativeReadingVisible = visible;
++  return !_nativeReadingLifecycle || [_nativeReadingLifecycle notifyScreen:self visible:visible];
++}
++
+ - (void)notifyWillAppear
+ {
+   [self setupBackdropTapGestureRecognizer];
+@@ -530,6 +554,7 @@ RNS_IGNORE_SUPER_CALL_END
+ 
+ - (void)notifyWillDisappear
+ {
++  if (![self setNativeReadingVisible:NO]) return;
+   if (_hideKeyboardOnSwipe) {
+     [self endEditing:YES];
+   }
+@@ -542,6 +567,7 @@ RNS_IGNORE_SUPER_CALL_END
+ 
+ - (void)notifyAppear
+ {
++  if (![self setNativeReadingVisible:YES]) return;
+   // If screen is already unmounted then there will be no event emitter
+   if (_eventEmitter != nullptr) {
+     std::dynamic_pointer_cast<const react::RNSScreenEventEmitter>(_eventEmitter)
+@@ -605,6 +631,7 @@ RNS_IGNORE_SUPER_CALL_END
+ 
+ - (void)didMoveToWindow
+ {
++  if (!self.window) [self setNativeReadingVisible:NO];
+   // For RN touches to work we need to instantiate and connect RCTSurfaceTouchHandler. This only applies
+   // for screens that aren't mounted under RCTRootComponentView e.g., modals that are mounted directly to
+   // root application window.
+@@ -1552,6 +1579,9 @@ Class<RCTComponentViewProtocol> RNSScreenCls(void)
+     [self.screenView notifyAppear];
+     [self notifyTransitionProgress:1.0 closing:NO goingForward:_goingForward];
+   } else {
++    // A canceled interactive transition completes appearance without the
++    // ordinary JS appear event. Native reading ownership still becomes visible.
++    if (![self.screenView setNativeReadingVisible:YES]) return;
+     [self.screenView notifyGestureCancel];
+   }
+ 
 diff --git a/src/components/tabs/screen/TabsScreen.android.tsx b/src/components/tabs/screen/TabsScreen.android.tsx
 index df1f86aeed2a9a5173edff88a6dca0e5c0faaa04..fd28d9c88312258fb15fa6f8dd03743489d35b1e 100644
 --- a/src/components/tabs/screen/TabsScreen.android.tsx

@@ -9,6 +9,148 @@ When adding a patch, document:
 - how to validate it
 - when it can be removed
 
+## @legendapp/list@3.3.3
+
+Local patch:
+`patches/@legendapp__list@3.3.3.patch`
+
+Why:
+The native cached-range shortcut leaves the visible IDs stale when no optional
+viewability callback is configured. The next row-size update can preserve a
+message that has already left the viewport, jumping the reader by the height
+of an unrelated row. Source controls reproduce this stale-anchor defect. R4
+also observed an internal viewport about 502 pt ahead of the actual native
+offset; R5 reproduced a 498 pt explicit center-command landing error. With the
+completion and offset-recovery repairs installed, R6 preserves the history-cache
+reader within 0.333008 pt. Explicit message centering still misses by 3.999837 pt
+because the indexed cell includes decoration outside the message body. The
+dynamic offset API below supports the app's measured correction; that correction
+is integrated. R7 reaches the final center within 0.000489 pt, but incomplete
+capture and a separate transient native offset failure leave qualification open.
+
+What it does:
+Refreshes the visible IDs on every valid cached-range pass. Invalid cached
+ranges fall through to the existing full calculation. Viewability and
+first-visible callbacks retain their existing opt-in and deduplication rules.
+Both native CommonJS and ESM entries carry the same change.
+
+Ordinary iOS indexed completion now requires an actual native observation at
+the current measured target. Timer callbacks and promise settlement belong to
+the exact command revision. Exhausted retries reject with
+`LEGEND_SCROLL_UNALIGNED` instead of reporting a successful landing. Expired
+MVCP suppression reconciles the logical offset only from a fresh native event
+owned by the same command and suppression timer.
+
+`cancelScroll` accepts the exact promise returned by this list's scroll method.
+It retires that request's queued dispatch and JS retries when its app owner
+loses focus, unmounts or yields to newer input. A settled request, another list's
+promise or a superseded request cannot cancel current work. Already delivered
+UIKit animation is outside this API's scope. The indexed-completion controls
+cover pending, active, cross-list and reentrant cancellation.
+
+iOS `scrollToItem` with an explicit key extractor follows the accepted item
+key through deferred dispatch, insertions, removal, reorder and immutable data
+replacement. A missing key rejects instead of completing on a neighboring row.
+Geometry must match the current data/version/key; a structurally equivalent
+array can retain an already valid layout cache. The default normalized index
+extractor preserves legacy item semantics. Bootstrap and non-iOS completion
+keep their existing behavior. This does not cancel already dispatched native
+animations or change the choice of reading anchor.
+
+Ordinary iOS keyed `scrollToItem` also accepts an optional `getViewOffset`
+resolver for current app-owned geometry. Missing, stale or nonfinite geometry
+cannot silently become zero or certify completion. The resolver is checked at
+dispatch, layout correction, retry and native completion; callbacks that change
+the command, target identity or layout invalidate that particular result. An
+old layout callback cannot clear a newer command's pinned render range. The
+native declaration documents the new optional parameter.
+
+An unmounted keyed target gets a command-owned single-row render pin before the
+resolver is ready. Acquisition mounts the target without moving either scroll
+offset. Removal, rebuild, supersession and timeout release only that command's
+pin; current geometry is still required before dispatch.
+
+On Fabric, the content extent now uses the same React store subscription and
+commit path as row positions. Previously, its Animated value could shrink the
+scrollable range before surviving rows moved, causing a legal-range clamp and
+a visible reading jump during removal. Legacy native keeps its existing
+Animated extent. The handoff controls exercise removal, size updates, append
+and horizontal layout with a held React commit. R20 simulator recordings pass
+both near-end and history removal: 111 qualified native frames each, maximum
+anchor drift 0.000326 pt, and both mutation-semantic checks pass. Bridged
+JavaScript/native acquisition remains incomplete; this is native geometry
+evidence, with presentation qualification still open.
+
+Upstream:
+Locally derived from the installed 3.3.3 native source and recorded scroller
+regressions. No upstream issue or PR has been submitted for this patch.
+
+Validation:
+- Run `pnpm test:scroller:dependencies`. Its Legend suites execute actual installed
+  native function bodies for visible IDs, completion, offset recovery and item
+  identity/acquisition in both bundle formats. Native event delivery and peripheral layout
+  remain modeled, so these controls do not prove native rendering or smoothness.
+- Rebuild and run the standalone `command-center` iOS case. The requested
+  message must reach its independently measured center within the original
+  deadline and remain there through the quiet tail.
+- Rebuild the iOS fixture and run history growth and cache replacement while
+  reading above the changed row. The same reading point must remain visible.
+- Separately test removal plus neighboring-message regrouping; this patch
+  does not change which current visible row the library chooses to preserve.
+
+Removal:
+Remove after the pinned library provides the same visible-ID, observed
+completion, owned recovery and stable item-identity behavior, then rerun all
+dependency controls and affected iOS scenarios without it.
+
+## react-native@0.86.0: Fabric visible-position preparation
+
+Local patch: `patches/react-native@0.86.0.patch`. This hunk is independent of
+the existing text-measurement patch in that file.
+
+Fabric can skip visible-position preparation while the prop is disabled, then
+adjust after the same mount enables it. A saved old frame or missing weak view
+can then produce an invalid correction. Each preparation now clears old state;
+adjustment consumes it once and verifies the current content/view identity and
+revision before writing. Recycle and reentrant callbacks cannot reuse it.
+
+The source controls reproduce disabled/enabled, missing-view, repeated-adjustment
+and reentrant ownership failures while preserving ordinary horizontal/vertical
+adjustment. They use extracted installed native bodies in a host harness; a
+rebuilt RN core and simulator run are still required. The suspected relationship
+to R7's transient offset remains a hypothesis until runtime evidence qualifies it.
+No upstream issue or PR has been submitted. Remove this hunk when upstream
+provides equivalent fresh, single-use preparation and the same controls plus
+affected native scenarios pass without it.
+
+### Reading correction during native range clamps
+
+The coordinated RN and Legend changes prevent an automatic UIKit range clamp
+from being added a second time when a row mutation's relative correction
+arrives. The tagged request identifies its exact intent and operation, with an
+actual native starting offset and the cumulative amount at that point. The
+native fallback uses that basis and the current adjusted legal range. An
+admitted reading-point provider keeps sole authority over its own correction.
+
+Native retains only the latest confirmed completion of the current operation.
+That lets a second mutation use the actual bounded result even before JS has
+received the first acknowledgement. Completion retires with its native owner,
+intent or operation. A matching acknowledgement travels through the existing
+scroll event without coalescing; stale or mismatched acknowledgements cannot
+settle newer work. This also handles a target already at its legal bound, where
+UIKit need not produce a normal scroll callback. Branch-only older wire shapes
+are unsupported by the production implementation.
+
+Validate with `pnpm test:scroller:dependencies` and
+`pnpm test:scroller:rn-read-point`, then rebuild and run the iOS mutation corpus.
+Host controls cover before-delivery clamps, completed-clamp races, grow/shrink,
+lost acknowledgements and retired owners; they do not establish device
+presentation. Provider integration is documented in
+`apps/tlon-mobile/modules/tlon-scroll-edge-effect/ios/READ_PROVIDER_CONTRACT.md`.
+No upstream issue or PR has been submitted. Remove this coordinated patch only
+when equivalent reading correction and request ownership are available without
+it and the same regression corpus passes.
+
 ## expo-notifications@57.0.6
 
 Local patch:

@@ -1,15 +1,27 @@
 import { Post } from '@tloncorp/shared/db';
 import { PostContent, convertContent } from '@tloncorp/shared/logic';
-import { ComponentProps, useMemo } from 'react';
+import { ComponentProps, useContext, useMemo, useState } from 'react';
 import React from 'react';
+import { Platform } from 'react-native';
 import { YStack, styled } from 'tamagui';
 
 import { useOptionalChannelContext } from '../../contexts/channel';
+import {
+  NativeReadBlockContext,
+  NativeReadRowContext,
+} from '../../contexts/nativeRead';
+import {
+  emptyReadBlockLineage,
+  reconcileReadBlocks,
+} from '../Channel/PostList/nativeReadMetadata';
+import { createNativeReadFrame } from './nativeReadFrame';
 import {
   BlockRenderer,
   BlockRendererConfig,
   BlockRendererProvider,
   DefaultRendererProps,
+  IsInsideReferenceContext,
+  useNativeReadBlockManifest,
 } from './BlockRenderer';
 import { InlineRendererConfig, InlineRendererProvider } from './InlineRenderer';
 import { ContentContext, ContentContextProps } from './contentUtils';
@@ -20,6 +32,11 @@ const ContentRendererFrame = styled(YStack, {
   width: '100%',
   userSelect: 'text',
 });
+
+const NativeContentRendererFrame =
+  createNativeReadFrame<ComponentProps<typeof ContentRendererFrame>>(
+    ContentRendererFrame
+  );
 
 // Renderers
 
@@ -81,7 +98,74 @@ function ContentRenderer({
   content: PostContent;
 }) {
   const channel = useOptionalChannelContext();
+  const rowContext = useContext(NativeReadRowContext);
+  const insideReference = useContext(IsInsideReferenceContext);
+  const row =
+    Platform.OS === 'ios' && !insideReference && !rest.render && !rest.asChild
+      ? rowContext
+      : null;
+  const owner = row
+    ? JSON.stringify([row.scope, row.visit, row.key, row.revision])
+    : null;
+  const [reading, setReading] = useState({
+    owner,
+    lineage: emptyReadBlockLineage,
+  });
+  const lineage = row
+    ? reconcileReadBlocks(
+        reading.owner === owner ? reading.lineage : emptyReadBlockLineage,
+        content
+      )
+    : emptyReadBlockLineage;
+  // Render-derived React state is discarded with an aborted render. A ref write
+  // here would let uncommitted content consume the committed block lineage.
+  if (reading.owner !== owner || reading.lineage !== lineage) {
+    setReading({ owner, lineage });
+  }
+  const blocks = useNativeReadBlockManifest(content, lineage);
+  const descriptor = row
+    ? JSON.stringify({
+        ...row,
+        kind: 'row',
+        blocks,
+        unresolvedBlockIds: lineage.unresolvedBlockIds,
+      })
+    : undefined;
 
+  const renderedContent = (
+    <NativeReadRowContext.Provider value={null}>
+      <NativeReadBlockContext.Provider value={null}>
+        {content.map((block, k) => {
+          const metadata = blocks[k];
+          const nativeRead =
+            row && metadata
+              ? {
+                  version: row.version,
+                  scope: row.scope,
+                  visit: row.visit,
+                  key: row.key,
+                  rowRevision: row.revision,
+                  blockId: metadata.id,
+                  revision: metadata.revision,
+                  kind: metadata.kind,
+                  ...('assetKey' in metadata
+                    ? { assetKey: metadata.assetKey }
+                    : {}),
+                }
+              : undefined;
+          return (
+            <BlockRenderer
+              key={row ? metadata.id : k}
+              block={block}
+              nativeRead={nativeRead}
+            />
+          );
+        })}
+      </NativeReadBlockContext.Provider>
+    </NativeReadRowContext.Provider>
+  );
+
+  const Frame = descriptor ? NativeContentRendererFrame : ContentRendererFrame;
   return (
     <ContentContext.Provider
       groupId={groupId ?? channel?.groupId}
@@ -102,11 +186,9 @@ function ContentRenderer({
       isNotice={isNotice}
       searchQuery={searchQuery}
     >
-      <ContentRendererFrame {...rest}>
-        {content.map((block, k) => {
-          return <BlockRenderer key={k} block={block} />;
-        })}
-      </ContentRendererFrame>
+      <Frame {...rest} {...(descriptor ? { descriptor } : {})}>
+        {renderedContent}
+      </Frame>
     </ContentContext.Provider>
   );
 }

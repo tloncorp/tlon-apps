@@ -9,19 +9,32 @@ import { useConversationComputingState } from './useConversationComputingState';
 
 const MAX_VISIBLE_AVATARS = 3;
 
-export function ThinkingState({
+type ThinkingStateProps = {
+  conversationId: string;
+  /** Presence may be channel-wide, but retained presentation belongs to this visit. */
+  scopeKey?: string;
+  channelType: db.Channel['type'];
+  latestPostId?: string;
+  latestPostAuthorId?: string;
+  forcedLabel?: string;
+};
+
+export function ThinkingState(props: ThinkingStateProps) {
+  return (
+    <ThinkingStateOwner
+      key={props.scopeKey ?? props.conversationId}
+      {...props}
+    />
+  );
+}
+
+function ThinkingStateOwner({
   conversationId,
   channelType,
   latestPostId,
   latestPostAuthorId,
   forcedLabel,
-}: {
-  conversationId: string;
-  channelType: db.Channel['type'];
-  latestPostId?: string;
-  latestPostAuthorId?: string;
-  forcedLabel?: string;
-}) {
+}: ThinkingStateProps) {
   const diagnostics = useContext(ConversationListDiagnosticsContext);
   const computingState = useConversationComputingState(conversationId);
   const [holdUntilResponse, setHoldUntilResponse] = useState(false);

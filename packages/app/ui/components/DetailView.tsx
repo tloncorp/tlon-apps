@@ -3,7 +3,8 @@ import { Text } from '@tloncorp/ui';
 import { ReactNode, useMemo } from 'react';
 import { View, YStack, getTokenValue } from 'tamagui';
 
-import type { ConversationContentInsets } from './Channel/PostList';
+import type { ConversationContentInsets } from './conversationInsets';
+import type { PostListMethods } from './Channel/PostList/shared';
 import Scroller, { ScrollAnchor } from './Channel/Scroller';
 import { ThinkingState } from './Channel/ThinkingState';
 import { useShouldShowThinkingState } from './Channel/useShouldShowThinkingState';
@@ -12,6 +13,8 @@ import { GalleryPostDetailView } from './GalleryPost/GalleryPost';
 import { NotebookPostDetailView } from './NotebookPost/NotebookPost';
 
 export interface DetailViewProps {
+  /** Route focus combined with the active carousel item, when applicable. */
+  isFocused?: boolean;
   post: db.Post;
   channel: db.Channel;
   initialPostUnread?: db.ThreadUnreadState | null;
@@ -30,15 +33,13 @@ export interface DetailViewProps {
   activeMessage: db.Post | null;
   anchor?: ScrollAnchor | null;
   highlightPostId?: string | null;
-  scrollerRef?: React.RefObject<{
-    scrollToStart: (opts: { animated?: boolean }) => void;
-    scrollToEnd: (opts: { animated?: boolean }) => void;
-  } | null>;
+  scrollerRef?: React.RefObject<PostListMethods | null>;
   contentInsets?: ConversationContentInsets;
   isLoading?: boolean;
 }
 
 export const DetailView = ({
+  isFocused,
   post,
   channel,
   initialPostUnread,
@@ -78,6 +79,7 @@ export const DetailView = ({
         };
   }, [isChat]);
 
+  const threadScopeKey = JSON.stringify([channel.id, post.id]);
   const shouldShowThinkingState = useShouldShowThinkingState(channel);
   const latestPost = resolvedPosts?.[resolvedPosts.length - 1];
   // Computing presence is channel-scoped, so this shows bots thinking
@@ -88,6 +90,7 @@ export const DetailView = ({
     () =>
       shouldShowThinkingState ? (
         <ThinkingState
+          scopeKey={threadScopeKey}
           conversationId={channel.id}
           channelType={channel.type}
           latestPostId={latestPost?.id}
@@ -96,6 +99,7 @@ export const DetailView = ({
       ) : undefined,
     [
       shouldShowThinkingState,
+      threadScopeKey,
       channel.id,
       channel.type,
       latestPost?.authorId,
@@ -134,6 +138,8 @@ export const DetailView = ({
       {...containingProperties}
     >
       <Scroller
+        key={threadScopeKey}
+        isFocused={isFocused}
         ref={scrollerRef}
         anchor={anchor}
         anchorToEnd={isChat}

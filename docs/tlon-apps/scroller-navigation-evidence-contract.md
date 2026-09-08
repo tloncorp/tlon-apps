@@ -168,3 +168,56 @@ wrong row/reply, caption-only delivery, duplicate frames and untrusted input.
 Raw controls: `/private/tmp/scroller-navigation-pending-controls-r4-20260907.json`.
 Focused TypeScript and scoped lint pass. Only the missing-parent product case
 will be captured again; r1 and its qualified cached-parent case are retained.
+
+## Missing-parent loading-shell supplement (declared before controls)
+
+Only the existing missing-parent cancellation case gains this evidence. It keeps
+its original reference click, browser Back/popstate, held original full-thread
+GET, exact committed parent and 18 replies, successful missing local-parent read,
+late unchanged response and returned reading-point tail. The existing 100 ms
+sampling, 32 ms acquisition, 250 ms outgoing-route, 1,000 ms completion/tail and
+1 CSS px position limits are unchanged.
+
+While that request is held and the thread route is active, each existing sampler
+observation must show exactly one exposed `PostScreenLoadingShell`, its exact
+`Thread` title and `Loading thread…` label, one local progress indicator, and one
+visible, enabled `HeaderBackButton`. The Back control's center must hit itself
+or a descendant, with its whole measured box inside ancestor/window clipping
+bounds within 1 px. Missing, duplicate, hidden, stale or covered controls cannot
+pass. The shell must disappear from the exposed view after returning; no late
+response may reveal it again. Raw shell observations join the existing sampler;
+no second animation loop or DOM modification is introduced. The supplement is
+independently replayed alongside, not instead of, the original navigation and
+transport oracles. It retains headless provenance and makes no presented-frame
+claim.
+
+This case does not activate the shell's Back button: the original browser Back
+contract is preserved. It also does not exercise error, successful absence or
+Try again, because it cancels before the original successful response is
+released. Those capabilities remain explicitly unexecuted by this slice.
+
+The supplement's 18 focused controls pass, including actual collector callbacks
+on healthy, covered-Back and hidden-shell DOM boundaries. These are measurement
+controls, not browser presentation proof. Full web TypeScript passes. This
+control checkpoint preceded the actual run below; the earlier 337.3 ms blank
+recording stays unchanged. Controls:
+`/private/tmp/scroller-thread-shell-controls-r2-20260907.log`.
+
+The exact missing-parent case subsequently passed headlessly in 50.441 seconds.
+Both the unchanged pending-navigation/transport oracle and the shell supplement
+independently pass with no issues: 161 observations, maximum gap 95.3 ms and
+maximum acquisition 19 ms. While the original GET was held, 22 shell observations
+spanning 304.6 ms contained the exact `Thread` and `Loading thread…` text, one
+local progress indicator and an exposed, enabled Back control with an
+unobstructed center. Browser Back occurred before response release; no thread
+content revealed first. The original 200 response matched the committed parent
+and 18 replies. The 1,221 ms post-response tail retained the returned row and
+interior character with 0 px drift and no exposed shell reappearance.
+
+Normal flags, one headless Chromium worker, no retries, Vite development assets
+and matching capture/replay source snapshots were retained. The full existing
+navigation importer still reports incomplete under its headed-only provenance
+requirement; that gate was not relaxed. Shell Back activation, error/absence,
+retry, durable read effects and presented frames remain unexecuted or
+unqualified by this case. Raw and independent results:
+`/private/tmp/scroller-thread-shell-product-r1-20260907/{raw,independent,records,qualified-metrics}.json`.

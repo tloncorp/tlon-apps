@@ -54,6 +54,15 @@ import * as domain from '../domain';
 import { appendContactIdToReplies, getCompositeGroups } from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
+import {
+  type ReplySnapshot,
+  reconcileReplySnapshot,
+  completeReplyMembership,
+  recordReplyTransitions,
+  hasReplySnapshots,
+  sameReply,
+  assertCurrentReplySnapshot,
+} from './replySnapshot';
 import { createDmChannelsForNewContacts } from './modelBuilders';
 import {
   QueryCtx,
@@ -3959,8 +3968,10 @@ export const insertChannelPosts = createWriteQuery(
   async (
     {
       posts,
+      replySnapshot,
     }: {
       posts: Post[];
+      replySnapshot?: ReplySnapshot;
     },
     ctx: QueryCtx
   ) => {
@@ -3968,11 +3979,12 @@ export const insertChannelPosts = createWriteQuery(
       return;
     }
     return withTransactionCtx(ctx, async (txCtx) => {
+      if (replySnapshot) assertCurrentReplySnapshot(replySnapshot);
       logger.log(
         'inserting posts',
         posts.map((p) => p.id)
       );
-      await insertPosts(posts, txCtx);
+      await insertPosts(posts, txCtx, replySnapshot);
       logger.log('inserted posts');
     });
   },
@@ -3998,11 +4010,98 @@ export const insertLatestPosts = createWriteQuery(
 
 const insertPostsBatchSize = 300;
 
-async function insertPosts(posts: Post[], ctx: QueryCtx) {
+async function insertPosts(
+  posts: Post[],
+  ctx: QueryCtx,
+  replySnapshot?: ReplySnapshot
+) {
+  const parents = posts.filter((post) => !post.parentId);
+  const unconfirmed = parents.length
+    ? await ctx.db
+        .select()
+        .from($posts)
+        .where(
+          and(
+            inArray(
+              $posts.parentId,
+              parents.map((post) => post.id)
+            ),
+            isNull($posts.syncedAt)
+          )
+        )
+    : [];
+  // The full parent and the identities backing its metadata share the outer
+  // transaction, including when the expanded list crosses a batch boundary.
+  const previousParents =
+    replySnapshot && parents.length
+      ? await ctx.db
+          .select()
+          .from($posts)
+          .where(
+            inArray(
+              $posts.id,
+              parents.map((post) => post.id)
+            )
+          )
+      : [];
+  const completeParentIds = parents
+    .filter(completeReplyMembership)
+    .map((post) => post.id);
+  const previousCompleteReplies =
+    hasReplySnapshots(ctx) && completeParentIds.length
+      ? await ctx.db
+          .select()
+          .from($posts)
+          .where(inArray($posts.parentId, completeParentIds))
+      : [];
+  const expanded = new Map<string, Post>();
+  const repliesByParent = new Map<string, Post[]>();
+  for (const post of [
+    ...posts.filter((post) => !post.parentId),
+    ...posts.filter((post) => post.parentId),
+  ]) {
+    if (
+      post.parentId &&
+      repliesByParent
+        .get(post.parentId)
+        ?.some((existing) => sameReply(existing, post))
+    )
+      continue;
+    const reconciled = reconcileReplySnapshot(
+      post,
+      replySnapshot,
+      unconfirmed,
+      previousParents.find((previous) => previous.id === post.id)
+    );
+    expanded.set(reconciled.id, reconciled);
+    for (const reply of reconciled.replies ?? []) {
+      expanded.set(reply.id, reply);
+      const siblings = repliesByParent.get(reply.parentId!) ?? [];
+      siblings.push(reply);
+      repliesByParent.set(reply.parentId!, siblings);
+    }
+    if (reconciled.parentId) {
+      const siblings = repliesByParent.get(reconciled.parentId) ?? [];
+      siblings.push(reconciled);
+      repliesByParent.set(reconciled.parentId, siblings);
+    }
+  }
+  posts = [...expanded.values()];
   for (let i = 0; i < posts.length; i += insertPostsBatchSize) {
     const batch = posts.slice(i, i + insertPostsBatchSize);
     await insertPostsBatch(batch, ctx);
   }
+  // Complete membership is explicit removal evidence even when the legacy
+  // cache retains omitted rows. Partial pages never infer missing identities.
+  const removed = previousCompleteReplies.filter((reply) => {
+    const parent = expanded.get(reply.parentId!);
+    return (
+      parent &&
+      completeReplyMembership(parent) &&
+      !parent.replies!.some((current) => sameReply(current, reply))
+    );
+  });
+  recordReplyTransitions(ctx, removed, []);
 }
 
 async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
@@ -4011,6 +4110,29 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  const incomingReplies = posts.filter((post) => post.parentId);
+  const previousReplies =
+    hasReplySnapshots(ctx) && incomingReplies.length
+      ? await ctx.db
+          .select()
+          .from($posts)
+          .where(
+            or(
+              inArray(
+                $posts.id,
+                incomingReplies.map((post) => post.id)
+              ),
+              ...incomingReplies.map((post) =>
+                and(
+                  eq($posts.channelId, post.channelId),
+                  eq($posts.parentId, post.parentId!),
+                  eq($posts.authorId, post.authorId),
+                  eq($posts.sentAt, post.sentAt)
+                )
+              )
+            )
+          )
+      : [];
   const failedEdits = await ctx.db
     .select({
       id: $posts.id,
@@ -4139,6 +4261,7 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         )
       );
       logger.log('clear matched pending');
+      recordReplyTransitions(ctx, previousReplies, incomingReplies);
       confirmedEdits.forEach(() =>
         trackEvent(domain.AnalyticsEvent.PostEditCompleted)
       );
@@ -4462,7 +4585,19 @@ export const updatePost = createWriteQuery(
   'updateChannelPost',
   async (post: Partial<Post> & { id: string }, ctx: QueryCtx) => {
     return withTransactionCtx(ctx, async (txCtx) => {
-      return txCtx.db.update($posts).set(post).where(eq($posts.id, post.id));
+      if (!hasReplySnapshots(txCtx))
+        return txCtx.db.update($posts).set(post).where(eq($posts.id, post.id));
+      const before = await txCtx.db
+        .select()
+        .from($posts)
+        .where(eq($posts.id, post.id));
+      const rows = await txCtx.db
+        .update($posts)
+        .set(post)
+        .where(eq($posts.id, post.id))
+        .returning();
+      recordReplyTransitions(txCtx, before, rows);
+      return rows;
     });
   },
   ['posts']
@@ -4471,7 +4606,16 @@ export const updatePost = createWriteQuery(
 export const deletePost = createWriteQuery(
   'deleteChannelPost',
   async (postId: string, ctx: QueryCtx) => {
-    return ctx.db.delete($posts).where(eq($posts.id, postId));
+    return withTransactionCtx(ctx, async (txCtx) => {
+      if (!hasReplySnapshots(txCtx))
+        return txCtx.db.delete($posts).where(eq($posts.id, postId));
+      const rows = await txCtx.db
+        .delete($posts)
+        .where(eq($posts.id, postId))
+        .returning();
+      recordReplyTransitions(txCtx, rows, []);
+      return rows;
+    });
   },
   ['posts']
 );
@@ -4479,17 +4623,18 @@ export const deletePost = createWriteQuery(
 export const markPostAsDeleted = createWriteQuery(
   'markPostAsDeleted',
   async (postId: string, ctx: QueryCtx) => {
-    return ctx.db
-      .update($posts)
-      .set({
+    return updatePost(
+      {
+        id: postId,
         isDeleted: true,
         content: null,
         textContent: null,
         authorId: undefined,
         title: null,
         image: null,
-      })
-      .where(eq($posts.id, postId));
+      },
+      ctx
+    );
   },
   ['posts']
 );
@@ -4564,7 +4709,16 @@ export const deletePostReaction = createWriteQuery(
 export const deletePosts = createWriteQuery(
   'deletePosts',
   async ({ ids }: { ids: string[] }, ctx: QueryCtx) => {
-    return ctx.db.delete($posts).where(inArray($posts.id, ids));
+    return withTransactionCtx(ctx, async (txCtx) => {
+      if (!hasReplySnapshots(txCtx))
+        return txCtx.db.delete($posts).where(inArray($posts.id, ids));
+      const rows = await txCtx.db
+        .delete($posts)
+        .where(inArray($posts.id, ids))
+        .returning();
+      recordReplyTransitions(txCtx, rows, []);
+      return rows;
+    });
   },
   ['posts']
 );

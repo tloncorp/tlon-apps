@@ -257,7 +257,9 @@ function assessProductionAssets(proof, expected = {}) {
       !Number.isFinite(start) ||
       expected.attemptClockError ||
       !Number.isFinite(finish) ||
-      finish < start + expected.attemptDurationMs ||
+      // Never compare a Date.now endpoint with accumulated timeout duration.
+      finish < start ||
+      !Number.isFinite(expected.attemptDurationMs) ||
       !(expected.attemptDurationMs > 0) ||
       proof.startedAt < start ||
       proof.completedAt > finish

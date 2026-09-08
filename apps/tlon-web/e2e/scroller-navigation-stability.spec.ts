@@ -18,8 +18,14 @@ import {
   readNavigationQueries,
 } from './helpers/scrollPendingNavigation';
 import { testWithOptions } from './test-fixtures';
+import { returnOnThreadRoute } from './helpers/scrollImmediateBack';
+import { assessPendingThreadShell } from './helpers/threadLoadingShell';
 
-const test = testWithOptions({ appReadyTimeoutMs: 60_000, e2eMode: false });
+const test = testWithOptions({
+  appReadyTimeoutMs: 60_000,
+  e2eMode: false,
+  createdGroupCleanup: true,
+});
 test.describe('Actual continuous channel and thread navigation', () => {
   for (const cancel of [false, true]) {
     test(
@@ -175,7 +181,7 @@ test.describe('Actual continuous channel and thread navigation', () => {
           body: JSON.stringify({
             ...preparation,
             browser: browser.version(),
-            headed: true,
+            headed: testInfo.project.use.headless === false,
             viewport: { width: 1280, height: 800 },
             baseline,
             channelRows,
@@ -202,19 +208,17 @@ test.describe('Actual continuous channel and thread navigation', () => {
         try {
           await page.waitForTimeout(250);
           await capture.begin('open-thread');
-          await parent
-            .getByText('18 replies', { exact: true })
-            .click({ timeout: 10_000 });
-          await capture.end('open-thread');
+          const trigger = parent.getByText('18 replies', { exact: true });
           if (cancel) {
-            // Observe routing only; never wait for a destination row or readiness.
-            await page.waitForURL((url) => url.pathname === threadRoute, {
-              timeout: 2000,
-            });
-          } else await page.waitForTimeout(2000);
-          await capture.begin('return-channel');
-          await page.goBack({ timeout: 3000 });
-          await capture.end('return-channel');
+            await returnOnThreadRoute(page, trigger, threadRoute, capture);
+          } else {
+            await trigger.click({ timeout: 10_000 });
+            await capture.end('open-thread');
+            await page.waitForTimeout(2000);
+            await capture.begin('return-channel');
+            await page.goBack({ timeout: 3000 });
+            await capture.end('return-channel');
+          }
           // Fixed capture deadline includes delayed callbacks even after a bad reveal.
           await page.waitForTimeout(2100);
         } finally {
@@ -272,11 +276,9 @@ test.describe('Actual continuous channel and thread navigation', () => {
           ).toBeVisible();
           const trigger =
             kind === 'missing-parent'
-              ? row
-                  .locator('.is_ReferenceFrame')
-                  .filter({
-                    has: page.getByText(fixture.triggerText, { exact: true }),
-                  })
+              ? row.locator('.is_ReferenceFrame').filter({
+                  has: page.getByText(fixture.triggerText, { exact: true }),
+                })
               : row.getByText(fixture.triggerText, { exact: true });
           await expect(trigger).toHaveCount(1, { timeout: 10_000 });
           await page.bringToFront();
@@ -381,7 +383,7 @@ test.describe('Actual continuous channel and thread navigation', () => {
             body: JSON.stringify({
               ...preparation,
               browser: browser.version(),
-              headed: true,
+              headed: testInfo.project.use.headless === false,
               viewport: { width: 1280, height: 800 },
               baseline,
               channelRows: fixture.channelRows,
@@ -466,6 +468,15 @@ test.describe('Actual continuous channel and thread navigation', () => {
               new Error(unavailable ?? 'Navigation capture unavailable')
             );
           const assessment = assessPendingNavigationTrace(raw, plan, proof);
+          const shellAssessment =
+            kind === 'missing-parent'
+              ? assessPendingThreadShell(raw, plan, proof)
+              : null;
+          if (shellAssessment)
+            await testInfo.attach('navigation-shell-assessment', {
+              body: JSON.stringify(shellAssessment),
+              contentType: 'application/json',
+            });
           await testInfo.attach('navigation-assessment', {
             body: JSON.stringify(assessment),
             contentType: 'application/json',
@@ -477,6 +488,11 @@ test.describe('Actual continuous channel and thread navigation', () => {
             });
           if (actionError) throw actionError;
           expect(assessment.issues, JSON.stringify(assessment)).toEqual([]);
+          if (shellAssessment)
+            expect(
+              shellAssessment.issues,
+              JSON.stringify(shellAssessment)
+            ).toEqual([]);
         } finally {
           await fixture.cleanup();
         }

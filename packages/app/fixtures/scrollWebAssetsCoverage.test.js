@@ -137,6 +137,28 @@ describe('served production web build provenance', () => {
     expected.attemptWallEndTime = 3500;
     expect(assessProductionAssets(proof, expected)).toEqual([]);
   });
+  it('accepts exact wall containment when monotonic duration exceeds wall span by 7ms', () => {
+    const { proof, expected } = evidence();
+    expected.attemptDurationMs = 3507;
+    expected.attemptWallEndTime = 3500;
+    expect(assessProductionAssets(proof, expected)).toEqual([]);
+  });
+  it.each([NaN, Infinity, -1, 0])(
+    'rejects invalid duration %s even with a valid explicit wall end',
+    (duration) => {
+      const { proof, expected } = evidence();
+      expected.attemptDurationMs = duration;
+      expected.attemptWallEndTime = 3500;
+      expect(assessProductionAssets(proof, expected)).not.toEqual([]);
+    }
+  );
+  it('retains byte qualification when the independent clocks differ', () => {
+    const { proof, expected } = evidence();
+    expected.attemptDurationMs = 3507;
+    expected.attemptWallEndTime = 3500;
+    proof.responses[0].sha256 = '0'.repeat(64);
+    expect(assessProductionAssets(proof, expected)).not.toEqual([]);
+  });
   it('rejects capture beyond the actual wall bound without extra tolerance', () => {
     const { proof, expected } = evidence();
     expected.attemptDurationMs = 2000;
@@ -430,6 +452,35 @@ describe('enclosing Playwright attempt clock', () => {
     expect(record.attemptWallEndTime).toBe(3500);
     expect(assessWebEvidence(record).status).toBe('recorded-sampled-pass');
   });
+  it('uses the explicit reporter endpoint when timeout duration is 7ms longer', () => {
+    const d = reportData();
+    d.attempt.duration = 3507;
+    const record = read(d);
+    expect(record.attemptClockError).toBeUndefined();
+    expect(record.attemptWallEndTime).toBe(3500);
+    expect(assessWebEvidence(record).status).toBe('recorded-sampled-pass');
+  });
+  it('rejects content after a valid wall end even when the timeout duration would contain it', () => {
+    const d = reportData();
+    d.attempt.duration = 4000;
+    const annotation = d.attempt.annotations[0];
+    const clock = JSON.parse(annotation.description);
+    clock.endedAt = 1999;
+    annotation.description = JSON.stringify(clock);
+    const record = read(d);
+    expect(record.attemptClockError).toBeUndefined();
+    expect(record.attemptWallEndTime).toBe(1999);
+    expect(assessWebEvidence(record).status).toBe('incomplete');
+  });
+  it.each([NaN, Infinity, -1])(
+    'rejects a malformed enclosing duration %s',
+    (duration) => {
+      const d = reportData();
+      d.attempt.duration = duration;
+      expect(read(d).attemptClockError).toBeTruthy();
+      expect(assessWebEvidence(read(d)).status).toBe('incomplete');
+    }
+  );
   it('preserves missing-clock historical boundary rejection', () => {
     const d = reportData();
     d.attempt.annotations = [];
@@ -465,7 +516,7 @@ describe('enclosing Playwright attempt clock', () => {
         (d) => {
           const annotation = d.attempt.annotations[0];
           const clock = JSON.parse(annotation.description);
-          clock[key] = key === 'endedAt' ? 1999 : 'wrong';
+          clock[key] = key === 'endedAt' ? -1 : 'wrong';
           annotation.description = JSON.stringify(clock);
         },
       ]

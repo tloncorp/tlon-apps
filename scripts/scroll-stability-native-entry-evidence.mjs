@@ -4,7 +4,10 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { assessNativeEntryTrace } from '../packages/app/fixtures/scrollNativeEntryTrace.ts';
 import { assessNativeRecording } from '../packages/app/fixtures/scrollNativeRecording.ts';
-import { adaptBufferedNativeScrollGeometry } from '../packages/app/fixtures/scrollNativeGeometry.ts';
+import {
+  adaptBufferedNativeScrollGeometry,
+  adaptNativeEntryRuler,
+} from '../packages/app/fixtures/scrollNativeGeometry.ts';
 import { assessClampedScrollLanding } from '../packages/app/fixtures/scrollStabilityTrace.ts';
 import { replayNativeRecording } from './scroll-stability-native-recording-evidence.mjs';
 
@@ -126,7 +129,8 @@ export function replayNativeEntry(trace) {
     contract,
     (raw, request) =>
       assessNativeRecording(raw, request, adaptBufferedNativeScrollGeometry),
-    assessClampedScrollLanding
+    assessClampedScrollLanding,
+    adaptNativeEntryRuler
   );
 }
 

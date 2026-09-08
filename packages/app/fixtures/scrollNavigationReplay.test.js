@@ -1,3 +1,4 @@
+import { assessWebEvidence } from '../../../scripts/scroll-stability-web-evidence.mjs';
 import { describe, expect, it } from 'vitest';
 import {
   navigationScenarioRegistry,
@@ -438,6 +439,120 @@ describe('navigation importer boundary controls', () => {
     expect(replayWebNavigation(input)).toContainEqual({
       message: 'Navigation: cancellation-not-before-reveal',
       kind: 'incomplete',
+    });
+  });
+});
+
+const publicRecord = (input) => ({
+  ...input,
+  browserTraces: [],
+  reportedStatus: 'passed',
+  expectedStatus: 'passed',
+});
+describe('headless navigation dimensions', () => {
+  it('classifies healthy real behavior independently while retaining incomplete headless presentation', () => {
+    const input = record();
+    value(input, 'navigation-preparation').headed = false;
+    expect(replayWebNavigation(input)).toEqual([
+      {
+        message:
+          'Navigation: Headless capture leaves headed/presentation qualification incomplete',
+        kind: 'incomplete',
+        dimension: 'presentation',
+      },
+    ]);
+    expect(assessWebEvidence(publicRecord(input))).toMatchObject({
+      status: 'incomplete',
+      navigationBehavior: {
+        verdict: 'PASS',
+        presentation: 'INCOMPLETE',
+        durableReads: 'INCOMPLETE',
+        issues: [],
+      },
+    });
+  });
+  it('keeps a headless wrong landing as an actual behavior failure', () => {
+    const input = record();
+    value(input, 'navigation-preparation').headed = false;
+    const sample = value(input, 'navigation-raw').samples.find(
+      (s) => s.lists[0].kind === 'thread'
+    );
+    sample.lists[0].bottomGap = 20;
+    expect(assessWebEvidence(publicRecord(input))).toMatchObject({
+      status: 'fail',
+      navigationBehavior: { verdict: 'FAIL' },
+    });
+  });
+  it('does not qualify a late cancellation merely because execution is headless', () => {
+    const input = record();
+    const registered = navigationScenarioRegistry.find(
+      (r) => r.navigationKind === 'cancellation'
+    );
+    input.scenario = registered.scenario;
+    input.contract = structuredClone(registered);
+    value(input, 'navigation-preparation').headed = false;
+    value(input, 'navigation-plan').commands[1].cancels = 'open-thread';
+    const result = assessWebEvidence(publicRecord(input));
+    expect(result).toMatchObject({
+      status: 'incomplete',
+      navigationBehavior: { verdict: 'INCOMPLETE' },
+    });
+    expect(result.navigationBehavior.issues).toContain(
+      'Navigation: cancellation-not-before-reveal'
+    );
+  });
+  it('does not use the presentation split to excuse unknown launch mode or invalid source declarations', () => {
+    for (const modify of [
+      (p) => {
+        delete p.headed;
+      },
+      (p) => {
+        p.headed = false;
+        p.normalFlags = false;
+      },
+    ]) {
+      const input = record();
+      modify(value(input, 'navigation-preparation'));
+      expect(
+        assessWebEvidence(publicRecord(input)).navigationBehavior.verdict
+      ).toBe('INCOMPLETE');
+    }
+  });
+  it('keeps previous healthy headed behavior classification without claiming presentation', () => {
+    expect(assessWebEvidence(publicRecord(record()))).toMatchObject({
+      status: 'recorded-sampled-pass',
+      navigationBehavior: { verdict: 'PASS', presentation: 'INCOMPLETE' },
+    });
+  });
+  it('qualifies real pre-reveal cancellation with a later joined opening acknowledgement', () => {
+    const input = record();
+    const registry = navigationScenarioRegistry.find(
+      (r) => r.navigationKind === 'cancellation'
+    );
+    input.scenario = registry.scenario;
+    input.contract = structuredClone(registry);
+    value(input, 'navigation-preparation').headed = false;
+    const plan = value(input, 'navigation-plan'),
+      raw = value(input, 'navigation-raw');
+    plan.commands[1].cancels = 'open-thread';
+    raw.commands[1] = { id: 'return-channel', start: 1320, end: 1360 };
+    raw.commands[0].end = 1370;
+    raw.events[1].time = raw.events[1].observedAt = 1340;
+    const channel = structuredClone(raw.samples[0].lists);
+    for (const frame of raw.samples) {
+      if (frame.time >= 1280 && frame.time < 1340) {
+        frame.route = plan.scopes.thread.route;
+        frame.lists = [];
+        frame.loadingCount = 1;
+      } else if (frame.time >= 1340) {
+        frame.route = plan.scopes.channel.route;
+        frame.lists = structuredClone(channel);
+        frame.loadingCount = 0;
+      }
+    }
+    expect(assessWebEvidence(publicRecord(input))).toMatchObject({
+      status: 'incomplete',
+      navigationBehavior: { verdict: 'PASS', issues: [] },
     });
   });
 });

@@ -2,8 +2,9 @@
 
 Acceptance was declared before implementation on 2026-09-07. Actual normal
 `App.main` Release preview checkpoints were exercised across retained attempts
-r4–r8. The assembled reusable **18-message flow has not yet completed one
-uninterrupted run**. This is actual application-path coverage, not
+r4–r8. The assembled reusable **18-message flow subsequently passed one
+uninterrupted 441-second refactor run**, with its initial setup failure retained;
+see [refactor validation](scroller-refactor-results-2026-09-07.md). This is actual application-path coverage, not
 `ScrollStabilityFixture`, continuous geometry, or presented-frame evidence.
 
 ## Setup and boundaries
@@ -45,8 +46,8 @@ threshold qualification incomplete rather than establishing an application bug.
 Required actions/assertions are never optional or gated on UI visibility.
 Explicit waits and each scroll search are five seconds; implicit driver waits
 use installed Maestro defaults. Do not retry, inject callbacks/navigation, write
-scroll offsets, or catch failures as success. The two-search assembled route
-still needs an uninterrupted device run.
+scroll offsets, or catch failures as success. The two-search assembled route passed in that later uninterrupted run; this does
+not qualify unmeasured continuous geometry.
 
 ## Actual native acquisition
 
@@ -121,6 +122,7 @@ then from the intended checkout:
 
 ```sh
 /Users/danielbrewster/.codex/bin/tlon-mobile-run inspect
+/Users/danielbrewster/.codex/bin/tlon-mobile-run launch --udid "$SCROLLER_UDID"
 /Users/danielbrewster/.codex/bin/tlon-mobile-run maestro --udid "$SCROLLER_UDID" -- test \
   -e APP_ID=io.tlon.groups.preview \
   -e GROUP_NAME="Scroll-$SCROLLER_RUN_TAG" \
@@ -132,6 +134,8 @@ then from the intended checkout:
   .maestro/scroller-product.yaml
 ```
 
+Launch immediately before the flow: an earlier Maestro preflight may leave
+SpringBoard foreground when it ends. The flow itself still requires app Home.
 Execute this file explicitly, not the disabled repository-wide legacy flow list.
 A selector or acquisition failure remains an ordinary failed attempt and incomplete
 product coverage; only completed assertions support checkpoint claims. Installed

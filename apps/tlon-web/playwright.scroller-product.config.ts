@@ -16,6 +16,7 @@ export default defineConfig({
     'scroller-concurrent-content.spec.ts',
     'scroller-keyboard-stability.spec.ts',
     'scroller-navigation-stability.spec.ts',
+    'scroller-center-edit-stability.spec.ts',
   ],
   grepInvert: /Scroller detector self-tests/,
   fullyParallel: false,
@@ -36,6 +37,10 @@ export default defineConfig({
   ],
   projects: config.projects?.map((project) => ({
     ...project,
-    use: { ...project.use, channel: 'chromium', headless: false },
+    use: {
+      ...project.use,
+      channel: 'chromium',
+      headless: process.env.SCROLLER_HEADED !== '1',
+    },
   })),
 });

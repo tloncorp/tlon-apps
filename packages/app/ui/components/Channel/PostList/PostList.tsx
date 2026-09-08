@@ -4,8 +4,10 @@ import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
 import {
+  PixelRatio,
   Platform,
   type NativeScrollEvent,
+  type NativeSyntheticEvent,
   type ScrollView,
 } from 'react-native';
 import {
@@ -16,6 +18,10 @@ import {
   useSharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { NativeReadListContext } from '../../../contexts/nativeRead';
+import { NativeReadScopeContainer } from '../../ScrollReadContainers';
+import { useNativeReadScope } from './useNativeReadScope';
 
 import {
   useConversationComposerHeight,
@@ -30,6 +36,7 @@ import {
   getPostListScopeKey,
 } from './postListInitialization';
 import {
+  InitialScrollRecovery,
   PostListComponent,
   PostListComponentProps,
   PostListMethods,
@@ -38,8 +45,19 @@ import {
   usesConversationPostList,
 } from './shared';
 
+import {
+  createNativeScrollOwnership,
+  isNativeScrollUnalignedError,
+  nativeAnchorViewOffset,
+  runOwnedNativeScroll as runOwnedNativeScrollWithRetry,
+} from './nativeScrollOwnership';
+
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
+type OwnedScroll = (
+  isCurrent: () => boolean,
+  scroll: () => Promise<void> | undefined
+) => Promise<void> | undefined;
 
 function useConversationKeyboardListProps(
   composerContentInset: SharedValue<number>
@@ -86,22 +104,19 @@ function getPostId({ post }: PostWithNeighbors) {
   return post.id;
 }
 
-function runImperativeScroll(scroll: () => Promise<void> | undefined) {
-  const attempt = () => {
-    try {
-      return scroll() ?? Promise.resolve();
-    } catch (error) {
-      return Promise.reject(error);
+function missingPostTarget(postId: string) {
+  return Object.assign(
+    new Error('Post is no longer available for navigation'),
+    {
+      code: 'LEGEND_SCROLL_UNALIGNED',
+      reason: 'target-missing',
+      key: postId,
+      index: null,
+      requestedOffset: null,
+      currentOffset: null,
+      observedOffset: null,
     }
-  };
-
-  void attempt().catch(() => {
-    // LegendList can reject while data or measurements are changing. Retry
-    // once after the next layout opportunity and contain a second failure.
-    requestAnimationFrame(() => {
-      void attempt().catch(() => {});
-    });
-  });
+  );
 }
 
 type IndexedAnchorPosition = {
@@ -162,6 +177,8 @@ const ConversationPostList: PostListComponent = React.forwardRef(
     React.useImperativeHandle(
       forwardedRef,
       () => ({
+        captureScrollIntent: () =>
+          attemptRef.current?.captureScrollIntent?.() ?? (() => false),
         scrollToStart: (options) => attemptRef.current?.scrollToStart(options),
         scrollToEnd: (options) => attemptRef.current?.scrollToEnd(options),
         scrollToPost: (options) => attemptRef.current?.scrollToPost(options),
@@ -261,6 +278,10 @@ function useConversationAnchorTarget({
   contentInsets,
   didTimeoutWaitingForAnchor,
   listRef,
+  footerSize,
+  itemCount,
+  itemsRef,
+  ownScroll,
 }: Pick<
   ConversationPostListAttemptProps,
   | 'anchor'
@@ -270,6 +291,10 @@ function useConversationAnchorTarget({
   | 'didTimeoutWaitingForAnchor'
 > & {
   listRef: React.RefObject<LegendListRef | null>;
+  footerSize: number;
+  itemCount: number;
+  itemsRef: React.RefObject<PostWithNeighbors[]>;
+  ownScroll: OwnedScroll;
 }) {
   const initialScrollIndex = React.useMemo<IndexedAnchorPosition | undefined>(
     () =>
@@ -278,42 +303,84 @@ function useConversationAnchorTarget({
         : {
             index: anchorIndex,
             viewPosition: anchor?.type === 'unread' ? 0 : 0.5,
-            viewOffset:
-              anchor?.type === 'unread' ? (contentInsets?.top ?? 0) : 0,
+            viewOffset: nativeAnchorViewOffset(
+              contentInsets?.top ?? 0,
+              contentInsets?.bottom ?? 0,
+              anchor?.type === 'unread' ? 0 : 0.5,
+              Platform.OS === 'ios',
+              anchorIndex === itemCount - 1 ? footerSize : 0
+            ),
           },
-    [anchor?.type, anchorIndex, contentInsets?.top, didTimeoutWaitingForAnchor]
+    [
+      anchor?.type,
+      anchorIndex,
+      contentInsets?.top,
+      contentInsets?.bottom,
+      didTimeoutWaitingForAnchor,
+      footerSize,
+      itemCount,
+    ]
   );
   const anchorPosition: AnchorPosition | undefined =
     anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor)
       ? 'end'
       : initialScrollIndex;
-  const latestAnchorPositionRef = React.useRef(anchorPosition);
+  const latestAnchorPositionRef = React.useRef({
+    position: anchorPosition,
+    postId: anchor?.postId,
+  });
   const appliedAnchorPositionRef = React.useRef<AnchorPosition | undefined>(
     undefined
   );
 
   React.useLayoutEffect(() => {
-    latestAnchorPositionRef.current = anchorPosition;
-  }, [anchorPosition]);
+    latestAnchorPositionRef.current = {
+      position: anchorPosition,
+      postId: anchor?.postId,
+    };
+  }, [anchorPosition, anchor?.postId]);
 
   // LegendList uses initialScrollIndex to get near the target from estimates.
   // Once it has measured the initial rows, this applies the exact position.
-  const applyAnchorPosition = React.useCallback(async () => {
-    const target = latestAnchorPositionRef.current;
-    if (target === 'end') {
-      await listRef.current?.scrollToEnd({ animated: false });
+  const applyAnchorPosition = React.useCallback(
+    async (isCurrent: () => boolean) => {
+      if (!isCurrent()) return false;
+      const { position: target, postId } = latestAnchorPositionRef.current;
+      if (target === 'end') {
+        await ownScroll(isCurrent, () =>
+          listRef.current?.scrollToEnd({ animated: false })
+        );
+        if (!isCurrent()) return false;
+        appliedAnchorPositionRef.current = target;
+        return true;
+      }
+
+      if (!target) {
+        return false;
+      }
+
+      if (Platform.OS === 'ios' && postId) {
+        const item = itemsRef.current.find(({ post }) => post.id === postId);
+        if (!item) throw missingPostTarget(postId);
+        await ownScroll(isCurrent, () =>
+          listRef.current?.scrollToItem({
+            item,
+            viewPosition: target.viewPosition,
+            viewOffset: target.viewOffset,
+            animated: false,
+          })
+        );
+      } else {
+        await ownScroll(isCurrent, () =>
+          listRef.current?.scrollToIndex({ ...target, animated: false })
+        );
+      }
+      if (!isCurrent()) return false;
       appliedAnchorPositionRef.current = target;
       return true;
-    }
-
-    if (!target) {
-      return false;
-    }
-
-    await listRef.current?.scrollToIndex({ ...target, animated: false });
-    appliedAnchorPositionRef.current = target;
-    return true;
-  }, [listRef]);
+    },
+    [itemsRef, listRef, ownScroll]
+  );
 
   return {
     anchorPosition,
@@ -324,21 +391,64 @@ function useConversationAnchorTarget({
 }
 
 function useInitialConversationScroll({
+  owner,
+  captureIntent,
   anchorTarget,
   isInitialAnchorReady,
   isLoading,
   itemCount,
+  isFocused,
   onInitialScrollCompleted,
+  onInitialScrollRecoveryChange,
 }: {
+  owner: ReturnType<typeof createNativeScrollOwnership>;
+  captureIntent: () => () => boolean;
   anchorTarget: ReturnType<typeof useConversationAnchorTarget>;
   isInitialAnchorReady: boolean;
   isLoading: boolean;
   itemCount: number;
+  isFocused: boolean;
   onInitialScrollCompleted?: () => void;
+  onInitialScrollRecoveryChange?: (
+    recovery: InitialScrollRecovery | null
+  ) => void;
 }) {
   const attemptIsActiveRef = React.useRef(true);
   const didStartInitialScrollRef = React.useRef(false);
   const initialScrollFrameRef = React.useRef<number | undefined>(undefined);
+  const initialScrollTicketRef = React.useRef<object | null>(null);
+  const initialOperationRef = React.useRef<object | null>(null);
+  const didNotifyReadyRef = React.useRef(false);
+  const recoveryRef = React.useRef<{
+    action: InitialScrollRecovery;
+    retryCommand: () => void;
+  } | null>(null);
+  const retryInitialRef = React.useRef<(() => void) | null>(null);
+  const clearRecovery = React.useCallback(() => {
+    if (!recoveryRef.current) return;
+    recoveryRef.current = null;
+    onInitialScrollRecoveryChange?.(null);
+  }, [onInitialScrollRecoveryChange]);
+  const publishRecovery = React.useCallback(
+    (retryCommand: () => void) => {
+      const permit = captureIntent();
+      const action: InitialScrollRecovery = {
+        retry: () => {
+          if (
+            !attemptIsActiveRef.current ||
+            recoveryRef.current?.action !== action ||
+            !permit()
+          )
+            return;
+          clearRecovery();
+          retryCommand();
+        },
+      };
+      recoveryRef.current = { action, retryCommand };
+      onInitialScrollRecoveryChange?.(action);
+    },
+    [captureIntent, clearRecovery, onInitialScrollRecoveryChange]
+  );
   const userHasScrolledRef = React.useRef(false);
   const [hasUserScrolled, setHasUserScrolled] = React.useState(false);
   const [didFinishInitialScroll, setDidFinishInitialScroll] =
@@ -347,53 +457,119 @@ function useInitialConversationScroll({
     anchorTarget;
 
   const finishInitialScroll = React.useCallback(() => {
+    if (!owner.capture()() || didNotifyReadyRef.current) return;
+    if (!owner.finishNavigation()) return;
+    didNotifyReadyRef.current = true;
+    clearRecovery();
     setDidFinishInitialScroll(true);
     onInitialScrollCompleted?.();
-  }, [onInitialScrollCompleted]);
+  }, [owner, clearRecovery, onInitialScrollCompleted]);
+  const finishUserNavigation = React.useCallback(() => {
+    if (!owner.finishNavigation()) return;
+    finishInitialScroll();
+  }, [owner, finishInitialScroll]);
+  const cancelInitialScroll = React.useCallback(() => {
+    initialScrollTicketRef.current = null;
+    initialOperationRef.current = null;
+    if (initialScrollFrameRef.current !== undefined) {
+      cancelAnimationFrame(initialScrollFrameRef.current);
+      initialScrollFrameRef.current = undefined;
+    }
+  }, []);
+  const handleScrollFailure = React.useCallback(
+    (error: unknown, retryCommand: () => void) => {
+      if (!attemptIsActiveRef.current || !owner.capture()()) return;
+      if (!owner.finishNavigation()) return;
+      if (didNotifyReadyRef.current) return;
+      if (!isNativeScrollUnalignedError(error)) {
+        // Preserve the existing ordinary measurement fallback; it is not an
+        // acknowledgement of the failed indexed command.
+        finishInitialScroll();
+        return;
+      }
+      cancelInitialScroll();
+      publishRecovery(retryCommand);
+    },
+    [cancelInitialScroll, finishInitialScroll, owner, publishRecovery]
+  );
   const completeInitialScroll = React.useCallback(() => {
     if (!isInitialAnchorReady || didStartInitialScrollRef.current) {
       return;
     }
     didStartInitialScrollRef.current = true;
-    void applyAnchorPosition()
+    clearRecovery();
+    const operation = {};
+    initialOperationRef.current = operation;
+    const permit = captureIntent();
+    const isCurrent = () =>
+      permit() && initialOperationRef.current === operation;
+    void applyAnchorPosition(isCurrent)
       .then(() => {
-        if (attemptIsActiveRef.current) {
+        if (attemptIsActiveRef.current && isCurrent()) {
           finishInitialScroll();
         }
       })
-      .catch(() => {
-        // A same-mount measurement race must not leave the list hidden. Reveal
-        // the estimated position; the correction effect gets one exact retry.
-        if (attemptIsActiveRef.current) {
-          finishInitialScroll();
+      .catch((error: unknown) => {
+        if (attemptIsActiveRef.current && isCurrent()) {
+          handleScrollFailure(error, () => retryInitialRef.current?.());
         }
       });
-  }, [applyAnchorPosition, finishInitialScroll, isInitialAnchorReady]);
+  }, [
+    captureIntent,
+    applyAnchorPosition,
+    clearRecovery,
+    finishInitialScroll,
+    handleScrollFailure,
+    isInitialAnchorReady,
+  ]);
 
   // LegendList has no settled-layout callback: onLoad fires before its
   // next-frame buffer expansion, so wait through two layout opportunities
   // before applying the exact target from measured row sizes.
   const scheduleInitialScroll = React.useCallback(() => {
-    if (initialScrollFrameRef.current !== undefined) {
-      cancelAnimationFrame(initialScrollFrameRef.current);
-    }
+    if (didStartInitialScrollRef.current) return;
+    cancelInitialScroll();
+    const ticket = {};
+    initialScrollTicketRef.current = ticket;
+    const permit = captureIntent();
+    const isCurrent = () =>
+      permit() && initialScrollTicketRef.current === ticket;
     initialScrollFrameRef.current = requestAnimationFrame(() => {
+      if (!isCurrent()) return;
       initialScrollFrameRef.current = requestAnimationFrame(() => {
+        if (!isCurrent()) return;
         initialScrollFrameRef.current = undefined;
+        initialScrollTicketRef.current = null;
         completeInitialScroll();
       });
     });
-  }, [completeInitialScroll]);
+  }, [captureIntent, cancelInitialScroll, completeInitialScroll]);
+
+  React.useLayoutEffect(() => {
+    retryInitialRef.current = () => {
+      owner.navigate(owner.getMode());
+      didStartInitialScrollRef.current = false;
+      userHasScrolledRef.current = false;
+      setHasUserScrolled(false);
+      scheduleInitialScroll();
+    };
+  }, [owner, scheduleInitialScroll]);
+
+  React.useLayoutEffect(() => {
+    const recovery = recoveryRef.current;
+    if (isFocused && recovery) publishRecovery(recovery.retryCommand);
+  }, [isFocused, publishRecovery]);
 
   React.useLayoutEffect(() => {
     attemptIsActiveRef.current = true;
     return () => {
       attemptIsActiveRef.current = false;
-      if (initialScrollFrameRef.current !== undefined) {
-        cancelAnimationFrame(initialScrollFrameRef.current);
-      }
+      didStartInitialScrollRef.current = false;
+      didNotifyReadyRef.current = false;
+      recoveryRef.current = null;
+      cancelInitialScroll();
     };
-  }, []);
+  }, [cancelInitialScroll]);
 
   React.useEffect(() => {
     if (
@@ -421,25 +597,46 @@ function useInitialConversationScroll({
       return;
     }
 
-    void applyAnchorPosition().catch(() => {
-      // The list may unmount while a later anchor correction is in flight.
-    });
+    owner.navigate(owner.getMode());
+    const isCurrent = captureIntent();
+    void applyAnchorPosition(isCurrent)
+      .finally(() => {
+        if (isCurrent()) owner.finishNavigation();
+      })
+      .catch(() => {
+        // The list may unmount while a later anchor correction is in flight.
+      });
   }, [
+    captureIntent,
     anchorPosition,
     appliedAnchorPositionRef,
     applyAnchorPosition,
     didFinishInitialScroll,
+    owner,
   ]);
 
-  const markUserScrolled = React.useCallback(() => {
-    userHasScrolledRef.current = true;
-    setHasUserScrolled(true);
-  }, []);
+  const markUserScrolled = React.useCallback(
+    (revealForDrag = false, preserveFailedEntry = false) => {
+      const hadRecovery = recoveryRef.current !== null;
+      cancelInitialScroll();
+      if (!preserveFailedEntry) clearRecovery();
+      didStartInitialScrollRef.current = true;
+      userHasScrolledRef.current = true;
+      setHasUserScrolled(true);
+      // A drag already owns the exposed viewport. Imperative takeovers reveal
+      // only after their own command settles, never through an obsolete anchor.
+      if (revealForDrag && !(preserveFailedEntry && hadRecovery))
+        finishInitialScroll();
+    },
+    [cancelInitialScroll, clearRecovery, finishInitialScroll]
+  );
 
   return {
     didFinishInitialScroll,
     hasUserScrolled,
     markUserScrolled,
+    finishUserNavigation,
+    handleScrollFailure,
     scheduleInitialScroll,
   };
 }
@@ -452,6 +649,8 @@ const ConversationPostListAttempt = React.forwardRef<
     {
       postsWithNeighbors,
       scrollEnabled = true,
+      isFocused = true,
+      scrollVisit,
       anchorToEnd = false,
       contentContainerStyle,
       style,
@@ -464,10 +663,13 @@ const ConversationPostListAttempt = React.forwardRef<
       anchor,
       channel,
       collectionLayoutType,
+      targetLayouts,
       onInitialScrollCompleted,
+      onInitialScrollRecoveryChange,
       onScrolledToBottom,
       onScrolledToBottomThreshold = 1,
       onScrolledAwayFromBottom,
+      onScrollIntentChanged,
       listHeaderComponent,
       listBottomComponent,
       contentInsets = { top: 0, bottom: 0 },
@@ -480,23 +682,88 @@ const ConversationPostListAttempt = React.forwardRef<
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
+    const [owner] = React.useState(() =>
+      createNativeScrollOwnership(
+        anchorToEnd && (!anchor?.postId || didTimeoutWaitingForAnchor)
+          ? 'follow'
+          : 'read'
+      )
+    );
+    React.useLayoutEffect(() => {
+      owner.activate();
+      return () => owner.dispose();
+    }, [owner]);
+    const ownership = React.useSyncExternalStore(
+      owner.subscribe,
+      owner.getSnapshot,
+      owner.getSnapshot
+    );
+    const captureIntent = React.useCallback(() => {
+      const intent = owner.capture();
+      const visit = scrollVisit?.capture();
+      return () => intent() && (visit?.() ?? true);
+    }, [owner, scrollVisit]);
+    const ownScroll = React.useCallback<OwnedScroll>(
+      (isCurrent, scroll) => {
+        const list = listRef.current;
+        const request = scroll();
+        if (request)
+          owner.trackRequest(request, isCurrent, () =>
+            list?.cancelScroll?.(request)
+          );
+        return request;
+      },
+      [owner]
+    );
+    React.useLayoutEffect(() => {
+      owner.validateRequests();
+    }, [owner, scrollVisit, isFocused]);
+    const runOwnedNativeScroll = React.useCallback(
+      (
+        isCurrent: () => boolean,
+        scroll: () => Promise<void> | undefined,
+        schedule?: (callback: () => void) => unknown,
+        onSettled?: () => void,
+        onFailure?: (error: unknown) => void
+      ) =>
+        runOwnedNativeScrollWithRetry(
+          isCurrent,
+          () => ownScroll(isCurrent, scroll),
+          schedule,
+          onSettled,
+          onFailure
+        ),
+      [ownScroll]
+    );
+    const canIssueCommand = React.useCallback(
+      () =>
+        isFocused && (scrollVisit?.isCurrent() ?? true) && owner.capture()(),
+      [isFocused, scrollVisit, owner]
+    );
+    const isFollowing =
+      isFocused && ownership.mode === 'follow' && anchorToEnd && !hasNewerPosts;
     const diagnostics = React.useContext(ConversationListDiagnosticsContext);
+    const attachDiagnostics = diagnostics?.attach;
     const scrollViewNativeID = useConversationScrollViewNativeID();
     React.useEffect(() => {
-      if (diagnostics && listRef.current) {
-        return diagnostics.attach(
+      if (attachDiagnostics && listRef.current) {
+        return attachDiagnostics(
           listRef.current,
           channel.id,
           scrollViewNativeID
         );
       }
-    }, [diagnostics, channel.id, scrollViewNativeID]);
+    }, [attachDiagnostics, channel.id, scrollViewNativeID]);
     const composerContentInset = useSharedValue(0);
     const conversationKeyboardListProps =
       useConversationKeyboardListProps(composerContentInset);
     const { register: registerConversationComposerHeight } =
       useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
+    const currentTargetInsets = React.useRef(contentInsets);
+    React.useLayoutEffect(() => {
+      currentTargetInsets.current = contentInsets;
+    }, [contentInsets]);
     const insets = useSafeAreaInsets();
     const collectionLayout = React.useMemo(
       () => layoutForType(collectionLayoutType),
@@ -517,6 +784,15 @@ const ConversationPostListAttempt = React.forwardRef<
         reportConversationComposerHeight
       );
     }, [registerConversationComposerHeight, reportConversationComposerHeight]);
+    const [footerSize, setFooterSize] = React.useState(0);
+    const footerSizeRef = React.useRef(0);
+    const reportMetrics = React.useCallback(
+      (metrics: { footerSize: number }) => {
+        footerSizeRef.current = metrics.footerSize;
+        setFooterSize(metrics.footerSize);
+      },
+      []
+    );
     const anchorTarget = useConversationAnchorTarget({
       anchor,
       anchorIndex,
@@ -524,18 +800,37 @@ const ConversationPostListAttempt = React.forwardRef<
       contentInsets,
       didTimeoutWaitingForAnchor,
       listRef,
+      footerSize,
+      itemCount: postsWithNeighbors.length,
+      itemsRef: postsWithNeighborsRef,
+      ownScroll,
     });
     const {
       didFinishInitialScroll,
       hasUserScrolled,
       markUserScrolled,
+      finishUserNavigation,
+      handleScrollFailure,
       scheduleInitialScroll,
     } = useInitialConversationScroll({
+      owner,
+      captureIntent,
       anchorTarget,
       isInitialAnchorReady,
       isLoading,
       itemCount: postsWithNeighbors.length,
+      isFocused,
       onInitialScrollCompleted,
+      onInitialScrollRecoveryChange,
+    });
+    const nativeReading = useNativeReadScope({
+      scope: channel.id,
+      items: postsWithNeighbors,
+      owner: ownership,
+      isFocused,
+      isReady: isInitialAnchorReady && didFinishInitialScroll,
+      isFollowing,
+      diagnosticTimingSession: diagnostics?.nativeReadTimingSession,
     });
     const { initialScrollIndex } = anchorTarget;
     React.useEffect(() => {
@@ -552,22 +847,20 @@ const ConversationPostListAttempt = React.forwardRef<
     React.useLayoutEffect(() => {
       postsWithNeighborsRef.current = postsWithNeighbors;
     }, [postsWithNeighbors]);
-    // Nothing else re-anchors an empty conversation: LegendList skips its end
-    // alignment and maintainScrollAtEnd without rows, and the composer inset
-    // reaction can run before the scroll view has reported its size. Rest the
-    // empty content at its end (offset 0, or the keyboard height while one is
-    // open) whenever its frame or content size settles.
-    const settleEmptyConversationAtEnd = React.useCallback(() => {
-      if (postsWithNeighborsRef.current.length > 0) {
+    // iOS follows the native end inside the owned mount transaction. Android
+    // retains its existing layout callback; keyboard/composer inset animation
+    // stays on KeyboardChatScrollView's UI-thread path.
+    const settleFollowingConversationAtEnd = React.useCallback(() => {
+      if (!canIssueCommand() || !isFollowing || owner.getMode() !== 'follow') {
         return;
       }
-      // LegendList types the native ref as the bare ScrollView component class;
-      // at runtime it is the ScrollView instance with its scroll methods.
+      // Bypass LegendList's deferred imperative commit for passive correction.
+      // This uses the actual native content size, including footer and insets.
       const scrollView = listRef.current?.getNativeScrollRef() as
         | ScrollView
         | undefined;
       scrollView?.scrollToEnd({ animated: false });
-    }, []);
+    }, [owner, canIssueCommand, isFollowing]);
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
         atBottomThreshold: onScrolledToBottomThreshold,
@@ -595,25 +888,43 @@ const ConversationPostListAttempt = React.forwardRef<
     // initial anchor settles, briefly showing the scroll-to-bottom control.
     const isNearEnd = useLegendListIsNearEnd(listRef);
     const conversationScrollEndAnchor = useConversationScrollEndAnchor();
-    const shouldRestoreEndAnchorRef = React.useRef(false);
+    const capturedEndIntent = React.useRef<(() => boolean) | null>(null);
     const endAnchorHandler = React.useMemo(
       () => ({
         capture: () => {
-          shouldRestoreEndAnchorRef.current =
-            listRef.current?.getState().isNearEnd ?? false;
+          capturedEndIntent.current =
+            canIssueCommand() && owner.getMode() === 'follow' && !hasNewerPosts
+              ? captureIntent()
+              : null;
         },
         restore: () => {
-          if (!shouldRestoreEndAnchorRef.current) {
-            return;
-          }
-          shouldRestoreEndAnchorRef.current = false;
-          runImperativeScroll(() =>
-            listRef.current?.scrollToEnd({ animated: false })
-          );
+          const isCurrent = capturedEndIntent.current;
+          capturedEndIntent.current = null;
+          if (isCurrent)
+            runOwnedNativeScroll(isCurrent, () =>
+              listRef.current?.scrollToEnd({ animated: false })
+            );
         },
       }),
-      []
+      [
+        owner,
+        hasNewerPosts,
+        canIssueCommand,
+        captureIntent,
+        runOwnedNativeScroll,
+      ]
     );
+    React.useLayoutEffect(() => {
+      if (isFocused) {
+        owner.activate();
+      } else {
+        // Covering a retained route retires its old target and follow intent.
+        // Keep the measured viewport and reveal bookkeeping for the return.
+        markUserScrolled(true, true);
+        capturedEndIntent.current = null;
+        owner.suspend();
+      }
+    }, [isFocused, owner, markUserScrolled]);
     React.useLayoutEffect(() => {
       if (!conversationScrollEndAnchor) {
         return;
@@ -636,10 +947,9 @@ const ConversationPostListAttempt = React.forwardRef<
     // change, which carried an empty conversation up by the header inset when
     // the transparent header reported its height after mount.
     const maintainVisibleContentPosition =
-      postsWithNeighbors.length === 0
+      postsWithNeighbors.length === 0 || isFollowing
         ? false
-        : collectionLayout.shouldMaintainVisibleContentPosition &&
-            !(anchorToEnd && !hasNewerPosts && isNearEnd)
+        : collectionLayout.shouldMaintainVisibleContentPosition && !isFollowing
           ? true
           : undefined;
     usePostListBottomCallbacks(isAtBottom, {
@@ -647,123 +957,285 @@ const ConversationPostListAttempt = React.forwardRef<
       onScrolledAwayFromBottom,
     });
 
-    React.useImperativeHandle(
-      forwardedRef,
+    const beginUserDrag = React.useCallback(() => {
+      if (!canIssueCommand()) return;
+      owner.beginGesture();
+      markUserScrolled(true);
+      onScrollIntentChanged?.();
+      diagnostics?.event('drag-begin');
+    }, [
+      owner,
+      canIssueCommand,
+      markUserScrolled,
+      diagnostics,
+      onScrollIntentChanged,
+    ]);
+    const settleUserGesture = React.useCallback(
+      (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        if (!canIssueCommand()) return;
+        const { contentOffset, contentSize, layoutMeasurement, contentInset } =
+          event.nativeEvent;
+        const end = Math.max(
+          0,
+          contentSize.height -
+            layoutMeasurement.height +
+            (contentInset?.bottom ?? 0)
+        );
+        owner.settleGesture(end - contentOffset.y, hasNewerPosts);
+      },
+      [owner, hasNewerPosts, canIssueCommand]
+    );
+    const publicMethodsRef = React.useRef<PostListMethods | null>(null);
+    const publicMethods = React.useMemo(
       (): PostListMethods => ({
+        captureScrollIntent: captureIntent,
         scrollToStart: (opts) => {
+          if (!canIssueCommand()) return;
+          owner.navigate('read');
+          const isCurrent = captureIntent();
+          if (!isCurrent()) return;
           markUserScrolled();
-          runImperativeScroll(() =>
-            listRef.current?.scrollToOffset({
-              offset: 0,
-              animated: opts.animated,
-            })
+          onScrollIntentChanged?.();
+          runOwnedNativeScroll(
+            isCurrent,
+            () =>
+              listRef.current?.scrollToOffset({
+                offset: 0,
+                animated: opts.animated,
+              }),
+            requestAnimationFrame,
+            finishUserNavigation,
+            (error) =>
+              handleScrollFailure(error, () =>
+                publicMethodsRef.current?.scrollToStart(opts)
+              )
           );
         },
         scrollToEnd: (opts) => {
+          if (!canIssueCommand()) return;
+          owner.navigate('follow');
+          const isCurrent = captureIntent();
+          if (!isCurrent()) return;
           markUserScrolled();
-          runImperativeScroll(() =>
-            listRef.current?.scrollToEnd({ animated: opts.animated })
+          onScrollIntentChanged?.();
+          runOwnedNativeScroll(
+            isCurrent,
+            () => listRef.current?.scrollToEnd({ animated: opts.animated }),
+            requestAnimationFrame,
+            finishUserNavigation,
+            (error) =>
+              handleScrollFailure(error, () =>
+                publicMethodsRef.current?.scrollToEnd(opts)
+              )
           );
         },
-        scrollToPost: ({ postId, animated, viewPosition }) => {
+        scrollToPost: ({ postId, animated, viewPosition = 0.5 }) => {
+          if (!canIssueCommand()) return;
+          owner.navigate('read');
+          const isCurrent = captureIntent();
+          if (!isCurrent()) return;
           markUserScrolled();
-          runImperativeScroll(() => {
-            const index = postsWithNeighborsRef.current.findIndex(
-              ({ post }) => post.id === postId
-            );
-            if (index === -1) {
-              return undefined;
-            }
-            return listRef.current?.scrollToIndex({
-              index,
-              animated,
-              viewPosition,
-            });
-          });
+          onScrollIntentChanged?.();
+          runOwnedNativeScroll(
+            isCurrent,
+            () => {
+              const index = postsWithNeighborsRef.current.findIndex(
+                ({ post }) => post.id === postId
+              );
+              if (index === -1) throw missingPostTarget(postId);
+              const options = {
+                animated,
+                viewPosition,
+                viewOffset: nativeAnchorViewOffset(
+                  contentInsets.top,
+                  contentInsets.bottom,
+                  viewPosition,
+                  Platform.OS === 'ios',
+                  index === postsWithNeighborsRef.current.length - 1
+                    ? footerSizeRef.current
+                    : 0
+                ),
+              };
+              return Platform.OS === 'ios'
+                ? listRef.current?.scrollToItem({
+                    ...options,
+                    item: postsWithNeighborsRef.current[index],
+                    ...(targetLayouts
+                      ? {
+                          getViewOffset: (current: {
+                            item: PostWithNeighbors;
+                            key: string;
+                            index: number;
+                            itemSize: number;
+                          }) => {
+                            const items = postsWithNeighborsRef.current;
+                            if (
+                              !isCurrent() ||
+                              current.key !== postId ||
+                              current.item !== items[current.index] ||
+                              current.item.post.id !== postId
+                            )
+                              return undefined;
+                            const geometry = targetLayouts.get(
+                              postId,
+                              current.itemSize,
+                              PixelRatio.get()
+                            );
+                            if (!geometry) return undefined;
+                            const insets = currentTargetInsets.current;
+                            return (
+                              nativeAnchorViewOffset(
+                                insets.top,
+                                insets.bottom,
+                                viewPosition,
+                                true,
+                                current.index === items.length - 1
+                                  ? footerSizeRef.current
+                                  : 0
+                              ) +
+                              viewPosition * geometry.cellSizeDelta +
+                              viewPosition * geometry.trailing -
+                              (1 - viewPosition) * geometry.leading
+                            );
+                          },
+                        }
+                      : {}),
+                  })
+                : listRef.current?.scrollToIndex({ ...options, index });
+            },
+            requestAnimationFrame,
+            finishUserNavigation,
+            (error) =>
+              handleScrollFailure(error, () =>
+                publicMethodsRef.current?.scrollToPost({
+                  postId,
+                  animated,
+                  viewPosition,
+                })
+              )
+          );
         },
       }),
-      [markUserScrolled]
+      [
+        owner,
+        captureIntent,
+        canIssueCommand,
+        markUserScrolled,
+        finishUserNavigation,
+        handleScrollFailure,
+        runOwnedNativeScroll,
+        targetLayouts,
+        onScrollIntentChanged,
+        contentInsets.top,
+        contentInsets.bottom,
+      ]
+    );
+
+    React.useLayoutEffect(() => {
+      publicMethodsRef.current = publicMethods;
+    }, [publicMethods]);
+    React.useImperativeHandle(forwardedRef, () => publicMethods, [
+      publicMethods,
+    ]);
+    const attachDiagnosticMethods = diagnostics?.attachMethods;
+    React.useEffect(
+      () => attachDiagnosticMethods?.(publicMethods),
+      [attachDiagnosticMethods, publicMethods]
     );
 
     return (
-      <KeyboardAwareLegendList<PostWithNeighbors>
-        ref={listRef}
-        dataKey={channel.id}
-        data={postsWithNeighbors}
-        keyExtractor={getPostId}
-        renderItem={renderItem}
-        getItemType={({ post }) => post.type}
-        estimatedItemSize={ESTIMATED_ITEM_SIZE}
-        // Chat rows are stateful and highly variable-height; recycling them can
-        // briefly reuse stale row state and measurements for another post.
-        recycleItems={!anchorToEnd}
-        alignItemsAtEnd={anchorToEnd}
-        initialScrollAtEnd={
-          anchorToEnd &&
-          isInitialAnchorReady &&
-          initialScrollIndex === undefined
-        }
-        initialScrollIndex={initialScrollIndex}
-        maintainScrollAtEnd={anchorToEnd && !hasNewerPosts}
-        // A2UI rows can change by more than a small fraction of the viewport.
-        // Keep the normal chat end anchor across those remeasurements whenever
-        // the list was within one viewport of the latest message. Far-away
-        // history remains unaffected by the threshold.
-        maintainScrollAtEndThreshold={
-          anchorToEnd && !hasNewerPosts ? 1 : undefined
-        }
-        maintainVisibleContentPosition={maintainVisibleContentPosition}
-        ListEmptyComponent={renderEmptyComponent}
-        ListHeaderComponent={listHeaderComponent}
-        ListFooterComponent={listBottomComponent}
-        contentContainerStyle={contentContainerStyle}
-        {...conversationKeyboardListProps}
-        // Preserve older messages while browsing history, but keep the latest
-        // message anchored as the keyboard or composer grows at the end.
-        keyboardLiftBehavior="whenAtEnd"
-        keyboardOffset={insets.bottom}
-        scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
-        automaticallyAdjustsScrollIndicatorInsets={false}
-        scrollEnabled={scrollEnabled}
-        style={[
-          { flex: 1 },
-          style,
-          isInitialAnchorReady &&
-          (didFinishInitialScroll ||
-            (isLoading && postsWithNeighbors.length === 0))
-            ? undefined
-            : { opacity: 0 },
-        ]}
-        // The iOS v1 bridge discovers this underlying UIScrollView through the
-        // React Native testID/accessibilityIdentifier mapping, then validates
-        // the attachment at low frequency in case Screens replaces the view.
-        testID={scrollViewNativeID}
-        onLoad={scheduleInitialScroll}
-        onLayout={settleEmptyConversationAtEnd}
-        onContentSizeChange={settleEmptyConversationAtEnd}
-        onScroll={hasScrollDiagnostics ? composedScrollHandler : handleScroll}
-        onScrollBeginDrag={
-          diagnostics
-            ? () => {
-                markUserScrolled();
-                diagnostics.event('drag-begin');
-              }
-            : markUserScrolled
-        }
-        onScrollEndDrag={
-          diagnostics ? () => diagnostics.event('drag-end') : undefined
-        }
-        onMomentumScrollBegin={
-          diagnostics ? () => diagnostics.event('momentum-begin') : undefined
-        }
-        onMomentumScrollEnd={
-          diagnostics ? () => diagnostics.event('momentum-end') : undefined
-        }
-        onStartReached={onStartReached}
-        onStartReachedThreshold={onStartReachedThreshold}
-        onEndReached={onEndReached}
-        onEndReachedThreshold={onEndReachedThreshold}
-      />
+      <NativeReadListContext.Provider value={nativeReading.context}>
+        <KeyboardAwareLegendList<PostWithNeighbors>
+          ref={listRef}
+          dataKey={channel.id}
+          data={postsWithNeighbors}
+          keyExtractor={getPostId}
+          renderItem={renderItem}
+          getItemType={({ post }) => post.type}
+          estimatedItemSize={ESTIMATED_ITEM_SIZE}
+          // Chat rows are stateful and highly variable-height; recycling them can
+          // briefly reuse stale row state and measurements for another post.
+          recycleItems={!anchorToEnd}
+          alignItemsAtEnd={anchorToEnd}
+          initialScrollAtEnd={
+            anchorToEnd &&
+            isInitialAnchorReady &&
+            initialScrollIndex === undefined
+          }
+          initialScrollIndex={initialScrollIndex}
+          // The library's queued RAF checks proximity but not the current visit
+          // or maintain flag. The native FOLLOW lease owns iOS passive following;
+          // Android retains the layout callbacks above.
+          maintainScrollAtEnd={false}
+          maintainVisibleContentPosition={maintainVisibleContentPosition}
+          nativeReadPointCorrection={nativeReading.routesReadCorrection}
+          nativeReadPointIntent={nativeReading.intent}
+          ListEmptyComponent={renderEmptyComponent}
+          ListHeaderComponent={
+            nativeReading.context ? (
+              <>
+                <NativeReadScopeContainer
+                  descriptor={nativeReading.descriptor}
+                  pointerEvents="none"
+                  accessible={false}
+                  style={{ width: 0, height: 0 }}
+                />
+                {listHeaderComponent}
+              </>
+            ) : (
+              listHeaderComponent
+            )
+          }
+          ListFooterComponent={listBottomComponent}
+          contentContainerStyle={contentContainerStyle}
+          {...conversationKeyboardListProps}
+          // Preserve older messages while browsing history, but keep the latest
+          // message anchored as the keyboard or composer grows at the end.
+          keyboardLiftBehavior={isFollowing ? 'always' : 'never'}
+          keyboardOffset={insets.bottom}
+          scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
+          automaticallyAdjustsScrollIndicatorInsets={false}
+          scrollEnabled={scrollEnabled}
+          style={[
+            { flex: 1 },
+            style,
+            isInitialAnchorReady &&
+            (didFinishInitialScroll ||
+              (isLoading && postsWithNeighbors.length === 0))
+              ? undefined
+              : { opacity: 0 },
+          ]}
+          // The iOS v1 bridge discovers this underlying UIScrollView through the
+          // React Native testID/accessibilityIdentifier mapping, then validates
+          // the attachment at low frequency in case Screens replaces the view.
+          testID={scrollViewNativeID}
+          onMetricsChange={reportMetrics}
+          onLoad={scheduleInitialScroll}
+          onLayout={
+            Platform.OS === 'ios' ? undefined : settleFollowingConversationAtEnd
+          }
+          onContentSizeChange={
+            Platform.OS === 'ios' ? undefined : settleFollowingConversationAtEnd
+          }
+          onScroll={hasScrollDiagnostics ? composedScrollHandler : handleScroll}
+          onScrollBeginDrag={beginUserDrag}
+          onScrollEndDrag={(event) => {
+            settleUserGesture(event);
+            diagnostics?.event('drag-end');
+          }}
+          onMomentumScrollBegin={
+            diagnostics ? () => diagnostics.event('momentum-begin') : undefined
+          }
+          onMomentumScrollEnd={(event) => {
+            settleUserGesture(event);
+            diagnostics?.event('momentum-end');
+          }}
+          onStartReached={onStartReached}
+          onStartReachedThreshold={onStartReachedThreshold}
+          onEndReached={onEndReached}
+          onEndReachedThreshold={onEndReachedThreshold}
+        />
+      </NativeReadListContext.Provider>
     );
   }
 );

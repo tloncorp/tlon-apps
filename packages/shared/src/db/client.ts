@@ -50,3 +50,8 @@ export const client = new Proxy(
     },
   }
 ) as AnySqliteDatabase;
+
+// Stable owner identity for operations whose network request outlives a DB swap.
+export function getClientIdentity() {
+  return clientInstance;
+}

@@ -2893,6 +2893,28 @@ PODS:
     - ExpoModulesCore
   - TlonScrollEdgeEffect (1.0.0):
     - ExpoModulesCore
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-FabricComponents
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNScreens
+    - Yoga
   - UMAppLoader (57.0.1)
   - Yoga (0.0.0)
 
@@ -3583,7 +3605,7 @@ SPEC CHECKSUMS:
   Teleport: 0fec1c0e78d78d8f4c4c6cda5382b49a8a4a4622
   tentap: e13d58554989b77ec41baaf91a73fa7e6267cd09
   TlonMessageContextMenu: 2f2272970956e680ce33409db18d6e268cc4e3a2
-  TlonScrollEdgeEffect: 1204a83a7c6401a98b0d4016b191484d5c6c3858
+  TlonScrollEdgeEffect: b9388d7d214f4ae25edf67e0ea7f15c0bf0f6a6a
   UMAppLoader: 173cb90a3039aa9c1b84bace4487e1907a4a5a39
   Yoga: a9f26333e684a192cbb5d698ed7eab3053929519
 

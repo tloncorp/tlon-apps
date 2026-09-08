@@ -1,4 +1,5 @@
 export interface PostCollectionHandle {
+  captureScrollIntent?: () => () => boolean;
   scrollToPost?: (postId: string, viewPosition?: number) => void;
   scrollToStart?: (opts: { animated?: boolean }) => void;
   scrollToLatest?: (opts: { animated?: boolean }) => void;

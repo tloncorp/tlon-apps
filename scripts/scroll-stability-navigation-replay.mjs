@@ -89,7 +89,7 @@ export function replayWebNavigation(record) {
       preparation.ship !== 'zod' ||
       preparation.normalFlags !== true ||
       preparation.developmentAssets !== true ||
-      preparation.headed !== true ||
+      typeof preparation.headed !== 'boolean' ||
       typeof preparation.browser !== 'string' ||
       !preparation.browser.length ||
       !same(preparation.viewport, { width: 1280, height: 800 }) ||
@@ -234,5 +234,12 @@ export function replayWebNavigation(record) {
   } catch {
     reject('Malformed raw evidence');
   }
+  if (preparation?.headed === false)
+    issues.push({
+      message:
+        'Navigation: Headless capture leaves headed/presentation qualification incomplete',
+      kind: 'incomplete',
+      dimension: 'presentation',
+    });
   return issues;
 }

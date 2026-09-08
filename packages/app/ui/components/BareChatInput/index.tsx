@@ -21,11 +21,13 @@ import {
 } from '@tloncorp/ui';
 import {
   type ForwardedRef,
+  type ElementRef,
   ReactElement,
   forwardRef,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -44,6 +46,7 @@ import {
 } from 'tamagui';
 
 import { useAttachmentContext } from '../../contexts/attachment';
+import { useConversationScrollEndAnchor } from '../../contexts/scroll';
 import { useKeyboardHeight } from '../../hooks/useKeyboardHeight';
 import { getVideoPreviewData } from '../../utils/videoPreviewData';
 import { MentionController } from '../MentionPopup';
@@ -59,6 +62,10 @@ import type { DraftInputHandle } from '../draftInputs/shared';
 import { PasteableTextInput } from './PasteableTextInput';
 import { contentToTextAndMentions, textAndMentionsToContent } from './helpers';
 import { PastedFile, attachPastedImageFiles } from './pastedImage';
+import {
+  measureWebInputHeight,
+  scheduleWebInputHeight,
+} from './webInputHeight';
 import {
   MentionOption,
   createMentionRoleOptions,
@@ -356,6 +363,17 @@ function BareChatInput(
       ? Math.max(initialHeight, MESSAGE_INPUT_CONTAINER_HEIGHT)
       : initialHeight;
   const inputRef = useRef<TextInput>(null);
+  const inputFrameRef = useRef<ElementRef<typeof View>>(null);
+  const cancelHeightMeasurement = useRef<(() => void) | null>(null);
+  const heightScope = useRef(0);
+  useLayoutEffect(() => {
+    heightScope.current++;
+    return () => {
+      heightScope.current++;
+      cancelHeightMeasurement.current?.();
+      cancelHeightMeasurement.current = null;
+    };
+  }, [channelId, editingPost?.id]);
 
   usePasteHandler(addAttachment);
 
@@ -806,38 +824,40 @@ function BareChatInput(
     prevUrlsRef.current = currentUrls;
   }, [debouncedText, addAttachment, removeAttachment]);
 
+  const endAnchor = useConversationScrollEndAnchor();
+  const commitInputHeight = useCallback(
+    (height: number) => {
+      setInputHeight(height);
+      // Measurement has committed the actual DOM height and restored its
+      // temporary reservation. Keep the current reading/follow owner in place.
+      endAnchor?.layoutChanged();
+    },
+    [endAnchor]
+  );
   const adjustInputHeightProgrammatically = useCallback(() => {
-    if (!isWeb || !inputRef.current) {
+    if (!isWeb) return;
+    const input = inputRef.current;
+    const frame = inputFrameRef.current;
+    if (
+      !(input instanceof HTMLTextAreaElement) ||
+      !(frame instanceof HTMLElement)
+    ) {
       return;
     }
-
-    const el = inputRef.current;
-    const htmlEl = el as unknown as HTMLElement;
-    if (
-      htmlEl &&
-      'style' in htmlEl &&
-      'offsetHeight' in htmlEl &&
-      'clientHeight' in htmlEl &&
-      'scrollHeight' in htmlEl
-    ) {
-      // We need to use requestAnimationFrame to ensure DOM is fully updated
-      // after setting the text state before calculating the scrollHeight.
-      requestAnimationFrame(() => {
-        htmlEl.style.height = '0'; // Temporarily shrink to calculate scrollHeight correctly
-        const newHeight =
-          htmlEl.offsetHeight - htmlEl.clientHeight + htmlEl.scrollHeight;
-        // Only resize if new height is greater than initial height to avoid shrinking unnecessarily
-        if (newHeight > initialHeight) {
-          htmlEl.style.height = `${newHeight}px`;
-          setInputHeight(newHeight);
-        } else {
-          // Ensure it resets to initial height if content is smaller
-          htmlEl.style.height = `${initialHeight}px`;
-          setInputHeight(initialHeight);
-        }
-      });
-    }
-  }, [initialHeight]);
+    cancelHeightMeasurement.current?.();
+    const scope = heightScope.current;
+    // Hydrated text reaches the DOM before its natural height is measured.
+    cancelHeightMeasurement.current = scheduleWebInputHeight(
+      input,
+      frame,
+      initialHeight,
+      () =>
+        heightScope.current === scope &&
+        inputRef.current === input &&
+        inputFrameRef.current === frame,
+      commitInputHeight
+    );
+  }, [initialHeight, commitInputHeight]);
 
   const setInputFromDraft = useCallback(
     (draft: JSONContent | null) => {
@@ -984,18 +1004,19 @@ function BareChatInput(
     [controlledText, slashCommandManifest]
   );
 
-  const adjustTextInputSize = (e: any) => {
-    if (!isWeb) {
+  const adjustTextInputSize = () => {
+    if (!isWeb) return;
+    const input = inputRef.current;
+    const frame = inputFrameRef.current;
+    if (
+      !(input instanceof HTMLTextAreaElement) ||
+      !(frame instanceof HTMLElement)
+    )
       return;
-    }
-
-    const el = e?.target;
-    if (el && 'style' in el && 'height' in el.style) {
-      el.style.height = 0;
-      const newHeight = el.offsetHeight - el.clientHeight + el.scrollHeight;
-      el.style.height = `${newHeight}px`;
-      setInputHeight(newHeight);
-    }
+    cancelHeightMeasurement.current?.();
+    cancelHeightMeasurement.current = null;
+    const height = measureWebInputHeight(input, frame, initialHeight);
+    if (height !== null) commitInputHeight(height);
   };
 
   const { setIsOpen } = useGlobalSearch();
@@ -1124,7 +1145,7 @@ function BareChatInput(
       >
         {linkMetaLoading && <LinkPreviewLoading />}
         {showInlineAttachments && <AttachmentPreviewList />}
-        <View position="relative">
+        <View position="relative" ref={inputFrameRef}>
           <PasteableTextInput
             testID="MessageInput"
             ref={inputRef}

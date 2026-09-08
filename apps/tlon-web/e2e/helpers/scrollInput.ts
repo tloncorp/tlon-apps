@@ -1,7 +1,13 @@
-import type { ElementHandle } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import type { ElementHandle, Page } from '@playwright/test';
+import {
+  startInputPaint,
+  finalizeInputPaint,
+} from '../../../../scripts/scroll-stability-input-paint.cjs';
 import type {
   ScrollInputAction,
   ScrollInputDispatch,
+  ScrollInputKey,
   ScrollInputSample,
 } from '../../../../packages/app/fixtures/scrollInputTrace';
 
@@ -9,10 +15,14 @@ import type {
 export async function startScrollInputTrace(
   input: ElementHandle<HTMLElement | SVGElement>,
   send: ElementHandle<HTMLElement | SVGElement>,
-  inputPayloads?: string[]
+  inputPayloads?: (
+    | string
+    | { kind: 'input' | 'select-all'; payload: string }
+  )[],
+  paintPage?: Page
 ) {
   const handle = await input.evaluateHandle(
-    (element, { sendElement, inputPayloads }) => {
+    (element, { sendElement, inputPayloads, paintToken }) => {
       if (
         !(element instanceof HTMLElement) ||
         !(sendElement instanceof HTMLElement)
@@ -27,18 +37,56 @@ export async function startScrollInputTrace(
         observedAt: number;
       })[] = [];
       const dispatches: ScrollInputDispatch[] = [];
-      const commandPlan = inputPayloads?.map((payload, index) => ({
-        id: `input-${index + 1}`,
-        kind: 'input' as const,
-        scopeKey: originalScope,
-        inputId,
-        payload,
-      }));
+      const keyboard: ScrollInputKey[] = [];
+      const commandCounts = new Map<string, number>();
+      const commandPlan = inputPayloads?.map((value) => {
+        const command =
+          typeof value === 'string'
+            ? { kind: 'input' as const, payload: value }
+            : value;
+        const count = (commandCounts.get(command.kind) ?? 0) + 1;
+        commandCounts.set(command.kind, count);
+        return {
+          ...command,
+          id: `${command.kind}-${count}`,
+          scopeKey: originalScope,
+          inputId,
+        };
+      });
       const marks: { name: string; time: number }[] = [];
       const counts = new Map<string, number>();
       let composing = false;
       let raf = 0;
       let active = true;
+      const paintOwner = {
+        token: paintToken,
+        timeOrigin: performance.timeOrigin,
+        scopeKey: originalScope,
+        inputId,
+      };
+      const readPaintSurface = () => ({
+        deviceScaleFactor: devicePixelRatio,
+        viewport: {
+          pageX: window.visualViewport?.pageLeft ?? scrollX,
+          pageY: window.visualViewport?.pageTop ?? scrollY,
+          offsetX: window.visualViewport?.offsetLeft ?? 0,
+          offsetY: window.visualViewport?.offsetTop ?? 0,
+          scale: window.visualViewport?.scale ?? 1,
+          width: window.visualViewport?.width ?? innerWidth,
+          height: window.visualViewport?.height ?? innerHeight,
+        },
+      });
+      const paintSurface = readPaintSurface();
+      const paintEpochs = [
+        { epoch: 0, time: performance.now(), reason: 'retained-input' },
+      ];
+      const nextPaintEpoch = (reason: string) => {
+        paintEpochs.push({
+          epoch: paintEpochs.length,
+          time: performance.now(),
+          reason,
+        });
+      };
       const textInput =
         element instanceof HTMLTextAreaElement ||
         element instanceof HTMLInputElement;
@@ -140,7 +188,12 @@ export async function startScrollInputTrace(
         });
         if (active && schedule) raf = requestAnimationFrame(() => sample());
       }
-      function record(kind: ScrollInputAction['kind'], event: Event) {
+      function record(
+        kind: ScrollInputAction['kind'],
+        event: Event,
+        payload = draft()
+      ) {
+        nextPaintEpoch(kind);
         const count = (counts.get(kind) ?? 0) + 1;
         counts.set(kind, count);
         actions.push({
@@ -150,7 +203,7 @@ export async function startScrollInputTrace(
           kind,
           scopeKey: location.pathname,
           inputId: inputId!,
-          payload: draft(),
+          payload,
           trusted: event.isTrusted,
         });
         // Observe the state after all input handlers, including React's update.
@@ -175,9 +228,57 @@ export async function startScrollInputTrace(
         element.addEventListener(eventName, callback);
         listeners.push([element, eventName, callback]);
       }
+      const onKey: EventListener = (event) => {
+        nextPaintEpoch('keydown');
+        const key = event as KeyboardEvent;
+        keyboard.push({
+          time: key.timeStamp,
+          observedAt: performance.now(),
+          scopeKey: location.pathname,
+          inputId: inputId!,
+          trusted: key.isTrusted,
+          targetIsInput: key.target === element,
+          key: key.key,
+          code: key.code,
+          ctrlKey: key.ctrlKey,
+          metaKey: key.metaKey,
+          altKey: key.altKey,
+          shiftKey: key.shiftKey,
+          repeat: key.repeat,
+        });
+        if (
+          commandPlan?.some((command) => command.kind === 'select-all') &&
+          key.key.toLowerCase() === 'a' &&
+          key.ctrlKey !== key.metaKey &&
+          !key.altKey &&
+          !key.shiftKey &&
+          !key.repeat
+        ) {
+          record('select-all', key, 'ControlOrMeta+A');
+        }
+      };
+      element.addEventListener('keydown', onKey, true);
       const onSend: EventListener = (event) => record('send', event);
       sendElement.addEventListener('click', onSend, true);
+      const onPaintSelection = () => nextPaintEpoch('select');
+      const onPaintScroll = () => nextPaintEpoch('input-scroll');
+      element.addEventListener('select', onPaintSelection);
+      element.addEventListener('scroll', onPaintScroll);
       const declaredAt = performance.now();
+      let frozen = false;
+      const freeze = () => {
+        if (frozen) return;
+        active = false;
+        cancelAnimationFrame(raf);
+        sample();
+        for (const [target, name, callback] of listeners)
+          target.removeEventListener(name, callback);
+        sendElement.removeEventListener('click', onSend, true);
+        element.removeEventListener('keydown', onKey, true);
+        element.removeEventListener('select', onPaintSelection);
+        element.removeEventListener('scroll', onPaintScroll);
+        frozen = true;
+      };
       sample();
       return {
         declaredAt,
@@ -191,6 +292,7 @@ export async function startScrollInputTrace(
             dispatches.some((command) => !Number.isFinite(command.end))
           )
             throw new Error('Invalid input command order');
+          nextPaintEpoch('begin-input');
           dispatches.push({
             ...commandPlan[index],
             start: performance.now(),
@@ -204,32 +306,88 @@ export async function startScrollInputTrace(
           )
             throw new Error('Invalid input command completion');
           dispatches[index].end = performance.now();
+          nextPaintEpoch('end-input');
+        },
+        paintSnapshot() {
+          const bounds = element.getBoundingClientRect();
+          const left = Math.max(0, bounds.left),
+            top = Math.max(0, bounds.top);
+          const right = Math.min(innerWidth, bounds.right),
+            bottom = Math.min(innerHeight, bounds.bottom);
+          const style = getComputedStyle(element);
+          return {
+            time: performance.now(),
+            valid:
+              active &&
+              element instanceof HTMLTextAreaElement &&
+              element.isConnected &&
+              exposed(element),
+            owner: paintOwner.token,
+            timeOrigin: performance.timeOrigin,
+            scopeKey: location.pathname,
+            inputId: element.getAttribute('data-testid') || element.id,
+            draft: draft(),
+            selection: selection(),
+            composing,
+            focused: document.activeElement === element,
+            epoch: paintEpochs.length - 1,
+            clip:
+              right > left && bottom > top
+                ? { x: left, y: top, width: right - left, height: bottom - top }
+                : null,
+            ...readPaintSurface(),
+            scrollTop: element.scrollTop,
+            scrollLeft: element.scrollLeft,
+            style: JSON.stringify([
+              style.font,
+              style.lineHeight,
+              style.color,
+              style.caretColor,
+              style.direction,
+              style.writingMode,
+              style.padding,
+              style.border,
+              style.transform,
+              style.opacity,
+              style.background,
+            ]),
+          };
         },
         mark(name: string) {
           marks.push({ name, time: performance.now() });
         },
+        freeze,
         stop() {
-          active = false;
-          cancelAnimationFrame(raf);
-          sample();
-          for (const [target, name, callback] of listeners)
-            target.removeEventListener(name, callback);
-          sendElement.removeEventListener('click', onSend, true);
+          freeze();
           return {
             declaredAt,
             originalScope,
             inputId,
             samples,
             actions,
+            keyboard,
             marks,
             commandPlan,
             dispatches,
+            paintOwner,
+            paintSurface,
+            paintEpochs,
           };
         },
       };
     },
-    { sendElement: send, inputPayloads }
+    { sendElement: send, inputPayloads, paintToken: randomUUID() }
   );
+  const paint = paintPage
+    ? startInputPaint(
+        paintPage,
+        () => handle.evaluate((recorder) => recorder.paintSnapshot()),
+        {
+          ownsPage: async () =>
+            (await input.ownerFrame()) === paintPage.mainFrame(),
+        }
+      )
+    : undefined;
   return {
     beginInput: (index: number) =>
       handle.evaluate((recorder, index) => recorder.beginInput(index), index),
@@ -237,10 +395,16 @@ export async function startScrollInputTrace(
       handle.evaluate((recorder, index) => recorder.endInput(index), index),
     mark: (name: string) =>
       handle.evaluate((recorder, name) => recorder.mark(name), name),
+    // Freeze DOM observations without transferring the retained trace.
+    freeze: () => handle.evaluate((recorder) => recorder.freeze()),
     async stop() {
       try {
-        return await handle.evaluate((recorder) => recorder.stop());
+        return await finalizeInputPaint(
+          () => handle.evaluate((recorder) => recorder.stop()),
+          paint
+        );
       } finally {
+        await paint?.stop();
         await handle.dispose();
       }
     },

@@ -60,7 +60,7 @@ describe('pending-send shared product registry and raw replay boundary', () => {
     expect(entries[0].scenario).toBe(pendingSendScenario.scenario);
     expect(entries[0].matrix).toEqual(['SND-04', 'RAC-08', 'AC-12']);
     expect(entries[0].traceNames).toEqual([]);
-    expect(webScenarioRegistry).toHaveLength(42);
+    expect(webScenarioRegistry).toHaveLength(43);
   });
   it('extracts both raw attachments and refuses a producer pass on incomplete evidence', () => {
     const record = read(data());

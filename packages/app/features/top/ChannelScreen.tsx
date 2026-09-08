@@ -22,6 +22,7 @@ import React, {
 import { useChannelNavigation } from '../../hooks/useChannelNavigation';
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
 import { useGroupActions } from '../../hooks/useGroupActions';
+import { useLifecyclePermit } from '../../hooks/useLifecyclePermit';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import { useResetDb } from '../../hooks/useResetDb';
@@ -175,6 +176,10 @@ export default function ChannelScreen(props: Props) {
     React.useState(false);
   const [clearedCursor, setClearedCursor] = React.useState(false);
   const isFocused = useIsFocused();
+  const visitPermit = useLifecyclePermit(
+    [channelId, currentChannelId, isFocused],
+    isFocused && channelId === currentChannelId
+  );
   useFocusEffect(
     useCallback(() => {
       let isCurrent = true;
@@ -259,12 +264,18 @@ export default function ChannelScreen(props: Props) {
     }
   }, [selectedPostId]);
 
+  const cursorPermit = useLifecyclePermit([
+    visitPermit,
+    selectedPostId,
+    unreadCursor,
+  ]);
   const handleScrollToBottom = useCallback(() => {
+    if (!visitPermit.isCurrent() || !cursorPermit.isCurrent()) return;
     setClearedCursor(true);
     if (selectedPostId) {
       props.navigation.setParams({ selectedPostId: undefined });
     }
-  }, [props.navigation, selectedPostId]);
+  }, [props.navigation, selectedPostId, cursorPermit, visitPermit]);
 
   const channelConfiguration = useMemo(
     () => configurationFromChannel(channel),
@@ -491,22 +502,37 @@ export default function ChannelScreen(props: Props) {
 
   const handleGoToDm = useCallback(
     async (participants: string[]) => {
+      if (!visitPermit.isCurrent()) return;
+      const stillCurrent = visitPermit.capture();
+      const targetNavigation = navigationRef.current;
       const dmChannel = await store.upsertDmChannel({
         participants,
       });
-      navigationRef.current.push('DM', { channelId: dmChannel.id });
+      if (stillCurrent()) {
+        targetNavigation.push('DM', { channelId: dmChannel.id });
+      }
     },
-    [navigationRef]
+    [visitPermit]
   );
 
+  const readPermit = useLifecyclePermit(
+    [
+      visitPermit,
+      unreadDidInitialize,
+      channel?.id,
+      channel?.groupId,
+      channelIsPending,
+    ],
+    unreadDidInitialize && !channelIsPending
+  );
   const handleMarkRead = useCallback(async () => {
-    if (unreadDidInitialize && channel && !channel.isPendingChannel) {
+    if (visitPermit.isCurrent() && readPermit.isCurrent() && channel) {
       store.markChannelRead({
         id: channel.id,
         groupId: channel.groupId ?? undefined,
       });
     }
-  }, [channel?.type, channel?.id, channel?.groupId, unreadDidInitialize]);
+  }, [channel, readPermit, visitPermit]);
 
   const handlePressInvite = useCallback(
     (groupId: string) => {

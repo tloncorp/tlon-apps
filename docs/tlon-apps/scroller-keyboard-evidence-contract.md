@@ -119,10 +119,10 @@ SSE receipt and sample geometry timestamp/number must be finite; missing values,
 NaN and infinities cannot pass relational checks. Preserve native input timestamps
 and wire receipt times as their distinct observations.
 
-The fixed36-message corpus fits wholly in the requested newest50 window. The held
+The fixed 36-message corpus fits wholly in the requested newest 50 window. The held
 and terminal scries must therefore report complete windows (older/newer null,
-total/newest36 then37),36/37 unique canonical post IDs and matching map keys/seal
-IDs. The36 original identities and essays must survive unchanged; the only added
+total/newest 36 then 37), 36/37 unique canonical post IDs and matching map keys/seal
+IDs. The 36 original identities and essays must survive unchanged; the only added
 identity is the exact outgoing message. Grouped decimal UI IDs and ungrouped seal
 IDs are compared as the same canonical positive decimal ID, without accepting
 malformed separators or aliases as extra posts.

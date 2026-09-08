@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
   assessScrollInputTrace,
+  bindScrollInputDeliveries,
   type ScrollInputState,
 } from '../../../packages/app/fixtures/scrollInputTrace';
 import { startScrollInputTrace } from './helpers/scrollInput';
@@ -159,4 +160,325 @@ for (const fault of [
       expect(result.issues.map((issue) => issue.code)).toContain(expectedCode);
     }
   });
+}
+
+// Calibration only: exercises the actual keyboard/selection collector, not app behavior.
+test(
+  'input collector: explicit keyboard select-all then Delete',
+  calibration,
+  async ({ page }, testInfo) => {
+    await page.setContent(
+      '<textarea id="composer"></textarea><button id="send">Send</button>'
+    );
+    const input = page.locator('#composer');
+    await input.focus();
+    const draft = 'First line\nSecond line';
+    const recorder = await startScrollInputTrace(
+      (await input.elementHandle())!,
+      (await page.locator('#send').elementHandle())!,
+      [
+        { kind: 'input', payload: draft },
+        { kind: 'select-all', payload: 'ControlOrMeta+A' },
+        { kind: 'input', payload: '' },
+      ]
+    );
+    let raw: Awaited<ReturnType<typeof recorder.stop>>;
+    let end = 0;
+    try {
+      await recorder.beginInput(0);
+      await input.fill(draft);
+      await recorder.endInput(0);
+      await page.waitForTimeout(350);
+      await recorder.beginInput(1);
+      await page.keyboard.press('ControlOrMeta+A');
+      await recorder.endInput(1);
+      await page.waitForTimeout(150);
+      await recorder.beginInput(2);
+      await page.keyboard.press('Delete');
+      await recorder.endInput(2);
+      end = await page.evaluate(() => performance.now() + 1300);
+      await page.evaluate(async (end) => {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.max(0, end - performance.now()))
+        );
+      }, end);
+    } finally {
+      raw = await recorder.stop();
+      await testInfo.attach('explicit-selection-raw', {
+        body: JSON.stringify(raw),
+        contentType: 'application/json',
+      });
+    }
+    const expected = [
+      { id: 'input-1', kind: 'input' as const, payload: draft },
+      {
+        id: 'select-all-1',
+        kind: 'select-all' as const,
+        payload: 'ControlOrMeta+A',
+      },
+      { id: 'input-2', kind: 'input' as const, payload: '' },
+    ].map((action) => ({
+      ...action,
+      scopeKey: raw.originalScope,
+      inputId: 'composer',
+    }));
+    const binding = bindScrollInputDeliveries({
+      declaredAt: raw.declaredAt,
+      expected,
+      dispatches: raw.dispatches,
+      events: raw.actions,
+      keyboard: raw.keyboard,
+    });
+    expect(binding.issues).toEqual([]);
+    const state = (value: string, selected = false): ScrollInputState => ({
+      scopeKey: raw.originalScope,
+      inputId: 'composer',
+      draft: value,
+      selection: { start: selected ? 0 : value.length, end: value.length },
+      composing: false,
+      focused: true,
+      caretVisible: true,
+      sendVisible: true,
+      sendHitTestable: true,
+    });
+    const starts = [raw.samples[0].time, ...binding.actions.map((a) => a.time)];
+    const contract = {
+      version: 2 as const,
+      declaredAt: raw.declaredAt,
+      start: starts[0],
+      end,
+      deferredThrough: end - 1000,
+      actions: expected,
+      phases: ['before', 'grown', 'selected', 'cleared'].map((id, index) => ({
+        id,
+        start: starts[index],
+        end: starts[index + 1] ?? end,
+        triggerActionId: expected[index - 1]?.id,
+        expected: state(index === 1 || index === 2 ? draft : '', index === 2),
+      })),
+    };
+    const result = assessScrollInputTrace({
+      contract,
+      samples: raw.samples,
+      actions: binding.actions,
+    });
+    await testInfo.attach('explicit-selection-proof', {
+      body: JSON.stringify({ contract, binding, result }),
+      contentType: 'application/json',
+    });
+    expect(result.semanticVerdict, JSON.stringify(result.issues)).toBe('PASS');
+    expect(result.verdict).toBe('INCOMPLETE'); // Native textarea caret stays unmeasured.
+  }
+);
+
+for (const value of ['', 'abc', '😀\n']) {
+  test(
+    `input paint: natural blink ${JSON.stringify(value)}`,
+    calibration,
+    async ({ page }, testInfo) => {
+      const { assessInputPaint } =
+        await import('../../../scripts/scroll-stability-input-paint.cjs');
+      await page.setContent(
+        '<textarea id="composer" spellcheck="false" style="width:180px;height:72px;padding:8px;border:2px solid black;font:18px/24px monospace;resize:none"></textarea><button id="send">Send</button>'
+      );
+      const input = page.locator('#composer');
+      await input.fill(value);
+      await input.focus();
+      // Cross-check the nonempty pixel candidate against Chromium's actual UA
+      // selection Range; empty/trailing-newline ranges are retained as unavailable.
+      const cdp = await page.context().newCDPSession(page);
+      const protocol: {
+        method: string;
+        params: unknown;
+        result?: unknown;
+        error?: string;
+      }[] = [];
+      const send = async (
+        method: string,
+        params: Record<string, unknown> = {}
+      ) => {
+        try {
+          const result = await cdp.send(
+            method as Parameters<typeof cdp.send>[0],
+            params
+          );
+          protocol.push({ method, params, result });
+          return result;
+        } catch (error) {
+          protocol.push({ method, params, error: String(error) });
+          throw error;
+        }
+      };
+      await send('Browser.getVersion');
+      const document = await send('DOM.getDocument', {
+        depth: -1,
+        pierce: true,
+      });
+      type Node = {
+        nodeName: string;
+        attributes?: string[];
+        backendNodeId: number;
+        shadowRootType?: string;
+        children?: Node[];
+        shadowRoots?: Node[];
+      };
+      const all: Node[] = [];
+      const visit = (node: Node) => {
+        all.push(node);
+        [...(node.children ?? []), ...(node.shadowRoots ?? [])].forEach(visit);
+      };
+      visit((document as { root: Node }).root);
+      const textarea = all.find(
+        (node) =>
+          node.nodeName === 'TEXTAREA' && node.attributes?.includes('composer')
+      )!;
+      const inner = textarea.shadowRoots
+        ?.find((node) => node.shadowRootType === 'user-agent')
+        ?.children?.find((node) => node.nodeName === 'DIV');
+      expect(inner).toBeDefined();
+      const resolved = await send('DOM.resolveNode', {
+        backendNodeId: inner!.backendNodeId,
+      });
+      const observed = await send('Runtime.callFunctionOn', {
+        objectId: (resolved as { object: { objectId: string } }).object
+          .objectId,
+        returnByValue: true,
+        functionDeclaration: `function(){const root=this.getRootNode(),input=root.host,s=root.getSelection();return {value:input.value,start:input.selectionStart,end:input.selectionEnd,focused:document.activeElement===input,rects:s.rangeCount?[...s.getRangeAt(0).getClientRects()].map(r=>({x:r.x,y:r.y,width:r.width,height:r.height})):[]};}`,
+      });
+      const ua = (
+        observed as {
+          result: {
+            value: {
+              value: string;
+              start: number;
+              end: number;
+              focused: boolean;
+              rects: { x: number; y: number; width: number; height: number }[];
+            };
+          };
+        }
+      ).result.value;
+      expect(ua).toMatchObject({
+        value,
+        start: value.length,
+        end: value.length,
+        focused: true,
+      });
+      await cdp.detach();
+      const readSurface = () =>
+        page.evaluate(() => ({
+          deviceScaleFactor: devicePixelRatio,
+          viewport: {
+            pageX: window.visualViewport?.pageLeft ?? scrollX,
+            pageY: window.visualViewport?.pageTop ?? scrollY,
+            offsetX: window.visualViewport?.offsetLeft ?? 0,
+            offsetY: window.visualViewport?.offsetTop ?? 0,
+            scale: window.visualViewport?.scale ?? 1,
+            width: window.visualViewport?.width ?? innerWidth,
+            height: window.visualViewport?.height ?? innerHeight,
+          },
+        }));
+      const surfaceBefore = await readSurface();
+      const recorder = await startScrollInputTrace(
+        (await input.elementHandle())!,
+        (await page.locator('#send').elementHandle())!,
+        undefined,
+        page
+      );
+      const end = await page.evaluate(() => performance.now() + 1800);
+      await page.evaluate(async (end) => {
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.max(0, end - performance.now()))
+        );
+      }, end);
+      const raw = await recorder.stop();
+      const surfaceAfterStop = await readSurface();
+      const contract = {
+        start: raw.samples[0].time,
+        end,
+        phases: [
+          {
+            id: 'unchanged',
+            start: raw.samples[0].time,
+            end,
+            expected: {
+              scopeKey: raw.originalScope,
+              inputId: 'composer',
+              draft: value,
+              selection: { start: value.length, end: value.length },
+            },
+          },
+        ],
+      };
+      const result = assessInputPaint(raw.paintedCaret, contract, raw);
+      await testInfo.attach('input-paint-calibration', {
+        body: JSON.stringify({
+          contract,
+          raw,
+          result,
+          ua,
+          protocol,
+          surfaceBefore,
+          surfaceAfterStop,
+        }),
+        contentType: 'application/json',
+      });
+      expect(surfaceBefore.deviceScaleFactor).toBe(1);
+      expect(surfaceBefore.viewport).toMatchObject({
+        width: 1280,
+        height: 800,
+        scale: 1,
+        offsetX: 0,
+        offsetY: 0,
+      });
+      expect(raw.paintSurface).toEqual(surfaceBefore);
+      expect(surfaceAfterStop).toEqual(surfaceBefore);
+      expect(raw.paintedCaret?.version).toBe(4);
+      for (const frame of raw.paintedCaret?.frames ?? []) {
+        for (const snapshot of [frame.before, frame.after]) {
+          if (snapshot)
+            expect({
+              viewport: snapshot.viewport,
+              deviceScaleFactor: snapshot.deviceScaleFactor,
+            }).toEqual(surfaceBefore);
+        }
+      }
+      const captureErrors =
+        raw.paintedCaret?.frames.filter((frame) => frame.error) ?? [];
+      expect(captureErrors.length).toBeLessThanOrEqual(1);
+      for (const frame of captureErrors) {
+        expect(frame).toBe(raw.paintedCaret?.frames.at(-1));
+        expect(frame.error).toMatch(
+          /owner retired during (capture|observation)/i
+        );
+      }
+      expect(result.verdict).toBe('INCOMPLETE');
+      expect(
+        result.candidates.length,
+        JSON.stringify(result.issues)
+      ).toBeGreaterThan(0);
+      expect(result.issues.map((issue) => issue.code)).not.toContain(
+        'input-caret-paint-capture-gap'
+      );
+      expect(
+        raw.samples.every(
+          (sample) =>
+            sample.draft === value &&
+            sample.focused &&
+            sample.selection.start === value.length &&
+            sample.selection.end === value.length
+        )
+      ).toBe(true);
+      if (value === 'abc') {
+        const candidate = result.candidates[0].rect;
+        const range = ua.rects.find((rect) => rect.height > 0)!;
+        expect(range).toBeDefined();
+        expect(Math.abs(candidate.x - range.x)).toBeLessThanOrEqual(1);
+        expect(Math.abs(candidate.y - range.y)).toBeLessThanOrEqual(1);
+        expect(Math.abs(candidate.height - range.height)).toBeLessThanOrEqual(
+          1
+        );
+      }
+    }
+  );
 }

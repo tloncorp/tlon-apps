@@ -40,7 +40,9 @@ function readAttemptClock(attempt, testId) {
       !Number.isFinite(clock.endedAt) ||
       !Number.isFinite(attempt.duration) ||
       attempt.duration < 0 ||
-      clock.endedAt < start + attempt.duration
+      // duration accumulates monotonic timeout slots; it is not a wall span.
+      // Only independently observed wall endpoints establish this ordering.
+      clock.endedAt < start
     )
       throw new Error('Mismatched clock');
     return { attemptWallEndTime: clock.endedAt };

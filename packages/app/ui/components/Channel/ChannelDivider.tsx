@@ -1,17 +1,22 @@
 import * as db from '@tloncorp/shared/db';
 import { isToday, makePrettyDay } from '@tloncorp/shared/logic';
 import { Text } from '@tloncorp/ui';
-import { useMemo } from 'react';
+import { useMemo, type Ref } from 'react';
+import type { LayoutChangeEvent, View as NativeView } from 'react-native';
 import { View, XStack } from 'tamagui';
 
 export function ChannelDivider({
   post,
   unreadCount,
   isFirstPostOfDay,
+  onLayout,
+  measurementRef,
 }: {
   post: db.Post;
   unreadCount: number;
   isFirstPostOfDay?: boolean;
+  onLayout?: (event: LayoutChangeEvent) => void;
+  measurementRef?: Ref<NativeView>;
 }) {
   const [backgroundColor, textColor, borderColor] = unreadCount
     ? ['$positiveActionText', '$background', '$positiveActionText']
@@ -24,7 +29,13 @@ export function ChannelDivider({
   }, [post.receivedAt]);
 
   return (
-    <XStack alignItems="center" justifyContent="center" paddingVertical="$l">
+    <XStack
+      ref={measurementRef}
+      onLayout={onLayout}
+      alignItems="center"
+      justifyContent="center"
+      paddingVertical="$l"
+    >
       <View
         paddingHorizontal="$m"
         paddingVertical="$s"

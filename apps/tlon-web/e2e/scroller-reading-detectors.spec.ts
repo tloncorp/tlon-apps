@@ -74,7 +74,7 @@ test.describe('Reading/content collector calibration', calibration, () => {
           browser: browser.browserType().name(),
           version: browser.version(),
           channel: 'chromium',
-          headless: false,
+          headless: testInfo.project.use.headless !== false,
           warmup,
         }),
         contentType: 'application/json',

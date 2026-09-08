@@ -1,5 +1,12 @@
 import { NavigationAction, useLinkProps } from '@react-navigation/native';
-import { forwardRef, useMemo } from 'react';
+import {
+  cloneElement,
+  forwardRef,
+  useMemo,
+  type ReactElement,
+  type Ref,
+  type RefAttributes,
+} from 'react';
 import { GestureResponderEvent, LayoutChangeEvent } from 'react-native';
 import { View, ViewProps, isWeb } from 'tamagui';
 
@@ -17,16 +24,34 @@ type PressableProps = Omit<
   to?: string;
   action?: NavigationAction;
   children?: React.ReactNode;
+  /** Replace the existing styled host while retaining Pressable interaction logic. */
+  renderFrame?: ReactElement<ViewProps & RefAttributes<any>>;
 };
+
+function renderHost(
+  element: ReactElement<ViewProps & RefAttributes<any>>,
+  frame: ReactElement<ViewProps & RefAttributes<any>> | undefined,
+  ref: Ref<any>
+) {
+  return frame ? cloneElement(frame, { ...element.props, ref }) : element;
+}
 
 const StackComponent = forwardRef<any, PressableProps>(
   (
-    { onLongPress, onPress, onPressIn, onPressOut, children, ...stackProps },
+    {
+      onLongPress,
+      onPress,
+      onPressIn,
+      onPressOut,
+      children,
+      renderFrame,
+      ...stackProps
+    },
     ref
   ) => {
     // On web, bypass all mobile-specific logic and act like a simple Stack
     if (isWeb) {
-      return (
+      return renderHost(
         <View
           ref={ref}
           // eslint-disable-next-line tlon/no-stack-press
@@ -35,14 +60,16 @@ const StackComponent = forwardRef<any, PressableProps>(
           {...stackProps}
         >
           {children}
-        </View>
+        </View>,
+        renderFrame,
+        ref
       );
     }
 
     // Mobile-only logic below
     const longPressHandler = onLongPress;
 
-    return (
+    return renderHost(
       <View
         ref={ref}
         pressStyle={{ opacity: 0.5 }}
@@ -57,7 +84,9 @@ const StackComponent = forwardRef<any, PressableProps>(
         onLongPress={longPressHandler}
       >
         {children}
-      </View>
+      </View>,
+      renderFrame,
+      ref
     );
   }
 );

@@ -19,6 +19,12 @@ import {
 } from 'react-native-reanimated';
 import { clamp } from 'react-native-reanimated';
 
+import {
+  createConversationEndAnchorRegistry,
+  type ConversationScrollEndAnchorHandler,
+} from './conversationEndAnchor';
+export type { ConversationScrollEndAnchorHandler } from './conversationEndAnchor';
+
 type ScrollContextTuple = [SharedValue<number>, () => void];
 
 export type ConversationScrollToBottomControl = {
@@ -39,11 +45,8 @@ const defaultConversationScrollViewNativeID =
 const ConversationScrollViewNativeIDContext = createContext(
   defaultConversationScrollViewNativeID
 );
-export type ConversationScrollEndAnchorHandler = {
-  capture: () => void;
-  restore: () => void;
-};
 const ConversationScrollEndAnchorContext = createContext<{
+  layoutChanged: () => void;
   capture: () => void;
   register: (handler: ConversationScrollEndAnchorHandler) => () => void;
   restore: () => void;
@@ -108,12 +111,19 @@ export const useScrollDirectionTracker = ({
     );
     const distanceFromBottom = bottomAtEnd ? maxOffset - y : y;
 
-    if (
-      distanceFromBottom < 0 ||
-      distanceFromBottom > event.contentSize.height
-    ) {
+    if (distanceFromBottom > event.contentSize.height) {
       return;
     }
+
+    // UIKit may round or bounce slightly beyond its calculated end. It is
+    // still at the bottom; ignoring that event can leave Latest visible after
+    // a history scroll. Keep bounce deltas out of the header animation below.
+    const atBottom = distanceFromBottom <= AT_BOTTOM_THRESHOLD;
+    if (previousAtBottom.value !== atBottom) {
+      previousAtBottom.value = atBottom;
+      runOnJS(setIsAtBottom)(atBottom);
+    }
+    if (distanceFromBottom < 0) return;
 
     scrollValue.value = clamp(
       scrollValue.value +
@@ -123,13 +133,6 @@ export const useScrollDirectionTracker = ({
     );
 
     previousScrollValue.value = distanceFromBottom;
-
-    const atBottom = distanceFromBottom <= AT_BOTTOM_THRESHOLD;
-
-    if (previousAtBottom.value !== atBottom) {
-      previousAtBottom.value = atBottom;
-      runOnJS(setIsAtBottom)(atBottom);
-    }
   });
 
   return useMemo(
@@ -161,8 +164,6 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   children,
 }) => {
   const scrollValue = useSharedValue(0);
-  const conversationScrollEndAnchor =
-    useRef<ConversationScrollEndAnchorHandler | null>(null);
   const conversationComposerHeightHandler =
     useRef<ConversationComposerHeightHandler | null>(null);
   const lastConversationComposerHeight = useRef<number | null>(null);
@@ -189,18 +190,7 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
     [scrollToBottomControl]
   );
   const scrollEndAnchorContextValue = useMemo(
-    () => ({
-      capture: () => conversationScrollEndAnchor.current?.capture(),
-      register: (handler: ConversationScrollEndAnchorHandler) => {
-        conversationScrollEndAnchor.current = handler;
-        return () => {
-          if (conversationScrollEndAnchor.current === handler) {
-            conversationScrollEndAnchor.current = null;
-          }
-        };
-      },
-      restore: () => conversationScrollEndAnchor.current?.restore(),
-    }),
+    createConversationEndAnchorRegistry,
     []
   );
   const composerHeightContextValue = useMemo(

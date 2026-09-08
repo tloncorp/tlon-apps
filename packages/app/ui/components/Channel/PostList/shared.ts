@@ -3,8 +3,10 @@ import * as db from '@tloncorp/shared/db';
 import * as React from 'react';
 import { StyleProp, ViewStyle } from 'react-native';
 
+import type { LifecyclePermit } from '../../../../hooks/useLifecyclePermit';
 import type { ConversationContentInsets } from '../../conversationInsets';
 import type { ScrollAnchor } from '../scrollerTypes';
+import type { PostTargetLayoutRegistry } from '../postTargetLayout';
 
 export interface PostWithNeighbors {
   post: db.Post;
@@ -13,6 +15,8 @@ export interface PostWithNeighbors {
 }
 
 export interface PostListMethods {
+  /** A permit for deferred work, permanently revoked by later navigation. */
+  captureScrollIntent?: () => () => boolean;
   scrollToStart: (opts: { animated?: boolean }) => void;
   scrollToEnd: (opts: { animated?: boolean }) => void;
   scrollToPost: (opts: {
@@ -22,7 +26,14 @@ export interface PostListMethods {
   }) => void;
 }
 
+export type InitialScrollRecovery = { retry: () => void };
+
 export type PostListComponentProps = {
+  targetLayouts?: PostTargetLayoutRegistry;
+  /** Enclosing route/carousel visibility; standalone lists default to focused. */
+  isFocused?: boolean;
+  /** Exact committed visible visit, shared with Scroller deferred requests. */
+  scrollVisit?: LifecyclePermit;
   anchor: ScrollAnchor | null | undefined;
   channel: db.Channel;
   collectionLayoutType: PostCollectionLayoutType;
@@ -39,6 +50,11 @@ export type PostListComponentProps = {
   onEndReachedThreshold?: number;
   onInitialScrollPending?: () => void;
   onInitialScrollCompleted?: () => void;
+  onInitialScrollRecoveryChange?: (
+    recovery: InitialScrollRecovery | null
+  ) => void;
+  /** Direct input or explicit navigation has superseded deferred scroll work. */
+  onScrollIntentChanged?: () => void;
   /**
    * Called once each time the list is scrolled to the visual bottom. This is
    * different from `onEndReached`, which prevents itself from firing until the scroll's

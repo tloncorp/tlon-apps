@@ -51,6 +51,18 @@ public final class TlonScrollEdgeEffectModule: Module {
                 view.setScrollViewNativeID(nativeID)
             }
         }
+
+        View(ScrollReadScopeContainer.self) {
+            Prop("descriptor") { (view: ScrollReadScopeContainer, descriptor: String?) in
+                view.setDescriptor(descriptor)
+            }
+        }
+
+        View(ScrollReadItemContainer.self) {
+            Prop("descriptor") { (view: ScrollReadItemContainer, descriptor: String?) in
+                view.setDescriptor(descriptor)
+            }
+        }
     }
 }
 
@@ -346,6 +358,7 @@ private enum ScrollEdgeViewFinder {
     // the low-frequency validation above repairs Screens replacing the view
     // without introducing a second native registry in this migration PR.
     static func findScrollView(nativeID: String, from view: UIView) -> UIScrollView? {
+        var containingCellIdentity: String?
         var ancestor: UIView? = view
 
         while let candidateRoot = ancestor {
@@ -466,6 +479,7 @@ enum ScrollGeometryCapture {
         var matches: [String: [UIView]] = [:]
         let wanted = Set([scrollID, composerID] + rowIDs)
         var discoveredRowIDs = Set<String>()
+        var rulerIDs = Set<String>()
         var taggedScrollHosts: [UIView] = []
         guard walk([root], visit: { view in
             guard let id = view.accessibilityIdentifier else { return }
@@ -473,7 +487,9 @@ enum ScrollGeometryCapture {
             let discoveredScroll = itinerary != nil && id.hasPrefix("tlon-conversation-scroll-edge-content-")
             if discoveredScroll { taggedScrollHosts.append(view) }
             if discovered { discoveredRowIDs.insert(id) }
-            if wanted.contains(id) || discovered || discoveredScroll {
+            let ruler = id.hasPrefix("scroll-cell-") || id.hasPrefix("scroll-surface-")
+            if ruler { rulerIDs.insert(id) }
+            if wanted.contains(id) || discovered || discoveredScroll || ruler {
                 matches[id, default: []].append(view)
             }
         }) else {
@@ -534,10 +550,33 @@ enum ScrollGeometryCapture {
             "tracking": scrollView.isTracking, "dragging": scrollView.isDragging,
             "decelerating": scrollView.isDecelerating
         ]
+        // Existing trace diagnostics only: this neither admits a READ lease
+        // nor counts its state as a geometry/presentation verdict.
+        let measuredRows = Dictionary(uniqueKeysWithValues: resolvedRowIDs.map { ($0, matches[$0] ?? []) })
+        let measuredCells = Dictionary(uniqueKeysWithValues: rulerIDs.filter { $0.hasPrefix("scroll-cell-") }
+            .map { ($0, matches[$0] ?? []) })
+        result["nativeReading"] = TlonReadRegistration.readPointDiagnostic(
+            for: scrollView, measuredRows: measuredRows, indexedCells: measuredCells)
         if let composers = matches[composerID], composers.count == 1 {
             result["composer"] = geometry(composers[0], in: window, scrollView: scrollView)
         } else {
             issues.append("missing-or-duplicate-composer")
+        }
+        if !rulerIDs.isEmpty {
+            let cells = rulerIDs.filter { $0.hasPrefix("scroll-cell-") }.sorted()
+            let surfaces = rulerIDs.filter { $0.hasPrefix("scroll-surface-") && $0 != "scroll-surface-manifest" }.sorted()
+            guard cells.count <= maximumRows, surfaces.count <= 16 else {
+                issues.append("ruler-inventory-limit")
+                return finish()
+            }
+            func item(_ id: String) -> [String: Any] {
+                let views = matches[id] ?? []
+                var value: [String: Any] = ["id": id, "matches": views.count]
+                if views.count == 1 { value["view"] = geometry(views[0], in: window, scrollView: scrollView) }
+                return value
+            }
+            result["ruler"] = ["version": 1, "cells": cells.map(item),
+                               "manifest": item("scroll-surface-manifest"), "surfaces": surfaces.map(item)]
         }
         result["rows"] = resolvedRowIDs.map { id -> [String: Any] in
             let views = matches[id] ?? []
@@ -568,8 +607,13 @@ enum ScrollGeometryCapture {
         var alpha: CGFloat = 1
         var hidden = false
         var translationOnly = true
+        var containingCellIdentity: String?
         var ancestor: UIView? = view
         while let current = ancestor {
+            if containingCellIdentity == nil,
+               current.accessibilityIdentifier?.hasPrefix("scroll-cell-") == true {
+                containingCellIdentity = identity(current)
+            }
             alpha *= current.alpha
             hidden = hidden || current.isHidden
             let t = current.transform
@@ -582,12 +626,14 @@ enum ScrollGeometryCapture {
         }
         var result: [String: Any] = [
             "identity": identity(view), "windowIdentity": identity(window),
+            "lifetimeIdentity": TlonReadRegistration.readPointIdentity(for: view),
             "frame": rect(frame), "clipFrame": rect(clipped.isNull ? .zero : clipped),
             "attached": view.window === window, "effectiveAlpha": alpha,
             "hidden": hidden, "translationOnly": translationOnly,
             "descendantOfScroll": scrollView.map { view === $0 || view.isDescendant(of: $0) } ?? false
         ]
         if let value = view.accessibilityValue { result["semanticValue"] = value }
+        if let cell = containingCellIdentity { result["containingCellIdentity"] = cell }
         return result
     }
 }

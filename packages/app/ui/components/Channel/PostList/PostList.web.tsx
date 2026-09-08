@@ -4,34 +4,158 @@ import * as React from 'react';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { View } from 'react-native';
 
+import type { LifecyclePermit } from '../../../../hooks/useLifecyclePermit';
+import { useConversationScrollEndAnchor } from '../../../contexts/scroll';
+
 import { ScrollAnchor } from '../Scroller';
 import { PostList as PostListFlatList } from './PostListFlatList';
 import { getPostListScopeKey } from './postListInitialization';
 import {
+  listScrollKeyDirection,
+  listScrollWheelDirection,
+  useWebScrollCoordinator,
+} from './useWebScrollCoordinator';
+import {
+  getWebInitialAnchorOffset,
+  getWebPostTargetOffset,
+  isWebScrollSurfaceVisible,
+} from './webReadingAnchor';
+import type { WebScrollCoordinator } from './webScrollCoordinator';
+import {
   PostListComponent,
+  PostListMethods,
   PostWithNeighbors,
   usePostListBottomCallbacks,
 } from './shared';
-
-const FORCE_MANUAL_SCROLL_ANCHORING: boolean = false;
-const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
 export const PostList: PostListComponent = React.forwardRef(
   (props, forwardedRef) => {
     return props.numColumns === 1 ? (
       <PostListSingleColumn {...props} ref={forwardedRef} />
     ) : (
-      <PostListFlatList
-        key={
-          props.anchor?.type === 'selected' ? props.anchor.postId : undefined
-        }
-        {...props}
-        ref={forwardedRef}
-      />
+      <PostListGrid {...props} ref={forwardedRef} />
     );
   }
 );
 PostList.displayName = 'PostList';
+
+// FlatList owns grid geometry. Keep its asynchronous-send permission scoped to
+// the real visible web surface instead of falling through an unsupported port.
+const PostListGrid: PostListComponent = React.forwardRef(
+  (props, forwardedRef) => {
+    const list = useRef<PostListMethods>(null);
+    const surface = useRef<HTMLDivElement>(null);
+    const revision = useRef(0);
+    const alive = useRef(true);
+    const focused = useRef(props.isFocused !== false);
+    const scope = getPostListScopeKey(props.channel.id, props.anchor);
+    const currentScope = useRef(scope);
+    useLayoutEffect(() => {
+      currentScope.current = scope;
+      revision.current++;
+    }, [scope]);
+    useLayoutEffect(() => {
+      alive.current = true;
+      return () => {
+        alive.current = false;
+        revision.current++;
+      };
+    }, []);
+    useLayoutEffect(() => {
+      focused.current = props.isFocused !== false;
+      revision.current++;
+    }, [props.isFocused]);
+    const canNavigate = () =>
+      alive.current &&
+      focused.current &&
+      (props.scrollVisit?.isCurrent() ?? true) &&
+      !!surface.current &&
+      isWebScrollSurfaceVisible(surface.current);
+    const revoke = () => {
+      revision.current++;
+      props.onScrollIntentChanged?.();
+    };
+    React.useImperativeHandle(forwardedRef, () => ({
+      captureScrollIntent: () => {
+        const captured = revision.current;
+        const visit = currentScope.current;
+        const childValid = list.current?.captureScrollIntent?.();
+        const visitValid = props.scrollVisit?.capture();
+        const capturedFocused = focused.current;
+        return () =>
+          capturedFocused &&
+          focused.current &&
+          (visitValid?.() ?? true) &&
+          (!childValid || childValid()) &&
+          alive.current &&
+          currentScope.current === visit &&
+          captured === revision.current &&
+          !!surface.current &&
+          isWebScrollSurfaceVisible(surface.current);
+      },
+      scrollToStart: (options) => {
+        if (!canNavigate()) return;
+        revoke();
+        list.current?.scrollToStart(options);
+      },
+      scrollToEnd: (options) => {
+        if (!canNavigate()) return;
+        revoke();
+        list.current?.scrollToEnd(options);
+      },
+      scrollToPost: (options) => {
+        if (!canNavigate()) return;
+        revoke();
+        list.current?.scrollToPost(options);
+      },
+    }));
+    return (
+      <div
+        ref={surface}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          minHeight: 0,
+        }}
+        onWheelCapture={(event) => {
+          if (listScrollWheelDirection(event.nativeEvent) !== null) revoke();
+        }}
+        onKeyDownCapture={(event) => {
+          if (
+            event.isTrusted &&
+            listScrollKeyDirection(event.nativeEvent) !== null
+          )
+            revoke();
+        }}
+        onPointerDownCapture={(event) => {
+          const target = event.target;
+          if (
+            event.isTrusted &&
+            target instanceof HTMLElement &&
+            target.scrollHeight > target.clientHeight &&
+            /auto|scroll/.test(getComputedStyle(target).overflowY)
+          )
+            revoke();
+        }}
+        // FlatList doesn't expose scroll origin here; conservatively invalidate
+        // deferred work after any movement, including assistive scrolling.
+        onScrollCapture={() => {
+          revision.current++;
+        }}
+      >
+        <PostListFlatList
+          key={
+            props.anchor?.type === 'selected' ? props.anchor.postId : undefined
+          }
+          {...props}
+          ref={list}
+        />
+      </div>
+    );
+  }
+);
+PostListGrid.displayName = 'PostListGrid';
 
 const PostListSingleColumn: PostListComponent = React.forwardRef(
   (
@@ -49,6 +173,9 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       onScrolledToBottom,
       onScrolledToBottomThreshold = 1,
       onScrolledAwayFromBottom,
+      onScrollIntentChanged,
+      isFocused = true,
+      scrollVisit,
       onStartReached,
       onStartReachedThreshold = 1,
       postsWithNeighbors,
@@ -66,74 +193,48 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
 
     const orderedData = postsWithNeighbors;
 
+    const hasInFlightPost = postsWithNeighbors.some(
+      ({ post }) =>
+        post.deliveryStatus === 'pending' || post.deliveryStatus === 'enqueued'
+    );
+    const initializationKey = getPostListScopeKey(channel.id, anchor);
+    const coordinatorRef = useWebScrollCoordinator({
+      scrollerRef,
+      contentRef: scrollerContentContainerRef,
+      scope: initializationKey,
+      anchorToEnd,
+      followBlocked: hasNewerPosts && !hasInFlightPost,
+      onScrollIntentChanged,
+      isFocused,
+    });
+    const endAnchor = useConversationScrollEndAnchor();
+    useLayoutEffect(() => {
+      let captured: (() => boolean) | undefined;
+      return endAnchor?.register({
+        capture: () => {
+          captured = coordinatorRef.current?.captureScrollIntent();
+        },
+        restore: () => {
+          const current = captured;
+          captured = undefined;
+          if (current?.()) coordinatorRef.current?.reconcile();
+        },
+        // The input changes its DOM height synchronously. Reconcile before
+        // returning to input observers; external layouts still use ResizeObserver.
+        layoutChanged: () => coordinatorRef.current?.reconcile(),
+      });
+    }, [coordinatorRef, endAnchor]);
     useScrollToAnchorOnMount({
       anchor,
       scrollerRef,
+      coordinatorRef,
       anchorToEnd,
       onScrollCompleted: onInitialScrollCompleted,
       onScrollPending: onInitialScrollPending,
       contentKey: `${orderedData.length}:${orderedData[0]?.post.id ?? ''}:${orderedData[orderedData.length - 1]?.post.id ?? ''}`,
-      initializationKey: getPostListScopeKey(channel.id, anchor),
-    });
-
-    useManualScrollAnchoring({
-      scrollerRef,
-      scrollerContentContainerRef,
-      scrollerContentsKey: orderedData,
-      needsAnchoring: React.useCallback(
-        (
-          prev: typeof orderedData,
-          next: typeof orderedData,
-          scrollTop: number
-        ) => {
-          // https://caniuse.com/css-overflow-anchor
-          const supportsScrollAnchoring = FORCE_MANUAL_SCROLL_ANCHORING
-            ? false
-            : CSS.supports('overflow-anchor', 'auto');
-
-          if (supportsScrollAnchoring) {
-            // If the browser natively implements scroll anchoring, use that
-            // implementation whenever possible. The case that browser-based
-            // scroll anchoring doesn't cover is when the user is already scrolled
-            // all the way to the top and more content loads in at the top (e.g.
-            // backfilling): in this case, we need to manually anchor the scroll.
-            return (
-              scrollTop === 0 && prev.at(0)?.post.id !== next.at(0)?.post.id
-            );
-          } else {
-            // If native scroll anchoring isn't available, manually anchor
-            // scroll every time the scroll height changes.
-            //
-            // We still only want to change scroll position when content above
-            // the viewport changed (pushing content down) - we avoid jumping
-            // in other cases by referencing a visible "anchor item", using the
-            // below `getAnchorItem`.
-            return true;
-          }
-        },
-        []
-      ),
-
-      getAnchorItem: React.useCallback(() => {
-        // TODO: theoretically we could use `getMinVisibleIndex` here, but in
-        // practice, it does not get updated quickly enough at initial load.
-        // Instead, do a manual search for the first fully visible item.
-        const items = Array.from(
-          scrollerContentContainerRef.current!.firstElementChild!.children,
-          (x) => x as HTMLElement
-        );
-        items.sort((a, b) => a.offsetTop - b.offsetTop);
-        const minFullyVisible = items.find(
-          (x) => x.offsetTop >= scrollerRef.current!.scrollTop
-        );
-        if (minFullyVisible == null) {
-          return null;
-        }
-        return {
-          offset: minFullyVisible.offsetTop,
-          key: minFullyVisible.dataset.postid!,
-        };
-      }, []),
+      initializationKey,
+      isFocused,
+      scrollVisit,
     });
 
     const scrollHeight =
@@ -147,12 +248,16 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       scrollerContentKey: scrollHeight,
     });
 
+    // Latest visibility uses the same absolute distance as the native lists.
+    // Pagination boundaries below intentionally remain viewport ratios.
+    const withinBottomDistance = React.useCallback(
+      (distance: number) => distance <= onScrolledToBottomThreshold,
+      [onScrolledToBottomThreshold]
+    );
     const [insideScrolledToBottomBoundary] = useScrollBoundary(
       scrollerRef.current,
       {
-        isNearBoundary: withinViewportRatioOfBoundary(
-          onScrolledToBottomThreshold
-        ),
+        isNearBoundary: withinBottomDistance,
         side: 'bottom',
       }
     );
@@ -161,78 +266,35 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       onScrolledAwayFromBottom,
     });
 
-    const viewportHeight =
-      useTrackContentRect(scrollerRef.current)?.height ?? 0;
-
-    const scrollerContentsKey = useIdentityHash(
-      scrollHeight,
-      orderedData,
-      // HACK: When the viewport shrinks in height, the browser prioritizes
-      // anchoring the content at the top of the viewport - so the content at
-      // the bottom of the viewport gets hidden "under the fold." To avoid
-      // this, we want to trigger "stick-to-anchor-edge" when the viewport
-      // height changes. This works for Chrome and Safari.
-      //
-      // Firefox triggers a mysterious scroll on the next keypress after
-      // the viewport height changes, which causes the scroll to unstick from
-      // bottom - not great!
-      // On Firefox, if we just avoid sticking to bottom while viewport is
-      // resizing, we keep stuck to the bottom _after_ the send (although the
-      // chat gets hidden during drafting), which is better than unsticking.
-      IS_FIREFOX ? undefined : viewportHeight
-    );
-    const hasInFlightPost = React.useMemo(
-      () =>
-        postsWithNeighbors.some(
-          (x) =>
-            x.post.deliveryStatus === 'pending' ||
-            x.post.deliveryStatus === 'enqueued'
-        ),
-      [postsWithNeighbors]
-    );
-    useStickToAnchorEdge({
-      scrollerContentsKey,
-      scrollerRef,
-      anchorToEnd,
-      // - If we don't have all the newest posts, we want to wait to autoscroll
-      //   to the newer messages until we've loaded everything - otherwise, we'll
-      //   scroll on each page that comes in, which is jarring.
-      // - However, we opt out of this behavior if the user sends a message
-      //   before load is completed: we definitely want to show and scroll to any
-      //   newly-sent message, regardless of channel load state. (If this case is
-      //   triggered during a long "catch up" load, we'll autoscroll on each page
-      //   load until the channel is fully loaded. It'd be better to only scroll
-      //   to the sent message once, but I don't see a robust way of doing that.)
-      disable: hasNewerPosts && !hasInFlightPost,
-    });
-
     React.useImperativeHandle(forwardedRef, () => ({
+      captureScrollIntent: () => {
+        const visitValid = scrollVisit?.capture();
+        const rendererValid = coordinatorRef.current?.captureScrollIntent();
+        return () =>
+          isFocused && (visitValid?.() ?? true) && (rendererValid?.() ?? false);
+      },
       scrollToStart: ({ animated = true }) => {
-        if (scrollerRef.current) {
-          scrollerRef.current.scrollTo({
-            top: 0,
-            behavior: animated ? 'smooth' : 'instant',
-          });
-        }
+        if (!isFocused || (scrollVisit && !scrollVisit.isCurrent())) return;
+        coordinatorRef.current?.navigate(() => 0, animated, !anchorToEnd);
       },
       scrollToEnd: ({ animated = true }) => {
-        if (scrollerRef.current) {
-          scrollerRef.current.scrollTo({
-            top: scrollerRef.current.scrollHeight,
-            behavior: animated ? 'smooth' : 'instant',
-          });
-        }
+        if (!isFocused || (scrollVisit && !scrollVisit.isCurrent())) return;
+        const scroller = scrollerRef.current;
+        if (scroller)
+          coordinatorRef.current?.navigate(
+            () => scroller.scrollHeight - scroller.clientHeight,
+            animated,
+            anchorToEnd
+          );
       },
-      scrollToPost: ({ postId, animated = true }) => {
-        const element = scrollerContentContainerRef.current?.querySelector(
-          `[data-postid="${postId}"]`
-        ) as HTMLElement | null;
-        if (element) {
-          element.scrollIntoView({
-            block: 'center',
-            behavior: animated ? 'smooth' : 'instant',
-          });
-        }
+      scrollToPost: ({ postId, animated = true, viewPosition = 0.5 }) => {
+        if (!isFocused || (scrollVisit && !scrollVisit.isCurrent())) return;
+        const scroller = scrollerRef.current;
+        if (scroller)
+          coordinatorRef.current?.navigate(
+            () => getWebPostTargetOffset(scroller, postId, viewPosition),
+            animated
+          );
       },
     }));
 
@@ -240,10 +302,11 @@ const PostListSingleColumn: PostListComponent = React.forwardRef(
       <View style={[{ flex: 1 }, style]}>
         <div
           ref={scrollerRef}
+          tabIndex={0}
           style={{
             flex: 1,
             overflowY: scrollEnabled ? 'auto' : 'hidden',
-            overflowAnchor: FORCE_MANUAL_SCROLL_ANCHORING ? 'none' : undefined,
+            overflowAnchor: 'none',
           }}
         >
           <div
@@ -390,235 +453,40 @@ function useScrollBoundary(
   return [insideBoundary, checkInsideBoundary] as const;
 }
 
-class ManualScrollAnchorCoordinator<ContentKey, ItemKey> {
-  private resizeObserver: ResizeObserver | null = null;
-
-  /**
-   * Value of content key when scroll offset was last applied.
-   * Since `null` could be a valid `ContentKey` value, use an ad-hoc box type - null is empty.
-   */
-  private previousKey: [ContentKey] | null = null;
-  private currentKey: [ContentKey] | null = null;
-
-  private anchorItem: { offset: number; key: ItemKey } | null = null;
-
-  constructor(
-    public scroller: HTMLElement,
-    public contentContainer: HTMLElement,
-    public checkNeedsAnchor: (
-      prevKey: ContentKey,
-      nextKey: ContentKey,
-      /** Scroll offset of anchoring scroll element */
-      scrollTop: number
-    ) => boolean,
-
-    /** Return info about a list item that should maintain its visible position
-     * in case of a scroll height change (ideally the currently "most visible" item). */
-    public getAnchorItem: () => {
-      /** How far from the top of the scroll (i.e. `offsetTop`) is this item? */
-      offset: number;
-      key: ItemKey;
-    } | null,
-    public getItemOffsetAtKey: (key: ItemKey) => number | null
-  ) {}
-
-  setContentKey(contentKey: ContentKey) {
-    this.currentKey = [contentKey];
-  }
-
-  install() {
-    if (this.contentContainer == null) {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.target === this.contentContainer) {
-          this.checkAndApplyScrollOffset();
-        }
-      }
-    });
-    resizeObserver.observe(this.contentContainer);
-
-    this.resizeObserver = resizeObserver;
-
-    this.updateAnchorItem();
-  }
-
-  uninstall() {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
-    this.previousKey = null;
-  }
-
-  private updateAnchorItem(): void {
-    this.anchorItem = this.getAnchorItem();
-  }
-
-  private checkAndApplyScrollOffset() {
-    const previousKey = this.previousKey;
-    const currentKey = this.currentKey;
-    this.previousKey = currentKey;
-
-    if (
-      previousKey == null ||
-      currentKey == null ||
-      this.scroller == null ||
-      this.checkNeedsAnchor == null
-    ) {
-      return;
-    }
-
-    const needsAnchor = this.checkNeedsAnchor(
-      previousKey[0],
-      currentKey[0],
-      this.scroller.scrollTop
-    );
-
-    if (needsAnchor) {
-      // To determine the scroll offset to apply, we'll find the change in
-      // position of the `anchorItem` that we recorded on the last pass of
-      // `checkAndApplyScrollOffset`. Scrolling by that amount should make
-      // `anchorItem` maintain its position w.r.t. the viewport.
-      const prevAnchorItem = this.anchorItem;
-
-      if (prevAnchorItem != null) {
-        // y-position of the previously-stored anchor item
-        const prevAnchorCurrentOffset = this.getItemOffsetAtKey(
-          prevAnchorItem.key
-        );
-        if (prevAnchorCurrentOffset != null) {
-          const scrollHeightChange =
-            prevAnchorCurrentOffset - prevAnchorItem.offset;
-
-          this.scroller.scrollBy({
-            top: scrollHeightChange,
-            behavior: 'instant',
-          });
-        }
-      }
-    }
-
-    // Store info about an anchor item that we'll use on next manual anchor.
-    this.updateAnchorItem();
-  }
-}
-
-function useManualScrollAnchoring<Data>({
-  scrollerRef,
-  scrollerContentContainerRef,
-  scrollerContentsKey,
-  needsAnchoring: checkNeedsAnchor,
-  getAnchorItem,
-}: {
-  scrollerRef: React.RefObject<HTMLDivElement | null>;
-  scrollerContentContainerRef: React.RefObject<HTMLDivElement | null>;
-  /** This value must change when the scroll height of the scroller changes */
-  scrollerContentsKey: Data;
-  needsAnchoring: (
-    prevKey: Data,
-    nextKey: Data,
-    /** Scroll offset of anchoring scroll element */
-    scrollTop: number
-  ) => boolean;
-  /** See `ManualScrollAnchorCoordinator.getAnchorItem` */
-  getAnchorItem: () => { offset: number; key: string } | null;
-}) {
-  const coordinator = useRef(
-    new ManualScrollAnchorCoordinator(
-      scrollerRef.current!,
-      scrollerContentContainerRef.current!,
-      checkNeedsAnchor,
-      getAnchorItem,
-      (key) => {
-        const item = scrollerContentContainerRef.current!.querySelector(
-          `[data-postid="${key}"]`
-        );
-        if (!(item instanceof HTMLElement)) {
-          return null;
-        }
-        return item.offsetTop;
-      }
-    )
-  );
-
-  useEffect(() => {
-    const coord = coordinator.current;
-    coord.scroller = scrollerRef.current!;
-    coord.contentContainer = scrollerContentContainerRef.current!;
-    coord.install();
-    return () => coord.uninstall();
-  }, [scrollerContentContainerRef, scrollerRef]);
-
-  coordinator.current?.setContentKey(scrollerContentsKey);
-}
-
-function useStickToAnchorEdge({
-  anchorToEnd,
-  scrollerContentsKey,
-  scrollerRef,
-  disable,
-  maxDistanceForAnchor = 100,
-}: {
-  anchorToEnd: boolean;
-  /** This value must change when the scroll height of the scroller changes */
-  scrollerContentsKey: unknown;
-  scrollerRef: React.RefObject<HTMLDivElement | null>;
-  disable: boolean;
-  /** If the distance from viewport boundary to scroll boundary is less than this, perform sticking */
-  maxDistanceForAnchor?: number;
-}) {
-  const shouldStickToAnchorRef = useRef(false);
-
-  const [isAtAnchor] = useScrollBoundary(scrollerRef.current, {
-    isNearBoundary: React.useCallback(
-      (distance: number) => distance < maxDistanceForAnchor,
-      [maxDistanceForAnchor]
-    ),
-    side: anchorToEnd ? 'bottom' : 'top',
-  });
-
-  // Use useLayoutEffect (not useEffect) so the sticky flag is updated
-  // synchronously before the scroll-to-bottom layoutEffect reads it.
-  // With useEffect, the flag could be set to false between renders during
-  // a message burst, causing the scroll to stop tracking.
-  useLayoutEffect(() => {
-    shouldStickToAnchorRef.current = !disable && isAtAnchor;
-  }, [isAtAnchor, disable]);
-
-  useLayoutEffect(() => {
-    const scroller = scrollerRef.current;
-    if (!shouldStickToAnchorRef.current || scroller == null) {
-      return;
-    }
-    scroller.scrollTo({ top: anchorToEnd ? scroller.scrollHeight : 0 });
-  }, [anchorToEnd, scrollerRef, scrollerContentsKey]);
-}
-
 function useScrollToAnchorOnMount({
   anchor,
   scrollerRef,
+  coordinatorRef,
   anchorToEnd,
   onScrollCompleted,
   onScrollPending,
   contentKey,
   initializationKey,
+  isFocused,
+  scrollVisit,
 }: {
   anchor: ScrollAnchor | null | undefined;
   scrollerRef: React.RefObject<HTMLDivElement | null>;
+  coordinatorRef: React.RefObject<WebScrollCoordinator | null>;
   anchorToEnd: boolean;
   onScrollCompleted?: () => void;
   onScrollPending?: () => void;
   contentKey: string | number;
   initializationKey: string;
+  isFocused: boolean;
+  scrollVisit?: LifecyclePermit;
 }) {
   const needsInitialScrollRef = useRef(true);
+  const initialIntentRef = useRef<(() => boolean) | undefined>(undefined);
+  const initialVisitRef = useRef<(() => boolean) | undefined>(undefined);
+  const firstAttemptRef = useRef(true);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useLayoutEffect(() => {
     needsInitialScrollRef.current = true;
+    initialIntentRef.current = coordinatorRef.current?.captureScrollIntent();
+    initialVisitRef.current = scrollVisit?.capture();
+    firstAttemptRef.current = true;
     onScrollPending?.();
   }, [initializationKey, onScrollPending]);
 
@@ -628,7 +496,11 @@ function useScrollToAnchorOnMount({
       return;
     }
     timeoutRef.current = setTimeout(() => {
-      if (needsInitialScrollRef.current) {
+      if (
+        needsInitialScrollRef.current &&
+        initialIntentRef.current?.() &&
+        (initialVisitRef.current?.() ?? true)
+      ) {
         // Unblock Scroller loading behavior so more content can load
         // (which may bring in the anchor post), but do NOT abandon the
         // anchor — the contentKey-driven retry will keep looking.
@@ -644,12 +516,26 @@ function useScrollToAnchorOnMount({
   useLayoutEffect(() => {
     if (!needsInitialScrollRef.current) return;
     const scroller = scrollerRef.current;
-    if (!scroller) return;
+    const coordinator = coordinatorRef.current;
+    if (!scroller || !coordinator) return;
+    const firstAttempt = firstAttemptRef.current;
+    firstAttemptRef.current = false;
+    // A child layout effect precedes the parent's visit activation. Only this
+    // initial synchronous attempt uses explicit focus; every later retry needs
+    // the exact captured activation, never a refreshed same-channel permit.
+    if (
+      !isFocused ||
+      !initialIntentRef.current?.() ||
+      (!firstAttempt && !(initialVisitRef.current?.() ?? true))
+    ) {
+      needsInitialScrollRef.current = false;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      onScrollCompleted?.();
+      return;
+    }
 
     if (!anchor) {
-      if (anchorToEnd) {
-        scroller.scrollTo({ top: scroller.scrollHeight });
-      }
+      coordinator.goToEdge(false, false);
       needsInitialScrollRef.current = false;
       onScrollCompleted?.();
       return;
@@ -659,13 +545,25 @@ function useScrollToAnchorOnMount({
       `[data-postid="${anchor.postId}"]`
     );
     if (anchorElement) {
-      anchorElement.scrollIntoView({ block: 'center', behavior: 'instant' });
+      coordinator.navigate(
+        () => getWebInitialAnchorOffset(scroller, anchor),
+        false,
+        false,
+        false
+      );
       needsInitialScrollRef.current = false;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       onScrollCompleted?.();
     }
     // else: element not in DOM yet — do nothing, wait for next contentKey change
-  }, [scrollerRef, anchor, anchorToEnd, onScrollCompleted, contentKey]);
+  }, [
+    scrollerRef,
+    anchor,
+    anchorToEnd,
+    onScrollCompleted,
+    contentKey,
+    isFocused,
+  ]);
 }
 
 // Pass this to useDeduplicateInvocationBy().resetDeduplicateInvocation() to
@@ -834,27 +732,6 @@ function useTrackContentRect(element: HTMLElement | null) {
     }
   }, [resizeObserver, element]);
   return contentRect;
-}
-
-// returns a value with a new identity whenever any of the deps' identities change
-function useIdentityHash(...deps: unknown[]): unknown {
-  const [hash, newHash] = React.useReducer((x) => x + 1, 0);
-  const prevDepsRef = useRef(deps);
-  useEffect(() => {
-    if (prevDepsRef.current.length !== deps.length) {
-      prevDepsRef.current = deps;
-      newHash();
-      return;
-    }
-    for (let i = 0; i < deps.length; i++) {
-      if (prevDepsRef.current[i] !== deps[i]) {
-        prevDepsRef.current = deps;
-        newHash();
-        return;
-      }
-    }
-  }, [deps]);
-  return hash;
 }
 
 /**
