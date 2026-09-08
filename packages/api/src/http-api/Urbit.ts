@@ -10,6 +10,8 @@ import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
+  ChannelPutError,
+  ChannelSetupError,
   AuthenticationInterface,
   FatalError,
   Message,
@@ -117,6 +119,22 @@ export class Urbit {
   private channelAbort = new AbortController();
 
   /**
+   * Abort controller for the event source alone, so a channel rotation can
+   * drop the old stream's reconnect loop without cancelling PUTs in flight
+   */
+  private sseAbort = new AbortController();
+
+  /**
+   * Subscriptions replayed onto a new channel by +seamlessReset, keyed by the
+   * entry they replaced. A subscribe whose PUT was still in flight during the
+   * rotation resolves to its replacement instead of failing.
+   */
+  private replayedSubscriptions = new WeakMap<
+    SubscriptionRequestInterface,
+    Promise<number>
+  >();
+
+  /**
    * Identity of the ship we're connected to
    */
   nodeId?: string | null;
@@ -140,6 +158,22 @@ export class Urbit {
    * Custom fetch implementation to use.
    */
   fetchFn: typeof fetch = (...args) => fetch(...args);
+
+  /**
+   * Whether anything has been sent over the current channel id yet. Once true,
+   * the ship has a channel bound to whatever identity we had at the time.
+   */
+  get channelOpened(): boolean {
+    return this.lastEventId > 0;
+  }
+
+  /**
+   * The current channel id. Changes on every reset, so a caller can tell
+   * whether the channel it sent on is still the live one.
+   */
+  get channelId(): string {
+    return this.uid;
+  }
 
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
@@ -371,6 +405,7 @@ export class Urbit {
       return;
     }
     this.sseClientInitialized = true;
+    const signal = this.sseAbort.signal;
     return new Promise((resolve, reject) => {
       const sseOptions: SSEOptions = {
         headers: {},
@@ -378,9 +413,18 @@ export class Urbit {
       if (isBrowser) {
         sseOptions.withCredentials = true;
       }
+      // a rotation that aborts this stream before it opens would otherwise
+      // leave anyone awaiting the channel setup hanging; fetchEventSource
+      // resolves on abort without calling any of the handlers below
+      signal.addEventListener(
+        'abort',
+        () =>
+          reject(new ReapError('Channel rotated before event source opened')),
+        { once: true }
+      );
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
-        signal: this.channelAbort.signal,
+        signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
@@ -554,8 +598,14 @@ export class Urbit {
   }
 
   seamlessReset() {
-    // called if a channel was reaped by %eyre before we reconnected
-    // so we have to make a new channel.
+    // called if a channel was reaped by %eyre before we reconnected, or if
+    // our session can no longer use it, so we have to make a new channel.
+    // drop the old channel's event source first: its reconnect loop keeps
+    // the old channel url and would otherwise retry it forever. PUTs still in
+    // flight are left alone; they fail or succeed on their own and their
+    // callers handle the rotation
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
     this.emit('seamless-reset', { uid: this.uid });
     this.emit('status-update', { status: 'initial' });
@@ -576,7 +626,9 @@ export class Urbit {
       });
 
       if (sub.resubOnQuit) {
-        this.subscribe(sub);
+        const replay = this.subscribe(sub);
+        replay.catch(() => {});
+        this.replayedSubscriptions.set(sub, replay);
       }
     });
 
@@ -626,7 +678,7 @@ export class Urbit {
     });
     if (!response.ok) {
       console.log(response.status, response.statusText, await response.text());
-      throw new Error('Failed to PUT channel command(s)');
+      throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -656,25 +708,32 @@ export class Urbit {
     if (!response.ok) {
       // Known NOT accepted by the ship: safe for callers to roll back any
       // local registration they made for this message (see subscribe()).
-      throw Object.assign(new Error('Failed to PUT channel'), {
-        channelPutRejected: true,
-      });
+      throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
         console.log('initializing event source');
       }
-      await Promise.all([this.getOurName(), this.getShipName()]);
+      // Past the PUT, so the ship HAS these messages. Tag anything that
+      // fails from here as a setup failure, not a delivery failure: a
+      // caller that registered a subscription must close it on the ship
+      // rather than only dropping its local entry (see subscribe()).
+      try {
+        await Promise.all([this.getOurName(), this.getShipName()]);
 
-      if (this.our !== this.nodeId) {
-        console.log('our name does not match ship name');
-        console.log('our:', this.our);
-        console.log('ship:', this.nodeId);
-        console.log('messages:', json);
-        throw new AuthError('invalid session');
+        if (this.our !== this.nodeId) {
+          console.log('our name does not match ship name');
+          console.log('our:', this.our);
+          console.log('ship:', this.nodeId);
+          console.log('messages:', json);
+          throw new AuthError('invalid session');
+        }
+
+        await this.eventSource();
+      } catch (error) {
+        // AuthError drives re-authentication in the wrapper; leave it be.
+        throw error instanceof AuthError ? error : new ChannelSetupError(error);
       }
-
-      await this.eventSource();
     }
   }
 
@@ -707,13 +766,25 @@ export class Urbit {
   ) {
     return new Promise<T>((resolve, reject) => {
       let done = false;
-      const quit = () => {
-        if (!done) {
-          reject('quit');
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const finish = () => {
+        if (done) {
+          return false;
+        }
+        // A reset can reuse this subscription's id. Once settled, neither a
+        // late PUT nor an existing timeout may unsubscribe that replacement.
+        done = true;
+        clearTimeout(timer);
+        return true;
+      };
+      const fail = (error: unknown) => {
+        if (finish()) {
+          reject(error);
         }
       };
+      const quit = () => fail('quit');
       const event = (e: T, mark: string, id: number) => {
-        if (!done) {
+        if (finish()) {
           resolve(e);
           this.unsubscribe(id);
         }
@@ -724,21 +795,20 @@ export class Urbit {
         ship,
         resubOnQuit: false,
         event,
-        err: reject,
+        err: fail,
         quit,
       };
 
       this.subscribe(request).then((subId) => {
-        if (timeout) {
-          setTimeout(() => {
-            if (!done) {
-              done = true;
+        if (timeout && !done) {
+          timer = setTimeout(() => {
+            if (finish()) {
               reject('timeout');
               this.unsubscribe(subId);
             }
           }, timeout);
         }
-      });
+      }, fail);
     });
   }
 
@@ -798,9 +868,13 @@ export class Urbit {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(ackTimer);
-        this.outstandingPokes.delete(message.id);
+        // A reset reuses numeric ids while old PUTs can still finish. Only
+        // remove this poke, not a replacement that now occupies its slot.
+        if (this.outstandingPokes.get(message.id) === entry) {
+          this.outstandingPokes.delete(message.id);
+        }
       };
-      this.outstandingPokes.set(message.id, {
+      const entry: PokeHandlers = {
         onSuccess: () => {
           cleanup();
           onSuccess();
@@ -811,7 +885,8 @@ export class Urbit {
           onError(err);
           reject(err);
         },
-      });
+      };
+      this.outstandingPokes.set(message.id, entry);
 
       const ackTimer = setTimeout(() => {
         cleanup();
@@ -858,7 +933,7 @@ export class Urbit {
       path,
     };
 
-    this.outstandingSubscriptions.set(message.id, {
+    const entry: SubscriptionRequestInterface = {
       app,
       path,
       resubOnQuit,
@@ -866,7 +941,8 @@ export class Urbit {
       err,
       event,
       quit,
-    });
+    };
+    this.outstandingSubscriptions.set(message.id, entry);
 
     this.emit('subscription', {
       id: message.id,
@@ -875,38 +951,49 @@ export class Urbit {
       status: 'open',
     });
 
+    let putError: unknown = null;
     try {
       await this.sendJSONtoChannel(message);
-    } catch (error) {
-      // The ship KNOWN to have rejected the PUT: nothing exists there, so
-      // just drop the local registration. A ghost entry would otherwise
-      // accumulate per failed retry, and a later channel reset would fire
-      // quit handlers (spawning overlapping resubscribes) for watches that
-      // never lived.
-      //
-      // Otherwise the PUT was accepted — sendJSONtoChannel also performs
-      // first-time stream setup (getOurName/getShipName/eventSource)
-      // *after* the PUT succeeds — so the subscription DOES exist on the
-      // ship. Callers retry by subscribing again, which would stack another
-      // live watch on top of this one and leave only the newest id
-      // unsubscribable, so actively close this one before rethrowing.
-      // Best-effort: if the channel itself is broken the unsubscribe fails
-      // too, but then the channel is being reset/reaped anyway.
-      const putRejected = (error as { channelPutRejected?: boolean })
-        ?.channelPutRejected;
-      this.outstandingSubscriptions.delete(message.id);
-      this.emit('subscription', {
-        id: message.id,
-        status: 'close',
-      });
-      if (!putRejected) {
+    } catch (err) {
+      putError = err;
+    }
+
+    // a reset while this PUT was pending has already replayed us onto the new
+    // channel with a new id. whether the stale PUT then failed or landed on
+    // the abandoned channel, the replay is the subscription the caller owns
+    const replay = this.replayedSubscriptions.get(entry);
+    if (replay) {
+      this.replayedSubscriptions.delete(entry);
+      return replay;
+    }
+
+    if (putError !== null) {
+      // the ship never saw this subscription, so don't let a later channel
+      // reset resubscribe it on the caller's behalf; the caller retries. a
+      // reset restarts the id sequence, so the slot may already belong to a
+      // live subscription on the new channel
+      const ours = this.outstandingSubscriptions.get(message.id) === entry;
+      if (ours) {
+        this.outstandingSubscriptions.delete(message.id);
+        this.emit('subscription', { id: message.id, status: 'close' });
+      }
+      // A failed PUT (rejected, or the request never completed) leaves
+      // nothing on the ship, so dropping the local entry is all there is to
+      // do. A ChannelSetupError is different: the PUT landed and only the
+      // stream setup after it failed, so the watch DOES exist there — a
+      // caller retrying would stack a second live one and leave only the
+      // newest id unsubscribable. Close it first, best-effort: if the
+      // channel itself is broken the unsubscribe fails too, but then the
+      // channel is being reset/reaped anyway. Skipped when the slot is no
+      // longer ours, since the id may now name someone else's watch.
+      if (ours && putError instanceof ChannelSetupError) {
         try {
           await this.unsubscribe(message.id);
         } catch {
           // Channel is unusable; the ship reaps the orphan with it.
         }
       }
-      throw error;
+      throw putError;
     }
 
     return message.id;
@@ -937,6 +1024,8 @@ export class Urbit {
   async delete() {
     this.channelAbort.abort();
     this.channelAbort = new AbortController();
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     const body = JSON.stringify([
       {
         id: this.getEventId(),

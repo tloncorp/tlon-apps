@@ -257,6 +257,35 @@ export class ReapError extends Error {}
 
 export class AuthError extends Error {}
 
+/**
+ * A PUT to the channel endpoint came back non-2xx. Eyre answers 403 when the
+ * channel id already exists under a different identity (for example a channel
+ * created before login, as a guest, then reused after authenticating); the
+ * client must mint a new channel id to recover.
+ */
+export class ChannelPutError extends Error {
+  public status: number;
+  constructor(status: number) {
+    super('Failed to PUT channel');
+    this.name = 'ChannelPutError';
+    this.status = status;
+  }
+}
+
+/**
+ * Thrown when the channel PUT succeeded but the first-time stream setup it
+ * performs afterwards (name checks, event source) did not. The ship HAS the
+ * message — unlike ChannelPutError, which means it was rejected outright —
+ * so a caller that registered something for it must undo that on the ship,
+ * not just locally.
+ */
+export class ChannelSetupError extends Error {
+  constructor(public cause: unknown) {
+    super('Channel stream setup failed after a successful PUT');
+    this.name = 'ChannelSetupError';
+  }
+}
+
 export class SSETimeoutError extends Error {}
 
 export class SSEBadResponseError extends Error {

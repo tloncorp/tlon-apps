@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
-import { getNoteBodyPreview, stripNoteMarkdown } from './notesText';
+import {
+  formatNotesChannelSubtitle,
+  getNoteBodyPreview,
+  stripNoteMarkdown,
+} from './notesText';
 
 describe('stripNoteMarkdown', () => {
   test('drops code fences and keeps inline code text', () => {
@@ -37,5 +41,34 @@ describe('getNoteBodyPreview', () => {
 
   test('returns the flattened body otherwise', () => {
     expect(getNoteBodyPreview('# Hi\n\nthere')).toBe('Hi there');
+  });
+});
+
+describe('formatNotesChannelSubtitle', () => {
+  test('counts notes and folders', () => {
+    expect(formatNotesChannelSubtitle({ noteCount: 25, folderCount: 4 })).toBe(
+      '25 notes in 4 folders'
+    );
+  });
+
+  test('omits folders when there are none', () => {
+    expect(formatNotesChannelSubtitle({ noteCount: 3, folderCount: 0 })).toBe(
+      '3 notes'
+    );
+  });
+
+  test('singularizes', () => {
+    expect(formatNotesChannelSubtitle({ noteCount: 1, folderCount: 1 })).toBe(
+      '1 note in 1 folder'
+    );
+  });
+
+  test('reads as empty when there are no notes', () => {
+    expect(formatNotesChannelSubtitle({ noteCount: 0, folderCount: 0 })).toBe(
+      'No notes'
+    );
+    expect(formatNotesChannelSubtitle({ noteCount: 0, folderCount: 2 })).toBe(
+      'No notes in 2 folders'
+    );
   });
 });

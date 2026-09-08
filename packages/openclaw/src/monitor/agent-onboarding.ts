@@ -61,6 +61,7 @@ type AgentRequest =
 export type OnboardingStepReport = {
   step: TlonOnboardingStep;
   outcome?: 'ok' | 'failed';
+  provisionId?: string | null;
   purposeId?: string | null;
   topicCount?: number | null;
   timezone?: string | null;
@@ -162,6 +163,7 @@ const DEFAULT_MIN_INTER_MESSAGE_DELAY_MS = 1_750;
 const FIRST_ENTRY_TO_SERVICES_DELAY_MS = 5_500;
 const RUN_OUTCOME_WRITE_RETRY_DELAYS_MS = [100, 250, 500, 1_000] as const;
 const ADMIN_MEMBERSHIP_RETRY_DELAYS_MS = [250, 500, 1_000, 2_000] as const;
+const EMPTY_SCAN_RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
 const COMPOSE_MS_PER_CHARACTER = 14;
 const MIN_COMPOSE_DELAY_MS = 800;
 const MAX_COMPOSE_DELAY_MS = 3_500;
@@ -194,9 +196,6 @@ const AGENT_ONBOARDING_BOT_TOUR_EXPLANATION =
   'authorize. Try asking me to adjust tomorrow’s update or investigate ' +
   'something now.';
 const AGENT_ONBOARDING_TOUR_DECLINED = 'No problem. You can ask me anytime.';
-const AGENT_GROUP_SETUP_COMPLETE =
-  'All set. Ask me here anytime if you want to change what I do, adjust the ' +
-  'schedule, or work on something else.';
 const AGENT_GROUP_SETUP_COMPLETE_MARKER = 'group-setup-complete';
 const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   {
@@ -265,6 +264,119 @@ const AGENT_ONBOARDING_PURPOSE_OPTIONS = [
   topics: readonly string[];
 }[];
 
+/**
+ * Give a newly discovered chat a short, bounded window for its durable intro
+ * request to become visible. Group membership and channel posts arrive over
+ * separate subscriptions, so the first history read can legitimately be
+ * empty. Ordinary groups exhaust this window without leaving a polling loop.
+ */
+export function createAgentOnboardingCatchUpScheduler({
+  scan,
+  abortSignal,
+  retryDelaysMs = EMPTY_SCAN_RETRY_DELAYS_MS,
+}: {
+  scan: (channelNest: string) => Promise<boolean | undefined>;
+  abortSignal?: AbortSignal;
+  retryDelaysMs?: readonly number[];
+}) {
+  const timers = new Map<string, ReturnType<typeof setTimeout>>();
+  const attempts = new Map<string, number>();
+  const flights = new Set<Promise<void>>();
+  let stopped = false;
+
+  const complete = (channelNest: string) => {
+    const timer = timers.get(channelNest);
+    if (timer) clearTimeout(timer);
+    timers.delete(channelNest);
+    attempts.delete(channelNest);
+  };
+
+  const schedule = (channelNest: string): boolean => {
+    if (stopped || abortSignal?.aborted || timers.has(channelNest))
+      return false;
+    const attempt = attempts.get(channelNest) ?? 0;
+    const delayMs = retryDelaysMs[attempt];
+    if (delayMs === undefined) {
+      attempts.delete(channelNest);
+      return false;
+    }
+    attempts.set(channelNest, attempt + 1);
+    const timer = setTimeout(() => {
+      timers.delete(channelNest);
+      if (stopped || abortSignal?.aborted) return;
+      const flight = (async () => {
+        const result = await scan(channelNest);
+        if (result === false) schedule(channelNest);
+        else complete(channelNest);
+      })();
+      flights.add(flight);
+      void flight.then(
+        () => flights.delete(flight),
+        () => {
+          flights.delete(flight);
+          complete(channelNest);
+        }
+      );
+    }, delayMs);
+    timer.unref?.();
+    timers.set(channelNest, timer);
+    return true;
+  };
+
+  const stop = () => {
+    stopped = true;
+    for (const timer of timers.values()) clearTimeout(timer);
+    timers.clear();
+    attempts.clear();
+  };
+
+  const reconcile = async (
+    channelNest: string
+  ): Promise<boolean | undefined> => {
+    if (stopped || abortSignal?.aborted) return undefined;
+    const result = await scan(channelNest);
+    if (result === false) schedule(channelNest);
+    else complete(channelNest);
+    return result;
+  };
+
+  const drain = async () => {
+    while (flights.size > 0) {
+      await Promise.allSettled([...flights]);
+    }
+  };
+
+  return { reconcile, schedule, stop, drain };
+}
+
+export function createAgentOnboardingReconciliationPresence({
+  conversationId,
+  createRunId,
+  refreshRun,
+  stopRun,
+}: {
+  conversationId: string;
+  createRunId: () => string;
+  refreshRun: (params: { conversationId: string; runId: string }) => void;
+  stopRun: (params: { conversationId: string; runId: string }) => void;
+}) {
+  let activeRunId: string | null = null;
+
+  return {
+    startThinking: () => {
+      if (activeRunId) return;
+      activeRunId = createRunId();
+      refreshRun({ conversationId, runId: activeRunId });
+    },
+    stopThinking: () => {
+      if (!activeRunId) return;
+      const runId = activeRunId;
+      activeRunId = null;
+      stopRun({ conversationId, runId });
+    },
+  };
+}
+
 type FirstRunCorrelation = {
   runId: string;
   context: AgentOnboardingScanContext;
@@ -283,6 +395,7 @@ type FirstRunCorrelation = {
 
 function correlationFunnelFields(correlation: FirstRunCorrelation) {
   return {
+    provisionId: correlation.provisionId,
     purposeId: correlation.purposeId,
     topicCount: correlation.topics.length,
     notebookNest: correlation.notebookNest,
@@ -475,7 +588,15 @@ async function handleAgentOnboardingRequestInternal(
     context.log?.('[tlon] rejected agent provision: request was superseded');
     return true;
   }
-  await provision(context, history, request, deps, presentation);
+  try {
+    await provision(context, history, request, deps, presentation);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `agent onboarding provision ${request.provisionId} failed: ${detail}`,
+      { cause: error }
+    );
+  }
   return true;
 }
 
@@ -653,8 +774,26 @@ async function postIntro(
   presentation: OnboardingPresentation,
   isFirstGroup: boolean
 ) {
-  const needsIntro =
-    isFirstGroup && !hasPostMarker(history, context.botShip, 'intro');
+  if (!isFirstGroup) {
+    const posted = await postOnce(
+      context,
+      history,
+      AGENT_GROUP_SETUP_COMPLETE_MARKER,
+      async () => ({ text: AGENT_ONBOARDING_PURPOSE_PROMPT }),
+      deps,
+      presentation
+    );
+    if (posted) {
+      context.trackStep?.({ step: 'intro_posted' });
+      context.trackStep?.({
+        step: 'onboarding_completed',
+        completionPath: 'additional_group_completed',
+      });
+    }
+    return;
+  }
+
+  const needsIntro = !hasPostMarker(history, context.botShip, 'intro');
   const hadPicker = hasPostMarker(history, context.botShip, 'purpose-picker');
   const pickerPosted = await postOnce(
     context,
@@ -685,10 +824,7 @@ async function postIntro(
     presentation
   );
   if (!hadPicker && pickerPosted) {
-    if (needsIntro || !isFirstGroup) {
-      // Additional groups share the same ordered funnel vocabulary; their
-      // purpose picker is the first setup surface even though no welcome copy
-      // is needed. First groups carry both markers on the combined opening.
+    if (needsIntro) {
       context.trackStep?.({ step: 'intro_posted' });
     }
     context.trackStep?.({ step: 'purpose_picker_posted' });
@@ -796,34 +932,6 @@ async function advanceOrientationConversation(
     hasPostMarker(history, context.botShip, AGENT_GROUP_SETUP_COMPLETE_MARKER)
   ) {
     return false;
-  }
-
-  if (!isFirstGroupSetup(history, context.ownerShip!, context.groupId!)) {
-    const servicesCard = markerPost(history, context.botShip, 'services-card');
-    if (!servicesCard) return false;
-    const completedServices = history.some(
-      (entry) =>
-        entry.author === context.ownerShip &&
-        entry.timestamp > servicesCard.timestamp &&
-        isServicesCompleteReply(entry.content)
-    );
-    if (!completedServices) return false;
-
-    const posted = await postOnce(
-      context,
-      history,
-      AGENT_GROUP_SETUP_COMPLETE_MARKER,
-      async () => ({ text: AGENT_GROUP_SETUP_COMPLETE }),
-      deps,
-      presentation
-    );
-    if (posted) {
-      context.trackStep?.({
-        step: 'onboarding_completed',
-        completionPath: 'additional_group_completed',
-      });
-    }
-    return true;
   }
 
   const botTourOffer = markerPost(history, context.botShip, 'bot-tour-offer');
@@ -976,6 +1084,7 @@ async function provision(
   // toward the response floor instead of adding an artificial delay later.
   await presentation.start();
   const stepFacts = {
+    provisionId: request.provisionId,
     purposeId: request.purposeId,
     topicCount: request.topics.length,
     timezone: request.timezone,
@@ -1054,9 +1163,13 @@ async function provision(
       ?.title ?? request.notebookTitle
   );
   if (!existingAck) {
+    // The authenticated durable provision is proof that the owner completed
+    // the topics picker. Emit this before any cron work so a provisioning
+    // failure appears as drop-off after topic submission.
+    context.trackStep?.({ step: 'topics_submitted', ...stepFacts });
+
     // Validation succeeded and this provision has not already been
-    // acknowledged. Reconciliation can replay the same durable request, so
-    // emit the successful funnel step only on the first pass.
+    // acknowledged. Reconciliation can replay the same durable request.
     if (!cron) throw new Error('cron service is not available');
     const providerConfig = findLatestProviderConfig(
       history,
@@ -2382,23 +2495,6 @@ function blobEntriesByAuthor(
   );
 }
 
-function isFirstGroupSetup(
-  history: TlonHistoryEntry[],
-  ownerShip: string,
-  groupId: string
-) {
-  const intro = blobEntriesByAuthor(history, ownerShip, true).find(
-    ({ entry }) =>
-      entry.type === 'tlon-agent-intro-request' && entry.groupId === groupId
-  )?.entry;
-  if (intro?.type === 'tlon-agent-intro-request') {
-    return intro.isFirstGroup === true;
-  }
-  // Preserve first-run behavior for setup conversations created before the
-  // explicit flag was introduced.
-  return groupId.endsWith('/home-group');
-}
-
 /** True once any provision has been acknowledged in this channel. */
 function hasProvisionAck(history: TlonHistoryEntry[], botShip: string) {
   return blobEntriesByAuthor(history, botShip).some(
@@ -2851,14 +2947,15 @@ function scheduleConfirmation(request: PostBlobDataEntryAgentProvision) {
  * The services pitch, in terms of what the owner just built. The old copy
  * ("Connect calendars, docs, or notes to give me more to work with") named
  * the mechanism and no benefit, and read identically whichever purpose was
- * chosen.
+ * chosen. Name only what the connector catalog actually offers: there is no
+ * calendar connector, so the pitch can't promise one.
  */
 function servicesPitch(purposeId: AgentOnboardingPurposeId) {
   switch (purposeId) {
     case 'agent-learning':
       return (
-        'Connect your calendar or notes and I can fit each update around ' +
-        'your day and build on what you’re already reading.'
+        'Connect your notes or docs and I can build each update on what ' +
+        'you’re already reading.'
       );
     case 'agent-research':
       return (
@@ -2867,8 +2964,8 @@ function servicesPitch(purposeId: AgentOnboardingPurposeId) {
       );
     case 'agent-daily-digest':
       return (
-        'Connect your calendar and docs and your morning digest can cover ' +
-        'your own day — meetings, deadlines, notes — not just the news.'
+        'Connect your docs and notes and your morning digest can cover your ' +
+        'own projects, not just the news.'
       );
   }
 }

@@ -19,11 +19,14 @@ import {
   adoptNotebookNoteRemote,
   createNotebookNote,
   deleteNotebookNote,
+  markNotesNotebookStale,
+  markNotesNotebookStaleForNoteEvent,
   noteIsPublished,
   publishNotebookNote,
   saveNotebookNote,
   syncNotesNotebook,
   unpublishNotebookNote,
+  warmNotesNotebookSnapshot,
 } from './notesActions';
 
 setupDatabaseTestSuite();
@@ -1426,4 +1429,377 @@ test('noteIsPublished matches published records by note id', () => {
 
   expect(noteIsPublished(published, 3)).toBe(true);
   expect(noteIsPublished(published, 4)).toBe(false);
+});
+
+test('warmNotesNotebookSnapshot refetches a snapshot that has aged out', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now() - 60 * 60 * 1000,
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+    makeApiNotesFolder(makeNotesFolder(4, 'New folder', rootFolder.folderId)),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  expect(getNotebook).toHaveBeenCalled();
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 0, folderCount: 1 },
+  });
+});
+
+test('warmNotesNotebookSnapshot leaves a fresh snapshot alone', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  expect(getNotebook).not.toHaveBeenCalled();
+});
+
+test('warmNotesNotebookSnapshot fetches a notebook with no cached snapshot', async () => {
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  expect(getNotebook).toHaveBeenCalled();
+});
+
+test('warmNotesNotebookSnapshot fetches once when callers race', async () => {
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  await Promise.all([
+    warmNotesNotebookSnapshot(notebookFlag),
+    warmNotesNotebookSnapshot(notebookFlag),
+    warmNotesNotebookSnapshot(notebookFlag),
+  ]);
+
+  expect(getNotebook).toHaveBeenCalledTimes(1);
+});
+
+test('syncNotesNotebook serializes concurrent refreshes of one notebook', async () => {
+  const inFlight: (() => void)[] = [];
+  let concurrent = 0;
+  let maxConcurrent = 0;
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(() => {
+    concurrent += 1;
+    maxConcurrent = Math.max(maxConcurrent, concurrent);
+    return new Promise((resolve) =>
+      inFlight.push(() => {
+        concurrent -= 1;
+        resolve([]);
+      })
+    );
+  });
+
+  const first = syncNotesNotebook(notebookFlag);
+  const second = syncNotesNotebook(notebookFlag);
+  // only the first refresh may be fetching; the second waits its turn
+  await vi.waitFor(() => expect(inFlight).toHaveLength(1));
+  inFlight[0]();
+  await first;
+  await vi.waitFor(() => expect(inFlight).toHaveLength(2));
+  inFlight[1]();
+  await second;
+
+  expect(maxConcurrent).toBe(1);
+});
+
+test('syncNotesNotebook keeps serving the queue after a failed refresh', async () => {
+  vi.spyOn(api.notes, 'getNotebook')
+    .mockRejectedValueOnce(new Error('boom'))
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  const failed = syncNotesNotebook(notebookFlag);
+  const next = syncNotesNotebook(notebookFlag);
+
+  await expect(failed).rejects.toThrow('boom');
+  await expect(next).resolves.toMatchObject({ id: notebookFlag });
+});
+
+test('warmNotesNotebookSnapshot rethrows so the query can retry', async () => {
+  vi.spyOn(api.notes, 'getNotebook').mockRejectedValue(new Error('offline'));
+
+  await expect(warmNotesNotebookSnapshot(notebookFlag)).rejects.toThrow(
+    'offline'
+  );
+});
+
+test('markNotesNotebookStale makes the next warm refetch a fresh snapshot', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+
+  // a fresh snapshot alone is left alone
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(getNotebook).not.toHaveBeenCalled();
+
+  markNotesNotebookStale(`notes/${notebookFlag}`);
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(getNotebook).toHaveBeenCalled();
+});
+
+test('warmNotesNotebookSnapshot keeps a mark raised while it was fetching', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  const getNotebook = vi
+    .spyOn(api.notes, 'getNotebook')
+    .mockImplementation(async () => {
+      // a second note lands while this refresh is in flight
+      markNotesNotebookStale(`notes/${notebookFlag}`);
+      return notebookSummary;
+    });
+
+  markNotesNotebookStale(`notes/${notebookFlag}`);
+  await warmNotesNotebookSnapshot(notebookFlag);
+
+  // the mark raised mid-refresh got its own fetch rather than being cleared
+  expect(getNotebook).toHaveBeenCalledTimes(2);
+});
+
+// Stale marks live in module state keyed by notebook flag, so a test that
+// leaves one behind would make the next one refresh when it expected a
+// skip. Mock the snapshot reads, run one warm to consume whatever is
+// pending, and clear the call history.
+async function settleNotesNotebookMarks() {
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  await warmNotesNotebookSnapshot(notebookFlag);
+  vi.clearAllMocks();
+}
+
+test('warmNotesNotebookSnapshot reports the age of the snapshot it left behind', async () => {
+  await settleNotesNotebookMarks();
+
+  const syncedAt = Date.now() - 60 * 1000;
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt,
+    }),
+    folders: [rootFolder],
+    notes: [],
+    members: [],
+  });
+
+  // skipped refresh: the caller needs the cached snapshot's age so it can
+  // schedule the next check for when that snapshot ages out
+  await expect(warmNotesNotebookSnapshot(notebookFlag)).resolves.toBe(syncedAt);
+  expect(api.notes.getNotebook).not.toHaveBeenCalled();
+});
+
+test('note-edit activity for an unstored note counts as a creation', async () => {
+  await settleNotesNotebookMarks();
+
+  const stored = makeNote('Stored note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({
+      rootFolderId: rootFolder.folderId,
+      syncedAt: Date.now(),
+    }),
+    folders: [rootFolder],
+    notes: [stored],
+    members: [],
+  });
+
+  // an edit to a note we already have can't have changed the counts
+  await markNotesNotebookStaleForNoteEvent({
+    channelId: `notes/${notebookFlag}`,
+    noteId: String(stored.noteId),
+    created: false,
+  });
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(api.notes.getNotebook).not.toHaveBeenCalled();
+
+  // an edit naming a note we've never stored is a create that %notes
+  // collapsed into a single %note-edit
+  await markNotesNotebookStaleForNoteEvent({
+    channelId: `notes/${notebookFlag}`,
+    noteId: '999',
+    created: false,
+  });
+  await warmNotesNotebookSnapshot(notebookFlag);
+  expect(api.notes.getNotebook).toHaveBeenCalled();
+});
+
+test('createNotebookNote keeps its new note when a refresh overlaps the create', async () => {
+  const createdNote = makeNote('Created note');
+  // The host applies the create before it answers. Each list resolves with
+  // what the host held when the call was *made*, so a fetch issued before the
+  // create can't retroactively pick the new note up.
+  let hostNotes: api.NotesNote[] = [];
+  const pendingLists: (() => void)[] = [];
+  let refresh: Promise<unknown> | null = null;
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockImplementation(() => {
+    const asOfCall = hostNotes;
+    return new Promise((resolve) => pendingLists.push(() => resolve(asOfCall)));
+  });
+  vi.spyOn(api.notes, 'createNote').mockImplementation(async () => {
+    // a periodic warm lands mid-create; unqueued it would fetch the
+    // pre-create list here and save it over the row we're about to write
+    refresh = syncNotesNotebook(notebookFlag);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    hostNotes = [makeApiNotesNote(createdNote)];
+    return {
+      id: createdNote.noteId,
+      notebookId: createdNote.notebookId,
+      folderId: createdNote.folderId ?? undefined,
+      title: createdNote.title,
+      bodyMd: createdNote.bodyMd,
+      revision: createdNote.revision,
+    };
+  });
+
+  const creation = createNotebookNote({
+    notebookFlag,
+    folderId: rootFolder.folderId,
+    title: createdNote.title,
+    body: createdNote.bodyMd,
+  });
+  await vi.waitFor(() => expect(pendingLists).toHaveLength(1));
+  pendingLists[0]();
+  await creation;
+
+  // let the overlapping refresh finish with whatever it fetched
+  await vi.waitFor(() => expect(pendingLists).toHaveLength(2));
+  pendingLists[1]();
+  await refresh;
+
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: createdNote.noteId })
+  ).resolves.toMatchObject({ noteId: createdNote.noteId });
+});
+
+test('deleteNotebookNote holds the queue across the remote and local delete', async () => {
+  const note = makeNote('Doomed note');
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ rootFolderId: rootFolder.folderId }),
+    folders: [rootFolder],
+    notes: [note],
+    members: [],
+  });
+
+  let releaseDelete: () => void = () => {};
+  let markDeleteStarted: () => void = () => {};
+  const deleteStarted = new Promise<void>((resolve) => {
+    markDeleteStarted = resolve;
+  });
+
+  vi.spyOn(api.notes, 'getNotebook').mockResolvedValue(notebookSummary);
+  vi.spyOn(api.notes, 'listFolders').mockResolvedValue([
+    makeApiNotesFolder(rootFolder),
+  ]);
+  vi.spyOn(api.notes, 'listMembers').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'listNotes').mockResolvedValue([]);
+  vi.spyOn(api.notes, 'deleteNote').mockImplementation(() => {
+    markDeleteStarted();
+    return new Promise((resolve) => {
+      releaseDelete = () => resolve(undefined);
+    });
+  });
+
+  const deletion = deleteNotebookNote({ notebookFlag, noteId: note.noteId });
+  await deleteStarted;
+
+  // a refresh raised while the delete is in flight must wait: were it to fetch
+  // now it would read the note as still present and save that copy back after
+  // the local delete
+  const refresh = syncNotesNotebook(notebookFlag);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(api.notes.listNotes).not.toHaveBeenCalled();
+
+  releaseDelete();
+  await deletion;
+  await refresh;
+
+  expect(api.notes.listNotes).toHaveBeenCalled();
+  await expect(
+    db.getNotesNote({ notebookFlag, noteId: note.noteId })
+  ).resolves.toBeNull();
 });
