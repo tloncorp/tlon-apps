@@ -276,6 +276,7 @@ interface ChannelProps {
   groupIsLoading?: boolean;
   goBack: () => void;
   disableBackButton?: boolean;
+  onPressLogout?: () => void;
   suppressEmptyState?: boolean;
   suppressAnimatedSendScroll?: boolean;
   pendingThinkingLabel?: string;
@@ -322,6 +323,7 @@ export function Channel({
   groupIsLoading,
   goBack,
   disableBackButton,
+  onPressLogout,
   suppressEmptyState,
   suppressAnimatedSendScroll,
   pendingThinkingLabel,
@@ -964,6 +966,7 @@ export function Channel({
                           contextLensActive={contextLensActive}
                           showSpinner={showHeaderLoading}
                           showSearchButton={isChatChannel && !disableBackButton}
+                          onPressLogout={onPressLogout}
                         />
                         {showOnboardingBackTooltip &&
                         inView &&

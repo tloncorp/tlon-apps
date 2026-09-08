@@ -17,6 +17,8 @@ const mocks = vi.hoisted(() => ({
   setQueryData: vi.fn(),
   startAuth: vi.fn(),
   completeAuth: vi.fn(),
+  getAuthStatus: vi.fn(),
+  trackSettingUpdated: vi.fn(),
   queryClient: null as null | { setQueryData: ReturnType<typeof vi.fn> },
 }));
 
@@ -30,7 +32,11 @@ vi.mock('@tloncorp/api', () => ({
   startTlawnLLMAuth: mocks.startAuth,
   completeTlawnLLMAuth: mocks.completeAuth,
   getTlawnLLMAuthFlow: vi.fn(),
-  getTlawnLLMAuthStatus: vi.fn(),
+  getTlawnLLMAuthStatus: mocks.getAuthStatus,
+}));
+
+vi.mock('./botSettingsTelemetry', () => ({
+  trackTlonbotSettingUpdated: mocks.trackSettingUpdated,
 }));
 
 vi.mock('react-native', () => ({
@@ -190,6 +196,58 @@ describe('useOpenAISubscriptionAuth', () => {
       phase: 'active',
       flow: { provider: 'anthropic', status: 'authenticating' },
     });
+
+    act(() => renderer!.unmount());
+  });
+
+  it('tracks the provider after a subscription is successfully connected', async () => {
+    let auth: ReturnType<typeof useOpenAISubscriptionAuth> | null = null;
+    let renderer: ReactTestRenderer;
+    const onComplete = vi.fn();
+    const awaitingToken = {
+      id: 'flow-anthropic',
+      provider: 'anthropic',
+      status: 'awaiting_token',
+      expiresAt: Date.now() + 60_000,
+    };
+    mocks.startAuth.mockResolvedValue({ flow: awaitingToken });
+    mocks.completeAuth.mockResolvedValue({
+      flow: { ...awaitingToken, status: 'complete' },
+    });
+    mocks.getAuthStatus.mockResolvedValue({
+      ts: Date.now(),
+      providers: [{ provider: 'anthropic', status: 'connected' }],
+      subscriptionModels: {
+        anthropic: [{ id: 'claude-test' }],
+      },
+    });
+
+    function Harness() {
+      const currentAuth = useOpenAISubscriptionAuth({
+        ship: 'zod',
+        provider: 'anthropic',
+        onComplete,
+      });
+      React.useEffect(() => {
+        auth = currentAuth;
+      }, [currentAuth]);
+      return null;
+    }
+
+    await act(async () => {
+      renderer = create(<Harness />);
+    });
+    await act(async () => {
+      await auth!.start();
+      await auth!.completeToken('setup-token');
+    });
+
+    expect(mocks.trackSettingUpdated).toHaveBeenCalledWith({
+      setting: 'subscription',
+      action: 'connected',
+      provider: 'anthropic',
+    });
+    expect(onComplete).toHaveBeenCalledWith([{ id: 'claude-test' }]);
 
     act(() => renderer!.unmount());
   });
