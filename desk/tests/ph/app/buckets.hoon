@@ -208,6 +208,90 @@
   ^-  form:m
   =/  =channel-join:b  [bucket-nest test-group]
   (poke-app [joiner %buckets] group-channel-join+channel-join)
+::  +token-url: where the host pushes a reader's access.
+::
+++  token-url
+  (rap 3 broker-base '/tokens/' (rsh [3 1] (scot %p bucket-host)) ~)
+::  +applied-json: the broker took the write.
+::
+++  applied-json
+  |=  revision=@ud
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['applied' b+&]
+      ['currentRevision' (numb:enjs:format revision)]
+  ==
+::  A read token is served only once the broker has taken it.
+::
+::  Access is pushed as desired state rather than handed to the reader to
+::  carry, so the token is worth nothing until the broker holds it -- serving
+::  it earlier means a client with a token that 403s. The requester gets
+::  %pending while the push is out and the token only after.
+::
+++  ph-test-bucket-read-token-waits-for-the-broker
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m  (watch-our /effect/request %aqua /effect/request)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v20 [%bucket test-bucket [%issue-bucket-read ~]]]
+  ::  the push goes out, and is answered
+  ;<  put=[num=@ud =request:http]  bind:m  (memex-take bucket-host token-url)
+  ;<  ~  bind:m  (memex-answer bucket-host num.put 200 (applied-json 1))
+  ::  and the token arrives, rather than the %pending that preceded it
+  |-
+  ;<  res=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?:  ?=(%pending -.body.res)  $
+  (ex-equal !>(`@tas`-.body.res) !>(%token))
+::  A grant overtaken by another grant is not reported as lost access.
+::
+::  %not-authorized is what a replica reads as "your access is gone", and it
+::  answers by dropping the token it holds and its refresh with it. Two panes
+::  opening a cold bucket inside one host round trip is enough to overtake a
+::  grant, and reporting that as %not-authorized made a reader discard a token
+::  it could still use. Only a supersede by a revoke is a real loss.
+::
+++  ph-test-bucket-overtaken-grant-is-not-lost-access
+  =/  m  (strand ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (bucket-with-replica 0v1)
+  ;<  ~  bind:m
+    %^  watch-app  /host/buckets/v1/requests
+      [bucket-host %buckets]
+    /v1/requests
+  ::  two asks before the first push is answered
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v21 [%bucket test-bucket [%issue-bucket-read ~]]]
+  ;<  ~  bind:m
+    %+  poke-app  [bucket-host %buckets]
+    :-  %buckets-action-1
+    ^-  command:b
+    [0v22 [%bucket test-bucket [%issue-bucket-read ~]]]
+  ::  the overtaken one is told, and told it is a race rather than a refusal
+  |-
+  ;<  res=req-response:b  bind:m
+    %^    wait-for-app-fact-value
+        req-response:b
+      /host/buckets/v1/requests
+    [bucket-host %buckets]
+  ?:  ?=(%pending -.body.res)  $
+  ?.  ?=(%error -.body.res)
+    (ex-equal !>(`@tas`-.body.res) !>(%error))
+  (ex-not-equal !>(`@tas`type.body.res) !>(%not-authorized))
 ::  +begin-and-grant: open an upload and answer its grant. Yields the session.
 ::
 ++  begin-and-grant
