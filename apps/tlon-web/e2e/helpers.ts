@@ -1964,24 +1964,16 @@ export function dismissDeleteConfirmation(
 /**
  * Deletes a message
  */
-export async function deleteMessage(
-  page: Page,
-  messageText: string,
-  isDM = false
-) {
+export async function deleteMessage(page: Page, messageText: string) {
   // Ensure session is stable before deleting message
   await waitForSessionStability(page);
 
   await longPressMessage(page, messageText);
   acceptDeleteConfirmation(page, 'message');
   await page.getByText('Delete message').click();
-  if (!isDM) {
-    await expect(
-      page.getByText(messageText, { exact: true })
-    ).not.toBeVisible();
-  } else {
-    await expect(page.getByText('Message deleted').first()).toBeVisible();
-  }
+  await expect(
+    page.getByTestId('Post').getByText(messageText, { exact: true }).first()
+  ).not.toBeVisible();
 }
 
 /**

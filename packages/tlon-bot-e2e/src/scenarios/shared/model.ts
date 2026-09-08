@@ -346,7 +346,7 @@ function assertToolLoopResult(
   const followupMessages = calls[1].messages ?? [];
   const assistantEcho = followupMessages
     .flatMap((message) =>
-      message.role === 'assistant' ? message.tool_calls ?? [] : []
+      message.role === 'assistant' ? (message.tool_calls ?? []) : []
     )
     .find((toolCall) => toolCall.id === emittedToolCall.id);
   if (assistantEcho && assistantEcho.function.name !== expectedTool.name) {

@@ -69,6 +69,9 @@ Content sources (Markdown):
   --markdown <file>   Alias for --body
   --stdin             Read the note body from stdin
 
+Note bodies are plain Markdown. LaTeX math delimiters ($...$, $$...$$,
+\\(...\\), \\[...\\]) do not render; use plain text/Unicode or code blocks.
+
 Examples:
   tlon notes list
   tlon notes request 0vabc

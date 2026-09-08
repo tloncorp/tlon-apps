@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional
 
+from .commands import CHANNEL_ACCESS_USAGE, command_detection_regex
 from .owner_listen import canonicalize_nest
 from .tlon_api import normalize_ship
 
@@ -27,11 +28,8 @@ SETTINGS_KEY_CHANNEL_RULES = "channelRules"
 # has a legacy duplicate "autoDiscover" key — deliberately not read here.
 SETTINGS_KEY_AUTO_DISCOVER_CHANNELS = "autoDiscoverChannels"
 
-CHANNEL_ACCESS_USAGE = (
-    "Usage: /channel-access [open|restricted|status|list] [<channel-nest>]"
-)
-
-_COMMAND_RE = re.compile(r"^/channel-access(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_COMMAND_RE = command_detection_regex("channel-access")
 
 
 def is_channel_access_command(text: str) -> bool:

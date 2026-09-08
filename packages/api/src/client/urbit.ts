@@ -5,7 +5,6 @@ import {
   AuthError,
   ChannelStatus,
   NounPokeInterface,
-  PokeInterface,
   Thread,
   Urbit,
 } from '../http-api';
@@ -21,11 +20,10 @@ const logger = createDevLogger('urbit', false);
 const DEFAULT_SCRY_TIMEOUT = 60 * 1000; // 1 minute
 const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
 
-interface Config
-  extends Pick<
-    ClientParams,
-    'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
-  > {
+interface Config extends Pick<
+  ClientParams,
+  'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
+> {
   client: Urbit | null;
   subWatchers: Watchers;
   pendingAuth: Promise<string | void> | null;
@@ -124,6 +122,23 @@ const config: Config = {
   activitySupportsNotes: false,
 };
 
+type ClientResolver = () => Urbit | null | undefined;
+let clientResolver: ClientResolver | null = null;
+
+/**
+ * Let a server runtime provide an async-context-local client while preserving
+ * the configured singleton as the default for app clients. Returning
+ * `undefined` uses that default; `null` explicitly represents an empty scope.
+ */
+export function setClientResolver(resolver: ClientResolver | null): void {
+  clientResolver = resolver;
+}
+
+function resolveClient(): Urbit | null {
+  const resolved = clientResolver?.();
+  return resolved === undefined ? config.client : resolved;
+}
+
 // The capability flags below start false every boot and flip when app-info
 // sync resolves the backend version. Long-lived consumers that bake a
 // capability into something at call time (e.g. a subscription's stream
@@ -184,10 +199,11 @@ export const client = new Proxy(
   {},
   {
     get: function (target, prop, receiver) {
-      if (!config.client) {
+      const activeClient = resolveClient();
+      if (!activeClient) {
         throw new Error('Urbit client not set.');
       }
-      return Reflect.get(config.client, prop, receiver);
+      return Reflect.get(activeClient, prop, receiver);
     },
   }
 ) as Urbit;
@@ -508,26 +524,22 @@ export async function poke({ app, mark, json }: PokeParams) {
     app,
     mark,
   });
-  const doPoke = async (params?: Partial<PokeInterface<any>>) => {
-    if (!config.client) {
+  const activeClient = resolveClient();
+  const doPoke = async () => {
+    if (!activeClient) {
       throw new Error('Client not initialized');
     }
-    if (config.pendingAuth) {
+    if (activeClient === config.client && config.pendingAuth) {
       await config.pendingAuth;
     }
-    return config.client.poke({
-      ...params,
-      app,
-      mark,
-      json,
-    });
+    return activeClient.poke({ app, mark, json });
   };
   const retry = async (err: any) => {
     logger.trackError(`bad poke to ${app} with mark ${mark}`, {
       stack: err,
       body: json,
     });
-    if (!(err instanceof AuthError)) {
+    if (!(err instanceof AuthError) || activeClient !== config.client) {
       trackDuration('error');
       throw err;
     }
@@ -689,10 +701,11 @@ export async function scry<T>({
   path: string;
   timeout?: number;
 }) {
-  if (!config.client) {
+  const activeClient = resolveClient();
+  if (!activeClient) {
     throw new Error('Client not initialized');
   }
-  if (config.pendingAuth) {
+  if (activeClient === config.client && config.pendingAuth) {
     await config.pendingAuth;
   }
   logger.log('scry', app, path);
@@ -703,7 +716,7 @@ export async function scry<T>({
   });
   try {
     const { result, responseSizeInBytes, responseStatus } =
-      await config.client.scryWithInfo<T>({
+      await activeClient.scryWithInfo<T>({
         app,
         path,
         timeout: timeout ?? DEFAULT_SCRY_TIMEOUT,
@@ -712,11 +725,11 @@ export async function scry<T>({
     return result;
   } catch (res) {
     logger.log('bad scry', app, path, res.status);
-    if (res.status === 403) {
+    if (res.status === 403 && activeClient === config.client) {
       logger.log('scry failed with 403, authing to try again');
       await reauth();
       const { result, responseSizeInBytes, responseStatus } =
-        await config.client.scryWithInfo<T>({ app, path });
+        await activeClient.scryWithInfo<T>({ app, path });
       trackDuration('success', { responseSizeInBytes, responseStatus });
       return result;
     }
@@ -730,6 +743,7 @@ export async function scry<T>({
 
 export interface RequestJsonOptions {
   reauthStatuses?: readonly number[];
+  signal?: AbortSignal;
 }
 
 // Authenticated JSON request to an arbitrary ship path. Reauths once on 403 by
@@ -740,20 +754,33 @@ export async function requestJson<T = any>(
   body?: unknown,
   options: RequestJsonOptions = {}
 ): Promise<T> {
-  if (!config.client) {
+  const activeClient = resolveClient();
+  if (!activeClient) {
     throw new Error('Client not initialized');
   }
-  if (config.pendingAuth) {
+  if (activeClient === config.client && config.pendingAuth) {
     await config.pendingAuth;
   }
   const reauthStatuses = options.reauthStatuses ?? [403];
+  const send = () =>
+    options.signal
+      ? activeClient.requestJson<T>(path, method, body, {
+          signal: options.signal,
+        })
+      : activeClient.requestJson<T>(path, method, body);
 
   try {
-    return await config.client.requestJson<T>(path, method, body);
+    return await send();
   } catch (res) {
-    if (reauthStatuses.includes(res?.status)) {
+    if (options.signal?.aborted || res?.name === 'AbortError') {
+      throw res;
+    }
+    if (
+      activeClient === config.client &&
+      reauthStatuses.includes(res?.status)
+    ) {
       await reauth();
-      return await config.client.requestJson<T>(path, method, body);
+      return await send();
     }
     const errorBody = await responseErrorBody(res);
     throw new BadResponseError(res?.status ?? 0, errorBody);

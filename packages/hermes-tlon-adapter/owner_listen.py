@@ -21,6 +21,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping, Optional
 
+from .commands import OWNER_LISTEN_USAGE, command_detection_regex
 from .tlon_api import normalize_ship
 
 SETTINGS_DESK = "moltbot"
@@ -33,14 +34,10 @@ SETTINGS_KEY_GROUP_CHANNELS = "groupChannels"
 
 NEST_PREFIXES = frozenset({"chat", "heap", "diary"})
 
-OWNER_LISTEN_USAGE = (
-    "Usage: /owner-listen [on|off|status|list] [<channel-nest>|<~host/group>] | "
-    "/owner-listen all [on|off] | /owner-listen default [owned|all]"
-)
-
 _GROUP_FLAG_RE = re.compile(r"^~[a-z][a-z-]*/[^/\s]+$", re.IGNORECASE)
 
-_COMMAND_RE = re.compile(r"^/owner-listen(?:\s|$)", re.IGNORECASE)
+# Detection lives in the command registry (commands.py).
+_COMMAND_RE = command_detection_regex("owner-listen")
 
 
 def _canonical_ship(ship: str) -> str:

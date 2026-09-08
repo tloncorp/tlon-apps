@@ -1,8 +1,17 @@
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import type { ComposeHandle, RuntimeContext } from '../drivers/types.js';
+import {
+  type DockerCommandRunner,
+  inspectComposeServiceState,
+  topComposeService,
+} from './docker-direct.js';
 
 const DEFAULT_LOG_TAIL = 240;
 const DEFAULT_PROBE_TIMEOUT_MS = 5_000;
 const DEFAULT_COMPOSE_TIMEOUT_MS = 10_000;
+const SHIPS_LOG_FETCH_TIMEOUT_MS = 30_000;
 
 export async function collectRuntimeDiagnostics(
   ctx: RuntimeContext,
@@ -11,6 +20,7 @@ export async function collectRuntimeDiagnostics(
     tail?: number;
     probeTimeoutMs?: number;
     composeTimeoutMs?: number;
+    dockerRunner?: DockerCommandRunner;
   } = {}
 ): Promise<string> {
   const tail = opts.tail ?? DEFAULT_LOG_TAIL;
@@ -46,9 +56,75 @@ export async function collectRuntimeDiagnostics(
     section(`${ctx.services.ships} logs`, () =>
       compose.logs([ctx.services.ships], { tail, timeoutMs: composeTimeoutMs })
     ),
+    section('container states', () =>
+      containerStatesSnapshot(ctx, composeTimeoutMs, opts.dockerRunner)
+    ),
+    section(`${ctx.services.ships} process table`, () =>
+      topComposeService(
+        ctx,
+        ctx.services.ships,
+        { timeoutMs: composeTimeoutMs },
+        opts.dockerRunner
+      )
+    ),
   ]);
 
   return sections.filter(Boolean).join('\n\n');
+}
+
+export async function writeDiagnosticsArtifacts(
+  ctx: RuntimeContext,
+  compose: ComposeHandle,
+  dir: string,
+  dump: string
+): Promise<string> {
+  const outDir = path.join(dir, ctx.runId);
+  await mkdir(outDir, { recursive: true });
+  await writeFile(path.join(outDir, 'diagnostics.txt'), dump, 'utf8');
+  let shipsLogs: string;
+  try {
+    // allowFailure: false is load-bearing: logs() defaults it to true, in
+    // which case a failed compose command returns junk instead of throwing
+    // and the placeholder path below would never run.
+    shipsLogs = await compose.logs([ctx.services.ships], {
+      timeoutMs: SHIPS_LOG_FETCH_TIMEOUT_MS,
+      allowFailure: false,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    shipsLogs = `<failed to collect ships logs: ${message}>`;
+  }
+  await writeFile(path.join(outDir, 'ships.log'), shipsLogs, 'utf8');
+  return outDir;
+}
+
+async function containerStatesSnapshot(
+  ctx: RuntimeContext,
+  timeoutMs: number,
+  run: DockerCommandRunner | undefined
+): Promise<string> {
+  const services = [
+    ctx.services.bot,
+    ctx.services.fakeModel,
+    ctx.services.ships,
+  ];
+  const blocks = await Promise.all(
+    services.map(async (service) => {
+      try {
+        const state = await inspectComposeServiceState(
+          ctx,
+          service,
+          { timeoutMs },
+          run
+        );
+        return `${service}:\n${state}`;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return `${service}: <failed to collect: ${message}>`;
+      }
+    })
+  );
+  return blocks.join('\n');
 }
 
 export function filterUploadLogLines(logs: string): string {

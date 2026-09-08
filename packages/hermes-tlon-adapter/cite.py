@@ -24,7 +24,7 @@ from .sanitize import strip_block_directives
 
 logger = logging.getLogger(__name__)
 
-_NEST_RE = re.compile(r"(?:chat|heap|diary)/~[a-z-]+/[a-z0-9-]+")
+_NEST_RE = re.compile(r"(?:chat|heap|diary)/~[a-z-]+/[a-zA-Z0-9-]+")
 _UD_RE = re.compile(r"[0-9]+(?:\.[0-9]+)*")
 _WHERE_RE = re.compile(r"^/(?:msg|note|curio)/([^/]+)(?:/([^/]+))?$")
 _LEGACY_WHERE_RE = re.compile(r"^/msg/(~[a-z-]+)/([^/]+)$")
@@ -119,14 +119,25 @@ def _valid_nest(nest: Optional[str]) -> bool:
 def _valid_ud(value: Optional[str]) -> bool:
     if not isinstance(value, str) or _UD_RE.fullmatch(value) is None:
         return False
+    digits = value.replace(".", "")
+    if re.fullmatch(r"0|[1-9][0-9]*", digits) is None:
+        return False
     return "." not in value or format_ud(value) == value
 
 
-async def resolve_cites(scry: ScryFn, content: Any, *, max_attempts: int = 3) -> str:
+async def resolve_cites(
+    scry: ScryFn,
+    content: Any,
+    *,
+    max_attempts: int = 3,
+    collected: Optional[list[str]] = None,
+) -> str:
     """Resolve up to ``max_attempts`` valid channel cites in story order.
 
     A failed scry is an expected miss and does not consume a replacement from
     later cites. Cancellation intentionally propagates to the caller's budget.
+    When the caller's budget cancels this coroutine, ``collected`` retains the
+    lines resolved before cancellation.
     """
     if max_attempts <= 0:
         return ""
@@ -140,7 +151,7 @@ async def resolve_cites(scry: ScryFn, content: Any, *, max_attempts: int = 3) ->
         if len(attempts) == max_attempts:
             break
 
-    lines: list[str] = []
+    lines = collected if collected is not None else []
     for cite, path in attempts:
         try:
             payload = await scry(path)

@@ -6,6 +6,10 @@ import {
   groupInvitePreviewRouteStack,
 } from '../hooks/useNotificationListener';
 import { parseNotificationPayload } from '../lib/notificationPayload';
+import {
+  notificationChannelIdFromRoute,
+  shouldSuppressActiveChannel,
+} from '../lib/notificationPresentation';
 
 jest.mock('@react-navigation/native', () => ({
   useNavigation: jest.fn(),
@@ -465,5 +469,49 @@ describe('notification routing decisions', () => {
         postInfo: null,
       })
     ).toBe('groups');
+  });
+});
+
+describe('foreground notification presentation', () => {
+  it('derives the viewed channel only from chat routes', () => {
+    for (const name of ['Channel', 'DM', 'GroupDM', 'Post']) {
+      expect(
+        notificationChannelIdFromRoute({
+          name,
+          params: { channelId: 'chat/~sampel-palnet/test' },
+        })
+      ).toBe('chat/~sampel-palnet/test');
+    }
+
+    expect(
+      notificationChannelIdFromRoute({
+        name: 'ChatDetails',
+        params: { channelId: 'chat/~sampel-palnet/test' },
+      })
+    ).toBeNull();
+  });
+
+  it('suppresses only an exact active-channel match while active', () => {
+    expect(
+      shouldSuppressActiveChannel({
+        appIsActive: true,
+        notificationChannelId: '~sampel-palnet',
+        viewedChannelId: '~sampel-palnet',
+      })
+    ).toBe(true);
+    expect(
+      shouldSuppressActiveChannel({
+        appIsActive: true,
+        notificationChannelId: '~sampel-palnet-bot',
+        viewedChannelId: '~sampel-palnet',
+      })
+    ).toBe(false);
+    expect(
+      shouldSuppressActiveChannel({
+        appIsActive: false,
+        notificationChannelId: '~sampel-palnet',
+        viewedChannelId: '~sampel-palnet',
+      })
+    ).toBe(false);
   });
 });

@@ -221,7 +221,8 @@ export function NotesNativeChannel({
   const selectedFolderId = useMemo(
     () =>
       selectedNoteId !== null
-        ? notes.find((note) => note.noteId === selectedNoteId)?.folderId ?? null
+        ? (notes.find((note) => note.noteId === selectedNoteId)?.folderId ??
+          null)
         : null,
     [notes, selectedNoteId]
   );
@@ -255,8 +256,8 @@ export function NotesNativeChannel({
     [folders, notes, unreadNoteIds]
   );
   const activeFolderId = useDesktopSplit
-    ? desktopFolderId ?? rootFolderId
-    : folderId ?? rootFolderId;
+    ? (desktopFolderId ?? rootFolderId)
+    : (folderId ?? rootFolderId);
   const displayedFolderId =
     activeFolderId != null &&
     activeFolderId !== rootFolderId &&
@@ -1084,7 +1085,7 @@ export function NotesNativeChannel({
           headerActions: sidebarHeaderActions,
           title: sidebarIsNested
             ? getFolderLabel(activeSidebarFolder)
-            : channelTitle ?? 'Notebook',
+            : (channelTitle ?? 'Notebook'),
         }
       : null,
     notebookSidebarSourceId

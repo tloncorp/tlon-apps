@@ -81,13 +81,14 @@ import AttachmentSheet from '../AttachmentSheet';
 import { Badge } from '../Badge';
 import { Field, TextInput, TextInputRef } from '../Form';
 import { ListItem } from '../ListItem';
-import { OpenAISubscriptionAuthView } from '../OpenAISubscriptionAuthView';
+import { LLMSubscriptionAuthView } from '../LLMSubscriptionAuthView';
 import { PersonalInviteButton } from '../PersonalInviteButton';
 import { ScreenHeader } from '../ScreenHeader';
 import { SearchBar } from '../SearchBar';
 import { SystemContactListItem } from '../listItems';
 import { BotChatPreview } from './BotChatPreview';
 import { TlonBotSetupPaneView } from './TlonBotSetupPaneView';
+import { getDefaultBotName } from './botName';
 import {
   BotCredentialOption,
   buildBotCredentialOptions,
@@ -140,15 +141,6 @@ export type TlonbotSplashConfig = {
   stage?: db.TlonbotRevivalStage;
 };
 
-function getPreviewBotName(userNickname?: string | null) {
-  const trimmedNickname = userNickname?.trim();
-  if (!trimmedNickname) {
-    return 'Tlonbot';
-  }
-
-  return `${trimmedNickname}'s Tlonbot 🌱`;
-}
-
 function SplashSequenceComponent(props: {
   onCompleted: () => void;
   onLogout?: () => void | Promise<void>;
@@ -184,6 +176,9 @@ function SplashSequenceComponent(props: {
   const [providerOptions, setProviderOptions] = React.useState<
     BotCredentialOption[]
   >([]);
+  const [loadingProviderOptions, setLoadingProviderOptions] = React.useState(
+    props.splashSequenceMode === 'signup'
+  );
   const [hasOpenAIKey, setHasOpenAIKey] = React.useState(false);
   const [connectedOpenAISubscription, setConnectedOpenAISubscription] =
     React.useState(false);
@@ -282,6 +277,15 @@ function SplashSequenceComponent(props: {
   useEffect(() => {
     let cancelled = false;
     let stopReadinessPolling: (() => void) | undefined;
+    let initialReadinessSettled = false;
+    const shouldCheckReadiness = props.splashSequenceMode === 'signup';
+    setLoadingProviderOptions(shouldCheckReadiness);
+    const settleInitialReadiness = () => {
+      if (!cancelled && !initialReadinessSettled) {
+        initialReadinessSettled = true;
+        setLoadingProviderOptions(false);
+      }
+    };
     (async () => {
       try {
         const shipId = await db.hostedUserNodeId.getValue();
@@ -341,10 +345,21 @@ function SplashSequenceComponent(props: {
               setBotCredentialId((current) => current || includedProvider.id);
             }
 
-            if (props.splashSequenceMode === 'signup') {
+            if (shouldCheckReadiness) {
               let loggedReadinessError = false;
               stopReadinessPolling = startBotReadinessPolling({
-                checkReadiness: () => api.checkNodeIsTlonbotReady(shipId),
+                checkReadiness: async () => {
+                  try {
+                    const ready = await api.checkNodeIsTlonbotReady(shipId);
+                    if (!ready) {
+                      settleInitialReadiness();
+                    }
+                    return ready;
+                  } catch (error) {
+                    settleInitialReadiness();
+                    throw error;
+                  }
+                },
                 onReady: () => {
                   setProviderOptions(
                     buildBotCredentialOptions({
@@ -353,6 +368,7 @@ function SplashSequenceComponent(props: {
                       mode: props.splashSequenceMode,
                     })
                   );
+                  settleInitialReadiness();
                 },
                 onError: (error) => {
                   if (!loggedReadinessError) {
@@ -369,6 +385,10 @@ function SplashSequenceComponent(props: {
         }
       } catch {
         // Best-effort
+      } finally {
+        if (!stopReadinessPolling) {
+          settleInitialReadiness();
+        }
       }
     })();
     return () => {
@@ -954,6 +974,7 @@ function SplashSequenceComponent(props: {
           <BotProviderPane
             model={botCredentialId}
             providers={providerOptions}
+            loadingProviders={loadingProviderOptions}
             loading={savingConfig}
             error={configError}
             onModelChange={setBotCredentialId}
@@ -974,11 +995,12 @@ function SplashSequenceComponent(props: {
         )}
         {currentPane === SplashPane.BotSubscriptionAuth && (
           <BotSubscriptionAuthPane>
-            <OpenAISubscriptionAuthView
+            <LLMSubscriptionAuthView
               state={subscriptionAuth.state}
               browserError={subscriptionAuth.browserError ?? configError}
               onStart={() => void handleStartSubscription()}
               onOpenBrowser={() => void subscriptionAuth.openVerificationUrl()}
+              onSubmitToken={subscriptionAuth.completeToken}
               onRetry={() => void subscriptionAuth.restart()}
               onCancel={() => {
                 subscriptionAuth.dismiss();
@@ -1200,10 +1222,24 @@ export function BotNamePane(props: {
   const insets = useSafeAreaInsets();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<TextInputRef>(null);
+  const [seedKey, setSeedKey] = useState(0);
+  const lastTypedNameRef = useRef(props.name);
   const handleNameChange = (value: string) => {
+    lastTypedNameRef.current = value;
     setError(null);
     props.onNameChange(value);
   };
+
+  // The persisted revival name hydrates asynchronously, so props.name can
+  // change without the user typing. The native input is uncontrolled (see
+  // below), so remount it to re-seed defaultValue when that happens.
+  useEffect(() => {
+    if (isWeb || props.name === lastTypedNameRef.current) {
+      return;
+    }
+    lastTypedNameRef.current = props.name;
+    setSeedKey((key) => key + 1);
+  }, [props.name]);
 
   const handlePress = () => {
     if (!props.name.trim()) {
@@ -1233,8 +1269,15 @@ export function BotNamePane(props: {
             <Field error={error ?? undefined}>
               <TextInput
                 ref={inputRef}
+                key={seedKey}
                 testID="bot-name-input"
-                value={props.name}
+                // Echoing a controlled value back mid-IME-composition
+                // duplicates the composed text on Android (stale
+                // mostRecentEventCount), so native seeds the revival
+                // prefill via defaultValue and stays uncontrolled; the
+                // key remount re-seeds it when the prefill hydrates late.
+                value={isWeb ? props.name : undefined}
+                defaultValue={isWeb ? undefined : props.name}
                 onChangeText={handleNameChange}
                 onBlur={refocusInput}
                 autoCapitalize="none"
@@ -1245,7 +1288,7 @@ export function BotNamePane(props: {
                 autoFocus
                 placeholder={
                   props.userNickname
-                    ? getPreviewBotName(props.userNickname)
+                    ? getDefaultBotName(props.userNickname)
                     : 'My Tlonbot'
                 }
                 frameStyle={{
@@ -1475,6 +1518,7 @@ function BotSubscriptionAuthPane({ children }: { children: React.ReactNode }) {
 export function BotProviderPane(props: {
   model: string;
   providers: BotCredentialOption[];
+  loadingProviders?: boolean;
   loading?: boolean;
   error?: string | null;
   onModelChange: (model: string) => void;
@@ -1484,6 +1528,7 @@ export function BotProviderPane(props: {
   const {
     model,
     providers,
+    loadingProviders,
     loading,
     error,
     onModelChange,
@@ -1505,54 +1550,60 @@ export function BotProviderPane(props: {
         <SplashTitle>
           Choose a <Text color="$positiveActionText">brain.</Text>
         </SplashTitle>
-        <ScrollView
-          style={{ flex: 1 }}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-          contentContainerStyle={{
-            paddingHorizontal: getTokenValue('$xl', 'size'),
-            gap: getTokenValue('$s', 'size'),
-            paddingBottom: getTokenValue('$6xl', 'size'),
-          }}
-        >
-          <SplashParagraph marginHorizontal={0} marginBottom="$m">
-            {providers.some(
-              (option) => option.credentialMode === 'subscription'
-            )
-              ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
-              : providers.some((option) => !option.requiresKey)
-                ? 'A free model is included. Bring your own API key to use a different provider.'
-                : 'Pick a provider, then enter your API key on the next screen.'}
-          </SplashParagraph>
-          {providers.map((option) => (
-            <ModelOptionCard
-              key={option.id}
-              testID={`bot-provider-option-${option.id}`}
-              option={{
-                label: option.label,
-                description:
-                  option.credentialMode === 'subscription'
-                    ? undefined
-                    : option.requiresKey
-                      ? 'Requires API key'
-                      : 'Default (free, used as fallback)',
-                recommendationLabel: option.recommendationLabel,
-              }}
-              selected={model === option.id}
-              onPress={() => onModelChange(option.id)}
-            />
-          ))}
-          {error ? (
-            <Text
-              size="$label/m"
-              color="$negativeActionText"
-              paddingHorizontal="$xl"
-              paddingTop="$l"
-            >
-              {error}
-            </Text>
-          ) : null}
-        </ScrollView>
+        {loadingProviders ? (
+          <YStack flex={1} alignItems="center" justifyContent="center">
+            <LoadingSpinner size="large" />
+          </YStack>
+        ) : (
+          <ScrollView
+            style={{ flex: 1 }}
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={{
+              paddingHorizontal: getTokenValue('$xl', 'size'),
+              gap: getTokenValue('$s', 'size'),
+              paddingBottom: getTokenValue('$6xl', 'size'),
+            }}
+          >
+            <SplashParagraph marginHorizontal={0} marginBottom="$m">
+              {providers.some(
+                (option) => option.credentialMode === 'subscription'
+              )
+                ? 'Choose included access, connect your ChatGPT subscription, or bring an API key.'
+                : providers.some((option) => !option.requiresKey)
+                  ? 'A free model is included. Bring your own API key to use a different provider.'
+                  : 'Pick a provider, then enter your API key on the next screen.'}
+            </SplashParagraph>
+            {providers.map((option) => (
+              <ModelOptionCard
+                key={option.id}
+                testID={`bot-provider-option-${option.id}`}
+                option={{
+                  label: option.label,
+                  description:
+                    option.credentialMode === 'subscription'
+                      ? undefined
+                      : option.requiresKey
+                        ? 'Requires API key'
+                        : 'Default (free, used as fallback)',
+                  recommendationLabel: option.recommendationLabel,
+                }}
+                selected={model === option.id}
+                onPress={() => onModelChange(option.id)}
+              />
+            ))}
+            {error ? (
+              <Text
+                size="$label/m"
+                color="$negativeActionText"
+                paddingHorizontal="$xl"
+                paddingTop="$l"
+              >
+                {error}
+              </Text>
+            ) : null}
+          </ScrollView>
+        )}
       </YStack>
       <Button
         data-testid="bot-provider-next"
@@ -1561,7 +1612,7 @@ export function BotProviderPane(props: {
         label={loading ? 'Validating...' : 'Next'}
         preset="hero"
         loading={loading}
-        disabled={loading || !model}
+        disabled={loading || loadingProviders || !model}
         marginHorizontal="$xl"
         marginTop="$xl"
       />
@@ -2121,7 +2172,7 @@ export function GroupsPane(props: {
           <YStack width="100%" gap="$s">
             <XStack width="100%">
               <TextInput
-                value={groupInviteIsReady ? homeGroupInviteUrl ?? '' : ''}
+                value={groupInviteIsReady ? (homeGroupInviteUrl ?? '') : ''}
                 placeholder={
                   groupInviteIsLoading
                     ? 'Preparing invite link'

@@ -2,6 +2,10 @@ import * as api from '@tloncorp/api';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import create from 'zustand';
 
+import {
+  type BotSettingsPendingFields,
+  getChangeLabels,
+} from './botSettingsDraftHelpers';
 import { BASIC_PROVIDER_ID } from './constants';
 import {
   ChannelRuleDraft,
@@ -13,12 +17,14 @@ import {
   getModelFormValues,
   haveChannelModelEntriesChanged,
   mergeChannelRules,
+  normalizeShipList,
   normalizeChannelRuleKey,
   normalizeProviderConfig,
   normalizeTlonbotConfig,
   runApplySteps,
   toChatFormValues,
 } from './helpers';
+import { trackTlonbotSettingUpdated } from './botSettingsTelemetry';
 import {
   BotSettingsQueries,
   useBotSettingsMutations,
@@ -30,22 +36,11 @@ export type BotSettingsDraftValues = {
   chat: ChatFormValues;
 };
 
-export type BotSettingsPendingFields = {
-  nickname: boolean;
-  modelProvider: boolean;
-  model: boolean;
-  fallbacks: boolean;
-  dmAllowlist: boolean;
-  defaultAuthorizedShips: boolean;
-  groupInviteAllowlist: boolean;
-  autoAcceptDmInvites: boolean;
-  autoDiscoverChannels: boolean;
-  channelRules: boolean;
-};
+export type { BotSettingsPendingFields } from './botSettingsDraftHelpers';
 
 const EMPTY_VALUES: BotSettingsDraftValues = {
   nickname: '',
-  model: { provider: '', model: '', fallbacks: [] },
+  model: { provider: '', model: '', zdr: false, fallbacks: [] },
   chat: {
     dmAllowlist: '',
     defaultAuthorizedShips: '',
@@ -170,6 +165,7 @@ const getPendingFields = (
   nickname: baseline.nickname !== draft.nickname,
   modelProvider: baseline.model.provider !== draft.model.provider,
   model: baseline.model.model !== draft.model.model,
+  zdr: baseline.model.zdr !== draft.model.zdr,
   fallbacks:
     stableStringify(baseline.model.fallbacks) !==
     stableStringify(draft.model.fallbacks),
@@ -186,21 +182,6 @@ const getPendingFields = (
     stableStringify(baseline.chat.channelRuleDrafts) !==
     stableStringify(draft.chat.channelRuleDrafts),
 });
-
-const getChangeLabels = (pending: BotSettingsPendingFields): string[] => {
-  const labels: string[] = [];
-  if (pending.nickname) labels.push('Nickname');
-  if (pending.modelProvider) labels.push('Provider');
-  if (pending.model) labels.push('Default model');
-  if (pending.fallbacks) labels.push('Fallback models');
-  if (pending.dmAllowlist) labels.push('DM allowlist');
-  if (pending.defaultAuthorizedShips) labels.push('Authorized ships');
-  if (pending.groupInviteAllowlist) labels.push('Group invites');
-  if (pending.autoAcceptDmInvites) labels.push('DM invites');
-  if (pending.autoDiscoverChannels) labels.push('Auto-discover');
-  if (pending.channelRules) labels.push('Channel rules');
-  return labels;
-};
 
 export function useBotSettingsDraft() {
   const store = useBotSettingsDraftStore();
@@ -236,9 +217,9 @@ export function useSyncBotSettingsDraft(queries: BotSettingsQueries) {
   } = queries;
   const ready = Boolean(
     ship &&
-      providerConfigQuery.isSuccess &&
-      configQuery.isSuccess &&
-      nicknameQuery.isSuccess
+    providerConfigQuery.isSuccess &&
+    configQuery.isSuccess &&
+    nicknameQuery.isSuccess
   );
   // syncServerValues drops a fresh server snapshot while the user has local
   // edits (so a refetch can't clobber them). If that snapshot changed an
@@ -299,7 +280,11 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
     // broken config. The primary model needs a provider, and a non-basic
     // provider also needs a concrete model. Only validate the primary when it's
     // actually dirty — a fallbacks-only change sends the server's primary.
-    if (draft.pending.modelProvider || draft.pending.model) {
+    if (
+      draft.pending.modelProvider ||
+      draft.pending.model ||
+      draft.pending.zdr
+    ) {
       if (!nextValues.model.provider) {
         setApplyError(
           'Select a provider for the default model before applying.'
@@ -372,6 +357,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
       if (
         draft.pending.modelProvider ||
         draft.pending.model ||
+        draft.pending.zdr ||
         draft.pending.fallbacks
       ) {
         steps.push({
@@ -383,17 +369,44 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
               await getFreshProviderConfig()
             );
             const primaryDirty =
-              draft.pending.modelProvider || draft.pending.model;
+              draft.pending.modelProvider ||
+              draft.pending.model ||
+              draft.pending.zdr;
             const saved = await mutations.savePrimaryModel.mutateAsync({
               provider: primaryDirty
                 ? nextValues.model.provider
                 : serverModel.provider,
               model: primaryDirty ? nextValues.model.model : serverModel.model,
+              zdr: primaryDirty ? nextValues.model.zdr : serverModel.zdr,
               fallbacks: draft.pending.fallbacks
                 ? nextValues.model.fallbacks
                 : serverModel.fallbacks,
             });
             const savedProviderConfig = normalizeProviderConfig(saved);
+            const savedModel = getModelFormValues(savedProviderConfig);
+            if (draft.pending.modelProvider || draft.pending.model) {
+              trackTlonbotSettingUpdated({
+                setting: 'primary_model',
+                action: 'updated',
+                provider: savedModel.provider,
+                model: savedModel.model,
+              });
+            }
+            if (draft.pending.zdr) {
+              trackTlonbotSettingUpdated({
+                setting: 'zero_data_retention',
+                action: 'updated',
+                enabled: savedModel.zdr,
+                provider: savedModel.provider,
+              });
+            }
+            if (draft.pending.fallbacks) {
+              trackTlonbotSettingUpdated({
+                setting: 'fallback_models',
+                action: 'updated',
+                count: savedModel.fallbacks.length,
+              });
+            }
             // The save returns the full post-save provider config; adopt it as
             // the cached fresh config so the later channelModels merge (in the
             // chat step of this same apply) works from the newest snapshot —
@@ -403,7 +416,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
             // Basic pinned to its default) rather than the draft snapshot, so a
             // later failing step doesn't leave a stale model shown.
             return {
-              model: getModelFormValues(savedProviderConfig),
+              model: savedModel,
             };
           },
           commit: { model: nextValues.model },
@@ -567,6 +580,49 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         const savedProviderConfig = normalizeProviderConfig(
           result.providerConfig
         );
+        const savedChat = toChatFormValues(savedConfig, savedProviderConfig);
+        if (draft.pending.dmAllowlist) {
+          trackTlonbotSettingUpdated({
+            setting: 'dm_allowlist',
+            action: 'updated',
+            count: normalizeShipList(savedChat.dmAllowlist).length,
+          });
+        }
+        if (draft.pending.defaultAuthorizedShips) {
+          trackTlonbotSettingUpdated({
+            setting: 'default_authorized_ships',
+            action: 'updated',
+            count: normalizeShipList(savedChat.defaultAuthorizedShips).length,
+          });
+        }
+        if (draft.pending.groupInviteAllowlist) {
+          trackTlonbotSettingUpdated({
+            setting: 'group_invite_allowlist',
+            action: 'updated',
+            count: normalizeShipList(savedChat.groupInviteAllowlist).length,
+          });
+        }
+        if (draft.pending.autoAcceptDmInvites) {
+          trackTlonbotSettingUpdated({
+            setting: 'auto_accept_dm_invites',
+            action: 'updated',
+            enabled: savedChat.autoAcceptDmInvites,
+          });
+        }
+        if (draft.pending.autoDiscoverChannels) {
+          trackTlonbotSettingUpdated({
+            setting: 'auto_discover_channels',
+            action: 'updated',
+            enabled: savedChat.autoDiscoverChannels,
+          });
+        }
+        if (draft.pending.channelRules) {
+          trackTlonbotSettingUpdated({
+            setting: 'channel_rules',
+            action: 'updated',
+            count: Object.keys(savedChat.channelRuleDrafts).length,
+          });
+        }
         mutations.queryClient.setQueryData(
           ['tlonbot', 'settings', queries.ship],
           savedConfig
@@ -576,7 +632,7 @@ export function useApplyBotSettings(queries: BotSettingsQueries) {
         // another client added and the merge preserved) rather than the draft
         // snapshot, so those aren't hidden until the next remount/refetch.
         return {
-          chat: toChatFormValues(savedConfig, savedProviderConfig),
+          chat: savedChat,
         };
       };
       if (chatConfigDirty) {

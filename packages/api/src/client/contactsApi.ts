@@ -12,11 +12,11 @@ import { normalizeUrbitColor } from './utils';
 const logger = createDevLogger('contactsApi', false);
 
 export const getContacts = async () => {
-  // this is all peers we know about, with merged profile data for
-  // contacts
-  const peersResponse = await scry<ub.ContactRolodex>({
+  // this is all peers and ship contacts we know about, with unmerged
+  // profile data
+  const directoryResponse = await scry<ub.ContactsDirectoryScryResult1>({
     app: 'contacts',
-    path: '/all',
+    path: '/v1/directory',
   });
 
   // this is all of your contacts, with unmerged profile data + user overrides
@@ -31,25 +31,25 @@ export const getContacts = async () => {
   });
 
   return toContactsData({
-    peersResponse: peersResponse,
+    directoryResponse: directoryResponse,
     contactsResponse: contactsResponse,
     suggestionsResponse: suggestionsResponse,
   });
 };
 
 export const toContactsData = ({
-  peersResponse,
+  directoryResponse,
   contactsResponse,
   suggestionsResponse,
 }: {
-  peersResponse: ub.ContactRolodex;
+  directoryResponse: ub.ContactsDirectoryScryResult1;
   contactsResponse: ub.ContactBookScryResult1;
   suggestionsResponse: string[];
 }) => {
   const skipContacts = new Set(Object.keys(contactsResponse));
   const contactSuggestions = new Set(suggestionsResponse);
 
-  const peerProfiles = v0PeersToClientProfiles(peersResponse, {
+  const peerProfiles = directoryToClientProfiles(directoryResponse, {
     userIdsToOmit: skipContacts,
     contactSuggestions,
   });
@@ -58,6 +58,29 @@ export const toContactsData = ({
   });
 
   return [...peerProfiles, ...contactProfiles];
+};
+
+export const directoryToClientProfiles = (
+  directory: ub.ContactsDirectoryScryResult1,
+  config?: {
+    userIdsToOmit?: Set<string>;
+    contactSuggestions?: Set<string>;
+  }
+): db.Contact[] => {
+  return Object.entries(directory)
+    .filter(
+      ([ship, entry]) =>
+        // a peer we know about but have no profile data for isn't a useful
+        // profile row; their data arrives via /v1/news once it exists
+        Object.keys(entry.contact).length > 0 &&
+        (config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true)
+    )
+    .map(([ship, entry]) =>
+      v1PeerToClientProfile(ship, entry.contact, {
+        isContact: false,
+        isContactSuggestion: config?.contactSuggestions?.has(ship),
+      })
+    );
 };
 
 export const removeContactSuggestion = async (contactId: string) => {
@@ -75,6 +98,23 @@ export const addContactSuggestions = async (contactIds: string[]) => {
     json: contactIds,
   });
 };
+
+// Pure builder for a self-profile field poke: `%self` is a merge, so other
+// keys survive, and a null value deletes the key (contact keys only die by
+// explicit null). Exported shape-only — no transport — so callers with their
+// own Urbit client (the OpenClaw plugin's shim, tests) share one source of
+// truth for the wire format instead of hand-rolling the action JSON.
+export const contactSelfFieldPoke = (
+  key: string,
+  value: Exclude<
+    ub.ContactBookProfile[keyof ub.ContactBookProfile],
+    undefined
+  > | null
+): { app: string; mark: string; json: unknown } => ({
+  app: 'contacts',
+  mark: 'contact-action-1',
+  json: { self: { [key]: value } },
+});
 
 export const syncUserProfiles = async (userIds: string[]) => {
   return poke({
@@ -227,8 +267,6 @@ export const setPinnedGroups = async (groupIds: string[]) => {
     value: groupIds.map((groupId) => ({ type: 'flag', value: groupId })),
   };
 
-  console.log(`contact-action-1`, { self: { contact: contactUpdate } });
-
   return poke({
     app: 'contacts',
     mark: 'contact-action-1',
@@ -276,60 +314,9 @@ export const subscribeToContactUpdates = (
   );
 };
 
-// Used for converting the legacy contacts format to client representation.
-export const v0PeersToClientProfiles = (
-  contacts: ub.ContactRolodex,
-  config?: {
-    userIdsToOmit?: Set<string>;
-    contactSuggestions?: Set<string>;
-  }
-): db.Contact[] => {
-  return Object.entries(contacts)
-    .filter(([ship]) =>
-      config?.userIdsToOmit ? !config.userIdsToOmit.has(ship) : true
-    )
-    .flatMap(([ship, contact]) =>
-      contact === null
-        ? []
-        : [
-            v0PeerToClientProfile(ship, contact, {
-              isContactSuggestion: config?.contactSuggestions?.has(ship),
-            }),
-          ]
-    );
-};
-
-export const v0PeerToClientProfile = (
-  id: string,
-  contact: ub.Contact | null,
-  config?: {
-    isContactSuggestion?: boolean;
-  }
-): db.Contact => {
-  const currentUserId = getCurrentUserId();
-  return {
-    id,
-    peerNickname: contact?.nickname ?? null,
-    peerAvatarImage: contact?.avatar ?? null,
-    bio: contact?.bio ?? null,
-    status: contact?.status ?? null,
-    color: contact?.color ? normalizeUrbitColor(contact.color) : null,
-    coverImage: contact?.cover ?? null,
-    pinnedGroups:
-      contact?.groups?.map((groupId) => ({
-        groupId,
-        contactId: id,
-      })) ?? [],
-
-    attestations: parseContactAttestations(id, contact),
-    isContact: false,
-    isContactSuggestion: config?.isContactSuggestion && id !== currentUserId,
-  };
-};
-
 function parseContactAttestations(
   contactId: string,
-  contact?: ub.Contact | ub.ContactBookProfile | null
+  contact?: ub.ContactBookProfile | null
 ): db.ContactAttestation[] | null {
   if (!contact) {
     return null;
@@ -357,7 +344,7 @@ function parseContactAttestations(
           const value = sign.signType === 'full' ? sign.value : '';
           const id = parseAttestationId({ provider, type, value, contactId });
           const provingTweetId =
-            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+            sign.signType === 'full' ? (sign.proofTweetId ?? null) : null;
 
           attestations.push({
             id,
@@ -409,7 +396,7 @@ function parseContactAttestations(
           const value = sign.signType === 'full' ? sign.value : '';
           const id = parseAttestationId({ provider, type, value, contactId });
           const provingTweetId =
-            sign.signType === 'full' ? sign.proofTweetId ?? null : null;
+            sign.signType === 'full' ? (sign.proofTweetId ?? null) : null;
 
           if (sign.contactId !== contactId) {
             logger.trackEvent(AnalyticsEvent.ErrorAttestation, {
@@ -464,6 +451,24 @@ function parseContactAttestations(
   return finalAttests;
 }
 
+/**
+ * The `bot-info` contact field is self-published by bot ships and its TS
+ * declaration proves nothing at runtime — an arbitrary profile can publish it
+ * as %set/%numb/%look or any JSON shape. Accept only a %text field carrying a
+ * string; everything else maps to null so one bad peer profile cannot break a
+ * contacts sync batch.
+ */
+export const extractBotInfoValue = (field: unknown): string | null => {
+  if (!field || typeof field !== 'object' || Array.isArray(field)) {
+    return null;
+  }
+  const candidate = field as { type?: unknown; value?: unknown };
+  if (candidate.type !== 'text' || typeof candidate.value !== 'string') {
+    return null;
+  }
+  return candidate.value;
+};
+
 export const v1PeersToClientProfiles = (
   peers: ub.ContactsAllScryResult1,
   config?: {
@@ -500,6 +505,7 @@ export const v1PeerToClientProfile = (
         contactId: id,
       })) ?? [],
     attestations: parseContactAttestations(id, contact),
+    botInfo: extractBotInfoValue(contact['bot-info']),
     isContact: config?.isContact,
     isContactSuggestion:
       config?.isContactSuggestion && !config?.isContact && id !== currentUserId,
@@ -548,6 +554,9 @@ export const contactToClientProfile = (
         contactId: userId,
       })) ?? [],
     attestations: parseContactAttestations(userId, base),
+    // The claim is the bot's own published property: read it from the
+    // peer-published base contact only, never the user's `mod` overlay.
+    botInfo: extractBotInfoValue(base['bot-info']),
     isContact: !!overrides,
     isContactSuggestion: false,
   };

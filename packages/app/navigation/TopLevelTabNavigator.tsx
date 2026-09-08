@@ -15,7 +15,7 @@ import type { TopLevelTabParamList } from './types';
 
 const Tabs = createBottomTabNavigator<TopLevelTabParamList>();
 
-function WebTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
+function ReactTopLevelTabBar({ state, navigation }: BottomTabBarProps) {
   const isWindowNarrow = useIsWindowNarrow();
   const { currentUserId, haveUnreadActivity, statusSheet } =
     useTopLevelTabController();
@@ -100,7 +100,7 @@ export function TopLevelTabNavigator() {
       initialRouteName="ChatList"
       backBehavior="history"
       screenOptions={{ headerShown: false }}
-      tabBar={WebTopLevelTabBar}
+      tabBar={(props) => <ReactTopLevelTabBar {...props} />}
     >
       <Tabs.Screen name="ChatList" component={ChatListScreen} />
       <Tabs.Screen name="Activity" component={ActivityScreen} />

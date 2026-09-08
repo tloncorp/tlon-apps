@@ -5,6 +5,7 @@ import React, { useMemo } from 'react';
 import { ListItemProps } from '../ListItem';
 import { ChannelListItem } from './ChannelListItem';
 import { GroupListItem } from './GroupListItem';
+import { getGroupRecencyOverride } from './chatListRecency';
 
 export const ChatListItem = React.memo(function ChatListItemComponent({
   model,
@@ -35,6 +36,8 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
     }
   }, [model]);
 
+  const groupRecencyOverride = getGroupRecencyOverride(model);
+
   if (model.type === 'group') {
     return (
       <GroupListItem
@@ -42,6 +45,7 @@ export const ChatListItem = React.memo(function ChatListItemComponent({
         onLongPress={handleLongPress}
         model={model.group}
         onLayout={onLayout}
+        recencyOverride={groupRecencyOverride}
         {...props}
       />
     );

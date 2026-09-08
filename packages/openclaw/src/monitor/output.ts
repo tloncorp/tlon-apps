@@ -42,7 +42,7 @@ export function recordSentTlonReply({
 
   contextLenses.recordOutput(lensId, {
     messageId: outputMessageId,
-    conversationId: isGroup ? groupChannel ?? '' : senderShip,
+    conversationId: isGroup ? (groupChannel ?? '') : senderShip,
     kind: isGroup ? 'channel' : 'dm',
     sentAt: Date.now(),
     preview: replyPreview,

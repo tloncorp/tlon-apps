@@ -21,10 +21,11 @@ test('should test app settings', async ({ zodSetup }) => {
   await expect(
     page.getByTestId('ScreenHeaderTitle').getByText('Privacy Settings')
   ).toBeVisible();
-  await page.getByText('Theme').click();
+  await page.getByText('Appearance').click();
   await expect(
-    page.getByTestId('ScreenHeaderTitle').getByText('Theme')
+    page.getByTestId('ScreenHeaderTitle').getByText('Appearance')
   ).toBeVisible();
+  await expect(page.getByTestId('ShowDeleteMarkersToggle')).toBeVisible();
   await page.getByText('App info').click();
   await page.getByText('Report a bug').click();
   await expect(

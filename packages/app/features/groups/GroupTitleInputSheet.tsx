@@ -89,7 +89,7 @@ export function GroupTitleInputSheet({
   );
 
   const actionSheetProps = isWindowNarrow
-    ? {}
+    ? { modal: true }
     : {
         mode: 'dialog' as const,
         closeButton: true,

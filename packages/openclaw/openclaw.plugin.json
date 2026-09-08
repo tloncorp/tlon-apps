@@ -9,7 +9,8 @@
     ]
   },
   "skills": [
-    "node_modules/@tloncorp/tlon-skill"
+    "node_modules/@tloncorp/tlon-skill",
+    "skills/tlon-product-guide"
   ],
   "configSchema": {
     "type": "object",

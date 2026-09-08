@@ -14,7 +14,12 @@ import { waitFor, waitForShipLogin } from './waiters.js';
 
 type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 
-const DEFAULT_DESK_SHIPS = '~zod,~ten';
+// Every running ship, not just the two the scenarios drive directly. ~mug is
+// the reel/lure provider, so leaving it on its pier's desk makes a mixed-version
+// fleet — harmless until a change bumps the negotiated %groups protocol version,
+// at which point ~zod/~ten treat ~mug as a certain-mismatch and negotiate's
+// poke path crashes outright (`%poke-to-mismatching-gill`) rather than deferring.
+const DEFAULT_DESK_SHIPS = '~zod,~ten,~mug';
 const STAGED_DESK = '/tmp/tlon-bot-e2e-groups';
 const COMMIT_ATTEMPTS = 4;
 const ASSEMBLE_DESK_TIMEOUT_MS = 300_000;
@@ -121,9 +126,13 @@ export async function createDeskManifest(deskDir: string): Promise<string> {
   const files = await listFiles(deskDir);
   const lines = await Promise.all(
     files
-      // assemble-desk.sh stamps HEAD, but frontend-only commits must not force
-      // an otherwise identical Hoon desk through an expensive |commit.
-      .filter((file) => file !== 'commit.txt')
+      // Frontend-only commits must not force an otherwise identical Hoon desk
+      // through an expensive |commit: assemble-desk.sh stamps HEAD into
+      // commit.txt, and the glob bot rewrites the glob hash in desk.docket-0
+      // (several times a day on develop). Neither affects anything the bot
+      // harness exercises, and the docket-only skip leaves the pier's
+      // archived docket in place.
+      .filter((file) => file !== 'commit.txt' && file !== 'desk.docket-0')
       .sort()
       .map(async (file) => {
         const digest = createHash('sha256')
@@ -279,7 +288,7 @@ async function readMountedDeskManifest(
     [
       'bash',
       '-c',
-      'set -euo pipefail; mount="$1"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt -print0 | sort -z | xargs -0r sha256sum',
+      'set -euo pipefail; mount="$1"; test -d "$mount" && test -r "$mount" && test -x "$mount" || exit 20; cd "$mount"; find . -type f ! -path ./commit.txt ! -path ./desk.docket-0 -print0 | sort -z | xargs -0r sha256sum',
       'bash',
       `/data/${ship}/groups`,
     ]

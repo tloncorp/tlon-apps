@@ -182,6 +182,28 @@ class ForeignsTests(unittest.TestCase):
         self.assertEqual(by_flag["~host/projects"]["from"], "~ten")
         self.assertEqual(by_flag["~host/projects"]["title"], "Projects")
 
+    def test_skips_joins_already_in_flight(self):
+        # The post-/allow foreigns fact still carries the valid invite with
+        # progress set; reprocessing it would re-card the owner.
+        joining = foreign("~ten")
+        joining["progress"] = "join"
+        errored = foreign("~bus")
+        errored["progress"] = "error"
+        asking = foreign("~wet")
+        asking["progress"] = "ask"
+        payload = {
+            "~host/joining": joining,
+            "~host/errored": errored,
+            "~host/asking": asking,
+        }
+        invites = approval.parse_foreigns(payload)
+        # join is suppressed; error and ask (a pending entry request) stay
+        # actionable.
+        self.assertEqual(
+            sorted(inv["groupFlag"] for inv in invites),
+            ["~host/asking", "~host/errored"],
+        )
+
     def test_skips_invalid_and_empty(self):
         payload = {
             "~host/revoked": foreign("~ten", valid=False),
@@ -208,6 +230,40 @@ class ForeignsTests(unittest.TestCase):
     def test_non_mapping_payload(self):
         self.assertEqual(approval.parse_foreigns(None), [])
         self.assertEqual(approval.parse_foreigns([]), [])
+
+    def test_error_progress_flags_lists_only_errored_foreigns(self):
+        errored = foreign("~bus")
+        errored["progress"] = "error"
+        joining = foreign("~ten")
+        joining["progress"] = "join"
+        payload = {
+            "~host/errored": errored,
+            "~host/joining": joining,
+            "~host/plain": foreign("~wet"),
+        }
+
+        self.assertEqual(
+            approval.error_progress_flags(payload), ["~host/errored"]
+        )
+
+    def test_error_progress_flags_covers_foreigns_parse_drops(self):
+        # parse_foreigns yields nothing for these, but the flags still have to
+        # become actionable again.
+        payload = {
+            "~host/noinvites": {"progress": "error", "invites": []},
+            "~host/invalid": {"progress": "error", "invites": [{"valid": False}]},
+        }
+
+        self.assertEqual(approval.parse_foreigns(payload), [])
+        self.assertEqual(
+            sorted(approval.error_progress_flags(payload)),
+            ["~host/invalid", "~host/noinvites"],
+        )
+
+    def test_error_progress_flags_tolerates_malformed_payloads(self):
+        self.assertEqual(approval.error_progress_flags(None), [])
+        self.assertEqual(approval.error_progress_flags([]), [])
+        self.assertEqual(approval.error_progress_flags({"~host/g": "junk"}), [])
 
 
 class CommandParseTests(unittest.TestCase):
@@ -262,12 +318,31 @@ class FormattingTests(unittest.TestCase):
         request = approval.format_approval_request(group)
         self.assertIn("group invite", request)
         self.assertIn("Inviter: ~ten", request)
-        self.assertIn("Group: Project Space", request)
-        self.assertIn("joining Project Space", approval.format_confirmation(group, "allow"))
-        self.assertIn("declined invite to Project Space", approval.format_confirmation(group, "reject"))
+        # Host flag rides alongside the title on every owner-facing surface.
+        self.assertIn("Group: Project Space (~host/projects)", request)
+        self.assertIn(
+            "joining Project Space (~host/projects)",
+            approval.format_confirmation(group, "allow"),
+        )
+        self.assertIn(
+            "declined invite to Project Space (~host/projects)",
+            approval.format_confirmation(group, "reject"),
+        )
         # falls back to flag when no title
         no_title = make_approval(type="group", groupFlag="~host/projects")
         self.assertIn("~host/projects", approval.format_confirmation(no_title, "allow"))
+        self.assertNotIn("()", approval.format_confirmation(no_title, "allow"))
+
+    def test_pending_list_group_row_is_bounded(self):
+        oversized = make_approval(
+            id="g1a2b",
+            type="group",
+            groupFlag=f"~host/{'g' * 5_000}",
+            groupTitle="x" * 5_000,
+        )
+        text = approval.format_pending_list([oversized])
+        self.assertIn("~host/", text)
+        self.assertLess(len(text), 1_000)
 
     def test_blocked_list(self):
         self.assertEqual(approval.format_blocked_list([]), "No blocked ships.")
@@ -472,6 +547,76 @@ class A2UICardTests(unittest.TestCase):
         self.assertEqual(target["channelId"], "chat/~pen/general")
         self.assertEqual(target["parentId"], "170.0")
 
+    def test_card_navigation_carries_parent_author_and_group(self):
+        card = approval.build_approval_card(
+            make_approval(
+                type="channel",
+                channelNest="chat/~pen/general",
+                originalMessage={
+                    "messageId": "170.1",
+                    "messageText": "hi",
+                    "timestamp": 1,
+                    "parentId": "170.0",
+                    "parentAuthorId": "~mug",
+                },
+            ),
+            channel_groups={"chat/~pen/general": "~host/projects"},
+        )
+        components, _ = self.card_components(card)
+        target = components["viewMessage"]["action"]["event"]["context"]["target"]
+        self.assertEqual(target["parentId"], "170.0")
+        self.assertEqual(target["parentAuthorId"], "~mug")
+        self.assertEqual(target["groupId"], "~host/projects")
+        self.assertTrue(approval.validate_a2ui_card(card))
+
+    def test_card_navigation_omits_unresolved_optional_fields(self):
+        """An empty optional field invalidates the whole blob, so absent data
+        must stay absent rather than render as ''."""
+        card = approval.build_approval_card(
+            make_approval(
+                type="channel",
+                channelNest="chat/~pen/general",
+                originalMessage={
+                    "messageId": "170.1",
+                    "messageText": "hi",
+                    "timestamp": 1,
+                    "parentAuthorId": "   ",
+                },
+            ),
+            channel_groups={"chat/~other/general": "~host/projects"},
+        )
+        components, _ = self.card_components(card)
+        target = components["viewMessage"]["action"]["event"]["context"]["target"]
+        for field in ("parentId", "parentAuthorId", "groupId"):
+            self.assertNotIn(field, target)
+        self.assertTrue(approval.validate_a2ui_card(card))
+
+    def test_dm_source_hidden_when_recipient_does_not_see_bot_dms(self):
+        dm = make_approval(
+            originalMessage={"messageId": "170.1", "messageText": "hi", "timestamp": 1}
+        )
+        channel = make_approval(
+            id="c1a2b",
+            type="channel",
+            channelNest="chat/~pen/general",
+            originalMessage={"messageId": "170.2", "messageText": "hi", "timestamp": 1},
+        )
+
+        gated_dm, _ = self.card_components(
+            approval.build_approval_card(dm, recipient_sees_bot_dms=False)
+        )
+        self.assertNotIn("viewMessage", gated_dm)
+        self.assertNotIn("viewMessage", gated_dm["actions"]["children"])
+
+        # channel sources stay navigable for a separate owner ship
+        gated_channel, _ = self.card_components(
+            approval.build_approval_card(channel, recipient_sees_bot_dms=False)
+        )
+        self.assertIn("viewMessage", gated_channel["actions"]["children"])
+
+        default_dm, _ = self.card_components(approval.build_approval_card(dm))
+        self.assertIn("viewMessage", default_dm["actions"]["children"])
+
     def test_invite_card_has_no_view_button(self):
         card = approval.build_approval_card(make_approval(messagePreview=approval.DM_INVITE_PREVIEW))
         components, _ = self.card_components(card)
@@ -498,12 +643,14 @@ class A2UICardTests(unittest.TestCase):
             ]:
                 self.assertIn(ref, components, f"dangling ref {ref}")
         self.assertEqual(components["eyebrow"]["text"], "Group invite")
+        # Card title stays title-only; the host flag rides the context line.
         self.assertIn("Project Space", components["title"]["text"])
+        self.assertNotIn("~host/projects", components["title"]["text"])
         context_texts = [
             components[c]["text"] for c in components if c.startswith("context")
         ]
         self.assertIn("Inviter: ~ten", context_texts)
-        self.assertIn("Group: Project Space", context_texts)
+        self.assertIn("Group: Project Space (~host/projects)", context_texts)
         self.assertEqual(
             components["allow"]["action"]["event"]["context"]["text"], "/allow g9f3a"
         )
@@ -540,15 +687,34 @@ class A2UICardTests(unittest.TestCase):
                 resolved = approval.find_approval(store, arg)
                 self.assertIsNotNone(resolved)
                 self.assertEqual(resolved["id"], item["id"])
+        # The host flag survives the oversized title on the Group context line.
+        group_card = approval.build_approval_card(oversized_group)
+        group_components, _ = self.card_components(group_card)
+        context_texts = [
+            component["text"]
+            for component in group_components.values()
+            if component.get("component") == "Text"
+            and str(component.get("text", "")).startswith("Group: ")
+        ]
+        self.assertEqual(len(context_texts), 1)
+        self.assertIn("~host/projects", context_texts[0])
 
 
 class PendingApprovalsA2UITests(unittest.TestCase):
     def approvals(self, count):
+        """Fully loaded items: preview line plus a navigable source message."""
         return [
             make_approval(
                 id=f"d{index}",
                 messagePreview=f"request {index}",
                 requestingShip=f"~ship{index}",
+                originalMessage={
+                    "messageId": f"170.14{index}",
+                    "messageText": f"request {index}",
+                    "timestamp": 1,
+                    "parentId": "170.100",
+                    "parentAuthorId": "~mug",
+                },
             )
             for index in range(count)
         ]
@@ -556,6 +722,9 @@ class PendingApprovalsA2UITests(unittest.TestCase):
     @staticmethod
     def components(card):
         return card["messages"][1]["updateComponents"]["components"]
+
+    def component_map(self, card):
+        return {component["id"]: component for component in self.components(card)}
 
     def test_pending_card_is_valid_for_one_and_four_items(self):
         for count in (1, 4):
@@ -568,6 +737,82 @@ class PendingApprovalsA2UITests(unittest.TestCase):
             self.assertIn(f"/allow d{count - 1}", json.dumps(card))
             self.assertIn(f"/reject d{count - 1}", json.dumps(card))
             self.assertIn(f"/ban d{count - 1}", json.dumps(card))
+            self.assertIn(f"item{count - 1}View", ids)
+        # the budget the MAX_PENDING_APPROVALS_A2UI comment is derived from:
+        # 9 shared + 9 per fully loaded item + 3 dividers
+        four_items = approval.build_pending_approvals_card(self.approvals(4))
+        self.assertEqual(len(self.components(four_items)), 48)
+
+    def test_pending_card_items_carry_their_own_source_links(self):
+        items = [
+            *self.approvals(1),
+            make_approval(
+                id="c1a2b",
+                type="channel",
+                channelNest="chat/~pen/general",
+                requestingShip="~bus",
+                messagePreview="mention",
+                originalMessage={
+                    "messageId": "170.9",
+                    "messageText": "mention",
+                    "timestamp": 1,
+                },
+            ),
+        ]
+
+        card = approval.build_pending_approvals_card(
+            items, channel_groups={"chat/~pen/general": "~host/projects"}
+        )
+        components = self.component_map(card)
+
+        self.assertTrue(approval.validate_a2ui_card(card))
+        # the view button rides in the item's actions row, not a row of its own
+        self.assertEqual(
+            components["item0Actions"]["children"],
+            ["item0Allow", "item0Reject", "item0Block", "item0View"],
+        )
+        self.assertEqual(components["item0View"]["child"], "viewMessageLabel")
+        self.assertEqual(components["item1View"]["child"], "viewMessageLabel")
+        first = components["item0View"]["action"]["event"]
+        second = components["item1View"]["action"]["event"]
+        self.assertEqual(first["name"], approval.A2UI_ACTION_NAVIGATE)
+        self.assertEqual(first["context"]["target"]["postId"], "170.140")
+        self.assertEqual(first["context"]["target"]["channelId"], "~ship0")
+        self.assertEqual(first["context"]["target"]["parentAuthorId"], "~mug")
+        self.assertEqual(second["context"]["target"]["postId"], "170.9")
+        self.assertEqual(
+            second["context"]["target"]["channelId"], "chat/~pen/general"
+        )
+        self.assertEqual(second["context"]["target"]["groupId"], "~host/projects")
+
+    def test_pending_card_gate_hides_dm_sources_and_keeps_channel_sources(self):
+        items = [
+            *self.approvals(1),
+            make_approval(
+                id="c1a2b",
+                type="channel",
+                channelNest="chat/~pen/general",
+                requestingShip="~bus",
+                originalMessage={
+                    "messageId": "170.9",
+                    "messageText": "mention",
+                    "timestamp": 1,
+                },
+            ),
+        ]
+
+        card = approval.build_pending_approvals_card(
+            items, recipient_sees_bot_dms=False
+        )
+        components = self.component_map(card)
+
+        self.assertTrue(approval.validate_a2ui_card(card))
+        self.assertNotIn("item0View", components)
+        self.assertEqual(
+            components["item0Actions"]["children"],
+            ["item0Allow", "item0Reject", "item0Block"],
+        )
+        self.assertIn("item1View", components["item1Actions"]["children"])
 
     def test_pending_card_falls_back_outside_dm_card_budget_or_with_bad_id(self):
         self.assertIsNone(approval.build_pending_approvals_card([]))
@@ -607,6 +852,33 @@ class PendingApprovalsA2UITests(unittest.TestCase):
         text, blob = approval.build_pending_approvals_response(approvals, is_dm=True)
         self.assertEqual(text, approval.format_pending_list(approvals))
         self.assertIsNone(blob)
+
+    def test_pending_response_falls_back_when_any_card_stage_raises(self):
+        """Build, validate, and serialize are all inside the guard, and the
+        guard is not limited to (TypeError, ValueError)."""
+        approvals = self.approvals(2)
+        for stage, error in (
+            ("build_pending_approvals_card", RuntimeError("builder regression")),
+            ("validate_a2ui_card", KeyError("component")),
+            ("serialize_blob", RuntimeError("not serializable")),
+        ):
+            with self.subTest(stage=stage):
+                original = getattr(approval, stage)
+
+                def raise_error(*_args, _error=error, **_kwargs):
+                    raise _error
+
+                setattr(approval, stage, raise_error)
+                self.addCleanup(setattr, approval, stage, original)
+                try:
+                    text, blob = approval.build_pending_approvals_response(
+                        approvals, is_dm=True
+                    )
+                finally:
+                    setattr(approval, stage, original)
+
+                self.assertEqual(text, approval.format_pending_list(approvals))
+                self.assertIsNone(blob)
 
     def test_validator_rejects_duplicate_dangling_and_cyclic_components(self):
         card = approval.build_pending_approvals_card(self.approvals(1))

@@ -142,6 +142,12 @@ export function finalizePostDraftUsingLocalAttachments(
 export type PostSendOptions = {
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  /**
+   * Reject after recording a definitive failed send. Interactive controls use
+   * this to restore themselves; ordinary composers retain legacy resolve-on-
+   * failure behavior and expose retry through the failed message row.
+   */
+  rejectOnDefinitiveFailure?: boolean;
 };
 
 export async function finalizeAndSendPost(
@@ -161,6 +167,7 @@ export async function finalizeAndSendPost(
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
       onEnqueued: options?.onEnqueued,
+      rejectOnDefinitiveFailure: options?.rejectOnDefinitiveFailure,
     });
   }
 }
@@ -181,6 +188,7 @@ async function _sendPost({
   draft,
   existingPost,
   onEnqueued,
+  rejectOnDefinitiveFailure,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -191,12 +199,16 @@ async function _sendPost({
   existingPost?: db.Post;
   /** Called after the optimistic post has been added to the session queue. */
   onEnqueued?: () => void;
+  rejectOnDefinitiveFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
     logger.trackError('Failed to forward post, unable to find channel');
+    if (rejectOnDefinitiveFailure) {
+      throw new Error(`Unable to send post: channel ${channelId} is missing`);
+    }
     return;
   }
 
@@ -278,6 +290,7 @@ async function _sendPost({
   }
 
   logger.crumb('done optimistic update');
+  let backendDeliveryCompleted = false;
   try {
     logger.crumb('enqueuing sending post to backend');
     const debug = {
@@ -355,6 +368,7 @@ async function _sendPost({
     );
     onEnqueued?.();
     await sendPromise;
+    backendDeliveryCompleted = true;
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
@@ -384,6 +398,19 @@ async function _sendPost({
       }
     }
   } catch (e) {
+    if (backendDeliveryCompleted) {
+      // Delivery is authoritative once the API call resolves. A later local
+      // cleanup failure must not make a one-shot control retryable and send a
+      // duplicate message.
+      logger.error('Post sent but local cleanup failed', {
+        message: e.message,
+        type: e.constructor?.name,
+        stack: e.stack,
+        fullError: e,
+      });
+      return;
+    }
+
     logger.trackEvent(
       cachePost.parentId == null
         ? AnalyticsEvent.ErrorSendPost
@@ -424,6 +451,9 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+      if (rejectOnDefinitiveFailure) {
+        throw e;
+      }
     }
   }
 }
@@ -677,6 +707,13 @@ async function _editPost({
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,
+        // An edit resubmits the whole essay, so the post's authorship shape has
+        // to be carried back in: without this a bot-authored post is rewritten
+        // to a bare ship author and loses its "Bot" tag. Display values come
+        // from contact sync, so only the shape is preserved.
+        ...(postBeforeEdit.isBot
+          ? { botProfile: { nickname: null, avatar: null } }
+          : {}),
       });
     });
     logger.log('editPost api call done');

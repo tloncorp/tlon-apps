@@ -52,11 +52,11 @@ export const CheckOTPScreen = ({ navigation, route: { params } }: Props) => {
     () => ({
       phoneNumber:
         otpMethod === 'phone'
-          ? params.phoneNumber ?? signupContext.phoneNumber!
+          ? (params.phoneNumber ?? signupContext.phoneNumber!)
           : undefined,
       email:
         otpMethod === 'email'
-          ? params.email ?? signupContext.email!
+          ? (params.email ?? signupContext.email!)
           : undefined,
     }),
     [

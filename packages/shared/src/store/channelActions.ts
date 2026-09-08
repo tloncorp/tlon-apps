@@ -158,6 +158,19 @@ async function createNotesChannel({
     const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
     insertedChannelId = newChannel.id;
+    // `insertChannels` excludes `currentUserIsMember` from its conflict-update
+    // set, so whoever inserts the row first decides it permanently. The chat
+    // path wins that race with a synchronous optimistic insert; this path
+    // cannot — it awaits a notebook create plus listing polls, and the %groups
+    // SSE update lands first and writes the row as a non-member. The notebook
+    // then sat under "Available Channels" with a Join button on the ship that
+    // hosts it. A direct update is the only write that can correct it, and it
+    // carries the listing's own answer rather than assuming membership, so a
+    // deliberately restricted notebook stays restricted.
+    await db.updateChannel({
+      id: newChannel.id,
+      currentUserIsMember: newChannel.currentUserIsMember ?? true,
+    });
     await db.insertChannelPerms([
       {
         channelId: newChannel.id,
@@ -361,8 +374,8 @@ export async function updateChannel({
     ? writers.filter((roleId) => !currentChannelWriterIds?.includes(roleId))
     : [];
   const writersToRemove = managesWriters
-    ? currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
-      []
+    ? (currentChannelWriterIds?.filter((roleId) => !writers.includes(roleId)) ??
+      [])
     : [];
 
   const updatedChannel: db.Channel = {

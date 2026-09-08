@@ -10,11 +10,29 @@ import shlex
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Collection, Mapping, Optional, Sequence
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Collection,
+    Iterable,
+    Mapping,
+    Optional,
+    Sequence,
+)
 
 from .approval import build_migrate_card
 from .owner_listen import canonicalize_nest, canonicalize_notes_nest
-from .tlon_api import CommandRunner, TlonCLI, TlonConfig, TlonSendResult, normalize_ship
+from .tlon_api import (
+    CREDENTIAL_FLAGS_WITH_VALUE,
+    SEND_OPERATIONS,
+    CommandRunner,
+    TlonCLI,
+    TlonConfig,
+    TlonSendResult,
+    find_subcommand_index,
+    normalize_ship,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +56,6 @@ ALLOWED_TLON_COMMANDS = frozenset(
     }
 )
 
-CREDENTIAL_FLAGS_WITH_VALUE = frozenset(
-    {"--config", "--url", "--ship", "--code", "--cookie"}
-)
-
 SendOwnerNotification = Callable[[str, Optional[str]], Awaitable[object]]
 DiaryTitleLookup = Callable[[str], Awaitable[Optional[str]]]
 BuildMigrationCard = Callable[..., str]
@@ -63,17 +77,6 @@ _diary_notifications_in_flight: dict[str, asyncio.Task[bool]] = {}
 _pending_discovery_tasks: set[asyncio.Task[bool]] = set()
 ARCHIVE_TITLE_SUFFIX = "-ARCHIVE"
 
-# Message-send operations. These are normally blocked when they target the
-# *current* conversation — those must go through Hermes' streaming reply path
-# (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
-# new top-level gallery item. Sends to any other channel/DM are proactive and
-# allowed through the tool, since "reply normally" can only reach the current chat.
-SEND_OPERATIONS = {
-    ("dms", "send"),
-    ("dms", "reply"),
-    ("posts", "send"),
-    ("posts", "reply"),
-}
 HELP_ARGS = frozenset({"--help", "-h"})
 POST_REPLY_OPTION_FLAGS = ("author", "blob", "sent-at")
 POST_SEND_OPTION_FLAGS = ("blob", "image", "title", "sent-at")
@@ -92,6 +95,9 @@ TLON_TOOL_DESCRIPTION = (
     "notes/~host/name nests). For notes bodies, use --body <file> "
     "(note-create also accepts --markdown <file>); --stdin is blocked because "
     "Hermes cannot pipe stdin into the CLI process. "
+    "Never use LaTeX math delimiters ($...$, $$...$$, \\(...\\), \\[...\\]) — "
+    "Tlon renders no math; write math as plain text/Unicode or in code "
+    "blocks. "
     "%diary channels are deprecated and unsupported by this tool. Ask the "
     "owner to type `/migrate <diary-nest>` to move one to %notes. Hermes "
     "delivery uses `tlon posts send`, which refuses diary/ targets. "
@@ -122,7 +128,16 @@ TLON_TOOL_DESCRIPTION = (
     "posts with posts delete heap/~host/name <post-id>. "
     "To send an IMAGE anywhere (including the current conversation): first "
     "'upload <direct-image-url>', then 'posts send <target> [caption] --image "
-    "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>)."
+    "<uploaded-url>' (group DMs: dms send <club-id> ... --image <url>). "
+    "--image takes only a public https URL — local paths, http, and URLs "
+    "with embedded credentials are refused there. upload itself accepts a "
+    "local file path or an http(s) source URL (embedded credentials refused) "
+    "and prints the https URL to pass to --image. Both commands fail loudly "
+    "and post nothing on failure: never claim an image was delivered unless "
+    "the upload (when used) and the send both returned success. If upload "
+    "reports that the ship cannot store uploads (self-hosted moons have no "
+    "storage), do not retry it — pass the direct https image URL to --image, "
+    "which posts without uploading."
 )
 
 TLON_TOOL_SCHEMA = {
@@ -142,9 +157,12 @@ TLON_TOOL_SCHEMA = {
                     "'contacts update-profile --avatar \"https://storage...\"', "
                     "'messages dm ~ship --limit 20', 'contacts --help'. "
                     "For broader command guidance, load skill_view(\"tlon-platform:tlon\"). "
-                    "For avatar/cover updates, do not set the source image URL "
-                    "directly; use image_search when available, upload the "
-                    "chosen image_url, and use the URL returned by tlon upload. "
+                    "For avatar/cover updates, prefer uploading: use "
+                    "image_search when available, upload the chosen image_url, "
+                    "and use the URL returned by tlon upload — except when "
+                    "upload reports the ship cannot store uploads, in which "
+                    "case set the direct https image_url (never a source/page "
+                    "URL) on the profile field. "
                     "In Tlon chat sessions, 'groups create' is blocked; use "
                     "'groups create-owned' so the requester is invited and made admin. "
                     "To post to a different channel or one-to-one DM, use "
@@ -177,22 +195,6 @@ TLON_TOOL_SCHEMA = {
 
 def _json(data: Mapping[str, Any]) -> str:
     return json.dumps(data, ensure_ascii=False)
-
-
-def find_subcommand_index(args: Sequence[str]) -> int:
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg.startswith("--") and "=" in arg:
-            flag = arg.split("=", 1)[0]
-            if flag in CREDENTIAL_FLAGS_WITH_VALUE:
-                i += 1
-                continue
-        if arg in CREDENTIAL_FLAGS_WITH_VALUE:
-            i += 2
-            continue
-        return i
-    return -1
 
 
 def split_tlon_command(command: str) -> tuple[list[str], Optional[str]]:
@@ -778,6 +780,39 @@ def _profile_update_block(
     return None
 
 
+UPLOAD_CLI_TIMEOUT_SECONDS = 300.0
+IMAGE_SEND_CLI_TIMEOUT_SECONDS = 75.0
+
+
+def media_command_timeout(args: Sequence[str]) -> Optional[float]:
+    """Outer CLI timeout for the media commands, or None for the default.
+
+    The default per-call timeout is shorter than the CLI's own fetch budgets,
+    so without an override the model would see ``tlon CLI timed out`` instead
+    of the fail-loud contract error the CLI is about to print. Derived from the
+    phases each command actually runs: ``upload`` is spawn/auth/storage scries
+    (~10s) plus a 120s guarded download plus the storage PUT, which has no
+    inner deadline of its own; an ``--image`` send is spawn/auth plus a 30s
+    guarded fetch plus a %channels poke.
+    """
+    idx = find_subcommand_index(args)
+    if idx < 0:
+        return None
+    command_args = [str(arg) for arg in args[idx:]]
+    if not command_args:
+        return None
+    if command_args[0] == "upload":
+        return UPLOAD_CLI_TIMEOUT_SECONDS
+    if (
+        command_args[0] in ("posts", "dms")
+        and len(command_args) > 1
+        and command_args[1] == "send"
+        and _has_image_flag(command_args)
+    ):
+        return IMAGE_SEND_CLI_TIMEOUT_SECONDS
+    return None
+
+
 def _has_image_flag(args: Sequence[str]) -> bool:
     """Image sends are exempt from the current-conversation block.
 
@@ -891,6 +926,11 @@ def check_tlon_tool_command(
         and targets_current
         and target.casefold().startswith("heap/")
     )
+    # Message-send operations are blocked when they target the *current*
+    # conversation — those must go through Hermes' streaming reply path
+    # (TlonAdapter.send()). The current-gallery ``posts send`` carveout creates a
+    # new top-level gallery item. Sends to any other channel/DM are proactive and
+    # allowed through the tool, since "reply normally" only reaches the current chat.
     if (
         (subcommand, action) in SEND_OPERATIONS
         and not _has_image_flag(args)
@@ -994,12 +1034,15 @@ async def execute_tlon_tool(
         cfg,
         runner=runner,
         observer=telemetry.observe_cli if telemetry is not None else None,
+        as_bot=True,
     )
     with cli_context(
         "model_tool",
         conversation=_get_session_env("HERMES_SESSION_CHAT_ID", ""),
     ):
-        return _tool_result(await cli.run_command(args))
+        return _tool_result(
+            await cli.run_command(args, timeout=media_command_timeout(args))
+        )
 
 
 async def handle_tlon_tool(params: Mapping[str, Any], **_kwargs: Any) -> str:
@@ -1024,6 +1067,13 @@ def run_tlon_tool_sync(params: Mapping[str, Any], **kwargs: Any) -> str:
     return asyncio.run(handle_tlon_tool(params, **kwargs))
 
 
+def _first_existing(candidates: Iterable[Path]) -> Optional[Path]:
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def resolve_tlon_skill_path(env: Mapping[str, str | None] | None = None) -> Optional[Path]:
     env = os.environ if env is None else env
     here = Path(__file__).resolve().parent
@@ -1039,7 +1089,35 @@ def resolve_tlon_skill_path(env: Mapping[str, str | None] | None = None) -> Opti
 
     candidates.append(here.parent / "tlon-skill" / "SKILL.md")
 
-    for candidate in candidates:
-        if candidate.exists():
-            return candidate
-    return None
+    return _first_existing(candidates)
+
+
+def resolve_tlon_product_guide_path(
+    env: Mapping[str, str | None] | None = None,
+) -> Optional[Path]:
+    """Locate the product-guide skill that ships inside the OpenClaw plugin.
+
+    Separate from ``resolve_tlon_skill_path`` because the two answer different
+    questions: that one finds the CLI command reference (an npm package, hence
+    ``TLON_SKILL_DIR``), this one finds a documentation skill that lives in the
+    plugin tree. Deployments that install the plugin somewhere non-standard set
+    ``TLON_PRODUCT_GUIDE_PATH``; ``TLON_PLUGIN_DIR`` covers the common case of
+    knowing the plugin root but not the skill layout inside it.
+    """
+    env = os.environ if env is None else env
+    here = Path(__file__).resolve().parent
+    relative = Path("skills") / "tlon-product-guide" / "SKILL.md"
+    candidates: list[Path] = []
+
+    explicit = str(env.get("TLON_PRODUCT_GUIDE_PATH") or "").strip()
+    if explicit:
+        candidates.append(Path(explicit))
+
+    plugin_dir = str(env.get("TLON_PLUGIN_DIR") or "").strip()
+    if plugin_dir:
+        candidates.append(Path(plugin_dir) / relative)
+
+    # Monorepo layout: this adapter and the plugin are sibling packages.
+    candidates.append(here.parent / "openclaw" / relative)
+
+    return _first_existing(candidates)

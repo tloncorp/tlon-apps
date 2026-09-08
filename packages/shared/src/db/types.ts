@@ -81,6 +81,7 @@ export type NotesVisibility = schema.NotesVisibility;
 export type NotesRole = schema.NotesRole;
 export type ThreadUnreadState = BaseModel<'threadUnreads'>;
 export type Post = BaseModel<'posts'>;
+export type BotReplyFeedback = BaseModel<'botReplyFeedback'>;
 export type PostType = Post['type'];
 export type PostFlags = Pick<
   Post,

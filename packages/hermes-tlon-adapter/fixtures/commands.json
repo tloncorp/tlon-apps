@@ -1,0 +1,12 @@
+[
+  "/owner-listen",
+  "/migrate",
+  "/tlon",
+  "/allow",
+  "/reject",
+  "/ban",
+  "/unban",
+  "/pending",
+  "/banned",
+  "/channel-access"
+]
