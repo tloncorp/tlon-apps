@@ -242,17 +242,20 @@ export class Urbit {
     public desk?: string,
     fetchFn?: typeof fetch
   ) {
-    if (isBrowser) {
-      // `delete` is a prototype method, so passing the bare reference would
-      // invoke it with `this` bound to `window`: it throws on
-      // `this.channelAbort` and, being async, surfaces that as an unhandled
-      // rejection rather than ever deleting the channel. Wrap it to keep
-      // `this`. Swallow the result — nothing can act on a failure during
-      // unload, and the browser path is a fire-and-forget sendBeacon anyway.
-      window.addEventListener('beforeunload', () => {
-        this.delete().catch(() => {});
-      });
-    }
+    // There is deliberately no unload teardown here. A
+    // `beforeunload` -> `this.delete` listener used to be registered, but
+    // `delete` is a prototype method, so it ran with `this` bound to `window`,
+    // threw on `this.channelAbort`, and — being async — surfaced that as an
+    // unhandled rejection on every page close. It never deleted a channel, so
+    // dropping it changes no behavior; it only stops the rejection.
+    //
+    // Restoring the teardown takes more than fixing the binding: the listener
+    // must be stored and detached when a client is discarded, or every retired
+    // client stays rooted and each unload beacons all of them; and it must run
+    // on `pagehide` rather than `beforeunload`, since another handler can
+    // cancel the navigation after we have aborted the SSE and deleted the
+    // channel, and `delete()` leaves `sseClientInitialized` true so the stream
+    // never reopens. Tracked separately.
     if (fetchFn) {
       this.fetchFn = fetchFn;
     }
