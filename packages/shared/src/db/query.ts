@@ -1,11 +1,16 @@
 import { sql } from 'drizzle-orm';
 
 import { createDevLogger, escapeLog, listDebugLabel } from '../debug';
-import { AnalyticsEvent } from '../domain';
+import { AnalyticsEvent, AnalyticsSeverity } from '../domain';
 import { startTrace } from '../perf';
 import { perfEnabled, perfLog } from '../perfLog';
 import * as changeListener from './changeListener';
-import { AnySqliteDatabase, AnySqliteTransaction, client } from './client';
+import {
+  AnySqliteDatabase,
+  AnySqliteTransaction,
+  client,
+  shouldReportQueryError,
+} from './client';
 import { queryClient } from './reactQuery';
 import { TableName } from './types';
 
@@ -139,12 +144,14 @@ export const createQuery = <TOptions, TReturn>(
         }
         return result;
       } catch (e) {
-        logger.trackEvent(AnalyticsEvent.ErrorDatabaseQuery, {
-          label: meta.label,
-          error: e,
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        if (shouldReportQueryError(e)) {
+          logger.trackEvent(AnalyticsEvent.ErrorDatabaseQuery, {
+            label: meta.label,
+            error: e,
+            errorMessage: e.message,
+            severity: AnalyticsSeverity.Critical,
+          });
+        }
         throw e;
       }
     });
@@ -288,13 +295,15 @@ export async function withTransactionCtx<T>(
       return result;
     } catch (e) {
       txLogger.log(ctx.meta.label, 'tx:error', e);
-      txLogger.trackError('transaction error', {
-        isNested: true,
-        rootTransactionLabel: ctx.rootTransaction,
-        label: ctx.meta.label,
-        errorMessage: e.message,
-        errorStack: e.stack,
-      });
+      if (shouldReportQueryError(e)) {
+        txLogger.trackError('transaction error', {
+          isNested: true,
+          rootTransactionLabel: ctx.rootTransaction,
+          label: ctx.meta.label,
+          errorMessage: e.message,
+          errorStack: e.stack,
+        });
+      }
       throw e;
     }
   }
@@ -319,19 +328,23 @@ export async function withTransactionCtx<T>(
         return result;
       } catch (e) {
         txLogger.log('tx:error', e);
-        txLogger.trackError('DB Transaction Error', {
-          label: ctx.meta.label,
-          errorMessage: e.message,
-          errorStack: e.stack,
-        });
+        if (shouldReportQueryError(e)) {
+          txLogger.trackError('DB Transaction Error', {
+            label: ctx.meta.label,
+            errorMessage: e.message,
+            errorStack: e.stack,
+          });
+        }
         try {
           await ctx.db.run(sql`ROLLBACK`);
         } catch (rollbackError) {
-          txLogger.trackError('DB Transaction Rollback Error', {
-            label: ctx.meta.label,
-            errorMessage: rollbackError.message,
-            errorStack: rollbackError.stack,
-          });
+          if (shouldReportQueryError(rollbackError)) {
+            txLogger.trackError('DB Transaction Rollback Error', {
+              label: ctx.meta.label,
+              errorMessage: rollbackError.message,
+              errorStack: rollbackError.stack,
+            });
+          }
         }
         ctx.rootTransaction = null;
         reject(e);
