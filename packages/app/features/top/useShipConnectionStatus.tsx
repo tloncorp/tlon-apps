@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as api from '@tloncorp/api';
 import { ConnectionStatus } from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { debounce } from 'lodash';
 
 import { useCurrentUserId } from '../../ui/contexts/appDataContext';
@@ -80,7 +80,10 @@ export const useShipConnectionStatus = (
             )
           )
           .catch((e) => {
-            logger.log(`Connection check failed for ${contactId}:`, e);
+            logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
+              context: 'vitals subscribe',
+              errorMessage: e instanceof Error ? e.message : String(e),
+            });
           });
 
         const lastStatus = queryClient.getQueryData<ConnectionStatus>(queryKey);

@@ -310,7 +310,10 @@ export function ChatListScreenView({
             // backoff retries. Catch so a failed poke doesn't surface as an
             // unhandled rejection.
             markInvitesRead().catch((e) => {
-              logger.log('Failed to mark invites read:', e);
+              logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
+                context: 'mark invites read',
+                errorMessage: e instanceof Error ? e.message : String(e),
+              });
             });
           }
         );

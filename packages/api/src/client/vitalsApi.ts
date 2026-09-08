@@ -1,8 +1,19 @@
 import { createDevLogger } from '../lib/logger';
+import { AnalyticsEvent } from '../types/analytics';
 import * as ub from '../urbit';
 import { poke, scry, subscribe, unsubscribe } from './urbit';
 
 const logger = createDevLogger('vitalsApi', false);
+
+// Counted, not silently dropped. trackEvent routes to PostHog only; trackError
+// would also reach Sentry, which is the spray these catches exist to prevent.
+// No contactId in the payload — ship names should not go into analytics.
+function reportBackgroundFailure(context: string, e: unknown) {
+  logger.trackEvent(AnalyticsEvent.BackgroundRequestFailed, {
+    context,
+    errorMessage: e instanceof Error ? e.message : String(e),
+  });
+}
 
 export const getLastConnectionStatus = async (contactId: string) => {
   const result = await scry<ub.ConnectionUpdate>({
@@ -34,10 +45,7 @@ export const checkConnectionStatus = async (
         // Fire-and-forget from a void callback. `unsubscribe` rejects on a
         // failed channel PUT, so catch it here or it escapes unhandled.
         unsubscribe(id).catch((e) => {
-          logger.log(
-            `Failed to unsubscribe connection check for ${contactId}:`,
-            e
-          );
+          reportBackgroundFailure('vitals unsubscribe', e);
         });
       }
     }
@@ -51,7 +59,7 @@ export const checkConnectionStatus = async (
     mark: 'run-check',
     json: contactId,
   }).catch((e) => {
-    logger.log(`Failed to poke connection check for ${contactId}:`, e);
+    reportBackgroundFailure('vitals poke', e);
   });
 
   return subscription;

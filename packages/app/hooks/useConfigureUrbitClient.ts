@@ -158,7 +158,13 @@ export function useConfigureUrbitClient() {
             const hostingAuthStatus = await api
               .getHostingHeartBeat()
               .catch((e) => {
-                clientLogger.log('Failed to check hosting heartbeat:', e);
+                clientLogger.trackEvent(
+                  AnalyticsEvent.BackgroundRequestFailed,
+                  {
+                    context: 'hosting heartbeat',
+                    errorMessage: e instanceof Error ? e.message : String(e),
+                  }
+                );
                 return null;
               });
             if (hostingAuthStatus === 'expired') {
