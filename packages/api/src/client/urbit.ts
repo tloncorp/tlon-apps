@@ -388,6 +388,16 @@ function rotateChannelOnce(client: Urbit, sent: SendContext, context: string) {
   rotateChannel(client, context);
 }
 
+// Did the session or channel move out from under a request after it went out?
+// Takes the client the request actually used rather than reading the singleton,
+// so a logout that nulls config.client mid-flight is not mistaken for a rotation.
+function sessionMovedSince(client: Urbit, sent: SendContext) {
+  return (
+    config.authEpoch !== sent.authEpoch ||
+    (sent.channelId !== undefined && client.channelId !== sent.channelId)
+  );
+}
+
 async function reauthOnce(sent: SendContext) {
   if (config.authEpoch !== sent.authEpoch) {
     logger.log('session already refreshed, retrying');
@@ -522,10 +532,34 @@ export async function subscribeOnce<T>(
         timeout
       );
     } catch (err) {
+      // A rotation — reauth, an eyre reap, an SSE 500, a 403 identity
+      // mismatch — quits every outstanding subscription, and one-shots carry
+      // resubOnQuit:false, so a healthy sibling that happened to be in flight
+      // rejects with a bare 'quit'. That is collateral from our own recovery
+      // rather than the ship ending the subscription, and it is worth
+      // re-issuing on the channel that replaced it.
+      //
+      // Only when the caller gave a timeout, though. Untimed one-shots
+      // (getGroupPreview, getChannelPreview, the lanyard queries) would retry
+      // with no deadline, and lanyard subscribes to a single-use nonce path
+      // whose response the dead subscription already consumed — so a retry
+      // there would hang for good instead of failing fast.
+      const collateralQuit =
+        err === 'quit' &&
+        timeout !== undefined &&
+        sessionMovedSince(client, sent);
+      const retryReason = collateralQuit
+        ? 'quit'
+        : err instanceof AuthError
+          ? 'auth'
+          : null;
+      const willRetry = !isRetry && retryReason !== null;
+
       if (err !== 'timeout' && err !== 'quit') {
         logger.trackError(`bad subscribeOnce ${printEndpoint(endpoint)}`, {
           ...describeError(err),
           isRetry,
+          retryReason,
         });
       } else if (err === 'timeout') {
         logger.error('subscribeOnce timed out', printEndpoint(endpoint));
@@ -535,21 +569,31 @@ export async function subscribeOnce<T>(
           connectionStatus: config.lastStatus,
           timeoutDuration: timeout,
           isRetry,
+          retryReason,
         });
       } else {
-        logger.error('subscribeOnce quit', printEndpoint(endpoint));
+        logger.error('subscribeOnce quit', printEndpoint(endpoint), {
+          isRetry,
+          willRetry,
+        });
       }
 
-      // isRetry bounds this to a single reauth round trip
-      if (isRetry || !(err instanceof AuthError)) {
+      // isRetry bounds this to a single extra round trip
+      if (!willRetry) {
         throw err;
       }
 
-      // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
-      // would start a second login for every caller that failed against the
-      // same dead session, and eyre closes the session each login arrives
-      // with.
-      await reauthOnce(sent);
+      if (retryReason === 'auth') {
+        // reauthOnce, not reauth: matches subscribe/poke/scry. A bare reauth()
+        // would start a second login for every caller that failed against the
+        // same dead session, and eyre closes the session each login arrives
+        // with.
+        await reauthOnce(sent);
+      } else if (config.pendingAuth) {
+        // the rotation that swept us may be the tail of someone's login; do
+        // not re-issue a PUT against a session still being replaced
+        await config.pendingAuth;
+      }
       return attempt(true);
     }
   };

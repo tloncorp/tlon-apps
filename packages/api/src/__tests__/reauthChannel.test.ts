@@ -6,6 +6,7 @@ import {
   internalRemoveClient,
   poke,
   subscribe,
+  subscribeOnce,
 } from '../client/urbit';
 import { Atom } from '@urbit/nockjs';
 
@@ -509,5 +510,86 @@ describe('storms', () => {
     // the late failure saw the epoch move and just retried
     expect(loginFetch).toHaveBeenCalledTimes(1);
     expect(client.seamlessReset).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('subscribeOnce swept by a rotation', () => {
+  // A rotation quits every outstanding subscription, and one-shots carry
+  // resubOnQuit:false, so a sibling that was merely in flight rejects with a
+  // bare 'quit'. That is collateral from our own recovery, not the ship
+  // ending the subscription.
+  function configure(client: Record<string, any>) {
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+  }
+
+  test('a timed one-shot retries on the channel that replaced it', async () => {
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockImplementationOnce(async () => {
+          client.channelId = 'chan-2';
+          throw 'quit';
+        })
+        .mockResolvedValueOnce('fact'),
+    });
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).resolves.toBe('fact');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
+  });
+
+  test('an untimed one-shot is left alone even when the channel moved', async () => {
+    // lanyard subscribes to a single-use nonce path with no timeout. Its
+    // response died with the old channel, so a retry would wait for good.
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi.fn().mockImplementationOnce(async () => {
+        client.channelId = 'chan-2';
+        throw 'quit';
+      }),
+    });
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'lanyard', path: '/v1/query/0v123' })
+    ).rejects.toBe('quit');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('a quit with no rotation behind it is passed through', async () => {
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi.fn().mockRejectedValueOnce('quit'),
+    });
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBe('quit');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('the retry is bounded to one extra attempt', async () => {
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi.fn().mockImplementation(async () => {
+        client.channelId = `chan-${client.subscribeOnce.mock.calls.length + 1}`;
+        throw 'quit';
+      }),
+    });
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBe('quit');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
   });
 });
