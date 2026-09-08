@@ -10,6 +10,7 @@ import * as schema from '../db/schema';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
+import { keyFromQueryDeps } from '../store/useKeyFromQueryDeps';
 import contactBookResponse from '../test/contactBook.json';
 import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
@@ -2597,6 +2598,50 @@ describe('thread unreads by channel', () => {
       ...overrides,
     } as ThreadUnreadState;
   }
+
+  test.each([undefined, channelId])(
+    'returns null for an absent thread unread (channel: %s)',
+    async (scope) => {
+      const result = await queryClient.fetchQuery({
+        queryKey: ['missing-thread-unread', scope],
+        queryFn: () =>
+          queries.getThreadUnreadState({
+            parentId: 'missing-parent',
+            channelId: scope,
+          }),
+        retry: false,
+      });
+      expect(result).toBeNull();
+    }
+  );
+
+  test('observes unread activity inserted after a thread is opened', async () => {
+    const parentId = 'newly-active-thread';
+    const observer = new QueryObserver(queryClient, {
+      queryKey: [
+        'liveUnreadCount',
+        keyFromQueryDeps(queries.getThreadUnreadState),
+        'thread',
+        parentId,
+      ],
+      queryFn: () => queries.getThreadUnreadState({ parentId }),
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().status).toBe('success');
+        expect(observer.getCurrentResult().data).toBeNull();
+      });
+
+      await queries.insertThreadUnreads([threadUnread(parentId, { count: 2 })]);
+
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().data?.count).toBe(2);
+      });
+    } finally {
+      unsubscribe();
+    }
+  });
 
   // The channel-scoped thread-unread overlay keys its map on threadId and
   // matches it against post ids, so these rows have to come back keyed that

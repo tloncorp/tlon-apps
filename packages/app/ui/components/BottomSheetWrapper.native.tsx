@@ -17,7 +17,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Keyboard } from 'react-native';
+import { BackHandler, Keyboard } from 'react-native';
 import { useTheme } from 'tamagui';
 
 import {
@@ -347,6 +347,28 @@ export const BottomSheetWrapper = forwardRef<
         Keyboard.dismiss();
       }
     }, [open]);
+
+    useEffect(() => {
+      if (!open) return;
+
+      const subscription = BackHandler.addEventListener(
+        'hardwareBackPress',
+        () => {
+          if (Keyboard.isVisible()) {
+            Keyboard.dismiss();
+          } else if (dismissOnSnapToBottom) {
+            isProgrammaticChange.current = false;
+            if (modal) {
+              bottomSheetModalRef.current?.dismiss();
+            } else {
+              bottomSheetRef.current?.close();
+            }
+          }
+          return true;
+        }
+      );
+      return () => subscription.remove();
+    }, [open, modal, dismissOnSnapToBottom]);
 
     const handleSheetAnimate = useCallback(
       (_fromIndex: number, toIndex: number) => {
