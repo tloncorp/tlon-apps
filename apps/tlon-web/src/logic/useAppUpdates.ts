@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger, queryClient } from '@tloncorp/shared';
+import { createDevLogger, queryClient } from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -6,15 +6,14 @@ import useKilnState, { usePike } from '@/state/kiln';
 
 const logger = createDevLogger('appUpdates', false);
 
-// A failed update check is expected and self-healing, so it must not reach
-// Sentry — that spray is what this module was fixed to stop. trackEvent keeps
-// the failure rate countable in PostHog; trackError would report as
-// `app_error`, which the composite logger forwards to Sentry.
+// The context is part of the title because Sentry fingerprints on
+// ['app_error', logger, errorTitle], so the two pollers stay separate issues
+// rather than merging into one pile.
 function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
-  logger.trackEvent(AnalyticsEvent.AppUpdateCheckFailed, {
-    context,
-    errorMessage: e instanceof Error ? e.message : String(e),
-  });
+  logger.trackError(
+    `app update check failed: ${context}`,
+    e instanceof Error ? { error: e } : { errorMessage: String(e) }
+  );
 }
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
