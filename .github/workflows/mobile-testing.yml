@@ -22,8 +22,8 @@ jobs:
           timeout: 15
           env: |
             MAESTRO_APP_ID=io.tlon.groups.preview
-            MAESTRO_LOGIN_URL=${{ secrets.MAESTRO_URL }}
-            MAESTRO_LOGIN_CODE=${{ secrets.MAESTRO_CODE }}
+            MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
+            MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
             MAESTRO_RUN_TAG=c${{ github.run_id }}a${{ github.run_attempt }}
       - name: Report cloud result
         if: always()

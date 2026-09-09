@@ -3,23 +3,46 @@ appId: ${MAESTRO_APP_ID}
 - launchApp:
     clearState: true
     clearKeychain: true
-- assertVisible: '^Tlon Messenger$'
-- tapOn: '^Have an account\? Log in$'
-- tapOn: '^Or configure self hosted$'
-- assertVisible: '^Connect Ship$'
+- tapOn: 'Have an account? Log in'
+- runFlow:
+    when:
+      visible:
+        id: 'log-in-with-email'
+    commands:
+      - tapOn:
+          id: 'log-in-with-email'
+- runFlow:
+    when:
+      visible: 'Log in with email'
+    commands:
+      - tapOn:
+          text: .*Log in with email.*
+          retryTapIfNoChange: true
+- assertVisible:
+    id: 'email-input'
+- assertVisible:
+    id: 'or-use-password'
 - tapOn:
-    id: '^textInput shipUrl$'
-- eraseText: 100
-- inputText:
-    text: ${MAESTRO_LOGIN_URL}
-    label: Enter configured test ship URL
+    id: 'or-use-password'
+
+# Enter email
+- assertVisible:
+    id: 'email-input-legacy'
 - tapOn:
-    id: '^textInput accessCode$'
-- eraseText: 100
+    id: 'email-input-legacy'
 - inputText:
-    text: ${MAESTRO_LOGIN_CODE}
-    label: Enter test ship access code
-- tapOn: '^Connect$'
+    text: ${MAESTRO_EMAIL}
+    label: Enter configured E2E account email
+
+# Enter configured E2E account password
+- tapOn:
+    id: 'password-input-legacy'
+- inputText:
+    text: ${MAESTRO_PASSWORD}
+    label: Enter configured E2E account password
+
+- tapOn: 'Submit'
+
 # Declared login/network phase; outside the 5-second warm interaction budget.
 - extendedWaitUntil:
     visible: '^(Home|Usage Statistics|Save Password\?)$'
