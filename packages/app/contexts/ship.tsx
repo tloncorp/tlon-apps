@@ -191,11 +191,20 @@ export const ShipProvider = ({
       needsSplashSequence: false,
       splashSequenceMode: undefined,
     });
-    storage.shipInfo.setValue({
-      ...shipInfo,
-      needsSplashSequence: false,
-      splashSequenceMode: undefined,
-    });
+    // Partial update, applied inside StorageItem's write lock: this provider's
+    // snapshot can be stale by the time splash completes -- notably authCookie,
+    // which a mid-session reauth refreshes in storage but not here -- so
+    // writing the whole snapshot back would clobber the fresher record. Leave a
+    // logged-out record alone rather than resurrecting it.
+    storage.shipInfo.setValue((stored) =>
+      stored
+        ? {
+            ...stored,
+            needsSplashSequence: false,
+            splashSequenceMode: undefined,
+          }
+        : stored
+    );
   }, [shipInfo]);
 
   useEffect(() => {
