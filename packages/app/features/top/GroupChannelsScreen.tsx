@@ -6,7 +6,9 @@ import * as store from '@tloncorp/shared/store';
 import { useCallback, useState } from 'react';
 
 import { useChatSettingsNavigation } from '../../hooks/useChatSettingsNavigation';
+import { useAnyAgentGroupOnboardingLock } from '../../hooks/useAgentGroupOnboardingLock';
 import { useGroupContext } from '../../hooks/useGroupContext';
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import type { RootStackParamList } from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
@@ -39,9 +41,12 @@ export function GroupChannelsScreenContent({
     group?.id ?? ''
   );
   const { navigateToChannel, navigation } = useRootNavigation();
+  const { locked: onboardingLocked, isLoading: onboardingLockLoading } =
+    useAnyAgentGroupOnboardingLock();
+  const navigationDisabled = onboardingLocked || onboardingLockLoading;
 
   const handleGoToGroupMembers = useCallback(() => {
-    if (group) {
+    if (group && !navigationDisabled) {
       navigation.navigate('GroupSettings', {
         state: {
           routes: [{ name: 'GroupMembers', params: { groupId: group.id } }],
@@ -49,22 +54,25 @@ export function GroupChannelsScreenContent({
         },
       });
     }
-  }, [group, navigation]);
+  }, [group, navigation, navigationDisabled]);
 
   const handleChannelSelected = useCallback(
     (channel: db.Channel) => {
+      if (navigationDisabled) return;
       logger.trackEvent(
         AnalyticsEvent.ActionGroupChannelSelected,
         logic.getModelAnalytics({ channel })
       );
       navigateToChannel(channel);
     },
-    [navigateToChannel]
+    [navigateToChannel, navigationDisabled]
   );
 
   const handleGoBackPressed = useCallback(() => {
+    if (navigationDisabled) return;
     if (isWindowNarrow) {
-      navigation.navigate('ChatList', undefined, { pop: true });
+      const route = getTopLevelTabRoute('ChatList');
+      navigation.navigate(route.name, route.params, { pop: true });
     } else {
       // Reset is necessary on desktop to ensure that the ChannelStack is cleared
       navigation.reset({
@@ -72,10 +80,11 @@ export function GroupChannelsScreenContent({
         routes: [{ name: 'Home' }],
       });
     }
-  }, [navigation, isWindowNarrow]);
+  }, [navigation, isWindowNarrow, navigationDisabled]);
 
   const handleJoinChannel = useCallback(
     async (channel: db.Channel) => {
+      if (navigationDisabled) return;
       try {
         await store.joinGroupChannel({
           channelId: channel.id,
@@ -85,11 +94,12 @@ export function GroupChannelsScreenContent({
         console.error('Failed to join channel:', error);
       }
     },
-    [id]
+    [id, navigationDisabled]
   );
 
   const handlePressInvite = useCallback(
     (groupId: string) => {
+      if (navigationDisabled) return;
       if (isWindowNarrow) {
         // Mobile: Use navigation to screen
         navigation.navigate('InviteUsers', { groupId });
@@ -98,7 +108,7 @@ export function GroupChannelsScreenContent({
         setInviteSheetGroup(groupId);
       }
     },
-    [isWindowNarrow, navigation]
+    [isWindowNarrow, navigation, navigationDisabled]
   );
 
   const chatSettingsNav = useChatSettingsNavigation();
@@ -125,6 +135,7 @@ export function GroupChannelsScreenContent({
           group={group}
           focusedChannelId={focusedChannelId}
           unjoinedChannels={unjoinedChannels}
+          disabled={navigationDisabled}
         />
       </NavigationProvider>
       {!isWindowNarrow && (

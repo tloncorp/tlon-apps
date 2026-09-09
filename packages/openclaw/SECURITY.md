@@ -53,20 +53,51 @@ If no mode is specified, default to "restricted" — NEVER "open"
 
 ## 3. Group Invite Authorization
 
-**Principle:** When auto-accepting invites, validate the inviter.
+**Principle:** Validate the inviter before auto-accepting; auto-accept requires positive confirmation.
 
-| Scenario                                                      | Expected Behavior                |
-| ------------------------------------------------------------- | -------------------------------- |
-| `autoAcceptGroupInvites` = false                              | ❌ Don't auto-accept any invites |
-| `autoAcceptGroupInvites` = true, `groupInviteAllowlist` empty | ❌ Reject all (fail-safe)        |
-| `autoAcceptGroupInvites` = true, inviter ON allowlist         | ✅ Accept invite                 |
-| `autoAcceptGroupInvites` = true, inviter NOT on allowlist     | ❌ Reject invite                 |
+Evaluated in this order per unprocessed valid invite:
 
-**Critical Invariant:**
+| #   | Condition                                          | Action                                    | Blocked lookup?     |
+| --- | -------------------------------------------------- | ----------------------------------------- | ------------------- |
+| 1   | Inviter is owner                                   | ✅ Auto-accept                            | no                  |
+| 2   | Not on `groupInviteAllowlist`, owner configured    | Queue approval card                       | no                  |
+| 3   | Not on allowlist, no owner configured              | Log + ignore                              | no                  |
+| 4   | On allowlist, **confirmed not blocked**            | ✅ Auto-accept                            | yes                 |
+| 5   | On allowlist, **confirmed blocked**                | Silent ignore (no card), mark processed   | yes                 |
+| 6   | On allowlist, lookup failed/timed out (_unknown_)  | Fall through to row 2/3 (card, or ignore) | yes (attempted)     |
+
+The `autoAcceptGroupInvites` flag no longer governs invite authorization; it
+remains a persistence input (auto-detected channels are persisted to
+`groupChannels` only when it is true).
+
+**Critical Invariants:**
 
 ```
-If groupInviteAllowlist is empty/undefined, fail-safe to DENY — NEVER accept
+If groupInviteAllowlist is empty/undefined, fail-safe to DENY — only the owner auto-accepts.
+
+Auto-accept requires a positive "not blocked" confirmation (fail-closed):
+every non-confirmation lands somewhere that is not a join.
+
+Confirmed-blocked and lookup-unknown are DISTINCT outcomes: a confirmed-blocked
+inviter is silently ignored directly (never carded); only an unknown lookup
+falls through to the approval path.
 ```
+
+Suppression invariants: queued invites are never marked in the in-process
+dedup set (it records only auto-accept success and confirmed-blocked); the
+persisted approval record suppresses re-notification once delivered, gates
+retries of failed sends behind a 10-minute cooldown, and its 48h TTL is the
+reminder cadence. The reconciliation sweeps (connect and the 2-minute poll)
+clear the dedup marker for a join whose `progress` reached `error`, so a join
+that acked locally but failed on the backend becomes actionable again at a
+bounded cadence — live error facts leave the marker, because a persistently
+failing join would otherwise retry at %groups' own error-emission rate.
+Catch-up rescries foreigns at connect and on the 2-minute poll. Rejecting a group request
+declines the invite on the ship (`%groups` `invite-decline`), and banning the
+inviter blocks the ship, revokes its DM grant, and then declines the same way —
+a block, DM-revocation write, or decline the client could not submit keeps the
+request pending (a poke resolves on the channel PUT alone, so a later `%groups`
+nack is log-only and does not retain the record).
 
 **Why This Matters:**
 Malicious actors could invite the bot to groups containing:
@@ -81,19 +112,42 @@ Malicious actors could invite the bot to groups containing:
 
 **Principle:** Only respond when explicitly addressed. Avoid false positives.
 
-| Trigger                                | Should Respond? |
-| -------------------------------------- | --------------- |
-| Direct ship mention (`~bot-ship`)      | ✅ Yes          |
-| Nickname mention (`nimbus`)            | ✅ Yes          |
-| `@all` mention                         | ❌ No           |
-| Random message without mention         | ❌ No           |
-| Partial ship match (`~bot-ship-extra`) | ❌ No           |
-| Substring nickname (`nimbusly`)        | ❌ No           |
+| Trigger                                          | Should Respond?            |
+| ------------------------------------------------ | -------------------------- |
+| Direct ship mention (`~bot-ship`)                | ✅ Yes                     |
+| Nickname mention (`nimbus`)                      | ✅ Yes                     |
+| `@all` mention                                   | ❌ No                      |
+| Random message without mention                   | ❌ No                      |
+| Partial ship match (`~bot-ship-extra`)           | ❌ No                      |
+| Substring nickname (`nimbusly`)                  | ❌ No                      |
+| Owner's bare registered slash command (`/pending`) | ✅ Yes (any watched `chat/` channel) |
 
 **Case Sensitivity:**
 
 - Ship mentions: case-insensitive
 - Nickname mentions: case-insensitive
+- Slash command tokens: case-insensitive, token-boundary safe (`/tlon` does not match `/tlon-version`)
+
+**Owner Command Engagement (trust boundary):**
+
+Owner-authored registered slash commands (the plugin registry plus the core
+trio `/status`, `/help`, `/new` — `src/commands-registry.ts`) engage without a
+mention in any watched `chat/` channel, including third-party-hosted channels
+and threads, regardless of the owner-listen toggle or per-channel mute list.
+This is the escape hatch that lets the Tlon client's slash-command popup —
+which inserts commands bare — work in group channels.
+
+Engagement is NOT authorization: command execution remains owner-only.
+
+- Sender must equal the configured owner (`isOwner`, `src/monitor/index.ts`).
+- Command dispatch re-checks owner equality (`CommandAuthorized`,
+  `src/monitor/index.ts`) and each handler resolves through `checkOwner`
+  (`src/monitor/command-auth.ts`).
+- Non-owner bare commands are dropped at the engagement gate; if mentioned,
+  core denies them at the authorization check.
+
+Heap (`heap/`) and diary (`diary/`) channels are unchanged: mention or
+owner-listen only.
 
 ---
 
@@ -158,7 +212,10 @@ _Note: Not currently enforced — future enhancement._
 | `dmAllowlist`          | Must be array of strings                |
 | `groupInviteAllowlist` | Must be array of strings                |
 | `channelRules`         | Must match schema (mode + allowedShips) |
+| `pendingApprovals`     | Per-record sanitization (see below)     |
 | Boolean settings       | Must be actual booleans                 |
+
+**`pendingApprovals` sanitization:** `id`, `type`, `requestingShip` and `timestamp` must type-check, and a `group`/`channel` record must carry a non-empty-string `groupFlag`/`channelNest` — otherwise the whole record is dropped, because approval execution gates on a truthy locator and then removes the record either way (a locator-less record would report success while doing nothing). A present-but-mistyped `groupTitle`, `messagePreview`, `notificationMessageId` (non-string) or `notifyAttemptAt` (non-number) drops only that field. Unknown fields round-trip untouched — the hermes runtime writes its own delivery stamps onto the same shared record.
 
 **Hot-Reload Safety:**
 
@@ -391,3 +448,4 @@ If you discover a security vulnerability:
 | 2026-02-11 | Added session isolation warning for multi-user DMs |
 | 2026-02-11 | Added agent-initiated blocking via response directive |
 | 2026-02-12 | Added tool access control - tlon skill owner-only |
+| 2026-08-17 | Owner registered slash commands engage bare in any watched chat channel (§4) |

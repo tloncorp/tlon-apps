@@ -9,25 +9,28 @@ onFlowComplete:
 - tapOn: 'Join with an invite'
 - assertVisible: 'TLON  or  join.tlon.io/0v4.pca...'
 
-# add invite link
+# Use the onboarding short code so Hosting assigns a ship with the current
+# OpenClaw plugin and the deterministic setup coordinator.
 - tapOn: 'TLON  or  join.tlon.io/0v4.pca...'
-- inputText: 'https://join.tlon.io/0v7.mmmlk.5bold.rac1l.79r0m.93vef' # ~dozped-mogtec Bot Farm 2
+- inputText: TLONBOARD
 
 # select email signup
 - assertVisible: Or if you'd prefer, sign up with an email address
 - tapOn:
     text: .*sign up with an email address.*
-    retryTapIfNoChange: true
+- assertVisible: Email
 
 # get test email and use it
 - runScript: scripts/generateSignupEmail.js
 - inputText: ${output.signupEmail}
-- tapOn: Sign up
+- pressKey: Enter
 
 # get OTP and submit it digit by digit. Attempting to insert
 # all at once causes flakiness. extendedWaitUntil calls are a
 # workaround to delay next digit insertion
-- assertVisible: Check your email for a confirmation code
+- extendedWaitUntil:
+    visible: Check your email for a confirmation code
+    timeout: 60000
 - runScript: scripts/getEmailOtp.js
 
 - inputText: ${output.otpDigit1}
@@ -68,7 +71,6 @@ onFlowComplete:
 
 # set a nickname
 - assertVisible: Sampel Palnet
-- evalScript: ${output.operationStart = Date.now()}
 - tapOn: Sampel Palnet
 - inputText: E2E Tester
 - assertVisible: Next
@@ -84,57 +86,60 @@ onFlowComplete:
     text: Next
     retryTapIfNoChange: true
 
-# wait until setup is complete
+# Measure only the time spent waiting for Hosting to ready the node. The
+# notification screens above and the bot interaction below are separate work.
 - extendedWaitUntil:
-    visible: Let's get started
-    timeout: 600000
+    visible: We're setting you up
+    timeout: 30000
+- evalScript: ${output.nodeReadyStartedAt = Date.now()}
 
-- evalScript: ${output.operationEnd = Date.now()}
-
-# click through welcome tour
-- assertVisible: Let's get started
-- tapOn:
-    id: lets-get-started
-
-- assertVisible:
-    id: bot-configure
-- tapOn:
-    id: bot-configure
-
-- assertVisible:
-    id: bot-name-input
-- tapOn:
-    id: bot-name-input
-- inputText: Test Bot
-- assertVisible:
-    id: bot-name-next
-- tapOn:
-    id: bot-name-next
-
-- assertVisible:
-    id: bot-avatar-skip
-- tapOn:
-    id: bot-avatar-skip
-
-- extendedWaitUntil:
-    visible: Default (free, used as fallback)
-    timeout: 60000
-- assertVisible:
-    id: bot-provider-next
-- tapOn:
-    id: bot-provider-next
-
-- assertVisible:
-    id: got-it
-- tapOn:
-    id: got-it
-
+# Wait for the deterministic onboarding rail. TLONBOARD deliberately selects
+# ships carrying the current plugin, so fallback bootstrap chatter is a test
+# failure rather than an alternate path.
 - extendedWaitUntil:
     visible:
-      id: finish-invites
-    timeout: 30000
+      id: A2UIChoice-agent-daily-digest
+    timeout: 600000
+- evalScript: ${output.initialRailVisibleAt = Date.now()}
+
+# Complete the new on-rails Tlonbot setup conversation.
 - tapOn:
-    id: finish-invites
+    id: A2UIChoice-agent-daily-digest
+- extendedWaitUntil:
+    visible:
+      id: 'A2UISmallChoice-open hardware'
+    timeout: 60000
+- tapOn:
+    id: 'A2UISmallChoice-open hardware'
+- tapOn:
+    id: A2UISmallChoiceSubmit
+
+# Provisioning creates the recurring job, publishes its first entry, and then
+# offers optional service connections. Skip those to continue.
+- extendedWaitUntil:
+    visible:
+      id: A2UIMcpConnectComplete
+    timeout: 600000
+- evalScript: ${output.starterReadyAt = Date.now()}
+- tapOn:
+    id: A2UIMcpConnectComplete
+
+# Declining the optional app tour completes the setup conversation.
+- extendedWaitUntil:
+    visible:
+      id: A2UIChoice-no
+    timeout: 60000
+- tapOn:
+    id: A2UIChoice-no
+- extendedWaitUntil:
+    visible: No problem. You can ask me anytime.
+    timeout: 60000
+
+# Return from the setup conversation to the home screen.
+- tapOn:
+    text: Back
+- tapOn:
+    text: Back
 
 # assert we made it through signup and onboarding
 - extendedWaitUntil:
@@ -142,15 +147,12 @@ onFlowComplete:
     timeout: 30000
 - extendedWaitUntil:
     visible:
-      id: ChatListItem-Bot Farm 2-unpinned
+      id: GroupListItem-Open hardware Digest-pinned
     timeout: 30000
 
 # assert the expected signup chat titles are present
-- assertVisible: Test Bot
-- assertVisible: E2E Tester's Group
-- assertVisible: shadow brian :\)
-- assertVisible: Tlon Team
+- assertVisible: E2E Tester's Tlonbot 🌱
+- assertVisible: Open hardware Digest
 - assertVisible: Getting Started
-- assertVisible: Bot Farm 2
 
 - evalScript: ${output.didComplete = true}

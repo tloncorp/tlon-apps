@@ -25,7 +25,7 @@ export type PendingApproval = {
   originalMessage?: {
     messageId: string;
     messageText: string;
-    messageContent: unknown;
+    messageContent?: unknown;
     timestamp: number;
     parentId?: string;
     parentAuthorId?: string;
@@ -33,8 +33,11 @@ export type PendingApproval = {
     blob?: string;
   };
   timestamp: number;
-  /** Normalized message ID of the owner notification DM (for reaction-based approval) */
+  /** Normalized message ID of the owner notification DM (reaction-based
+   * approval, and proof of delivery for group re-notify suppression) */
   notificationMessageId?: string;
+  /** Epoch ms of the last owner-notification attempt (group-invite retry cooldown) */
+  notifyAttemptAt?: number;
 };
 
 export type TlonSettingsStore = {
@@ -44,8 +47,9 @@ export type TlonSettingsStore = {
   showModelSig?: boolean;
   autoAcceptDmInvites?: boolean;
   autoDiscoverChannels?: boolean;
+  /** No longer governs group-invite authorization (groupInviteAllowlist does); retained for channel persistence and back-compat */
   autoAcceptGroupInvites?: boolean;
-  /** Ships allowed to invite us to groups (when autoAcceptGroupInvites is true) */
+  /** Ships allowed to invite us to groups (allowlist membership is sufficient for auto-accept) */
   groupInviteAllowlist?: string[];
   channelRules?: Record<
     string,
@@ -428,6 +432,59 @@ function isChannelRulesObject(
   return true;
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0;
+}
+
+/**
+ * Validate and sanitize one raw pendingApprovals entry; undefined drops it.
+ *
+ * Two tiers. The operational locators are load-bearing, not decoration:
+ * approval execution gates on a truthy `groupFlag`/`channelNest` and then
+ * removes the record either way, so a record that lost its locator would
+ * report success to the owner while doing nothing — drop the whole record.
+ * Cosmetic and delivery fields are shed individually instead (dropping the bad
+ * part beats throwing away good state — see parseBlockedShips). Unknown fields
+ * are carried through: hermes stamps its own delivery fields onto the shared
+ * record and they must round-trip.
+ */
+function sanitizePendingApproval(
+  obj: Record<string, unknown>
+): PendingApproval | undefined {
+  if (
+    typeof obj.id !== 'string' ||
+    (obj.type !== 'dm' && obj.type !== 'channel' && obj.type !== 'group') ||
+    typeof obj.requestingShip !== 'string' ||
+    typeof obj.timestamp !== 'number'
+  ) {
+    return undefined;
+  }
+  if (obj.type === 'group' && !isNonEmptyString(obj.groupFlag)) {
+    return undefined;
+  }
+  if (obj.type === 'channel' && !isNonEmptyString(obj.channelNest)) {
+    return undefined;
+  }
+
+  const sanitized: Record<string, unknown> = { ...obj };
+  for (const field of [
+    'groupTitle',
+    'messagePreview',
+    'notificationMessageId',
+  ]) {
+    if (field in sanitized && typeof sanitized[field] !== 'string') {
+      delete sanitized[field];
+    }
+  }
+  if (
+    'notifyAttemptAt' in sanitized &&
+    typeof sanitized.notifyAttemptAt !== 'number'
+  ) {
+    delete sanitized.notifyAttemptAt;
+  }
+  return sanitized as unknown as PendingApproval;
+}
+
 /**
  * Parse pendingApprovals - handles both JSON string and array formats.
  * Settings-store stores complex objects as JSON strings.
@@ -453,23 +510,19 @@ function parsePendingApprovals(value: unknown): PendingApproval[] | undefined {
   }
 
   // Filter to valid, unexpired PendingApproval objects.
-  return parsed.filter((item): item is PendingApproval => {
+  return parsed.flatMap((item) => {
     if (!item || typeof item !== 'object') {
-      return false;
+      return [];
     }
-    const obj = item as Record<string, unknown>;
-    const valid =
-      typeof obj.id === 'string' &&
-      (obj.type === 'dm' || obj.type === 'channel' || obj.type === 'group') &&
-      typeof obj.requestingShip === 'string' &&
-      typeof obj.timestamp === 'number';
-
-    const approval = obj as PendingApproval;
-    return (
-      valid &&
-      hasUsableOriginalMessage(approval) &&
-      !isPendingApprovalExpired(approval)
-    );
+    const approval = sanitizePendingApproval(item as Record<string, unknown>);
+    if (
+      !approval ||
+      !hasUsableOriginalMessage(approval) ||
+      isPendingApprovalExpired(approval)
+    ) {
+      return [];
+    }
+    return [approval];
   });
 }
 
@@ -615,6 +668,11 @@ export type SettingsLogger = {
   error?: (msg: string) => void;
 };
 
+export type SettingsLoadOptions = {
+  /** Emit the compact snapshot summary. Intended for the initial startup load. */
+  logSnapshot?: boolean;
+};
+
 /**
  * Create a settings store subscription manager.
  *
@@ -662,7 +720,9 @@ export function createSettingsManager(
     /**
      * Load initial settings via scry.
      */
-    async load(): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
+    async load(
+      options: SettingsLoadOptions = {}
+    ): Promise<{ settings: TlonSettingsStore; fresh: boolean }> {
       try {
         const raw = await api.scry('/settings/all.json');
         // Response shape: { all: { [desk]: { [bucket]: { [key]: value } } } }
@@ -672,14 +732,16 @@ export function createSettingsManager(
         const deskData = allData?.all?.[SETTINGS_DESK];
         state.current = parseSettingsResponse(deskData ?? {});
         state.loaded = true;
-        logger?.log?.(
-          `[settings] Loaded: ${formatSettingsForLog(state.current)}`
-        );
+        if (options.logSnapshot !== false) {
+          logger?.log?.(
+            `[settings] Loaded: ${formatSettingsForLog(state.current)}`
+          );
+        }
         return { settings: state.current, fresh: true };
       } catch (err) {
         // Preserve the last good snapshot on scry failure so refresh fallback
         // does not transiently clobber live runtime state with an empty object.
-        logger?.log?.(
+        logger?.error?.(
           `[settings] Load failed (keeping previous settings): ${String(err)}`
         );
         state.loaded = true;

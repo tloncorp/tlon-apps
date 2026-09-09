@@ -46,13 +46,6 @@ export interface ContactHeed {
   heed: string[];
 }
 
-export type ContactRolodex = Record<string, Contact | null>;
-
-export interface ContactNews {
-  who: string;
-  con: Contact | null;
-}
-
 export interface ContactFieldText {
   type: 'text';
   value: string;
@@ -95,6 +88,7 @@ export interface ContactBookProfile {
   ['lanyard-phone-0-sign']?: AttestationSignature;
   ['lanyard-twitter-0-url']?: AttestationProviderUrl;
   ['lanyard-phone-0-url']?: AttestationProviderUrl;
+  ['bot-info']?: ContactFieldText;
 }
 
 export interface ContactBookProfileEdit {
@@ -112,6 +106,19 @@ export type ContactBookEntry = [ContactBookProfile, ContactBookProfile | null];
 
 export type ContactsAllScryResult1 = Record<string, ContactBookProfile>;
 export type ContactBookScryResult1 = Record<string, ContactBookEntry>;
+
+// entry in the /v1/directory scry: every known peer and ship contact,
+// with unmerged base profile + user overrides
+export interface ContactsDirectoryEntry1 {
+  isContact: boolean;
+  contact: ContactBookProfile;
+  mod: ContactBookProfile;
+}
+
+export type ContactsDirectoryScryResult1 = Record<
+  string,
+  ContactsDirectoryEntry1
+>;
 
 export type ContactsSelfResponse1 = {
   self: ContactBookProfile;

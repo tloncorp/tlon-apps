@@ -509,6 +509,8 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         const draft: domain.PostDataDraft = {
           channelId,
           content: inlines,
+          // Chat keeps a multi-selection together in one post. Gallery splits
+          // its attachment selection before reaching sendPostFromDraft.
           attachments,
           channelType,
           title,
@@ -804,9 +806,6 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
         <YStack
           flex={1}
           paddingHorizontal={paddingHorizontal}
-          borderColor={frameless ? 'transparent' : '$border'}
-          borderWidth={frameless ? 0 : 1}
-          borderRadius={frameless ? 0 : '$xl'}
           maxHeight={bigInput ? undefined : maxInputHeight}
           paddingTop={bigInput && frameless ? '$s' : undefined}
         >

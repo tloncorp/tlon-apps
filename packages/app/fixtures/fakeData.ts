@@ -206,6 +206,19 @@ export const edContact: db.Contact = {
   color: '#C0C3D8',
 };
 
+export const hostedBotContact: db.Contact = {
+  ...emptyContact,
+  id: '~pinser-botter-sampel-palnet',
+  nickname: 'Tlon Customer Support Assistant',
+};
+
+export const claimBotContact: db.Contact = {
+  ...emptyContact,
+  id: '~migsyl-fodtep',
+  nickname: 'claw',
+  botInfo: JSON.stringify({ v: 1, harness: 'openclaw', version: '1.2.3' }),
+};
+
 // Mock system contacts for fixtures
 export const emptySystemContact: db.SystemContact = {
   id: '',
@@ -328,6 +341,8 @@ export const initialSystemContacts: db.SystemContact[] = [
 ];
 
 export const initialContacts: db.Contact[] = [
+  hostedBotContact,
+  claimBotContact,
   galenContact,
   jamesContact,
   danContact,

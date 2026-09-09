@@ -86,6 +86,7 @@ export function useTopLevelRouting() {
     isLoading,
     showAuthenticatedApp,
     showSplashSequence,
+    forcedSplash,
     activeSplashSequenceMode,
     hostingBotEnabled: hostingBotEnabled ?? false,
     handleClearSplash,

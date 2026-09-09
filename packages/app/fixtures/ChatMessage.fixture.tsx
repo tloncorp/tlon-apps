@@ -15,7 +15,6 @@ import {
   AppDataContextProvider,
   ChannelDivider,
   ChatMessage,
-  RequestsProvider,
   ScrollView,
   View,
 } from '../ui';
@@ -47,9 +46,6 @@ import {
   postWithVideo,
   postWithVoiceMemo,
   postWithVoiceMemoWithoutTranscription,
-  useChannel,
-  useGroup,
-  usePostReference,
 } from './contentHelpers';
 import { createFakeReactions, tlonLocalIntros } from './fakeData';
 
@@ -180,22 +176,15 @@ function ChatMessageFixtureWrapper({
     >
       <NowPlayingProvider>
         <AppDataContextProvider contacts={Object.values(exampleContacts)}>
-          {/* @ts-expect-error don't care */}
-          <RequestsProvider
-            useChannel={useChannel}
-            useGroup={useGroup}
-            usePostReference={usePostReference}
+          <ScrollView
+            flex={1}
+            contentContainerStyle={{
+              paddingTop: insets.top,
+              paddingHorizontal: '$m',
+            }}
           >
-            <ScrollView
-              flex={1}
-              contentContainerStyle={{
-                paddingTop: insets.top,
-                paddingHorizontal: '$m',
-              }}
-            >
-              {children}
-            </ScrollView>
-          </RequestsProvider>
+            {children}
+          </ScrollView>
         </AppDataContextProvider>
       </NowPlayingProvider>
     </FixtureWrapper>

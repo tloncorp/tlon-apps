@@ -16,10 +16,6 @@ export async function respondToDMInvite({
   accept: boolean;
 }) {
   logger.log(`responding to dm invite`, `accept? ${accept}`, channel.id);
-  logger.trackEvent(
-    AnalyticsEvent.ActionRespondToDMInvite,
-    logic.getModelAnalytics({ channel })
-  );
   // optimistic update
   if (accept) {
     await db.updateChannel({
@@ -34,6 +30,10 @@ export async function respondToDMInvite({
 
   try {
     await api.respondToDMInvite({ channel, accept });
+    logger.trackEvent(AnalyticsEvent.ActionRespondToDMInvite, {
+      ...logic.getModelAnalytics({ channel }),
+      response: accept ? 'accepted' : 'declined',
+    });
   } catch (e) {
     logger.error('Failed to respond to dm invite', e);
     // rollback optimistic update

@@ -55,19 +55,30 @@ export {
   type WritResponseDelta,
   type WritDelta,
   type WritDiff,
-  type GatewayStatusAction,
+  type StewardGatewayAction,
+  type Cite,
+  type PostDataResponse,
+  type ReplyWithMemo,
 } from './urbit';
 export {
   appendFileUploadToPostBlob,
   appendToPostBlob,
   appendVideoToPostBlob,
   contentToTextAndMentions,
+  findPostBlobEntry,
   parsePostBlob,
+  postHasBlobEntry,
   textAndMentionsToContent,
   toPostData as toContentHelpersPostData,
   type ClientPostBlobData,
   type Mention,
   type PostBlobDataEntry,
+  type PostBlobDataEntryAgentIntroRequest,
+  type PostBlobDataEntryAgentProvision,
+  type PostBlobDataEntryAgentProviderConfig,
+  type PostBlobDataEntryAgentProvisionAck,
+  type PostBlobDataEntryAgentPostMarker,
+  type PostBlobDataEntryA2UISelection,
 } from './client/content-helpers';
 export { getTextContent } from './client/postContent';
 export { preSig } from './lib/urbit';

@@ -52,12 +52,6 @@ Install [SwiftForamt](https://github.com/nicklockwood/SwiftFormat) for auto-form
 brew install swiftformat
 ```
 
-Start development mode, which includes an attached code generation process to update Tailwind CSS classes during development:
-
-```sh
-npm run dev
-```
-
 Plug in your Android device or start the Android emulator and run the application in development mode:
 
 ```sh
@@ -122,6 +116,13 @@ DEFAULT_SHIP_LOGIN_ACCESS_CODE=
 ```
 
 See `.env.sample` for other configurable env variables.
+
+In a dev build, setting both `DEFAULT_SHIP_LOGIN_URL` and
+`DEFAULT_SHIP_LOGIN_ACCESS_CODE` leaves the ship login screen ready to submit —
+press `Connect` and you are logged in, with no 2FA. Hosted (`*.tlon.network`)
+URLs are accepted there in dev builds too. Note this yields a self-hosted style
+session, so hosting-account flows (node status, revival, bot config) are not
+exercised.
 
 ### Notifications
 

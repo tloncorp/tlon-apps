@@ -1,3 +1,4 @@
+import MagicString from 'magic-string';
 import type { Plugin } from 'vite';
 
 /**
@@ -24,8 +25,7 @@ export default function expo52PatchPlugin(): Plugin {
         return null;
       }
 
-      let transformedCode = code;
-      let hasChanges = false;
+      const s = new MagicString(code);
 
       try {
         // Pattern 1: Remove static name = 'SomeName' from source TypeScript/JavaScript
@@ -34,11 +34,10 @@ export default function expo52PatchPlugin(): Plugin {
           code.includes('static name =') &&
           code.includes('extends NativeModule')
         ) {
-          transformedCode = transformedCode.replace(
+          s.replace(
             /static\s+name\s*=\s*['"][^'"]*['"]\s*;?/g,
             '/* static name removed by expo52-patch */'
           );
-          hasChanges = true;
         }
 
         // Pattern 2: Also check for patterns like "this.name = " in static blocks
@@ -48,21 +47,20 @@ export default function expo52PatchPlugin(): Plugin {
           code.includes('this.name') &&
           code.includes('Module')
         ) {
-          transformedCode = transformedCode.replace(
+          s.replace(
             /static\s*{\s*[^}]*this\.name\s*=[^}]*}/g,
             'static { /* name assignment removed */ }'
           );
-          hasChanges = true;
         }
       } catch (error) {
         console.error(`[expo52-patch] Error processing ${id}:`, error);
         return null;
       }
 
-      if (hasChanges) {
+      if (s.hasChanged()) {
         return {
-          code: transformedCode,
-          map: null, // TODO: Generate proper source maps for better debugging
+          code: s.toString(),
+          map: s.generateMap({ hires: true }),
         };
       }
 
@@ -76,26 +74,15 @@ export default function expo52PatchPlugin(): Plugin {
         return null;
       }
 
-      let patchedCode = code;
-      let hasChanges = false;
+      const s = new MagicString(code);
 
       try {
         // Remove the helper function calls like wa(this,"ModuleName")
         // This is what esbuild generates for static name assignments
-        const helperMatches = patchedCode.match(
-          /\bstatic\s*{\s*\w+\(this,\s*["'][^'"]*Module["']\)\s*}/g
+        s.replace(
+          /\bstatic\s*{\s*\w+\(this,\s*["'][^'"]*Module["']\)\s*}/g,
+          (match) => match.replace(/\w+\(this,\s*["'][^'"]*["']\)/g, '0')
         );
-        if (helperMatches) {
-          helperMatches.forEach((match) => {
-            // Replace the helper call with an empty statement
-            const patched = match.replace(
-              /\w+\(this,\s*["'][^'"]*["']\)/g,
-              '0'
-            );
-            patchedCode = patchedCode.replace(match, patched);
-          });
-          hasChanges = true;
-        }
       } catch (error) {
         console.error(
           `[expo52-patch] Error processing chunk ${chunk.fileName}:`,
@@ -104,10 +91,10 @@ export default function expo52PatchPlugin(): Plugin {
         return null;
       }
 
-      if (hasChanges) {
+      if (s.hasChanged()) {
         return {
-          code: patchedCode,
-          map: null, // TODO: Generate proper source maps
+          code: s.toString(),
+          map: s.generateMap({ hires: true }),
         };
       }
 

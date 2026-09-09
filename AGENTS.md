@@ -1,5 +1,14 @@
 # AGENTS.md
 
+# Tlon Messenger frontend
+The TypeScript/React client is documented in `CLAUDE.md` at the repo root.
+
+Before reasoning about local database reads, caching, or whether a component
+sees fresh data, read `docs/tlon-apps/db-react-query.md`. React Query here runs
+with a global `staleTime: Infinity` and refreshes only through explicit
+table-dependency invalidation, so its cache behavior does not match React Query
+defaults and should not be inferred from memory.
+
 # Tlon Messenger backend
 The backend of the Tlon Messenger app is hosted on the Urbit platform.
 

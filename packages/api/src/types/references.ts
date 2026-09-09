@@ -19,4 +19,16 @@ export interface AppReference {
   appId: string;
 }
 
-export type ContentReference = ChannelReference | GroupReference | AppReference;
+export interface NoteReference {
+  type: 'reference';
+  referenceType: 'note';
+  /** notes channel id, e.g. notes/~host/notebook-slug */
+  channelId: string;
+  noteId: string;
+}
+
+export type ContentReference =
+  | ChannelReference
+  | GroupReference
+  | AppReference
+  | NoteReference;

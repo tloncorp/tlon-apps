@@ -13,7 +13,7 @@ import { remarkShipMentions } from './shipMentionPlugin';
  */
 const processor = unified()
   .use(remarkParse)
-  .use(remarkGfm)
+  .use(remarkGfm, { singleTilde: false })
   .use(remarkShipMentions);
 
 /**

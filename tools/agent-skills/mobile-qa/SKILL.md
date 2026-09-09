@@ -137,7 +137,7 @@ component wired slightly differently than an equivalent that works; the diff
 against the working version is the fix and the explanation.
 
 Then the standard hygiene: `pnpm -r tsc` (or `npx tsc --noEmit` in the package),
-Prettier on changed files, branch off `develop`, commit with the
+`pnpm format` on changed files, branch off `develop`, commit with the
 `Co-Authored-By: Claude ...` trailer, push, and `gh pr create` using the repo PR
 template (`.github/pull_request_template.md` — Summary / Changes / How did I
 test? / Risks and impact / Rollback plan / Screenshots). Naming the branch

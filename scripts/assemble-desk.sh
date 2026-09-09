@@ -33,12 +33,24 @@ if [ ! -d desk-deps ]; then
 fi
 
 mkdir -p "$target"
+# Finder droppings have no Clay mark and fail the desk commit outright
+# (observed as a silent kiln no-op that reads as a hung |commit).
+# --delete-excluded also purges any .DS_Store already present in an
+# existing target (a mounted desk): plain --delete would protect it,
+# since --exclude keeps it out of rsync's deletion candidate list.
 # 1. vendored deps first, clearing anything stale in the target
-rsync -aL --delete desk-deps/ "$target/"
+rsync -aL --delete --delete-excluded --exclude=.DS_Store desk-deps/ "$target/"
 # 2. our own source on top (wins on overlap)
-rsync -aL desk/ "$target/"
+rsync -aL --exclude=.DS_Store desk/ "$target/"
 
-# stamp the build commit, like the deploy pipeline does
-git rev-parse --short HEAD > "$target/commit.txt" 2>/dev/null || true
+# Stamp the build commit, like the deploy pipeline does. Redirecting straight
+# into the file would truncate it before git ran, so a checkout without git
+# metadata (e.g. a Docker build context that .dockerignore strips .git from)
+# left an EMPTY stamp and %groups/%logs then compiled provenance as unknown.
+# Capture first and only overwrite the copied desk/commit.txt on success.
+commit="$(git rev-parse --short HEAD 2>/dev/null || true)"
+if [ -n "$commit" ]; then
+  printf '%s\n' "$commit" > "$target/commit.txt"
+fi
 
 echo "Assembled desk into $target"

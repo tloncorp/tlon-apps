@@ -1,11 +1,17 @@
+import * as DocumentPicker from 'expo-document-picker';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import { expect, test, vi } from 'vitest';
 
-import { isLikelyVideoSource } from '../ui/contexts/attachmentRules';
+import {
+  getVideoValidationError,
+  isLikelyVideoSource,
+} from '../ui/contexts/attachmentRules';
 import { getVideoPreviewData } from '../ui/utils/videoPreviewData';
 import {
   imagePickerAssetToUploadIntent,
   normalizeUploadIntent,
+  normalizeUploadIntents,
+  pickFile,
 } from './filepicker';
 
 vi.mock('expo-document-picker', () => ({
@@ -220,5 +226,93 @@ test('normalizeUploadIntent keeps supported quicktime videos with known size', a
       },
     },
     errorMessage: null,
+  });
+});
+
+test('pickFile requests multiple documents and preserves their selection order', async () => {
+  vi.mocked(isLikelyVideoSource).mockReset();
+  vi.mocked(isLikelyVideoSource).mockReturnValue(false);
+  vi.mocked(DocumentPicker.getDocumentAsync).mockResolvedValueOnce({
+    canceled: false,
+    assets: [
+      {
+        name: 'first.txt',
+        uri: 'file:///tmp/first.txt',
+        size: 10,
+        mimeType: 'text/plain',
+        lastModified: 1,
+      },
+      {
+        name: 'second.txt',
+        uri: 'file:///tmp/second.txt',
+        size: 20,
+        mimeType: 'text/plain',
+        lastModified: 2,
+      },
+    ],
+  });
+
+  const result = await pickFile(['text/plain'], true);
+
+  expect(DocumentPicker.getDocumentAsync).toHaveBeenCalledWith({
+    copyToCacheDirectory: true,
+    multiple: true,
+    type: ['text/plain'],
+  });
+  expect(result.uploadIntents).toEqual([
+    {
+      type: 'fileUri',
+      name: 'first.txt',
+      localUri: 'file:///tmp/first.txt',
+      size: 10,
+      mimeType: 'text/plain',
+    },
+    {
+      type: 'fileUri',
+      name: 'second.txt',
+      localUri: 'file:///tmp/second.txt',
+      size: 20,
+      mimeType: 'text/plain',
+    },
+  ]);
+});
+
+test('keeps valid files when another item in the batch fails validation', async () => {
+  vi.mocked(isLikelyVideoSource).mockReset();
+  vi.mocked(isLikelyVideoSource).mockReturnValue(false);
+  vi.mocked(getVideoValidationError).mockReset();
+  vi.mocked(getVideoValidationError).mockReturnValueOnce(
+    'The selected video is unsupported.'
+  );
+
+  const result = await normalizeUploadIntents([
+    {
+      type: 'fileUri',
+      localUri: 'file:///tmp/invalid.mp4',
+      name: 'invalid.mp4',
+      size: 100,
+      mimeType: 'video/mp4',
+      video: {},
+    },
+    {
+      type: 'fileUri',
+      localUri: 'file:///tmp/valid.txt',
+      name: 'valid.txt',
+      size: 20,
+      mimeType: 'text/plain',
+    },
+  ]);
+
+  expect(result).toEqual({
+    errorMessage: 'The selected video is unsupported.',
+    uploadIntents: [
+      {
+        type: 'fileUri',
+        localUri: 'file:///tmp/valid.txt',
+        name: 'valid.txt',
+        size: 20,
+        mimeType: 'text/plain',
+      },
+    ],
   });
 });

@@ -18,6 +18,7 @@ import {
   PaddedBlock,
   ProfileButton,
   ScreenHeader,
+  ScreenScrollView,
   ScrollView,
   TlonText,
   View,
@@ -214,21 +215,21 @@ function ChatDetailsScreenView() {
         backAction={handleGoBack}
         useHorizontalTitleLayout={!isWindowNarrow}
         title={getTitle()}
-        rightControls={
-          currentUserIsAdmin ? (
-            <ScreenHeader.TextButton
-              onPress={!actionsEnabled ? undefined : handlePressEdit}
-              disabled={!actionsEnabled}
-              color="$primaryText"
-              testID="DetailsEditButton"
-            >
-              Rename
-            </ScreenHeader.TextButton>
-          ) : null
-        }
+        rightActions={[
+          {
+            id: 'DetailsEditButton',
+            text: 'Rename',
+            onPress: handlePressEdit,
+            disabled: !actionsEnabled,
+            tint: '$primaryText',
+            testID: 'DetailsEditButton',
+            visible: currentUserIsAdmin,
+          },
+        ]}
+        placement="navigation"
       />
       {hasContent && (
-        <ScrollView
+        <ScreenScrollView
           flex={1}
           contentContainerStyle={{
             width: '100%',
@@ -308,7 +309,7 @@ function ChatDetailsScreenView() {
           {chatType === 'channel' && channel && channel.groupId && (
             <LeaveActionsSection entityType="channel" channel={channel} />
           )}
-        </ScrollView>
+        </ScreenScrollView>
       )}
     </View>
   );

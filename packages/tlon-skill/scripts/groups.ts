@@ -533,7 +533,7 @@ async function verifyGroupCreated(groupId: string): Promise<Group> {
 async function setAdminRole(groupId: string, roleId: string) {
   await poke({
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupId,
@@ -1355,7 +1355,7 @@ async function addChannel(
 // appeared (see notes-channel.ts).
 async function addNotesChannel(groupId: string, title: string) {
   const nest = await createNotesChannelInGroup(
-    { groupId, title },
+    { groupId, title, readers: [] },
     createNotesChannelDeps()
   );
 
@@ -1418,7 +1418,7 @@ async function demoteMemberFromAdmin(groupId: string, ships: string[]) {
   // our own permission part-way through and get the remaining removals rejected.
   await poke({
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupId,

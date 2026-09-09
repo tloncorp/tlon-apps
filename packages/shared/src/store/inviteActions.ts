@@ -7,6 +7,7 @@ import {
 import * as api from '@tloncorp/api';
 import { desig } from '@tloncorp/api/lib/urbit';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent, HostedShipInfo, getConstants } from '../domain';
@@ -282,8 +283,16 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
       };
 
       try {
-        // TODO: CORS doesn't work right now for POST, so we can't actually handle this response.
-        await fetch(endpoint, options);
+        // Browsers may return an opaque response when CORS hides the status.
+        const response = await fetch(endpoint, options);
+        if (!response.ok && response.type !== 'opaque') {
+          logger.trackError(AnalyticsEvent.InviteError, {
+            context: 'invite provider rejected lure',
+            inviteId: invite.id,
+            status: response.status,
+          });
+          return;
+        }
       } catch (e) {
         logger.trackError(AnalyticsEvent.InviteError, {
           error: e,
@@ -296,6 +305,7 @@ export async function redeemInviteIfNeeded(invite: logic.AppInvite) {
         context: 'Success, bit invite deeplink lure while logged in',
         lure: invite.id,
       });
+      trackEvent(AnalyticsEvent.InviteRedeemed);
     } catch (err) {
       logger.trackEvent(AnalyticsEvent.InviteError, {
         error: err,

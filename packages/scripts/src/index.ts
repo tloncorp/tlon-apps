@@ -169,6 +169,25 @@ export function renderActivityEventPreview({
     };
   }
 
+  function buildNoteNotification(
+    note: ub.NoteEventPayload,
+    verb: 'added' | 'edited'
+  ): PreviewContentPayload {
+    const nest = `notes/${note.notebook}`;
+    return {
+      notification: {
+        title: note.group
+          ? postSource({ groupId: note.group, channelId: nest })
+          : channelTitle(nest),
+        groupingKey: lit(sourceToString(source)),
+        body: concat([
+          userNickname(note.author),
+          lit(` ${verb} a note: ${note.title}`),
+        ]),
+      },
+    };
+  }
+
   const is = ActivityIncomingEvent.is;
   switch (true) {
     case is(ev, 'post'):
@@ -327,6 +346,12 @@ export function renderActivityEventPreview({
           body: lit('You received a notification'),
         },
       };
+
+    case is(ev, 'note-create'):
+      return buildNoteNotification(ev['note-create'], 'added');
+
+    case is(ev, 'note-edit'):
+      return buildNoteNotification(ev['note-edit'], 'edited');
 
     default: {
       ((_x: never) => {

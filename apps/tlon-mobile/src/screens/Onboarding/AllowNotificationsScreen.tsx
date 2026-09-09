@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import {
   requestNotificationToken,
   useNotificationPermissions,
@@ -147,6 +147,10 @@ export const AllowNotificationsScreen = ({ navigation }: Props) => {
         />
         <YStack
           flex={1}
+          // Yoga drops cross-axis stretch when a horizontal margin is `auto`,
+          // so without an explicit width this hugs its text and the hero
+          // button below shrinks to match.
+          width="100%"
           paddingHorizontal="$2xl"
           maxWidth={600}
           marginHorizontal="auto"

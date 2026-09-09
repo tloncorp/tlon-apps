@@ -3,6 +3,9 @@
     "target": "ES2022",
     "module": "esnext",
     "moduleResolution": "bundler",
+    // Keep the legacy Node resolver's package boundary: API subpaths expose
+    // source that must be checked under the API package's own tsconfig.
+    "resolvePackageJsonExports": false,
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,

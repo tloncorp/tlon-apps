@@ -3,6 +3,7 @@ import {
   AnalyticsEvent,
   createDevLogger,
   downloadImageForWeb,
+  trackEvent,
 } from '@tloncorp/shared';
 import {
   GestureMediaViewer,
@@ -93,6 +94,9 @@ async function downloadMedia({
   if (isWeb) {
     try {
       await downloadImageForWeb(uri);
+      trackEvent(AnalyticsEvent.MediaDownloaded, {
+        mediaType,
+      });
     } catch (error) {
       logger.trackError('Download error:', error);
       console.error('Download error:', error);
@@ -215,6 +219,9 @@ async function downloadMedia({
 
       try {
         await MediaLibrary.Asset.create(downloadedFile.uri);
+        trackEvent(AnalyticsEvent.MediaDownloaded, {
+          mediaType,
+        });
         Alert.alert('Success', `${Noun} saved to your photos!`);
       } catch (saveError) {
         logger.trackError(`Failed to save ${noun} to library`, {
@@ -708,6 +715,14 @@ export default function MediaViewerScreen(props: Props) {
   // We should never hit this in practice, but the shared navigation types
   // still allow `MediaViewer` to be opened without a uri.
   const missingUri = !uri;
+
+  useEffect(() => {
+    if (!missingUri) {
+      trackEvent(AnalyticsEvent.MediaOpened, {
+        mediaType,
+      });
+    }
+  }, [mediaType, missingUri, viewerId]);
 
   useEffect(() => {
     if (!missingUri) {

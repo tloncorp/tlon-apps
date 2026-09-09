@@ -5,6 +5,8 @@ import { CommandError } from './commands/command';
 // see the module doc for why per-file mock.module registrations are unsafe.
 import {
   MockNotesV1PendingWriteError,
+  mockedGetGroup,
+  mockedGetGroups,
   mockedNotesV1,
 } from './tloncorp-api-mock';
 
@@ -33,6 +35,58 @@ async function captureRejection(promise: Promise<unknown>): Promise<unknown> {
 }
 
 describe('notes runtime wrapper', () => {
+  it('wires validated group listings for notebook cleanup', async () => {
+    const originalGetGroups = mockedGetGroups.impl;
+    const originalGetGroup = mockedGetGroup.impl;
+    mockedGetGroups.impl = async () => [
+      {
+        id: '~zod/alpha',
+        channels: [{ id: 'notes/~zod/book' }, { id: 'chat/~zod/general' }],
+      },
+      {
+        id: '~zod/beta',
+        channels: [{ id: 'diary/~zod/blog' }],
+      },
+    ];
+    mockedGetGroup.impl = async (groupId: unknown) => ({
+      id: groupId,
+      channels: [{ id: 'notes/~zod/book' }, { id: 'chat/~zod/general' }],
+    });
+
+    try {
+      const { createNotesDeps } = await loadRuntime();
+      const deps = createNotesDeps();
+
+      await expect(deps.getGroupChannelListings()).resolves.toEqual([
+        {
+          groupId: '~zod/alpha',
+          channelIds: ['notes/~zod/book', 'chat/~zod/general'],
+        },
+        {
+          groupId: '~zod/beta',
+          channelIds: ['diary/~zod/blog'],
+        },
+      ]);
+      await expect(deps.getGroupChannelIds('~zod/alpha')).resolves.toEqual([
+        'notes/~zod/book',
+        'chat/~zod/general',
+      ]);
+
+      mockedGetGroup.impl = async () => ({ channels: [{ id: 7 }] });
+      await expect(deps.getGroupChannelIds('~zod/alpha')).rejects.toThrow(
+        'channel id'
+      );
+
+      mockedGetGroups.impl = async () => [{ id: '~zod/alpha' }];
+      await expect(deps.getGroupChannelListings()).rejects.toThrow(
+        'channels array'
+      );
+    } finally {
+      mockedGetGroups.impl = originalGetGroups;
+      mockedGetGroup.impl = originalGetGroup;
+    }
+  });
+
   it('rethrows pending-write errors unchanged from production deps', async () => {
     const pending = new MockNotesV1PendingWriteError({
       requestId: '0vabc',

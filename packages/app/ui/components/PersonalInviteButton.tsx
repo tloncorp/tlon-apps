@@ -1,11 +1,9 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { Button, useCopy } from '@tloncorp/ui';
-import { useCallback } from 'react';
+import { Button, Icon, Text, useCopy } from '@tloncorp/ui';
+import { useCallback, useMemo } from 'react';
 import { Share } from 'react-native';
-import { XStack, YStack, isWeb } from 'tamagui';
-
-import { TextInput } from './Form';
+import { YStack, isWeb } from 'tamagui';
 
 const logger = createDevLogger('PersonalInviteButton', true);
 
@@ -13,6 +11,10 @@ export function PersonalInviteButton() {
   const inviteLink = db.personalInviteLink.useValue();
   const isLoading = !inviteLink;
   const { doCopy, didCopy } = useCopy(inviteLink ?? '');
+  const displayUrl = useMemo(
+    () => inviteLink?.replace(/^https?:\/\//, '') ?? '',
+    [inviteLink]
+  );
 
   const trackInviteShared = useCallback(() => {
     if (!inviteLink) return;
@@ -55,41 +57,43 @@ export function PersonalInviteButton() {
   }, [doCopy, inviteLink, isLoading, trackInviteShared]);
 
   return (
-    <YStack width="100%" gap="$s">
-      <XStack width="100%">
-        <TextInput
-          value={inviteLink ?? ''}
-          placeholder="Preparing invite link"
-          accent="positive"
-          editable={false}
-          selectTextOnFocus={!isLoading}
-          frameStyle={{
-            flex: 1,
-            height: 44,
-            borderTopRightRadius: 0,
-            borderBottomRightRadius: 0,
-            borderRightWidth: 0,
-          }}
-        />
+    <YStack width="100%" gap="$l">
+      <Button.Frame
+        width="100%"
+        size="medium"
+        fill="ghost"
+        backgroundColor="$secondaryBackground"
+        cursor="default"
+      >
+        <Text
+          flex={1}
+          minWidth={0}
+          numberOfLines={1}
+          size="$mono/m"
+          color="$tertiaryText"
+        >
+          {isLoading ? 'Preparing invite link' : displayUrl}
+        </Text>
         <Button
+          fill="text"
           intent="positive"
-          size="small"
-          width={44}
-          borderTopLeftRadius={0}
-          borderBottomLeftRadius={0}
-          icon={didCopy ? 'Checkmark' : 'Copy'}
+          label="Copy"
+          leadingIcon={
+            <Icon
+              type={didCopy ? 'Checkmark' : 'Copy'}
+              customSize={[18, 18]}
+              color="$positiveActionText"
+            />
+          }
           accessibilityLabel={didCopy ? 'Copied' : 'Copy invite link'}
-          loading={isLoading}
           disabled={isLoading}
           onPress={handleCopyInviteLink}
         />
-      </XStack>
+      </Button.Frame>
       <Button
-        intent="positive"
-        fill="outline"
-        size="small"
+        preset="primary"
         label="Share link"
-        leadingIcon="Send"
+        centered
         disabled={isLoading}
         onPress={handleShareInviteLink}
       />

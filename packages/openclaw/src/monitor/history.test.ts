@@ -4,11 +4,14 @@ import {
   type TlonHistoryEntry,
   buildThreadContextMessage,
   cacheMessage,
+  fetchChannelHistory,
+  fetchChannelHistoryOrThrow,
   fetchParentPostAuthor,
   fetchParentPostHistoryEntry,
   getChannelHistory,
   lookupCachedMessage,
   lookupOrFetchCachedChannelMessage,
+  parsePostPayload,
   renderHistoryContent,
   retainThreadContextMessages,
 } from './history.js';
@@ -201,6 +204,70 @@ describe('renderHistoryContent', () => {
   });
 });
 
+describe('fetchChannelHistory', () => {
+  it('normalizes production-shaped bot profiles to ship ids', async () => {
+    const scry = vi.fn(async () => ({
+      posts: {
+        '1': {
+          seal: { id: '1' },
+          essay: {
+            author: {
+              ship: '~bot',
+              nickname: "Napdet's Tlonbot",
+              avatar: 'https://example.com/avatar.png',
+            },
+            sent: 1,
+            content: [{ inline: ['What should this group do?'] }],
+          },
+        },
+        '2': {
+          seal: { id: '2' },
+          essay: {
+            author: '~ten',
+            sent: 2,
+            content: [{ inline: ['A daily digest'] }],
+          },
+        },
+      },
+    }));
+
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([
+      expect.objectContaining({ author: '~bot', id: '1' }),
+      expect.objectContaining({ author: '~ten', id: '2' }),
+    ]);
+  });
+
+  it('lets control-plane callers distinguish a failed scry from empty history', async () => {
+    const scry = vi.fn().mockRejectedValue(new Error('ship unavailable'));
+
+    await expect(
+      fetchChannelHistoryOrThrow({ scry }, 'chat/~ten/general')
+    ).rejects.toThrow('ship unavailable');
+    await expect(
+      fetchChannelHistory({ scry }, 'chat/~ten/general')
+    ).resolves.toEqual([]);
+  });
+
+  it('forwards cancellation to the history scry', async () => {
+    const controller = new AbortController();
+    const scry = vi.fn(async () => []);
+
+    await fetchChannelHistoryOrThrow(
+      { scry },
+      'chat/~ten/general',
+      50,
+      undefined,
+      controller.signal
+    );
+
+    expect(scry).toHaveBeenCalledWith(expect.any(String), {
+      signal: controller.signal,
+    });
+  });
+});
+
 describe('cacheMessage', () => {
   it('normalizes DM writ ids at the cache boundary and deduplicates the echo', async () => {
     const channel = `dm/~owner-${Date.now().toString(36)}`;
@@ -242,14 +309,12 @@ describe('cacheMessage', () => {
     const hostPostId = '170141184507999';
     const hostPostIdWithDots = '170.141.184.507.999';
     const scry = vi.fn(async () => ({
-      post: {
-        essay: {
-          author: '~zod',
-          sent: 1,
-          content: [{ inline: ['reaction-target content'] }],
-        },
-        seal: { id: hostPostIdWithDots },
+      essay: {
+        author: '~zod',
+        sent: 1,
+        content: [{ inline: ['reaction-target content'] }],
       },
+      seal: { id: hostPostIdWithDots },
     }));
 
     // Channel hosts assign a different id than the client's send timestamp,
@@ -321,14 +386,12 @@ describe('cacheMessage', () => {
       throw new Error('reaction target scry did not start');
     }
     resolveScry({
-      post: {
-        essay: {
-          author: '~nec',
-          sent: 1,
-          content: [{ inline: ['stale fetched reaction target'] }],
-        },
-        seal: { id: oldPostIdWithDots },
+      essay: {
+        author: '~nec',
+        sent: 1,
+        content: [{ inline: ['stale fetched reaction target'] }],
       },
+      seal: { id: oldPostIdWithDots },
     });
 
     await expect(targetLookup).resolves.toBe(echoEntry);
@@ -353,14 +416,12 @@ describe('cacheMessage', () => {
     const scry = vi.fn(async (path: string) => {
       const id = path.match(/posts\/post\/(.+)\.json$/)?.[1] ?? '';
       return {
-        post: {
-          essay: {
-            author: '~nec',
-            sent: 1,
-            content: [{ inline: [`reaction target ${id}`] }],
-          },
-          seal: { id },
+        essay: {
+          author: '~nec',
+          sent: 1,
+          content: [{ inline: [`reaction target ${id}`] }],
         },
+        seal: { id },
       };
     });
 
@@ -410,14 +471,12 @@ describe('cacheMessage', () => {
 
   it('preserves an author for a textless reaction target', async () => {
     const scry = vi.fn(async () => ({
-      post: {
-        essay: {
-          author: '~zod',
-          sent: 1,
-          content: [],
-        },
-        seal: { id: '170.141.184.507.999' },
+      essay: {
+        author: '~zod',
+        sent: 1,
+        content: [],
       },
+      seal: { id: '170.141.184.507.999' },
     }));
 
     await expect(
@@ -494,15 +553,13 @@ describe('fetchParentPostHistoryEntry', () => {
   it('extracts an author from a media-only parent post', async () => {
     const api = {
       scry: async () => ({
-        post: {
-          essay: {
-            author: { ship: '~nec', nickname: 'Nec' },
-            sent: 123,
-            content: [],
-            blob: '[{"type":"file","version":1}]',
-          },
-          seal: { id: '170.141.184.507' },
+        essay: {
+          author: { ship: '~nec', nickname: 'Nec' },
+          sent: 123,
+          content: [],
+          blob: '[{"type":"file","version":1}]',
         },
+        seal: { id: '170.141.184.507' },
       }),
     };
 
@@ -518,14 +575,12 @@ describe('fetchParentPostHistoryEntry', () => {
   it('extracts parent post text from memo-shaped post payloads', async () => {
     const api = {
       scry: async () => ({
-        post: {
-          memo: {
-            author: '~nec',
-            sent: 123,
-            content: [{ inline: ['Parent post from memo'] }],
-          },
-          seal: { id: '170.141.184.507.939.843.704.966.283.402.546.249.728' },
+        memo: {
+          author: '~nec',
+          sent: 123,
+          content: [{ inline: ['Parent post from memo'] }],
         },
+        seal: { id: '170.141.184.507.939.843.704.966.283.402.546.249.728' },
       }),
     };
 
@@ -604,14 +659,12 @@ describe('fetchParentPostHistoryEntry', () => {
   it('extracts a parent author from a bot profile', async () => {
     const api = {
       scry: async () => ({
-        post: {
-          essay: {
-            author: { ship: '~nec', nickname: 'Nec' },
-            sent: 123,
-            content: [{ inline: ['Parent post'] }],
-          },
-          seal: { id: '170.141.184.507' },
+        essay: {
+          author: { ship: '~nec', nickname: 'Nec' },
+          sent: 123,
+          content: [{ inline: ['Parent post'] }],
         },
+        seal: { id: '170.141.184.507' },
       }),
     };
 
@@ -622,6 +675,95 @@ describe('fetchParentPostHistoryEntry', () => {
     );
 
     expect(entry?.author).toBe('~nec');
+  });
+});
+
+describe('parsePostPayload', () => {
+  it('returns a text-less essay node with its source author', () => {
+    expect(
+      parsePostPayload({
+        seal: { id: '1' },
+        essay: { author: '~nec', content: [] },
+      })
+    ).toEqual({
+      sourceAuthor: '~nec',
+      entry: {
+        author: '~nec',
+        content: '',
+        timestamp: expect.any(Number),
+        id: '1',
+        blob: null,
+      },
+    });
+  });
+
+  it('uses unknown only for history entry author when source author is absent', () => {
+    const parsed = parsePostPayload({
+      seal: { id: '1' },
+      essay: { content: [{ inline: ['anonymous'] }] },
+    });
+
+    expect(parsed?.sourceAuthor).toBeNull();
+    expect(parsed?.entry.author).toBe('unknown');
+  });
+
+  it('preserves parent-author and text-only history behavior', async () => {
+    const authorlessApi = {
+      scry: async () => ({
+        seal: { id: '1' },
+        essay: { content: [{ inline: ['anonymous'] }] },
+      }),
+    };
+    const blobOnlyApi = {
+      scry: async () => ({
+        seal: { id: '1' },
+        essay: {
+          author: '~nec',
+          content: [],
+          blob: JSON.stringify([
+            {
+              type: 'file',
+              version: 1,
+              fileUri: 'https://storage.example.com/notes.pdf',
+              mimeType: 'application/pdf',
+              name: 'notes.pdf',
+              size: 1024,
+            },
+          ]),
+        },
+      }),
+    };
+
+    await expect(
+      fetchParentPostAuthor(authorlessApi, 'chat/~zod/general', '1')
+    ).resolves.toBeNull();
+    await expect(
+      fetchParentPostHistoryEntry(blobOnlyApi, 'chat/~zod/general', '1')
+    ).resolves.toBeNull();
+  });
+
+  it('preserves essay.blob on a post payload', () => {
+    const blob = JSON.stringify([{ type: 'file', version: 1 }]);
+    expect(
+      parsePostPayload({
+        seal: { id: '1' },
+        essay: { author: '~nec', sent: 5, content: [], blob },
+      })?.entry.blob
+    ).toBe(blob);
+  });
+
+  it('nulls blob on a reply payload even when a stray blob key is present', () => {
+    expect(
+      parsePostPayload({
+        seal: { id: '2' },
+        memo: {
+          author: '~nec',
+          sent: 5,
+          content: [{ inline: ['reply'] }],
+          blob: JSON.stringify([{ type: 'file', version: 1 }]),
+        },
+      })?.entry.blob
+    ).toBeNull();
   });
 });
 

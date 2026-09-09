@@ -10,6 +10,7 @@ import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
+  ChannelPutError,
   AuthenticationInterface,
   FatalError,
   Message,
@@ -31,6 +32,20 @@ const logger = createDevLogger('UrbitHttpApi', false);
 const DEFAULT_POKE_ACK_TIMEOUT = 30000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+/**
+ * A thread response began, but its successful response body could not be read.
+ * Consumers may safely treat this as a lost response only because the server
+ * has already sent the response headers.
+ */
+export class ThreadResponseBodyError extends Error {
+  readonly responseHeadersReceived = true;
+
+  constructor(cause: unknown) {
+    super('Thread response body could not be read', { cause });
+    this.name = 'ThreadResponseBodyError';
+  }
+}
 
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
@@ -103,6 +118,22 @@ export class Urbit {
   private channelAbort = new AbortController();
 
   /**
+   * Abort controller for the event source alone, so a channel rotation can
+   * drop the old stream's reconnect loop without cancelling PUTs in flight
+   */
+  private sseAbort = new AbortController();
+
+  /**
+   * Subscriptions replayed onto a new channel by +seamlessReset, keyed by the
+   * entry they replaced. A subscribe whose PUT was still in flight during the
+   * rotation resolves to its replacement instead of failing.
+   */
+  private replayedSubscriptions = new WeakMap<
+    SubscriptionRequestInterface,
+    Promise<number>
+  >();
+
+  /**
    * Identity of the ship we're connected to
    */
   nodeId?: string | null;
@@ -126,6 +157,22 @@ export class Urbit {
    * Custom fetch implementation to use.
    */
   fetchFn: typeof fetch = (...args) => fetch(...args);
+
+  /**
+   * Whether anything has been sent over the current channel id yet. Once true,
+   * the ship has a channel bound to whatever identity we had at the time.
+   */
+  get channelOpened(): boolean {
+    return this.lastEventId > 0;
+  }
+
+  /**
+   * The current channel id. Changes on every reset, so a caller can tell
+   * whether the channel it sent on is still the live one.
+   */
+  get channelId(): string {
+    return this.uid;
+  }
 
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
@@ -357,6 +404,7 @@ export class Urbit {
       return;
     }
     this.sseClientInitialized = true;
+    const signal = this.sseAbort.signal;
     return new Promise((resolve, reject) => {
       const sseOptions: SSEOptions = {
         headers: {},
@@ -364,9 +412,18 @@ export class Urbit {
       if (isBrowser) {
         sseOptions.withCredentials = true;
       }
+      // a rotation that aborts this stream before it opens would otherwise
+      // leave anyone awaiting the channel setup hanging; fetchEventSource
+      // resolves on abort without calling any of the handlers below
+      signal.addEventListener(
+        'abort',
+        () =>
+          reject(new ReapError('Channel rotated before event source opened')),
+        { once: true }
+      );
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
-        signal: this.channelAbort.signal,
+        signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
@@ -531,8 +588,14 @@ export class Urbit {
   }
 
   seamlessReset() {
-    // called if a channel was reaped by %eyre before we reconnected
-    // so we have to make a new channel.
+    // called if a channel was reaped by %eyre before we reconnected, or if
+    // our session can no longer use it, so we have to make a new channel.
+    // drop the old channel's event source first: its reconnect loop keeps
+    // the old channel url and would otherwise retry it forever. PUTs still in
+    // flight are left alone; they fail or succeed on their own and their
+    // callers handle the rotation
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
     this.emit('seamless-reset', { uid: this.uid });
     this.emit('status-update', { status: 'initial' });
@@ -553,7 +616,9 @@ export class Urbit {
       });
 
       if (sub.resubOnQuit) {
-        this.subscribe(sub);
+        const replay = this.subscribe(sub);
+        replay.catch(() => {});
+        this.replayedSubscriptions.set(sub, replay);
       }
     });
 
@@ -603,7 +668,7 @@ export class Urbit {
     });
     if (!response.ok) {
       console.log(response.status, response.statusText, await response.text());
-      throw new Error('Failed to PUT channel command(s)');
+      throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -631,7 +696,7 @@ export class Urbit {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to PUT channel');
+      throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -680,13 +745,25 @@ export class Urbit {
   ) {
     return new Promise<T>((resolve, reject) => {
       let done = false;
-      const quit = () => {
-        if (!done) {
-          reject('quit');
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const finish = () => {
+        if (done) {
+          return false;
+        }
+        // A reset can reuse this subscription's id. Once settled, neither a
+        // late PUT nor an existing timeout may unsubscribe that replacement.
+        done = true;
+        clearTimeout(timer);
+        return true;
+      };
+      const fail = (error: unknown) => {
+        if (finish()) {
+          reject(error);
         }
       };
+      const quit = () => fail('quit');
       const event = (e: T, mark: string, id: number) => {
-        if (!done) {
+        if (finish()) {
           resolve(e);
           this.unsubscribe(id);
         }
@@ -697,21 +774,20 @@ export class Urbit {
         ship,
         resubOnQuit: false,
         event,
-        err: reject,
+        err: fail,
         quit,
       };
 
       this.subscribe(request).then((subId) => {
-        if (timeout) {
-          setTimeout(() => {
-            if (!done) {
-              done = true;
+        if (timeout && !done) {
+          timer = setTimeout(() => {
+            if (finish()) {
               reject('timeout');
               this.unsubscribe(subId);
             }
           }, timeout);
         }
-      });
+      }, fail);
     });
   }
 
@@ -771,9 +847,13 @@ export class Urbit {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(ackTimer);
-        this.outstandingPokes.delete(message.id);
+        // A reset reuses numeric ids while old PUTs can still finish. Only
+        // remove this poke, not a replacement that now occupies its slot.
+        if (this.outstandingPokes.get(message.id) === entry) {
+          this.outstandingPokes.delete(message.id);
+        }
       };
-      this.outstandingPokes.set(message.id, {
+      const entry: PokeHandlers = {
         onSuccess: () => {
           cleanup();
           onSuccess();
@@ -784,7 +864,8 @@ export class Urbit {
           onError(err);
           reject(err);
         },
-      });
+      };
+      this.outstandingPokes.set(message.id, entry);
 
       const ackTimer = setTimeout(() => {
         cleanup();
@@ -830,14 +911,15 @@ export class Urbit {
       path,
     };
 
-    this.outstandingSubscriptions.set(message.id, {
+    const entry: SubscriptionRequestInterface = {
       app,
       path,
       resubOnQuit,
       err,
       event,
       quit,
-    });
+    };
+    this.outstandingSubscriptions.set(message.id, entry);
 
     this.emit('subscription', {
       id: message.id,
@@ -846,7 +928,33 @@ export class Urbit {
       status: 'open',
     });
 
-    await this.sendJSONtoChannel(message);
+    let putError: unknown = null;
+    try {
+      await this.sendJSONtoChannel(message);
+    } catch (err) {
+      putError = err;
+    }
+
+    // a reset while this PUT was pending has already replayed us onto the new
+    // channel with a new id. whether the stale PUT then failed or landed on
+    // the abandoned channel, the replay is the subscription the caller owns
+    const replay = this.replayedSubscriptions.get(entry);
+    if (replay) {
+      this.replayedSubscriptions.delete(entry);
+      return replay;
+    }
+
+    if (putError !== null) {
+      // the ship never saw this subscription, so don't let a later channel
+      // reset resubscribe it on the caller's behalf; the caller retries. a
+      // reset restarts the id sequence, so the slot may already belong to a
+      // live subscription on the new channel
+      if (this.outstandingSubscriptions.get(message.id) === entry) {
+        this.outstandingSubscriptions.delete(message.id);
+        this.emit('subscription', { id: message.id, status: 'close' });
+      }
+      throw putError;
+    }
 
     return message.id;
   }
@@ -876,6 +984,8 @@ export class Urbit {
   async delete() {
     this.channelAbort.abort();
     this.channelAbort = new AbortController();
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     const body = JSON.stringify([
       {
         id: this.getEventId(),
@@ -948,26 +1058,30 @@ export class Urbit {
   }> {
     const { app, path, timeout } = params;
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
-    const response = await this.fetchFn(
-      `${this.url}/~/scry/${app}${path}.json`,
-      {
-        ...this.fetchOptions,
-        signal,
+    try {
+      const response = await this.fetchFn(
+        `${this.url}/~/scry/${app}${path}.json`,
+        {
+          ...this.fetchOptions,
+          signal,
+        }
+      );
+
+      if (!response.ok) {
+        return Promise.reject(response);
       }
-    );
-    signal?.cleanup();
 
-    if (!response.ok) {
-      return Promise.reject(response);
+      // read the body while the timeout is still armed; see thread()
+      const result = await response.json();
+      const responseSize = response.headers.get('content-length');
+      return {
+        responseStatus: response.status,
+        responseSizeInBytes: Number(responseSize),
+        result,
+      };
+    } finally {
+      signal?.cleanup();
     }
-
-    const result = await response.json();
-    const responseSize = response.headers.get('content-length');
-    return {
-      responseStatus: response.status,
-      responseSizeInBytes: Number(responseSize),
-      result,
-    };
   }
 
   async scryNoun(params: Scry): Promise<Noun> {
@@ -984,12 +1098,14 @@ export class Urbit {
   async requestJson<T = any>(
     path: string,
     method: 'GET' | 'POST' | 'PUT' | 'DELETE' = 'POST',
-    body?: unknown
+    body?: unknown,
+    options?: { signal?: AbortSignal }
   ): Promise<T> {
     const response = await this.fetchFn(`${this.url}${path}`, {
       ...this.fetchOptions,
       method,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: options?.signal,
     });
     if (!response.ok) {
       return Promise.reject(response);
@@ -1065,17 +1181,40 @@ export class Urbit {
 
     const signal = timeout ? createTimeoutSignal(timeout) : undefined;
 
-    const result = await this.fetchFn(
-      `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
-      {
-        ...this.fetchOptions,
-        signal,
-        method: 'POST',
-        body: JSON.stringify(body),
+    try {
+      const result = await this.fetchFn(
+        `${this.url}/spider/${desk}/${inputMark}/${threadName}/${outputMark}`,
+        {
+          ...this.fetchOptions,
+          signal,
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      );
+      // Buffer the body while the timeout is still armed. fetch resolves when
+      // response headers arrive, so an un-timed body read afterwards can hang
+      // indefinitely if the browser stalls the stream (seen on Brave). Buffer
+      // as bytes so non-text output marks pass through unchanged.
+      let responseBody: ArrayBuffer | null = null;
+      try {
+        const buffer = await result.arrayBuffer();
+        responseBody = buffer.byteLength > 0 ? buffer : null;
+      } catch (e) {
+        // The error status arrived with the headers; a stalled or aborted
+        // body read shouldn't mask it, since callers dispatch on status to
+        // distinguish backend failures from transport failures.
+        if (result.ok) {
+          throw new ThreadResponseBodyError(e);
+        }
       }
-    );
-    signal?.cleanup();
-    return result;
+      return new Response(responseBody, {
+        status: result.status,
+        statusText: result.statusText,
+        headers: result.headers,
+      });
+    } finally {
+      signal?.cleanup();
+    }
   }
 
   async getSpinHints(): Promise<string> {
@@ -1143,23 +1282,27 @@ export class Urbit {
       };
     }
 
-    // Make the request
-    const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
-    signal?.cleanup();
+    try {
+      // Make the request
+      const response = await this.fetchFn(`${this.url}${path}`, requestOptions);
 
-    // Handle response
-    if (!response.ok) {
-      return Promise.reject(response);
-    }
+      // Handle response
+      if (!response.ok) {
+        return Promise.reject(response);
+      }
 
-    // Determine response type and parse accordingly
-    const contentType = response.headers.get('content-type');
-    if (contentType?.includes('application/json')) {
-      return response.json();
-    } else if (contentType?.includes('text/')) {
-      return response.text() as unknown as T;
-    } else {
-      return response.blob() as unknown as T;
+      // Determine response type and parse accordingly, reading the body while
+      // the timeout is still armed; see thread()
+      const contentType = response.headers.get('content-type');
+      if (contentType?.includes('application/json')) {
+        return await response.json();
+      } else if (contentType?.includes('text/')) {
+        return (await response.text()) as unknown as T;
+      } else {
+        return (await response.blob()) as unknown as T;
+      }
+    } finally {
+      signal?.cleanup();
     }
   }
 

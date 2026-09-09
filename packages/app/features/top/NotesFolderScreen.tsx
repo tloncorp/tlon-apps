@@ -10,7 +10,7 @@ import { NotesNativeChannel } from '../../ui/components/NotesChannel/NotesNative
 type Props = NativeStackScreenProps<RootStackParamList, 'NotesFolder'>;
 
 export function NotesFolderScreen(props: Props) {
-  const { channelId, folderId, folderTitle } = props.route.params;
+  const { channelId, folderId, folderTitle, noteId } = props.route.params;
   const notebookFlag = notesNotebookFlagFromChannelId(channelId);
   const { channel, group } = store.useChannelContext({
     channelId,
@@ -43,6 +43,7 @@ export function NotesFolderScreen(props: Props) {
           channelTitle={channel.title ?? undefined}
           folderId={folderId}
           groupId={props.route.params.groupId ?? channel.groupId}
+          initialNoteId={noteId}
           notebookFlag={notebookFlag}
         />
       </YStack>

@@ -121,7 +121,7 @@ export function canAddAttachment(
       };
     }
 
-    if (prev.some((attachment) => attachment.type !== 'video')) {
+    if (prev.length > 0) {
       return {
         ok: false,
         reason: VIDEO_COMPOSITION_ERROR,

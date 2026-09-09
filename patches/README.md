@@ -1,13 +1,82 @@
 # Patched Dependencies
 
 This directory contains local dependency patches applied through
-`pnpm.patchedDependencies` in the repo root `package.json`.
+`patchedDependencies` in the repo root `pnpm-workspace.yaml`.
 
 When adding a patch, document:
 - why we need it locally
 - the upstream issue or PR it came from
 - how to validate it
 - when it can be removed
+
+## expo-notifications@57.0.6
+
+Local patch:
+`patches/expo-notifications@57.0.6.patch`
+
+Why:
+On Android cold starts, expo-notifications queues the notification response
+until its native emitter is registered. Version 57.0.6 delivers that queued
+response but does not remove it. If the native module is recreated while the
+app process remains alive, the same notification tap is emitted again and the
+app routes back to the original channel. Killing the process clears the queue.
+
+What it does:
+Tracks whether a native listener handled each queued response and drains the
+queue after successful delivery, for both structured responses and responses
+reconstructed from launch-intent extras. The mobile package also lists
+`expo-notifications` in Android's `buildFromSource` configuration so this patch
+is compiled instead of the package's prebuilt AAR.
+
+Upstream:
+- `expo/expo#47615`
+- commit `6bbdfb1b7ac8029f83ebbe41a6cd4ced67684704`
+
+Validation:
+- Build and launch the Android `productionDebug` variant.
+- Open the app from a channel notification, background it, then reopen it from
+  the launcher without killing the process. It must stay on the current screen
+  instead of routing back to the notification's channel.
+
+Removal:
+Drop this patch when the pinned expo-notifications release includes
+`expo/expo#47615`, then remove `expo-notifications` from Android's
+`buildFromSource` list and refresh the Gradle dependency lock.
+
+## @react-navigation/bottom-tabs@7.18.14 and react-native-screens@4.25.2
+
+Local patches:
+- `patches/@react-navigation__bottom-tabs@7.18.14.patch`
+- `patches/react-native-screens@4.25.2.patch`
+
+Why:
+Android native tabs tint every image icon with the navigation bar's active or
+inactive color. That is correct for our monochrome Home and Activity assets,
+but it turns the Contacts avatar or colored sigil into a flat monochrome icon.
+React Navigation exposes `tinted: false` for image icons only on iOS, and its
+shared image-source adapter does not forward that choice to Android.
+
+What they do:
+The React Navigation patch forwards the existing `tinted` option through the
+shared native-tab image source and declares Android support. The
+react-native-screens patch carries that value through its Android Fabric prop
+and disables Material's icon tint list for that tab item. Other tab items keep
+the default native tint behavior.
+
+Upstream:
+- no equivalent Android `tinted: false` support was available in React
+  Navigation 7.18.14 or react-native-screens 4.25.2 when this patch was added
+
+Validation:
+- Rebuild the Android app so the native patches are compiled in
+- Confirm Home and Activity still use the Material active/inactive tint
+- Confirm a photo Contacts avatar keeps its original colors
+- Remove the current user's avatar temporarily and confirm the colored sigil
+  also keeps its original foreground and background colors
+
+Removal:
+Remove both patches together once React Navigation and react-native-screens
+ship Android support for untinted native-tab image icons.
 
 ## @gorhom/bottom-sheet@5.2.14
 
@@ -82,41 +151,6 @@ Removal:
 Drop this hunk once `gorhom/react-native-bottom-sheet#2711` (or an
 equivalent fix) ships in a release we use.
 
-## react-native@0.85.3
-
-Local patch:
-`patches/react-native@0.85.3.patch`
-
-Why:
-An uncontrolled `TextInput` (no `value` prop, content driven by children) can
-measure to the wrong size when its text changes. On Fabric the shadow node
-measures from the cached native attributed string (`attributedStringBox`),
-which lags the React tree until the next native state update — so the input is
-laid out against stale text.
-
-What it does:
-In `ReactCommon/react/renderer/components/textinput/BaseTextInputShadowNode.h`,
-for inputs with no `text` prop it compares the current React-tree attributed
-string against the last state-synced one, and when they differ measures from
-the React-tree string (falling back to the placeholder when empty) instead of
-the possibly-stale native `attributedStringBox`.
-
-Upstream:
-- Upstream PR (open): `facebook/react-native#56291` — "Fix uncontrolled
-  multiline TextInput not resizing when children change". Same
-  `BaseTextInputShadowNode.h` change this patch carries.
-
-Validation:
-- Rebuild the iOS app so the native patch is compiled in.
-- Exercise an uncontrolled `TextInput` whose content changes via children (no
-  `value` prop) and confirm it sizes to the new content rather than a stale
-  value.
-
-Removal:
-Remove once `facebook/react-native#56291` lands in a version we ship. Note:
-`BaseTextInputShadowNode` was refactored in 0.85, so this hunk must be
-re-ported when upgrading past 0.81 if the upstream fix hasn't shipped yet.
-
 ## @10play/tentap-editor@0.5.21
 
 Why:
@@ -148,7 +182,67 @@ Remove this patch once we upgrade off the old `0.5.x` web bundle and confirm
 the replacement no longer vendors the legacy HTML link paste fallback or needs
 the local asset export stripping.
 
-## react-native-reanimated@4.3.1
+## react-native-keyboard-controller@1.22.0
+
+Local patch:
+`patches/react-native-keyboard-controller@1.22.0.patch`
+
+Why:
+On iOS, `KeyboardChatScrollView` implements composer growth through
+`extraContentPadding`, which updates the scroll view's `contentInset`. When
+`keyboardLiftBehavior="whenAtEnd"` decides not to move a user who is browsing
+older messages, upstream returns without re-emitting the current
+`contentOffset`. `ScrollViewWithBottomPadding` also omits `contentOffset` when
+its numeric target has not changed. UIKit can therefore adjust the offset while
+applying the inset by itself, producing a one-frame flash or jump when a
+multiline chat composer first grows.
+
+What it does:
+- On iOS Fabric, re-publishes the currently observed offset when an
+  `extraContentPadding` change should not shift the content. The guard keeps
+  the workaround out of Android, web, and the legacy iOS architecture.
+- Emits that offset whenever bottom padding changes, even if its numeric value
+  is unchanged, so Reanimated sends the new `contentInset` and a
+  `contentOffset` that preserves position in the same animated-props commit.
+
+The app still owns the product behavior: it reports the floating composer
+height to LegendList and uses the shared `whenAtEnd` policy on both platforms.
+Android freezes keyboard-controller's inset path because `adjustResize`
+already shrinks its viewport; iOS supplies the composer inset and performs the
+offset-preserving commit.
+
+Upstream:
+- repo: `kirillzyusko/react-native-keyboard-controller`
+- related discussion:
+  [#1333](https://github.com/kirillzyusko/react-native-keyboard-controller/discussions/1333)
+  covers layout shifts involving `whenAtEnd` and `extraContentPadding`
+- related open fixes
+  [#1605](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1605)
+  and
+  [#1609](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1609)
+  address different animated-padding and Reanimated 4.6 failures
+- as of August 31, 2026, upstream release `1.22.4` still has the same
+  no-shift and unchanged-offset behavior; no exact upstream fix has shipped
+
+Validation:
+- Run `corepack pnpm install --frozen-lockfile` to confirm the patch applies
+  and its lockfile hash is current.
+- Rebuild the iOS app. With the keyboard open, grow and shrink the multiline
+  composer while browsing history; the same visible message should retain its
+  vertical position without flashing.
+- Repeat at the end of the conversation; the latest message should remain
+  anchored above the composer.
+- Exercise emoji keyboard changes, momentum scrolling, and leaving/reopening
+  the conversation to check for stale inset or offset state.
+- Rebuild Android and confirm composer growth and keyboard dismissal retain
+  the existing end-anchor behavior.
+
+Removal:
+Remove this patch after an upstream release commits `contentInset` together
+with a preserving `contentOffset` for no-shift `extraContentPadding` changes,
+then repeat the mid-history and at-end simulator checks without the patch.
+
+## react-native-reanimated@4.5.0
 
 Why:
 - Fixes production-only web crashes in Reanimated's JS web updater
@@ -158,9 +252,10 @@ Why:
   branch is taken on React Native Web 0.19+ regardless of whether
   `createReactDOMStyle` is exported, with a transform serializer fallback
 - Guards `InlinePropManager.inlinePropsHasChanged` and `getInlineStyle`
-  against null inputs, and `PropsFilter.animatedProps` against
-  `initial.value == null`, so `Object.keys`/`Object.entries` calls in those
-  hot paths no longer throw
+  against null inputs, so `Object.keys`/`Object.entries` calls in those
+  hot paths no longer throw. (Reanimated 4.5 rewrote
+  `PropsFilter.animatedProps` to null-safe `for...in` iteration, so the
+  former `initial.value == null` guard there is no longer carried.)
 - Works with the web bundler alias in `apps/tlon-web/vite.config.mts` that
   keeps Vite on the patched top-level Reanimated package instead of a stale
   nested copy
@@ -170,7 +265,7 @@ Note: 4.x already fixed the older v3 `getInlinePropsUpdate` recursion bug
 needed.
 
 Local patch:
-`patches/react-native-reanimated@4.3.1.patch`
+`patches/react-native-reanimated@4.5.0.patch`
 
 Upstream:
 - repo: `software-mansion/react-native-reanimated`
@@ -192,7 +287,7 @@ Remove this patch once we upgrade to a Reanimated version that includes an
 upstream fix for the web JS updater path and confirm production web no longer
 needs the local guards or transform fallback.
 
-## react-native-gesture-handler@2.31.2
+## react-native-gesture-handler@2.32.0
 
 Why:
 On Android, `ReanimatedSwipeable` leaves both the left and right action
@@ -209,7 +304,7 @@ adds `pointerEvents: showLeftProgress.value === 0 ? 'none' : 'auto'` to
 the hidden side stops intercepting touches alongside its opacity going to 0.
 
 Local patch:
-`patches/react-native-gesture-handler@2.31.2.patch`
+`patches/react-native-gesture-handler@2.32.0.patch`
 
 Upstream:
 - no matching upstream fix found as of May 2026; `ReanimatedSwipeable` on
@@ -226,12 +321,12 @@ Remove this patch once `react-native-gesture-handler` ships a version of
 `ReanimatedSwipeable` that disables pointer events on the hidden action
 container, and we confirm the Android repro no longer needs the local fix.
 
-## expo-image-manipulator@56.0.19
+## expo-image-manipulator@57.0.1
 
 This patch carries two independent iOS hunks.
 
 Local patch:
-`patches/expo-image-manipulator@56.0.19.patch`
+`patches/expo-image-manipulator@57.0.1.patch`
 
 ### Orientation normalization (HDR HEIC uploads)
 
@@ -341,3 +436,286 @@ intentionally NOT included — on RN 0.85 the input's `__nativeTag` is populated
 so that change is unnecessary here and the lazy-host fix alone restores paste.
 Android image paste is a separate, still-open limitation (the context-menu path
 only reads `item.uri`) and is not patched here.
+
+## react-native-worklets@0.10.3
+
+Local patch:
+`patches/react-native-worklets@0.10.3.patch`
+
+Why:
+On Android, `WorkletsModule.invalidate()` tears down the C++ side
+(`invalidateCpp()` -> `~WorkletsModuleProxy` -> `animationFrameBatchinator_.reset()`)
+and deactivates `AndroidUIScheduler`, but never stops `mAnimationFrameQueue`.
+`invalidate()` runs on the React instance teardown thread while
+`AnimationFrameQueue.executeQueue()` dispatches on the Choreographer thread, so
+teardown can land in the middle of a frame batch. The rAF callback holds only a
+`weak_ptr` to the batchinator, so a `lock()` that succeeded just before teardown
+leaves the UI thread holding the *last* reference: it then runs
+`~AnimationFrameBatchinator` on the Choreographer thread, which releases
+`uiWorkletRuntime_` and any queued `jsi::Function` handles against a
+`jsi::Runtime` teardown has already dropped.
+
+Crashlytics `c8b636be37db34910d3babebc7230864` (29 events / 9 users over 90
+days, all on 9.4.2 and 9.4.3):
+
+```
+SIGSEGV 0x0  (null pointer dereference)
+  1  libworklets.so  worklets::AnimationFrameBatchinator::~AnimationFrameBatchinator() + 220
+  3  libworklets.so  worklets::AnimationFrameCallback::onAnimationFrame(double)
+  6  base.odex       com.swmansion.worklets.runloop.AnimationFrameQueue.executeQueue + 452
+  7  base.odex       AnimationFrameQueue$mChoreographerCallback$1.doFrameGuarded + 76
+```
+
+Upstream hit the same race as a JNI abort (`obj == null in call to
+CallLongMethodV from AnimationFrameCallback.onAnimationFrame`) rather than a
+SIGSEGV, but it is the same window. The sibling path already had this
+synchronization — see the comment in `AndroidUIScheduler.kt` about the cpp part
+being torn down while the UI thread is still executing it.
+
+The race is not new — `AnimationFrameBatchinator` is unchanged since 0.8.3 and
+that version's `invalidate()` has the same gap — but volume only appeared with
+9.4.2, which is the Expo 56 -> 57 upgrade (RN 0.85.3 -> 0.86.0, Reanimated
+4.3.1 -> 4.5.0, worklets 0.8.3 -> 0.10.3). The new stack appears to widen the
+window rather than open it.
+
+iOS is unaffected: `apple/worklets/apple/WorkletsModule.mm` already invalidates
+`animationFrameQueue_` before resetting `workletsModuleProxy_`. Android was the
+outlier.
+
+What it does:
+Carries upstream commit `b3157cd97` verbatim (minus its CHANGELOG entry):
+- `AnimationFrameQueue` gets a terminal `invalidate()` that sets an
+  `mInvalidated` flag, removes the posted frame callback, and clears queued
+  callbacks. `requestAnimationFrame()` and `scheduleQueueExecution()` refuse to
+  enqueue or post afterwards.
+- `executeQueue()` dispatches under a new `mDispatchLock` that `invalidate()`
+  also takes, so `invalidate()` blocks on an in-flight batch that
+  `pullCallbacks()` has already copied out, and no batch can start after
+  invalidation.
+- `WorkletsModule.invalidate()` calls `mAnimationFrameQueue.invalidate()`
+  *before* `invalidateCpp()`, in both the `networking` and `no-networking`
+  source sets (`android/build.gradle.kts` compiles one or the other depending
+  on `FETCH_PREVIEW_ENABLED`).
+
+`invalidate()` deliberately does not reuse `pause()`: `pause()` calls into
+`ReactChoreographer` while holding the `mPaused` monitor, and
+`ReactChoreographer` holds its own monitor across the whole frame dispatch,
+which would invert lock order against the UI thread.
+
+The patched `AnimationFrameQueue.kt` is byte-identical to upstream's. Not
+carried: the unrelated `initialize()`/`addLifecycleEventListener` registration
+upstream added separately (0.10.3 implements `LifecycleEventListener` but never
+registers, so `onHostPause`/`onHostResume` are dead code and the queue never
+pauses when backgrounded). That widens the window but does not create the race,
+and adding it changes runtime behavior beyond this crash fix.
+
+No `buildFromSource` entry is needed: `react-native-worklets` ships no prebuilt
+AAR, so RN autolinking compiles `node_modules` sources directly.
+
+Upstream:
+- repo: `software-mansion/react-native-reanimated`
+- fix: [#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278),
+  merged 2026-08-14 as `b3157cd97`
+- related: #7659, #9449, #9450
+- as of September 4, 2026 the fix is in **no published release**. It is absent
+  from 0.10.4, 0.11.0-0.11.4, 0.12.0 and 0.12.1 (0.12.1 was cut before the
+  merge) and present only from `0.13.0-nightly-20260814`.
+  `AnimationFrameBatchinator.cpp` and `WorkletsModuleProxy.cpp` are otherwise
+  unchanged 0.10.3 -> 0.12.1, so bumping to a stable release does not help.
+- a bump is also blocked by Reanimated's peer pin: `react-native-reanimated@4.5.0`
+  requires `react-native-worklets: 0.10.x`, and `4.6.0` requires `0.12.x`. The
+  release carrying the fix will be `0.13.x`, so picking it up means moving
+  Reanimated too, once a Reanimated release pins `0.13.x`.
+- Linear: `TLON-6469`
+
+Validation:
+- `corepack pnpm install --frozen-lockfile` applies the patch and its lockfile
+  hash is current.
+- Rebuild the Android app so the Kotlin patch is compiled in.
+- Reproducing needs a React instance recreated in place, not a cold start,
+  while worklet rAF callbacks are in flight: render a few always-animating
+  views (`withRepeat(withTiming(...), -1, true)` driving a `useAnimatedStyle`),
+  then reload the instance repeatedly (dev menu reload, or
+  `reactHost.reload()`). Unpatched builds abort within one or two reloads
+  upstream; a static screen does not reproduce it.
+- Watch Crashlytics issue `c8b636be37db34910d3babebc7230864` on the release
+  after this lands.
+
+Removal:
+Drop this patch once we pin a `react-native-worklets` release that includes
+[#10278](https://github.com/software-mansion/react-native-reanimated/pull/10278)
+(0.13.0 or later) together with the Reanimated release that pins it, and confirm
+the Crashlytics issue stays closed.
+
+## expo-modules-core@57.0.6
+
+Local patch:
+`patches/expo-modules-core@57.0.6.patch`
+
+Why:
+Android release builds crash at launch with a `ClassNotFoundException` inside
+`AppContextActivityResultRegistry.register$lambda$4` whenever an
+activity-result launch (image picker, document picker, file picker) was
+interrupted by the OS killing our Activity.
+
+`AppContextActivityResultRegistry.persistInstanceState` marshals its in-flight
+state — including the `androidx.activity.result.ActivityResult` pending
+result — into a base64 `Bundle` in `SharedPreferences` on `onHostDestroy`.
+`DataPersistor.toBundle()` read that `Bundle` back with `readBundle(null)`,
+which leaves the `Bundle`'s class loader at the framework default: the boot
+class loader, which cannot resolve *any* class from the app's dex. The
+`Bundle` unparcels lazily, so the failure does not surface at the read. It
+surfaces at the first strict read of a `Parcelable`, which is the pending-result
+lookup in the `ON_START` observer that `register` installs:
+
+```kotlin
+val activityResult = pendingResults.safeGetParcelable<ActivityResult>(key)
+```
+
+`expo-file-system` registers its picker contract at module initialization, so
+every launch of our app reaches that observer — a persisted pending result
+therefore crashes the next cold start rather than just dropping a picker
+result. R8 is on for release builds
+(`android.enableProguardInReleaseBuilds=true`), so Crashlytics reports the
+obfuscated name (`g.a`) instead of `androidx.activity.result.ActivityResult`.
+
+The record expires after 5 minutes and `DataPersistor.retrieveData()` clears
+the store as it reads, so this is one crash per interrupted launch rather than
+a boot loop — which is why it reads as a random launch crash. Measured on a
+Pixel 7a (Android 17, API 37) against the shipped `io.tlon.groups.preview`
+9.4.3: one `FATAL EXCEPTION`, then three clean cold starts. Upstream reports
+the record instead being renewed on every `onHostDestroy` and never healing;
+we did not see that, because the crash kills the process before any
+`onHostDestroy` can re-persist it.
+
+Crashlytics `64ea60afab69dc0c718aeada5d06e6c7`, first seen on 9.5.1 — exception
+and blamed frame (`register$lambda$4` is that `LifecycleEventObserver`, the only
+non-inline lambda in `register`):
+
+```
+java.lang.ClassNotFoundException: g.a
+  expo.modules.kotlin.activityresult.AppContextActivityResultRegistry.register$lambda$4
+```
+
+Reproduced on-device (see Validation below). The obfuscated stack matches
+upstream's unobfuscated one frame for frame, and shows the lazy-value path that
+defers the failure from the read to the `getParcelable`:
+
+```
+android.os.BadParcelableException: ClassNotFoundException when unmarshalling: g.a
+  at android.os.Parcel$LazyValue.apply(Parcel.java:4894)
+  at android.os.BaseBundle.unwrapLazyValueFromMapLocked(BaseBundle.java:450)
+  at android.os.Bundle.getParcelable(Bundle.java:1121)
+  at Kb.i.o(...)                    <- register$lambda$4
+  at androidx.lifecycle.t.a(...)    <- LifecycleRegistry.addObserver
+  at Kb.i.n(...)                    <- register
+  at Kb.a$b.a(...)                  <- ActivityResultsManager.registerForActivityResult
+  Suppressed: [CoroutineName(expo.modules.MainQueue), ...]
+Caused by: java.lang.ClassNotFoundException: g.a
+  at java.lang.Class.forName(Class.java:591)
+  at android.os.Parcel.readParcelableCreatorInternal(Parcel.java:5407)
+```
+
+What it does:
+Carries upstream commit `ba1b90db769f` verbatim (minus its CHANGELOG entry):
+passes the `expo-modules-core` class loader to `readBundle` in
+`DataPersistor.toBundle()`, and drops the `@Suppress("ParcelClassLoader")` that
+hid the lint for it. Nested `Bundle`s inherit the parent's class loader while
+they unparcel, so setting it once at the read covers every `retrieve*` method.
+The persisted bytes, the keys and the write path are untouched.
+
+iOS is unaffected: `DataPersistor` and the whole
+`expo.modules.kotlin.activityresult` package are Android-only.
+
+No `buildFromSource` entry is needed: `expo-modules-core` declares no
+`android.publication` in its `expo-module.config.json`, so Expo autolinking
+always compiles it from `node_modules` sources rather than resolving a
+prebuilt AAR. (This is why `expo-notifications` and `expo-background-task`,
+which do publish prebuilt AARs, need their `buildFromSource` entries and this
+patch does not.)
+
+Upstream:
+- repo: `expo/expo`
+- issue: [#49782](https://github.com/expo/expo/issues/49782); earlier report
+  of the same crash: [#26446](https://github.com/expo/expo/issues/26446)
+  (closed as stale, never fixed)
+- fix: [#49836](https://github.com/expo/expo/pull/49836), merged 2026-09-08 as
+  `ba1b90db769f`
+- as of September 8, 2026 the fix is on `main` only. `origin/sdk-57` still
+  carries `readBundle(null)`, so no published `expo-modules-core@57.0.x`
+  includes it and bumping the pin does not help.
+- Linear: `TLON-6495`
+
+Validation done here:
+- `corepack pnpm install --frozen-lockfile` applies the patch and its lockfile
+  hash is current.
+- `./gradlew :expo-modules-core:compileReleaseKotlin` succeeds, and
+  `javap -c` on the resulting `DataPersistorKt.class` shows
+  `Parcel.readBundle(ClassLoader)` fed by
+  `DataPersistor.class.getClassLoader()`. Dropping the `@Suppress` raises no
+  lint in a consumer build.
+- **A/B on a device, patched vs unpatched `previewRelease`.** Two APKs built
+  from this tree, differing only in this patch. They are byte-identical apart
+  from one instruction in the obfuscated `toBundle` (`Kb.l.d`), at the same
+  address in the same dex:
+
+  | APK | `toBundle` argument |
+  | --- | --- |
+  | patched | `const-class LKb/k;` -> `Class.getClassLoader()` -> `readBundle(v3)` |
+  | unpatched | `const/4 v3, #0` -> `readBundle(v3)` |
+
+  Same Pixel 7a, same signed-in account, same steps (below), swapped in place
+  with `adb install -r` so the session carried across:
+
+  | APK | Cold start into a poisoned record |
+  | --- | --- |
+  | patched | starts normally; 0 `FATAL EXCEPTION`, 0 `ClassNotFoundException` |
+  | unpatched | `FATAL EXCEPTION` / `BadParcelableException: ClassNotFoundException when unmarshalling: g.a`; app never reaches the foreground |
+
+On-device repro (Pixel 7a, Android 17 / API 37). Two things make it fiddly:
+
+- `settings put global always_finish_activities 1` is **not** enough — the
+  framework only picks that value up at boot or when the Developer options
+  switch is tapped. Cycle the switch (off, then on) and confirm with
+  `dumpsys activity activities`: a backgrounded Activity must report
+  `state=DESTROYED`, not `state=STOPPED`.
+- Android 13+'s system Photo Picker is translucent and launches **into the
+  caller's own task** (`numActivities=2`, `isTopActivityTransparent=true`), so
+  our Activity stays visible and is never destroyed behind it. Pressing Home
+  while the picker is open is what backgrounds the whole task and destroys us.
+
+Full sequence, which poisons the record and then crashes on the next cold
+start:
+
+1. Cycle "Don't keep activities" on.
+2. Open a chat, `+` -> Media Library.
+3. Press Home while the picker is open. Our Activity is destroyed while the
+   launch is in flight: `persistInstanceState` writes the state, and the
+   observer's `ON_DESTROY` branch calls `unregister(key)`, which drops the main
+   callback.
+4. Reopen the app. The picker's result now dispatches with no main callback and
+   no lifecycle container, so `doDispatch` falls to case 3 and puts an
+   `ActivityResult` into `pendingResults`. Re-registration uses fresh
+   `AppContext_rq#N` keys, so nothing reads it yet.
+5. Press Home again. `onHostDestroy` persists the poisoned `pendingResults`.
+6. `am force-stop`, then launch. The new process restarts `nextLocalRequestCode`
+   at 0, so re-registration reproduces the persisted key, the `ON_START`
+   observer reads it, and the app dies with the stack above.
+
+Still to validate:
+- Watch Crashlytics issue `64ea60afab69dc0c718aeada5d06e6c7` on the release
+  after this lands.
+
+Removal:
+Drop this patch once we pin an `expo-modules-core` release that includes
+[#49836](https://github.com/expo/expo/pull/49836), and confirm the Crashlytics
+issue stays closed.
+
+Known limit (not fixed here):
+`restoreInstanceState` still propagates any value it cannot read, so a record
+that is unreadable for some *other* reason stays fatal. The realistic case is
+an app update landing between `persistInstanceState` and the restore, inside
+the 5-minute window: the persisted class names are R8-obfuscated and the
+mapping is per-build. Making the restore path non-fatal is a separate change
+that upstream deliberately left to a maintainer
+([option 3](https://github.com/expo/expo/pull/49836) in the PR description).

@@ -6,7 +6,7 @@ These instructions are for working on the Tlon app as a developer at Tlon.
 
 -   `/desk`: The folder containing the desk for %groups. This currently contains the agents necessary for the Tlon app.
 
--   `/apps/tlon-web`: Tlon is built primarily using [React], [Typescript], and [Tailwind CSS]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
+-   `/apps/tlon-web`: Tlon is built primarily using [React], [TypeScript], and [Tamagui]. [Vite] ensures that all code and assets are loaded appropriately, bundles the application for distribution and provides a functional dev environment.
 
 ## Getting Started
 
@@ -89,7 +89,7 @@ This project uses husky to run git pre-commit hooks. You may disable Husky by ad
 
 [react]: https://reactjs.org/
 [typescript]: https://www.typescriptlang.org/
-[tailwind css]: https://tailwindcss.com/
+[tamagui]: https://tamagui.dev/
 [vite]: https://vitejs.dev/
 
 ## Glossary

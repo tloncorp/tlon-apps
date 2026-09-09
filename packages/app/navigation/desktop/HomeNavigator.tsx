@@ -21,6 +21,7 @@ import { GroupChannelsScreenContent } from '../../features/top/GroupChannelsScre
 import MediaViewerScreen from '../../features/top/MediaViewerScreen';
 import { NotesDetailScreen } from '../../features/top/NotesDetailScreen';
 import { NotesFolderScreen } from '../../features/top/NotesFolderScreen';
+import { NotesSearchScreen } from '../../features/top/NotesSearchScreen';
 import PostScreen from '../../features/top/PostScreen';
 import { UserProfileScreen } from '../../features/top/UserProfileScreen';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
@@ -226,6 +227,12 @@ function ChannelStack(
           name="NotesFolder"
           // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
           component={NotesFolderScreen}
+          initialParams={props.route.params}
+        />
+        <ChannelStackNavigator.Screen
+          name="NotesSearch"
+          // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
+          component={NotesSearchScreen}
           initialParams={props.route.params}
         />
         <ChannelStackNavigator.Screen

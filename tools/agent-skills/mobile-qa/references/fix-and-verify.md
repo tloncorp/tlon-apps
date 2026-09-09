@@ -15,7 +15,7 @@
 
 3. **Hygiene before committing:**
    - Typecheck: `cd packages/<pkg> && npx tsc --noEmit` (or `pnpm -r tsc`).
-   - Prettier: `npx prettier --write <changed files>`.
+   - Format: `pnpm format` (or `pnpm exec oxfmt <changed files>`).
    - Branch off `develop` **explicitly** — don't rely on current HEAD:
      `git fetch origin && git switch -c <user>/tlon-<NNNN>-<slug> origin/develop`.
      (`git checkout -b <name>` with no start point branches from wherever you

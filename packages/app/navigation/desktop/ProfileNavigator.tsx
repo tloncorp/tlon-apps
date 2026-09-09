@@ -4,6 +4,7 @@ import {
 } from '@react-navigation/drawer';
 import { NavigationState } from '@react-navigation/routers';
 import { View, getVariableValue, useTheme } from '@tamagui/core';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
@@ -37,6 +38,7 @@ function DrawerContent(props: DrawerContentComponentProps) {
 
   const onContactPress = useCallback(
     (contact: db.Contact) => {
+      trackEvent(AnalyticsEvent.ContactProfileSelected);
       navigate('UserProfile', { userId: contact.id });
     },
     [navigate]

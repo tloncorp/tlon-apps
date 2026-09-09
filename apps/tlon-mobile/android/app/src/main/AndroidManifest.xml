@@ -30,6 +30,7 @@
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATE_URL" android:value="https://u.expo.dev/617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0"/>
+    <meta-data android:name="rnfirebase_crashlytics_auto_collection_enabled" android:value="${crashlyticsAutoCollectionEnabled}"/>
     <meta-data android:name="io.branch.sdk.BranchKey" android:value="key_live_hubypwhuxR6vkwKfdozyRoamErouusXi"/>
     <meta-data android:name="io.branch.sdk.BranchKey.test" android:value="key_test_cBouaumqwI4DdzNbpcxyUhjatqiFwtG5"/>
     <service android:name=".TalkMessagingService" android:exported="false">

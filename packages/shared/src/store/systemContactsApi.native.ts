@@ -1,5 +1,5 @@
 import * as domain from '@tloncorp/api/types/index';
-import * as Contacts from 'expo-contacts';
+import * as Contacts from 'expo-contacts/legacy';
 import * as Localization from 'expo-localization';
 import { CountryCode, parsePhoneNumberFromString } from 'libphonenumber-js';
 

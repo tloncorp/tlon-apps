@@ -5,6 +5,7 @@ import {
   useNavigation,
 } from '@react-navigation/native';
 import {
+  AnalyticsEvent,
   createNotebookFolder,
   createNotebookNote,
   deleteNotebookFolder,
@@ -16,8 +17,11 @@ import {
   publishedNotePath,
   publishedNoteUrl,
   renameNotebookFolder,
+  trackEvent,
   unpublishNotebookNote,
+  useLiveThreadUnreadsByChannel,
   useMutableCallback,
+  useNotesSearchSupported,
   usePublishedNotesForNotebook,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -33,6 +37,7 @@ import type { RootStackParamList } from '../../../navigation/types';
 import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import { NotesActionGroupList } from './NotesActions';
 import { NotebookGateMessage, useNotebookData } from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
@@ -56,9 +61,19 @@ import {
   NotesNoteDetail,
   type NotesNoteDraftSnapshot,
   getNotesNoteDraftSnapshot,
+  getNotesNoteDraftSnapshotExpiry,
+  usePendingNotesNoteSaveChanges,
 } from './NotesNoteDetail';
+import { NotesSearchModal } from './NotesSearchModal';
+import type { NotesSearchResultNote } from './NotesSearchResults';
 import { NotesEmptyDetailPane, NotesTreePane } from './NotesTreePane';
 import { canSelectNotesImportSources } from './notesImport';
+import {
+  type PublishedNoteBaselines,
+  notePublishContentKey,
+  reconcilePublishedNoteUpdates,
+  sameNoteIds,
+} from './notesPublishMenu';
 import { trackNotesActionError } from './notesTelemetry';
 import {
   type FolderRow,
@@ -66,9 +81,12 @@ import {
   buildFolderDestinationRows,
   buildFolderNoteCounts,
   buildFolderRows,
+  buildFolderUnreadCounts,
   getFolderLabel,
   getNextNoteIdAfterDelete,
   getNextNoteIdAfterFolderDelete,
+  getNotesSidebarParentFolderId,
+  makeNotesFolderPathLabeler,
 } from './notesTree';
 import { useNotesImportController } from './useNotesImportController';
 
@@ -109,12 +127,18 @@ export function NotesNativeChannel({
   channelTitle,
   folderId,
   groupId,
+  initialNoteId,
   notebookFlag,
 }: {
   channelId: string;
   channelTitle?: string;
   folderId?: number | null;
   groupId?: string | null;
+  // Note to select on mount, so opening a note whose folder isn't the one on
+  // screen lands with the tree showing that folder and the note selected in
+  // it. Also carries notification/activity targets (via selectedPostId): if
+  // the note hasn't synced yet, the open effect below retries until it lands.
+  initialNoteId?: number | null;
   notebookFlag: string | null | undefined;
 }) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -132,7 +156,12 @@ export function NotesNativeChannel({
   const showToast = useToast();
   const useDesktopSplit = Platform.OS === 'web' && !isWindowNarrow;
   const notebookSidebarSourceId = `${channelId}/${folderId ?? 'root'}`;
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [desktopFolderId, setDesktopFolderId] = useState<number | null>(
+    folderId ?? null
+  );
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
+    initialNoteId ?? null
+  );
   const [newFolderName, setNewFolderName] = useState('');
   const [newFolderParentId, setNewFolderParentId] = useState<number | null>(
     null
@@ -142,6 +171,10 @@ export function NotesNativeChannel({
   const [isCreatingNote, setIsCreatingNote] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [newActionSheetOpen, setNewActionSheetOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [pendingDesktopNoteId, setPendingDesktopNoteId] = useState<
+    number | null
+  >(null);
   const [publishingAction, setPublishingAction] =
     useState<PublishingAction>(null);
   const [renameFolderName, setRenameFolderName] = useState('');
@@ -173,7 +206,23 @@ export function NotesNativeChannel({
   const [focusTitleNoteId, setFocusTitleNoteId] = useState<number | null>(null);
   const [startEditNoteId, setStartEditNoteId] = useState<number | null>(null);
   const activeNoteDraftRef = useRef<NotesNoteDraftSnapshot | null>(null);
+  // Keyed on the active draft's *content*, not just its note id: the editor
+  // republishes a snapshot on every keystroke, and continuous typing keeps
+  // resetting the autosave debounce, so a note-id-only trigger would leave
+  // the publish reconciliation stale for as long as the user keeps typing.
+  const [activeDraftPublishKey, setActiveDraftPublishKey] = useState<
+    string | null
+  >(null);
+  const publishedNoteContentBaselinesRef = useRef<PublishedNoteBaselines>(
+    new Map()
+  );
+  const publishedNoteContentNotebookRef = useRef(notebookFlag);
+  const [notesWithPublishedUpdates, setNotesWithPublishedUpdates] = useState(
+    new Set<number>()
+  );
+  const [retainedDraftExpiryTick, setRetainedDraftExpiryTick] = useState(0);
 
+  const searchSupported = useNotesSearchSupported();
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
     { syncEnabled: isFocused }
@@ -183,6 +232,11 @@ export function NotesNativeChannel({
       notebookFlag,
       enabled: Boolean(notebookFlag),
     });
+  const pendingNotesNoteSaveEpoch = usePendingNotesNoteSaveChanges();
+
+  useEffect(() => {
+    setDesktopFolderId(folderId ?? null);
+  }, [folderId]);
 
   // Derived, never stored: the selected folder is the folder of the note
   // selected in the split pane — the only selection the tree makes visible.
@@ -209,7 +263,36 @@ export function NotesNativeChannel({
     () => buildFolderNoteCounts(folders, notes),
     [folders, notes]
   );
-  const activeFolderId = folderId ?? rootFolderId;
+  // Per-note unreads ride thread unreads keyed by the raw note id; roll them
+  // up the folder tree so every ancestor of an unread note shows a dot.
+  const { data: noteUnreads } = useLiveThreadUnreadsByChannel(channelId);
+  const unreadNoteIds = useMemo(() => {
+    const ids = new Set<number>();
+    noteUnreads?.forEach((unread) => {
+      if ((unread.count ?? 0) > 0) {
+        ids.add(Number(unread.threadId));
+      }
+    });
+    return ids;
+  }, [noteUnreads]);
+  const folderUnreadCounts = useMemo(
+    () => buildFolderUnreadCounts(folders, notes, unreadNoteIds),
+    [folders, notes, unreadNoteIds]
+  );
+  const activeFolderId = useDesktopSplit
+    ? (desktopFolderId ?? rootFolderId)
+    : (folderId ?? rootFolderId);
+  const displayedFolderId =
+    activeFolderId != null &&
+    activeFolderId !== rootFolderId &&
+    folders.some((folder) => folder.folderId === activeFolderId)
+      ? activeFolderId
+      : null;
+  useEffect(() => {
+    if (displayedFolderId !== null) {
+      trackEvent(AnalyticsEvent.NotesFolderOpened);
+    }
+  }, [displayedFolderId]);
   const treeRows = useMemo(
     () =>
       buildFolderContentsRows({
@@ -247,6 +330,15 @@ export function NotesNativeChannel({
   const handleNoteDraftChange = useMutableCallback(
     (draft: NotesNoteDraftSnapshot | null) => {
       activeNoteDraftRef.current = draft;
+      const nextKey = draft
+        ? `${draft.noteId}:${notePublishContentKey({
+            title: draft.title,
+            body: draft.body,
+          })}`
+        : null;
+      setActiveDraftPublishKey((current) =>
+        current === nextKey ? current : nextKey
+      );
     }
   );
   const getNotePublishContent = useMutableCallback((note: db.NotesNote) => {
@@ -271,64 +363,323 @@ export function NotesNativeChannel({
       body: note.bodyMd,
     };
   });
+  useEffect(() => {
+    if (!publishedNotes) return;
+
+    if (publishedNoteContentNotebookRef.current !== notebookFlag) {
+      publishedNoteContentNotebookRef.current = notebookFlag;
+      publishedNoteContentBaselinesRef.current.clear();
+    }
+
+    const publishedNoteIds = new Set(
+      publishedNotes.map((record) => record.noteId)
+    );
+    // Only published notes can need an update, and this runs on every
+    // keystroke of an open draft — so don't key content for the rest of the
+    // notebook just to have the reconciler discard it. Reading the content
+    // first also prunes any snapshot that has expired since the last run.
+    const publishableNotes = notes
+      .filter((note) => publishedNoteIds.has(note.noteId))
+      .map((note) => ({
+        noteId: note.noteId,
+        publishContent: getNotePublishContent(note),
+      }));
+    const next = reconcilePublishedNoteUpdates({
+      baselines: publishedNoteContentBaselinesRef.current,
+      notes: publishableNotes,
+      publishedNoteIds,
+    });
+    setNotesWithPublishedUpdates((current) =>
+      sameNoteIds(current, next) ? current : next
+    );
+
+    // A retained snapshot expiring silently changes what a publish would
+    // send, and nothing announces it — so wake up at the earliest deadline
+    // and reconcile again. The active note is excluded because its content
+    // comes from the draft ref, which no deadline applies to.
+    if (!notebookFlag) return;
+    const activeDraft = activeNoteDraftRef.current;
+    const activeDraftNoteId =
+      activeDraft?.notebookFlag === notebookFlag ? activeDraft.noteId : null;
+    let earliestExpiry: number | null = null;
+    for (const note of publishableNotes) {
+      if (note.noteId === activeDraftNoteId) continue;
+      const expiry = getNotesNoteDraftSnapshotExpiry(notebookFlag, note.noteId);
+      if (
+        expiry !== null &&
+        (earliestExpiry === null || expiry < earliestExpiry)
+      ) {
+        earliestExpiry = expiry;
+      }
+    }
+    if (earliestExpiry === null) return;
+
+    const timer = setTimeout(
+      () => setRetainedDraftExpiryTick((tick) => tick + 1),
+      Math.max(earliestExpiry - Date.now(), 0) + 1
+    );
+    return () => clearTimeout(timer);
+    // `getNotePublishContent` reads draft state through refs, so the draft
+    // content key, the save epoch, and the expiry tick are what re-run this
+    // when the content a publish would send changes.
+  }, [
+    activeDraftPublishKey,
+    getNotePublishContent,
+    notebookFlag,
+    notes,
+    pendingNotesNoteSaveEpoch,
+    publishedNotes,
+    retainedDraftExpiryTick,
+  ]);
+  const hasPublishedUpdate = useMemo(
+    () => (noteId: number) => notesWithPublishedUpdates.has(noteId),
+    [notesWithPublishedUpdates]
+  );
+  const recordPublishedNoteContent = useMutableCallback(
+    (note: db.NotesNote, content: { title: string; body: string }) => {
+      const publishedContentKey = notePublishContentKey(content);
+      publishedNoteContentBaselinesRef.current.set(
+        note.noteId,
+        publishedContentKey
+      );
+      // The note can advance while the publish request is in flight, so what
+      // just went public is not necessarily what a publish would send now.
+      // Settling this here rather than clearing the note outright matters
+      // because nothing else is guaranteed to re-run: a save conflict
+      // suspends autosave, and an idle editor changes no dependency.
+      //
+      // Resolve the current row rather than trusting the one captured when
+      // the action started — an autosave can land mid-flight, and once the
+      // editor closes there is no draft left to fall back on.
+      const currentNote =
+        notes.find((row) => row.noteId === note.noteId) ?? note;
+      const needsUpdate =
+        publishedContentKey !==
+        notePublishContentKey(getNotePublishContent(currentNote));
+      setNotesWithPublishedUpdates((current) => {
+        if (current.has(note.noteId) === needsUpdate) return current;
+        const next = new Set(current);
+        if (needsUpdate) {
+          next.add(note.noteId);
+        } else {
+          next.delete(note.noteId);
+        }
+        return next;
+      });
+    }
+  );
   const selectNoteInPane = useMutableCallback((noteId: number | null) => {
     setSelectedNoteId(noteId);
   });
 
+  const didAutoSelectInitialNoteRef = useRef(false);
   useEffect(() => {
-    if (!useDesktopSplit || selectedNoteId !== null) return;
+    if (
+      !useDesktopSplit ||
+      gate ||
+      selectedNoteId !== null ||
+      didAutoSelectInitialNoteRef.current
+    ) {
+      return;
+    }
+    // a notification/activity target that hasn't synced yet takes
+    // precedence — auto-selecting the first note here would mark an
+    // unrelated note read before the target appears
+    if (
+      initialNoteId != null &&
+      consumedInitialNoteRef.current !== initialNoteId
+    ) {
+      return;
+    }
+    didAutoSelectInitialNoteRef.current = true;
     const firstNote = treeRows.find((row) => row.type === 'note')?.note;
     if (!firstNote) return;
     selectNoteInPane(firstNote.noteId);
-  }, [selectNoteInPane, selectedNoteId, treeRows, useDesktopSplit]);
+  }, [
+    selectNoteInPane,
+    selectedNoteId,
+    treeRows,
+    useDesktopSplit,
+    initialNoteId,
+    gate,
+  ]);
 
   useEffect(() => {
+    // While the notebook is still gated, `notes` isn't authoritative yet —
+    // clearing here would drop a selection seeded from the route before its
+    // note had a chance to load.
+    if (gate) return;
     if (
       selectedNoteId !== null &&
       !notes.some((note) => note.noteId === selectedNoteId)
     ) {
       setSelectedNoteId(null);
     }
-  }, [notes, selectedNoteId]);
+  }, [gate, notes, selectedNoteId]);
 
-  const openNote = useMutableCallback(
+  const openNoteId = useMutableCallback(
     (
-      note: db.NotesNote,
+      noteId: number,
       options?: { focusTitle?: boolean; startInEdit?: boolean }
     ) => {
       if (options?.focusTitle) {
-        setFocusTitleNoteId(note.noteId);
+        setFocusTitleNoteId(noteId);
       }
       if (options?.startInEdit) {
-        setStartEditNoteId(note.noteId);
+        setStartEditNoteId(noteId);
       }
 
+      setPendingDesktopNoteId(null);
       if (useDesktopSplit) {
-        selectNoteInPane(note.noteId);
+        selectNoteInPane(noteId);
         return;
       }
 
       navigation.navigate('NotesDetail', {
         channelId,
         groupId: groupId ?? undefined,
-        noteId: note.noteId,
+        noteId,
         focusTitle: options?.focusTitle,
         startInEdit: options?.startInEdit,
       });
     }
   );
 
+  const openNote = useMutableCallback(
+    (
+      note: db.NotesNote,
+      options?: { focusTitle?: boolean; startInEdit?: boolean }
+    ) => openNoteId(note.noteId, options)
+  );
+
+  useEffect(() => {
+    if (pendingDesktopNoteId == null) return;
+    if (!notes.some((note) => note.noteId === pendingDesktopNoteId)) return;
+
+    openNoteId(pendingDesktopNoteId);
+  }, [notes, openNoteId, pendingDesktopNoteId]);
+
+  // a notification or activity press targets a specific note; open it once
+  // its record has synced (the notes dep keeps this retrying until the note
+  // appears, then the ref consumes the target). The state initializer above
+  // covers already-synced notes on desktop; this also handles late sync and
+  // narrow-mode navigation.
+  const consumedInitialNoteRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (initialNoteId == null) return;
+    if (consumedInitialNoteRef.current === initialNoteId) return;
+    const note = notes.find((n) => n.noteId === initialNoteId);
+    if (!note) return;
+    consumedInitialNoteRef.current = initialNoteId;
+    openNote(note);
+  }, [initialNoteId, notes, openNote]);
+
   const handleTitleAutoFocused = useMutableCallback(() => {
     setFocusTitleNoteId(null);
   });
 
+  // The split view keeps search in an overlay so the tree and the open note
+  // stay in place; a stacked layout has room for a screen of its own.
+  const openSearch = useMutableCallback(() => {
+    if (useDesktopSplit) {
+      trackEvent(AnalyticsEvent.NotesSearchOpened);
+      setSearchOpen(true);
+      return;
+    }
+
+    // The search screen reports the open itself, so this path doesn't.
+    navigation.navigate('NotesSearch', {
+      channelId,
+      groupId: groupId ?? undefined,
+    });
+  });
+
+  // A search hit comes off the wire rather than out of the local tree, so it's
+  // opened by id — the note may not be in `notes` yet on a thin client.
+  //
+  // The tree shows one folder's contents, so a hit from a different folder
+  // also moves the desktop sidebar there. The detail pane stays mounted and
+  // changes only because the user explicitly selected this search result.
+  const handleSelectSearchResult = useMutableCallback(
+    (note: NotesSearchResultNote) => {
+      trackEvent(AnalyticsEvent.NotesSearchResultSelected);
+
+      const noteFolderId = note.folderId ?? rootFolderId;
+      if (!useDesktopSplit) {
+        openNoteId(note.noteId);
+        return;
+      }
+
+      if (noteFolderId != null && noteFolderId !== activeFolderId) {
+        setDesktopFolderId(noteFolderId === rootFolderId ? null : noteFolderId);
+      }
+
+      if (notes.some((candidate) => candidate.noteId === note.noteId)) {
+        openNoteId(note.noteId);
+      } else {
+        setPendingDesktopNoteId(note.noteId);
+      }
+    }
+  );
+
+  const getSearchResultFolderPath = useMemo(
+    () => makeNotesFolderPathLabeler({ folders, rootFolderId }),
+    [folders, rootFolderId]
+  );
+
+  useEffect(() => {
+    if (!useDesktopSplit || !isFocused || !searchSupported) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // ⌘⇧F matches the standalone notes PWA's search shortcut. ⌘K is already
+      // taken by the app-wide quick jump.
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.shiftKey &&
+        event.key.toLowerCase() === 'f'
+      ) {
+        event.preventDefault();
+        // Routed through openSearch so a shortcut open is reported like a
+        // header-button one.
+        if (searchOpen) {
+          setSearchOpen(false);
+        } else {
+          openSearch();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFocused, openSearch, searchOpen, searchSupported, useDesktopSplit]);
+
   const openFolder = useMutableCallback((folder: db.NotesFolder) => {
+    if (useDesktopSplit) {
+      setDesktopFolderId(folder.folderId);
+      return;
+    }
+
     navigation.dispatch(
       StackActions.push('NotesFolder', {
         channelId,
         folderId: folder.folderId,
         folderTitle: getFolderLabel(folder),
         groupId: groupId ?? undefined,
+      })
+    );
+  });
+
+  const activeSidebarFolder = folders.find(
+    (folder) => folder.folderId === activeFolderId
+  );
+  const sidebarIsNested =
+    activeFolderId != null && activeFolderId !== rootFolderId;
+  const handleSidebarBack = useMutableCallback(() => {
+    setDesktopFolderId(
+      getNotesSidebarParentFolderId({
+        folderId: activeFolderId,
+        folders,
+        rootFolderId,
       })
     );
   });
@@ -363,6 +714,7 @@ export function NotesNativeChannel({
         title: '',
       });
       if (note) {
+        trackEvent(AnalyticsEvent.NoteCreated);
         openNote(note, { focusTitle: true, startInEdit: true });
       }
     });
@@ -382,11 +734,14 @@ export function NotesNativeChannel({
     const parentFolderId = newFolderParentId ?? rootFolderId;
     setIsCreatingFolder(true);
     await runAction('Failed to create folder', async () => {
-      await createNotebookFolder({
+      const folder = await createNotebookFolder({
         notebookFlag,
         parentFolderId,
         name: newFolderName.trim(),
       });
+      if (folder) {
+        trackEvent(AnalyticsEvent.NotesFolderCreated);
+      }
       setNewFolderName('');
       setNewFolderParentId(null);
       setAddFolderOpen(false);
@@ -418,7 +773,7 @@ export function NotesNativeChannel({
     isDragImportActive,
     isImportingNotes,
   } = useNotesImportController({
-    activeFolderId: folderId ?? null,
+    activeFolderId,
     canDropImportNotes,
     canEdit,
     folders,
@@ -533,7 +888,13 @@ export function NotesNativeChannel({
           title: content.title,
           body: content.body,
         });
+        // Record only once the published list includes this note. Doing it
+        // first leaves the baseline exposed to a reconciliation that still
+        // sees the note as unpublished and prunes it, which would strand a
+        // first publication with an unknown baseline. The ref write lands
+        // before the effect runs for the refetched list.
         await refetchPublishedNotes();
+        recordPublishedNoteContent(note, content);
         publishedUrl = getPublishedNoteShareUrl(publishedPath);
         published = true;
       });
@@ -799,23 +1160,49 @@ export function NotesNativeChannel({
       <NotesHeaderActions
         canEdit={canEdit}
         onNew={() => setNewActionSheetOpen(true)}
+        onSearch={searchSupported ? openSearch : undefined}
         primaryActionVariant={useDesktopSplit ? 'icon' : 'text'}
       />
     );
-  }, [canEdit, gate, notebookFlag, useDesktopSplit]);
+  }, [
+    canEdit,
+    gate,
+    notebookFlag,
+    openSearch,
+    searchSupported,
+    useDesktopSplit,
+  ]);
+
+  const sidebarHeaderActions = useMemo<ScreenHeaderAction[]>(() => {
+    if (!notebookFlag || gate === 'unjoinable' || !canEdit) {
+      return [];
+    }
+    return [
+      {
+        id: 'NotesRootNewHeaderAction',
+        icon: 'Add',
+        label: 'New',
+        onPress: () => setNewActionSheetOpen(true),
+        testID: 'NotesRootNewHeaderAction',
+      },
+    ];
+  }, [canEdit, gate, notebookFlag]);
 
   useRegisterChannelHeaderItem(useDesktopSplit ? null : headerActions);
 
   const notesTreePane = (
     <NotesTreePane
       canEdit={canEdit}
+      folderUnreadCounts={folderUnreadCounts}
       getPublishedNoteUrl={getPublishedNoteUrl}
+      hasPublishedUpdate={hasPublishedUpdate}
       isDeletingFolder={isDeletingFolder}
       isNotePublished={isNotePublished}
       layout={useDesktopSplit ? 'takeover' : 'stack'}
       publishDisabled={publishingAction !== null}
       selectedNoteId={useDesktopSplit ? selectedNoteId : null}
       treeRows={treeRows}
+      unreadNoteIds={unreadNoteIds}
       onDeleteFolder={handleDeleteFolder}
       onDeleteNote={handleDeleteNote}
       onMoveFolder={openMoveFolderDialog}
@@ -837,9 +1224,13 @@ export function NotesNativeChannel({
       ? {
           channelId,
           actions: headerActions,
+          backAction: sidebarIsNested ? handleSidebarBack : undefined,
           content: notesTreePane,
           groupId,
-          title: channelTitle ?? 'Notebook',
+          headerActions: sidebarHeaderActions,
+          title: sidebarIsNested
+            ? getFolderLabel(activeSidebarFolder)
+            : (channelTitle ?? 'Notebook'),
         }
       : null,
     notebookSidebarSourceId
@@ -964,6 +1355,15 @@ export function NotesNativeChannel({
         onOpenChange={handleMoveFolderOpenChange}
         open={movingFolder !== null}
       />
+      {useDesktopSplit ? (
+        <NotesSearchModal
+          getFolderPath={getSearchResultFolderPath}
+          notebookFlag={notebookFlag}
+          onOpenChange={setSearchOpen}
+          onSelectNote={handleSelectSearchResult}
+          open={searchOpen}
+        />
+      ) : null}
     </YStack>
   );
 }

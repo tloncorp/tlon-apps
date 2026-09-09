@@ -40,7 +40,9 @@ export enum AnalyticsEvent {
   ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
   ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
+  SubscribeOnceRecovered = 'Subscribe Once Recovered',
   ErrorNativeDb = 'Native DB Error',
+  ErrorWebDb = 'Web DB Error',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
@@ -64,6 +66,9 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotSettingUpdated = 'Tlonbot Setting Updated',
+  TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
+  TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',
   VideoUploadStarted = 'Video Upload Started',
   VideoUploadFailed = 'Video Upload Failed',
@@ -127,6 +132,73 @@ export enum AnalyticsEvent {
   ActionUpdatedGroupNavigation = 'Updated Group Navigation',
   ActionViewProfileGroup = 'Viewed Pinned Profile Group',
   ActionSelectActivityEvent = 'Tapped Activity Event',
+  NavigationTabSelected = 'Navigation Tab Selected',
+  HomeFilterSelected = 'Home Filter Selected',
+  MessagesFilterSelected = 'Messages Filter Selected',
+  HomeSearchOpened = 'Home Search Opened',
+  CreateMenuOpened = 'Create Menu Opened',
+  CreateOptionSelected = 'Create Option Selected',
+  GlobalSearchOpened = 'Global Search Opened',
+  GlobalSearchResultSelected = 'Global Search Result Selected',
+  ChannelSearchResultSelected = 'Channel Search Result Selected',
+  ActivityFilterSelected = 'Activity Filter Selected',
+  ActivityMarkedAllRead = 'Activity Marked All Read',
+  ContactProfileSelected = 'Contact Profile Selected',
+  NoteOpened = 'Note Opened',
+  /**
+   * Fires when the authenticated navigator reveals the furnished onboarding
+   * chat after account creation.
+   */
+  AgentOnboardingChatOpened = 'Agent Onboarding Chat Opened',
+  /**
+   * Fires once when the owner first opens the generated onboarding entry.
+   */
+  AgentEntryFirstOpened = 'Agent Entry First Opened',
+  NoteCreated = 'Note Created',
+  NoteSaved = 'Note Saved',
+  NoteMoved = 'Note Moved',
+  NotePublished = 'Note Published',
+  NoteUnpublished = 'Note Unpublished',
+  NoteDeleted = 'Note Deleted',
+  NotesFolderCreated = 'Notes Folder Created',
+  NotesFolderOpened = 'Notes Folder Opened',
+  NotesFolderRenamed = 'Notes Folder Renamed',
+  NotesFolderMoved = 'Notes Folder Moved',
+  NotesFolderDeleted = 'Notes Folder Deleted',
+  NotesImportCompleted = 'Notes Import Completed',
+  NotesSearchOpened = 'Notes Search Opened',
+  NotesSearchResultSelected = 'Notes Search Result Selected',
+  MediaDownloaded = 'Media Downloaded',
+  PostOpened = 'Post Opened',
+  MediaOpened = 'Media Opened',
+  FileOpened = 'File Opened',
+  ExternalLinkOpened = 'External Link Opened',
+  ContentSendCompleted = 'Content Send Completed',
+  PostEditCompleted = 'Post Edit Completed',
+  AttachmentAdded = 'Attachment Added',
+  VoiceMemoPlaybackRequested = 'Voice Memo Playback Requested',
+  VoiceMemoSent = 'Voice Memo Sent',
+  ChannelLeft = 'Channel Left',
+  ChannelSearchOpened = 'Channel Search Opened',
+  ChatOptionsOpened = 'Chat Options Opened',
+  NotificationLevelChanged = 'Notification Level Changed',
+  ChatMarkedRead = 'Chat Marked Read',
+  ChannelSortChanged = 'Channel Sort Changed',
+  PinnedChatsReordered = 'Pinned Chats Reordered',
+  PostPinned = 'Post Pinned',
+  PostUnpinned = 'Post Unpinned',
+  ThreadMuted = 'Thread Muted',
+  ThreadUnmuted = 'Thread Unmuted',
+  PostReported = 'Post Reported',
+  OnboardingPathSelected = 'Onboarding Path Selected',
+  InviteSurfaceOpened = 'Invite Surface Opened',
+  InviteOpened = 'Invite Opened',
+  InviteRedeemed = 'Invite Redeemed',
+  NotificationPreferenceChanged = 'Notification Preference Changed',
+  PrivacyPreferenceChanged = 'Privacy Preference Changed',
+  LogoutCompleted = 'Logout Completed',
+  ContactDiscoveryCompleted = 'Contact Discovery Completed',
+  ProfileOpened = 'Profile Opened',
   ActionsNotifPermsChecked = 'Checked Notification Permissions',
   ActionNotifPermsSettingsOpened = 'Opened Notification Settings from Nag',
   ActionNotifPermsGrantedFromNag = 'Granted Notification Permission from Nag',
@@ -172,6 +244,39 @@ export enum AnalyticsEvent {
   ErrorThemeUpdate = 'Error Updating Theme Setting',
   ErrorApi = 'API Error',
   ErrorFetchLinkMetadata = 'Error Fetching Link Metadata',
+}
+
+export type TlonbotReplyFeedbackRating = 'up' | 'down';
+
+export interface TlonbotReplyFeedbackConversationExcerptItem {
+  authorType: 'user' | 'bot' | 'other';
+  sentAt: number;
+  text: string;
+}
+
+export interface TlonbotReplyFeedbackCommon {
+  feedbackId: string;
+  revision: number;
+  clientEventAt: number;
+  messageId: string;
+  botShip: string;
+  replySentAt: number;
+  isThreadReply: boolean;
+  channelType: string | null;
+  isBotDm: boolean;
+}
+
+export interface TlonbotReplyFeedbackChanged extends TlonbotReplyFeedbackCommon {
+  action: 'set' | 'clear';
+  rating?: TlonbotReplyFeedbackRating;
+}
+
+export interface TlonbotReplyFeedbackDetailsSubmitted extends TlonbotReplyFeedbackCommon {
+  rating: TlonbotReplyFeedbackRating;
+  categories: string[];
+  details: string;
+  replyText: string;
+  conversationExcerpt: TlonbotReplyFeedbackConversationExcerptItem[];
 }
 
 export interface AnalyticsDigest {

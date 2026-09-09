@@ -393,6 +393,79 @@ class PresenceTrackerTests(unittest.TestCase):
         )
         self.assertEqual(last_published_state, {})
 
+    def test_keepalive_stops_republishing_a_run_that_never_stops(self):
+        # A turn whose `stop_run` never fires must not hold the presence lease
+        # open forever.  `on_processing_complete` is the only `stop_run` call
+        # site, the gateway runs it through a hook wrapper that swallows every
+        # exception, and at least one dispatch path returns before the hook.
+        # Any of those leaves the run registered, and the keepalive then
+        # refreshes the lease for the life of the process.
+        reporter = RecordingReporter()
+
+        async def run():
+            tracker = presence.TlonComputingPresenceTracker(
+                reporter=reporter,
+                min_update_interval_ms=0,
+                max_publish_age_ms=0,
+                keepalive_interval_ms=5,
+                max_run_lifetime_ms=40,
+            )
+            # Start a run and never stop it, exactly as a leaked turn does.
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+
+            deadline = time.monotonic() + 1.0
+            while tracker._conversations.get("~mug") and time.monotonic() < deadline:
+                await asyncio.sleep(0.005)
+
+            leaked = dict(tracker._conversations)
+            published_after_expiry = len(reporter.published)
+            await asyncio.sleep(0.05)
+            still_publishing = len(reporter.published) - published_after_expiry
+
+            await tracker.close()
+            return leaked, still_publishing
+
+        leaked, still_publishing = asyncio.run(run())
+
+        # The expired run is dropped from the tracker.
+        self.assertEqual(leaked, {})
+        # The keepalive stops poking once the run expires.
+        self.assertEqual(still_publishing, 0)
+        # The lease is released, so the client stops showing the indicator.
+        self.assertEqual(
+            reporter.published[-1],
+            {"conversation_id": "~mug", "thinking": False, "tool_names": []},
+        )
+
+    def test_keepalive_republishes_forever_without_a_lifetime_cap(self):
+        # Guards the regression directly: with the cap disabled the keepalive
+        # keeps refreshing a leaked run's lease and never releases it.  This is
+        # the observed production failure, where one turn held the thinking
+        # indicator open for hours until the gateway restarted.
+        reporter = RecordingReporter()
+
+        async def run():
+            tracker = presence.TlonComputingPresenceTracker(
+                reporter=reporter,
+                min_update_interval_ms=0,
+                max_publish_age_ms=0,
+                keepalive_interval_ms=5,
+                max_run_lifetime_ms=0,
+            )
+            await tracker.refresh_run(conversation_id="~mug", run_id="run-1")
+            await asyncio.sleep(0.12)
+            registered = bool(tracker._conversations.get("~mug"))
+            published = list(reporter.published)
+            for task in tracker._keepalive_tasks.values():
+                task.cancel()
+            return registered, published
+
+        registered, published = asyncio.run(run())
+
+        self.assertTrue(registered)
+        self.assertGreaterEqual(len(published), 3)
+        self.assertTrue(all(item["thinking"] is True for item in published))
+
     def test_hook_bridge_updates_active_tracker_from_session_env(self):
         reporter = RecordingReporter()
 

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { TextInput as RNTextInput } from 'react-native';
-import { Text, View, XStack } from 'tamagui';
+import { Text, View, XStack, isWeb } from 'tamagui';
 
 import { Field } from './Field';
 
@@ -18,11 +18,22 @@ export function OTPInput({
   error?: string;
 }) {
   const inputRef = useRef<RNTextInput>(null);
+  const lastNativeTextRef = useRef('');
+  const [reseedKey, setReseedKey] = useState(0);
   const fullValue = value.join('');
 
   const handleChangeText = useCallback(
     (text: string) => {
+      lastNativeTextRef.current = text;
       const sanitizedText = text.replace(/\D/g, '').slice(0, length);
+      if (!isWeb && text !== sanitizedText) {
+        // Left alone, stray characters (separators in a pasted code, typing
+        // past a full code) would linger invisibly in the uncontrolled
+        // native buffer and swallow backspaces. Remount the input so
+        // defaultValue re-seeds the buffer with the sanitized code.
+        lastNativeTextRef.current = sanitizedText;
+        setReseedKey((key) => key + 1);
+      }
       const nextCode = sanitizedText.split('');
       while (nextCode.length < length) {
         nextCode.push('');
@@ -33,10 +44,22 @@ export function OTPInput({
   );
 
   useEffect(() => {
+    // Runs on mount and again after a reseed remount replaces the input.
     setTimeout(() => {
       inputRef.current?.focus();
     });
-  }, []);
+  }, [reseedKey]);
+
+  useEffect(() => {
+    // The native input is uncontrolled (see below), so when the parent
+    // resets the code externally (e.g. requesting a new one) we have to
+    // clear the native text imperatively.
+    if (isWeb || fullValue !== '' || lastNativeTextRef.current === '') {
+      return;
+    }
+    lastNativeTextRef.current = '';
+    inputRef.current?.clear();
+  }, [fullValue]);
 
   return (
     <Field
@@ -70,7 +93,15 @@ export function OTPInput({
         })}
         <RNTextInput
           ref={inputRef}
-          value={fullValue}
+          // Remounting is the only race-free way to rewrite the uncontrolled
+          // native buffer (see handleChangeText).
+          key={reseedKey}
+          // Echoing a controlled value back mid-IME-composition duplicates
+          // the composed text on Android (stale mostRecentEventCount) —
+          // worse here because the echoed value is sanitized — so native
+          // stays uncontrolled; the digit boxes above render from state.
+          value={isWeb ? fullValue : undefined}
+          defaultValue={isWeb ? undefined : fullValue}
           onChangeText={handleChangeText}
           keyboardType="number-pad"
           autoComplete="off"

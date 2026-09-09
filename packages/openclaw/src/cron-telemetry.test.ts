@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { TlonCronOtelObserver } from './cron-observability.js';
 import {
   _testing,
   buildCronJobChangedReport,
@@ -72,6 +73,35 @@ function makeFinishedEvent(
     provider: 'anthropic',
     summary: 'secret run output',
     ...overrides,
+  };
+}
+
+function makeCronObserver(): {
+  observer: TlonCronOtelObserver;
+  recordAgentContext: ReturnType<typeof vi.fn>;
+  recordFinished: ReturnType<typeof vi.fn>;
+  recordJobSnapshot: ReturnType<typeof vi.fn>;
+  recordStarted: ReturnType<typeof vi.fn>;
+  reset: ReturnType<typeof vi.fn>;
+} {
+  const recordAgentContext = vi.fn();
+  const recordFinished = vi.fn();
+  const recordJobSnapshot = vi.fn();
+  const recordStarted = vi.fn();
+  const reset = vi.fn();
+  return {
+    observer: {
+      recordAgentContext,
+      recordFinished,
+      recordJobSnapshot,
+      recordStarted,
+      reset,
+    },
+    recordAgentContext,
+    recordFinished,
+    recordJobSnapshot,
+    recordStarted,
+    reset,
   };
 }
 
@@ -308,24 +338,78 @@ describe('cron telemetry hook handling', () => {
   }
 
   it('reports a run for finished events', async () => {
-    await handleCronChangedEvent(makeFinishedEvent(), {});
+    const { observer, recordFinished } = makeCronObserver();
+    await handleCronChangedEvent(makeFinishedEvent(), {}, { observer });
+    expect(recordFinished).toHaveBeenCalledWith({
+      agentId: 'agent-main',
+      cronError: null,
+      delivered: true,
+      deliveryError: null,
+      deliveryStatus: 'delivered',
+      durationMs: 1_234,
+      jobId: 'job-1',
+      jobName: 'morning briefing',
+      model: 'claude-sonnet-5',
+      nextRunAtMs: 20_000,
+      payloadKind: 'agentTurn',
+      provider: 'anthropic',
+      runAtMs: 10_000,
+      runId: 'run-1',
+      scheduleKind: 'cron',
+      sessionId: 'sess-1',
+      sessionKey: 'cron:job-1',
+      sessionTargetKind: 'isolated',
+      status: 'ok',
+    });
     expect(reports).toEqual([
-      { kind: 'run', event: expect.objectContaining({ status: 'ok' }) },
+      {
+        kind: 'run',
+        event: expect.objectContaining({
+          status: 'ok',
+        }),
+      },
     ]);
   });
 
-  it('ignores started events', async () => {
-    await handleCronChangedEvent(makeFinishedEvent({ action: 'started' }), {});
+  it('projects started events to OTEL without duplicating PostHog runs', async () => {
+    const { observer, recordStarted } = makeCronObserver();
+    await handleCronChangedEvent(
+      makeFinishedEvent({ action: 'started' }),
+      {},
+      { observer }
+    );
+    expect(recordStarted).toHaveBeenCalledWith({
+      agentId: 'agent-main',
+      jobId: 'job-1',
+      jobName: 'morning briefing',
+      payloadKind: 'agentTurn',
+      runAtMs: 10_000,
+      runId: 'run-1',
+      scheduleKind: 'cron',
+      sessionId: 'sess-1',
+      sessionKey: 'cron:job-1',
+      sessionTargetKind: 'isolated',
+    });
     expect(reports).toEqual([]);
   });
 
   it('reports job changes with fresh counts from the cron service', async () => {
     const service = makeCronService([makeJob(), makeJob({ id: 'job-2' })]);
+    const { observer, recordJobSnapshot } = makeCronObserver();
     await handleCronChangedEvent(
       { action: 'added', jobId: 'job-1', job: makeJob() },
-      { getCron: () => service }
+      { getCron: () => service },
+      { observer }
     );
     expect(service.list).toHaveBeenCalledWith({ includeDisabled: true });
+    expect(recordJobSnapshot).toHaveBeenCalledWith({
+      activeCronJobCount: 2,
+      scheduleKindAtCount: 0,
+      scheduleKindCronCount: 2,
+      scheduleKindEveryCount: 0,
+      scheduleKindOnExitCount: 0,
+      totalCronJobCount: 2,
+    });
     expect(reports).toEqual([
       {
         kind: 'jobChanged',
@@ -378,6 +462,22 @@ describe('cron telemetry hook handling', () => {
         }),
       },
     ]);
+  });
+
+  it('projects boot snapshots into OTEL job inventory', async () => {
+    const service = makeCronService([makeJob(), makeOnExitJob()]);
+    const { observer, recordJobSnapshot } = makeCronObserver();
+    setCronServiceAccessor(() => service);
+
+    await expect(emitCronSnapshot({ observer })).resolves.toBe(true);
+    expect(recordJobSnapshot).toHaveBeenCalledWith({
+      activeCronJobCount: 2,
+      scheduleKindAtCount: 0,
+      scheduleKindCronCount: 1,
+      scheduleKindEveryCount: 0,
+      scheduleKindOnExitCount: 1,
+      totalCronJobCount: 2,
+    });
   });
 
   it('returns false from emitCronSnapshot when no accessor is published', async () => {

@@ -6,10 +6,10 @@ export interface TelemetryClient {
   capture: (eventName: string, properties?: Record<string, any>) => void;
   flush: () => Promise<void>;
 
-  setDisabled: (disabled: boolean) => void;
+  setDisabled: (disabled: boolean, updateSettings?: boolean) => Promise<void>;
   captureMandatoryEvent: (event: {
     eventId: string;
-    properties?: Record<string, any>;
-  }) => void;
+    properties?: Record<string, unknown>;
+  }) => Promise<void>;
   captureAppActive: (platform?: 'web' | 'mobile' | 'electron') => void;
 }

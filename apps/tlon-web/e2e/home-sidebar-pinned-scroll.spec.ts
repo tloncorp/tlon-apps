@@ -116,9 +116,9 @@ test('home sidebar mounts at the top with the Pinned section visible', async ({
   };
 
   try {
-    // Smaller viewport keeps the filler count modest while still guaranteeing
-    // the sidebar overflows.
-    await page.setViewportSize({ width: 1024, height: 480 });
+    // Keep the viewport short enough that the generated rows overflow without
+    // relying on incidental production bottom padding.
+    await page.setViewportSize({ width: 1024, height: 360 });
 
     await expect(page.getByText('Home')).toBeVisible();
 

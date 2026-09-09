@@ -1,9 +1,8 @@
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { HostedNodeStatus } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
-
-import { useStore } from '../ui';
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -21,7 +20,6 @@ export function useStoppedNodeSequence(params: {
   waitType?: string;
   enabled: boolean;
 }) {
-  const store = useStore();
   const [bootedAt, setBootedAt] = useState<number>(0);
   const [bootStepCounter, setBootCounter] = useState(0);
 
@@ -58,7 +56,7 @@ export function useStoppedNodeSequence(params: {
       logger.trackError('Login: Check node booted request failed', e);
       return NodeResumeState.WaitingForRunning;
     }
-  }, [bootStepCounter, store]);
+  }, [bootStepCounter]);
 
   const authenticateWithNode = useCallback(async () => {
     try {
@@ -93,7 +91,7 @@ export function useStoppedNodeSequence(params: {
       logger.crumb('getting auth threw', e);
       return NodeResumeState.Authenticating;
     }
-  }, [bootedAt, params.waitType, splashSequenceMode, store]);
+  }, [bootedAt, params.waitType, splashSequenceMode]);
 
   const runPhase = useCallback(
     async (currPhase: NodeResumeState) => {

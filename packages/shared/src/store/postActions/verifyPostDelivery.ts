@@ -1,6 +1,8 @@
 import * as api from '@tloncorp/api';
 
+import { trackEvent } from '../../analytics';
 import * as db from '../../db';
+import { AnalyticsEvent, PostDataDraft } from '../../domain';
 import { logger } from './logger';
 
 /**
@@ -45,7 +47,31 @@ export async function verifyPostDelivery(post: db.Post): Promise<boolean> {
         matchedWithId: matchingServerPost.id,
       });
 
-      await db.updatePost({ id: post.id, deliveryStatus: 'sent' });
+      const draft = PostDataDraft.isValid(post.draft) ? post.draft : null;
+      if (draft) {
+        PostDataDraft.revokeBlobUrls(draft);
+      }
+      await db.updatePost({
+        id: post.id,
+        deliveryStatus: 'sent',
+        draft: null,
+      });
+      if (draft) {
+        trackEvent(AnalyticsEvent.ContentSendCompleted, {
+          type: draft.channelType,
+          isReply: draft.replyToPostId != null,
+          attachmentTypes: draft.attachments.map(
+            (attachment) => attachment.type
+          ),
+        });
+        if (
+          draft.attachments.some(
+            (attachment) => attachment.type === 'voicememo'
+          )
+        ) {
+          trackEvent(AnalyticsEvent.VoiceMemoSent);
+        }
+      }
       return true;
     } else {
       logger.crumb('post verified as not delivered', { postId: post.id });

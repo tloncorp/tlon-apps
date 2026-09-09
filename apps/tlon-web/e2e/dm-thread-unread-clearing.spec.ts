@@ -52,6 +52,14 @@ test('should clear DM thread unreads while user is viewing the thread', async ({
   // ~ten sees the thread indicator
   await expect(tenPage.getByText('1 reply')).toBeVisible({ timeout: 20000 });
 
+  // The dot must be visible on ~ten's side before ~ten enters the thread
+  const tenParent = tenPage
+    .getByTestId('Post')
+    .filter({ hasText: 'DM thread unread test parent message' });
+  await expect(tenParent.getByTestId('ThreadUnreadDot')).toBeVisible({
+    timeout: 15000,
+  });
+
   // ~ten enters the thread and sends a reply WHILE ~zod is still viewing it
   await tenPage.getByText('1 reply').click();
   await expect(

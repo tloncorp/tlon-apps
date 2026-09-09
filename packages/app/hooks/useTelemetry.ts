@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
+  clearBreadcrumbs,
   createDevLogger,
   useCurrentSession,
 } from '@tloncorp/shared';
@@ -14,6 +15,7 @@ import { useCallback, useEffect } from 'react';
 import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
+import { captureMandatoryEventWithClient } from './mandatoryTelemetry';
 import { useCurrentUserId } from './useCurrentUser';
 import { usePosthog } from './usePosthog';
 
@@ -24,6 +26,10 @@ export function useClearTelemetryConfig() {
 
   const clearConfig = useCallback(async () => {
     logger.log('Clearing telemetry config');
+    // Breadcrumbs must not carry over from one account to the next on the same install.
+    // Clear before the first await: the native logout path does not await this
+    // callback, and a slow or rejected flush must not leave them behind.
+    clearBreadcrumbs();
     await posthog.flush();
     posthog?.reset();
     await didInitializeTelemetry.resetValue();
@@ -116,21 +122,18 @@ export function useTelemetry(): TelemetryClient {
       properties,
     }: {
       eventId: string;
-      properties?: Record<string, any>;
+      properties?: Record<string, unknown>;
     }) => {
       logger.log(
         `Capturing mandatory event ${eventId} with properties:`,
         properties
       );
-      const optedOut = getIsOptedOut();
-      if (optedOut) {
-        posthog?.optIn();
-        posthog?.capture(eventId, properties);
-        await posthog?.flush();
-        posthog?.optOut();
-      } else {
-        posthog?.capture(eventId, properties);
-      }
+      await captureMandatoryEventWithClient({
+        posthog,
+        getIsOptedOut,
+        eventId,
+        properties,
+      });
     },
     [posthog, getIsOptedOut]
   );

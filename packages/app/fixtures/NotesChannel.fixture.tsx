@@ -73,8 +73,8 @@ const notes = [
   makeNote(
     5,
     5,
-    'Long title: portable markdown tables, import progress, and row overflow behavior',
-    '| Area | Status |\n| --- | --- |\n| Import | Testing |\n| Publish | Ready |'
+    'Portable markdown tables',
+    'Text above the table should align with its first column.\n\n| # | Area | Status |\n| ---: | --- | --- |\n| 1 | Import | Testing |\n| 2 | Publish | Ready |\n\nText below the table should align with its first column.'
   ),
   makeNote(6, 6, '', 'Untitled note body'),
   makeNote(
@@ -82,6 +82,12 @@ const notes = [
     1,
     'Meeting notes',
     'A second root note so the list has mixed root and nested content.'
+  ),
+  makeNote(
+    8,
+    1,
+    'A long note title that should wrap onto the next line instead of getting cut off on narrow screens',
+    'Long note title fixture body.'
   ),
 ];
 const emptyFolders = [folders[0]];
@@ -308,6 +314,7 @@ function NotebookContentsListFixture() {
             getPublishedNoteUrl={(note) =>
               `https://test.tlon.app/notes/native-notes-fixture/${note.noteId}`
             }
+            hasPublishedUpdate={(noteId) => noteId === 5}
             isDeletingFolder={false}
             isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
@@ -374,6 +381,7 @@ function NotesTreeFixture() {
         >
           <NotesTreePane
             canEdit
+            hasPublishedUpdate={() => false}
             isNotePublished={() => false}
             isDeletingFolder={false}
             layout="takeover"
@@ -405,7 +413,13 @@ function ForceSavingHeaderSlot() {
   return null;
 }
 
-function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
+function NotesEditorFixture({
+  noteId = 4,
+  saving = false,
+}: {
+  noteId?: number;
+  saving?: boolean;
+}) {
   const ready = useSeedNotesFixtureData();
 
   return (
@@ -421,7 +435,7 @@ function NotesEditorFixture({ saving = false }: { saving?: boolean }) {
           />
           {ready ? (
             <NotesNoteDetail
-              noteId={4}
+              noteId={noteId}
               notebookFlag={notebookFlag}
               syncEnabled={false}
             />
@@ -437,5 +451,7 @@ export default {
   'Contents List': <NotebookContentsListFixture />,
   'Folder Contents': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
+  'Long Title': <NotesEditorFixture noteId={8} />,
+  'Table Preview': <NotesEditorFixture noteId={5} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

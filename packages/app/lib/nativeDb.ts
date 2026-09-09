@@ -21,6 +21,11 @@ export const REQUIRED_SENTINEL_TABLES = [
   schema.activityEvents,
 ].map((table) => getTableName(table));
 
+type NativeDbOptions = {
+  databaseName?: string;
+  resetSyncStateOnPurge?: boolean;
+};
+
 export class NativeDb extends BaseDb {
   private connection: SQLiteConnection | null = null;
   private isProcessingChanges: boolean = false;
@@ -28,6 +33,17 @@ export class NativeDb extends BaseDb {
   private didMigrate: boolean = false;
   private setupPromise: Promise<void> | null = null;
   private readyPromise: Promise<void> | null = null;
+  private readonly databaseName: string;
+  private readonly resetSyncStateOnPurge: boolean;
+
+  constructor({
+    databaseName = 'tlon.sqlite',
+    resetSyncStateOnPurge = true,
+  }: NativeDbOptions = {}) {
+    super();
+    this.databaseName = databaseName;
+    this.resetSyncStateOnPurge = resetSyncStateOnPurge;
+  }
 
   async setupDb() {
     logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
@@ -62,7 +78,7 @@ export class NativeDb extends BaseDb {
         this.connection = new OPSQLite$SQLiteConnection(
           // NB: the iOS code in SQLiteDB.swift relies on this path - if you change
           // this, you should change that too.
-          open({ location: 'default', name: 'tlon.sqlite' })
+          open({ location: 'default', name: this.databaseName })
         );
         // Experimental SQLite settings. May cause crashes. More here:
         // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
@@ -87,8 +103,8 @@ export class NativeDb extends BaseDb {
       } catch (e) {
         logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
           context: 'setupDb: error setting up db',
+          error: e,
           errorMessage: e.message,
-          errorStack: e.stack,
           severity: AnalyticsSeverity.Critical,
         });
         throw e;
@@ -138,8 +154,10 @@ export class NativeDb extends BaseDb {
         context: 'purgeDb: closed the connection, cleared the client',
       });
 
-      // reset values related to tracking db sync state
-      await resetDbSyncState();
+      if (this.resetSyncStateOnPurge) {
+        // reset values related to tracking db sync state
+        await resetDbSyncState();
+      }
 
       logger.trackEvent(AnalyticsEvent.NativeDbDebug, {
         context: 'purgeDb: completed purge, recreating',
@@ -151,8 +169,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'purgeDb: error purging db',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         severity: AnalyticsSeverity.Critical,
       });
       throw e;
@@ -240,8 +258,8 @@ export class NativeDb extends BaseDb {
       );
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: schema health check failed',
+        error,
         errorMessage: error.message,
-        errorStack: error.stack,
         missingTables,
         attemptId: opts?.attemptId,
         elapsedMs: opts?.elapsedMs?.(),
@@ -282,8 +300,8 @@ export class NativeDb extends BaseDb {
       );
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: setup incomplete before migration',
+        error,
         errorMessage: error.message,
-        errorStack: error.stack,
         severity: AnalyticsSeverity.Critical,
       });
       throw error;
@@ -337,8 +355,8 @@ export class NativeDb extends BaseDb {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context:
           'runMigrations: migration/schema verification failed. Attempting to purge and retry',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'initial',
@@ -366,8 +384,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry purge failed',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         severity: AnalyticsSeverity.Critical,
@@ -400,8 +418,8 @@ export class NativeDb extends BaseDb {
     } catch (e) {
       logger.trackEvent(AnalyticsEvent.ErrorNativeDb, {
         context: 'runMigrations: retry migrate failed',
+        error: e,
         errorMessage: e.message,
-        errorStack: e.stack,
         attemptId,
         elapsedMs: getElapsedMs(),
         migrationPhase: 'retry',

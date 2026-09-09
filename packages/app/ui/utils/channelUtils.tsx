@@ -1,7 +1,15 @@
 import { isDmChannelId, isGroupDmChannelId } from '@tloncorp/api/client';
-import { configurationFromChannel } from '@tloncorp/shared';
+import {
+  configurationFromChannel,
+  formatNotesChannelSubtitle,
+  notesNotebookFlagFromChannelId,
+} from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
-import { useMemberRoles } from '@tloncorp/shared/store';
+import {
+  useMemberRoles,
+  useNotesCountsByNotebook,
+  useWarmNotesNotebookSnapshot,
+} from '@tloncorp/shared/store';
 import type { IconType } from '@tloncorp/ui';
 import { useMemo } from 'react';
 
@@ -121,6 +129,35 @@ export function useChannelTitle(channel: db.Channel | null) {
       disableNicknames,
     });
   }, [channel, disableNicknames]);
+}
+
+// Notebooks have no posts, so a notes channel's row has nothing to show
+// under its title — summarize what's in the notebook instead. Counts come
+// from the locally cached notebook snapshot (null until the notebook has
+// synced at least once), and displaying them keeps that snapshot from
+// aging out, since folder changes reach us through no subscription.
+//
+// Only call this from something mounted for notes channels the user has
+// joined: it subscribes to the shared counts query, and %notes answers
+// reads only for notebooks in its local `books` map — an unjoined flag 404s
+// on every attempt. Joining flips `currentUserIsMember`, which re-enables
+// the warm and fills the subtitle in without waiting for the interval.
+export function useNotesChannelSubtitle(
+  channel: db.Channel | null
+): string | null {
+  const notebookFlag =
+    channel?.type === 'notes' && channel.currentUserIsMember !== false
+      ? notesNotebookFlagFromChannelId(channel.id)
+      : null;
+  const { data: countsByNotebook } = useNotesCountsByNotebook(!!notebookFlag);
+  const counts = notebookFlag ? countsByNotebook?.[notebookFlag] : null;
+
+  useWarmNotesNotebookSnapshot({ notebookFlag });
+
+  return useMemo(
+    () => (counts ? formatNotesChannelSubtitle(counts) : null),
+    [counts]
+  );
 }
 
 export function getGroupTitle(

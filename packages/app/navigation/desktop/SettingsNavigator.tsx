@@ -10,9 +10,14 @@ import { Platform } from 'react-native';
 
 import { AppInfoScreen } from '../../features/settings/AppInfoScreen';
 import { BlockedUsersScreen } from '../../features/settings/BlockedUsersScreen';
+import { BotApiKeySettingsScreen } from '../../features/settings/BotApiKeySettingsScreen';
+import { BotChannelRuleSettingsScreen } from '../../features/settings/BotChannelRuleSettingsScreen';
+import { BotChannelRulesScreen } from '../../features/settings/BotChannelRulesScreen';
 import { BotMcpSettingsScreen } from '../../features/settings/BotMcpSettingsScreen';
-import { BotOtherSettingsScreen } from '../../features/settings/BotOtherSettingsScreen';
+import { BotModelSettingsScreen } from '../../features/settings/BotModelSettingsScreen';
+import { BotOpenAISubscriptionScreen } from '../../features/settings/BotOpenAISubscriptionScreen';
 import { BotSettingsScreen } from '../../features/settings/BotSettingsScreen';
+import { BotShipListSettingsScreen } from '../../features/settings/BotShipListSettingsScreen';
 import { FeatureFlagScreen } from '../../features/settings/FeatureFlagScreen';
 import { ManageAccountScreen } from '../../features/settings/ManageAccountScreen';
 import { PrivacySettingsScreen } from '../../features/settings/PrivacyScreen';
@@ -116,6 +121,11 @@ export const SettingsNavigator = () => {
   return (
     <SettingsDrawer.Navigator
       initialRouteName="SettingsEmpty"
+      // Back should return to the previously focused screen (e.g. the
+      // BotSettings hub that holds the Apply bar), not the drawer's first route.
+      // The default 'firstRoute' would strand pending bot edits after
+      // BotSettings -> BotModelSettings -> Done.
+      backBehavior="history"
       drawerContent={DrawerContent}
       screenOptions={{
         headerShown: false,
@@ -155,13 +165,36 @@ export const SettingsNavigator = () => {
       <SettingsDrawer.Screen name="BotSettings" component={BotSettingsScreen} />
       <SettingsDrawer.Screen
         name="BotMcpSettings"
-        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
         component={BotMcpSettingsScreen}
       />
       <SettingsDrawer.Screen
-        name="BotOtherSettings"
+        name="BotModelSettings"
         // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
-        component={BotOtherSettingsScreen}
+        component={BotModelSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotApiKeySettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
+        component={BotApiKeySettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotOpenAISubscription"
+        component={BotOpenAISubscriptionScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotShipListSettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
+        component={BotShipListSettingsScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotChannelRulesSettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
+        component={BotChannelRulesScreen}
+      />
+      <SettingsDrawer.Screen
+        name="BotChannelRuleSettings"
+        // @ts-expect-error react-navigation types are not yet TS7-compatible; remove once react-navigation/react-navigation#13163 ships
+        component={BotChannelRuleSettingsScreen}
       />
       <SettingsDrawer.Screen
         name="FeatureFlags"

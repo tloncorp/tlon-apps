@@ -1,18 +1,22 @@
 import type { NotesV1NotebookSummary } from '@tloncorp/api';
 
-import { commandError } from './commands/command';
+import { commandError, errorMessage } from './commands/command';
 
 // Shared, dependency-injected logic for creating a `%notes` group channel.
 //
-// Phase D assumes `arthyn/notes` PR 7 (group-channel mode): a notebook bound to
-// a group is registered as a `%groups` channel by `%notes` itself. The skill
-// only calls the `notesV1.createGroupNotebook` API helper and verifies the
-// listing — it never pokes `%channels` and never adds the group listing itself.
+// A notebook bound to a group is registered as a `%groups` channel by `%notes`
+// itself. The skill only calls the `notesV1.createGroupNotebook` API helper and
+// verifies the listing — it never pokes `%channels` or adds the group listing.
 
 const VERIFY_ATTEMPTS = 5;
 const VERIFY_DELAY_MS = 500;
 
-export interface NotesChannelDeps {
+export interface GroupListingPollDeps {
+  getGroupChannelIds: (groupId: string) => Promise<string[]>;
+  sleep: (ms: number) => Promise<void>;
+}
+
+export interface NotesChannelDeps extends GroupListingPollDeps {
   // POST the group-bound notebook via `@tloncorp/api` notesV1 and return its
   // summary (the API unwraps the envelope / rejects errors).
   createGroupNotesNotebook: (input: {
@@ -20,111 +24,151 @@ export interface NotesChannelDeps {
     group: { host: string; flagName: string };
     readers: string[];
   }) => Promise<NotesV1NotebookSummary>;
-  // Channel ids currently listed in the target group (used to confirm `%notes`
-  // registered the group listing).
-  getGroupChannelIds: (groupId: string) => Promise<string[]>;
-  // Strict notebook removal (propagates failures) for the failed-create rollback.
-  deleteNotesNotebookStrict: (nest: string) => Promise<void>;
-  sleep: (ms: number) => Promise<void>;
+  // Read the reader roles for a channel in a group (used for post-create
+  // reader verification). Returns null if the channel is not found.
+  getChannelReaders: (
+    groupId: string,
+    nest: string
+  ) => Promise<string[] | null>;
   log: (message: string) => void;
 }
 
 export interface NotesChannelInput {
   groupId: string;
   title: string;
+  readers: string[];
+  onCreated?: (nest: string) => void;
 }
 
-// 'registered': a successful group read saw the listing.
-// 'absent': the *final* poll succeeded and still did not see the listing.
-// 'unverifiable': the final poll failed, so we can't be sure the listing didn't
-// register after our last successful read.
-type ListingVerdict = 'registered' | 'absent' | 'unverifiable';
+export type GroupListingGoal = 'present-in-all' | 'absent-from-all';
+export type GroupListingVerdict =
+  | 'confirmed'
+  | 'not-confirmed'
+  | 'unverifiable';
 
-// Poll the target group until the new `notes/...` listing appears (it registers
-// asynchronously, like the other post-mutation verifications in groups.ts).
-// "absent" is only concluded from the final poll: registration is async, so an
-// early successful poll can legitimately show the listing missing, and if the
-// later polls then fail we must not treat that stale early read as proof of
-// absence — that would roll back a possibly-valid create.
-async function verifyListing(
-  groupId: string,
+// Group channel listings update asynchronously after a `%notes` mutation.
+// Read every relevant group concurrently on each attempt so confirmation is
+// based on one coherent polling round, not on independently exhausted loops.
+export async function pollGroupListings(
+  groupIds: string[],
   nest: string,
-  deps: NotesChannelDeps
-): Promise<ListingVerdict> {
-  let lastReadSucceeded = false;
+  goal: GroupListingGoal,
+  deps: GroupListingPollDeps
+): Promise<GroupListingVerdict> {
   for (let attempt = 1; attempt <= VERIFY_ATTEMPTS; attempt += 1) {
-    try {
-      const channelIds = await deps.getGroupChannelIds(groupId);
-      if (channelIds.includes(nest)) {
-        return 'registered';
+    const reads = await Promise.all(
+      groupIds.map(async (groupId) => {
+        try {
+          const channelIds = await deps.getGroupChannelIds(groupId);
+          return {
+            succeeded: true as const,
+            containsNest: channelIds.includes(nest),
+          };
+        } catch {
+          return { succeeded: false as const, containsNest: false };
+        }
+      })
+    );
+    const confirmed = reads.every(
+      (read) =>
+        read.succeeded &&
+        (goal === 'present-in-all' ? read.containsNest : !read.containsNest)
+    );
+    if (confirmed) return 'confirmed';
+
+    if (attempt === VERIFY_ATTEMPTS) {
+      const hasSuccessfulOpposingRead = reads.some(
+        (read) =>
+          read.succeeded &&
+          (goal === 'present-in-all' ? !read.containsNest : read.containsNest)
+      );
+      if (hasSuccessfulOpposingRead) {
+        return 'not-confirmed';
       }
-      lastReadSucceeded = true;
-    } catch {
-      // Transient read failure; retry. Leaves lastReadSucceeded false so a
-      // trailing failure is reported as unverifiable rather than absent.
-      lastReadSucceeded = false;
+      return reads.some((read) => !read.succeeded)
+        ? 'unverifiable'
+        : 'not-confirmed';
     }
-    if (attempt < VERIFY_ATTEMPTS) {
-      await deps.sleep(VERIFY_DELAY_MS);
-    }
+
+    await deps.sleep(VERIFY_DELAY_MS);
   }
-  return lastReadSucceeded ? 'absent' : 'unverifiable';
+
+  return 'unverifiable';
 }
 
 export async function createNotesChannelInGroup(
   input: NotesChannelInput,
   deps: NotesChannelDeps
 ): Promise<string> {
-  const slash = input.groupId.indexOf('/');
-  if (slash === -1) {
+  const groupParts = input.groupId.split('/');
+  if (
+    groupParts.length !== 2 ||
+    !groupParts[0] ||
+    !groupParts[1] ||
+    !Array.isArray(input.readers) ||
+    input.readers.some((reader) => typeof reader !== 'string')
+  ) {
     throw commandError(
-      `Invalid group id: ${input.groupId}. Expected ~host/name.`
+      `Invalid group id or readers for ${input.groupId}. Expected ~host/name and an explicit reader-role array.`
     );
   }
-  const groupHost = input.groupId.slice(0, slash);
-  const groupName = input.groupId.slice(slash + 1);
+  const [groupHost, groupName] = groupParts;
+  const readers = input.readers;
 
   deps.log(`Creating %notes channel "${input.title}" in ${input.groupId}...`);
 
-  // The `{group, readers}` payload is the PR-7 group-mode contract — empty
-  // readers means group-wide readable; `%notes` registers the %groups listing.
   const summary = await deps.createGroupNotesNotebook({
     title: input.title,
     group: { host: groupHost, flagName: groupName },
-    readers: [],
+    readers,
   });
   const nest = `notes/${summary.host}/${summary.flagName}`;
 
-  // Pre-PR-7 degradation guard. A create against an un-upgraded %notes silently
-  // makes a *solo* notebook, and the response can't tell the difference — the
-  // notebook-summary JSON is identical for a solo and a group create. So verify
-  // the listing actually registered. Never treat the bare create (or its
-  // response) as the capability check.
-  const verdict = await verifyListing(input.groupId, nest, deps);
-  if (verdict === 'registered') {
-    return nest;
+  if (input.onCreated) {
+    input.onCreated(nest);
   }
-  if (verdict === 'absent') {
-    // A successful read confirmed the listing is missing: the host didn't
-    // register it (likely pre-PR-7). Roll back the stray solo notebook with the
-    // strict delete so we can report whether cleanup actually succeeded.
+
+  const verdict = await pollGroupListings(
+    [input.groupId],
+    nest,
+    'present-in-all',
+    deps
+  );
+  if (verdict === 'confirmed') {
+    let actualReaders: string[] | null;
     try {
-      await deps.deleteNotesNotebookStrict(nest);
-    } catch {
+      actualReaders = await deps.getChannelReaders(input.groupId, nest);
+    } catch (error) {
       throw commandError(
-        `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
-          `the host may not support group-mode notes (PR 7), and removing the stray notebook also failed. ` +
-          `Manual cleanup of ${nest} may be required.`
+        `%notes created ${nest}, but its readers could not be verified: ${errorMessage(
+          error
+        )}. ` +
+          `The notebook was left in place; to remove it, run \`tlon notes notebook-delete ${nest} --yes\`.`
       );
     }
+    if (actualReaders === null) {
+      throw commandError(
+        `%notes created ${nest} but its channel record in ${input.groupId} could not be read for reader verification. ` +
+          `Left the notebook in place — verify its readers manually.`
+      );
+    }
+    const expectedSorted = readers.slice().sort();
+    const actualSorted = actualReaders.slice().sort();
+    if (JSON.stringify(expectedSorted) !== JSON.stringify(actualSorted)) {
+      throw commandError(
+        `%notes created ${nest} but its readers [${actualSorted.join(', ')}] do not match the approved set [${expectedSorted.join(', ')}]. ` +
+          `Left the notebook in place — restrict its readers manually before use.`
+      );
+    }
+    return nest;
+  }
+  if (verdict === 'not-confirmed') {
     throw commandError(
       `%notes created ${nest} but it did not register as a channel in ${input.groupId} — ` +
-        `the host may not support group-mode notes (PR 7). Removed the stray notebook.`
+        `the host may not support group-mode notes, or the listing poke has not arrived. ` +
+        `Left the notebook in place — verify it manually and remove it if it is a stray solo notebook.`
     );
   }
-  // unverifiable: every group read failed, so we can't tell whether the listing
-  // registered. Don't roll back a possibly-valid create — leave it for the
-  // operator rather than risk deleting a good notebook.
   throw commandError(
     `%notes created ${nest} but its channel listing in ${input.groupId} could not be verified ` +
       `(the group read failed). Left the notebook in place — verify it manually and remove it if it is a stray solo notebook.`

@@ -1,10 +1,11 @@
 import * as api from '@tloncorp/api';
-import { createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { getTextContent, useMutableRef } from '@tloncorp/shared/logic';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 
 import { useRootNavigation } from '../navigation/utils';
+import { useAgentGroupOnboardingNavGate } from './useAgentGroupOnboardingLock';
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
 import { useCalm, useCurrentUserId } from '../ui/contexts/appDataContext';
 import {
@@ -210,7 +211,7 @@ async function showGroupNotification({
   shouldSuppressNotification: () => boolean;
   fallbackTitle: string;
   getBody: (contactName: string) => string;
-  navigateOnClick: (groupId: string) => void;
+  navigateOnClick: (groupId: string) => Promise<void>;
 }) {
   const groupId = activityEvent.groupId;
   if (!groupId) {
@@ -236,10 +237,14 @@ async function showGroupNotification({
     }
   );
 
-  notification.onclick = () => {
-    window.focus();
-    navigateOnClick(groupId);
-    notification.close();
+  notification.onclick = async () => {
+    try {
+      await navigateOnClick(groupId);
+    } catch (error) {
+      logger.warn('Failed to route browser group notification', error);
+    } finally {
+      notification.close();
+    }
   };
 
   return true;
@@ -259,12 +264,50 @@ export default function useBrowserNotifications() {
   const isElectron = useIsElectron();
   const isAppForegrounded = useIsAppForegroundedAcrossTabs(!isElectron);
   const { disableNicknames } = useCalm();
+  const {
+    locked: agentOnboardingLocked,
+    isLoading: agentOnboardingLockLoading,
+    runWhenUnlocked,
+  } = useAgentGroupOnboardingNavGate();
   const { resetToChannel, resetToGroup, resetToGroupInvite, resetToPost } =
     useRootNavigation();
   const resetToChannelRef = useMutableRef(resetToChannel);
   const resetToGroupRef = useMutableRef(resetToGroup);
   const resetToGroupInviteRef = useMutableRef(resetToGroupInvite);
   const resetToPostRef = useMutableRef(resetToPost);
+  const pendingNavigationRef = useRef<null | (() => void | Promise<void>)>(
+    null
+  );
+  const navigateWhenOnboardingUnlocks = useCallback(
+    async (navigate: () => void | Promise<void>) => {
+      const { ran } = await runWhenUnlocked(() => {
+        if (pendingNavigationRef.current === navigate) {
+          pendingNavigationRef.current = null;
+        }
+        return navigate();
+      });
+      if (!ran) {
+        pendingNavigationRef.current = navigate;
+      }
+    },
+    [runWhenUnlocked]
+  );
+
+  useEffect(() => {
+    if (agentOnboardingLockLoading || agentOnboardingLocked) return;
+    const pending = pendingNavigationRef.current;
+    if (!pending) return;
+    void navigateWhenOnboardingUnlocks(pending).catch((error) => {
+      logger.warn('Failed to route deferred browser notification', error);
+      if (pendingNavigationRef.current === pending) {
+        pendingNavigationRef.current = null;
+      }
+    });
+  }, [
+    agentOnboardingLocked,
+    agentOnboardingLockLoading,
+    navigateWhenOnboardingUnlocks,
+  ]);
 
   const showActivityNotification = useCallback(
     async (activityEvent: db.ActivityEvent) => {
@@ -303,10 +346,20 @@ export default function useBrowserNotifications() {
               isAsk
                 ? `${contactName} is requesting to join`
                 : `${contactName} invited you to join`,
-            navigateOnClick: (groupId) =>
-              isAsk
-                ? resetToGroupRef.current(groupId)
-                : resetToGroupInviteRef.current(groupId),
+            navigateOnClick: async (groupId) => {
+              await navigateWhenOnboardingUnlocks(() => {
+                if (isAsk) {
+                  resetToGroupRef.current(groupId);
+                } else {
+                  resetToGroupInviteRef.current(groupId);
+                }
+                trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+                  surface: 'browser',
+                  notificationType: activityEvent.type,
+                });
+                window.focus();
+              });
+            },
           });
           if (didNotify) {
             rememberProcessedNotification(
@@ -368,22 +421,34 @@ export default function useBrowserNotifications() {
           tag: notificationKey,
         });
 
-        notification.onclick = () => {
-          window.focus();
-          navigateToBrowserNotificationTarget(
-            {
-              channelId,
-              groupId: channel.groupId ?? activityEvent.groupId ?? undefined,
-              parentAuthorId: activityEvent.parentAuthorId,
-              parentId: activityEvent.parentId,
-              postId: activityEvent.postId,
-            },
-            {
-              resetToChannel: resetToChannelRef.current,
-              resetToPost: resetToPostRef.current,
-            }
-          );
-          notification.close();
+        notification.onclick = async () => {
+          try {
+            await navigateWhenOnboardingUnlocks(() => {
+              trackEvent(AnalyticsEvent.ActionTappedPushNotif, {
+                surface: 'browser',
+                notificationType: activityEvent.type,
+              });
+              window.focus();
+              navigateToBrowserNotificationTarget(
+                {
+                  channelId,
+                  groupId:
+                    channel.groupId ?? activityEvent.groupId ?? undefined,
+                  parentAuthorId: activityEvent.parentAuthorId,
+                  parentId: activityEvent.parentId,
+                  postId: activityEvent.postId,
+                },
+                {
+                  resetToChannel: resetToChannelRef.current,
+                  resetToPost: resetToPostRef.current,
+                }
+              );
+            });
+          } catch (error) {
+            logger.warn('Failed to route browser channel notification', error);
+          } finally {
+            notification.close();
+          }
         };
         rememberProcessedNotification(processedNotifications, notificationKey);
       } catch (error) {
@@ -398,11 +463,21 @@ export default function useBrowserNotifications() {
     [
       disableNicknames,
       isAppForegrounded,
+      navigateWhenOnboardingUnlocks,
       resetToChannelRef,
       resetToGroupRef,
       resetToGroupInviteRef,
       resetToPostRef,
     ]
+  );
+
+  // subscribeToActivity bakes the backend capabilities (resolved during
+  // app-info sync, after this hook first subscribes) into its stream
+  // version — resubscribe when they change so we don't get stuck on an
+  // older stream that drops newer event kinds
+  const activityCapabilitiesEpoch = useSyncExternalStore(
+    api.onActivityCapabilitiesChange,
+    api.getActivityCapabilitiesEpoch
   );
 
   useEffect(() => {
@@ -449,5 +524,5 @@ export default function useBrowserNotifications() {
         api.unsubscribe(subscriptionId);
       }
     };
-  }, [isElectron, showActivityNotification]);
+  }, [isElectron, showActivityNotification, activityCapabilitiesEpoch]);
 }

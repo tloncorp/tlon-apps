@@ -10,17 +10,10 @@ export async function fetchGroupChanges(
 ) {
   try {
     const changeDate = formatChangesDate(daysAgo);
-    runtime.log?.(
-      `[tlon] Fetching group changes since ${daysAgo} days ago (${changeDate})...`
-    );
     const changes = await api.scry(`/groups-ui/v8/changes/${changeDate}.json`);
-    if (changes) {
-      runtime.log?.('[tlon] Successfully fetched changes data');
-      return changes;
-    }
-    return null;
+    return changes || null;
   } catch (error: any) {
-    runtime.log?.(
+    runtime.error?.(
       `[tlon] Failed to fetch changes (falling back to full init): ${error?.message ?? String(error)}`
     );
     return null;
@@ -54,12 +47,19 @@ function extractTitle(value: unknown): string | undefined {
  * This is a single scry that provides both channel discovery and pending invites.
  */
 export async function fetchInitData(
-  api: { scry: (path: string) => Promise<unknown> },
-  runtime: RuntimeEnv
+  api: {
+    scry: (
+      path: string,
+      options?: { signal?: AbortSignal }
+    ) => Promise<unknown>;
+  },
+  runtime: RuntimeEnv,
+  options?: { signal?: AbortSignal }
 ): Promise<InitData> {
   try {
-    runtime.log?.('[tlon] Fetching groups-ui init data...');
-    const initData = (await api.scry('/groups-ui/v7/init.json')) as any;
+    const initData = (await api.scry('/groups-ui/v7/init.json', {
+      signal: options?.signal,
+    })) as any;
 
     const channels: string[] = [];
     const channelToGroup = new Map<string, string>();
@@ -97,25 +97,17 @@ export async function fetchInitData(
       }
     }
 
-    if (channels.length > 0) {
-      runtime.log?.(`[tlon] Auto-discovered ${channels.length} channel(s)`);
-    } else {
-      runtime.log?.('[tlon] No channels found via auto-discovery');
-    }
-
     const foreigns = (initData?.foreigns as Foreigns) || null;
-    if (foreigns) {
-      const pendingCount = Object.values(foreigns).filter((f) =>
-        f.invites?.some((i) => i.valid)
-      ).length;
-      if (pendingCount > 0) {
-        runtime.log?.(`[tlon] Found ${pendingCount} pending group invite(s)`);
-      }
-    }
 
     return { channels, channelToGroup, channelNames, groupNames, foreigns };
   } catch (error: any) {
-    runtime.log?.(
+    if (
+      options?.signal?.aborted ||
+      (error instanceof Error && error.name === 'AbortError')
+    ) {
+      throw options?.signal?.reason ?? error;
+    }
+    runtime.error?.(
       `[tlon] Init data fetch failed: ${error?.message ?? String(error)}`
     );
     return {

@@ -1,7 +1,7 @@
 ::  %steward-gateway-action-1: harness liveness protocol
 ::
 ::    %configure maps the JSON `offline-reply-cooldown` field to
-::    reply-cooldown, matching the gateway-status contract.
+::    reply-cooldown, matching the contract harnesses already speak.
 ::
 /-  g=steward-gateway
 |_  =action:v1:g

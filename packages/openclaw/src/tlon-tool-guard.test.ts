@@ -1,9 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  checkBlockedDiaryOperation,
+  checkBlockedMigrationOperation,
   checkBlockedSendOperation,
   formatAllowedTlonSubcommands,
   isAllowedTlonSubcommand,
+  refusedDiaryNest,
 } from './tlon-tool-guard.js';
 
 describe('tlon tool guard', () => {
@@ -64,6 +67,230 @@ describe('tlon tool guard', () => {
       ]);
       expect(result).toContain('replyTo=170.141.184.507');
     });
+  });
+
+  describe('blocks migration mutations', () => {
+    it.each([
+      ['notes', 'migrate'],
+      ['notes', 'migrate-apply'],
+      ['notes', 'migrate-anything'],
+    ])('blocks %s %s', (...args) => {
+      expect(checkBlockedMigrationOperation(args)).toContain(
+        '/migrate <diary-nest>'
+      );
+    });
+
+    it('blocks notebook deletion with the cleanup placeholder', () => {
+      expect(
+        checkBlockedMigrationOperation(['notes', 'notebook-delete'])
+      ).toContain('/migrate cleanup <notes-nest>');
+    });
+
+    it('allows only the exact migrate-plan operation', () => {
+      expect(
+        checkBlockedMigrationOperation([
+          'notes',
+          'migrate-plan',
+          'diary/~zod/log',
+        ])
+      ).toBeNull();
+      expect(
+        checkBlockedMigrationOperation(['notes', 'migrate-plan-extra'])
+      ).toContain('/migrate <diary-nest>');
+    });
+
+    it('interpolates a real migration source nest', () => {
+      const result = checkBlockedMigrationOperation([
+        'notes',
+        'migrate-apply',
+        'Diary/SAMPEL-PALNET/field-notes',
+        '--yes',
+      ]);
+
+      expect(result).toContain('/migrate diary/~sampel-palnet/field-notes');
+      expect(result).not.toContain('<diary-nest>');
+    });
+
+    it('finds an option-before-nest migration source for refusal and discovery', () => {
+      const args = [
+        'notes',
+        'migrate-apply',
+        '--yes',
+        'Diary/SAMPEL-PALNET/field-notes',
+      ];
+
+      const result = checkBlockedMigrationOperation(args);
+      expect(result).toContain('/migrate diary/~sampel-palnet/field-notes');
+      expect(result).not.toContain('<diary-nest>');
+      expect(refusedDiaryNest(args)).toBe('diary/~sampel-palnet/field-notes');
+    });
+
+    it('finds an option-before-nest notebook deletion target', () => {
+      const args = [
+        'notes',
+        'notebook-delete',
+        '--yes',
+        'Notes/SAMPEL-PALNET/field-notes',
+      ];
+
+      const result = checkBlockedMigrationOperation(args);
+      expect(result).toContain(
+        '/migrate cleanup notes/~sampel-palnet/field-notes'
+      );
+      expect(result).not.toContain('<notes-nest>');
+    });
+
+    it('does not block unrelated operations', () => {
+      expect(
+        checkBlockedMigrationOperation(['notes', 'note-create'])
+      ).toBeNull();
+      expect(checkBlockedMigrationOperation(['posts', 'migrate-apply'])).toBe(
+        null
+      );
+    });
+  });
+
+  describe('blocks removed diary CLI operations', () => {
+    it.each([
+      [
+        ['channels', 'info', 'diary/~sampel-palnet/field-notes'],
+        'diary/~sampel-palnet/field-notes',
+      ],
+      [
+        [
+          'messages',
+          'search',
+          'query',
+          '--channel',
+          'Diary/SAMPEL-PALNET/Field-Notes',
+        ],
+        'diary/~sampel-palnet/Field-Notes',
+      ],
+      [
+        [
+          'expose',
+          'check',
+          '/1/chan/diary/~sampel-palnet/field-notes/note/170.141',
+        ],
+        'diary/~sampel-palnet/field-notes',
+      ],
+    ])('interpolates the target for %j', (args, expectedNest) => {
+      const blocked = checkBlockedDiaryOperation(args as string[]);
+
+      expect(blocked).toMatchObject({ nest: expectedNest });
+      expect(blocked?.message).toContain(`/migrate ${expectedNest}`);
+      expect(blocked?.message).not.toContain('<diary-nest>');
+    });
+
+    it.each([
+      {
+        name: 'valid posts action',
+        args: ['posts', 'send', 'diary/~zod/log', 'hello'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'channels rename missing its new title',
+        args: ['channels', 'rename', 'diary/~zod/log'],
+        validArgs: ['channels', 'rename', 'diary/~zod/log', 'Archived title'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'channels add-writers missing its roles',
+        args: ['channels', 'add-writers', 'diary/~zod/log'],
+        validArgs: ['channels', 'add-writers', 'diary/~zod/log', 'admin'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'channels del-writers missing its roles',
+        args: ['channels', 'del-writers', 'diary/~zod/log'],
+        validArgs: ['channels', 'del-writers', 'diary/~zod/log', 'admin'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'channels add-readers missing its roles',
+        args: ['channels', 'add-readers', '~zod/group', 'diary/~zod/log'],
+        validArgs: [
+          'channels',
+          'add-readers',
+          '~zod/group',
+          'diary/~zod/log',
+          'admin',
+        ],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'channels del-readers missing its roles',
+        args: ['channels', 'del-readers', '~zod/group', 'diary/~zod/log'],
+        validArgs: [
+          'channels',
+          'del-readers',
+          '~zod/group',
+          'diary/~zod/log',
+          'admin',
+        ],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'known posts action with incidental missing argument',
+        args: ['posts', 'react', 'diary/~zod/log', '170.141'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'unknown posts action',
+        args: ['posts', 'bogus', 'diary/~zod/log'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'mis-cased posts action',
+        args: ['posts', 'Send', 'diary/~zod/log', 'hello'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'valid expose action',
+        args: ['expose', 'check', 'diary/~zod/log/170.141'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'unknown expose action',
+        args: ['expose', 'bogus', 'diary/~zod/log/170.141'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'mis-cased expose action',
+        args: ['expose', 'Check', 'diary/~zod/log/170.141'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'valid messages search',
+        args: ['messages', 'search', 'query', '--channel', 'diary/~zod/log'],
+        cliRefusesDiary: true,
+      },
+      {
+        name: 'channel flag in the query position',
+        args: ['messages', 'search', '--channel', 'diary/~zod/log'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'messages context missing its post id',
+        args: ['messages', 'context', 'diary/~zod/log'],
+        cliRefusesDiary: false,
+      },
+      {
+        name: 'mis-cased messages action',
+        args: ['messages', 'Search', 'query', '--channel', 'diary/~zod/log'],
+        cliRefusesDiary: false,
+      },
+    ])(
+      'matches CLI validation order for $name',
+      ({ args, validArgs, cliRefusesDiary }) => {
+        expect(checkBlockedDiaryOperation(args) !== null).toBe(cliRefusesDiary);
+        expect(refusedDiaryNest(args) !== null).toBe(cliRefusesDiary);
+        if (validArgs) {
+          expect(checkBlockedDiaryOperation(validArgs)).not.toBeNull();
+          expect(refusedDiaryNest(validArgs)).toBe('diary/~zod/log');
+        }
+      }
+    );
   });
 
   describe('allows legacy club targets', () => {
@@ -172,6 +399,12 @@ describe('tlon tool guard', () => {
 
     it('allows single arg', () => {
       expect(checkBlockedSendOperation(['dms'])).toBeNull();
+    });
+
+    it('leaves a mis-cased send action for the CLI usage error', () => {
+      expect(
+        checkBlockedSendOperation(['dms', 'Send', '~zod', 'hello'])
+      ).toBeNull();
     });
 
     it('allows dms send with no target', () => {

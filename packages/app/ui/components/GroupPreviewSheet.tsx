@@ -6,6 +6,7 @@ import { Button, LoadingSpinner, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { XStack, YStack } from 'tamagui';
 
+import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
 import { triggerHaptic, useGroupTitle } from '../utils';
 import { ActionSheet } from './ActionSheet';
 import { Badge } from './Badge';
@@ -58,6 +59,8 @@ function GroupPreviewSheetComponent({
   group,
   onActionComplete,
 }: Props) {
+  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
+
   useEffect(() => {
     if (open) {
       triggerHaptic('sheetOpen');
@@ -66,18 +69,16 @@ function GroupPreviewSheetComponent({
 
   const actionHandler = useCallback(
     (action: GroupPreviewAction, updatedGroup: db.Group) => {
-      // Delay the action complete callback to allow the sheet to close.
-      // If we don't do this the app will crash.
-      setTimeout(() => {
-        onActionComplete?.(action, updatedGroup);
-      }, 100);
       onOpenChange(false);
+      closeAfterAnimation(() => {
+        onActionComplete?.(action, updatedGroup);
+      });
     },
-    [onActionComplete, onOpenChange]
+    [closeAfterAnimation, onActionComplete, onOpenChange]
   );
 
   return (
-    <ActionSheet open={open} onOpenChange={onOpenChange}>
+    <ActionSheet open={open} onOpenChange={onOpenChange} modal>
       {group ? (
         <GroupPreviewPane group={group} onActionComplete={actionHandler} />
       ) : (

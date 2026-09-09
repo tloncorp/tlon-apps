@@ -1,5 +1,9 @@
 import { isValidUrl, makePrettyTimeFromMs } from '@tloncorp/api/lib/utils';
-import { useMutableCallback } from '@tloncorp/shared';
+import {
+  AnalyticsEvent,
+  trackEvent,
+  useMutableCallback,
+} from '@tloncorp/shared';
 import type * as cn from '@tloncorp/shared/logic';
 import {
   ForwardingProps,
@@ -95,6 +99,20 @@ export function ListBlock({
   return <ListNode node={block.list} {...props} />;
 }
 
+// Contract: a tasklist list's children MAY lack a task inline — GFM permits
+// mixing plain and task items, the converter preserves that faithfully, and
+// remark re-merges adjacent lists so the wire cannot avoid the mixed shape.
+// Such children get a plain bullet; task items draw their own checkbox via
+// InlineTask, so their outer marker stays suppressed.
+export function listItemMarkerType(
+  listType: 'ordered' | 'unordered' | 'tasklist',
+  child: cn.ListData
+): 'ordered' | 'unordered' | 'tasklist' {
+  if (listType !== 'tasklist') return listType;
+  const hasTask = child.content.some((inline) => inline.type === 'task');
+  return hasTask ? 'tasklist' : 'unordered';
+}
+
 function ListNode({
   node,
 }: {
@@ -107,7 +125,10 @@ function ListNode({
       ) : null}
       {node.children?.map((childNode, i) => (
         <XStack key={i} gap="$m">
-          <ListItemMarker index={i} type={node.type ?? 'unordered'} />
+          <ListItemMarker
+            index={i}
+            type={listItemMarkerType(node.type ?? 'unordered', childNode)}
+          />
           <ListNode key={i} node={childNode} />
         </XStack>
       ))}
@@ -371,7 +392,12 @@ export function VoiceMemoBlock({
             cursor="pointer"
             hoverStyle={{ backgroundColor: '$positiveBackground' }}
             pressStyle={{ opacity: 0.5 }}
-            onPress={togglePlayback}
+            onPress={() => {
+              if (status === null || status === 'paused') {
+                trackEvent(AnalyticsEvent.VoiceMemoPlaybackRequested);
+              }
+              togglePlayback();
+            }}
           >
             {(() => {
               switch (status) {
@@ -511,6 +537,8 @@ export function LinkBlock({
     if (!urlIsValid) {
       return;
     }
+
+    trackEvent(AnalyticsEvent.ExternalLinkOpened);
 
     if (Platform.OS === 'web') {
       window.open(block.url, '_blank', 'noopener,noreferrer');
@@ -794,6 +822,7 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
 
   const cellRefs = useRef<Map<string, RNView>>(new Map());
   const [columnWidths, setColumnWidths] = useState<number[] | null>(null);
+  const [viewportWidth, setViewportWidth] = useState<number | null>(null);
 
   // Reset measurement when the table's actual content changes. We can't key
   // on `block` reference — upstream memoization invalidates often enough
@@ -864,6 +893,10 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
   );
 
   const totalWidth = columnWidths?.reduce((a, b) => a + b, 0);
+  const tableWidth =
+    totalWidth == null || viewportWidth == null
+      ? totalWidth
+      : Math.max(totalWidth, viewportWidth);
 
   // Use react-native-gesture-handler's ScrollView so horizontal pans aren't
   // swallowed by the vertical FlatList that wraps each chat message —
@@ -874,13 +907,18 @@ export function TableBlock({ block }: { block: cn.TableBlockData }) {
       horizontal
       style={{ width: '100%', maxWidth: '100%' }}
       showsHorizontalScrollIndicator={false}
+      onLayout={(event) => {
+        const width = Math.ceil(event.nativeEvent.layout.width);
+        setViewportWidth((current) => (current === width ? current : width));
+      }}
     >
-      <YStack {...(totalWidth != null ? { width: totalWidth } : {})}>
+      <YStack {...(tableWidth != null ? { width: tableWidth } : {})}>
         {allRows.map((row, rowIdx) => {
           const isHeader = rowIdx === 0;
           return (
             <XStack
               key={rowIdx}
+              width="100%"
               flexShrink={0}
               borderBottomWidth={rowIdx < allRows.length - 1 ? 1 : 0}
               borderColor="$border"

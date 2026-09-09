@@ -7,6 +7,7 @@ import { TimeoutError } from '@tloncorp/api';
 import { GroupChannelV7, getChannelKindFromType } from '@tloncorp/api/urbit';
 import { isEqual } from 'lodash';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
@@ -157,6 +158,19 @@ async function createNotesChannel({
     const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
     insertedChannelId = newChannel.id;
+    // `insertChannels` excludes `currentUserIsMember` from its conflict-update
+    // set, so whoever inserts the row first decides it permanently. The chat
+    // path wins that race with a synchronous optimistic insert; this path
+    // cannot — it awaits a notebook create plus listing polls, and the %groups
+    // SSE update lands first and writes the row as a non-member. The notebook
+    // then sat under "Available Channels" with a Join button on the ship that
+    // hosts it. A direct update is the only write that can correct it, and it
+    // carries the listing's own answer rather than assuming membership, so a
+    // deliberately restricted notebook stays restricted.
+    await db.updateChannel({
+      id: newChannel.id,
+      currentUserIsMember: newChannel.currentUserIsMember ?? true,
+    });
     await db.insertChannelPerms([
       {
         channelId: newChannel.id,
@@ -465,6 +479,9 @@ export async function pinPostToChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
+    trackEvent(AnalyticsEvent.PostPinned, {
+      channelType: channel.type,
+    });
   } catch (e) {
     console.error('Failed to pin post', e);
     // Rollback optimistic update
@@ -499,6 +516,9 @@ export async function unpinPostFromChannel({
 
   try {
     await api.setOrder(channel.id, nextOrder);
+    trackEvent(AnalyticsEvent.PostUnpinned, {
+      channelType: channel.type,
+    });
   } catch (e) {
     console.error('Failed to unpin post', e);
     // Rollback optimistic update
@@ -625,6 +645,7 @@ export async function reorderPinnedItems({
     // stale slot. Only the optimistic write above is the full merged order.
     const after = await db.getPinnedItems();
     await db.setPinnedItemsOrder(normalizeOrder(backendPayload, after));
+    trackEvent(AnalyticsEvent.PinnedChatsReordered);
     return true;
   } catch (e) {
     console.error('Failed to reorder pinned items', e);
@@ -683,6 +704,16 @@ export async function markChannelRead({
   groupId?: string;
   includeThreads?: boolean;
 }) {
+  // per-note unreads ride thread rows, so a notes channel read is only
+  // meaningful deep — otherwise the note dots (and their backend sources)
+  // survive the channel badge being cleared
+  includeThreads = includeThreads || id.startsWith('notes/');
+  // the notebook read poke can't be sent until the notes capability
+  // resolves (or ever, on a backend below the gate) — skip the optimistic
+  // clear too, or local state diverges from the ship with no retry
+  if (id.startsWith('notes/') && !api.getActivitySupportsNotes()) {
+    return false;
+  }
   logger.log(`marking channel as read`, id, 'includeThreads', includeThreads);
   // optimistic update
   const existingUnread = await db.getChannelUnread({ channelId: id });
@@ -774,7 +805,7 @@ export async function markChannelRead({
   }
 
   if (existingChannel.isPendingChannel) {
-    return;
+    return true;
   }
 
   try {
@@ -784,6 +815,7 @@ export async function markChannelRead({
       groupId: existingChannel.groupId,
       deep: !!includeThreads,
     });
+    return true;
   } catch (e) {
     logger.error('Failed to read channel', { id, groupId }, e);
     // rollback optimistic update
@@ -796,6 +828,7 @@ export async function markChannelRead({
     if (didUpdateGroupUnread && existingGroupUnread) {
       await db.insertGroupUnreads([existingGroupUnread]);
     }
+    return false;
   }
 }
 
@@ -923,6 +956,7 @@ export async function leaveGroupChannel(channelId: string) {
     } else {
       await api.leaveChannel(channelId);
     }
+    trackEvent(AnalyticsEvent.ChannelLeft, { type: channel.type });
   } catch (e) {
     console.error('Failed to leave channel', e);
     // Only rollback on actual errors (not TimeoutError)

@@ -1,16 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { FlatList } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
   GestureViewer,
-  useGestureViewerController,
   useGestureViewerEvent,
+  useGestureViewerState,
 } from 'react-native-gesture-image-viewer';
-import { runOnJS } from 'react-native-reanimated';
 
 import {
   type GestureMediaViewerProps,
-  type GestureMediaViewerRenderContainer,
   type GestureMediaViewerRenderItem,
   defaultGestureMediaViewerKeyExtractor,
   generateGestureMediaViewerId,
@@ -33,7 +30,6 @@ export function GestureMediaViewer({
   onDismiss,
   onDismissStart,
   onSingleTap,
-  onDoubleTap,
   onZoomStateChange,
   renderContainer,
   renderItem,
@@ -50,15 +46,12 @@ export function GestureMediaViewer({
     generatedIdRef.current = generateGestureMediaViewerId();
   }
   const viewerId = id ?? generatedIdRef.current;
-  const [isZoomed, setIsZoomed] = useState(false);
-  const controller = useGestureViewerController(viewerId);
-  const usesCustomTap = onSingleTap != null || onDoubleTap != null;
+  const { currentIndex, totalCount } = useGestureViewerState(viewerId);
 
   const handleZoomChange = useCallback(
     ({ scale, previousScale }: GestureViewerEventData) => {
       const nextIsZoomed = getGestureMediaViewerIsZoomed(scale);
 
-      setIsZoomed(nextIsZoomed);
       onZoomStateChange?.({
         isZoomed: nextIsZoomed,
         scale,
@@ -70,59 +63,16 @@ export function GestureMediaViewer({
 
   useGestureViewerEvent(viewerId, 'zoomChange', handleZoomChange);
 
+  useEffect(() => {
+    if (totalCount > 0) {
+      onIndexChange?.(currentIndex);
+    }
+  }, [currentIndex, onIndexChange, totalCount]);
+
   const resolvedRenderItem = useCallback<GestureMediaViewerRenderItem>(
     (item, index) =>
       renderItem?.(item, index) ?? renderDefaultGestureMediaViewerItem(item),
     [renderItem]
-  );
-
-  const handleSingleTap = useCallback(() => {
-    onSingleTap?.();
-  }, [onSingleTap]);
-
-  const handleDoubleTap = useCallback(() => {
-    if (isZoomed) {
-      controller.resetZoom();
-    } else {
-      controller.resetZoom(maxZoomScale ?? 2);
-    }
-
-    onDoubleTap?.();
-  }, [controller, isZoomed, maxZoomScale, onDoubleTap]);
-
-  const tapGesture = useMemo(
-    () =>
-      Gesture.Exclusive(
-        Gesture.Tap()
-          .numberOfTaps(2)
-          .onEnd((_event, success) => {
-            if (success) {
-              runOnJS(handleDoubleTap)();
-            }
-          }),
-        Gesture.Tap().onEnd((_event, success) => {
-          if (success) {
-            runOnJS(handleSingleTap)();
-          }
-        })
-      ),
-    [handleDoubleTap, handleSingleTap]
-  );
-
-  const resolvedRenderContainer = useMemo(
-    () =>
-      !usesCustomTap
-        ? renderContainer
-        : (((children, helpers) => {
-            const tappableChildren = (
-              <GestureDetector gesture={tapGesture}>{children}</GestureDetector>
-            );
-
-            return renderContainer
-              ? renderContainer(tappableChildren, helpers)
-              : tappableChildren;
-          }) satisfies GestureMediaViewerRenderContainer),
-    [renderContainer, tapGesture, usesCustomTap]
   );
 
   if (items.length === 0) {
@@ -134,17 +84,21 @@ export function GestureMediaViewer({
       id={viewerId}
       data={items}
       initialIndex={initialIndex}
-      onIndexChange={onIndexChange}
       onDismiss={onDismiss}
       onDismissStart={onDismissStart}
+      onSingleTap={onSingleTap}
       renderItem={resolvedRenderItem}
-      renderContainer={resolvedRenderContainer}
+      renderContainer={renderContainer}
       ListComponent={FlatList}
-      enableDismissGesture={enableDismissGesture}
-      enableSwipeGesture={enableSwipeGesture}
-      enableZoomGesture={enableZoomGesture}
-      enableDoubleTapGesture={usesCustomTap ? false : enableDoubleTapGesture}
-      enableZoomPanGesture={enableZoomPanGesture}
+      dismiss={
+        enableDismissGesture === undefined
+          ? undefined
+          : { enabled: enableDismissGesture }
+      }
+      enableHorizontalSwipe={enableSwipeGesture}
+      enablePinchZoom={enableZoomGesture}
+      enableDoubleTapZoom={enableDoubleTapGesture}
+      enablePanWhenZoomed={enableZoomPanGesture}
       enableLoop={enableLoop}
       maxZoomScale={maxZoomScale}
       listProps={{

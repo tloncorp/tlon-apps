@@ -1,6 +1,8 @@
 import {
+  AnalyticsEvent,
   createNotebookFolder,
   createNotebookNote,
+  trackEvent,
   useMutableCallback,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -135,6 +137,9 @@ export function useNotesImportController({
         }
       }
 
+      trackEvent(AnalyticsEvent.NotesImportCompleted, {
+        noteCount: importedCount,
+      });
       setImportNotice(formatImportNotice(importedCount));
     }
   );

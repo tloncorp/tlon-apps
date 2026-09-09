@@ -1,5 +1,5 @@
 import {
-  configureGatewayStatus,
+  configureStewardGateway,
   gatewayHeartbeat,
   gatewayStart,
   gatewayStop,
@@ -9,14 +9,11 @@ import type { OpenClawConfig } from 'openclaw/plugin-sdk/core';
 
 import { sharedSlot } from './shared-state.js';
 import { listTlonAccountIds } from './types.js';
-import { configureTlonApiWithPoke } from './urbit/api-client.js';
+import { withTlonApiPoke } from './urbit/api-client.js';
 
-// Shared-state slot for the @tloncorp/api client params. The monitor
-// publishes its SSE-bound poke + ship coords here; every other module
-// context (notably this one) reads them and configures its OWN local
-// @tloncorp/api singleton before any poke call. Storing a callback would
-// configure the publisher's @tloncorp/api instance, not the reader's, so
-// we deliberately move *data* through the slot, not behavior.
+// Shared-state slot for the monitor's latest SSE-bound poke. Gateway lifecycle
+// hooks run outside the monitor's async client scope, so they use this explicit
+// transport without mutating the process-global @tloncorp/api client.
 export const API_CLIENT_PARAMS_SLOT = '@tloncorp/openclaw.api-client-params';
 
 export interface SharedApiClientParams {
@@ -25,8 +22,6 @@ export interface SharedApiClientParams {
     mark: string;
     json: unknown;
   }) => Promise<unknown>;
-  shipName: string;
-  shipUrl: string;
 }
 
 const apiClientParamsSlot = sharedSlot<SharedApiClientParams>(
@@ -55,8 +50,7 @@ export function computeLeaseUntil(): number {
 }
 
 /** True iff exactly one Tlon account is configured. v1 requires exactly one
- * because the global @tloncorp/api client can't target multiple ships;
- * with >1 account, every eligible monitor would race the same client. */
+ * because the shared gateway-status slot can publish only one monitor poke. */
 export function isGatewayStatusEligible(cfg: OpenClawConfig): boolean {
   return listTlonAccountIds(cfg).length === 1;
 }
@@ -273,15 +267,9 @@ export function getGatewayStatusCoordinator(): GatewayStatusCoordinator | null {
   return coordinatorSlot.get();
 }
 
-// Configure THIS module's @tloncorp/api singleton against the
-// monitor-published params, then send the gateway-stop poke. Callers
-// (notably GatewayStatusCoordinator.markStopped) must go through this
-// helper instead of importing `gatewayStop` directly, because under
-// OpenClaw >=2026.4.27 plugin module isolation the entry module's
-// @tloncorp/api instance is never configured — only the monitor's is.
-// Routing through gateway-status.ts reuses the same configured instance
-// the heartbeat uses. Returns true if the poke was sent, false if the
-// params slot was empty.
+// Send through the monitor-published poke without reconfiguring the shared
+// @tloncorp/api client. Returns true if the poke was sent, false if the params
+// slot was empty.
 export async function sendGatewayStop(params: {
   bootId: string;
   reason: string;
@@ -290,12 +278,9 @@ export async function sendGatewayStop(params: {
   if (!apiParams) {
     return false;
   }
-  configureTlonApiWithPoke(
-    apiParams.poke,
-    apiParams.shipName,
-    apiParams.shipUrl
+  await withTlonApiPoke(apiParams.poke, () =>
+    gatewayStop({ bootId: params.bootId, reason: params.reason })
   );
-  await gatewayStop({ bootId: params.bootId, reason: params.reason });
   return true;
 }
 
@@ -327,13 +312,6 @@ export function startGatewayHeartbeatLoop(
       return;
     }
     try {
-      // Configure THIS module's @tloncorp/api instance against the
-      // monitor-published params every tick. Under OpenClaw plugin
-      // module isolation this code path can hold a separate
-      // @tloncorp/api instance from the monitor; outbound DMs via
-      // `withAuthenticatedTlonApi` can also rotate the global client
-      // between heartbeats. Reapplying here keeps the heartbeat poke
-      // pointed at the SSE-bound client.
       const params = apiClientParamsSlot.get();
       if (!params) {
         heartbeatOpts.logger?.error?.(
@@ -341,11 +319,12 @@ export function startGatewayHeartbeatLoop(
         );
         return;
       }
-      configureTlonApiWithPoke(params.poke, params.shipName, params.shipUrl);
-      await gatewayHeartbeat({
-        bootId: heartbeatOpts.bootId,
-        leaseUntil: computeLeaseUntil(),
-      });
+      await withTlonApiPoke(params.poke, () =>
+        gatewayHeartbeat({
+          bootId: heartbeatOpts.bootId,
+          leaseUntil: computeLeaseUntil(),
+        })
+      );
     } catch (err) {
       heartbeatOpts.onError?.(err);
       heartbeatOpts.logger?.error?.(
@@ -496,12 +475,21 @@ export async function runGatewayStatusActivation(
       return;
     }
     try {
+      const apiParams = apiClientParamsSlot.get();
+      if (!apiParams) {
+        throw new Error('api-client params not published');
+      }
+      // Pin one monitor transport across configure → start. Splitting this pair
+      // across a slot replacement could start a boot on a different SSE channel
+      // from the one that configured its owner and timing.
       await withActivationTimeout(
-        configureGatewayStatus({
-          owner,
-          activeWindowSecs: ACTIVE_WINDOW_SECS,
-          offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
-        }),
+        withTlonApiPoke(apiParams.poke, () =>
+          configureStewardGateway({
+            owner,
+            activeWindowSecs: ACTIVE_WINDOW_SECS,
+            offlineReplyCooldownSecs: OFFLINE_REPLY_COOLDOWN_SECS,
+          })
+        ),
         '%configure',
         activationTimeoutMs
       );
@@ -513,7 +501,12 @@ export async function runGatewayStatusActivation(
       // matching %gateway-stop even if shutdown lands before markActivated().
       coordinator.markStarting(lc.generation);
       await withActivationTimeout(
-        gatewayStart({ bootId: lc.bootId, leaseUntil: computeLeaseUntil() }),
+        withTlonApiPoke(apiParams.poke, () =>
+          gatewayStart({
+            bootId: lc.bootId,
+            leaseUntil: computeLeaseUntil(),
+          })
+        ),
         '%gateway-start',
         activationTimeoutMs
       );

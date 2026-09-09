@@ -18,6 +18,8 @@ import { pinGroup } from './channelActions';
 const logger = createDevLogger('groupActions', false);
 
 interface CreateGroupParams {
+  groupId?: string;
+  defaultChannelId?: string;
   title?: string;
   image?: string;
   memberIds?: string[];
@@ -92,7 +94,7 @@ export async function createDefaultGroup(
 ): Promise<db.Group> {
   const currentUserId = api.getCurrentUserId();
   const groupSlug = getRandomId();
-  const groupId = `${currentUserId}/${groupSlug}`;
+  const groupId = params.groupId ?? `${currentUserId}/${groupSlug}`;
 
   // build the group
   const newGroup: db.Group = {
@@ -106,8 +108,8 @@ export async function createDefaultGroup(
   };
 
   // build the default channel channel
-  const channelSlug = getRandomId();
-  const channelId = `chat/${currentUserId}/${channelSlug}`;
+  const channelId =
+    params.defaultChannelId ?? `chat/${currentUserId}/${getRandomId()}`;
   const defaultChannel: db.Channel = {
     id: channelId,
     groupId,
@@ -164,12 +166,17 @@ export async function createGroupFromTemplate(
 
   newGroup.channels = channels;
 
-  return createGroup({ group: newGroup, memberIds: params.memberIds ?? [] });
+  return createGroup({
+    group: newGroup,
+    memberIds: params.memberIds ?? [],
+    templateId: params.templateId,
+  });
 }
 
 export async function createGroup(params: {
   group: db.Group;
   memberIds?: string[];
+  templateId?: GroupTemplateId;
 }): Promise<db.Group> {
   const placeHolderTitle = await getPlaceholderTitle(params);
 
@@ -191,6 +198,7 @@ export async function createGroup(params: {
     logger.trackEvent(AnalyticsEvent.ActionCreateGroup, {
       ...logic.getModelAnalytics({ group: params.group }),
       initialMemberCount: params.memberIds?.length ?? 0,
+      templateId: params.templateId,
     });
 
     return resultGroup;
@@ -477,6 +485,39 @@ export async function updateGroupMeta(
     // rollback optimistic update
     if (existingGroup) {
       await db.updateGroup(existingGroup);
+    }
+    if (config?.shouldThrow) {
+      throw e;
+    }
+  }
+}
+
+export async function updateGroupBlob(
+  group: db.Group,
+  blob: string | null,
+  config?: { shouldThrow?: boolean }
+) {
+  logger.log('updating group blob', group.id);
+
+  const existingGroup = await db.getGroup({ id: group.id });
+
+  // The host emits no %blob update when the value is unchanged, so the tracked
+  // poke would wait out its timeout and then roll back a write that was
+  // already correct.
+  if (existingGroup && (existingGroup.blob ?? null) === blob) {
+    return;
+  }
+
+  // optimistic update
+  await db.updateGroup({ id: group.id, blob });
+
+  try {
+    await api.updateGroupBlob({ groupId: group.id, blob });
+  } catch (e) {
+    logger.error('Failed to update group blob', e);
+    // rollback optimistic update
+    if (existingGroup) {
+      await db.updateGroup({ id: group.id, blob: existingGroup.blob ?? null });
     }
     if (config?.shouldThrow) {
       throw e;
@@ -1326,7 +1367,7 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
   const group = await db.getGroup({ id: groupId });
   if (!group) {
     logger.error('Group not found', groupId);
-    return;
+    return false;
   }
   // optimistic update
   const existingUnread = await db.getGroupUnread({ groupId: group.id });
@@ -1336,12 +1377,14 @@ export async function markGroupRead(groupId: string, deep: boolean = false) {
 
   try {
     await api.readGroup(group, deep);
+    return true;
   } catch (e) {
     logger.error('Failed to read group', e);
     // rollback optimistic update
     if (existingUnread) {
       await db.insertGroupUnreads([existingUnread]);
     }
+    return false;
   }
 }
 

@@ -174,6 +174,14 @@ class EnablementTests(unittest.TestCase):
         self.assertEqual(fake.captures, [])
         self.assertEqual(fake.identifies, [])
 
+    def test_empty_distinct_id_override_drops_event(self):
+        tel, fake = make_telemetry()
+
+        tel.capture("TlonBot Heartbeat Nudge Reengaged", {}, distinct_id="")
+
+        self.assertEqual(fake.captures, [])
+        self.assertEqual(fake.identifies, [])
+
     def test_flush_keeps_client_close_shuts_down(self):
         tel, fake = make_telemetry()
         tel.flush()
@@ -459,7 +467,7 @@ class CliObservationTests(unittest.TestCase):
     def test_observer_through_real_cli(self):
         tel, fake = make_telemetry()
 
-        async def fake_runner(command, env, timeout):
+        async def fake_runner(command, env, timeout, _on_deadline):
             return tlon_api.TlonProcessResult(returncode=0, stdout="ok")
 
         cli = tlon_api.TlonCLI(make_config(), runner=fake_runner, observer=tel.observe_cli)
@@ -545,6 +553,15 @@ class DiscreteEventTests(unittest.TestCase):
         self.assertEqual(first["key"], "dmAllowlist")
         self.assertNotIn("~zod", first["detail"])
         self.assertEqual(second["errorType"], "error")
+
+    def test_sse_reconnect_mode_field(self):
+        tel, fake = make_telemetry()
+        tel.sse_reconnect(attempt=1, delay_seconds=2, error=ConnectionError("x"))
+        tel.sse_reconnect(attempt=2, delay_seconds=5, error=ConnectionError("y"), mode="resume")
+
+        events = fake.events("TlonBot SSE Reconnect")
+        self.assertEqual(events[0]["mode"], "rebuild")
+        self.assertEqual(events[1]["mode"], "resume")
 
 
 class DiagnosticsHelperTests(unittest.TestCase):
@@ -794,6 +811,32 @@ class DeliveryTestTests(unittest.TestCase):
         result = tel.delivery_test()
         self.assertIn("could not be enqueued", result)
         self.assertIn("RuntimeError", result)
+
+
+class MigrationEventTests(unittest.TestCase):
+    def test_omits_absent_fields_and_scrubs_capped_error_text(self):
+        tel, fake = make_telemetry()
+        tel.migration_event(event="started", action="apply", migration_id="mid-1")
+        tel.migration_event(
+            event="failed",
+            action="apply",
+            migration_id="mid-1",
+            duration_ms=1200,
+            deadline_exceeded=True,
+            error_text="Import failed on ~sampel-palnet\n" + "x" * 900,
+        )
+        started, failed = fake.events(telemetry.EVENT_MIGRATION)
+        self.assertEqual(started["migrationEvent"], "started")
+        self.assertEqual(started["migrationId"], "mid-1")
+        for absent in ("durationMs", "deadlineExceeded", "errorText"):
+            self.assertNotIn(absent, started)
+        self.assertEqual(failed["durationMs"], 1200)
+        self.assertTrue(failed["deadlineExceeded"])
+        self.assertNotIn("~sampel-palnet", failed["errorText"])
+        self.assertIn("~…", failed["errorText"])
+        self.assertEqual(
+            len(failed["errorText"]), telemetry.MIGRATION_ERROR_MAX_CHARS
+        )
 
 
 if __name__ == "__main__":

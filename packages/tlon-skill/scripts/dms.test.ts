@@ -172,3 +172,355 @@ describe('dms thread reaction parents', () => {
     });
   });
 });
+
+function expectUsageExit(run: () => unknown): void {
+  const originalExit = process.exit;
+  const originalError = console.error;
+  const exitCodes: (number | undefined)[] = [];
+  process.exit = ((code?: number) => {
+    exitCodes.push(code);
+    throw new Error('exit');
+  }) as typeof process.exit;
+  console.error = () => {};
+  try {
+    expect(run).toThrow();
+    expect(exitCodes).toEqual([1]);
+  } finally {
+    process.exit = originalExit;
+    console.error = originalError;
+  }
+}
+
+describe('dms bot author flags', () => {
+  it('parses --bot and rejects a value on it', async () => {
+    const dms = await loadDms();
+    const help = 'usage';
+
+    expect(dms.dmBotProfile(['send', '0v5.abcde', 'hi'], help)).toBeUndefined();
+    expect(
+      dms.dmBotProfile(['send', '0v5.abcde', 'hi', '--bot'], help)
+    ).toEqual({ nickname: null, avatar: null });
+    expect(
+      dms.dmBotProfile(
+        ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot'],
+        help
+      )
+    ).toEqual({ nickname: null, avatar: null });
+    expectUsageExit(() =>
+      dms.dmBotProfile(['send', '0v5.abcde', 'hi', '--bot=Botly'], 'usage')
+    );
+  });
+
+  // Table-driven so each accepted/rejected form is pinned individually: a
+  // parser that rejected only bare alphabetic tokens, or dropped the duplicate
+  // check, passed every hand-written case above.
+  it.each([
+    { args: ['--bot'], ok: true, why: 'flag alone' },
+    {
+      args: ['--bot', '--parent', '~pen/170.141'],
+      ok: true,
+      why: 'long option follows',
+    },
+    {
+      args: ['--bot', '--unknownopt'],
+      ok: true,
+      why: 'unknown long option is not our concern',
+    },
+    { args: ['--bot', 'Botly'], ok: false, why: 'bare value' },
+    { args: ['--bot', '-1'], ok: false, why: 'single-dash value' },
+    { args: ['--bot', '--bot'], ok: false, why: 'repeated flag' },
+    {
+      args: ['--bot', '--bot', 'Botly'],
+      ok: false,
+      why: 'value hidden behind a repeat',
+    },
+    { args: ['--bot=Botly'], ok: false, why: 'joined value' },
+  ])('$why: --bot form is accepted=$ok', async ({ args, ok }) => {
+    const dms = await loadDms();
+    const call = () =>
+      dms.dmBotProfile(['send', '0v5.abcde', 'hi', ...args], 'usage');
+    if (ok) {
+      expect(call()).toEqual({ nickname: null, avatar: null });
+    } else {
+      expectUsageExit(call);
+    }
+  });
+
+  it('rejects a separated value on --bot instead of truncating the message', async () => {
+    const dms = await loadDms();
+
+    // `--bot Botly` used to parse fine, and because the flag is a message
+    // boundary the send went out as "hello" with "world Botly" dropped.
+    expect(
+      dms.getDmSendMessage([
+        'send',
+        '0v5.abcde',
+        'hello',
+        'world',
+        '--bot',
+        'Botly',
+      ])
+    ).toBe('hello world');
+    expectUsageExit(() =>
+      dms.dmBotProfile(
+        ['send', '0v5.abcde', 'hello', 'world', '--bot', 'Botly'],
+        'usage'
+      )
+    );
+    expectUsageExit(() =>
+      dms.dmBotProfile(
+        ['reply', '0v5.abcde', '~pen/170.141', 'hi', '--bot', 'Botly'],
+        'usage'
+      )
+    );
+    // A following option is the next flag, not a value.
+    expect(
+      dms.dmBotProfile(
+        ['send', '0v5.abcde', 'hi', '--bot', '--image', 'https://x/y.png'],
+        'usage'
+      )
+    ).toEqual({ nickname: null, avatar: null });
+  });
+
+  it('rejects a malformed bot flag during send/reply validation', async () => {
+    const dms = await loadDms();
+    expectUsageExit(() =>
+      dms.validateDmsArgs(['send', '0v5.abcde', 'hi', '--bot=Botly'])
+    );
+    expectUsageExit(() =>
+      dms.validateDmsArgs([
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi',
+        '--bot=Botly',
+      ])
+    );
+    expectUsageExit(() =>
+      dms.validateDmsArgs(['send', '0v5.abcde', 'hi', '--bot', 'Botly'])
+    );
+    expectUsageExit(() =>
+      dms.validateDmsArgs([
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi',
+        '--bot',
+        'Botly',
+      ])
+    );
+  });
+
+  it('keeps a trailing bot flag out of the message text', async () => {
+    const dms = await loadDms();
+
+    expect(
+      dms.getDmSendMessage([
+        'send',
+        '0v5.abcde',
+        'hello',
+        'there',
+        'friend',
+        '--bot',
+      ])
+    ).toBe('hello there friend');
+    expect(
+      dms.getDmSendMessage([
+        'send',
+        '0v5.abcde',
+        'hello',
+        'there',
+        '--bot',
+        '--image',
+        'https://x/y.png',
+      ])
+    ).toBe('hello there');
+    expect(
+      dms.getDmReplyMessage([
+        'reply',
+        '0v5.abcde',
+        '~pen/170.141',
+        'hello',
+        'there',
+        'friend',
+        '--bot',
+      ])
+    ).toBe('hello there friend');
+  });
+
+  it('forwards the bot profile to the club send and reply payloads', async () => {
+    const dms = await loadDms();
+    const posts: Record<string, unknown>[] = [];
+    const replies: Record<string, unknown>[] = [];
+    const deps = {
+      getCurrentUserId: () => '~bot',
+      sendPost: async (input: Record<string, unknown>) => {
+        posts.push(input);
+      },
+      sendReply: async (input: Record<string, unknown>) => {
+        replies.push(input);
+      },
+    };
+
+    expect(
+      await dms.sendClubMessage(
+        '0v5.abcde',
+        'hi',
+        undefined,
+        { nickname: null, avatar: null },
+        deps as never
+      )
+    ).toEqual({ success: true });
+    expect(
+      await dms.replyToClub(
+        '0v5.abcde',
+        '~pen/170.141',
+        'hi',
+        { nickname: null, avatar: null },
+        deps as never
+      )
+    ).toEqual({ success: true });
+
+    expect(posts[0].botProfile).toEqual({ nickname: null, avatar: null });
+    expect(replies[0].botProfile).toEqual({ nickname: null, avatar: null });
+  });
+
+  it('omits botProfile entirely without a bot flag', async () => {
+    const dms = await loadDms();
+    const posts: Record<string, unknown>[] = [];
+    const replies: Record<string, unknown>[] = [];
+    const deps = {
+      getCurrentUserId: () => '~zod',
+      sendPost: async (input: Record<string, unknown>) => {
+        posts.push(input);
+      },
+      sendReply: async (input: Record<string, unknown>) => {
+        replies.push(input);
+      },
+    };
+
+    await dms.sendClubMessage(
+      '0v5.abcde',
+      'hi',
+      undefined,
+      undefined,
+      deps as never
+    );
+    await dms.replyToClub(
+      '0v5.abcde',
+      '~pen/170.141',
+      'hi',
+      undefined,
+      deps as never
+    );
+
+    expect('botProfile' in posts[0]).toBe(false);
+    expect('botProfile' in replies[0]).toBe(false);
+  });
+});
+
+// Drives `run(argv, deps)` — the real parse-to-payload path the CLI entry point
+// uses — so the argv-to-botProfile wiring in the dispatch arms is covered.
+async function runDms(
+  args: string[],
+  deps: Record<string, unknown>
+): Promise<{
+  posts: Record<string, unknown>[];
+  replies: Record<string, unknown>[];
+}> {
+  const dms = await loadDms();
+  const originalExit = process.exit;
+  const originalLog = console.log;
+  const originalError = console.error;
+  const exitCodes: (number | undefined)[] = [];
+  process.exit = ((code?: number) => {
+    exitCodes.push(code);
+    throw new Error('exit');
+  }) as typeof process.exit;
+  console.log = () => {};
+  console.error = () => {};
+  try {
+    await dms.run(args, deps as never).catch((error) => {
+      if (!(error instanceof Error) || error.message !== 'exit') throw error;
+    });
+  } finally {
+    process.exit = originalExit;
+    console.log = originalLog;
+    console.error = originalError;
+  }
+  expect(exitCodes).toEqual([0]);
+  return {
+    posts: deps.posts as Record<string, unknown>[],
+    replies: deps.replies as Record<string, unknown>[],
+  };
+}
+
+function makeRunDeps() {
+  const posts: Record<string, unknown>[] = [];
+  const replies: Record<string, unknown>[] = [];
+  return {
+    posts,
+    replies,
+    ensureClient: async () => {},
+    fetchImageVerse: async () => ({ block: { image: {} } }),
+    getCurrentUserId: () => '~bot',
+    sendPost: async (input: Record<string, unknown>) => {
+      posts.push(input);
+    },
+    sendReply: async (input: Record<string, unknown>) => {
+      replies.push(input);
+    },
+  };
+}
+
+describe('dms run', () => {
+  it('sends a group DM with the parsed bot profile', async () => {
+    const { posts } = await runDms(
+      ['send', '0v5.abcde', 'hello', 'there', '--bot'],
+      makeRunDeps()
+    );
+
+    expect(posts).toEqual([
+      {
+        channelId: '0v5.abcde',
+        authorId: '~bot',
+        sentAt: expect.any(Number),
+        content: [{ inline: ['hello there'] }],
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it('replies in a group DM with the parsed bot profile', async () => {
+    const { replies } = await runDms(
+      ['reply', '0v5.abcde', '~pen/170.141', 'hi', 'there', '--bot'],
+      makeRunDeps()
+    );
+
+    expect(replies).toEqual([
+      {
+        channelId: '0v5.abcde',
+        parentId: '170.141',
+        parentAuthor: '~pen',
+        authorId: '~bot',
+        sentAt: expect.any(Number),
+        content: [{ inline: ['hi there'] }],
+        botProfile: { nickname: null, avatar: null },
+      },
+    ]);
+  });
+
+  it('omits botProfile from a plain send and reply', async () => {
+    const { posts } = await runDms(
+      ['send', '0v5.abcde', 'hello'],
+      makeRunDeps()
+    );
+    const { replies } = await runDms(
+      ['reply', '0v5.abcde', '~pen/170.141', 'hi'],
+      makeRunDeps()
+    );
+
+    expect('botProfile' in posts[0]).toBe(false);
+    expect('botProfile' in replies[0]).toBe(false);
+  });
+});

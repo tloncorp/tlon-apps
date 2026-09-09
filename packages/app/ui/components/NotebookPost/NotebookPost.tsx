@@ -1,5 +1,6 @@
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import { usePostWithRelations } from '@tloncorp/shared/store';
 import { Button, Pressable, Text, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
@@ -9,7 +10,6 @@ import { getPostImageViewerId } from '../../../utils/mediaViewer';
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
 import type { MinimalRenderItemProps } from '../../contexts/componentsKits/componentsKits';
-import { useRequests } from '../../contexts/requests';
 import { useCanWrite } from '../../utils/channelUtils';
 import { ChatMessageActions } from '../ChatMessage/ChatMessageActions/Component';
 import { ReactionsDisplay } from '../ChatMessage/ReactionsDisplay';
@@ -201,8 +201,7 @@ export function NotebookPostDetailView({
   post: db.Post;
   onPressImage?: (post: db.Post, uri?: string) => void;
 }) {
-  const { usePost } = useRequests();
-  const { data: livePost } = usePost({ id: post.id });
+  const { data: livePost } = usePostWithRelations({ id: post.id });
   const content = usePostContent(post);
   const lastEditContent = usePostLastEditContent(post);
   const [viewReactionsOpen, setViewReactionsOpen] = useState(false);

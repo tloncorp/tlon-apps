@@ -2,6 +2,7 @@ import * as api from '@tloncorp/api';
 import { toPostContent } from '@tloncorp/api';
 import * as urbit from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../../analytics';
 import * as db from '../../db';
 import type * as domain from '../../domain';
 import { AnalyticsEvent, Attachment, PostDataDraft } from '../../domain';
@@ -138,8 +139,20 @@ export function finalizePostDraftUsingLocalAttachments(
   }
 }
 
+export type PostSendOptions = {
+  /** Called after the optimistic post has been added to the session queue. */
+  onEnqueued?: () => void;
+  /**
+   * Reject after recording a definitive failed send. Interactive controls use
+   * this to restore themselves; ordinary composers retain legacy resolve-on-
+   * failure behavior and expose retry through the failed message row.
+   */
+  rejectOnDefinitiveFailure?: boolean;
+};
+
 export async function finalizeAndSendPost(
-  draft: domain.PostDataDraft
+  draft: domain.PostDataDraft,
+  options?: PostSendOptions
 ): Promise<void> {
   if (draft.isEdit) {
     await editPostUsingDraft(draft);
@@ -153,6 +166,8 @@ export async function finalizeAndSendPost(
         finalizePostDraftUsingLocalAttachments(draft),
       buildFinalizedPostData: () => finalizePostDraft(draft),
       draft: serializedDraft,
+      onEnqueued: options?.onEnqueued,
+      rejectOnDefinitiveFailure: options?.rejectOnDefinitiveFailure,
     });
   }
 }
@@ -172,6 +187,8 @@ async function _sendPost({
   channelId,
   draft,
   existingPost,
+  onEnqueued,
+  rejectOnDefinitiveFailure,
 }: {
   buildFinalizedPostData: () => Promise<domain.PostDataFinalizedParent>;
   buildOptimisticPostData?: () => domain.PostDataFinalizedParent;
@@ -180,12 +197,18 @@ async function _sendPost({
   draft?: domain.PostDataDraft;
   /** Existing post to retry (updates in place instead of creating new) */
   existingPost?: db.Post;
+  /** Called after the optimistic post has been added to the session queue. */
+  onEnqueued?: () => void;
+  rejectOnDefinitiveFailure?: boolean;
 }) {
   const authorId = api.getCurrentUserId();
 
   const channel = await db.getChannel({ id: channelId });
   if (!channel) {
     logger.trackError('Failed to forward post, unable to find channel');
+    if (rejectOnDefinitiveFailure) {
+      throw new Error(`Unable to send post: channel ${channelId} is missing`);
+    }
     return;
   }
 
@@ -267,6 +290,7 @@ async function _sendPost({
   }
 
   logger.crumb('done optimistic update');
+  let backendDeliveryCompleted = false;
   try {
     logger.crumb('enqueuing sending post to backend');
     const debug = {
@@ -282,7 +306,7 @@ async function _sendPost({
     // SessionActionQueue.
     const finalizedPostDataPromise = buildFinalizedPostData();
 
-    await sessionActionQueue.add(
+    const sendPromise = sessionActionQueue.add(
       async () => {
         logger.crumb('finalizing post');
         trackSendDebug('queue_action_started');
@@ -342,6 +366,9 @@ async function _sendPost({
         ...debug,
       }
     );
+    onEnqueued?.();
+    await sendPromise;
+    backendDeliveryCompleted = true;
     logger.crumb('sent post to backend, syncing channel message delivery');
     sync.syncChannelMessageDelivery({ channelId: channel.id });
 
@@ -356,7 +383,34 @@ async function _sendPost({
     }
 
     logger.crumb('done sending post');
+    trackEvent(AnalyticsEvent.ContentSendCompleted, {
+      type: channel.type,
+      isReply: draft?.replyToPostId != null,
+      attachmentTypes:
+        draft?.attachments.map((attachment) => attachment.type) ?? [],
+    });
+
+    if (draft) {
+      if (
+        draft.attachments.some((attachment) => attachment.type === 'voicememo')
+      ) {
+        trackEvent(AnalyticsEvent.VoiceMemoSent);
+      }
+    }
   } catch (e) {
+    if (backendDeliveryCompleted) {
+      // Delivery is authoritative once the API call resolves. A later local
+      // cleanup failure must not make a one-shot control retryable and send a
+      // duplicate message.
+      logger.error('Post sent but local cleanup failed', {
+        message: e.message,
+        type: e.constructor?.name,
+        stack: e.stack,
+        fullError: e,
+      });
+      return;
+    }
+
     logger.trackEvent(
       cachePost.parentId == null
         ? AnalyticsEvent.ErrorSendPost
@@ -397,6 +451,9 @@ async function _sendPost({
       });
     } else {
       await db.updatePost({ id: cachePost.id, deliveryStatus: 'failed' });
+      if (rejectOnDefinitiveFailure) {
+        throw e;
+      }
     }
   }
 }
@@ -463,6 +520,7 @@ export async function retrySendPost({
   await _sendPost({
     channelId: draft.channelId,
     buildFinalizedPostData: () => finalizePostDraft(draft),
+    draft,
     existingPost: post,
   });
 }
@@ -649,6 +707,13 @@ async function _editPost({
         content: finalized.content,
         metadata: finalized.metadata,
         parentId: postBeforeEdit.parentId ?? undefined,
+        // An edit resubmits the whole essay, so the post's authorship shape has
+        // to be carried back in: without this a bot-authored post is rewritten
+        // to a bare ship author and loses its "Bot" tag. Display values come
+        // from contact sync, so only the shape is preserved.
+        ...(postBeforeEdit.isBot
+          ? { botProfile: { nickname: null, avatar: null } }
+          : {}),
       });
     });
     logger.log('editPost api call done');
@@ -660,6 +725,7 @@ async function _editPost({
       lastEditImage: null,
     });
     logger.log('editPost update done');
+    trackEvent(AnalyticsEvent.PostEditCompleted);
   } catch (e) {
     console.error('Failed to edit post', e);
     logger.log('editPost failed', e);
@@ -902,6 +968,7 @@ export async function reportPost({
       api.reportPost(userId, groupId, post.channelId, post)
     );
     await hidePost({ post });
+    trackEvent(AnalyticsEvent.PostReported);
   } catch (e) {
     logger.trackError('Failed to report post', e);
 
@@ -940,6 +1007,15 @@ export async function addPostReaction(
     });
     return;
   }
+
+  // Local personalization only — keep it off the critical path so a full or
+  // unavailable key/value store can't stop the user from reacting.
+  db.recordEmojiUsage(emoji, Date.now()).catch((e) => {
+    logger.trackError('Failed to record emoji usage', {
+      emoji,
+      error: e.toString(),
+    });
+  });
 
   const channel = await db.getChannel({ id: post.channelId });
   let group = null;
