@@ -52,13 +52,19 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
 // cookie, and failing to refresh only costs push previews until the next
 // reauth, so it must never reject into that caller.
 //
-// The stored record arbitrates both copies. Logout and account switch write
-// ship info before the client is reconfigured (setShip in ShipLoginScreen vs
-// configureClient in ConnectedAuthenticatedApp), and internalRemoveClient
-// leaves a pending reauth and its callback installed, so a reauth resolving in
-// that window still matches its own closure. Deciding the native write from
-// the same record that boot replays into native is what keeps the two copies
-// from disagreeing.
+// Each copy is arbitrated by whoever owns it, because this runs across awaits
+// and the active account can change at any of them. internalRemoveClient
+// leaves a pending reauth and its callback installed, and logout and account
+// switch write ship info before the client is reconfigured (setShip in
+// ShipLoginScreen vs configureClient in ConnectedAuthenticatedApp), so neither
+// this closure nor any flag computed earlier is trustworthy by the time a
+// write lands:
+//
+//   - the persisted record is decided inside StorageItem's write lock, by the
+//     updater, against the record as of that write
+//   - the native copy is decided by UrbitModule.setAuthCookie, which compares
+//     against the ship and url it currently holds; that is the only place the
+//     check and the write are not separated by an await
 function refreshAuthCookieCopies(
   shipName: string,
   shipUrl: string,
@@ -87,7 +93,11 @@ function refreshAuthCookieCopies(
         });
         return;
       }
-      UrbitModule?.setAuthCookie(authCookie);
+      // Not gated on `applied` for correctness -- native re-checks the ship
+      // and url itself, since the account can change between the updater
+      // running and this continuation resuming. Skipping the bridge call when
+      // the persisted record already rejected the cookie just avoids the trip.
+      UrbitModule?.setAuthCookie(shipName, shipUrl, authCookie);
     } catch (e) {
       clientLogger.trackError('Failed to refresh the stored auth cookie', {
         errorMessage: e instanceof Error ? e.message : String(e),

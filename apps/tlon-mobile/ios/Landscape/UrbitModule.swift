@@ -49,8 +49,8 @@ class UrbitModule: NSObject {
     // main app's jar via forwardChanges(to:), so a reauth's cookie reaches the
     // notification extension without help. Implemented so the shared JS call
     // site does not have to branch per platform.
-    @objc(setAuthCookie:)
-    func setAuthCookie(authCookie _: String) {}
+    @objc(setAuthCookie:shipUrl:authCookie:)
+    func setAuthCookie(shipName _: String, shipUrl _: String, authCookie _: String) {}
 
     @objc(setPostHogApiKey:)
     func setPostHogApiKey(apiKey: String) {
