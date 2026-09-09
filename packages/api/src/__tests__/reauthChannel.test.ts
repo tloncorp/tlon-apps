@@ -157,6 +157,76 @@ describe('reauth', () => {
     expect(handleAuthFailure).toHaveBeenCalledWith({ mustLogout: false });
   });
 
+  test('reports the refreshed cookie so native copies can be updated', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+    expect(onAuthCookieChange).toHaveBeenCalledTimes(1);
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipUrl: 'http://example.test',
+      authCookie: 'urbauth=refreshed',
+    });
+  });
+
+  // Reauth reads config.* after its awaits, so one started before an account
+  // switch can land after it (TLON-6500). The url it reports must be the one
+  // the login actually went to, otherwise a handler cannot tell that the
+  // cookie belongs to a client it is no longer configured for.
+  test('reports the url the login used, not whatever is configured later', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    // switch ships at the moment the login request goes out, so the switch
+    // lands while the login response is still in flight
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://ship-b.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: client as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://ship-a.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipUrl: 'http://ship-a.test',
+      authCookie: 'urbauth=refreshed',
+    });
+  });
+
   test('a rejected access code logs out instead of retrying', async () => {
     const handleAuthFailure = vi.fn();
     const client = fakeClient({

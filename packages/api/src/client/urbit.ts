@@ -23,7 +23,11 @@ const DEFAULT_THREAD_TIMEOUT = 90 * 1000; // 90 seconds
 
 interface Config extends Pick<
   ClientParams,
-  'getCode' | 'handleAuthFailure' | 'shipUrl' | 'onQuitOrReset'
+  | 'getCode'
+  | 'handleAuthFailure'
+  | 'onAuthCookieChange'
+  | 'shipUrl'
+  | 'onQuitOrReset'
 > {
   client: Urbit | null;
   subWatchers: Watchers;
@@ -100,6 +104,16 @@ export interface ClientParams {
   fetchFn?: typeof fetch;
   getCode?: () => Promise<string>;
   handleAuthFailure?: (params: { mustLogout: boolean }) => void;
+  // Called with every cookie a successful reauth installs, so a platform that
+  // keeps its own copy (Android's notification service reads one out of
+  // SharedPreferences) can refresh it. `shipUrl` is the url the login actually
+  // went to, not whatever is configured by the time the callback runs, so a
+  // handler can drop a cookie belonging to a client that has since been
+  // replaced -- see TLON-6500.
+  onAuthCookieChange?: (params: {
+    shipUrl: string;
+    authCookie: string;
+  }) => void;
   onQuitOrReset?: (
     cause: 'subscriptionQuit' | 'reset',
     relevantSubscription?: string
@@ -119,6 +133,7 @@ const config: Config = {
   onQuitOrReset: undefined,
   getCode: undefined,
   handleAuthFailure: undefined,
+  onAuthCookieChange: undefined,
   // Off until the app confirms the backend's groups version ships reactions.
   // Drives which %activity endpoint versions the client uses (feed/sub/marks).
   activitySupportsReactions: false,
@@ -247,6 +262,7 @@ export function internalConfigureClient({
   fetchFn,
   getCode,
   handleAuthFailure,
+  onAuthCookieChange,
   onQuitOrReset,
   onChannelStatusChange,
   client: injectedClient,
@@ -262,6 +278,7 @@ export function internalConfigureClient({
   config.onQuitOrReset = onQuitOrReset;
   config.getCode = getCode;
   config.handleAuthFailure = handleAuthFailure;
+  config.onAuthCookieChange = onAuthCookieChange;
   config.subWatchers = {};
 
   // the below event handlers will only fire if verbose is set to true
@@ -1069,9 +1086,12 @@ async function performReauth(): Promise<string | void> {
   for (let attempt = 0; ; attempt++) {
     const lastAttempt = attempt >= MAX_LOGIN_ATTEMPTS - 1;
     let authCookie: string | undefined;
+    // read once, so the url reported to onAuthCookieChange is provably the one
+    // this login went to even if config.shipUrl changes while we await
+    const loginShipUrl = config.shipUrl;
     try {
       logger.log('trying to auth with code', code);
-      authCookie = await getLandscapeAuthCookie(config.shipUrl, code);
+      authCookie = await getLandscapeAuthCookie(loginShipUrl, code);
     } catch (e) {
       if (e instanceof AuthFailureError && e.responseStatus === 400) {
         // the code itself was rejected; no retry will fix that, so log out
@@ -1096,6 +1116,7 @@ async function performReauth(): Promise<string | void> {
 
     if (authCookie) {
       config.authEpoch += 1;
+      config.onAuthCookieChange?.({ shipUrl: loginShipUrl, authCookie });
       if (config.client) {
         config.client.cookie = authCookie;
         // logging in moved us to a new session. any channel we opened under

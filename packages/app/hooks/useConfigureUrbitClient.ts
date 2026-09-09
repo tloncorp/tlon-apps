@@ -5,10 +5,11 @@ import { AnalyticsEvent, createDevLogger, sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform, TurboModuleRegistry } from 'react-native';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
+import { UrbitModuleSpec } from '../utils/urbitModule';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
@@ -17,6 +18,12 @@ import { initializePolyfills } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
 
 initializePolyfills();
+
+// Only the native platforms keep a cookie copy for their notification service.
+const UrbitModule =
+  Platform.OS !== 'web'
+    ? (TurboModuleRegistry.get('UrbitModule') as UrbitModuleSpec | null)
+    : null;
 
 const clientLogger = createDevLogger('configure client', true);
 
@@ -37,6 +44,28 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   };
   return fetch(input, newInit);
 };
+
+// Writes a reauth's cookie over the persisted one. Fire-and-forget: this runs
+// from inside the reauth that produced the cookie, and a failure to persist
+// only costs us push previews until the next reauth, so it must never reject
+// into that caller.
+function persistRefreshedAuthCookie(shipUrl: string, authCookie: string) {
+  void (async () => {
+    try {
+      const stored = await db.storage.shipInfo.getValue();
+      // don't resurrect a logged-out session, and don't cross an account switch
+      // that landed between the reauth starting and this write
+      if (!stored || stored.shipUrl !== shipUrl) {
+        return;
+      }
+      await db.storage.shipInfo.setValue({ ...stored, authCookie });
+    } catch (e) {
+      clientLogger.trackError('Failed to persist refreshed auth cookie', {
+        errorMessage: e instanceof Error ? e.message : String(e),
+      });
+    }
+  })();
+}
 
 export function configureUrbitClient({
   ship,
@@ -106,6 +135,35 @@ export function configureUrbitClient({
       return code;
     },
     handleAuthFailure: onAuthFailure,
+    onAuthCookieChange: ({ shipUrl: cookieShipUrl, authCookie }) => {
+      // Reauth reads module-level config after its awaits, so one that started
+      // before an account switch can finish after it (TLON-6500). Both urls
+      // come from this function's own argument, so comparing them against the
+      // closure's is exact: a mismatch means the cookie belongs to a client we
+      // are no longer configured for, and applying it would point the
+      // notification service at the wrong session.
+      if (cookieShipUrl !== shipUrl) {
+        clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+          context: 'reauth cookie did not match the configured ship',
+        });
+        return;
+      }
+      // The stored cookie is what boot replays into native storage, so
+      // refreshing native alone would be undone by the next app launch.
+      persistRefreshedAuthCookie(cookieShipUrl, authCookie);
+      if (!UrbitModule) {
+        return;
+      }
+      try {
+        UrbitModule.setAuthCookie(authCookie);
+      } catch (e) {
+        // a stale native cookie only degrades push copy, so never let this
+        // throw into the reauth that produced it
+        clientLogger.trackError('Failed to push auth cookie to native', {
+          errorMessage: e instanceof Error ? e.message : String(e),
+        });
+      }
+    },
   });
 }
 

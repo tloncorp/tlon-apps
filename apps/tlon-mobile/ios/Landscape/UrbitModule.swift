@@ -44,6 +44,14 @@ class UrbitModule: NSObject {
         )
     }
 
+    // No-op by design: iOS keeps no cookie of its own. PocketAPI reads the
+    // app-group HTTPCookieStorage, which AppDelegate keeps in sync with the
+    // main app's jar via forwardChanges(to:), so a reauth's cookie reaches the
+    // notification extension without help. Implemented so the shared JS call
+    // site does not have to branch per platform.
+    @objc(setAuthCookie:)
+    func setAuthCookie(authCookie _: String) {}
+
     @objc(setPostHogApiKey:)
     func setPostHogApiKey(apiKey: String) {
         UserDefaults.forDefaultAppGroup.set(apiKey, forKey: "postHogApiKey")

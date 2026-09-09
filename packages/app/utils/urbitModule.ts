@@ -2,6 +2,11 @@ export interface UrbitModuleSpec {
   setPostHogApiKey(key: string): void;
   clearUrbit(): void;
   setUrbit(ship: string, url: string, authCookie: string): void;
+  // Refreshes just the stored auth cookie, without the rest of what setUrbit
+  // does. setUrbit is a new-login operation -- it also rotates the channel url
+  // and clears the cached activity capabilities -- so it must not be reused to
+  // push a cookie obtained by a mid-session reauth.
+  setAuthCookie(authCookie: string): void;
   updateBadgeCount(count: number, uid: string): void;
   signalJsReady(): void;
   // Caches whether the connected backend's %activity supports reactions, so the
