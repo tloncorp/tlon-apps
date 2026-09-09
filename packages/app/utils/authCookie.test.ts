@@ -69,9 +69,9 @@ describe('applyRefreshedAuthCookie', () => {
     expect(applyRefreshedAuthCookie(moved, refresh)).toBe(moved);
   });
 
-  // Callers detect a decline by reference (`next !== stored`) and use it to
-  // gate the native cookie write as well, so returning a copy on the decline
-  // path would silently let a rejected cookie reach the notification service.
+  // Callers detect a decline by reference (`next !== stored`), which is how the
+  // refresh path knows to report one, so returning a copy here would make every
+  // write look like a decline.
   it('returns the record by reference when it declines', () => {
     const other: ShipInfo = { ...stored, ship: '~solfer-magfed' };
     expect(applyRefreshedAuthCookie(other, refresh)).toBe(other);

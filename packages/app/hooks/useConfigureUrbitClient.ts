@@ -65,11 +65,29 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
 //   - the native copy is decided by UrbitModule.setAuthCookie, which compares
 //     against the ship and url it currently holds; that is the only place the
 //     check and the write are not separated by an await
+//
+// The two are therefore independent, and deliberately not sequenced: native
+// keeps its own ship and url (setUrbit writes all three together), so it can
+// hold the active account even when the persisted write fails. Gating it on
+// that write would skip it there -- and skip it for the rest of the session,
+// since a rejected StorageItem write leaves `updateLock` rejected and every
+// later setValue on that item inherits the rejection.
 function refreshAuthCookieCopies(
   shipName: string,
   shipUrl: string,
   authCookie: string
 ) {
+  try {
+    // Synchronous and unconditional: nothing this function does afterwards can
+    // starve it, and native decides for itself whether to accept.
+    UrbitModule?.setAuthCookie(shipName, shipUrl, authCookie);
+  } catch (e) {
+    // an older native binary under a newer JS bundle may not have the method
+    clientLogger.trackError('Failed to refresh the native auth cookie', {
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
+  }
+
   void (async () => {
     try {
       let applied = false;
@@ -91,15 +109,9 @@ function refreshAuthCookieCopies(
         clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
           context: 'stored ship info belongs to a different session',
         });
-        return;
       }
-      // Not gated on `applied` for correctness -- native re-checks the ship
-      // and url itself, since the account can change between the updater
-      // running and this continuation resuming. Skipping the bridge call when
-      // the persisted record already rejected the cookie just avoids the trip.
-      UrbitModule?.setAuthCookie(shipName, shipUrl, authCookie);
     } catch (e) {
-      clientLogger.trackError('Failed to refresh the stored auth cookie', {
+      clientLogger.trackError('Failed to persist the refreshed auth cookie', {
         errorMessage: e instanceof Error ? e.message : String(e),
       });
     }
