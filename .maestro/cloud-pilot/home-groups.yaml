@@ -71,8 +71,7 @@ env:
 - inputText: ${MAESTRO_RUN_TAG}
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertNotVisible: ${output.reliability.groupPattern}
-- tapOn: '^Clear$'
-- tapOn: '^Close$'
+- hideKeyboard
 # Delete only this run's group, and verify cancellation before confirming.
 - longPressOn: ${output.reliability.group + ' renamed'}
 - tapOn: '^Group info & settings$'
