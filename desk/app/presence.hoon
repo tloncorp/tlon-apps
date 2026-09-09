@@ -586,12 +586,10 @@
         =.  tries  (~(del by tries) [src.bowl context])
         :_  this
         [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
-      ::  nacked. if we can no longer read the context (the channel was
-      ::  deleted from its group, or we lost read access), retrying will
-      ::  never succeed: drop the desire right away.
-      ::
-      ::  otherwise the nack may be transient (host hasn't synced the
-      ::  group or channel yet), so retry with linear backoff. after
+      ::  nacked. the nack may be transient (host hasn't synced the
+      ::  group or channel yet, or our own %groups hasn't caught up), so
+      ::  retry with linear backoff. the retry wake re-checks whether we
+      ::  can still read the context, and drops it if not. after
       ::  +max-tries consecutive nacks, drop the desire so we don't
       ::  retry forever; the next full setup starts a fresh cycle if
       ::  the context is still relevant.
@@ -599,15 +597,6 @@
       ::  none of this is a crash on our end, so we only ever +tell.
       ::  keep the message texts stable, dashboards filter on them.
       ::
-      ?.  (context-readable context bowl)
-        =.  want   (~(del in want) [src.bowl context])
-        =.  tries  (~(del by tries) [src.bowl context])
-        :_  this
-        =-  [(tell:log %info - ~)]~
-        :*  'context sub nacked, no longer readable, dropping'
-            >[src=src.bowl context=context]<
-            u.p.sign
-        ==
       =/  try=@ud  +((~(gut by tries) [src.bowl context] 0))
       ?:  (gth try max-tries)
         =.  want   (~(del in want) [src.bowl context])
@@ -730,13 +719,14 @@
       =.  tries  (~(del by tries) [ship context])
       :_  this
       [(tell:log %dbug ~['setup(specific): no longer wanted, skipping' >ship< >context<] ~)]~
-    ::  likewise if we lost the ability to read it in the meantime
+    ::  likewise if we can no longer read it: the channel was deleted from
+    ::  its group, or we lost read access. the host would keep nacking us.
     ::
     ?.  (context-readable context bowl)
       =.  want   (~(del in want) [ship context])
       =.  tries  (~(del by tries) [ship context])
       :_  this
-      [(tell:log %dbug ~['setup(specific): no longer readable, dropping' >ship< >context<] ~)]~
+      [(tell:log %info ~['context sub no longer readable, dropping' >[src=ship context=context]<] ~)]~
     ?:  ?|  (~(has by wex.bowl) [%context context] ship dap.bowl)
             (~(has by wex.bowl) [%context-2 context] ship dap.bowl)
         ==

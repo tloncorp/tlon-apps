@@ -5,10 +5,10 @@
 ::    from a stale timer must not delete presence that fresher %sets have
 ::    kept alive.
 ::
-::    subscription nacks on the subscriber's ship: a nack for a channel
-::    we can no longer read (deleted from its group, or we lost access)
-::    drops the desire outright; otherwise we retry with backoff and give
-::    up after +max-tries. neither is a crash, so we only ever +tell.
+::    subscription nacks on the subscriber's ship: we retry with backoff,
+::    the retry wake drops a channel we can no longer read (deleted from
+::    its group, or we lost access), and we give up after +max-tries.
+::    none of that is a crash, so we only ever +tell.
 ::
 ::    participant checks on the host's ship: a context watch by a ship
 ::    that cannot read the channel is rejected, with a hint saying why.
@@ -234,10 +234,11 @@
   %+  ex-cards  caz
   [(ex-task chan-wire [host dap] %watch-as %presence-update-1 chan-watch)]~
 ::
-::  a nack for a channel we can no longer read drops the desire outright:
-::  no retry timer, and a later wake finds nothing to do
+::  a nack for a channel we can no longer read is still retried once (our
+::  %groups may simply not have caught up yet), but the retry wake drops
+::  the desire instead of resubscribing, and a later wake is a no-op
 ::
-++  test-chan-nack-unreadable-drops
+++  test-chan-nack-unreadable-drops-at-retry
   %-  eval-mare
   =/  m  (mare ,~)
   ^-  form:m
@@ -245,7 +246,14 @@
   ;<  caz=(list card)  bind:m  do-chan-nack
   ;<  ~  bind:m
     %+  ex-cards-with-logs  caz
-    [(ex-log %tell %info 'context sub nacked, no longer readable, dropping')]~
+    :~  (ex-arvo chan-setup %b %wait (add t0 ~m5))
+        (ex-log %tell %info 'context sub nacked, will retry')
+    ==
+  ;<  ~  bind:m  (wait ~m5)
+  ;<  caz=(list card)  bind:m  do-chan-wake
+  ;<  ~  bind:m
+    %+  ex-cards-with-logs  caz
+    [(ex-log %tell %info 'context sub no longer readable, dropping')]~
   ;<  caz=(list card)  bind:m  do-chan-wake
   (ex-cards caz ~)
 ::
