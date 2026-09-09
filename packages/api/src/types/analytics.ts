@@ -40,6 +40,7 @@ export enum AnalyticsEvent {
   ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
   ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
+  SubscribeOnceRecovered = 'Subscribe Once Recovered',
   ErrorNativeDb = 'Native DB Error',
   ErrorWebDb = 'Web DB Error',
   InitDataFetched = 'Init Data Fetched',

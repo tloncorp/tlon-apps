@@ -100,6 +100,12 @@ export const ChatList = React.memo(function ChatListComponent({
 
   // A single interactive chat row, shared by the virtualized rest-list and the
   // non-sort-mode pinned block in the header.
+  //
+  // The testIDs below fall back with `||`, not `??`: a quick group is created
+  // with an empty-string title (see `createDefaultGroup`), which `??` would
+  // keep, collapsing the testID to `ChatListItem--unpinned` while the row still
+  // renders as 'Untitled group'. Keep the group fallback in step with the
+  // rendered title and with `GroupListItem`.
   const renderChat = useCallback(
     (item: db.Chat) => {
       if (item.type === 'channel' && !item.isPending) {
@@ -109,7 +115,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             hoverStyle={listItemHoverStyle}
-            testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
+            testID={`ChatListItem-${item.channel.title || item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else if (item.type === 'group' && !item.isPending) {
@@ -119,10 +125,6 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             hoverStyle={listItemHoverStyle}
-            // `??` keeps an empty title, so an untitled group's testID went on
-            // saying `ChatListItem--unpinned` until the host's title arrived,
-            // while the row already rendered as 'Untitled group'. Match what is
-            // displayed, the way GroupListItem does.
             testID={`ChatListItem-${item.group.title || 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
