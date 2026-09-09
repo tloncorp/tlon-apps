@@ -12,6 +12,7 @@ import com.facebook.react.common.ReleaseLevel
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint
 import expo.modules.ApplicationLifecycleDispatcher
 import expo.modules.ExpoReactHostFactory
+import io.tlon.landscape.images.AnimatedImageHeapGuard
 import io.tlon.landscape.notifications.TalkNotificationManager
 import io.tlon.landscape.storage.SecureStorage
 import io.branch.rnbranch.RNBranchModule
@@ -37,6 +38,9 @@ class MainApplication : Application(), ReactApplication {
 
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
     ProcessLifecycleOwner.get().lifecycle.addObserver(AppLifecycleManager(this))
+
+    // Must precede the first image request, so it can't wait for one.
+    AnimatedImageHeapGuard.install(this)
 
     try {
       SecureStorage.create(this)
