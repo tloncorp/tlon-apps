@@ -60,7 +60,6 @@ import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { setSessionRole } from '../session-roles.js';
 import {
-  DM_INVITE_PREVIEW,
   type TlonSettingsStore,
   createSettingsManager,
 } from '../settings.js';
@@ -4558,6 +4557,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Track which DM invites we've already processed to avoid duplicate accepts
     const processedDmInvites = new Set<string>();
 
+    // Accept-only: the writ that created the invite has already queued the
+    // owner approval for anyone not auto-accepted here, with the real message
+    // as preview, so this must not queue a second one.
     const handleDmInvite = async (rawShip: string) => {
       const ship = normalizeShip(rawShip || '');
       if (!ship || processedDmInvites.has(ship)) {
@@ -4601,20 +4603,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           );
         }
         return;
-      }
-
-      // If owner is configured and ship is not on allowlist, queue approval
-      if (effectiveOwnerShip && !isDmAllowed(ship, effectiveDmAllowlist)) {
-        const approval = createPendingApproval(
-          {
-            type: 'dm',
-            requestingShip: ship,
-            messagePreview: DM_INVITE_PREVIEW,
-          },
-          pendingApprovals.map((a) => a.id)
-        );
-        await queueApprovalRequest(approval);
-        processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
       }
     };
 
