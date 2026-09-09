@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Native channel creation and navigation
+name: Native channel lifecycle
 tags: [regression]
 env:
   JOURNEY: m
@@ -45,7 +45,58 @@ env:
 - tapOn: ${MAESTRO_RUN_TAG + ' channel'}
 - assertVisible: ${output.reliability.textPattern}
 - hideKeyboard
+- tapOn: ${MAESTRO_RUN_TAG + ' channel'}
+- tapOn:
+    id: DetailsEditButton
+- tapOn:
+    id: ChannelTitleInput
+    point: '95%,50%'
+- eraseText: 30
+- inputText: ${MAESTRO_RUN_TAG + ' renamed'}
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${MAESTRO_RUN_TAG + ' renamed'}
+- tapOn:
+    id: ChannelDescriptionInput
+- inputText: ${MAESTRO_RUN_TAG + ' description'}
+- tapOn:
+    id: ChannelSettingsSaveButton
+- assertVisible: ${MAESTRO_RUN_TAG + ' renamed'}
+- tapOn:
+    id: DetailsEditButton
+- assertVisible:
+    id: ChannelTitleInput
+    text: ${MAESTRO_RUN_TAG + ' renamed'}
+- assertVisible:
+    id: ChannelDescriptionInput
+    text: ${MAESTRO_RUN_TAG + ' description'}
 - tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: ${MAESTRO_RUN_TAG + ' renamed'}
+- scrollUntilVisible:
+    element:
+      id: ChannelLeaveAction-Delete channel
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: ${'^Delete ' + MAESTRO_RUN_TAG + ' renamed\\?$'}
+- tapOn: '(?i)^Cancel$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' renamed'}
+- tapOn:
+    id: ChannelLeaveAction-Delete channel
+- assertVisible: ${'^Delete ' + MAESTRO_RUN_TAG + ' renamed\\?$'}
+- tapOn: '(?i)^Delete channel$'
+- extendedWaitUntil:
+    notVisible: ${MAESTRO_RUN_TAG + ' renamed'}
+    timeout: 5000
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' renamed'}
+- assertVisible: '^Chat$'
+- assertVisible: '^Gallery$'
+- assertVisible: '^Notebook$'
 - runFlow:
     when:
       notVisible: '^Home$'
