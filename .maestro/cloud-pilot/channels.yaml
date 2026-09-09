@@ -25,6 +25,9 @@ env:
       - hideKeyboard
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
+    notVisible: '^Create a new channel$'
+    timeout: 5000
+- extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' channel'}
     timeout: 5000
 - tapOn: '^Back$'
@@ -43,5 +46,9 @@ env:
 - assertVisible: ${output.reliability.textPattern}
 - hideKeyboard
 - tapOn: '^Back$'
-- tapOn: '^Back$'
+- runFlow:
+    when:
+      notVisible: '^Home$'
+    commands:
+      - tapOn: '^Back$'
 - assertVisible: '^Home$'
