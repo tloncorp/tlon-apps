@@ -1,4 +1,4 @@
-import type { Story } from '@tloncorp/api';
+import type { DmStatus, Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -329,16 +329,11 @@ interface ChannelFirehoseEvent {
   response: ChannelResponse;
 }
 
-interface DmStatusEvent {
-  ship: string;
-  net: 'inviting' | 'invited' | 'archive' | 'done' | null;
-}
-
 /**
  * Chat/DM firehose: a WritResponse, or a %chat-dm-status fact for a dm
  * entering, changing, or leaving the dm set
  */
-type ChatFirehoseEvent = WritResponse | DmStatusEvent;
+type ChatFirehoseEvent = WritResponse | DmStatus;
 
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
