@@ -8,8 +8,7 @@ on:
       dry_run: { description: 'Print the digest, post nothing, keep state', type: boolean, default: true }
   pull_request:
     paths: ['scripts/sentry-sweep*', '.github/workflows/sentry-sweep.yml']
-permissions: { contents: read, actions: write }
-concurrency: { group: sentry-sweep, cancel-in-progress: false }
+permissions: { contents: read }
 
 jobs:
   test:
@@ -24,6 +23,8 @@ jobs:
 
   sweep:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions: { contents: read, actions: write }
+    concurrency: { group: sentry-sweep, cancel-in-progress: false }
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

@@ -21,6 +21,25 @@ const SCRIPT = join(
   dirname(fileURLToPath(import.meta.url)),
   'sentry-sweep.mjs'
 );
+
+// CLI tests must never deliver anything for real: strip every delivery and
+// Sentry credential from the inherited environment, then apply per-test values.
+const DELIVERY_ENV_KEYS = [
+  'SENTRY_TOKEN',
+  'POSTHOG_API_KEY',
+  'POSTHOG_CAPTURE_URL',
+  'POSTHOG_DISTINCT_ID',
+  'TLON_POST_URL',
+  'TLON_POST_SHIP',
+  'TLON_POST_COOKIE',
+  'TLON_POST_NEST',
+];
+function childEnv(overrides = {}) {
+  const env = { ...process.env };
+  for (const key of DELIVERY_ENV_KEYS) delete env[key];
+  return { ...env, ...overrides };
+}
+
 const NOW = new Date('2026-09-09T16:30:00Z');
 const iso = (msAgo) => new Date(NOW.getTime() - msAgo).toISOString();
 const H = 60 * 60 * 1000;
@@ -171,7 +190,7 @@ test('CLI --fixture --dry-run prints a digest without writing state', () => {
   const out = execFileSync(
     'node',
     [SCRIPT, `--fixture=${fixture}`, '--dry-run', `--since=${since}`],
-    { env: { ...process.env, SWEEP_STATE: statePath }, encoding: 'utf8' }
+    { env: childEnv({ SWEEP_STATE: statePath }), encoding: 'utf8' }
   );
   assert.match(out, /^Sentry sweep /);
   assert.match(
@@ -203,7 +222,7 @@ test('CLI --fixture writes state, then dedupes to empty stdout on the next run',
       },
     })
   );
-  const env = { ...process.env, SWEEP_STATE: statePath };
+  const env = childEnv({ SWEEP_STATE: statePath });
   const since = new Date(Date.now() - H).toISOString();
   const run = () =>
     execFileSync('node', [SCRIPT, `--fixture=${fixture}`, `--since=${since}`], {
@@ -390,7 +409,7 @@ test('CLI --dry-run --print-post prints the poke body without writing state', ()
       `--since=${since}`,
     ],
     {
-      env: { ...process.env, SWEEP_STATE: statePath, ...POST_ENV },
+      env: childEnv({ SWEEP_STATE: statePath, ...POST_ENV }),
       encoding: 'utf8',
     }
   );
@@ -447,13 +466,12 @@ test('CLI post failure exits 1 and leaves the state file unchanged', () => {
   let err = null;
   try {
     execFileSync('node', [SCRIPT, `--fixture=${fixture}`, `--since=${since}`], {
-      env: {
-        ...process.env,
+      env: childEnv({
         SWEEP_STATE: statePath,
         ...POST_ENV,
         TLON_POST_URL: 'http://127.0.0.1:9',
         TLON_POST_COOKIE: 'sentinel-cookie-value',
-      },
+      }),
       encoding: 'utf8',
     });
   } catch (e) {
@@ -615,7 +633,7 @@ test('CLI --dry-run --print-post prints the PostHog batch without the key', () =
       `--since=${since}`,
     ],
     {
-      env: { ...process.env, SWEEP_STATE: statePath, ...POSTHOG_ENV },
+      env: childEnv({ SWEEP_STATE: statePath, ...POSTHOG_ENV }),
       encoding: 'utf8',
     }
   );
@@ -671,12 +689,11 @@ test('CLI PostHog failure exits 1 and leaves the state file unchanged', () => {
   let err = null;
   try {
     execFileSync('node', [SCRIPT, `--fixture=${fixture}`, `--since=${since}`], {
-      env: {
-        ...process.env,
+      env: childEnv({
         SWEEP_STATE: statePath,
         POSTHOG_API_KEY: 'sentinel-posthog-key',
         POSTHOG_CAPTURE_URL: 'http://127.0.0.1:9/batch/',
-      },
+      }),
       encoding: 'utf8',
     });
   } catch (e) {
