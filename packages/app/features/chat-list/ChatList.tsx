@@ -119,7 +119,11 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             hoverStyle={listItemHoverStyle}
-            testID={`ChatListItem-${item.group.title ?? item.group.id}-${item.pin ? 'pinned' : 'unpinned'}`}
+            // `??` keeps an empty title, so an untitled group's testID went on
+            // saying `ChatListItem--unpinned` until the host's title arrived,
+            // while the row already rendered as 'Untitled group'. Match what is
+            // displayed, the way GroupListItem does.
+            testID={`ChatListItem-${item.group.title || 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else {
