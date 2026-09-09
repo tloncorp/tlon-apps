@@ -7,6 +7,9 @@ appId: ${MAESTRO_APP_ID}
 - tapOn: '^Group name$'
 - waitForAnimationToEnd:
     timeout: 5000
+- assertVisible:
+    text: '^Name your group$'
+    label: Group editor stays visible with keyboard open
 - runFlow:
     file: input.yaml
     env:

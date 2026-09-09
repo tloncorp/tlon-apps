@@ -1,20 +1,20 @@
 appId: ${MAESTRO_APP_ID}
-name: Group-name keyboard on Android 33
+name: Maestro ship chat and search
 ---
 - runFlow: subflows/login.yaml
-- tapOn: '^Add a chat$'
-- tapOn: '^New group$'
-- tapOn: '^Basic group.*$'
-- assertVisible: '^Name your group$'
-- tapOn: '^Group name$'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible:
-    text: '^Name your group$'
-    label: Group editor stays visible with keyboard open
-- inputText: Probe33
-- assertVisible: '^Probe33$'
-- hideKeyboard
-- assertVisible: '^Probe33$'
-- tapOn: '^Next$'
-- assertVisible: '^Select contacts to invite$'
+- runFlow: subflows/contacts-tab.yaml
+- copyTextFrom:
+    text: '^~[a-z]+(?:-[a-z]+)*$'
+    leftOf: '^You$'
+- evalScript: ${output.cloudShip = maestro.copiedText}
+- runFlow: subflows/home-tab.yaml
+- runFlow:
+    file: chat.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}
+- runFlow:
+    file: search.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}
