@@ -6,14 +6,17 @@ import useKilnState, { usePike } from '@/state/kiln';
 
 const logger = createDevLogger('appUpdates', false);
 
-// The context is part of the title because Sentry fingerprints on
-// ['app_error', logger, errorTitle], so the two pollers stay separate issues
-// rather than merging into one pile.
+// Reported as a message, never by handing the Error to trackError. Two
+// reasons, both load-bearing: Sentry's ignoreErrors drops anything whose
+// exception value is `Failed to fetch`, which is exactly the failure we want
+// to see; and toSentryCapture only attaches the
+// ['app_error', logger, errorTitle] fingerprint to message captures, so an
+// exception capture would not group into the per-poller issues either. The
+// stack would only point at the fetch call site the context already names.
 function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
-  logger.trackError(
-    `app update check failed: ${context}`,
-    e instanceof Error ? { error: e } : { errorMessage: String(e) }
-  );
+  logger.trackError(`app update check failed: ${context}`, {
+    errorMessage: e instanceof Error ? e.message : String(e),
+  });
 }
 
 const CHECK_FOR_UPDATES_INTERVAL = 10 * 60 * 1000; // 10 minutes
