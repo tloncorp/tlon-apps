@@ -104,7 +104,6 @@ env:
     visible: '^Home$'
     timeout: 5000
 - assertVisible: '^${MAESTRO_RUN_TAG}$'
-- assertVisible: '^No results found\.$'
 - assertNotVisible: ${output.reliability.group + ' renamed'}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'

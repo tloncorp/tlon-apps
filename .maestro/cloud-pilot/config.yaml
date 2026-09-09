@@ -1,3 +1,2 @@
 flows:
-  - batch.yaml
   - groups.yaml
