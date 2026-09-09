@@ -2,6 +2,11 @@ appId: ${MAESTRO_APP_ID}
 ---
 - tapOn:
     id: MessageInput
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: MessageInput
+    label: Composer stays visible with keyboard open
 - runFlow:
     file: input.yaml
     env:
@@ -30,4 +35,3 @@ appId: ${MAESTRO_APP_ID}
     containsDescendants:
       - text: ${MESSAGE_PATTERN}
     index: 1
-

@@ -15,7 +15,7 @@ jobs:
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: proj_01jjmcqhxneg69zpqdty84xqvt
-          app-binary-id: 6ab264135f2ed5065271429a177d17870af3ed42
+          app-binary-id: 3ec31be4a55a6372967a8da5339f89f156cabad9
           workspace: .maestro/cloud-pilot
           maestro-cli-version: 2.6.1
           name: concurrency-pilot-${{ github.run_id }}
