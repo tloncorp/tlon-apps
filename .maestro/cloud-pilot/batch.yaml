@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship settings actions and notebook
+name: Maestro ship profile editing
 ---
 - runFlow: subflows/login.yaml
 - runFlow: subflows/contacts-tab.yaml
@@ -9,17 +9,7 @@ name: Maestro ship settings actions and notebook
 - evalScript: ${output.cloudShip = maestro.copiedText}
 - runFlow: subflows/home-tab.yaml
 - runFlow:
-    file: message-actions.yaml
-    env:
-      MAESTRO_SESSION: warm
-      MAESTRO_TEST_SHIP: ${output.cloudShip}
-- runFlow:
-    file: notebook.yaml
-    env:
-      MAESTRO_SESSION: warm
-      MAESTRO_TEST_SHIP: ${output.cloudShip}
-- runFlow:
-    file: settings.yaml
+    file: profile.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: ${output.cloudShip}

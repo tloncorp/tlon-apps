@@ -1,0 +1,54 @@
+appId: ${MAESTRO_APP_ID}
+name: Native profile editing and persistence
+tags: [regression]
+env:
+  JOURNEY: p
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- copyTextFrom:
+    id: ProfileNicknameInput
+- evalScript: ${output.reliability.originalNickname = maestro.copiedText || ''}
+- tapOn:
+    id: ProfileNicknameInput
+- eraseText: 100
+- inputText: ${MAESTRO_RUN_TAG + ' profile'}
+- assertVisible:
+    id: ProfileNicknameInput
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+- tapOn: '^Save$'
+- assertVisible: '^Profile$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' profile'}
+- tapOn: '^Back$'
+- assertVisible:
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+    leftOf: '^You$'
+- stopApp
+- launchApp
+- runFlow: subflows/contacts-tab.yaml
+- assertVisible:
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+    leftOf: '^You$'
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- assertVisible:
+    id: ProfileNicknameInput
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+- tapOn:
+    id: ProfileNicknameInput
+- eraseText: 100
+- runFlow:
+    when:
+      true: ${output.reliability.originalNickname !== ''}
+    commands:
+      - inputText: ${output.reliability.originalNickname}
+- tapOn: '^Save$'
+- assertVisible: '^Profile$'
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
+- tapOn: '^Back$'
+- runFlow: subflows/home-tab.yaml

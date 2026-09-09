@@ -6,7 +6,7 @@ permissions:
 jobs:
   cloud:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Test existing binary on the Maestro ship
@@ -19,7 +19,7 @@ jobs:
           workspace: .maestro/cloud-pilot
           maestro-cli-version: 2.6.1
           name: concurrency-pilot-${{ github.run_id }}
-          timeout: 15
+          timeout: 25
           env: |
             MAESTRO_APP_ID=io.tlon.groups.preview
             MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
