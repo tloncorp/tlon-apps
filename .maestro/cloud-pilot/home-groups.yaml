@@ -35,11 +35,10 @@ env:
     below: '^Pinned$'
 - longPressOn: ${output.reliability.groupPattern}
 - tapOn: '^Group info & settings$'
-- assertVisible: '^Group info$'
+- assertVisible: '^Group info & settings$'
 - tapOn: '^Unpin$'
 - assertVisible: '^Pin$'
-- tapOn:
-    id: DetailsEditButton
+- tapOn: '^Rename$'
 - tapOn:
     id: GroupTitleInput
 - eraseText: 100
@@ -50,8 +49,7 @@ env:
 - tapOn: '^Save$'
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertVisible: ${MAESTRO_RUN_TAG + ' description'}
-- tapOn:
-    id: DetailsEditButton
+- tapOn: '^Rename$'
 - assertVisible:
     id: GroupTitleInput
     text: ${output.reliability.group + ' renamed'}

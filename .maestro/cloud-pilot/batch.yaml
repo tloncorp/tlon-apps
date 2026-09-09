@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship Home and group controls
+name: Maestro ship Home group and profile controls
 ---
 - runFlow: subflows/login.yaml
 - runFlow: subflows/contacts-tab.yaml
@@ -10,6 +10,11 @@ name: Maestro ship Home and group controls
 - runFlow: subflows/home-tab.yaml
 - runFlow:
     file: home-groups.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}
+- runFlow:
+    file: profile.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: ${output.cloudShip}
