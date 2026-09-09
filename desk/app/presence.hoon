@@ -78,35 +78,84 @@
     [%group ship=@ term=@ ~]           (slav %p i.t.context)
   ==
 ::
-++  is-participant
+++  participant-error
+  ::  why src.bowl may not participate in .context, if at all.
+  ::  we are the context host here. the term ends up in the nack tang
+  ::  the subscriber receives, so it should say what went wrong.
+  ::
   |=  [=context =bowl:gall]
-  ^-  ?
-  ?+  context  &
+  ^-  (unit term)
+  ?+  context  ~
       [%dm @ ~]
-    =(src.bowl (slav %p i.t.context))
+    ?~  who=(slaw %p i.t.context)  `%presence-bad-path
+    ?:  =(src.bowl u.who)  ~
+    `%presence-not-dm-counterparty
   ::
       [%channel @ @ @ ~]
-    =/  group=(unit flag:gv)
-      %^  group-for-channel  i.t.context
-        (slav %p i.t.t.context)
-      [i.t.t.t.context bowl]
-    ?~  group  |
-    (has-seat u.group bowl)
+    ?~  host=(slaw %p i.t.t.context)  `%presence-bad-path
+    =*  kind  i.t.context
+    =*  name  i.t.t.t.context
+    =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
+    ?~  group  `%presence-unknown-channel
+    ?.  (has-group u.group bowl)  `%presence-unknown-channel-group
+    ?.  (can-read u.group kind u.host name src.bowl bowl)
+      `%presence-cannot-read-channel
+    ~
   ::
       [%group @ @ ~]
-    (has-seat [(slav %p i.t.context) i.t.t.context] bowl)
+    ?~  host=(slaw %p i.t.context)  `%presence-bad-path
+    ?:  (has-seat [u.host i.t.t.context] bowl)  ~
+    `%presence-not-group-member
   ==
+::
+++  context-readable
+  ::  whether we, as a subscriber, should still expect the host to accept
+  ::  our subscription to .context. for channels, the channel must still
+  ::  be in its group, and readable by us, per our local %groups. channels
+  ::  that were deleted from their group (or that we lost read access to)
+  ::  may linger in %channels; their hosts nack us forever.
+  ::
+  |=  [=context =bowl:gall]
+  ^-  ?
+  ?.  ?=([%channel @ @ @ ~] context)  &
+  ?~  host=(slaw %p i.t.t.context)  |
+  =*  kind  i.t.context
+  =*  name  i.t.t.t.context
+  =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
+  ?~  group  |
+  (can-read u.group kind u.host name our.bowl bowl)
+::
+++  has-group
+  |=  [=flag:gv =bowl:gall]
+  ^-  ?
+  =/  base=path  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+  ?.  .^(? %gu (weld base /$))  |
+  .^(? %gu (weld base /groups/(scot %p p.flag)/[q.flag]))
 ::
 ++  has-seat
   |=  [=flag:gv =bowl:gall]
   ^-  ?
-  =/  base=path  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-  =/  group=path  (weld base /groups/(scot %p p.flag)/[q.flag])
-  ?.  .^(? %gu (weld base /$))  |
-  ?.  .^(? %gu group)  |
+  ?.  (has-group flag bowl)  |
   =;  seat
     ?=(^ seat)
-  .^((unit seat:v7:gv) %gx (weld group /seats/(scot %p src.bowl)/noun))
+  .^  (unit seat:v7:gv)  %gx
+    %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p src.bowl)/noun
+  ==
+::
+++  can-read
+  ::  whether .who may read channel [kind host name] of .group, according
+  ::  to our %groups. false if we don't have the group, or if the channel
+  ::  is no longer part of it.
+  ::
+  |=  [group=flag:gv kind=@tas host=ship name=@tas who=ship =bowl:gall]
+  ^-  ?
+  ?.  (has-group group bowl)  |
+  .^  ?  %gx
+    %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
+    %+  weld  /groups/(scot %p p.group)/[q.group]
+    /channels/[kind]/(scot %p host)/[name]/can-read/(scot %p who)/loob
+  ==
 ::
 ++  group-for-channel
   |=  [kind=@tas =ship name=@tas =bowl:gall]
@@ -186,15 +235,22 @@
   ==
 ::
 ++  channel-contexts
+  ::  every channel in our %channels that we can still read, per +can-read.
+  ::  see +context-readable for why we filter.
+  ::
   |=  =bowl:gall
   ^-  (set [ship context])
-  %.  |=  nest:v9:cv
-      [ship /channel/[kind]/(scot %p ship)/[name]]
-  %~  run  in
-  %~  key  by
-  .^  channels:v9:cv  %gx
-    /(scot %p our.bowl)/channels/(scot %da now.bowl)/v4/channels/channels-4
-  ==
+  =/  chans=channels:v9:cv
+    .^  channels:v9:cv  %gx
+      /(scot %p our.bowl)/channels/(scot %da now.bowl)/v4/channels/channels-4
+    ==
+  %-  ~(gas in *(set [ship context]))
+  %+  murn  ~(tap by chans)
+  |=  [=nest:v9:cv =channel:v9:cv]
+  ^-  (unit [ship context])
+  ?.  (can-read group.perm.channel kind.nest ship.nest name.nest our.bowl bowl)
+    ~
+  `[ship.nest /channel/[kind.nest]/(scot %p ship.nest)/[name.nest]]
 ::
 ++  watch-context
   |=  [our=ship who=ship =context]
@@ -357,8 +413,8 @@
     ?>  =(src.bowl ship.key)
     ::  for non-dm contexts, verify participant membership
     ::
-    ?>  ?:  ?=([%dm *] context.key)  &
-        (is-participant context.key bowl)
+    ?^  err=?:(?=([%dm *] context.key) ~ (participant-error context.key bowl))
+      ~|(u.err !!)
     ?-  -.cmd
         %set
       ::  ack but no-op on timed out presence
@@ -415,10 +471,13 @@
       [%context @ *]
     ::  context watch paths must be properly personalized
     ::
-    ?>  =(src.bowl (slav %p i.t.path))
-    ::  verify the subscriber is a participant in this context
+    ?.  =(`src.bowl (slaw %p i.t.path))
+      ~|(%presence-bad-path !!)
+    ::  verify the subscriber is a participant in this context.
+    ::  the hint ends up in the subscriber's nack tang.
     ::
-    ?>  (is-participant t.t.path bowl)
+    ?^  err=(participant-error t.t.path bowl)
+      ~|(u.err !!)
     =.  subs  (~(put ju subs) t.t.path src.bowl)
     ::NOTE  no initial fact, since all data is short-lived,        ::REVIEW
     ::      and we don't want to hot-loop on mark incompatibility  ::REVIEW
@@ -527,12 +586,28 @@
         =.  tries  (~(del by tries) [src.bowl context])
         :_  this
         [(tell:log %dbug ~['context sub ack ok' >src.bowl< >context<] ~)]~
-      ::  nacked. nacks are commonly transient (host hasn't synced the
+      ::  nacked. if we can no longer read the context (the channel was
+      ::  deleted from its group, or we lost read access), retrying will
+      ::  never succeed: drop the desire right away.
+      ::
+      ::  otherwise the nack may be transient (host hasn't synced the
       ::  group or channel yet), so retry with linear backoff. after
       ::  +max-tries consecutive nacks, drop the desire so we don't
       ::  retry forever; the next full setup starts a fresh cycle if
       ::  the context is still relevant.
       ::
+      ::  none of this is a crash on our end, so we only ever +tell.
+      ::  keep the message texts stable, dashboards filter on them.
+      ::
+      ?.  (context-readable context bowl)
+        =.  want   (~(del in want) [src.bowl context])
+        =.  tries  (~(del by tries) [src.bowl context])
+        :_  this
+        =-  [(tell:log %info - ~)]~
+        :*  'context sub nacked, no longer readable, dropping'
+            >[src=src.bowl context=context]<
+            u.p.sign
+        ==
       =/  try=@ud  +((~(gut by tries) [src.bowl context] 0))
       ?:  (gth try max-tries)
         =.  want   (~(del in want) [src.bowl context])
@@ -540,16 +615,16 @@
         :_  this
         =-  [(tell:log %warn - ~)]~
         :*  'context sub nacked, giving up'
-            >[src=src.bowl context=context]<
+            >[src=src.bowl context=context tries=max-tries]<
             u.p.sign
         ==
       =.  tries  (~(put by tries) [src.bowl context] try)
       :_  this
       :~  (await-setup (add now.bowl (mul try ~m5)) `[src.bowl context])
-          =-  (fail:log %warn - u.p.sign ~)
+          =-  (tell:log %info - ~)
           :*  'context sub nacked, will retry'
               >[src=src.bowl context=context try=try]<
-              ~
+              u.p.sign
           ==
       ==
     ::
@@ -655,6 +730,13 @@
       =.  tries  (~(del by tries) [ship context])
       :_  this
       [(tell:log %dbug ~['setup(specific): no longer wanted, skipping' >ship< >context<] ~)]~
+    ::  likewise if we lost the ability to read it in the meantime
+    ::
+    ?.  (context-readable context bowl)
+      =.  want   (~(del in want) [ship context])
+      =.  tries  (~(del by tries) [ship context])
+      :_  this
+      [(tell:log %dbug ~['setup(specific): no longer readable, dropping' >ship< >context<] ~)]~
     ?:  ?|  (~(has by wex.bowl) [%context context] ship dap.bowl)
             (~(has by wex.bowl) [%context-2 context] ship dap.bowl)
         ==

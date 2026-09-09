@@ -1,11 +1,19 @@
 ::  tests for %presence
 ::
-::    focused on expiry-timer behavior on the subscriber's ship: every
-::    incoming %set fact arms its own expiry timer without cancelling
-::    prior ones, so a wake from a stale timer must not delete presence
-::    that fresher %sets have kept alive.
+::    expiry timers on the subscriber's ship: every incoming %set fact
+::    arms its own expiry timer without cancelling prior ones, so a wake
+::    from a stale timer must not delete presence that fresher %sets have
+::    kept alive.
 ::
-/-  p=presence
+::    subscription nacks on the subscriber's ship: a nack for a channel
+::    we can no longer read (deleted from its group, or we lost access)
+::    drops the desire outright; otherwise we retry with backoff and give
+::    up after +max-tries. neither is a crash, so we only ever +tell.
+::
+::    participant checks on the host's ship: a context watch by a ship
+::    that cannot read the channel is rejected, with a hint saying why.
+::
+/-  p=presence, gv=groups-ver, cv=channels-ver, l=logs
 /+  *test-agent
 /=  agent  /app/presence
 |%
@@ -118,4 +126,206 @@
       (ex-task /context/dm/~zod [~fus dap] %leave ~)
       (ex-task /context-2/dm/~zod [~fus dap] %watch-as %presence-update-1 /context/~zod/dm/~zod)
   ==
+::
+::  channel contexts. the channel /channel/chat/~ten/general belongs to
+::  group ~ten/grp. the agent consults its local %channels (for the
+::  channel's group) and %groups (for readability), which we mock.
+::
+++  group-flag    `flag:gv`[host %grp]
+++  chan-context  `context:p`/channel/chat/(scot %p host)/general
+++  chan-wire     `wire`[%context-2 chan-context]
+++  chan-setup    `wire`[%setup (scot %p host) chan-context]
+++  chan-watch    `path`[%context (scot %p ~zod) chan-context]
+::  the same shape of channel, hosted by us
+::
+++  host-context  `context:p`/channel/chat/(scot %p ~zod)/general
+::
+::  mocked %channels and %groups: every channel is in .group-flag,
+::  and readability is whatever the test says
+::
+++  chan-scry
+  |=  readable=?
+  ^-  scry
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ~
+    [%gu @ %channels @ %$ ~]           `!>(&)
+    [%gu @ %channels @ %v4 @ @ @ ~]    `!>(&)
+    [%gu @ %groups @ %$ ~]             `!>(&)
+    [%gu @ %groups @ %groups @ @ ~]    `!>(&)
+  ::
+      [%gx @ %channels @ %v4 @ @ @ %perm %channel-perm ~]
+    `!>(`perm:v9:cv`[~ group-flag])
+  ::
+      [%gx @ %groups @ %groups @ @ %channels @ @ @ %can-read @ %loob ~]
+    `!>(readable)
+  ==
+::
+::  we (~zod) want ~ten's channel, our subscription to it is pending,
+::  and we have been nacked .tries times before
+::
+++  setup-chan
+  |=  [readable=? tries=@ud]
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate (chan-scry readable))
+  ;<  ~  bind:m
+    %-  jab-bowl
+    |=  b=bowl
+    b(wex (~(put by wex.b) [chan-wire host dap] [| chan-watch]))
+  ;<  *  bind:m
+    %+  do-load  agent
+    %-  some  !>
+    :*  %2  *places:p
+        want=(sy ~[[host chan-context]])
+        subs=*(jug context:p ship)
+        tries=(~(put by *(map [ship context:p] @ud)) [host chan-context] tries)
+    ==
+  (pure:m ~)
+::
+++  do-chan-nack
+  (do-agent chan-wire [host dap] %watch-ack `~[leaf+"nope"])
+::
+++  do-chan-wake
+  (do-arvo chan-setup [%behn %wake ~])
+::
+::  +ex-cards, but keeping the cards going to the %logs agent
+::
+++  ex-cards-with-logs
+  =/  ex  ex-cards
+  ex(drop-logs |)
+::
+::  a log poke of the given kind, volume, and leading message
+::
+++  ex-log
+  |=  [kind=?(%tell %fail) vol=volume:l msg=@t]
+  |=  =card
+  ^-  tang
+  ?.  ?=([%pass [%logs ~] %agent [@ %logs] %poke %log-action-1 *] card)
+    ['expected a log poke' >card< ~]
+  =+  !<(act=a-log:l q.cage.task.q.card)
+  ?.  ?=(%log -.act)  ['expected a %log action' >act< ~]
+  ?.  =(kind -.event.act)  ['log kind mismatch' >-.event.act< ~]
+  ?.  =(vol vol.event.act)  ['log volume mismatch' >vol.event.act< ~]
+  =/  =echo:l  ?-(-.event.act %fail echo.event.act, %tell echo.event.act)
+  ?.  ?&(?=(^ echo) =(msg i.echo))
+    ['log message mismatch' >echo< ~]
+  ~
+::
+::  a nack for a channel we can still read is retried with backoff,
+::  and only logged as a %tell
+::
+++  test-chan-nack-readable-retries
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (setup-chan & 0)
+  ;<  caz=(list card)  bind:m  do-chan-nack
+  ;<  ~  bind:m
+    %+  ex-cards-with-logs  caz
+    :~  (ex-arvo chan-setup %b %wait (add t0 ~m5))
+        (ex-log %tell %info 'context sub nacked, will retry')
+    ==
+  ::  when the retry timer fires, we resubscribe
+  ::
+  ;<  ~  bind:m  (wait ~m5)
+  ;<  caz=(list card)  bind:m  do-chan-wake
+  %+  ex-cards  caz
+  [(ex-task chan-wire [host dap] %watch-as %presence-update-1 chan-watch)]~
+::
+::  a nack for a channel we can no longer read drops the desire outright:
+::  no retry timer, and a later wake finds nothing to do
+::
+++  test-chan-nack-unreadable-drops
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (setup-chan | 0)
+  ;<  caz=(list card)  bind:m  do-chan-nack
+  ;<  ~  bind:m
+    %+  ex-cards-with-logs  caz
+    [(ex-log %tell %info 'context sub nacked, no longer readable, dropping')]~
+  ;<  caz=(list card)  bind:m  do-chan-wake
+  (ex-cards caz ~)
+::
+::  after +max-tries consecutive nacks we give up, with a single %warn
+::
+++  test-chan-nack-gives-up-after-max-tries
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  (setup-chan & 5)
+  ;<  caz=(list card)  bind:m  do-chan-nack
+  ;<  ~  bind:m
+    %+  ex-cards-with-logs  caz
+    [(ex-log %tell %warn 'context sub nacked, giving up')]~
+  ;<  caz=(list card)  bind:m  do-chan-wake
+  (ex-cards caz ~)
+::
+::  a full setup only wants the channels we can read. our %channels
+::  has two of ~ten's channels, but only /general is still readable.
+::
+++  setup-scry
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ((chan-scry &) path)
+      [%gx @ %chat @ %dm %ships ~]
+    `!>(`(set ship)`(sy ~[host]))
+  ::
+      [%gx @ %channels @ %v4 %channels %channels-4 ~]
+    =/  chan=channel:v9:cv  *channel:v9:cv
+    =.  perm.chan  [~ group-flag]
+    :-  ~  !>  ^-  channels:v9:cv
+    (my ~[[[%chat host %general] chan] [[%chat host %old] chan]])
+  ::
+      [%gx @ %groups @ %groups @ @ %channels @ @ %general %can-read @ %loob ~]
+    `!>(&)
+  ::
+      [%gx @ %groups @ %groups @ @ %channels @ @ @ %can-read @ %loob ~]
+    `!>(|)
+  ==
+::
+++  test-setup-skips-unreadable-channels
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate setup-scry)
+  ;<  caz=(list card)  bind:m  (do-arvo /setup [%behn %wake ~])
+  %+  ex-cards  caz
+  :~  (ex-task chan-wire [host dap] %watch-as %presence-update-1 chan-watch)
+      (ex-task /activity/all [~zod %activity] %watch /v4)
+  ==
+::
+::  as a host, we reject context watches from ships that cannot read
+::  the channel, and from ships watching someone else's path
+::
+++  test-watch-rejects-unreadable
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate (chan-scry |))
+  ;<  ~  bind:m  (set-src host)
+  (ex-fail (do-watch [%context (scot %p host) host-context]))
+::
+++  test-watch-rejects-impersonation
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate (chan-scry &))
+  ;<  ~  bind:m  (set-src host)
+  (ex-fail (do-watch [%context (scot %p ~fun) host-context]))
+::
+++  test-watch-accepts-readable
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate (chan-scry &))
+  ;<  ~  bind:m  (set-src host)
+  ;<  caz=(list card)  bind:m  (do-watch [%context (scot %p host) host-context])
+  (ex-cards caz ~)
 --
