@@ -160,10 +160,13 @@ export async function verifyGroupChannels(
     timeout: 5000,
   });
 
-  // Verify the correct number of channels by checking the last one exists
-  const lastChannel = expectedChannels[expectedChannels.length - 1];
-  const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
-  await expect(page.getByTestId(lastChannelTestId)).toBeVisible();
+  // Count the channels rather than pinning the last one to an index. A
+  // template's %notes notebook is created after the group rather than in the
+  // group-creation poke, so it doesn't land in template order.
+  await expect(page.getByTestId(/^ChannelItem-/)).toHaveCount(
+    expectedChannels.length,
+    { timeout: 15000 }
+  );
 
   // Verify each expected channel exists with correct title and type
   // Use regex to match any index since order may vary
