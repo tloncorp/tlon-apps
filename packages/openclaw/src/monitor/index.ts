@@ -59,10 +59,7 @@ import {
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { setSessionRole } from '../session-roles.js';
-import {
-  type TlonSettingsStore,
-  createSettingsManager,
-} from '../settings.js';
+import { type TlonSettingsStore, createSettingsManager } from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   createSilentFailureNoticeCooldown,
