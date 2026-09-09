@@ -3,7 +3,7 @@
 Every 10 minutes, `scripts/sentry-sweep.mjs` (run by `.github/workflows/sentry-sweep.yml`;
 edit its `cron:` line to change the schedule) queries Sentry for issues that are new
 (`is:unresolved firstSeen:><boundary>`) or regressed (`is:regressed lastSeen:><boundary>`)
-since the last run and builds a deterministic digest — no model involved. Each digest line
+since the last run and builds a deterministic digest — no model involved. Each issue line
 goes to PostHog as one `Sentry Issue Alert` event, and a PostHog webhook destination (set up
 once, below) posts them into the Tlon alert channel with credentials PostHog already holds,
 so GitHub Actions never needs a ship cookie.

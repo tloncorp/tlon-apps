@@ -36,7 +36,7 @@ jobs:
       - uses: actions/cache/restore@v4
         with:
           path: .sentry-sweep/state.json
-          key: sentry-sweep-state-${{ github.run_id }}
+          key: sentry-sweep-state-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: sentry-sweep-state-
       - name: Require the PostHog key for a live run
         if: ${{ !inputs.dry_run }}
@@ -61,4 +61,4 @@ jobs:
         if: success()
         with:
           path: .sentry-sweep/state.json
-          key: sentry-sweep-state-${{ github.run_id }}
+          key: sentry-sweep-state-${{ github.run_id }}-${{ github.run_attempt }}
