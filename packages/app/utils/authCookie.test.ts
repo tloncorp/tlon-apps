@@ -68,4 +68,13 @@ describe('applyRefreshedAuthCookie', () => {
     const moved: ShipInfo = { ...stored, shipUrl: 'https://elsewhere.test' };
     expect(applyRefreshedAuthCookie(moved, refresh)).toBe(moved);
   });
+
+  // Callers detect a decline by reference (`next !== stored`) and use it to
+  // gate the native cookie write as well, so returning a copy on the decline
+  // path would silently let a rejected cookie reach the notification service.
+  it('returns the record by reference when it declines', () => {
+    const other: ShipInfo = { ...stored, ship: '~solfer-magfed' };
+    expect(applyRefreshedAuthCookie(other, refresh)).toBe(other);
+    expect(applyRefreshedAuthCookie(stored, refresh)).not.toBe(stored);
+  });
 });

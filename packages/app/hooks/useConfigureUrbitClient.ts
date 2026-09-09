@@ -46,26 +46,50 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   return fetch(input, newInit);
 };
 
-// Writes a reauth's cookie over the persisted one. Fire-and-forget: this runs
-// from inside the reauth that produced the cookie, and a failure to persist
-// only costs us push previews until the next reauth, so it must never reject
-// into that caller.
-function persistRefreshedAuthCookie(
+// Refreshes the copies of the auth cookie that live outside the client: the
+// persisted ShipInfo record, and on native the one the notification service
+// reads. Fire-and-forget -- this runs from inside the reauth that produced the
+// cookie, and failing to refresh only costs push previews until the next
+// reauth, so it must never reject into that caller.
+//
+// The stored record arbitrates both copies. Logout and account switch write
+// ship info before the client is reconfigured (setShip in ShipLoginScreen vs
+// configureClient in ConnectedAuthenticatedApp), and internalRemoveClient
+// leaves a pending reauth and its callback installed, so a reauth resolving in
+// that window still matches its own closure. Deciding the native write from
+// the same record that boot replays into native is what keeps the two copies
+// from disagreeing.
+function refreshAuthCookieCopies(
   shipName: string,
   shipUrl: string,
   authCookie: string
 ) {
   void (async () => {
     try {
+      let applied = false;
       // The updater form runs inside StorageItem's write lock, so the record it
       // sees cannot be a snapshot taken before a logout or account switch that
       // has since been written. Reading with getValue() first and writing after
       // would let this clobber a resetValue() or the new account's record.
-      await db.storage.shipInfo.setValue((stored) =>
-        applyRefreshedAuthCookie(stored, { shipName, shipUrl, authCookie })
-      );
+      await db.storage.shipInfo.setValue((stored) => {
+        const next = applyRefreshedAuthCookie(stored, {
+          shipName,
+          shipUrl,
+          authCookie,
+        });
+        // the helper hands back `stored` itself when it declines
+        applied = next !== stored;
+        return next;
+      });
+      if (!applied) {
+        clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+          context: 'stored ship info belongs to a different session',
+        });
+        return;
+      }
+      UrbitModule?.setAuthCookie(authCookie);
     } catch (e) {
-      clientLogger.trackError('Failed to persist refreshed auth cookie', {
+      clientLogger.trackError('Failed to refresh the stored auth cookie', {
         errorMessage: e instanceof Error ? e.message : String(e),
       });
     }
@@ -153,27 +177,18 @@ export function configureUrbitClient({
       // notification service at the wrong session. The ship is checked as well
       // as the url because a url is not an identity -- the same self-hosted
       // endpoint can end up serving a different ship.
+      //
+      // This is a cheap early-out, not the real arbiter: the closure is only
+      // as current as the last configureClient. refreshAuthCookieCopies
+      // decides from the persisted record, which a logout or account switch
+      // updates first.
       if (cookieShipName !== ship || cookieShipUrl !== shipUrl) {
         clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
           context: 'reauth cookie did not match the configured ship',
         });
         return;
       }
-      // The stored cookie is what boot replays into native storage, so
-      // refreshing native alone would be undone by the next app launch.
-      persistRefreshedAuthCookie(cookieShipName, cookieShipUrl, authCookie);
-      if (!UrbitModule) {
-        return;
-      }
-      try {
-        UrbitModule.setAuthCookie(authCookie);
-      } catch (e) {
-        // a stale native cookie only degrades push copy, so never let this
-        // throw into the reauth that produced it
-        clientLogger.trackError('Failed to push auth cookie to native', {
-          errorMessage: e instanceof Error ? e.message : String(e),
-        });
-      }
+      refreshAuthCookieCopies(cookieShipName, cookieShipUrl, authCookie);
     },
   });
 }
