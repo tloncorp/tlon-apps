@@ -3,10 +3,12 @@ name: Maestro ship Home group and profile controls
 ---
 - runFlow: subflows/login.yaml
 - runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
 - copyTextFrom:
     text: '^~[a-z]+(?:-[a-z]+)*$'
-    leftOf: '^You$'
 - evalScript: ${output.cloudShip = maestro.copiedText}
+- assertTrue: ${output.cloudShip === '~batbet-litnec'}
+- tapOn: '^Back$'
 - runFlow: subflows/home-tab.yaml
 - runFlow:
     file: home-groups.yaml

@@ -14,7 +14,7 @@ appId: ${MAESTRO_APP_ID}
     visible: '^(Home|Contacts)$'
     timeout: 5000
 - runFlow: contacts-tab.yaml
-- assertVisible:
-    text: ${output.reliability.shipPattern}
-    leftOf: '^You$'
+- tapOn: '^You$'
+- assertVisible: ${output.reliability.shipPattern}
+- tapOn: '^Back$'
 - runFlow: home-tab.yaml

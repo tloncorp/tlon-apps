@@ -2,7 +2,7 @@ appId: ${MAESTRO_APP_ID}
 name: Native Home filters and group controls
 tags: [regression]
 env:
-  JOURNEY: g
+  JOURNEY: o
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
@@ -79,4 +79,3 @@ env:
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'
-
