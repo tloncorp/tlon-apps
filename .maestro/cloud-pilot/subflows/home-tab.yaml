@@ -11,5 +11,10 @@ appId: ${MAESTRO_APP_ID}
     when:
       platform: Android
     commands:
-      - tapOn: '^Home$'
+      - tapOn:
+          text: '^Home$'
+          leftOf: '^Activity.*$'
+      - assertVisible:
+          id: ScreenHeaderTitle
+          text: '^Home$'
 - assertVisible: '^Home$'

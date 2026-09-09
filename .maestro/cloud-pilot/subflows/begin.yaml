@@ -8,7 +8,8 @@ appId: ${MAESTRO_APP_ID}
     when:
       true: ${output.reliability.session === 'warm'}
     commands:
-      - launchApp
+      - launchApp:
+          stopApp: false
 - extendedWaitUntil:
     visible: '^(Home|Contacts)$'
     timeout: 5000

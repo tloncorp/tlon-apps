@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Test existing binary on the Maestro ship
         id: maestro
-        uses: mobile-dev-inc/action-maestro-cloud@v1
+        uses: mobile-dev-inc/action-maestro-cloud@854f4005c1ef637d20b7007d428d23afe17c9665
         with:
           api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
           project-id: proj_01jjmcqhxneg69zpqdty84xqvt
@@ -32,3 +32,4 @@ jobs:
           CLOUD_STATUS: ${{ steps.maestro.outputs.MAESTRO_CLOUD_UPLOAD_STATUS }}
         run: |
           printf 'Cloud status: %s\nResults: %s\n' "$CLOUD_STATUS" "$CONSOLE_URL" >> "$GITHUB_STEP_SUMMARY"
+          test "$CLOUD_STATUS" = SUCCESS
