@@ -106,13 +106,17 @@ export function reportBackgroundFailure(
 ) {
   return (e: unknown) => {
     // trackError, not trackEvent: a fire-and-forget failure is still a
-    // failure, and Sentry is where we want to see them. The context is part
-    // of the title because Sentry fingerprints on it, so each cause gets its
-    // own issue rather than one undifferentiated pile.
-    logger.trackError(
-      `background request failed: ${context}`,
-      e instanceof Error ? { error: e } : { errorMessage: String(e) }
-    );
+    // failure, and Sentry is where we want to see them.
+    //
+    // Reported as a message, never by handing the Error over. Sentry's
+    // ignoreErrors drops anything whose exception value is `Failed to fetch`,
+    // which is the failure we most want to see; and toSentryCapture only
+    // fingerprints message captures, so an exception capture would not group
+    // per context either. The stack would only name the call site `context`
+    // already identifies.
+    logger.trackError(`background request failed: ${context}`, {
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
   };
 }
 
