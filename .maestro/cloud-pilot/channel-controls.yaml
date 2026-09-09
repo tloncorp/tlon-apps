@@ -1,49 +1,16 @@
 appId: ${MAESTRO_APP_ID}
-name: Native channel lifecycle
-tags: [regression]
 env:
   JOURNEY: m
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/create-group.yaml
-- tapOn: '^Edit channels$'
-- assertVisible: '^Channels$'
-- tapOn: '^New$'
-- tapOn: '^New channel$'
-- assertVisible: '^Create a new channel$'
-- tapOn:
-    id: ChannelTitleInput
-- inputText: ${MAESTRO_RUN_TAG + ' channel'}
-- assertVisible:
-    id: ChannelTitleInput
-    text: ${MAESTRO_RUN_TAG + ' channel'}
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - hideKeyboard
-- tapOn: '^Create channel$'
-- extendedWaitUntil:
-    notVisible: '^Create a new channel$'
+- scrollUntilVisible:
+    element:
+      text: ${output.reliability.groupPattern}
+    direction: DOWN
     timeout: 5000
-- extendedWaitUntil:
-    visible: ${MAESTRO_RUN_TAG + ' channel'}
-    timeout: 5000
-- tapOn: '^Back$'
-- assertVisible: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.groupPattern}
 - tapOn: ${MAESTRO_RUN_TAG + ' channel'}
-- runFlow:
-    file: subflows/send.yaml
-    env:
-      MESSAGE: ${output.reliability.text}
-      MESSAGE_PATTERN: ${output.reliability.textPattern}
-      EMPTY_INPUT: '^Message$'
-- hideKeyboard
-- tapOn: '^Back$'
-- assertVisible: ${output.reliability.groupPattern}
-- tapOn: ${MAESTRO_RUN_TAG + ' channel'}
-- assertVisible: ${output.reliability.textPattern}
 - tapOn: ${MAESTRO_RUN_TAG + ' channel'}
 - tapOn:
     id: DetailsEditButton

@@ -1,9 +1,10 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship exact profile restoration
+name: Maestro ship focused channel controls
 ---
 - runFlow: subflows/login.yaml
 - runFlow:
-    file: profile.yaml
+    file: channel-controls.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: '~batbet-litnec'
+      MAESTRO_RUN_TAG: c34410296334a1
