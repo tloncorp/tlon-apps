@@ -94,7 +94,7 @@ env:
     commands:
       - tapOn:
           text: '^Delete group$'
-          above: '^Cancel$'
+          rightOf: '^Cancel$'
 - runFlow:
     when:
       platform: Android
@@ -103,8 +103,7 @@ env:
 - extendedWaitUntil:
     visible: '^Home$'
     timeout: 5000
-- tapOn: '^Search$'
-- inputText: ${MAESTRO_RUN_TAG}
+- assertVisible: '^${MAESTRO_RUN_TAG}$'
 - assertVisible: '^No results found\.$'
 - assertNotVisible: ${output.reliability.group + ' renamed'}
 - tapOn: '^Clear$'

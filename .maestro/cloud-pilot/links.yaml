@@ -100,9 +100,11 @@ env:
     containsDescendants:
       - text: '^Example Domain$'
     index: 1
-- hideKeyboard
 - tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Chat$'
+- assertVisible:
+    id: MessageInput
 - assertVisible: '^Example Domain$'
 - assertVisible: ${output.reliability.textPattern}
 - tapOn: '^Back$'
