@@ -11,13 +11,6 @@ appId: ${MAESTRO_APP_ID}
     commands:
       - tapOn:
           id: 'log-in-with-email'
-- runFlow:
-    when:
-      visible: 'Log in with email'
-    commands:
-      - tapOn:
-          text: .*Log in with email.*
-          retryTapIfNoChange: true
 - assertVisible:
     id: 'email-input'
 - assertVisible:
@@ -45,7 +38,7 @@ appId: ${MAESTRO_APP_ID}
 
 # Declared login/network phase; outside the 5-second warm interaction budget.
 - extendedWaitUntil:
-    visible: '^(Home|Nickname|Usage Statistics|Save Password\?)$'
+    visible: '^(Home|Nickname|Configure now|Usage Statistics|Save Password\?)$'
     timeout: 60000
 - runFlow:
     when:
@@ -54,7 +47,7 @@ appId: ${MAESTRO_APP_ID}
       - tapOn: '^Not Now$'
 # Revived test accounts retain their profile and notification preferences.
 - extendedWaitUntil:
-    visible: '^(Home|Nickname|Usage Statistics)$'
+    visible: '^(Home|Nickname|Configure now|Usage Statistics)$'
     timeout: 60000
 - runFlow:
     when:
@@ -75,6 +68,14 @@ appId: ${MAESTRO_APP_ID}
                 commands:
                   - tapOn:
                       id: com.android.permissioncontroller:id/permission_allow_button
+- extendedWaitUntil:
+    visible: '^(Home|Usage Statistics|Configure now)$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: bot-configure
+    file: bot-setup.yaml
 - extendedWaitUntil:
     visible: '^(Home|Usage Statistics)$'
     timeout: 60000

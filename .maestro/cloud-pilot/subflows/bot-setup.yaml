@@ -1,0 +1,72 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: bot-configure
+- tapOn:
+    id: bot-name-input
+- eraseText
+- inputText: Maestro Tlonbot
+- hideKeyboard
+- tapOn:
+    id: bot-name-next
+- tapOn:
+    id: bot-avatar-skip
+- evalScript: ${output.includedProvider = false}
+- runFlow:
+    when:
+      visible:
+        id: 'bot-provider-option-basic:included'
+    commands:
+      - evalScript: ${output.includedProvider = true}
+      - tapOn:
+          id: 'bot-provider-option-basic:included'
+- runFlow:
+    when:
+      true: ${!output.includedProvider}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'bot-provider-option-openrouter:api-key'
+          direction: DOWN
+          timeout: 10000
+      - tapOn:
+          id: 'bot-provider-option-openrouter:api-key'
+- tapOn:
+    id: bot-provider-next
+- runFlow:
+    when:
+      true: ${!output.includedProvider}
+    commands:
+      - tapOn: '^Paste your key here$'
+      - inputText:
+          text: ${MAESTRO_BOT_API_KEY}
+          label: Enter repository test provider credential
+      - hideKeyboard
+      - tapOn: '^Next$'
+      - extendedWaitUntil:
+          visible:
+            id: bot-model-save
+          timeout: 60000
+      - tapOn:
+          id: bot-model-save
+# One-time hosted bot provisioning, not a warm UI interaction.
+- extendedWaitUntil:
+    visible:
+      id: got-it
+    timeout: 600000
+- tapOn:
+    id: got-it
+- runFlow:
+    when:
+      visible:
+        id: skip-contact-book
+    commands:
+      - tapOn:
+          id: skip-contact-book
+- runFlow:
+    when:
+      visible:
+        id: finish-invites
+    commands:
+      - tapOn:
+          id: finish-invites
