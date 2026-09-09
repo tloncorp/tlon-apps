@@ -71,9 +71,13 @@ export function useTlonbotRevivalPrompt() {
     // cookie back into persisted and native storage and re-break push
     // previews (TLON-6516). The persisted record is kept current by the
     // reauth handler in configureUrbitClient, so prefer it.
+    //
+    // waitForLock, because that handler persists fire-and-forget: an unlocked
+    // read can land ahead of a refresh that is still queued and hand us the
+    // very cookie we are trying to stop replaying.
     let currentAuthCookie = authCookie;
     try {
-      const stored = await db.storage.shipInfo.getValue();
+      const stored = await db.storage.shipInfo.getValue(true);
       if (
         stored?.ship === ship &&
         stored.shipUrl === shipUrl &&
