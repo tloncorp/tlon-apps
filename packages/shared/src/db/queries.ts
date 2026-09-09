@@ -2881,6 +2881,45 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+/**
+ * The backend's dm list is authoritative: a dm or group dm we have locally
+ * but the backend no longer lists was left, declined, or archived while we
+ * weren't subscribed. Rows that still hold unsent posts are kept, since a dm
+ * we just started locally isn't on the backend until its first message lands.
+ */
+export const deleteAbsentDmChannels = createWriteQuery(
+  'deleteAbsentDmChannels',
+  async (
+    { keepIds }: { keepIds: string[] },
+    ctx: QueryCtx
+  ): Promise<string[]> => {
+    const keep = new Set(keepIds);
+    const local = await ctx.db.query.channels.findMany({
+      where: inArray($channels.type, ['dm', 'groupDm']),
+      columns: { id: true },
+    });
+    const absent = local.map((c) => c.id).filter((id) => !keep.has(id));
+    if (!absent.length) {
+      return [];
+    }
+    const unsent = await ctx.db.query.posts.findMany({
+      where: and(
+        inArray($posts.channelId, absent),
+        inArray($posts.deliveryStatus, ['enqueued', 'pending', 'failed'])
+      ),
+      columns: { channelId: true },
+    });
+    const unsentChannelIds = new Set(unsent.map((p) => p.channelId));
+    const toDelete = absent.filter((id) => !unsentChannelIds.has(id));
+    if (toDelete.length) {
+      logger.log('deleteAbsentDmChannels', toDelete);
+      await deleteChannels(toDelete, ctx);
+    }
+    return toDelete;
+  },
+  ['channels', 'posts', 'chatMembers']
+);
+
 export const getAllMultiDms = createReadQuery(
   'getAllMultiDms',
   async (ctx: QueryCtx) => {

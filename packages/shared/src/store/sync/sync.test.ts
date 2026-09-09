@@ -564,6 +564,58 @@ test('handleDmStatus keeps the channel row in step with the backend dm set', asy
   expect(await db.getChannel({ id: '~wicdev-wisryt' })).toBeNull();
 });
 
+// the backend's dm list is authoritative: a dm left, declined, or archived
+// from another client while this one had no live channel is only ever
+// noticed by the next full snapshot
+test('syncInitData drops dms the backend no longer lists', async () => {
+  await db.insertChannels([
+    dmChannel('~stale-dm', false),
+    dmChannel('~draft-dm', false),
+  ]);
+  // a dm we just started locally isn't on the backend until its first
+  // message lands, so an unsent post keeps the row
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'draft',
+        type: 'chat',
+        channelId: '~draft-dm',
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 0,
+        content: JSON.stringify([{ inline: ['first message'] }]),
+        deliveryStatus: 'pending',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
+
+  setScryOutput(rawGroupsInitData);
+  await syncInitData();
+
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~draft-dm' }))?.type).toBe('dm');
+  const kept = await getClient()
+    ?.select({ count: $.count() })
+    .from(db.schema.channels)
+    .where($.eq(db.schema.channels.type, 'dm'));
+  expect(kept?.[0].count).toEqual(groupsInitData.chat.dms.length + 1);
+});
+
+test('syncDms drops dms the backend no longer lists', async () => {
+  await db.insertChannels([
+    dmChannel('~sampel-palnet', false),
+    dmChannel('~stale-dm', true),
+  ]);
+  setScryOutputs([['~sampel-palnet'], {}, []]);
+
+  await syncDms();
+
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~sampel-palnet' }))?.type).toBe('dm');
+});
+
 const groupId = '~solfer-magfed/test-group';
 const channelId = 'chat/~solfer-magfed/test-channel';
 

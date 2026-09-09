@@ -87,6 +87,13 @@ export const syncInitData = async (
     await db
       .insertChannels(initData.channels, queryCtx)
       .then(() => logger.crumb('inserted channels'));
+    // init carries the complete dm set, so anything missing from it is gone
+    await db
+      .deleteAbsentDmChannels(
+        { keepIds: initData.channels.map((c) => c.id) },
+        queryCtx
+      )
+      .then(() => logger.crumb('reconciled dm channels'));
     await persistUnreads({
       unreads: initData.unreads,
       ctx: queryCtx,
@@ -772,7 +779,9 @@ export const syncDms = async (ctx?: SyncCtx) => {
   const pendingInvites = dmInvites.filter(
     (invite) => !regularDmIds.has(invite.id)
   );
-  await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
+  const channels = [...dms, ...groupDms, ...pendingInvites];
+  await db.insertChannels(channels);
+  await db.deleteAbsentDmChannels({ keepIds: channels.map((c) => c.id) });
 };
 
 export type EnsureDmInviteChannelResult =
