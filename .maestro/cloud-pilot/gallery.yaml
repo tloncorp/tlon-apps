@@ -1,0 +1,38 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Gallery text post
+tags: [regression]
+env:
+  JOURNEY: g
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Gallery$'
+- tapOn: '^New$'
+- tapOn: '^Text$'
+- extendedWaitUntil:
+    visible: '^Write something …\n?$'
+    timeout: 5000
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.text}
+- tapOn: '^Post$'
+- extendedWaitUntil:
+    visible: ${output.reliability.textPattern}
+    timeout: 5000
+- tapOn: '^0$'
+- assertVisible: ${output.reliability.textPattern}
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.reply}
+      MESSAGE_PATTERN: ${output.reliability.replyPattern}
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
+
