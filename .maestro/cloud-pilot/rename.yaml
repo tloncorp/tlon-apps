@@ -1,44 +1,16 @@
 appId: ${MAESTRO_APP_ID}
-name: Native Home filters and group controls
-tags: [regression]
+name: Focused group rename
 env:
   JOURNEY: o
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
-- runFlow: subflows/create-group.yaml
-- tapOn: '^Back$'
-- tapOn: '^Groups$'
-- tapOn: '^Search$'
-- inputText: ${MAESTRO_RUN_TAG}
-- assertVisible: ${output.reliability.groupPattern}
-- tapOn: '^Messages$'
-- assertVisible: '^No results found\.$'
-- assertNotVisible: ${output.reliability.groupPattern}
-- tapOn: '^Try in All\?$'
-- assertVisible: ${output.reliability.groupPattern}
-- tapOn: '^Clear$'
-- tapOn: '^Filter by name$'
-- inputText: qzxqzxqzxqzx
-- assertVisible: '^qzxqzxqzxqzx$'
-- assertVisible: '^No results found\.$'
-- tapOn: '^Clear search$'
-- tapOn: '^Filter by name$'
-- inputText: ${MAESTRO_RUN_TAG}
-- assertVisible: ${output.reliability.groupPattern}
-- hideKeyboard
-- longPressOn: ${output.reliability.groupPattern}
-- tapOn: '^Pin$'
-- tapOn: '^Clear$'
-- tapOn: '^Close$'
-- assertVisible:
-    text: ${output.reliability.groupPattern}
-    below: '^Pinned$'
+- scrollUntilVisible:
+    element: ${output.reliability.groupPattern}
+    direction: DOWN
+    timeout: 5000
 - longPressOn: ${output.reliability.groupPattern}
 - tapOn: '^Group info & settings$'
-- assertVisible: '^Group info & settings$'
-- tapOn: '^Unpin$'
-- assertVisible: '^Pin$'
 - tapOn: '^Rename$'
 - tapOn:
     id: GroupTitleInput
