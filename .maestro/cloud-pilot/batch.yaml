@@ -1,10 +1,9 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship focused channel controls
+name: Maestro ship channel lifecycle
 ---
 - runFlow: subflows/login.yaml
 - runFlow:
-    file: channel-controls.yaml
+    file: channels.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: '~batbet-litnec'
-      MAESTRO_RUN_TAG: c34410296334a1

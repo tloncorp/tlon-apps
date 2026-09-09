@@ -23,6 +23,17 @@ env:
       platform: Android
     commands:
       - hideKeyboard
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+      - scrollUntilVisible:
+          element:
+            text: '^Create channel$'
+          direction: DOWN
+          centerElement: true
+          timeout: 5000
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
     notVisible: '^Create a new channel$'
@@ -80,12 +91,12 @@ env:
     timeout: 5000
 - tapOn:
     id: ChannelLeaveAction-Delete channel
-- assertVisible: ${'^Delete ' + MAESTRO_RUN_TAG + ' renamed\\?$'}
+- assertVisible: "^Delete ${MAESTRO_RUN_TAG} renamed[?]$"
 - tapOn: '(?i)^Cancel$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' renamed'}
 - tapOn:
     id: ChannelLeaveAction-Delete channel
-- assertVisible: ${'^Delete ' + MAESTRO_RUN_TAG + ' renamed\\?$'}
+- assertVisible: "^Delete ${MAESTRO_RUN_TAG} renamed[?]$"
 - tapOn: '(?i)^Delete channel$'
 - extendedWaitUntil:
     notVisible: ${MAESTRO_RUN_TAG + ' renamed'}
