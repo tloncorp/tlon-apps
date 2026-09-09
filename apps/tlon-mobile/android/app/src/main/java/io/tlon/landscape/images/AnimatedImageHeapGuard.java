@@ -28,7 +28,8 @@ import java.util.Map;
 import java.util.WeakHashMap;
 
 /**
- * Bounds what animated images can cost us on the Java heap. See TLON-6505.
+ * Decodes animated images at the size they will actually be drawn at, and
+ * bounds what they can cost us on the Java heap in aggregate. See TLON-6505.
  *
  * <p>A live APNG4Android decoder keeps three Java-heap buffers of 4 bytes per
  * pixel — {@code FrameSeqDecoder.frameBuffer},
@@ -39,35 +40,36 @@ import java.util.WeakHashMap;
  * three of these are Java heap, which is what ART's 256 MB per-process growth
  * limit actually bounds.
  *
- * <p>Two things a heap dump established, both of which shaped this:
+ * <p>What a heap dump showed: an animated GIF used as somebody's <b>profile
+ * avatar</b> was live in sixteen views at once — 42x42, 95x95 and 126x126 px,
+ * one per message row — and every one of them had decoded the full 800x800
+ * source. 7.36 MiB of Java heap to fill a 42x42 avatar, a ~366x overshoot,
+ * sixteen times over, for 118 MiB. Glide had asked for the right size every
+ * time; the plugin's {@code decode(source, width, height, options)} simply
+ * never reads its width and height arguments, and {@code
+ * GifDecoder.getDesiredSample} hardcodes 1, so even {@code setDesiredSize}
+ * cannot help. At the 1400x1400 seen in production that is 22.4 MiB per row,
+ * and eleven rows is the whole 256 MB limit.
+ *
+ * <p>So for GIF we build the decoder ourselves with {@code sampleSize} preset:
+ * enough to bring the decode down to the size Glide asked for, and increased
+ * further if needed to keep this animation inside a per-image share of the
+ * growth limit and every live animation together inside a larger share. The
+ * shares scale off {@code maxMemory}, so they track {@code largeHeap} and
+ * future devices. Everything else is left to the plugin.
+ *
+ * <p>Two details worth keeping:
  *
  * <ul>
- *   <li>A single 800x800 animated GIF in one message produced <em>sixteen</em>
- *       concurrent live decoders, 118 MiB, each held by its own
- *       {@code GifDrawable} rather than by Glide's cache — trimming the cache
- *       released none. The count plateaus rather than growing, so it isn't an
- *       unbounded leak; it is one decoder per decode pass, each at full
- *       resolution, all alive at once. So the binding constraint is aggregate
- *       cost across live decoders, not per-image cost and not cache size.
+ *   <li>Presetting the field is necessary. {@code setDesiredSize} works through
+ *       {@code getDesiredSample}, whose base implementation calls {@code
+ *       getBounds()} and so triggers a full-resolution parse and allocation
+ *       before the smaller size could take effect.
  *   <li>Declining a decode does <em>not</em> fall through to Glide's static
  *       decoders. {@code Registry.prepend} cannot unregister the plugin's own
- *       decoder for the same pair, so whatever we refuse it happily decodes
- *       unguarded. A guard here therefore has to return a cheaper decoder, not
- *       refuse to make one.
+ *       decoder for the same pair, so whatever we refuse it decodes unguarded.
+ *       A guard here has to return a cheaper decoder, not refuse to make one.
  * </ul>
- *
- * <p>So: for GIF — the format that matters, and the one with no downsampling of
- * its own because {@code GifDecoder.getDesiredSample} hardcodes 1 — we build
- * the decoder ourselves with {@code sampleSize} preset, chosen as the smallest
- * power of two that keeps this animation inside a per-image share of the growth
- * limit and keeps every live animation together inside a larger share. Both
- * shares scale off {@code maxMemory}, so they track {@code largeHeap} and future
- * devices. Everything else is left to the plugin.
- *
- * <p>Presetting the field matters: {@code setDesiredSize} would work through
- * {@code getDesiredSample}, whose base implementation calls {@code getBounds()}
- * and so triggers a full-resolution parse and allocation before the smaller
- * size can take effect.
  */
 public final class AnimatedImageHeapGuard {
     /**
@@ -131,20 +133,47 @@ public final class AnimatedImageHeapGuard {
     }
 
     /**
-     * Smallest power-of-two sample size keeping this animation inside its own
-     * share of {@code growthLimit} and keeping the total, including
-     * {@code liveBytes} already held, inside the larger share. Returns 1 when
-     * the image already fits, and never exceeds {@link #MAX_SAMPLE_SIZE}.
+     * Power-of-two sample size to decode at: enough to bring a
+     * {@code width x height} source down to a {@code targetWidth x targetHeight}
+     * view, then increased further if that still wouldn't fit this animation
+     * inside its own share of {@code growthLimit} or keep the total, including
+     * {@code liveBytes} already held, inside the larger share. Never exceeds
+     * {@link #MAX_SAMPLE_SIZE}.
+     *
+     * <p>A non-positive target means Glide didn't ask for a particular size
+     * (e.g. {@code Target.SIZE_ORIGINAL}), in which case only the budget
+     * constrains us.
      */
-    static int sampleFor(long pixels, long liveBytes, long growthLimit) {
+    static int sampleFor(
+            int width,
+            int height,
+            int targetWidth,
+            int targetHeight,
+            long liveBytes,
+            long growthLimit) {
+        int sample = sampleForTarget(width, height, targetWidth, targetHeight);
+        long pixels = (long) width * height;
         long perImage = growthLimit / PER_IMAGE_DIVISOR;
         long total = growthLimit / TOTAL_DIVISOR;
-        int sample = 1;
         while (sample < MAX_SAMPLE_SIZE) {
             long cost = heapCostAtSample(pixels, sample);
             if (cost <= perImage && liveBytes + cost <= total) {
-                return sample;
+                break;
             }
+            sample *= 2;
+        }
+        return sample;
+    }
+
+    /** The plugin's own halving rule, which its GIF decoder never applies. */
+    private static int sampleForTarget(
+            int width, int height, int targetWidth, int targetHeight) {
+        if (targetWidth <= 0 || targetHeight <= 0) {
+            return 1;
+        }
+        int ratio = Math.min(width / targetWidth, height / targetHeight);
+        int sample = 1;
+        while (sample * 2 <= ratio && sample < MAX_SAMPLE_SIZE) {
             sample *= 2;
         }
         return sample;
@@ -161,8 +190,9 @@ public final class AnimatedImageHeapGuard {
         return total;
     }
 
-    /** Pixel count from the header alone, or -1 if the format didn't report it. */
-    private static long pixelCount(ByteBuffer source) {
+    /** {@code {width, height}} from the header alone, or null if unreported. */
+    @Nullable
+    private static int[] measure(ByteBuffer source) {
         BitmapFactory.Options bounds = new BitmapFactory.Options();
         bounds.inJustDecodeBounds = true;
         // Operate on a rewound duplicate: the buffer's position is shared with
@@ -178,9 +208,9 @@ public final class AnimatedImageHeapGuard {
             BitmapFactory.decodeByteArray(bytes, 0, bytes.length, bounds);
         }
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-            return -1;
+            return null;
         }
-        return (long) bounds.outWidth * (long) bounds.outHeight;
+        return new int[] {bounds.outWidth, bounds.outHeight};
     }
 
     private static boolean isGif(ByteBuffer source) {
@@ -211,15 +241,24 @@ public final class AnimatedImageHeapGuard {
                 int height,
                 @NonNull Options options)
                 throws IOException {
-            long pixels = pixelCount(source);
+            int[] size = measure(source);
             // Unknown dimensions (e.g. AVIF below API 31), or a format we don't
             // take over: leave it to the plugin rather than guessing.
-            if (pixels < 0 || !isGif(source)) {
+            if (size == null || !isGif(source)) {
+                long pixels = size == null ? -1 : (long) size[0] * size[1];
                 return trackIfKnown(delegate.decode(source, width, height, options), pixels, 1);
             }
+            long pixels = (long) size[0] * size[1];
             int sample;
             synchronized (LIVE) {
-                sample = sampleFor(pixels, liveHeapBytes(), Runtime.getRuntime().maxMemory());
+                sample =
+                        sampleFor(
+                                size[0],
+                                size[1],
+                                width,
+                                height,
+                                liveHeapBytes(),
+                                Runtime.getRuntime().maxMemory());
             }
             if (sample <= 1) {
                 return trackIfKnown(delegate.decode(source, width, height, options), pixels, 1);
