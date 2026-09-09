@@ -112,9 +112,14 @@ export async function createGroupWithTemplate(
   // Wait for group creation to complete and navigate to the group. Single-
   // channel groups open their channel directly, while multi-channel groups
   // without a remembered channel open the group channel list.
+  //
+  // `.first()` is required: on desktop the group channel-list pane and the
+  // channel pane render side by side, so both testIDs are present and a bare
+  // `.or()` trips strict mode instead of resolving.
   const groupDestination = page
     .getByTestId('ChannelHeaderTitle')
-    .or(page.getByTestId('GroupChannelsHeaderTrigger'));
+    .or(page.getByTestId('GroupChannelsHeaderTrigger'))
+    .first();
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
