@@ -1,0 +1,15 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '29%,38%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '^Home$'
+- assertVisible: '^Home$'

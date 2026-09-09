@@ -1,0 +1,53 @@
+appId: ${MAESTRO_APP_ID}
+---
+- assertTrue: ${/^[A-Za-z0-9 _\n-]+$/.test(INPUT_TEXT)}
+- runScript: input.js
+# Android can enter whole lines; Enter must be an explicit key event.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - repeat:
+          times: ${INPUT_TEXT.split('\n').length}
+          commands:
+            - runFlow:
+                when:
+                  true: ${output.fixtureInput.index > 0}
+                commands:
+                  - pressKey: Enter
+            - inputText: ${INPUT_TEXT.split('\n')[output.fixtureInput.index]}
+            - evalScript: ${output.fixtureInput.index += 1}
+      # A positive check returns immediately for correct input; notVisible
+      # would wait for that text to disappear before skipping the fallback.
+      - runFlow:
+          when:
+            visible: ${output.fixtureInput.pattern}
+          commands:
+            - evalScript: ${output.fixtureInput.complete = true}
+# iOS uses acknowledged prefixes; Android falls back once if bulk entry dropped text.
+- runFlow:
+    when:
+      true: ${!output.fixtureInput.complete}
+    commands:
+      - runFlow:
+          when:
+            platform: Android
+          commands:
+            - eraseText: 100
+      - evalScript: ${output.fixtureInput.index = 0}
+      - repeat:
+          times: ${INPUT_TEXT.length}
+          commands:
+            - runFlow:
+                when:
+                  true: ${maestro.platform === 'android' && INPUT_TEXT.slice(output.fixtureInput.index, output.fixtureInput.index + 1) === '\n'}
+                commands:
+                  - pressKey: Enter
+            - runFlow:
+                when:
+                  true: ${maestro.platform !== 'android' || INPUT_TEXT.slice(output.fixtureInput.index, output.fixtureInput.index + 1) !== '\n'}
+                commands:
+                  - inputText: ${INPUT_TEXT.slice(output.fixtureInput.index, output.fixtureInput.index + 1)}
+            - runScript: input-next.js
+            - assertVisible: ${output.fixtureInput.pattern}
+- assertVisible: ${output.fixtureInput.pattern}

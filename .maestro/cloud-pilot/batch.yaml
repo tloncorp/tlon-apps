@@ -1,0 +1,20 @@
+appId: ${MAESTRO_APP_ID}
+name: Maestro ship chat and search
+---
+- runFlow: subflows/login.yaml
+- runFlow: subflows/contacts-tab.yaml
+- copyTextFrom:
+    text: '^~[a-z]+(?:-[a-z]+)*$'
+    leftOf: '^You$'
+- evalScript: ${output.cloudShip = maestro.copiedText}
+- runFlow: subflows/home-tab.yaml
+- runFlow:
+    file: chat.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}
+- runFlow:
+    file: search.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}

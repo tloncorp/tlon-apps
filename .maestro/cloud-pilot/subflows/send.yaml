@@ -1,0 +1,33 @@
+appId: ${MAESTRO_APP_ID}
+---
+- tapOn:
+    id: MessageInput
+- runFlow:
+    file: input.yaml
+    env:
+      INPUT_TEXT: ${MESSAGE}
+- assertVisible:
+    id: MessageInput
+    text: ${MESSAGE}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: ${EMPTY_INPUT}
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible:
+      id: ChatMessageDeliveryStatus
+    timeout: 5000
+- assertNotVisible: '^Send failed, tap to retry$'
+- assertVisible:
+    id: '^Post$'
+    containsDescendants:
+      - text: ${MESSAGE_PATTERN}
+- assertNotVisible:
+    id: '^Post$'
+    containsDescendants:
+      - text: ${MESSAGE_PATTERN}
+    index: 1
+

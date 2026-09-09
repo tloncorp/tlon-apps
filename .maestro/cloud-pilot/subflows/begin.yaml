@@ -1,0 +1,19 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'fresh'}
+    file: login.yaml
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'warm'}
+    commands:
+      - launchApp
+- extendedWaitUntil:
+    visible: '^(Home|Contacts)$'
+    timeout: 5000
+- runFlow: contacts-tab.yaml
+- assertVisible:
+    text: ${output.reliability.shipPattern}
+    leftOf: '^You$'
+- runFlow: home-tab.yaml

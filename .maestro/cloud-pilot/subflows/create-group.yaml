@@ -1,0 +1,27 @@
+appId: ${MAESTRO_APP_ID}
+---
+- assertNotVisible: ${output.reliability.groupPattern}
+- tapOn: '^Add a chat$'
+- tapOn: '^New group$'
+- tapOn: '^Basic group.*$'
+- tapOn: '^Group name$'
+- waitForAnimationToEnd:
+    timeout: 5000
+- runFlow:
+    file: input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.group}
+- assertVisible:
+    text: ${output.reliability.groupPattern}
+    below: '^Name your group$'
+    above: '^Next$'
+- hideKeyboard
+- tapOn: '^Next$'
+- assertVisible: '^Select contacts to invite$'
+- tapOn: '^Create group$'
+- extendedWaitUntil:
+    visible: ${output.reliability.groupPattern}
+    timeout: 5000
+- assertVisible: '^Chat$'
+- assertVisible: '^Gallery$'
+- assertVisible: '^Notebook$'
