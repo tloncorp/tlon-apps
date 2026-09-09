@@ -38,44 +38,13 @@ appId: ${MAESTRO_APP_ID}
 
 # Declared login/network phase; outside the 5-second warm interaction budget.
 - extendedWaitUntil:
-    visible: '^(Home|Nickname|Configure now|Usage Statistics|Save Password\?)$'
+    visible: '^(Home|Usage Statistics|Save Password\?)$'
     timeout: 60000
 - runFlow:
     when:
       visible: '^Save Password\?$'
     commands:
       - tapOn: '^Not Now$'
-# Revived test accounts retain their profile and notification preferences.
-- extendedWaitUntil:
-    visible: '^(Home|Nickname|Configure now|Usage Statistics)$'
-    timeout: 60000
-- runFlow:
-    when:
-      visible: '^Nickname$'
-    commands:
-      - tapOn: '^Next$'
-      - assertVisible: '^Notifications$'
-      - tapOn: '^Next$'
-      - runFlow:
-          when:
-            visible: 'On the next screen, make sure you tap'
-          commands:
-            - tapOn: '^Next$'
-            - runFlow:
-                when:
-                  visible:
-                    id: com.android.permissioncontroller:id/permission_allow_button
-                commands:
-                  - tapOn:
-                      id: com.android.permissioncontroller:id/permission_allow_button
-- extendedWaitUntil:
-    visible: '^(Home|Usage Statistics|Configure now)$'
-    timeout: 60000
-- runFlow:
-    when:
-      visible:
-        id: bot-configure
-    file: bot-setup.yaml
 - extendedWaitUntil:
     visible: '^(Home|Usage Statistics)$'
     timeout: 60000

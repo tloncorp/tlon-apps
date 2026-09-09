@@ -24,7 +24,6 @@ jobs:
             MAESTRO_APP_ID=io.tlon.groups.preview
             MAESTRO_EMAIL=${{ secrets.MAESTRO_EMAIL }}
             MAESTRO_PASSWORD=${{ secrets.MAESTRO_PASSWORD }}
-            MAESTRO_BOT_API_KEY=${{ secrets.OPENROUTER_API_KEY }}
             MAESTRO_RUN_TAG=c${{ github.run_id }}a${{ github.run_attempt }}
       - name: Report cloud result
         if: always()
