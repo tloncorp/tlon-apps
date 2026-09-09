@@ -775,58 +775,6 @@ export const syncDms = async (ctx?: SyncCtx) => {
   await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
 };
 
-export type EnsureDmInviteChannelResult =
-  | { found: true; state: 'regular-dm' }
-  | { found: true; state: 'pending-invite' }
-  | { found: false; state: 'missing' };
-
-export const ensureDmInviteChannel = async ({
-  channelId,
-  syncCtx,
-  queryCtx,
-}: {
-  channelId: string;
-  syncCtx?: SyncCtx;
-  queryCtx?: QueryCtx;
-}): Promise<EnsureDmInviteChannelResult> => {
-  const { dms, invites } = await syncQueue.add(
-    'ensureDmInviteChannel',
-    syncCtx,
-    async () => {
-      const [dms, invites] = await Promise.all([
-        api.getDms(),
-        api.getDmInvites(),
-      ]);
-      return { dms, invites };
-    }
-  );
-
-  const write = async (ctx: QueryCtx): Promise<EnsureDmInviteChannelResult> => {
-    const regularDm = dms.find((dm) => dm.id === channelId);
-    if (regularDm) {
-      await db.insertChannels([regularDm], ctx);
-      return { found: true, state: 'regular-dm' };
-    }
-
-    const invite = invites.find((dmInvite) => dmInvite.id === channelId);
-    if (invite) {
-      await db.insertChannels([invite], ctx);
-      return { found: true, state: 'pending-invite' };
-    }
-
-    const localChannel = await db.getChannel({ id: channelId }, ctx);
-    if (localChannel?.isDmInvite) {
-      await db.deleteChannels([channelId], ctx);
-    }
-
-    return { found: false, state: 'missing' };
-  };
-
-  return queryCtx
-    ? write(queryCtx)
-    : batchEffects('ensureDmInviteChannel', write);
-};
-
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   const unreads = await syncQueue.add('unreads', ctx, () =>
     api.getGroupAndChannelUnreads()
@@ -1842,11 +1790,6 @@ export const handleChatUpdate = async (
         ctx
       );
       break;
-    case 'syncDmInvites':
-      // This event contains the complete list of pending DM invites
-      // We need to sync our local state with this list
-      await handleSyncDmInvites(update.channels, ctx);
-      break;
     case 'dmStatus':
       await handleDmStatus(update.channelId, update.net, ctx);
       break;
@@ -1881,54 +1824,6 @@ export async function handleDmStatus(
       // an archived dm and a removed one look the same
       await db.deleteChannels([channelId], ctx);
       break;
-  }
-}
-
-async function handleSyncDmInvites(invites: db.Channel[], ctx?: QueryCtx) {
-  const allChannels = await db.getAllChannels(ctx);
-
-  const currentDmInvites = allChannels.filter(
-    (ch) => ch.type === 'dm' && ch.isDmInvite === true
-  );
-  const currentRegularDms = allChannels.filter(
-    (ch) => ch.type === 'dm' && ch.isDmInvite === false
-  );
-
-  const newInviteIds = new Set(invites.map((ch) => ch.id));
-  const currentInviteIds = new Set(currentDmInvites.map((ch) => ch.id));
-
-  const missingInvites = currentDmInvites.filter(
-    (ch) => !newInviteIds.has(ch.id)
-  );
-
-  const backendDms = await api.getDms();
-  const backendDmIds = new Set(backendDms.map((dm) => dm.id));
-
-  for (const invite of missingInvites) {
-    if (backendDmIds.has(invite.id)) {
-      logger.log('dm invite was accepted, updating to regular dm', invite.id);
-      await db.updateChannel({ id: invite.id, isDmInvite: false }, ctx);
-    } else {
-      logger.log('dm invite was declined, deleting', invite.id);
-      await db.deleteChannels([invite.id], ctx);
-    }
-  }
-
-  for (const regularDm of currentRegularDms) {
-    if (!backendDmIds.has(regularDm.id)) {
-      logger.log('regular dm was removed on backend, deleting', regularDm.id);
-      await db.deleteChannels([regularDm.id], ctx);
-    }
-  }
-
-  const toAdd = invites.filter((ch) => !currentInviteIds.has(ch.id));
-
-  if (toAdd.length > 0) {
-    logger.log(
-      'adding new dm invites',
-      toAdd.map((ch) => ch.id)
-    );
-    await db.insertChannels(toAdd, ctx);
   }
 }
 

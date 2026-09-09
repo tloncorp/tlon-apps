@@ -112,7 +112,7 @@ import {
 } from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
-import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
+import type { Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
@@ -335,10 +335,10 @@ interface DmStatusEvent {
 }
 
 /**
- * Chat/DM firehose: an array of DM invites, a WritResponse, or a
- * %chat-dm-status fact for a dm entering, changing, or leaving the dm set
+ * Chat/DM firehose: a WritResponse, or a %chat-dm-status fact for a dm
+ * entering, changing, or leaving the dm set
  */
-type ChatFirehoseEvent = DmInvite[] | WritResponse | DmStatusEvent;
+type ChatFirehoseEvent = WritResponse | DmStatusEvent;
 
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -4625,17 +4625,9 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
 
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
       try {
-        // Handle DM invite lists (arrays)
-        if (Array.isArray(event)) {
-          for (const invite of event) {
-            await handleDmInvite(invite.ship);
-          }
-          return;
-        }
         // %chat-dm-status: a dm entered, changed, or left %chat's dm set.
-        // The invite list above is not emitted on /v4, so this is the live
-        // signal for a new invite. A removed dm can be invited again, so
-        // forget it.
+        // This is the live signal for a new invite. A removed dm can be
+        // invited again, so forget it.
         if ('ship' in event && 'net' in event) {
           if (event.net === 'invited') {
             await handleDmInvite(event.ship);
