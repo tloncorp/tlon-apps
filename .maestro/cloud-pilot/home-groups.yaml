@@ -19,7 +19,8 @@ env:
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Clear$'
 - tapOn: '^Filter by name$'
-- inputText: ${MAESTRO_RUN_TAG + ' missing group'}
+- inputText: qzxqzxqzxqzx
+- assertVisible: '^qzxqzxqzxqzx$'
 - assertVisible: '^No results found\.$'
 - tapOn: '^Clear search$'
 - tapOn: '^Filter by name$'
