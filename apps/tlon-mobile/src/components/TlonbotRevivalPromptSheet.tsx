@@ -50,7 +50,7 @@ export function useTlonbotRevivalPrompt() {
     }
   }, []);
 
-  const handleStart = useCallback(() => {
+  const handleStart = useCallback(async () => {
     setOpen(false);
     setSnoozed(true);
     if (!ship || !shipUrl) {
@@ -66,9 +66,32 @@ export function useTlonbotRevivalPrompt() {
       severity: AnalyticsSeverity.High,
     });
 
+    // useShip()'s cookie is captured at login and is not refreshed when the
+    // client reauths mid-session, so replaying it here would push an expired
+    // cookie back into persisted and native storage and re-break push
+    // previews (TLON-6516). The persisted record is kept current by the
+    // reauth handler in configureUrbitClient, so prefer it.
+    let currentAuthCookie = authCookie;
+    try {
+      const stored = await db.storage.shipInfo.getValue();
+      if (
+        stored?.ship === ship &&
+        stored.shipUrl === shipUrl &&
+        stored.authCookie
+      ) {
+        currentAuthCookie = stored.authCookie;
+      }
+    } catch (e) {
+      logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+        error: e,
+        context: 'failed to read the stored auth cookie for revival',
+        severity: AnalyticsSeverity.High,
+      });
+    }
+
     closeAfterAnimation(() => {
       setShip({
-        authCookie,
+        authCookie: currentAuthCookie,
         authType: authType ?? 'hosted',
         needsSplashSequence: true,
         ship,

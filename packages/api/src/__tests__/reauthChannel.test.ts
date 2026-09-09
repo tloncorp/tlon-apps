@@ -177,16 +177,17 @@ describe('reauth', () => {
     await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
     expect(onAuthCookieChange).toHaveBeenCalledTimes(1);
     expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
       shipUrl: 'http://example.test',
       authCookie: 'urbauth=refreshed',
     });
   });
 
   // Reauth reads config.* after its awaits, so one started before an account
-  // switch can land after it (TLON-6500). The url it reports must be the one
-  // the login actually went to, otherwise a handler cannot tell that the
+  // switch can land after it (TLON-6500). The identity it reports must be the
+  // one the login actually ran under, otherwise a handler cannot tell that the
   // cookie belongs to a client it is no longer configured for.
-  test('reports the url the login used, not whatever is configured later', async () => {
+  test('reports the identity the login used, not whatever is configured later', async () => {
     const onAuthCookieChange = vi.fn();
     const client = fakeClient({
       poke: vi
@@ -222,7 +223,51 @@ describe('reauth', () => {
     await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
 
     expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
       shipUrl: 'http://ship-a.test',
+      authCookie: 'urbauth=refreshed',
+    });
+  });
+
+  // A url is not an identity: the same self-hosted endpoint can end up serving
+  // a different ship, so a url-only check would let a late cookie from the
+  // previous ship through.
+  test('reports the originating ship even when the url is unchanged', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://same-endpoint.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: client as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://same-endpoint.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
+      shipUrl: 'http://same-endpoint.test',
       authCookie: 'urbauth=refreshed',
     });
   });

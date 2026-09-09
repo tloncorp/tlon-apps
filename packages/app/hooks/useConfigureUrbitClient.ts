@@ -9,6 +9,7 @@ import { Alert, Platform, TurboModuleRegistry } from 'react-native';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
+import { applyRefreshedAuthCookie } from '../utils/authCookie';
 import { UrbitModuleSpec } from '../utils/urbitModule';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
@@ -49,16 +50,20 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
 // from inside the reauth that produced the cookie, and a failure to persist
 // only costs us push previews until the next reauth, so it must never reject
 // into that caller.
-function persistRefreshedAuthCookie(shipUrl: string, authCookie: string) {
+function persistRefreshedAuthCookie(
+  shipName: string,
+  shipUrl: string,
+  authCookie: string
+) {
   void (async () => {
     try {
-      const stored = await db.storage.shipInfo.getValue();
-      // don't resurrect a logged-out session, and don't cross an account switch
-      // that landed between the reauth starting and this write
-      if (!stored || stored.shipUrl !== shipUrl) {
-        return;
-      }
-      await db.storage.shipInfo.setValue({ ...stored, authCookie });
+      // The updater form runs inside StorageItem's write lock, so the record it
+      // sees cannot be a snapshot taken before a logout or account switch that
+      // has since been written. Reading with getValue() first and writing after
+      // would let this clobber a resetValue() or the new account's record.
+      await db.storage.shipInfo.setValue((stored) =>
+        applyRefreshedAuthCookie(stored, { shipName, shipUrl, authCookie })
+      );
     } catch (e) {
       clientLogger.trackError('Failed to persist refreshed auth cookie', {
         errorMessage: e instanceof Error ? e.message : String(e),
@@ -135,14 +140,20 @@ export function configureUrbitClient({
       return code;
     },
     handleAuthFailure: onAuthFailure,
-    onAuthCookieChange: ({ shipUrl: cookieShipUrl, authCookie }) => {
+    onAuthCookieChange: ({
+      shipName: cookieShipName,
+      shipUrl: cookieShipUrl,
+      authCookie,
+    }) => {
       // Reauth reads module-level config after its awaits, so one that started
-      // before an account switch can finish after it (TLON-6500). Both urls
-      // come from this function's own argument, so comparing them against the
+      // before an account switch can finish after it (TLON-6500). These values
+      // come from this function's own arguments, so comparing them against the
       // closure's is exact: a mismatch means the cookie belongs to a client we
       // are no longer configured for, and applying it would point the
-      // notification service at the wrong session.
-      if (cookieShipUrl !== shipUrl) {
+      // notification service at the wrong session. The ship is checked as well
+      // as the url because a url is not an identity -- the same self-hosted
+      // endpoint can end up serving a different ship.
+      if (cookieShipName !== ship || cookieShipUrl !== shipUrl) {
         clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
           context: 'reauth cookie did not match the configured ship',
         });
@@ -150,7 +161,7 @@ export function configureUrbitClient({
       }
       // The stored cookie is what boot replays into native storage, so
       // refreshing native alone would be undone by the next app launch.
-      persistRefreshedAuthCookie(cookieShipUrl, authCookie);
+      persistRefreshedAuthCookie(cookieShipName, cookieShipUrl, authCookie);
       if (!UrbitModule) {
         return;
       }

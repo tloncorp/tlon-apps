@@ -26,6 +26,7 @@ interface Config extends Pick<
   | 'getCode'
   | 'handleAuthFailure'
   | 'onAuthCookieChange'
+  | 'shipName'
   | 'shipUrl'
   | 'onQuitOrReset'
 > {
@@ -106,11 +107,14 @@ export interface ClientParams {
   handleAuthFailure?: (params: { mustLogout: boolean }) => void;
   // Called with every cookie a successful reauth installs, so a platform that
   // keeps its own copy (Android's notification service reads one out of
-  // SharedPreferences) can refresh it. `shipUrl` is the url the login actually
-  // went to, not whatever is configured by the time the callback runs, so a
-  // handler can drop a cookie belonging to a client that has since been
-  // replaced -- see TLON-6500.
+  // SharedPreferences) can refresh it. `shipName` and `shipUrl` are the
+  // identity the login actually ran under, not whatever is configured by the
+  // time the callback runs, so a handler can drop a cookie belonging to a
+  // client that has since been replaced -- see TLON-6500. Both are reported
+  // because a url is not an identity: the same self-hosted endpoint can end up
+  // serving a different ship.
   onAuthCookieChange?: (params: {
+    shipName: string;
     shipUrl: string;
     authCookie: string;
   }) => void;
@@ -125,6 +129,7 @@ export interface ClientParams {
 const config: Config = {
   client: null,
   lastStatus: '',
+  shipName: '',
   shipUrl: '',
   subWatchers: {},
   pendingAuth: null,
@@ -271,6 +276,7 @@ export function internalConfigureClient({
     injectedClient || config.client || new Urbit(shipUrl, '', '', fetchFn);
   config.client.verbose = verbose;
   config.client.nodeId = preSig(shipName);
+  config.shipName = shipName;
   config.shipUrl = shipUrl;
   // a fresh configuration is a fresh session; a forced logout on the previous
   // one must not leave reauth disabled for this one
@@ -1086,8 +1092,9 @@ async function performReauth(): Promise<string | void> {
   for (let attempt = 0; ; attempt++) {
     const lastAttempt = attempt >= MAX_LOGIN_ATTEMPTS - 1;
     let authCookie: string | undefined;
-    // read once, so the url reported to onAuthCookieChange is provably the one
-    // this login went to even if config.shipUrl changes while we await
+    // read once, so the identity reported to onAuthCookieChange is provably
+    // the one this login ran under even if config changes while we await
+    const loginShipName = config.shipName;
     const loginShipUrl = config.shipUrl;
     try {
       logger.log('trying to auth with code', code);
@@ -1116,7 +1123,11 @@ async function performReauth(): Promise<string | void> {
 
     if (authCookie) {
       config.authEpoch += 1;
-      config.onAuthCookieChange?.({ shipUrl: loginShipUrl, authCookie });
+      config.onAuthCookieChange?.({
+        shipName: loginShipName,
+        shipUrl: loginShipUrl,
+        authCookie,
+      });
       if (config.client) {
         config.client.cookie = authCookie;
         // logging in moved us to a new session. any channel we opened under
