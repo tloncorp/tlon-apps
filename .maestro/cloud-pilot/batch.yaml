@@ -1,9 +1,9 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship bulk input and threads
+name: Maestro ship Home and group deletion
 ---
 - runFlow: subflows/login.yaml
 - runFlow:
-    file: chat.yaml
+    file: home-groups.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: '~batbet-litnec'

@@ -73,3 +73,41 @@ env:
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'
+# Delete only this run's group, and verify cancellation before confirming.
+- longPressOn: ${output.reliability.group + ' renamed'}
+- tapOn: '^Group info & settings$'
+- scrollUntilVisible:
+    element:
+      id: GroupLeaveAction-Delete group
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
+- tapOn: '(?i)^Cancel$'
+- assertVisible: ${output.reliability.group + ' renamed'}
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete group$'
+          above: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete group$'
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 5000
+- tapOn: '^Search$'
+- inputText: ${MAESTRO_RUN_TAG}
+- assertVisible: '^No results found\.$'
+- assertNotVisible: ${output.reliability.group + ' renamed'}
+- tapOn: '^Clear$'
+- tapOn: '^Close$'
+- assertVisible: '^Home$'
