@@ -18,7 +18,11 @@ appId: ${MAESTRO_APP_ID}
     text: ${output.reliability.groupPattern}
     below: '^Name your group$'
     above: '^Next$'
-- hideKeyboard
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: '^Next$'
 - assertVisible: '^Select contacts to invite$'
 - tapOn: '^Create group$'

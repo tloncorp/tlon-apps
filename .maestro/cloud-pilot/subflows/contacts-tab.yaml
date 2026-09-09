@@ -14,4 +14,7 @@ appId: ${MAESTRO_APP_ID}
       platform: Android
     commands:
       - tapOn: '^Contacts$'
+      - assertVisible:
+          id: ScreenHeaderTitle
+          text: '^Contacts$'
 - assertVisible: '^Contacts$'
