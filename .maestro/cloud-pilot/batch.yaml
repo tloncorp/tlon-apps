@@ -1,9 +1,9 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship channel lifecycle
+name: Maestro ship link previews
 ---
 - runFlow: subflows/login.yaml
 - runFlow:
-    file: channels.yaml
+    file: links.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: '~batbet-litnec'
