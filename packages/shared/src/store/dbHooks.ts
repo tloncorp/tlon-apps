@@ -895,9 +895,12 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };
 
-export const useThemeSettings = () => {
+export const useThemeSettings = ({
+  enabled = true,
+}: { enabled?: boolean } = {}) => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
+    enabled,
     queryKey: ['themeSettings', deps],
     queryFn: async () => {
       const settings = await db.getSettings();
