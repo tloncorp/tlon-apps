@@ -53,6 +53,14 @@ const inlineStyleTags = {
   strikethrough: 's',
 } as const;
 
+// The title a published note actually renders with. Anything comparing two
+// publications has to apply the same fallback, or an empty title and a
+// literal "Untitled" read as different content while producing identical
+// output.
+export function publishedNoteTitle(title: string) {
+  return title.trim() || 'Untitled';
+}
+
 export function renderPublishedNoteHtml({
   title,
   body,
@@ -60,7 +68,7 @@ export function renderPublishedNoteHtml({
   title: string;
   body: string;
 }) {
-  const safeTitle = title.trim() || 'Untitled';
+  const safeTitle = publishedNoteTitle(title);
   const bodyHtml = renderMarkdownBodyHtml(body);
   return `<!doctype html>
 <html lang="en">

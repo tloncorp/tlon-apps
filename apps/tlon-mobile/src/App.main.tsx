@@ -23,10 +23,12 @@ import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import { BaseProviderStack } from '@tloncorp/app/provider/BaseProviderStack';
 import {
   AgentOnboardingSequence,
+  EmailSupportLink,
   LoadingSpinner,
   SplashSequence,
   Text,
   View,
+  YStack,
   ZStack,
   usePreloadedEmojis,
 } from '@tloncorp/app/ui';
@@ -195,16 +197,22 @@ const MainApp = () => {
           <OnboardingStack />
         )
       ) : (
-        <View
+        <YStack
           height="100%"
           padding="$l"
+          gap="$3xl"
           justifyContent="center"
           alignItems="center"
         >
           <Text textAlign="center" fontSize="$xl" color="$primaryText">
             You are offline. Please connect to the internet and try again.
           </Text>
-        </View>
+          <EmailSupportLink
+            size="$label/l"
+            prompt="Back online and still stuck? Email"
+            subject="Help! I can't connect to Tlon."
+          />
+        </YStack>
       )}
       <StatusBar
         backgroundColor={isDarkMode ? 'black' : 'white'}

@@ -275,12 +275,5 @@ dependencies {
 
     // PostHog - pinned to avoid constructor signature incompatibilities with newer versions
     implementation("com.posthog:posthog-android:3.8.2")
-
-    // APNG4Android, for AnimatedImageHeapGuard. Already in the runtime graph via
-    // expo-image, but declared there with `implementation`, so it is not on our
-    // compile classpath. Keep this version in lockstep with the one in
-    // node_modules/expo-image/android/build.gradle. See TLON-6505.
-    implementation("com.github.penfeizhou.android.animation:glide-plugin:3.0.5")
-
     testImplementation("junit:junit:4.13.2")
 }
