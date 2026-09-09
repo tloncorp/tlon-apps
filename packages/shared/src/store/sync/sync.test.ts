@@ -603,6 +603,30 @@ test('syncInitData drops dms the backend no longer lists', async () => {
   expect(kept?.[0].count).toEqual(groupsInitData.chat.dms.length + 1);
 });
 
+// the two ways a row can look absent from a snapshot without being gone on
+// the backend: it was created locally and not sent yet, or a live fact
+// inserted it while the snapshot fetch was in flight
+test('deleteAbsentDmChannels leaves unconfirmed and newly arrived dms alone', async () => {
+  await db.insertChannels([
+    dmChannel('~stale-dm', false),
+    { ...dmChannel('~pending-dm', false), isPendingChannel: true },
+  ]);
+  const candidateIds = await db.getDmChannelIds();
+  expect(candidateIds.sort()).toEqual(['~pending-dm', '~stale-dm']);
+  // arrives (via a status fact) after the snapshot was requested
+  await db.insertChannels([dmChannel('~arrived-dm', false)]);
+
+  const deleted = await db.deleteAbsentDmChannels({
+    keepIds: [],
+    candidateIds,
+  });
+
+  expect(deleted).toEqual(['~stale-dm']);
+  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~pending-dm' }))?.type).toBe('dm');
+  expect((await db.getChannel({ id: '~arrived-dm' }))?.type).toBe('dm');
+});
+
 test('syncDms drops dms the backend no longer lists', async () => {
   await db.insertChannels([
     dmChannel('~sampel-palnet', false),

@@ -66,6 +66,9 @@ export const syncInitData = async (
   // the init endpoint version is capability-picked and this can run before
   // syncAppInfo on a fresh boot — apply the persisted capabilities first
   await syncReactionSupport();
+  // captured before the fetch: only dms that existed when the snapshot was
+  // requested can be reconciled away by it
+  const dmCandidateIds = await db.getDmChannelIds(queryCtx);
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
   );
@@ -90,7 +93,10 @@ export const syncInitData = async (
     // init carries the complete dm set, so anything missing from it is gone
     await db
       .deleteAbsentDmChannels(
-        { keepIds: initData.channels.map((c) => c.id) },
+        {
+          keepIds: initData.channels.map((c) => c.id),
+          candidateIds: dmCandidateIds,
+        },
         queryCtx
       )
       .then(() => logger.crumb('reconciled dm channels'));
@@ -772,6 +778,7 @@ export const syncGroups = async (ctx?: SyncCtx) => {
 };
 
 export const syncDms = async (ctx?: SyncCtx) => {
+  const candidateIds = await db.getDmChannelIds();
   const [dms, groupDms, dmInvites] = await syncQueue.add('dms', ctx, () =>
     Promise.all([api.getDms(), api.getGroupDms(), api.getDmInvites()])
   );
@@ -781,7 +788,10 @@ export const syncDms = async (ctx?: SyncCtx) => {
   );
   const channels = [...dms, ...groupDms, ...pendingInvites];
   await db.insertChannels(channels);
-  await db.deleteAbsentDmChannels({ keepIds: channels.map((c) => c.id) });
+  await db.deleteAbsentDmChannels({
+    keepIds: channels.map((c) => c.id),
+    candidateIds,
+  });
 };
 
 export type EnsureDmInviteChannelResult =
