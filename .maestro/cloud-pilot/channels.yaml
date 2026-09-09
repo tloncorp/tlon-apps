@@ -28,12 +28,7 @@ env:
       platform: iOS
     commands:
       - pressKey: Enter
-      - scrollUntilVisible:
-          element:
-            text: '^Create channel$'
-          direction: DOWN
-          centerElement: true
-          timeout: 5000
+      - scroll
 - tapOn: '^Create channel$'
 - extendedWaitUntil:
     notVisible: '^Create a new channel$'
@@ -56,8 +51,7 @@ env:
 - tapOn: ${MAESTRO_RUN_TAG + ' channel'}
 - assertVisible: ${output.reliability.textPattern}
 - tapOn: ${MAESTRO_RUN_TAG + ' channel'}
-- tapOn:
-    id: DetailsEditButton
+- tapOn: '^(Rename|Edit)$'
 - tapOn:
     id: ChannelTitleInput
     point: '95%,50%'
@@ -69,11 +63,9 @@ env:
 - tapOn:
     id: ChannelDescriptionInput
 - inputText: ${MAESTRO_RUN_TAG + ' description'}
-- tapOn:
-    id: ChannelSettingsSaveButton
+- tapOn: '^Save$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' renamed'}
-- tapOn:
-    id: DetailsEditButton
+- tapOn: '^(Rename|Edit)$'
 - assertVisible:
     id: ChannelTitleInput
     text: ${MAESTRO_RUN_TAG + ' renamed'}
@@ -97,7 +89,18 @@ env:
 - tapOn:
     id: ChannelLeaveAction-Delete channel
 - assertVisible: "^Delete ${MAESTRO_RUN_TAG} renamed[?]$"
-- tapOn: '(?i)^Delete channel$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete channel$'
+          above: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete channel$'
 - extendedWaitUntil:
     notVisible: ${MAESTRO_RUN_TAG + ' renamed'}
     timeout: 5000
