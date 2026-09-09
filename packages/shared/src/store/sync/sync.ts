@@ -775,6 +775,58 @@ export const syncDms = async (ctx?: SyncCtx) => {
   await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
 };
 
+export type EnsureDmInviteChannelResult =
+  | { found: true; state: 'regular-dm' }
+  | { found: true; state: 'pending-invite' }
+  | { found: false; state: 'missing' };
+
+export const ensureDmInviteChannel = async ({
+  channelId,
+  syncCtx,
+  queryCtx,
+}: {
+  channelId: string;
+  syncCtx?: SyncCtx;
+  queryCtx?: QueryCtx;
+}): Promise<EnsureDmInviteChannelResult> => {
+  const { dms, invites } = await syncQueue.add(
+    'ensureDmInviteChannel',
+    syncCtx,
+    async () => {
+      const [dms, invites] = await Promise.all([
+        api.getDms(),
+        api.getDmInvites(),
+      ]);
+      return { dms, invites };
+    }
+  );
+
+  const write = async (ctx: QueryCtx): Promise<EnsureDmInviteChannelResult> => {
+    const regularDm = dms.find((dm) => dm.id === channelId);
+    if (regularDm) {
+      await db.insertChannels([regularDm], ctx);
+      return { found: true, state: 'regular-dm' };
+    }
+
+    const invite = invites.find((dmInvite) => dmInvite.id === channelId);
+    if (invite) {
+      await db.insertChannels([invite], ctx);
+      return { found: true, state: 'pending-invite' };
+    }
+
+    const localChannel = await db.getChannel({ id: channelId }, ctx);
+    if (localChannel?.isDmInvite) {
+      await db.deleteChannels([channelId], ctx);
+    }
+
+    return { found: false, state: 'missing' };
+  };
+
+  return queryCtx
+    ? write(queryCtx)
+    : batchEffects('ensureDmInviteChannel', write);
+};
+
 export const syncUnreads = async (ctx?: SyncCtx, queryCtx?: QueryCtx) => {
   const unreads = await syncQueue.add('unreads', ctx, () =>
     api.getGroupAndChannelUnreads()

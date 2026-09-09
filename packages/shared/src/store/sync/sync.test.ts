@@ -42,6 +42,7 @@ import {
 import rawGroupsInit2 from '../../test/init.json';
 import { syncQueue } from '../syncQueue';
 import {
+  ensureDmInviteChannel,
   handleDmStatus,
   syncChannelWithBackoff,
   syncDms,
@@ -101,6 +102,16 @@ const outputData = [
     itemId: inputData[2],
   },
 ];
+
+const dmChannel = (id: string, isDmInvite: boolean): db.Channel => ({
+  id,
+  type: 'dm',
+  title: '',
+  description: '',
+  isDmInvite,
+  contactId: id,
+  members: [{ chatId: id, contactId: id, membershipType: 'channel' }],
+});
 
 test('syncs pins', async () => {
   setScryOutput(inputData);
@@ -418,6 +429,70 @@ test('syncDms lets regular DMs win when backend invite state overlaps', async ()
 
   const channel = await db.getChannel({ id: '~sampel-palnet' });
   expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+});
+
+test('ensureDmInviteChannel inserts a pending single-DM invite from backend invites', async () => {
+  setScryOutputs([[], ['~sampel-palnet']]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: true, state: 'pending-invite' });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(true);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+});
+
+test('ensureDmInviteChannel refreshes the target as a regular DM from backend DMs', async () => {
+  await db.insertChannels([dmChannel('~sampel-palnet', true)]);
+  setScryOutputs([['~sampel-palnet'], []]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: true, state: 'regular-dm' });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
+  expect(channel?.type).toBe('dm');
+  expect(channel?.isDmInvite).toBe(false);
+  expect(channel?.contactId).toBe('~sampel-palnet');
+});
+
+test('ensureDmInviteChannel deletes the target when a local invite is stale', async () => {
+  await db.insertChannels([
+    dmChannel('~sampel-palnet', true),
+    {
+      ...dmChannel('~wicdev-wisryt', true),
+      title: 'Unrelated request',
+    },
+  ]);
+  setScryOutputs([[], []]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: false, state: 'missing' });
+  expect(await db.getChannel({ id: '~sampel-palnet' })).toBeNull();
+
+  const unrelated = await db.getChannel({ id: '~wicdev-wisryt' });
+  expect(unrelated?.isDmInvite).toBe(true);
+  expect(unrelated?.title).toBe('Unrelated request');
+});
+
+test('ensureDmInviteChannel returns missing without deleting a non-invite local channel', async () => {
+  await db.insertChannels([dmChannel('~sampel-palnet', false)]);
+  setScryOutputs([[], []]);
+
+  const result = await ensureDmInviteChannel({
+    channelId: '~sampel-palnet',
+  });
+
+  expect(result).toEqual({ found: false, state: 'missing' });
+  const channel = await db.getChannel({ id: '~sampel-palnet' });
   expect(channel?.isDmInvite).toBe(false);
 });
 
