@@ -1,9 +1,11 @@
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
+  DIARY_CREATION_BLOCKED_MESSAGE,
   createChannel,
   createDevLogger,
   deleteChannel,
+  isDiaryChannelType,
   useChannelHooksPreview,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
@@ -63,6 +65,14 @@ export function ChannelFromTemplateView({
     async (data: { title: string }) => {
       logger.log('onConfirm', channel, selectedGroup);
       if (!channel || !selectedGroup) {
+        return;
+      }
+
+      // A template copies the source channel's type, and bulletins (%diary) can
+      // no longer be created. ChatOptionsSheet hides the entry point for them,
+      // but this screen is also reachable by direct navigation.
+      if (isDiaryChannelType(channel.type)) {
+        Alert.alert('Cannot create channel', DIARY_CREATION_BLOCKED_MESSAGE);
         return;
       }
 
