@@ -1,0 +1,76 @@
+appId: ${MAESTRO_APP_ID}
+name: Native settings persistence
+tags: [regression]
+env:
+  JOURNEY: s
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- assertVisible: '^Settings$'
+- tapOn: '^App info$'
+- assertVisible: '^Build version$'
+- assertVisible: '^Desk version$'
+- assertNotVisible: '^Cannot load app info settings$'
+- tapOn: '^Back$'
+- tapOn: '^Appearance$'
+- assertVisible: '^Appearance$'
+- scrollUntilVisible:
+    element:
+      id: 'ThemeOption-.*'
+      checked: true
+    direction: DOWN
+    timeout: 5000
+- copyTextFrom:
+    id: 'ThemeOption-.*'
+    checked: true
+- evalScript: ${output.reliability.originalTheme = maestro.copiedText}
+- scrollUntilVisible:
+    element:
+      id: ThemeOption-light
+    direction: UP
+    timeout: 5000
+- tapOn:
+    id: ThemeOption-light
+- assertVisible:
+    id: ThemeOption-light
+    checked: true
+- tapOn:
+    id: ThemeOption-dark
+- assertVisible:
+    id: ThemeOption-dark
+    checked: true
+- tapOn: '^Back$'
+- tapOn: '^Appearance$'
+- assertVisible:
+    id: ThemeOption-dark
+    checked: true
+- stopApp
+- launchApp
+- assertVisible: '^Home$'
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Appearance$'
+- assertVisible:
+    id: ThemeOption-dark
+    checked: true
+- scrollUntilVisible:
+    element:
+      text: ${output.reliability.originalTheme}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${output.reliability.originalTheme}
+- assertVisible:
+    text: ${output.reliability.originalTheme}
+    checked: true
+- tapOn: '^Back$'
+- tapOn: '^Blocked users$'
+- assertVisible: '^Blocked users$'
+- tapOn: '^Back$'
+- tapOn: '^Notification settings$'
+- assertVisible: '^Notifications$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow: subflows/home-tab.yaml
+- assertVisible: '^Home$'

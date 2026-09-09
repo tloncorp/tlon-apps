@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship chat and search
+name: Maestro ship settings actions and notebook
 ---
 - runFlow: subflows/login.yaml
 - runFlow: subflows/contacts-tab.yaml
@@ -9,12 +9,17 @@ name: Maestro ship chat and search
 - evalScript: ${output.cloudShip = maestro.copiedText}
 - runFlow: subflows/home-tab.yaml
 - runFlow:
-    file: chat.yaml
+    file: settings.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: ${output.cloudShip}
 - runFlow:
-    file: search.yaml
+    file: message-actions.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}
+- runFlow:
+    file: notebook.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: ${output.cloudShip}

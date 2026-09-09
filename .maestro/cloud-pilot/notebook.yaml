@@ -1,0 +1,93 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Notebook publish, edit and persist
+tags: [regression]
+env:
+  JOURNEY: n
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Notebook$'
+- tapOn: '^New$'
+- extendedWaitUntil:
+    visible: '^Write something …\n?$'
+    timeout: 5000
+- tapOn: '^Write something …\n?$'
+- tapOn:
+    id: NotebookTitleInput
+    point: '95%,50%'
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.title}
+- assertVisible:
+    id: NotebookTitleInput
+    text: ${output.reliability.title}
+- tapOn: '^Write something …\n?$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.body}
+- tapOn: '^Post$'
+- extendedWaitUntil:
+    visible: ${output.reliability.title}
+    timeout: 5000
+- assertVisible: ${output.reliability.title}
+- assertVisible: ${output.reliability.body}
+- tapOn: ${output.reliability.title}
+- assertVisible: ${output.reliability.title}
+- assertVisible: ${output.reliability.body}
+- tapOn:
+    id: ChannelHeaderEditButton
+- extendedWaitUntil:
+    visible:
+      text: ${output.reliability.body + '\n?'}
+      childOf:
+        text: RichTextEditor
+    timeout: 5000
+- tapOn:
+    text: ${output.reliability.body + '\n?'}
+    childOf:
+      text: RichTextEditor
+- tapOn:
+    id: NotebookTitleInput
+    point: '95%,50%'
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited note'}
+- assertVisible:
+    id: NotebookTitleInput
+    text: ${MAESTRO_RUN_TAG + ' edited note'}
+- tapOn:
+    text: ${output.reliability.body + '\n?'}
+    childOf:
+      text: RichTextEditor
+    point: '95%,50%'
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited body'}
+- tapOn: '^Save$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+- tapOn: '^Back$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+- stopApp
+- launchApp
+- assertVisible: '^Home$'
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: '^Notebook$'
+- tapOn: ${MAESTRO_RUN_TAG + ' edited note'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited note'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited body'}
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
