@@ -636,8 +636,7 @@ export const getLatestPosts = async ({
     });
   } catch (e) {
     logger.trackError('failed to sync heads', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
     return [];
   }

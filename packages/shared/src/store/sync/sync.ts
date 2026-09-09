@@ -503,8 +503,7 @@ export const syncLatestPosts = async (
     }
   } catch (e) {
     logger.trackError('failed to sync latest posts', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
     return () => Promise.resolve();
   }
