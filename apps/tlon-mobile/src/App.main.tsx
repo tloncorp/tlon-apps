@@ -128,7 +128,7 @@ const MainApp = () => {
     connected && !isLoading && !showSplashSequence && showAuthenticatedApp;
   const resetDb = useResetDb();
   const handleLogout = useHandleLogout({ resetDb });
-  const handleSplashLogout = useCallback(async () => {
+  const handleSessionLogout = useCallback(async () => {
     await db.clearSessionStorageItems();
     await handleLogout();
   }, [handleLogout]);
@@ -153,7 +153,7 @@ const MainApp = () => {
       inviteSystemContacts={inviteSystemContacts}
       hostingBotEnabled={hostingBotEnabled}
       splashSequenceMode={activeSplashSequenceMode}
-      onLogout={handleSplashLogout}
+      onLogout={handleSessionLogout}
     />
   );
 
@@ -172,7 +172,7 @@ const MainApp = () => {
             </AppDataProvider>
           ) : (
             <ZStack flex={1}>
-              <AuthenticatedApp />
+              <AuthenticatedApp onHostingAuthExpired={handleSessionLogout} />
               {showSplashSequence && (
                 <View
                   position="absolute"

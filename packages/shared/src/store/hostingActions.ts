@@ -23,6 +23,13 @@ import { initializeCachedHostedInviteLinks } from './inviteActions';
 
 const logger = createDevLogger('hostingActions', true);
 
+async function recordValidHostingAuth() {
+  await Promise.all([
+    db.hostingAuthExpired.setValue(false),
+    db.hostingLastAuthCheck.setValue(Date.now()),
+  ]);
+}
+
 export enum HostingAccountIssue {
   RequiresVerification = 'RequiresVerification',
   NoAssignedShip = 'NoAssignedShip',
@@ -49,6 +56,7 @@ export async function signUpHostedUser(params: {
       recaptchaToken: params.recaptcha.token,
       platform: params.recaptcha.platform,
     });
+    await recordValidHostingAuth();
 
     if (user.requirePhoneNumberVerification && !user.phoneNumberVerifiedAt) {
       return HostingAccountIssue.RequiresVerification;
@@ -147,6 +155,7 @@ export async function logInHostedUser({
     email,
     phoneNumber,
   });
+  await recordValidHostingAuth();
 
   logger.trackEvent('Authenticated with hosting', { email, phoneNumber });
   db.haveHostedLogin.setValue(true);

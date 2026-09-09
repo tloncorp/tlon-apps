@@ -846,6 +846,16 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
+  // A heartbeat must still report expiration when Hosting returns an empty or
+  // non-JSON 401 body.
+  if (response.status === 401) {
+    return 'expired';
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    return 'unknown';
+  }
+
   try {
     const body = (await response.json()) as User;
 
@@ -863,22 +873,11 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
       'Failed to read bot enabled status from hosting heartbeat',
       {
         errorMessage: e.toString(),
-        responseText: await response.text(),
       }
     );
   }
 
-  // 401 indicates that the authentication token is expired.
-  if (response.status === 401) {
-    return 'expired';
-  }
-
-  // if we get a response in the 2xx range, we know it's definitely still valid
-  if (response.status >= 200 && response.status < 300) {
-    return 'ok';
-  }
-
-  return 'unknown';
+  return 'ok';
 };
 
 export const getHostingAvailability = async (params: {

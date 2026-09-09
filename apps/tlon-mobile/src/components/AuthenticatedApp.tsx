@@ -1,5 +1,6 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo from '@react-native-community/netinfo';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   AppStatus,
   useAppStatusChange,
@@ -24,17 +25,20 @@ import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
+  LoadingSpinner,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
+  AnalyticsEvent,
+  createDevLogger,
   observeSyncSinceCompletion,
   sync,
   syncSince,
   updateSession,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
@@ -52,8 +56,52 @@ import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvid
 import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
+const hostingAuthLogger = createDevLogger('hosting auth guard', true);
 
-function AuthenticatedApp() {
+type RequireHostingAuth = (options?: { force?: boolean }) => Promise<boolean>;
+
+function useRequireHostingAuth(
+  onHostingAuthExpired: () => void | Promise<void>
+): RequireHostingAuth {
+  const { authType } = useShip();
+  const logoutStarted = useRef(false);
+
+  return useCallback(
+    async (options = {}) => {
+      if (logoutStarted.current) {
+        return false;
+      }
+
+      const result = await refreshHostingAuth({
+        ...options,
+        authType,
+      }).catch((error) => {
+        hostingAuthLogger.trackError('Failed to check hosting auth', {
+          error,
+        });
+        return 'unknown' as const;
+      });
+      if (result !== 'expired') {
+        return true;
+      }
+
+      logoutStarted.current = true;
+      hostingAuthLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
+        authType,
+        context: 'Hosting auth was expired',
+      });
+      await onHostingAuthExpired();
+      return false;
+    },
+    [authType, onHostingAuthExpired]
+  );
+}
+
+function AuthenticatedApp({
+  requireHostingAuth,
+}: {
+  requireHostingAuth: RequireHostingAuth;
+}) {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
@@ -92,13 +140,15 @@ function AuthenticatedApp() {
 
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        if (!(await requireHostingAuth())) {
+          return;
+        }
         startChatListSettleMeasurement(status);
         recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
         await checkForCachedChanges();
         telemetry.captureAppActive();
         const nodeCheck = await checkNodeStopped();
         await maybeShowPrompt(nodeCheck);
-        refreshHostingAuth();
         checkAnalyticsDigest();
       }
 
@@ -112,7 +162,13 @@ function AuthenticatedApp() {
           });
       }
     },
-    [checkForCachedChanges, checkNodeStopped, maybeShowPrompt, telemetry]
+    [
+      checkForCachedChanges,
+      checkNodeStopped,
+      maybeShowPrompt,
+      requireHostingAuth,
+      telemetry,
+    ]
   );
 
   useAppStatusChange(handleAppStatusChange);
@@ -157,12 +213,23 @@ function AuthenticatedApp() {
   );
 }
 
-export default function ConnectedAuthenticatedApp() {
+export default function ConnectedAuthenticatedApp({
+  onHostingAuthExpired,
+}: {
+  onHostingAuthExpired: () => void | Promise<void>;
+}) {
   const [clientReady, setClientReady] = useState(false);
   const configureClient = useConfigureUrbitClient();
+  const requireHostingAuth = useRequireHostingAuth(onHostingAuthExpired);
 
   useEffect(() => {
+    let canceled = false;
+
     async function setup() {
+      if (!(await requireHostingAuth({ force: true })) || canceled) {
+        return;
+      }
+
       configureClient();
       // we store a flag to ensure this runs only once per login, not anytime
       // the app is opened
@@ -184,10 +251,24 @@ export default function ConnectedAuthenticatedApp() {
         })
         .catch(() => {});
 
-      setClientReady(true);
+      if (!canceled) {
+        setClientReady(true);
+      }
     }
     setup();
-  }, [configureClient]);
+
+    return () => {
+      canceled = true;
+    };
+  }, [configureClient, requireHostingAuth]);
+
+  if (!clientReady) {
+    return (
+      <ZStack flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </ZStack>
+    );
+  }
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
@@ -200,7 +281,9 @@ export default function ConnectedAuthenticatedApp() {
       <BottomSheetModalProvider>
         <ForwardPostSheetProvider>
           <ShareIntentForwardSheetProvider enabled={clientReady}>
-            {clientReady && <AuthenticatedApp />}
+            {clientReady && (
+              <AuthenticatedApp requireHostingAuth={requireHostingAuth} />
+            )}
           </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </BottomSheetModalProvider>

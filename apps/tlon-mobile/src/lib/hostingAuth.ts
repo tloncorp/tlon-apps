@@ -8,44 +8,62 @@ import { Platform } from 'react-native';
 
 const logger = createDevLogger('refreshHostingAuth', false);
 
-// Authentication for hosting uses a token that can last up to a year, but
-// expires after 30 days of without use. We don't regularly interact with hosting after login,
-// so we attempt to manually refresh the token regularly
-export async function refreshHostingAuth(options: { force?: boolean } = {}) {
+export type HostingAuthRefreshResult = 'expired' | 'ok' | 'unknown' | 'skipped';
+
+// Hosting authentication expires after four months without use. Most of the
+// authenticated app talks directly to the ship, so ping Hosting separately to
+// keep the session alive and detect when it has actually expired.
+export async function refreshHostingAuth(
+  options: {
+    force?: boolean;
+    authType?: db.ShipInfo['authType'];
+  } = {}
+): Promise<HostingAuthRefreshResult> {
   logger.log(`checking hosting auth`);
 
-  if (__DEV__) {
-    logger.log('development mode, skipping');
-    return;
+  const authType = options.authType ?? (await db.shipInfo.getValue())?.authType;
+  if (authType !== 'hosted') {
+    logger.log('not a hosted session, skipping');
+    return 'skipped';
   }
 
   const expired = await db.hostingAuthExpired.getValue();
-  const lastCheck = await db.hostingLastAuthCheck.getValue();
-
   if (expired) {
     logger.trackEvent('Cannot refresh hosting auth, already expired');
-    return;
+    return 'expired';
   }
 
-  if (options.force || wasMoreThanDayAgo(lastCheck)) {
-    const isOnline = await deviceIsOnline();
-    if (isOnline) {
-      logger.log('online and more than a day since last check, refreshing');
-      try {
-        const result = await getHostingHeartBeat();
-        if (result === 'expired') {
-          logger.crumb('hosting auth has newly expired');
-          logger.trackEvent('Hosting Auth Expired');
-          db.hostingAuthExpired.setValue(true);
-        } else {
-          logger.trackEvent('Hosting Auth Still Valid');
-        }
-      } catch (e) {
-        logger.error('error checking hosting auth:', e);
-      } finally {
-        db.hostingLastAuthCheck.setValue(Date.now());
-      }
+  if (__DEV__) {
+    logger.log('development mode, skipping');
+    return 'skipped';
+  }
+
+  const lastCheck = await db.hostingLastAuthCheck.getValue();
+  if (!options.force && !wasMoreThanDayAgo(lastCheck)) {
+    return 'skipped';
+  }
+
+  const isOnline = await deviceIsOnline();
+  if (!isOnline) {
+    return 'unknown';
+  }
+
+  logger.log('online and refreshing hosting auth');
+  try {
+    const result = await getHostingHeartBeat();
+    if (result === 'expired') {
+      logger.crumb('hosting auth has newly expired');
+      logger.trackEvent('Hosting Auth Expired');
+      await db.hostingAuthExpired.setValue(true);
+    } else if (result === 'ok') {
+      logger.trackEvent('Hosting Auth Still Valid');
     }
+    return result;
+  } catch (e) {
+    logger.error('error checking hosting auth:', e);
+    return 'unknown';
+  } finally {
+    await db.hostingLastAuthCheck.setValue(Date.now());
   }
 }
 

@@ -5,6 +5,7 @@ import {
   configureHostingSessionStore,
   deleteTlawnProviderKey,
   disconnectTlawnLLMAuth,
+  getHostingHeartBeat,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
   getTlawnOpenRouterRecommendedModels,
@@ -229,5 +230,62 @@ describe('Tlawn provider auth', () => {
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/recommended-models',
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/zdr-endpoints',
     ]);
+  });
+});
+
+describe('Hosting heartbeat', () => {
+  const setBotEnabled = vi.fn(async () => undefined);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    setBotEnabled.mockClear();
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+      userId: {
+        getValue: async () => 'user-1',
+        setValue: async () => undefined,
+      },
+      botEnabled: {
+        getValue: async () => false,
+        setValue: setBotEnabled,
+      },
+    });
+  });
+
+  it('reports an expired session when a 401 has an empty body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('expired');
+  });
+
+  it('updates bot status from a valid heartbeat', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => respond({ botEnabled: true }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('ok');
+    expect(setBotEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('reports an indeterminate session for server errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 503 }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('unknown');
   });
 });
