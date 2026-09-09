@@ -66,37 +66,54 @@ export function useTlonbotRevivalPrompt() {
       severity: AnalyticsSeverity.High,
     });
 
-    // useShip()'s cookie is captured at login and is not refreshed when the
-    // client reauths mid-session, so replaying it here would push an expired
-    // cookie back into persisted and native storage and re-break push
-    // previews (TLON-6516). The persisted record is kept current by the
-    // reauth handler in configureUrbitClient, so prefer it.
+    // useShip()'s snapshot is captured at login and is not refreshed when the
+    // client reauths mid-session, so replaying its cookie here would push an
+    // expired one back into persisted and native storage and re-break push
+    // previews (TLON-6516). Read the persisted record instead, which the
+    // reauth handler in configureUrbitClient keeps current.
     //
     // waitForLock, because that handler persists fire-and-forget: an unlocked
     // read can land ahead of a refresh that is still queued and hand us the
     // very cookie we are trying to stop replaying.
-    let currentAuthCookie = authCookie;
+    let storedSession: db.ShipInfo | null = null;
     try {
-      const stored = await db.storage.shipInfo.getValue(true);
-      if (
-        stored?.ship === ship &&
-        stored.shipUrl === shipUrl &&
-        stored.authCookie
-      ) {
-        currentAuthCookie = stored.authCookie;
-      }
+      storedSession = await db.storage.shipInfo.getValue(true);
     } catch (e) {
+      // We cannot confirm which session we are in, and setShip with the wrong
+      // one corrupts it. Losing this prompt is recoverable; the user can start
+      // revival again from settings.
       logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
         error: e,
-        context: 'failed to read the stored auth cookie for revival',
+        context: 'could not confirm the stored session before revival',
         severity: AnalyticsSeverity.High,
       });
+      return;
     }
+
+    // That read awaits, so a logout or account switch can land during it.
+    // Falling back to the captured snapshot here would have setShip restore
+    // the logged-out account or overwrite the new one, so abort instead.
+    if (
+      !storedSession ||
+      storedSession.ship !== ship ||
+      storedSession.shipUrl !== shipUrl
+    ) {
+      logger.trackEvent(AnalyticsEvent.ErrorWayfinding, {
+        context: 'stored session changed before revival could start',
+        severity: AnalyticsSeverity.High,
+      });
+      return;
+    }
+
+    // Everything below comes from the record we just confirmed rather than the
+    // provider snapshot, so there is no second stale source to reason about.
+    const { authCookie: currentAuthCookie, authType: currentAuthType } =
+      storedSession;
 
     closeAfterAnimation(() => {
       setShip({
-        authCookie: currentAuthCookie,
-        authType: authType ?? 'hosted',
+        authCookie: currentAuthCookie ?? authCookie,
+        authType: currentAuthType ?? authType ?? 'hosted',
         needsSplashSequence: true,
         ship,
         shipUrl,
