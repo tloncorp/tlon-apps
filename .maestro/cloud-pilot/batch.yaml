@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship profile editing
+name: Maestro ship Home and group controls
 ---
 - runFlow: subflows/login.yaml
 - runFlow: subflows/contacts-tab.yaml
@@ -9,7 +9,7 @@ name: Maestro ship profile editing
 - evalScript: ${output.cloudShip = maestro.copiedText}
 - runFlow: subflows/home-tab.yaml
 - runFlow:
-    file: profile.yaml
+    file: home-groups.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: ${output.cloudShip}

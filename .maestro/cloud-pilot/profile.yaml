@@ -3,6 +3,37 @@ name: Native profile editing and persistence
 tags: [regression]
 env:
   JOURNEY: p
+onFlowComplete:
+  - runFlow:
+      when:
+        true: ${output.reliability && typeof output.reliability.originalNickname !== 'undefined'}
+      commands:
+        - runFlow:
+            when:
+              notVisible:
+                id: ProfileNicknameInput
+            commands:
+              - runFlow:
+                  when:
+                    notVisible:
+                      id: ContactEditButton
+                  commands:
+                    - runFlow: subflows/contacts-tab.yaml
+                    - tapOn: '^You$'
+              - tapOn:
+                  id: ContactEditButton
+        - tapOn:
+            id: ProfileNicknameInput
+        - eraseText: 100
+        - runFlow:
+            when:
+              true: ${output.reliability.originalNickname !== ''}
+            commands:
+              - inputText: ${output.reliability.originalNickname}
+        - tapOn: '^Save$'
+        - tapOn: '^Back$'
+        - assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
+        - runFlow: subflows/home-tab.yaml
 ---
 - runScript: data.js
 - runFlow: subflows/begin.yaml
@@ -39,16 +70,3 @@ env:
 - assertVisible:
     id: ProfileNicknameInput
     text: ${MAESTRO_RUN_TAG + ' profile'}
-- tapOn:
-    id: ProfileNicknameInput
-- eraseText: 100
-- runFlow:
-    when:
-      true: ${output.reliability.originalNickname !== ''}
-    commands:
-      - inputText: ${output.reliability.originalNickname}
-- tapOn: '^Save$'
-- assertVisible: '^Profile$'
-- assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
-- tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
