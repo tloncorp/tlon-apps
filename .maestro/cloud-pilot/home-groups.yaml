@@ -84,7 +84,7 @@ env:
     id: GroupLeaveAction-Delete group
 - assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
 - tapOn: '(?i)^Cancel$'
-- assertVisible: ${output.reliability.group + ' renamed'}
+- assertNotVisible: '^Delete ${output.reliability.group} renamed[?]$'
 - tapOn:
     id: GroupLeaveAction-Delete group
 - assertVisible: '^Delete ${output.reliability.group} renamed[?]$'

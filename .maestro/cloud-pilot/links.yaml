@@ -62,6 +62,44 @@ env:
     containsDescendants:
       - text: '^Example Domain$'
       - text: '.*${MAESTRO_RUN_TAG}.*'
+# Dismiss a second preview while preserving the exact draft URL.
+- tapOn:
+    id: MessageInput
+- inputText: ${MAESTRO_RUN_TAG + ' plain https://example.com'}
+- extendedWaitUntil:
+    visible: '^Remove attachment$'
+    timeout: 5000
+- tapOn: '^Remove attachment$'
+- runFlow:
+    when:
+      visible: '^Remove attachment$'
+    commands:
+      - tapOn: '^Remove attachment$'
+- assertVisible:
+    id: MessageInput
+    text: '^${MAESTRO_RUN_TAG} plain https://example[.]com$'
+- assertNotVisible: '^Remove attachment$'
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: '^Message$'
+    timeout: 5000
+- extendedWaitUntil:
+    notVisible:
+      id: ChatMessageDeliveryStatus
+    timeout: 5000
+- assertVisible:
+    id: '^Post$'
+    containsDescendants:
+      - text: '.*${MAESTRO_RUN_TAG} plain.*'
+      - text: '.*https://example[.]com.*'
+- assertNotVisible:
+    id: '^Post$'
+    containsDescendants:
+      - text: '^Example Domain$'
+    index: 1
 - hideKeyboard
 - tapOn: '^Back$'
 - tapOn: '^Chat$'
