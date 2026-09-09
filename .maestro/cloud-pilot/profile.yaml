@@ -24,12 +24,16 @@ onFlowComplete:
                   id: ContactEditButton
         - tapOn:
             id: ProfileNicknameInput
+            point: '95%,50%'
         - eraseText: 100
         - runFlow:
             when:
               true: ${output.reliability.originalNickname !== ''}
             commands:
               - inputText: ${output.reliability.originalNickname}
+        - assertVisible:
+            id: ProfileNicknameInput
+            text: ${output.reliability.originalNickname || MAESTRO_TEST_SHIP}
         - tapOn: '^Save$'
         - tapOn: '^Back$'
         - assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
@@ -46,6 +50,7 @@ onFlowComplete:
 - evalScript: ${output.reliability.originalNickname = maestro.copiedText || ''}
 - tapOn:
     id: ProfileNicknameInput
+    point: '95%,50%'
 - eraseText: 100
 - inputText: ${MAESTRO_RUN_TAG + ' profile'}
 - assertVisible:

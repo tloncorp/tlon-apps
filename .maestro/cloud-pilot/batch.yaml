@@ -1,17 +1,9 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship channel lifecycle
+name: Maestro ship exact profile restoration
 ---
 - runFlow: subflows/login.yaml
-- runFlow: subflows/contacts-tab.yaml
-- tapOn: '^You$'
-- copyTextFrom:
-    text: '^~[a-z]+(?:-[a-z]+)*$'
-- evalScript: ${output.cloudShip = maestro.copiedText}
-- assertTrue: ${output.cloudShip === '~batbet-litnec'}
-- tapOn: '^Back$'
-- runFlow: subflows/home-tab.yaml
 - runFlow:
-    file: channels.yaml
+    file: profile.yaml
     env:
       MAESTRO_SESSION: warm
-      MAESTRO_TEST_SHIP: ${output.cloudShip}
+      MAESTRO_TEST_SHIP: '~batbet-litnec'
