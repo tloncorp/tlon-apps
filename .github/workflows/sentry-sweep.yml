@@ -1,0 +1,64 @@
+# Scheduled zero-inference Sentry sweep: posts new/regressed issues into the Tlon alert channel; see docs/sentry-sweep.md.
+name: Sentry sweep
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run: { description: 'Print the digest, post nothing, keep state', type: boolean, default: true }
+  pull_request:
+    paths: ['scripts/sentry-sweep*', '.github/workflows/sentry-sweep.yml']
+permissions: { contents: read, actions: write }
+concurrency: { group: sentry-sweep, cancel-in-progress: false }
+
+jobs:
+  test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test scripts/sentry-sweep.test.mjs
+
+  sweep:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/cache/restore@v4
+        with:
+          path: .sentry-sweep/state.json
+          key: sentry-sweep-state-${{ github.run_id }}
+          restore-keys: sentry-sweep-state-
+      - name: Require the PostHog key for a live run
+        if: ${{ !inputs.dry_run }}
+        env:
+          POSTHOG_API_KEY: ${{ secrets.POST_HOG_API_KEY_PROD }}
+        run: |
+          if [ -z "$POSTHOG_API_KEY" ]; then
+            echo "::error::Repository secret POST_HOG_API_KEY_PROD is unset; a live sweep would deliver nothing. Set it, or run with dry_run."
+            exit 1
+          fi
+      - name: Sweep
+        run: |
+          node scripts/sentry-sweep.mjs ${{ inputs.dry_run && '--dry-run' || '' }}
+          # A dry run writes no state; keep cache/save from failing on a missing path.
+          mkdir -p .sentry-sweep && touch .sentry-sweep/state.json
+        env:
+          SENTRY_TOKEN: ${{ secrets.SENTRY_SWEEP_TOKEN }}
+          SWEEP_STATE: .sentry-sweep/state.json
+          POSTHOG_API_KEY: ${{ secrets.POST_HOG_API_KEY_PROD }}
+          POSTHOG_CAPTURE_URL: https://eu.i.posthog.com/batch/
+      - uses: actions/cache/save@v4
+        if: success()
+        with:
+          path: .sentry-sweep/state.json
+          key: sentry-sweep-state-${{ github.run_id }}
