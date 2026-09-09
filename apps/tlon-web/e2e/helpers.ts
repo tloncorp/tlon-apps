@@ -184,13 +184,13 @@ export async function verifyGroupChannels(
   }
 }
 
-// Mirrors `getChannelTypeLabel` in packages/app: %notes owns the 'Notebook'
-// name, and the legacy %diary type reads as 'Bulletin'.
+// Mirrors `getChannelTypeLabel` in packages/app, where %notes owns the
+// 'Notebook' name. The legacy %diary type isn't here because it can't be
+// created any more, so no spec builds a group containing one.
 const CHANNEL_TYPE_LABELS = {
   chat: 'Chat',
   notes: 'Notebook',
   gallery: 'Gallery',
-  notebook: 'Bulletin',
 } as const;
 
 async function clickVisibleTestId(page: Page, testId: string, timeout = 1000) {
@@ -966,10 +966,14 @@ export async function createDiaryChannel(page: Page, title: string) {
 }
 
 /**
- * Reads the group id out of the current URL (`.../group/<encoded id>/...`).
+ * Reads the group id out of the current URL (`.../group/<id>/...`).
+ *
+ * The id is a flag (`~ship/name`). React Navigation percent-encodes it into the
+ * path, but the unencoded form is matched too so this doesn't silently capture
+ * just the host.
  */
 function groupIdFromUrl(page: Page) {
-  const match = page.url().match(/\/group\/([^/]+)/);
+  const match = page.url().match(/\/group\/(~[a-z-]+(?:%2F|\/)[^/?#]+)/i);
   if (!match) {
     throw new Error(`No group id in URL: ${page.url()}`);
   }

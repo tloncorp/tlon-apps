@@ -20,9 +20,8 @@ export function isDiaryChannelType(
 // the existing channel is safe, since the refusal usually lands on someone who
 // meant to duplicate a bulletin they still use.
 export const DIARY_CREATION_BLOCKED_MESSAGE =
-  'Bulletin channels can no longer be created — notebooks have replaced them. ' +
-  'Create a notebook instead. Existing bulletins keep working, and their posts ' +
-  'can be migrated into a notebook.';
+  'Bulletin channels can no longer be created. Create a notebook instead — ' +
+  'existing bulletins keep working, and their posts can be migrated into one.';
 
 // Thrown instead of a bare Error so a caller can tell a refusal apart from a
 // backend failure and skip its error-reporting/rollback path.
