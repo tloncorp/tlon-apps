@@ -42,11 +42,24 @@ env:
 - tapOn: '^Rename$'
 - tapOn:
     id: GroupTitleInput
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - longPressOn:
+          id: GroupTitleInput
+      - tapOn: '^Select all$'
 - eraseText: 100
 - inputText: ${output.reliability.group + ' renamed'}
+- assertVisible:
+    id: GroupTitleInput
+    text: ${output.reliability.group + ' renamed'}
 - tapOn:
     id: GroupDescriptionInput
 - inputText: ${MAESTRO_RUN_TAG + ' description'}
+- assertVisible:
+    id: GroupDescriptionInput
+    text: ${MAESTRO_RUN_TAG + ' description'}
 - tapOn: '^Save$'
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertVisible: ${MAESTRO_RUN_TAG + ' description'}
@@ -66,3 +79,4 @@ env:
 - assertNotVisible: ${output.reliability.groupPattern}
 - tapOn: '^Clear$'
 - tapOn: '^Close$'
+
