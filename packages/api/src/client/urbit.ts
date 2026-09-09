@@ -879,6 +879,7 @@ function classifySpinError(error: unknown): SpinErrorClass {
 export function startSpinHintCheck(): SpinHintCheck {
   const startedAt = Date.now();
   const controller = new AbortController();
+  const activeClient = resolveClient();
   let terminalResult: SpinHintResult | undefined;
   let graceTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -888,7 +889,7 @@ export function startSpinHintCheck(): SpinHintCheck {
   };
 
   let resultPromise: Promise<SpinHintResult>;
-  if (!config.client) {
+  if (!activeClient) {
     resultPromise = Promise.resolve(
       settle({
         outcome: 'unavailable',
@@ -899,7 +900,7 @@ export function startSpinHintCheck(): SpinHintCheck {
   } else {
     try {
       resultPromise = Promise.resolve(
-        config.client.getSpinHints({ signal: controller.signal })
+        activeClient.getSpinHints({ signal: controller.signal })
       ).then(
         (hints) =>
           settle({
