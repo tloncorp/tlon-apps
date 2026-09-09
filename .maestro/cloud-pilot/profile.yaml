@@ -60,6 +60,11 @@ onFlowComplete:
     leftOf: '^You$'
 - stopApp
 - launchApp
+- extendedWaitUntil:
+    visible:
+      id: ScreenHeaderTitle
+      text: '^Home$'
+    timeout: 5000
 - runFlow: subflows/contacts-tab.yaml
 - assertVisible:
     text: ${MAESTRO_RUN_TAG + ' profile'}

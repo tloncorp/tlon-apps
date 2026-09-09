@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Maestro ship channel creation
+name: Maestro ship Home group and profile controls
 ---
 - runFlow: subflows/login.yaml
 - runFlow: subflows/contacts-tab.yaml
@@ -11,7 +11,12 @@ name: Maestro ship channel creation
 - tapOn: '^Back$'
 - runFlow: subflows/home-tab.yaml
 - runFlow:
-    file: channels.yaml
+    file: home-groups.yaml
+    env:
+      MAESTRO_SESSION: warm
+      MAESTRO_TEST_SHIP: ${output.cloudShip}
+- runFlow:
+    file: profile.yaml
     env:
       MAESTRO_SESSION: warm
       MAESTRO_TEST_SHIP: ${output.cloudShip}
