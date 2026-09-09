@@ -15,7 +15,7 @@ env:
 - tapOn:
     id: GroupTitleInput
     point: '95%,50%'
-- eraseText: ${output.reliability.group.length}
+- eraseText: 30
 - inputText: ${output.reliability.group + ' renamed'}
 - assertVisible:
     id: GroupTitleInput
