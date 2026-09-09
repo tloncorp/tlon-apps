@@ -1,4 +1,4 @@
-import { AnalyticsEvent, createDevLogger, queryClient } from '@tloncorp/shared';
+import { createDevLogger, queryClient } from '@tloncorp/shared';
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
@@ -6,13 +6,15 @@ import useKilnState, { usePike } from '@/state/kiln';
 
 const logger = createDevLogger('appUpdates', false);
 
-// A failed update check is expected and self-healing, so it must not reach
-// Sentry — that spray is what this module was fixed to stop. trackEvent keeps
-// the failure rate countable in PostHog; trackError would report as
-// `app_error`, which the composite logger forwards to Sentry.
+// Reported as a message, never by handing the Error to trackError. Two
+// reasons, both load-bearing: Sentry's ignoreErrors drops anything whose
+// exception value is `Failed to fetch`, which is exactly the failure we want
+// to see; and toSentryCapture only attaches the
+// ['app_error', logger, errorTitle] fingerprint to message captures, so an
+// exception capture would not group into the per-poller issues either. The
+// stack would only point at the fetch call site the context already names.
 function reportCheckFailed(context: 'serviceWorker' | 'pikes', e: unknown) {
-  logger.trackEvent(AnalyticsEvent.AppUpdateCheckFailed, {
-    context,
+  logger.trackError(`app update check failed: ${context}`, {
     errorMessage: e instanceof Error ? e.message : String(e),
   });
 }
