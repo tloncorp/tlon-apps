@@ -182,9 +182,9 @@ export function ConversationComposerPlacement({
 
   if (avoidKeyboard && Platform.OS === 'ios') {
     return (
-      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
+      <ComposerKeyboardView offset={{ closed: 0, opened: insets.bottom }}>
         {inlineContent}
-      </KeyboardStickyView>
+      </ComposerKeyboardView>
     );
   }
 
