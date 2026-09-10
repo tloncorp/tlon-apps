@@ -171,6 +171,7 @@ function AuthenticatedApp({
 
   const handleAppStatusChange = useCallback(
     async (status: AppStatus) => {
+      let gated = false;
       if (status === 'inactive' || status === 'background') {
         const didAbandonChatList = markChatListMeasurementAbandoned(status);
         const didAbandonPushNotif =
@@ -194,8 +195,20 @@ function AuthenticatedApp({
         if (!(await requireHostingAuth())) {
           return;
         }
+
+        // Read live rather than from render state, so a gate that arrives
+        // mid-session is respected. Everything that would talk to the desk is
+        // skipped while it's up — including on 'opened', which fires as soon as
+        // the notice mounts. Node status still has to be checked: a paused or
+        // suspended host has to kick back to onboarding from here.
+        gated = store.isDeskGated(store.getSession()?.deskCompat);
+
         startChatListSettleMeasurement(status);
-        recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
+        if (!gated) {
+          // Furnishes a group and pushes profile/bot config to the host.
+          recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
+        }
+        // Local only: reads the native background cache into the db.
         await checkForCachedChanges();
         telemetry.captureAppActive();
         const nodeCheck = await checkNodeStopped();
@@ -205,10 +218,8 @@ function AuthenticatedApp({
 
       // app returned from background
       if (status === 'active') {
-        if (store.isDeskGated(store.getSession()?.deskCompat)) {
-          // Gated on desk compatibility: syncSince would fail the same way
-          // startup did. Read live rather than from render state so a gate that
-          // arrives mid-session is respected.
+        if (gated) {
+          // syncSince would fail the same way startup did.
           return;
         }
         updateSession({ isSyncing: true });
