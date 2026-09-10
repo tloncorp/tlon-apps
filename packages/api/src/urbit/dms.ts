@@ -342,6 +342,21 @@ export interface ClubAction {
   diff: ClubDiff;
 }
 
+/**
+ * Backend state of a DM: %inviting until the other side accepts a DM we
+ * started, %invited while their DM to us is pending, %done once accepted.
+ */
+export type DmNet = 'inviting' | 'invited' | 'archive' | 'done';
+
+/**
+ * Emitted on /v4 whenever a DM enters, changes, or leaves the backend's DM
+ * set. `net` is null once the DM is gone (declined or left).
+ */
+export interface DmStatus {
+  ship: string;
+  net: DmNet | null;
+}
+
 export interface DMInit {
   clubs: Clubs;
   dms: string[];

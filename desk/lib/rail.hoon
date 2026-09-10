@@ -133,6 +133,7 @@
 /%  chat-dm-diff-1              %chat-dm-diff-1
 /%  chat-dm-diff-2              %chat-dm-diff-2
 /%  chat-dm-rsvp                %chat-dm-rsvp
+/%  chat-dm-status              %chat-dm-status
 /%  chat-heads                  %chat-heads
 /%  chat-heads-1                %chat-heads-1
 /%  chat-heads-2                %chat-heads-2
@@ -491,6 +492,7 @@
       $:  %chat-dm-diff-1              $+  chat-dm-diff-1              p=_*vale:chat-dm-diff-1              ==
       $:  %chat-dm-diff-2              $+  chat-dm-diff-2              p=_*vale:chat-dm-diff-2              ==
       $:  %chat-dm-rsvp                $+  chat-dm-rsvp                p=_*vale:chat-dm-rsvp                ==
+      $:  %chat-dm-status              $+  chat-dm-status              p=_*vale:chat-dm-status              ==
       $:  %chat-heads                  $+  chat-heads                  p=_*vale:chat-heads                  ==
       $:  %chat-heads-1                $+  chat-heads-1                p=_*vale:chat-heads-1                ==
       $:  %chat-heads-2                $+  chat-heads-2                p=_*vale:chat-heads-2                ==
@@ -851,6 +853,7 @@
     %chat-dm-diff-1              [-.rail !>(+.rail)]
     %chat-dm-diff-2              [-.rail !>(+.rail)]
     %chat-dm-rsvp                [-.rail !>(+.rail)]
+    %chat-dm-status              [-.rail !>(+.rail)]
     %chat-heads                  [-.rail !>(+.rail)]
     %chat-heads-1                [-.rail !>(+.rail)]
     %chat-heads-2                [-.rail !>(+.rail)]
@@ -1209,6 +1212,7 @@
     %chat-dm-diff-1              [p !<(_*vale:chat-dm-diff-1 q)]
     %chat-dm-diff-2              [p !<(_*vale:chat-dm-diff-2 q)]
     %chat-dm-rsvp                [p !<(_*vale:chat-dm-rsvp q)]
+    %chat-dm-status              [p !<(_*vale:chat-dm-status q)]
     %chat-heads                  [p !<(_*vale:chat-heads q)]
     %chat-heads-1                [p !<(_*vale:chat-heads-1 q)]
     %chat-heads-2                [p !<(_*vale:chat-heads-2 q)]
@@ -1567,6 +1571,7 @@
       :-  %chat-dm-diff-1              -:!>(*vale:chat-dm-diff-1)
       :-  %chat-dm-diff-2              -:!>(*vale:chat-dm-diff-2)
       :-  %chat-dm-rsvp                -:!>(*vale:chat-dm-rsvp)
+      :-  %chat-dm-status              -:!>(*vale:chat-dm-status)
       :-  %chat-heads                  -:!>(*vale:chat-heads)
       :-  %chat-heads-1                -:!>(*vale:chat-heads-1)
       :-  %chat-heads-2                -:!>(*vale:chat-heads-2)

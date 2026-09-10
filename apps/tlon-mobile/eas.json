@@ -27,7 +27,7 @@
       },
       "android": {
         "resourceClass": "large",
-        "gradleCommand": ":app:bundlePreviewRelease"
+        "gradleCommand": ":app:bundlePreviewRelease :app:uploadCrashlyticsSymbolFilePreviewRelease"
       },
       "ios": {
         "scheme": "Landscape-preview"
@@ -43,7 +43,7 @@
       },
       "android": {
         "resourceClass": "large",
-        "gradleCommand": ":app:bundleProductionRelease"
+        "gradleCommand": ":app:bundleProductionRelease :app:uploadCrashlyticsSymbolFileProductionRelease"
       },
       "ios": {
         "scheme": "Landscape"
@@ -61,7 +61,7 @@
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
       "android": {
-        "gradleCommand": ":app:bundlePreviewRelease",
+        "gradleCommand": ":app:bundlePreviewRelease :app:uploadCrashlyticsSymbolFilePreviewRelease",
         "buildType": "apk",
         "image": "latest"
       },

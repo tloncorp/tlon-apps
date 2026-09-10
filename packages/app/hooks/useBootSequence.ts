@@ -202,24 +202,21 @@ export function useBootSequence() {
       if (lureMeta?.invitedGroupId !== GETTING_STARTED_GROUP_ID) {
         api.joinGroup(GETTING_STARTED_GROUP_ID).catch((e) => {
           logger.trackError('failed to join getting started group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
+            error: e,
           });
         });
       }
 
       store.leaveGroup(TLON_STUDIO).catch((e) => {
         logger.trackError('failed to leave tlon studio group', {
-          errorMessage: e.message,
-          errorStack: e.stack,
+          error: e,
         });
       });
 
       if (lureMeta?.invitedGroupId !== TLONBOT_GENERAL_GROUP_ID) {
         store.leaveGroup(TLONBOT_GENERAL_GROUP_ID).catch((e) => {
           logger.trackError('failed to leave Tlonbot general group', {
-            errorMessage: e.message,
-            errorStack: e.stack,
+            error: e,
           });
         });
       }

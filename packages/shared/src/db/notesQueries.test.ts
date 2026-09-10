@@ -198,3 +198,82 @@ test('deleteNotesNotebook removes child rows explicitly', async () => {
   await expect(db.getNotesNotes({ notebookFlag })).resolves.toEqual([]);
   await expect(db.getNotesMembers({ notebookFlag })).resolves.toEqual([]);
 });
+
+test('getNotesCountsByNotebook counts notes and non-root folders', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [
+      makeNotesFolder(1, '/', null),
+      makeNotesFolder(2, 'Projects', 1),
+      makeNotesFolder(3, 'Archive', 1),
+      makeNotesFolder(4, 'Backlog', 2),
+    ],
+    notes: [
+      makeNotesNote(1, 1, 'Root note'),
+      makeNotesNote(2, 2, 'Project note'),
+      makeNotesNote(3, 4, 'Backlog note'),
+    ],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 3, folderCount: 3 },
+  });
+});
+
+test('getNotesCountsByNotebook counts a notebook with no notes', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [makeNotesFolder(1, '/', null), makeNotesFolder(2, 'Projects', 1)],
+    notes: [],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 0, folderCount: 1 },
+  });
+});
+
+test('getNotesCountsByNotebook reports zeroes for an empty notebook', async () => {
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [makeNotesFolder(1, '/', null)],
+    notes: [],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 0, folderCount: 0 },
+  });
+});
+
+test('getNotesCountsByNotebook scopes counts to each notebook', async () => {
+  const otherFlag = '~zod/other-notes';
+  const inOther = <T extends { id: string; notebookFlag: string }>(
+    row: T,
+    kind: string,
+    localId: number
+  ): T => ({
+    ...row,
+    id: `${otherFlag}/${kind}/${localId}`,
+    notebookFlag: otherFlag,
+  });
+
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook(),
+    folders: [makeNotesFolder(1, '/', null), makeNotesFolder(2, 'Projects', 1)],
+    notes: [makeNotesNote(1, 1, 'First'), makeNotesNote(2, 2, 'Second')],
+    members: [],
+  });
+  await db.saveNotesNotebookSnapshot({
+    notebook: makeNotesNotebook({ id: otherFlag, flagName: 'other-notes' }),
+    folders: [inOther(makeNotesFolder(1, '/', null), 'folder', 1)],
+    notes: [inOther(makeNotesNote(1, 1, 'Only note'), 'note', 1)],
+    members: [],
+  });
+
+  await expect(db.getNotesCountsByNotebook()).resolves.toEqual({
+    [notebookFlag]: { noteCount: 2, folderCount: 1 },
+    [otherFlag]: { noteCount: 1, folderCount: 0 },
+  });
+});

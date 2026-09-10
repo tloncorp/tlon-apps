@@ -30,6 +30,7 @@ import { hexString, unpackJamBytes } from './utils';
 
 const logger = createDevLogger('UrbitHttpApi', false);
 const DEFAULT_POKE_ACK_TIMEOUT = 30000;
+const SPIN_RESPONSE_TIMEOUT_MS = 25000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
@@ -44,6 +45,20 @@ export class ThreadResponseBodyError extends Error {
   constructor(cause: unknown) {
     super('Thread response body could not be read', { cause });
     this.name = 'ThreadResponseBodyError';
+  }
+}
+
+export class SpinAbortedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpinAbortedError';
+  }
+}
+
+export class SpinClosedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpinClosedError';
   }
 }
 
@@ -242,9 +257,20 @@ export class Urbit {
     public desk?: string,
     fetchFn?: typeof fetch
   ) {
-    if (isBrowser) {
-      window.addEventListener('beforeunload', this.delete);
-    }
+    // There is deliberately no unload teardown here. A
+    // `beforeunload` -> `this.delete` listener used to be registered, but
+    // `delete` is a prototype method, so it ran with `this` bound to `window`,
+    // threw on `this.channelAbort`, and — being async — surfaced that as an
+    // unhandled rejection on every page close. It never deleted a channel, so
+    // dropping it changes no behavior; it only stops the rejection.
+    //
+    // Restoring the teardown takes more than fixing the binding: the listener
+    // must be stored and detached when a client is discarded, or every retired
+    // client stays rooted and each unload beacons all of them; and it must run
+    // on `pagehide` rather than `beforeunload`, since another handler can
+    // cancel the navigation after we have aborted the SSE and deleted the
+    // channel, and `delete()` leaves `sseClientInitialized` true so the stream
+    // never reopens. Tracked separately.
     if (fetchFn) {
       this.fetchFn = fetchFn;
     }
@@ -467,7 +493,10 @@ export class Urbit {
           this.lastHeardEventId = eventId;
           this.emit('id-update', { lastHeard: this.lastHeardEventId });
           if (eventId - this.lastAcknowledgedEventId > 20) {
-            this.ack(eventId);
+            // Fire-and-forget: the next batch of events re-triggers the ack.
+            // Catch so a failed channel PUT doesn't escape this void callback
+            // as an unhandled rejection.
+            this.ack(eventId).catch(() => {});
           }
 
           if (event.data && JSON.parse(event.data)) {
@@ -523,7 +552,10 @@ export class Urbit {
                 status: 'close',
               });
               if (sub?.resubOnQuit) {
-                this.subscribe(sub);
+                // `subscribe` re-throws a failed PUT, and this callback
+                // returns void — same hazard the replay path in
+                // seamlessReset() already guards against.
+                this.subscribe(sub).catch(() => {});
               }
             } else if (this.verbose) {
               console.log([...this.outstandingSubscriptions.keys()]);
@@ -765,7 +797,10 @@ export class Urbit {
       const event = (e: T, mark: string, id: number) => {
         if (finish()) {
           resolve(e);
-          this.unsubscribe(id);
+          // `unsubscribe` chains a `.then` with no rejection handler, so a
+          // failed PUT rejects the promise it returns. The outer promise is
+          // already settled by `resolve` above, so catch here or it escapes.
+          this.unsubscribe(id).catch(() => {});
         }
       };
       const request = {
@@ -783,7 +818,10 @@ export class Urbit {
           timer = setTimeout(() => {
             if (finish()) {
               reject('timeout');
-              this.unsubscribe(subId);
+              // Same as the event path above. This runs from a timer, so it
+              // is outside the `.then(..., fail)` chain below and `fail`
+              // cannot catch it.
+              this.unsubscribe(subId).catch(() => {});
             }
           }, timeout);
         }
@@ -1007,27 +1045,6 @@ export class Urbit {
     }
   }
 
-  async checkIsNodeBusy(): Promise<'available' | 'busy' | 'unknown'> {
-    try {
-      const response = await this.fetchFn(`${this.url}/~_~/healthz`, {
-        method: 'GET',
-      });
-      if (response.status === 204) {
-        return 'available';
-      }
-      if (response.status === 429) {
-        return 'busy';
-      }
-      logger.trackEvent('Unexpected node busy response', {
-        status: response.status,
-      });
-      return 'unknown';
-    } catch (e) {
-      logger.trackEvent('Failed to check if node is busy', { error: e });
-      return 'unknown';
-    }
-  }
-
   /**
    * Scry into an gall agent at a path
    *
@@ -1217,31 +1234,55 @@ export class Urbit {
     }
   }
 
-  async getSpinHints(): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const controller = new AbortController();
-      let messageReceived = false;
+  async getSpinHints(opts: { signal?: AbortSignal } = {}): Promise<string> {
+    if (opts.signal?.aborted) {
+      throw new SpinAbortedError('spin cancelled before start');
+    }
 
-      fetchEventSource(`${this.url}/~_~/spin`, {
-        signal: controller.signal,
-        // @ts-expect-error reactNative not in types but is essential
-        reactNative: { textStreaming: true },
-        openWhenHidden: true,
-        responseTimeout: 25000,
-        fetch: this.fetchFn,
-        onmessage(event) {
-          if (!messageReceived) {
-            messageReceived = true;
-            controller.abort();
-            resolve(event.data);
+    const controller = new AbortController();
+    const onCallerAbort = () => controller.abort();
+    opts.signal?.addEventListener('abort', onCallerAbort, { once: true });
+
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        let settled = false;
+        const settle = (fn: () => void) => {
+          if (!settled) {
+            settled = true;
+            fn();
           }
-        },
-        onerror(error) {
-          controller.abort();
-          reject(error);
-        },
+        };
+
+        fetchEventSource(`${this.url}/~_~/spin`, {
+          signal: controller.signal,
+          // @ts-expect-error reactNative not in types but is essential
+          reactNative: { textStreaming: true },
+          openWhenHidden: true,
+          responseTimeout: SPIN_RESPONSE_TIMEOUT_MS,
+          fetch: this.fetchFn,
+          onmessage: (event) => {
+            settle(() => resolve(event.data));
+            controller.abort();
+          },
+          onerror: (error) => {
+            settle(() => reject(error));
+            controller.abort();
+          },
+          onclose: () => {
+            settle(() =>
+              reject(
+                new SpinClosedError('spin stream closed before first event')
+              )
+            );
+          },
+        }).then(
+          () => settle(() => reject(new SpinAbortedError('spin cancelled'))),
+          (error) => settle(() => reject(error))
+        );
       });
-    });
+    } finally {
+      opts.signal?.removeEventListener('abort', onCallerAbort);
+    }
   }
 
   /**

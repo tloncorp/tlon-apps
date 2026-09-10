@@ -94,7 +94,7 @@ export const updateDMMeta = async ({
 export type ChatEvent =
   | { type: 'showPost'; postId: string }
   | { type: 'hidePost'; postId: string }
-  | { type: 'syncDmInvites'; channels: db.Channel[] }
+  | { type: 'dmStatus'; channelId: string; net: ub.DmNet | null }
   | { type: 'groupDmsUpdate' }
   | { type: 'addPost'; post: db.Post; replyMeta?: db.ReplyMeta | null }
   | { type: 'deletePost'; postId: string }
@@ -110,8 +110,20 @@ export function subscribeToChatUpdates(
       app: 'chat',
       path: '/v4',
     },
-    (event: ub.WritResponse | ub.ClubAction | string[]) => {
+    (event: ub.WritResponse | ub.ClubAction | ub.DmStatus) => {
       logger.log('raw chat sub event', event);
+
+      // a dm entered, changed, or left the backend's dm set: a new invite
+      // to us, a dm we started (e.g. the reciprocal dm created when someone
+      // redeems our personal invite), an accept, a decline, or leaving.
+      if ('ship' in event && 'net' in event) {
+        logger.log('dm status', event);
+        return eventHandler({
+          type: 'dmStatus',
+          channelId: event.ship,
+          net: event.net,
+        });
+      }
 
       if ('show' in event) {
         // show/unhide post event
@@ -125,15 +137,6 @@ export function subscribeToChatUpdates(
         logger.log('hide post', event.hide);
         const postId = getCanonicalPostId(event.hide as string);
         return eventHandler({ type: 'hidePost', postId });
-      }
-
-      // check for DM invites sync
-      if (Array.isArray(event)) {
-        // dm invites - this is the complete list of pending invites
-        return eventHandler({
-          type: 'syncDmInvites',
-          channels: toClientDms(event, true),
-        });
       }
 
       // and club events
