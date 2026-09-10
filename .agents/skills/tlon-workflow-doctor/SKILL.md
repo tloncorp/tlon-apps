@@ -24,7 +24,7 @@ Run it from anywhere inside the repository. It exits 0 when every line is `ok` o
 | `agent-device` | installed | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
 | `node` | major version matches `.nvmrc` | nothing; a note |
-| `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; it is personal (see the tlon-workflow skill, Signing in) |
+| `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `costs time` finding in `apps/tlon-mobile` | `stim doctor --fix` when a finding is one it repairs (the sandbox allowance); otherwise prints each finding's fix |
 
 `--fix` only ever installs global npm packages, adds skills under `~/.agents/skills`, and runs `stim doctor --fix`, which writes a per-user file. It never touches the repository.
@@ -32,3 +32,5 @@ Run it from anywhere inside the repository. It exits 0 when every line is `ok` o
 ## When a line stays `fix`
 
 The line carries the exact command. Two that need a person: `gh auth login` opens a browser, and the ship login values are credentials nobody but the user should type.
+
+The `ship login` note is worth clearing even though it is only a note. Without those two variables every reproduction that needs a signed-in app stalls on a 2FA code an unattended run cannot read. With them, sign-in is four taps and no typing.
