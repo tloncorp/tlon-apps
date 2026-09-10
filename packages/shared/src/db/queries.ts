@@ -2562,15 +2562,15 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  (
+  async (
     { parentId, channelId }: { parentId: string; channelId?: string },
     ctx: QueryCtx
   ) => {
-    if (!parentId) return Promise.resolve(null);
+    if (!parentId) return null;
 
     // note thread ids are small decimals that repeat across notebooks, so
     // callers that know the channel should pin it to avoid collisions
-    return ctx.db.query.threadUnreads.findFirst({
+    const unread = await ctx.db.query.threadUnreads.findFirst({
       where: channelId
         ? and(
             eq($threadUnreads.threadId, parentId),
@@ -2578,6 +2578,7 @@ export const getThreadUnreadState = createReadQuery(
           )
         : eq($threadUnreads.threadId, parentId),
     });
+    return unread ?? null;
   },
   ['threadUnreads']
 );

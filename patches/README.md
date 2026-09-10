@@ -188,6 +188,11 @@ Local patch:
 `patches/react-native-keyboard-controller@1.22.0.patch`
 
 Why:
+On iOS, upstream `KeyboardChatScrollView` applies the destination padding and
+scroll offset at the start of a keyboard transition, while the native keyboard
+is still moving. This can make the conversation jump ahead of the keyboard and
+composer during opening, dismissal, or an interrupted transition.
+
 On iOS, `KeyboardChatScrollView` implements composer growth through
 `extraContentPadding`, which updates the scroll view's `contentInset`. When
 `keyboardLiftBehavior="whenAtEnd"` decides not to move a user who is browsing
@@ -198,6 +203,13 @@ applying the inset by itself, producing a one-frame flash or jump when a
 multiline chat composer first grows.
 
 What it does:
+- Drives iOS chat padding and scroll movement from the native keyboard height
+  reported on each frame. It captures the current and destination values at
+  transition start, then applies incremental scroll deltas so composer-height
+  changes between frames are preserved. Interactive dismissal follows native
+  frames directly, including the user's scroll delta; interrupted, instant,
+  and duplicate end events do not replay stale offsets. Existing lift policies,
+  safe-area handling, and `freeze` behavior are preserved.
 - On iOS Fabric, re-publishes the currently observed offset when an
   `extraContentPadding` change should not shift the content. The guard keeps
   the workaround out of Android, web, and the legacy iOS architecture.
@@ -205,29 +217,51 @@ What it does:
   is unchanged, so Reanimated sends the new `contentInset` and a
   `contentOffset` that preserves position in the same animated-props commit.
 
-The app still owns the product behavior: it reports the floating composer
-height to LegendList and uses the shared `whenAtEnd` policy on both platforms.
-Android freezes keyboard-controller's inset path because `adjustResize`
-already shrinks its viewport; iOS supplies the composer inset and performs the
-offset-preserving commit.
+The composer-padding changes are mirrored in the TypeScript source and the
+published CommonJS and ES module builds. The keyboard frame-tracking change
+patches the iOS source hook used by the package's `react-native` entry point;
+Android retains its own hook implementation. The app still owns composer
+measurement and the `whenAtEnd` policy on both platforms.
 
 Upstream:
 - repo: `kirillzyusko/react-native-keyboard-controller`
+- related iOS gesture issue:
+  [#1563](https://github.com/kirillzyusko/react-native-keyboard-controller/issues/1563)
+  tracks sticky-view lag when interactive dismissal starts. It is related
+  timing context, not a report of this exact chat-list fix.
+- merged
+  [#1565](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1565)
+  avoids an extra programmatic scroll after interactive dismissal; it does not
+  add per-frame chat padding and offset updates.
 - related discussion:
   [#1333](https://github.com/kirillzyusko/react-native-keyboard-controller/discussions/1333)
-  covers layout shifts involving `whenAtEnd` and `extraContentPadding`
-- related open fixes
+  covers layout shifts involving `whenAtEnd` and `extraContentPadding`.
+- open
   [#1605](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1605)
-  and
+  fixes lost scroll distance during animated padding changes. Closed
   [#1609](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1609)
-  address different animated-padding and Reanimated 4.6 failures
-- as of August 31, 2026, upstream release `1.22.4` still has the same
-  no-shift and unchanged-offset behavior; no exact upstream fix has shipped
+  was superseded by merged
+  [#1629](https://github.com/kirillzyusko/react-native-keyboard-controller/pull/1629)
+  for Reanimated 4.6 compatibility. These address different failures from the
+  no-shift inset/offset commit above.
+- as of September 10, 2026, the latest release, `1.22.4`, still applies the
+  keyboard destination in `onStart`, leaves `onMove` empty, and retains the
+  no-shift and unchanged-offset behavior. No upstream issue or PR tracking this
+  exact local implementation has been identified; the links above are related
+  reports and fixes, not replacements for the patch.
 
 Validation:
 - Run `corepack pnpm install --frozen-lockfile` to confirm the patch applies
   and its lockfile hash is current.
-- Rebuild the iOS app. With the keyboard open, grow and shrink the multiline
+- Run `pnpm --filter @tloncorp/app test ui/components/Channel/PostList/keyboardControllerIOS.test.ts`.
+  These regression tests exercise the installed patched iOS hook, including
+  native frame progress, interruptions, interactive dismissal, safe-area
+  offsets, composer changes between frames, and frozen transitions.
+- Rebuild the iOS app. Open, close, and interactively dismiss the keyboard at
+  the end of a conversation and while browsing history. The list should follow
+  the keyboard without an initial jump; cancel or reverse a dismissal to check
+  that the next transition starts from the current position.
+- With the keyboard open on iOS, grow and shrink the multiline
   composer while browsing history; the same visible message should retain its
   vertical position without flashing.
 - Repeat at the end of the conversation; the latest message should remain
@@ -238,9 +272,17 @@ Validation:
   the existing end-anchor behavior.
 
 Removal:
-Remove this patch after an upstream release commits `contentInset` together
-with a preserving `contentOffset` for no-shift `extraContentPadding` changes,
-then repeat the mid-history and at-end simulator checks without the patch.
+Reassess each part independently when upgrading keyboard-controller:
+- Remove the iOS keyboard hook hunks once an upstream release keeps chat
+  padding and scroll movement synchronized with native keyboard frames and
+  passes the transition regression tests and device checks above.
+- Remove the composer-padding hunks once an upstream release commits
+  `contentInset` together with a preserving `contentOffset` for no-shift
+  `extraContentPadding` changes, including unchanged numeric offsets. Repeat
+  the mid-history and at-end composer checks without those hunks.
+
+Remove the whole patch only after both conditions hold. Closing a related
+upstream issue alone is not sufficient.
 
 ## react-native-reanimated@4.5.0
 
