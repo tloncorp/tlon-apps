@@ -186,3 +186,28 @@ export function renderReport(context, report, usage) {
     '',
   ].join('\n');
 }
+
+export function visualPress(action, screen, latest) {
+  if (
+    !latest?.screenshot ||
+    latest.id !== action.screenshot ||
+    Date.now() - Date.parse(latest.at) > 30_000 ||
+    ![action.x, action.y].every(
+      (n) => typeof n === 'number' && Number.isFinite(n) && n > 0 && n < 1
+    ) ||
+    ![screen?.width, screen?.height].every(
+      (n) => Number.isFinite(n) && n > 0
+    ) ||
+    typeof action.description !== 'string' ||
+    !action.description.trim()
+  ) {
+    throw new Error(
+      'Visual press requires the latest screenshot, a named visible control, and coordinates inside the screen'
+    );
+  }
+  return [
+    'press',
+    String(Math.round(action.x * screen.width)),
+    String(Math.round(action.y * screen.height)),
+  ];
+}

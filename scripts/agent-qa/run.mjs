@@ -13,6 +13,7 @@ import {
   verifyProviderAuth,
   verifyReport,
   verifyVideo,
+  visualPress,
 } from './core.mjs';
 
 const exec = promisify(execFile);
@@ -493,6 +494,22 @@ async function prepare() {
     ? 'Passed after one app relaunch: Home, Contacts, and exact test-ship identity. Fresh login failed.'
     : 'Passed: fresh login, Home, Contacts, and exact test-ship identity';
   console.log(context.smoke);
+  const hierarchy = JSON.parse(
+    await run(env.QA_MAESTRO_BIN || 'maestro', [
+      '--udid',
+      udid,
+      'hierarchy',
+      '--no-reinstall-driver',
+    ])
+  );
+  const bounds = hierarchy.children?.[0]?.attributes?.bounds?.match(
+    /^\[0,0\]\[(\d+),(\d+)\]$/
+  );
+  if (bounds)
+    context.screenPoints = {
+      width: Number(bounds[1]),
+      height: Number(bounds[2]),
+    };
   await device(['open', context.appId], 180_000);
   // A clean EAS worker has to start the accessibility test runner first.
   // Subsequent device operations keep the shorter per-action timeout.
@@ -535,6 +552,17 @@ const tools = [
     'Capture evidence and view the current screen. Use when assessing appearance.',
     {},
     []
+  ),
+  tool(
+    'visual_press',
+    'Press a visible control missing from accessibility. First take and inspect a screenshot. Supply its evidence ID, a control description, and x/y fractions from 0 to 1 measured in that image. The screenshot must be the latest evidence and less than 30 seconds old.',
+    {
+      screenshot: string,
+      description: string,
+      x: { type: 'number' },
+      y: { type: 'number' },
+    },
+    ['screenshot', 'description', 'x', 'y']
   ),
   tool(
     'finish',
@@ -606,6 +634,8 @@ group named QA-agent-${env.QA_BUILD_ID}. Never send DMs, invite people, post in 
 theme, account settings, delete existing content, log out, or follow external URLs. If required, report blocked.
 `
 }
+Prefer accessibility refs. If a visible control is missing from the tree, take a screenshot and use visual_press.
+The composer Return key inserts a newline; send with the upward arrow button beside the draft. Verify receipt afterward.
 Refs become stale after actions: inspect again. Screenshots and source plausibility alone do not prove behavior.
 For each check give the expected result, actual observation, and evidence IDs. Cite the action and verification.
 Do not report the whole PR passed if any requested outcome remains untested. Infra and provider errors are blocked.
@@ -709,6 +739,11 @@ Current test ship: ${context.testShip}. Bootstrap: ${context.smoke}.`,
           return;
         } else if (call.function.name === 'device') {
           output = await capture(commandFor(args));
+        } else if (call.function.name === 'visual_press') {
+          const [id, item] = [...evidence].at(-1) || [];
+          output = await capture(
+            visualPress(args, context.screenPoints, { id, ...item })
+          );
         } else if (call.function.name === 'screenshot') {
           output = await capture([], true);
           images.push(

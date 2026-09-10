@@ -122,3 +122,34 @@ test('video evidence rejects missing tracks, empty files, and truncated sessions
   );
   assert.throws(() => verifyVideo(probe, 120), /cover the test session/);
 });
+
+test('visual presses use fresh image evidence and measured screen bounds', async () => {
+  const { visualPress } = await import('./core.mjs');
+  const latest = { id: 'e9', screenshot: true, at: new Date().toISOString() };
+  const action = {
+    screenshot: 'e9',
+    description: 'send arrow',
+    x: 0.9,
+    y: 0.5,
+  };
+  const screen = { width: 402, height: 874 };
+  assert.deepEqual(visualPress(action, screen, latest), [
+    'press',
+    '362',
+    '437',
+  ]);
+  for (const invalid of [
+    { ...action, x: -1 },
+    { ...action, y: NaN },
+    { ...action, screenshot: 'e8' },
+    { ...action, description: '' },
+  ]) {
+    assert.throws(() => visualPress(invalid, screen, latest));
+  }
+  assert.throws(() =>
+    visualPress(action, screen, { ...latest, screenshot: false })
+  );
+  assert.throws(() =>
+    visualPress(action, screen, { ...latest, at: '2020-01-01T00:00:00Z' })
+  );
+});
