@@ -153,7 +153,7 @@
   ?.  (has-group group bowl)  |
   .^  ?  %gx
     %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    %+  weld  /groups/(scot %p p.group)/[q.group]
+    %+  weld  /v2/groups/(scot %p p.group)/[q.group]
     /channels/[kind]/(scot %p host)/[name]/can-read/(scot %p who)/loob
   ==
 ::

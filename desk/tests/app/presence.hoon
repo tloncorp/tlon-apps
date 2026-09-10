@@ -157,7 +157,7 @@
       [%gx @ %channels @ %v4 @ @ @ %perm %channel-perm ~]
     `!>(`perm:v9:cv`[~ group-flag])
   ::
-      [%gx @ %groups @ %groups @ @ %channels @ @ @ %can-read @ %loob ~]
+      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ @ %can-read @ %loob ~]
     `!>(readable)
   ==
 ::
@@ -287,10 +287,10 @@
     :-  ~  !>  ^-  channels:v9:cv
     (my ~[[[%chat host %general] chan] [[%chat host %old] chan]])
   ::
-      [%gx @ %groups @ %groups @ @ %channels @ @ %general %can-read @ %loob ~]
+      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ %general %can-read @ %loob ~]
     `!>(&)
   ::
-      [%gx @ %groups @ %groups @ @ %channels @ @ @ %can-read @ %loob ~]
+      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ @ %can-read @ %loob ~]
     `!>(|)
   ==
 ::
