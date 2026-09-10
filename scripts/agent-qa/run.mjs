@@ -12,6 +12,7 @@ import {
   verifyContext,
   verifyReport,
   verifyVideo,
+  localRecordingPath,
 } from './core.mjs';
 
 const exec = promisify(execFile);
@@ -118,11 +119,11 @@ function stopRecording(capped = false) {
       const recording = JSON.parse(
         await argent('screen-recording-stop', {}, 120_000)
       );
-      rawVideo = recording.video?.hostPath;
-      if (!rawVideo || recording.warning)
-        throw new Error(
-          recording.warning || 'Argent did not return a local video path'
-        );
+      rawVideo = localRecordingPath(recording);
+      await writeFile(
+        path.join(artifacts, 'recording.json'),
+        clean(JSON.stringify(recording, null, 2))
+      );
       await mkdir(videoDirectory, { recursive: true });
       const file = path.join(videoDirectory, 'test-session.mp4');
       // Decode the entire recording and produce browser-compatible, seekable H.264.
@@ -168,6 +169,7 @@ function stopRecording(capped = false) {
         file: 'test-session.mp4',
         ...verifyVideo(probe, elapsedSeconds),
         capped,
+        warning: recording.warning,
       };
       if (capped)
         throw new Error(
@@ -595,9 +597,10 @@ function finalize() {
     );
     console.log(`${context.mode}: ${report.status}. ${clean(report.summary)}`);
     if (udid) {
-      await argent('stop-all-simulator-servers', { devices: [udid] }).catch(
-        () => {}
-      );
+      await argent('stop-all-simulator-servers', {
+        udid: undefined,
+        devices: [udid],
+      }).catch(() => {});
       await run('xcrun', ['simctl', 'shutdown', udid]).catch(() => {});
     }
     if (ships) {

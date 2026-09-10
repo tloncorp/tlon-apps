@@ -1,5 +1,20 @@
 export const statuses = ['passed', 'failed', 'blocked'];
 
+export function localRecordingPath(recording) {
+  // The CLI materializes artifact handles to strings; MCP may retain handles.
+  const file =
+    typeof recording.video === 'string'
+      ? recording.video
+      : recording.video?.hostPath;
+  if (
+    typeof file !== 'string' ||
+    !file.startsWith('/') ||
+    !file.endsWith('.mp4')
+  )
+    throw new Error('Argent did not return a local video path');
+  return file;
+}
+
 export function verifyContext(env, harnessSha) {
   const pr = JSON.parse(env.QA_PR_JSON || 'null');
   if (!/^[a-f0-9]{40}$/.test(env.QA_BUILD_SHA || ''))

@@ -1,6 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { redact, verifyContext, verifyReport, verifyVideo } from './core.mjs';
+import {
+  redact,
+  verifyContext,
+  verifyReport,
+  verifyVideo,
+  localRecordingPath,
+} from './core.mjs';
+
+test('recording accepts the CLI materialized path and the MCP artifact handle', () => {
+  assert.equal(
+    localRecordingPath({ video: '/tmp/session.mp4' }),
+    '/tmp/session.mp4'
+  );
+  assert.equal(
+    localRecordingPath({ video: { hostPath: '/tmp/session.mp4' } }),
+    '/tmp/session.mp4'
+  );
+  assert.throws(
+    () => localRecordingPath({ video: 'https://example.com/session.mp4' }),
+    /local video/
+  );
+  assert.throws(() => localRecordingPath({}), /local video/);
+});
 
 const sha = 'a'.repeat(40);
 const pr = {
