@@ -159,6 +159,11 @@ export function renderReport(context, report, usage) {
     '',
     `App commit: \`${context.buildSha}\` · Build: \`${context.buildId}\``,
     `Harness commit: \`${context.harnessSha}\` · Device: ${context.device || 'not started'}`,
+    ...(context.backend
+      ? [
+          `Backend commit: \`${context.backend.source}\` · Peer receipt: ${context.backend.replyVerified === true ? 'verified on ~ten' : 'not verified'}`,
+        ]
+      : []),
     context.otaDisabled
       ? 'Test-only configuration: OTA updates disabled in the installed copy.'
       : 'App preparation did not complete.',
