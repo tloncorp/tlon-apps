@@ -1,8 +1,9 @@
 import { Pressable } from '@tloncorp/ui';
 import { ComponentProps } from 'react';
-import { isWeb } from 'tamagui';
+import { XStack, isWeb } from 'tamagui';
 
 import { AvatarProps } from '../Avatar';
+import { BotBadge } from '../BotBadge';
 import ContactName from '../ContactName';
 import { ContactName as ContactNameV2 } from '../ContactNameV2';
 import { ListItem } from '../ListItem';
@@ -49,26 +50,29 @@ export const ContactListItem = ({
     >
       <ListItem alignItems="center" justifyContent="flex-start" {...props}>
         {showIcon && <ListItem.ContactIcon size={size} contactId={contactId} />}
-        <ListItem.MainContent>
-          <ListItem.Title>
-            {matchText ? (
-              // Use old ContactName for search highlighting
-              <ContactName
-                matchText={matchText}
-                showNickname={showNickname}
-                showUserId={!showNickname && showUserId}
-                full={full}
-                userId={contactId}
-              />
-            ) : (
-              // Use ContactNameV2 for monospace styling
-              <ContactNameV2
-                contactId={contactId}
-                mode={showNickname ? 'auto' : 'contactId'}
-                expandLongIds={full}
-              />
-            )}
-          </ListItem.Title>
+        <ListItem.MainContent minWidth={0}>
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title flex={1} minWidth={0}>
+              {matchText ? (
+                // Use old ContactName for search highlighting
+                <ContactName
+                  matchText={matchText}
+                  showNickname={showNickname}
+                  showUserId={!showNickname && showUserId}
+                  full={full}
+                  userId={contactId}
+                />
+              ) : (
+                // Use ContactNameV2 for monospace styling
+                <ContactNameV2
+                  contactId={contactId}
+                  mode={showNickname ? 'auto' : 'contactId'}
+                  expandLongIds={full}
+                />
+              )}
+            </ListItem.Title>
+            <BotBadge contactId={contactId} />
+          </XStack>
           {showUserId && showNickname ? (
             <ListItem.Subtitle>
               <ContactNameV2

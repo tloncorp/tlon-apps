@@ -68,7 +68,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     if (!urlPattern.test(url)) {
       return false;
     }
-    if (hostedPattern.test(url)) {
+    // dev helper: allow logging in to hosted ships with their access code
+    if (hostedPattern.test(url) && !__DEV__) {
       return 'hosted';
     }
     return true;
@@ -130,6 +131,14 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
       setValue('shipUrl', formattedShipUrl);
     }
   }, [errors.shipUrl, formattedShipUrl, setFocus, setValue]);
+
+  // dev helper: validate the env-prefilled credentials up front so Connect is
+  // enabled without having to visit each field first
+  useEffect(() => {
+    if (__DEV__ && DEFAULT_SHIP_LOGIN_URL && DEFAULT_SHIP_LOGIN_ACCESS_CODE) {
+      trigger();
+    }
+  }, [trigger]);
 
   return (
     <View flex={1} backgroundColor="$secondaryBackground">

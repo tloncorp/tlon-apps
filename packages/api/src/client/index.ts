@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export * from './agentProtocol';
 export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
@@ -59,9 +60,16 @@ export {
   deleteTlawnProviderKey,
   setTlawnPrimaryModel,
   getTlawnProviderModels,
+  getTlawnOpenRouterRecommendedModels,
+  getTlawnOpenRouterZdrEndpoints,
   getTlawnBotInfo,
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
+  getTlawnLLMAuthStatus,
+  startTlawnLLMAuth,
+  getTlawnLLMAuthFlow,
+  completeTlawnLLMAuth,
+  disconnectTlawnLLMAuth,
   startTlawnOAuth,
   deleteTlawnOAuthGrant,
   getTlawnNickname,
@@ -94,6 +102,7 @@ export type {
   TlawnChatConfigUpdate,
   TlawnConfig,
   TlawnProviderModel,
+  TlawnOpenRouterZdrEndpoint,
   TlawnOAuthGrant,
   TlawnOAuthProvider,
   TlawnOAuthProviderKind,
@@ -101,11 +110,18 @@ export type {
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
   TlawnOAuthUpstream,
+  TlawnLLMAuthFlow,
+  TlawnLLMAuthFlowResponse,
+  TlawnLLMAuthFlowStatus,
+  TlawnLLMAuthProvider,
+  TlawnLLMAuthProviderStatus,
+  TlawnLLMAuthStatus,
+  TlawnSubscriptionModel,
 } from '../types/hosting';
 export * from './apiUtils';
 export * from './metagrabApi';
 export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
-export * from './gatewayStatusApi';
+export * from './stewardGatewayApi';
 export * from './lensApi';

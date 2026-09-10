@@ -10,6 +10,9 @@
       "node": "22.22.0",
       "env": {
         "EXPO_USE_PRECOMPILED_MODULES": "0"
+      },
+      "ios": {
+        "image": "macos-tahoe-26.4-xcode-26.4"
       }
     },
     "preview": {
@@ -24,11 +27,10 @@
       },
       "android": {
         "resourceClass": "large",
-        "gradleCommand": ":app:bundlePreviewRelease"
+        "gradleCommand": ":app:bundlePreviewRelease :app:uploadCrashlyticsSymbolFilePreviewRelease"
       },
       "ios": {
-        "scheme": "Landscape-preview",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape-preview"
       }
     },
     "production": {
@@ -41,11 +43,10 @@
       },
       "android": {
         "resourceClass": "large",
-        "gradleCommand": ":app:bundleProductionRelease"
+        "gradleCommand": ":app:bundleProductionRelease :app:uploadCrashlyticsSymbolFileProductionRelease"
       },
       "ios": {
-        "scheme": "Landscape",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape"
       }
     },
     "demo": {
@@ -60,13 +61,12 @@
         "NOTIFY_SERVICE": "tlon-preview-release"
       },
       "android": {
-        "gradleCommand": ":app:bundlePreviewRelease",
+        "gradleCommand": ":app:bundlePreviewRelease :app:uploadCrashlyticsSymbolFilePreviewRelease",
         "buildType": "apk",
         "image": "latest"
       },
       "ios": {
-        "scheme": "Landscape-preview",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape-preview"
       }
     },
     "local-testing": {
@@ -92,7 +92,8 @@
         "buildType": "apk"
       },
       "ios": {
-        "scheme": "Landscape-local"
+        "scheme": "Landscape-local",
+        "image": "macos-tahoe-26.4-xcode-26.4"
       }
     },
     "e2e": {
@@ -103,8 +104,7 @@
       },
       "ios": {
         "simulator": true,
-        "scheme": "Landscape",
-        "image": "macos-tahoe-26.4-xcode-26.4"
+        "scheme": "Landscape"
       },
       "android": {
         "gradleCommand": ":app:bundleProductionRelease",
@@ -117,9 +117,8 @@
     "preview": {
       "android": {
         "applicationId": "io.tlon.groups.preview",
-        "releaseStatus": "draft",
-        "track": "internal",
-        "changesNotSentForReview": true
+        "releaseStatus": "completed",
+        "track": "internal"
       },
       "ios": {
         "ascAppId": "6477973000",
@@ -129,9 +128,8 @@
     "production": {
       "android": {
         "applicationId": "io.tlon.groups",
-        "releaseStatus": "draft",
-        "track": "internal",
-        "changesNotSentForReview": true
+        "releaseStatus": "completed",
+        "track": "internal"
       },
       "ios": {
         "ascAppId": "6451392109",

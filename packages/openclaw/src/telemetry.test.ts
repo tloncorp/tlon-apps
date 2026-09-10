@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   _testing,
   createTlonTelemetry,
+  formatTlonTelemetryErrorText,
   recordCronRunAttribution,
   recordToolCall,
   reportCronJobChanged,
@@ -10,8 +11,10 @@ import {
   reportCronSnapshot,
   reportHarnessDebug,
   reportHarnessError,
+  reportMigration,
   reportOutboundRoute,
   reportPluginError,
+  reportReplyOutput,
   reportSessionDiagnostic,
   reportSessionLifecycle,
   reportSessionTurnCreated,
@@ -19,7 +22,9 @@ import {
   setCronTelemetryReporter,
   setDebugTelemetryReporter,
   setErrorTelemetryReporter,
+  setMigrationTelemetryReporter,
   setOutboundRouteReporter,
+  setReplyOutputReporter,
   setSessionTelemetryReporter,
 } from './telemetry.js';
 import { summarizeTlonCommand } from './tlon-tool-command.js';
@@ -118,6 +123,109 @@ describe('telemetry tool tracking', () => {
     await telemetry?.close();
     return postHogMocks.capture.mock.calls.at(-1)?.[0];
   }
+
+  it('captures onboarding tour answers and completion paths', async () => {
+    const telemetry = createEnabledTelemetry();
+
+    telemetry?.captureOnboardingStep({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'app_tour_answered',
+      outcome: 'ok',
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: 'job-1',
+      notebookNest: 'notes/~zod/updates',
+      answer: 'yes',
+      completionPath: null,
+      elapsedMsSinceIntro: 12_000,
+      errorText: null,
+    });
+
+    telemetry?.captureOnboardingStep({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'onboarding_completed',
+      outcome: 'ok',
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: 'job-1',
+      notebookNest: 'notes/~zod/updates',
+      answer: null,
+      completionPath: 'bot_tour_completed',
+      elapsedMsSinceIntro: 14_000,
+      errorText: null,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenNthCalledWith(1, {
+      distinctId: '~zod',
+      event: 'TlonBot Onboarding Step',
+      uuid: expect.stringMatching(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+      ),
+      properties: expect.objectContaining({
+        step: 'app_tour_answered',
+        answer: 'yes',
+        provisionId: 'provision-1',
+      }),
+    });
+    expect(postHogMocks.capture).toHaveBeenNthCalledWith(2, {
+      distinctId: '~zod',
+      event: 'TlonBot Onboarding Step',
+      uuid: expect.any(String),
+      properties: expect.objectContaining({
+        step: 'onboarding_completed',
+        completionPath: 'bot_tour_completed',
+      }),
+    });
+
+    await telemetry?.close();
+  });
+
+  it('uses stable distinct UUIDs for onboarding step retries', async () => {
+    const telemetry = createEnabledTelemetry();
+    const event = {
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      step: 'topics_submitted' as const,
+      outcome: 'ok' as const,
+      nest: 'chat/~zod/general',
+      groupFlag: '~zod/home-group',
+      provisionId: 'provision-1',
+      purposeId: 'agent-research',
+      topicCount: 2,
+      timezone: 'America/New_York',
+      cronJobId: null,
+      notebookNest: 'notes/~zod/updates',
+      answer: null,
+      completionPath: null,
+      elapsedMsSinceIntro: 12_000,
+      errorText: null,
+    };
+
+    telemetry?.captureOnboardingStep(event);
+    telemetry?.captureOnboardingStep(event);
+    telemetry?.captureOnboardingStep({ ...event, step: 'cron_created' });
+
+    const uuids = postHogMocks.capture.mock.calls.map(([capture]) =>
+      String(capture.uuid)
+    );
+    expect(uuids[0]).toBe(uuids[1]);
+    expect(uuids[2]).not.toBe(uuids[0]);
+
+    await telemetry?.close();
+  });
 
   it('captures only tool calls recorded after reply tracking starts', async () => {
     recordToolCall({
@@ -238,6 +346,66 @@ describe('telemetry tool tracking', () => {
     expect(
       postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties.outcome
     ).toBe('error');
+  });
+
+  it('projects the canonical turn summary onto reply telemetry', async () => {
+    const telemetry = createEnabledTelemetry()!;
+    const replyTelemetry = telemetry.startReply({
+      sessionKey: 'session-1',
+      runId: 'run-1',
+      accountId: 'default',
+      agentId: 'agent-main',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      chatType: 'dm',
+      isThreadReply: false,
+      senderRole: 'owner',
+      attachmentCount: 0,
+    });
+
+    await replyTelemetry.capture({
+      deliveredMessageCount: 1,
+      replyCharCount: 12,
+      replyWordCount: 2,
+      replyMediaCount: 0,
+      dispatchDurationMs: 250,
+      queuedFinal: true,
+      queuedFinalCount: 1,
+      queuedBlockCount: 0,
+      provider: 'anthropic',
+      model: 'claude-test',
+      thinkLevel: null,
+      turnSummary: {
+        accountId: 'default',
+        agentId: 'agent-main',
+        delivery: 'partial',
+        deliveryFailureCount: 1,
+        deliverySuccessCount: 1,
+        destinationKind: 'dm',
+        durationMs: 250,
+        execution: 'completed',
+        finalErrorReplyCount: 0,
+        reason: 'delivery_partial',
+        result: 'reply_and_action',
+        runId: 'run-1',
+        sessionKey: 'session-1',
+        ship: 'nec',
+        sourceReplyCount: 1,
+        toolCallCount: 2,
+        trigger: 'dm',
+      },
+    });
+
+    expect(
+      postHogMocks.capture.mock.calls.at(-1)?.[0]?.properties
+    ).toMatchObject({
+      execution: 'completed',
+      result: 'reply_and_action',
+      delivery: 'partial',
+      finalErrorReplyCount: 0,
+      reason: 'delivery_partial',
+      trigger: 'dm',
+    });
   });
 
   it('captures delivery skip reason only for no-reply outcomes', async () => {
@@ -920,6 +1088,8 @@ describe('telemetry tool tracking', () => {
             errorKind: report.event.errorKind ?? null,
             errorText: report.event.errorText,
             attempt: report.event.attempt ?? null,
+            downMs: report.event.downMs ?? null,
+            authPhase: report.event.authPhase ?? null,
           });
           break;
         case 'telemetry':
@@ -1699,6 +1869,72 @@ describe('telemetry tool tracking', () => {
     );
   });
 
+  it('captures expected auth failures separately from plugin errors', () => {
+    const telemetry = createEnabledTelemetry()!;
+
+    telemetry.captureAuthAttemptFailed({
+      harness: 'openclaw',
+      pluginErrorSource: 'auth',
+      authPhase: 'startup',
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      errorKind: 'TimeoutError',
+      errorText: 'request timed out',
+      attempt: 3,
+      downMs: 45_000,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenLastCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Auth Attempt Failed',
+      properties: expect.objectContaining({
+        harness: 'openclaw',
+        pluginErrorSource: 'auth',
+        authPhase: 'startup',
+        accountId: 'default',
+        ownerShip: '~zod',
+        botShip: '~nec',
+        errorKind: 'TimeoutError',
+        errorText: 'request timed out',
+        attempt: 3,
+        downMs: 45_000,
+      }),
+    });
+  });
+
+  it('captures terminal failure notices with kind and delivery outcome', () => {
+    const telemetry = createEnabledTelemetry()!;
+
+    telemetry.captureFailureNotice({
+      harness: 'openclaw',
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      runId: 'run-42',
+      noticeKind: 'tool_error',
+      destinationKind: 'group_channel',
+      suppressedByCooldown: false,
+      delivered: true,
+    });
+
+    expect(postHogMocks.capture).toHaveBeenLastCalledWith({
+      distinctId: '~zod',
+      event: 'TlonBot Failure Notice',
+      properties: expect.objectContaining({
+        harness: 'openclaw',
+        accountId: 'default',
+        ownerShip: '~zod',
+        botShip: '~nec',
+        runId: 'run-42',
+        noticeKind: 'tool_error',
+        destinationKind: 'group_channel',
+        suppressedByCooldown: false,
+        delivered: true,
+      }),
+    });
+  });
+
   it('captures telemetry observer failures', () => {
     const telemetry = createEnabledTelemetry()!;
     bindErrorReporter(telemetry);
@@ -1810,6 +2046,62 @@ describe('outbound route telemetry', () => {
   });
 });
 
+describe('reply output telemetry', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setReplyOutputReporter(null);
+  });
+
+  it('captures a scalar output event with the full message id', () => {
+    const telemetry = createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+    telemetry?.captureReplyOutputSent({
+      ownerShip: '~zod',
+      botShip: '~nec',
+      messageId: '~nec/170.141.184.507',
+      sentAt: 1_700_000_000_000,
+      runId: 'run-1',
+      traceId: '0123456789abcdef0123456789abcdef',
+      outputIndex: 2,
+      chatType: 'dm',
+      isThreadReply: true,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Reply Output Sent');
+    expect(call.properties).toMatchObject({
+      messageId: '~nec/170.141.184.507',
+      runId: 'run-1',
+      traceId: '0123456789abcdef0123456789abcdef',
+      outputIndex: 2,
+      chatType: 'dm',
+      isThreadReply: true,
+    });
+  });
+
+  it('forwards output events through the shared reporter slot', () => {
+    const reporter = vi.fn();
+    const event = {
+      messageId: '~nec/170.141.184.507',
+      sentAt: 1_700_000_000_000,
+      runId: null,
+      traceId: null,
+      outputIndex: 0,
+      chatType: 'groupChannel' as const,
+      isThreadReply: false,
+    };
+    setReplyOutputReporter(reporter);
+    reportReplyOutput(event);
+    expect(reporter).toHaveBeenCalledWith(event);
+
+    setReplyOutputReporter(null);
+    reportReplyOutput(event);
+    expect(reporter).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('cron telemetry capture', () => {
   beforeEach(() => {
     postHogMocks.identify.mockClear();
@@ -1912,7 +2204,8 @@ describe('cron telemetry capture', () => {
     const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
     expect(call.event).toBe('TlonBot Cron Run');
     expect(call.distinctId).toBe('~zod');
-    expect(call.properties.status).toBe('error');
+    expect(call.properties.cronStatus).toBe('error');
+    expect(call.properties).not.toHaveProperty('status');
     expect(call.properties.cronError).toBe('model timed out');
     expect(call.properties.durationMs).toBe(1_234);
     expect(call.properties.deliveryStatus).toBe('not-delivered');
@@ -2010,5 +2303,114 @@ describe('cron telemetry capture', () => {
       totalCronJobCount: null,
     });
     expect(reporter).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('migration telemetry', () => {
+  beforeEach(() => {
+    postHogMocks.identify.mockClear();
+    postHogMocks.capture.mockClear();
+    setMigrationTelemetryReporter(null);
+  });
+
+  function createEnabledTelemetry() {
+    return createTlonTelemetry({
+      config: { enabled: true, apiKey: 'phc_test', host: null },
+    });
+  }
+
+  it('captures migration events with truncated error text', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureMigration({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      migrationEvent: 'failed',
+      action: 'apply',
+      migrationId: 'migration-1',
+      durationMs: 4200,
+      deadlineExceeded: false,
+      errorText: `boom ${'x'.repeat(600)}`,
+    });
+
+    const call = postHogMocks.capture.mock.calls.at(-1)?.[0];
+    expect(call.event).toBe('TlonBot Diary Migration');
+    expect(call.distinctId).toBe('~zod');
+    expect(call.properties).toMatchObject({
+      migrationEvent: 'failed',
+      action: 'apply',
+      migrationId: 'migration-1',
+      durationMs: 4200,
+      deadlineExceeded: false,
+    });
+    expect(call.properties.errorText).toHaveLength(500);
+    expect(call.properties.errorText.startsWith('boom ')).toBe(true);
+  });
+
+  it('omits nullish fields and skips capture without an owner ship', () => {
+    const telemetry = createEnabledTelemetry();
+    telemetry?.captureMigration({
+      accountId: 'default',
+      ownerShip: '~zod',
+      botShip: '~nec',
+      migrationEvent: 'started',
+      action: 'cleanup',
+      migrationId: 'migration-2',
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    });
+    const properties = postHogMocks.capture.mock.calls.at(-1)?.[0].properties;
+    expect(Object.hasOwn(properties, 'durationMs')).toBe(false);
+    expect(Object.hasOwn(properties, 'errorText')).toBe(false);
+
+    postHogMocks.capture.mockClear();
+    telemetry?.captureMigration({
+      accountId: 'default',
+      ownerShip: null,
+      botShip: '~nec',
+      migrationEvent: 'started',
+      action: 'apply',
+      migrationId: 'migration-3',
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    });
+    expect(postHogMocks.capture).not.toHaveBeenCalled();
+  });
+
+  it('formatTlonTelemetryErrorText survives a throwing stack getter', () => {
+    const hostile = new Error('safe message');
+    Object.defineProperty(hostile, 'stack', {
+      get() {
+        throw new Error('stack getter exploded');
+      },
+    });
+    expect(() => formatTlonTelemetryErrorText(hostile)).not.toThrow();
+    expect(formatTlonTelemetryErrorText(hostile)).toBe('[unformattable error]');
+  });
+
+  it('reportMigration forwards to the reporter, no-ops when cleared, and swallows reporter throws', () => {
+    const reporter = vi.fn();
+    setMigrationTelemetryReporter(reporter);
+    const event = {
+      migrationEvent: 'started' as const,
+      action: 'apply' as const,
+      migrationId: 'migration-4',
+      durationMs: null,
+      deadlineExceeded: null,
+      errorText: null,
+    };
+    reportMigration(event);
+    expect(reporter).toHaveBeenCalledWith(event);
+
+    setMigrationTelemetryReporter(() => {
+      throw new Error('capture exploded');
+    });
+    expect(() => reportMigration(event)).not.toThrow();
+
+    setMigrationTelemetryReporter(null);
+    reportMigration(event);
+    expect(reporter).toHaveBeenCalledTimes(1);
   });
 });

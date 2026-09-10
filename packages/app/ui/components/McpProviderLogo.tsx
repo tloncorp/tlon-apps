@@ -23,6 +23,7 @@ type ImageLogo = {
 };
 
 const LOGO_SIZE = 28;
+const HOSTING_LOGO_SIZE = 48;
 
 const svgLogos: Partial<Record<string, SvgLogoComponent>> = {
   arena: ArenaLogo,
@@ -42,40 +43,58 @@ const imageLogos: Partial<Record<string, ImageLogo>> = {
 
 export function McpProviderLogo({
   displayName,
+  logoUrl,
   providerId,
+  compact = false,
 }: {
+  compact?: boolean;
   displayName: string;
+  logoUrl?: string;
   providerId: string;
 }) {
+  const logoSize = compact ? 20 : LOGO_SIZE;
+  const hostingLogoSize = compact ? 32 : HOSTING_LOGO_SIZE;
+  const containerSize = compact ? 32 : '$4xl';
   const SvgLogo = svgLogos[providerId];
   const imageLogo = imageLogos[providerId];
+  const fallbackLogo = SvgLogo ? (
+    <SvgLogo height={logoSize} width={logoSize} />
+  ) : imageLogo ? (
+    <Image
+      fallback={null}
+      height={logoSize}
+      source={imageLogo.source}
+      width={logoSize}
+      contentFit="contain"
+    />
+  ) : (
+    <Text color="$secondaryText" size="$label/l">
+      {displayName.slice(0, 1)}
+    </Text>
+  );
 
   return (
     <View
       alignItems="center"
-      backgroundColor="#FFFFFF"
+      backgroundColor="$secondaryBackground"
       borderColor="$border"
       borderRadius="$s"
       borderWidth={1}
-      height="$4xl"
+      height={containerSize}
       justifyContent="center"
       overflow="hidden"
-      width="$4xl"
+      width={containerSize}
     >
-      {SvgLogo ? (
-        <SvgLogo height={LOGO_SIZE} width={LOGO_SIZE} />
-      ) : imageLogo ? (
+      {logoUrl ? (
         <Image
-          fallback={null}
-          height={LOGO_SIZE}
-          source={imageLogo.source}
-          width={LOGO_SIZE}
+          fallback={fallbackLogo}
+          height={hostingLogoSize}
+          source={logoUrl}
+          width={hostingLogoSize}
           contentFit="contain"
         />
       ) : (
-        <Text color="$secondaryText" size="$label/l">
-          {displayName.slice(0, 1)}
-        </Text>
+        fallbackLogo
       )}
     </View>
   );

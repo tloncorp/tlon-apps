@@ -69,6 +69,7 @@ describe('tlon-bot-e2e env file loader', () => {
       export TLON_BOT_E2E_DRIVER=openclaw
       TLON_BOT_E2E_SUITE=common
       TLON_BOT_E2E_SCENARIO_PARTITIONS=baseline
+      TLON_BOT_E2E_DESK_SHIPS=~zod,~ten
       FAKE_SHIP_CACHE_DIR="/tmp/tlon cache"
       BRAVE_API_KEY="abc#def"
       TLONBOT_TOKEN=abc#def
@@ -87,6 +88,7 @@ describe('tlon-bot-e2e env file loader', () => {
         'TLON_BOT_E2E_DRIVER',
         'TLON_BOT_E2E_SUITE',
         'TLON_BOT_E2E_SCENARIO_PARTITIONS',
+        'TLON_BOT_E2E_DESK_SHIPS',
         'FAKE_SHIP_CACHE_DIR',
         'BRAVE_API_KEY',
         'TLONBOT_TOKEN',
@@ -97,6 +99,7 @@ describe('tlon-bot-e2e env file loader', () => {
     expect(targetEnv.TLON_BOT_E2E_DRIVER).toBe('openclaw');
     expect(targetEnv.TLON_BOT_E2E_SUITE).toBe('common');
     expect(targetEnv.TLON_BOT_E2E_SCENARIO_PARTITIONS).toBe('baseline');
+    expect(targetEnv.TLON_BOT_E2E_DESK_SHIPS).toBe('~zod,~ten');
     expect(targetEnv.FAKE_SHIP_CACHE_DIR).toBe('/tmp/tlon cache');
     // Standard dotenv semantics: quoting preserves '#'; unquoted '#' starts
     // an inline comment even without preceding whitespace.

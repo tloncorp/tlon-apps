@@ -459,7 +459,6 @@ run_steps() {
   # buildEditor.js to produce dist/index.html). Building editor alone
   # is ~1.7s; full build:packages (api+shared+ui+editor) is ~6-9s.
   record build_editor      pnpm run build:editor
-  record generate_tailwind pnpm --filter tlon-mobile run generate:tailwind
 
   if [[ "$PLATFORM" == "ios" ]]; then
     # No explicit pod_install step — `expo run:ios` handles it internally

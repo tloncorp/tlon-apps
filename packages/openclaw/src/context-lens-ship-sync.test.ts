@@ -41,8 +41,6 @@ function makeParams(pokes: RecordedPoke[]): SharedApiClientParams {
       pokes.push(params as RecordedPoke);
       return Promise.resolve(undefined);
     },
-    shipName: '~zod',
-    shipUrl: 'http://localhost:8080',
   };
 }
 
@@ -328,8 +326,6 @@ describe('createContextLensShipSync', () => {
         pokes.push(params as RecordedPoke);
         return Promise.resolve(undefined);
       },
-      shipName: '~zod',
-      shipUrl: 'http://localhost:8080',
     };
     let current = flaky;
     const warnings: string[] = [];

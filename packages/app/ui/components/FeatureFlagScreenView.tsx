@@ -1,10 +1,11 @@
 import { Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ScrollView, SizableText, View, XStack, YStack } from 'tamagui';
+import { SizableText, View, XStack, YStack } from 'tamagui';
 
 import { useIsWindowNarrow } from '../utils';
 import { Field, TextInput } from './Form';
 import { ScreenHeader } from './ScreenHeader';
+import { ScreenScrollView } from './ScreenScrollView';
 
 export type FeatureFlagTextSetting = {
   key: string;
@@ -35,9 +36,10 @@ export function FeatureFlagScreenView({
       <ScreenHeader
         borderBottom
         backAction={isWindowNarrow ? onBackPressed : undefined}
-        title={'Experimental features'}
+        title="Experimental features"
+        placement="navigation"
       />
-      <ScrollView
+      <ScreenScrollView
         style={{
           flex: 1,
           width: '100%',
@@ -84,7 +86,7 @@ export function FeatureFlagScreenView({
             </Field>
           </YStack>
         ))}
-      </ScrollView>
+      </ScreenScrollView>
     </View>
   );
 }

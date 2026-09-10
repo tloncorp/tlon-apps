@@ -21,6 +21,20 @@
         'updatedBy'^s+(scot %p updated-by.nb)
     ==
   ::
+  ++  said
+    |=  sd=said:n
+    ^-  json
+    %-  pairs
+    :~  'host'^s+(scot %p ship.flag.sd)
+        'flagName'^s+name.flag.sd
+        'id'^(numb id.note-preview.sd)
+        'title'^s+title.note-preview.sd
+        'snippet'^s+snippet.note-preview.sd
+        'author'^s+(scot %p author.note-preview.sd)
+        'updatedAt'^(numb (unt:chrono:userlib updated-at.note-preview.sd))
+        'notebookTitle'^s+notebook-title.note-preview.sd
+    ==
+  ::
   ++  folder
     |=  fld=folder:n
     ^-  json
@@ -140,7 +154,7 @@
           'host'^s+(scot %p ship.flag)
           'flagName'^s+name.flag
           'notebook'^(notebook notebook.upd)
-          'visibility'^s+(scot %tas visibility.upd)
+          'visibility'^s+visibility.upd
       ==
         %updated
       :~  'type'^s+'notebook-updated'
@@ -157,14 +171,14 @@
       :~  'type'^s+'notebook-visibility-changed'
           'host'^s+(scot %p ship.flag)
           'flagName'^s+name.flag
-          'visibility'^s+(scot %tas visibility.upd)
+          'visibility'^s+visibility.upd
       ==
         %member-joined
       :~  'type'^s+'member-joined'
           'host'^s+(scot %p ship.flag)
           'flagName'^s+name.flag
           'who'^s+(scot %p who.upd)
-          'role'^s+(scot %tas role.upd)
+          'role'^s+role.upd
       ==
         %member-left
       :~  'type'^s+'member-left'
@@ -206,7 +220,7 @@
     :~  'host'^s+(scot %p ship.flag.ns)
         'flagName'^s+name.flag.ns
         'notebook'^(notebook notebook.ns)
-        'visibility'^s+(scot %tas visibility.ns)
+        'visibility'^s+visibility.ns
     ==
   ::  +notebook-summaries: encode (list notebook-summary)
   ::
@@ -223,7 +237,7 @@
     :~  'host'^s+(scot %p ship.flag.nd)
         'flagName'^s+name.flag.nd
         'notebook'^(notebook notebook.nd)
-        'visibility'^s+(scot %tas visibility.nd)
+        'visibility'^s+visibility.nd
     ==
   ::  +member-record: encode one /v0/members item
   ::
@@ -232,7 +246,7 @@
     ^-  json
     %-  pairs
     :~  'ship'^s+(scot %p ship.mr)
-        'role'^s+(scot %tas role.mr)
+        'role'^s+role.mr
     ==
   ::  +member-records: encode (list member-record)
   ::
@@ -341,7 +355,7 @@
       :~  'type'^s+'snapshot'
           'host'^s+(scot %p ship.flag.res)
           'flagName'^s+name.flag.res
-          'visibility'^s+(scot %tas visibility.res)
+          'visibility'^s+visibility.res
       ==
     ==
   ::  +tang-json: render a tang as a JSON array.
@@ -353,6 +367,12 @@
     |=  ts=tang
     ^-  json
     [%a ~]
+  ::  +scam: search results
+  ::
+  ++  scam
+    |=  =scam:n
+    ^-  json
+    (pairs 'last'^(numb last.scam) 'notes'^(notes scan.scam) ~)
   ::  v1: request-id-wrapped response shapes
   ::  encoded for delivery over /notes/~/v1 HTTP and /v1 SSE paths.
   ::
@@ -361,12 +381,12 @@
     ++  action-error
       |=  e=action-error:v1:n
       ^-  json
-      s+(scot %tas e)
+      s+e
     ::
     ++  poke-status
       |=  s=poke-status:v1:n
       ^-  json
-      s+(scot %tas s)
+      s+s
     ::  +response: subscriber → client. Encoded as {requestId, body}.
     ::
     ++  response
@@ -462,7 +482,7 @@
           %created
         :~  'type'^s+'notebook-created'
             'notebook'^(notebook notebook.upd)
-            'visibility'^s+(scot %tas visibility.upd)
+            'visibility'^s+visibility.upd
         ==
           %updated
         :~  'type'^s+'notebook-updated'
@@ -472,12 +492,12 @@
         ~[['type' s+'notebook-deleted']]
           %visibility
         :~  'type'^s+'notebook-visibility-changed'
-            'visibility'^s+(scot %tas visibility.upd)
+            'visibility'^s+visibility.upd
         ==
           %member-joined
         :~  'type'^s+'member-joined'
             'who'^s+(scot %p who.upd)
-            'role'^s+(scot %tas role.upd)
+            'role'^s+role.upd
         ==
           %member-left
         :~  'type'^s+'member-left'

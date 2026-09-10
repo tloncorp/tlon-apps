@@ -14,7 +14,7 @@ import { remarkShipMentions } from './shipMentionPlugin';
  */
 const mentionProcessor = unified()
   .use(remarkParse)
-  .use(remarkGfm)
+  .use(remarkGfm, { singleTilde: false })
   .use(remarkShipMentions)
   .use(remarkGroupMentions);
 
@@ -23,7 +23,9 @@ const mentionProcessor = unified()
  * Used when mentions are tracked out-of-band (e.g. by entity position) rather
  * than detected from text patterns.
  */
-const plainProcessor = unified().use(remarkParse).use(remarkGfm);
+const plainProcessor = unified()
+  .use(remarkParse)
+  .use(remarkGfm, { singleTilde: false });
 
 /**
  * Convert a Markdown string to a Story (Verse[]).

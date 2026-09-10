@@ -2,6 +2,17 @@ import { expect, test } from 'vitest';
 
 import { renderPublishedNoteHtml } from './notesPublish';
 
+test('renderPublishedNoteHtml links the published footer to Tlon', () => {
+  const html = renderPublishedNoteHtml({
+    title: 'Published note',
+    body: 'Hello',
+  });
+
+  expect(html).toContain(
+    '<div class="tlon-published-footer">Published from <a href="https://tlon.io">Tlon</a></div>'
+  );
+});
+
 test('renderPublishedNoteHtml renders markdown list children as list items', () => {
   const html = renderPublishedNoteHtml({
     title: 'List note',
@@ -10,4 +21,32 @@ test('renderPublishedNoteHtml renders markdown list children as list items', () 
 
   expect(html).toContain('<ul><li>first</li><li>second</li></ul>');
   expect(html).not.toContain('<ul><li><ul>');
+});
+
+test('renderPublishedNoteHtml renders markdown tables', () => {
+  const html = renderPublishedNoteHtml({
+    title: 'Table note',
+    body: '| Name | Score |\n| :--- | ---: |\n| Alice | 10 |',
+  });
+
+  expect(html).toContain('<div class="tlon-table-scroll"><table><thead><tr>');
+  expect(html).toContain(
+    '<th class="tlon-table-data-cell" style="text-align:left"><div class="tlon-table-cell-content">Name</div></th>'
+  );
+  expect(html).toContain(
+    '<td class="tlon-table-data-cell" style="text-align:left"><div class="tlon-table-cell-content">Alice</div></td>'
+  );
+  expect(html).toContain(
+    'th{background:transparent;color:var(--tertiary-text);font-weight:400}'
+  );
+  expect(html).toContain('width:max-content;min-width:100%');
+  expect(html).toContain(
+    '<th class="tlon-table-spacer" aria-hidden="true"></th>'
+  );
+  expect(html).toContain('<div class="tlon-table-cell-content">Name</div>');
+  expect(html).toContain(
+    '.tlon-table-cell-content{display:inline-block;width:max-content;max-width:280px}'
+  );
+  expect(html).toContain('class="tlon-table-data-cell"');
+  expect(html).toContain('tr{border-bottom:1px solid var(--border)}');
 });

@@ -1,5 +1,7 @@
+import * as api from '@tloncorp/api';
 import { ChannelAction } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { isEqual } from 'lodash';
 import { ComponentProps, memo, useCallback, useMemo, useState } from 'react';
@@ -7,11 +9,15 @@ import { View, isWeb } from 'tamagui';
 
 import { useCurrentUserId } from '../../contexts/appDataContext';
 import { useChannelContext } from '../../contexts/channel';
+import type { A2UIActionCompletion } from '../../contexts/componentsKits';
 import { useCanWrite } from '../../utils/channelUtils';
 import AuthorRow from '../AuthorRow';
+import { getOwnContextLensStamp } from '../Channel/ContextLens/lensPost';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { MaskedChatMessage } from '../PostModeration';
+import { BotFeedbackRow } from './BotFeedbackRow';
 import { ChatMessageActions } from './ChatMessageActions/Component';
+import { MessageContextMenu } from './MessageContextMenu';
 import { StaticChatMessage } from './StaticChatMessage';
 
 /**
@@ -22,6 +28,7 @@ import { StaticChatMessage } from './StaticChatMessage';
  */
 const ChatMessage = ({
   post,
+  a2uiActionCompletion,
   showAuthor,
   hideProfilePreview,
   onPressReplies,
@@ -40,6 +47,7 @@ const ChatMessage = ({
   searchQuery,
 }: {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   hideProfilePreview?: boolean;
   authorRowProps?: Partial<ComponentProps<typeof AuthorRow>>;
@@ -68,7 +76,19 @@ const ChatMessage = ({
     () => ChannelAction.channelActionIdsFor({ channel, canWrite }),
     [channel, canWrite]
   );
-
+  // Rating feedback is only supported for the user's Tlon-hosted bot, but
+  // lens-stamped posts from any owned bot ship (e.g. self-hosted bots) still
+  // get the row for the Context Lens action.
+  const isOwnTlonBotReply =
+    (post.type === 'chat' || post.type === 'reply') &&
+    api.isBotUserIdForUser(post.authorId, currentUserId);
+  const { data: ownedBotShips } = store.useContextLensBotShips();
+  const hasOwnLensStamp = useMemo(
+    () => Boolean(getOwnContextLensStamp(post, ownedBotShips ?? [])),
+    [post, ownedBotShips]
+  );
+  const showBotFeedback =
+    isOwnTlonBotReply || (hasOwnLensStamp && !!onPressBotRun);
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
   }, [onPressReplies, post]);
@@ -107,60 +127,95 @@ const ChatMessage = ({
 
   return (
     <MaskedChatMessage post={post}>
-      <Pressable
-        // avoid setting the top level press handler at all unless we need to
-        onPress={shouldHandlePress ? handlePress : undefined}
-        onLongPress={handleLongPress}
-        onMouseEnter={handleHoverIn}
-        onMouseLeave={handleHoverOut}
-        pressStyle={{}}
-        cursor="default"
-        testID="Post"
-        borderRadius={'$m'}
-        overflow="hidden"
-        backgroundColor={
-          isWeb && isHovered ? '$secondaryBackground' : 'transparent'
-        }
+      <MessageContextMenu
+        enabled={Boolean(onLongPress) && post.type !== 'notice'}
+        previewKey={JSON.stringify([
+          showAuthor,
+          showReplies,
+          isHighlighted,
+          displayDebugMode,
+          searchQuery,
+        ])}
+        post={post}
+        postActionIds={postActionIds}
+        canReact={canWrite}
+        onReply={handleRepliesPressed}
+        onEdit={handleEditPressed}
+        onViewReactions={setViewReactionsPost}
+        onViewBotRun={onPressBotRun}
+        onShowEmojiPicker={handleEmojiPickerPressed}
       >
-        <StaticChatMessage
-          {...{
-            displayDebugMode,
-            hideProfilePreview,
-            hideSentAtTimestamp: hideOverflowMenu || !isHovered,
-            isHighlighted,
-            onLongPress,
-            onPressBotRun,
-            onPressImage,
-            onPressReplies,
-            onPressRetry,
-            post,
-            searchQuery,
-            setViewReactionsPost,
-            showAuthor,
-            showReplies,
-          }}
-        />
-        {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
-          <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
-            <ChatMessageActions
-              post={post}
-              postActionIds={postActionIds}
-              onDismiss={() => {
-                setIsPopoverOpen(false);
-                setIsHovered(false);
+        {(usesNativeContextMenu) => (
+          <Pressable
+            onPress={shouldHandlePress ? handlePress : undefined}
+            onLongPress={usesNativeContextMenu ? undefined : handleLongPress}
+            onMouseEnter={handleHoverIn}
+            onMouseLeave={handleHoverOut}
+            pressStyle={{}}
+            cursor="default"
+            testID="Post"
+            borderRadius={'$m'}
+            overflow="hidden"
+            backgroundColor={
+              isWeb && isHovered ? '$secondaryBackground' : 'transparent'
+            }
+          >
+            <StaticChatMessage
+              {...{
+                displayDebugMode,
+                hideProfilePreview,
+                hideSentAtTimestamp: hideOverflowMenu || !isHovered,
+                isHighlighted,
+                onLongPress: usesNativeContextMenu ? undefined : onLongPress,
+                onPressImage,
+                onPressReplies,
+                onPressRetry,
+                post,
+                a2uiActionCompletion,
+                searchQuery,
+                setViewReactionsPost,
+                showAuthor,
+                showReplies,
+                feedbackRow: showBotFeedback
+                  ? ({ inline }: { inline: boolean }) => (
+                      <BotFeedbackRow
+                        post={post}
+                        currentUserId={currentUserId}
+                        onPressBotRun={onPressBotRun}
+                        // Controls sharing a row with reactions or the reply
+                        // summary reveal on hover (web-only slots); the
+                        // standalone row is always visible.
+                        visible={!inline || isHovered}
+                      />
+                    )
+                  : undefined,
               }}
-              onOpenChange={setIsPopoverOpen}
-              onReply={handleRepliesPressed}
-              onEdit={handleEditPressed}
-              onViewReactions={setViewReactionsPost}
-              onViewBotRun={onPressBotRun}
-              onShowEmojiPicker={handleEmojiPickerPressed}
-              trigger={<OverflowTriggerButton testID="MessageActionsTrigger" />}
-              mode="await-trigger"
             />
-          </View>
+            {!hideOverflowMenu && (isHovered || isPopoverOpen) && (
+              <View position="absolute" top={showAuthor ? 8 : 2} right={12}>
+                <ChatMessageActions
+                  post={post}
+                  postActionIds={postActionIds}
+                  onDismiss={() => {
+                    setIsPopoverOpen(false);
+                    setIsHovered(false);
+                  }}
+                  onOpenChange={setIsPopoverOpen}
+                  onReply={handleRepliesPressed}
+                  onEdit={handleEditPressed}
+                  onViewReactions={setViewReactionsPost}
+                  onViewBotRun={onPressBotRun}
+                  onShowEmojiPicker={handleEmojiPickerPressed}
+                  trigger={
+                    <OverflowTriggerButton testID="MessageActionsTrigger" />
+                  }
+                  mode="await-trigger"
+                />
+              </View>
+            )}
+          </Pressable>
         )}
-      </Pressable>
+      </MessageContextMenu>
     </MaskedChatMessage>
   );
 };
@@ -177,6 +232,7 @@ export default memo(ChatMessage, (prev, next) => {
     prev.onLongPress === next.onLongPress &&
     prev.onPress === next.onPress &&
     prev.onPressBotRun === next.onPressBotRun &&
+    isEqual(prev.a2uiActionCompletion, next.a2uiActionCompletion) &&
     prev.searchQuery === next.searchQuery &&
     prev.displayDebugMode === next.displayDebugMode;
 

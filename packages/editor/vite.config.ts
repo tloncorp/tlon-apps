@@ -16,7 +16,14 @@ export default defineConfig({
       },
     ],
   },
-  plugins: [react(), viteSingleFile()],
+  plugins: [
+    react({
+      babel: {
+        plugins: ['babel-plugin-react-compiler'],
+      },
+    }),
+    viteSingleFile(),
+  ],
   server: {
     port: 3000,
   },

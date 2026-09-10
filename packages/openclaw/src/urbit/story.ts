@@ -1,3 +1,5 @@
+import { valid } from '@urbit/aura';
+
 /**
  * Tlon Story Format - Rich text converter
  *
@@ -57,7 +59,7 @@ function parseInlineMarkdown(text: string): StoryInline[] {
   while (remaining.length > 0) {
     // Ship mentions: ~sampel-palnet
     const shipMatch = remaining.match(/^(~[a-z][-a-z0-9]*)/);
-    if (shipMatch) {
+    if (shipMatch && valid('p', shipMatch[1])) {
       result.push({ ship: shipMatch[1] });
       remaining = remaining.slice(shipMatch[0].length);
       continue;
@@ -204,14 +206,6 @@ export function createImageBlock(
       image: { src, height, width, alt },
     },
   };
-}
-
-/**
- * Check if URL looks like an image
- */
-export function isImageUrl(url: string): boolean {
-  const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico)(\?.*)?$/i;
-  return imageExtensions.test(url);
 }
 
 /**

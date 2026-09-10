@@ -14,6 +14,13 @@ import {
 function makeBridge(ownerShip: string | null): ApprovalCommandBridge {
   return {
     ownerShip,
+    botShip: '~bot',
+    botCredentials: {
+      url: 'https://bot.test',
+      ship: '~bot',
+      code: 'bot-code',
+    },
+    sendOwnerNotification: async () => undefined,
     handleAction: async () => 'ok',
     getPendingApprovalsReply: async () => ({ text: 'none' }),
     getBlockedList: async () => 'none',

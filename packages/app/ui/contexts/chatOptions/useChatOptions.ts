@@ -1,4 +1,3 @@
-import { useGroup } from '@tloncorp/shared/store';
 import { useContext } from 'react';
 
 import { ChatOptionsContext, ChatOptionsContextValue } from './context';
@@ -6,7 +5,6 @@ import { ChatOptionsContext, ChatOptionsContextValue } from './context';
 const noop = () => {};
 const noopAsync = async () => {};
 const defaultValue: ChatOptionsContextValue = {
-  useGroup: useGroup,
   group: null,
   channel: null,
   markGroupRead: noop,

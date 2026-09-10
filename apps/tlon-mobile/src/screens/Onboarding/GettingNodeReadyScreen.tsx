@@ -2,8 +2,8 @@
 import { useIsFocused } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useShip } from '@tloncorp/app/contexts/ship';
+import { useIsDarkMode } from '@tloncorp/app/hooks/useDarkMode';
 import { useHandleLogout } from '@tloncorp/app/hooks/useHandleLogout';
-import { useIsDarkMode } from '@tloncorp/app/hooks/useIsDarkMode';
 import { useResetDb } from '@tloncorp/app/hooks/useResetDb';
 import {
   NodeResumeState,
@@ -16,6 +16,7 @@ import {
 import {
   AppDataContextProvider,
   ArvosDiscussing,
+  EmailSupportLink,
   IconType,
   ListItem,
   LoadingSpinner,
@@ -26,11 +27,9 @@ import {
   View,
   XStack,
   YStack,
-  useStore,
 } from '@tloncorp/app/ui';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import * as store from '@tloncorp/shared/store';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -43,6 +42,10 @@ const BOTTOM_WIDGET_TITLES = [
   'Establishing a connection',
   'Your node is ready',
 ];
+
+// A normal wake-up is expected to take a while, so hold the support link back
+// until the wait has gone on long enough that something might actually be wrong.
+const SUPPORT_LINK_DELAY = 20 * 1000;
 
 const BOTTOM_WIDGET_ICONS: IconType[] = [
   'ChannelGalleries',
@@ -62,7 +65,6 @@ export function GettingNodeReadyScreen({
   navigation,
   route: { params },
 }: Props) {
-  const store = useStore();
   const isFocused = useIsFocused();
   const lastWasFocused = useRef(true);
   const { setShip } = useShip();
@@ -101,6 +103,15 @@ export function GettingNodeReadyScreen({
       });
     }
   }, [hostedNodeId, notifPerms.hasPermission]);
+
+  const [showSupportLink, setShowSupportLink] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setShowSupportLink(true),
+      SUPPORT_LINK_DELAY
+    );
+    return () => clearTimeout(timer);
+  }, []);
 
   // Handle stopped node sequence
   const { phase, shipInfo, resetSequence } = useStoppedNodeSequence({
@@ -142,15 +153,7 @@ export function GettingNodeReadyScreen({
         }, 2000);
       }
     }
-  }, [
-    navigation,
-    onboardingHelpers,
-    phase,
-    setShip,
-    shipInfo,
-    store,
-    updateProgress,
-  ]);
+  }, [navigation, onboardingHelpers, phase, setShip, shipInfo, updateProgress]);
 
   // If we came back to this screen, make sure we reset
   useEffect(() => {
@@ -248,14 +251,19 @@ export function GettingNodeReadyScreen({
                 )}
               </ListItem.EndContent>
             </ListItem>
-            <TlonText.Text
-              size="$label/s"
-              color="$secondaryText"
-              textAlign="center"
-            >
-              Feel free to close the app if this takes too long. We’ll send you
-              a notification when your node is ready.
-            </TlonText.Text>
+            <YStack gap="$m">
+              <TlonText.Text
+                size="$label/s"
+                color="$secondaryText"
+                textAlign="center"
+              >
+                Feel free to close the app if this takes too long. We’ll send
+                you a notification when your node is ready.
+              </TlonText.Text>
+              {showSupportLink && (
+                <EmailSupportLink subject="Help! My node won’t wake up." />
+              )}
+            </YStack>
           </YStack>
           <StoppedNodePushSheet
             notifPerms={notifPerms}

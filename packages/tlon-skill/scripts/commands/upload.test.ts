@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'bun:test';
 
+import { USERINFO_ERROR } from '../media-guard';
+import { commandError } from './command';
 import {
+  CANNOT_STORE_UPLOADS_ERROR,
   DEFAULT_CONTENT_TYPE,
+  NO_BUCKET_SELECTED_ERROR,
+  UNPOSTABLE_UPLOAD_URL_ERROR,
+  UPLOAD_GUARD_OPTIONS,
   UPLOAD_HELP,
   type UploadBlobLike,
   type UploadDeps,
+  type UploadPreflight,
   run,
+  shipCanStoreUploads,
 } from './upload';
 
 type TestBlob = UploadBlobLike & {
@@ -20,7 +28,8 @@ function bytes(values: number[]): Uint8Array {
 function makeDeps(
   options: {
     stdin?: Uint8Array;
-    fetchResponse?: UploadDeps['fetch'];
+    fetchSource?: UploadDeps['fetchSource'];
+    canStoreUploads?: UploadPreflight | null;
     fileExists?: boolean;
     fileBytes?: Uint8Array;
     resolvedPath?: string;
@@ -32,6 +41,7 @@ function makeDeps(
   const stderr: string[] = [];
   const calls = {
     authenticate: 0,
+    canStoreUploads: 0,
     readStdin: 0,
     fetch: [] as string[],
     resolvePath: [] as string[],
@@ -49,20 +59,21 @@ function makeDeps(
     authenticate: async () => {
       calls.authenticate += 1;
     },
+    canStoreUploads: async () => {
+      calls.canStoreUploads += 1;
+      return options.canStoreUploads === undefined
+        ? { canStore: true }
+        : options.canStoreUploads;
+    },
     readStdin: async () => {
       calls.readStdin += 1;
       return options.stdin ?? bytes([1, 2, 3]);
     },
-    fetch:
-      options.fetchResponse ??
+    fetchSource:
+      options.fetchSource ??
       (async (url) => {
         calls.fetch.push(url);
-        return {
-          ok: true,
-          status: 200,
-          statusText: 'OK',
-          blob: async () => ({ type: 'image/jpeg', size: 3, label: 'remote' }),
-        };
+        return { bytes: bytes([1, 2, 3]), contentType: 'image/jpeg' };
       }),
     fileSystem: {
       resolvePath: (filePath) => {
@@ -181,7 +192,7 @@ describe('upload command run', () => {
     expect(context.calls.uploadFile).toEqual([]);
   });
 
-  it('uploads URL data with injected fetch', async () => {
+  it('uploads URL data through the guarded fetch', async () => {
     const context = makeDeps();
 
     const exitCode = await run(
@@ -192,12 +203,58 @@ describe('upload command run', () => {
     expect(exitCode).toBe(0);
     expect(context.calls.authenticate).toBe(1);
     expect(context.calls.fetch).toEqual(['https://example.com/path/photo.jpg']);
-    expect(context.calls.createBlob).toEqual([]);
+    expect(context.calls.createBlob).toEqual([
+      { data: [1, 2, 3], contentType: 'image/jpeg' },
+    ]);
     expect(context.calls.uploadFile).toHaveLength(1);
     expect(context.calls.uploadFile[0]).toMatchObject({
       contentType: 'image/jpeg',
       fileName: 'photo.jpg',
     });
+  });
+
+  it('fetches the canonical source URL and drops content-type parameters', async () => {
+    const fetched: string[] = [];
+    const context = makeDeps({
+      fetchSource: async (url) => {
+        fetched.push(url);
+        return { bytes: bytes([7]), contentType: 'image/PNG; charset=binary' };
+      },
+    });
+
+    const exitCode = await run(
+      ['HTTPS://Example.com/path/photo.bin'],
+      context.deps
+    );
+
+    expect(exitCode).toBe(0);
+    expect(fetched).toEqual(['https://example.com/path/photo.bin']);
+    expect(context.calls.uploadFile[0].contentType).toBe('image/png');
+  });
+
+  it('accepts plain-http sources (the source URL is never posted)', async () => {
+    const context = makeDeps();
+
+    const exitCode = await run(['http://example.com/photo.jpg'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.fetch).toEqual(['http://example.com/photo.jpg']);
+  });
+
+  it('rejects source URLs with embedded credentials before fetching', async () => {
+    for (const input of [
+      'https://user:pw@example.com/photo.jpg',
+      'http://user:pw@example.com/photo.jpg',
+      'https://@example.com/photo.jpg',
+    ]) {
+      const context = makeDeps();
+      const exitCode = await run([input], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stderr()).toBe(`Error: ${USERINFO_ERROR}\n`);
+      expect(context.calls.fetch).toEqual([]);
+      expect(context.calls.uploadFile).toEqual([]);
+    }
   });
 
   it('uses MIME override for URL uploads', async () => {
@@ -228,10 +285,10 @@ describe('upload command run', () => {
     expect(context.calls.uploadFile).toEqual([]);
   });
 
-  it('rejects fetch failures as expected command errors', async () => {
+  it('surfaces guarded-fetch failures without uploading', async () => {
     const context = makeDeps({
-      fetchResponse: async () => {
-        throw new Error('network down');
+      fetchSource: async () => {
+        throw commandError('Could not fetch media from the provided URL.');
       },
     });
 
@@ -242,32 +299,8 @@ describe('upload command run', () => {
 
     expect(exitCode).toBe(1);
     expect(context.stdout()).toBe('');
-    expect(context.stderr()).toBe('Error: Failed to fetch: network down\n');
-    expect(context.calls.authenticate).toBe(1);
-    expect(context.calls.uploadFile).toEqual([]);
-  });
-
-  it('rejects blob read failures as expected command errors', async () => {
-    const context = makeDeps({
-      fetchResponse: async () => ({
-        ok: true,
-        status: 200,
-        statusText: 'OK',
-        blob: async () => {
-          throw new Error('body unavailable');
-        },
-      }),
-    });
-
-    const exitCode = await run(
-      ['https://example.com/path/photo.jpg'],
-      context.deps
-    );
-
-    expect(exitCode).toBe(1);
-    expect(context.stdout()).toBe('');
     expect(context.stderr()).toBe(
-      'Error: Failed to read response body: body unavailable\n'
+      'Error: Could not fetch media from the provided URL.\n'
     );
     expect(context.calls.authenticate).toBe(1);
     expect(context.calls.uploadFile).toEqual([]);
@@ -345,4 +378,248 @@ describe('upload command run', () => {
     ]);
     expect(context.calls.uploadFile[0].contentType).toBe(DEFAULT_CONTENT_TYPE);
   });
+});
+
+describe('upload guard budget', () => {
+  it('uses general-file limits, not the --image media limits', () => {
+    expect(UPLOAD_GUARD_OPTIONS).toEqual({
+      maxBytes: 100 * 1024 * 1024,
+      deadlineMs: 120_000,
+      maxRedirects: 3,
+      requireHttps: false,
+    });
+  });
+});
+
+describe('upload capability pre-flight', () => {
+  it('refuses before reading any bytes when the ship cannot store uploads', async () => {
+    for (const args of [
+      ['https://example.com/photo.jpg'],
+      ['./photo.jpg'],
+      ['--stdin', '-t', 'image/png'],
+    ]) {
+      const context = makeDeps({
+        canStoreUploads: { canStore: false, reason: 'no-storage' },
+      });
+
+      const exitCode = await run(args, context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`Error: ${CANNOT_STORE_UPLOADS_ERROR}\n`);
+      expect(context.calls.authenticate).toBe(1);
+      expect(context.calls.canStoreUploads).toBe(1);
+      // No input bytes were read or fetched.
+      expect(context.calls.fetch).toEqual([]);
+      expect(context.calls.readFile).toEqual([]);
+      expect(context.calls.readStdin).toBe(0);
+      expect(context.calls.uploadFile).toEqual([]);
+    }
+  });
+
+  it('names the missing bucket when credentials exist but no bucket is selected', async () => {
+    // Credentials-without-bucket is fixed in storage settings; telling that
+    // operator they have "no custom S3 credentials" would be false twice over.
+    const context = makeDeps({
+      canStoreUploads: { canStore: false, reason: 'no-bucket' },
+    });
+
+    const exitCode = await run(['https://example.com/photo.jpg'], context.deps);
+
+    expect(exitCode).toBe(1);
+    expect(context.stderr()).toBe(`Error: ${NO_BUCKET_SELECTED_ERROR}\n`);
+    expect(context.calls.uploadFile).toEqual([]);
+  });
+
+  it('proceeds when the capability check is indeterminate', async () => {
+    // A scry failure must not become a false "cannot store" — uploadFile's own
+    // error stays authoritative.
+    const context = makeDeps({ canStoreUploads: null });
+
+    const exitCode = await run(['https://example.com/photo.jpg'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.calls.canStoreUploads).toBe(1);
+    expect(context.calls.uploadFile).toHaveLength(1);
+  });
+
+  it('runs the check after authentication and before help is not reached', async () => {
+    const context = makeDeps();
+    await run(['--help'], context.deps);
+    expect(context.calls.canStoreUploads).toBe(0);
+  });
+});
+
+describe('upload printed-URL validation', () => {
+  it('prints the canonical storage URL', async () => {
+    const context = makeDeps({
+      uploadUrl: 'HTTPS://Storage.example/uploads/a.png',
+    });
+
+    const exitCode = await run(['./photo.jpg'], context.deps);
+
+    expect(exitCode).toBe(0);
+    expect(context.stdout()).toBe('https://storage.example/uploads/a.png\n');
+  });
+
+  const unpostable = [
+    'http://storage.example/uploads/a.png',
+    'https://user:pw@storage.example/uploads/a.png',
+    'not-a-url',
+    '',
+  ];
+
+  for (const url of unpostable) {
+    it(`fails instead of printing ${JSON.stringify(url)}`, async () => {
+      const context = makeDeps({ uploadUrl: url });
+
+      const exitCode = await run(['./photo.jpg'], context.deps);
+
+      expect(exitCode).toBe(1);
+      expect(context.stdout()).toBe('');
+      expect(context.stderr()).toBe(`Error: ${UNPOSTABLE_UPLOAD_URL_ERROR}\n`);
+    });
+  }
+});
+
+describe('shipCanStoreUploads routing contract', () => {
+  interface RoutingCase {
+    name: string;
+    hosted: boolean;
+    configuration: { service?: string; currentBucket?: string } | null;
+    credentials: {
+      accessKeyId?: string;
+      endpoint?: string;
+      secretAccessKey?: string;
+    } | null;
+    canStore: boolean;
+  }
+
+  // The truth table `uploadFile` itself routes on (@tloncorp/api storageApi):
+  // memex when the node is hosted and either the service is presigned-url or
+  // custom S3 credentials are absent; otherwise custom S3 credentials plus a
+  // selected bucket, which the S3 PUT needs.
+  const FULL_CREDENTIALS = {
+    accessKeyId: 'AKIA',
+    endpoint: 'https://s3.example',
+    secretAccessKey: 'secret',
+  };
+  const NO_CREDENTIALS = {
+    accessKeyId: '',
+    endpoint: '',
+    secretAccessKey: '',
+  };
+
+  const cases: RoutingCase[] = [
+    {
+      name: 'hosted presigned-url no creds -> memex',
+      hosted: true,
+      configuration: { service: 'presigned-url', currentBucket: '' },
+      credentials: NO_CREDENTIALS,
+      canStore: true,
+    },
+    {
+      name: 'hosted credentials-service no creds -> memex',
+      hosted: true,
+      configuration: { service: 'credentials', currentBucket: '' },
+      credentials: NO_CREDENTIALS,
+      canStore: true,
+    },
+    {
+      name: 'hosted presigned-url with full creds -> memex',
+      hosted: true,
+      configuration: { service: 'presigned-url', currentBucket: '' },
+      credentials: FULL_CREDENTIALS,
+      canStore: true,
+    },
+    {
+      name: 'hosted credentials-service with full creds and bucket -> custom S3',
+      hosted: true,
+      configuration: { service: 'credentials', currentBucket: 'media' },
+      credentials: FULL_CREDENTIALS,
+      canStore: true,
+    },
+    {
+      name: 'hosted credentials-service with full creds but no bucket -> cannot store',
+      hosted: true,
+      configuration: { service: 'credentials', currentBucket: '' },
+      credentials: FULL_CREDENTIALS,
+      canStore: false,
+    },
+    {
+      name: 'not hosted with full creds and bucket -> custom S3',
+      hosted: false,
+      configuration: { service: 'credentials', currentBucket: 'media' },
+      credentials: FULL_CREDENTIALS,
+      canStore: true,
+    },
+    {
+      name: 'not hosted with full creds and no bucket -> cannot store',
+      hosted: false,
+      configuration: { service: 'credentials', currentBucket: '' },
+      credentials: FULL_CREDENTIALS,
+      canStore: false,
+    },
+    {
+      name: 'not hosted missing accessKeyId -> cannot store',
+      hosted: false,
+      configuration: { service: 'credentials', currentBucket: 'media' },
+      credentials: { ...FULL_CREDENTIALS, accessKeyId: '' },
+      canStore: false,
+    },
+    {
+      name: 'not hosted missing endpoint -> cannot store',
+      hosted: false,
+      configuration: { service: 'credentials', currentBucket: 'media' },
+      credentials: { ...FULL_CREDENTIALS, endpoint: '' },
+      canStore: false,
+    },
+    {
+      name: 'not hosted missing secretAccessKey -> cannot store',
+      hosted: false,
+      configuration: { service: 'credentials', currentBucket: 'media' },
+      credentials: { ...FULL_CREDENTIALS, secretAccessKey: '' },
+      canStore: false,
+    },
+    {
+      name: 'not hosted with no creds -> cannot store',
+      hosted: false,
+      configuration: { service: 'credentials', currentBucket: '' },
+      credentials: NO_CREDENTIALS,
+      canStore: false,
+    },
+    {
+      name: 'not hosted presigned-url without creds -> cannot store (memex needs a hosted node)',
+      hosted: false,
+      configuration: { service: 'presigned-url', currentBucket: '' },
+      credentials: NO_CREDENTIALS,
+      canStore: false,
+    },
+    {
+      name: 'missing credentials and configuration objects -> cannot store',
+      hosted: false,
+      configuration: null,
+      credentials: null,
+      canStore: false,
+    },
+    {
+      name: 'hosted with missing credentials object -> memex',
+      hosted: true,
+      configuration: null,
+      credentials: null,
+      canStore: true,
+    },
+  ];
+
+  for (const testCase of cases) {
+    it(testCase.name, () => {
+      expect(
+        shipCanStoreUploads({
+          hosted: testCase.hosted,
+          credentials: testCase.credentials,
+          configuration: testCase.configuration,
+        })
+      ).toBe(testCase.canStore);
+    });
+  }
 });

@@ -60,6 +60,14 @@ test('should clear thread unreads while user is viewing the thread', async ({
   // ~ten sees the thread indicator and enters the thread
   await expect(tenPage.getByText('1 reply')).toBeVisible({ timeout: 15000 });
 
+  // The dot must be visible on ~ten's side before ~ten enters the thread
+  const tenParent = tenPage
+    .getByTestId('Post')
+    .filter({ hasText: 'Thread unread test parent message' });
+  await expect(tenParent.getByTestId('ThreadUnreadDot')).toBeVisible({
+    timeout: 15000,
+  });
+
   // ~ten sends a reply WHILE ~zod is still viewing the thread
   // This is the exact scenario that triggered the bug: the new reply should
   // be auto-marked as read because ~zod is actively viewing the thread.

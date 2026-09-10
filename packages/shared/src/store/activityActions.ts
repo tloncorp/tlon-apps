@@ -3,10 +3,12 @@ import { isGroupChannelId } from '@tloncorp/api/client';
 import * as ub from '@tloncorp/api/urbit';
 import { whomIsMultiDm } from '@tloncorp/api/urbit';
 
+import { trackEvent } from '../analytics';
 import * as db from '../db';
 import { QueryCtx } from '../db/query';
 import { BASE_UNREADS_SINGLETON_KEY } from '../db/schema';
 import { createDevLogger } from '../debug';
+import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 
 const logger = createDevLogger('activityActions', false);
@@ -105,6 +107,9 @@ export async function muteThread({
     });
     const volume = ub.getVolumeMap('soft', true);
     await api.adjustVolumeSetting(source, volume);
+    trackEvent(AnalyticsEvent.ThreadMuted, {
+      channelType: channel.type,
+    });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to mute thread', {
       error: e,
@@ -134,6 +139,9 @@ export async function unmuteThread({
   try {
     const { source } = api.getThreadSource({ channel, post: thread });
     await api.adjustVolumeSetting(source, null);
+    trackEvent(AnalyticsEvent.ThreadUnmuted, {
+      channelType: channel.type,
+    });
   } catch (e) {
     logger.trackError('ActivityAction: Failed to unmute thread', {
       error: e,
@@ -254,6 +262,7 @@ export async function setGroupVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
+    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set group volume level', {
@@ -264,6 +273,7 @@ export async function setGroupVolumeLevel(params: {
     if (existingGroup?.volumeSettings) {
       await db.setVolumes({ volumes: [existingGroup.volumeSettings] });
     }
+    return false;
   }
 }
 
@@ -276,25 +286,43 @@ export async function setChannelVolumeLevel(params: {
     channelId: params.channel.id,
   });
   const isGroupChannel = isGroupChannelId(params.channel.id);
+  const isNotesChannel = params.channel.id.startsWith('notes/');
   const isMultiDm = whomIsMultiDm(params.channel.id);
-  const source: ub.Source = isGroupChannel
+  // note events live under %notebook sources, not %channel, so a notes
+  // channel's volume must target the notebook source to take effect
+  const source: ub.Source = isNotesChannel
     ? {
-        channel: {
-          nest: params.channel.id,
-          group: params.channel.groupId ?? '',
+        notebook: {
+          flag: params.channel.id.slice('notes/'.length),
+          group: params.channel.groupId ?? null,
         },
       }
-    : isMultiDm
+    : isGroupChannel
       ? {
-          dm: {
-            club: params.channel.id,
+          channel: {
+            nest: params.channel.id,
+            group: params.channel.groupId ?? '',
           },
         }
-      : {
-          dm: {
-            ship: params.channel.id,
-          },
-        };
+      : isMultiDm
+        ? {
+            dm: {
+              club: params.channel.id,
+            },
+          }
+        : {
+            dm: {
+              ship: params.channel.id,
+            },
+          };
+
+  // a backend below the notes activity gate can't parse %notebook sources
+  // — and if the capability just hasn't resolved yet, a local-only write
+  // would silently diverge from the ship. Fail before the optimistic
+  // update so the UI keeps showing the real setting.
+  if (isNotesChannel && !api.getActivitySupportsNotes()) {
+    return false;
+  }
 
   // optimistic update
   if (!params.level) {
@@ -312,6 +340,7 @@ export async function setChannelVolumeLevel(params: {
       source,
       params.level ? ub.getVolumeMap(params.level, true) : null
     );
+    return true;
   } catch (e) {
     // rollback
     logger.trackError('ActivityAction: Failed to set channel volume level', {
@@ -330,6 +359,7 @@ export async function setChannelVolumeLevel(params: {
         ],
       });
     }
+    return false;
   }
 }
 

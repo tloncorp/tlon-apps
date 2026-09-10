@@ -26,6 +26,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   buildCacheProvider:
     process.env.TLON_EAS_CACHE_DISABLED === '1' ? undefined : 'eas',
+  experiments: {
+    reactCompiler: true,
+  },
   extra: {
     eas: {
       projectId,
@@ -68,6 +71,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     gitHash: buildGitHash ? buildGitHash.substring(0, 7) : 'dev',
     automatedTest: process.env.AUTOMATED_TEST,
     forceSplashSequence: process.env.FORCE_SPLASH_SEQUENCE,
+    agentShipOverride: process.env.AGENT_SHIP_OVERRIDE,
   },
   ios: {
     // demo builds triggered by GitHub require this to be explicitly set rather than handled
@@ -122,7 +126,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-contacts',
       {
-        contactsPermission: 'Allow Tlon Messenger to access your contacts.',
+        contactsPermission:
+          'Tlon Messenger uses your contacts to help you find people you know who are already on the network and to invite others via SMS or email. Your contacts are never uploaded — only anonymous, hashed identifiers are sent to our server for matching.',
       },
     ],
     'expo-audio',

@@ -1,0 +1,112 @@
+{
+  "fixtureProvenance": "HAND-AUTHORED BUT WIRE-EXACT: these values use the backend JSON wire shapes and are not captured ship responses.",
+  "stories": {
+    "sects": [
+      {
+        "inline": [
+          "null sect ",
+          { "sect": null },
+          " named sect ",
+          { "sect": "wire-admin" }
+        ]
+      }
+    ],
+    "tag": [{ "inline": ["tag ", { "tag": "wire-exact-tag" }] }],
+    "blockReference": [
+      {
+        "inline": [
+          "reference ",
+          {
+            "block": {
+              "index": 0,
+              "text": "wire-exact-block-reference"
+            }
+          }
+        ]
+      }
+    ],
+    "rootListContents": [
+      {
+        "block": {
+          "listing": {
+            "list": {
+              "type": "unordered",
+              "contents": ["wire-exact-root-list-contents"],
+              "items": [{ "item": ["wire-exact-root-list-child"] }]
+            }
+          }
+        }
+      }
+    ],
+    "taskWithSiblings": [
+      {
+        "block": {
+          "listing": {
+            "list": {
+              "type": "tasklist",
+              "contents": [],
+              "items": [
+                {
+                  "item": [
+                    {
+                      "task": {
+                        "checked": true,
+                        "content": ["wire-exact-task-content"]
+                      }
+                    },
+                    " wire-exact-task-sibling"
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "blockquote": [
+      {
+        "inline": [
+          {
+            "blockquote": ["wire-exact-blockquote"]
+          }
+        ]
+      }
+    ],
+    "consecutiveBreaksBeforeBlockquote": [
+      {
+        "inline": [
+          "wire-exact-before-breaks",
+          { "break": null },
+          { "break": null },
+          { "blockquote": ["wire-exact-after-breaks"] }
+        ]
+      }
+    ],
+    "nestedBlockquote": [
+      {
+        "inline": [
+          {
+            "blockquote": [
+              "wire-exact-outer-quote",
+              {
+                "blockquote": ["wire-exact-inner-quote"]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "quotedShipMention": [
+      {
+        "inline": [
+          {
+            "blockquote": [
+              "wire-exact-quoted-ship ",
+              { "ship": "~sampel-palnet" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

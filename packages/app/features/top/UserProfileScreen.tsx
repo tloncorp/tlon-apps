@@ -1,6 +1,6 @@
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
-import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
+import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import type * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
@@ -51,6 +51,10 @@ export function UserProfileScreen({ route, navigation }: Props) {
   const { data: calmSettings } = store.useCalmSettings();
   const [selectedGroup, setSelectedGroup] = useState<db.Group | null>(null);
   const { navigateToBotSettings, resetToDm } = useRootNavigation();
+
+  useEffect(() => {
+    trackEvent(AnalyticsEvent.ProfileOpened);
+  }, [userId]);
 
   useEffect(() => {
     if (userId && userId !== currentUserId) {

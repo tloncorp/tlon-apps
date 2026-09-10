@@ -25,6 +25,9 @@ DEFAULT_MIN_UPDATE_INTERVAL_MS = 1_000
 ACTIVE_PRESENCE_TIMEOUT = "~m1.s30"
 DEFAULT_MAX_PUBLISH_AGE_MS = 30_000
 DEFAULT_KEEPALIVE_INTERVAL_MS = 20_000
+# A run whose ``stop_run`` never fires would otherwise hold the presence lease
+# open for the life of the process, because the keepalive keeps refreshing it.
+DEFAULT_MAX_RUN_LIFETIME_MS = 30 * 60 * 1_000
 STOPPED_RUN_MEMORY = 8
 
 TOOL_LABELS = {
@@ -190,6 +193,7 @@ class TlonComputingPresenceReporter:
 @dataclass
 class _RunState:
     tool_names: list[str] = field(default_factory=list)
+    started_at_ms: float = field(default_factory=lambda: time.monotonic() * 1000.0)
 
 
 @dataclass(frozen=True)
@@ -206,6 +210,7 @@ class TlonComputingPresenceTracker:
         min_update_interval_ms: int = DEFAULT_MIN_UPDATE_INTERVAL_MS,
         max_publish_age_ms: int = DEFAULT_MAX_PUBLISH_AGE_MS,
         keepalive_interval_ms: int = DEFAULT_KEEPALIVE_INTERVAL_MS,
+        max_run_lifetime_ms: int = DEFAULT_MAX_RUN_LIFETIME_MS,
         on_error: Optional[Callable[[str, BaseException], None]] = None,
     ) -> None:
         self._reporter = reporter
@@ -215,6 +220,7 @@ class TlonComputingPresenceTracker:
             int(max_publish_age_ms),
         )
         self._keepalive_interval_ms = max(0, int(keepalive_interval_ms))
+        self._max_run_lifetime_ms = max(0, int(max_run_lifetime_ms))
         self._on_error = on_error
         self._conversations: dict[str, dict[str, _RunState]] = {}
         self._last_published_state: dict[str, _PublishedState] = {}
@@ -475,9 +481,15 @@ class TlonComputingPresenceTracker:
         try:
             while True:
                 await asyncio.sleep(self._keepalive_interval_ms / 1000.0)
+                expired = await self._drop_expired_runs(conversation_id)
                 async with self._lock:
                     runs = list(self._conversations.get(conversation_id, {}).keys())
                 if not runs:
+                    # Every run for this conversation is gone.  If the last one
+                    # expired instead of stopping cleanly, release the lease so
+                    # the client stops showing the indicator.
+                    if expired:
+                        await self._release_expired_conversation(conversation_id)
                     return
                 for run_id in runs:
                     await self.refresh_run(
@@ -489,6 +501,57 @@ class TlonComputingPresenceTracker:
         finally:
             if self._keepalive_tasks.get(conversation_id) is asyncio.current_task():
                 self._keepalive_tasks.pop(conversation_id, None)
+
+    async def _drop_expired_runs(self, conversation_id: str) -> bool:
+        """Drop runs past the lifetime cap.  Returns True if any were dropped.
+
+        A run is removed only by ``stop_run``, which the adapter calls from
+        ``on_processing_complete``.  The gateway invokes that hook through a
+        wrapper that swallows every exception, and at least one dispatch path
+        returns before the hook runs at all.  Either case leaks the run, and
+        the keepalive would then refresh its lease forever.
+        """
+        if self._max_run_lifetime_ms <= 0:
+            return False
+
+        now_ms = time.monotonic() * 1000.0
+        async with self._lock:
+            runs = self._conversations.get(conversation_id)
+            if not runs:
+                return False
+            stale = [
+                run_id
+                for run_id, run in runs.items()
+                if now_ms - run.started_at_ms >= self._max_run_lifetime_ms
+            ]
+            for run_id in stale:
+                runs.pop(run_id, None)
+                self._mark_run_stopped_unlocked(conversation_id, run_id)
+            if not runs:
+                self._conversations.pop(conversation_id, None)
+
+        for run_id in stale:
+            logger.warning(
+                "[tlon] Dropping computing presence run %s for %s after %dms; "
+                "stop_run never fired for this turn",
+                run_id,
+                conversation_id,
+                self._max_run_lifetime_ms,
+            )
+        return bool(stale)
+
+    async def _release_expired_conversation(self, conversation_id: str) -> None:
+        previous = self._last_published_state.get(conversation_id)
+        if not previous or not previous.thinking:
+            return
+        await self._safely_sync(
+            conversation_id,
+            "clear",
+            lambda: self._publish_now(
+                conversation_id,
+                _PublishedState(thinking=False, tool_names=()),
+            ),
+        )
 
     def _ensure_run(self, conversation_id: str, run_id: str) -> _RunState:
         runs = self._conversations.setdefault(conversation_id, {})

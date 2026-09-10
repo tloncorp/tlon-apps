@@ -10,6 +10,146 @@
 ::
 ::  versions
 ::
+++  v11
+  =,  v10
+  |%
+  ::  $group: modified
+  ::
+  ::  .blob: custom payload
+  ::
+  +$  group
+    $:  meta=data:meta
+        blob=(unit @t)
+      ::
+        =admissions
+        seats=(map ship seat)
+      ::
+        roles=(map role-id role)
+        =admins
+      ::
+        channels=(map nest channel)
+        active-channels=(set nest)
+      ::
+        sections=(map section-id section)
+        section-order=(list section-id)
+      ::
+        =flagged-content
+    ==
+  ::  $group-ui: depends on $group
+  +$  group-ui
+    $:  =group
+        init=?
+        member-count=@ud
+    ==
+  ::  $groups-ui: depends on $group-ui
+  +$  groups-ui
+    (map flag group-ui)
+  ::  $groups: depends on $group
+  +$  groups
+    (map flag group)
+  ::  $net: depends on $log
+  +$  net
+    $~  [%pub ~]
+    $%  [%pub =log]
+        [%sub =time init=_|]
+    ==
+  ::  $net-groups: depends on $group and $net
+  +$  net-groups
+    (map flag [net group])
+  ::  $init: depends on $group
+  +$  init  [=time =group]
+  ::  $update: depends on $u-group
+  +$  update  [=time =u-group]
+  ::  $u-group: modified, depends on $group
+  ::
+  ::  %blob: update the custom payload
+  ::
+  +$  u-group
+    $%  [%create =group]
+        [%meta =data:meta]
+        [%blob blob=(unit @t)]
+        [%entry =u-entry]
+        [%seat ships=(set ship) =u-seat]
+        [%role roles=(set role-id) =u-role]
+        [%channel =nest =u-channel]
+        [%section =section-id =u-section]
+        [%section-order order=(list section-id)]
+        [%flag-content =nest =plan src=ship]
+        [%delete ~]
+    ==
+  ::  $log: depends on $u-group
+  +$  log  ((mop time u-group) lte)
+  ::  $log-on: depends on $u-group
+  ++  log-on  ((on time u-group) lte)
+  ::  $r-groups: depends on $r-group
+  +$  r-groups  [=flag =r-group]
+  ::  $r-group: modified, depends on $group
+  ::
+  ::  %blob: update the custom payload
+  ::
+  +$  r-group
+    $%  [%create =group]
+        [%meta meta=data:meta]
+        [%blob blob=(unit @t)]
+        [%entry =r-entry]
+        [%seat ships=(set ship) =r-seat]
+        [%role roles=(set role-id) =r-role]
+        [%channel =nest =r-channel]
+        [%section =section-id =r-section]
+        [%section-order order=(list section-id)]
+        [%flag-content =nest =plan src=ship]
+        [%active-channel =nest joined=?]
+        [%delete ~]
+    ==
+  ::  $a-groups: depends on $a-group
+  +$  a-groups
+    $%  [%group =flag =a-group]
+        [%invite =flag ships=(set ship) =a-invite]
+        [%leave =flag]
+    ==
+  ::  $a-group: modified
+  ::
+  ::  %blob: update the custom payload
+  ::
+  +$  a-group
+    $%  [%meta meta=data:meta]
+        [%blob blob=(unit @t)]
+        [%entry =a-entry]
+        [%seat ships=(set ship) =a-seat]
+        [%role roles=(set role-id) =a-role]
+        [%channel =nest =a-channel]
+        [%section =section-id =a-section]
+        [%navigation =a-navigation]
+        [%flag-content =nest =plan src=ship]
+        [%delete ~]
+    ==
+  ::  $c-groups: depends on $c-group
+  +$  c-groups
+    $%  [%create =create-group]
+        [%group =flag =c-group]
+      ::
+        [%ask =flag story=(unit story:s)]
+        [%join =flag token=(unit token)]
+      ::
+        [%leave =flag]
+    ==
+  ::  $c-group: modified
+  ::
+  ::  %blob: update the custom payload
+  ::
+  +$  c-group
+    $%  [%meta meta=data:meta]
+        [%blob blob=(unit @t)]
+        [%entry =c-entry]
+        [%seat ships=(set ship) =c-seat]
+        [%role roles=(set role-id) =c-role]
+        [%channel =nest =c-channel]
+        [%section =section-id =c-section]
+        [%section-order order=(list section-id)]
+        [%flag-content =nest =plan src=ship]
+        [%delete ~]
+    ==
+  --
 ++  v10
   =,  v9
   |%

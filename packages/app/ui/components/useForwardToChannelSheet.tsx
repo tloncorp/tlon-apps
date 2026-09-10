@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { YStack, getTokenValue } from 'tamagui';
 
+import { useSheetCloseAfterAnimation } from '../hooks/useSheetCloseAfterAnimation';
 import { useChatTitle } from '../utils';
 
 type UseForwardToChannelSheetParams = {
@@ -12,6 +13,7 @@ type UseForwardToChannelSheetParams = {
   onForwardToChannel: (channel: db.Channel) => Promise<void>;
   successMessage: (channelTitle: string) => string | null;
   failureMessage: string;
+  closeBeforeForward?: boolean;
 };
 
 export const FORWARD_SHEET_SNAP_POINTS: number[] = [85];
@@ -43,6 +45,7 @@ export function useForwardToChannelSheet({
   onForwardToChannel,
   successMessage,
   failureMessage,
+  closeBeforeForward = false,
 }: UseForwardToChannelSheetParams) {
   const isDelayedCloseOpen = useDelayedClose(isOpen);
   const [selectedChannel, setSelectedChannel] = useState<db.Channel | null>(
@@ -53,6 +56,7 @@ export function useForwardToChannelSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const showToast = useToast();
   const insets = useSafeAreaInsets();
+  const { closeAfterAnimation } = useSheetCloseAfterAnimation();
 
   useEffect(() => {
     if (isDelayedCloseOpen) {
@@ -67,30 +71,44 @@ export function useForwardToChannelSheet({
     setSelectedChannel(channel);
   }, []);
 
-  const handleSendItem = useCallback(async () => {
+  const handleSendItem = useCallback(() => {
     if (!selectedChannel) {
       return;
     }
 
     setIsSending(true);
     setErrorMessage(null);
-    try {
-      await onForwardToChannel(selectedChannel);
-      onClose();
-      const successText = successMessage(selectedChannelTitle);
-      if (successText) {
-        showToast({
-          message: successText,
-          duration: 1500,
-        });
+
+    const forward = async () => {
+      try {
+        await onForwardToChannel(selectedChannel);
+        if (!closeBeforeForward) {
+          onClose();
+        }
+        const successText = successMessage(selectedChannelTitle);
+        if (successText) {
+          showToast({
+            message: successText,
+            duration: 1500,
+          });
+        }
+      } catch {
+        setErrorMessage(failureMessage);
+        setTimeout(() => setErrorMessage(null), 1500);
+      } finally {
+        setIsSending(false);
       }
-    } catch {
-      setErrorMessage(failureMessage);
-      setTimeout(() => setErrorMessage(null), 1500);
-    } finally {
-      setIsSending(false);
+    };
+
+    if (closeBeforeForward) {
+      onClose();
+      closeAfterAnimation(() => void forward());
+    } else {
+      void forward();
     }
   }, [
+    closeAfterAnimation,
+    closeBeforeForward,
     failureMessage,
     onClose,
     onForwardToChannel,

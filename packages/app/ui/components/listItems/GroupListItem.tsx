@@ -1,6 +1,10 @@
 // sort-imports-ignore
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import {
+  notesNotebookFlagFromChannelId,
+  useWarmNotesNotebookSnapshot,
+} from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { TamaguiWebElement, View, isWeb } from 'tamagui';
 
@@ -14,16 +18,37 @@ import { ContactName } from '../ContactNameV2';
 import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ListItem, ListItemProps } from '../ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
+import type { GroupRecencyOverride } from './chatListRecency';
+
+function NotesActivitySubtitle({
+  override,
+}: {
+  override: GroupRecencyOverride;
+}) {
+  useWarmNotesNotebookSnapshot({
+    notebookFlag: notesNotebookFlagFromChannelId(override.channelId),
+  });
+
+  return (
+    <ListItem.SubtitleWithIcon icon="ChannelNotebooks">
+      {override.label}
+    </ListItem.SubtitleWithIcon>
+  );
+}
 
 export const GroupListItem = ({
   model,
   onPress,
   onLongPress,
   customSubtitle,
+  recencyOverride,
   disableOptions = false,
   hoverStyle,
   ...props
-}: { customSubtitle?: string } & ListItemProps<db.Group>) => {
+}: {
+  customSubtitle?: string;
+  recencyOverride?: GroupRecencyOverride | null;
+} & ListItemProps<db.Group>) => {
   const [open, setOpen] = useState(false);
   const { setChat } = useChatOptions(disableOptions);
   const [isHovered, setIsHovered] = useState(false);
@@ -120,6 +145,7 @@ export const GroupListItem = ({
   return (
     <View ref={containerRef}>
       <Pressable
+        data-group-id={model.id}
         borderRadius="$xl"
         onPress={open ? undefined : handlePress}
         onLongPress={isWeb ? undefined : handleLongPress}
@@ -139,7 +165,9 @@ export const GroupListItem = ({
           />
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
-            {customSubtitle ? (
+            {recencyOverride ? (
+              <NotesActivitySubtitle override={recencyOverride} />
+            ) : customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : isSingleChannel ? (
               <ListItem.SubtitleWithIcon icon="ChannelMultiDM">
@@ -164,7 +192,7 @@ export const GroupListItem = ({
                 </ListItem.Subtitle>
               </>
             ) : null}
-            {model.lastPost ? (
+            {recencyOverride ? null : model.lastPost ? (
               <ListItem.PostPreview post={model.lastPost} />
             ) : !isPending ? (
               model.isPersonalGroup ? (
@@ -184,7 +212,9 @@ export const GroupListItem = ({
                 />
               ) : (
                 <>
-                  <ListItem.Time time={model.lastPostAt} />
+                  <ListItem.Time
+                    time={recencyOverride?.timestamp ?? model.lastPostAt}
+                  />
                   <ListItem.Count
                     opacity={isHovered ? 0 : 1}
                     notified={notified}

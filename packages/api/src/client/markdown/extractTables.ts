@@ -25,7 +25,10 @@ import type {
 import { convertInlineContent } from '../postContentInlines';
 import { remarkGroupMentions } from './groupMentionPlugin';
 import { phrasingToInlines } from './mdastToStory';
-import { remarkShipMentions } from './shipMentionPlugin';
+import {
+  SHIP_MENTION_FUSABLE_START,
+  remarkShipMentions,
+} from './shipMentionPlugin';
 
 // Matches a GFM table separator row: `|---|---|`, `| :---: | ---: |`, etc.
 // Requires at least one cell of three or more dashes, with optional alignment
@@ -42,7 +45,7 @@ const SEPARATOR_LINE =
 const mentionHandlers = {
   handlers: {
     shipMention(node: { value: string }) {
-      return `~${node.value}`;
+      return node.value;
     },
     groupMention(node: { value: string }) {
       return `@${node.value}`;
@@ -65,11 +68,11 @@ function inlineDataToPhrasing(inline: InlineData): PhrasingContent {
       const children = inline.children.map(inlineDataToPhrasing);
       switch (inline.style) {
         case 'bold':
-          return { type: 'strong', children };
+          return separateCellMentions({ type: 'strong', children });
         case 'italic':
-          return { type: 'emphasis', children };
+          return separateCellMentions({ type: 'emphasis', children });
         case 'strikethrough':
-          return { type: 'delete', children };
+          return separateCellMentions({ type: 'delete', children });
         case 'code': {
           const text =
             inline.children[0]?.type === 'text' ? inline.children[0].text : '';
@@ -88,7 +91,7 @@ function inlineDataToPhrasing(inline: InlineData): PhrasingContent {
     case 'mention':
       return {
         type: 'shipMention',
-        value: inline.contactId.replace(/^~/, ''),
+        value: `~${inline.contactId.replace(/^~+/, '')}`,
       } as unknown as PhrasingContent;
     case 'groupMention':
       return {
@@ -102,7 +105,106 @@ function inlineDataToPhrasing(inline: InlineData): PhrasingContent {
         value: `${inline.checked ? '[x]' : '[ ]'} ${inner}`,
       };
     }
+    case 'blockquote':
+      return { type: 'text', value: inlineDataChildText(inline) };
   }
+}
+
+function cellMarkStartsWithWordText(node: PhrasingContent): boolean {
+  const first = (node as unknown as { children?: PhrasingContent[] })
+    .children?.[0] as unknown as { type: string; value?: unknown } | undefined;
+  return (
+    !!first &&
+    first.type === 'text' &&
+    typeof first.value === 'string' &&
+    /^[\p{L}\p{N}]/u.test(first.value)
+  );
+}
+
+function needsCellMentionSeparator(node: PhrasingContent): boolean {
+  const candidate = node as unknown as {
+    type: string;
+    value?: unknown;
+    children?: PhrasingContent[];
+  };
+
+  // These children feed toMarkdown's attention machinery, so a mention
+  // before one without word-leading text gets the same flanking-fixup
+  // corruption as in the main serializer.
+  if (
+    candidate.type === 'strong' ||
+    candidate.type === 'emphasis' ||
+    candidate.type === 'delete'
+  ) {
+    return !cellMarkStartsWithWordText(node);
+  }
+
+  // Only text and mention values can start with a fusable character; links,
+  // inline code, and breaks serialize with punctuation first.
+  if (
+    candidate.type === 'text' ||
+    candidate.type === 'shipMention' ||
+    candidate.type === 'groupMention'
+  ) {
+    return (
+      typeof candidate.value === 'string' &&
+      SHIP_MENTION_FUSABLE_START.test(candidate.value)
+    );
+  }
+
+  return false;
+}
+
+// A styled cell serializes as one chunk, so mention boundaries must be
+// inserted inside the nested children (recursively — styles nest) or a
+// mention and following text fuse into a wrong mention on reparse.
+function separateCellMentions<T extends PhrasingContent>(node: T): T {
+  const parent = node as unknown as { children?: PhrasingContent[] };
+  if (!Array.isArray(parent.children)) return node;
+
+  for (const child of parent.children) {
+    if (
+      (child.type === 'strong' ||
+        child.type === 'emphasis' ||
+        child.type === 'delete') &&
+      'children' in child
+    ) {
+      separateCellMentions(child);
+    }
+  }
+
+  const children = parent.children;
+  for (let index = 0; index < children.length; index += 1) {
+    const child = children[index] as unknown as { type: string };
+    if (child.type !== 'shipMention' && child.type !== 'groupMention') {
+      continue;
+    }
+
+    // Zero-width text pieces do not affect adjacency.
+    let nextIndex = index + 1;
+    while (nextIndex < children.length) {
+      const candidate = children[nextIndex] as unknown as {
+        type: string;
+        value?: unknown;
+      };
+      if (candidate.type === 'text' && candidate.value === '') {
+        nextIndex += 1;
+        continue;
+      }
+      break;
+    }
+    if (nextIndex >= children.length) continue;
+
+    if (needsCellMentionSeparator(children[nextIndex])) {
+      children.splice(index + 1, 0, {
+        type: 'html',
+        value: '<!-- -->',
+      } as unknown as PhrasingContent);
+      index += 1;
+    }
+  }
+
+  return node;
 }
 
 function inlineDataChildText(inline: InlineData): string {
@@ -123,6 +225,8 @@ function inlineDataChildText(inline: InlineData): string {
       return `${inline.checked ? '[x]' : '[ ]'} ${inline.children
         .map(inlineDataChildText)
         .join('')}`;
+    case 'blockquote':
+      return '> ' + inline.children.map(inlineDataChildText).join('');
   }
 }
 
@@ -159,7 +263,7 @@ function inlineDataToMarkdown(inline: InlineData): string {
 
 const tableProcessor = unified()
   .use(remarkParse)
-  .use(remarkGfm)
+  .use(remarkGfm, { singleTilde: false })
   .use(remarkShipMentions)
   .use(remarkGroupMentions);
 
@@ -168,12 +272,43 @@ type InlineMapping = {
   positions: Array<{ start: number; end: number; inline: InlineData }>;
 };
 
+// The serialized text of the next inline that renders to something, skipping
+// zero-width text pieces that must not affect adjacency decisions.
+function nextEffectiveChunk(
+  inlines: InlineData[],
+  from: number
+): string | undefined {
+  for (let index = from; index < inlines.length; index += 1) {
+    const inline = inlines[index];
+    if (inline.type === 'text' && inline.text === '') continue;
+    return inlineDataToMarkdown(inline);
+  }
+  return undefined;
+}
+
 function inlinesToText(inlines: InlineData[]): InlineMapping {
   let text = '';
   const positions: InlineMapping['positions'] = [];
-  for (const inline of inlines) {
+  for (let index = 0; index < inlines.length; index += 1) {
+    const inline = inlines[index];
     const start = text.length;
-    text += inlineDataToMarkdown(inline);
+    let chunk = inlineDataToMarkdown(inline);
+
+    // A mention whose next effective sibling starts with a fusable character
+    // would fuse into a wrong mention (or lose both halves next to a group
+    // mention) on reparse. Appending to the mention's own chunk keeps the
+    // position-map slicing consistent for pre/post paragraph slices.
+    if (inline.type === 'mention' || inline.type === 'groupMention') {
+      const nextChunk = nextEffectiveChunk(inlines, index + 1);
+      if (
+        nextChunk !== undefined &&
+        SHIP_MENTION_FUSABLE_START.test(nextChunk)
+      ) {
+        chunk += '<!-- -->';
+      }
+    }
+
+    text += chunk;
     positions.push({ start, end: text.length, inline });
   }
   return { text, positions };

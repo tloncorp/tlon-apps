@@ -1,4 +1,6 @@
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import {
+  BlockquoteInlineData,
   GroupMentionInlineData,
   InlineData,
   InlineFromType,
@@ -8,6 +10,7 @@ import {
   TaskInlineData,
   TextInlineData,
 } from '@tloncorp/shared/logic';
+import { useGroupPreview } from '@tloncorp/shared/store';
 import { RawText, Text } from '@tloncorp/ui';
 import React, {
   PropsWithChildren,
@@ -18,9 +21,7 @@ import React, {
 import { Linking, Platform } from 'react-native';
 import { ColorTokens, styled } from 'tamagui';
 
-import { useChannelContext } from '../../contexts/channel';
 import { useNavigation } from '../../contexts/navigation';
-import { useRequests } from '../../contexts/requests';
 import { ALL_MENTION_ID } from '../BareChatInput/useMentions';
 import { useContactName } from '../ContactNameV2';
 import { useContentContext } from './contentUtils';
@@ -88,9 +89,8 @@ export function InlineGroupMention({
 }: PropsWithChildren<{
   inline: GroupMentionInlineData;
 }>) {
-  const { useGroup } = useRequests();
-  const channel = useChannelContext();
-  const { data: group } = useGroup(channel.groupId ?? '');
+  const { groupId } = useContentContext();
+  const { data: group } = useGroupPreview(groupId ?? '');
   const { onGoToGroupSettings } = useNavigation();
   const handlePress = useCallback(() => {
     onGoToGroupSettings?.();
@@ -189,6 +189,7 @@ export function InlineText({
 
 export function InlineLink({ inline: node }: { inline: LinkInlineData }) {
   const handlePress = useCallback(() => {
+    trackEvent(AnalyticsEvent.ExternalLinkOpened);
     if (Platform.OS === 'web') {
       window.open(node.href, '_blank', 'noopener,noreferrer');
     } else {
@@ -214,6 +215,17 @@ export function InlineTask({ inline: node }: { inline: TaskInlineData }) {
   );
 }
 
+export function InlineBlockquote({ inline }: { inline: BlockquoteInlineData }) {
+  return (
+    <Text color="$tertiaryText">
+      {' > '}
+      {inline.children.map((child, i) => (
+        <InlineRenderer inline={child} key={i} />
+      ))}{' '}
+    </Text>
+  );
+}
+
 export type InlineRenderer<T extends InlineData> = React.ComponentType<{
   inline: T;
   color?: ColorTokens;
@@ -231,6 +243,7 @@ export const defaultInlineRenderers: InlineRendererConfig = {
   lineBreak: InlineLineBreak,
   link: InlineLink,
   task: InlineTask,
+  blockquote: InlineBlockquote,
 };
 
 const InlineRendererContext = React.createContext<

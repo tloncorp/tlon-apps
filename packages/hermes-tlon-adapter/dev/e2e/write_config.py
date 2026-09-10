@@ -18,7 +18,15 @@ def _clean(env: Mapping[str, str | None], name: str, default: str = "") -> str:
     return value or default
 
 
+_TRUTHY = {"1", "true", "yes", "on"}
+
+
+def _flag(env: Mapping[str, str | None], name: str) -> bool:
+    return _clean(env, name).lower() in _TRUTHY
+
+
 def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
+    enable_cronjob = _flag(env, "HERMES_E2E_ENABLE_CRONJOB")
     home_channel = (
         _clean(env, "TLON_HOME_CHANNEL")
         or _clean(env, "TLON_OWNER_SHIP")
@@ -58,11 +66,13 @@ def render_config(env: Mapping[str, str | None]) -> dict[str, object]:
             },
         },
         "platform_toolsets": {
-            "tlon": ["tlon", "no_mcp"],
+            "tlon": ["tlon", "cronjob", "no_mcp"]
+            if enable_cronjob
+            else ["tlon", "no_mcp"],
         },
         "mcp_servers": {},
         "agent": {
-            "disabled_toolsets": ["cronjob"],
+            "disabled_toolsets": [] if enable_cronjob else ["cronjob"],
         },
         "tlon": {
             "known_bot_users": _clean(env, "TLON_KNOWN_BOT_USERS"),

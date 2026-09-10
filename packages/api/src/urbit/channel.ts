@@ -171,6 +171,12 @@ export interface Reply {
   revision?: string;
 }
 
+export interface ReplyWithMemo {
+  seal: ReplySeal;
+  revision?: string;
+  memo: Memo;
+}
+
 export interface Memo {
   content: Story;
   author: Author;

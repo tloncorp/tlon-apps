@@ -1,3 +1,4 @@
+import { AnalyticsEvent, AnalyticsSeverity } from '@tloncorp/shared';
 import type { Schema } from '@tloncorp/shared/db';
 import { schema, setClient, sqliteContent } from '@tloncorp/shared/db';
 import { migrations } from '@tloncorp/shared/db/migrations';
@@ -22,6 +23,19 @@ const ENABLE_DB_FILE_SAVE = IS_SECURE_CONTEXT;
 const MIN_FREE_BYTES_BEFORE_VACUUM = 4 * 1024 * 1024;
 const MIN_FREE_RATIO_BEFORE_VACUUM = 0.25;
 
+/** Stage of `setupDb` in progress, reported when setup fails. */
+type SetupPhase =
+  | 'connect'
+  | 'load-persisted'
+  | 'reset-sync-state'
+  | 'configure'
+  | 'register-client'
+  | 'read-db-info';
+
+type WebDbOptions = {
+  enableStoragePersistence?: boolean;
+};
+
 // crypto.randomUUID() is only available in secure contexts. Polyfill it
 // for plain HTTP so that SQLocal (which uses it internally) can function.
 if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
@@ -36,12 +50,25 @@ if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
 
 export class WebDb extends BaseDb {
   private sqlocal: SQLocalDrizzle | null = null;
+  private readonly enableStoragePersistence: boolean;
+
+  constructor({ enableStoragePersistence = true }: WebDbOptions = {}) {
+    super();
+    this.enableStoragePersistence = enableStoragePersistence;
+  }
 
   async setupDb() {
     if (this.sqlocal || this.client) {
       logger.warn('setupDb called multiple times, ignoring');
       return;
     }
+    // Setup spans a worker handshake, an OPFS read and a batch of pragmas, and
+    // the resulting error rarely says which one gave out. Tracking the phase is
+    // what makes the reported failure diagnosable.
+    let phase: SetupPhase = 'connect';
+    // Whether the shared client ever got registered decides whether the rest of
+    // the session has a database at all, so report it outright.
+    let clientRegistered = false;
     try {
       // Await the onConnect callback to ensure the WASM driver is fully
       // initialized before sending any queries. In non-worker mode (used for
@@ -65,13 +92,14 @@ export class WebDb extends BaseDb {
 
       const { driver } = sqlocal;
       this.client = drizzle(driver, { schema });
+      phase = 'load-persisted';
 
       // Immediately try to load DB from persisted file.
       // If successful, this will `overwriteDatabaseFile` which will reset the
       // connection to the DB - so make sure we don't do anything until this
       // promise resolves.
       let loadedFromFile = false;
-      if (ENABLE_DB_FILE_LOAD) {
+      if (this.enableStoragePersistence && ENABLE_DB_FILE_LOAD) {
         try {
           loadedFromFile = await this.loadDbFromFile();
           if (loadedFromFile) {
@@ -104,7 +132,8 @@ export class WebDb extends BaseDb {
       // No persisted DB carried sync state forward, so anything we previously
       // tracked in localStorage about "what has been synced" is meaningless.
       // Reset the sync markers so the initial sync hydrates the new DB.
-      if (!loadedFromFile) {
+      if (!loadedFromFile && this.enableStoragePersistence) {
+        phase = 'reset-sync-state';
         await resetDbSyncState();
       }
 
@@ -144,6 +173,7 @@ export class WebDb extends BaseDb {
 
       // Experimental SQLite settings. May cause crashes. More here:
       // https://ospfranco.notion.site/Configuration-6b8b9564afcc4ac6b6b377fe34475090
+      phase = 'configure';
       await this.sqlocal.sql('PRAGMA mmap_size=268435456');
       // await this.sqlocal.sql('PRAGMA journal_mode=MEMORY');
       await this.sqlocal.sql('PRAGMA synchronous=OFF');
@@ -153,12 +183,27 @@ export class WebDb extends BaseDb {
         this.enqueueProcessChanges();
       });
 
+      phase = 'register-client';
       setClient(this.client);
+      clientRegistered = true;
 
+      phase = 'read-db-info';
       const dbInfo = await this.sqlocal.getDatabaseInfo();
       logger.log('SQLite database opened:', dbInfo);
     } catch (e) {
-      logger.error('Failed to setup SQLite db', e);
+      // `logger.error` only records a breadcrumb, so this failure never reached
+      // Sentry — the only visible trace was thousands of downstream
+      // `Database not set.` reports with no sign of what actually broke.
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'setupDb: failed to set up SQLite db',
+        phase,
+        clientRegistered,
+        storagePersistenceEnabled: this.enableStoragePersistence,
+        secureContext: IS_SECURE_CONTEXT,
+        error: e,
+        errorMessage: e.message,
+        severity: AnalyticsSeverity.Critical,
+      });
     }
   }
 
@@ -260,7 +305,7 @@ export class WebDb extends BaseDb {
     this.pendingProcessChanges = setTimeout(async () => {
       this.pendingProcessChanges = null;
       await this.processChanges();
-      if (ENABLE_DB_FILE_SAVE) {
+      if (this.enableStoragePersistence && ENABLE_DB_FILE_SAVE) {
         this.saveToFile();
       }
     }, 0);
@@ -279,14 +324,18 @@ export class WebDb extends BaseDb {
   async purgeDb() {
     if (!this.sqlocal) {
       logger.warn('purgeDb called before setupDb, ignoring');
-      await sqliteContent.resetValue();
-      await resetDbSyncState();
+      if (this.enableStoragePersistence) {
+        await sqliteContent.resetValue();
+        await resetDbSyncState();
+      }
       return;
     }
     logger.log('purging sqlite database');
     this.saveToFile.cancel();
-    await sqliteContent.resetValue();
-    await resetDbSyncState();
+    if (this.enableStoragePersistence) {
+      await sqliteContent.resetValue();
+      await resetDbSyncState();
+    }
     await this.sqlocal.destroy();
     this.sqlocal = null;
     this.client = null;
@@ -300,7 +349,14 @@ export class WebDb extends BaseDb {
 
   async runMigrations() {
     if (!this.client || !this.sqlocal) {
-      logger.warn('runMigrations called before setupDb, ignoring');
+      // Migrating is skipped here, but the app carries on regardless — so this
+      // is the signal that a session is running without a database behind it.
+      logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+        context: 'runMigrations: called without a database',
+        hasClient: this.client != null,
+        hasSqlocal: this.sqlocal != null,
+        severity: AnalyticsSeverity.Critical,
+      });
       return;
     }
 

@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
 import WayfindingNotices from '../Wayfinding/Notices';
 import { DraftInputConnectedBigInput } from './DraftInputConnectedBigInput';
 import { DraftInputContext } from './shared';
@@ -48,23 +48,30 @@ export function NotebookInput({
   }, [draftInputContext.channel.id]);
 
   useRegisterChannelHeaderItem(
+    useMemo<ScreenHeaderAction[] | null>(
+      () =>
+        showBigInput
+          ? null
+          : [
+              {
+                id: 'notebook-new',
+                text: 'New',
+                onPress: handleAdd,
+                testID: 'AddNotebookPost',
+              },
+            ],
+      [handleAdd, showBigInput]
+    )
+  );
+  useRegisterChannelHeaderItem(
     useMemo(
       () =>
         showBigInput ? null : (
-          <>
-            <ScreenHeader.TextButton
-              key="notebook"
-              onPress={handleAdd}
-              testID="AddNotebookPost"
-            >
-              New
-            </ScreenHeader.TextButton>
-            <WayfindingNotices.NotebookInputTooltip
-              channelId={draftInputContext.channel.id}
-            />
-          </>
+          <WayfindingNotices.NotebookInputTooltip
+            channelId={draftInputContext.channel.id}
+          />
         ),
-      [draftInputContext.channel.id, handleAdd, showBigInput]
+      [draftInputContext.channel.id, showBigInput]
     )
   );
 

@@ -89,27 +89,31 @@ services:
         # Pin both halves of the runtime/snapshot pair so the version skew that
         # crashed serf replay (stale snapshot -> downgrade runtime to replay ->
         # serf unexpectedly shut down) cannot silently return when `latest`
-        # advances past the snapshot kelvin. rube-27 is the archive generation
-        # the tlon-web e2e suite runs; vere-v4.5 is the matching runtime.
-        echo "==> vere pin: vere-v4.5  pier gen: 27"
+        # advances past the snapshot kelvin. rube-*-group-blob is the archive
+        # generation the tlon-web e2e suite runs; vere-v4.5 is the matching
+        # runtime. Keep this in lockstep with
+        # packages/tlon-bot-e2e/docker/docker-compose.base.yml: both harnesses
+        # run test/cases/, and case 08 scries %steward, which only exists on
+        # piers built from a post-steward-refactor desk.
+        echo "==> vere pin: vere-v4.5  pier gen: group-blob"
 
         echo "==> Downloading zod..."
-        download https://bootstrap.urbit.org/rube-zod27.tgz rube-zod27.tgz md5 6e3f322f441fcd942590470b10b7cea5 283602626 || { echo "Failed to download zod"; exit 1; }
-        ls -la rube-zod27.tgz
+        download https://bootstrap.urbit.org/rube-zod-group-blob.tgz rube-zod-group-blob.tgz md5 54eddbbd4ba4aea4dfddf32572696e4a 339451899 || { echo "Failed to download zod"; exit 1; }
+        ls -la rube-zod-group-blob.tgz
         echo "==> Extracting zod..."
-        tar xzf rube-zod27.tgz || { echo "Failed to extract zod"; exit 1; }
+        tar xzf rube-zod-group-blob.tgz || { echo "Failed to extract zod"; exit 1; }
 
         echo "==> Downloading ten..."
-        download https://bootstrap.urbit.org/rube-ten27.tgz rube-ten27.tgz md5 b3ec907c2a851cff05a4676806836ded 283381725 || { echo "Failed to download ten"; exit 1; }
-        ls -la rube-ten27.tgz
+        download https://bootstrap.urbit.org/rube-ten-group-blob.tgz rube-ten-group-blob.tgz md5 665a73f4eb2e910abe3b0f2c156f1ad6 338626853 || { echo "Failed to download ten"; exit 1; }
+        ls -la rube-ten-group-blob.tgz
         echo "==> Extracting ten..."
-        tar xzf rube-ten27.tgz || { echo "Failed to extract ten"; exit 1; }
+        tar xzf rube-ten-group-blob.tgz || { echo "Failed to extract ten"; exit 1; }
 
         echo "==> Downloading mug..."
-        download https://bootstrap.urbit.org/rube-mug27.tgz rube-mug27.tgz md5 b378f62ec7a95a243d5d88976193ad1a 284181858 || { echo "Failed to download mug"; exit 1; }
-        ls -la rube-mug27.tgz
+        download https://bootstrap.urbit.org/rube-mug-group-blob.tgz rube-mug-group-blob.tgz md5 90ec6c8c6640dab832358bf4fe30b8c7 339572369 || { echo "Failed to download mug"; exit 1; }
+        ls -la rube-mug-group-blob.tgz
         echo "==> Extracting mug..."
-        tar xzf rube-mug27.tgz || { echo "Failed to extract mug"; exit 1; }
+        tar xzf rube-mug-group-blob.tgz || { echo "Failed to extract mug"; exit 1; }
 
         echo "==> Downloading vere..."
         download https://github.com/urbit/vere/releases/download/vere-v4.5/linux-x86_64.tgz vere.tgz sha256 bf7a30aad0a820bf217f3f81239b1029d16f11ba5274d45067d811489f817eed 9728849 || { echo "Failed to download vere"; exit 1; }

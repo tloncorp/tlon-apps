@@ -1,10 +1,8 @@
-import { spyOn } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { setContactsMatchedHandler } from '@tloncorp/shared/store';
 import React, { useEffect, useMemo } from 'react';
 import { useValue } from 'react-cosmos/client';
 
-import { StoreProvider, createNoOpStore } from '../ui';
 import { BotChatPreview } from '../ui/components/Wayfinding/BotChatPreview';
 import { SplashModal } from '../ui/components/Wayfinding/SplashModal';
 import {
@@ -193,8 +191,12 @@ function InvitePaneFixture() {
     console.log('Invite pane action pressed');
   }, []);
 
-  const stubStore = useMemo(() => {
-    const base = createNoOpStore();
+  const syncSystemContacts = useMemo(
+    () => async () => initialSystemContacts,
+    []
+  );
+
+  const syncContactDiscovery = useMemo(() => {
     const phones = initialSystemContacts
       .map((c) => c.phoneNumber)
       .filter((p): p is string => !!p);
@@ -206,32 +208,22 @@ function InvitePaneFixture() {
         FIXTURE_MOCK_SHIPS[i % FIXTURE_MOCK_SHIPS.length],
       ]);
 
-    return spyOn(
-      // The store object isn't typed for these stubs cleanly; cast to keep
-      // the fixture readable.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      spyOn(
-        base,
-        'syncSystemContacts',
-        (async () => initialSystemContacts) as any
-      ),
-      'syncContactDiscovery',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (async () => {
-        await new Promise((r) => setTimeout(r, latencyMs));
-        if (discoveryFails) {
-          throw new Error('fixture: discovery failed');
-        }
-        return { newMatches };
-      }) as any
-    );
+    return async () => {
+      await new Promise((r) => setTimeout(r, latencyMs));
+      if (discoveryFails) {
+        throw new Error('fixture: discovery failed');
+      }
+      return { didDiscover: true, newMatches };
+    };
   }, [matchCount, latencyMs, discoveryFails]);
 
   return (
     <FixtureWrapper fillWidth fillHeight>
-      <StoreProvider stub={stubStore}>
-        <InvitePane onActionPress={handleAction} />
-      </StoreProvider>
+      <InvitePane
+        onActionPress={handleAction}
+        syncSystemContacts={syncSystemContacts}
+        syncContactDiscovery={syncContactDiscovery}
+      />
     </FixtureWrapper>
   );
 }
@@ -277,7 +269,9 @@ function BotAvatarPaneFixture() {
 }
 
 function BotProviderPaneFixture() {
-  const [model, setModel] = useValue('Provider', { defaultValue: 'basic' });
+  const [model, setModel] = useValue('Provider', {
+    defaultValue: 'basic:included',
+  });
   const handleAction = React.useCallback(() => {
     console.log('BotProvider pane action pressed');
   }, []);
@@ -290,10 +284,42 @@ function BotProviderPaneFixture() {
       <BotProviderPane
         model={model}
         providers={[
-          { label: 'MiniMax', provider: 'basic', requiresKey: false },
-          { label: 'Anthropic', provider: 'anthropic', requiresKey: true },
-          { label: 'OpenAI', provider: 'openai', requiresKey: true },
-          { label: 'OpenRouter', provider: 'openrouter', requiresKey: true },
+          {
+            id: 'basic:included',
+            label: 'GPT-5.6 Luna',
+            provider: 'basic',
+            credentialMode: 'included',
+            requiresKey: false,
+          },
+          {
+            id: 'openai:subscription',
+            label: 'ChatGPT subscription',
+            provider: 'openai',
+            credentialMode: 'subscription',
+            requiresKey: false,
+            recommendationLabel: 'Recommended',
+          },
+          {
+            id: 'anthropic:api-key',
+            label: 'Anthropic',
+            provider: 'anthropic',
+            credentialMode: 'api-key',
+            requiresKey: true,
+          },
+          {
+            id: 'openai:api-key',
+            label: 'OpenAI — API key',
+            provider: 'openai',
+            credentialMode: 'api-key',
+            requiresKey: true,
+          },
+          {
+            id: 'openrouter:api-key',
+            label: 'OpenRouter',
+            provider: 'openrouter',
+            credentialMode: 'api-key',
+            requiresKey: true,
+          },
         ]}
         onModelChange={setModel}
         onBackPress={handleBack}
@@ -352,6 +378,7 @@ function BotModelPaneFixture() {
           { id: 'openai/gpt-4.1-nano' },
           { id: 'openai/o3' },
           { id: 'openai/o4-mini' },
+          { id: 'gpt-5.6-luna' },
           { id: 'google/gemini-1.5-pro' },
           { id: 'google/gemini-1.5-flash' },
           { id: 'google/gemini-2.0-flash' },

@@ -7,6 +7,12 @@
  */
 import { sharedMap } from '../shared-state.js';
 
+export type TlonCommandCredentials = {
+  url: string;
+  ship: string;
+  code: string;
+};
+
 export interface ApprovalCommandBridge {
   /** Handle /allow, /reject, /ban. Returns response text. */
   handleAction(
@@ -24,6 +30,17 @@ export interface ApprovalCommandBridge {
   handleUnblock(ship: string): Promise<string>;
   /** The owner ship for this account (for auth checks). Should be a getter, not a snapshot. */
   readonly ownerShip: string | null;
+  /** The bot ship whose default credentials back this monitor. */
+  readonly botShip: string;
+  /** The account-scoped credentials that back this monitor. */
+  readonly botCredentials: TlonCommandCredentials;
+  /** Read a channel title already present in this monitor's metadata cache. */
+  getChannelTitle(nest: string): string | undefined;
+  /** Send a direct notification to the effective owner. */
+  sendOwnerNotification(
+    message: string,
+    blob?: string
+  ): Promise<string | undefined>;
 
   // ── Owner-listen controls (per-channel + global) ─────────────────────────
   /** True if the channel's host is the owner or the bot itself. */

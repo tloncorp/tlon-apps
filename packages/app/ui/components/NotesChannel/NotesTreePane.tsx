@@ -2,19 +2,23 @@ import * as db from '@tloncorp/shared/db';
 import { Button, Text } from '@tloncorp/ui';
 import { ScrollView, YStack } from 'tamagui';
 
+import { ScreenScrollView } from '../ScreenScrollView';
 import { FolderTreeRow, NoteRow } from './NotesTreeRows';
 import { getFolderLabel } from './notesTree';
 import type { NotesTreeRow } from './notesTree';
 
 export function NotesTreePane({
   canEdit,
+  folderUnreadCounts,
   getPublishedNoteUrl,
+  hasPublishedUpdate,
   isDeletingFolder,
   isNotePublished,
   layout,
   publishDisabled,
   selectedNoteId,
   treeRows,
+  unreadNoteIds,
   onCreateFolderInFolder,
   onCreateNoteInFolder,
   onDeleteFolder,
@@ -30,13 +34,16 @@ export function NotesTreePane({
   onViewPublishedNote,
 }: {
   canEdit: boolean;
+  folderUnreadCounts?: Map<number, number>;
   getPublishedNoteUrl?: (note: db.NotesNote) => string | null;
+  hasPublishedUpdate: (noteId: number) => boolean;
   isDeletingFolder: boolean;
   isNotePublished: (noteId: number) => boolean;
   layout: 'stack' | 'takeover';
   publishDisabled: boolean;
   selectedNoteId: number | null;
   treeRows: NotesTreeRow[];
+  unreadNoteIds?: Set<number>;
   onCreateFolderInFolder: (folder: db.NotesFolder) => void;
   onCreateNoteInFolder: (folder: db.NotesFolder) => void;
   onDeleteFolder: (folder: db.NotesFolder) => void;
@@ -76,6 +83,7 @@ export function NotesTreePane({
             isDeleting={isDeletingFolder}
             label={getFolderLabel(row.folder)}
             noteCount={row.noteCount}
+            unread={(folderUnreadCounts?.get(row.folder.folderId) ?? 0) > 0}
             onDelete={onDeleteFolder}
             onCreateFolder={onCreateFolderInFolder}
             onCreateNote={onCreateNoteInFolder}
@@ -87,15 +95,17 @@ export function NotesTreePane({
           <NoteRow
             key={row.note.id}
             canEdit={canEdit}
+            hasPublishedUpdate={hasPublishedUpdate(row.note.noteId)}
             isPublished={isNotePublished(row.note.noteId)}
             note={row.note}
             publishDisabled={publishDisabled}
             publishedUrl={
               isNotePublished(row.note.noteId)
-                ? getPublishedNoteUrl?.(row.note) ?? null
+                ? (getPublishedNoteUrl?.(row.note) ?? null)
                 : null
             }
             selected={selectedNoteId === row.note.noteId}
+            unread={unreadNoteIds?.has(row.note.noteId) ?? false}
             onDelete={() => onDeleteNote(row.note)}
             onMove={() => onMoveNote(row.note)}
             onPress={() => onOpenNote(row.note)}
@@ -116,11 +126,11 @@ export function NotesTreePane({
   if (layout === 'takeover') {
     return (
       <YStack flex={1} minHeight={0} backgroundColor="$background">
-        <ScrollView flex={1}>
+        <ScreenScrollView flex={1}>
           <YStack paddingTop="$l" paddingHorizontal="$l" paddingBottom="$m">
             {treeList}
           </YStack>
-        </ScrollView>
+        </ScreenScrollView>
       </YStack>
     );
   }

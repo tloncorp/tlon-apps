@@ -53,6 +53,11 @@ git module base:
     - pkg/base-dev/mar/json.hoon
     - pkg/base-dev/mar/htm.hoon
     - pkg/base-dev/mar/html.hoon
+    # %tang is not needed to build the desk, only to report a failure out of
+    # it: spider renders a crashed thread's stack through its outputMark, so
+    # without this mark a thread that nacks on the %groups desk answers
+    # [%no-cast-between %tang %json] and the real error is never seen.
+    - pkg/base-dev/mar/tang.hoon
   export: pkg/base-dev
 
 # %landscape (tloncorp/landscape) docket + settings types. No 408 tag exists

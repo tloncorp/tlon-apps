@@ -9,14 +9,7 @@ import { Button } from '@tloncorp/ui';
 import { Icon } from '@tloncorp/ui';
 import { Pressable } from '@tloncorp/ui';
 import { Text } from '@tloncorp/ui';
-import {
-  ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
-import { LayoutChangeEvent } from 'react-native';
+import { ComponentProps, useCallback, useEffect, useMemo } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
@@ -26,7 +19,6 @@ import {
   getTokenValue,
   styled,
   useTheme,
-  useWindowDimensions,
 } from 'tamagui';
 
 import { RootStackParamList } from '../../navigation/types';
@@ -34,6 +26,7 @@ import { useContact, useCurrentUserId } from '../contexts/appDataContext';
 import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
+import { BotBadge } from './BotBadge';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -122,7 +115,7 @@ export function UserProfileScreenView(props: Props) {
           flexDirection: 'row',
         }}
       >
-        <View paddingHorizontal={'$l'}>
+        <View paddingHorizontal={'$l'} width="100%">
           <UserInfoRow
             userId={props.userId}
             hasNickname={!!userContact?.nickname?.length}
@@ -324,8 +317,6 @@ export function PinnedGroupsDisplay({
   onPressGroup: (group: db.Group) => void;
   itemProps?: Omit<ComponentProps<typeof PaddedBlock>, 'onPress'>;
 }) {
-  const windowDimensions = useWindowDimensions();
-  const [containerWidth, setContainerWidth] = useState(windowDimensions.width);
   const pinnedGroupsKey = useMemo(() => {
     return groups.map((g) => g.id).join(',');
   }, [groups]);
@@ -335,11 +326,6 @@ export function PinnedGroupsDisplay({
       store.syncGroupPreviews(pinnedGroupsKey.split(','));
     }
   }, [pinnedGroupsKey]);
-
-  const handleLayout = (event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setContainerWidth(width);
-  };
 
   if (!groups.length) {
     return null;
@@ -352,14 +338,13 @@ export function PinnedGroupsDisplay({
       flexWrap="wrap"
       gap="$l"
       paddingHorizontal={'$xl'}
-      onLayout={handleLayout}
     >
       {groups.map((group, i) => {
         return (
           <GroupBlock
             key={group.id}
             model={group}
-            width={i === 0 ? '100%' : (containerWidth - 48) / 2}
+            width={i === 0 ? '100%' : '48%'}
             showDescription={i === 0}
             onPress={onPressGroup}
             {...itemProps}
@@ -441,17 +426,22 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
       <Pressable onPress={handleAvatarPress}>
         <ContactAvatar contactId={props.userId} size="$5xl" />
       </Pressable>
-      <Pressable width="100%" onPress={handleCopy}>
-        <YStack flex={1} justifyContent="center">
-          <ContactName
-            contactId={props.userId}
-            fontSize={24}
-            lineHeight={32}
-            maxWidth="100%"
-            numberOfLines={1}
-            color="$primaryText"
-            {...primaryNameProps}
-          />
+      <Pressable flex={1} minWidth={0} onPress={handleCopy}>
+        <YStack justifyContent="center">
+          <XStack alignItems="center" gap="$s">
+            <ContactName
+              contactId={props.userId}
+              fontSize={24}
+              lineHeight={32}
+              maxWidth="100%"
+              numberOfLines={1}
+              color="$primaryText"
+              flex={1}
+              minWidth={0}
+              {...primaryNameProps}
+            />
+            <BotBadge contactId={props.userId} />
+          </XStack>
           {props.hasNickname && (
             <XStack alignItems="center">
               <Text color="$secondaryText">

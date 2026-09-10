@@ -8,6 +8,7 @@ import { getTokenValue } from 'tamagui';
 import { SectionedChatData } from '../../hooks/useFilteredChats';
 import { usePinnedChatOrdering } from '../../hooks/usePinnedChatOrdering';
 import { useRenderCount } from '../../hooks/useRenderCount';
+import { useTopLevelTabBarContentInset } from '../../navigation/useTopLevelTabBarContentInset';
 import {
   ChatListItem,
   InteractableChatListItem,
@@ -47,6 +48,7 @@ export const ChatList = React.memo(function ChatListComponent({
   scrollerTestID?: string;
   scrollRef?: React.RefObject<FlashListRef<ChatListItemData> | null>;
 }) {
+  const bottomContentInset = useTopLevelTabBarContentInset();
   // The pinned section renders as the FlashList ListHeaderComponent (sortable),
   // and only the non-pinned sections feed the virtualized list (TLON-5948 §5.5).
   const { pinned, rest } = useMemo(() => splitPinnedSection(data), [data]);
@@ -88,7 +90,7 @@ export const ChatList = React.memo(function ChatListComponent({
   // see: https://github.com/Shopify/flash-list/pull/852
   const contentContainerStyle = {
     padding: getTokenValue('$l', 'size'),
-    paddingBottom: 100, // bottom nav height + some cushion
+    paddingBottom: bottomContentInset,
   };
 
   const listItemHoverStyle = useMemo(
@@ -98,6 +100,12 @@ export const ChatList = React.memo(function ChatListComponent({
 
   // A single interactive chat row, shared by the virtualized rest-list and the
   // non-sort-mode pinned block in the header.
+  //
+  // The testIDs below fall back with `||`, not `??`: a quick group is created
+  // with an empty-string title (see `createDefaultGroup`), which `??` would
+  // keep, collapsing the testID to `ChatListItem--unpinned` while the row still
+  // renders as 'Untitled group'. Keep the group fallback in step with the
+  // rendered title and with `GroupListItem`.
   const renderChat = useCallback(
     (item: db.Chat) => {
       if (item.type === 'channel' && !item.isPending) {
@@ -107,7 +115,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             hoverStyle={listItemHoverStyle}
-            testID={`ChatListItem-${item.channel.title ?? item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
+            testID={`ChatListItem-${item.channel.title || item.channel.id}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else if (item.type === 'group' && !item.isPending) {
@@ -117,7 +125,7 @@ export const ChatList = React.memo(function ChatListComponent({
             onPress={onPressItem}
             onLongPress={handleLongPress}
             hoverStyle={listItemHoverStyle}
-            testID={`ChatListItem-${item.group.title ?? item.group.id}-${item.pin ? 'pinned' : 'unpinned'}`}
+            testID={`ChatListItem-${item.group.title || 'Untitled group'}-${item.pin ? 'pinned' : 'unpinned'}`}
           />
         );
       } else {

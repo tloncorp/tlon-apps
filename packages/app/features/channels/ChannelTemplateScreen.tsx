@@ -3,6 +3,7 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { useCallback } from 'react';
 
+import { getTopLevelTabRoute } from '../../navigation/topLevelTabs';
 import { RootStackParamList } from '../../navigation/types';
 import { ChannelFromTemplateView, GroupsProvider } from '../../ui';
 
@@ -18,7 +19,7 @@ export function ChannelTemplateScreen(props: Props) {
       props.navigation.reset({
         index: 1,
         routes: [
-          { name: 'ChatList' },
+          getTopLevelTabRoute('ChatList'),
           {
             name: 'Channel',
             params: {

@@ -2,11 +2,102 @@ import { describe, expect, test } from 'vitest';
 
 import {
   NavigationChainNode,
+  getActiveNestedGroupId,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupEntryRoute,
   getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
+  isActivityBackTarget,
 } from './routeHelpers';
+
+describe('getDesktopGroupEntryRoute', () => {
+  const groupId = '~zod/project';
+  const notebookId = 'notes/~zod/project/notebook';
+  const chatId = 'chat/~zod/project/general';
+
+  test('returns to the most recently visited current channel', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], chatId)
+    ).toMatchObject({
+      name: 'Home',
+      params: {
+        screen: 'Channel',
+        params: { channelId: chatId, groupId },
+      },
+    });
+  });
+
+  test('opens the group channel list when no channel has been visited', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], null)
+    ).toEqual({
+      name: 'Home',
+      params: {
+        screen: 'GroupChannels',
+        pop: true,
+        params: { groupId },
+      },
+    });
+  });
+
+  test('does not reopen a stale remembered channel', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], 'notes/deleted')
+    ).toMatchObject({
+      name: 'Home',
+      params: { screen: 'GroupChannels', params: { groupId } },
+    });
+  });
+
+  test('keeps the single-channel desktop shortcut', () => {
+    expect(getDesktopGroupEntryRoute(groupId, [chatId], null)).toMatchObject({
+      name: 'Home',
+      params: {
+        screen: 'Channel',
+        params: { channelId: chatId, groupId },
+      },
+    });
+  });
+});
+
+describe('getActiveNestedGroupId', () => {
+  test('finds the group on the active nested desktop channel route', () => {
+    expect(
+      getActiveNestedGroupId({
+        index: 0,
+        routes: [
+          {
+            name: 'Home',
+            state: {
+              index: 1,
+              routes: [
+                { name: 'ChatList' },
+                { name: 'Channel', params: { groupId: '~zod/agent' } },
+              ],
+            },
+          },
+          {
+            name: 'Messages',
+            params: { groupId: '~zod/inactive' },
+          },
+        ],
+      })
+    ).toBe('~zod/agent');
+  });
+
+  test('ignores inactive routes and missing group ids', () => {
+    expect(
+      getActiveNestedGroupId({
+        index: 0,
+        routes: [
+          { name: 'Home' },
+          { name: 'Messages', params: { groupId: '~zod/inactive' } },
+        ],
+      })
+    ).toBeUndefined();
+  });
+});
 
 // Build a `{ getState, getParent }` chain from innermost -> outermost so we can
 // exercise the parent-walk without a live React Navigation object. The first
@@ -204,6 +295,56 @@ describe('getDesktopPostRoute', () => {
     });
     expect(route.params.params.selectedPostId).toBeUndefined();
     expect(route.params.params.params.selectedPostId).toBeUndefined();
+  });
+});
+
+describe('isActivityBackTarget', () => {
+  test('recognizes the legacy direct Activity route', () => {
+    expect(isActivityBackTarget({ name: 'Activity' })).toBe(true);
+  });
+
+  test('recognizes Activity inside live native tab state', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'ChatList' },
+        state: {
+          index: 1,
+          routes: [
+            { name: 'ChatList' },
+            { name: 'Activity' },
+            { name: 'Contacts' },
+          ],
+        },
+      })
+    ).toBe(true);
+  });
+
+  test('prefers live tab state over stale initialization params', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'Activity' },
+        state: {
+          index: 0,
+          routes: [{ name: 'ChatList' }, { name: 'Activity' }],
+        },
+      })
+    ).toBe(false);
+  });
+
+  test('uses MainTabs initialization params before nested state exists', () => {
+    expect(
+      isActivityBackTarget({
+        name: 'MainTabs',
+        params: { screen: 'Activity' },
+      })
+    ).toBe(true);
+  });
+
+  test('rejects unrelated routes and malformed state', () => {
+    expect(isActivityBackTarget({ name: 'Channel' })).toBe(false);
+    expect(isActivityBackTarget(null)).toBe(false);
   });
 });
 

@@ -1,20 +1,39 @@
 import { TalkSidebarFilter } from '@tloncorp/api/urbit';
+import { AnalyticsEvent, trackEvent } from '@tloncorp/shared';
 import * as store from '@tloncorp/shared/store';
 import { PropsWithChildren, useCallback, useMemo, useState } from 'react';
 
-import { ActionSheet, createActionGroups } from '../../ui';
+import {
+  ActionSheet,
+  DESKTOP_FLYOUT_MIN_WIDTH,
+  createActionGroups,
+  isWeb,
+  useIsWindowNarrow,
+} from '../../ui';
 
 export function MessagesFilterMenu({ children }: PropsWithChildren) {
   const [isOpen, setIsOpen] = useState(false);
+  const isWindowNarrow = useIsWindowNarrow();
+  const isDesktopFlyout = isWeb && !isWindowNarrow;
   const { data } = store.useMessagesFilter();
   const talkFilter = data ?? 'Direct Messages';
 
-  const handleAction = useCallback((value: TalkSidebarFilter) => {
-    return () => {
-      store.changeMessageFilter(value);
-      setIsOpen(false);
-    };
-  }, []);
+  const handleAction = useCallback(
+    (value: TalkSidebarFilter) => {
+      return async () => {
+        setIsOpen(false);
+        if (value !== talkFilter) {
+          const didChange = await store.changeMessageFilter(value);
+          if (didChange) {
+            trackEvent(AnalyticsEvent.MessagesFilterSelected, {
+              filter: value,
+            });
+          }
+        }
+      };
+    },
+    [talkFilter]
+  );
 
   const handleOpenChange = useCallback(
     (nextOpen: boolean) => {
@@ -51,7 +70,15 @@ export function MessagesFilterMenu({ children }: PropsWithChildren) {
       mode="popover"
       trigger={children}
     >
-      <ActionSheet.ScrollableContent width={240}>
+      <ActionSheet.ScrollableContent
+        width={
+          isDesktopFlyout
+            ? DESKTOP_FLYOUT_MIN_WIDTH
+            : isWindowNarrow
+              ? '100%'
+              : 240
+        }
+      >
         <ActionSheet.SimpleActionGroupList actionGroups={actionGroups} />
       </ActionSheet.ScrollableContent>
     </ActionSheet>

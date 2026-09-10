@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { dmReactionReplyParentId } from '../monitor/dm-reactions.js';
 
@@ -10,7 +10,9 @@ vi.mock('@urbit/aura', () => ({
 }));
 
 describe('sendDm', () => {
-  afterEach(() => {
+  afterEach(async () => {
+    const { setReplyOutputReporter } = await import('../telemetry.js');
+    setReplyOutputReporter(null);
     vi.restoreAllMocks();
     vi.resetModules();
   });
@@ -29,6 +31,9 @@ describe('sendDm', () => {
     }));
 
     const { sendDm } = await import('./send.js');
+    const { setReplyOutputReporter } = await import('../telemetry.js');
+    const outputReporter = vi.fn();
+    setReplyOutputReporter(outputReporter);
     const aura = await import('@urbit/aura');
     const scot = vi.mocked(aura.scot);
     const fromUnix = vi.mocked(aura.da.fromUnix);
@@ -58,6 +63,16 @@ describe('sendDm', () => {
     // telemetry event's `nudgeSentAtMs`) agree on a single timestamp.
     expect(result.sentAt).toBe(sentAt);
     expect(result.channel).toBe('tlon');
+    expect(outputReporter).toHaveBeenCalledWith({
+      messageId: '~zod/mocked-ud',
+      sentAt,
+      runId: null,
+      traceId: null,
+      outputIndex: 0,
+      chatType: 'dm',
+      isThreadReply: false,
+    });
+    setReplyOutputReporter(null);
   });
 
   it('uses aura v3 helpers for channel post ids', async () => {
@@ -73,6 +88,9 @@ describe('sendDm', () => {
     }));
 
     const { sendChannelPost } = await import('./send.js');
+    const { setReplyOutputReporter } = await import('../telemetry.js');
+    const outputReporter = vi.fn();
+    setReplyOutputReporter(outputReporter);
     const sentAt = 1_700_000_000_000;
     vi.spyOn(Date, 'now').mockReturnValue(sentAt);
 
@@ -92,6 +110,81 @@ describe('sendDm', () => {
       })
     );
     expect(result.messageId).toBe('~zod/mocked-ud');
+    expect(outputReporter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageId: '~zod/mocked-ud',
+        chatType: 'groupChannel',
+        isThreadReply: false,
+      })
+    );
+    setReplyOutputReporter(null);
+  });
+
+  it('posts heap replies with a replyToId via sendReply anchored to the parent', async () => {
+    const sendPost = vi.fn(async () => ({}));
+    const sendReply = vi.fn(async () => ({}));
+
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost,
+      sendReply,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+    const aura = await import('@urbit/aura');
+    vi.mocked(aura.scot).mockImplementation((_aura, atom) =>
+      atom === 170141184507123n ? '170.141.184.507.123' : 'mocked-ud'
+    );
+
+    await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'heap/~zod/gallery',
+      story: [{ inline: ['a comment'] }],
+      replyToId: '170141184507123',
+    });
+
+    expect(sendReply).toHaveBeenCalledTimes(1);
+    expect(sendReply).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'heap/~zod/gallery',
+        parentId: '170.141.184.507.123',
+      })
+    );
+    expect(sendPost).not.toHaveBeenCalled();
+  });
+
+  it('posts a new heap item via sendPost when replyToId is absent', async () => {
+    const sendPost = vi.fn(async () => ({}));
+    const sendReply = vi.fn(async () => ({}));
+
+    vi.doMock('@tloncorp/api', () => ({
+      sendPost,
+      sendReply,
+      addReaction: vi.fn(),
+      removeReaction: vi.fn(),
+      deletePost: vi.fn(),
+      configureClient: vi.fn(),
+    }));
+
+    const { sendChannelPost } = await import('./send.js');
+
+    await sendChannelPost({
+      fromShip: '~zod',
+      nest: 'heap/~zod/gallery',
+      story: [{ inline: ['a new gallery item'] }],
+    });
+
+    expect(sendPost).toHaveBeenCalledTimes(1);
+    expect(sendPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        channelId: 'heap/~zod/gallery',
+        authorId: '~zod',
+      })
+    );
+    expect(sendReply).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -129,4 +222,50 @@ describe('sendDm', () => {
       );
     }
   );
+});
+
+describe('buildMediaStory', () => {
+  let buildMediaStory: typeof import('./send.js').buildMediaStory;
+
+  beforeEach(async () => {
+    ({ buildMediaStory } = await import('./send.js'));
+  });
+
+  it('produces an image block for isImage: true', () => {
+    const story = buildMediaStory('caption', {
+      url: 'https://example.com/img.png',
+      isImage: true,
+    });
+    const imageVerse = story.find((v) => 'block' in v && 'image' in v.block);
+    expect(imageVerse).toBeDefined();
+    expect(
+      (imageVerse as { block: { image: { src: string } } }).block.image.src
+    ).toBe('https://example.com/img.png');
+  });
+
+  it('produces a link verse for isImage: false', () => {
+    const story = buildMediaStory('caption', {
+      url: 'https://example.com/doc.pdf',
+      isImage: false,
+    });
+    const linkVerse = story.find(
+      (v) =>
+        'inline' in v &&
+        Array.isArray(v.inline) &&
+        v.inline.some((i) => typeof i === 'object' && 'link' in i)
+    );
+    expect(linkVerse).toBeDefined();
+  });
+
+  it('produces text-only story when media is undefined', () => {
+    const story = buildMediaStory('just text', undefined);
+    expect(story.length).toBeGreaterThan(0);
+    const hasImage = story.some((v) => 'block' in v && 'image' in v.block);
+    expect(hasImage).toBe(false);
+  });
+
+  it('returns empty inline for no text and no media', () => {
+    const story = buildMediaStory(undefined, undefined);
+    expect(story).toEqual([{ inline: [''] }]);
+  });
 });

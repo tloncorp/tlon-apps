@@ -1,10 +1,12 @@
 import { getCurrentUserIsHosted } from '@tloncorp/api';
 import * as db from '@tloncorp/shared/db';
+import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
-import { useStore } from '../../contexts/storeContext';
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
 
 const NoticeContainer = styled(YStack, {
@@ -23,6 +25,7 @@ const WayfindingNotice = {
   GroupChannels,
   CustomizeGroup,
   HomeAddTooltip,
+  AgentOnboardingBackTooltip,
   ChatInputTooltip,
   BotMentionTooltip,
   CollectionInputTooltip,
@@ -119,7 +122,6 @@ function EmptyPersonalNotebook() {
 }
 
 function GroupChannels(props: { group: db.Group }) {
-  const store = useStore();
   const { data: wayfindingStatus } = store.useWayfindingCompletion();
 
   if (wayfindingStatus?.completedPersonalGroupTutorial ?? true) {
@@ -136,7 +138,7 @@ function GroupChannels(props: { group: db.Group }) {
           Welcome to your group! We’ve created three basic channels to get you
           started. Tap into each to explore how Tlon Messenger works.
         </NoticeText>
-        <InviteFriendsToTlonButton group={props.group} preset="positive" />
+        <InviteFriendsToTlonButton group={props.group} />
       </NoticeContainer>
     </View>
   );
@@ -155,7 +157,7 @@ function CustomizeGroup() {
   );
 }
 
-export function HomeAddTooltip() {
+export function HomeAddTooltip({ top = 36 }: { top?: number }) {
   const hostingBotEnabled = db.hostingBotEnabled.useValue();
   const isHostedUser = getCurrentUserIsHosted();
   const botEnabled = isHostedUser && hostingBotEnabled;
@@ -168,7 +170,7 @@ export function HomeAddTooltip() {
   }, []);
 
   return (
-    <View position="absolute" top={36} right={18}>
+    <View position="absolute" top={top} right={18} zIndex={100}>
       <YStack alignItems="flex-end">
         <Pressable
           testID="HomeAddWayfindingTooltip"
@@ -196,6 +198,58 @@ export function HomeAddTooltip() {
         </Pressable>
       </YStack>
     </View>
+  );
+}
+
+export function AgentOnboardingBackTooltip({
+  top,
+  onDismiss,
+}: {
+  top: number;
+  onDismiss: () => void;
+}) {
+  const tooltip = (
+    <View position="absolute" top={top} left={18} zIndex={100}>
+      <Pressable
+        testID="AgentOnboardingBackTooltip"
+        onPress={onDismiss}
+        paddingVertical={20}
+        paddingLeft={20}
+        paddingRight={44}
+        width={220}
+        backgroundColor="$positiveActionText"
+        borderRadius="$l"
+      >
+        <View
+          position="absolute"
+          top={Platform.OS === 'ios' ? -18 : -14}
+          left={27}
+          width={12}
+          height={12}
+          backgroundColor="$positiveActionText"
+          borderRadius={999}
+        />
+        <Text size="$label/l" color="$white">
+          Tap Back to return Home and explore the rest of Tlon.
+        </Text>
+        <View position="absolute" top={8} right={8} padding={4}>
+          <Icon
+            type="Close"
+            size="$s"
+            color="$white"
+            testID="AgentOnboardingBackTooltipDismiss"
+          />
+        </View>
+      </Pressable>
+    </View>
+  );
+
+  return Platform.OS === 'ios' ? (
+    <FullWindowOverlay unstable_accessibilityContainerViewIsModal={false}>
+      {tooltip}
+    </FullWindowOverlay>
+  ) : (
+    tooltip
   );
 }
 
@@ -264,7 +318,6 @@ export function BotMentionTooltip() {
 }
 
 export function CollectionInputTooltip(props: { channelId: string }) {
-  const store = useStore();
   const shouldShow = store.useShowCollectionAddTooltip(props.channelId);
 
   if (!shouldShow) {
@@ -293,7 +346,6 @@ export function CollectionInputTooltip(props: { channelId: string }) {
 }
 
 export function NotebookInputTooltip(props: { channelId: string }) {
-  const store = useStore();
   const shouldShow = store.useShowNotebookAddTooltip(props.channelId);
 
   if (!shouldShow) {

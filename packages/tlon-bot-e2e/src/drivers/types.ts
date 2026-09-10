@@ -9,6 +9,7 @@ import type {
 export type DriverName = 'hermes' | 'openclaw';
 
 export type RuntimeCapability =
+  | 'cron'
   | 'image_search'
   | 'upload_storage'
   | 'media_blob'
@@ -99,18 +100,23 @@ export interface ComposeHandle {
   env: Record<string, string>;
 
   build(services?: string[]): Promise<void>;
-  up(services?: string[]): Promise<void>;
+  up(services?: string[], opts?: { timeoutMs?: number }): Promise<void>;
   ps(opts?: { timeoutMs?: number }): Promise<ComposeServiceState[]>;
   logs(
     services?: string[],
-    opts?: { tail?: number; timeoutMs?: number }
+    opts?: { tail?: number; timeoutMs?: number; allowFailure?: boolean }
   ): Promise<string>;
   exec(
     service: string,
     args: string[],
     opts?: { env?: Record<string, string>; cwd?: string }
   ): Promise<ExecResult>;
-  down(opts?: { volumes?: boolean }): Promise<void>;
+  down(opts?: {
+    volumes?: boolean;
+    allowFailure?: boolean;
+    verify?: boolean;
+    timeoutMs?: number;
+  }): Promise<void>;
 }
 
 export interface BotDriver {
@@ -135,12 +141,29 @@ export interface BotDriver {
    * ignore. Omitting it means the driver has no benign background calls.
    */
   isBenignModelCall?(call: ReceivedCall): boolean;
+  /**
+   * Log substrings that prove an SSE stream fault occurred, used by the
+   * sse-resume scenario to confirm the disconnect was observed before it
+   * reconnects the network. Driver-specific because the two adapters log
+   * differently (and OpenClaw only surfaces a silent hang via its watchdog).
+   * The wait resolves when any marker appears in the bot logs.
+   */
+  streamFaultLogMarkers: readonly string[];
   model: ModelScriptAdapter;
 }
 
 export interface SendMessageArgs {
   target: string;
   message: string;
+}
+
+export interface CreateCronJobArgs {
+  /** Unique per scenario; used for ID lookup and pre-ID teardown fallback. */
+  name: string;
+  /** Must embed the fired-turn [tlon-test:KEY] tag. */
+  firedPrompt: string;
+  /** Visible confirmation reply to the owner. */
+  finalText: string;
 }
 
 export interface ModelScript {
@@ -180,4 +203,11 @@ export interface ModelScriptAdapter {
   sendMessage(args: SendMessageArgs): ModelScript;
   readOrAdmin(command: string, finalText?: string): ModelScript;
   imageSearch(query: string): ModelScript;
+  /** Owner-initiated cron job creation via the runtime's cron tool. */
+  createCronJob(args: CreateCronJobArgs): ModelScript;
+  /**
+   * Text reply without baseline advertised-tools expectations. Used when the
+   * runtime's advertised tool set differs from the baseline partition.
+   */
+  looseReplyText(text: string): ModelScript;
 }

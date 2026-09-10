@@ -37,6 +37,7 @@ rsync -av --delete \
     --include='openclaw.plugin.json' \
     --include='src/***' \
     --include='dist/***' \
+    --include='skills/***' \
     --include='README.md' \
     --include='index.ts' \
     --include='scripts/' \

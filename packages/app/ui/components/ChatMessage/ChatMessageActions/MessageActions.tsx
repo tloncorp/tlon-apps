@@ -4,13 +4,12 @@ import * as db from '@tloncorp/shared/db';
 import { Attachment } from '@tloncorp/shared/domain';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
-import { useCopy, useToast } from '@tloncorp/ui';
+import { useCopy } from '@tloncorp/ui';
 import * as Clipboard from 'expo-clipboard';
-import { memo, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Alert, Platform } from 'react-native';
 import { isWeb } from 'tamagui';
 
-import { useRenderCount } from '../../../../hooks/useRenderCount';
 import { useCurrentUserId } from '../../../contexts/appDataContext';
 import { useAttachmentContext } from '../../../contexts/attachment';
 import { useChannelContext } from '../../../contexts/channel';
@@ -23,6 +22,19 @@ import {
   DraftInputContext,
   useDraftInputContext,
 } from '../../draftInputs/shared';
+import {
+  MessageMenuActionDescriptor,
+  MessageMenuActionId,
+  isMessageActionVisible,
+  messageActionContentKey,
+  messageActionToken,
+  messageContentKey,
+} from './messageActionModel';
+
+export type {
+  MessageMenuActionDescriptor,
+  MessageMenuActionId,
+} from './messageActionModel';
 
 const ENABLE_COPY_JSON = __DEV__;
 
@@ -30,6 +42,8 @@ type DraftTextTarget = Pick<
   DraftInputContext,
   'getDraft' | 'startDraft' | 'storeDraft'
 >;
+
+type RunAfterDismiss = (action: () => void) => void;
 
 export default function MessageActions({
   dismiss,
@@ -48,65 +62,86 @@ export default function MessageActions({
   post: db.Post;
   postActionIds: ChannelAction.Id[];
 }) {
-  const contextLensAvailable = useContextLensAvailable();
-  const { data: ownedBotShips } = store.useContextLensBotShips();
-  const showViewBotRun = useMemo(
-    () =>
-      Boolean(
-        contextLensAvailable &&
-          onViewBotRun &&
-          getOwnContextLensStamp(post, ownedBotShips ?? [])
-      ),
-    [contextLensAvailable, onViewBotRun, ownedBotShips, post]
+  const runAfterDismiss = useCallback(
+    (action: () => void) => {
+      if (Platform.OS === 'ios') {
+        dismiss();
+        setTimeout(action, 300);
+      } else {
+        action();
+        dismiss();
+      }
+    },
+    [dismiss]
   );
+  const { actions, performAction } = useMessageActionModel({
+    dismiss,
+    runAfterDismiss,
+    onReply,
+    onEdit,
+    onViewReactions,
+    onViewBotRun,
+    post,
+    postActionIds,
+  });
 
   // arbitrary width that looks reasonable given labels
   const width = isWeb ? 'auto' : 220;
   return (
     <ActionList width={width}>
-      {postActionIds.map((actionId, index, list) => (
-        <ConnectedAction
-          key={actionId}
-          last={index === list.length - 1 && !__DEV__ && !showViewBotRun}
-          {...{
-            dismiss,
-            onReply,
-            onEdit,
-            onViewReactions,
-            post,
-            actionId,
-          }}
-        />
+      {actions.map((action, index) => (
+        <ActionList.Action
+          key={action.id}
+          height="auto"
+          actionType={action.actionType}
+          last={index === actions.length - 1 && !__DEV__}
+          onPress={() => performAction(action.id)}
+        >
+          {action.title}
+        </ActionList.Action>
       ))}
-      {showViewBotRun && onViewBotRun ? (
-        <ViewBotRunAction
-          post={post}
-          dismiss={dismiss}
-          onViewBotRun={onViewBotRun}
-          last={!__DEV__}
-        />
-      ) : null}
       {ENABLE_COPY_JSON ? <CopyJsonAction post={post} /> : null}
     </ActionList>
   );
 }
 
-const ConnectedAction = memo(function ConnectedAction({
-  actionId,
+const systemImageForAction: Partial<Record<MessageMenuActionId, string>> = {
+  startThread: 'arrowshape.turn.up.left',
+  replyToComment: 'arrowshape.turn.up.left',
+  quote: 'quote.bubble',
+  edit: 'pencil',
+  copyText: 'doc.on.doc',
+  copyRef: 'link',
+  forward: 'arrowshape.turn.up.right',
+  viewReactions: 'face.smiling',
+  muteThread: 'bell.slash',
+  pinPost: 'pin',
+  unpinPost: 'pin.slash',
+  visibility: 'eye.slash',
+  report: 'exclamationmark.bubble',
+  delete: 'trash',
+  debugJson: 'ladybug',
+  viewBotRun: 'sparkles',
+};
+
+export function useMessageActionModel({
   dismiss,
-  last,
   onEdit,
   onReply,
   onViewReactions,
+  onViewBotRun,
   post,
+  postActionIds,
+  runAfterDismiss,
 }: {
-  actionId: ChannelAction.Id;
   post: db.Post;
-  last: boolean;
+  postActionIds: ChannelAction.Id[];
   dismiss: () => void;
   onReply?: (post: db.Post) => void;
   onEdit?: () => void;
   onViewReactions?: (post: db.Post) => void;
+  onViewBotRun?: (post: db.Post) => void;
+  runAfterDismiss: RunAfterDismiss;
 }) {
   const currentUserId = useCurrentUserId();
   const connectionStatus = store.useConnectionStatus();
@@ -115,165 +150,154 @@ const ConnectedAction = memo(function ConnectedAction({
   const draftInputContext = useDraftInputContext();
   const currentUserIsAdmin = useIsAdmin(post.groupId ?? '', currentUserId);
   const { open: forwardPost } = useForwardPostSheet();
-  const showToast = useToast();
   const pinnedPostId = logic.getPinnedPostId(channel);
+  const contextLensAvailable = useContextLensAvailable();
+  const { data: ownedBotShips } = store.useContextLensBotShips();
+  const showViewBotRun = Boolean(
+    contextLensAvailable &&
+    onViewBotRun &&
+    getOwnContextLensStamp(post, ownedBotShips ?? [])
+  );
 
-  const { label, postTerm } = useDisplaySpecForChannelActionId(actionId, {
+  const contentKey = messageContentKey(post);
+  const actionContentKey = messageActionContentKey(post);
+  const actions = useMemo<MessageMenuActionDescriptor[]>(() => {
+    const isConnected = connectionStatus === 'Connected';
+    const canStartDraft = Boolean(draftInputContext?.canStartDraft);
+    const descriptors = postActionIds.flatMap<MessageMenuActionDescriptor>(
+      (id) => {
+        const action = ChannelAction.staticSpecForId(id);
+        if (
+          !isMessageActionVisible(id, {
+            isNetworkDependent: Boolean(action.isNetworkDependent),
+            isConnected,
+            currentUserId,
+            currentUserIsAdmin,
+            canStartDraft,
+            channelType: channel.type,
+            pinnedPostId,
+            post: {
+              id: post.id,
+              authorId: post.authorId,
+              parentId: post.parentId,
+              deliveryStatus: post.deliveryStatus,
+              replyCount: post.replyCount,
+              reactionCount: post.reactions?.length ?? 0,
+            },
+          })
+        ) {
+          return [];
+        }
+        const { label } = displaySpecForChannelActionId(id, {
+          post,
+          channel,
+          currentUserId,
+          currentUserIsAdmin,
+        });
+        const descriptor = {
+          id,
+          title: label,
+          systemImage: systemImageForAction[id],
+          destructive: id === 'delete' || id === 'report',
+          actionType: action.actionType,
+        };
+        return [
+          {
+            ...descriptor,
+            token: messageActionToken(post, actionContentKey, descriptor),
+          },
+        ];
+      }
+    );
+    if (showViewBotRun) {
+      const descriptor = {
+        id: 'viewBotRun',
+        title: 'View bot run',
+        systemImage: systemImageForAction.viewBotRun,
+      } as const;
+      descriptors.push({
+        ...descriptor,
+        token: messageActionToken(post, actionContentKey, descriptor),
+      });
+    }
+    return descriptors;
+  }, [
+    postActionIds,
+    connectionStatus,
+    showViewBotRun,
     post,
+    actionContentKey,
     channel,
     currentUserId,
     currentUserIsAdmin,
-  });
-  const action = useMemo(
-    () => ChannelAction.staticSpecForId(actionId),
-    [actionId]
-  );
-
-  const visible = useMemo(() => {
-    if (action.isNetworkDependent && connectionStatus !== 'Connected') {
-      return false;
-    }
-
-    switch (actionId) {
-      case 'startThread':
-        // only show start thread if
-        // 1. the message is delivered
-        // 2. the message isn't a reply
-        return !post.deliveryStatus && !post.parentId;
-      case 'muteThread':
-        // show mute/unmute if the post has replies or is in a thread
-        return post.parentId || (post.replyCount || 0) > 0;
-      case 'edit':
-        // only show edit for current user's posts
-        // OR admins for top-level notebook posts
-        return (
-          post.authorId === currentUserId ||
-          (channel.type === 'notebook' && currentUserIsAdmin && !post.parentId)
-        );
-      case 'delete':
-        // only show delete for current user's posts
-        return post.authorId === currentUserId || currentUserIsAdmin;
-      case 'viewReactions':
-        return (post.reactions?.length ?? 0) > 0;
-      case 'visibility':
-        // prevent users from hiding their own posts
-        return post.authorId !== currentUserId;
-      case 'pinPost':
-        // only show for admins, top-level posts, and not already pinned
-        return currentUserIsAdmin && !post.parentId && pinnedPostId !== post.id;
-      case 'unpinPost':
-        // only show for admins on the currently pinned post
-        return currentUserIsAdmin && pinnedPostId === post.id;
-      case 'quote':
-        // Quote needs the active composer surface. Search/detail surfaces can
-        // render actions without one, so hide Quote there.
-        return !!draftInputContext?.canStartDraft;
-      case 'replyToComment':
-        // Only show on actual comments (replies), and only where a composer
-        // is mounted to receive the prefilled mention.
-        return (
-          !!post.parentId &&
-          post.authorId !== currentUserId &&
-          !!draftInputContext?.canStartDraft
-        );
-      default:
-        return true;
-    }
-  }, [
-    action.isNetworkDependent,
-    connectionStatus,
-    actionId,
-    post.deliveryStatus,
-    post.parentId,
-    post.replyCount,
-    post.authorId,
-    post.id,
-    post.reactions?.length,
-    currentUserId,
-    channel.type,
     pinnedPostId,
-    currentUserIsAdmin,
-    draftInputContext,
+    draftInputContext?.canStartDraft,
   ]);
 
-  useRenderCount(`MessageAction-${actionId}`);
-
-  if (!visible) {
-    return null;
-  }
-
-  return (
-    <ActionList.Action
-      height="auto"
-      onPress={() => {
-        const actionArgs = {
-          id: actionId,
-          post,
-          userId: currentUserId,
-          channel,
-          isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
-          dismiss,
-          onReply,
-          onEdit,
-          onForward: forwardPost,
-          onViewReactions,
-          addAttachment,
-          draftTextTarget: draftInputContext
-            ? {
-                getDraft: draftInputContext.getDraft,
-                startDraft: draftInputContext.startDraft,
-                storeDraft: draftInputContext.storeDraft,
-              }
-            : null,
-          showToast,
-        };
-        if (actionId === 'delete') {
-          confirmDeleteAction(postTerm, () => {
-            void handleAction(actionArgs);
-          });
+  const performAction = useCallback(
+    (id: MessageMenuActionId, token?: string) => {
+      if (
+        token &&
+        actions.find((action) => action.id === id)?.token !== token
+      ) {
+        return;
+      }
+      if (id === 'viewBotRun') {
+        if (!onViewBotRun) {
           return;
         }
-        void handleAction(actionArgs);
-      }}
-      key={actionId}
-      actionType={action.actionType}
-      last={last}
-    >
-      {label}
-    </ActionList.Action>
-  );
-});
+        runAfterDismiss(() => onViewBotRun(post));
+        return;
+      }
 
-function ViewBotRunAction({
-  post,
-  dismiss,
-  onViewBotRun,
-  last,
-}: {
-  post: db.Post;
-  dismiss: () => void;
-  onViewBotRun: (post: db.Post) => void;
-  last?: boolean;
-}) {
-  return (
-    <ActionList.Action
-      height="auto"
-      last={last}
-      onPress={() => {
-        // On iOS, dismiss the actions modal first to avoid a race between
-        // two modals (see the 'forward' action above)
-        if (Platform.OS === 'ios') {
-          dismiss();
-          setTimeout(() => onViewBotRun(post), 300);
-        } else {
-          onViewBotRun(post);
-          dismiss();
-        }
-      }}
-    >
-      View bot run
-    </ActionList.Action>
+      const actionArgs = {
+        id,
+        post,
+        userId: currentUserId,
+        channel,
+        isMuted: logic.isMuted(post.volumeSettings?.level, 'thread'),
+        dismiss,
+        onReply,
+        onEdit,
+        onForward: forwardPost,
+        onViewReactions,
+        addAttachment,
+        draftTextTarget: draftInputContext
+          ? {
+              getDraft: draftInputContext.getDraft,
+              startDraft: draftInputContext.startDraft,
+              storeDraft: draftInputContext.storeDraft,
+            }
+          : null,
+        runAfterDismiss,
+      };
+      if (id === 'delete') {
+        const postTerm = postTermForChannel(channel);
+        confirmDeleteAction(postTerm, () => {
+          void handleAction(actionArgs);
+        });
+        return;
+      }
+      void handleAction(actionArgs);
+    },
+    [
+      addAttachment,
+      actions,
+      channel,
+      currentUserId,
+      dismiss,
+      draftInputContext,
+      forwardPost,
+      onEdit,
+      onReply,
+      onViewBotRun,
+      onViewReactions,
+      post,
+      runAfterDismiss,
+    ]
   );
+
+  return { actions, contentKey, performAction };
 }
 
 function CopyJsonAction({ post }: { post: db.Post }) {
@@ -324,7 +348,7 @@ export async function handleAction({
   onForward,
   addAttachment,
   draftTextTarget,
-  showToast,
+  runAfterDismiss,
 }: {
   id: ChannelAction.Id;
   post: db.Post;
@@ -338,7 +362,7 @@ export async function handleAction({
   onViewReactions?: (post: db.Post) => void;
   addAttachment: (attachment: Attachment) => void;
   draftTextTarget?: DraftTextTarget | null;
-  showToast?: (options: { message: string; duration?: number }) => void;
+  runAfterDismiss: RunAfterDismiss;
 }) {
   const [path, reference] = logic.postToContentReference(post);
 
@@ -406,15 +430,7 @@ export async function handleAction({
       post.hidden ? store.showPost({ post }) : store.hidePost({ post });
       break;
     case 'forward':
-      // On iOS, dismiss the current modal first, then open the forward sheet
-      // to avoid race condition between two modals
-      if (Platform.OS === 'ios') {
-        dismiss();
-        setTimeout(() => onForward?.(post), 300);
-      } else {
-        onForward?.(post);
-        dismiss();
-      }
+      runAfterDismiss(() => onForward?.(post));
       triggerHaptic('success');
       return; // Early return to avoid double dismiss
     case 'pinPost':
@@ -484,7 +500,7 @@ async function prependMentionToDraft(
   const existingDocContent = draft?.content ?? [];
   const [firstBlock, ...restBlocks] = existingDocContent;
   const firstParagraphContent =
-    firstBlock?.type === 'paragraph' ? firstBlock.content ?? [] : [];
+    firstBlock?.type === 'paragraph' ? (firstBlock.content ?? []) : [];
 
   const nextFirstParagraph: JSONContent = {
     type: 'paragraph',
@@ -507,7 +523,7 @@ async function prependMentionToDraft(
  * the UI context - e.g. the label for `startThread` changes based on channel
  * type.
  */
-export function useDisplaySpecForChannelActionId(
+export function displaySpecForChannelActionId(
   id: ChannelAction.Id,
   {
     post,
@@ -525,13 +541,9 @@ export function useDisplaySpecForChannelActionId(
   postTerm: string;
 } {
   const isMuted = logic.isMuted(post.volumeSettings?.level, 'thread');
-  const postTerm = useMemo(() => {
-    return ['dm', 'groupDm', 'chat'].includes(channel?.type)
-      ? 'message'
-      : 'post';
-  }, [channel?.type]);
+  const postTerm = postTermForChannel(channel);
 
-  const spec = useMemo(() => {
+  const spec = (() => {
     switch (id) {
       case 'debugJson':
         return { label: 'Toggle debug' };
@@ -609,16 +621,11 @@ export function useDisplaySpecForChannelActionId(
       case 'unpinPost':
         return { label: 'Unpin post' };
     }
-  }, [
-    id,
-    postTerm,
-    post.authorId,
-    post.hidden,
-    currentUserId,
-    currentUserIsAdmin,
-    isMuted,
-    channel?.type,
-  ]);
+  })();
 
   return { ...spec, postTerm };
+}
+
+function postTermForChannel(channel: db.Channel) {
+  return ['dm', 'groupDm', 'chat'].includes(channel.type) ? 'message' : 'post';
 }

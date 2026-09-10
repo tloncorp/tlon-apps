@@ -1,9 +1,18 @@
 import {
   ACTIVITY_SOURCE_PAGESIZE,
   ChannelInit,
+  formatNotesFlag,
   getCurrentUserId,
+  getTextContent,
+  parseNotesChannelId,
 } from '@tloncorp/api';
 import { parseGroupId } from '@tloncorp/api';
+import {
+  type PostBlobDataEntryA2UISelection,
+  type PostBlobDataEntryAgentProviderConfig,
+  type PostBlobDataEntryAgentProvision,
+  parsePostBlob,
+} from '@tloncorp/api';
 import {
   SourceActivityEvents,
   interleaveActivityEvents,
@@ -29,20 +38,28 @@ import {
   inArray,
   isNotNull,
   isNull,
+  like,
   lt,
   lte,
   max,
   min,
   ne,
   not,
+  notExists,
   notInArray,
   or,
   sql,
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 
+import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
-import { appendContactIdToReplies, getCompositeGroups } from '../logic';
+import {
+  appendContactIdToReplies,
+  getCompositeGroups,
+  noteTimestampMs,
+} from '../logic';
 import { perfTime } from '../perfLog';
 import { processBatchOperation } from './dbUtils';
 import { createDmChannelsForNewContacts } from './modelBuilders';
@@ -57,6 +74,7 @@ import {
   activityEvents as $activityEvents,
   attestations as $attestations,
   baseUnreads as $baseUnreads,
+  botReplyFeedback as $botReplyFeedback,
   channelReaders as $channelReaders,
   channelUnreads as $channelUnreads,
   channelWriters as $channelWriters,
@@ -77,6 +95,7 @@ import {
   groupRoles as $groupRoles,
   groupUnreads as $groupUnreads,
   groups as $groups,
+  notesActivityEventTombstones as $notesActivityEventTombstones,
   notesFolders as $notesFolders,
   notesMembers as $notesMembers,
   notesNotebooks as $notesNotebooks,
@@ -97,6 +116,7 @@ import {
   ActivityEvent,
   Attestation,
   BaseUnread,
+  BotReplyFeedback,
   ChangesResult,
   Channel,
   ChannelUnread,
@@ -109,6 +129,7 @@ import {
   Group,
   GroupJoinRequest,
   GroupNavSection,
+  GroupNotesActivity,
   GroupRole,
   GroupUnread,
   NotesFolder,
@@ -204,6 +225,85 @@ export const getSettings = createReadQuery(
     });
   },
   ['settings']
+);
+
+export const getBotReplyFeedback = createReadQuery(
+  'getBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return (
+      (await ctx.db.query.botReplyFeedback.findFirst({
+        where: eq($botReplyFeedback.messageId, messageId),
+      })) ?? null
+    );
+  },
+  ['botReplyFeedback']
+);
+
+export const upsertBotReplyFeedback = createWriteQuery(
+  'upsertBotReplyFeedback',
+  async (entry: BotReplyFeedback, ctx: QueryCtx) => {
+    return ctx.db.insert($botReplyFeedback).values(entry).onConflictDoUpdate({
+      target: $botReplyFeedback.messageId,
+      set: entry,
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const deleteBotReplyFeedback = createWriteQuery(
+  'deleteBotReplyFeedback',
+  async (messageId: string, ctx: QueryCtx) => {
+    return ctx.db
+      .delete($botReplyFeedback)
+      .where(eq($botReplyFeedback.messageId, messageId));
+  },
+  ['botReplyFeedback']
+);
+
+export const replaceBotReplyFeedback = createWriteQuery(
+  'replaceBotReplyFeedback',
+  async (entries: BotReplyFeedback[], ctx: QueryCtx) => {
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await txCtx.db.delete($botReplyFeedback);
+      if (entries.length > 0) {
+        await txCtx.db.insert($botReplyFeedback).values(entries);
+      }
+    });
+  },
+  ['botReplyFeedback']
+);
+
+export const getBotReplyConversationExcerptPosts = createReadQuery(
+  'getBotReplyConversationExcerptPosts',
+  async (
+    {
+      channelId,
+      parentId,
+      sentAt,
+      limit,
+    }: {
+      channelId: string;
+      parentId: string | null;
+      sentAt: number;
+      limit: number;
+    },
+    ctx: QueryCtx
+  ) => {
+    const conversationCondition = parentId
+      ? or(eq($posts.id, parentId), eq($posts.parentId, parentId))
+      : isNull($posts.parentId);
+    const rows = await ctx.db.query.posts.findMany({
+      where: and(
+        eq($posts.channelId, channelId),
+        lt($posts.sentAt, sentAt),
+        conversationCondition
+      ),
+      orderBy: desc($posts.sentAt),
+      limit,
+    });
+    return rows.reverse();
+  },
+  ['posts']
 );
 
 export const getGroupPreviews = createReadQuery(
@@ -464,6 +564,59 @@ export const getNotesNotes = createReadQuery(
   ['notesNotes']
 );
 
+export interface NotesNotebookCounts {
+  noteCount: number;
+  folderCount: number;
+}
+
+// Counts every notebook at once: the channel list needs a count per notes
+// channel, and one grouped read beats a query per row. Folder counts skip
+// each notebook's root folder — it's the notebook itself in the UI, not a
+// folder anyone created. Every synced notebook gets an entry, zeroes
+// included, so callers can tell an empty notebook from an unsynced one.
+export const getNotesCountsByNotebook = createReadQuery(
+  'getNotesCountsByNotebook',
+  async (ctx: QueryCtx): Promise<Record<string, NotesNotebookCounts>> => {
+    // One statement rather than three reads. `saveNotesNotebookSnapshot`
+    // replaces each table wholesale inside a transaction, and plain reads
+    // aren't gated against it — `enqueueTransaction` only serializes
+    // transactions against each other — so separate reads can land between
+    // that save's DELETE and its re-INSERT and report a combination that
+    // never existed. Under the global `staleTime: Infinity` such a value then
+    // sticks until the next invalidation. Driving both counts off
+    // `notesNotebooks` also keeps an empty notebook reporting zeroes rather
+    // than dropping out of the result entirely.
+    const rows = await ctx.db
+      .select({
+        notebookFlag: $notesNotebooks.id,
+        noteCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($notesNotes)
+          .where(eq($notesNotes.notebookFlag, $notesNotebooks.id))}`,
+        folderCount: sql<number>`${ctx.db
+          .select({ value: count() })
+          .from($notesFolders)
+          .where(
+            and(
+              eq($notesFolders.notebookFlag, $notesNotebooks.id),
+              isNotNull($notesFolders.parentFolderId)
+            )
+          )}`,
+      })
+      .from($notesNotebooks);
+
+    const counts: Record<string, NotesNotebookCounts> = {};
+    for (const row of rows) {
+      counts[row.notebookFlag] = {
+        noteCount: row.noteCount,
+        folderCount: row.folderCount,
+      };
+    }
+    return counts;
+  },
+  ['notesNotebooks', 'notesNotes', 'notesFolders']
+);
+
 export const getNotesNote = createReadQuery(
   'getNotesNote',
   async (
@@ -529,11 +682,79 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
         NOTES_SNAPSHOT_BATCH_SIZE
       );
 
+      // Snapshots race the save path's immediate write-through (which
+      // persists a note the moment a PUT succeeds): a sync that fetched
+      // before the save but lands after it would silently regress the row.
+      // Revisions are monotonic per note, so an incoming revision below the
+      // stored one proves the snapshot is stale for that note — keep the
+      // stored row wholesale. Splicing only some newer fields onto the
+      // stale copy would fabricate a row that never existed on the host
+      // (e.g. new revision + old title). Read inside the transaction so
+      // the comparison can't itself race the write-through.
+      const currentNotes = await txCtx.db.query.notesNotes.findMany({
+        where: eq($notesNotes.notebookFlag, notebook.id),
+      });
+      const currentByNoteId = new Map(
+        currentNotes.map((note) => [note.noteId, note])
+      );
+      const incomingNoteIds = new Set(notes.map((note) => note.noteId));
+      const channelId = `notes/${notebook.id}`;
+      // A previously synced row disappearing from a later serialized snapshot
+      // is the remote-deletion signal. Rows created locally have no syncedAt
+      // until the replica observes them, so a lagging post-create snapshot
+      // cannot incorrectly tombstone their activity.
+      const remotelyDeletedNotes = currentNotes.filter(
+        (note) => note.syncedAt != null && !incomingNoteIds.has(note.noteId)
+      );
+      await batchAction(
+        notes,
+        async (batch) => {
+          await txCtx.db.delete($notesActivityEventTombstones).where(
+            and(
+              eq($notesActivityEventTombstones.channelId, channelId),
+              inArray(
+                $notesActivityEventTombstones.noteId,
+                batch.map((note) => String(note.noteId))
+              )
+            )
+          );
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+      await batchAction(
+        remotelyDeletedNotes,
+        async (batch) => {
+          await txCtx.db
+            .insert($notesActivityEventTombstones)
+            .values(
+              batch.map((note) => ({
+                channelId,
+                noteId: String(note.noteId),
+              }))
+            )
+            .onConflictDoNothing();
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+      // Renames and moves don't bump the revision, so equal revisions are
+      // ordered by updatedAt (both stamped by the host clock).
+      const mergedNotes = notes.map((incoming) => {
+        const current = currentByNoteId.get(incoming.noteId);
+        const currentIsNewer =
+          current &&
+          (current.revision > incoming.revision ||
+            (current.revision === incoming.revision &&
+              (current.updatedAt ?? 0) > (incoming.updatedAt ?? 0)));
+        return currentIsNewer
+          ? { ...current, syncedAt: incoming.syncedAt }
+          : incoming;
+      });
+
       await txCtx.db
         .delete($notesNotes)
         .where(eq($notesNotes.notebookFlag, notebook.id));
       await batchAction(
-        notes,
+        mergedNotes,
         async (batch) => {
           await txCtx.db.insert($notesNotes).values(batch);
         },
@@ -552,7 +773,88 @@ export const saveNotesNotebookSnapshot = createWriteQuery(
       );
     });
   },
-  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+  [
+    'notesNotebooks',
+    'notesFolders',
+    'notesNotes',
+    'notesMembers',
+    'notesActivityEventTombstones',
+  ]
+);
+
+/** Persist one authoritative note without replacing concurrent notebook data. */
+export const upsertNotesNote = createWriteQuery(
+  'upsertNotesNote',
+  async (note: NotesNote, ctx: QueryCtx) => {
+    await ctx.db
+      .insert($notesNotes)
+      .values(note)
+      .onConflictDoUpdate({
+        target: $notesNotes.id,
+        set: conflictUpdateSetAll($notesNotes),
+        setWhere: or(
+          lt($notesNotes.revision, note.revision),
+          and(
+            eq($notesNotes.revision, note.revision),
+            lte(sql`coalesce(${$notesNotes.updatedAt}, 0)`, note.updatedAt ?? 0)
+          )
+        ),
+      });
+  },
+  ['notesNotes']
+);
+
+// Revision-monotonic note write. When the update carries a `revision`, the
+// row is only written if it hasn't already advanced past it (equal revisions
+// break ties on `updatedAt` when the update carries one, mirroring the
+// snapshot merge — renames/moves don't bump the revision). The guard lives
+// in the UPDATE's WHERE clause so the comparison and the write are one
+// atomic statement: a check-then-write across separate queries would race
+// concurrent sync writes. Updates without a `revision` (metadata-only
+// fallbacks) apply unconditionally.
+export const updateNotesNote = createWriteQuery(
+  'updateNotesNote',
+  async (
+    {
+      notebookFlag,
+      noteId,
+      ...update
+    }: {
+      notebookFlag: string;
+      noteId: number;
+    } & Partial<
+      Pick<
+        NotesNote,
+        'bodyMd' | 'folderId' | 'revision' | 'title' | 'updatedAt' | 'updatedBy'
+      >
+    >,
+    ctx: QueryCtx
+  ) => {
+    const conditions = [
+      eq($notesNotes.notebookFlag, notebookFlag),
+      eq($notesNotes.noteId, noteId),
+    ];
+    if (update.revision != null) {
+      const equalRevision =
+        update.updatedAt != null
+          ? and(
+              eq($notesNotes.revision, update.revision),
+              or(
+                isNull($notesNotes.updatedAt),
+                lte($notesNotes.updatedAt, update.updatedAt)
+              )
+            )
+          : eq($notesNotes.revision, update.revision);
+      conditions.push(
+        or(lt($notesNotes.revision, update.revision), equalRevision)!
+      );
+    }
+    return ctx.db
+      .update($notesNotes)
+      .set(update)
+      .where(and(...conditions));
+  },
+  ['notesNotes']
 );
 
 export const deleteNotesNote = createWriteQuery(
@@ -571,6 +873,36 @@ export const deleteNotesNote = createWriteQuery(
       );
   },
   ['notesNotes']
+);
+
+export const confirmNotesActivityEventsDeleted = createWriteQuery(
+  'confirmNotesActivityEventsDeleted',
+  async (
+    { notebookFlag, noteIds }: { notebookFlag: string; noteIds: number[] },
+    ctx: QueryCtx
+  ) => {
+    if (noteIds.length === 0) {
+      return;
+    }
+    return withTransactionCtx(ctx, async (txCtx) => {
+      await batchAction(
+        noteIds,
+        async (batch) => {
+          await txCtx.db
+            .insert($notesActivityEventTombstones)
+            .values(
+              batch.map((noteId) => ({
+                channelId: `notes/${notebookFlag}`,
+                noteId: String(noteId),
+              }))
+            )
+            .onConflictDoNothing();
+        },
+        NOTES_SNAPSHOT_BATCH_SIZE
+      );
+    });
+  },
+  ['notesActivityEventTombstones']
 );
 
 export const deleteNotesFolders = createWriteQuery(
@@ -633,11 +965,22 @@ export const deleteNotesNotebook = createWriteQuery(
         .delete($notesMembers)
         .where(eq($notesMembers.notebookFlag, notebookFlag));
       await txCtx.db
+        .delete($notesActivityEventTombstones)
+        .where(
+          eq($notesActivityEventTombstones.channelId, `notes/${notebookFlag}`)
+        );
+      await txCtx.db
         .delete($notesNotebooks)
         .where(eq($notesNotebooks.id, notebookFlag));
     });
   },
-  ['notesNotebooks', 'notesFolders', 'notesNotes', 'notesMembers']
+  [
+    'notesNotebooks',
+    'notesFolders',
+    'notesNotes',
+    'notesMembers',
+    'notesActivityEventTombstones',
+  ]
 );
 
 const NOTES_SNAPSHOT_BATCH_SIZE = 50;
@@ -1149,6 +1492,317 @@ export const getMentionCandidates = createReadQuery(
   ['chatMembers', 'contacts']
 );
 
+// A note detail must be close to the notebook recency before we claim that it
+// describes that bump. Own edits use the host's note timestamp and the local
+// ship's activity timestamp, so exact equality is not expected.
+export const NOTES_ACTIVITY_DETAIL_WINDOW_MS = 5 * 60 * 1000;
+
+type NotesActivityDetail = Pick<
+  GroupNotesActivity,
+  'noteId' | 'noteTitle' | 'authorId' | 'isNew' | 'timestamp'
+>;
+
+type NotesActivityEventDetail = NotesActivityDetail & {
+  isConfirmedDeleted: boolean;
+};
+
+type NotesActivityGroup = {
+  id: string;
+  channels: (Pick<Channel, 'id' | 'type' | 'title' | 'currentUserIsMember'> & {
+    unread?: Pick<ChannelUnread, 'updatedAt'> | null;
+  })[];
+};
+
+/**
+ * Find the newest joined notebook activity in each group. Notebook recency is
+ * authoritative for ordering, while the note identity can come from either a
+ * persisted activity event or the locally synced notebook snapshot.
+ */
+async function getGroupNotesActivity(
+  groups: NotesActivityGroup[],
+  ctx: QueryCtx
+): Promise<Map<string, GroupNotesActivity>> {
+  const notesChannels = groups.flatMap((group) =>
+    group.channels
+      .filter(
+        (channel) =>
+          channel.type === 'notes' && channel.currentUserIsMember === true
+      )
+      .map((channel) => {
+        const flag = parseNotesChannelId(channel.id);
+        return {
+          groupId: group.id,
+          channel,
+          notebookFlag: flag ? formatNotesFlag(flag) : null,
+        };
+      })
+  );
+  const activityByGroup = new Map<string, GroupNotesActivity>();
+  if (notesChannels.length === 0) {
+    return activityByGroup;
+  }
+
+  const notebookFlags = notesChannels.flatMap(({ notebookFlag }) =>
+    notebookFlag ? [notebookFlag] : []
+  );
+  const [eventsByChannel, notesByNotebook, notebookTitlesByFlag] =
+    await Promise.all([
+      getLatestNoteEventsByChannel(
+        notesChannels.map(({ channel }) => channel.id),
+        ctx
+      ),
+      getLatestNotesByNotebook(notebookFlags, ctx),
+      getNotesNotebookTitles(notebookFlags, ctx),
+    ]);
+
+  for (const { groupId, channel, notebookFlag } of notesChannels) {
+    const recency = channel.unread?.updatedAt ?? 0;
+    const event = eventsByChannel.get(channel.id);
+    const localNote = notebookFlag
+      ? notesByNotebook.get(notebookFlag)
+      : undefined;
+    // A confirmed deletion disqualifies only the event describing it. The
+    // local candidate is not ranked against that event's timestamp: the note
+    // stamp comes from the notebook host and the event stamp from the
+    // activity ship, so ordering them directly would drop a valid note
+    // whenever the host's clock lags. Channel recency arbitrates below.
+    const detail = newestNotesActivityDetail(
+      event?.isConfirmedDeleted ? undefined : event,
+      localNote
+    );
+    const now = Date.now();
+    const describes =
+      detail &&
+      (recency > 0
+        ? Math.abs(detail.timestamp - recency) <=
+          NOTES_ACTIVITY_DETAIL_WINDOW_MS
+        : detail.timestamp <= now + NOTES_ACTIVITY_DETAIL_WINDOW_MS)
+        ? detail
+        : null;
+    const detailTimestamp = describes
+      ? recency > 0
+        ? describes.timestamp
+        : Math.min(describes.timestamp, now)
+      : 0;
+    const timestamp = Math.max(recency, detailTimestamp);
+    if (timestamp <= 0) {
+      continue;
+    }
+
+    const current = activityByGroup.get(groupId);
+    if (current && current.timestamp >= timestamp) {
+      continue;
+    }
+
+    activityByGroup.set(groupId, {
+      channelId: channel.id,
+      notebookTitle:
+        channel.title ??
+        (notebookFlag ? notebookTitlesByFlag.get(notebookFlag) : null) ??
+        null,
+      noteId: describes?.noteId ?? null,
+      noteTitle: describes?.noteTitle ?? null,
+      authorId: describes?.authorId ?? null,
+      // Without a record of the note, the only safe generic copy is "New
+      // note"; the title can fill in when the notebook snapshot is warmed.
+      isNew: describes?.isNew ?? true,
+      timestamp,
+    });
+  }
+
+  return activityByGroup;
+}
+
+// The event stamp comes from the activity ship and the note stamp from the
+// notebook host, so this comparison spans two clocks. Newest-wins is still
+// the right rule for a note both sources describe: an edit event carries the
+// note's current title, and markNotesNotebookStaleForNoteEvent deliberately
+// leaves the snapshot alone for a note it already stores, so the row can sit
+// on a stale title for minutes while the event is current. A rename bumps
+// updatedAt, which already lifts the row above an older event. The recency
+// window in getGroupNotesActivity bounds how stale either choice can be.
+function newestNotesActivityDetail(
+  event: NotesActivityDetail | undefined,
+  localNote: NotesActivityDetail | undefined
+): NotesActivityDetail | undefined {
+  if (!event || !localNote) {
+    return event ?? localNote;
+  }
+  return event.timestamp > localNote.timestamp ? event : localNote;
+}
+
+async function getLatestNoteEventsByChannel(
+  channelIds: string[],
+  ctx: QueryCtx
+): Promise<Map<string, NotesActivityEventDetail>> {
+  const $newerEvents = alias($activityEvents, 'newerNoteActivityEvents');
+  const rows = await ctx.db
+    .select({
+      channelId: $activityEvents.channelId,
+      type: $activityEvents.type,
+      postId: $activityEvents.postId,
+      authorId: $activityEvents.authorId,
+      content: $activityEvents.content,
+      timestamp: $activityEvents.timestamp,
+    })
+    .from($activityEvents)
+    .where(
+      and(
+        inArray($activityEvents.type, ['note-create', 'note-edit']),
+        inArray($activityEvents.channelId, channelIds),
+        notExists(
+          ctx.db
+            .select({ id: $newerEvents.id })
+            .from($newerEvents)
+            .where(
+              and(
+                eq($newerEvents.channelId, $activityEvents.channelId),
+                inArray($newerEvents.type, ['note-create', 'note-edit']),
+                or(
+                  gt($newerEvents.timestamp, $activityEvents.timestamp),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    gt($newerEvents.id, $activityEvents.id)
+                  ),
+                  and(
+                    eq($newerEvents.timestamp, $activityEvents.timestamp),
+                    eq($newerEvents.id, $activityEvents.id),
+                    gt($newerEvents.bucketId, $activityEvents.bucketId)
+                  )
+                )
+              )
+            )
+        )
+      )
+    );
+
+  // Only the selected events can be suppressed, and the filter above leaves
+  // at most one per channel. Tombstones outlive the notes they suppress, so
+  // scope the lookup to those ids -- a seek on the (channel_id, note_id)
+  // primary key -- instead of loading a notebook's whole deletion history.
+  const selectedNoteIds = rows.flatMap((row) =>
+    row.postId ? [row.postId] : []
+  );
+  const tombstones = selectedNoteIds.length
+    ? await ctx.db
+        .select()
+        .from($notesActivityEventTombstones)
+        .where(
+          and(
+            inArray($notesActivityEventTombstones.channelId, channelIds),
+            inArray($notesActivityEventTombstones.noteId, selectedNoteIds)
+          )
+        )
+    : [];
+  const tombstoneKeys = new Set(
+    tombstones.map(({ channelId, noteId }) =>
+      notesActivityEventKey(channelId, noteId)
+    )
+  );
+
+  const latest = new Map<string, NotesActivityEventDetail>();
+  for (const row of rows) {
+    if (!row.channelId || latest.has(row.channelId)) {
+      continue;
+    }
+    const title = row.content
+      ? getTextContent(
+          row.content as Parameters<typeof getTextContent>[0]
+        )?.trim() || null
+      : null;
+    latest.set(row.channelId, {
+      noteId: row.postId ?? null,
+      noteTitle: title,
+      authorId: row.authorId ?? null,
+      isNew: row.type === 'note-create',
+      timestamp: row.timestamp,
+      isConfirmedDeleted: Boolean(
+        row.postId &&
+        tombstoneKeys.has(notesActivityEventKey(row.channelId, row.postId))
+      ),
+    });
+  }
+
+  return latest;
+}
+
+function notesActivityEventKey(channelId: string, noteId: string) {
+  return `${channelId}\0${noteId}`;
+}
+
+async function getNotesNotebookTitles(
+  notebookFlags: string[],
+  ctx: QueryCtx
+): Promise<Map<string, string>> {
+  if (notebookFlags.length === 0) {
+    return new Map();
+  }
+
+  const rows = await ctx.db
+    .select({ id: $notesNotebooks.id, title: $notesNotebooks.title })
+    .from($notesNotebooks)
+    .where(inArray($notesNotebooks.id, notebookFlags));
+  return new Map(rows.map((row) => [row.id, row.title]));
+}
+
+// A notebook can contain thousands of notes, so select only the newest row
+// per notebook in SQLite instead of paging every note through JavaScript.
+async function getLatestNotesByNotebook(
+  notebookFlags: string[],
+  ctx: QueryCtx
+): Promise<Map<string, NotesActivityDetail>> {
+  const latest = new Map<string, NotesActivityDetail>();
+  if (notebookFlags.length === 0) {
+    return latest;
+  }
+
+  const effectiveAt = sql<number>`coalesce(${$notesNotes.updatedAt}, ${$notesNotes.createdAt})`;
+  // Normalize before ranking so mixed seconds/milliseconds rows compare by
+  // their actual time, then let SQLite rank each notebook in one pass.
+  const normalizedEffectiveAt = sql<number>`case when ${effectiveAt} < 10000000000 then ${effectiveAt} * 1000 else ${effectiveAt} end`;
+  const $rankedNotes = ctx.db
+    .select({
+      notebookFlag: $notesNotes.notebookFlag,
+      noteId: $notesNotes.noteId,
+      title: $notesNotes.title,
+      updatedBy: $notesNotes.updatedBy,
+      createdAt: $notesNotes.createdAt,
+      updatedAt: $notesNotes.updatedAt,
+      effectiveAt: normalizedEffectiveAt.as('effectiveAt'),
+      rank: sql<number>`row_number() over (
+        partition by ${$notesNotes.notebookFlag}
+        order by ${normalizedEffectiveAt} desc, ${$notesNotes.noteId} desc
+      )`.as('rank'),
+    })
+    .from($notesNotes)
+    .where(
+      and(
+        inArray($notesNotes.notebookFlag, notebookFlags),
+        isNotNull(effectiveAt)
+      )
+    )
+    .as('rankedNotes');
+  const rows = await ctx.db
+    .select()
+    .from($rankedNotes)
+    .where(eq($rankedNotes.rank, 1));
+
+  for (const row of rows) {
+    latest.set(row.notebookFlag, {
+      noteId: String(row.noteId),
+      noteTitle: row.title.trim() || null,
+      authorId: row.updatedBy ?? null,
+      isNew:
+        row.updatedAt == null ||
+        (row.createdAt != null &&
+          noteTimestampMs(row.createdAt) === noteTimestampMs(row.updatedAt)),
+      timestamp: row.effectiveAt,
+    });
+  }
+
+  return latest;
+}
+
 export const getChats = createReadQuery(
   'getChats',
   async (
@@ -1169,6 +1823,7 @@ export const getChats = createReadQuery(
           orderBy: [desc($channels.lastPostAt)],
           with: {
             lastPost: true,
+            unread: true,
           },
         },
         // Just need the first 4 members for avatar display
@@ -1199,22 +1854,34 @@ export const getChats = createReadQuery(
       },
     });
 
-    const groupChats: Chat[] = groups.map((g) => ({
-      id: g.id,
-      type: 'group',
-      pin: g.pin,
-      timestamp: g.haveInvite
-        ? g.unread?.updatedAt ?? 0
-        : g.lastPostAt ?? g.unread?.updatedAt ?? 0,
-      volumeSettings: g.volumeSettings,
-      unreadCount: g.unread?.count ?? 0,
-      group: g,
-      isPending:
-        g.haveInvite === true ||
-        !!g.joinStatus ||
-        g.haveRequestedInvite ||
-        false,
-    }));
+    const notesActivityByGroup = await getGroupNotesActivity(groups, ctx);
+
+    const groupChats: Chat[] = groups.map((g) => {
+      // Temporary client-side workaround for TLON-6417. Group activity
+      // recency includes membership and other events that should not reorder
+      // the chat list. Keep the old post-based ordering, plus the narrower
+      // Notes source recency, until the backend provides a sidebar-specific
+      // recency value.
+      const notesActivity = notesActivityByGroup.get(g.id) ?? null;
+
+      return {
+        id: g.id,
+        type: 'group',
+        pin: g.pin,
+        timestamp: g.haveInvite
+          ? (g.unread?.updatedAt ?? 0)
+          : Math.max(g.lastPostAt ?? 0, notesActivity?.timestamp ?? 0),
+        volumeSettings: g.volumeSettings,
+        unreadCount: g.unread?.count ?? 0,
+        group: g,
+        notesActivity,
+        isPending:
+          g.haveInvite === true ||
+          !!g.joinStatus ||
+          g.haveRequestedInvite ||
+          false,
+      };
+    });
 
     const channelChats: Chat[] = channels.map((c) => ({
       id: c.id,
@@ -1266,6 +1933,10 @@ export const getChats = createReadQuery(
     'threadUnreads',
     'volumeSettings',
     'pins',
+    'activityEvents',
+    'notesActivityEventTombstones',
+    'notesNotebooks',
+    'notesNotes',
   ]
 );
 
@@ -1325,6 +1996,9 @@ export const insertGroups = createWriteQuery(
                 $groups.coverImage,
                 $groups.title,
                 $groups.description,
+                // only overwrite when the source carried a blob; omitting
+                // the key must not clear a stored one
+                ...(group.blob !== undefined ? [$groups.blob] : []),
                 $groups.privacy,
                 $groups.joinStatus,
                 $groups.currentUserIsMember,
@@ -1848,6 +2522,25 @@ export const insertChannelOrder = createWriteQuery(
   ['channels']
 );
 
+export const getChannelHasBotPost = createReadQuery(
+  'getChannelHasBotPost',
+  async (
+    { channelId, authorId }: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ) => {
+    const post = await ctx.db.query.posts.findFirst({
+      where: and(
+        eq($posts.channelId, channelId),
+        eq($posts.authorId, authorId),
+        eq($posts.isBot, true)
+      ),
+      columns: { id: true },
+    });
+    return !!post;
+  },
+  ['posts']
+);
+
 export const getThreadPosts = createReadQuery(
   'getThreadPosts',
   ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
@@ -1869,11 +2562,21 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  ({ parentId }: { parentId: string }, ctx: QueryCtx) => {
+  (
+    { parentId, channelId }: { parentId: string; channelId?: string },
+    ctx: QueryCtx
+  ) => {
     if (!parentId) return Promise.resolve(null);
 
+    // note thread ids are small decimals that repeat across notebooks, so
+    // callers that know the channel should pin it to avoid collisions
     return ctx.db.query.threadUnreads.findFirst({
-      where: eq($threadUnreads.threadId, parentId),
+      where: channelId
+        ? and(
+            eq($threadUnreads.threadId, parentId),
+            eq($threadUnreads.channelId, channelId)
+          )
+        : eq($threadUnreads.threadId, parentId),
     });
   },
   ['threadUnreads']
@@ -3767,6 +4470,40 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
     posts.map((p) => [p.id, p.channelId])
   );
 
+  const failedEdits = await ctx.db
+    .select({
+      id: $posts.id,
+      editStatus: $posts.editStatus,
+      lastEditContent: $posts.lastEditContent,
+      lastEditTitle: $posts.lastEditTitle,
+      lastEditImage: $posts.lastEditImage,
+    })
+    .from($posts)
+    .where(
+      and(
+        inArray(
+          $posts.id,
+          posts.map((post) => post.id)
+        ),
+        eq($posts.editStatus, 'failed'),
+        isNotNull($posts.lastEditContent)
+      )
+    );
+  const incomingPosts = new Map(posts.map((post) => [post.id, post]));
+  const confirmedEdits = failedEdits.filter((edit) => {
+    const incoming = incomingPosts.get(edit.id);
+    return (
+      incoming?.isEdited === true &&
+      incoming.content === edit.lastEditContent &&
+      (incoming.title ?? '') === (edit.lastEditTitle ?? '') &&
+      (incoming.image ?? '') === (edit.lastEditImage ?? '')
+    );
+  });
+  const confirmedEditIds = new Set(confirmedEdits.map((edit) => edit.id));
+  const unconfirmedEdits = failedEdits.filter(
+    (edit) => !confirmedEditIds.has(edit.id)
+  );
+
   const uniqueChannels = new Set(posts.map((p) => p.channelId)).size;
   await perfTime(
     'insertPostsBatch.total',
@@ -3796,6 +4533,22 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
               set: conflictUpdateSetAll($posts, ['hidden']),
             }),
         { count: posts.length, channels: uniqueChannels }
+      );
+
+      // A sync can carry an older server copy before a timed-out edit lands.
+      // Keep the retry marker until the incoming post matches that edit.
+      await Promise.all(
+        unconfirmedEdits.map((edit) =>
+          ctx.db
+            .update($posts)
+            .set({
+              editStatus: edit.editStatus,
+              lastEditContent: edit.lastEditContent,
+              lastEditTitle: edit.lastEditTitle,
+              lastEditImage: edit.lastEditImage,
+            })
+            .where(eq($posts.id, edit.id))
+        )
       );
 
       const reactions = posts
@@ -3845,6 +4598,9 @@ async function insertPostsBatch(posts: Post[], ctx: QueryCtx) {
         )
       );
       logger.log('clear matched pending');
+      confirmedEdits.forEach(() =>
+        trackEvent(domain.AnalyticsEvent.PostEditCompleted)
+      );
     },
     { count: posts.length, channels: uniqueChannels }
   );
@@ -4287,6 +5043,160 @@ export const getChanPosts = createReadQuery(
       .select()
       .from($posts)
       .where(eq($posts.channelId, params.channelId));
+  },
+  ['posts']
+);
+
+/**
+ * Durable A2UI selection entries in a channel, scoped to one author.
+ *
+ * A one-shot A2UI control is consumed iff a live post by the viewer carries a
+ * `tlon-a2ui-selection` entry matching the source post, surface, and component
+ * ids, so consumption survives remount, restart, and other devices. The
+ * author scope is load-bearing: without it, any channel member could post a
+ * matching blob to lock or fake-answer someone else's control.
+ */
+export const getA2UISelections = createReadQuery(
+  'getA2UISelections',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<PostBlobDataEntryA2UISelection[]> => {
+    const rows = await ctx.db
+      .select({ blob: $posts.blob })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          // Cheap prefilter; parsePostBlob below is the real check.
+          like($posts.blob, '%tlon-a2ui-selection%'),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false))
+        )
+      )
+      // Controls use the first matching entry, so a successful retry must
+      // supersede an older failed attempt for the same component.
+      .orderBy(desc($posts.receivedAt), desc($posts.id));
+    return rows.flatMap((row) =>
+      row.blob
+        ? parsePostBlob(row.blob).filter(
+            (entry): entry is PostBlobDataEntryA2UISelection =>
+              entry.type === 'tlon-a2ui-selection'
+          )
+        : []
+    );
+  },
+  ['posts']
+);
+
+type AgentProtocolReceipt<T> = {
+  entry: T;
+  postId: string;
+  receivedAt: number;
+  sequenceNum: number | null;
+  selection?: PostBlobDataEntryA2UISelection;
+};
+
+export type AgentA2UIProtocolReceipts = {
+  provision?: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>;
+  provisions: AgentProtocolReceipt<PostBlobDataEntryAgentProvision>[];
+  providerConfig?: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>;
+  providerConfigs: AgentProtocolReceipt<PostBlobDataEntryAgentProviderConfig>[];
+};
+
+/**
+ * Latest owner-authored agent protocol receipts across the whole channel.
+ *
+ * These actions can sit beyond the currently rendered post page. Returning
+ * their post position lets a surface count only receipts that followed it.
+ */
+export const getAgentA2UIProtocolReceipts = createReadQuery(
+  'getAgentA2UIProtocolReceipts',
+  async (
+    params: { channelId: string; authorId: string },
+    ctx: QueryCtx
+  ): Promise<AgentA2UIProtocolReceipts> => {
+    const rows = await ctx.db
+      .select({
+        id: $posts.id,
+        receivedAt: $posts.receivedAt,
+        sequenceNum: $posts.sequenceNum,
+        blob: $posts.blob,
+      })
+      .from($posts)
+      .where(
+        and(
+          eq($posts.channelId, params.channelId),
+          eq($posts.authorId, params.authorId),
+          isNotNull($posts.blob),
+          or(
+            like($posts.blob, '%tlon-agent-provision%'),
+            like($posts.blob, '%tlon-agent-provider-config%')
+          ),
+          or(isNull($posts.isDeleted), eq($posts.isDeleted, false)),
+          or(
+            isNull($posts.deliveryStatus),
+            not(eq($posts.deliveryStatus, 'failed'))
+          )
+        )
+      );
+
+    rows.sort((a, b) => {
+      const aSequence =
+        typeof a.sequenceNum === 'number' && a.sequenceNum > 0
+          ? a.sequenceNum
+          : null;
+      const bSequence =
+        typeof b.sequenceNum === 'number' && b.sequenceNum > 0
+          ? b.sequenceNum
+          : null;
+      if (aSequence !== null && bSequence !== null) {
+        return aSequence - bSequence || a.id.localeCompare(b.id);
+      }
+      // Optimistic/unsequenced receipts follow server-ordered history and use
+      // local receipt time only among themselves until the host sequences them.
+      if (aSequence !== null) return -1;
+      if (bSequence !== null) return 1;
+      return a.receivedAt - b.receivedAt || a.id.localeCompare(b.id);
+    });
+
+    const receipts: AgentA2UIProtocolReceipts = {
+      provisions: [],
+      providerConfigs: [],
+    };
+    for (const row of rows) {
+      if (!row.blob) continue;
+      const entries = parsePostBlob(row.blob);
+      const selection = entries.find(
+        (entry): entry is PostBlobDataEntryA2UISelection =>
+          entry.type === 'tlon-a2ui-selection'
+      );
+      for (const entry of entries) {
+        if (entry.type === 'tlon-agent-provision') {
+          const receipt = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+            selection,
+          };
+          receipts.provision = receipt;
+          receipts.provisions.push(receipt);
+        } else if (entry.type === 'tlon-agent-provider-config') {
+          const receipt = {
+            entry,
+            postId: row.id,
+            receivedAt: row.receivedAt,
+            sequenceNum: row.sequenceNum,
+            selection,
+          };
+          receipts.providerConfig = receipt;
+          receipts.providerConfigs.push(receipt);
+        }
+      }
+    }
+    return receipts;
   },
   ['posts']
 );
@@ -5154,99 +6064,125 @@ export const insertContact = createWriteQuery(
   ['contacts']
 );
 
-export const insertContacts = createWriteQuery(
-  'insertContacts',
-  async (contactsData: Contact[], ctx: QueryCtx) => {
-    const currentUserId = getCurrentUserId();
-    if (contactsData.length === 0) {
-      return;
-    }
+async function writeContacts(
+  contactsData: Contact[],
+  ctx: QueryCtx,
+  // `fillMissingOnly` writes rows we don't have and leaves the ones we do
+  // alone. It exists for sources that are not authoritative — a snapshot of an
+  // earlier sync, whose fields may already have been superseded by a live
+  // update (see loadCachedContacts).
+  { fillMissingOnly }: { fillMissingOnly: boolean }
+) {
+  const currentUserId = getCurrentUserId();
+  if (contactsData.length === 0) {
+    return;
+  }
 
-    const contactGroups = contactsData.flatMap(
-      (contact) => contact.pinnedGroups || []
-    );
+  const contactGroups = contactsData.flatMap(
+    (contact) => contact.pinnedGroups || []
+  );
 
-    const contactAttestations = contactsData.flatMap(
-      (contact) =>
-        contact.attestations?.filter(
-          (a) => a.attestation && a.contactId !== currentUserId
-        ) || []
-    );
+  const contactAttestations = contactsData.flatMap(
+    (contact) =>
+      contact.attestations?.filter(
+        (a) => a.attestation && a.contactId !== currentUserId
+      ) || []
+  );
 
-    const targetGroups = contactGroups.map((g): Group => {
-      const { host: hostUserId } = parseGroupId(g.groupId);
-      return {
-        id: g.groupId,
-        hostUserId,
-        privacy: g.group?.privacy,
-        currentUserIsMember: false,
-        currentUserIsHost: currentUserId === hostUserId,
-      };
-    });
+  const targetGroups = contactGroups.map((g): Group => {
+    const { host: hostUserId } = parseGroupId(g.groupId);
+    return {
+      id: g.groupId,
+      hostUserId,
+      privacy: g.group?.privacy,
+      currentUserIsMember: false,
+      currentUserIsHost: currentUserId === hostUserId,
+    };
+  });
 
-    await withTransactionCtx(ctx, async (txCtx) => {
-      // Batch size to avoid SQLite variable limits
-      const BATCH_SIZE = 100;
+  await withTransactionCtx(ctx, async (txCtx) => {
+    // Batch size to avoid SQLite variable limits
+    const BATCH_SIZE = 100;
 
-      for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
-        const batch = contactsData.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < contactsData.length; i += BATCH_SIZE) {
+      const batch = contactsData.slice(i, i + BATCH_SIZE);
 
-        await txCtx.db
-          .insert($contacts)
-          .values(batch)
-          .onConflictDoUpdate({
+      const insert = txCtx.db.insert($contacts).values(batch);
+      await (fillMissingOnly
+        ? insert.onConflictDoNothing()
+        : insert.onConflictDoUpdate({
             target: $contacts.id,
             set: conflictUpdateSetAll($contacts, ['isBlocked']),
-          });
-      }
+          }));
+    }
 
-      if (targetGroups.length) {
-        for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
-          const batch = targetGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
-        }
+    if (targetGroups.length) {
+      for (let i = 0; i < targetGroups.length; i += BATCH_SIZE) {
+        const batch = targetGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db.insert($groups).values(batch).onConflictDoNothing();
       }
-      // TODO: Remove stale pinned groups
-      if (contactGroups.length) {
-        for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
-          const batch = contactGroups.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactGroups)
-            .values(batch)
-            .onConflictDoNothing();
-        }
+    }
+    // TODO: Remove stale pinned groups
+    if (contactGroups.length) {
+      for (let i = 0; i < contactGroups.length; i += BATCH_SIZE) {
+        const batch = contactGroups.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactGroups)
+          .values(batch)
+          .onConflictDoNothing();
       }
+    }
 
-      // clear existing
+    // clear existing — skipped for a non-authoritative source, which cannot
+    // tell an attestation that is gone from one it simply never captured.
+    if (!fillMissingOnly) {
       await txCtx.db
         .delete($attestations)
         .where(not(eq($attestations.contactId, currentUserId)));
+    }
 
-      if (contactAttestations.length) {
-        const attestationsToInsert = contactAttestations.map(
-          (a) => a.attestation as Attestation
-        );
-        for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
-          const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($attestations)
-            .values(batch)
-            .onConflictDoUpdate({
+    if (contactAttestations.length) {
+      const attestationsToInsert = contactAttestations.map(
+        (a) => a.attestation as Attestation
+      );
+      for (let i = 0; i < attestationsToInsert.length; i += BATCH_SIZE) {
+        const batch = attestationsToInsert.slice(i, i + BATCH_SIZE);
+        const insert = txCtx.db.insert($attestations).values(batch);
+        await (fillMissingOnly
+          ? insert.onConflictDoNothing()
+          : insert.onConflictDoUpdate({
               target: $attestations.id,
               set: conflictUpdateSetAll($attestations),
-            });
-        }
-
-        for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
-          const batch = contactAttestations.slice(i, i + BATCH_SIZE);
-          await txCtx.db
-            .insert($contactAttestations)
-            .values(batch)
-            .onConflictDoNothing();
-        }
+            }));
       }
-    });
-  },
+
+      for (let i = 0; i < contactAttestations.length; i += BATCH_SIZE) {
+        const batch = contactAttestations.slice(i, i + BATCH_SIZE);
+        await txCtx.db
+          .insert($contactAttestations)
+          .values(batch)
+          .onConflictDoNothing();
+      }
+    }
+  });
+}
+
+export const insertContacts = createWriteQuery(
+  'insertContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: false }),
+  (contacts) =>
+    contacts.length
+      ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
+      : []
+);
+
+// Contacts from a source that may be out of date: rows we lack are inserted,
+// rows we already hold are left as they are.
+export const insertMissingContacts = createWriteQuery(
+  'insertMissingContacts',
+  (contactsData: Contact[], ctx: QueryCtx) =>
+    writeContacts(contactsData, ctx, { fillMissingOnly: true }),
   (contacts) =>
     contacts.length
       ? ['contacts', 'groups', 'contactGroups', 'contactAttestations']
@@ -5582,6 +6518,9 @@ export const getLatestActivityEvent = createReadQuery(
 export const getUnreadUnseenActivityEvents = createReadQuery(
   'getUnreadUnseenActivityEvents',
   async ({ seenMarker }: { seenMarker: number }, ctx: QueryCtx) => {
+    // note events carry their per-note unread as a thread row keyed by the
+    // note id (postId), not parentId, so they need their own join
+    const $noteThreadUnreads = alias($threadUnreads, 'noteThreadUnreads');
     return ctx.db
       .select()
       .from($activityEvents)
@@ -5592,6 +6531,13 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
       .leftJoin(
         $threadUnreads,
         eq($threadUnreads.threadId, $activityEvents.parentId)
+      )
+      .leftJoin(
+        $noteThreadUnreads,
+        and(
+          eq($noteThreadUnreads.channelId, $activityEvents.channelId),
+          eq($noteThreadUnreads.threadId, $activityEvents.postId)
+        )
       )
       .leftJoin(
         $groupUnreads,
@@ -5612,6 +6558,13 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
                 and(
                   eq($activityEvents.type, 'post'),
                   gt($channelUnreads.count, 0)
+                ),
+                and(
+                  or(
+                    eq($activityEvents.type, 'note-create'),
+                    eq($activityEvents.type, 'note-edit')
+                  ),
+                  gt($noteThreadUnreads.count, 0)
                 ),
                 // reacts don't bump an unread count (unreads=|), so gate on the
                 // source's notify flag instead: a notified react lights the bell
@@ -5639,7 +6592,10 @@ export const getUnreadUnseenActivityEvents = createReadQuery(
         )
       );
   },
-  ['activityEvents']
+  // the predicate reads all three unread tables, so clearing an unread
+  // (e.g. reading a note) must re-run this even when no activity event
+  // row changed
+  ['activityEvents', 'channelUnreads', 'threadUnreads', 'groupUnreads']
 );
 
 export const checkActivityEmpty = createReadQuery(

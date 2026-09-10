@@ -7,7 +7,7 @@ import {
   DmRsvp,
   WritDiff,
 } from '@tloncorp/api/urbit/dms';
-import { GroupActionV4 } from '@tloncorp/api/urbit/groups';
+import { GroupActionV5 } from '@tloncorp/api/urbit/groups';
 import UrbitMock, {
   Handler,
   Message,
@@ -149,9 +149,9 @@ const groups: Handler[] = [
   {
     action: 'poke',
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     returnSubscription: specificGroupSub,
-    dataResponder: (req: Message & Poke<GroupActionV4>) => {
+    dataResponder: (req: Message & Poke<GroupActionV5>) => {
       if ('group' in req.json) {
         return createResponse(req, 'diff', {
           flag: req.json.group.flag,

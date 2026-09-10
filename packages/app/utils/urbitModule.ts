@@ -8,4 +8,6 @@ export interface UrbitModuleSpec {
   // native notification extension can pick the v9 (activity-event-1) vs v8
   // (activity-event) fetch without scrying for a version itself.
   setActivitySupportsReactions(supported: boolean): void;
+  // Same pattern for notes activity: gates the v10 (activity-event-2) fetch.
+  setActivitySupportsNotes(supported: boolean): void;
 }

@@ -34,9 +34,152 @@ describe('Urbit.requestJson', () => {
 
     await expect(urbit.requestJson('/missing', 'GET')).rejects.toBe(response);
   });
+
+  test('passes an abort signal through to fetch', async () => {
+    const fetch = vi.fn(async () => new Response('{"ok":true}'));
+    const urbit = new Urbit('http://example.test', undefined, undefined, fetch);
+    const controller = new AbortController();
+
+    await urbit.requestJson('/api/items', 'GET', undefined, {
+      signal: controller.signal,
+    });
+
+    expect(fetch).toHaveBeenCalledWith(
+      'http://example.test/api/items',
+      expect.objectContaining({ signal: controller.signal })
+    );
+  });
 });
 
 describe('client requestJson wrapper', () => {
+  test('passes aborts through without wrapping or reauthenticating', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const abort = controller.signal.reason;
+    const client = {
+      requestJson: vi.fn().mockRejectedValue(abort),
+      delete: vi.fn(),
+      on: vi.fn(),
+    };
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      client: client as any,
+    });
+
+    try {
+      await expect(
+        requestJson('/notes', 'GET', undefined, {
+          signal: controller.signal,
+        })
+      ).rejects.toBe(abort);
+      expect(client.requestJson).toHaveBeenCalledWith(
+        '/notes',
+        'GET',
+        undefined,
+        { signal: controller.signal }
+      );
+    } finally {
+      internalRemoveClient();
+    }
+  });
+
+  test.each([401, 403])(
+    'can opt into one %i reauth and replay a POST body',
+    async (status) => {
+      const path = '/notes/~/v1/import';
+      const method = 'POST';
+      const body = {
+        notebooks: [
+          { title: 'Imported Notes', description: 'Keep this on replay' },
+        ],
+      };
+      const client = {
+        requestJson: vi
+          .fn()
+          .mockRejectedValueOnce(new Response('', { status }))
+          .mockResolvedValueOnce({ ok: true }),
+        cookie: 'urbauth=old',
+        delete: vi.fn(),
+        on: vi.fn(),
+      };
+      const loginFetch = vi.fn().mockResolvedValue(
+        new Response(null, {
+          status: 200,
+          headers: { 'set-cookie': 'urbauth=refreshed; Path=/' },
+        })
+      );
+      vi.stubGlobal('fetch', loginFetch);
+
+      internalConfigureClient({
+        shipName: '~zod',
+        shipUrl: 'http://example.test',
+        getCode: vi.fn(async () => 'code'),
+        client: client as any,
+      });
+
+      try {
+        await expect(
+          requestJson(path, method, body, {
+            reauthStatuses: [401, 403],
+          })
+        ).resolves.toEqual({ ok: true });
+        expect(client.requestJson).toHaveBeenCalledTimes(2);
+        expect(client.requestJson).toHaveBeenNthCalledWith(
+          1,
+          path,
+          method,
+          body
+        );
+        expect(client.requestJson).toHaveBeenNthCalledWith(
+          2,
+          path,
+          method,
+          body
+        );
+        expect(client.cookie).toBe('urbauth=refreshed');
+      } finally {
+        vi.unstubAllGlobals();
+        internalRemoveClient();
+      }
+    }
+  );
+
+  test('a persistent auth failure surfaces the raw Response after exactly one replay', async () => {
+    const rejection = new Response('', { status: 401 });
+    const client = {
+      requestJson: vi.fn().mockRejectedValue(rejection),
+      cookie: 'urbauth=old',
+      delete: vi.fn(),
+      on: vi.fn(),
+    };
+    const loginFetch = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { 'set-cookie': 'urbauth=refreshed; Path=/' },
+      })
+    );
+    vi.stubGlobal('fetch', loginFetch);
+
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    try {
+      // The post-reauth retry is deliberately not wrapped in BadResponseError.
+      await expect(
+        requestJson('/notes/~/v1', 'POST', {}, { reauthStatuses: [401, 403] })
+      ).rejects.toBe(rejection);
+      expect(client.requestJson).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.unstubAllGlobals();
+      internalRemoveClient();
+    }
+  });
+
   test('turns blank HTTP failures into a nonblank BadResponseError message', async () => {
     const client = {
       requestJson: vi.fn(async () => {

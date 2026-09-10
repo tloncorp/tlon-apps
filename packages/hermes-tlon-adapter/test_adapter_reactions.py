@@ -326,6 +326,36 @@ class AdapterReactionTests(unittest.TestCase):
         self.assertNotIn("dm:~mug", adapter._pending_reaction_notes)
         self.assertEqual(adapter._pending_approvals, [])
 
+    def test_blocked_dm_reactor_does_not_dispatch(self):
+        adapter = self.make_adapter()
+        adapter._sse = RecordingSSE(["~mug"])
+
+        events = asyncio.run(self.dm_events(adapter, dm_react(author="~mug")))
+
+        self.assertEqual(events, [])
+        self.assertEqual(adapter._sse.paths, ["/chat/blocked"])
+
+    def test_unblocked_dm_reactor_dispatches(self):
+        adapter = self.make_adapter()
+        adapter._sse = RecordingSSE([])
+
+        events = asyncio.run(self.dm_events(adapter, dm_react(author="~mug")))
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._sse.paths, ["/chat/blocked"])
+
+    def test_blocked_channel_reactor_is_unaffected(self):
+        adapter = self.make_adapter()
+        self.cache_bot_post(adapter)
+        adapter._sse = RecordingSSE(["~mug"])
+
+        events = asyncio.run(
+            self.channel_events(adapter, channel_reacts({"~mug": "👍"}))
+        )
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(adapter._sse.paths, [])
+
     def test_note_caps_and_structural_encoding(self):
         adapter = self.make_adapter()
         # \x00 is a C0 control, \x9b (U+009B) is a C1 control — both are

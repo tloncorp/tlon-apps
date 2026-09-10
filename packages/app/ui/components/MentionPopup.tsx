@@ -7,8 +7,10 @@ import React, {
   useState,
 } from 'react';
 import { Platform } from 'react-native';
+import { XStack } from 'tamagui';
 
 import { MentionOption } from './BareChatInput/useMentions';
+import { BotBadge } from './BotBadge';
 import { ContactList } from './ContactList';
 import ContactName from './ContactName';
 import { ListItem } from './ListItem';
@@ -51,18 +53,21 @@ function MentionOptionItem({
         ) : (
           <ListItem.SystemIcon icon="Face" size={size} />
         )}
-        <ListItem.MainContent>
-          <ListItem.Title>
-            {isContact ? (
-              <ContactName
-                matchText={matchText}
-                showNickname
-                userId={option.id}
-              />
-            ) : (
-              option.title || option.id
-            )}
-          </ListItem.Title>
+        <ListItem.MainContent minWidth={0}>
+          <XStack alignItems="center" gap="$s">
+            <ListItem.Title flex={1} minWidth={0}>
+              {isContact ? (
+                <ContactName
+                  matchText={matchText}
+                  showNickname
+                  userId={option.id}
+                />
+              ) : (
+                option.title || option.id
+              )}
+            </ListItem.Title>
+            {isContact && <BotBadge contactId={option.id} />}
+          </XStack>
           {option.subtitle ? (
             <ListItem.Subtitle>{option.subtitle}</ListItem.Subtitle>
           ) : null}

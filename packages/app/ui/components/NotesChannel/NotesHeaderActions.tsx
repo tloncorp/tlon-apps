@@ -18,14 +18,25 @@ export function createNotesNewFolderAction(
 export function NotesHeaderActions({
   canEdit,
   onNew,
+  onSearch,
   primaryActionVariant = 'text',
 }: {
   canEdit: boolean;
   onNew: () => void;
+  onSearch?: () => void;
   primaryActionVariant?: 'icon' | 'text';
 }) {
   return (
     <>
+      {onSearch ? (
+        <ScreenHeader.IconButton
+          aria-label="Search notes"
+          color="$primaryText"
+          onPress={onSearch}
+          testID="NotesSearchHeaderAction"
+          type="Search"
+        />
+      ) : null}
       {canEdit && primaryActionVariant === 'icon' ? (
         <ScreenHeader.IconButton
           aria-label="New"

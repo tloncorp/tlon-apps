@@ -79,3 +79,20 @@ class HermesE2EConfigTests(unittest.TestCase):
             config = read_config(home / "config.yaml")
 
         self.assertEqual(config["tlon"]["max_consecutive_bot_responses"], 3)
+
+    def test_enables_cronjob_for_cron_partition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            config = write_config.render_config(
+                {
+                    "HERMES_HOME": str(home),
+                    "TLON_HOME_CHANNEL": "~ten",
+                    "HERMES_E2E_ENABLE_CRONJOB": "1",
+                }
+            )
+
+        self.assertEqual(
+            config["platform_toolsets"]["tlon"],
+            ["tlon", "cronjob", "no_mcp"],
+        )
+        self.assertNotIn("cronjob", config["agent"]["disabled_toolsets"])

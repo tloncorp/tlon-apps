@@ -10,6 +10,14 @@ import * as logic from '../logic';
 import { convertToAscii } from '../logic';
 import * as types from './types';
 
+let lastBuiltPostSentAt = 0;
+
+function getNextPostSentAt() {
+  const now = Date.now();
+  lastBuiltPostSentAt = Math.max(now, lastBuiltPostSentAt + 1);
+  return lastBuiltPostSentAt;
+}
+
 export function assembleNewChannelIdAndName({
   title,
   channelType,
@@ -188,7 +196,10 @@ export function buildPost({
   blob?: string;
   draft?: domain.PostDataDraft;
 }): types.Post {
-  const sentAt = Date.now();
+  // Optimistic post IDs are derived from this timestamp. Multiple posts can be
+  // built in the same millisecond (for example, a Gallery batch), so keep it
+  // monotonic to prevent one optimistic post from replacing another.
+  const sentAt = getNextPostSentAt();
   const id = getCanonicalPostId(da.fromUnix(sentAt).toString());
   const type = logic.getPostTypeFromChannelId({
     channelId: channel.id,

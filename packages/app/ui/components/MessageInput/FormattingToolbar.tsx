@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Input, View, XStack, useTheme } from 'tamagui';
 
-import { useIsDarkTheme } from '../../utils';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import {
   HEADING_ITEMS,
   TlonBridgeState,
@@ -40,7 +40,7 @@ const FormattingToolbar = memo(
       ToolbarContext.Main
     );
     const tamagui = useTheme();
-    const isDark = useIsDarkTheme();
+    const isDark = useIsDarkMode();
 
     const bgColor = tamagui.background.val;
 

@@ -309,6 +309,27 @@
 ::  HTML body is served via /notes/pub/~host/name/note-id, not this list.
 ::
 +$  published-record  [=flag note-id=@ud]
+::  $note-preview: trimmed note view served on /v0/said
+::
+::  .snippet is the leading slice of $note's body-md
+::
++$  note-preview
+  $:  id=@ud
+      title=@t
+      snippet=@t
+      author=ship
+      updated-at=@da
+      notebook-title=@t
+  ==
+::  $said: single-shot /v0/said response
+::
++$  said  [=flag =note-preview]
+::  $scam: bounded search results
+::
++$  scam
+  $:  last=@ud          ::  last note-id that was searched, 0 for end
+      scan=(list note)  ::  search results
+  ==
 ::  Type aliases
 ::
 +$  action    a-notes

@@ -338,7 +338,7 @@ function nodeToVerses(node: HtmlNode): Verse[] {
         const lines = children
           .filter((c) => c.type === 'element' || c.type === 'text')
           .map((c) =>
-            collectText(c.type === 'element' ? c.children ?? [] : [c])
+            collectText(c.type === 'element' ? (c.children ?? []) : [c])
           );
         codeText = lines.join('\n').trim();
       }

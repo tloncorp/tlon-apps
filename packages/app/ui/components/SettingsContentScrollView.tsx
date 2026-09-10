@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SizeTokens } from 'tamagui';
-import { ScrollView } from 'tamagui';
+
+import { ScreenScrollView } from './ScreenScrollView';
 
 type SpacingValue = number | SizeTokens;
 
@@ -31,7 +32,7 @@ export function SettingsContentScrollView({
       : insets.bottom + safeAreaBottomOffset;
 
   return (
-    <ScrollView
+    <ScreenScrollView
       style={{
         flex: 1,
         width: '100%',
@@ -47,6 +48,6 @@ export function SettingsContentScrollView({
       }}
     >
       {children}
-    </ScrollView>
+    </ScreenScrollView>
   );
 }

@@ -19,7 +19,7 @@ import {
 } from 'react-native-enriched';
 import { useTheme } from 'tamagui';
 
-import { useIsDarkTheme } from '../../utils';
+import { useIsDarkMode } from '../../../hooks/useDarkMode';
 import type { TlonBridgeState, TlonEditorBridge } from './toolbarActions';
 
 /**
@@ -126,7 +126,7 @@ export const EnrichedNoteInput = memo(
     ) => {
       const enrichedRef = useRef<EnrichedTextInputInstance>(null);
       const tamagui = useTheme();
-      const isDark = useIsDarkTheme();
+      const isDark = useIsDarkMode();
 
       // Build theme-aware htmlStyle to match the TipTap editor appearance
       const htmlStyle = useMemo(() => {
@@ -286,72 +286,66 @@ export const EnrichedNoteInput = memo(
       }, []);
 
       // Build a TlonEditorBridge-compatible adapter object
-      useImperativeHandle(
-        ref,
-        () => {
-          const noop = () => {};
+      useImperativeHandle(ref, () => {
+        const noop = () => {};
 
-          const adapter = {
-            // --- Style toggles the toolbar uses ---
-            toggleBold: () => enrichedRef.current?.toggleBold(),
-            toggleItalic: () => enrichedRef.current?.toggleItalic(),
-            toggleStrike: () => enrichedRef.current?.toggleStrikeThrough(),
-            toggleCode: () => enrichedRef.current?.toggleInlineCode(),
-            toggleCodeBlock: () => enrichedRef.current?.toggleCodeBlock(),
-            toggleBlockquote: () => enrichedRef.current?.toggleBlockQuote(),
-            toggleOrderedList: () => enrichedRef.current?.toggleOrderedList(),
-            toggleBulletList: () => enrichedRef.current?.toggleUnorderedList(),
-            toggleTaskList: () =>
-              enrichedRef.current?.toggleCheckboxList(false),
-            toggleHeading: (level: number) => {
-              const map: Record<number, () => void> = {
-                1: () => enrichedRef.current?.toggleH1(),
-                2: () => enrichedRef.current?.toggleH2(),
-                3: () => enrichedRef.current?.toggleH3(),
-                4: () => enrichedRef.current?.toggleH4(),
-                5: () => enrichedRef.current?.toggleH5(),
-                6: () => enrichedRef.current?.toggleH6(),
-              };
-              map[level]?.();
-            },
-            setImage: (url: string, width?: number, height?: number) =>
-              enrichedRef.current?.setImage(url, width ?? 0, height ?? 0),
+        const adapter = {
+          // --- Style toggles the toolbar uses ---
+          toggleBold: () => enrichedRef.current?.toggleBold(),
+          toggleItalic: () => enrichedRef.current?.toggleItalic(),
+          toggleStrike: () => enrichedRef.current?.toggleStrikeThrough(),
+          toggleCode: () => enrichedRef.current?.toggleInlineCode(),
+          toggleCodeBlock: () => enrichedRef.current?.toggleCodeBlock(),
+          toggleBlockquote: () => enrichedRef.current?.toggleBlockQuote(),
+          toggleOrderedList: () => enrichedRef.current?.toggleOrderedList(),
+          toggleBulletList: () => enrichedRef.current?.toggleUnorderedList(),
+          toggleTaskList: () => enrichedRef.current?.toggleCheckboxList(false),
+          toggleHeading: (level: number) => {
+            const map: Record<number, () => void> = {
+              1: () => enrichedRef.current?.toggleH1(),
+              2: () => enrichedRef.current?.toggleH2(),
+              3: () => enrichedRef.current?.toggleH3(),
+              4: () => enrichedRef.current?.toggleH4(),
+              5: () => enrichedRef.current?.toggleH5(),
+              6: () => enrichedRef.current?.toggleH6(),
+            };
+            map[level]?.();
+          },
+          setImage: (url: string, width?: number, height?: number) =>
+            enrichedRef.current?.setImage(url, width ?? 0, height ?? 0),
 
-            // --- Link support ---
-            setLink: (url: string) => {
-              const sel = selectionRef.current;
-              if (url) {
-                enrichedRef.current?.setLink(sel.start, sel.end, sel.text, url);
-              } else {
-                enrichedRef.current?.removeLink(sel.start, sel.end);
-              }
-            },
+          // --- Link support ---
+          setLink: (url: string) => {
+            const sel = selectionRef.current;
+            if (url) {
+              enrichedRef.current?.setLink(sel.start, sel.end, sel.text, url);
+            } else {
+              enrichedRef.current?.removeLink(sel.start, sel.end);
+            }
+          },
 
-            // --- Mention support ---
-            setMention: (indicator: string, text: string, id: string) =>
-              enrichedRef.current?.setMention(indicator, text, { id }),
+          // --- Mention support ---
+          setMention: (indicator: string, text: string, id: string) =>
+            enrichedRef.current?.setMention(indicator, text, { id }),
 
-            // --- Content methods ---
-            setContent: (html: string) => enrichedRef.current?.setValue(html),
-            getHTML: () =>
-              enrichedRef.current?.getHTML() ?? Promise.resolve(''),
-            getJSON: () => Promise.resolve({}),
-            setSelection: noop,
-            undo: noop,
-            redo: noop,
-            sink: noop,
-            lift: noop,
-            focus: () => enrichedRef.current?.focus(),
-            blur: () => enrichedRef.current?.blur(),
+          // --- Content methods ---
+          setContent: (html: string) => enrichedRef.current?.setValue(html),
+          getHTML: () => enrichedRef.current?.getHTML() ?? Promise.resolve(''),
+          getJSON: () => Promise.resolve({}),
+          setSelection: noop,
+          undo: noop,
+          redo: noop,
+          sink: noop,
+          lift: noop,
+          focus: () => enrichedRef.current?.focus(),
+          blur: () => enrichedRef.current?.blur(),
 
-            getEditorState: () =>
-              mapToTlonBridgeState(styleState, selectionRef.current),
-          } as unknown as TlonEditorBridge;
+          getEditorState: () =>
+            mapToTlonBridgeState(styleState, selectionRef.current),
+        } as unknown as TlonEditorBridge;
 
-          return { editor: adapter };
-        },
-        [styleState]
-      );
+        return { editor: adapter };
+      }, [styleState]);
 
       return (
         <EnrichedTextInput
