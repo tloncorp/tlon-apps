@@ -9,6 +9,7 @@ import {
   redact,
   renderReport,
   verifyContext,
+  verifyProviderAuth,
   verifyReport,
 } from './core.mjs';
 
@@ -69,6 +70,25 @@ async function run(command, args, options = {}) {
       path.join(artifacts, `${operation}-error.txt`),
       clean(`${error.stdout || ''}\n${error.stderr || ''}`).slice(-16000)
     );
+    const diagnosticPath = error.stderr?.match(
+      /Diagnostics Log: ([^\r\n]+)/
+    )?.[1];
+    if (
+      command === 'agent-device' &&
+      diagnosticPath &&
+      path
+        .resolve(diagnosticPath)
+        .startsWith(path.join(deviceEnv.HOME, '.agent-device/logs/'))
+    ) {
+      await readFile(diagnosticPath, 'utf8')
+        .then((text) =>
+          writeFile(
+            path.join(artifacts, `${operation}-diagnostics.ndjson`),
+            clean(text).slice(-64000)
+          )
+        )
+        .catch(() => {});
+    }
     throw new Error(
       `${operation} failed (${error.code || error.signal || 'timeout'})`
     );
@@ -141,6 +161,8 @@ async function prepare() {
     throw new Error(
       'EAS preview needs MAESTRO_EMAIL, MAESTRO_PASSWORD, and OPENROUTER_API_KEY'
     );
+  // Check authentication before paying for simulator/driver setup.
+  await verifyProviderAuth(env.OPENROUTER_API_KEY);
   let diff = '';
   if (context.pr) {
     const base = context.pr.base.sha;

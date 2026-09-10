@@ -1,5 +1,20 @@
 export const statuses = ['passed', 'failed', 'blocked'];
 
+export async function verifyProviderAuth(apiKey) {
+  const response = await fetch('https://openrouter.ai/api/v1/key', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (response.status === 401 || response.status === 403)
+    throw new Error(
+      `OpenRouter rejected the API key (HTTP ${response.status}); update EAS preview OPENROUTER_API_KEY`
+    );
+  if (!response.ok)
+    throw new Error(
+      `OpenRouter authentication service returned HTTP ${response.status}`
+    );
+}
+
 export function verifyContext(env, harnessSha) {
   const pr = JSON.parse(env.QA_PR_JSON || 'null');
   if (!/^[a-f0-9]{40}$/.test(env.QA_BUILD_SHA || ''))
@@ -131,6 +146,7 @@ export function renderReport(context, report, usage) {
     context.otaDisabled
       ? 'Test-only configuration: OTA updates disabled in the installed copy.'
       : 'App preparation did not complete.',
+    ...(context.smoke ? ['', `Scripted smoke: ${clean(context.smoke)}`] : []),
     ...(context.bootstrapRecovery
       ? ['', `Bootstrap limitation: ${clean(context.bootstrapRecovery)}`]
       : []),

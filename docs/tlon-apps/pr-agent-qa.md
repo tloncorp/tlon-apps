@@ -18,6 +18,10 @@ uses the EAS preview environment's `MAESTRO_EMAIL`, `MAESTRO_PASSWORD`, and
 Login must reach Home and the matching own-profile identity before
 the agent can act.
 
+The harness checks OpenRouter authentication before starting the simulator.
+If it reports HTTP 401 or 403, replace `OPENROUTER_API_KEY` in the EAS project's
+preview environment. Do not put API keys or login credentials in the repository.
+
 The existing artifact is copied before installation. Only the copy's Expo.plist
 is changed to disable OTA updates, then signed ad hoc for the simulator. This
 keeps the embedded JavaScript under test fixed. Original and installed bundle
