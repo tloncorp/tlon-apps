@@ -241,3 +241,10 @@ specific checks, including headers/actions, permissions, scrolling, preview/edit
 save status and reply deduplication. It identified the write and event-fixture
 requirements explicitly. No simulator or native build ran in this qualification.
 [EAS assessment run](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08d7f-f0ec-710a-bcf8-6b3b9bc6378f).
+
+The final assessor also classified documentation PR #6242 as `skip`: its internal
+engineering bot rubric changes no Tlon end-user product behavior. No native build
+or simulator was started.
+[EAS skip assessment](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08d84-228a-759f-9258-2780e5a594a3).
+These runs qualify assessment and planning only. The new assessment-to-simulator
+path and automatic video upload have not yet passed together end to end.
