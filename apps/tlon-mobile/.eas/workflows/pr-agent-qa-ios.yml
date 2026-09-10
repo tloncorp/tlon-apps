@@ -1,0 +1,99 @@
+name: PR agent QA (iOS)
+
+on:
+  pull_request:
+    types: [labeled, synchronize, reopened, ready_for_review]
+    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name && contains(toJSON(github.event.pull_request.labels), '"name":"qa"') }}
+  workflow_dispatch:
+    inputs:
+      build_id:
+        type: string
+        required: true
+        description: Existing iOS simulator build for harness validation (does not certify a PR)
+      build_sha:
+        type: string
+        required: true
+        description: Full git commit from the existing EAS build record
+      app_id:
+        type: string
+        default: io.tlon.groups
+      focus:
+        type: string
+        default: Verify the Home, Contacts, and own profile screens load. Do not change account settings or message other people.
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    node: '22.22.0'
+
+jobs:
+  build_ios:
+    if: ${{ github.event_name == 'pull_request' }}
+    type: build
+    environment: preview
+    params:
+      platform: ios
+      profile: e2e
+      message: PR agent QA
+
+  qa_ios:
+    after: [build_ios]
+    if: ${{ after.build_ios.status == 'success' || github.event_name == 'workflow_dispatch' }}
+    environment: preview
+    runs_on: macos-medium
+    image: macos-tahoe-26.4-xcode-26.4
+    outputs:
+      report: ${{ steps.run.outputs.report }}
+    env:
+      QA_BUILD_ID: ${{ after.build_ios.outputs.build_id || inputs.build_id }}
+      QA_BUILD_SHA: ${{ after.build_ios.outputs.git_commit_hash || inputs.build_sha }}
+      QA_APP_ID: ${{ after.build_ios.outputs.app_identifier || inputs.app_id }}
+      QA_PR_JSON: ${{ toJSON(github.event.pull_request) || 'null' }}
+      QA_MODE: ${{ github.event_name }}
+      QA_FOCUS: ${{ inputs.focus || '' }}
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+      QA_TEST_SHIP: '~batbet-litnec'
+      QA_MODEL: openai/gpt-5.4-mini
+    steps:
+      - uses: eas/checkout
+      - name: Install device and smoke test tools
+        run: |
+          npm install -g agent-device@0.16.12
+          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.6.1/maestro.zip -o /tmp/qa-maestro.zip
+          unzip -q /tmp/qa-maestro.zip -d /tmp/qa-maestro
+      - uses: eas/download_build
+        id: download
+        with:
+          build_id: ${{ env.QA_BUILD_ID }}
+          extensions: [app]
+      - id: run
+        name: Verify build, log in, and run bounded agent QA
+        env:
+          QA_APP_PATH: ${{ steps.download.outputs.artifact_path }}
+          QA_MAESTRO_BIN: /tmp/qa-maestro/maestro/bin/maestro
+        run: |
+          node ../../scripts/agent-qa/run.mjs
+          set-output report "$(cat ../../artifacts/agent-qa/report.md)"
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: ios-agent-qa
+          path: ../../artifacts/agent-qa/**
+
+  report:
+    after: [build_ios, qa_ios]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    type: github-comment
+    params:
+      payload: |
+        ## iOS agent QA
+
+        ${{ after.qa_ios.outputs.report || 'Blocked: build or test infrastructure failed before a report was produced. No PR behavior was verified.' }}
+
+        [Run and evidence](${{ workflow.url }}) · Requested commit `${{ github.event.pull_request.head.sha }}`
+
+        Advisory result. Simulator checks do not qualify physical-device performance, push delivery, or store builds.
