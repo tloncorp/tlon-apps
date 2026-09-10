@@ -210,12 +210,14 @@ frontend revision. The GitHub experiment action includes automatic publication u
 `GH_QA_TOKEN` secret; the separate EAS-only automatic PR reporting path reads that
 name from EAS preview. Configure it in each environment whose workflow you use.
 
-The publisher downloaded this run's report and video on a clean GitHub runner.
-The existing `REPO_TOKEN` was rejected with HTTP 401, so automatic upload is not
-yet qualified. Add the dedicated `GH_QA_TOKEN` with repository write access and
-rerun publication with EAS run `01a08d64-866a-728b-b1d3-8fe09276a6a9` and
-PR `6496`; no new simulator run is needed. The default `GITHUB_TOKEN` installation
-token cannot replace this upload credential.
+`GH_QA_TOKEN` is now configured in GitHub repository secrets and EAS preview.
+The [publication-only action](https://github.com/tloncorp/tlon-apps/actions/runs/34542358655)
+downloaded the saved report and MP4, uploaded the native attachment, and verified
+GitHub's inline video player in the [automatically posted comment](https://github.com/tloncorp/tlon-apps/pull/6496#issuecomment-5626853536).
+The job passed in 36 seconds without starting a simulator or backend. This
+qualifies the GitHub publisher; the full assessment-to-simulator-to-publication
+PR path remains to be qualified together. The default `GITHUB_TOKEN` installation
+token cannot replace the upload credential.
 
 Argent boots the CI simulator with accessibility enabled and owns interaction,
 screenshots and recording. This existing-build path uses the wrapper's explicit
