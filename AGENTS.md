@@ -9,10 +9,11 @@ with a global `staleTime: Infinity` and refreshes only through explicit
 table-dependency invalidation, so its cache behavior does not match React Query
 defaults and should not be inferred from memory.
 
-Before running the mobile app on a simulator or emulator, read
-`docs/tlon-apps/mobile-agent-loop.md`. It covers the worktree, the sign-in that
-needs no 2FA code, the Android variant this app needs, and the facts about this
-repository that a build depends on.
+Before running the mobile app on a simulator or emulator, use the
+`tlon-workflow` skill (`.agents/skills/tlon-workflow/SKILL.md`). It takes a
+task from a fresh worktree to a merged pull request: the sign-in that needs no
+2FA code, the Android variant this app needs, evidence capture, and the review
+loop. Set a machine up once with the `tlon-workflow-doctor` skill.
 
 # Tlon Messenger backend
 The backend of the Tlon Messenger app is hosted on the Urbit platform.
