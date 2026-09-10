@@ -777,8 +777,10 @@ export const syncGroups = async (ctx?: SyncCtx) => {
   await db.insertGroups({ groups: groups });
 };
 
+// insert-only: these three scries aren't a consistent snapshot (a dm can
+// move between lists while they're in flight), so only init, which reads the
+// dm set in one scry, gets to delete what it doesn't list
 export const syncDms = async (ctx?: SyncCtx) => {
-  const candidateIds = await db.getDmChannelIds();
   const [dms, groupDms, dmInvites] = await syncQueue.add('dms', ctx, () =>
     Promise.all([api.getDms(), api.getGroupDms(), api.getDmInvites()])
   );
@@ -786,12 +788,7 @@ export const syncDms = async (ctx?: SyncCtx) => {
   const pendingInvites = dmInvites.filter(
     (invite) => !regularDmIds.has(invite.id)
   );
-  const channels = [...dms, ...groupDms, ...pendingInvites];
-  await db.insertChannels(channels);
-  await db.deleteAbsentDmChannels({
-    keepIds: channels.map((c) => c.id),
-    candidateIds,
-  });
+  await db.insertChannels([...dms, ...groupDms, ...pendingInvites]);
 };
 
 export type EnsureDmInviteChannelResult =

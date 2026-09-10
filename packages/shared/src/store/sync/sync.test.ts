@@ -627,7 +627,10 @@ test('deleteAbsentDmChannels leaves unconfirmed and newly arrived dms alone', as
   expect((await db.getChannel({ id: '~arrived-dm' }))?.type).toBe('dm');
 });
 
-test('syncDms drops dms the backend no longer lists', async () => {
+// syncDms composes three scries that aren't a consistent snapshot, so it must
+// never delete: a dm accepted between `/dm` and `/dm/invited` returning would
+// be in neither list
+test('syncDms is insert-only', async () => {
   await db.insertChannels([
     dmChannel('~sampel-palnet', false),
     dmChannel('~stale-dm', true),
@@ -636,7 +639,7 @@ test('syncDms drops dms the backend no longer lists', async () => {
 
   await syncDms();
 
-  expect(await db.getChannel({ id: '~stale-dm' })).toBeNull();
+  expect((await db.getChannel({ id: '~stale-dm' }))?.type).toBe('dm');
   expect((await db.getChannel({ id: '~sampel-palnet' }))?.type).toBe('dm');
 });
 
