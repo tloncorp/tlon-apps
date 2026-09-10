@@ -182,7 +182,9 @@ describe('useDbReady', () => {
   });
 
   it('carries the last rejection into the timeout when a later attempt hangs', async () => {
-    ensureDbReadyMock.mockRejectedValueOnce(new Error('boom'));
+    const longMessage = 'x'.repeat(500);
+    const truncated = `Error: ${longMessage}`.slice(0, 200);
+    ensureDbReadyMock.mockRejectedValueOnce(new Error(longMessage));
 
     const { result } = renderHook(() => useDbReady());
     await advance(0);
@@ -195,12 +197,15 @@ describe('useDbReady', () => {
 
     const error = result.current.dbInitError as DbInitTimeoutError;
     expect(error).toBeInstanceOf(DbInitTimeoutError);
-    expect(error.details.lastError).toBe('Error: boom');
-    expect(error.message).toContain('last error: Error: boom');
+    // Capped in `details` as well as in the message: the boundary spreads
+    // `details` into the report.
+    expect(error.details.lastError).toBe(truncated);
+    expect(error.details.lastError).toHaveLength(200);
+    expect(error.message).toContain(`last error: ${truncated}`);
     expect(error.details.attempt).toBe(2);
     expect(crumbs()).toEqual(
       expect.arrayContaining([
-        'attempt 1 failed: Error: boom',
+        `attempt 1 failed: Error: ${longMessage}`,
         'attempt 2 started',
       ])
     );
@@ -274,5 +279,25 @@ describe('useDbReady', () => {
     expect(event).toBe('DB Ready Retry Succeeded');
     expect(payload.attempt).toBe(1);
     expect(payload.mount).toBeGreaterThan(1);
+  });
+
+  it('does not report a remount after a successful mount', async () => {
+    ensureDbReadyMock.mockResolvedValueOnce(undefined);
+    const first = renderHook(() => useDbReady());
+    await advance(0);
+
+    expect(first.result.current.isDbReady).toBe(true);
+    first.unmount();
+
+    // The previous mount succeeded, so this remount -- the root boundary also
+    // remounts after unrelated render crashes -- is not a database recovery.
+    logger.trackEvent.mockClear();
+
+    ensureDbReadyMock.mockResolvedValueOnce(undefined);
+    const second = renderHook(() => useDbReady());
+    await advance(0);
+
+    expect(second.result.current.isDbReady).toBe(true);
+    expect(logger.trackEvent).not.toHaveBeenCalled();
   });
 });

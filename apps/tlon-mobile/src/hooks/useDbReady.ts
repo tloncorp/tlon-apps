@@ -11,9 +11,11 @@ const MAX_LAST_ERROR_LENGTH = 200;
 
 const logger = createDevLogger('db-ready', false);
 
-// Survives unmounts so a retry (via the root error boundary) can be told apart
-// from a first attempt.
 let mountCount = 0;
+// Survives unmounts so a mount that recovers from a failed one can be told
+// apart from any other remount -- the root error boundary also remounts after
+// render crashes that have nothing to do with the database.
+let lastMountFailed = false;
 
 interface DbInitTimeoutDetails {
   attempt: number;
@@ -25,11 +27,13 @@ export class DbInitTimeoutError extends Error {
   details: DbInitTimeoutDetails;
 
   constructor(details: DbInitTimeoutDetails) {
+    // Capped in `details` too: RootErrorBoundary spreads them into the Sentry
+    // payload, so an unbounded string would travel either way.
     const lastError = details.lastError
       ? details.lastError.slice(0, MAX_LAST_ERROR_LENGTH)
-      : 'none';
+      : null;
     super(
-      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed); last error: ${lastError}`
+      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed); last error: ${lastError ?? 'none'}`
     );
     // `extends Error` leaves `name` as 'Error', and Sentry reads the exception
     // type from it.
@@ -38,7 +42,7 @@ export class DbInitTimeoutError extends Error {
     // causes after the original exception and `ignoreErrors` is matched against
     // the last one, so a cause like 'Request timed out' would drop the whole
     // event. The cause travels in the message and in `details` instead.
-    this.details = details;
+    this.details = { ...details, lastError };
   }
 }
 
@@ -54,6 +58,7 @@ export function useDbReady() {
 
   useEffect(() => {
     const mount = ++mountCount;
+    const recoveringFromFailure = lastMountFailed;
     const startedAt = Date.now();
     const elapsed = () => Date.now() - startedAt;
 
@@ -90,6 +95,7 @@ export function useDbReady() {
 
     const deadlineTimer = setTimeout(() => {
       timedOut = true;
+      lastMountFailed = true;
       clearBackoff();
       logger.crumb(`deadline fired on attempt ${attempt}`);
       setDbInitError(
@@ -115,7 +121,8 @@ export function useDbReady() {
             return;
           }
           clearTimeout(deadlineTimer);
-          if (mount > 1) {
+          lastMountFailed = false;
+          if (recoveringFromFailure) {
             logger.trackEvent(AnalyticsEvent.DbReadyRetrySucceeded, {
               mount,
               attempt,
@@ -143,6 +150,7 @@ export function useDbReady() {
       }
 
       clearTimeout(deadlineTimer);
+      lastMountFailed = true;
       setDbInitError(lastError);
     }
 
