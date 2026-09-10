@@ -167,10 +167,16 @@ automatic video publishing credentials remain separate follow-ups.
 
 The Codex + Sol + Argent replacement uses the existing `OPENROUTER_API_KEY` in EAS preview.
 Codex uses a custom provider with `wire_api = "responses"`; no OpenAI credential is needed.
-It has not yet passed the remote two-ship scenario. The earlier shared-ship video
-and the blocked custom-agent runs do not qualify this new runtime. The initial
-qualification reuses build 709ad03a-fc06-457a-a0c4-cb7ca437797c, with the app and
-backend revisions reported separately. No new native build is needed.
+The two-ship scenario passed on September 10, 2026 with harness/backend commit
+`74bba0da7faa4441cc0d64162ee5870441c69f69`. Codex completed 10 Argent calls:
+read the peer message, send the mobile reply once, and observe the acknowledgment
+live. The separate backend receipt confirmed delivery. The 82.4-second recording
+passed a full decode check. [EAS run and artifacts](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08d64-866a-728b-b1d3-8fe09276a6a9).
+
+This qualification reused build `709ad03a-fc06-457a-a0c4-cb7ca437797c`, app source
+`f0e37ea6bf92a3e44554caeb96afddea089ba2fa`. It validates the harness, not a new
+frontend revision. The video was attached to PR #6496 locally; fully automatic
+cloud posting still requires `GH_QA_TOKEN`.
 
 Argent boots the CI simulator with accessibility enabled and owns interaction,
 screenshots and recording. This existing-build path uses the wrapper's explicit
