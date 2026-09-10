@@ -46,7 +46,9 @@ const cookie = await fetch(`${url}/~/login`, {
   }
   const value = response.headers.get('set-cookie')?.split(';')[0];
   if (!value) {
-    throw new Error('login succeeded without returning an Urbit session cookie');
+    throw new Error(
+      'login succeeded without returning an Urbit session cookie'
+    );
   }
   return value;
 });
@@ -77,7 +79,9 @@ if (retired.length === 0) {
   process.exit(0);
 }
 
-console.log(`${ship}: ${apply ? 'clearing' : 'would clear'} ${retired.length} cached page(s)`);
+console.log(
+  `${ship}: ${apply ? 'clearing' : 'would clear'} ${retired.length} cached page(s)`
+);
 for (const page of retired) {
   console.log(`  ${page}`);
 }
