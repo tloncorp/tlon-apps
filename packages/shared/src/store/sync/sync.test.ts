@@ -1018,6 +1018,25 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'gates on a version it could not persist',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      setAppInfo.mockRejectedValue(new Error('storage unavailable'));
+
+      await syncStart();
+
+      // The write is best effort; the version it carried still decides.
+      expect(setAppInfo).toHaveBeenCalled();
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+      expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'has no verdict before the probe reports, and a clean one after',
     async () => {
       // 'undefined' is "not probed yet", which the shells must not read as
