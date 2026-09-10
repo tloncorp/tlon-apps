@@ -41,7 +41,7 @@ jobs:
 
   qa_ios:
     after: [build_ios]
-    if: ${{ after.build_ios.status == 'success' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ always() && (after.build_ios.status == 'success' || inputs.build_id) }}
     environment: preview
     runs_on: macos-medium
     image: macos-tahoe-26.4-xcode-26.4
@@ -52,7 +52,7 @@ jobs:
       QA_BUILD_SHA: ${{ after.build_ios.outputs.git_commit_hash || inputs.build_sha }}
       QA_APP_ID: ${{ after.build_ios.outputs.app_identifier || inputs.app_id }}
       QA_PR_JSON: ${{ toJSON(github.event.pull_request) || 'null' }}
-      QA_MODE: ${{ github.event_name }}
+      QA_MODE: ${{ inputs.build_id && 'workflow_dispatch' || 'pull_request' }}
       QA_FOCUS: ${{ inputs.focus || '' }}
       QA_WORKFLOW_URL: ${{ workflow.url }}
       QA_TEST_SHIP: '~batbet-litnec'
