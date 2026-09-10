@@ -388,11 +388,13 @@ export async function getAppInfo({
   // Parallel rather than sequential: startup gates on this, so the two scries
   // should cost one round trip, not two.
   const [pikes, charges] = await Promise.all([
+    // The pike is diagnostics only. Losing it must not throw away the version
+    // from the charge, which is the answer the startup gate is waiting for.
     scry<Pikes>({
       app: 'hood',
       path: '/kiln/pikes',
       timeout,
-    }),
+    }).catch(() => null),
     scry<ChargeUpdateInitial>({
       app: 'docket',
       path: '/charges',
@@ -400,13 +402,13 @@ export async function getAppInfo({
     }).then((update) => update?.initial),
   ]);
 
-  const groupsPike = pikes?.['groups'] ?? {};
+  const groupsPike = pikes?.['groups'];
   const groupsCharge = charges?.['groups'] ?? {};
 
   return {
     groupsVersion: groupsCharge.version ?? 'n/a',
-    groupsHash: groupsPike.hash ?? 'n/a',
-    groupsSyncNode: groupsPike.sync?.ship ?? 'n/a',
+    groupsHash: groupsPike?.hash ?? 'n/a',
+    groupsSyncNode: groupsPike?.sync?.ship ?? 'n/a',
   };
 }
 

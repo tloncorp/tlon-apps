@@ -47,6 +47,7 @@ import { clearPresenceState, handlePresenceEvent } from '../presence';
 import {
   getClientGeneration,
   getSession,
+  isDeskGated,
   setSession,
   updateSession,
 } from '../session';
@@ -2036,7 +2037,7 @@ export async function syncSequencedPosts(
 export async function syncInitialPosts(config: {
   syncSize: 'heavy' | 'light';
 }) {
-  if (getSession()?.deskCompat) {
+  if (isDeskGated(getSession()?.deskCompat)) {
     // Startup is gated on desk compatibility. Return without marking the first
     // sync done, so it still runs once the ship is updated.
     return;
@@ -2237,14 +2238,17 @@ export const handleDiscontinuity = async (config: {
   }
 
   const session = getSession();
-  // The desk gate has to survive the reset: the notice is still the right UI
-  // until the re-probe inside syncStart says otherwise, and dropping it here
-  // flashes the app back on mid-recovery.
-  const deskCompat = session?.deskCompat;
+  // A gate has to survive the reset: the notice is still the right UI until the
+  // re-probe inside syncStart says otherwise, and dropping it here flashes the
+  // app back on mid-recovery. A clean verdict isn't carried over — the re-probe
+  // reaches its own.
+  const deskGate = isDeskGated(session?.deskCompat)
+    ? session?.deskCompat
+    : undefined;
   if (session?.channelStatus && config.retainChannelStatus) {
-    setSession({ channelStatus: session.channelStatus, deskCompat });
-  } else if (deskCompat) {
-    setSession({ deskCompat });
+    setSession({ channelStatus: session.channelStatus, deskCompat: deskGate });
+  } else if (deskGate) {
+    setSession({ deskCompat: deskGate });
   } else {
     updateSession(null);
   }
@@ -2255,7 +2259,7 @@ export const handleDiscontinuity = async (config: {
   // finally, refetch start data. A session gated before it ever subscribed has
   // to recover as a cold start, or a newly compatible desk would never get its
   // subscriptions set up.
-  await syncStart(deskCompat ? deskCompat.subscribed : true);
+  await syncStart(deskGate ? deskGate.subscribed : true);
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
@@ -2334,13 +2338,16 @@ const checkDeskCompatibility = async (
   syncStartPriority: { high: number; low: number }
 ) => {
   const existingDeskCompat = getSession()?.deskCompat;
-  if (existingDeskCompat) {
+  const priorGate = isDeskGated(existingDeskCompat)
+    ? existingDeskCompat
+    : undefined;
+  if (priorGate) {
     // A retry from the notice. Keep the verdict it's displaying — the version,
     // and whether the gated run was a recovery — so the shell keeps the notice
     // on screen instead of dropping back to the cold-start spinner.
-    if (existingDeskCompat.status !== 'probing') {
+    if (priorGate.status !== 'probing') {
       updateSession({
-        deskCompat: { ...existingDeskCompat, status: 'probing' },
+        deskCompat: { ...priorGate, status: 'probing' },
       });
     }
   } else if (!alreadySubscribed) {
@@ -2398,11 +2405,26 @@ const checkDeskCompatibility = async (
 
   if (!appInfo) {
     // Failed, or timed out and gave up. Fall back to the last-known persisted
-    // version for the capability flags, and let startup through as before.
+    // version for the capability flags; what that means for startup is decided
+    // by the classification below.
     syncReactionSupport().catch(() => {});
   }
 
-  if (classifyDeskVersion(appInfo?.groupsVersion) === 'outdated') {
+  const classification = classifyDeskVersion(appInfo?.groupsVersion);
+
+  if (classification === 'unknown' && priorGate?.current) {
+    // A retry that learned nothing — the probe failed, timed out, or came back
+    // unreadable. Keep the verdict we already have: failing open is for a first
+    // probe with nothing to fall back on, not for discarding a version we did
+    // observe. Only seeing a good version clears this.
+    updateSession({
+      deskCompat: { ...priorGate, status: 'incompatible' },
+    });
+    logger.crumb('desk compatibility retry was inconclusive; keeping the gate');
+    return false;
+  }
+
+  if (classification === 'outdated') {
     const current = appInfo?.groupsVersion ?? null;
     updateSession({
       deskCompat: {
@@ -2420,9 +2442,10 @@ const checkDeskCompatibility = async (
     return false;
   }
 
-  // Explicit clear, not a no-op: a previously gated session has to be able to
-  // recover in place once the ship updates.
-  updateSession({ deskCompat: undefined });
+  // A recorded verdict, not a clear: until this lands, nothing else in the app
+  // may assume the desk is usable — and a previously gated session has to be
+  // able to recover in place once the ship updates.
+  updateSession({ deskCompat: { status: 'ok' } });
   logger.crumb(`finished syncing app info`);
   return true;
 };
@@ -2442,7 +2465,7 @@ export const retryDeskCompatibility = async (options?: {
   onRecovered?: () => void | Promise<void>;
 }) => {
   const deskCompat = getSession()?.deskCompat;
-  if (!deskCompat) {
+  if (!isDeskGated(deskCompat)) {
     return;
   }
 
@@ -2463,7 +2486,7 @@ export const retryDeskCompatibility = async (options?: {
     }
   }
 
-  if (isSameLogin() && !getSession()?.deskCompat) {
+  if (isSameLogin() && getSession()?.deskCompat?.status === 'ok') {
     await options?.onRecovered?.();
   }
 };

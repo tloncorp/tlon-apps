@@ -402,7 +402,7 @@ function DeskOutdatedNotice({
   shipName,
   onLogout,
 }: {
-  deskCompat: store.DeskCompatibility;
+  deskCompat: store.DeskGate;
   shipName?: string;
   onLogout?: () => void | Promise<void>;
 }) {

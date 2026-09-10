@@ -786,6 +786,7 @@ describe('desk compatibility gate', () => {
 
   let reportedDeskVersion: string | null = MIN_GROUPS_VERSION;
   let probeError: Error | null = null;
+  let pikesError: Error | null = null;
   let heldProbe: { wait: Promise<void>; release: () => void } | null = null;
   let scryCalls: { app: string; path: string; timeout?: number }[] = [];
   type SetValueSpy<
@@ -854,6 +855,9 @@ describe('desk compatibility gate', () => {
         if (probeError) {
           throw probeError;
         }
+        if (app === 'hood' && pikesError) {
+          throw pikesError;
+        }
         if (app === 'hood') {
           return pikesData;
         }
@@ -900,6 +904,7 @@ describe('desk compatibility gate', () => {
   beforeEach(() => {
     reportedDeskVersion = MIN_GROUPS_VERSION;
     probeError = null;
+    pikesError = null;
     heldProbe = null;
     scryCalls = [];
     updateSession(null);
@@ -941,6 +946,106 @@ describe('desk compatibility gate', () => {
       expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
       expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
       expect(setUserHasCompletedFirstSync).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failing pikes scry does not fail the gate open',
+    async () => {
+      // The pike is only diagnostics; the charge carries the version the gate
+      // reads, so losing the pike must not discard a definitive verdict.
+      reportedDeskVersion = '12.1.0';
+      pikesError = new Error('pikes unavailable');
+
+      await syncStart();
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
+      expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'has no verdict before the probe reports, and a clean one after',
+    async () => {
+      // 'undefined' is "not probed yet", which the shells must not read as
+      // compatible: the overlay they mount talks to the desk immediately.
+      expect(getSession()?.deskCompat).toBeUndefined();
+
+      const release = holdProbe();
+      const started = syncStart();
+      await vi.waitFor(() => expect(probeCount()).toBe(1));
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
+
+      release();
+      await started;
+
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry whose probe fails keeps the notice',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      const gated = getSession()?.deskCompat;
+
+      probeError = new Error('network down');
+      const onRecovered = vi.fn();
+      await retryDeskCompatibility({ onRecovered });
+
+      // Nothing was learned, so the version we did observe still stands —
+      // failing open here would swap a useful notice for a broken app.
+      expect(getSession()?.deskCompat).toEqual(gated);
+      expect(didScry('/v10/init')).toBe(false);
+      expect(onRecovered).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a retry whose probe times out keeps the notice',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      const gated = getSession()?.deskCompat;
+
+      const release = holdProbe();
+      vi.useFakeTimers();
+      try {
+        const onRecovered = vi.fn();
+        const retrying = retryDeskCompatibility({ onRecovered });
+        let finished = false;
+        void retrying.then(() => {
+          finished = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT + 1);
+        for (let i = 0; i < 30 && !finished; i++) {
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+        expect(finished).toBe(true);
+
+        expect(getSession()?.deskCompat).toEqual(gated);
+        expect(didScry('/v10/init')).toBe(false);
+        expect(onRecovered).not.toHaveBeenCalled();
+
+        release();
+        await vi.advanceTimersByTimeAsync(1000);
+      } finally {
+        vi.useRealTimers();
+      }
     },
     FULL_SYNC_TIMEOUT
   );
@@ -1000,7 +1105,7 @@ describe('desk compatibility gate', () => {
       const onRecovered = vi.fn();
       await retryDeskCompatibility({ onRecovered });
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       expect(didScry('/v10/init')).toBe(true);
       expect(vi.mocked(subscribe)).toHaveBeenCalled();
       expect(getSession()?.phase).toBe('ready');
@@ -1069,7 +1174,7 @@ describe('desk compatibility gate', () => {
       reportedDeskVersion = MIN_GROUPS_VERSION;
       await retryDeskCompatibility();
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       expect(didScry('/v10/init')).toBe(true);
       // alreadySubscribed was preserved, so the live subscriptions weren't
       // established on top of themselves.
@@ -1111,7 +1216,7 @@ describe('desk compatibility gate', () => {
 
       await syncStart();
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       expect(didScry('/v10/init')).toBe(true);
     },
     FULL_SYNC_TIMEOUT
@@ -1125,7 +1230,7 @@ describe('desk compatibility gate', () => {
 
       await syncStart();
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       expect(didScry('/v10/init')).toBe(true);
     },
     FULL_SYNC_TIMEOUT
@@ -1146,7 +1251,7 @@ describe('desk compatibility gate', () => {
         // The per-scry timeout lives inside the client; this is the ceiling on
         // the whole probe, reauth round trips included.
         await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT + 1);
-        expect(getSession()?.deskCompat).toBeUndefined();
+        expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
 
         // Let the rest of a failed-open startup run to completion.
         for (let i = 0; i < 30 && !finished; i++) {
@@ -1162,7 +1267,7 @@ describe('desk compatibility gate', () => {
         release();
         await vi.advanceTimersByTimeAsync(1000);
 
-        expect(getSession()?.deskCompat).toBeUndefined();
+        expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
         expect(setAppInfo).not.toHaveBeenCalled();
       } finally {
         vi.useRealTimers();
@@ -1264,7 +1369,7 @@ describe('desk compatibility gate', () => {
       releaseSecond();
       await second;
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
     },
     FULL_SYNC_TIMEOUT
   );
@@ -1287,13 +1392,18 @@ describe('desk compatibility gate', () => {
       await first;
 
       expect(setAppInfo).not.toHaveBeenCalled();
-      expect(getSession()?.deskCompat?.current).toBeNull();
+      expect(getSession()?.deskCompat).toEqual({
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      });
 
       reportedDeskVersion = MIN_GROUPS_VERSION;
       releaseSecond();
       await second;
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
     },
     FULL_SYNC_TIMEOUT
   );
@@ -1368,13 +1478,13 @@ describe('desk compatibility gate', () => {
       releaseNew();
       await newStart;
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
     },
     FULL_SYNC_TIMEOUT
   );
 
   test(
-    'a retry that fails after a clean verdict leaves the gate cleared',
+    'a retry that fails after a clean verdict leaves the desk marked ok',
     async () => {
       reportedDeskVersion = '12.1.0';
       await syncStart();
@@ -1390,8 +1500,8 @@ describe('desk compatibility gate', () => {
       );
 
       // The desk turned out to be fine; the failure was somewhere else, so the
-      // notice must not come back and claim otherwise.
-      expect(getSession()?.deskCompat).toBeUndefined();
+      // verdict stands and the notice must not come back and claim otherwise.
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       expect(onRecovered).not.toHaveBeenCalled();
     },
     FULL_SYNC_TIMEOUT
@@ -1423,13 +1533,16 @@ describe('desk compatibility gate', () => {
     async () => {
       reportedDeskVersion = '12.1.0';
       await syncStart();
-      expect(getSession()?.deskCompat?.subscribed).toBe(false);
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        subscribed: false,
+      });
       expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
 
       reportedDeskVersion = MIN_GROUPS_VERSION;
       await handleDiscontinuity({ context: 'test' });
 
-      expect(getSession()?.deskCompat).toBeUndefined();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       // It never subscribed while gated, so recovery has to do it now.
       expect(vi.mocked(subscribe)).toHaveBeenCalled();
     },

@@ -205,7 +205,7 @@ function AuthenticatedApp({
 
       // app returned from background
       if (status === 'active') {
-        if (store.getSession()?.deskCompat) {
+        if (store.isDeskGated(store.getSession()?.deskCompat)) {
           // Gated on desk compatibility: syncSince would fail the same way
           // startup did. Read live rather than from render state so a gate that
           // arrives mid-session is respected.
@@ -480,10 +480,11 @@ export default function ConnectedAuthenticatedApp({
         onLogout={onLogout}
         requireHostingAuth={requireHostingAuth}
       />
-      {/* The overlay is opaque and full-screen, so it would bury the desk
-          notice — and the spinner that precedes it — under an onboarding
-          sequence that can't complete against an incompatible desk anyway. */}
-      {deskCompat ? null : authenticatedOverlay}
+      {/* Only once the desk is known good. The overlay is opaque and
+          full-screen, so it would bury the notice — and the spinner that
+          precedes it — and its onboarding sequence starts furnishing a group
+          straight away, which an incompatible desk can't serve. */}
+      {deskCompat?.status === 'ok' ? authenticatedOverlay : null}
     </ZStack>
   );
 }

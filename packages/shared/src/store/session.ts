@@ -3,9 +3,9 @@ import { useSyncExternalStore } from 'react';
 
 export type SyncPhase = 'init' | 'high' | 'low' | 'ready';
 
-// Set while the startup desk-version probe is in flight or has found the ship's
-// %groups desk too old to talk to. Absent means the app is free to sync.
-export type DeskCompatibility = {
+// The startup desk-version probe is in flight, or has found the ship's %groups
+// desk too old to talk to. Startup is blocked in both states.
+export type DeskGate = {
   status: 'probing' | 'incompatible';
   current: string | null;
   minimum: string;
@@ -13,6 +13,11 @@ export type DeskCompatibility = {
   // a retry can resume with the same alreadySubscribed semantics.
   subscribed: boolean;
 };
+
+// `undefined` means the probe hasn't reported in this session yet — which is
+// not the same as compatible, so nothing may assume a usable desk until this
+// says 'ok'.
+export type DeskCompatibility = { status: 'ok' } | DeskGate;
 
 export type Session = {
   startTime?: number;
@@ -108,13 +113,28 @@ export function useDeskCompatibility() {
 }
 
 /**
+ * Whether startup is blocked on the desk — either still probing, or already
+ * refused. Anything that would talk to the desk has to wait for this to be
+ * false *and* for a verdict to exist.
+ */
+export function isDeskGated(
+  deskCompat?: DeskCompatibility
+): deskCompat is DeskGate {
+  return deskCompat != null && deskCompat.status !== 'ok';
+}
+
+/**
  * Whether the startup probe is still running with no verdict yet. `current` is
  * null only in that state — an incompatible verdict always carries the version
  * it read — so the shell can hold a loading state here instead of flashing a
  * notice that has no version to report.
  */
 export function isDeskProbePending(deskCompat?: DeskCompatibility) {
-  return deskCompat?.status === 'probing' && deskCompat.current === null;
+  return (
+    isDeskGated(deskCompat) &&
+    deskCompat.status === 'probing' &&
+    deskCompat.current === null
+  );
 }
 
 /**
@@ -124,8 +144,8 @@ export function isDeskProbePending(deskCompat?: DeskCompatibility) {
  */
 export function shouldShowDeskNotice(
   deskCompat?: DeskCompatibility
-): deskCompat is DeskCompatibility {
-  return deskCompat != null && !isDeskProbePending(deskCompat);
+): deskCompat is DeskGate {
+  return isDeskGated(deskCompat) && !isDeskProbePending(deskCompat);
 }
 
 export function useIsSyncing() {
