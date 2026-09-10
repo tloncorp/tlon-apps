@@ -43,13 +43,13 @@ test('device boundary rejects other simulators, apps, tools and exhausted runs',
   );
 });
 
-test('missing or denied OpenAI credentials fail before device setup', async () => {
+test('missing or denied OpenRouter credentials fail before device setup', async () => {
   let called = false;
   await assert.rejects(
     verifyCodexAuth('', async () => {
       called = true;
     }),
-    /OPENAI_API_KEY/
+    /OPENROUTER_API_KEY/
   );
   assert.equal(called, false);
   await assert.rejects(

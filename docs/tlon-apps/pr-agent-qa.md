@@ -14,12 +14,12 @@ Fork PRs are excluded from credentialed testing.
 The job builds the PR using the existing `e2e` simulator profile, then rejects
 any mismatch between the PR head, EAS build commit, and checked-out source. It
 uses the EAS preview environment's `MAESTRO_EMAIL`, `MAESTRO_PASSWORD`, and
-`OPENAI_API_KEY`, plus `MAESTRO_TEST_SHIP` for the account's expected ship.
+`OPENROUTER_API_KEY`, plus `MAESTRO_TEST_SHIP` for the account's expected ship.
 Login must reach Home and the matching own-profile identity before
 the agent can act.
 
-The harness checks OpenAI model access before starting the simulator.
-If it reports HTTP 401 or 403, replace `OPENAI_API_KEY` in the EAS project's
+The harness checks OpenRouter authentication before starting the simulator.
+If it reports HTTP 401 or 403, replace `OPENROUTER_API_KEY` in the EAS project's
 preview environment. Do not put API keys or login credentials in the repository.
 
 The existing artifact is copied before installation. Only the copy's Expo.plist
@@ -27,7 +27,7 @@ is changed to disable OTA updates, then signed ad hoc for the simulator. This
 keeps the embedded JavaScript under test fixed. Original and installed bundle
 hashes, build ID, source commit, simulator UDID, and OS are recorded in report.json.
 
-Codex CLI 0.145.0 runs gpt-5.6-sol at medium reasoning with Argent 0.23.0
+Codex CLI 0.145.0 runs openai/gpt-5.6-sol through OpenRouter at medium reasoning with Argent 0.23.0
 through MCP. It receives the PR title, description, and mobile source diff.
 Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.
@@ -49,7 +49,7 @@ Codex is capped at nine minutes and 100 MCP tool calls. The wrapper has a
 25-minute watchdog. JSONL events, diagnostics, token usage, and the structured
 result are saved. Codex does not report dollar cost or per-request usage through
 this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
-OpenAI project's billing controls for spend management; these run limits are
+OpenRouter key's spending limit for spend management; these run limits are
 not a hard dollar cap. EAS runner/build charges remain separate.
 
 The first version shares the existing isolated test ship. It permits inspection
@@ -165,7 +165,8 @@ automatic video publishing credentials remain separate follow-ups.
 
 ## Codex qualification status
 
-The Codex + Sol + Argent replacement requires `OPENAI_API_KEY` in EAS preview.
+The Codex + Sol + Argent replacement uses the existing `OPENROUTER_API_KEY` in EAS preview.
+Codex uses a custom provider with `wire_api = "responses"`; no OpenAI credential is needed.
 It has not yet passed the remote two-ship scenario. The earlier shared-ship video
 and the blocked custom-agent runs do not qualify this new runtime. The initial
 qualification reuses build 709ad03a-fc06-457a-a0c4-cb7ca437797c, with the app and

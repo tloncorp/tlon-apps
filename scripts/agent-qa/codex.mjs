@@ -65,18 +65,15 @@ export const resultSchema = {
 export async function verifyCodexAuth(apiKey, request = fetch) {
   if (!apiKey)
     throw new Error(
-      'Set OPENAI_API_KEY as an EAS preview secret before running Codex'
+      'Set OPENROUTER_API_KEY as an EAS preview secret before running Codex'
     );
-  const response = await request(
-    'https://api.openai.com/v1/models/gpt-5.6-sol',
-    {
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: AbortSignal.timeout(20_000),
-    }
-  );
+  const response = await request('https://openrouter.ai/api/v1/key', {
+    headers: { Authorization: `Bearer ${apiKey}` },
+    signal: AbortSignal.timeout(20_000),
+  });
   if (!response.ok)
     throw new Error(
-      `OpenAI rejected the Sol model preflight (HTTP ${response.status}); check EAS preview OPENAI_API_KEY and model access`
+      `OpenRouter rejected the authentication preflight (HTTP ${response.status}); check EAS preview OPENROUTER_API_KEY`
     );
 }
 
@@ -84,7 +81,19 @@ export function codexArgs({ cwd, schema, output, instructions }) {
   return [
     'exec',
     '--model',
-    'gpt-5.6-sol',
+    'openai/gpt-5.6-sol',
+    '-c',
+    'model_provider="openrouter"',
+    '-c',
+    'model_providers.openrouter.name="OpenRouter"',
+    '-c',
+    'model_providers.openrouter.base_url="https://openrouter.ai/api/v1"',
+    '-c',
+    'model_providers.openrouter.env_key="OPENROUTER_API_KEY"',
+    '-c',
+    'model_providers.openrouter.wire_api="responses"',
+    '-c',
+    'model_providers.openrouter.request_max_retries=1',
     '--json',
     '--ephemeral',
     '--ignore-user-config',
@@ -284,7 +293,7 @@ Installed Argent interaction guidance follows; task-specific limits above take p
       env: {
         ...deviceEnv,
         CODEX_HOME: home,
-        CODEX_API_KEY: env.OPENAI_API_KEY,
+        OPENROUTER_API_KEY: env.OPENROUTER_API_KEY,
         QA_DEVICE_UDID: udid,
         QA_DEVICE_APP_ID: context.appId,
         QA_ARGENT_TRACE: trace,

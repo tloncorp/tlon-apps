@@ -25,7 +25,7 @@ const env = {
 const secrets = [
   env.MAESTRO_EMAIL,
   env.MAESTRO_PASSWORD,
-  env.OPENAI_API_KEY,
+  env.OPENROUTER_API_KEY,
   env.QA_TUNNEL_TOKEN,
 ];
 const clean = (text) => redact(text, secrets);
@@ -241,16 +241,17 @@ async function prepare() {
   context = verifyContext(env, harnessSha);
   if (
     (!env.QA_SHIP_URL && (!env.MAESTRO_EMAIL || !env.MAESTRO_PASSWORD)) ||
-    !env.OPENAI_API_KEY
+    !env.OPENROUTER_API_KEY
   )
     throw new Error(
-      'EAS preview needs OPENAI_API_KEY; shared-ship mode also needs MAESTRO_EMAIL and MAESTRO_PASSWORD'
+      'EAS preview needs OPENROUTER_API_KEY; shared-ship mode also needs MAESTRO_EMAIL and MAESTRO_PASSWORD'
     );
   // Check authentication before paying for simulator/driver setup.
-  await verifyCodexAuth(env.OPENAI_API_KEY);
+  await verifyCodexAuth(env.OPENROUTER_API_KEY);
   context.agent = {
     runtime: 'Codex CLI 0.145.0',
-    model: 'gpt-5.6-sol',
+    model: 'openai/gpt-5.6-sol',
+    provider: 'OpenRouter Responses API',
     reasoning: 'medium',
     deviceTools: 'Argent 0.23.0',
   };
