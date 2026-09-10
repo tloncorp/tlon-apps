@@ -36,6 +36,7 @@ import { posthog } from '@tloncorp/app/utils/posthog';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { withRetry } from '@tloncorp/shared/logic';
+import * as store from '@tloncorp/shared/store';
 import * as SplashScreen from 'expo-splash-screen';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Platform, StatusBar } from 'react-native';
@@ -176,9 +177,14 @@ const MainApp = () => {
   const splashReplacesAuthenticatedApp =
     showSplashSequence &&
     (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival');
+  // The revival splash onboards against the ship's desk, so it can't stand in
+  // for the app while the desk is gated — including while a cold probe is
+  // still deciding, which isDeskGated covers. Falling through renders the
+  // notice (or its spinner), which AuthenticatedApp already handles.
+  const deskCompat = store.useDeskCompatibility();
   const authenticatedContent = !connected ? (
     offline
-  ) : splashReplacesAuthenticatedApp ? (
+  ) : splashReplacesAuthenticatedApp && !store.isDeskGated(deskCompat) ? (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
       {splash}
     </AppDataProvider>
