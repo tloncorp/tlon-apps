@@ -28,6 +28,12 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Restore prepared ships
+        id: snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: .proof-snapshot
+          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json') }}
       - name: Install ship and tunnel tools
         run: |
           sudo apt-get update -qq
@@ -65,6 +71,15 @@ jobs:
             MAESTRO_RUN_TAG=${{ env.MAESTRO_RUN_TAG }}
       - name: Verify peer evidence
         run: test -f "$PROOF_OUTPUT/peer-result.json" && cat "$PROOF_OUTPUT/peer-result.json"
+      - name: Snapshot successful ships after clean shutdown
+        if: steps.snapshot.outputs.cache-hit != 'true'
+        run: bash .maestro/cloud-fakeship/snapshot.sh
+      - name: Save prepared ships
+        if: success() && steps.snapshot.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .proof-snapshot
+          key: ${{ steps.snapshot.outputs.cache-primary-key }}
       - name: Stop experiment processes
         if: always()
         run: |

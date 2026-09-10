@@ -63,11 +63,25 @@ done
 echo "Tunnel connected after $((SECONDS-start)) seconds."
 
 # Rube owns preparation, desk commit/readiness and ship process cleanup.
-tmux new-session -d -s proof-rube "cd '$PWD/apps/tlon-web' && SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
+if [ -d .proof-snapshot/zod ]; then
+  dist=apps/tlon-web/rube/dist
+  cp -a .proof-snapshot/zod .proof-snapshot/ten "$dist/"
+  mkdir -p "$dist/urbit_extracted" .peru
+  cp -a .proof-snapshot/urbit "$dist/urbit_extracted/urbit"
+  cp -a .proof-snapshot/peru-cache .peru/cache
+  export SKIP_DOWNLOAD=true
+  echo 'Restored prepared ships and their runtime; native app unchanged.'
+fi
+tmux new-session -d -s proof-rube "cd '$PWD/apps/tlon-web' && SKIP_DOWNLOAD=${SKIP_DOWNLOAD:-false} SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
 deadline=$((SECONDS+1200))
+[ "${SKIP_DOWNLOAD:-false}" != true ] || deadline=$((SECONDS+120))
 last_progress=$SECONDS
 until grep -q SHIP_SETUP_COMPLETE "$PROOF_OUTPUT/rube.log" 2>/dev/null; do
   tmux has-session -t proof-rube || { tail -60 "$PROOF_OUTPUT/rube.log"; exit 1; }
+  if [ "${SKIP_DOWNLOAD:-false}" = true ] && grep -q 'Committing desks on ships that need updates' "$PROOF_OUTPUT/rube.log"; then
+    echo 'Prepared snapshot does not match this backend; refusing a surprise cold compile.'
+    exit 1
+  fi
   if ((SECONDS > deadline)); then tail -60 "$PROOF_OUTPUT/rube.log"; exit 1; fi
   if ((SECONDS-last_progress >= 30)); then tail -4 "$PROOF_OUTPUT/rube.log"; last_progress=$SECONDS; fi
   sleep 5

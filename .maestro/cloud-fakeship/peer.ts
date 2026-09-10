@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 
@@ -28,6 +28,14 @@ async function main() {
   await zod.state.poke({ app: 'hood', mark: 'helm-hi', json: 'Cloud stream preflight' });
   const publicStreamMs = Date.now() - started;
   await ten.state.connect();
+  const snapshotPath = '.proof-snapshot/peer-result.json';
+  const snapshot = existsSync(snapshotPath) ? JSON.parse(readFileSync(snapshotPath, 'utf8')) : null;
+  if (snapshot) {
+    const groups = await Promise.all([zod, ten].map(a => a.state.groups()));
+    if (groups.some(list => list.some((g: any) => g.id === snapshot.group.groupId))) {
+      throw new Error('Restored snapshot still contains the previous test group');
+    }
+  }
   const kiln = await Promise.all([zod, ten].map(a => a.state.scry<any>('hood', '/kiln/pikes')));
   const hashes = kiln.map(k => k.groups.hash);
   if (!hashes[0] || hashes[0] !== hashes[1]) throw new Error('Ships have different backend desk hashes');
@@ -36,7 +44,7 @@ async function main() {
   await until('peer joins group', () => ten.state.isMemberOfGroup(group.groupId));
   await ten.sendChannelPost({ channelId: group.chatChannel, content: `${tag} from ten` });
   await until('zod receives peer post', async () => (await zod.state.channelPosts(group.chatChannel)).some(p => p.authorId === '~ten' && p.text === `${tag} from ten`));
-  const evidence = { source: process.env.GITHUB_SHA, publicStreamMs, deskHashes: hashes, group, setupMs: Date.now() - started };
+  const evidence = { source: process.env.GITHUB_SHA, snapshotSource: snapshot?.source, previousFixtureCleared: snapshot ? true : null, publicStreamMs, deskHashes: hashes, group, setupMs: Date.now() - started };
   writeFileSync(`${out}/peer-ready.json`, JSON.stringify(evidence, null, 2));
   console.log('PEER_READY', JSON.stringify(evidence));
   await until('native reply reaches ten', async () => (await ten.state.channelPosts(group.chatChannel)).some(p => p.authorId === '~zod' && p.text === `${tag} from mobile`), 30 * 60_000);
