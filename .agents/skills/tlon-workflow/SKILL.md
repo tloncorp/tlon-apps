@@ -62,12 +62,27 @@ DEFAULT_SHIP_LOGIN_ACCESS_CODE=xxxxxx-xxxxxx-xxxxxx-xxxxxx
 
 They are read at build time by `app.config.ts`, so a build made before you set them will not have them: set them before `stim ios` / `stim android`, or rebuild.
 
-With both set, a debug build fills the login form for you. Four taps, no typing:
+With both set, a debug build fills the login form for you, so signing in is four taps and no typing:
+
+```bash
+agent-device replay .agents/skills/tlon-workflow/sign-in.ad --keep-session --session <name>
+```
+
+That script is a recording of these four, and holds taps only -- the credentials never appear in it, because the build already filled the fields:
 
 1. "Have an account? Log in" on the welcome screen, which opens an action sheet.
 2. "Or configure self hosted" at the bottom of that sheet.
 3. "Connect", top right of the Connect Ship header. Both fields are already filled and the button is already enabled.
 4. "Next", top right of the Usage Statistics screen.
+
+If `replay` reports a divergence, the copy moved. It prints ranked selector suggestions; drive the four by hand and re-record rather than editing the script:
+
+```bash
+agent-device find "Have an account? Log in" click --session <name> --settle
+agent-device find "Or configure self hosted" click --session <name> --settle
+agent-device find "Connect" click --session <name> --first --settle
+agent-device find "Next" click --session <name> --settle
+```
 
 Two things about that flow are worth knowing before you debug it. The prefill itself is not `__DEV__`-gated, but the pre-validation that enables `Connect` without visiting each field is -- so in a release build the fields are filled and `Connect` is disabled until each one is touched. And a `tlon.network` URL is rejected outside `__DEV__`, with a message telling you to use email and password.
 
