@@ -72,11 +72,24 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
 // that write would skip it there -- and skip it for the rest of the session,
 // since a rejected StorageItem write leaves `updateLock` rejected and every
 // later setValue on that item inherits the rejection.
+//
+// Ship and url are not enough on their own: logging out and back into the same
+// ship makes a new session at the same identity, and the old session's cookie
+// is dead once the new login lands. So each write also checks the client
+// generation, read fresh with no await between the check and the write.
 function refreshAuthCookieCopies(
+  clientGeneration: number,
   shipName: string,
   shipUrl: string,
   authCookie: string
 ) {
+  if (api.getClientGeneration() !== clientGeneration) {
+    clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+      context: 'client was reconfigured before the cookie could be applied',
+    });
+    return;
+  }
+
   try {
     // Synchronous and unconditional: nothing this function does afterwards can
     // starve it, and native decides for itself whether to accept.
@@ -95,7 +108,14 @@ function refreshAuthCookieCopies(
       // sees cannot be a snapshot taken before a logout or account switch that
       // has since been written. Reading with getValue() first and writing after
       // would let this clobber a resetValue() or the new account's record.
+      let superseded = false;
       await db.storage.shipInfo.setValue((stored) => {
+        // rechecked in here because the await above is another chance for the
+        // session to be replaced
+        if (api.getClientGeneration() !== clientGeneration) {
+          superseded = true;
+          return stored;
+        }
         const next = applyRefreshedAuthCookie(stored, {
           shipName,
           shipUrl,
@@ -105,7 +125,11 @@ function refreshAuthCookieCopies(
         applied = next !== stored;
         return next;
       });
-      if (!applied) {
+      if (superseded) {
+        clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+          context: 'client was reconfigured before the cookie was persisted',
+        });
+      } else if (!applied) {
         clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
           context: 'stored ship info belongs to a different session',
         });
@@ -190,6 +214,7 @@ export function configureUrbitClient({
       shipName: cookieShipName,
       shipUrl: cookieShipUrl,
       authCookie,
+      clientGeneration,
     }) => {
       // Reauth reads module-level config after its awaits, so one that started
       // before an account switch can finish after it (TLON-6500). These values
@@ -210,7 +235,12 @@ export function configureUrbitClient({
         });
         return;
       }
-      refreshAuthCookieCopies(cookieShipName, cookieShipUrl, authCookie);
+      refreshAuthCookieCopies(
+        clientGeneration,
+        cookieShipName,
+        cookieShipUrl,
+        authCookie
+      );
     },
   });
 }

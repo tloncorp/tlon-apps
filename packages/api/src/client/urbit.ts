@@ -36,6 +36,11 @@ interface Config extends Pick<
   // bumped on every successful reauth so a request that failed while a
   // reauth was already in flight can retry without starting another one
   authEpoch: number;
+  // bumped whenever the client is configured or removed, i.e. once per login
+  // session. Ship name and url cannot tell two sessions for the same ship
+  // apart, so anything deciding whether a result still belongs to the live
+  // session compares this instead.
+  clientGeneration: number;
   loggingOut: boolean;
   lastStatus: string;
   activitySupportsReactions: boolean;
@@ -117,6 +122,11 @@ export interface ClientParams {
     shipName: string;
     shipUrl: string;
     authCookie: string;
+    // the client generation the login ran under; compare against
+    // getClientGeneration() before applying, so a cookie minted for a session
+    // that has since been replaced -- including a re-login to the same ship --
+    // is dropped
+    clientGeneration: number;
   }) => void;
   onQuitOrReset?: (
     cause: 'subscriptionQuit' | 'reset',
@@ -134,6 +144,7 @@ const config: Config = {
   subWatchers: {},
   pendingAuth: null,
   authEpoch: 0,
+  clientGeneration: 0,
   loggingOut: false,
   onQuitOrReset: undefined,
   getCode: undefined,
@@ -203,6 +214,13 @@ export const setActivitySupportsReactions = (value: boolean) => {
 
 export const getActivitySupportsReactions = (): boolean => {
   return config.activitySupportsReactions;
+};
+
+// The generation of the currently configured client. Read this immediately
+// before acting on something a reauth produced -- with no await in between --
+// to tell whether the session it belongs to is still the live one.
+export const getClientGeneration = (): number => {
+  return config.clientGeneration;
 };
 
 // Whether the connected backend supports notes activity (v10 %activity
@@ -278,6 +296,7 @@ export function internalConfigureClient({
   config.client.nodeId = preSig(shipName);
   config.shipName = shipName;
   config.shipUrl = shipUrl;
+  config.clientGeneration += 1;
   // a fresh configuration is a fresh session; a forced logout on the previous
   // one must not leave reauth disabled for this one
   config.loggingOut = false;
@@ -350,6 +369,8 @@ export function internalRemoveClient() {
   config.client?.delete();
   config.client = null;
   config.subWatchers = {};
+  // a reauth still in flight belongs to the session we are tearing down
+  config.clientGeneration += 1;
   // backend capabilities belong to the ship we were connected to; reset
   // so an account switch to an older backend doesn't request newer
   // endpoints until app-info sync resolves the new ship's version
@@ -1096,6 +1117,7 @@ async function performReauth(): Promise<string | void> {
     // the one this login ran under even if config changes while we await
     const loginShipName = config.shipName;
     const loginShipUrl = config.shipUrl;
+    const loginGeneration = config.clientGeneration;
     try {
       logger.log('trying to auth with code', code);
       authCookie = await getLandscapeAuthCookie(loginShipUrl, code);
@@ -1127,6 +1149,7 @@ async function performReauth(): Promise<string | void> {
         shipName: loginShipName,
         shipUrl: loginShipUrl,
         authCookie,
+        clientGeneration: loginGeneration,
       });
       if (config.client) {
         config.client.cookie = authCookie;
