@@ -1,5 +1,9 @@
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Story, Verse } from '@tloncorp/api/urbit/channel';
 import { Block, HeaderLevel, Inline } from '@tloncorp/api/urbit/content';
+import { valid } from '@urbit/aura';
+
+import { ALL_MENTION_ID } from '../tiptap';
 
 /**
  * Minimal HTML node representation for parsing.
@@ -221,9 +225,13 @@ function nodesToInlines(nodes: HtmlNode[]): Inline[] {
       case 'mention': {
         // <mention text="display" indicator="~" id="~zod">
         const id = node.attrs?.id ?? '';
-        const shipName = id.startsWith('~') ? id.slice(1) : id;
-        if (shipName) {
-          inlines.push({ ship: shipName });
+        if (id) {
+          const ship = preSig(id);
+          inlines.push(
+            valid('p', ship)
+              ? { ship }
+              : { sect: id === ALL_MENTION_ID ? null : id }
+          );
         }
         break;
       }

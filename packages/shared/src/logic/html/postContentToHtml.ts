@@ -5,6 +5,8 @@ import type {
   PostContent,
 } from '@tloncorp/api/client/postContent';
 
+import { storyToHtml } from './storyToHtml';
+
 /**
  * Escape HTML special characters in text content.
  */
@@ -41,9 +43,17 @@ function inlineDataToHtml(inlines: InlineData[]): string {
           }
         }
         case 'mention':
-          return `<mention text="${escapeHtml(inline.contactId)}" indicator="~" id="~${escapeHtml(inline.contactId)}">~${escapeHtml(inline.contactId)}</mention>`;
+          return storyToHtml([{ inline: [{ ship: inline.contactId }] }])
+            .replace(/^<p>/, '')
+            .replace(/<\/p>$/, '');
         case 'groupMention':
-          return `@${escapeHtml(inline.group)}`;
+          return storyToHtml([
+            {
+              inline: [{ sect: inline.group === 'all' ? null : inline.group }],
+            },
+          ])
+            .replace(/^<p>/, '')
+            .replace(/<\/p>$/, '');
         case 'lineBreak':
           return '<br>';
         case 'link':

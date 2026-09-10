@@ -1,3 +1,4 @@
+import { preSig } from '@tloncorp/api/lib/urbit';
 import { Story, isBlockVerse } from '@tloncorp/api/urbit/channel';
 import {
   Block,
@@ -32,10 +33,13 @@ import {
   isList,
   isListItem,
   isListing,
+  isSect,
   isShip,
   isStrikethrough,
   isTask,
 } from '@tloncorp/api/urbit/content';
+
+import { ALL_MENTION_ID } from '../tiptap';
 
 /**
  * Escape HTML special characters in text content.
@@ -157,9 +161,18 @@ function inlinesToHtml(inlines: Inline[]): string {
 
     if (isShip(inline)) {
       const ship = inline as Ship;
-      const escaped = escapeHtml(ship.ship);
+      const escaped = escapeHtml(preSig(ship.ship));
       parts.push(
-        `<mention text="${escaped}" indicator="~" id="~${escaped}">~${escaped}</mention>`
+        `<mention text="${escaped}" indicator="~" id="${escaped}">${escaped}</mention>`
+      );
+      continue;
+    }
+
+    if (isSect(inline)) {
+      const id = escapeHtml(inline.sect ?? ALL_MENTION_ID);
+      const text = escapeHtml(inline.sect ?? 'all');
+      parts.push(
+        `<mention text="${text}" indicator="@" id="${id}">@${text}</mention>`
       );
       continue;
     }

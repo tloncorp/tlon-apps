@@ -461,6 +461,7 @@ export const LiveMarkdownMessageInput = ({
               color: theme.primaryText.val,
               backgroundColor: theme.background.val,
               fontSize: 16,
+              textAlignVertical: 'top',
             }}
             multiline
             onContentSizeChange={(

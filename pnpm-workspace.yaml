@@ -33,6 +33,7 @@ peerDependencyRules:
     - electron-builder-squirrel-windows
 
 patchedDependencies:
+  react-native-enriched@0.7.0: patches/react-native-enriched@0.7.0.patch
   "@react-navigation/bottom-tabs@7.18.14": patches/@react-navigation__bottom-tabs@7.18.14.patch
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
@@ -55,6 +56,7 @@ patchedDependencies:
   react-native@0.86.3: patches/react-native@0.86.3.patch
   react-native-worklets@0.10.3: patches/react-native-worklets@0.10.3.patch
   expo-modules-core@57.0.6: patches/expo-modules-core@57.0.6.patch
+  '@expensify/react-native-live-markdown@0.1.327': patches/@expensify__react-native-live-markdown@0.1.327.patch
 
 allowUnusedPatches: false
 

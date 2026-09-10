@@ -145,46 +145,55 @@ const SENTINEL_RE = /(\d+)/g;
 type LooseInline = string | { [key: string]: unknown };
 type LooseVerse = { inline?: LooseInline[]; block?: unknown };
 
-function mapInlines(
-  inlines: LooseInline[],
-  onMention: (inline: MentionInline) => string
-): LooseInline[] {
-  return inlines.map((item) => {
-    if (item && typeof item === 'object') {
-      if ('ship' in item || 'sect' in item) {
-        return onMention(item as MentionInline);
-      }
-      // Nested emphasis etc.: { bold: Inline[] }, { italics: Inline[] }, ...
-      const key = Object.keys(item)[0];
-      const val = (item as Record<string, unknown>)[key];
-      if (Array.isArray(val)) {
-        return { [key]: mapInlines(val as LooseInline[], onMention) };
-      }
-    }
-    return item;
-  });
+// Walk inline arrays wherever the story stores them, including headers,
+// list items and nested emphasis. Preserve scalar metadata such as link URLs.
+function mapStoryArrays(
+  value: unknown,
+  transform: (inline: LooseInline) => LooseInline[]
+): unknown {
+  if (Array.isArray(value)) {
+    return value.flatMap((item) =>
+      transform(item).map((next) =>
+        typeof next === 'object' && next !== null
+          ? Object.fromEntries(
+              Object.entries(next).map(([key, child]) => [
+                key,
+                mapStoryArrays(child, transform),
+              ])
+            )
+          : next
+      )
+    );
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [
+        key,
+        mapStoryArrays(child, transform),
+      ])
+    );
+  }
+  return value;
 }
 
-// Replace each ship/sect inline (in inline verses) with a sentinel string,
-// collecting the inlines in encounter order. Block verses pass through.
+// Replace ship/sect inlines throughout the story with sentinel strings.
 export function sentinelizeStory(story: LooseVerse[]): {
   story: LooseVerse[];
   inlines: MentionInline[];
 } {
   const inlines: MentionInline[] = [];
-  const newStory = story.map((verse) => {
-    if (verse && Array.isArray(verse.inline)) {
-      return {
-        ...verse,
-        inline: mapInlines(verse.inline, (inline) => {
-          const i = inlines.length;
-          inlines.push(inline);
-          return sentinel(i);
-        }),
-      };
+  const newStory = mapStoryArrays(story, (item) => {
+    if (
+      item &&
+      typeof item === 'object' &&
+      ('ship' in item || 'sect' in item)
+    ) {
+      const i = inlines.length;
+      inlines.push(item as MentionInline);
+      return [sentinel(i)];
     }
-    return verse;
-  });
+    return [item];
+  }) as LooseVerse[];
   return { story: newStory, inlines };
 }
 
@@ -217,25 +226,9 @@ export function injectInlinesIntoStory(
     }
     return parts;
   };
-  const walk = (arr: LooseInline[]): LooseInline[] =>
-    arr.flatMap((item) => {
-      if (typeof item === 'string') {
-        return splitString(item);
-      }
-      if (item && typeof item === 'object') {
-        const key = Object.keys(item)[0];
-        const val = (item as Record<string, unknown>)[key];
-        if (Array.isArray(val)) {
-          return [{ [key]: walk(val as LooseInline[]) }];
-        }
-      }
-      return [item];
-    });
-  return story.map((verse) =>
-    verse && Array.isArray(verse.inline)
-      ? { ...verse, inline: walk(verse.inline) }
-      : verse
-  );
+  return mapStoryArrays(story, (item) =>
+    typeof item === 'string' ? splitString(item) : [item]
+  ) as LooseVerse[];
 }
 
 // Replace each tracked mention span in the text with a sentinel, returning the

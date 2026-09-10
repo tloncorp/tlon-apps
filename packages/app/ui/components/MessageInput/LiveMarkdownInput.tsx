@@ -45,7 +45,10 @@ export const LiveMarkdownInput = memo(
           // absolute color attributes (it never reads surrounding font state),
           // so they need no secondary length/priority tiebreak the way
           // font-merging ranges do.
-          return base.concat(mentions).sort((a, b) => a.start - b.start);
+          return base.concat(mentions).sort((a, b) => {
+            'worklet';
+            return a.start - b.start;
+          });
         };
       }, [mentionRanges]);
 

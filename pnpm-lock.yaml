@@ -34,6 +34,7 @@ packageExtensionsChecksum: sha256-PXRlzYzHs95WSA9P/Pq2g8Jqu/dt5jVOoafKMdVi1ug=
 
 patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
+  '@expensify/react-native-live-markdown@0.1.327': 54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7
   '@gorhom/bottom-sheet': 19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882
   '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@react-navigation/bottom-tabs@7.18.14': 6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0
@@ -48,6 +49,7 @@ patchedDependencies:
   expo-notifications@57.0.6: 3cd1d0e73793fbcadc25864e129f68fd28d2d2a976ed231ca19ea4d45c69d6ca
   react-cosmos: 658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb
   react-native-country-codes-picker: 53c90d297e1cc4991af0f2d72d0f33a68e8be46e75bdf3da919a20160791bee5
+  react-native-enriched@0.7.0: f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092
   react-native-gesture-handler: e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4
   react-native-keyboard-controller@1.22.0: fa419bd2e9aab4d082cd67ab2373cd83c0ee59c03d79a6a5612969c17c27ee0c
   react-native-reanimated: dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f
@@ -153,7 +155,7 @@ importers:
         version: 0.4.0(@tanstack/react-query@5.32.1(react@19.2.3))(expo@57.0.7(1a50d969892ffc893a6ddd04f6f32a12))(react@19.2.3)
       '@expensify/react-native-live-markdown':
         specifier: github:janicduplessis/react-native-live-markdown#2ebc7c7
-        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(patch_hash=54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7)(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@google-cloud/recaptcha-enterprise-react-native':
         specifier: ~18.8.2
         version: 18.8.2(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -399,7 +401,7 @@ importers:
         version: 1.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-enriched:
         specifier: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
-        version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(patch_hash=f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092)(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-gesture-handler:
         specifier: ~2.32.0
         version: 2.32.0(patch_hash=e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1028,7 +1030,7 @@ importers:
         version: 1.1.2
       '@expensify/react-native-live-markdown':
         specifier: github:janicduplessis/react-native-live-markdown#2ebc7c7
-        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(patch_hash=54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7)(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@legendapp/list':
         specifier: 3.3.3
         version: 3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1055,7 +1057,7 @@ importers:
         version: 1.234.4
       react-native-enriched:
         specifier: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
-        version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(patch_hash=f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092)(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       refractor:
         specifier: ^4.8.0
         version: 4.8.0
@@ -15399,7 +15401,7 @@ snapshots:
   '@esbuild/win32-x64@0.27.3':
     optional: true
 
-  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(patch_hash=54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7)(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
       expensify-common: 2.0.182
       react: 19.2.3
@@ -26104,7 +26106,7 @@ snapshots:
       react: 19.2.3
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
 
-  react-native-enriched@file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+  react-native-enriched@file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(patch_hash=f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092)(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
       '@tiptap/extension-blockquote': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))

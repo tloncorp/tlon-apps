@@ -1,0 +1,86 @@
+diff --git a/android/src/reactNativeVersionPatch/CustomMountingManager/latest/com/expensify/livemarkdown/CustomFabricUIManager.java b/android/src/reactNativeVersionPatch/CustomMountingManager/latest/com/expensify/livemarkdown/CustomFabricUIManager.java
+index 98c3bf4c9294ae9ea16179b5ea5659087114634a..5e8614109eb910a1229d86f8dc9b8dcc66ae30e0 100644
+--- a/android/src/reactNativeVersionPatch/CustomMountingManager/latest/com/expensify/livemarkdown/CustomFabricUIManager.java
++++ b/android/src/reactNativeVersionPatch/CustomMountingManager/latest/com/expensify/livemarkdown/CustomFabricUIManager.java
+@@ -7,18 +7,16 @@ import android.text.SpannableStringBuilder;
+ 
+ import androidx.annotation.Nullable;
+ 
+-import com.facebook.infer.annotation.Assertions;
+ import com.facebook.jni.annotations.DoNotStrip;
+ import com.facebook.react.bridge.ReactApplicationContext;
+-import com.facebook.react.bridge.ReactContext;
+ import com.facebook.react.bridge.ReadableMap;
+ import com.facebook.react.common.mapbuffer.ReadableMapBuffer;
+ import com.facebook.react.fabric.FabricUIManager;
+ import com.facebook.react.fabric.mounting.MountingManager;
+-import com.facebook.react.fabric.mounting.SurfaceMountingManager;
+ import com.facebook.react.uimanager.ViewManagerRegistry;
+ import com.facebook.react.uimanager.events.BatchEventDispatchedListener;
+ import com.facebook.react.views.text.TextLayoutManager;
++import com.facebook.react.views.text.PreparedLayout;
+ 
+ import java.lang.reflect.Field;
+ 
+@@ -47,8 +45,8 @@ public class CustomFabricUIManager extends FabricUIManager {
+     this.mMarkdownUtils.setParserId(parserId);
+   }
+ 
++  @Override
+   public long measureText(
+-    int surfaceId,
+     ReadableMapBuffer attributedString,
+     ReadableMapBuffer paragraphAttributes,
+     float minWidth,
+@@ -57,22 +55,8 @@ public class CustomFabricUIManager extends FabricUIManager {
+     float maxHeight,
+     @Nullable float[] attachmentsPositions) {
+ 
+-    ReactContext context;
+-    if (surfaceId > 0) {
+-      SurfaceMountingManager surfaceMountingManager =
+-        mMountingManager.getSurfaceManagerEnforced(surfaceId, "measureText");
+-      if (surfaceMountingManager.isStopped()) {
+-        return 0;
+-      }
+-      context = surfaceMountingManager.getContext();
+-      Assertions.assertNotNull(
+-        context, "Context in SurfaceMountingManager is null. surfaceId: " + surfaceId);
+-    } else {
+-      context = mReactApplicationContext;
+-    }
+-
+     return TextLayoutManager.measureText(
+-      context,
++      mReactApplicationContext.getAssets(),
+       attributedString,
+       paragraphAttributes,
+       getYogaSize(minWidth, maxWidth),
+@@ -85,6 +69,27 @@ public class CustomFabricUIManager extends FabricUIManager {
+       attachmentsPositions);
+   }
+ 
++  @Override
++  public PreparedLayout prepareTextLayout(
++    ReadableMapBuffer attributedString,
++    ReadableMapBuffer paragraphAttributes,
++    float minWidth,
++    float maxWidth,
++    float minHeight,
++    float maxHeight) {
++    return TextLayoutManager.createPreparedLayout(
++      mReactApplicationContext.getAssets(),
++      attributedString,
++      paragraphAttributes,
++      getYogaSize(minWidth, maxWidth),
++      getYogaMeasureMode(minWidth, maxWidth),
++      getYogaSize(minHeight, maxHeight),
++      getYogaMeasureMode(minHeight, maxHeight),
++      spannable -> {
++        mMarkdownUtils.applyMarkdownFormatting((SpannableStringBuilder)spannable);
++      });
++  }
++
+   public static FabricUIManager create(FabricUIManager source, ReadableMap markdownProps, int parserId) {
+     Class<? extends FabricUIManager> uiManagerClass = source.getClass();
+ 

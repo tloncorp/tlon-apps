@@ -2,9 +2,65 @@ import type { Story } from '@tloncorp/api/urbit/channel';
 import { describe, expect, it } from 'vitest';
 
 import { htmlToStory } from './htmlToStory';
+import { postContentToHtml } from './postContentToHtml';
 import { storyToHtml } from './storyToHtml';
 
 describe('storyToHtml', () => {
+  it('loads normalized post content without duplicating sigils or flattening roles', () => {
+    const html = postContentToHtml([
+      {
+        type: 'paragraph',
+        content: [
+          { type: 'mention', contactId: '~tilned-ridmyn' },
+          { type: 'text', text: ' ' },
+          { type: 'groupMention', group: 'all' },
+        ],
+      },
+    ]);
+    expect(html).not.toContain('~~');
+    expect(htmlToStory(html)).toEqual([
+      { inline: [{ ship: '~tilned-ridmyn' }, ' ', { sect: null }] },
+    ]);
+  });
+
+  it('preserves canonical ship and role mentions through native editor HTML', () => {
+    const story: Story = [
+      {
+        inline: [
+          { ship: '~tilned-ridmyn' },
+          ' ',
+          { sect: null },
+          ' ',
+          { sect: 'admin' },
+        ],
+      },
+    ];
+    const html = storyToHtml(story);
+    expect(html).toContain('id="~tilned-ridmyn"');
+    expect(html).not.toContain('~~');
+    expect(htmlToStory(html)).toEqual(story);
+  });
+
+  it('preserves the ship sigil when posting a native nickname mention in a list', () => {
+    expect(
+      htmlToStory(
+        '<ul><li>Review by <mention text="Vince" indicator="@" id="~tilned-ridmyn">Vince</mention></li></ul>'
+      )
+    ).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              items: [{ item: ['Review by ', { ship: '~tilned-ridmyn' }] }],
+              contents: [],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
   it('converts a simple paragraph', () => {
     const story: Story = [{ inline: ['Hello world'] }];
     expect(storyToHtml(story)).toBe('<p>Hello world</p>');
@@ -122,9 +178,9 @@ describe('storyToHtml', () => {
   });
 
   it('converts ship mentions as mention tags', () => {
-    const story: Story = [{ inline: ['hello ', { ship: 'zod' }, ' welcome'] }];
+    const story: Story = [{ inline: ['hello ', { ship: '~zod' }, ' welcome'] }];
     expect(storyToHtml(story)).toBe(
-      '<p>hello <mention text="zod" indicator="~" id="~zod">~zod</mention> welcome</p>'
+      '<p>hello <mention text="~zod" indicator="~" id="~zod">~zod</mention> welcome</p>'
     );
   });
 
@@ -238,10 +294,10 @@ describe('htmlToStory', () => {
 
   it('converts mention tags to ship inlines', () => {
     const story = htmlToStory(
-      '<p>hello <mention text="zod" indicator="~" id="~zod">~zod</mention> welcome</p>'
+      '<p>hello <mention text="~zod" indicator="~" id="~zod">~zod</mention> welcome</p>'
     );
     expect(story).toEqual([
-      { inline: ['hello ', { ship: 'zod' }, ' welcome'] },
+      { inline: ['hello ', { ship: '~zod' }, ' welcome'] },
     ]);
   });
 
@@ -277,7 +333,7 @@ describe('round-trip: storyToHtml → htmlToStory', () => {
     ['header', [{ block: { header: { tag: 'h1', content: ['Title'] } } }]],
     ['code block', [{ inline: [{ code: 'x = 1' }] }]],
     ['horizontal rule', [{ block: { rule: null } }]],
-    ['ship mention', [{ inline: ['hi ', { ship: 'zod' }] }]],
+    ['ship mention', [{ inline: ['hi ', { ship: '~zod' }] }]],
   ];
 
   for (const [name, story] of testCases) {
@@ -451,7 +507,7 @@ describe('round-trip fixed point over realistic editor HTML', () => {
     ['link', '<p>see <a href="https://x.com">here</a></p>'],
     [
       'ship mention',
-      '<p>hi <mention text="zod" indicator="~" id="~zod">~zod</mention></p>',
+      '<p>hi <mention text="~zod" indicator="~" id="~zod">~zod</mention></p>',
     ],
     ['heading with bold', '<h1><b>Title</b></h1>'],
     [
@@ -560,7 +616,7 @@ describe('round-trip fixed point: complex nested + inline combinations', () => {
     ],
     [
       'mention inside list item',
-      '<ul><li>hi <mention text="zod" indicator="~" id="~zod">~zod</mention></li></ul>',
+      '<ul><li>hi <mention text="~zod" indicator="~" id="~zod">~zod</mention></li></ul>',
     ],
     [
       'bold+italic+code inside list item',

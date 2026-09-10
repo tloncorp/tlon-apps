@@ -104,6 +104,77 @@ describe('updateMentions', () => {
 });
 
 describe('sentinel round-trips (no markdown involved)', () => {
+  it('preserves mentions in headers, nested lists and emphasis', () => {
+    const story = [
+      { block: { header: { tag: 'h1', content: [{ ship: '~zod' }] } } },
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [{ sect: null }],
+              items: [
+                {
+                  item: ['Review by ', { bold: [{ ship: '~tilned-ridmyn' }] }],
+                },
+                {
+                  list: {
+                    type: 'ordered',
+                    contents: [],
+                    items: [{ item: [{ sect: 'admin' }] }],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    ];
+    const { story: sentineled, inlines } = sentinelizeStory(story);
+    expect(inlines).toEqual([
+      { ship: '~zod' },
+      { sect: null },
+      { ship: '~tilned-ridmyn' },
+      { sect: 'admin' },
+    ]);
+    const restored = injectInlinesIntoStory(sentineled, inlines);
+    expect(restored).toEqual(story);
+    expect(JSON.stringify(restored)).not.toMatch(/[\uE000\uE001]/);
+  });
+
+  it('replaces a picked mention after markdown parses it as a list continuation', () => {
+    const picked = { ship: '~tilned-ridmyn' };
+    const { text, inlines } = replaceMentionSpansWithSentinels('Vince', [
+      { start: 0, length: 5, inline: picked, display: 'Vince' },
+    ]);
+    const parsed = [
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['Review by ', text] }],
+            },
+          },
+        },
+      },
+    ];
+    expect(injectInlinesIntoStory(parsed, inlines)).toEqual([
+      {
+        block: {
+          listing: {
+            list: {
+              type: 'unordered',
+              contents: [],
+              items: [{ item: ['Review by ', picked] }],
+            },
+          },
+        },
+      },
+    ]);
+  });
+
   it('sentinelizeStory then injectInlinesIntoStory reconstructs the story', () => {
     const story = [
       { inline: ['hi ', { ship: 'finned-palmer' }, ' and ', { sect: null }] },
