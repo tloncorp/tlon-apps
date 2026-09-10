@@ -137,6 +137,7 @@ describe('refreshHostingAuth', () => {
       refreshHostingAuth({ authType: 'hosted', force: true })
     ).resolves.toBe('unknown');
 
+    expect(db.hostingAuthExpired.setValue).not.toHaveBeenCalled();
     expect(db.hostingLastAuthCheck.setValue).toHaveBeenCalledWith(9012);
   });
 });

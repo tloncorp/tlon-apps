@@ -9,7 +9,8 @@ const logger = createDevLogger('recaptcha', true);
 export function useRecaptcha() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isInitializedRef = useRef(false);
-  const { initRecaptcha, execRecaptchaLogin } = useOnboardingContext();
+  const { initRecaptcha, execRecaptchaLogin, execRecaptchaRequestOtp } =
+    useOnboardingContext();
 
   // Continuously attempt to initialize reCAPTCHA until success or unmount
   useEffect(() => {
@@ -63,35 +64,40 @@ export function useRecaptcha() {
     };
   }, [initRecaptcha]);
 
-  const getToken = useCallback(async () => {
-    const startTime = Date.now();
-    while (!isInitializedRef.current && Date.now() - startTime < 4000) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
-    }
+  const getToken = useCallback(
+    async (action: 'login' | 'request_otp' = 'login') => {
+      const startTime = Date.now();
+      while (!isInitializedRef.current && Date.now() - startTime < 4000) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
 
-    if (!isInitializedRef.current) {
-      const err = new Error(
-        'reCAPTCHA initialization timed out after 4 seconds'
-      );
-      logger.trackError('reCAPTCHA initialization timeout', {
-        thrownErrorMessage: err.message,
-      });
-      throw err;
-    }
-
-    try {
-      const token = await execRecaptchaLogin();
-      return token;
-    } catch (err) {
-      console.error('Error executing reCAPTCHA:', err);
-      if (err instanceof Error) {
-        logger.trackError('Error executing reCAPTCHA', {
+      if (!isInitializedRef.current) {
+        const err = new Error(
+          'reCAPTCHA initialization timed out after 4 seconds'
+        );
+        logger.trackError('reCAPTCHA initialization timeout', {
           thrownErrorMessage: err.message,
         });
+        throw err;
       }
-      throw err;
-    }
-  }, [execRecaptchaLogin]);
+
+      try {
+        return await (action === 'request_otp'
+          ? execRecaptchaRequestOtp()
+          : execRecaptchaLogin());
+      } catch (err) {
+        console.error('Error executing reCAPTCHA:', err);
+        if (err instanceof Error) {
+          logger.trackError('Error executing reCAPTCHA', {
+            thrownErrorMessage: err.message,
+            action,
+          });
+        }
+        throw err;
+      }
+    },
+    [execRecaptchaLogin, execRecaptchaRequestOtp]
+  );
 
   return {
     getToken,

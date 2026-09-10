@@ -80,6 +80,7 @@ import * as fixture75 from './src/App.fixture';
 import * as fixture76 from './src/fixtures/InputToolbar.fixture';
 import * as fixture77 from './src/fixtures/Onboarding.fixture';
 import * as fixture78 from './src/fixtures/SetNicknameScreen.fixture';
+import * as fixture79 from './src/fixtures/HostingAuthReconnectScreen.fixture';
 import * as decorator1 from './src/fixtures/cosmos.decorator';
 
 export const rendererConfig: RendererConfig = {
@@ -252,6 +253,7 @@ const fixtures = {
     module: fixture74,
   },
   'src/App.fixture.tsx': { module: fixture75 },
+  'src/fixtures/HostingAuthReconnectScreen.fixture.tsx': { module: fixture79 },
   'src/fixtures/InputToolbar.fixture.tsx': { module: fixture76 },
   'src/fixtures/Onboarding.fixture.tsx': { module: fixture77 },
   'src/fixtures/SetNicknameScreen.fixture.tsx': { module: fixture78 },

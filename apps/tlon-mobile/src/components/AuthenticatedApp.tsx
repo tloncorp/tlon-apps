@@ -30,7 +30,6 @@ import {
   useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
-  AnalyticsEvent,
   createDevLogger,
   observeSyncSinceCompletion,
   sync,
@@ -38,7 +37,14 @@ import {
   updateSession,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import * as store from '@tloncorp/shared/store';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
@@ -49,8 +55,14 @@ import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
+import { useRecaptcha } from '../hooks/useRecaptcha';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
-import { refreshHostingAuth } from '../lib/hostingAuth';
+import {
+  clearHostingNativeCookie,
+  refreshHostingAuth,
+  selectRecaptchaPlatform,
+} from '../lib/hostingAuth';
+import { HostingAuthReconnectScreen } from '../screens/HostingAuthReconnectScreen';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
@@ -64,34 +76,48 @@ function useRequireHostingAuth(
   onHostingAuthExpired: () => void | Promise<void>
 ): RequireHostingAuth {
   const { authType } = useShip();
-  const logoutStarted = useRef(false);
+  const expirationReported = useRef(false);
+  const checkInFlight = useRef<Promise<boolean> | null>(null);
 
   return useCallback(
     async (options = {}) => {
-      if (logoutStarted.current) {
-        return false;
+      if (checkInFlight.current) {
+        return checkInFlight.current;
       }
 
-      const result = await refreshHostingAuth({
-        ...options,
-        authType,
-      }).catch((error) => {
-        hostingAuthLogger.trackError('Failed to check hosting auth', {
-          error,
+      const check = (async () => {
+        const result = await refreshHostingAuth({
+          ...options,
+          authType,
+        }).catch((error) => {
+          hostingAuthLogger.trackError('Failed to check hosting auth', {
+            error,
+          });
+          return 'unknown' as const;
         });
-        return 'unknown' as const;
-      });
-      if (result !== 'expired') {
-        return true;
-      }
+        if (result !== 'expired') {
+          expirationReported.current = false;
+          return true;
+        }
 
-      logoutStarted.current = true;
-      hostingAuthLogger.trackEvent(AnalyticsEvent.AuthForcedLogout, {
-        authType,
-        context: 'Hosting auth was expired',
-      });
-      await onHostingAuthExpired();
-      return false;
+        if (!expirationReported.current) {
+          expirationReported.current = true;
+          hostingAuthLogger.trackEvent('Hosting Reconnect Required', {
+            authType,
+          });
+          await onHostingAuthExpired();
+        }
+        return false;
+      })();
+
+      checkInFlight.current = check;
+      try {
+        return await check;
+      } finally {
+        if (checkInFlight.current === check) {
+          checkInFlight.current = null;
+        }
+      }
     },
     [authType, onHostingAuthExpired]
   );
@@ -213,27 +239,21 @@ function AuthenticatedApp({
   );
 }
 
-export default function ConnectedAuthenticatedApp({
-  onHostingAuthExpired,
+function AuthenticatedAppContent({
+  requireHostingAuth,
 }: {
-  onHostingAuthExpired: () => void | Promise<void>;
+  requireHostingAuth: RequireHostingAuth;
 }) {
   const [clientReady, setClientReady] = useState(false);
   const configureClient = useConfigureUrbitClient();
-  const requireHostingAuth = useRequireHostingAuth(onHostingAuthExpired);
 
   useEffect(() => {
     let canceled = false;
 
-    async function setup() {
-      if (!(await requireHostingAuth({ force: true })) || canceled) {
-        return;
-      }
-
-      configureClient();
-      // we store a flag to ensure this runs only once per login, not anytime
-      // the app is opened
-      const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();
+    configureClient();
+    // we store a flag to ensure this runs only once per login, not anytime
+    // the app is opened
+    db.didSyncInitialPosts.getValue().then((didSyncInitialPosts) => {
       sync
         .syncStart()
         .then(async () => {
@@ -254,13 +274,12 @@ export default function ConnectedAuthenticatedApp({
       if (!canceled) {
         setClientReady(true);
       }
-    }
-    setup();
+    });
 
     return () => {
       canceled = true;
     };
-  }, [configureClient, requireHostingAuth]);
+  }, [configureClient]);
 
   if (!clientReady) {
     return (
@@ -280,13 +299,134 @@ export default function ConnectedAuthenticatedApp({
       */}
       <BottomSheetModalProvider>
         <ForwardPostSheetProvider>
-          <ShareIntentForwardSheetProvider enabled={clientReady}>
-            {clientReady && (
-              <AuthenticatedApp requireHostingAuth={requireHostingAuth} />
-            )}
+          <ShareIntentForwardSheetProvider enabled>
+            <AuthenticatedApp requireHostingAuth={requireHostingAuth} />
           </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </BottomSheetModalProvider>
     </AppDataProvider>
+  );
+}
+
+export default function ConnectedAuthenticatedApp({
+  onLogout,
+  authenticatedContent,
+  authenticatedOverlay,
+}: {
+  onLogout: () => void | Promise<void>;
+  authenticatedContent?: ReactNode;
+  authenticatedOverlay?: ReactNode;
+}) {
+  const [hostingAuthState, setHostingAuthState] = useState<
+    'checking' | 'valid' | 'expired'
+  >('checking');
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [profile, setProfile] = useState<db.Contact | null>(null);
+  const { contactId } = useShip();
+  const { getToken: getRecaptchaToken } = useRecaptcha();
+  const handleHostingAuthExpired = useCallback(() => {
+    setHostingAuthState('expired');
+  }, []);
+  const requireHostingAuth = useRequireHostingAuth(handleHostingAuthExpired);
+
+  const handleGateAppStatusChange = useCallback(
+    async (status: AppStatus) => {
+      if (status === 'opened') {
+        await requireHostingAuth({ force: true });
+      } else if (status === 'active') {
+        await requireHostingAuth();
+      }
+    },
+    [requireHostingAuth]
+  );
+  useAppStatusChange(handleGateAppStatusChange);
+
+  useEffect(() => {
+    let canceled = false;
+    if (!contactId) {
+      return;
+    }
+
+    db.getContact({ id: contactId })
+      .then((contact) => {
+        if (!canceled) {
+          setProfile(contact);
+        }
+      })
+      .catch((error) => {
+        hostingAuthLogger.trackError(
+          'Failed to load profile for Hosting reconnect',
+          { error }
+        );
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [contactId]);
+
+  const requestReconnectCode = useCallback(async () => {
+    const recaptchaToken = await getRecaptchaToken('request_otp');
+    return store.requestHostingAuthReconnectCode({
+      recaptchaToken,
+      platform: selectRecaptchaPlatform(),
+    });
+  }, [getRecaptchaToken]);
+
+  const verifyReconnectCode = useCallback(async (otp: string) => {
+    await store.confirmHostingAuthReconnectCode(otp);
+    await clearHostingNativeCookie();
+    hostingAuthLogger.trackEvent('Hosting Reconnect Succeeded');
+    setHostingAuthState('checking');
+    setAuthAttempt((attempt) => attempt + 1);
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+
+    async function setup() {
+      hostingAuthLogger.log('Starting authenticated app', { authAttempt });
+      if (!(await requireHostingAuth({ force: true })) || canceled) {
+        return;
+      }
+
+      setHostingAuthState('valid');
+    }
+    setup();
+
+    return () => {
+      canceled = true;
+    };
+  }, [authAttempt, requireHostingAuth]);
+
+  if (hostingAuthState === 'expired') {
+    return (
+      <HostingAuthReconnectScreen
+        profileId={contactId ?? ''}
+        profile={profile}
+        onRequestCode={requestReconnectCode}
+        onVerifyCode={verifyReconnectCode}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  if (hostingAuthState === 'checking') {
+    return (
+      <ZStack flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </ZStack>
+    );
+  }
+
+  if (authenticatedContent !== undefined) {
+    return authenticatedContent;
+  }
+
+  return (
+    <ZStack flex={1}>
+      <AuthenticatedAppContent requireHostingAuth={requireHostingAuth} />
+      {authenticatedOverlay}
+    </ZStack>
   );
 }

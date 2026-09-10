@@ -1,5 +1,7 @@
 import {
   HostingError,
+  type HostingLoginOtpInfo,
+  type HostingRecaptchaPlatform,
   checkPhoneVerify as checkPhoneVerifyApi,
   clearShipRevivalStatus as clearHostedShipRevivalStatus,
   getShip as getHostedShip,
@@ -10,7 +12,9 @@ import {
   logInHostingUser,
   markUserTlonbotEnabled,
   requestPhoneVerify as requestPhoneVerifyApi,
+  requestLoginOtpForUser,
   signUpHostingUser,
+  verifyLoginOtpForUser,
 } from '@tloncorp/api';
 
 import * as db from '../db';
@@ -28,6 +32,36 @@ async function recordValidHostingAuth() {
     db.hostingAuthExpired.setValue(false),
     db.hostingLastAuthCheck.setValue(Date.now()),
   ]);
+}
+
+async function getHostingUserIdForReconnect() {
+  const userId = await db.hostingUserId.getValue();
+  if (!userId) {
+    logger.trackEvent(AnalyticsEvent.LoginAnomaly, {
+      context: 'Tried to reconnect Hosting auth without a user ID',
+    });
+    throw new Error('Cannot reconnect to Hosting, no user ID found');
+  }
+  return userId;
+}
+
+export async function requestHostingAuthReconnectCode({
+  recaptchaToken,
+  platform,
+}: {
+  recaptchaToken: string;
+  platform: HostingRecaptchaPlatform;
+}): Promise<HostingLoginOtpInfo> {
+  const userId = await getHostingUserIdForReconnect();
+  return requestLoginOtpForUser({ userId, recaptchaToken, platform });
+}
+
+export async function confirmHostingAuthReconnectCode(otp: string) {
+  const userId = await getHostingUserIdForReconnect();
+  const user = await verifyLoginOtpForUser({ userId, otp });
+  await recordValidHostingAuth();
+  logger.trackEvent('Reconnected with hosting');
+  return user;
 }
 
 export enum HostingAccountIssue {
