@@ -31,12 +31,14 @@ From the repository root:
 git fetch --prune origin
 git worktree add -b <handle>/<topic> .worktrees/<name> origin/develop
 cd .worktrees/<name>/apps/tlon-mobile
-stim worktree warm
+stim worktree warm --refresh
 ```
 
 The default branch is `develop`; every branch starts there and every PR targets it. Branches are named `<handle>/<topic>` (`gh api user --jq .login` is your handle). `.worktrees/` is gitignored at any depth.
 
-`warm` refreshes the main checkout before copying from it: under a lock, it fetches, fast-forwards the main checkout's branch, installs dependencies and pods only when their lockfiles moved, then copies the ignored state (`node_modules`, `ios/Pods`, `.env.local`) into this worktree. It refuses a dirty or detached main checkout and prints the git line that clears it; a worktree workflow means a clean main checkout, so clear it rather than skip the warm. Wait for `warm` to exit 0 before running anything else here.
+`warm` copies the ignored state (`node_modules`, `ios/Pods`, `.env.local`) from the main checkout into this worktree. `--refresh` first brings that checkout up to date under a lock: it fetches, fast-forwards its branch, and installs dependencies and pods only when their lockfiles moved. Wait for it to exit 0 before running anything else here.
+
+In this workflow the main checkout is a seed, not a workspace: every worktree is a copy of it, so keeping it clean and on `develop` is what makes it worth copying. `--refresh` refuses a dirty or detached one and prints the git line that clears it. Clear it rather than dropping `--refresh`; a stale seed hands its staleness to every worktree made from it.
 
 ### 2. Run the app
 
