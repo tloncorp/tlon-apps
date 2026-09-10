@@ -1,0 +1,103 @@
+appId: ${MAESTRO_APP_ID}
+name: Native settings persistence
+tags: [regression]
+env:
+  JOURNEY: s
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- assertVisible: '^Settings$'
+- tapOn: '^App info$'
+- assertVisible: '^Build version$'
+- assertVisible: '^Desk version$'
+- assertNotVisible: '^Cannot load app info settings$'
+- tapOn: '^Back$'
+- tapOn: '^Appearance$'
+- assertVisible: '^Appearance$'
+# iOS exposes radio state as an accessibility value, not a checked flag.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'ThemeOption-.*'
+            checked: true
+          direction: DOWN
+          timeout: 5000
+      - copyTextFrom:
+          id: 'ThemeOption-.*'
+          checked: true
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'ThemeOption-.*'
+            text: '^radio button, checked$'
+          direction: DOWN
+          timeout: 5000
+      - copyTextFrom:
+          text: '.+'
+          index: 0
+          childOf:
+            id: 'ThemeOption-.*'
+            text: '^radio button, checked$'
+- evalScript: ${output.reliability.originalTheme = "ThemeOption-" + maestro.copiedText.toLowerCase().replace("tlon ", "")}
+- scrollUntilVisible:
+    element:
+      id: ThemeOption-light
+    direction: UP
+    timeout: 5000
+- tapOn:
+    id: ThemeOption-light
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-light
+- tapOn:
+    id: ThemeOption-dark
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-dark
+- tapOn: '^Back$'
+- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-dark
+- stopApp
+- launchApp
+- assertVisible: '^Home$'
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^Settings$'
+- tapOn: '^Appearance$'
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ThemeOption-dark
+- scrollUntilVisible:
+    element:
+      id: ${output.reliability.originalTheme}
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ${output.reliability.originalTheme}
+- runFlow:
+    file: subflows/assert-theme.yaml
+    env:
+      THEME_ID: ${output.reliability.originalTheme}
+- tapOn: '^Back$'
+- tapOn: '^Blocked users$'
+- assertVisible: '^Blocked users$'
+- tapOn: '^Back$'
+- tapOn: '^Notification settings$'
+- assertVisible: '^Notifications$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow: subflows/home-tab.yaml
+- assertVisible: '^Home$'

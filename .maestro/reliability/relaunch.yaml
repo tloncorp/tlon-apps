@@ -1,0 +1,40 @@
+appId: ${MAESTRO_APP_ID}
+name: Native session and messages survive relaunch
+tags: [regression]
+env:
+  JOURNEY: r
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 5000
+- assertNotVisible: '^Have an account\? Log in$'
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: '^Chat$'
+- assertVisible: ${output.reliability.textPattern}
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.reply}
+      MESSAGE_PATTERN: ${output.reliability.replyPattern}
+      EMPTY_INPUT: '^Message$'
+- assertVisible: ${output.reliability.textPattern}
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'

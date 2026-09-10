@@ -64,6 +64,26 @@ const StackComponent = forwardRef<any, PressableProps>(
 
 StackComponent.displayName = 'StackComponent';
 
+const LinkStackComponent = forwardRef<
+  React.ComponentRef<typeof View>,
+  PressableProps
+>(({ to, action, onPress, ...props }, ref) => {
+  const { onPress: onPressLink, ...linkProps } = useLinkProps({
+    href: to ?? '',
+    action: action!,
+  });
+  return (
+    <StackComponent
+      ref={ref}
+      {...props}
+      {...linkProps}
+      onPress={onPressLink ?? onPress}
+    />
+  );
+});
+
+LinkStackComponent.displayName = 'LinkStackComponent';
+
 /**
  * Component that wraps content and makes it pressable.
  * It provides the same props as `Stack` component.
@@ -97,19 +117,12 @@ const Pressable = forwardRef<any, PressableProps>(
     ref
   ) => {
     const longPressHandler = isWeb ? undefined : onLongPress;
-    const { onPress: onPressLink, ...linkProps } = useLinkProps({
-      href: to ?? '',
-      action: action!,
-    });
 
     // Check for interaction handlers - only needed on mobile for touch bubbling
     // On web, we skip this check as it interferes with styled() components
     const hasInteractionHandler = isWeb
       ? true // Always consider web components interactive
-      : ((to ?? action) == null ? onPress : onPressLink) ||
-        onPressIn ||
-        onPressOut ||
-        onLongPress;
+      : to || action || onPress || onPressIn || onPressOut || onLongPress;
 
     // Pressable always blocks touches from bubbling to ancestors, even if
     // no handlers are attached.
@@ -135,12 +148,13 @@ const Pressable = forwardRef<any, PressableProps>(
 
     if (to || action) {
       return (
-        <StackComponent
+        <LinkStackComponent
           ref={ref}
+          to={to}
+          action={action}
           {...stackProps}
-          {...linkProps}
           group
-          onPress={onPressLink ?? onPress}
+          onPress={onPress}
           onPressIn={onPressIn}
           onPressOut={onPressOut}
           onLongPress={longPressHandler}
@@ -149,7 +163,7 @@ const Pressable = forwardRef<any, PressableProps>(
           style={style}
         >
           {children}
-        </StackComponent>
+        </LinkStackComponent>
       );
     }
 

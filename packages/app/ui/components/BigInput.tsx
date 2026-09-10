@@ -586,6 +586,7 @@ export function BigInput({
                 width="100%"
                 borderColor="transparent"
                 placeholder="New Title"
+                testID="NotebookTitleInput"
                 placeholderTextColor={'$tertiaryText'}
                 onChangeText={setTitle}
                 value={title}
