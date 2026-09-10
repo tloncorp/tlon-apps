@@ -32,7 +32,8 @@ For each check, the report records expected and observed behavior plus evidence
 IDs. A failed login, unavailable model, oversized diff, or unfinished check is
 blocked. A simulator run does not qualify push delivery, physical-device
 performance, or production release behavior. Reports are advisory, not merge
-gates. App failures do not fail the reporting job; read the report status.
+gates. Failed and blocked results fail the QA job after saving its evidence;
+the separate reporting job still posts the result.
 
 ## Limits and test data
 

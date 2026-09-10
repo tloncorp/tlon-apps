@@ -82,6 +82,9 @@ jobs:
           type: other
           name: ios-agent-qa
           path: artifacts/agent-qa/**
+      - name: Reflect failed or blocked QA in the check status
+        run: |
+          node -e "const {report}=require('../../artifacts/agent-qa/report.json'); process.exit(report.status === 'passed' ? 0 : 1)"
 
   report:
     after: [build_ios, qa_ios]

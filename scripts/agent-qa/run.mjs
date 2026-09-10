@@ -42,6 +42,7 @@ const deviceEnv = Object.fromEntries(
     .filter((key) => env[key])
     .map((key) => [key, env[key]])
 );
+deviceEnv.CI = '1';
 
 async function run(command, args, options = {}) {
   try {
@@ -54,7 +55,10 @@ async function run(command, args, options = {}) {
     });
     return result.stdout;
   } catch (error) {
-    // Do not publish subprocess output: login tools may echo typed credentials.
+    await writeFile(
+      path.join(artifacts, `${path.basename(command)}-error.txt`),
+      clean(`${error.stdout || ''}\n${error.stderr || ''}`).slice(-16000)
+    );
     throw new Error(
       `${path.basename(command)} failed (${error.code || error.signal || 'timeout'})`
     );
@@ -186,6 +190,9 @@ async function prepare() {
   await run('codesign', ['--force', '--deep', '--sign', '-', appCopy]);
   context.installedBundleSha256 = await hashBundle(appCopy);
   context.otaDisabled = true;
+  console.log(
+    'Verified application ID and recorded original/installed bundle hashes.'
+  );
 
   const inventory = JSON.parse(
     await run('xcrun', ['simctl', 'list', '--json'])
@@ -212,6 +219,7 @@ async function prepare() {
     ])
   ).trim();
   context.device = `${type.name}, iOS ${runtime.version}, ${udid}`;
+  console.log(`Selected simulator: ${context.device}`);
   await run('xcrun', ['simctl', 'boot', udid]);
   await run('xcrun', ['simctl', 'bootstatus', udid, '-b'], {
     timeout: 180_000,
@@ -247,6 +255,7 @@ async function prepare() {
   );
   context.smoke =
     'Passed: fresh login, Home, Contacts, and exact test-ship identity';
+  console.log(context.smoke);
   await device(['open', context.appId], 180_000);
   await capture(['snapshot', '-i']);
   await capture([], true);
