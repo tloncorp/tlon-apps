@@ -6,7 +6,9 @@ env:
 - runScript: ../reliability/data.js
 - runFlow: ../reliability/subflows/begin.yaml
 - tapOn: ${'Cloud-' + MAESTRO_RUN_TAG}
-- tapOn: '^General$'
+# A group with one channel opens that conversation directly.
+- assertVisible:
+    id: MessageInput
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' from ten'}
     timeout: 15000
