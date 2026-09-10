@@ -53,11 +53,11 @@ In this workflow the main checkout is a seed, not a workspace: every worktree is
 ```bash
 stim start
 stim ios
-stim android --variant productionDebug   # only after ios has finished
+stim android                              # only after ios has finished
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
 
-The Android app builds two flavors, `production` (`io.tlon.groups`) and `preview` (`io.tlon.groups.preview`), so the variant goes on every `stim android` call.
+The Android app builds two flavors, `production` (`io.tlon.groups`) and `preview` (`io.tlon.groups.preview`), so `assembleDebug` produces nothing installable and Stim refuses rather than guess. `apps/tlon-mobile/.stim.json` commits `android.variant: productionDebug`, so plain `stim android` is correct here -- you do not need `--variant`. Pass it only to build `previewDebug` deliberately.
 
 Use `stim logs --errors`, not `--since <n> --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
 
