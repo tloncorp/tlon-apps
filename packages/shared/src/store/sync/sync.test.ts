@@ -1198,6 +1198,8 @@ describe('desk compatibility gate', () => {
     async () => {
       // What a remount looks like: the previous mount's subscriptions are
       // still live, and a second set on top of them doubles every event.
+      // Note the lens backfill fails under this mock (no %steward fixture),
+      // which must not count as a failed subscribe.
       await syncStart();
       const afterFirst = vi.mocked(subscribe).mock.calls.length;
       expect(afterFirst).toBeGreaterThan(0);
@@ -1205,6 +1207,58 @@ describe('desk compatibility gate', () => {
       await syncStart();
 
       expect(vi.mocked(subscribe).mock.calls.length).toBe(afterFirst);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failed high-priority subscribe leaves the next start to retry',
+    async () => {
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        // Presence is the high-priority subscribe whose rejection actually
+        // propagates; the others are fire-and-forget by design.
+        if (endpoint.app === 'presence') {
+          throw new Error('subscribe failed');
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+
+      // The set that failed has to be registered again rather than being
+      // treated as live for the rest of the session.
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBeGreaterThan(
+        afterFirst
+      );
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a failed low-priority subscribe leaves the next start to retry',
+    async () => {
+      vi.mocked(subscribe).mockImplementation((async (endpoint: {
+        app: string;
+      }) => {
+        if (endpoint.app === 'activity') {
+          throw new Error('subscribe failed');
+        }
+        return 1;
+      }) as unknown as typeof subscribe);
+
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBeGreaterThan(
+        afterFirst
+      );
     },
     FULL_SYNC_TIMEOUT
   );

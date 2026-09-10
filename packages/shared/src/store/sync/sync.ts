@@ -2537,6 +2537,9 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
   try {
     let didLoadCachedContacts = false;
+    // Only meaningful on the subscribing path: the marker below needs to know
+    // that this set went up, and its failure is caught out of reach of it.
+    let didSubscribeHighPriority = false;
 
     // if running while already subscribed, execute the sync with lower priority. It's
     // needed for correctness, but expensive and usually inconsequential
@@ -2644,6 +2647,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         await contactsWriter();
 
         await subsPromise;
+        didSubscribeHighPriority = true;
         trackStep(AnalyticsEvent.SubscriptionsEstablished);
         logger.crumb('finished initializing high priority subs');
 
@@ -2663,17 +2667,17 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
         ? Promise.resolve()
         : setupLowPrioritySubscriptions({
             priority: syncStartPriority.low,
-          })
-            .finally(() => {
-              // Both sets have now been established for this client lifetime
-              // (the high-priority ones went up in the block above), so a later
-              // start in the same lifetime skips them. Marked even on a
-              // rejection: what usually fails here is the lens backfill chained
-              // onto the subscribe, and re-registering every subscription on
-              // the next mount is worse than not retrying that.
+          }).then(() => {
+            if (didSubscribeHighPriority) {
+              // Both sets are confirmed up for this client lifetime, so a later
+              // start in the same lifetime skips them. If either failed the
+              // marker stays unset and the next start registers again — it may
+              // duplicate the set that did work, which is what happens today,
+              // but it never leaves an event stream missing for the session.
               subscribedGeneration = startGeneration;
-            })
-            .then(() => logger.crumb('subscribed low priority')),
+            }
+            logger.crumb('subscribed low priority');
+          }),
       // On recovery the live subscription persists across the discontinuity,
       // so setupLowPrioritySubscriptions (and its post-subscribe lens
       // backfill) is skipped. Rescry /v1/lens directly to recover any events
@@ -2758,21 +2762,25 @@ export const setupHighPrioritySubscriptions = async (ctx?: SyncCtx) => {
 };
 
 export const setupLowPrioritySubscriptions = async (ctx?: SyncCtx) => {
-  return syncQueue.add('setupLowPrioritySubscription', ctx, () => {
-    return Promise.all([
+  return syncQueue.add('setupLowPrioritySubscription', ctx, async () => {
+    // returns null (and skips backfill) when the ship lacks the %steward agent
+    const lensSubscription = api.subscribeToLensUpdates(handleLensUpdate);
+    await Promise.all([
       api.subscribeToActivity(createBatchHandler(handleActivityUpdate)),
       api.subscribeToContactUpdates(createHandler(handleContactUpdate)),
       api.subscribeToStorageUpdates(createHandler(handleStorageUpdate)),
       api.subscribeToLanyardUpdates(handleLanyardUpdate),
       api.subscribeToSettings(createHandler(handleSettingsUpdate)),
-      // returns null (and skips backfill) when the ship lacks the %steward agent
-      api.subscribeToLensUpdates(handleLensUpdate).then((subscribed) => {
-        if (subscribed === null) {
-          return;
-        }
-        return syncLensRuns();
-      }),
+      lensSubscription,
     ]);
+
+    // Backfill, not subscription. Callers read this function's result as
+    // "are the subscriptions up?", so a failed backfill must not answer no.
+    if ((await lensSubscription) !== null) {
+      syncLensRuns().catch((e) =>
+        logger.trackError('post-subscribe lens backfill failed', { error: e })
+      );
+    }
   });
 };
 
