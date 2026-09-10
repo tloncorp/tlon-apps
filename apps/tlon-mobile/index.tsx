@@ -1,3 +1,8 @@
+// Installs Sentry and the composite logger before anything else evaluates, so
+// a failure while loading ./src/App — or while the database gate runs — has
+// somewhere to report. Must stay the first import in this file.
+import './src/telemetryBootstrap';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // Enables native portals (react-native-teleport) so tamagui portals teleport the
 // native views while keeping the React tree in place, preserving context. This
