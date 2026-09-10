@@ -57,7 +57,13 @@ stim android                              # only after ios has finished
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
 
-The Android app builds two flavors, `production` (`io.tlon.groups`) and `preview` (`io.tlon.groups.preview`), so `assembleDebug` produces nothing installable and Stim refuses rather than guess. `apps/tlon-mobile/.stim.json` commits `android.variant: productionDebug`, so plain `stim android` is correct here -- you do not need `--variant`. Pass it only to build `previewDebug` deliberately.
+Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android` is right and `--variant` is not needed. For the preview flavor (`io.tlon.groups.preview`), ask for it:
+
+```bash
+stim android --variant previewDebug
+```
+
+The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
 
 Use `stim logs --errors`, not `--since <n> --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
 
