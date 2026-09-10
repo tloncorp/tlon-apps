@@ -34,7 +34,7 @@ patchedDependencies:
   '@react-navigation/bottom-tabs@7.18.14': 6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0
   '@simform_solutions/react-native-audio-waveform': af72fc5c183530a26f093004261c71c1d7797475d7beeb6d52b5f10a55a5cee2
   '@types/testing-library__jest-dom': cf4e4e793d22cd793da0c584ea39f50bf28a9b3e80d42a7169122bc40c8b02a9
-  '@urbit/http-api': b3f0e6b79865d1bf96f3ed52e0670722d9d3386f33432f37eda868452f3f8d96
+  '@urbit/http-api': a9a5d00ed422bc693d5b8fecc324a543864769402e1651cfb063492bbb2c7bd3
   any-ascii: da390b07ef364cab531a1ea4865ebbf7d5a9b47c085ee6c75dde58ffc593f388
   drizzle-orm: 834dc52d077cfbc1aab821e9960422d59032b5e4684b82f56bf452cb0d5db1a7
   expo-background-task: 3daff8d4e5dad45164c728ef157cd94381f3c69e621f0d0af42cde77694fa9d3
@@ -231,7 +231,7 @@ importers:
         version: 3.0.0
       '@urbit/http-api':
         specifier: 3.2.0-dev
-        version: 3.2.0-dev(patch_hash=b3f0e6b79865d1bf96f3ed52e0670722d9d3386f33432f37eda868452f3f8d96)
+        version: 3.2.0-dev(patch_hash=a9a5d00ed422bc693d5b8fecc324a543864769402e1651cfb063492bbb2c7bd3)
       classnames:
         specifier: ^2.3.2
         version: 2.5.1
@@ -673,7 +673,7 @@ importers:
         version: 3.0.0
       '@urbit/http-api':
         specifier: 3.2.0-dev
-        version: 3.2.0-dev(patch_hash=b3f0e6b79865d1bf96f3ed52e0670722d9d3386f33432f37eda868452f3f8d96)
+        version: 3.2.0-dev(patch_hash=a9a5d00ed422bc693d5b8fecc324a543864769402e1651cfb063492bbb2c7bd3)
       '@urbit/sigil-js':
         specifier: ^2.2.0
         version: 2.2.0
@@ -19766,7 +19766,7 @@ snapshots:
 
   '@urbit/aura@3.0.0': {}
 
-  '@urbit/http-api@3.2.0-dev(patch_hash=b3f0e6b79865d1bf96f3ed52e0670722d9d3386f33432f37eda868452f3f8d96)':
+  '@urbit/http-api@3.2.0-dev(patch_hash=a9a5d00ed422bc693d5b8fecc324a543864769402e1651cfb063492bbb2c7bd3)':
     dependencies:
       '@babel/runtime': 7.28.6
       '@types/node': 20.19.31
