@@ -97,8 +97,11 @@ async function capture(args, screenshot = false) {
         '1280',
       ])
     : await device(args);
-  if (!screenshot)
-    await writeFile(path.join(artifacts, filename), clean(output));
+  if (screenshot) {
+    const bytes = await readFile(path.join(artifacts, filename));
+    if (!bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
+      throw new Error('Device did not produce a PNG screenshot');
+  } else await writeFile(path.join(artifacts, filename), clean(output));
   evidence.set(id, {
     file: filename,
     screenshot,
@@ -288,6 +291,23 @@ async function prepare() {
     await writeFile(
       path.join(artifacts, 'bootstrap-screen.txt'),
       clean(hierarchy)
+    );
+    const appErrors = await run('xcrun', [
+      'simctl',
+      'spawn',
+      udid,
+      'log',
+      'show',
+      '--last',
+      '6m',
+      '--style',
+      'compact',
+      '--predicate',
+      '(process == "Tlon" OR process == "Landscape") AND (eventMessage CONTAINS[c] "error" OR eventMessage CONTAINS[c] "exception")',
+    ]).catch(() => 'Could not collect app errors');
+    await writeFile(
+      path.join(artifacts, 'bootstrap-app-errors.txt'),
+      clean(appErrors).slice(-32000)
     );
     throw error;
   });
