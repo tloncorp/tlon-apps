@@ -13,6 +13,12 @@ pid $RUNNER_TEMP/proof-nginx.pid;
 error_log $PROOF_OUTPUT/proxy.log;
 events { worker_connections 1024; }
 http {
+# Compatibility for the existing binary's SSE parser: carry stream bytes
+# unchanged through ngrok. Remove after qualifying a binary with the parser fix.
+map \$upstream_http_content_type \$proof_content_type {
+  default \$upstream_http_content_type;
+  ~*^text/event-stream "application/octet-stream";
+}
 client_body_temp_path $RUNNER_TEMP/proof-nginx-body;
 proxy_temp_path $RUNNER_TEMP/proof-nginx-temp;
 server {
@@ -32,6 +38,8 @@ server {
     proxy_http_version 1.1;
     proxy_set_header Host \$http_host;
     proxy_buffering off;
+    proxy_hide_header Content-Type;
+    add_header Content-Type \$proof_content_type;
     proxy_read_timeout 300s;
   }
 }
