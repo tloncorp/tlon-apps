@@ -81,8 +81,22 @@ Each run retains `ios-agent-qa`: screenshots, accessibility/action evidence,
 model responses, bundle provenance, and Markdown/JSON reports. The PR comment
 links to the EAS run's artifacts. A separate `ios-agent-qa-video` attachment
 contains `test-session.mp4`, and the PR report explicitly points reviewers to it.
-This is an EAS attachment linked from the comment, not an inline GitHub video upload.
-No public media bucket is required.
+The reporting job downloads this MP4 and posts the report using GitHub CLI
+2.99.0 `gh pr comment --attach`. GitHub hosts the attachment and renders an
+inline video player directly in the PR comment. No public media bucket is required.
+
+Set `GH_QA_TOKEN` as a **secret** in the EAS preview environment. Use a dedicated
+QA account's GitHub OAuth token or classic PAT with write access to this repository
+(the `repo` scope for this private repository). These are the token types supported
+by GitHub's attachment uploader. The reporting job maps it to `GH_TOKEN`; the
+device subprocesses and model tools do not receive it. Do not copy a developer's
+general GitHub login into EAS without their authorization.
+
+If the upload fails or the credential is missing, the reporting job fails and
+EAS's GitHub integration posts the report with an explicit embedding failure
+and the backup EAS artifact link. Runs without a video still get a text report.
+The automatic embedding path needs this credential even though the existing
+EAS integration can already post text comments.
 
 Recording starts only after login, exact account verification, and initial
 device inspection. It captures the agent's full test session, including failed
