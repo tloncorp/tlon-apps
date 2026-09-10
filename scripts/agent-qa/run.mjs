@@ -59,12 +59,16 @@ async function run(command, args, options = {}) {
     });
     return result.stdout;
   } catch (error) {
+    const operation =
+      command === 'agent-device'
+        ? `agent-device-${args[0]}`
+        : path.basename(command);
     await writeFile(
-      path.join(artifacts, `${path.basename(command)}-error.txt`),
+      path.join(artifacts, `${operation}-error.txt`),
       clean(`${error.stdout || ''}\n${error.stderr || ''}`).slice(-16000)
     );
     throw new Error(
-      `${path.basename(command)} failed (${error.code || error.signal || 'timeout'})`
+      `${operation} failed (${error.code || error.signal || 'timeout'})`
     );
   }
 }
@@ -86,17 +90,16 @@ function device(args, timeout = 60_000) {
   );
 }
 
-async function capture(args, screenshot = false) {
+async function capture(args, screenshot = false, timeout = 60_000) {
   const id = `e${evidence.size + 1}`;
   const filename = `${id}.${screenshot ? 'png' : 'txt'}`;
+  console.log(`Collecting ${id}: ${screenshot ? 'screenshot' : args[0]}`);
   const output = screenshot
-    ? await device([
-        'screenshot',
-        path.join(artifacts, filename),
-        '--max-size',
-        '1280',
-      ])
-    : await device(args);
+    ? await device(
+        ['screenshot', path.join(artifacts, filename), '--max-size', '1280'],
+        timeout
+      )
+    : await device(args, timeout);
   if (screenshot) {
     const bytes = await readFile(path.join(artifacts, filename));
     if (!bytes.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
@@ -344,7 +347,9 @@ async function prepare() {
     : 'Passed: fresh login, Home, Contacts, and exact test-ship identity';
   console.log(context.smoke);
   await device(['open', context.appId], 180_000);
-  await capture(['snapshot', '-i']);
+  // A clean EAS worker has to start the accessibility test runner first.
+  // Subsequent device operations keep the shorter per-action timeout.
+  await capture(['snapshot', '-i'], false, 180_000);
   await capture([], true);
   return diff;
 }

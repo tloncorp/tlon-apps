@@ -58,6 +58,8 @@ export function commandFor(action) {
     case 'fill':
       if (typeof action.text !== 'string' || action.text.length > 500)
         throw new Error('Text must be at most 500 characters');
+      if (action.text.startsWith('-'))
+        throw new Error('Text cannot be interpreted as a device CLI option');
       return ['fill', target(action.target), action.text];
     case 'scroll':
       if (!['up', 'down', 'left', 'right'].includes(action.direction))

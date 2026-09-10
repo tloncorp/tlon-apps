@@ -49,6 +49,7 @@ test('device input cannot select another host, execute a shell, or read a file',
     { kind: 'press', target: '--udid' },
     { kind: 'press', target: '/etc/passwd' },
     { kind: 'scroll', direction: '--help' },
+    { kind: 'fill', target: '@e12', text: '--remote-config=/tmp/config' },
   ])
     assert.throws(() => commandFor(action));
   assert.deepEqual(
