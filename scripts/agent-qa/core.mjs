@@ -133,6 +133,22 @@ export function redact(text, secrets) {
   return value;
 }
 
+export function verifyVideo(probe, elapsedSeconds) {
+  const stream = probe.streams?.find((item) => item.codec_type === 'video');
+  const durationSeconds = Number(probe.format?.duration);
+  if (
+    stream?.codec_name !== 'h264' ||
+    !(stream.width > 0 && stream.height > 0) ||
+    !Number.isFinite(durationSeconds) ||
+    durationSeconds <= 0 ||
+    durationSeconds < elapsedSeconds - Math.max(3, elapsedSeconds * 0.1)
+  )
+    throw new Error(
+      'Video is missing, unplayable, or does not cover the test session'
+    );
+  return { durationSeconds, width: stream.width, height: stream.height };
+}
+
 export function renderReport(context, report, usage) {
   const clean = (value) =>
     String(value).replace(/@/g, '@\u200b').slice(0, 3000);
@@ -150,6 +166,10 @@ export function renderReport(context, report, usage) {
     ...(context.bootstrapRecovery
       ? ['', `Bootstrap limitation: ${clean(context.bootstrapRecovery)}`]
       : []),
+    '',
+    context.video?.status === 'ready'
+      ? `Video: test-session.mp4 (${context.video.durationSeconds.toFixed(1)} seconds), attached as ios-agent-qa-video. Recording starts after login and account verification.`
+      : `Video unavailable: ${clean(context.video?.error || 'Testing did not reach the recording stage')}.`,
     '',
     ...(report.checks || []).map(
       (check) =>

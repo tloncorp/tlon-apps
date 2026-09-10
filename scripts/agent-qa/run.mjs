@@ -11,6 +11,7 @@ import {
   verifyContext,
   verifyProviderAuth,
   verifyReport,
+  verifyVideo,
 } from './core.mjs';
 
 const exec = promisify(execFile);
@@ -38,6 +39,13 @@ let report;
 let udid;
 let agentDeadline;
 let deviceCalls = 0;
+let recordingStarted;
+let recordingAttempted = false;
+let recordingTimer;
+let recordingStop;
+let finalization;
+const rawVideo = path.join(env.TMPDIR || '/tmp', 'tlon-agent-qa-raw.mp4');
+const videoDirectory = path.join(root, 'artifacts/agent-qa-video');
 
 // Device subprocesses have no model/build/GitHub credentials. No arbitrary shell
 // or file access is exposed to the model, and args always bypass shell parsing.
@@ -110,6 +118,91 @@ function device(args, timeout = 60_000) {
     ],
     { timeout }
   );
+}
+
+async function startRecording() {
+  // Bootstrap has already completed: never capture credential entry.
+  context.video = { status: 'recording' };
+  recordingAttempted = true;
+  await device(['record', 'start', rawVideo, '--hide-touches']);
+  recordingStarted = Date.now();
+  console.log('Recording the authenticated agent test session.');
+  // Independent cap also stops capture if the agent loop gets stuck.
+  recordingTimer = setTimeout(() => {
+    void stopRecording(true);
+  }, 13 * 60_000);
+}
+
+function stopRecording(capped = false) {
+  if (!recordingAttempted) return Promise.resolve();
+  return (recordingStop ??= (async () => {
+    clearTimeout(recordingTimer);
+    const elapsedSeconds = recordingStarted
+      ? (Date.now() - recordingStarted) / 1000
+      : 0;
+    try {
+      await device(['record', 'stop'], 120_000);
+      await mkdir(videoDirectory, { recursive: true });
+      const file = path.join(videoDirectory, 'test-session.mp4');
+      // Decode the entire recording and produce browser-compatible, seekable H.264.
+      await run(
+        'ffmpeg',
+        [
+          '-v',
+          'error',
+          '-xerror',
+          '-y',
+          '-i',
+          rawVideo,
+          '-vf',
+          'scale=-2:1280',
+          '-c:v',
+          'libx264',
+          '-preset',
+          'fast',
+          '-crf',
+          '24',
+          '-pix_fmt',
+          'yuv420p',
+          '-an',
+          '-movflags',
+          '+faststart',
+          file,
+        ],
+        { timeout: 180_000 }
+      );
+      const probe = JSON.parse(
+        await run('ffprobe', [
+          '-v',
+          'error',
+          '-show_streams',
+          '-show_format',
+          '-of',
+          'json',
+          file,
+        ])
+      );
+      context.video = {
+        status: 'ready',
+        file: 'test-session.mp4',
+        ...verifyVideo(probe, elapsedSeconds),
+        capped,
+      };
+      if (capped)
+        throw new Error(
+          'Recording reached its 13-minute cap before testing finished'
+        );
+      console.log(
+        `Test video finalized: ${context.video.durationSeconds.toFixed(1)} seconds.`
+      );
+    } catch (error) {
+      context.video = {
+        ...context.video,
+        status: 'unavailable',
+        error: clean(error.message),
+      };
+    }
+  })());
 }
 
 async function capture(args, screenshot = false, timeout = 60_000) {
@@ -611,10 +704,33 @@ Current test ship: ${context.testShip}. Bootstrap: ${context.smoke}.`,
 
 await mkdir(artifacts, { recursive: true });
 const watchdog = setTimeout(() => {
-  process.exit(1);
+  void terminate('Harness reached its 25-minute limit');
 }, 25 * 60_000);
+process.once('SIGTERM', () => void terminate('Workflow was terminated'));
+process.once('SIGINT', () => void terminate('Workflow was interrupted'));
+
+async function terminate(reason) {
+  report = {
+    status: 'blocked',
+    summary: reason,
+    checks: [
+      {
+        status: 'blocked',
+        expected: 'Complete the requested testing',
+        observed: reason,
+        evidence: [],
+      },
+    ],
+  };
+  try {
+    await finalize();
+  } finally {
+    process.exit(1);
+  }
+}
 try {
   const diff = await prepare();
+  await startRecording();
   await agent(diff);
 } catch (error) {
   report = {
@@ -630,24 +746,40 @@ try {
     ],
   };
 } finally {
-  clearTimeout(watchdog);
-  await writeFile(
-    path.join(artifacts, 'report.json'),
-    clean(
-      JSON.stringify(
-        { context, report, usage, evidence: Object.fromEntries(evidence) },
-        null,
-        2
+  await finalize();
+}
+
+function finalize() {
+  return (finalization ??= (async () => {
+    clearTimeout(watchdog);
+    await stopRecording();
+    if (recordingAttempted && context.video?.status !== 'ready') {
+      if (report.status === 'passed') report.status = 'blocked';
+      report.checks.push({
+        status: 'blocked',
+        expected: 'Attach a playable recording of the complete agent test',
+        observed: context.video?.error || 'Test recording is unavailable',
+        evidence: [],
+      });
+    }
+    await writeFile(
+      path.join(artifacts, 'report.json'),
+      clean(
+        JSON.stringify(
+          { context, report, usage, evidence: Object.fromEntries(evidence) },
+          null,
+          2
+        )
       )
-    )
-  );
-  await writeFile(
-    path.join(artifacts, 'report.md'),
-    clean(renderReport(context, report, usage))
-  );
-  console.log(`${context.mode}: ${report.status}. ${clean(report.summary)}`);
-  if (udid) {
-    await device(['close']).catch(() => {});
-    await run('xcrun', ['simctl', 'shutdown', udid]).catch(() => {});
-  }
+    );
+    await writeFile(
+      path.join(artifacts, 'report.md'),
+      clean(renderReport(context, report, usage))
+    );
+    console.log(`${context.mode}: ${report.status}. ${clean(report.summary)}`);
+    if (udid) {
+      await device(['close']).catch(() => {});
+      await run('xcrun', ['simctl', 'shutdown', udid]).catch(() => {});
+    }
+  })());
 }

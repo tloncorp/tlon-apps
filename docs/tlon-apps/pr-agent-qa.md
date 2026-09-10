@@ -79,7 +79,24 @@ does not use this recovery: a bootstrap failure blocks the PR test.
 
 Each run retains `ios-agent-qa`: screenshots, accessibility/action evidence,
 model responses, bundle provenance, and Markdown/JSON reports. The PR comment
-links to the EAS run's artifacts. No public screenshot bucket is required.
+links to the EAS run's artifacts. A separate `ios-agent-qa-video` attachment
+contains `test-session.mp4`, and the PR report explicitly points reviewers to it.
+This is an EAS attachment linked from the comment, not an inline GitHub video upload.
+No public media bucket is required.
+
+Recording starts only after login, exact account verification, and initial
+device inspection. It captures the agent's full test session, including failed
+or blocked checks, and stops before device cleanup. Login credentials and the
+Maestro bootstrap are not recorded. Setup failures before this point explicitly
+report that no video is available.
+
+The harness finalizes the recording in its cleanup path, including on handled
+termination, and enforces a separate 13-minute recording cap. It decodes the
+whole video, exports H.264 MP4 with fast-start metadata, and verifies duration
+against elapsed testing time. Missing or truncated video prevents a passing
+result. Abrupt worker loss or forced cancellation can still prevent artifact
+upload. FFmpeg/ffprobe are installed on the worker when unavailable.
+
 Treat artifacts as test-account data. Deterministic bootstrap comes from the
 same login and identity-check pattern as `.maestro/reliability`, but is separate
 so changes to that exploratory suite do not implicitly change the QA harness.

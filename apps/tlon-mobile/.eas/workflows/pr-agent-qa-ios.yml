@@ -50,6 +50,7 @@ jobs:
     image: macos-tahoe-26.4-xcode-26.4
     outputs:
       report: ${{ steps.run.outputs.report }}
+      video_artifact: ${{ steps.video.outputs.artifact_id }}
     env:
       QA_BUILD_ID: ${{ after.build_ios.outputs.build_id || inputs.build_id }}
       QA_BUILD_SHA: ${{ after.build_ios.outputs.git_commit_hash || inputs.build_sha }}
@@ -67,6 +68,7 @@ jobs:
           npm install -g agent-device@0.16.12
           curl --fail --location --retry 2 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.6.1/maestro.zip -o /tmp/qa-maestro.zip
           unzip -q /tmp/qa-maestro.zip -d /tmp/qa-maestro
+          command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null || brew install ffmpeg
       - uses: eas/download_build
         id: download
         with:
@@ -79,6 +81,14 @@ jobs:
         run: |
           node ../../scripts/agent-qa/run.mjs "${{ steps.download.outputs.artifact_path }}"
           set-output report "$(cat ../../artifacts/agent-qa/report.md)"
+          set-output video_ready "$(node -e 'console.log(require("../../artifacts/agent-qa/report.json").context.video?.status === "ready")')"
+      - uses: eas/upload_artifact
+        id: video
+        if: ${{ always() && steps.run.outputs.video_ready == 'true' }}
+        with:
+          type: other
+          name: ios-agent-qa-video
+          path: artifacts/agent-qa-video/test-session.mp4
       - uses: eas/upload_artifact
         if: ${{ always() }}
         with:
@@ -100,5 +110,8 @@ jobs:
         ${{ after.qa_ios.outputs.report || 'Blocked: build or test infrastructure failed before a report was produced. No PR behavior was verified.' }}
 
         [Run and evidence](${{ workflow.url }}) · Requested commit `${{ github.event.pull_request.head.sha }}`
+
+        ${{ after.qa_ios.outputs.video_artifact && 'Video attached as ios-agent-qa-video (test-session.mp4).' || 'No test video was uploaded; see the report for the recording or setup failure.' }}
+        [Open the run to view or download the test video](${{ workflow.url }})
 
         Advisory result. Simulator checks do not qualify physical-device performance, push delivery, or store builds.

@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { commandFor, redact, verifyContext, verifyReport } from './core.mjs';
+import {
+  commandFor,
+  redact,
+  verifyContext,
+  verifyReport,
+  verifyVideo,
+} from './core.mjs';
 
 const sha = 'a'.repeat(40);
 const pr = {
@@ -99,4 +105,20 @@ test('redaction removes credentials from error and report text', () => {
     redact('mail@test.dev and password', ['mail@test.dev', 'password', '']),
     '[redacted] and [redacted]'
   );
+});
+
+test('video evidence rejects missing tracks, empty files, and truncated sessions', () => {
+  const probe = {
+    streams: [
+      { codec_type: 'video', codec_name: 'h264', width: 588, height: 1280 },
+    ],
+    format: { duration: '30.0' },
+  };
+  assert.equal(verifyVideo(probe, 31).durationSeconds, 30);
+  assert.throws(() => verifyVideo({ ...probe, streams: [] }, 30), /unplayable/);
+  assert.throws(
+    () => verifyVideo({ ...probe, format: { duration: '0' } }, 30),
+    /unplayable/
+  );
+  assert.throws(() => verifyVideo(probe, 120), /cover the test session/);
 });
