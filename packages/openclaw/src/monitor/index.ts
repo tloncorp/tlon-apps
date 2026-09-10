@@ -1,4 +1,4 @@
-import type { DmStatus, Story } from '@tloncorp/api';
+import type { Story } from '@tloncorp/api';
 import { randomUUID } from 'node:crypto';
 import { format } from 'node:util';
 import { createTypingCallbacks } from 'openclaw/plugin-sdk/channel-runtime';
@@ -59,7 +59,11 @@ import {
 import { emitTlonPluginErrorTelemetry } from '../plugin-error-observability.js';
 import { getTlonRuntime } from '../runtime.js';
 import { setSessionRole } from '../session-roles.js';
-import { type TlonSettingsStore, createSettingsManager } from '../settings.js';
+import {
+  DM_INVITE_PREVIEW,
+  type TlonSettingsStore,
+  createSettingsManager,
+} from '../settings.js';
 import { sharedSlot } from '../shared-state.js';
 import {
   createSilentFailureNoticeCooldown,
@@ -108,7 +112,7 @@ import {
 } from '../urbit/blob.js';
 import { ssrfPolicyFromAllowPrivateNetwork } from '../urbit/context.js';
 import { describeError } from '../urbit/errors.js';
-import type { Foreigns } from '../urbit/foreigns.js';
+import type { DmInvite, Foreigns } from '../urbit/foreigns.js';
 import { type BotProfile, sendChannelPost, sendDm } from '../urbit/send.js';
 import { UrbitSSEClient } from '../urbit/sse-client.js';
 import { markdownToStory } from '../urbit/story.js';
@@ -326,10 +330,9 @@ interface ChannelFirehoseEvent {
 }
 
 /**
- * Chat/DM firehose: a WritResponse, or a %chat-dm-status fact for a dm
- * entering, changing, or leaving the dm set
+ * Chat/DM firehose can be an array of DM invites or a WritResponse
  */
-type ChatFirehoseEvent = WritResponse | DmStatus;
+type ChatFirehoseEvent = DmInvite[] | WritResponse;
 
 /** Refresh stale settings subscription state periodically as a fallback for silently-dead SSE subscriptions. */
 const SETTINGS_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
@@ -390,11 +393,6 @@ export async function monitorTlonProvider(
 }
 
 async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
-  // assigned once the chat firehose handlers exist below; the SSE client's
-  // recovery hook (declared earlier) calls it after a resubscribe
-  let reconcilePendingDmInvites: (
-    cause: string
-  ) => Promise<void> = async () => {};
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
@@ -666,15 +664,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // surface recovery progress to PostHog. Sampled: first failure, then
       // every 5th, plus a marker event once the subscription recovers.
       onSubscriptionRecovery: (event) => {
-        if (
-          event.app === 'chat' &&
-          event.path === '/v4' &&
-          event.phase !== 'retrying'
-        ) {
-          // invites that arrived while the subscription was down were never
-          // delivered; the pending list is the only way to see them
-          void reconcilePendingDmInvites(event.phase);
-        }
         const source = subscriptionErrorSource(event.app, event.path);
         if (event.phase === 'retrying') {
           if (event.attempt === 1 || event.attempt % 5 === 0) {
@@ -4568,83 +4557,73 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
     // Track which DM invites we've already processed to avoid duplicate accepts
     const processedDmInvites = new Set<string>();
 
-    // Accept-only: the writ that created the invite has already queued the
-    // owner approval for anyone not auto-accepted here, with the real message
-    // as preview, so this must not queue a second one.
-    const handleDmInvite = async (rawShip: string) => {
-      const ship = normalizeShip(rawShip || '');
-      if (!ship || processedDmInvites.has(ship)) {
-        return;
-      }
-
-      // Owner is always allowed
-      if (isOwner(ship)) {
-        try {
-          await api.poke({
-            app: 'chat',
-            mark: 'chat-dm-rsvp',
-            json: { ship, ok: true },
-          });
-          processedDmInvites.add(ship);
-          runtime.log?.(`[tlon] Auto-accepted DM invite from owner ${ship}`);
-        } catch (err) {
-          runtime.error?.(
-            `[tlon] Failed to auto-accept DM from owner: ${String(err)}`
-          );
-        }
-        return;
-      }
-
-      // Auto-accept if on allowlist and auto-accept is enabled
-      if (
-        effectiveAutoAcceptDmInvites &&
-        isDmAllowed(ship, effectiveDmAllowlist)
-      ) {
-        try {
-          await api.poke({
-            app: 'chat',
-            mark: 'chat-dm-rsvp',
-            json: { ship, ok: true },
-          });
-          processedDmInvites.add(ship);
-          runtime.log?.(`[tlon] Auto-accepted DM invite from ${ship}`);
-        } catch (err) {
-          runtime.error?.(
-            `[tlon] Failed to auto-accept DM from ${ship}: ${String(err)}`
-          );
-        }
-        return;
-      }
-    };
-
-    // The status fact is one-shot: an invite that lands while this process is
-    // down, or after its channel has expired, is never replayed. The pending
-    // list on the ship is the truth, so read it at startup and whenever the
-    // chat subscription comes back. handleDmInvite is idempotent via
-    // processedDmInvites, so re-reading is cheap.
-    reconcilePendingDmInvites = async (cause: string) => {
-      try {
-        const invited = (await api.scry('/chat/dm/invited.json')) as string[];
-        for (const ship of invited) {
-          await handleDmInvite(ship);
-        }
-      } catch (err) {
-        runtime.error?.(
-          `[tlon] Failed to reconcile pending DM invites (${cause}): ${String(err)}`
-        );
-      }
-    };
-
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
       try {
-        // %chat-dm-status: a dm entered, changed, or left %chat's dm set.
-        // This is the live signal for a new invite. A removed dm can be
-        // invited again, so forget it.
-        if ('ship' in event && 'net' in event) {
-          if (event.net === 'invited') {
-            await handleDmInvite(event.ship);
-          } else if (event.net === null) {
-            processedDmInvites.delete(normalizeShip(event.ship));
+        // Handle DM invite lists (arrays)
+        if (Array.isArray(event)) {
+          for (const invite of event) {
+            const ship = normalizeShip(invite.ship || '');
+            if (!ship || processedDmInvites.has(ship)) {
+              continue;
+            }
+
+            // Owner is always allowed
+            if (isOwner(ship)) {
+              try {
+                await api.poke({
+                  app: 'chat',
+                  mark: 'chat-dm-rsvp',
+                  json: { ship, ok: true },
+                });
+                processedDmInvites.add(ship);
+                runtime.log?.(
+                  `[tlon] Auto-accepted DM invite from owner ${ship}`
+                );
+              } catch (err) {
+                runtime.error?.(
+                  `[tlon] Failed to auto-accept DM from owner: ${String(err)}`
+                );
+              }
+              continue;
+            }
+
+            // Auto-accept if on allowlist and auto-accept is enabled
+            if (
+              effectiveAutoAcceptDmInvites &&
+              isDmAllowed(ship, effectiveDmAllowlist)
+            ) {
+              try {
+                await api.poke({
+                  app: 'chat',
+                  mark: 'chat-dm-rsvp',
+                  json: { ship, ok: true },
+                });
+                processedDmInvites.add(ship);
+                runtime.log?.(`[tlon] Auto-accepted DM invite from ${ship}`);
+              } catch (err) {
+                runtime.error?.(
+                  `[tlon] Failed to auto-accept DM from ${ship}: ${String(err)}`
+                );
+              }
+              continue;
+            }
+
+            // If owner is configured and ship is not on allowlist, queue approval
+            if (
+              effectiveOwnerShip &&
+              !isDmAllowed(ship, effectiveDmAllowlist)
+            ) {
+              const approval = createPendingApproval(
+                {
+                  type: 'dm',
+                  requestingShip: ship,
+                  messagePreview: DM_INVITE_PREVIEW,
+                },
+                pendingApprovals.map((a) => a.id)
+              );
+              await queueApprovalRequest(approval);
+              processedDmInvites.add(ship); // Mark as processed to avoid duplicate notifications
+            }
           }
           return;
         }
@@ -4957,7 +4936,6 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         },
       });
       runtime.log?.('[tlon] Subscribed to chat firehose (/v4)');
-      await reconcilePendingDmInvites('startup');
 
       // Subscribe to contacts updates to track nickname changes
       await api.subscribe({
