@@ -24,10 +24,16 @@ jobs:
         with:
           node-version: '22.22.0'
       - uses: pnpm/action-setup@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
       - name: Install ship and tunnel tools
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y nginx netcat-openbsd tmux rsync
+          sudo apt-get install -y netcat-openbsd tmux rsync
+          command -v nginx
+          java -version
           pipx install peru
           curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C /tmp
           echo /tmp >> "$GITHUB_PATH"
@@ -67,7 +73,7 @@ jobs:
             file="$PROOF_OUTPUT/$name.pid"
             if [ -f "$file" ]; then kill "$(cat "$file")" 2>/dev/null || true; fi
           done
-          sudo nginx -s stop 2>/dev/null || true
+          nginx -s stop -c "$RUNNER_TEMP/proof-nginx.conf" 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

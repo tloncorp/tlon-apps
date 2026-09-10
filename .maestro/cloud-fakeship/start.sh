@@ -8,7 +8,13 @@ runner_ip=$(curl -fsS https://api.ipify.org)
 
 # ngrok appends the actual source IP; nginx trusts only the loopback agent
 # and uses that last value (real_ip_recursive off). Do not trust client values.
-sudo tee /etc/nginx/conf.d/maestro-proof.conf >/dev/null <<EOF
+cat > "$RUNNER_TEMP/proof-nginx.conf" <<EOF
+pid $RUNNER_TEMP/proof-nginx.pid;
+error_log $PROOF_OUTPUT/proxy.log;
+events { worker_connections 1024; }
+http {
+client_body_temp_path $RUNNER_TEMP/proof-nginx-body;
+proxy_temp_path $RUNNER_TEMP/proof-nginx-temp;
 server {
   listen 127.0.0.1:49379;
   set_real_ip_from 127.0.0.1;
@@ -29,9 +35,10 @@ server {
     proxy_read_timeout 300s;
   }
 }
+}
 EOF
-sudo nginx -t
-sudo nginx -s reload
+nginx -t -c "$RUNNER_TEMP/proof-nginx.conf"
+nginx -c "$RUNNER_TEMP/proof-nginx.conf"
 status=$(curl -s -o /dev/null -w '%{http_code}' -H 'X-Forwarded-For: 207.254.42.234, 192.0.2.1' http://127.0.0.1:49379)
 test "$status" = 403
 echo 'Proxy rejected a spoofed allowlisted address.'
@@ -50,9 +57,11 @@ echo "Tunnel connected after $((SECONDS-start)) seconds."
 # Rube owns preparation, desk commit/readiness and ship process cleanup.
 tmux new-session -d -s proof-rube "cd '$PWD/apps/tlon-web' && SKIP_TESTS=true INCLUDE_OPTIONAL_SHIPS=false pnpm rube > '$PROOF_OUTPUT/rube.log' 2>&1"
 deadline=$((SECONDS+1200))
+last_progress=$SECONDS
 until grep -q SHIP_SETUP_COMPLETE "$PROOF_OUTPUT/rube.log" 2>/dev/null; do
   tmux has-session -t proof-rube || { tail -60 "$PROOF_OUTPUT/rube.log"; exit 1; }
   if ((SECONDS > deadline)); then tail -60 "$PROOF_OUTPUT/rube.log"; exit 1; fi
+  if ((SECONDS-last_progress >= 30)); then tail -4 "$PROOF_OUTPUT/rube.log"; last_progress=$SECONDS; fi
   sleep 5
 done
 echo "Ships prepared after $((SECONDS-start)) seconds."
@@ -68,6 +77,7 @@ until [ -f "$PROOF_OUTPUT/peer-ready.json" ]; do
   if ((SECONDS > deadline)); then cat "$PROOF_OUTPUT/peer.log"; exit 1; fi
   sleep 1
 done
+cat "$PROOF_OUTPUT/peer-ready.json"
 code=$(jq -r '."~zod".code' apps/tlon-web/e2e/shipManifest.json)
 echo "::add-mask::$code"
 # Verify authentication over the same public HTTPS route the device will use.
