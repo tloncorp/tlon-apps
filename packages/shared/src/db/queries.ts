@@ -2881,11 +2881,23 @@ export const getChannel = createReadQuery(
   ['channels']
 );
 
+/**
+ * The dm rows the server is expected to know about: pending rows (a dm the
+ * user opened but hasn't messaged) are excluded, since the server has never
+ * seen them.
+ */
 export const getDmChannelIds = createReadQuery(
   'getDmChannelIds',
   async (ctx: QueryCtx): Promise<string[]> => {
     const rows = await ctx.db.query.channels.findMany({
-      where: inArray($channels.type, ['dm', 'groupDm']),
+      where: and(
+        inArray($channels.type, ['dm', 'groupDm']),
+        // null is the common case: the flag is only ever set on local rows
+        or(
+          isNull($channels.isPendingChannel),
+          eq($channels.isPendingChannel, false)
+        )
+      ),
       columns: { id: true },
     });
     return rows.map((row) => row.id);
@@ -2898,11 +2910,12 @@ export const getDmChannelIds = createReadQuery(
  * but the backend no longer lists was left, declined, or archived while we
  * weren't subscribed.
  *
- * Only rows in `candidateIds` can go. Callers capture that set before they
- * fetch the snapshot, so a row a live fact inserted while the fetch was in
- * flight is never mistaken for one the snapshot omitted. Rows the server
- * hasn't confirmed yet are exempt as well: a pending dm the user just opened,
- * and a dm whose first message hasn't been sent.
+ * Only rows in `candidateIds` can go. Callers capture that set (via
+ * getDmChannelIds, which already leaves out pending rows) before they fetch
+ * the snapshot, so a row a live fact inserted while the fetch was in flight,
+ * or a pending dm that got its first message during it, is never mistaken for
+ * one the snapshot omitted. A dm whose first message is still unsent is
+ * exempt as well.
  */
 export const deleteAbsentDmChannels = createWriteQuery(
   'deleteAbsentDmChannels',
@@ -2918,12 +2931,7 @@ export const deleteAbsentDmChannels = createWriteQuery(
     const local = await ctx.db.query.channels.findMany({
       where: and(
         inArray($channels.id, absent),
-        inArray($channels.type, ['dm', 'groupDm']),
-        // null is the common case: the flag is only ever set on local rows
-        or(
-          isNull($channels.isPendingChannel),
-          eq($channels.isPendingChannel, false)
-        )
+        inArray($channels.type, ['dm', 'groupDm'])
       ),
       columns: { id: true },
     });

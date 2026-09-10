@@ -611,8 +611,28 @@ test('deleteAbsentDmChannels leaves unconfirmed and newly arrived dms alone', as
     dmChannel('~stale-dm', false),
     { ...dmChannel('~pending-dm', false), isPendingChannel: true },
   ]);
+  // the pending row is never a candidate: the server has never seen it
   const candidateIds = await db.getDmChannelIds();
-  expect(candidateIds.sort()).toEqual(['~pending-dm', '~stale-dm']);
+  expect(candidateIds).toEqual(['~stale-dm']);
+  // ...and while the snapshot is in flight its first message goes out, so by
+  // the time we reconcile it looks like any other confirmed dm
+  await db.updateChannel({ id: '~pending-dm', isPendingChannel: false });
+  await db.insertChannelPosts({
+    posts: [
+      {
+        id: 'first-sent',
+        type: 'chat',
+        channelId: '~pending-dm',
+        authorId: '~zod',
+        sentAt: Date.now(),
+        receivedAt: Date.now(),
+        sequenceNum: 1,
+        content: JSON.stringify([{ inline: ['hello'] }]),
+        deliveryStatus: 'sent',
+        syncedAt: Date.now(),
+      } as unknown as db.Post,
+    ],
+  });
   // arrives (via a status fact) after the snapshot was requested
   await db.insertChannels([dmChannel('~arrived-dm', false)]);
 
