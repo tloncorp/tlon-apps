@@ -9,6 +9,7 @@ export const TLON_APP_STORE_URL =
   'https://apps.apple.com/us/app/tlon-tlon-messenger/id6451392109?utm_source=webapp';
 export const TLON_PLAY_STORE_URL =
   'https://play.google.com/store/apps/details?id=io.tlon.groups&utm_source=webapp';
+export const SUPPORT_EMAIL = 'support@tlon.io';
 export const CHAT_REF_LIKE_MAX_WIDTH = 600;
 export const MCP_OAUTH_COMPLETION_PATH = 'mcp-oauth/complete';
 

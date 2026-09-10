@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import { isSentryForwarded } from './compositeLogger';
 import { getStorageMethods } from './db/getStorageMethods';
 import { useLiveRef } from './logic/utilHooks';
 import { useCurrentSession } from './store/session';
@@ -15,6 +16,23 @@ const BREADCRUMB_LIMIT = 100;
 let _buildInfo: string | null = null;
 export function setDebugBuildInfo(info: string) {
   _buildInfo = info;
+}
+
+// Call sites attach the caught error in one of three shapes:
+// - logger.trackError('msg', error)            -> the props are the Error
+// - logger.trackError('msg', { error })        -> under `error`
+// - logger.trackError('msg', { stack: error }) -> under `stack`
+function extractErrorObject(customProps: object): Error | undefined {
+  if (customProps instanceof Error) {
+    return customProps;
+  }
+  if ('error' in customProps && customProps.error instanceof Error) {
+    return customProps.error;
+  }
+  if ('stack' in customProps && customProps.stack instanceof Error) {
+    return customProps.stack;
+  }
+  return undefined;
 }
 
 interface Breadcrumb {
@@ -69,7 +87,8 @@ interface DebugStore {
   appendLog: (log: Log) => void;
   uploadLogs: () => Promise<string>;
   addBreadcrumb: (crumb: Breadcrumb) => void;
-  getBreadcrumbs: () => string[];
+  clearBreadcrumbs: () => void;
+  getBreadcrumbs: (options?: { includeSensitive?: boolean }) => string[];
   addCustomEnabledLoggers: (loggers: string[]) => void;
   initializeDebugInfo: (
     platform: PlatformState,
@@ -164,12 +183,15 @@ export const useDebugStore = create<DebugStore>(
             debugBreadcrumbs.shift();
           }
 
-          return state;
+          return { debugBreadcrumbs };
         });
       },
-      getBreadcrumbs: () => {
+      clearBreadcrumbs: () => {
+        set({ debugBreadcrumbs: [] });
+      },
+      getBreadcrumbs: (options) => {
         const { debugBreadcrumbs } = get();
-        const includeSensitiveContext = true; // TODO: handle accordingly
+        const includeSensitiveContext = options?.includeSensitive ?? true;
         return debugBreadcrumbs.map((crumb) => {
           return `[${crumb.tag}] ${crumb.message ?? ''}${includeSensitiveContext && crumb.sensitive ? crumb.sensitive : ''}`;
         });
@@ -203,6 +225,10 @@ export const useDebugStore = create<DebugStore>(
 
 export function addCustomEnabledLoggers(loggers: string[]) {
   return useDebugStore.getState().addCustomEnabledLoggers(loggers);
+}
+
+export function clearBreadcrumbs() {
+  return useDebugStore.getState().clearBreadcrumbs();
 }
 
 export function flushErrorLogger() {
@@ -273,20 +299,12 @@ export function createDevLogger(tag: string, enabled: boolean) {
             args[1] && typeof args[1] === 'object' ? args[1] : {};
           const errorMessage =
             typeof args[0] === 'string' ? `[${tag}] ${args[0]}` : 'no message';
-          const breadcrumbs = useDebugStore.getState().getBreadcrumbs();
+          // Breadcrumbs recorded with `sensitiveCrumb` stay on the device; only the explicit debug-log upload (`uploadLogs`) reads them.
+          const breadcrumbs = useDebugStore
+            .getState()
+            .getBreadcrumbs({ includeSensitive: false });
 
-          // Extract error from various patterns:
-          // - logger.trackError('msg', error) -> customProps is Error
-          // - logger.trackError('msg', { error }) -> customProps.error is Error
-          let errorObj: Error | undefined;
-          if (customProps instanceof Error) {
-            errorObj = customProps;
-          } else if (
-            'error' in customProps &&
-            customProps.error instanceof Error
-          ) {
-            errorObj = customProps.error;
-          }
+          const errorObj = extractErrorObject(customProps);
 
           const report = (debugInfo: any = undefined) => {
             // Send to error logger (PostHog, Sentry, or both via composite logger)
@@ -300,6 +318,9 @@ export function createDevLogger(tag: string, enabled: boolean) {
               jsContextId,
               buildInfo: _buildInfo,
               ...customProps,
+              errorObject: errorObj,
+              logger: tag,
+              errorTitle: typeof args[0] === 'string' ? args[0] : 'no message',
             });
           };
 
@@ -313,12 +334,28 @@ export function createDevLogger(tag: string, enabled: boolean) {
           if (args[0] && typeof args[0] === 'string') {
             const customProps =
               args[1] && typeof args[1] === 'object' ? args[1] : {};
+            // Only the events Sentry receives need an error object and a
+            // breadcrumb trail; attaching either to all ~500 analytics events
+            // would bloat every PostHog payload for no reader.
+            const forwarded = isSentryForwarded(
+              args[0],
+              customProps as Record<string, unknown>
+            );
             errorLogger?.capture(args[0], {
               ...customProps,
               message: `[${tag}] ${args[0]}`,
               logger: tag,
               jsContextId,
               buildInfo: _buildInfo,
+              ...(forwarded
+                ? {
+                    breadcrumbs: useDebugStore
+                      .getState()
+                      .getBreadcrumbs({ includeSensitive: false }),
+                    errorObject: extractErrorObject(customProps),
+                    errorTitle: args[0],
+                  }
+                : {}),
             });
           }
           resolvedProp = 'log';

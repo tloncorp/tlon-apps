@@ -314,6 +314,7 @@ function NotebookContentsListFixture() {
             getPublishedNoteUrl={(note) =>
               `https://test.tlon.app/notes/native-notes-fixture/${note.noteId}`
             }
+            hasPublishedUpdate={(noteId) => noteId === 5}
             isDeletingFolder={false}
             isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
@@ -380,6 +381,7 @@ function NotesTreeFixture() {
         >
           <NotesTreePane
             canEdit
+            hasPublishedUpdate={() => false}
             isNotePublished={() => false}
             isDeletingFolder={false}
             layout="takeover"
