@@ -47,6 +47,8 @@ const deviceEnv = Object.fromEntries(
 );
 deviceEnv.CI = '1';
 deviceEnv.MAESTRO_CLI_NO_ANALYTICS = '1';
+deviceEnv.AGENT_DEVICE_DAEMON_TIMEOUT_MS = '180000';
+deviceEnv.AGENT_DEVICE_IOS_BOOT_TIMEOUT_MS = '180000';
 
 async function run(command, args, options = {}) {
   try {
@@ -234,6 +236,9 @@ async function prepare() {
   await run('xcrun', ['simctl', 'bootstatus', udid, '-b'], {
     timeout: 180_000,
   });
+  console.log('Preparing the iOS accessibility runner on the clean worker.');
+  await device(['prepare', 'ios-runner', '--timeout', '180000'], 240_000);
+  console.log('The iOS accessibility runner is ready.');
   await device(['install', context.appId, appCopy], 180_000);
 
   const shipPattern =
@@ -349,7 +354,7 @@ async function prepare() {
   await device(['open', context.appId], 180_000);
   // A clean EAS worker has to start the accessibility test runner first.
   // Subsequent device operations keep the shorter per-action timeout.
-  await capture(['snapshot', '-i'], false, 180_000);
+  await capture(['snapshot', '-i', '--timeout', '180000'], false, 210_000);
   await capture([], true);
   return diff;
 }
