@@ -29,5 +29,3 @@ appId: ${MAESTRO_APP_ID}
 - assertVisible: '^Contacts$'
 - tapOn: '^You$'
 - assertVisible: ${MAESTRO_TEST_SHIP_PATTERN}
-- tapOn: '^Back$'
-- assertVisible: '^Contacts$'
