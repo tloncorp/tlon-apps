@@ -1,0 +1,21 @@
+appId: ${MAESTRO_APP_ID}
+name: Cloud device with CI fake ships
+env:
+  JOURNEY: cloud
+---
+- runScript: ../reliability/data.js
+- runFlow: ../reliability/subflows/begin.yaml
+- tapOn: ${'Cloud-' + MAESTRO_RUN_TAG}
+- tapOn: '^General$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' from ten'}
+    timeout: 15000
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: ${MAESTRO_RUN_TAG + ' from mobile'}
+      MESSAGE_PATTERN: ${'^' + MAESTRO_RUN_TAG + ' from mobile ?$'}
+      EMPTY_INPUT: '^Message$'
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' reply received'}
+    timeout: 15000
