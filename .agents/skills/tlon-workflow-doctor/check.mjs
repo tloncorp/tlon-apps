@@ -227,15 +227,15 @@ const checks = [
         return {
           ok: `no finding costs time (${findings.length} note${findings.length === 1 ? '' : 's'})`,
         };
-      const repairable = costly.some((f) => /sandbox/i.test(f.title));
+      // Never run `stim doctor --fix` from here. It writes the agent's own
+      // permission file and can delete generated Android .cxx directories, so
+      // it is a decision for whoever is running this, not a repair to apply.
       return {
         fix: costly
           .map((f) => `${f.title}${f.fix ? ` -> ${f.fix}` : ''}`)
           .join('\n      '),
-        how: repairable
-          ? 'cd apps/tlon-mobile && stim doctor --fix'
-          : 'cd apps/tlon-mobile && stim doctor',
-        cmd: repairable ? ['stim', ['doctor', '--fix'], { cwd: APP }] : null,
+        how: 'cd apps/tlon-mobile && stim doctor, then apply the fix each finding names',
+        cmd: null,
       };
     },
   },

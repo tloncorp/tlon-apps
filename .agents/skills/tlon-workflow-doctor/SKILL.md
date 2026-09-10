@@ -28,11 +28,11 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
 | `node` | major version matches `.nvmrc` | nothing; a note |
 | `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
-| `stim doctor` | no `costs time` finding in `apps/tlon-mobile` | `stim doctor --fix` when a finding is one it repairs (the sandbox allowance); otherwise prints each finding's fix |
+| `stim doctor` | no `costs time` finding in `apps/tlon-mobile` | nothing; prints each finding and its fix |
 
-`--fix` installs global npm packages, adds skills under `~/.agents/skills`, and runs `stim doctor --fix`. It writes nothing else in this repository.
+`--fix` only installs global npm packages and adds skills under `~/.agents/skills`. It touches nothing in this repository.
 
-Two things about that last one. `stim doctor --fix` writes `.claude/settings.local.json`, which is your own agent permission configuration -- decide that yourself rather than because a tool asked. And with `--platform android` it can delete generated `.cxx` directories, so do not run it while a native build is in flight.
+It deliberately does not run `stim doctor --fix`, which writes `.claude/settings.local.json` -- your own agent permission configuration -- and can delete generated Android `.cxx` directories. Both are decisions for the person running this, not repairs to apply on a tool's say-so. The `stim doctor` line prints what it found and the fix each finding names.
 
 ## When a line stays `fix`
 
