@@ -177,14 +177,15 @@ const MainApp = () => {
   const splashReplacesAuthenticatedApp =
     showSplashSequence &&
     (forcedSplash || activeSplashSequenceMode === 'tlonbotRevival');
-  // The revival splash onboards against the ship's desk, so it can't stand in
-  // for the app while the desk is gated — including while a cold probe is
-  // still deciding, which isDeskGated covers. Falling through renders the
-  // notice (or its spinner), which AuthenticatedApp already handles.
+  // The revival splash onboards against the ship's desk, so it may only stand
+  // in for the app once a clean verdict exists. No verdict means "not probed
+  // yet", and the normal path below is what probes — it runs sync start — so a
+  // cold start renders that path (its spinner while probing) and hands over to
+  // the splash only when the desk is recorded as usable.
   const deskCompat = store.useDeskCompatibility();
   const authenticatedContent = !connected ? (
     offline
-  ) : splashReplacesAuthenticatedApp && !store.isDeskGated(deskCompat) ? (
+  ) : splashReplacesAuthenticatedApp && deskCompat?.status === 'ok' ? (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
       {splash}
     </AppDataProvider>
