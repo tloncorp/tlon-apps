@@ -95,6 +95,35 @@ export function assessmentArgs(options) {
   );
 }
 
+// Full manual runs add only QA infrastructure to the exact PR head so EAS can
+// read the workflow before it is merged. No product file may differ.
+export function allowedOverlayFile(file) {
+  return (
+    file.startsWith('scripts/agent-qa/') ||
+    file === 'apps/tlon-mobile/.eas/workflows/pr-agent-qa-ios.yml' ||
+    file === 'docs/tlon-apps/pr-agent-qa.md'
+  );
+}
+
+export function verifySourceOverlay(prHead) {
+  if (!/^[a-f0-9]{40}$/.test(prHead || ''))
+    throw new Error('Missing PR source commit');
+  git(['fetch', '--no-tags', '--depth=1', 'origin', prHead]);
+  const parents = git(['cat-file', '-p', 'HEAD'])
+    .split('\n\n')[0]
+    .split('\n')
+    .filter((line) => line.startsWith('parent '));
+  if (parents.length !== 1 || parents[0] !== `parent ${prHead}`)
+    throw new Error(
+      'QA overlay must be a direct child of the requested PR head'
+    );
+  const changed = git(['diff', '--name-only', '-z', prHead, 'HEAD'])
+    .split('\0')
+    .filter(Boolean);
+  if (!changed.length || changed.some((file) => !allowedOverlayFile(file)))
+    throw new Error('QA overlay changes product source');
+}
+
 export function verifyCoverage(report, assessment) {
   if (!assessment) return report;
   const planned = new Set(assessment.scenarios.map((s) => s.id));
@@ -134,6 +163,29 @@ async function main() {
     const pr = JSON.parse(process.env.QA_PR_JSON || 'null');
     baseSha = pr?.base?.sha;
     headSha = pr?.head?.sha;
+    if (process.env.QA_FULL_PR_RUN === 'true') {
+      const response = await fetch(
+        `https://api.github.com/repos/tloncorp/tlon-apps/pulls/${pr.number}`,
+        {
+          headers: {
+            Authorization: `Bearer ${process.env.GH_QA_TOKEN}`,
+            Accept: 'application/vnd.github+json',
+          },
+          signal: AbortSignal.timeout(20_000),
+        }
+      );
+      if (!response.ok)
+        throw new Error(`Cannot verify requested PR (HTTP ${response.status})`);
+      const live = await response.json();
+      if (
+        live.head.sha !== headSha ||
+        live.base.sha !== baseSha ||
+        live.draft ||
+        live.head.repo.full_name !== 'tloncorp/tlon-apps'
+      )
+        throw new Error('Requested PR changed before assessment');
+      verifySourceOverlay(headSha);
+    }
     if (
       ![baseSha, headSha].every((s) => /^[a-f0-9]{40}$/.test(s || '')) ||
       pr.draft ||
@@ -145,6 +197,7 @@ async function main() {
       );
     if (
       process.env.QA_ASSESSMENT_ONLY !== 'true' &&
+      process.env.QA_FULL_PR_RUN !== 'true' &&
       git(['rev-parse', 'HEAD']).trim() !== headSha
     )
       throw new Error('Assessment checkout does not match the PR head');

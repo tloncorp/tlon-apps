@@ -28,8 +28,8 @@ export function verifyContext(env, harnessSha) {
   if (env.QA_MODE === 'pull_request') {
     if (
       !pr?.head?.sha ||
-      pr.head.sha !== env.QA_BUILD_SHA ||
-      harnessSha !== pr.head.sha
+      (env.QA_FULL_PR_RUN !== 'true' && pr.head.sha !== env.QA_BUILD_SHA) ||
+      harnessSha !== env.QA_BUILD_SHA
     )
       throw new Error(
         'PR head, EAS build commit, and checked-out source do not match'
@@ -61,6 +61,7 @@ export function verifyContext(env, harnessSha) {
     appId: env.QA_APP_ID,
     testShip: env.QA_TEST_SHIP,
     pr,
+    sourceOverlay: env.QA_FULL_PR_RUN === 'true',
     assessment:
       env.QA_MODE === 'pull_request'
         ? JSON.parse(env.QA_ASSESSMENT_JSON)
@@ -139,6 +140,11 @@ export function renderReport(context, report, usage) {
     clean(report.summary),
     '',
     `App commit: \`${context.buildSha}\` · Build: \`${context.buildId}\``,
+    ...(context.sourceOverlay
+      ? [
+          `Requested PR source: \`${context.pr.head.sha}\`. The build commit adds QA tooling only; product source is verified identical.`,
+        ]
+      : []),
     `Harness commit: \`${context.harnessSha}\` · Device: ${context.device || 'not started'}`,
     ...(context.backend
       ? [

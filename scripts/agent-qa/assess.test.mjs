@@ -1,6 +1,53 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyAssessment, verifyCoverage, assessmentArgs } from './assess.mjs';
+import {
+  verifyAssessment,
+  verifyCoverage,
+  assessmentArgs,
+  verifySourceOverlay,
+} from './assess.mjs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+test('QA overlay accepts tooling only and refuses altered product source', () => {
+  const before = process.cwd();
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-source-test-'));
+  const git = (...args) =>
+    execFileSync('git', args, {
+      cwd: dir,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }).trim();
+  try {
+    git('init');
+    git('config', 'user.email', 'qa@example.invalid');
+    git('config', 'user.name', 'QA');
+    writeFileSync(path.join(dir, 'app.txt'), 'original');
+    git('add', '.');
+    git('commit', '-m', 'source');
+    const head = git('rev-parse', 'HEAD');
+    git('remote', 'add', 'origin', dir);
+    mkdirSync(path.join(dir, 'scripts/agent-qa'), { recursive: true });
+    writeFileSync(path.join(dir, 'scripts/agent-qa/test.mjs'), '// harness');
+    git('add', '.');
+    git('commit', '-m', 'qa');
+    process.chdir(dir);
+    assert.doesNotThrow(() => verifySourceOverlay(head));
+    writeFileSync(path.join(dir, 'app.txt'), 'changed');
+    git('add', '.');
+    git('commit', '--amend', '--no-edit');
+    assert.throws(() => verifySourceOverlay(head), /changes product source/);
+    assert.throws(
+      () => verifySourceOverlay(git('rev-parse', 'HEAD')),
+      /direct child/
+    );
+  } finally {
+    process.chdir(before);
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 const files = ['packages/app/features/chat/Chat.tsx'];
 const scenario = {

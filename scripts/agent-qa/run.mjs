@@ -1,5 +1,5 @@
 import { runCodex, verifyCodexAuth } from './codex.mjs';
-import { verifyCoverage } from './assess.mjs';
+import { verifyCoverage, verifySourceOverlay } from './assess.mjs';
 import { connectShips } from './ship-proxy.mjs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -29,6 +29,7 @@ const secrets = [
   env.MAESTRO_PASSWORD,
   env.OPENROUTER_API_KEY,
   env.QA_TUNNEL_TOKEN,
+  env.GH_QA_TOKEN,
 ];
 const clean = (text) => redact(text, secrets);
 const usage = { calls: 0, tokens: 0, cost: null };
@@ -242,6 +243,7 @@ async function hashBundle(directory) {
 async function prepare() {
   const harnessSha = (await run('git', ['rev-parse', 'HEAD'])).trim();
   context = verifyContext(env, harnessSha);
+  if (context.sourceOverlay) verifySourceOverlay(context.pr.head.sha);
   if (
     (!env.QA_SHIP_URL && (!env.MAESTRO_EMAIL || !env.MAESTRO_PASSWORD)) ||
     !env.OPENROUTER_API_KEY
@@ -291,7 +293,7 @@ async function prepare() {
       '--no-ext-diff',
       '--no-textconv',
       '--unified=3',
-      `${base}...${harnessSha}`,
+      `${base}...${context.pr.head.sha}`,
     ]);
     if (!diff.trim())
       throw new Error(
