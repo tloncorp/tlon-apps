@@ -1018,6 +1018,34 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'leaves the fetched version driving the activity endpoints',
+    async () => {
+      // The shared storage mock discards writes, so give this case working
+      // storage: what's under test is that the write lands before
+      // syncReactionSupport re-derives the same flags from it.
+      let persisted: Awaited<ReturnType<typeof db.appInfo.getValue>> = null;
+      setAppInfo.mockImplementation(async (value) => {
+        // Real storage settles on a later tick; an instant stub would hide
+        // whether the write is actually awaited.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        persisted = value as typeof persisted;
+      });
+      vi.spyOn(db.appInfo, 'getValue').mockImplementation(
+        async () => persisted
+      );
+
+      await syncStart();
+
+      expect(persisted).toMatchObject({ groupsVersion: MIN_GROUPS_VERSION });
+      // v5 is the pre-reaction feed: asking for it would mean the capability
+      // flags had been re-derived from a value that wasn't written yet.
+      expect(didScry('/v5/feed/init/')).toBe(false);
+      expect(didScry('/v7/feed/init/')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'gates on a version it could not persist',
     async () => {
       reportedDeskVersion = '12.1.0';

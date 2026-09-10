@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { AuthFailureError } from '../client/landscapeApi';
+import {
+  AuthFailureError,
+  getLandscapeAuthCookie,
+} from '../client/landscapeApi';
 import {
   internalConfigureClient,
   internalRemoveClient,
@@ -585,5 +588,66 @@ describe('scry reauth retry', () => {
 
     await vi.advanceTimersByTimeAsync(50);
     await expect(attempt).rejects.toThrow('scry timed out');
+  });
+});
+
+describe('login timeout', () => {
+  const LOGIN_TIMEOUT = 30 * 1000;
+
+  // A login the ship never answers. Only the abort signal ends it, which is
+  // what a real fetch does.
+  function hangingLoginFetch() {
+    return vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          );
+        })
+    );
+  }
+
+  test('bounds a login the ship never answers', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', hangingLoginFetch());
+
+    const attempt = getLandscapeAuthCookie('http://example.test', 'code');
+    // Observed rather than awaited, so an unbounded login fails the assertion
+    // below instead of timing the test out.
+    const settled = vi.fn();
+    void attempt.then(settled, settled);
+
+    await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT + 1);
+
+    expect(settled).toHaveBeenCalled();
+    await expect(attempt).rejects.toThrow(/Login timed out/);
+  });
+
+  test('a 403 whose reauth hangs rejects the scry instead of holding it', async () => {
+    vi.useFakeTimers();
+    const scryWithInfo = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('forbidden'), { status: 403 })
+      );
+    const client = fakeClient({ scryWithInfo });
+    vi.stubGlobal('fetch', hangingLoginFetch());
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const attempt = scry({ app: 'hood', path: '/kiln/pikes', timeout: 50 });
+    const settled = vi.fn();
+    void attempt.then(settled, settled);
+
+    await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT + 1);
+
+    // The queued caller settles rather than waiting on a silent ship forever.
+    expect(settled).toHaveBeenCalled();
+    await expect(attempt).rejects.toThrow(/Error during reauth/);
+    expect(scryWithInfo).toHaveBeenCalledTimes(1);
   });
 });

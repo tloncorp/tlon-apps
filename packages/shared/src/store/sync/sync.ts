@@ -564,13 +564,17 @@ export const syncAppInfo = async (
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
-  // Best effort: the version is what the compatibility check is waiting for, so
-  // a local storage failure must not turn a definitive answer into a lost one.
-  db.appInfo.setValue(appInfo).catch((err) => {
+  // Awaited, because syncReactionSupport re-derives these same flags from the
+  // persisted value moments later and would otherwise read a stale one. A
+  // failed write is survivable, though — it must not cost the caller the
+  // version it just fetched.
+  try {
+    await db.appInfo.setValue(appInfo);
+  } catch (err) {
     logger.trackError('Failed to persist app info', {
       error: err instanceof Error ? err.message : String(err),
     });
-  });
+  }
   return appInfo;
 };
 
