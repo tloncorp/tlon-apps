@@ -189,6 +189,35 @@ describe('markdownToStory', () => {
     });
   });
 
+  describe('group mentions', () => {
+    it('parses @all and @role mentions into sect inlines', () => {
+      expect(markdownToStory('ping @all')).toEqual([
+        { inline: ['ping ', { sect: null }] },
+      ]);
+      expect(markdownToStory('ping @admin')).toEqual([
+        { inline: ['ping ', { sect: 'admin' }] },
+      ]);
+      // ships still parse
+      expect(markdownToStory('hi ~zod')).toEqual([
+        { inline: ['hi ', { ship: '~zod' }] },
+      ]);
+    });
+
+    it('leaves ~ship/@role as text when parseMentions is false', () => {
+      expect(
+        markdownToStory('hi ~zod and @all and @admin', {
+          parseMentions: false,
+        })
+      ).toEqual([{ inline: ['hi ~zod and @all and @admin'] }]);
+    });
+
+    it('still parses bold when parseMentions is false', () => {
+      expect(
+        markdownToStory('hi **bold** ~zod', { parseMentions: false })
+      ).toEqual([{ inline: ['hi ', { bold: ['bold'] }, ' ~zod'] }]);
+    });
+  });
+
   describe('escaped and referenced tildes stay literal', () => {
     it('keeps a backslash-escaped ship literal (the issue example)', () => {
       expect(markdownToStory('; \\~ripdys is your neighbor')).toEqual([
@@ -1021,13 +1050,6 @@ describe('Story to Markdown to Story structural round trips', () => {
     ]);
   });
 
-  // KNOWN LIMITATION, pinned deliberately. `%sect` now survives Story → Markdown
-  // as `@all` / `@role` text (previously it was deleted outright), but the
-  // Markdown parser does not install the group-mention plugin, so it returns as
-  // plain text rather than a `%sect` inline. Installing that plugin would make
-  // every isolated `@word` in ordinary prose a role mention across the whole
-  // app, which nothing in this change needs. If that trade is revisited, the
-  // narrow fix is an allowed-role-ID option supplied by each caller.
   it.each([
     {
       name: 'null sect',
@@ -1040,11 +1062,14 @@ describe('Story to Markdown to Story structural round trips', () => {
       text: '@wire-admin',
     },
   ])(
-    'renders $name forward but returns it as plain text',
+    'preserves $name when parsing mentions and supports literal text mode',
     ({ story, text }) => {
       const markdown = storyToMarkdown(story);
       expect(markdown.trim()).toBe(text);
-      expect(markdownToStory(markdown)).toEqual([{ inline: [text] }]);
+      expect(markdownToStory(markdown)).toEqual(story);
+      expect(markdownToStory(markdown, { parseMentions: false })).toEqual([
+        { inline: [text] },
+      ]);
     }
   );
 

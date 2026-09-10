@@ -19,6 +19,7 @@ function InputMentionPopupInternal(
     options,
     onSelectMention,
     onDismiss,
+    frameless = false,
   }: PropsWithRef<{
     containerHeight: number;
     // Measured height of the actual input bar, used to stop the mobile
@@ -30,6 +31,7 @@ function InputMentionPopupInternal(
     options: MentionOption[];
     onSelectMention: (option: MentionOption) => void;
     onDismiss?: () => void;
+    frameless?: boolean;
   }>,
   ref: MentionPopupRef
 ) {
@@ -53,7 +55,8 @@ function InputMentionPopupInternal(
       Platform.OS === 'ios' && keyboardHeight > 0
         ? keyboardHeight
         : insets.bottom;
-    const bottomOffset = effectiveBottomInset + containerHeight + 24;
+    const bottomOffset =
+      effectiveBottomInset + (frameless ? 24 : containerHeight + 24);
     // Backdrop stops just above the real composer (measured, or the static
     // fallback) so taps inside a tall multi-line input still place the
     // cursor instead of dismissing the popup.
@@ -102,7 +105,11 @@ function InputMentionPopupInternal(
   return (
     <YStack
       position="absolute"
-      bottom={containerHeight + 24}
+      // The chat input is a short bottom bar, so the popup offsets by the input
+      // height to sit just above it. The frameless notebook editor instead fills
+      // the screen and `containerHeight` tracks its growing content height, so
+      // anchor near the container's bottom (above the keyboard) there.
+      bottom={frameless ? 24 : containerHeight + 24}
       zIndex={15}
       width="90%"
       maxWidth={isNarrow ? 'unset' : 500}

@@ -347,6 +347,7 @@ export const useMentions = ({
     setMentions,
     mentionSearchText,
     setMentionSearchText,
+    mentionStartIndex,
     handleMention,
     handleSelectMention,
     isMentionModeActive,

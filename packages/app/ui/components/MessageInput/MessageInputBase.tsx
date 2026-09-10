@@ -175,6 +175,7 @@ export const MessageInputContainer = memo(
         isEditing={isEditing}
         backgroundColor={defaultBackgroundColor}
         editingBackgroundColor={secondaryBackgroundColor}
+        frameless={frameless}
       >
         <InputMentionPopup
           containerHeight={containerHeight}
@@ -184,6 +185,7 @@ export const MessageInputContainer = memo(
           options={mentionOptions}
           onSelectMention={onSelectMention}
           onDismiss={onDismissMentions}
+          frameless={frameless}
           ref={mentionRef}
         />
         {onSelectSlashCommand ? (
@@ -284,6 +286,7 @@ export const MessageInputContainer = memo(
           // be interactive on Android.
           <XStack
             width="100%"
+            flex={1}
             backgroundColor="$background"
             onLayout={(event) =>
               handleInputHeightChange(event.nativeEvent.layout.height)
@@ -315,10 +318,12 @@ const materialSurfaceProps = usesAndroidMaterialChrome
 
 function MessageInputChromeRoot({
   children,
+  frameless,
   isEditing,
   backgroundColor,
   editingBackgroundColor,
 }: PropsWithChildren<{
+  frameless: boolean;
   isEditing: boolean;
   backgroundColor: string;
   editingBackgroundColor: string;
@@ -326,6 +331,7 @@ function MessageInputChromeRoot({
   return (
     <YStack
       width="100%"
+      flex={frameless ? 1 : undefined}
       backgroundColor={
         usesFloatingChrome
           ? 'transparent'

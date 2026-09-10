@@ -372,7 +372,9 @@ export const useLiveThreadUnreadByParentId = (parentPostId: string | null) => {
     queryKey: ['liveUnreadCount', depsKey, 'thread', parentPostId],
     queryFn: async () => {
       if (parentPostId) {
-        return db.getThreadUnreadState({ parentId: parentPostId });
+        return (
+          (await db.getThreadUnreadState({ parentId: parentPostId })) ?? null
+        );
       }
       return null;
     },

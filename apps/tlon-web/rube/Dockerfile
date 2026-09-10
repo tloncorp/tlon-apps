@@ -53,6 +53,9 @@ COPY ../../../apps/tlon-desktop/package.json /workspace/apps/tlon-desktop/
 # Copy patches directory (needed for pnpm patches)
 COPY ../../../patches/ /workspace/patches/
 
+# Copy vendored dependency tarballs referenced by pnpm-lock.yaml
+COPY ../../../vendor/ /workspace/vendor/
+
 # Install dependencies.
 # Ignore lifecycle scripts in this dependency-only layer to avoid running
 # desktop postinstall hooks (electron native rebuilds) during web E2E image build.

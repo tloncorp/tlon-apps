@@ -26,9 +26,15 @@ overrides:
   react-native-gesture-handler: ~2.32.0
   get-intrinsic: 1.2.4
   esbuild: 0.27.3
+  react-native-enriched: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+  '@expensify/react-native-live-markdown': github:janicduplessis/react-native-live-markdown#2ebc7c7
+  simply-deferred: 3.0.0
+
+packageExtensionsChecksum: sha256-PXRlzYzHs95WSA9P/Pq2g8Jqu/dt5jVOoafKMdVi1ug=
 
 patchedDependencies:
   '@10play/tentap-editor': 520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41
+  '@expensify/react-native-live-markdown@0.1.327': 54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7
   '@gorhom/bottom-sheet': 19cd5e0683f069b1119d662ee476d31448ec23ff1700b6895fe3f4e0b93b2882
   '@mattermost/react-native-paste-input@2.0.1': 313cd7a4e43eaaa79e0a2d2c03a592d1814b7ca83b5f8d6fec9c4603c4ac323d
   '@react-navigation/bottom-tabs@7.18.14': 6c92d56c83cbda5c10b90545c24763ce3cf82aa05beea645706269314a1d52b0
@@ -43,12 +49,14 @@ patchedDependencies:
   expo-notifications@57.0.6: 3cd1d0e73793fbcadc25864e129f68fd28d2d2a976ed231ca19ea4d45c69d6ca
   react-cosmos: 658acdaf59c16d70e54b6b0b9d522593cd973839891ed5446a3dd3045d4e37eb
   react-native-country-codes-picker: 53c90d297e1cc4991af0f2d72d0f33a68e8be46e75bdf3da919a20160791bee5
+  react-native-enriched@0.7.0: f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092
   react-native-gesture-handler: e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4
   react-native-keyboard-controller@1.22.0: fa419bd2e9aab4d082cd67ab2373cd83c0ee59c03d79a6a5612969c17c27ee0c
   react-native-reanimated: dca1e6927879993905550e8e56f8fa98423ff51ce87750ea4478bd40a4341f7f
   react-native-screens@4.25.2: 0d058cd35b3fc9cef60767373022b08fcd31e41952108b4254a69d716d817f43
   react-native-worklets@0.10.3: 493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e
   react-native@0.86.3: f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16
+  simply-deferred@3.0.0: 2f3c68fa49297b1882466ce21148f37f61940a4d2c0f14c33d53b45c8bd74659
 
 importers:
 
@@ -129,7 +137,7 @@ importers:
     dependencies:
       '@10play/tentap-editor':
         specifier: 0.5.21
-        version: 0.5.21(patch_hash=520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41)(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(react-native-webview@13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: 0.5.21(patch_hash=520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41)(react-native-webview@13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@aws-sdk/client-s3':
         specifier: ^3.190.0
         version: 3.190.0
@@ -145,6 +153,9 @@ importers:
       '@dev-plugins/react-query':
         specifier: ^0.4.0
         version: 0.4.0(@tanstack/react-query@5.32.1(react@19.2.3))(expo@57.0.7(1a50d969892ffc893a6ddd04f6f32a12))(react@19.2.3)
+      '@expensify/react-native-live-markdown':
+        specifier: github:janicduplessis/react-native-live-markdown#2ebc7c7
+        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(patch_hash=54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7)(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@google-cloud/recaptcha-enterprise-react-native':
         specifier: ~18.8.2
         version: 18.8.2(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -241,6 +252,9 @@ importers:
       drizzle-orm:
         specifier: 0.39.3
         version: 0.39.3(patch_hash=834dc52d077cfbc1aab821e9960422d59032b5e4684b82f56bf452cb0d5db1a7)(@op-engineering/op-sqlite@15.2.5(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(@opentelemetry/api@1.9.1)(@types/better-sqlite3@7.6.9)(better-sqlite3@11.8.1)(bun-types@1.3.14)(kysely@0.29.2)
+      expensify-common:
+        specifier: 2.0.182
+        version: 2.0.182
       expo:
         specifier: ~57.0.7
         version: 57.0.7(1a50d969892ffc893a6ddd04f6f32a12)
@@ -385,6 +399,9 @@ importers:
       react-native-email-link:
         specifier: ~1.16.1
         version: 1.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+      react-native-enriched:
+        specifier: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+        version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(patch_hash=f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092)(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       react-native-gesture-handler:
         specifier: ~2.32.0
         version: 2.32.0(patch_hash=e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -529,7 +546,7 @@ importers:
         version: 0.0.3(react-dom@19.2.3(react@19.2.3))(react-native-web@0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@10play/tentap-editor':
         specifier: 0.5.21
-        version: 0.5.21(patch_hash=520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41)(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(react-native-webview@13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
+        version: 0.5.21(patch_hash=520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41)(react-native-webview@13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@aws-sdk/client-s3':
         specifier: ^3.190.0
         version: 3.190.0
@@ -1011,6 +1028,9 @@ importers:
       '@emoji-mart/data':
         specifier: ^1.1.2
         version: 1.1.2
+      '@expensify/react-native-live-markdown':
+        specifier: github:janicduplessis/react-native-live-markdown#2ebc7c7
+        version: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(patch_hash=54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7)(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       '@legendapp/list':
         specifier: 3.3.3
         version: 3.3.3(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
@@ -1029,9 +1049,15 @@ importers:
       '@tloncorp/ui':
         specifier: workspace:*
         version: link:../ui
+      expensify-common:
+        specifier: 2.0.182
+        version: 2.0.182
       posthog-js:
         specifier: ^1.234.4
         version: 1.234.4
+      react-native-enriched:
+        specifier: file:../../vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz
+        version: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(patch_hash=f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092)(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
       refractor:
         specifier: ^4.8.0
         version: 4.8.0
@@ -1054,12 +1080,21 @@ importers:
       '@tiptap/extension-code-block':
         specifier: ^2.6.6
         version: 2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tiptap/extension-horizontal-rule':
+        specifier: ^2.6.6
+        version: 2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tiptap/extension-mention':
+        specifier: 2.6.0
+        version: 2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)(@tiptap/suggestion@2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6))
       '@tiptap/pm':
         specifier: 2.6.6
         version: 2.6.6
       '@tiptap/react':
         specifier: ^2.6.6
         version: 2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@tiptap/suggestion':
+        specifier: 2.6.0
+        version: 2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
     devDependencies:
       '@vitejs/plugin-react':
         specifier: ^4.2.1
@@ -2681,6 +2716,16 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33':
+    resolution: {gitHosted: true, integrity: sha512-eVytg8ijMTrVaNmZ+Eh7pkuaIizk0V/+TohcLEhgzfGp9MhDTRg8rbE1TAo6nBL261AWmhRIyaxnuk12nC/59g==, tarball: https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33}
+    version: 0.1.327
+    engines: {node: '>= 18.0.0'}
+    peerDependencies:
+      expensify-common: '>=2.0.148'
+      react: 19.2.3
+      react-native: 0.86.3
+      react-native-worklets: '>=0.7.0'
 
   '@expo/cli@57.0.9':
     resolution: {integrity: sha512-41z9z68SynNXasZOjuT1si5Sq5OKL6SLf40ZjikbtZgDuvBO8HaUsaDzsJ0c1UZJ3N+vMzYCc1JUIDyRkVBjkA==}
@@ -5870,20 +5915,41 @@ packages:
     peerDependencies:
       '@tiptap/pm': 2.6.6
 
+  '@tiptap/core@3.20.4':
+    resolution: {integrity: sha512-3i/DG89TFY/b34T5P+j35UcjYuB5d3+9K8u6qID+iUqNPiza015HPIZLuPfE5elNwVdV3EXIoPo0LLeBLgXXAg==}
+    peerDependencies:
+      '@tiptap/pm': 2.6.6
+
   '@tiptap/extension-blockquote@2.6.6':
     resolution: {integrity: sha512-hAdsNlMfzzxld154hJqPqtWqO5i4/7HoDfuxmyqBxdMJ+e2UMaIGBGwoLRXG0V9UoRwJusjqlpyD7pIorxNlgA==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+
+  '@tiptap/extension-blockquote@3.20.4':
+    resolution: {integrity: sha512-9sskyyhYj2oKat//lyZVXCp9YrPt4oJAZnGHYWXS0xlskjsLElrfKKlM4vpbhGss3VrhQRoEGqWLnIaJYPF1zw==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
 
   '@tiptap/extension-bold@2.6.6':
     resolution: {integrity: sha512-CD6gBhdQtCoqYSmx8oAV8gvKtVOGZSyyvuNYo7by9eZ56DqLYnd7kbUj0RH7o9Ymf/iJTOUJ6XcvrsWwo4lubg==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
 
+  '@tiptap/extension-bold@3.20.4':
+    resolution: {integrity: sha512-Md7/mNAeJCY+VLJc8JRGI+8XkVPKiOGB1NgqQPdh3aYtxXQDChQOZoJEQl6TuudDxZ85bLZB67NjZlx3jo8/0g==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
   '@tiptap/extension-bubble-menu@2.6.6':
     resolution: {integrity: sha512-IkfmlZq67aaegym5sBddBc/xXWCArxn5WJEl1oxKEayjQhybKSaqI7tk0lOx/x7fa5Ml1WlGpCFh+KKXbQTG0g==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+      '@tiptap/pm': 2.6.6
+
+  '@tiptap/extension-bubble-menu@3.31.3':
+    resolution: {integrity: sha512-EV6ZnwKc++2OM/OcD54n8s1B7C9LP7GKAtdEPwu0t3BYJf3sG8Ueoinf7SgGPO9oMPg96GneOkDNm1urMV167g==}
+    peerDependencies:
+      '@tiptap/core': 3.31.3
       '@tiptap/pm': 2.6.6
 
   '@tiptap/extension-bullet-list@2.6.6':
@@ -5902,6 +5968,11 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.6.6
 
+  '@tiptap/extension-code@3.20.4':
+    resolution: {integrity: sha512-7j8Hi964bH1SZ9oLdZC1fkqWz27mliSDV7M8lmL/M14+Qw42D/VOAKS4Aw9OCFtHMlTsjLR6qsoVxL8Lpkt6NA==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
   '@tiptap/extension-color@2.3.0':
     resolution: {integrity: sha512-rqtdTaGawPZSRszwC/BlkJTF1diosIBBRSO5/YCRHT7CfGJNJyomL3eFREynXLKnXZ69SMceDh6yU6B54uTHXQ==}
     peerDependencies:
@@ -5913,6 +5984,11 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.6.6
 
+  '@tiptap/extension-document@3.20.4':
+    resolution: {integrity: sha512-zF1CIFVLt8MfSpWWnPwtGyxPOsT0xYM2qJKcXf2yZcTG37wDKmUi6heG53vGigIavbQlLaAFvs+1mNdOu2x/0A==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
   '@tiptap/extension-dropcursor@2.3.0':
     resolution: {integrity: sha512-WWxxGQPWdbzxyYP6jtBYSq4wMRhINhI0wBC8pgkxTVwCIWftMuYj++FP4LLIpuWgj78PWApuoM0QQxk4Lj7FOw==}
     peerDependencies:
@@ -5923,6 +5999,13 @@ packages:
     resolution: {integrity: sha512-lPkESOfAUxgmXRiNqUU23WSyja5FUfSWjsW4hqe+BKNjsUt1OuFMEtYJtNc+MCGhhtPfFvM3Jg6g9jd6g5XsLQ==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+      '@tiptap/pm': 2.6.6
+
+  '@tiptap/extension-floating-menu@3.31.3':
+    resolution: {integrity: sha512-rd4VJ9PGSP9Eop8ZTEwaLZcMzMXLuJKe3hUNf58rq+zANpwM+9fI+vB7g9MAc3eXwUNDxNDVACFIL2oeBqpQ3A==}
+    peerDependencies:
+      '@floating-ui/dom': ^1.0.0
+      '@tiptap/core': 3.31.3
       '@tiptap/pm': 2.6.6
 
   '@tiptap/extension-gapcursor@2.3.0':
@@ -5940,6 +6023,11 @@ packages:
     resolution: {integrity: sha512-bgx9vptVFi5yFkIw1OI53J7+xJ71Or3SOe/Q8eSpZv53DlaKpL/TzKw8Z54t1PrI2rJ6H9vrLtkvixJvBZH1Ug==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+
+  '@tiptap/extension-heading@3.20.4':
+    resolution: {integrity: sha512-xsnkmTGggJc5P2iCwS1lv8KFG31xC/GNPJKoi/3UH67j/lKDhA3AdtshsLeyv2FKtTtYDb8oV0IqzHB1MM6a7w==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
 
   '@tiptap/extension-highlight@2.3.0':
     resolution: {integrity: sha512-An/tzoCMbugdaU02ORJeJ74DZI5pf9oqwX9RoYPQ5K81Ia3jG52BBVtFjGq/j10Tr4iOuCmOuE+PzNtnzz3UIw==}
@@ -5963,10 +6051,20 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.0.0
 
+  '@tiptap/extension-image@3.20.4':
+    resolution: {integrity: sha512-57w2TevHQljTh6Xiry9duIm7NNOQAUSTwtwRn4GGLoKwHR8qXTxzp513ASrFOgR2kgs2TP471Au6RHf947P+jg==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
   '@tiptap/extension-italic@2.6.6':
     resolution: {integrity: sha512-t7ZPsXqa8nJZZ/6D0rQyZ/KsvzLaSihC6hBTjUQ77CeDGV9PhDWjIcBW4OrvwraJDBd12ETBeQ2CkULJOgH+lQ==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+
+  '@tiptap/extension-italic@3.20.4':
+    resolution: {integrity: sha512-4ZqiWr7cmqPFux8tj1ZLiYytyWf343IvQemNX6AvVWvscrJcrfj3YX4Le2BA0RW3A3M6RpLQXXozuF8vxYFDeQ==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
 
   '@tiptap/extension-link@2.6.6':
     resolution: {integrity: sha512-NJSR5Yf/dI3do0+Mr6e6nkbxRQcqbL7NOPxo5Xw8VaKs2Oe8PX+c7hyqN3GZgn6uEbZdbVi1xjAniUokouwpFg==}
@@ -5974,10 +6072,22 @@ packages:
       '@tiptap/core': ^2.6.6
       '@tiptap/pm': 2.6.6
 
+  '@tiptap/extension-link@3.20.4':
+    resolution: {integrity: sha512-JNDSkWrVdb8NSvbQXwHWvK5tCMbTWwOHFOweknQZ1JPK4dei9FJVofYQaHyW4bJBdcCjds3NZSnXE8DM9iAWmg==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+      '@tiptap/pm': 2.6.6
+
   '@tiptap/extension-list-item@2.6.6':
     resolution: {integrity: sha512-k+oEzZu2cgVKqPqOP1HzASOKLpTEV9m7mRVPAbuaaX8mSyvIgD6f+JUx9PvgYv//D918wk98LMoRBFX53tDJ4w==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+
+  '@tiptap/extension-list@3.20.4':
+    resolution: {integrity: sha512-X+5plTKhOioNcQ4KsAFJJSb/3+zR8Xhdpow4HzXtoV1KcbdDey1fhZdpsfkbrzCL0s6/wAgwZuAchCK7HujurQ==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+      '@tiptap/pm': 2.6.6
 
   '@tiptap/extension-mention@2.6.0':
     resolution: {integrity: sha512-WSlWRKRL+cbTzvibu8IKG0ON8wdqxuCCfB7PNCxX+sJ9u6p31X44fbmlr27lQqkHhYh0hb5x/Mxe1J7sUJKXnw==}
@@ -5996,6 +6106,11 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.6.6
 
+  '@tiptap/extension-paragraph@3.20.4':
+    resolution: {integrity: sha512-lm6fOScWuZAF/Sfp97igUwFd3L1QHIVLAWP5NVdh0DTLrEIt4rMBmsww+yOpMQRhvz2uTgMbMXynrimhzi/QVw==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
   '@tiptap/extension-placeholder@2.6.6':
     resolution: {integrity: sha512-J0ZMvF93NsRrt+R7IQ3GhxNq32vq+88g25oV/YFJiwvC48HMu1tQB6kG1I3LJpu5b8lN+LnfANNqDOEhiBfjaA==}
     peerDependencies:
@@ -6006,6 +6121,11 @@ packages:
     resolution: {integrity: sha512-Ze8KhGk+wzSJSJRl5fbhTI6AvPu2LmcHYeO3pMEH8u4gV5WTXfmKJVStEIAzkoqvwEQVWzXvy8nDgsFQHiojPg==}
     peerDependencies:
       '@tiptap/core': ^2.6.6
+
+  '@tiptap/extension-strike@3.20.4':
+    resolution: {integrity: sha512-It1Px9uDGTsVqyyg6cy7DigLoenljpQwqdI0jssM7QclZrHnsrye9fZxBBiiuCzzV1305MxKgHvratkHwqmVNA==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
 
   '@tiptap/extension-task-item@2.6.6':
     resolution: {integrity: sha512-fvzy8/TN5sm3A2HSokJzHj5ZvcOAsRdqPS6fPOpmf5dQZ+EIAJrlfyxqb9B6055pNXBbuXcMEXdeU44zCU0YRg==}
@@ -6028,10 +6148,26 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.6.6
 
+  '@tiptap/extension-text@3.20.4':
+    resolution: {integrity: sha512-jchJcBZixDEO2J66Zx5dchsI2mA6IYsROqF8P1poxL4ienH7RVQRCTsBNnSfIeOtREKKWeOU/tEs5fcpvvGwIQ==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
   '@tiptap/extension-underline@2.3.0':
     resolution: {integrity: sha512-vmmcwCPmWqGKYHZevz50+bxrpHyiu5y6YZweAE476hn8Mud6vYg7RpkXgW8bjkCOky6UA51uelslSc0XrLE6uw==}
     peerDependencies:
       '@tiptap/core': ^2.0.0
+
+  '@tiptap/extension-underline@3.20.4':
+    resolution: {integrity: sha512-0OjMc3FDujX16G+jhvqcY/mLot8SrNtDu8ggUwNLAfiI/QIvMVgk7giFD71DATC/4Nb8i/iwAEegTD8MxBIXCg==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+
+  '@tiptap/extensions@3.20.4':
+    resolution: {integrity: sha512-8p6hVT65DjuQjtEdlH6ewX9SOJHlVQAOee3sWIJQmeJNRnZNvqPIBLleebUqDiljNTpxBv6s6QWkSTKgf3btwg==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+      '@tiptap/pm': 2.6.6
 
   '@tiptap/pm@2.6.6':
     resolution: {integrity: sha512-56FGLPn3fwwUlIbLs+BO21bYfyqP9fKyZQbQyY0zWwA/AG2kOwoXaRn7FOVbjP6CylyWpFJnpRRmgn694QKHEg==}
@@ -6041,6 +6177,16 @@ packages:
     peerDependencies:
       '@tiptap/core': ^2.6.6
       '@tiptap/pm': 2.6.6
+      react: 19.2.3
+      react-dom: 19.2.3
+
+  '@tiptap/react@3.20.4':
+    resolution: {integrity: sha512-1B8iWsHWwb5TeyVaUs8BRPzwWo4PsLQcl03urHaz0zTJ8DauopqvxzV3+lem1OkzRHn7wnrapDvwmIGoROCaQw==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.4
+      '@tiptap/pm': 2.6.6
+      '@types/react': ~19.2.0
+      '@types/react-dom': ^17.0.0 || ^18.0.0 || ^19.0.0
       react: 19.2.3
       react-dom: 19.2.3
 
@@ -6649,6 +6795,10 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
+  awesome-phonenumber@5.11.0:
+    resolution: {integrity: sha512-25GfikMIo6CBQIqvjoewo4uiu5Ai7WqEC8gxesH3LDwCY43oEdkLaT15a+8adC7uWIJCGh+YQiBY5bjmDpoQcg==}
+    engines: {node: '>=14'}
+
   axios@1.17.0:
     resolution: {integrity: sha512-J8SwNxprqqpbfenehxWYXE7CW+wM1BB4w3+N+g+/Wx40xM4rsLrfPmHHxSWIxJLYDgSY/HqlFPIYb2/S3rxafw==}
 
@@ -7058,6 +7208,9 @@ packages:
   cjs-module-lexer@1.4.1:
     resolution: {integrity: sha512-cuSVIHi9/9E/+821Qjdvngor+xpnlwnuwIyZOaLmHBVdXL+gP+I6QQB9VkO7RI77YIcTV+S1W9AreJ5eN63JBA==}
 
+  classnames@2.5.0:
+    resolution: {integrity: sha512-FQuRlyKinxrb5gwJlfVASbSrDlikDJ07426TrfPsdGLvtochowmkbnSFdQGJ2aoXrSetq5KqGV9emvWpy+91xA==}
+
   classnames@2.5.1:
     resolution: {integrity: sha512-saHYOzhIQs6wy2sVxTM6bUDsQO4F50V9RQ22qBpEdCW+I+/Wmke2HOl6lS6dTpdxVhb88/I6+Hs+438c3lfUow==}
 
@@ -7096,6 +7249,9 @@ packages:
   cli-width@3.0.0:
     resolution: {integrity: sha512-FxqpkPPwu1HjuN93Omfm4h8uIanXofW0RxVEW3k5RKx+mJJYSthzNhp32Kzxxy3YAEZ/Dc/EWN1vZRY0+kOhbw==}
     engines: {node: '>= 10'}
+
+  clipboard@2.0.11:
+    resolution: {integrity: sha512-C+0bbOqkezLIsmWSvlsXS0Q0bmkugu7jcfMIACB+RDEntIzQIkdr148we28AfSloQLRdZlYL/QYyrq05j/3Faw==}
 
   cliui@6.0.0:
     resolution: {integrity: sha512-t6wbgtoCXvAzst7QgXxJYqPt0usEfbgQdftEPbLL/cvv6HPE5VgvqCuAIDR0NgU52ds6rFwqrgakNLrHEjCbrQ==}
@@ -7508,6 +7664,9 @@ packages:
   delayed-stream@1.0.0:
     resolution: {integrity: sha512-ZySD7Nf91aLB0RxL4KGrKHBXl7Eds1DAmEdcoVawXnLD7SDhpNgtuII2aAkg7a7QS41jxPSZ17p4VdGnMHk3MQ==}
     engines: {node: '>=0.4.0'}
+
+  delegate@3.2.0:
+    resolution: {integrity: sha512-IofjkYBZaZivn0V8nnsMJGBr4jVLxHDheKSW88PyxS5QC4Vo9ZbZVvhzlSxY87fVq3STR6r+4cGepyHkcWOQSw==}
 
   depd@2.0.0:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
@@ -7957,6 +8116,9 @@ packages:
     resolution: {integrity: sha512-2Zks0hf1VLFYI1kbh0I5jP3KHHyCHpkfyHBzsSXRFgl/Bg9mWYfMW8oD+PdMPlEwy5HNsR9JutYy6pMeOh61nw==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
 
+  expensify-common@2.0.182:
+    resolution: {integrity: sha512-WNd+xLkiiRvs3OPWsYA3g3BWxDmHV3ZSrHcgSFjLmzf6st2FulSOGwFG7AxlLziqZ/nBr1ruHEHuP9B1p5Faiw==}
+
   expo-application@57.0.2:
     resolution: {integrity: sha512-q31YwcXyymviAmdrtDfAg3Dld4VMxLCNAfgMHip7vZpPX4lzF/AfwsywqBJUAjQnJknzaNAkzqvMVjO5XmKYDA==}
     peerDependencies:
@@ -8302,6 +8464,10 @@ packages:
 
   fast-deep-equal@3.1.3:
     resolution: {integrity: sha512-f3qQ9oQy9j2AhBe/H9VC91wLmKBCCU/gDOnKNAYG5hswO7BLKj09Hc5HYNz9cGI++xlpDCIgDaitVs03ATR84Q==}
+
+  fast-equals@5.4.2:
+    resolution: {integrity: sha512-Ywe6jodPTWOTL9/k0bV7gdfP8twKL5Y8I8CZ933fAY5gBekICZSUQTbyH6ut2NZCNyB05mSUwAuEqdEIaOOlDQ==}
+    engines: {node: '>=6.0.0'}
 
   fast-fifo@1.3.0:
     resolution: {integrity: sha512-IgfweLvEpwyA4WgiQe9Nx6VV2QkML2NkvZnk1oKnIzXgXdWxuhF7zw4DvLTPZJn6PIUneiAXPF24QmoEqHTjyw==}
@@ -8673,6 +8839,9 @@ packages:
     resolution: {integrity: sha512-Y1zNGV+pzQdh7H39l9zgB4PJqjRNqydvdYCDG4HFXM4XuvSaQQlEc91IU1yALL8gUTDomgBAfz3XJdmUS+oo0w==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
+  good-listener@1.2.2:
+    resolution: {integrity: sha512-goW1b+d9q/HIwbVYZzZ6SsTr4IgE+WA44A0GmPIQstuOrgsFcT7VEJ48nmr9GaRtNu0XTKacFLGnBPAM6Afouw==}
+
   google-auth-library@10.7.0:
     resolution: {integrity: sha512-QpTAbNJ36TliZLx3TTtahR8HG0hN9RllL1e3FymOvQSIKK8JmgV58H924ub2wa2DsS3ANjjP1Aw1N+Ramc8hqQ==}
     engines: {node: '>=18'}
@@ -8800,6 +8969,9 @@ packages:
   html-encoding-sniffer@4.0.0:
     resolution: {integrity: sha512-Y22oTqIU4uuPgEemfz7NDJz6OeKf12Lsu+QC+s3BVpda64lTiMYCyGwg5ki4vFxkMwQdeZDl2adZoqUgdFuTgQ==}
     engines: {node: '>=18'}
+
+  html-entities@2.6.0:
+    resolution: {integrity: sha512-kig+rMn/QOVRvr7c86gQ8lWXq+Hkv6CbAH1hLu+RG338StTpE8Z0b44SDVaqVu7HGKf27frdmUYEs9hTUX/cLQ==}
 
   html-escaper@2.0.2:
     resolution: {integrity: sha512-H2iMtd0I4Mt5eYiapRdIDjp+XzelXQ0tFE4JS7YFwFevXXMmOp9myNrUvCg0D6ws8iqkRPBfKHgbwig1SmlLfg==}
@@ -9439,6 +9611,9 @@ packages:
     resolution: {integrity: sha512-34wB/Y7MW7bzjKRjUKTa46I2Z7eV62Rkhva+KkopW7Qvv/OSWBqvkSY7vusOPrNuZcUG3tApvdVgNB8POj3SPw==}
     engines: {node: '>=10'}
 
+  jquery@3.6.0:
+    resolution: {integrity: sha512-JVzAR/AjBvVt2BmYhxRCSYysDsPcssdmTFnzyLEts9qNwmjmu4JTAMYubEfwVOSwpQ1I1sKKFcxhZCI2buerfw==}
+
   js-base64@3.7.8:
     resolution: {integrity: sha512-hNngCeKxIUQiEUN3GPJOkz4wF/YvdUdbNL9hsBcMQTkKzboD7T/q3OYOuuPZLUE6dBxSGpwhk5mwuDud7JVAow==}
 
@@ -9566,6 +9741,9 @@ packages:
   libphonenumber-js@1.11.18:
     resolution: {integrity: sha512-okMm/MCoFrm1vByeVFLBdkFIXLSHy/AIK2AEGgY3eoicfWZeOZqv3GfhtQgICkzs/tqorAMm3a4GBg5qNCrqzg==}
 
+  lie@3.1.1:
+    resolution: {integrity: sha512-RiNhHysUjhrDQntfYSfY4MU24coXXdEOgw9WGcKHNeEwffDYbF//u87M1EWaMGzuFoSbqW0C9C6lEEhDOAswfw==}
+
   lie@3.3.0:
     resolution: {integrity: sha512-UaiMJzeWRlEujzAuw5LokY1L5ecNQYZKfmyZ9L7wDHb/p5etKaxXhohBcrw0EYby+G/NA52vRSN4N39dxHAIwQ==}
 
@@ -9671,6 +9849,9 @@ packages:
   linkifyjs@4.1.1:
     resolution: {integrity: sha512-zFN/CTVmbcVef+WaDXT63dNzzkfRBKT1j464NJQkV7iSgJU0sLBus9W0HBwnXK13/hf168pbrx/V/bjEHOXNHA==}
 
+  linkifyjs@4.3.3:
+    resolution: {integrity: sha512-P8aEP5U/D1/IlTY2OeYsErdwh9bGuLE30NcXtKEjgdHcahveQoQwM2yZNsioQHsWFz0P7KKudisbrzCgR0sDHg==}
+
   lint-staged@15.2.0:
     resolution: {integrity: sha512-TFZzUEV00f+2YLaVPWBWGAMq7So6yQx+GG8YRMDeOEIf95Zn5RyiLMsEiX4KTNl9vq/w+NqRJkLA1kPIo15ufQ==}
     engines: {node: '>=18.12.0'}
@@ -9691,6 +9872,9 @@ packages:
   local-pkg@0.5.0:
     resolution: {integrity: sha512-ok6z3qlYyCDS4ZEU27HaU6x/xZa9Whf8jD4ptH5UZTQYZVYeb9bnZ3ojVhiJNLiXK1Hfc0GNbLXcmZ5plLDDBg==}
     engines: {node: '>=14'}
+
+  localforage@1.10.0:
+    resolution: {integrity: sha512-14/H1aX7hzBBmmh7sGPd+AOMkkIrHM3Z1PAyGgZigA1H1p5O5ANnMyWzvpAETtG68/dC4pC0ncy3+PPGzXZHPg==}
 
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
@@ -9733,6 +9917,9 @@ packages:
 
   lodash@4.17.23:
     resolution: {integrity: sha512-LgVTMpQtIopCi79SJeDiP0TfWi5CNEc/L/aRdTh3yIvmZXTnheWpKjSZhnvMl8iXbC1tFg9gdHHDMLoV7CnG+w==}
+
+  lodash@4.18.1:
+    resolution: {integrity: sha512-dMInicTPVE8d1e5otfwmmjlxkZoUpiVLwyeTdUsi/Caj/gfzzblBcCE5sRHV/AsjuCmxWrte2TNGSYuCeCq+0Q==}
 
   log-symbols@2.2.0:
     resolution: {integrity: sha512-VeIAFslyIerEJLXHziedo2basKbMKtTw3vfn5IzG0XTjhAVEJyNHnL2p7vc+wBDSdQuUpNw3M2u6xb9QsAY5Eg==}
@@ -11197,6 +11384,13 @@ packages:
       react: 19.2.3
       react-native: 0.86.3
 
+  react-native-enriched@file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz:
+    resolution: {integrity: sha512-8pAQLPu4bl/rLKmLAUfNt7GClqPmkRT1exQYjg9lalpQrDq2T31Q4IMnYamZy9rzIRaJKnKJzWl5WaLVHpzUYQ==, tarball: file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz}
+    version: 0.7.0
+    peerDependencies:
+      react: 19.2.3
+      react-native: 0.86.3
+
   react-native-gesture-handler@2.32.0:
     resolution: {integrity: sha512-uYIMOKlKENORq2SABE+jIjbPU+h5I/sQKcq2v16zRq848nwEp1fWRVwML4QWqijc8UcXJC25o54S8GQd4Mf2OA==}
     peerDependencies:
@@ -11677,6 +11871,9 @@ packages:
   seedrandom@3.0.5:
     resolution: {integrity: sha512-8OwmbklUNzwezjGInmZ+2clQmExQPvomqjL7LFqOYqtmuxRgQYqOD3mHaU+MvZn5FLUeVxVfQjwLZW/n/JFuqg==}
 
+  select@1.1.2:
+    resolution: {integrity: sha512-OwpTSOfy6xSs1+pwcNrv0RBMOzI39Lp3qQKUTPVVPRjCdNa5JH/oPRiqsesIskK8TVgmRiHwO4KXlV2Li9dANA==}
+
   semver-compare@1.0.0:
     resolution: {integrity: sha512-YM3/ITh2MJ5MtzaM429anh+x2jiLVjqILF4m4oyQB18W7Ggea7BfqdH/wGMK7dDiMghv/6WG7znWMwUDzJiXow==}
 
@@ -11818,6 +12015,9 @@ packages:
   simple-update-notifier@2.0.0:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
     engines: {node: '>=10'}
+
+  simply-deferred@3.0.0:
+    resolution: {integrity: sha512-r9JW995oSr+WgX4ZuvpqfBmL7fH300gIGqCDMSEZJwhsrAXwk/NetYMc7Lkjv4KiIkJzr92fBlphFo4m3OrDbQ==}
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
@@ -12274,6 +12474,9 @@ packages:
   tiny-async-pool@1.3.0:
     resolution: {integrity: sha512-01EAw5EDrcVrdgyCLgoSPvqznC0sVxDSVeiOz09FUpjh71G79VCqneOr+xvt7T1r76CF6ZZfPjHorN2+d+3mqA==}
 
+  tiny-emitter@2.1.0:
+    resolution: {integrity: sha512-NB6Dk1A9xgQPMoGqC5CVXn123gWyte215ONT5Pp5a0yt4nlEoO1ZWeCwpncaekPHXO60i47ihFnZPiRPjRMq4Q==}
+
   tiny-typed-emitter@2.1.0:
     resolution: {integrity: sha512-qVtvMxeXbVej0cQWKqVSSAHmKZEHAvxdF8HEUBFWts8h+xEo5m/lEiPakuyZ3BnCBjOD8i24kzNOiOLLgsSxhA==}
 
@@ -12495,8 +12698,9 @@ packages:
   ua-parser-js@0.7.37:
     resolution: {integrity: sha512-xV8kqRKM+jhMvcHWUKthV9fNebIzrNy//2O9ZwWcfiBFR5f25XVZPLlEajk/sf3Ra15V92isyQqnIEXRDaZWEA==}
 
-  ua-parser-js@1.0.37:
-    resolution: {integrity: sha512-bhTyI94tZofjo+Dn8SN6Zv8nBDvyXTymAdM3LDI/0IboIUwTu1rEhW7v2TfiVsoYWgkQ4kOVqnI8APUFbIQIFQ==}
+  ua-parser-js@1.0.41:
+    resolution: {integrity: sha512-LbBDqdIC5s8iROCUjMbW1f5dJQTEFB1+KO9ogbvlb3nm9n4YHa5p4KTvFPWvh2Hs8gZMBuiB1/8+pdfe/tDPug==}
+    hasBin: true
 
   uc.micro@2.1.0:
     resolution: {integrity: sha512-ARDJmphmdvUk6Glw7y9DQ2bFkKBHwQHLi2lsaH6PPmz/Ka9sFOBsBluozhDltWmnv9u/cF6Rt87znRTPV+yp/A==}
@@ -13302,8 +13506,9 @@ snapshots:
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
       react-native-web: 0.21.2(encoding@0.1.13)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
 
-  '@10play/tentap-editor@0.5.21(patch_hash=520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41)(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(react-native-webview@13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+  '@10play/tentap-editor@0.5.21(patch_hash=520c7388382aa0cadd02408de7c832242dbf1d72c9a80de5712a2cddfa88ca41)(react-native-webview@13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
     dependencies:
+      '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
       '@tiptap/extension-blockquote': 2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))
       '@tiptap/extension-bold': 2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))
       '@tiptap/extension-bullet-list': 2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))
@@ -13336,8 +13541,6 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
       react-native-webview: 13.16.1(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
-    transitivePeerDependencies:
-      - '@tiptap/core'
 
   '@adobe/css-tools@4.0.1': {}
 
@@ -15197,6 +15400,13 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.3':
     optional: true
+
+  '@expensify/react-native-live-markdown@https://codeload.github.com/janicduplessis/react-native-live-markdown/tar.gz/2ebc7c78d7617243f2eae8ca5dbcb38e0d556c33(patch_hash=54ce239db0acf826b78cf816f6a5698feb730bb812fe2d7dfe28bbd4d86cd6c7)(expensify-common@2.0.182)(react-native-worklets@0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      expensify-common: 2.0.182
+      react: 19.2.3
+      react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
+      react-native-worklets: 0.10.3(patch_hash=493073c3d3dffc3a19003c8bb99960497eb1d81f29e6dc25068c4b85a86c312e)(@babel/core@7.29.0)(@react-native/metro-config@0.86.3)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)
 
   '@expo/cli@57.0.9(expo-constants@57.0.6(expo@57.0.7(1a50d969892ffc893a6ddd04f6f32a12))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)))(expo-font@57.0.1(expo@57.0.7(1a50d969892ffc893a6ddd04f6f32a12))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3))(expo@57.0.7(1a50d969892ffc893a6ddd04f6f32a12))(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3)(typescript@5.9.3)':
     dependencies:
@@ -19250,19 +19460,38 @@ snapshots:
     dependencies:
       '@tiptap/pm': 2.6.6
 
+  '@tiptap/core@3.20.4(@tiptap/pm@2.6.6)':
+    dependencies:
+      '@tiptap/pm': 2.6.6
+
   '@tiptap/extension-blockquote@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
 
+  '@tiptap/extension-blockquote@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+
   '@tiptap/extension-bold@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-bold@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
 
   '@tiptap/extension-bubble-menu@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
       '@tiptap/pm': 2.6.6
       tippy.js: 6.3.7
+
+  '@tiptap/extension-bubble-menu@3.31.3(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
+    dependencies:
+      '@floating-ui/dom': 1.7.5
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
+    optional: true
 
   '@tiptap/extension-bullet-list@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
@@ -19277,6 +19506,10 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
 
+  '@tiptap/extension-code@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+
   '@tiptap/extension-color@2.3.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/extension-text-style@2.3.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6)))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
@@ -19285,6 +19518,10 @@ snapshots:
   '@tiptap/extension-document@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-document@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
 
   '@tiptap/extension-dropcursor@2.3.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
     dependencies:
@@ -19296,6 +19533,13 @@ snapshots:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
       '@tiptap/pm': 2.6.6
       tippy.js: 6.3.7
+
+  '@tiptap/extension-floating-menu@3.31.3(@floating-ui/dom@1.7.5)(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
+    dependencies:
+      '@floating-ui/dom': 1.7.5
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
+    optional: true
 
   '@tiptap/extension-gapcursor@2.3.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
     dependencies:
@@ -19309,6 +19553,10 @@ snapshots:
   '@tiptap/extension-heading@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-heading@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
 
   '@tiptap/extension-highlight@2.3.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
@@ -19328,9 +19576,17 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
 
+  '@tiptap/extension-image@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+
   '@tiptap/extension-italic@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-italic@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
 
   '@tiptap/extension-link@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
     dependencies:
@@ -19338,9 +19594,20 @@ snapshots:
       '@tiptap/pm': 2.6.6
       linkifyjs: 4.1.1
 
+  '@tiptap/extension-link@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
+      linkifyjs: 4.3.3
+
   '@tiptap/extension-list-item@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-list@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
 
   '@tiptap/extension-mention@2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)(@tiptap/suggestion@2.6.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6))':
     dependencies:
@@ -19356,6 +19623,10 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
 
+  '@tiptap/extension-paragraph@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+
   '@tiptap/extension-placeholder@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
@@ -19364,6 +19635,10 @@ snapshots:
   '@tiptap/extension-strike@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-strike@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
 
   '@tiptap/extension-task-item@2.6.6(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
     dependencies:
@@ -19382,9 +19657,22 @@ snapshots:
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
 
+  '@tiptap/extension-text@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+
   '@tiptap/extension-underline@2.3.0(@tiptap/core@2.6.6(@tiptap/pm@2.6.6))':
     dependencies:
       '@tiptap/core': 2.6.6(@tiptap/pm@2.6.6)
+
+  '@tiptap/extension-underline@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+
+  '@tiptap/extensions@3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
 
   '@tiptap/pm@2.6.6':
     dependencies:
@@ -19417,6 +19705,23 @@ snapshots:
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       use-sync-external-store: 1.6.0(react@19.2.3)
+
+  '@tiptap/react@3.20.4(@floating-ui/dom@1.7.5)(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)':
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
+      '@types/react': 19.2.17
+      '@types/react-dom': 19.2.3(@types/react@19.2.17)
+      '@types/use-sync-external-store': 0.0.6
+      fast-equals: 5.4.2
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      use-sync-external-store: 1.6.0(react@19.2.3)
+    optionalDependencies:
+      '@tiptap/extension-bubble-menu': 3.31.3(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tiptap/extension-floating-menu': 3.31.3(@floating-ui/dom@1.7.5)(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+    transitivePeerDependencies:
+      - '@floating-ui/dom'
 
   '@tiptap/starter-kit@2.3.0(@tiptap/pm@2.6.6)':
     dependencies:
@@ -20144,6 +20449,8 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.1.0
 
+  awesome-phonenumber@5.11.0: {}
+
   axios@1.17.0(debug@4.4.3):
     dependencies:
       follow-redirects: 1.16.0(debug@4.4.3)
@@ -20751,6 +21058,8 @@ snapshots:
 
   cjs-module-lexer@1.4.1: {}
 
+  classnames@2.5.0: {}
+
   classnames@2.5.1: {}
 
   clawpdf@0.2.0: {}
@@ -20783,6 +21092,12 @@ snapshots:
       string-width: 7.0.0
 
   cli-width@3.0.0: {}
+
+  clipboard@2.0.11:
+    dependencies:
+      good-listener: 1.2.2
+      select: 1.1.2
+      tiny-emitter: 2.1.0
 
   cliui@6.0.0:
     dependencies:
@@ -21206,6 +21521,8 @@ snapshots:
       object-keys: 1.1.1
 
   delayed-stream@1.0.0: {}
+
+  delegate@3.2.0: {}
 
   depd@2.0.0: {}
 
@@ -21695,6 +22012,23 @@ snapshots:
       jest-message-util: 29.7.0
       jest-util: 29.7.0
 
+  expensify-common@2.0.182:
+    dependencies:
+      awesome-phonenumber: 5.11.0
+      classnames: 2.5.0
+      clipboard: 2.0.11
+      html-entities: 2.6.0
+      jquery: 3.6.0
+      localforage: 1.10.0
+      lodash: 4.18.1
+      prop-types: 15.8.1
+      punycode: 2.3.1
+      react: 19.2.3
+      react-dom: 19.2.3(react@19.2.3)
+      semver: 7.8.5
+      simply-deferred: 3.0.0(patch_hash=2f3c68fa49297b1882466ce21148f37f61940a4d2c0f14c33d53b45c8bd74659)
+      ua-parser-js: 1.0.41
+
   expo-application@57.0.2(expo@57.0.7(1a50d969892ffc893a6ddd04f6f32a12)):
     dependencies:
       expo: 57.0.7(1a50d969892ffc893a6ddd04f6f32a12)
@@ -22139,6 +22473,8 @@ snapshots:
 
   fast-deep-equal@3.1.3: {}
 
+  fast-equals@5.4.2: {}
+
   fast-fifo@1.3.0: {}
 
   fast-glob@3.3.3:
@@ -22193,7 +22529,7 @@ snapshots:
       object-assign: 4.1.1
       promise: 7.3.1
       setimmediate: 1.0.5
-      ua-parser-js: 1.0.37
+      ua-parser-js: 1.0.41
     transitivePeerDependencies:
       - encoding
 
@@ -22599,6 +22935,10 @@ snapshots:
       merge2: 1.4.1
       slash: 4.0.0
 
+  good-listener@1.2.2:
+    dependencies:
+      delegate: 3.2.0
+
   google-auth-library@10.7.0:
     dependencies:
       base64-js: 1.5.1
@@ -22735,6 +23075,8 @@ snapshots:
   html-encoding-sniffer@4.0.0:
     dependencies:
       whatwg-encoding: 3.1.1
+
+  html-entities@2.6.0: {}
 
   html-escaper@2.0.2: {}
 
@@ -23586,6 +23928,8 @@ snapshots:
 
   joycon@3.1.1: {}
 
+  jquery@3.6.0: {}
+
   js-base64@3.7.8: {}
 
   js-levenshtein@1.1.6: {}
@@ -23742,6 +24086,10 @@ snapshots:
 
   libphonenumber-js@1.11.18: {}
 
+  lie@3.1.1:
+    dependencies:
+      immediate: 3.0.6
+
   lie@3.3.0:
     dependencies:
       immediate: 3.0.6
@@ -23824,6 +24172,8 @@ snapshots:
 
   linkifyjs@4.1.1: {}
 
+  linkifyjs@4.3.3: {}
+
   lint-staged@15.2.0:
     dependencies:
       chalk: 5.3.0
@@ -23857,6 +24207,10 @@ snapshots:
       mlly: 1.5.0
       pkg-types: 1.0.3
 
+  localforage@1.10.0:
+    dependencies:
+      lie: 3.1.1
+
   locate-path@5.0.0:
     dependencies:
       p-locate: 4.1.0
@@ -23886,6 +24240,8 @@ snapshots:
   lodash.truncate@4.4.2: {}
 
   lodash@4.17.23: {}
+
+  lodash@4.18.1: {}
 
   log-symbols@2.2.0:
     dependencies:
@@ -25750,6 +26106,33 @@ snapshots:
       react: 19.2.3
       react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
 
+  react-native-enriched@file:vendor/react-native-enriched-shortcuts-layout-34a7ae2.tgz(patch_hash=f497623cce2891053a355f1c6f51cf131e9d6baf64924ae29259e6a11c1d7092)(@floating-ui/dom@1.7.5)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
+    dependencies:
+      '@tiptap/core': 3.20.4(@tiptap/pm@2.6.6)
+      '@tiptap/extension-blockquote': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-bold': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-code': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-document': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-heading': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-image': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-italic': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-link': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tiptap/extension-list': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tiptap/extension-paragraph': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-strike': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-text': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extension-underline': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))
+      '@tiptap/extensions': 3.20.4(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)
+      '@tiptap/pm': 2.6.6
+      '@tiptap/react': 3.20.4(@floating-ui/dom@1.7.5)(@tiptap/core@3.20.4(@tiptap/pm@2.6.6))(@tiptap/pm@2.6.6)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      react: 19.2.3
+      react-native: 0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3)
+    transitivePeerDependencies:
+      - '@floating-ui/dom'
+      - '@types/react'
+      - '@types/react-dom'
+      - react-dom
+
   react-native-gesture-handler@2.32.0(patch_hash=e6fc0413229a6f38cc4b2432f69ea6cc8692cc4d611e47452f4c65678df5caf4)(react-native@0.86.3(patch_hash=f54baeefce4ebc375a88be0db5fe1bacbabaccfbdcd19d1ccfb5f06c0e307e16)(@react-native/jest-preset@0.86.3(@babel/core@7.29.0)(react@19.2.3))(@react-native/metro-config@0.86.3)(@types/react@19.2.17)(react@19.2.3))(react@19.2.3):
     dependencies:
       '@egjs/hammerjs': 2.0.17
@@ -26365,6 +26748,8 @@ snapshots:
 
   seedrandom@3.0.5: {}
 
+  select@1.1.2: {}
+
   semver-compare@1.0.0:
     optional: true
 
@@ -26545,6 +26930,8 @@ snapshots:
   simple-update-notifier@2.0.0:
     dependencies:
       semver: 7.7.3
+
+  simply-deferred@3.0.0(patch_hash=2f3c68fa49297b1882466ce21148f37f61940a4d2c0f14c33d53b45c8bd74659): {}
 
   sisteransi@1.0.5: {}
 
@@ -27121,6 +27508,8 @@ snapshots:
     dependencies:
       semver: 5.7.2
 
+  tiny-emitter@2.1.0: {}
+
   tiny-typed-emitter@2.1.0: {}
 
   tinybench@2.9.0: {}
@@ -27323,7 +27712,7 @@ snapshots:
 
   ua-parser-js@0.7.37: {}
 
-  ua-parser-js@1.0.37: {}
+  ua-parser-js@1.0.41: {}
 
   uc.micro@2.1.0: {}
 
@@ -27918,7 +28307,7 @@ snapshots:
       fast-json-stable-stringify: 2.1.0
       fs-extra: 9.1.0
       glob: 7.2.3
-      lodash: 4.17.23
+      lodash: 4.18.1
       pretty-bytes: 5.6.0
       rollup: 2.79.2
       rollup-plugin-terser: 7.0.2(rollup@2.79.2)
