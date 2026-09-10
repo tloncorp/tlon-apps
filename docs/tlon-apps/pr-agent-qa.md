@@ -22,7 +22,8 @@ not silently skipped. The assessment is saved as `pr-qa-assessment`.
 
 A `test` assessment includes up to eight scenarios identifying changed files,
 concrete actions, expected results and prerequisites. The simulator agent must
-account for every scenario by its ID in its findings. A generic successful
+account for every scenario by its ID and preserve its expected result verbatim
+in the findings. A generic successful
 login or Home smoke cannot satisfy this coverage requirement. A `skip` or
 `blocked` assessment posts its reason without starting a native build or simulator.
 
@@ -233,3 +234,10 @@ not certify the supplied PR metadata or mark a PR as tested.
 
 The assessor has no shell, web or device tools, an isolated Codex home, a
 three-minute limit and a 240,000-character diff budget. Failures become blocked.
+
+The assessment was qualified on EAS against notebook-header PR #6460 at
+`063fc5b77286ca2c8359fdf1a244a1f52232767f`: it selected `test` and planned six
+specific checks, including headers/actions, permissions, scrolling, preview/edit,
+save status and reply deduplication. It identified the write and event-fixture
+requirements explicitly. No simulator or native build ran in this qualification.
+[EAS assessment run](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08d7f-f0ec-710a-bcf8-6b3b9bc6378f).

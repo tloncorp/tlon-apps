@@ -71,12 +71,25 @@ test('generic smoke success or omitted PR changes cannot satisfy the assessment'
     checks: [
       {
         scenarioId: 'change-1',
+        expected: scenario.expected,
         status: 'blocked',
         observed: 'No writable fixture',
       },
     ],
   };
   assert.equal(verifyCoverage(blocked, plan), blocked);
+  assert.throws(
+    () =>
+      verifyCoverage(
+        {
+          checks: [
+            { ...blocked.checks[0], expected: 'Home loads', status: 'passed' },
+          ],
+        },
+        plan
+      ),
+    /acceptance criterion/
+  );
 });
 
 test('assessment has no device MCP tools and uses an isolated read-only Codex session', () => {
