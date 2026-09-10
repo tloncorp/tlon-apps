@@ -30,6 +30,7 @@ import { hexString, unpackJamBytes } from './utils';
 
 const logger = createDevLogger('UrbitHttpApi', false);
 const DEFAULT_POKE_ACK_TIMEOUT = 30000;
+const SPIN_RESPONSE_TIMEOUT_MS = 25000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
@@ -44,6 +45,20 @@ export class ThreadResponseBodyError extends Error {
   constructor(cause: unknown) {
     super('Thread response body could not be read', { cause });
     this.name = 'ThreadResponseBodyError';
+  }
+}
+
+export class SpinAbortedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpinAbortedError';
+  }
+}
+
+export class SpinClosedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpinClosedError';
   }
 }
 
@@ -1030,27 +1045,6 @@ export class Urbit {
     }
   }
 
-  async checkIsNodeBusy(): Promise<'available' | 'busy' | 'unknown'> {
-    try {
-      const response = await this.fetchFn(`${this.url}/~_~/healthz`, {
-        method: 'GET',
-      });
-      if (response.status === 204) {
-        return 'available';
-      }
-      if (response.status === 429) {
-        return 'busy';
-      }
-      logger.trackEvent('Unexpected node busy response', {
-        status: response.status,
-      });
-      return 'unknown';
-    } catch (e) {
-      logger.trackEvent('Failed to check if node is busy', { error: e });
-      return 'unknown';
-    }
-  }
-
   /**
    * Scry into an gall agent at a path
    *
@@ -1240,31 +1234,55 @@ export class Urbit {
     }
   }
 
-  async getSpinHints(): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const controller = new AbortController();
-      let messageReceived = false;
+  async getSpinHints(opts: { signal?: AbortSignal } = {}): Promise<string> {
+    if (opts.signal?.aborted) {
+      throw new SpinAbortedError('spin cancelled before start');
+    }
 
-      fetchEventSource(`${this.url}/~_~/spin`, {
-        signal: controller.signal,
-        // @ts-expect-error reactNative not in types but is essential
-        reactNative: { textStreaming: true },
-        openWhenHidden: true,
-        responseTimeout: 25000,
-        fetch: this.fetchFn,
-        onmessage(event) {
-          if (!messageReceived) {
-            messageReceived = true;
-            controller.abort();
-            resolve(event.data);
+    const controller = new AbortController();
+    const onCallerAbort = () => controller.abort();
+    opts.signal?.addEventListener('abort', onCallerAbort, { once: true });
+
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        let settled = false;
+        const settle = (fn: () => void) => {
+          if (!settled) {
+            settled = true;
+            fn();
           }
-        },
-        onerror(error) {
-          controller.abort();
-          reject(error);
-        },
+        };
+
+        fetchEventSource(`${this.url}/~_~/spin`, {
+          signal: controller.signal,
+          // @ts-expect-error reactNative not in types but is essential
+          reactNative: { textStreaming: true },
+          openWhenHidden: true,
+          responseTimeout: SPIN_RESPONSE_TIMEOUT_MS,
+          fetch: this.fetchFn,
+          onmessage: (event) => {
+            settle(() => resolve(event.data));
+            controller.abort();
+          },
+          onerror: (error) => {
+            settle(() => reject(error));
+            controller.abort();
+          },
+          onclose: () => {
+            settle(() =>
+              reject(
+                new SpinClosedError('spin stream closed before first event')
+              )
+            );
+          },
+        }).then(
+          () => settle(() => reject(new SpinAbortedError('spin cancelled'))),
+          (error) => settle(() => reject(error))
+        );
       });
-    });
+    } finally {
+      opts.signal?.removeEventListener('abort', onCallerAbort);
+    }
   }
 
   /**
