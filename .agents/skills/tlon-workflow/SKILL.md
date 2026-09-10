@@ -119,7 +119,19 @@ Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform th
 
 **Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen.
 
-### 7. Open the pull request
+### 7. Get an independent review
+
+Before opening the pull request, put the diff in front of a fresh agent -- one that has not seen your reasoning. That is the whole point of it: it cannot rationalise a choice it did not make, and it reads what you wrote rather than what you meant.
+
+Give it three things: the task as it was originally stated, the diff (`git diff origin/develop...HEAD`), and what to be adversarial about. Do not give it your notes, your reasoning, or the alternatives you rejected -- that primes it to agree with you.
+
+Ask for correctness first, with concrete inputs and the resulting wrong behavior, then whether the change actually does what the task asked, then what is untested.
+
+Fix what is real. Push back, with reasons, on what is not: a fresh agent is confidently wrong often enough that applying a finding you cannot verify is worse than ignoring it. If a fix changes visible behavior, re-capture the evidence from step 4 before continuing.
+
+This is cheap and it is not the same as the review the pull request gets later. This one catches your own mistakes before anyone else spends attention on them.
+
+### 8. Open the pull request
 
 Read `pr-description.md` in this skill's directory, then fill `.github/pull_request_template.md` section by section.
 
@@ -138,17 +150,17 @@ gh pr ready <number>
 
 Mark it ready once the evidence is in: the Codex reviewer only reviews ready pull requests.
 
-### 8. Follow the review
+### 9. Follow the review
 
 ```bash
 node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
 ```
 
-It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints each as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own comments are ignored. Run it in the background so it wakes you; run it again after you respond. When it prints `{"kind":"closed","merged":true}`, go to step 9.
+It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints each as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own comments are ignored. Run it in the background so it wakes you; run it again after you respond. When it prints `{"kind":"closed","merged":true}`, go to step 10.
 
 For each item: fix what is real, push, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<id>/replies -f body=...` for a review comment, `gh pr comment` otherwise), and re-capture evidence if the visible behavior changed. Push back, with reasons, on what is not real.
 
-### 9. Clean up
+### 10. Clean up
 
 After the pull request is merged or closed, and after asking the user. **Order matters**: remove the worktree before the branch goes, or `remove` refuses because its commits are no longer on any remote.
 
