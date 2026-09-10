@@ -1,0 +1,33 @@
+appId: ${MAESTRO_APP_ID}
+---
+# Manual harness validation only. Keep the original login failure in the report.
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^(Home|Usage Statistics)$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: '^Usage Statistics$'
+    commands:
+      - tapOn: '^Next$'
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 60000
+- runFlow:
+    when:
+      visible: '^Contacts$'
+    commands:
+      - tapOn: '^Contacts$'
+- runFlow:
+    when:
+      notVisible: '^You$'
+    commands:
+      - tapOn:
+          text: '^Tab Bar$'
+          point: '71%,38%'
+- assertVisible: '^Contacts$'
+- tapOn: '^You$'
+- assertVisible: ${MAESTRO_TEST_SHIP_PATTERN}
+- tapOn: '^Back$'
+- assertVisible: '^Contacts$'

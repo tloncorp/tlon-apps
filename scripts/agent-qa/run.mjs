@@ -260,6 +260,7 @@ async function prepare() {
       },
     }
   ).catch(async (error) => {
+    let bootstrapFailure;
     const loginXml = path.join(env.TMPDIR || '/tmp', 'qa-login.xml');
     await readFile(loginXml, 'utf8')
       .then((text) =>
@@ -275,11 +276,20 @@ async function prepare() {
         else if (
           entry.name.startsWith('commands-') &&
           entry.name.endsWith('.json')
-        )
-          await writeFile(
-            path.join(artifacts, entry.name),
-            clean(await readFile(full, 'utf8'))
-          );
+        ) {
+          const commandText = clean(await readFile(full, 'utf8'));
+          await writeFile(path.join(artifacts, entry.name), commandText);
+          const failed = JSON.parse(commandText).find(
+            (item) => item.metadata?.status === 'FAILED'
+          )?.metadata?.error;
+          if (failed?.message) {
+            bootstrapFailure = (
+              JSON.stringify(failed.hierarchyRoot) || ''
+            ).includes('Something went wrong')
+              ? 'The app displayed "Something went wrong" during login bootstrap'
+              : `Login bootstrap: ${failed.message}`;
+          }
+        }
       }
     }
     await collectCommands(path.join(env.TMPDIR || '/tmp', 'qa-login-debug'));
@@ -303,16 +313,35 @@ async function prepare() {
       '--style',
       'compact',
       '--predicate',
-      '(process == "Tlon" OR process == "Landscape") AND (eventMessage CONTAINS[c] "error" OR eventMessage CONTAINS[c] "exception")',
+      '(process == "Tlon" OR process == "Landscape") AND subsystem != "com.apple.dt.xctest" AND (eventMessage CONTAINS[c] "error" OR eventMessage CONTAINS[c] "exception")',
     ]).catch(() => 'Could not collect app errors');
     await writeFile(
       path.join(artifacts, 'bootstrap-app-errors.txt'),
       clean(appErrors).slice(-32000)
     );
-    throw error;
+    if (
+      context.mode === 'Harness validation only' &&
+      bootstrapFailure?.includes('The app displayed')
+    ) {
+      context.bootstrapRecovery = `${bootstrapFailure}. Manual harness validation retried once by relaunching; this does not qualify fresh login.`;
+      console.log(context.bootstrapRecovery);
+      await run(
+        env.QA_MAESTRO_BIN || 'maestro',
+        ['test', '--udid', udid, path.join(here, 'recover-smoke.yaml')],
+        {
+          timeout: 180_000,
+          env: {
+            ...deviceEnv,
+            MAESTRO_APP_ID: context.appId,
+            MAESTRO_TEST_SHIP_PATTERN: shipPattern,
+          },
+        }
+      );
+    } else throw bootstrapFailure ? new Error(bootstrapFailure) : error;
   });
-  context.smoke =
-    'Passed: fresh login, Home, Contacts, and exact test-ship identity';
+  context.smoke = context.bootstrapRecovery
+    ? 'Passed after one app relaunch: Home, Contacts, and exact test-ship identity. Fresh login failed.'
+    : 'Passed: fresh login, Home, Contacts, and exact test-ship identity';
   console.log(context.smoke);
   await device(['open', context.appId], 180_000);
   await capture(['snapshot', '-i']);

@@ -129,6 +129,9 @@ export function renderReport(context, report, usage) {
     context.otaDisabled
       ? 'Test-only configuration: OTA updates disabled in the installed copy.'
       : 'App preparation did not complete.',
+    ...(context.bootstrapRecovery
+      ? ['', `Bootstrap limitation: ${clean(context.bootstrapRecovery)}`]
+      : []),
     '',
     ...(report.checks || []).map(
       (check) =>

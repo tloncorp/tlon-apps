@@ -66,6 +66,11 @@ The manual SHA is operator-supplied; verify it against the build record before
 dispatch. Automated PR runs use EAS's build output instead. Use `--ref` to avoid
 uploading a dirty local checkout. The manual focus can be set with `-F focus=...`.
 
+Manual harness validation may relaunch once if fresh login reaches the app's
+error boundary. The original failure remains in the artifacts and report, and
+the account identity must still match before the agent starts. PR verification
+does not use this recovery: a bootstrap failure blocks the PR test.
+
 ## Evidence and maintenance
 
 Each run retains `ios-agent-qa`: screenshots, accessibility/action evidence,
