@@ -65,6 +65,24 @@ async function main() {
   const videoPath = join(dir, 'test-session.mp4');
   const bodyPath = join(dir, 'report.md');
   if (process.argv[2] === 'prepare') {
+    // Query EAS metadata without evaluating the app's config or installing its dependencies.
+    const queryDir = join(dir, 'eas-query');
+    mkdirSync(queryDir, { recursive: true });
+    writeFileSync(
+      join(queryDir, 'package.json'),
+      JSON.stringify({ name: 'qa-artifact-publisher', private: true })
+    );
+    writeFileSync(
+      join(queryDir, 'app.json'),
+      JSON.stringify({
+        expo: {
+          name: 'Tlon Mobile',
+          slug: 'groups',
+          owner: 'tlon',
+          extra: { eas: { projectId: project } },
+        },
+      })
+    );
     const run = JSON.parse(
       command(
         'npx',
@@ -77,7 +95,7 @@ async function main() {
           '--non-interactive',
         ],
         {
-          cwd: join(process.env.GITHUB_WORKSPACE, 'apps/tlon-mobile'),
+          cwd: queryDir,
         }
       )
     );
@@ -191,6 +209,15 @@ if (
         ? `Publisher command failed (exit ${error.status}); verify EXPO_TOKEN and repository-write REPO_TOKEN.`
         : error.message
     );
+    if (error.stderr) {
+      let detail = String(error.stderr);
+      for (const secret of [
+        process.env.EXPO_TOKEN,
+        process.env.GH_TOKEN,
+      ].filter(Boolean))
+        detail = detail.replaceAll(secret, '[redacted]');
+      console.error(detail.replace(/https?:\/\/\S+/g, '[URL]').slice(-3000));
+    }
     process.exitCode = 1;
   });
 }

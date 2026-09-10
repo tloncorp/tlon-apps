@@ -92,9 +92,9 @@ The reporting job downloads this MP4 and posts the report using GitHub CLI
 inline video player directly in the PR comment. No public media bucket is required.
 
 Set `GH_QA_TOKEN` as a **secret** in the EAS preview environment. Use a dedicated
-QA account's GitHub OAuth token or classic PAT with write access to this repository
-(the `repo` scope for this private repository). These are the token types supported
-by GitHub's attachment uploader. The reporting job maps it to `GH_TOKEN`; the
+QA account's GitHub OAuth token, classic PAT, or fine-grained PAT with write access
+to this repository (the `repo` scope for a classic PAT on this private repository).
+GitHub's default installation token (`GITHUB_TOKEN`) cannot upload attachments. The reporting job maps it to `GH_TOKEN`; the
 device subprocesses and model tools do not receive it. Do not copy a developer's
 general GitHub login into EAS without their authorization.
 
@@ -133,8 +133,19 @@ version intentionally builds the app for each labeled PR revision.
 Blacksmith, then dispatches this EAS workflow against an existing iOS build.
 It is a manual harness experiment, not certification of a PR's frontend.
 The backend uses the selected GitHub revision; the report records both app and
-backend commits separately. The experiment push trigger is restricted to its
-workflow file on `db/pr-agent-qa-ios`.
+backend commits separately. Dispatch the action with the destination `pr_number`. Its separate `publish` job
+automatically downloads the saved EAS report and MP4, attaches the video to that
+PR, and verifies that GitHub rendered a video player. It runs after failed tests
+as well as successful ones when an EAS run exists. Setup failures with a report
+but no video get an explicit text report. The publish job uses the existing
+GitHub `REPO_TOKEN` secret only in its publishing step; the simulator and model
+do not receive it. The EAS metadata/download step uses `EXPO_TOKEN` separately.
+
+To retry only publication, dispatch with the saved `eas_run_id` and destination
+`pr_number`. This skips ships and simulator work. A run-specific marker prevents
+duplicate comments by the same publisher on retries. Only completed runs from
+this EAS project and QA workflow are accepted. The action is manual while this
+harness experiment is under review; it has no push trigger.
 
 The backend controller creates one unique group, sends a message from ~ten,
 and waits for the exact mobile reply from ~zod. The agent opens the group,
@@ -161,7 +172,7 @@ follow-up. The experiment serializes runs and limits the backend lease.
 The compatibility proxy still changes the SSE content type for the older app
 binary. A current app with the parser fix must be qualified without that shim
 before removing it. Automatic PR backend selection, cross-PR parallelism, and
-automatic video publishing credentials remain separate follow-ups.
+account leasing remain separate follow-ups.
 
 ## Codex qualification status
 
@@ -175,8 +186,8 @@ passed a full decode check. [EAS run and artifacts](https://expo.dev/accounts/tl
 
 This qualification reused build `709ad03a-fc06-457a-a0c4-cb7ca437797c`, app source
 `f0e37ea6bf92a3e44554caeb96afddea089ba2fa`. It validates the harness, not a new
-frontend revision. The video was attached to PR #6496 locally; fully automatic
-cloud posting still requires `GH_QA_TOKEN`.
+frontend revision. The GitHub experiment action now includes automatic publication using
+`REPO_TOKEN`; the separate EAS-only labeled-PR reporting path uses `GH_QA_TOKEN`.
 
 Argent boots the CI simulator with accessibility enabled and owns interaction,
 screenshots and recording. This existing-build path uses the wrapper's explicit
