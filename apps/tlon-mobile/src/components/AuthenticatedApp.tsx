@@ -323,7 +323,9 @@ export default function ConnectedAuthenticatedApp({
   const [authAttempt, setAuthAttempt] = useState(0);
   const [profile, setProfile] = useState<db.Contact | null>(null);
   const { contactId } = useShip();
-  const { getToken: getRecaptchaToken } = useRecaptcha();
+  const { getToken: getRecaptchaToken } = useRecaptcha(
+    hostingAuthState === 'expired'
+  );
   const handleHostingAuthExpired = useCallback(() => {
     setHostingAuthState('expired');
   }, []);

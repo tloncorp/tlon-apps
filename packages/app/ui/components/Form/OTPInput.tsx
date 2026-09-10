@@ -83,9 +83,9 @@ export function OTPInput({
         alignItems="center"
       >
         <XStack
-          gap={isProminent ? undefined : '$s'}
+          gap="$s"
           width={isProminent ? '100%' : undefined}
-          justifyContent={isProminent ? 'space-between' : undefined}
+          justifyContent={isProminent ? 'center' : undefined}
           position="relative"
         >
           {Array.from({ length }).map((_, i) => {
@@ -103,7 +103,9 @@ export function OTPInput({
                     : '$border'
                 }
                 borderRadius={isProminent ? '$l' : '$s'}
-                width={isProminent ? 54 : '$4xl'}
+                width={isProminent ? undefined : '$4xl'}
+                maxWidth={isProminent ? 54 : undefined}
+                flex={isProminent ? 1 : undefined}
                 height={isProminent ? 62 : '$4xl'}
                 justifyContent="center"
                 alignItems="center"

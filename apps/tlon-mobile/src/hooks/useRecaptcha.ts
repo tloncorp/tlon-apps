@@ -6,7 +6,7 @@ import { useOnboardingContext } from '../lib/OnboardingContext';
 
 const logger = createDevLogger('recaptcha', true);
 
-export function useRecaptcha() {
+export function useRecaptcha(enabled = true) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const isInitializedRef = useRef(false);
   const { initRecaptcha, execRecaptchaLogin, execRecaptchaRequestOtp } =
@@ -14,6 +14,10 @@ export function useRecaptcha() {
 
   // Continuously attempt to initialize reCAPTCHA until success or unmount
   useEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     let isMounted = true;
     let retryCount = 0;
 
@@ -62,7 +66,7 @@ export function useRecaptcha() {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [initRecaptcha]);
+  }, [enabled, initRecaptcha]);
 
   const getToken = useCallback(
     async (action: 'login' | 'request_otp' = 'login') => {
