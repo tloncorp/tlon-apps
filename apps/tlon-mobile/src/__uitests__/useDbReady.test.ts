@@ -197,15 +197,15 @@ describe('useDbReady', () => {
 
     const error = result.current.dbInitError as DbInitTimeoutError;
     expect(error).toBeInstanceOf(DbInitTimeoutError);
-    // Capped in `details` as well as in the message: the boundary spreads
-    // `details` into the report.
+    // Capped once at the source, so the crumb, the message and `details` --
+    // all of which reach the same report -- carry the same string.
     expect(error.details.lastError).toBe(truncated);
     expect(error.details.lastError).toHaveLength(200);
     expect(error.message).toContain(`last error: ${truncated}`);
     expect(error.details.attempt).toBe(2);
     expect(crumbs()).toEqual(
       expect.arrayContaining([
-        `attempt 1 failed: Error: ${longMessage}`,
+        `attempt 1 failed: ${truncated}`,
         'attempt 2 started',
       ])
     );

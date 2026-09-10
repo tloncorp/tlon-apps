@@ -27,13 +27,8 @@ export class DbInitTimeoutError extends Error {
   details: DbInitTimeoutDetails;
 
   constructor(details: DbInitTimeoutDetails) {
-    // Capped in `details` too: RootErrorBoundary spreads them into the Sentry
-    // payload, so an unbounded string would travel either way.
-    const lastError = details.lastError
-      ? details.lastError.slice(0, MAX_LAST_ERROR_LENGTH)
-      : null;
     super(
-      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed); last error: ${lastError ?? 'none'}`
+      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed); last error: ${details.lastError ?? 'none'}`
     );
     // `extends Error` leaves `name` as 'Error', and Sentry reads the exception
     // type from it.
@@ -42,14 +37,18 @@ export class DbInitTimeoutError extends Error {
     // causes after the original exception and `ignoreErrors` is matched against
     // the last one, so a cause like 'Request timed out' would drop the whole
     // event. The cause travels in the message and in `details` instead.
-    this.details = { ...details, lastError };
+    this.details = details;
   }
 }
 
+// Capped here rather than at each use: the breadcrumb, the timeout message and
+// `details.lastError` all end up in the same reported payload, and
+// RootErrorBoundary spreads `details` into it.
 function describeError(error: unknown) {
-  return error instanceof Error
-    ? `${error.name}: ${error.message}`
-    : String(error);
+  const described =
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+  return described.slice(0, MAX_LAST_ERROR_LENGTH);
 }
 
 export function useDbReady() {
