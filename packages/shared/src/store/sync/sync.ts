@@ -2325,6 +2325,11 @@ let isSyncing = false;
 // Which client lifetime took the lock, so a start that outlives its own login
 // can't release a lock a newer one now holds.
 let syncLockGeneration: number | null = null;
+// Which client lifetime already has live subscriptions. A remount starts a
+// fresh sync while the previous mount's subscriptions are still up, and
+// registering a second set on top of them doubles every event. Logout bumps the
+// generation (session.ts), so a genuinely new login subscribes again.
+let subscribedGeneration: number | null = null;
 export function clearSyncStartLock() {
   isSyncing = false;
   syncLockGeneration = null;
@@ -2515,16 +2520,20 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
   isSyncing = true;
   const startGeneration = getClientGeneration();
   syncLockGeneration = startGeneration;
+  // A caller that thinks it's starting cold may be a remount over subscriptions
+  // this client lifetime already established; treat that as a warm start.
+  const isSubscribed =
+    alreadySubscribed || subscribedGeneration === startGeneration;
   updateSession({ phase: 'high' });
 
-  if (!alreadySubscribed) {
+  if (!isSubscribed) {
     // Only clear cached presence on a fresh startup. During recovery syncs we keep
     // the current snapshot until new presence events arrive to avoid UI flicker
     clearPresenceState();
   }
 
   const startTime = Date.now();
-  logger.crumb(`sync start running${alreadySubscribed ? ' (recovery)' : ''}`);
+  logger.crumb(`sync start running${isSubscribed ? ' (recovery)' : ''}`);
 
   try {
     let didLoadCachedContacts = false;
@@ -2532,11 +2541,11 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     // if running while already subscribed, execute the sync with lower priority. It's
     // needed for correctness, but expensive and usually inconsequential
     const syncStartPriority = {
-      high: alreadySubscribed ? SyncPriority.Medium : SyncPriority.High,
-      low: alreadySubscribed ? SyncPriority.Low : SyncPriority.Medium,
+      high: isSubscribed ? SyncPriority.Medium : SyncPriority.High,
+      low: isSubscribed ? SyncPriority.Low : SyncPriority.Medium,
     };
 
-    if (!(await checkDeskCompatibility(alreadySubscribed, syncStartPriority))) {
+    if (!(await checkDeskCompatibility(isSubscribed, syncStartPriority))) {
       // The ship's desk is too old to serve the paths the rest of this function
       // needs. Stop before init, subscriptions and first-sync bookkeeping, and
       // resolve rather than throw so every caller's success path is a no-op.
@@ -2581,7 +2590,7 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
           queryCtx,
           yieldWriter
         );
-        const subsPromise = alreadySubscribed
+        const subsPromise = isSubscribed
           ? Promise.resolve()
           : setupHighPrioritySubscriptions({
               priority: syncStartPriority.high - 1,
@@ -2650,17 +2659,27 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
     updateSession({ phase: 'low' });
     const lowPriorityPromises = [
-      alreadySubscribed
+      isSubscribed
         ? Promise.resolve()
         : setupLowPrioritySubscriptions({
             priority: syncStartPriority.low,
-          }).then(() => logger.crumb('subscribed low priority')),
+          })
+            .finally(() => {
+              // Both sets have now been established for this client lifetime
+              // (the high-priority ones went up in the block above), so a later
+              // start in the same lifetime skips them. Marked even on a
+              // rejection: what usually fails here is the lens backfill chained
+              // onto the subscribe, and re-registering every subscription on
+              // the next mount is worse than not retrying that.
+              subscribedGeneration = startGeneration;
+            })
+            .then(() => logger.crumb('subscribed low priority')),
       // On recovery the live subscription persists across the discontinuity,
       // so setupLowPrioritySubscriptions (and its post-subscribe lens
       // backfill) is skipped. Rescry /v1/lens directly to recover any events
       // missed while the SSE connection was down. No-ops on ships without
       // %steward (syncLensRuns swallows the 404).
-      alreadySubscribed
+      isSubscribed
         ? syncLensRuns({ priority: syncStartPriority.low + 1 }).then(() =>
             logger.crumb('finished recovery lens backfill')
           )

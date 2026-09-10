@@ -1194,6 +1194,60 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'a second cold start in the same login does not re-subscribe',
+    async () => {
+      // What a remount looks like: the previous mount's subscriptions are
+      // still live, and a second set on top of them doubles every event.
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+      expect(afterFirst).toBeGreaterThan(0);
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBe(afterFirst);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a new login subscribes again',
+    async () => {
+      await syncStart();
+      const afterFirst = vi.mocked(subscribe).mock.calls.length;
+
+      logOut();
+      logIn();
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBeGreaterThan(
+        afterFirst
+      );
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a gated start subscribes once it recovers, and not again',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      // Nothing was registered while the gate was up, so the marker must not
+      // claim otherwise.
+      expect(vi.mocked(subscribe)).not.toHaveBeenCalled();
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      await retryDeskCompatibility();
+      const afterRetry = vi.mocked(subscribe).mock.calls.length;
+      expect(afterRetry).toBeGreaterThan(0);
+
+      await syncStart();
+
+      expect(vi.mocked(subscribe).mock.calls.length).toBe(afterRetry);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'recovers in place once the ship is updated, without a reload',
     async () => {
       reportedDeskVersion = '12.1.0';
