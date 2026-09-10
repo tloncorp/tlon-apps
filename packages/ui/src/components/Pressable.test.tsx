@@ -6,7 +6,7 @@ import Pressable from './Pressable';
 
 const navigate = vi.hoisted(() => vi.fn());
 
-vi.mock('tamagui', () => ({ isWeb: false, View: 'View' }));
+vi.mock('tamagui', () => ({ isWeb: false, View: 'div' }));
 vi.mock('@react-navigation/native', () => ({
   useLinkProps: ({ href }: { href: string }) => {
     // The node-ready screen's plain button has no navigation context.
@@ -29,7 +29,7 @@ describe('Pressable', () => {
     await act(() => {
       tree = create(<Pressable onPress={onPress}>Continue</Pressable>);
     });
-    tree.root.findByType('View').props.onPress();
+    tree.root.findByType('div').props.onPress();
     expect(onPress).toHaveBeenCalledOnce();
     await act(() => tree.unmount());
   });
@@ -47,13 +47,13 @@ describe('Pressable', () => {
         </Pressable>
       );
     });
-    tree.root.findByType('View').props.onPress();
+    tree.root.findByType('div').props.onPress();
     expect(navigate).toHaveBeenCalledOnce();
     expect(onPress).not.toHaveBeenCalled();
     await act(() => {
       tree.update(<Pressable onPress={onPress}>Open</Pressable>);
     });
-    tree.root.findByType('View').props.onPress();
+    tree.root.findByType('div').props.onPress();
     expect(onPress).toHaveBeenCalledOnce();
     await act(() => tree.unmount());
   });

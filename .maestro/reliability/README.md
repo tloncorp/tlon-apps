@@ -29,10 +29,5 @@ groups and posts that remain on the ship; only the lifecycle tests delete their
 own fixtures. Profile restores the original nickname in its completion hook;
 settings restores the original theme on success.
 
-All twelve journeys passed on iOS Simulator and Android Maestro Cloud during the
-September 10 qualification, combining suite runs and targeted reruns. Those runs
-preceded stacking this suite on PR #6429; the combined keyboard changes still need
-a native rerun, including Android API 33. Hosted login
-was exercised; self-hosted setup was not part of that qualification. Multi-ship
-delivery, DMs, notifications, media, extended onboarding/recovery, and advanced
-collaborative notebook cases remain outside this suite.
+Multi-ship delivery, DMs, notifications, media, extended onboarding/recovery, and
+advanced collaborative notebook cases remain outside this suite.
