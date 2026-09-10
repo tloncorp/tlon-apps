@@ -1,0 +1,19 @@
+name: Agent QA harness checks
+on:
+  pull_request:
+    paths:
+      - scripts/agent-qa/**
+      - apps/tlon-mobile/.eas/workflows/pr-agent-qa-ios.yml
+      - .github/workflows/mobile-agent-qa-checks.yml
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - run: node --test scripts/agent-qa/core.test.mjs
