@@ -12,12 +12,22 @@ env:
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' from ten'}
     timeout: 15000
+- tapOn:
+    id: MessageInput
 - runFlow:
-    file: ../reliability/subflows/send.yaml
+    file: ../reliability/subflows/input.yaml
     env:
-      MESSAGE: ${MAESTRO_RUN_TAG + ' from mobile'}
-      MESSAGE_PATTERN: ${'^' + MAESTRO_RUN_TAG + ' from mobile ?$'}
-      EMPTY_INPUT: '^Message$'
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' from mobile'}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+      text: '^Message$'
+    timeout: 5000
+- hideKeyboard
+# Receipt is proved by a new peer reply, without reloading the conversation.
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' reply received'}
     timeout: 15000
+- assertNotVisible: '^Send failed, tap to retry$'

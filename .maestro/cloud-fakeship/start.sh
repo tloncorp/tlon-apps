@@ -69,7 +69,7 @@ echo "Ships prepared after $((SECONDS-start)) seconds."
 # Capture checkout and the actual assembled desk, including vendored files.
 git rev-parse HEAD > "$PROOF_OUTPUT/source.txt"
 find apps/tlon-web/rube/dist/desk-staging -type f -print0 | sort -z | xargs -0 sha256sum > "$PROOF_OUTPUT/desk-manifest.txt"
-NODE_OPTIONS=--conditions=tlon-source pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
+PROOF_PUBLIC_URL="$url" NODE_OPTIONS=--conditions=tlon-source pnpm --filter @tloncorp/tlon-bot-e2e exec tsx "$PWD/.maestro/cloud-fakeship/peer.ts" > "$PROOF_OUTPUT/peer.log" 2>&1 &
 echo $! > "$PROOF_OUTPUT/peer.pid"
 deadline=$((SECONDS+120))
 until [ -f "$PROOF_OUTPUT/peer-ready.json" ]; do
