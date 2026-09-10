@@ -390,6 +390,11 @@ export async function monitorTlonProvider(
 }
 
 async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
+  // assigned once the chat firehose handlers exist below; the SSE client's
+  // recovery hook (declared earlier) calls it after a resubscribe
+  let reconcilePendingDmInvites: (
+    cause: string
+  ) => Promise<void> = async () => {};
   const core = getTlonRuntime();
   // Prefer the channel-start config snapshot (Fix B) over an independent
   // load: see the MonitorTlonOpts.cfg doc comment.
@@ -661,6 +666,15 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       // surface recovery progress to PostHog. Sampled: first failure, then
       // every 5th, plus a marker event once the subscription recovers.
       onSubscriptionRecovery: (event) => {
+        if (
+          event.app === 'chat' &&
+          event.path === '/v4' &&
+          event.phase !== 'retrying'
+        ) {
+          // invites that arrived while the subscription was down were never
+          // delivered; the pending list is the only way to see them
+          void reconcilePendingDmInvites(event.phase);
+        }
         const source = subscriptionErrorSource(event.app, event.path);
         if (event.phase === 'retrying') {
           if (event.attempt === 1 || event.attempt % 5 === 0) {
@@ -4603,6 +4617,24 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     };
 
+    // The status fact is one-shot: an invite that lands while this process is
+    // down, or after its channel has expired, is never replayed. The pending
+    // list on the ship is the truth, so read it at startup and whenever the
+    // chat subscription comes back. handleDmInvite is idempotent via
+    // processedDmInvites, so re-reading is cheap.
+    reconcilePendingDmInvites = async (cause: string) => {
+      try {
+        const invited = (await api.scry('/chat/dm/invited.json')) as string[];
+        for (const ship of invited) {
+          await handleDmInvite(ship);
+        }
+      } catch (err) {
+        runtime.error?.(
+          `[tlon] Failed to reconcile pending DM invites (${cause}): ${String(err)}`
+        );
+      }
+    };
+
     const handleChatFirehose = async (event: ChatFirehoseEvent) => {
       try {
         // %chat-dm-status: a dm entered, changed, or left %chat's dm set.
@@ -4925,6 +4957,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
         },
       });
       runtime.log?.('[tlon] Subscribed to chat firehose (/v4)');
+      await reconcilePendingDmInvites('startup');
 
       // Subscribe to contacts updates to track nickname changes
       await api.subscribe({
