@@ -180,7 +180,7 @@ export function ConversationComposerPlacement({
       children
     );
 
-  if (avoidKeyboard && Platform.OS === 'ios') {
+  if (avoidKeyboard && Platform.OS !== 'web') {
     return (
       <ComposerKeyboardView offset={{ closed: 0, opened: insets.bottom }}>
         {inlineContent}

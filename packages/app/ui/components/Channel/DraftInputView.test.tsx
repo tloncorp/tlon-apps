@@ -1,11 +1,18 @@
 import React from 'react';
 import { ReactTestRenderer, act, create } from 'react-test-renderer';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { ConversationComposerPlacement } from './DraftInputView';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 type KeyboardEvent = { height: number; progress: number };
 const keyboard = vi.hoisted(() => ({
+  platform: 'ios' as 'ios' | 'android' | 'web',
   visible: false,
   height: 0,
   providerHeight: { value: 0 },
@@ -16,7 +23,11 @@ const keyboard = vi.hoisted(() => ({
 
 vi.mock('@tloncorp/api', () => ({ DraftInputId: { chat: 'chat' } }));
 vi.mock('react-native', () => ({
-  Platform: { OS: 'ios' },
+  Platform: {
+    get OS() {
+      return keyboard.platform;
+    },
+  },
   StyleSheet: { create: (styles: unknown) => styles },
 }));
 vi.mock('react-native-keyboard-controller', async () => ({
@@ -57,7 +68,8 @@ vi.mock('react-native-safe-area-context', () => ({
 }));
 vi.mock('tamagui', () => ({
   View: 'View',
-  useTheme: () => ({}),
+  useTheme: () => ({ background: '#fff' }),
+  getVariableValue: (value: unknown) => value,
 }));
 vi.mock('../../contexts/componentsKits', () => ({}));
 vi.mock('../../contexts/scroll', () => ({
@@ -74,14 +86,22 @@ vi.mock('../conversationScrollChrome', () => ({
 vi.mock('../draftInputs/shared', () => ({}));
 
 let renderer: ReactTestRenderer | undefined;
+let ConversationComposerPlacement: typeof import('./DraftInputView').ConversationComposerPlacement;
 
-beforeEach(() => {
+beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   keyboard.visible = false;
   keyboard.height = 0;
   keyboard.providerHeight.value = 0;
   keyboard.providerProgress.value = 0;
   keyboard.handlers = {};
+  keyboard.style = () => ({ transform: [{ translateY: 0 }] });
+  // The platform-specific wrapper is selected when the module is loaded.
+  vi.resetModules();
+  ({ ConversationComposerPlacement } =
+    await vi.importActual<typeof import('./DraftInputView')>(
+      './DraftInputView'
+    ));
 });
 
 afterEach(() => {
@@ -93,9 +113,13 @@ afterEach(() => {
 
 function emit(name: string, height: number) {
   const event = { height, progress: height / 300 };
-  // KeyboardProvider updates its iOS shared values on start and interactive
-  // events, while useKeyboardHandler also receives each native move/end frame.
-  if (name === 'onStart' || name === 'onInteractive') {
+  // Match KeyboardProvider: iOS publishes the target on start; Android updates
+  // its shared values on each move/end. Both publish interactive frames.
+  if (
+    name === 'onInteractive' ||
+    (keyboard.platform === 'ios' && name === 'onStart') ||
+    (keyboard.platform === 'android' && (name === 'onMove' || name === 'onEnd'))
+  ) {
     keyboard.providerHeight.value = -height;
     keyboard.providerProgress.value = event.progress;
   }
@@ -104,59 +128,88 @@ function emit(name: string, height: number) {
 
 const offset = () => keyboard.style().transform[0].translateY;
 
-describe.each([
-  ['inline notebook/gallery reply', false],
-  ['floating chat composer', true],
-] as const)('%s keyboard tracking', (_name, floating) => {
-  function mount() {
+describe.each(['ios', 'android'] as const)('%s', (platform) => {
+  beforeAll(() => {
+    keyboard.platform = platform;
+  });
+
+  describe.each([
+    ['inline notebook/gallery reply', false],
+    ['floating chat composer', true],
+  ] as const)('%s keyboard tracking', (_name, floating) => {
+    function mount() {
+      act(() => {
+        renderer = create(
+          <ConversationComposerPlacement
+            enabled={floating}
+            avoidKeyboard={!floating}
+          >
+            <input />
+          </ConversationComposerPlacement>
+        );
+      });
+    }
+
+    it('follows native opening and closing frames without jumping on start', () => {
+      mount();
+      expect(offset()).toBe(0);
+      emit('onStart', 300);
+      expect(offset()).toBe(0);
+      emit('onMove', 150);
+      expect(offset()).toBe(-133);
+      emit('onEnd', 300);
+      expect(offset()).toBe(-266);
+
+      emit('onStart', 0);
+      expect(offset()).toBe(-266);
+      emit('onMove', 150);
+      expect(offset()).toBe(-133);
+      emit('onEnd', 0);
+      expect(offset()).toBe(0);
+    });
+
+    it('tracks interactive dismissal and its cancellation', () => {
+      mount();
+      emit('onStart', 300);
+      emit('onEnd', 300);
+      emit('onInteractive', 150);
+      expect(offset()).toBe(-133);
+      emit('onInteractive', 300);
+      expect(offset()).toBe(-266);
+      emit('onInteractive', 0);
+      expect(offset()).toBe(0);
+    });
+
+    it('starts at the current offset when mounted with the keyboard open', () => {
+      keyboard.visible = true;
+      keyboard.height = 300;
+      keyboard.providerHeight.value = -300;
+      keyboard.providerProgress.value = 1;
+      mount();
+      expect(offset()).toBe(-266);
+    });
+  });
+});
+
+describe('web inline replies', () => {
+  beforeAll(() => {
+    keyboard.platform = 'web';
+  });
+
+  it('does not add native keyboard tracking', () => {
     act(() => {
       renderer = create(
-        <ConversationComposerPlacement
-          enabled={floating}
-          avoidKeyboard={!floating}
-        >
+        <ConversationComposerPlacement enabled={false} avoidKeyboard>
           <input />
         </ConversationComposerPlacement>
       );
     });
-  }
-
-  it('follows native opening and closing frames without jumping on start', () => {
-    mount();
-    expect(offset()).toBe(0);
-    emit('onStart', 300);
-    expect(offset()).toBe(0);
-    emit('onMove', 150);
-    expect(offset()).toBe(-133);
-    emit('onEnd', 300);
-    expect(offset()).toBe(-266);
-
-    emit('onStart', 0);
-    expect(offset()).toBe(-266);
-    emit('onMove', 150);
-    expect(offset()).toBe(-133);
-    emit('onEnd', 0);
-    expect(offset()).toBe(0);
-  });
-
-  it('tracks interactive dismissal and its cancellation', () => {
-    mount();
-    emit('onStart', 300);
-    emit('onEnd', 300);
-    emit('onInteractive', 150);
-    expect(offset()).toBe(-133);
-    emit('onInteractive', 300);
-    expect(offset()).toBe(-266);
-    emit('onInteractive', 0);
-    expect(offset()).toBe(0);
-  });
-
-  it('starts at the current offset when mounted with the keyboard open', () => {
-    keyboard.visible = true;
-    keyboard.height = 300;
-    keyboard.providerHeight.value = -300;
-    keyboard.providerProgress.value = 1;
-    mount();
-    expect(offset()).toBe(-266);
+    expect(renderer!.root.findAllByType('input')).toHaveLength(1);
+    expect(
+      renderer!.root.findAll(
+        (node) => (node.type as unknown) === 'AnimatedView'
+      )
+    ).toHaveLength(0);
+    expect(keyboard.handlers).toEqual({});
   });
 });
