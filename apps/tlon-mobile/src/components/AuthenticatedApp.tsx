@@ -283,9 +283,15 @@ function AuthenticatedApp({
         <RootStack />
       )}
       {AUTOMATED_TEST && <AutomatedTestSyncScreen />}
+      {/* Shake-triggered, so it can't cover the notice on its own; someone who
+          shakes the phone at a broken-looking screen wants the bug reporter. */}
       {poorUxReportModal}
-      {promptSheet}
-      {webAppSplashSheet}
+      {/* Both open themselves — the revival prompt from the app-status
+          callback, the web-app splash from its own mount effect — so they'd
+          cover the notice, and the prompt leads into an onboarding flow this
+          desk can't serve. Same gate as the onboarding overlay below. */}
+      {deskCompat?.status === 'ok' ? promptSheet : null}
+      {deskCompat?.status === 'ok' ? webAppSplashSheet : null}
     </ZStack>
   );
 }

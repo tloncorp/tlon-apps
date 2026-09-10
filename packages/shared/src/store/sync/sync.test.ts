@@ -787,6 +787,7 @@ describe('desk compatibility gate', () => {
   let reportedDeskVersion: string | null = MIN_GROUPS_VERSION;
   let probeError: Error | null = null;
   let pikesError: Error | null = null;
+  let pikesHangs = false;
   let heldProbe: { wait: Promise<void>; release: () => void } | null = null;
   let scryCalls: { app: string; path: string; timeout?: number }[] = [];
   type SetValueSpy<
@@ -858,6 +859,18 @@ describe('desk compatibility gate', () => {
         if (app === 'hood' && pikesError) {
           throw pikesError;
         }
+        if (app === 'hood' && pikesHangs) {
+          // Mirrors the client: the timeout it was given is the only thing
+          // that ends a hung scry.
+          return new Promise((_resolve, reject) => {
+            if (args.timeout != null) {
+              setTimeout(
+                () => reject(new Error('pikes timed out')),
+                args.timeout
+              );
+            }
+          });
+        }
         if (app === 'hood') {
           return pikesData;
         }
@@ -905,6 +918,7 @@ describe('desk compatibility gate', () => {
     reportedDeskVersion = MIN_GROUPS_VERSION;
     probeError = null;
     pikesError = null;
+    pikesHangs = false;
     heldProbe = null;
     scryCalls = [];
     updateSession(null);
@@ -965,6 +979,37 @@ describe('desk compatibility gate', () => {
         current: '12.1.0',
       });
       expect(didScry('/v10/init')).toBe(false);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'gates on the charge even when the pike scry hangs',
+    async () => {
+      // The pike is bounded well inside the probe's own deadline, so a hung
+      // one can't hold the version past the point where startup gives up and
+      // fails open.
+      reportedDeskVersion = '12.1.0';
+      pikesHangs = true;
+      vi.useFakeTimers();
+      try {
+        const started = syncStart();
+        let finished = false;
+        void started.then(() => {
+          finished = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT / 2);
+
+        expect(getSession()?.deskCompat).toMatchObject({
+          status: 'incompatible',
+          current: '12.1.0',
+        });
+        expect(finished).toBe(true);
+        expect(didScry('/v10/init')).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
     },
     FULL_SYNC_TIMEOUT
   );
@@ -1061,9 +1106,13 @@ describe('desk compatibility gate', () => {
         ({ app }) => app === 'hood' || app === 'docket'
       );
       expect(probeCalls).toHaveLength(2);
-      expect(probeCalls.every(({ timeout }) => timeout === PROBE_TIMEOUT)).toBe(
-        true
-      );
+      // The charge carries the version the gate reads, so it gets the whole
+      // budget; the pike is diagnostics and gets a much shorter one, so it
+      // can't hold the pair past the gate's own deadline.
+      const charges = probeCalls.find(({ app }) => app === 'docket');
+      const pikes = probeCalls.find(({ app }) => app === 'hood');
+      expect(charges?.timeout).toBe(PROBE_TIMEOUT);
+      expect(pikes?.timeout).toBeLessThan(PROBE_TIMEOUT);
     },
     FULL_SYNC_TIMEOUT
   );
