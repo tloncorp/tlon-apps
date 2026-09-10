@@ -114,6 +114,21 @@ export type AttestationType = schema.AttestationType;
 export type ContactAttestation = BaseModel<'contactAttestations'>;
 export type ContextLensRun = BaseModel<'contextLensRuns'>;
 
+/**
+ * The newest notebook activity in a group, as far as the local database can
+ * tell. Timestamps are milliseconds. The note fields are null when notebook
+ * recency is known but no matching local note or activity event is available.
+ */
+export interface GroupNotesActivity {
+  channelId: string;
+  notebookTitle: string | null;
+  noteId: string | null;
+  noteTitle: string | null;
+  authorId: string | null;
+  isNew: boolean;
+  timestamp: number;
+}
+
 export type Chat = {
   id: string;
   pin: Pin | null;
@@ -121,7 +136,10 @@ export type Chat = {
   timestamp: number;
   isPending: boolean;
   unreadCount: number;
-} & ({ type: 'group'; group: Group } | { type: 'channel'; channel: Channel });
+} & (
+  | { type: 'group'; group: Group; notesActivity?: GroupNotesActivity | null }
+  | { type: 'channel'; channel: Channel }
+);
 
 export interface GroupedChats {
   pinned: Chat[];

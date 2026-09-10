@@ -403,6 +403,9 @@ export const syncLatestChanges = async ({
     duration,
     nodeBusyStatus: result.nodeBusyStatus,
     hints: result.hints,
+    spinOutcome: result.spinOutcome,
+    spinDurationMs: result.spinDurationMs,
+    spinErrorClass: result.spinErrorClass ?? null,
     syncWindow: Date.now() - syncFrom,
     numPosts: result.posts.length,
     numGroups: result.groups.length,
@@ -503,8 +506,7 @@ export const syncLatestPosts = async (
     }
   } catch (e) {
     logger.trackError('failed to sync latest posts', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
     return () => Promise.resolve();
   }

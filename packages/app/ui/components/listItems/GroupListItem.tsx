@@ -1,6 +1,10 @@
 // sort-imports-ignore
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
+import {
+  notesNotebookFlagFromChannelId,
+  useWarmNotesNotebookSnapshot,
+} from '@tloncorp/shared/store';
 import { Pressable } from '@tloncorp/ui';
 import { TamaguiWebElement, View, isWeb } from 'tamagui';
 
@@ -15,6 +19,22 @@ import { OverflowTriggerButton } from '../OverflowMenuButton';
 import { ListItem, ListItemProps } from '../ListItem';
 import { getGroupStatus, getPostTypeIcon } from './listItemUtils';
 import type { GroupRecencyOverride } from './chatListRecency';
+
+function NotesActivitySubtitle({
+  override,
+}: {
+  override: GroupRecencyOverride;
+}) {
+  useWarmNotesNotebookSnapshot({
+    notebookFlag: notesNotebookFlagFromChannelId(override.channelId),
+  });
+
+  return (
+    <ListItem.SubtitleWithIcon icon="ChannelNotebooks">
+      {override.label}
+    </ListItem.SubtitleWithIcon>
+  );
+}
 
 export const GroupListItem = ({
   model,
@@ -146,9 +166,7 @@ export const GroupListItem = ({
           <ListItem.MainContent>
             <ListItem.Title>{title}</ListItem.Title>
             {recencyOverride ? (
-              <ListItem.SubtitleWithIcon icon="ChannelNotebooks">
-                {recencyOverride.label}
-              </ListItem.SubtitleWithIcon>
+              <NotesActivitySubtitle override={recencyOverride} />
             ) : customSubtitle ? (
               <ListItem.Subtitle>{customSubtitle}</ListItem.Subtitle>
             ) : isSingleChannel ? (

@@ -13,7 +13,6 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
-import { pinGroup } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -23,70 +22,6 @@ interface CreateGroupParams {
   title?: string;
   image?: string;
   memberIds?: string[];
-}
-
-export async function scaffoldPersonalGroup() {
-  const currentUserId = api.getCurrentUserId();
-  const PersonalGroupKeys = logic.getPersonalGroupKeys(currentUserId);
-  const groupIconUrl = logic.getRandomDefaultPersonalGroupIcon();
-
-  logger.trackEvent('Personal Group Scaffold', {
-    context: 'starting personal group scaffold',
-    method: 'thread creation',
-  });
-
-  try {
-    const personalGroup: db.Group = {
-      id: PersonalGroupKeys.groupId,
-      title: PersonalGroupKeys.groupName,
-      iconImage: groupIconUrl,
-      currentUserIsMember: true,
-      isPersonalGroup: true,
-      hostUserId: currentUserId,
-      currentUserIsHost: true,
-      privacy: 'secret',
-    };
-
-    const chatChannel: db.Channel = {
-      id: PersonalGroupKeys.chatChannelId,
-      groupId: PersonalGroupKeys.groupId,
-      type: 'chat',
-      title: PersonalGroupKeys.chatChannelName,
-      lastPostSequenceNum: 0,
-    };
-
-    const collectionChannel: db.Channel = {
-      id: PersonalGroupKeys.collectionChannelId,
-      groupId: PersonalGroupKeys.groupId,
-      type: 'gallery',
-      title: PersonalGroupKeys.collectionChannelName,
-      lastPostSequenceNum: 0,
-    };
-
-    const notebookChannel: db.Channel = {
-      id: PersonalGroupKeys.notebookChannelId,
-      groupId: PersonalGroupKeys.groupId,
-      type: 'notebook',
-      title: PersonalGroupKeys.notebookChannelName,
-      lastPostSequenceNum: 0,
-    };
-
-    personalGroup.channels = [chatChannel, collectionChannel, notebookChannel];
-
-    const createdGroup = await createGroup({ group: personalGroup });
-
-    // attempt to pin it
-    pinGroup(createdGroup);
-
-    logger.trackEvent('Completed Personal Group Scaffold', {
-      ...logic.getModelAnalytics({ group: { id: PersonalGroupKeys.groupId } }),
-    });
-  } catch (e) {
-    logger.trackEvent('Error Personal Group Scaffold', {
-      error: e,
-    });
-    throw new Error('Something went wrong');
-  }
 }
 
 export async function createDefaultGroup(
