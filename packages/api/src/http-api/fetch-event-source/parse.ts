@@ -180,7 +180,6 @@ export function getMessages(
           message.event = value;
           break;
         case 'id':
-          message = newMessage();
           onId?.((message.id = value));
           break;
         case 'retry':
