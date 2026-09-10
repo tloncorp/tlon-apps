@@ -57,30 +57,46 @@
 ::  +fingerprint: stable identity for a %fail, independent of line numbers
 ::
 ::    signature is human-readable, built from parts that survive a recompile:
-::      "/gall/groups | group join failed | se-c-join-access-denied | app/groups>sys/vane/gall"
-::    origin, the developer's message (first line of the echo), the first
-::    error tag in the tang, and the chain of source files in the stack
-::    trace with line numbers stripped. fingerprint is eight hex digits of
-::    its +mug. %tell events have no fingerprint.
+::      "/gall/groups | groups failed | nest-fail | on-agent/contact | -have.@p -need.%full | app/groups>sys/vane/gall"
+::    origin; the developer's message (first line of the echo); the first
+::    error tag in the tang (why); the last tag, usually a ~| dispatch hint
+::    (where); type detail from -have/-need lines and code= tokens; and the
+::    chain of source files in the stack with line numbers stripped.
+::    fingerprint is eight hex digits of its +mug. exact adds the innermost
+::    span with its line numbers, so it distinguishes crash sites within a
+::    release while fingerprint stays constant across releases.
+::    %tell events have no fingerprint.
 ::
 ++  fingerprint
   |=  [origin=path event=log-event]
-  ^-  (unit [fp=@t sig=@t])
+  ^-  (unit [fp=@t sig=@t exact=@t])
   ?.  ?=(%fail -.event)  ~
   =/  message=tape  (head-line echo.event)
   =/  lines=(list tape)  (tang-lines tang.event)
-  =/  reason=(unit tape)  (find-reason lines)
+  =/  tags=(list tape)  (find-tags lines)
+  =/  reason=(unit tape)  ?~(tags ~ `i.tags)
+  =/  where=(unit tape)
+    ?~  tags  ~
+    =/  last=tape  (rear tags)
+    ?:(=(last i.tags) ~ `last)
+  =/  detail=tape  (find-detail lines)
   =/  chain=tape  (file-chain lines)
   =/  sig=tape
     ;:  welp
       (spud origin)
       " | "  message
       ?~(reason "" (welp " | " u.reason))
+      ?~(where "" (welp " | " u.where))
+      ?:(=("" detail) "" (welp " | " detail))
       ?:(=("" chain) "" (welp " | " chain))
     ==
+  =/  site=tape
+    =/  spans  (skim lines |=(l=tape (span-line (trim-line l))))
+    ?~(spans "" (trim-line i.spans))
   :-  ~
-  :-  (crip ((x-co:co 8) (mug sig)))
-  (crip (scag 240 sig))
+  :+  (crip ((x-co:co 8) (mug sig)))
+    (crip (scag 240 sig))
+  (crip ((x-co:co 8) (mug (welp sig site))))
 ::  +tang-lines: wash a tang into lines, wide enough that spans don't wrap
 ::
 ++  tang-lines
@@ -111,47 +127,94 @@
       =(47 i.l)
       ?=(^ (find ":<[" l))
   ==
-::  +find-reason: the first error tag in a tang
+::  +tokens: split on spaces, dropping brackets and quotes
 ::
-::    a tag is a single token like "se-c-join-access-denied", or a
-::    %-prefixed one anywhere in the line like "[%bad-agent-take ~.contact ~]".
-::    spans, commit markers, key=value dumps and gall's own wire names
-::    ("watch-ack", "poke-fail") are skipped so they don't stand in for
-::    the actual cause.
+++  tokens
+  |=  l=tape
+  ^-  (list tape)
+  =/  toks=(list tape)
+    %+  murn  (split-spaces l)
+    |=  t=tape
+    =/  clean=tape  (skip t |=(c=@tD |(=(c 91) =(c 93) =(c 39))))
+    ?~(clean ~ `clean)
+  toks
 ::
-++  find-reason
-  |=  lines=(list tape)
-  ^-  (unit tape)
+++  split-spaces
+  |=  l=tape
+  ^-  (list tape)
+  =|  cur=tape
+  =|  out=(list tape)
   |-
-  ?~  lines  ~
-  =/  l=tape  (trim-line i.lines)
+  ?~  l
+    (flop ?~(cur out [(flop cur) out]))
+  ?:  =(32 i.l)
+    $(l t.l, cur ~, out ?~(cur out [(flop cur) out]))
+  $(l t.l, cur [i.l cur])
+::  +find-tags: every error tag in a tang, in order
+::
+::    a tag is a single lowercase token like "se-c-join-access-denied", or
+::    the %terms and ~.knots of a bracketed line like
+::    "[%bad-agent-take ~.contact ~]" joined as "bad-agent-take/contact",
+::    which is also how ~| dispatch hints render. spans, commit markers,
+::    key=value dumps, -have/-need lines and gall's own wire labels
+::    ("watch-ack", "poke-fail") are skipped: they say where, not why.
+::
+++  find-tags
+  |=  lines=(list tape)
+  ^-  (list tape)
+  %+  murn  lines
+  |=  line=tape
+  ^-  (unit tape)
+  =/  l=tape  (trim-line line)
   ?:  ?|  =(~ l)
           (span-line l)
           ?=(^ (find "commit " l))
+          ?=(^ (find "=" l))
+          &(?=(^ l) =(45 i.l))
       ==
-    $(lines t.lines)
-  =?  l  &(?=(^ l) =(91 i.l))  t.l
-  =/  tok=tape  (scag (fall (find " " l) (lent l)) l)
-  =/  single=?  =((lent tok) (lent l))
-  ?:  ?=(^ (find "=" tok))  $(lines t.lines)
-  =.  tok  (skip tok |=(c=@tD |(=(c 93) =(c 39))))  ::  drop ']' and quotes
-  =?  tok  &(?=(^ tok) =(37 i.tok))  t.tok
-  ?:  (gall-wire tok)  $(lines t.lines)
-  ?:  ?&  ?=(^ tok)
-          (gte i.tok 'a')
-          (lte i.tok 'z')
-          |(single (tagged (trim-line i.lines)))
-      ==
-    `tok
-  $(lines t.lines)
-::  +tagged: line starts with a %tag, bare or in brackets
+    ~
+  ?:  &(?=(^ l) =(91 i.l))
+    =/  parts=(list tape)
+      %+  murn  (tokens l)
+      |=  t=tape
+      ^-  (unit tape)
+      ?:  &(?=(^ t) =(37 i.t) ?=(^ t.t) (lower i.t.t))  `t.t
+      ?:  &(?=([@ @ *] t) =(126 i.t) =(46 i.t.t) ?=(^ t.t.t))  `t.t.t
+      ~
+    ?~  parts  ~
+    ?:  (gall-wire i.parts)  ~
+    `(zing (join "/" parts))
+  =/  toks  (tokens l)
+  ?.  ?=([* ~] toks)  ~
+  =/  t=tape  i.toks
+  =?  t  &(?=(^ t) =(37 i.t))  t.t
+  ?.  &(?=(^ t) (lower i.t))  ~
+  ?:  (gall-wire t)  ~
+  `t
 ::
-++  tagged
-  |=  l=tape
-  ^-  ?
-  ?|  &(?=(^ l) =(37 i.l))
-      &(?=([@ @ *] l) =(91 i.l) =(37 i.t.l))
-  ==
+++  lower
+  |=(c=@tD &((gte c 97) (lte c 122)))
+::  +find-detail: type and status detail that narrows a generic tag
+::
+::    "-have.@p -need.%full" for nest-fails, "code=500" for http failures.
+::    at most three items; user data never qualifies.
+::
+++  find-detail
+  |=  lines=(list tape)
+  ^-  tape
+  =/  items=(list tape)
+    %-  scag  :-  3
+    %+  murn  lines
+    |=  line=tape
+    ^-  (unit tape)
+    =/  l=tape  (trim-line line)
+    ?:  |(?=(^ (find "-have." l)) ?=(^ (find "-need." l)))
+      `(zing (join " " (tokens l)))
+    =/  toks  (tokens l)
+    ?.  ?=([* ~] toks)  ~
+    ?:  =("code=" (scag 5 i.toks))  `i.toks
+    ~
+  (zing (join " " items))
 ::  +gall-wire: gall's own labels for where a crash happened, not why
 ::
 ++  gall-wire
@@ -164,8 +227,7 @@
   ^-  (set @t)
   %-  sy
   :~  'poke-ack'  'watch-ack'  'poke-fail'  'watch-fail'  'fact'  'kick'
-      'agent'  'arvo'  'on-poke'  'on-watch'  'on-agent'  'on-arvo'
-      'on-init'  'on-load'  'on-leave'  'on-save'  'on-peek'  'on-fail'
+      'agent'  'arvo'  'on-fail'
   ==
 ::  +file-chain: source files in the stack, deduplicated, no line numbers
 ::

@@ -18,6 +18,7 @@
   =/  fpr  (need (fingerprint:logs /gall/test fail))
   =/  =log-data:l
     :~  'fingerprint'^s+fp.fpr
+        'fingerprint_exact'^s+exact.fpr
         'signature'^s+sig.fpr
         'commit'^s+'development'
     ==

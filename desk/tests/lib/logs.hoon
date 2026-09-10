@@ -26,8 +26,11 @@
     %+  expect-eq
       !>  8
       !>  (met 3 fp.fpr)
+    %+  expect-eq
+      !>  8
+      !>  (met 3 exact.fpr)
   ==
-::  line numbers change between commits; the fingerprint must not
+::  line numbers change between commits; fingerprint must not, exact should
 ::
 ++  test-fingerprint-ignores-line-numbers
   =/  a=log-event:l
@@ -42,10 +45,14 @@
         leaf+"'commit 0084cc9'"
         leaf+"/sys/vane/gall/hoon:<[1.870 9].[1.870 37]>"
     ==
-  %+  expect-eq
-    !>  fp:(need (fingerprint:logs /gall/groups a))
-    !>  fp:(need (fingerprint:logs /gall/groups b))
-::  %-prefixed tags inside brackets, and gall's "! " prefix
+  =/  fa  (need (fingerprint:logs /gall/groups a))
+  =/  fb  (need (fingerprint:logs /gall/groups b))
+  ;:  weld
+    (expect-eq !>(fp.fa) !>(fp.fb))
+    (expect !>(!=(exact.fa exact.fb)))
+  ==
+::  %-prefixed tags inside brackets keep their knots, and gall's "! " prefix
+::  is dropped
 ::
 ++  test-fingerprint-bracketed-tag
   =/  event=log-event:l
@@ -56,7 +63,27 @@
         leaf+"! /app/groups/hoon:<[2.833 7].[2.834 36]>"
     ==
   %+  expect-eq
-    !>  '/gall/groups | contacts failed | bad-agent-take | app/groups'
+    !>  '/gall/groups | contacts failed | bad-agent-take/contact | app/groups'
+    !>  sig:(need (fingerprint:logs /gall/groups event))
+::  a ~| dispatch hint becomes the "where" component, and -have/-need
+::  narrows a generic nest-fail
+::
+++  test-fingerprint-hint-and-detail
+  =/  event=log-event:l
+    :+  %fail  %error
+    :-  ~[leaf+"groups failed"]
+    :~  leaf+"%fact"
+        leaf+"! take %fact failed, closing subscription"
+        leaf+"! nest-fail"
+        leaf+"! -have.@p"
+        leaf+"! -need.%full"
+        leaf+"! /app/groups/hoon:<[1.160 9].[1.160 38]>"
+        leaf+"! [%on-agent ~.contact %fact]"
+        leaf+"! /app/groups/hoon:<[1.051 5].[1.051 24]>"
+        leaf+"! /sys/vane/gall/hoon:<[1.863 9].[1.863 37]>"
+    ==
+  %+  expect-eq
+    !>  '/gall/groups | groups failed | nest-fail | on-agent/contact/fact | -have.@p -need.%full | app/groups>sys/vane/gall'
     !>  sig:(need (fingerprint:logs /gall/groups event))
 ::  data dumps and multi-word lines are not tags; a tang with no tag still
 ::  yields a signature from message and file chain
@@ -68,14 +95,31 @@
     :~  leaf+"watch-ack"
         leaf+"/app/presence/hoon:<[421 5].[426 84]>"
         leaf+"/app/presence/hoon:<[418 5].[426 84]>"
+        leaf+"[context=/channel/chat/~zod/x src=~zod]"
         leaf+"/sys/vane/gall/hoon:<[1.850 9].[1.850 37]>"
     ==
   %+  expect-eq
     !>  '/gall/presence | context sub nacked, will retry | app/presence>sys/vane/gall'
     !>  sig:(need (fingerprint:logs /gall/presence event))
+::  http failure detail survives, ship names in hints do not
+::
+++  test-fingerprint-code-detail
+  =/  event=log-event:l
+    :+  %fail  %error
+    :-  ~[leaf+"notify failed"]
+    :~  leaf+"%arvo-response"
+        leaf+"! /app/notify/hoon:<[712 7].[727 70]>"
+        leaf+"! mime='text/plain; charset=utf8'"
+        leaf+"! code=500"
+        leaf+"! [%on-arvo ~.push ~sampel-palnet]"
+        leaf+"! /app/notify/hoon:<[708 7].[727 70]>"
+    ==
+  %+  expect-eq
+    !>  '/gall/notify | notify failed | arvo-response | on-arvo/push | code=500 | app/notify'
+    !>  sig:(need (fingerprint:logs /gall/notify event))
 ::
 ++  test-fingerprint-tell-has-none
   %+  expect-eq
-    !>  `(unit [fp=@t sig=@t])`~
+    !>  `(unit [fp=@t sig=@t exact=@t])`~
     !>  (fingerprint:logs /gall/groups [%tell %warn ~[leaf+"hello"]])
 --

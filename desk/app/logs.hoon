@@ -143,6 +143,7 @@
         =/  fpr  (fingerprint:l sap.bowl event.a-log)
         ?~  fpr  data.a-log
         :*  'fingerprint'^s+fp.u.fpr
+            'fingerprint_exact'^s+exact.u.fpr
             'signature'^s+sig.u.fpr
             data.a-log
         ==

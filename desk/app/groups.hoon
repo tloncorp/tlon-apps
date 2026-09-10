@@ -189,6 +189,7 @@
   ::
   ++  on-poke
     |=  [=mark =vase]
+    ~|  [%on-poke mark]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -196,6 +197,7 @@
     [cards this]
   ++  on-watch
     |=  =path
+    ~|  [%on-watch ?~(path %$ i.path)]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -214,6 +216,7 @@
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
+    ~|  [%on-agent ?~(wire %$ i.wire) -.sign]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state
@@ -221,6 +224,7 @@
     [cards this]
   ++  on-arvo
     |=  [=wire sign=sign-arvo]
+    ~|  [%on-arvo ?~(wire %$ i.wire)]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state

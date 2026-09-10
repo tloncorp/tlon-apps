@@ -324,6 +324,7 @@
 ::
 ++  on-poke
   |=  [=mark =vase]
+  ~|  [%on-poke mark]
   ^-  (quip card _this)
   ~|  mark=mark
   ?+  mark  !!
@@ -405,6 +406,7 @@
 ::
 ++  on-watch
   |=  =path
+  ~|  [%on-watch ?~(path %$ i.path)]
   ^-  (quip card _this)
   ?+  path  !!
       [%v1 ~]
@@ -437,6 +439,7 @@
 ::
 ++  on-agent
   |=  [=wire =sign:agent:gall]
+  ~|  [%on-agent ?~(wire %$ i.wire) -.sign]
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
@@ -609,6 +612,7 @@
 ::
 ++  on-arvo
   |=  [=wire sign=sign-arvo]
+  ~|  [%on-arvo ?~(wire %$ i.wire)]
   ^-  (quip card _this)
   ~|  wire=wire
   ?+  wire  ~|(%strange-wire !!)
