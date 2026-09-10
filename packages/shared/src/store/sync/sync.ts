@@ -14,8 +14,10 @@ import { SETTINGS_SINGLETON_KEY } from '../../db/schema';
 import { runIfDev } from '../../debug';
 import { AnalyticsEvent, AnalyticsSeverity } from '../../domain';
 import {
+  MIN_GROUPS_VERSION,
   activityVersionSupportsNotes,
   activityVersionSupportsReactions,
+  classifyDeskVersion,
 } from '../../logic';
 import { perfMark, perfTime } from '../../perfLog';
 import {
@@ -42,7 +44,12 @@ import { useLureState } from '../lure';
 import { markNotesNotebookStaleForNoteEvent } from '../notesActions';
 import { verifyPostDelivery } from '../postActions/verifyPostDelivery';
 import { clearPresenceState, handlePresenceEvent } from '../presence';
-import { getSession, setSession, updateSession } from '../session';
+import {
+  getClientGeneration,
+  getSession,
+  setSession,
+  updateSession,
+} from '../session';
 import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
@@ -63,8 +70,9 @@ export const syncInitData = async (
   queryCtx?: QueryCtx,
   yieldWriter?: boolean
 ): Promise<() => Promise<void>> => {
-  // the init endpoint version is capability-picked and this can run before
-  // syncAppInfo on a fresh boot — apply the persisted capabilities first
+  // the init endpoint version is capability-picked, and while sync start now
+  // resolves a fresh version before it gets here, that probe is allowed to fail
+  // — apply the persisted capabilities first so this never runs on the defaults
   await syncReactionSupport();
   const initData = await syncQueue.add('init', syncCtx, () =>
     api.getInitData()
@@ -333,10 +341,11 @@ export const syncLatestChanges = async ({
     };
   }
 
-  // this runs before syncStart's syncAppInfo on a fresh boot, and the
-  // changes endpoint version is capability-picked — apply the persisted
-  // capabilities first so a notes-capable ship's first window doesn't
-  // fetch v8 (which drops note sources) and advance the cursor past them
+  // the changes endpoint version is capability-picked, and this also runs
+  // outside sync start (background sync, foregrounding) where nothing has
+  // resolved a fresh version — apply the persisted capabilities first so a
+  // notes-capable ship's first window doesn't fetch v8 (which drops note
+  // sources) and advance the cursor past them
   await syncReactionSupport();
 
   const perfStop = perfMark('syncLatestChanges.total');
@@ -529,15 +538,33 @@ export const syncSettings = async (ctx?: SyncCtx) => {
   }
 };
 
-export const syncAppInfo = async (ctx?: SyncCtx) => {
-  const appInfo = await syncQueue.add('appInfo', ctx, () => api.getAppInfo());
+export const syncAppInfo = async (
+  ctx?: SyncCtx,
+  options?: {
+    timeout?: number;
+    /**
+     * Checked once the fetch lands. When it says the caller has moved on —
+     * logged out, replaced the client, given up waiting — nothing is applied or
+     * persisted and this resolves to null, so a late answer can't leak into the
+     * next session.
+     */
+    isStale?: () => boolean;
+  }
+) => {
+  const appInfo = await syncQueue.add('appInfo', ctx, () =>
+    api.getAppInfo({ timeout: options?.timeout })
+  );
+  if (options?.isStale?.()) {
+    return null;
+  }
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
-  return db.appInfo.setValue(appInfo);
+  await db.appInfo.setValue(appInfo);
+  return appInfo;
 };
 
 // Resolves the backend's reaction/notes capabilities from the last-known
@@ -2009,6 +2036,12 @@ export async function syncSequencedPosts(
 export async function syncInitialPosts(config: {
   syncSize: 'heavy' | 'light';
 }) {
+  if (getSession()?.deskCompat) {
+    // Startup is gated on desk compatibility. Return without marking the first
+    // sync done, so it still runs once the ship is updated.
+    return;
+  }
+
   try {
     const params = {
       // TODO: set defaults once we have perf data that's not
@@ -2204,8 +2237,14 @@ export const handleDiscontinuity = async (config: {
   }
 
   const session = getSession();
+  // The desk gate has to survive the reset: the notice is still the right UI
+  // until the re-probe inside syncStart says otherwise, and dropping it here
+  // flashes the app back on mid-recovery.
+  const deskCompat = session?.deskCompat;
   if (session?.channelStatus && config.retainChannelStatus) {
-    setSession({ channelStatus: session?.channelStatus });
+    setSession({ channelStatus: session.channelStatus, deskCompat });
+  } else if (deskCompat) {
+    setSession({ deskCompat });
   } else {
     updateSession(null);
   }
@@ -2213,8 +2252,10 @@ export const handleDiscontinuity = async (config: {
   // clear any existing channel queries
   clearChannelPostsQueries();
 
-  // finally, refetch start data
-  await syncStart(true);
+  // finally, refetch start data. A session gated before it ever subscribed has
+  // to recover as a cold start, or a newly compatible desk would never get its
+  // subscriptions set up.
+  await syncStart(deskCompat ? deskCompat.subscribed : true);
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {
@@ -2261,9 +2302,171 @@ export const handleChannelStatusChange = async (status: ChannelStatus) => {
 };
 
 let isSyncing = false;
+// Which client lifetime took the lock, so a start that outlives its own login
+// can't release a lock a newer one now holds.
+let syncLockGeneration: number | null = null;
 export function clearSyncStartLock() {
   isSyncing = false;
+  syncLockGeneration = null;
 }
+
+// Long enough to survive a slow ship, short enough that a hanging one doesn't
+// hold the cold-start spinner indefinitely.
+const DESK_PROBE_TIMEOUT = 10 * 1000;
+
+/**
+ * Startup probe: is the ship's %groups desk new enough to serve the paths the
+ * rest of sync start depends on? Returns false when startup should stop.
+ *
+ * Version only, and it fails open: a network error, a timeout, a missing docket
+ * charge or anything else unparseable proceeds exactly as before. The docket
+ * label is a proxy for path availability, not proof of it, so this errs towards
+ * the pre-existing behaviour rather than towards blocking.
+ *
+ * It doubles as the app-info sync that used to run at low priority, so this
+ * costs no extra requests: it still resolves the backend's reaction/notes
+ * capabilities before the activity feed and subscriptions pick their endpoint
+ * versions, falling back to the last-known persisted version if the fetch
+ * fails.
+ */
+const checkDeskCompatibility = async (
+  alreadySubscribed: boolean | undefined,
+  syncStartPriority: { high: number; low: number }
+) => {
+  const existingDeskCompat = getSession()?.deskCompat;
+  if (existingDeskCompat) {
+    // A retry from the notice. Keep the verdict it's displaying — the version,
+    // and whether the gated run was a recovery — so the shell keeps the notice
+    // on screen instead of dropping back to the cold-start spinner.
+    if (existingDeskCompat.status !== 'probing') {
+      updateSession({
+        deskCompat: { ...existingDeskCompat, status: 'probing' },
+      });
+    }
+  } else if (!alreadySubscribed) {
+    // Cold start: the shell holds a spinner while probing so the app never
+    // flashes on before the notice. A recovery sync already has a rendered app.
+    updateSession({
+      deskCompat: {
+        status: 'probing',
+        current: null,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: false,
+      },
+    });
+  }
+
+  // Whatever comes back has to belong to the login that asked for it: logout
+  // tears the client down mid-probe, and the next login — even to the same ship,
+  // which internalConfigureClient serves with the same Urbit object and ship
+  // name — must not inherit this one's verdict or persisted app info.
+  const probeGeneration = getClientGeneration();
+  const loginEnded = () =>
+    getSession() === null || getClientGeneration() !== probeGeneration;
+  let abandoned = false;
+  const isAbandoned = () => abandoned || loginEnded();
+
+  // The per-scry timeout isn't enough on its own: a 403 sends `scry` through
+  // `reauthOnce` and re-issues the request without one (urbit.ts), so bound the
+  // whole probe here as well.
+  let probeTimer: ReturnType<typeof setTimeout> | undefined;
+  const probeTimedOut = new Promise<null>((resolve) => {
+    probeTimer = setTimeout(() => {
+      abandoned = true;
+      resolve(null);
+    }, DESK_PROBE_TIMEOUT);
+  });
+
+  const appInfo = await Promise.race([
+    syncAppInfo(
+      { priority: syncStartPriority.high, retry: false },
+      { timeout: DESK_PROBE_TIMEOUT, isStale: isAbandoned }
+    ).catch((err) => {
+      logger.trackError('Desk compatibility probe failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return null;
+    }),
+    probeTimedOut,
+  ]).finally(() => clearTimeout(probeTimer));
+
+  if (loginEnded()) {
+    // Logged out, or re-clientted, while we waited. Leave the session alone and
+    // stop: whoever comes next runs their own sync start.
+    return false;
+  }
+
+  if (!appInfo) {
+    // Failed, or timed out and gave up. Fall back to the last-known persisted
+    // version for the capability flags, and let startup through as before.
+    syncReactionSupport().catch(() => {});
+  }
+
+  if (classifyDeskVersion(appInfo?.groupsVersion) === 'outdated') {
+    const current = appInfo?.groupsVersion ?? null;
+    updateSession({
+      deskCompat: {
+        status: 'incompatible',
+        current,
+        minimum: MIN_GROUPS_VERSION,
+        subscribed: !!alreadySubscribed,
+      },
+    });
+    logger.trackEvent(AnalyticsEvent.DeskIncompatible, {
+      current,
+      minimum: MIN_GROUPS_VERSION,
+      recovery: !!alreadySubscribed,
+    });
+    return false;
+  }
+
+  // Explicit clear, not a no-op: a previously gated session has to be able to
+  // recover in place once the ship updates.
+  updateSession({ deskCompat: undefined });
+  logger.crumb(`finished syncing app info`);
+  return true;
+};
+
+/**
+ * Re-run startup after the ship has (hopefully) been updated. Keeps the current
+ * client — dropping it would abort the SSE channel and any live subscriptions
+ * for no gain — and resumes with the same alreadySubscribed semantics the gated
+ * run had, so a recovery-time gate never double-subscribes.
+ *
+ * `onRecovered` is the caller's own post-start work. The shells chain it off
+ * their one `syncStart` call, which already resolved as a gated no-op, so a
+ * successful retry has to run it again — and they don't agree on what it is
+ * (mobile picks a sync size from the network, web always asks for a light one).
+ */
+export const retryDeskCompatibility = async (options?: {
+  onRecovered?: () => void | Promise<void>;
+}) => {
+  const deskCompat = getSession()?.deskCompat;
+  if (!deskCompat) {
+    return;
+  }
+
+  // Both the restore and the continuation below belong to the login that
+  // pressed the button: after a logout there is nothing to restore the notice
+  // for, and after a re-login the gate on screen is the new login's.
+  const retryGeneration = getClientGeneration();
+  const isSameLogin = () => getClientGeneration() === retryGeneration;
+
+  updateSession({ deskCompat: { ...deskCompat, status: 'probing' } });
+  try {
+    await syncStart(deskCompat.subscribed);
+  } finally {
+    if (isSameLogin() && getSession()?.deskCompat?.status === 'probing') {
+      // Either syncStart bailed on the sync lock or it threw, so nothing
+      // re-probed. Put the notice back rather than leaving Try again spinning.
+      updateSession({ deskCompat: { ...deskCompat, status: 'incompatible' } });
+    }
+  }
+
+  if (isSameLogin() && !getSession()?.deskCompat) {
+    await options?.onRecovered?.();
+  }
+};
 
 export const syncStart = async (alreadySubscribed?: boolean) => {
   if (isSyncing) {
@@ -2271,6 +2474,8 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     return;
   }
   isSyncing = true;
+  const startGeneration = getClientGeneration();
+  syncLockGeneration = startGeneration;
   updateSession({ phase: 'high' });
 
   if (!alreadySubscribed) {
@@ -2284,6 +2489,20 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
 
   try {
     let didLoadCachedContacts = false;
+
+    // if running while already subscribed, execute the sync with lower priority. It's
+    // needed for correctness, but expensive and usually inconsequential
+    const syncStartPriority = {
+      high: alreadySubscribed ? SyncPriority.Medium : SyncPriority.High,
+      low: alreadySubscribed ? SyncPriority.Low : SyncPriority.Medium,
+    };
+
+    if (!(await checkDeskCompatibility(alreadySubscribed, syncStartPriority))) {
+      // The ship's desk is too old to serve the paths the rest of this function
+      // needs. Stop before init, subscriptions and first-sync bookkeeping, and
+      // resolve rather than throw so every caller's success path is a no-op.
+      return;
+    }
 
     // it's important that this isn't within the main batchEffects block. If we're
     // returning from a cold open, we don't want to wait for all of High Priority sync
@@ -2301,13 +2520,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     if (!isE2eRun) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-
-    // if running while already subscribed, execute the sync with lower priority. It's
-    // needed for correctness, but expensive and usually inconsequential
-    const syncStartPriority = {
-      high: alreadySubscribed ? SyncPriority.Medium : SyncPriority.High,
-      low: alreadySubscribed ? SyncPriority.Low : SyncPriority.Medium,
-    };
 
     try {
       await batchEffects('sync start (high)', async (queryCtx) => {
@@ -2398,20 +2610,6 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     }
 
     updateSession({ phase: 'low' });
-    // Resolve the backend's reaction capability from the *current* version
-    // before the activity feed and subscription below pick their endpoint
-    // versions, so reactions work on first launch and right after a ship
-    // upgrade rather than only after a restart. Fall back to the last-known
-    // (persisted) version if the fresh fetch fails.
-    await syncAppInfo({ priority: syncStartPriority.low + 1 })
-      .then(() => logger.crumb(`finished syncing app info`))
-      .catch((err) => {
-        logger.trackError(
-          'Failed to sync app info; falling back to persisted version for reaction capability',
-          { error: err instanceof Error ? err.message : String(err) }
-        );
-        return syncReactionSupport().catch(() => {});
-      });
     const lowPriorityPromises = [
       alreadySubscribed
         ? Promise.resolve()
@@ -2476,8 +2674,17 @@ export const syncStart = async (alreadySubscribed?: boolean) => {
     await verifyUserInviteLink();
     db.userHasCompletedFirstSync.setValue(true);
   } finally {
-    updateSession({ phase: 'ready' });
-    isSyncing = false;
+    if (getClientGeneration() === startGeneration) {
+      // Only the login that started this run gets to mark it done; otherwise
+      // this resurrects a session the user has logged out of.
+      updateSession({ phase: 'ready' });
+    }
+    if (syncLockGeneration === startGeneration) {
+      // A newer login's start may already hold the lock (logout clears it, and
+      // the next start takes it) — that one releases it itself.
+      isSyncing = false;
+      syncLockGeneration = null;
+    }
   }
 };
 

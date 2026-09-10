@@ -382,17 +382,23 @@ export interface Pikes {
   [desk: string]: Pike;
 }
 
-export async function getAppInfo(): Promise<db.AppInfo> {
-  const pikes = await scry<Pikes>({
-    app: 'hood',
-    path: '/kiln/pikes',
-  });
-  const charges = (
-    await scry<ChargeUpdateInitial>({
+export async function getAppInfo({
+  timeout,
+}: { timeout?: number } = {}): Promise<db.AppInfo> {
+  // Parallel rather than sequential: startup gates on this, so the two scries
+  // should cost one round trip, not two.
+  const [pikes, charges] = await Promise.all([
+    scry<Pikes>({
+      app: 'hood',
+      path: '/kiln/pikes',
+      timeout,
+    }),
+    scry<ChargeUpdateInitial>({
       app: 'docket',
       path: '/charges',
-    })
-  ).initial;
+      timeout,
+    }).then((update) => update?.initial),
+  ]);
 
   const groupsPike = pikes?.['groups'] ?? {};
   const groupsCharge = charges?.['groups'] ?? {};
