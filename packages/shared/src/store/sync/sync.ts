@@ -2260,6 +2260,12 @@ export const handleDiscontinuity = async (config: {
   // to recover as a cold start, or a newly compatible desk would never get its
   // subscriptions set up.
   await syncStart(deskGate ? deskGate.subscribed : true);
+
+  if (deskGate && getSession()?.deskCompat?.status === 'ok') {
+    // The gate cleared on this restart, so the shells' post-start prefetch —
+    // which returned as a no-op while it was up — has to be redone here.
+    syncInitialPosts({ syncSize: 'light' }).catch(() => {});
+  }
 };
 
 export const handleChannelStatusChange = async (status: ChannelStatus) => {

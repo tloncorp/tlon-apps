@@ -887,6 +887,9 @@ describe('desk compatibility gate', () => {
       if (app === 'groups-ui' && path.startsWith('/v4/heads')) {
         return headsData;
       }
+      if (app === 'groups-ui' && path.startsWith('/v6/init-posts/')) {
+        return { channels: {}, chat: {} };
+      }
       // The remaining paths are incidental to the gate, but the ones whose
       // sync contexts set retry: true cost seconds of backoff if they throw,
       // so hand them an empty-but-valid response.
@@ -1573,6 +1576,7 @@ describe('desk compatibility gate', () => {
       expect(seen.length).toBeGreaterThan(0);
       expect(seen.every((deskCompat) => deskCompat != null)).toBe(true);
       expect(getSession()?.deskCompat?.status).toBe('incompatible');
+      expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
     },
     FULL_SYNC_TIMEOUT
   );
@@ -1594,6 +1598,27 @@ describe('desk compatibility gate', () => {
       expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
       // It never subscribed while gated, so recovery has to do it now.
       expect(vi.mocked(subscribe)).toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'recovers the initial-post prefetch a gate skipped',
+    async () => {
+      reportedDeskVersion = '12.1.0';
+      await syncStart();
+      // The shells' post-start call already ran, as a no-op.
+      expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
+
+      reportedDeskVersion = MIN_GROUPS_VERSION;
+      await handleDiscontinuity({ context: 'test' });
+
+      // Nothing re-invokes the shells here, so the recovery owes them the
+      // prefetch they lost.
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+      await vi.waitFor(() =>
+        expect(setDidSyncInitialPosts).toHaveBeenCalledWith(true)
+      );
     },
     FULL_SYNC_TIMEOUT
   );
