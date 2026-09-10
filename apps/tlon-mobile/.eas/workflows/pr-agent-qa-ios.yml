@@ -72,17 +72,16 @@ jobs:
       - id: run
         name: Verify build, log in, and run bounded agent QA
         env:
-          QA_APP_PATH: ${{ steps.download.outputs.artifact_path }}
           QA_MAESTRO_BIN: /tmp/qa-maestro/maestro/bin/maestro
         run: |
-          node ../../scripts/agent-qa/run.mjs
+          node ../../scripts/agent-qa/run.mjs "${{ steps.download.outputs.artifact_path }}"
           set-output report "$(cat ../../artifacts/agent-qa/report.md)"
       - uses: eas/upload_artifact
         if: ${{ always() }}
         with:
           type: other
           name: ios-agent-qa
-          path: ../../artifacts/agent-qa/**
+          path: artifacts/agent-qa/**
 
   report:
     after: [build_ios, qa_ios]

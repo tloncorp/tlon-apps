@@ -129,14 +129,20 @@ async function prepare() {
   if (context.pr) {
     const base = context.pr.base.sha;
     if (!/^[a-f0-9]{40}$/.test(base)) throw new Error('Missing PR base commit');
-    await run('git', ['fetch', '--no-tags', '--depth=1', 'origin', base]);
+    await run('git', [
+      'fetch',
+      '--no-tags',
+      '--deepen=256',
+      'origin',
+      base,
+      harnessSha,
+    ]);
     diff = await run('git', [
       'diff',
       '--no-ext-diff',
       '--no-textconv',
       '--unified=3',
-      base,
-      harnessSha,
+      `${base}...${harnessSha}`,
       '--',
       'apps/tlon-mobile',
       'packages/app',
@@ -152,7 +158,8 @@ async function prepare() {
         'Mobile diff exceeds the agent context budget; split or narrow this PR'
       );
   }
-  const original = path.resolve(env.QA_APP_PATH || '');
+  const original = path.resolve(process.argv[2] || env.QA_APP_PATH || '');
+  console.log(`Preparing EAS artifact: ${original}`);
   if (!original.endsWith('.app'))
     throw new Error('Expected an extracted iOS Simulator .app artifact');
   const bundleId = (
