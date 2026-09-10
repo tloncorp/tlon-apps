@@ -26,7 +26,10 @@ export async function connectShips(env) {
     upstream.username ||
     upstream.password ||
     upstream.pathname !== '/' ||
-    !/^[a-z0-9-]+\.(ngrok-free\.app|ngrok\.app|ngrok\.io)$/.test(
+    upstream.port ||
+    upstream.search ||
+    upstream.hash ||
+    !/^[a-z0-9-]+\.(ngrok-free\.(?:app|dev)|ngrok\.app|ngrok\.io)$/.test(
       upstream.hostname
     ) ||
     !/^[a-f0-9]{64}$/.test(env.QA_TUNNEL_TOKEN || '')
@@ -72,6 +75,7 @@ export async function connectShips(env) {
           ...req.headers,
           host: upstream.host,
           'x-qa-token': env.QA_TUNNEL_TOKEN,
+          'ngrok-skip-browser-warning': '1',
         },
       },
       (incoming) => {

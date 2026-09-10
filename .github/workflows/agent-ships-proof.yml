@@ -58,11 +58,12 @@ jobs:
         run: node scripts/agent-qa/dispatch-ships.mjs
       - name: Verify peer evidence
         run: test -f "$PROOF_OUTPUT/peer-result.json" && cat "$PROOF_OUTPUT/peer-result.json"
-      - name: Snapshot successful ships after clean shutdown
-        if: steps.snapshot.outputs.cache-hit != 'true'
+      - name: Snapshot validated backend after clean shutdown
+        id: capture
+        if: always() && steps.ships.outcome == 'success' && steps.snapshot.outputs.cache-hit != 'true' 
         run: bash .maestro/cloud-fakeship/snapshot.sh
       - name: Save prepared ships
-        if: success() && steps.snapshot.outputs.cache-hit != 'true'
+        if: always() && steps.capture.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: .proof-snapshot

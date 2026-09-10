@@ -26,6 +26,10 @@ mkdir -p .proof-snapshot
 mv "$dist/zod" "$dist/ten" .proof-snapshot/
 cp -a "$dist/urbit_extracted/urbit" .proof-snapshot/urbit
 mv .peru/cache .proof-snapshot/peru-cache
-cp "$PROOF_OUTPUT/peer-result.json" .proof-snapshot/
+# A UI failure must not discard an already validated backend. The next restore
+# uses only this fixture's group ID to prove that nuke/revive cleared its state.
+receipt="$PROOF_OUTPUT/peer-result.json"
+[ -f "$receipt" ] || receipt="$PROOF_OUTPUT/peer-ready.json"
+cp "$receipt" .proof-snapshot/peer-result.json
 du -sh .proof-snapshot
 printf '{"snapshotSeconds":%s}\n' "$((SECONDS-start))" > "$PROOF_OUTPUT/snapshot.json"

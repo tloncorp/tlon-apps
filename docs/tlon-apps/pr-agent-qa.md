@@ -120,3 +120,39 @@ Run `node --test scripts/agent-qa/core.test.mjs` and, from `apps/tlon-mobile`,
 --non-interactive` after harness changes. Validate tool changes remotely against
 an existing build. Native build reuse/repack and Android are follow-ups; this
 version intentionally builds the app for each labeled PR revision.
+
+## Disposable Blacksmith ships (experiment)
+
+`.github/workflows/agent-ships-proof.yml` prepares two fake ships with Rube on
+Blacksmith, then dispatches this EAS workflow against an existing iOS build.
+It is a manual harness experiment, not certification of a PR's frontend.
+The backend uses the selected GitHub revision; the report records both app and
+backend commits separately. The experiment push trigger is restricted to its
+workflow file on `db/pr-agent-qa-ios`.
+
+The backend controller creates one unique group, sends a message from ~ten,
+and waits for the exact mobile reply from ~zod. The agent opens the group,
+checks the peer message, sends the reply, and checks the live acknowledgment.
+A passing EAS result also requires a separate authenticated backend receipt
+matching the source revision, fixture, and both ships' desk hashes. Video uses
+the existing recording and artifact path.
+
+The EAS host exposes a loopback proxy for the simulator. That proxy adds
+`QA_TUNNEL_TOKEN` when connecting to the HTTPS ngrok tunnel; the public backend
+proxy rejects requests without it. The app and device tools do not receive the
+tunnel token. GitHub and EAS preview require the same secret. GitHub also needs
+`MAESTRO_FAKE_SHIP_NGROK_TOKEN` and its existing `EXPO_TOKEN`. Local credentials
+are not needed to run a configured job.
+
+Prepared snapshots use the handoff's backend-input cache key and clean shutdown
+procedure. Once backend preparation passes, a cold snapshot can be saved even
+if the later UI test fails. Each restored copy is reset, and the prior fixture must be absent.
+Backend changes require a new snapshot; warm timing does not imply fast cold
+compilation. Snapshot compatibility changes require a key-version bump. The
+runtime is retained with each snapshot; cold runtime selection remains a
+follow-up. The experiment serializes runs and limits the backend lease.
+
+The compatibility proxy still changes the SSE content type for the older app
+binary. A current app with the parser fix must be qualified without that shim
+before removing it. Automatic PR backend selection, cross-PR parallelism, and
+automatic video publishing credentials remain separate follow-ups.
