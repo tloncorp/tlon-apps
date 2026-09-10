@@ -17,6 +17,7 @@ const baseTurn = {
   accountId: 'hosted',
   agentId: 'main',
   destinationKind: 'dm' as const,
+  inputMessageId: '~nec/111',
   runId: 'run-1',
   sessionKey: 'agent:main:tlon:direct:~nec',
   ship: '~zod',
@@ -392,9 +393,13 @@ describe('Tlon agent turn classification', () => {
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
       destinationKind: 'dm',
+      dispatch: 'attempted',
+      dispatchAttemptCount: 1,
+      dispatchExpected: true,
       durationMs: 1250,
       execution: 'completed',
       finalErrorReplyCount: 0,
+      inputMessageId: '~nec/111',
       lastToolError: null,
       reason: 'reply_and_action',
       result: 'reply_and_action',
@@ -558,6 +563,8 @@ describe('Tlon agent turn async scope', () => {
       delivery: 'delivered',
       deliveryFailureCount: 0,
       deliverySuccessCount: 1,
+      dispatch: 'attempted',
+      dispatchAttemptCount: 1,
     });
 
     const failure = startTlonAgentTurn(
@@ -576,7 +583,66 @@ describe('Tlon agent turn async scope', () => {
       delivery: 'failed',
       deliveryFailureCount: 1,
       deliverySuccessCount: 0,
+      dispatch: 'attempted',
+      dispatchAttemptCount: 1,
     });
+  });
+
+  it('records dispatch attempts and correlated output message IDs', async () => {
+    const recordDispatchAttempted = vi.fn();
+    const recordDispatchFailed = vi.fn();
+    const recordMoonReplyEnqueued = vi.fn();
+    const observer: TlonAgentTurnObserver = {
+      recordDispatchAttempted,
+      recordDispatchFailed,
+      recordMoonReplyEnqueued,
+      recordStarted: () => undefined,
+      recordTerminal: () => undefined,
+    };
+    const turn = startTlonAgentTurn(baseTurn, { observer });
+
+    await turn.run(() =>
+      observeActiveTlonTurnDelivery(async () => ({
+        channel: 'tlon',
+        messageId: '~zod/222',
+      }))
+    );
+
+    expect(recordDispatchAttempted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        inputMessageId: '~nec/111',
+        runId: 'run-1',
+      })
+    );
+    expect(recordMoonReplyEnqueued).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        inputMessageId: '~nec/111',
+        outputMessageId: '~zod/222',
+        runId: 'run-1',
+      })
+    );
+
+    const failedTurn = startTlonAgentTurn(
+      { ...baseTurn, runId: 'run-2' },
+      { observer }
+    );
+    await expect(
+      failedTurn.run(() =>
+        observeActiveTlonTurnDelivery(async () => {
+          throw new TypeError('send failed');
+        })
+      )
+    ).rejects.toThrow('send failed');
+    expect(recordDispatchFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attemptNumber: 1,
+        errorKind: 'TypeError',
+        inputMessageId: '~nec/111',
+        runId: 'run-2',
+      })
+    );
   });
 
   it('keeps observer failures out of the dispatch path', async () => {
@@ -660,6 +726,7 @@ describe('Tlon agent turn OTEL observer', () => {
         attributes: {
           delivery: 'delivered',
           destination_kind: 'dm',
+          dispatch: 'attempted',
           execution: 'completed',
           reason: 'reply',
           result: 'reply',
@@ -672,6 +739,7 @@ describe('Tlon agent turn OTEL observer', () => {
         attributes: {
           delivery: 'delivered',
           destination_kind: 'dm',
+          dispatch: 'attempted',
           execution: 'completed',
           reason: 'reply',
           result: 'reply',
@@ -679,17 +747,32 @@ describe('Tlon agent turn OTEL observer', () => {
         },
       },
     ]);
-    expect(info).toHaveBeenCalledWith('tlon.agent_turn.terminal', {
+    expect(info).toHaveBeenNthCalledWith(
+      1,
+      'tlon.message_journey.turn_started',
+      expect.objectContaining({
+        'tlon.message_journey.bot_ship': 'zod',
+        'tlon.message_journey.event': 'turn_started',
+        'tlon.message_journey.input_message_id': '~nec/111',
+        'tlon.message_journey.run_id': 'run-1',
+        'tlon.message_journey.schema_version': 1,
+      })
+    );
+    expect(info).toHaveBeenNthCalledWith(2, 'tlon.agent_turn.terminal', {
       'tlon.turn.account_id': 'hosted',
       'tlon.turn.agent_id': 'main',
       'tlon.turn.delivery': 'delivered',
       'tlon.turn.delivery_failure_count': 0,
       'tlon.turn.delivery_success_count': 1,
       'tlon.turn.destination_kind': 'dm',
+      'tlon.turn.dispatch': 'attempted',
+      'tlon.turn.dispatch_attempt_count': 1,
+      'tlon.turn.dispatch_expected': true,
       'tlon.turn.duration_ms': 2500,
       'tlon.turn.event': 'tlon.agent_turn.terminal',
       'tlon.turn.execution': 'completed',
       'tlon.turn.final_error_reply_count': 0,
+      'tlon.turn.input_message_id': '~nec/111',
       'tlon.turn.reason': 'reply',
       'tlon.turn.result': 'reply',
       'tlon.turn.run_id': 'run-1',

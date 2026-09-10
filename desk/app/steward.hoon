@@ -1,18 +1,19 @@
 ::  steward: harness-agnostic umbrella agent
 ::
 ::    an agent that manages our harnesses. it currently tracks the state of the
-::    harness gateway, as well as execution runs for each bot message.
+::    harness gateway and execution runs, and emits message-delivery telemetry.
 ::
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
-::    modules keep their own sur (sur/steward/{lens,gateway}.hoon) and marks
-::    (%steward-{lens,gateway}-{action,update}-1); %steward-action-1 carries
-::    only cross-cutting config (the shared owner).
+::    protocol-bearing modules keep their own sur and marks. the stateless
+::    journey observer has no protocol; %steward-action-1 carries only
+::    cross-cutting config (the shared owner).
 ::
-/-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
+/-  s=steward, a=activity, av=activity-ver, c=chat, ch=channels, co=contacts
+/-  cv=chat-ver, chv=channels-ver, st=story
 /-  sl=steward-lens, sg=steward-gateway
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, logs, utils=channel-utils
 |%
 +$  card  card:agent:gall
 ::  %steward is greenfield (unreleased), so it has a single state version and
@@ -50,7 +51,7 @@
   ++  on-init
     ^-  (quip card _this)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [~[watch-activity:cor] this]
+    [~[watch-activity:cor watch-journey-chat:cor watch-journey-channels:cor] this]
   ++  on-save  !>(state)
   ++  on-load
     |=  ole=vase
@@ -59,7 +60,17 @@
     ::  only reachable pre-release; let it crash so we nuke rather than
     ::  silently wipe.
     ::
-    `this(state !<(state-0 ole))
+    =.  state  !<(state-0 ole)
+    =/  cards=(list card)  ~
+    =.  cards
+      ?:  (~(has by wex.bowl) [/journey/chat our.bowl %chat])
+        cards
+      [watch-journey-chat:cor cards]
+    =.  cards
+      ?:  (~(has by wex.bowl) [/journey/channels our.bowl %channels])
+        cards
+      [watch-journey-channels:cor cards]
+    [cards this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -179,6 +190,45 @@
       ((slog 'steward: activity watch nacked' u.p.sign) cor)
     ==
   ::
+      [%journey %chat ~]
+    ?+    -.sign  cor
+        %fact
+      ?.  =(%writ-response-4 p.cage.sign)  cor
+      =/  payload=[whom:c response:writs:c]
+        !<([whom:c response:writs:c] q.cage.sign)
+      (jo-observe:jo-core payload)
+    ::
+        %kick
+      (emit watch-journey-chat)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey chat watch nacked' u.p.sign) cor)
+    ==
+  ::
+      [%journey %channels ~]
+    ?+    -.sign  cor
+        %fact
+      ?.  =(%channel-response-5 p.cage.sign)  cor
+      =/  response=r-channels:v10:chv
+        !<(r-channels:v10:chv q.cage.sign)
+      (jo-observe-channel:jo-core response)
+    ::
+        %kick
+      (emit watch-journey-channels)
+    ::
+        %watch-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey channels watch nacked' u.p.sign) cor)
+    ==
+  ::
+      [%journey %logs ~]
+    ?+  -.sign  cor
+        %poke-ack
+      ?~  p.sign  cor
+      ((slog 'steward: journey log poke nacked' u.p.sign) cor)
+    ==
+  ::
       [%gateway %dm %send ~]
     ?+  -.sign  cor
         %poke-ack
@@ -199,6 +249,171 @@
 ++  watch-activity
   ^-  card
   [%pass /activity %agent [our.bowl %activity] %watch /v5]
+::
+++  watch-journey-chat
+  ^-  card
+  [%pass /journey/chat %agent [our.bowl %chat] %watch /v4]
+::
+++  watch-journey-channels
+  ^-  card
+  [%pass /journey/channels %agent [our.bowl %channels] %watch /v4]
+::  |jo-core: content-free backend journey telemetry for OpenClaw messages
+::
+::  this module is deliberately stateless. a DM or group post is eligible only
+::  when the relevant %contacts profile already contains bot-info JSON
+::  identifying an OpenClaw harness. missing or malformed markers fail closed.
+::
+++  jo-core
+  |%
+  ++  jo-contact-for
+    |=  who=ship
+    ^-  (unit contact:co)
+    ?:  =(who our.bowl)
+      `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
+    ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who))
+      ~
+    `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who)/contact-1)
+  ::
+  ++  jo-valid-text
+    |=  jon=(unit json)
+    ^-  ?
+    ?~  jon  |
+    ?.  ?=([%s *] u.jon)  |
+    ?&  !=('' p.u.jon)
+        (lte (lent (trip p.u.jon)) 64)
+    ==
+  ::
+  ++  jo-is-openclaw
+    |=  who=ship
+    ^-  ?
+    =/  con=(unit contact:co)  (jo-contact-for who)
+    ?~  con  |
+    ?~  info=(~(get by u.con) %bot-info)  |
+    ?.  ?=([%text *] u.info)  |
+    ?.  (lte (met 3 p.u.info) 512)  |
+    ?~  jon=(de:json:html p.u.info)  |
+    ?.  ?=([%o *] u.jon)  |
+    ?~  schema-version=(~(get by p.u.jon) 'v')  |
+    ?.  =([%n '1'] u.schema-version)  |
+    ?~  harness=(~(get by p.u.jon) 'harness')  |
+    ?.  ?=([%s *] u.harness)  |
+    ?.  (jo-valid-text harness)  |
+    ?.  =('openclaw' p.u.harness)  |
+    =/  claim-ver=(unit json)  (~(get by p.u.jon) 'version')
+    ?.  (jo-valid-text claim-ver)  |
+    =/  harness-ver=(unit json)  (~(get by p.u.jon) 'harnessVersion')
+    ?~  harness-ver  &
+    (jo-valid-text harness-ver)
+  ::
+  ++  jo-message
+    |=  response=response:writs:c
+    ^-  (unit [id=id:c author=author:c])
+    ?-  -.response.response
+      %add
+        `[id.response author.essay.response.response]
+      %del  ~
+      %reply
+        =*  delta  delta.response.response
+        ?.  ?=(%add -.delta)  ~
+        `[id.response.response author.reply-essay.delta]
+      %add-react  ~
+      %del-react  ~
+    ==
+  ::
+  ++  jo-channel-message
+    |=  response=r-channels:v10:chv
+    ^-  (unit [nest=nest:ch id=id:c author=ship])
+    =*  nest  nest.response
+    =*  r-channel  r-channel.response
+    ?.  ?=(%post -.r-channel)  ~
+    =*  r-post  r-post.r-channel
+    ?-  -.r-post
+      %set
+        ?:  ?=(%| -.post.r-post)  ~
+        =/  post=post:v10:chv  +.post.r-post
+        =/  author=ship  (get-author-ship:utils author.post)
+        `[nest [author id.r-channel] author]
+      %reply
+        =*  r-reply  r-reply.r-post
+        ?.  ?=(%set -.r-reply)  ~
+        ?:  ?=(%| -.reply.r-reply)  ~
+        =/  reply=reply:v10:chv  +.reply.r-reply
+        =/  author=ship  (get-author-ship:utils author.reply)
+        `[nest [author id.r-post] author]
+      %reacts  ~
+      %essay   ~
+    ==
+  ::
+  ++  jo-log
+    |=  [stage=@t =id:c owner=ship bot=ship destination=@t]
+    ^+  cor
+    =/  message-id=@t
+      (rap 3 (scot %p p.id) '/' (scot %ud q.id) ~)
+    =/  id-key=@t
+      ?:  ?|  =(stage 'moon_reply_persisted')
+              =(stage 'owner_reply_persisted')
+              =(stage 'group_host_reply_persisted')
+              =(stage 'owner_group_reply_persisted')
+          ==
+        'tlon.message_journey.output_message_id'
+      'tlon.message_journey.input_message_id'
+    =/  data=log-data:logs
+      :~  `(pair @t json)`['tlon.message_journey.schema_version' [%n '1']]
+          'tlon.message_journey.event'^s+stage
+          'tlon.message_journey.message_id'^s+message-id
+          id-key^s+message-id
+          'tlon.message_journey.owner_ship'^s+(scot %p owner)
+          'tlon.message_journey.bot_ship'^s+(scot %p bot)
+          'tlon.message_journey.destination_kind'^s+destination
+          'tlon.message_journey.source'^s+'steward/journey'
+      ==
+    =/  body=@t  (cat 3 'tlon.message_journey.' stage)
+    =/  echo=echo:logs  ~[`tank`body]
+    (emit (~(tell logs bowl /journey/logs) %info echo data))
+  ::
+  ++  jo-observe
+    |=  [=whom:c response=response:writs:c]
+    ^+  cor
+    ?.  ?=(%ship -.whom)  cor
+    =/  peer=ship  p.whom
+    ?~  msg=(jo-message response)  cor
+    =/  author=author:c  author.u.msg
+    =/  author-ship=ship  (get-author-ship:utils author)
+    =/  peer-is-child=?
+      =(our.bowl (sein:title our.bowl now.bowl peer))
+    =/  peer-is-owner=?
+      =(peer (sein:title our.bowl now.bowl our.bowl))
+    ?:  =(author-ship our.bowl)
+      ?:  peer-is-child
+        ?.  (jo-is-openclaw peer)  cor
+        (jo-log 'owner_input_accepted' id.u.msg our.bowl peer 'dm')
+      ?.  peer-is-owner  cor
+      ?.  (jo-is-openclaw our.bowl)  cor
+      (jo-log 'moon_reply_persisted' id.u.msg peer our.bowl 'dm')
+    ?:  peer-is-child
+      ?.  (jo-is-openclaw peer)  cor
+      (jo-log 'owner_reply_persisted' id.u.msg our.bowl peer 'dm')
+    ?.  peer-is-owner  cor
+    ?.  (jo-is-openclaw our.bowl)  cor
+    (jo-log 'moon_input_persisted' id.u.msg peer our.bowl 'dm')
+  ::
+  ++  jo-observe-channel
+    |=  response=r-channels:v10:chv
+    ^+  cor
+    ?~  msg=(jo-channel-message response)  cor
+    =/  bot=ship  author.u.msg
+    =/  owner=ship  (sein:title our.bowl now.bowl bot)
+    =/  host=ship  ship.nest.u.msg
+    ?.  ?|(=(our.bowl host) =(our.bowl owner))  cor
+    ?.  (jo-is-openclaw bot)  cor
+    =.  cor
+      ?:  =(our.bowl host)
+        (jo-log 'group_host_reply_persisted' id.u.msg owner bot 'group_channel')
+      cor
+    ?:  =(our.bowl owner)
+      (jo-log 'owner_group_reply_persisted' id.u.msg owner bot 'group_channel')
+    cor
+  --
 ::  |le-core: lens module
 ::
 ++  le-core

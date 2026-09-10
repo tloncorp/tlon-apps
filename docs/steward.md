@@ -11,6 +11,7 @@ Ship-native umbrella agent: the durable, always-on ship-side half of an ephemera
 | (core)    | `sur/steward.hoon`        | `%steward-action-1`                                    |
 | `lens`    | `sur/steward/lens.hoon`   | `%steward-lens-action-1`, `%steward-lens-update-1`     |
 | `gateway` | `sur/steward/gateway.hoon`| `%steward-gateway-action-1`, `%steward-gateway-update-1` |
+| `journey` | —                         | —                                                      |
 
 Each sur file is versioned on its own (`++v1`), referenced by callers as `action:v1:lens`, `update:v1:gateway`, etc. The core `sur/steward.hoon` carries only cross-cutting config (currently just `%configure`); each module's protocol lives in its own file.
 
@@ -20,8 +21,9 @@ Modules:
 |-----------|------------------------------------------------------------------------|
 | `lens`    | Per-run bot introspection (folded in from the former `%context-lens`). |
 | `gateway` | Harness liveness tracking + offline DM auto-replies.                   |
+| `journey` | Content-free OpenClaw DM delivery telemetry.                           |
 
-The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway. Adding a new module means a new `sur/steward/<module>.hoon`, its own mark family, and a dispatch arm in the app — existing modules and marks are untouched.
+The app helper core keeps each module's logic in its own sub-core: `le-core` for lens, `ga-core` for gateway, and `jo-core` for journey observation. Protocol-bearing modules have their own `sur/steward/<module>.hoon` and mark family. The journey module is internal and stateless, so it adds neither.
 
 ## state model
 
@@ -75,6 +77,12 @@ Tracks the liveness of an external harness process and sends offline DM auto-rep
 The harness reports its lifecycle via the gateway action: `%gateway-start` (with a `boot-id` and a lease expiry), periodic `%gateway-heartbeat`s that extend the lease, and a graceful `%gateway-stop`. A behn timer on `/gateway/lease-check` fires at the lease expiry; if no heartbeat renewed it, the gateway is marked `%down`. `boot-id` matching distinguishes graceful-stop recovery from crash recovery exactly as in the original agent (stop clears `boot-id` so late heartbeats can't revive it; crash/expiry retains it so a delayed heartbeat can).
 
 While the gateway is not live, a DM from the configured `owner` triggers a canned offline auto-reply to that ship (subject to a dedupe on the triggering message key and a `reply-cooldown`). Around stop/start transitions, a "restarting" / "back online" notice is sent to the owner if they messaged within `active-window`. Inbound owner DMs are observed via a subscription to `%activity /v5`.
+
+## module: journey
+
+Emits content-free delivery telemetry for OpenClaw bot DMs from the owner and bot backends. The module subscribes directly to `%chat /v4` on `/journey/chat` so it sees both locally authored and remotely received messages. For each DM, it synchronously checks the relevant `%contacts` profile for a `bot-info` text field whose JSON identifies `"harness":"openclaw"`; missing or malformed markers emit nothing. The observer stores no state and adds no poke, watch, or scry surface.
+
+The four backend stages are `owner_input_accepted`, `moon_input_persisted`, `moon_reply_persisted`, and `owner_reply_persisted`. They use the canonical chat message ID (`ship/timestamp`) as `input_message_id` or `output_message_id` and emit through `%logs` with source `steward/journey`. See `packages/openclaw/docs/message-journey-observability.md` for the full cross-system contract and alert query.
 
 `owner` is the shared top-level `(unit ship)`, set via the core `%configure`, so a harness sends two pokes at startup: the core `%configure` for the owner, then the gateway `%configure` for timings. The gateway action's own `%configure` carries only timing (`active-window`, `reply-cooldown`); the owner is set once at the core level.
 
@@ -151,9 +159,9 @@ All lens scries return the `%steward-lens-update-1` mark so the HTTP client read
 
 ## lifecycle and invariants
 
-- `on-init` subscribes to `%activity /v5` for the gateway module and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
-- `on-load` accepts the single `state-0`, else resets to bunt (re-seeding the cap and re-subscribing to `%activity`). The agent is greenfield/unreleased, so there are no migration arms — versioned state + migrations get added back when something actually ships.
-- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`. The `%activity` subscription is re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
+- `on-init` subscribes to `%activity /v5` for the gateway module and `%chat /v4` for the journey module, and seeds the default lens retention cap. There is no prune timer (retention is count-only, enforced on insert/configure).
+- `on-load` accepts the single `state-0` and establishes the journey `%chat` watch when upgrading a steward that does not already have it. An incompatible state crashes so Gall can nuke the greenfield/unreleased agent; there are no migration arms yet.
+- Wires: lens send on `/lens/send/[owner-p]/[id-t]`, lens retry relay on `/lens/retry/[bot-p]/[id-t]`, the gateway lease timer on `/gateway/lease-check`, gateway auto-reply/notice DM sends on `/gateway/dm/send`, journey chat observation on `/journey/chat`, and journey log pokes on `/journey/logs`. The `%activity` and journey `%chat` subscriptions are re-watched on `%kick`. Poke/DM nacks are logged and ignored (Ames retries).
 - `on-watch` and `on-peek` assert `=(src our)` — no cross-ship subscriptions or foreign scries. Only the lens poke is ownership-gated (to admit a bot's runs).
 
 ## integration notes
