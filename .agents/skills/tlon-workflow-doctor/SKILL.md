@@ -1,0 +1,34 @@
+---
+name: tlon-workflow-doctor
+description: Use when setting up a machine for mobile agent work on this repository, when the tlon-workflow skill's prerequisite check fails, or when stim, agent-device, gh, or their skills are missing, outdated, or installed under an old name.
+---
+
+# Tlon workflow doctor
+
+One script checks everything the mobile agent loop depends on, and installs what it can.
+
+```bash
+node .agents/skills/tlon-workflow-doctor/check.mjs          # report
+node .agents/skills/tlon-workflow-doctor/check.mjs --fix    # install and re-check
+```
+
+Run it from anywhere inside the repository. It exits 0 when every line is `ok` or `note`, and 1 while any line says `fix`.
+
+## What it checks
+
+| Line | Requirement | `--fix` does |
+|---|---|---|
+| `gh` | 2.99.0 or newer (the `--attach` upload flag), authenticated | nothing; prints the install or `gh auth login` line |
+| `stim` | the `stim` package, 1.0.0 or newer, resolved first on PATH | uninstalls `stim-cli`, installs `stim` |
+| `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
+| `agent-device` | installed | `npm install -g agent-device` |
+| `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
+| `node` | major version matches `.nvmrc` | nothing; a note |
+| `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; it is personal (see the tlon-workflow skill, Signing in) |
+| `stim doctor` | no `costs time` finding in `apps/tlon-mobile` | `stim doctor --fix` when a finding is one it repairs (the sandbox allowance); otherwise prints each finding's fix |
+
+`--fix` only ever installs global npm packages, adds skills under `~/.agents/skills`, and runs `stim doctor --fix`, which writes a per-user file. It never touches the repository.
+
+## When a line stays `fix`
+
+The line carries the exact command. Two that need a person: `gh auth login` opens a browser, and the ship login values are credentials nobody but the user should type.
