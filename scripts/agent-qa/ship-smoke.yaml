@@ -52,4 +52,6 @@ appId: ${MAESTRO_APP_ID}
           point: '71%,38%'
 - assertVisible: '^Contacts$'
 - tapOn: '^You$'
+- assertVisible:
+    id: ContactEditButton
 - assertVisible: ${MAESTRO_TEST_SHIP_PATTERN}

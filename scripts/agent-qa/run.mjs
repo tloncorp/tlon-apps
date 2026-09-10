@@ -380,7 +380,9 @@ async function prepare() {
   await device(['install', context.appId, appCopy], 180_000);
 
   const shipPattern =
-    '^' + context.testShip.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$';
+    '^' +
+    (ships ? 'zod' : context.testShip).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+    '$';
   await run(
     env.QA_MAESTRO_BIN || 'maestro',
     [
