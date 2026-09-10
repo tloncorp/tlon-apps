@@ -180,7 +180,8 @@ export function getMessages(
           message.event = value;
           break;
         case 'id':
-          onId?.((message.id = value));
+          message.id = value;
+          onId?.(value);
           break;
         case 'retry':
           // eslint-disable-next-line no-case-declarations
