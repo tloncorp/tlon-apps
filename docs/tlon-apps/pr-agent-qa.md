@@ -137,8 +137,8 @@ backend commits separately. Dispatch the action with the destination `pr_number`
 automatically downloads the saved EAS report and MP4, attaches the video to that
 PR, and verifies that GitHub rendered a video player. It runs after failed tests
 as well as successful ones when an EAS run exists. Setup failures with a report
-but no video get an explicit text report. The publish job uses the existing
-GitHub `REPO_TOKEN` secret only in its publishing step; the simulator and model
+but no video get an explicit text report. The publish job uses a dedicated
+GitHub `GH_QA_TOKEN` secret only in its publishing step; the simulator and model
 do not receive it. The EAS metadata/download step uses `EXPO_TOKEN` separately.
 
 To retry only publication, dispatch with the saved `eas_run_id` and destination
@@ -186,8 +186,16 @@ passed a full decode check. [EAS run and artifacts](https://expo.dev/accounts/tl
 
 This qualification reused build `709ad03a-fc06-457a-a0c4-cb7ca437797c`, app source
 `f0e37ea6bf92a3e44554caeb96afddea089ba2fa`. It validates the harness, not a new
-frontend revision. The GitHub experiment action now includes automatic publication using
-`REPO_TOKEN`; the separate EAS-only labeled-PR reporting path uses `GH_QA_TOKEN`.
+frontend revision. The GitHub experiment action includes automatic publication using a repository
+`GH_QA_TOKEN` secret; the separate EAS-only labeled-PR reporting path reads that
+name from EAS preview. Configure it in each environment whose workflow you use.
+
+The publisher downloaded this run's report and video on a clean GitHub runner.
+The existing `REPO_TOKEN` was rejected with HTTP 401, so automatic upload is not
+yet qualified. Add the dedicated `GH_QA_TOKEN` with repository write access and
+rerun publication with EAS run `01a08d64-866a-728b-b1d3-8fe09276a6a9` and
+PR `6496`; no new simulator run is needed. The default `GITHUB_TOKEN` installation
+token cannot replace this upload credential.
 
 Argent boots the CI simulator with accessibility enabled and owns interaction,
 screenshots and recording. This existing-build path uses the wrapper's explicit

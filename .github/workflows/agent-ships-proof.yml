@@ -120,6 +120,6 @@ jobs:
           tar -xzf "$RUNNER_TEMP/gh.tar.gz" -C "$RUNNER_TEMP"
       - name: Embed the recording in the PR and verify the video player
         env:
-          GH_TOKEN: ${{ secrets.REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_QA_TOKEN }}
           QA_GH_BIN: ${{ runner.temp }}/gh_2.99.0_linux_amd64/bin/gh
         run: node scripts/agent-qa/publish.mjs publish

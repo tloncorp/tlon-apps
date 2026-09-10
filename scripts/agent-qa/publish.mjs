@@ -146,7 +146,7 @@ async function main() {
   if (process.argv[2] !== 'publish')
     throw new Error('Expected prepare or publish');
   if (!process.env.GH_TOKEN)
-    throw new Error('REPO_TOKEN is required for native GitHub attachments');
+    throw new Error('GH_QA_TOKEN is required for native GitHub attachments');
   const gh = (args) => command(process.env.QA_GH_BIN, args);
   const meta = JSON.parse(readFileSync(join(dir, 'metadata.json'), 'utf8'));
   if (meta.id !== id || meta.pr !== pr)
@@ -206,7 +206,7 @@ if (
     // Subprocess output or network errors may contain signed artifact URLs.
     console.error(
       error.status !== undefined
-        ? `Publisher command failed (exit ${error.status}); verify EXPO_TOKEN and repository-write REPO_TOKEN.`
+        ? `Publisher command failed (exit ${error.status}); verify EXPO_TOKEN and repository-write GH_QA_TOKEN.`
         : error.message
     );
     if (error.stderr) {
