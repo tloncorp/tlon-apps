@@ -16,7 +16,10 @@ const exec = promisify(execFile);
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
 const artifacts = path.join(root, 'artifacts/agent-qa');
-const env = process.env;
+const env = {
+  ...process.env,
+  QA_TEST_SHIP: process.env.QA_TEST_SHIP || process.env.MAESTRO_TEST_SHIP,
+};
 const secrets = [
   env.MAESTRO_EMAIL,
   env.MAESTRO_PASSWORD,
@@ -254,6 +257,29 @@ async function prepare() {
       },
     }
   ).catch(async (error) => {
+    const loginXml = path.join(env.TMPDIR || '/tmp', 'qa-login.xml');
+    await readFile(loginXml, 'utf8')
+      .then((text) =>
+        writeFile(path.join(artifacts, 'bootstrap.xml'), clean(text))
+      )
+      .catch(() => {});
+    async function collectCommands(dir) {
+      for (const entry of await readdir(dir, { withFileTypes: true }).catch(
+        () => []
+      )) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) await collectCommands(full);
+        else if (
+          entry.name.startsWith('commands-') &&
+          entry.name.endsWith('.json')
+        )
+          await writeFile(
+            path.join(artifacts, entry.name),
+            clean(await readFile(full, 'utf8'))
+          );
+      }
+    }
+    await collectCommands(path.join(env.TMPDIR || '/tmp', 'qa-login-debug'));
     const hierarchy = await run(
       env.QA_MAESTRO_BIN || 'maestro',
       ['--udid', udid, 'hierarchy', '--no-reinstall-driver'],

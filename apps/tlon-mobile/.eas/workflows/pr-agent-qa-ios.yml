@@ -17,6 +17,9 @@ on:
       app_id:
         type: string
         default: io.tlon.groups
+      test_ship:
+        type: string
+        description: Optional manual identity expectation; defaults to EAS MAESTRO_TEST_SHIP
       focus:
         type: string
         default: Verify the Home, Contacts, and own profile screens load. Do not change account settings or message other people.
@@ -55,8 +58,8 @@ jobs:
       QA_MODE: ${{ inputs.build_id && 'workflow_dispatch' || 'pull_request' }}
       QA_FOCUS: ${{ inputs.focus || '' }}
       QA_WORKFLOW_URL: ${{ workflow.url }}
-      QA_TEST_SHIP: '~batbet-litnec'
       QA_MODEL: openai/gpt-5.4-mini
+      QA_TEST_SHIP: ${{ inputs.test_ship || '' }}
     steps:
       - uses: eas/checkout
       - name: Install device and smoke test tools

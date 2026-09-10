@@ -14,8 +14,8 @@ Fork PRs are excluded from credentialed testing.
 The job builds the PR using the existing `e2e` simulator profile, then rejects
 any mismatch between the PR head, EAS build commit, and checked-out source. It
 uses the EAS preview environment's `MAESTRO_EMAIL`, `MAESTRO_PASSWORD`, and
-`OPENROUTER_API_KEY`. The expected test ship is explicitly configured in the
-workflow. Login must reach Home and the matching own-profile identity before
+`OPENROUTER_API_KEY`, plus `MAESTRO_TEST_SHIP` for the account's expected ship.
+Login must reach Home and the matching own-profile identity before
 the agent can act.
 
 The existing artifact is copied before installation. Only the copy's Expo.plist
