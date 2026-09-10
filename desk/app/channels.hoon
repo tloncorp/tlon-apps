@@ -242,7 +242,7 @@
   ++  on-agent
     %-  on-agent:guard
     |=  [=wire =sign:guard]
-    ~|  [%on-agent ?~(wire %$ i.wire) -.sign]
+    ~|  [%on-agent ?~(wire %$ i.wire) -.sign src.bowl]
     %-  step:un:guard
     ^-  (quip card _this)
     =^  cards  state

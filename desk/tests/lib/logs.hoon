@@ -118,6 +118,20 @@
     !>  '/gall/notify | notify failed | arvo-response | on-arvo/push | code=500 | app/notify'
     !>  sig:(need (fingerprint:logs /gall/notify event))
 ::
+::  the logging door stamps every event with the ship that caused it
+::
+++  test-src-attached
+  =/  =bowl:gall  *bowl:gall
+  =.  src.bowl  ~sampel-palnet
+  =/  log  ~(. logs [bowl /logs])
+  =/  =card:agent:gall  (tell:log %warn ~[leaf+"hi"] ~)
+  ?>  ?=([%pass * %agent * %poke *] card)
+  =/  act=a-log:l  !<(a-log:l q.cage.task.q.card)
+  ?>  ?=(%log -.act)
+  %+  expect-eq
+    !>  `(unit json)``s+'~sampel-palnet'
+    !>  (~(get by (my data.act)) 'src')
+::
 ++  test-fingerprint-tell-has-none
   %+  expect-eq
     !>  `(unit [fp=@t sig=@t exact=@t])`~

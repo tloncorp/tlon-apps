@@ -543,7 +543,7 @@
   ::
   ++  on-agent
     |=  [=wire =sign:agent:gall]
-    ~|  [%on-agent ?~(wire %$ i.wire) -.sign]
+    ~|  [%on-agent ?~(wire %$ i.wire) -.sign src.bowl]
     ^-  (quip card _this)
     ?+  wire  (on-agent:def wire sign)
     ::

@@ -24,9 +24,15 @@
       [%tell vol echo]
     (pass event log-data)
   ::
+  ::  every event carries the ship that caused it: the peer that nacked,
+  ::  kicked or sent the fact in +on-agent, the poker or subscriber in
+  ::  +on-poke and +on-watch, ourselves elsewhere. this is what tells one
+  ::  bad host apart from a fleet-wide failure.
+  ::
   ++  pass
     |=  [event=log-event data=log-data]
     ^-  card:agent:gall
+    =.  data  ['src'^s+(scot %p src.bowl) data]
     [%pass wire %agent [our.bowl %logs] %poke log-action-1+!>(`a-log`[%log event data])]
   --
 |%
