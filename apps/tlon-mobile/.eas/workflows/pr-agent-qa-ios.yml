@@ -126,7 +126,7 @@ jobs:
       - name: Check the GitHub upload credential
         run: |
           if [ -z "${GH_QA_TOKEN:-}" ]; then
-            echo 'Set the EAS preview GH_QA_TOKEN secret to a GitHub OAuth or classic PAT with repository write access. Video embedding requires this credential.'
+            echo 'Set the EAS preview GH_QA_TOKEN secret to a GitHub OAuth token, classic PAT, or fine-grained PAT with repository write access. Video embedding requires this credential.'
             exit 1
           fi
       - name: Install GitHub CLI with native video uploads

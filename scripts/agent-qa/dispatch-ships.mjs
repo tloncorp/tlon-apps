@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync } from 'node:fs';
 const cwd = `${process.env.GITHUB_WORKSPACE}/apps/tlon-mobile`;
 const output = process.env.PROOF_OUTPUT;
 function eas(args) {
@@ -41,6 +41,9 @@ const dispatched = eas([
 ]);
 const run = Array.isArray(dispatched) ? dispatched[0] : dispatched;
 if (!run.id) throw new Error('EAS did not return a workflow ID');
+if (process.env.GITHUB_OUTPUT) {
+  appendFileSync(process.env.GITHUB_OUTPUT, `eas_run_id=${run.id}\n`);
+}
 writeFileSync(
   `${output}/eas-run.json`,
   JSON.stringify({ id: run.id }, null, 2)
