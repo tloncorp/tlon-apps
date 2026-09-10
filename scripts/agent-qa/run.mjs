@@ -43,6 +43,7 @@ const deviceEnv = Object.fromEntries(
     .map((key) => [key, env[key]])
 );
 deviceEnv.CI = '1';
+deviceEnv.MAESTRO_CLI_NO_ANALYTICS = '1';
 
 async function run(command, args, options = {}) {
   try {
@@ -252,7 +253,18 @@ async function prepare() {
         MAESTRO_PASSWORD: env.MAESTRO_PASSWORD,
       },
     }
-  );
+  ).catch(async (error) => {
+    const hierarchy = await run(
+      env.QA_MAESTRO_BIN || 'maestro',
+      ['--udid', udid, 'hierarchy', '--no-reinstall-driver'],
+      { timeout: 60_000 }
+    ).catch(() => 'Could not inspect the bootstrap screen');
+    await writeFile(
+      path.join(artifacts, 'bootstrap-screen.txt'),
+      clean(hierarchy)
+    );
+    throw error;
+  });
   context.smoke =
     'Passed: fresh login, Home, Contacts, and exact test-ship identity';
   console.log(context.smoke);
