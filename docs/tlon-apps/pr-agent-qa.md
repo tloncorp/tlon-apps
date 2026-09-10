@@ -6,13 +6,29 @@ No desktop Codex task, local Metro, or developer Mac is needed.
 
 ## Run on a PR
 
-Add the `qa` label to a non-draft PR from this repository. New commits on labeled
-PRs rerun QA and cancel the previous same-branch workflow. The workflow must be
+Opening a non-draft PR from this repository, marking it ready, reopening it, or
+pushing a new commit starts a Linux assessment job. No `qa` label is needed.
+New commits cancel the previous same-branch workflow. The workflow must be
 present on the PR branch, and the EAS project must be connected to GitHub.
 Fork PRs are excluded from credentialed testing.
 
-The job builds the PR using the existing `e2e` simulator profile, then rejects
-any mismatch between the PR head, EAS build commit, and checked-out source. It
+Codex + Sol first reads the PR title, description, complete changed-file list,
+and diff. It classifies the PR as `test`, `skip`, or `blocked`. It considers
+behavior changes as well as visible UI: error handling, copy, assets, data and
+backend changes can be user-facing. Only a supported conclusion that no
+user-facing behavior changes exist can skip the build and simulator. Missing
+context, large diffs, unsupported platforms and missing fixtures are blocked,
+not silently skipped. The assessment is saved as `pr-qa-assessment`.
+
+A `test` assessment includes up to eight scenarios identifying changed files,
+concrete actions, expected results and prerequisites. The simulator agent must
+account for every scenario by its ID in its findings. A generic successful
+login or Home smoke cannot satisfy this coverage requirement. A `skip` or
+`blocked` assessment posts its reason without starting a native build or simulator.
+
+The job builds only assessed PRs using the existing `e2e` simulator profile, then rejects
+any mismatch between the assessed base/head, PR head, EAS build commit, and
+checked-out source. It
 uses the EAS preview environment's `MAESTRO_EMAIL`, `MAESTRO_PASSWORD`, and
 `OPENROUTER_API_KEY`, plus `MAESTRO_TEST_SHIP` for the account's expected ship.
 Login must reach Home and the matching own-profile identity before
@@ -28,7 +44,7 @@ keeps the embedded JavaScript under test fixed. Original and installed bundle
 hashes, build ID, source commit, simulator UDID, and OS are recorded in report.json.
 
 Codex CLI 0.145.0 runs openai/gpt-5.6-sol through OpenRouter at medium reasoning with Argent 0.23.0
-through MCP. It receives the PR title, description, and mobile source diff.
+through MCP. It receives the assessment scenarios, PR title, description, and complete source diff.
 Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.
 A fresh CODEX_HOME and temporary working directory avoid personal configuration.
@@ -52,18 +68,21 @@ this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
 OpenRouter key's spending limit for spend management; these run limits are
 not a hard dollar cap. EAS runner/build charges remain separate.
 
-The first version shares the existing isolated test ship. It permits inspection
-and content creation in a new private `QA-agent-BUILD_ID` group only. The agent
-must not change account/profile/theme settings, send DMs, invite anyone, or
-modify existing groups. Checks needing those actions are blocked until a pool
-of dedicated accounts or an account lease is added. EAS currently only cancels
+The PR path currently shares the existing test ship and permits navigation and
+inspection only. It does not mutate settings, create content, message, invite,
+or modify groups. Scenarios requiring those actions are reported blocked with
+the missing prerequisite until isolated writable accounts are connected to
+this path. The disposable two-ship experiment remains separate. Likewise, the
+PR path does not deploy changed backend desks: checks depending on those changes
+must be blocked rather than claimed as tested against the old backend. EAS currently only cancels
 same-branch runs; a custom concurrency group does not serialize all PRs.
 
 ## Validate the harness without a native build
 
 Use an existing simulator build and copy its complete `gitCommitHash` from
 `eas build:view BUILD_ID --json`. This mode clearly reports **Harness validation
-only** and never comments on a PR or claims to test the harness commit's app.
+only** and does not itself comment on a PR or claim to test the harness commit's app.
+The separate GitHub publisher can attach its evidence to an explicitly chosen PR.
 Run from `apps/tlon-mobile`, using a pushed ref containing the workflow:
 
 ```sh
@@ -125,7 +144,7 @@ Run `node --test scripts/agent-qa/*.test.mjs` and, from `apps/tlon-mobile`,
 `npx --yes eas-cli@23.2.0 workflow:validate .eas/workflows/pr-agent-qa-ios.yml
 --non-interactive` after harness changes. Validate tool changes remotely against
 an existing build. Native build reuse/repack and Android are follow-ups; this
-version intentionally builds the app for each labeled PR revision.
+version builds the app for each revision assessed as needing simulator checks.
 
 ## Disposable Blacksmith ships (experiment)
 
@@ -187,7 +206,7 @@ passed a full decode check. [EAS run and artifacts](https://expo.dev/accounts/tl
 This qualification reused build `709ad03a-fc06-457a-a0c4-cb7ca437797c`, app source
 `f0e37ea6bf92a3e44554caeb96afddea089ba2fa`. It validates the harness, not a new
 frontend revision. The GitHub experiment action includes automatic publication using a repository
-`GH_QA_TOKEN` secret; the separate EAS-only labeled-PR reporting path reads that
+`GH_QA_TOKEN` secret; the separate EAS-only automatic PR reporting path reads that
 name from EAS preview. Configure it in each environment whose workflow you use.
 
 The publisher downloaded this run's report and video on a clean GitHub runner.
@@ -202,3 +221,15 @@ screenshots and recording. This existing-build path uses the wrapper's explicit
 simulator UDID and verified downloaded artifact for installation; it does not
 start Metro or modify a developer's Stim devices. Recording has static trimming
 disabled, shows touch markers, and is finalized independently of Codex.
+
+## Assessment-only qualification
+
+Dispatch the EAS workflow with `assessment_pr_json` containing the GitHub API PR
+object. It runs the same assessor against those exact base/head commits without
+a build, simulator, backend, or PR comment, using the EAS preview OpenRouter
+credential. The result is saved as `pr-qa-assessment`. Only the selected harness
+scripts execute; the target PR's diff is read as data. This diagnostic mode does
+not certify the supplied PR metadata or mark a PR as tested.
+
+The assessor has no shell, web or device tools, an isolated Codex home, a
+three-minute limit and a 240,000-character diff budget. Failures become blocked.

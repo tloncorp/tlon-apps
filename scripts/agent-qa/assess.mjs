@@ -138,7 +138,10 @@ async function main() {
       throw new Error(
         'Expected a non-draft, same-repository PR with exact commits'
       );
-    if (git(['rev-parse', 'HEAD']).trim() !== headSha)
+    if (
+      process.env.QA_ASSESSMENT_ONLY !== 'true' &&
+      git(['rev-parse', 'HEAD']).trim() !== headSha
+    )
       throw new Error('Assessment checkout does not match the PR head');
     git(['fetch', '--no-tags', '--deepen=256', 'origin', baseSha, headSha]);
     const files = git(['diff', '--name-only', '-z', `${baseSha}...${headSha}`])

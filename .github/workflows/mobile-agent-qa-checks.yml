@@ -1,11 +1,5 @@
 name: Agent QA harness checks
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Assess this PR without building or starting a simulator
-        required: true
-        type: string
   pull_request:
     paths:
       - scripts/agent-qa/**
@@ -13,7 +7,6 @@ on:
       - .github/workflows/mobile-agent-qa-checks.yml
 permissions:
   contents: read
-  pull-requests: read
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -24,42 +17,3 @@ jobs:
         with:
           node-version: '22.22.0'
       - run: node --test scripts/agent-qa/*.test.mjs
-  assess:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.22.0'
-      - name: Install the assessment harness
-        run: npm install -g @openai/codex@0.145.0
-      - name: Read the PR and select its exact source snapshot
-        env:
-          GH_TOKEN: ${{ github.token }}
-          QA_PR_NUMBER: ${{ inputs.pr_number }}
-        run: |
-          [[ "$QA_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
-          mkdir "$RUNNER_TEMP/qa-source"
-          cp scripts/agent-qa/{assess,codex}.mjs "$RUNNER_TEMP/qa-source/"
-          gh api "repos/tloncorp/tlon-apps/pulls/$QA_PR_NUMBER" > "$RUNNER_TEMP/pr.json"
-          node -e 'const p=require(process.env.RUNNER_TEMP+"/pr.json"); if(p.head.repo.full_name!=="tloncorp/tlon-apps" || p.draft) throw Error("Expected a non-draft same-repository PR")'
-          head_sha="$(node -p 'require(process.env.RUNNER_TEMP+"/pr.json").head.sha')"
-          git fetch --no-tags origin "$head_sha"
-          git checkout --detach "$head_sha"
-      - name: Assess changes without simulator spending
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          QA_ASSESSMENT_DIR: ${{ runner.temp }}/qa-assessment
-        run: |
-          export QA_PR_JSON="$(cat "$RUNNER_TEMP/pr.json")"
-          node "$RUNNER_TEMP/qa-source/assess.mjs"
-          cat "$QA_ASSESSMENT_DIR/report.md" >> "$GITHUB_STEP_SUMMARY"
-          node -e 'const a=require(process.env.QA_ASSESSMENT_DIR+"/assessment.json"); console.log(a.decision, a.reason); process.exit(a.decision === "blocked" ? 1 : 0)'
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: pr-qa-assessment
-          path: ${{ runner.temp }}/qa-assessment/
-          retention-days: 7

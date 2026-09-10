@@ -6,13 +6,16 @@ on:
     if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
   workflow_dispatch:
     inputs:
+      assessment_pr_json:
+        type: string
+        description: Optional GitHub PR JSON for assessment only; does not build, test, or post a comment
       build_id:
         type: string
-        required: true
+        required: false
         description: Existing iOS simulator build for harness validation (does not certify a PR)
       build_sha:
         type: string
-        required: true
+        required: false
         description: Full git commit from the existing EAS build record
       app_id:
         type: string
@@ -41,11 +44,12 @@ defaults:
 
 jobs:
   assess_pr:
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' || inputs.assessment_pr_json }}
     environment: preview
     runs_on: linux-medium
     env:
-      QA_PR_JSON: ${{ toJSON(github.event.pull_request) }}
+      QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) }}
+      QA_ASSESSMENT_ONLY: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
     outputs:
       decision: ${{ steps.assess.outputs.decision }}
       assessment: ${{ steps.assess.outputs.assessment }}
@@ -70,7 +74,7 @@ jobs:
 
   build_ios:
     after: [assess_pr]
-    if: ${{ after.assess_pr.outputs.decision == 'test' }}
+    if: ${{ github.event_name == 'pull_request' && after.assess_pr.outputs.decision == 'test' }}
     type: build
     environment: preview
     params:
@@ -80,7 +84,7 @@ jobs:
 
   qa_ios:
     after: [assess_pr, build_ios]
-    if: ${{ always() && (after.build_ios.status == 'success' || inputs.build_id) }}
+    if: ${{ always() && (after.build_ios.status == 'success' || (inputs.build_id && !inputs.assessment_pr_json)) }}
     environment: preview
     runs_on: macos-medium
     image: macos-tahoe-26.4-xcode-26.4
@@ -216,7 +220,7 @@ jobs:
 
   assessment_status:
     after: [assess_pr]
-    if: ${{ always() && github.event_name == 'pull_request' && after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.decision != 'skip' }}
+    if: ${{ always() && (github.event_name == 'pull_request' || inputs.assessment_pr_json) && after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.decision != 'skip' }}
     runs_on: linux-medium
     steps:
       - name: Reflect blocked assessment in the check status
