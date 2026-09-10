@@ -4,7 +4,7 @@
 /+  io=strandio, l=logs
 ::
 =+  posthog-key='phc_GyI5iD7kM6RRbb1hIU0fiGmTCh4ha44hthJYJ7a89td'
-=+  posthog-url='https://eu.i.posthog.com/capture/'
+=+  posthog-url='https://eu.i.posthog.com/batch/'
 =+  posthog-retry=3
 =+  posthog-retry-delay=~s5
 ::
@@ -49,28 +49,81 @@
   =+  event=(~(get by p.props) 'event')
   ?~  event  s+'Backend Log'
   ?>(?=(%s -.u.event) u.event)
+=/  timestamp=@t
+  %-  crip
+  =+  (yore time.log-item)
+  =*  d  (d-co:co 2)
+  "{(d y)}-{(d m)}-{(d d.t)}".
+  "T{(d h.t)}:{(d m.t)}:{(d s.t)}".
+  ".{(d ?~(f.t 0 (div (mul 100 i.f.t) 0x1.0000)))}".
+  "Z"
 =/  event=json
   %-  pairs:enjs:format
-  =/  timestamp=@t
-    %-  crip
-    =+  (yore time.log-item)
-    =*  d  (d-co:co 2)
-    "{(d y)}-{(d m)}-{(d d.t)}".
-    "T{(d h.t)}:{(d m.t)}:{(d s.t)}".
-    ".{(d ?~(f.t 0 (div (mul 100 i.f.t) 0x1.0000)))}".
-    "Z"
-  :~  'api_key'^s+posthog-key
-      'distinct_id'^s+id
+  :~  'distinct_id'^s+id
       timestamp+s+timestamp
       event+label
       properties+props
+  ==
+::  crashes also go to posthog error tracking as $exception events, grouped
+::  by the fingerprint %logs attached, so first-seen and regression alerts
+::  come from the product instead of a hand-kept list. the plain event
+::  above is kept so existing dashboards keep working.
+::
+=/  exception=(unit json)
+  ?.  ?=(%fail -.event.log-item)  ~
+  =/  fingerprint=(unit @t)
+    =+  fp=(~(get by p.props) 'fingerprint')
+    ?~  fp  ~
+    ?.  ?=(%s -.u.fp)  ~
+    `p.u.fp
+  ?~  fingerprint  ~
+  =/  message=@t  (crip (head-line:l echo.event.log-item))
+  =/  frames=(list json)
+    %+  turn  (tang-lines:l tang.event.log-item)
+    |=  line=tape
+    =/  t=tape  (trim-line:l line)
+    %-  pairs:enjs:format
+    ?:  (span-line:l t)
+      :~  'filename'^s+(crip (scag (need (find ":<[" t)) t))
+          'function'^s+(crip t)
+          'in_app'^b+&
+      ==
+    :~  'function'^s+(crip t)
+        'in_app'^b+&
+    ==
+  :-  ~
+  %-  pairs:enjs:format
+  :~  'distinct_id'^s+id
+      timestamp+s+timestamp
+      event+s+'$exception'
+      :-  'properties'
+      :-  %o
+      %-  ~(gas by p.props)
+      :~  '$exception_fingerprint'^s+u.fingerprint
+          :-  '$exception_list'
+          :-  %a
+          :_  ~
+          %-  pairs:enjs:format
+          :~  'type'^s+(spat origin)
+              'value'^s+message
+              'mechanism'^(pairs:enjs:format ~['handled'^b+| 'synthetic'^b+|])
+              'stacktrace'^(pairs:enjs:format ~['type'^s+'raw' 'frames'^a+frames])
+          ==
+      ==
+  ==
+=/  body=json
+  %-  pairs:enjs:format
+  :~  'api_key'^s+posthog-key
+      :-  'batch'
+      :-  %a
+      ?~(exception ~[event] ~[event u.exception])
   ==
 ::
 =/  =request:http
   :*  %'POST'
       posthog-url
       ~['content-type'^'application/json']
-      `(as-octs:mimes:html (en:json:html event))
+      `(as-octs:mimes:html (en:json:html body))
   ==
 ::  retry loop
 ::

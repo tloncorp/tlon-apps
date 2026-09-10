@@ -136,6 +136,16 @@
       ?.  (gte level (volume-val:l u.vol))
         cor
       =.  data.a-log  ['commit'^s+commit data.a-log]
+      ::  every crash gets a stable identity so dashboards and alerts can
+      ::  group by cause instead of matching on stack-trace substrings
+      ::
+      =?  data.a-log  ?=(%fail -.event.a-log)
+        =/  fpr  (fingerprint:l sap.bowl event.a-log)
+        ?~  fpr  data.a-log
+        :*  'fingerprint'^s+fp.u.fpr
+            'signature'^s+sig.u.fpr
+            data.a-log
+        ==
       =.  cor  (send-posthog-event sap.bowl now.bowl +.a-log)
       =?  cor  ?=(^ otel)
         (send-otel-event u.otel sap.bowl now.bowl +.a-log)
