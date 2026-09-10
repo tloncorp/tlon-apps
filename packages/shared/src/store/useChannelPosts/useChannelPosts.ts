@@ -381,8 +381,14 @@ async function hasNewerPosts(channelId: string, posts: db.Post[]) {
   // Even for empty channels, we should have a value here. If somehow we don't,
   // assume there's more to load and assume the next load will rectify sequence state.
   if (latestSequenceNum === null) {
+    // `getLatestChannelSequenceNum` returns null both when the channel row is
+    // missing and when the row's sequence number is unset, so say which. Only
+    // on this invariant-violation path, so the extra read is not in the hot
+    // path.
+    const channel = await db.getChannel({ id: channelId });
     postsLogger.trackError(
-      'invariant violation: channel missing latest sequence number'
+      'invariant violation: channel missing latest sequence number',
+      { channelId, hasChannelRow: !!channel }
     );
     return true;
   }

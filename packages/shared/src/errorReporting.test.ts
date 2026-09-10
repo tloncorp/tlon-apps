@@ -826,6 +826,8 @@ const MUST_NOT_MATCH = [
   'Error: Invalid server response',
   'Error: Invalid server response: 403 Forbidden',
   'Error: Failed to PUT channel',
+  'ChannelPutError: Failed to PUT channel',
+  'ChannelPutError: Failed to PUT channel: 403 Forbidden',
   'PokeAckTimeoutError: Poke ack timed out after 30000ms',
   'Error: Expected content-type to be text/event-stream, Actual: text/html',
   'Error: No error message',
