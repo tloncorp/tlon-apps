@@ -1,5 +1,5 @@
 /-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver,
-    a=activity, av=activity-ver
+    a=activity, av=activity-ver, co=contacts
 /+  default-agent, dbug, verb, vita-client
 ::  performance, keep warm
 ^-  agent:gall
@@ -7,11 +7,12 @@
   |%
   +$  card  card:agent:gall
   +$  current-state
-    $:  %3
+    $:  %4
         hidden-contact-suggestions=(set ship)
         manual-contact-suggestions=(set ship)
         pins=(list whom:u)
         first-load=?
+        retired-public-pages-cleaned=?
     ==
   --
 =|  current-state
@@ -82,7 +83,8 @@
   =/  =cage  settings-event+!>([%put-entry %groups %groups %'showActivityMessage' [%b &]])
   =?  cor  first-load  (emit %pass /set-activity %agent [our.bowl %settings] %poke cage)
   =.  first-load  |
-  cor
+  ?:  retired-public-pages-cleaned  cor
+  (emit %pass /retired-public-pages %arvo %b %wait now.bowl)
 ::
 ++  load
   |=  =vase
@@ -92,12 +94,20 @@
       =?  old  ?=(%0 -.old)  (state-0-to-1 old)
       =?  old  ?=(%1 -.old)  (state-1-to-2 old)
       =?  old  ?=(%2 -.old)  (state-2-to-3 old)
-      ?>  ?=(%3 -.old)
+      =?  old  ?=(%3 -.old)  (state-3-to-4 old)
+      ?>  ?=(%4 -.old)
       =.  state  old
       init
   ::
-  +$  versioned-state  $@(~ $%(state-3 state-2 state-1 state-0))
-  +$  state-3  current-state
+  +$  versioned-state  $@(~ $%(state-4 state-3 state-2 state-1 state-0))
+  +$  state-4  current-state
+  +$  state-3
+    $:  %3
+        hidden-contact-suggestions=(set ship)
+        manual-contact-suggestions=(set ship)
+        pins=(list whom:u)
+        first-load=?
+    ==
   +$  state-2
     $:  %2
         hidden-contact-suggestions=(set ship)
@@ -110,6 +120,8 @@
         first-load=?
     ==
   ::
+  ++  state-3-to-4
+    |=(state-3 [%4 hidden-contact-suggestions manual-contact-suggestions pins first-load |])
   ++  state-2-to-3
     |=(state-2 [%3 hidden-contact-suggestions ~ pins first-load])
   ++  state-1-to-2
@@ -496,6 +508,11 @@
     [%contact ~]  cor
     [%vita-toggle ~]  cor
     [%set-activity ~]  cor
+    [%retired-public-pages ~]
+      ?>  ?=(%poke-ack -.sign)
+      ?~  p.sign  cor(retired-public-pages-cleaned &)
+      ~&  %groups-ui-retired-public-pages-cleanup-retrying
+      (emit %pass /retired-public-pages %arvo %b %wait (add now.bowl ~s30))
   ==
 ::
 ++  arvo
@@ -503,7 +520,45 @@
   ^+  cor
   ?+  wire  !!
     [%build ~]  cor
+    [%retired-public-pages ~]
+      ?>  ?=([%behn %wake *] sign)
+      ?:  retired-public-pages-cleaned  cor
+      ?^  error.sign
+        (emit %pass /retired-public-pages %arvo %b %wait (add now.bowl ~s30))
+      clear-retired-public-pages
   ==
+::  Run after load: kernel scries cannot be performed during on-load.
+::  Emit only for live cache entries and bindings owned by retired agents.
+::  Completion is persisted only after contacts acknowledges the null patch.
+++  clear-retired-public-pages
+  ^+  cor
+  =/  cache=(map @t [@ud (unit cache-entry:eyre)])
+    .^((map @t [@ud (unit cache-entry:eyre)]) %e (scot %p our.bowl) %cache (scot %da now.bowl) ~)
+  =.  cor
+    %+  emil
+    %+  murn  ~(tap by cache)
+    |=  [url=@t revision=@ud entry=(unit cache-entry:eyre)]
+    ^-  (unit card)
+    ?~  entry  ~
+    ::  Match exact roots or a slash boundary, never /profile-other.
+    ?.  ?|  =(url '/profile')
+            =(url '/expose')
+            =('/profile/' (crip (scag 9 (trip url))))
+            =('/expose/' (crip (scag 8 (trip url))))
+        ==
+      ~
+    `[%pass /retired-public-pages %arvo %e %set-response url ~]
+  =/  bindings=(list [binding:eyre duct action:eyre])
+    .^((list [binding:eyre duct action:eyre]) %e (scot %p our.bowl) %bindings (scot %da now.bowl) ~)
+  =.  cor
+    %+  emil
+    %+  murn  bindings
+    |=  [binding=binding:eyre =duct action=action:eyre]
+    ^-  (unit card)
+    ?.  ?=([%app ?(%profile %expose)] action)  ~
+    `[%pass /retired-public-pages %arvo %e %disconnect binding]
+  =/  patch=action:co  [%self (~(put by *contact:co) %expose-cites ~)]
+  (emit %pass /retired-public-pages %agent [our.bowl %contacts] %poke contact-action-1+!>(patch))
 ++  get-suggested-contacts
   =+  .^(chat-running=? (scry %gu %chat /$))
   =/  suggestions=(set ship)  manual-contact-suggestions
