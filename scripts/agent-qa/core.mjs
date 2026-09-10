@@ -36,8 +36,17 @@ export function verifyContext(env, harnessSha) {
       );
     if (pr.head.repo.full_name !== pr.base.repo.full_name)
       throw new Error('Fork PRs are not eligible for credentialed QA');
-    if (!pr.labels?.some((label) => label.name === 'qa') || pr.draft)
-      throw new Error('QA requires a non-draft PR with the qa label');
+    if (pr.draft) throw new Error('QA requires a non-draft PR');
+    const assessment = JSON.parse(env.QA_ASSESSMENT_JSON || 'null');
+    if (
+      assessment?.decision !== 'test' ||
+      assessment.headSha !== pr.head.sha ||
+      assessment.baseSha !== pr.base.sha ||
+      !assessment.scenarios?.length
+    )
+      throw new Error(
+        'PR testing requires an assessment for these exact commits'
+      );
   } else if (env.QA_MODE !== 'workflow_dispatch') {
     throw new Error('Unsupported QA trigger');
   }
@@ -52,6 +61,10 @@ export function verifyContext(env, harnessSha) {
     appId: env.QA_APP_ID,
     testShip: env.QA_TEST_SHIP,
     pr,
+    assessment:
+      env.QA_MODE === 'pull_request'
+        ? JSON.parse(env.QA_ASSESSMENT_JSON)
+        : undefined,
   };
 }
 

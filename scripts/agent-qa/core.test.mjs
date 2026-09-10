@@ -27,7 +27,7 @@ test('recording accepts the CLI materialized path and the MCP artifact handle', 
 const sha = 'a'.repeat(40);
 const pr = {
   head: { sha, repo: { full_name: 'tloncorp/tlon-apps' } },
-  base: { repo: { full_name: 'tloncorp/tlon-apps' } },
+  base: { sha: 'b'.repeat(40), repo: { full_name: 'tloncorp/tlon-apps' } },
   labels: [{ name: 'qa' }],
   draft: false,
 };
@@ -38,6 +38,12 @@ const env = {
   QA_TEST_SHIP: '~batbet-litnec',
   QA_MODE: 'pull_request',
   QA_PR_JSON: JSON.stringify(pr),
+  QA_ASSESSMENT_JSON: JSON.stringify({
+    decision: 'test',
+    headSha: sha,
+    baseSha: 'b'.repeat(40),
+    scenarios: [{ id: 'change-1' }],
+  }),
 };
 
 test('PR verification binds source, artifact, and PR to the same commit', () => {
@@ -48,14 +54,40 @@ test('PR verification binds source, artifact, and PR to the same commit', () => 
   );
   assert.throws(() => verifyContext(env, 'b'.repeat(40)), /do not match/);
 });
-test('credentialed QA refuses forks, draft PRs, and missing labels', () => {
+test('credentialed QA refuses forks and drafts; no opt-in label is required', () => {
   for (const changed of [
     { ...pr, head: { ...pr.head, repo: { full_name: 'someone/fork' } } },
-    { ...pr, labels: [{ name: 'not-qa' }] },
     { ...pr, draft: true },
   ])
     assert.throws(() =>
       verifyContext({ ...env, QA_PR_JSON: JSON.stringify(changed) }, sha)
+    );
+});
+test('assessment must match both PR commits before a simulator can start', () => {
+  assert.throws(
+    () => verifyContext({ ...env, QA_ASSESSMENT_JSON: 'null' }, sha),
+    /assessment/
+  );
+  assert.equal(
+    verifyContext(
+      { ...env, QA_PR_JSON: JSON.stringify({ ...pr, labels: [] }) },
+      sha
+    ).mode,
+    'PR verification'
+  );
+  const plan = JSON.parse(env.QA_ASSESSMENT_JSON);
+  for (const changed of [
+    { ...plan, decision: 'skip' },
+    { ...plan, baseSha: 'c'.repeat(40) },
+    { ...plan, headSha: 'c'.repeat(40) },
+  ])
+    assert.throws(
+      () =>
+        verifyContext(
+          { ...env, QA_ASSESSMENT_JSON: JSON.stringify(changed) },
+          sha
+        ),
+      /assessment/
     );
 });
 test('manual validation cannot claim to certify a PR', () => {

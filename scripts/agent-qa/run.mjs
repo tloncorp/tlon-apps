@@ -1,4 +1,5 @@
 import { runCodex, verifyCodexAuth } from './codex.mjs';
+import { verifyCoverage } from './assess.mjs';
 import { connectShips } from './ship-proxy.mjs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -291,17 +292,12 @@ async function prepare() {
       '--no-textconv',
       '--unified=3',
       `${base}...${harnessSha}`,
-      '--',
-      'apps/tlon-mobile',
-      'packages/app',
-      'packages/ui',
-      'packages/shared',
     ]);
     if (!diff.trim())
       throw new Error(
         'No mobile behavior diff: manual harness validation is available instead'
       );
-    if (diff.length > 60_000)
+    if (diff.length > 240_000)
       throw new Error(
         'Mobile diff exceeds the agent context budget; split or narrow this PR'
       );
@@ -510,7 +506,7 @@ async function agent(diff) {
   });
   await capture();
   await capture([], true);
-  report = verifyReport(result, evidence);
+  report = verifyCoverage(verifyReport(result, evidence), context.assessment);
 }
 
 await mkdir(artifacts, { recursive: true });
