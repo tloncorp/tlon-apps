@@ -1,0 +1,5 @@
+appId: ${MAESTRO_APP_ID}
+name: History and Home final qualification
+---
+- runFlow: history.yaml
+- runFlow: home-groups.yaml

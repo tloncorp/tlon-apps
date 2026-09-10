@@ -20,13 +20,20 @@ env:
             MESSAGE: ${'x\nx\nx\nx\nx\n' + output.reliability.historyIndex}
             MESSAGE_PATTERN: '^${output.reliability.historyIndex} ?$'
             EMPTY_INPUT: '^Message$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - assertVisible:
     id: Post
     containsDescendants:
       - text: '^8 ?$'
 - scrollUntilVisible:
     element:
-      text: '^1 ?$'
+      id: Post
+      containsDescendants:
+        - text: '^1 ?$'
     direction: UP
     timeout: 20000
 - assertNotVisible:

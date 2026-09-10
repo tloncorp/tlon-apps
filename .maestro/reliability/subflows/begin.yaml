@@ -8,15 +8,8 @@ appId: ${MAESTRO_APP_ID}
     when:
       true: ${output.reliability.session === 'warm'}
     commands:
-      - launchApp:
-          stopApp: false
-      # A preceding failed journey may have left a sheet or editor open.
-      # Recover the starting screen once; never retry that failed journey.
-      - runFlow:
-          when:
-            notVisible: '^(Home|Contacts)$'
-          commands:
-            - launchApp
+      # Reset navigation and keyboard state while preserving the login.
+      - launchApp
 - extendedWaitUntil:
     visible: '^(Home|Contacts)$'
     timeout: 5000

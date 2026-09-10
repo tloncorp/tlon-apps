@@ -26,7 +26,7 @@ env:
 - tapOn: '^Filter by name$'
 - inputText: ${MAESTRO_RUN_TAG}
 - assertVisible: ${output.reliability.groupPattern}
-- hideKeyboard
+- pressKey: Enter
 - longPressOn: ${output.reliability.groupPattern}
 - tapOn: '^Pin$'
 - tapOn: '^Clear$'
@@ -71,7 +71,7 @@ env:
 - inputText: ${MAESTRO_RUN_TAG}
 - assertVisible: ${output.reliability.group + ' renamed'}
 - assertNotVisible: ${output.reliability.groupPattern}
-- hideKeyboard
+- pressKey: Enter
 # Delete only this run's group, and verify cancellation before confirming.
 - longPressOn: ${output.reliability.group + ' renamed'}
 - tapOn: '^Group info & settings$'
