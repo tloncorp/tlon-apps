@@ -40,16 +40,7 @@ env:
 - assertVisible: ${output.reliability.body}
 - tapOn:
     id: ChannelHeaderEditButton
-- extendedWaitUntil:
-    visible:
-      text: ${output.reliability.body + '\n?'}
-      childOf:
-        text: RichTextEditor
-    timeout: 5000
-- tapOn:
-    text: ${output.reliability.body + '\n?'}
-    childOf:
-      text: RichTextEditor
+- runFlow: subflows/focus-notebook-body.yaml
 - tapOn:
     id: NotebookTitleInput
     point: '95%,50%'
@@ -61,11 +52,7 @@ env:
 - assertVisible:
     id: NotebookTitleInput
     text: ${MAESTRO_RUN_TAG + ' edited note'}
-- tapOn:
-    text: ${output.reliability.body + '\n?'}
-    childOf:
-      text: RichTextEditor
-    point: '95%,50%'
+- runFlow: subflows/focus-notebook-body.yaml
 - eraseText: 100
 - runFlow:
     file: subflows/input.yaml

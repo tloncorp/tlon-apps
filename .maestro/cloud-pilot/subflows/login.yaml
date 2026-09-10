@@ -3,39 +3,51 @@ appId: ${MAESTRO_APP_ID}
 - launchApp:
     clearState: true
     clearKeychain: true
-- tapOn: 'Have an account? Log in'
+- assertVisible: '^Tlon Messenger$'
+- tapOn: '^Have an account\? Log in$'
 - runFlow:
     when:
-      visible:
-        id: 'log-in-with-email'
+      true: ${output.reliability.hosted}
     commands:
+      - runFlow:
+          when:
+            visible:
+              id: log-in-with-email
+          commands:
+            - tapOn:
+                id: log-in-with-email
       - tapOn:
-          id: 'log-in-with-email'
-- assertVisible:
-    id: 'email-input'
-- assertVisible:
-    id: 'or-use-password'
-- tapOn:
-    id: 'or-use-password'
-
-# Enter email
-- assertVisible:
-    id: 'email-input-legacy'
-- tapOn:
-    id: 'email-input-legacy'
-- inputText:
-    text: ${MAESTRO_EMAIL}
-    label: Enter configured E2E account email
-
-# Enter configured E2E account password
-- tapOn:
-    id: 'password-input-legacy'
-- inputText:
-    text: ${MAESTRO_PASSWORD}
-    label: Enter configured E2E account password
-
-- tapOn: 'Submit'
-
+          id: or-use-password
+      - tapOn:
+          id: email-input-legacy
+      - inputText:
+          text: ${MAESTRO_EMAIL}
+          label: Enter configured test account email
+      - tapOn:
+          id: password-input-legacy
+      - inputText:
+          text: ${MAESTRO_PASSWORD}
+          label: Enter configured test account password
+      - tapOn: '^Submit$'
+- runFlow:
+    when:
+      true: ${!output.reliability.hosted}
+    commands:
+      - tapOn: '^Or configure self hosted$'
+      - assertVisible: '^Connect Ship$'
+      - tapOn:
+          id: '^textInput shipUrl$'
+      - eraseText: 100
+      - inputText:
+          text: ${MAESTRO_LOGIN_URL}
+          label: Enter configured test ship URL
+      - tapOn:
+          id: '^textInput accessCode$'
+      - eraseText: 100
+      - inputText:
+          text: ${MAESTRO_LOGIN_CODE}
+          label: Enter test ship access code
+      - tapOn: '^Connect$'
 # Declared login/network phase; outside the 5-second warm interaction budget.
 - extendedWaitUntil:
     visible: '^(Home|Usage Statistics|Save Password\?)$'

@@ -6,6 +6,7 @@ if (!/^~[a-z]+(?:-[a-z]+)*$/.test(MAESTRO_TEST_SHIP))
 if (!/^[A-Za-z0-9-]+$/.test(MAESTRO_RUN_TAG))
   throw new Error('A unique run tag is required');
 output.reliability = {
+  hosted: typeof MAESTRO_EMAIL !== 'undefined' && !!MAESTRO_EMAIL,
   session: typeof MAESTRO_SESSION === 'undefined' ? 'fresh' : MAESTRO_SESSION,
   group: 'QA-' + MAESTRO_RUN_TAG + '-' + JOURNEY,
   text: MAESTRO_RUN_TAG + ' message',
@@ -33,11 +34,14 @@ if (
   output.reliability.session !== 'warm'
 )
   throw new Error('Use fresh or warm session');
-if (
-  output.reliability.session === 'fresh' &&
-  (typeof MAESTRO_LOGIN_URL === 'undefined' ||
-    typeof MAESTRO_LOGIN_CODE === 'undefined' ||
-    !MAESTRO_LOGIN_URL ||
-    !MAESTRO_LOGIN_CODE)
-)
-  throw new Error('Fresh setup requires a test ship URL and access code');
+if (output.reliability.session === 'fresh') {
+  if (output.reliability.hosted) {
+    if (typeof MAESTRO_PASSWORD === 'undefined' || !MAESTRO_PASSWORD)
+      throw new Error('Fresh hosted setup requires a test account password');
+  } else if (
+    typeof MAESTRO_LOGIN_URL === 'undefined' || !MAESTRO_LOGIN_URL ||
+    typeof MAESTRO_LOGIN_CODE === 'undefined' || !MAESTRO_LOGIN_CODE
+  ) {
+    throw new Error('Fresh setup requires hosted credentials or a ship URL and access code');
+  }
+}

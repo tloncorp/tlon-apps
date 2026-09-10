@@ -63,19 +63,35 @@ env:
 - longPressOn:
     text: ${output.reliability.editedTextPattern}
     point: '10%,50%'
-- tapOn:
-    id: EmojiToolbarButton-thumb
-- assertNotVisible:
-    id: EmojiToolbarButton-thumb
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: EmojiToolbarButton-thumb
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^👍$'
+- assertNotVisible: '^Copy message text$'
 - assertVisible:
     id: ReactionDisplay
 - longPressOn:
     text: ${output.reliability.editedTextPattern}
     point: '10%,50%'
-- tapOn:
-    id: EmojiToolbarButton-thumb
-- assertNotVisible:
-    id: EmojiToolbarButton-thumb
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: EmojiToolbarButton-thumb
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^👍$'
+- assertNotVisible: '^Copy message text$'
 - assertNotVisible:
     id: ReactionDisplay
 - longPressOn:

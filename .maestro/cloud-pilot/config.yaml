@@ -1,2 +1,12 @@
 flows:
-  - groups.yaml
+  - chat.yaml
+  - settings.yaml
+  - relaunch.yaml
+  - notebook.yaml
+  - gallery.yaml
+  - message-actions.yaml
+  - search.yaml
+  - home-groups.yaml
+  - profile.yaml
+  - channels.yaml
+  - links.yaml
