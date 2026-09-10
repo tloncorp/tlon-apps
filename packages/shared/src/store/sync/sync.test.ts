@@ -1172,6 +1172,42 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'releases the queue thread a hanging probe held, once it settles',
+    async () => {
+      const release = holdProbe();
+      vi.useFakeTimers();
+      try {
+        const started = syncStart();
+        let finished = false;
+        void started.then(() => {
+          finished = true;
+        });
+
+        await vi.advanceTimersByTimeAsync(PROBE_TIMEOUT + 1);
+        for (let i = 0; i < 30 && !finished; i++) {
+          await vi.advanceTimersByTimeAsync(1000);
+        }
+        expect(finished).toBe(true);
+
+        // Startup gave up on it, but the probe is still running inside the
+        // queue: Promise.race doesn't cancel the loser, so it keeps its worker
+        // thread until the request itself settles.
+        expect(syncQueue.activeThreads).toBeGreaterThan(0);
+
+        release();
+        await vi.advanceTimersByTimeAsync(1000);
+
+        // Settling is what hands the thread back — which is why every scry,
+        // including the one a 403 retries, has to be bounded.
+        expect(syncQueue.activeThreads).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'drops a probe answer that arrives after logout',
     async () => {
       reportedDeskVersion = '12.1.0';

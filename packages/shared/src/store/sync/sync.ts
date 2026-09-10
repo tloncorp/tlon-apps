@@ -2366,9 +2366,9 @@ const checkDeskCompatibility = async (
   let abandoned = false;
   const isAbandoned = () => abandoned || loginEnded();
 
-  // The per-scry timeout isn't enough on its own: a 403 sends `scry` through
-  // `reauthOnce` and re-issues the request without one (urbit.ts), so bound the
-  // whole probe here as well.
+  // Each scry is bounded on its own, but a 403 costs a reauth and a second
+  // request, so bound the wait for the pair here too — startup shouldn't sit
+  // behind the worst case of both.
   let probeTimer: ReturnType<typeof setTimeout> | undefined;
   const probeTimedOut = new Promise<null>((resolve) => {
     probeTimer = setTimeout(() => {
