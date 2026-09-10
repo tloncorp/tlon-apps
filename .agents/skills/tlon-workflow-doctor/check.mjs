@@ -109,7 +109,14 @@ const checks = [
           how: 'npm install -g agent-device',
           cmd: ['npm', ['install', '-g', 'agent-device']],
         };
-      return { ok: `agent-device ${version('agent-device')}` };
+      const v = version('agent-device');
+      if (!v)
+        return {
+          fix: `agent-device at ${path} does not report a version, so it cannot run`,
+          how: 'npm install -g agent-device',
+          cmd: ['npm', ['install', '-g', 'agent-device']],
+        };
+      return { ok: `agent-device ${v}` };
     },
   },
   {
@@ -139,6 +146,50 @@ const checks = [
     },
   },
   {
+    name: 'stim config',
+    test() {
+      const config = join(homedir(), '.stim', 'config.json');
+      if (!existsSync(config))
+        return { ok: 'no machine config, so nothing to go stale' };
+      let parsed;
+      try {
+        parsed = JSON.parse(readFileSync(config, 'utf-8'));
+      } catch {
+        return {
+          fix: `${config} is not valid JSON`,
+          how: `repair it, or move it aside: mv "${config}" "${config}.broken"`,
+        };
+      }
+      // A setting naming a path that no longer exists fails the command that
+      // reads it, and the refusal names the missing path rather than the key
+      // that holds it. Doctor does not check these. `projects` is skipped: an
+      // entry for a deleted checkout is normal there, and `stim gc` owns it.
+      const dead = [];
+      const walk = (node, path) => {
+        if (typeof node === 'string') {
+          const value = node.startsWith('~/')
+            ? join(homedir(), node.slice(2))
+            : node;
+          if (value.startsWith('/') && !existsSync(value))
+            dead.push(`${path} -> ${node}`);
+        } else if (node && typeof node === 'object') {
+          for (const [k, v] of Object.entries(node))
+            walk(v, path ? `${path}.${k}` : k);
+        }
+      };
+      for (const [key, value] of Object.entries(parsed)) {
+        if (key === 'projects') continue;
+        walk(value, key);
+      }
+      if (dead.length)
+        return {
+          fix: `${config} names ${dead.length} path that no longer exists:\n      ${dead.join('\n      ')}`,
+          how: `remove or repoint the key in ${config}`,
+        };
+      return { ok: 'every path it names exists' };
+    },
+  },
+  {
     name: 'ship login',
     test() {
       const env = join(APP, '.env.local');
@@ -146,7 +197,10 @@ const checks = [
       const missing = [
         'DEFAULT_SHIP_LOGIN_URL',
         'DEFAULT_SHIP_LOGIN_ACCESS_CODE',
-      ].filter((k) => !new RegExp(`^${k}=.+`, 'm').test(text));
+      ].filter((k) => {
+        const line = text.match(new RegExp(`^${k}=(.*)$`, 'm'));
+        return !line || line[1].trim().replace(/^["']|["']$/g, '') === '';
+      });
       if (missing.length)
         return {
           note: `${missing.join(', ')} not set in apps/tlon-mobile/.env.local; sign-in will need a person`,
