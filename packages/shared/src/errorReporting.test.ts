@@ -20,9 +20,9 @@ const HOSTING_CASES: Array<[string, Hosting]> = [
   ['TLON.NETWORK.', 'tlon'],
   ['notlon.network', 'self'],
   ['tlon.network.evil.com', 'self'],
-  ['togten.com', 'togten'],
-  ['poster-findul.togten.com', 'togten'],
-  ['sub.togten.com.', 'togten'],
+  ['togten.com', 'self'],
+  ['sampel-palnet.togten.com', 'self'],
+  ['sub.togten.com.', 'self'],
   ['localhost', 'local'],
   ['foo.localhost', 'local'],
   ['127.0.0.1', 'local'],
@@ -114,7 +114,7 @@ describe('reduceUrls', () => {
       reduceUrls(
         'a https://x.tlon.network/apps/groups/dm/~one b https://y.togten.com/apps/groups/group/~two c'
       )
-    ).toBe('a https://tlon/dm b https://togten/group c');
+    ).toBe('a https://tlon/dm b https://self/group c');
   });
 
   it('leaves text without urls unchanged', () => {
@@ -135,6 +135,12 @@ describe('reduceUrls bare hostnames', () => {
     expect(reduceUrls('Unable to resolve host "groups.example.org"')).toBe(
       'Unable to resolve host "self"'
     );
+  });
+
+  it('reduces a quoted togten host as self-hosted', () => {
+    expect(
+      reduceUrls('Unable to resolve host "sampel-palnet.togten.com"')
+    ).toBe('Unable to resolve host "self"');
   });
 
   it('reduces a quoted local host', () => {
@@ -167,6 +173,14 @@ describe('reduceUrls bare hostnames', () => {
     );
     expect(output).toContain('https://tlon/foo');
     expect(output).not.toContain('sampel-palnet');
+  });
+
+  it('reduces a togten url to the self-hosted placeholder', () => {
+    const output = reduceUrls(
+      'GET https://sampel-palnet.togten.com/apps/groups/foo failed'
+    );
+    expect(output).toContain('https://self/foo');
+    expect(output).not.toContain('togten');
   });
 });
 
@@ -292,7 +306,7 @@ describe('scrubExtra', () => {
         list: ['https://c.tlon.network/apps/groups/dm/~x', 3],
       })
     ).toEqual({
-      note: 'go https://togten/group',
+      note: 'go https://self/group',
       list: ['https://tlon/dm', 3],
     });
   });
@@ -471,7 +485,7 @@ describe('scrubBreadcrumb', () => {
     expect(scrubbed).not.toBeNull();
     expect(scrubbed?.data).toEqual({
       from: 'https://tlon/dm',
-      to: 'https://togten/group',
+      to: 'https://self/group',
     });
     expect(crumb.data.from).toBe('https://a.tlon.network/apps/groups/dm/~x');
   });
@@ -547,7 +561,7 @@ describe('scrubSentryEvent', () => {
     expect(output.breadcrumbs).toHaveLength(1);
     expect(output.breadcrumbs?.[0]).toMatchObject({ category: 'navigation' });
     expect(output.breadcrumbs?.[0]?.data).toEqual({
-      to: 'https://togten/group',
+      to: 'https://self/group',
     });
     expect(output.extra).toEqual({ note: 'see https://tlon/dm' });
     expect(output.tags).toEqual({ logger: 'sync' });
@@ -630,8 +644,8 @@ describe('scrubSentryEvent', () => {
     const outFrames = output.exception?.values?.[0]?.stacktrace?.frames;
     expect(outFrames).toHaveLength(2);
     expect(outFrames?.[0]).toEqual({
-      filename: 'https://togten/apps/groups/assets/index-abc.js',
-      abs_path: 'https://togten/apps/groups/assets/index-abc.js',
+      filename: 'https://self/apps/groups/assets/index-abc.js',
+      abs_path: 'https://self/apps/groups/assets/index-abc.js',
       lineno: 42,
       colno: 7,
       function: 'doWork',
@@ -641,7 +655,7 @@ describe('scrubSentryEvent', () => {
     expect(outFrames?.[0]).not.toBe(frames[0]);
     expect(outFrames?.[1]).toEqual({ filename: 'app:///main.jsbundle' });
     expect(output.debug_meta?.images?.[0]).toEqual({
-      code_file: 'https://togten/apps/groups/assets/index-abc.js',
+      code_file: 'https://self/apps/groups/assets/index-abc.js',
       debug_id: 'abc',
     });
     expect(output.debug_meta?.images?.[0]).not.toBe(images[0]);

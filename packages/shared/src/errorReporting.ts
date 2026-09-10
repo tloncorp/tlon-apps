@@ -1,4 +1,4 @@
-export type Hosting = 'tlon' | 'togten' | 'local' | 'self';
+export type Hosting = 'tlon' | 'local' | 'self';
 
 export type SentryLevel = 'error' | 'warning' | 'info';
 
@@ -110,9 +110,6 @@ export function hostingFromHostname(hostname: string): Hosting {
   if (host === 'tlon.network' || host.endsWith('.tlon.network')) {
     return 'tlon';
   }
-  if (host === 'togten.com' || host.endsWith('.togten.com')) {
-    return 'togten';
-  }
   if (
     host === '' ||
     host === 'localhost' ||
@@ -135,7 +132,6 @@ const URL_PATTERN = /https?:\/\/[^\s"'<>()]+/gi;
 // Hosts that `reduceUrls` itself emits. A second pass must leave them alone.
 const PLACEHOLDER_HOSTS: ReadonlySet<string> = new Set([
   'tlon',
-  'togten',
   'local',
   'self',
 ]);
@@ -143,8 +139,7 @@ const PLACEHOLDER_HOSTS: ReadonlySet<string> = new Set([
 // Hostnames that appear without a scheme: any host under a known hosting
 // suffix, and any quoted fully-qualified hostname (iOS/Android network errors
 // quote the host they failed against).
-const HOSTING_SUFFIX_HOST_PATTERN =
-  /\b(?:[a-z0-9-]+\.)+(?:tlon\.network|togten\.com)\b/gi;
+const HOSTING_SUFFIX_HOST_PATTERN = /\b(?:[a-z0-9-]+\.)+tlon\.network\b/gi;
 const QUOTED_HOST_PATTERN = /([“"'])((?:[a-z0-9-]+\.)+[a-z]{2,63})([”"'])/gi;
 // Quoted file names look like hostnames; leave them alone.
 const NOT_A_TLD = new Set([
