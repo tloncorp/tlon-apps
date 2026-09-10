@@ -1,0 +1,110 @@
+appId: ${MAESTRO_APP_ID}
+name: Native Home filters and group controls
+tags: [regression]
+env:
+  JOURNEY: o
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Back$'
+- tapOn: '^Groups$'
+- tapOn: '^Search$'
+- inputText: ${MAESTRO_RUN_TAG}
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Messages$'
+- assertVisible: '^No results found\.$'
+- assertNotVisible: ${output.reliability.groupPattern}
+- tapOn: '^Try in All\?$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Clear$'
+- tapOn: '^Filter by name$'
+- inputText: qzxqzxqzxqzx
+- assertVisible: '^qzxqzxqzxqzx$'
+- assertVisible: '^No results found\.$'
+- tapOn: '^Clear search$'
+- tapOn: '^Filter by name$'
+- inputText: ${MAESTRO_RUN_TAG}
+- assertVisible: ${output.reliability.groupPattern}
+- hideKeyboard
+- longPressOn: ${output.reliability.groupPattern}
+- tapOn: '^Pin$'
+- tapOn: '^Clear$'
+- tapOn: '^Close$'
+- assertVisible:
+    text: ${output.reliability.groupPattern}
+    below: '^Pinned$'
+- longPressOn: ${output.reliability.groupPattern}
+- tapOn: '^Group info & settings$'
+- assertVisible: '^Group info & settings$'
+- tapOn: '^Unpin$'
+- assertVisible: '^Pin$'
+- tapOn: '^Rename$'
+- tapOn:
+    id: GroupTitleInput
+    point: '95%,50%'
+- eraseText: 30
+- inputText: ${output.reliability.group + ' renamed'}
+- assertVisible:
+    id: GroupTitleInput
+    text: ${output.reliability.group + ' renamed'}
+- tapOn:
+    id: GroupDescriptionInput
+- inputText: ${MAESTRO_RUN_TAG + ' description'}
+- assertVisible:
+    id: GroupDescriptionInput
+    text: ${MAESTRO_RUN_TAG + ' description'}
+- tapOn: '^Save$'
+- assertVisible: ${output.reliability.group + ' renamed'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' description'}
+- tapOn: '^Rename$'
+- assertVisible:
+    id: GroupTitleInput
+    text: ${output.reliability.group + ' renamed'}
+- assertVisible:
+    id: GroupDescriptionInput
+    text: ${MAESTRO_RUN_TAG + ' description'}
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
+- tapOn: '^Search$'
+- inputText: ${MAESTRO_RUN_TAG}
+- assertVisible: ${output.reliability.group + ' renamed'}
+- assertNotVisible: ${output.reliability.groupPattern}
+- hideKeyboard
+# Delete only this run's group, and verify cancellation before confirming.
+- longPressOn: ${output.reliability.group + ' renamed'}
+- tapOn: '^Group info & settings$'
+- scrollUntilVisible:
+    element:
+      id: GroupLeaveAction-Delete group
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
+- tapOn: '(?i)^Cancel$'
+- assertNotVisible: '^Delete ${output.reliability.group} renamed[?]$'
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- assertVisible: '^Delete ${output.reliability.group} renamed[?]$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete group$'
+          rightOf: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete group$'
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 5000
+- assertVisible: '^${MAESTRO_RUN_TAG}$'
+- assertNotVisible: ${output.reliability.group + ' renamed'}
+- tapOn: '^Clear$'
+- tapOn: '^Close$'
+- assertVisible: '^Home$'

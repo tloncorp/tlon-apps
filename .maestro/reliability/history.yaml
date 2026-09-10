@@ -1,0 +1,70 @@
+appId: ${MAESTRO_APP_ID}
+name: Native history and return to latest
+tags: [regression]
+env:
+  JOURNEY: h
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- evalScript: ${output.reliability.historyIndex = 0}
+# Eight six-line posts put the oldest message more than one screen from latest.
+- repeat:
+    times: 8
+    commands:
+      - evalScript: ${output.reliability.historyIndex += 1}
+      - runFlow:
+          file: subflows/send.yaml
+          env:
+            MESSAGE: ${'x\nx\nx\nx\nx\n' + output.reliability.historyIndex}
+            MESSAGE_PATTERN: '^${output.reliability.historyIndex} ?$'
+            EMPTY_INPUT: '^Message$'
+- assertVisible:
+    id: Post
+    containsDescendants:
+      - text: '^8 ?$'
+- scrollUntilVisible:
+    element:
+      text: '^1 ?$'
+    direction: UP
+    timeout: 20000
+- assertNotVisible:
+    id: Post
+    containsDescendants:
+      - text: '^8 ?$'
+- assertVisible:
+    id: ScrollToBottomButton
+# A keyboard transition while reading history must preserve the old message.
+- tapOn:
+    id: MessageInput
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: Return
+      # Maestro hideKeyboard swipes the list; tap the visible text instead.
+      - tapOn: '^1 ?$'
+      - assertNotVisible:
+          id: Return
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
+- assertVisible:
+    id: Post
+    containsDescendants:
+      - text: '^1 ?$'
+- tapOn:
+    id: ScrollToBottomButton
+- assertVisible:
+    id: Post
+    containsDescendants:
+      - text: '^8 ?$'
+- assertNotVisible:
+    id: ScrollToBottomButton
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'
