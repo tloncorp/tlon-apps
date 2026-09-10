@@ -10,6 +10,13 @@ appId: ${MAESTRO_APP_ID}
     commands:
       - launchApp:
           stopApp: false
+      # A preceding failed journey may have left a sheet or editor open.
+      # Recover the starting screen once; never retry that failed journey.
+      - runFlow:
+          when:
+            notVisible: '^(Home|Contacts)$'
+          commands:
+            - launchApp
 - extendedWaitUntil:
     visible: '^(Home|Contacts)$'
     timeout: 5000
