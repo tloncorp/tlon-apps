@@ -13,6 +13,7 @@ env:
 - extendedWaitUntil:
     visible: '^Write something …\n?$'
     timeout: 5000
+- tapOn: '^Write something …\n?$'
 - runFlow:
     file: subflows/input.yaml
     env:
@@ -35,4 +36,3 @@ env:
 - assertVisible: ${output.reliability.groupPattern}
 - tapOn: '^Back$'
 - assertVisible: '^Home$'
-
