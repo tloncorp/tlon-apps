@@ -1,20 +1,5 @@
 export const statuses = ['passed', 'failed', 'blocked'];
 
-export async function verifyProviderAuth(apiKey) {
-  const response = await fetch('https://openrouter.ai/api/v1/key', {
-    headers: { Authorization: `Bearer ${apiKey}` },
-    signal: AbortSignal.timeout(20_000),
-  });
-  if (response.status === 401 || response.status === 403)
-    throw new Error(
-      `OpenRouter rejected the API key (HTTP ${response.status}); update EAS preview OPENROUTER_API_KEY`
-    );
-  if (!response.ok)
-    throw new Error(
-      `OpenRouter authentication service returned HTTP ${response.status}`
-    );
-}
-
 export function verifyContext(env, harnessSha) {
   const pr = JSON.parse(env.QA_PR_JSON || 'null');
   if (!/^[a-f0-9]{40}$/.test(env.QA_BUILD_SHA || ''))
@@ -53,38 +38,6 @@ export function verifyContext(env, harnessSha) {
     testShip: env.QA_TEST_SHIP,
     pr,
   };
-}
-
-export function commandFor(action) {
-  const target = (value) => {
-    if (
-      typeof value !== 'string' ||
-      value.length > 300 ||
-      !/^(?:@e\d+|(?:id|label|text|role)=.+)$/.test(value)
-    )
-      throw new Error('Use a ref or selector from the current snapshot');
-    return value;
-  };
-  switch (action.kind) {
-    case 'snapshot':
-      return ['snapshot', '-i'];
-    case 'press':
-      return ['press', target(action.target)];
-    case 'fill':
-      if (typeof action.text !== 'string' || action.text.length > 500)
-        throw new Error('Text must be at most 500 characters');
-      if (action.text.startsWith('-'))
-        throw new Error('Text cannot be interpreted as a device CLI option');
-      return ['fill', target(action.target), action.text];
-    case 'scroll':
-      if (!['up', 'down', 'left', 'right'].includes(action.direction))
-        throw new Error('Invalid scroll direction');
-      return ['scroll', action.direction];
-    case 'back':
-      return ['back'];
-    default:
-      throw new Error('Unsupported device action');
-  }
 }
 
 export function verifyReport(report, evidence) {
@@ -181,33 +134,8 @@ export function renderReport(context, report, usage) {
         `- **${check.status}** — ${clean(check.expected)}\n  Observed: ${clean(check.observed)} (evidence: ${check.evidence.join(', ') || 'none'})`
     ),
     '',
-    `Agent usage: ${usage.calls} requests, ${usage.tokens} tokens, $${usage.cost.toFixed(4)} reported cost.`,
+    `Agent usage: ${usage.calls} completed turns, ${usage.tokens} tokens. ${Number.isFinite(usage.cost) ? `$${usage.cost.toFixed(4)} reported cost.` : 'Dollar cost is not reported by Codex; API and runner billing are separate.'}`,
     'Screenshots, action evidence, and the structured report are in the ios-agent-qa artifact.',
     '',
   ].join('\n');
-}
-
-export function visualPress(action, screen, latest) {
-  if (
-    !latest?.screenshot ||
-    latest.id !== action.screenshot ||
-    Date.now() - Date.parse(latest.at) > 30_000 ||
-    ![action.x, action.y].every(
-      (n) => typeof n === 'number' && Number.isFinite(n) && n > 0 && n < 1
-    ) ||
-    ![screen?.width, screen?.height].every(
-      (n) => Number.isFinite(n) && n > 0
-    ) ||
-    typeof action.description !== 'string' ||
-    !action.description.trim()
-  ) {
-    throw new Error(
-      'Visual press requires the latest screenshot, a named visible control, and coordinates inside the screen'
-    );
-  }
-  return [
-    'press',
-    String(Math.round(action.x * screen.width)),
-    String(Math.round(action.y * screen.height)),
-  ];
 }

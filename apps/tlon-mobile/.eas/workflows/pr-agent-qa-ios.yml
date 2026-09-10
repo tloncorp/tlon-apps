@@ -69,13 +69,13 @@ jobs:
       QA_SHIP_URL: ${{ inputs.ship_url || '' }}
       QA_BACKEND_SHA: ${{ inputs.backend_sha || '' }}
       QA_RUN_TAG: ${{ inputs.run_tag || '' }}
-      QA_MODEL: openai/gpt-5.4-mini
+      QA_MODEL: gpt-5.6-sol
       QA_TEST_SHIP: ${{ inputs.test_ship || '' }}
     steps:
       - uses: eas/checkout
       - name: Install device and smoke test tools
         run: |
-          npm install -g agent-device@0.16.12
+          npm install -g @openai/codex@0.145.0 @swmansion/argent@0.23.0
           curl --fail --location --retry 2 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.6.1/maestro.zip -o /tmp/qa-maestro.zip
           unzip -q /tmp/qa-maestro.zip -d /tmp/qa-maestro
           command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null || brew install ffmpeg
@@ -85,10 +85,11 @@ jobs:
           build_id: ${{ env.QA_BUILD_ID }}
           extensions: [app]
       - id: run
-        name: Verify build, log in, and run bounded agent QA
+        name: Verify build, log in, and run Codex and Argent QA
         env:
           QA_MAESTRO_BIN: /tmp/qa-maestro/maestro/bin/maestro
         run: |
+          export QA_ARGENT_SKILL_DIR="$(npm root -g)/@swmansion/argent/skills"
           node ../../scripts/agent-qa/run.mjs "${{ steps.download.outputs.artifact_path }}"
           set-output report "$(cat ../../artifacts/agent-qa/report.md)"
           set-output video_ready "$(node -e 'console.log(require("../../artifacts/agent-qa/report.json").context.video?.status === "ready")')"

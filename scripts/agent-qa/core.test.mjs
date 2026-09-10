@@ -1,12 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  commandFor,
-  redact,
-  verifyContext,
-  verifyReport,
-  verifyVideo,
-} from './core.mjs';
+import { redact, verifyContext, verifyReport, verifyVideo } from './core.mjs';
 
 const sha = 'a'.repeat(40);
 const pr = {
@@ -48,20 +42,6 @@ test('manual validation cannot claim to certify a PR', () => {
     'b'.repeat(40)
   );
   assert.equal(context.mode, 'Harness validation only');
-});
-test('device input cannot select another host, execute a shell, or read a file', () => {
-  for (const action of [
-    { kind: 'exec', text: 'env' },
-    { kind: 'press', target: '--udid' },
-    { kind: 'press', target: '/etc/passwd' },
-    { kind: 'scroll', direction: '--help' },
-    { kind: 'fill', target: '@e12', text: '--remote-config=/tmp/config' },
-  ])
-    assert.throws(() => commandFor(action));
-  assert.deepEqual(
-    commandFor({ kind: 'fill', target: '@e12', text: '$(printenv)' }),
-    ['fill', '@e12', '$(printenv)']
-  );
 });
 test('reports require real evidence and cannot turn incomplete checks into a pass', () => {
   const evidence = new Map([['e1', { screenshot: true }]]);
@@ -121,35 +101,4 @@ test('video evidence rejects missing tracks, empty files, and truncated sessions
     /unplayable/
   );
   assert.throws(() => verifyVideo(probe, 120), /cover the test session/);
-});
-
-test('visual presses use fresh image evidence and measured screen bounds', async () => {
-  const { visualPress } = await import('./core.mjs');
-  const latest = { id: 'e9', screenshot: true, at: new Date().toISOString() };
-  const action = {
-    screenshot: 'e9',
-    description: 'send arrow',
-    x: 0.9,
-    y: 0.5,
-  };
-  const screen = { width: 402, height: 874 };
-  assert.deepEqual(visualPress(action, screen, latest), [
-    'press',
-    '362',
-    '437',
-  ]);
-  for (const invalid of [
-    { ...action, x: -1 },
-    { ...action, y: NaN },
-    { ...action, screenshot: 'e8' },
-    { ...action, description: '' },
-  ]) {
-    assert.throws(() => visualPress(invalid, screen, latest));
-  }
-  assert.throws(() =>
-    visualPress(action, screen, { ...latest, screenshot: false })
-  );
-  assert.throws(() =>
-    visualPress(action, screen, { ...latest, at: '2020-01-01T00:00:00Z' })
-  );
 });
