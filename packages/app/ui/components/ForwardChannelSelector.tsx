@@ -9,13 +9,16 @@ import { useFilteredChannelChats } from '../../hooks/useFilteredChannelChats';
 import { ForwardChannelListItem } from './ForwardChannelListItem';
 import { SearchBar } from './SearchBar';
 
+export type ForwardChannelChat = db.Chat & { type: 'channel' };
+
 type ForwardChannelSelectorProps = {
   isOpen: boolean;
   onChannelSelected: (channel: db.Channel) => void;
   channelFilter?: (channel: db.Channel) => boolean;
+  channelChats?: ForwardChannelChat[];
 };
 
-type ChannelChat = db.Chat & { type: 'channel' };
+type ChannelChat = ForwardChannelChat;
 
 const ITEM_H = 76;
 const LIST_HEIGHT_RATIO = 0.68;
@@ -34,6 +37,7 @@ export function ForwardChannelSelector({
   isOpen,
   onChannelSelected,
   channelFilter,
+  channelChats: channelChatsOverride,
 }: ForwardChannelSelectorProps) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const [query, setQuery] = useState('');
@@ -45,6 +49,7 @@ export function ForwardChannelSelector({
     mode: isOpen ? 'snapshot' : 'live',
     searchQuery: query,
     channelFilter,
+    channelChats: channelChatsOverride,
   });
 
   const handleQueryChanged = useCallback((newQuery: string) => {

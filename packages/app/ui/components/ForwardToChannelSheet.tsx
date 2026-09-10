@@ -2,7 +2,10 @@ import * as db from '@tloncorp/shared/db';
 import { ComponentProps } from 'react';
 
 import { ActionSheet } from './ActionSheet';
-import { ForwardChannelSelector } from './ForwardChannelSelector';
+import {
+  ForwardChannelChat,
+  ForwardChannelSelector,
+} from './ForwardChannelSelector';
 import {
   FORWARD_SHEET_SNAP_POINTS,
   useDelayedClose,
@@ -17,6 +20,7 @@ type ForwardToChannelSheetProps = {
   // Temporary escape hatch for share-target filtering. Should probably push it
   // down into the underlying query.
   channelFilter?: (channel: db.Channel) => boolean;
+  channelChats?: ForwardChannelChat[];
   footerComponent?: ComponentProps<typeof ActionSheet>['footerComponent'];
 };
 
@@ -27,6 +31,7 @@ export function ForwardToChannelSheet({
   subtitle,
   onChannelSelected,
   channelFilter,
+  channelChats,
   footerComponent,
 }: ForwardToChannelSheetProps) {
   const showSelector = useDelayedClose(open);
@@ -56,6 +61,7 @@ export function ForwardToChannelSheet({
             isOpen={showSelector}
             onChannelSelected={onChannelSelected}
             channelFilter={channelFilter}
+            channelChats={channelChats}
           />
         ) : null}
       </ActionSheet.Content>

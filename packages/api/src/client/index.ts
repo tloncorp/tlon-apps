@@ -124,4 +124,5 @@ export * from './changesApi';
 export * from './computingStatus';
 export * from './presenceApi';
 export * from './stewardGatewayApi';
+export * from './stewardAutomationApi';
 export * from './lensApi';
