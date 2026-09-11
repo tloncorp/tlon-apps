@@ -1780,7 +1780,6 @@ describe('NotesNoteDetail scroll restoration', () => {
 
   async function renderDetail(noteId = 1) {
     const scrollTo = vi.fn();
-    const scrollToEnd = vi.fn();
     let renderer!: ReactTestRenderer;
     await act(async () => {
       renderer = create(
@@ -1793,12 +1792,12 @@ describe('NotesNoteDetail scroll restoration', () => {
           createNodeMock: (element) =>
             (element.props as { testID?: string }).testID ===
             'NotesDetailScrollView'
-              ? { scrollTo, scrollToEnd }
+              ? { scrollTo }
               : null,
         }
       );
     });
-    return { renderer, scrollTo, scrollToEnd };
+    return { renderer, scrollTo };
   }
 
   it('leaves an untouched note where the header put it', async () => {
@@ -1851,12 +1850,12 @@ describe('NotesNoteDetail scroll restoration', () => {
     await act(async () => renderer.unmount());
   });
 
-  it('follows the end when typing past the inset-free end', async () => {
-    const { renderer, scrollTo, scrollToEnd } = await renderDetail();
+  it('keeps an offset the scroll view reported past the inset-free end', async () => {
+    const { renderer, scrollTo } = await renderDetail();
     // automaticallyAdjustKeyboardInsets makes offsets beyond
     // contentSize - layoutMeasurement valid while the keyboard is open, so
-    // y=640 here is legitimate even though the inset-free end is y=100 -- and
-    // reaching it means the user is appending at the end.
+    // y=640 here is legitimate even though the inset-free end is y=100.
+    // Bounding the restore to that end scrolls the caret behind the keyboard.
     const nearEndWithKeyboard = { contentHeight: 900, viewportHeight: 800 };
 
     await act(async () => {
@@ -1871,12 +1870,7 @@ describe('NotesNoteDetail scroll restoration', () => {
       bodyInput(renderer).props.onChangeText('Typed near the end');
     });
 
-    // Re-asserting y=640 holds the viewport still while the body grows under
-    // it, which walks the caret down a line at a time until the keyboard
-    // covers it: measured on iOS 26.5 as a restore to y=907 when the reachable
-    // bottom had already moved to y=1029.
-    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
-    expect(scrollTo).not.toHaveBeenCalled();
+    expect(scrollTo).toHaveBeenCalledWith({ y: 640, animated: false });
     await act(async () => renderer.unmount());
   });
 
