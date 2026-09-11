@@ -8,6 +8,30 @@ import {
   interruptedResult,
 } from './codex.mjs';
 
+test('operator and video reviewer schemas satisfy provider strict-object requirements', () => {
+  function verify(schema) {
+    if (schema.type === 'object') {
+      assert.deepEqual(
+        new Set(schema.required),
+        new Set(Object.keys(schema.properties))
+      );
+      for (const child of Object.values(schema.properties)) verify(child);
+    }
+    if (schema.items) verify(schema.items);
+  }
+  const operator = resultSchemaFor();
+  const reviewer = resultSchemaFor(undefined, { video: true });
+  verify(operator);
+  verify(reviewer);
+  assert.equal(
+    operator.properties.discoveries.items.properties.clipEvidence,
+    undefined
+  );
+  assert.ok(
+    reviewer.properties.discoveries.items.required.includes('clipEvidence')
+  );
+});
+
 test('operator interruption keeps each acceptance criterion pending for review', () => {
   const plan = {
     scenarios: [

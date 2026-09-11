@@ -150,15 +150,17 @@ const clipSelection = {
     ],
   },
 };
-for (const item of [
-  resultSchema.properties.checks.items,
-  resultSchema.properties.discoveries.items,
-]) {
-  item.properties.clipEvidence = clipSelection;
-}
-
-export function resultSchemaFor(assessment) {
+export function resultSchemaFor(assessment, { video = false } = {}) {
   const schema = structuredClone(resultSchema);
+  if (video) {
+    for (const item of [
+      schema.properties.checks.items,
+      schema.properties.discoveries.items,
+    ]) {
+      item.properties.clipEvidence = structuredClone(clipSelection);
+      item.required.push('clipEvidence');
+    }
+  }
   const properties = schema.properties.checks.items.properties;
   properties.scenarioId.enum = assessment
     ? assessment.scenarios.map((scenario) => scenario.id)

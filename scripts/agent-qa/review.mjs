@@ -462,7 +462,7 @@ export async function reviewEvidence({
   for (const d of visualReview.discoveries)
     if (!result.discoveries.some((x) => x.title === d.title))
       result.discoveries.push(d);
-  const schema = resultSchemaFor(assessment);
+  const schema = resultSchemaFor(assessment, { video: Boolean(video) });
   schema.properties.checks.items.properties.evidence.items = {
     type: 'string',
     pattern: video ? '^(codex-trace|video-frames-[0-9]+)$' : '^codex-trace$',
