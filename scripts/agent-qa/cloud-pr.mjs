@@ -1,3 +1,4 @@
+import { assessmentForRetry } from './reuse-assessment.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 const env = process.env;
@@ -91,7 +92,24 @@ if (process.argv[2] === 'assess') {
     throw new Error('Invalid QA source ref');
   command('git', ['fetch', '--no-tags', '--depth=1', 'origin', requestedRef]);
   const ref = command('git', ['rev-parse', 'FETCH_HEAD']).trim();
-  const id = await dispatch({ assessment_pr_json: pr }, ref);
+  const inputs = { assessment_pr_json: pr };
+  if (env.QA_ASSESSMENT_RUN_ID) {
+    if (
+      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(
+        env.QA_ASSESSMENT_RUN_ID
+      )
+    )
+      throw new Error('Invalid assessment run ID');
+    inputs.prepared_assessment_json = assessmentForRetry(
+      eas(['workflow:view', env.QA_ASSESSMENT_RUN_ID]),
+      env.QA_ASSESSMENT_RUN_ID,
+      pr
+    );
+    console.log(
+      `Revalidating assessment from ${env.QA_ASSESSMENT_RUN_ID} against unchanged product commits.`
+    );
+  }
+  const id = await dispatch(inputs, ref);
   const run = await wait(id, 16);
   const job = run.jobs.find((j) => j.key === 'assess_pr');
   const plan = JSON.parse(job?.outputs?.assessment || 'null');

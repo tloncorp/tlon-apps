@@ -351,3 +351,9 @@ proof. Both the app and backend product source must match the requested PR.
 Fixture setup recipes are reviewed code selected by the assessment; the model
 cannot emit arbitrary setup shell commands. New feature families need additional
 recipes. Original shared-account results above are historical qualifications.
+
+Infrastructure retries can supply GitHub workflow input `assessment_run_id` with a
+successful assessment from this project. The coordinator requires the same base
+and head, and EAS revalidates all source citations and scenario bindings. This
+reuses planning only; disposable setup, simulator execution, reviews, publication
+and cleanup still run again. Omit the input for a fresh model assessment.

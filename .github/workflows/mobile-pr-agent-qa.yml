@@ -11,6 +11,9 @@ on:
       qa_ref:
         description: Optional source-verified QA overlay ref before this workflow lands
         type: string
+      assessment_run_id:
+        description: Optional successful assessment to revalidate for an infrastructure retry
+        type: string
       build_id:
         description: Optional existing simulator build to reuse
         type: string
@@ -47,6 +50,7 @@ jobs:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           QA_PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
           QA_TARGET_REF: ${{ inputs.qa_ref || '' }}
+          QA_ASSESSMENT_RUN_ID: ${{ inputs.assessment_run_id || '' }}
         run: node scripts/agent-qa/cloud-pr.mjs assess
   test:
     needs: assess
