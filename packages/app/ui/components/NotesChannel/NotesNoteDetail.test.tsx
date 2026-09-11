@@ -1921,6 +1921,48 @@ describe('NotesNoteDetail scroll restoration', () => {
     await act(async () => renderer.unmount());
   });
 
+  it('does not follow the caret from an edit that armed no restore', async () => {
+    vi.useFakeTimers();
+    try {
+      const { renderer, scrollTo, scrollToEnd } = await renderDetail();
+      const body = bodyInput(renderer);
+      const draft = body.props.value as string;
+
+      // The first edit lands before the scroll view has reported an offset, so
+      // there is nothing to restore. Arming follow-caret here would leave a
+      // flag with no restore to consume it.
+      await act(async () => {
+        body.props.onSelectionChange({
+          nativeEvent: {
+            selection: { start: draft.length, end: draft.length },
+          },
+        });
+      });
+      await act(async () => {
+        body.props.onChangeText(draft + ' first');
+      });
+      expect(scrollToEnd).not.toHaveBeenCalled();
+      expect(scrollTo).not.toHaveBeenCalled();
+
+      // An offset arrives, then autosave arms a restore of its own. That path
+      // does not set follow-caret, so a flag left over from the edit above is
+      // what the restore would read.
+      await act(async () => {
+        scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 640 }));
+      });
+      await act(async () => {
+        // The component's autosave debounce, which it does not export.
+        await vi.advanceTimersByTimeAsync(10_001);
+      });
+
+      expect(scrollTo).toHaveBeenCalledWith({ y: 640, animated: false });
+      expect(scrollToEnd).not.toHaveBeenCalled();
+      await act(async () => renderer.unmount());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('drops the previous note offsets when the note changes', async () => {
     const { renderer, scrollTo } = await renderDetail(1);
 
@@ -1986,6 +2028,16 @@ describe('estimateBodyInputHeight', () => {
       .fill(`a${' '.repeat(25)}b`)
       .join('\n');
     expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(60));
+  });
+
+  it('starts the next word from where a whitespace run ended', () => {
+    // "a" plus 25 spaces ends six columns into the third line, so "bbbbb" no
+    // longer fits there and takes a fourth. Resetting the column to zero let
+    // it appear to fit on a line the whitespace already occupied.
+    const body = Array(20)
+      .fill(`a${' '.repeat(25)}bbbbb`)
+      .join('\n');
+    expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(80));
   });
 
   it('counts an empty paragraph as a line', () => {

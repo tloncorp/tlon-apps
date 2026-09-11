@@ -379,7 +379,11 @@ export function estimateBodyInputHeight(body: string, inputWidth: number) {
           lineCount += 1;
           overflow -= charsPerLine;
         }
-        column = 0;
+        // The run ends partway into its last line, so the next word starts
+        // from there. Resetting to zero would let that word appear to fit on
+        // a line the whitespace already occupies, which counts one line too
+        // few -- the direction that clips.
+        column = overflow;
         continue;
       }
       if (column > 0) {
@@ -835,8 +839,11 @@ export function NotesNoteDetail({
     pendingScrollFollowCaretRef.current = false;
   }, [isPreviewing]);
 
+  // Returns whether a restore was armed, so callers that also arm follow-caret
+  // state can keep it in step: a flag left set without a restore to consume it
+  // is read by whatever unrelated restore comes next.
   const preserveScrollOffset = useCallback(() => {
-    if (isPreviewing) return;
+    if (isPreviewing) return false;
     // This runs before the change that reflows the note, so the live offset is
     // still where the viewport should stay. Preferring an older drag position
     // would instead move it, and after UIKit scrolls to reveal the caret for
@@ -845,8 +852,9 @@ export function NotesNoteDetail({
     // already right; inventing an offset is what buried the body under the
     // transparent header.
     const candidate = scrollOffsetYRef.current;
-    if (candidate === null) return;
+    if (candidate === null) return false;
     pendingScrollRestoreYRef.current = candidate;
+    return true;
   }, [isPreviewing]);
 
   useLayoutEffect(() => {
@@ -1625,14 +1633,15 @@ export function NotesNoteDetail({
       if (bodyDraftRef.current === nextBody) {
         return;
       }
-      preserveScrollOffset();
+      const armedRestore = preserveScrollOffset();
       // Typing does not move the scroll view on its own, so appending at the
       // end walks the caret down a line at a time until the keyboard covers
       // it. Following the end is only right when the caret is actually there,
       // which is why this asks the input rather than the last reported offset
       // -- deciding it from the offset scrolled the note to its end while the
       // caret sat near the top (see the isPreviewing reset above).
-      pendingScrollFollowCaretRef.current = caretAtBodyEndRef.current;
+      pendingScrollFollowCaretRef.current =
+        armedRestore && caretAtBodyEndRef.current;
       bodyDraftRef.current = nextBody;
       setBodyDraft(nextBody);
     },
