@@ -2166,6 +2166,42 @@ export async function editMessage(
 }
 
 /**
+ * Sends a message whose body is a line of prose followed by a fenced code
+ * block, opens it for editing, and re-sends it unchanged. Both the edit input
+ * and the re-sent post must still carry the code block.
+ */
+export async function editMessageWithCodeBlock(
+  page: Page,
+  { lead, code }: { lead: string; code: string }
+) {
+  const fencedCode = ['```', code, '```'].join('\n');
+
+  await waitForSessionStability(page);
+  await page.getByTestId('MessageInput').click();
+  await page.fill(
+    '[data-testid="MessageInput"]',
+    [lead, fencedCode].join('\n')
+  );
+  await page.getByTestId('MessageInputSendButton').click({ force: true });
+
+  const renderedCode = page.getByTestId('Post').getByText(code).first();
+  await expect(renderedCode).toBeVisible({ timeout: 10000 });
+
+  await longPressMessage(page, lead);
+  await page.getByText('Edit message').click();
+
+  await expect
+    .poll(() => page.getByTestId('MessageInput').inputValue(), {
+      timeout: 10000,
+    })
+    .toContain(fencedCode);
+
+  // Re-send untouched: the code block should come back out the way it went in.
+  await page.getByTestId('MessageInputSendButton').click();
+  await expect(renderedCode).toBeVisible({ timeout: 15000 });
+}
+
+/**
  * Verifies message preview on Home screen
  */
 export async function verifyMessagePreview(

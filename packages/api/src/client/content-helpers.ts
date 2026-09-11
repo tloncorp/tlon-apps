@@ -430,6 +430,26 @@ export function textAndMentionsToContent(
           },
         });
         currentCodeBlock = [];
+
+        // Only the opening fence carries an info string. Anything typed after
+        // a closing fence is prose, so carry it over to the next text line
+        // rather than dropping the rest of the line on the floor. `processLine`
+        // trims what it is given, so drop the gap between the fence and the
+        // prose here too, or the mention offsets land a character early.
+        const fence = text.match(/^`+\s*/)![0];
+        const trailing = text.slice(fence.length);
+        if (trailing !== '') {
+          currentLines.push({
+            text: trailing,
+            mentions: line.mentions
+              .filter((mention) => mention.start >= fence.length)
+              .map((mention) => ({
+                ...mention,
+                start: mention.start - fence.length,
+                end: mention.end - fence.length,
+              })),
+          });
+        }
       }
     } else if (inCodeBlock) {
       currentCodeBlock.push(line);
@@ -478,13 +498,19 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
     };
   }
 
-  let paragrahCount = 0;
+  // Every top-level node starts on its own line, so each one but the first is
+  // preceded by a newline.
+  let hasEmittedNode = false;
+  const startNode = () => {
+    if (hasEmittedNode) {
+      text.push('\n');
+    }
+    hasEmittedNode = true;
+  };
+
   content.forEach((node) => {
     if (node.type === 'paragraph') {
-      if (paragrahCount > 0) {
-        text.push('\n');
-      }
-      paragrahCount++;
+      startNode();
       if (!node.content) {
         return;
       }
@@ -562,13 +588,15 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
       if (!node.content || !node.content[0].text) {
         return;
       }
+      startNode();
       text.push('```\n');
       text.push(node.content[0].text);
-      text.push('\n```\n');
+      text.push('\n```');
     } else if (node.type === 'blockquote') {
       if (!node.content) {
         return;
       }
+      startNode();
       text.push('> ');
       node.content.forEach((child, index) => {
         if (child.type === 'paragraph' && child.content) {
@@ -582,7 +610,6 @@ export function contentToTextAndMentions(jsonContent: JSONContent): {
           }
         }
       });
-      text.push('\n');
     }
   });
 
