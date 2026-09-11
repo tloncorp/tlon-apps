@@ -433,18 +433,20 @@ export function textAndMentionsToContent(
 
         // Only the opening fence carries an info string. Anything typed after
         // a closing fence is prose, so carry it over to the next text line
-        // rather than dropping the rest of the line on the floor.
-        const fenceLength = text.match(/^`+/)![0].length;
-        const trailing = text.slice(fenceLength);
-        if (trailing.trim() !== '') {
+        // rather than dropping the rest of the line on the floor. `processLine`
+        // trims what it is given, so drop the gap between the fence and the
+        // prose here too, or the mention offsets land a character early.
+        const fence = text.match(/^`+\s*/)![0];
+        const trailing = text.slice(fence.length);
+        if (trailing !== '') {
           currentLines.push({
             text: trailing,
             mentions: line.mentions
-              .filter((mention) => mention.start >= fenceLength)
+              .filter((mention) => mention.start >= fence.length)
               .map((mention) => ({
                 ...mention,
-                start: mention.start - fenceLength,
-                end: mention.end - fenceLength,
+                start: mention.start - fence.length,
+                end: mention.end - fence.length,
               })),
           });
         }

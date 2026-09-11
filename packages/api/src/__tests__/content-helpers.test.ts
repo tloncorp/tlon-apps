@@ -95,8 +95,12 @@ describe('textAndMentionsToContent closing fences', () => {
     });
   });
 
-  test('keeps a mention that follows the closing fence', () => {
-    const text = '```\nconst x = 42;\n```~zod';
+  test.each([
+    ['flush against the fence', '```~zod'],
+    ['separated by a space', '``` ~zod'],
+    ['separated by several spaces', '```   ~zod'],
+  ])('keeps a mention %s', (_label, closingLine) => {
+    const text = `\`\`\`\nconst x = 42;\n${closingLine}`;
     const result = textAndMentionsToContent(text, [
       {
         id: '~zod',
@@ -106,9 +110,20 @@ describe('textAndMentionsToContent closing fences', () => {
       },
     ]);
 
+    // No stray text node before the mention: the gap between the fence and
+    // the mention must not shift the mention's offsets.
     expect(result.content?.[1]).toEqual({
       type: 'paragraph',
       content: [{ type: 'mention', attrs: { id: '~zod' } }],
+    });
+  });
+
+  test('keeps prose separated from the closing fence by a space', () => {
+    expect(
+      textAndMentionsToContent('```\nconst x = 42;\n``` after', []).content?.[1]
+    ).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'after ' }],
     });
   });
 
