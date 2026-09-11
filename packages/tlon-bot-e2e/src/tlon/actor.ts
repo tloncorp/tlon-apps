@@ -1,3 +1,4 @@
+export * as actorApi from '@tloncorp/api';
 import {
   Urbit,
   addReaction,
@@ -64,6 +65,7 @@ export interface BotProfileInput {
 }
 
 export interface ChannelPost {
+  isDeleted?: boolean;
   id?: string;
   authorId?: string;
   parentId?: string | null;
@@ -439,7 +441,8 @@ export class TlonActorClient {
     this.connected = true;
   }
 
-  private async withClient<T>(fn: () => Promise<T>): Promise<T> {
+  // Serialize API calls so each operation uses this actor's ship context.
+  async withClient<T>(fn: () => Promise<T>): Promise<T> {
     return runExclusive(async () => {
       await this.ensureConnected();
       configureClient({
@@ -736,6 +739,7 @@ export function storyInputText(input: StoryInput): string {
 
 function postFromApi(post: unknown): ChannelPost {
   const raw = post as {
+    isDeleted?: boolean;
     id?: string;
     authorId?: string;
     parentId?: string | null;
@@ -746,6 +750,7 @@ function postFromApi(post: unknown): ChannelPost {
   };
   return {
     id: raw.id,
+    ...(raw.isDeleted ? { isDeleted: true } : {}),
     authorId: raw.authorId,
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,

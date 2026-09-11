@@ -31,3 +31,28 @@ settings restores the original theme on success.
 
 Multi-ship delivery, DMs, notifications, media, extended onboarding/recovery, and
 advanced collaborative notebook cases remain outside this suite.
+
+The separate `Maestro two-ship test` workflow runs on demand. It starts disposable
+`~zod` and `~ten` ships on CI using this checkout's backend, exposes only `~zod`
+through an IP-restricted tunnel, and reuses a qualified Android Cloud binary.
+An API peer creates the group and sends a message; Maestro receives it, replies,
+and sees the peer's acknowledgement without reloading. Invite/accept UI is not
+covered. Dispatch `.github/workflows/maestro-fakeship-proof.yml` on this branch.
+
+CI needs `MAESTRO_CLOUD_API_KEY` and `MAESTRO_FAKE_SHIP_NGROK_TOKEN`. The workflow
+pins the Cloud project, binary, device, and CLI. Prepared ship snapshots are keyed
+by backend/manifest inputs; a miss prepares cold ships, while a mismatched warm
+snapshot fails quickly. App builds and local native caches are not involved.
+The retained artifacts include backend hashes and the peer's delivery receipt.
+
+Multiparty cases from the [Authenticated App QA sheet](https://docs.google.com/spreadsheets/d/1tm0wY5qzLxgBrym6W4rDMSn66b2w9IjWxHNU6Dabp_A/edit?gid=0):
+
+| Rows | Case | Peer evidence |
+| --- | --- | --- |
+| 207-208 | Edit a mobile message | Same post ID has the edited text on the other ship |
+| 209 | Delete that message | Other ship receives its deletion tombstone |
+| 201-202 | Reply to a peer and receive a thread reply | Both replies have the expected authors under the same root; UI shows two replies and reopens them |
+
+These run sequentially inside `exchange.yaml` to share one login and ship setup.
+`peer-checks.json` records completed backend checks even if a later step fails;
+Maestro must also pass before the run counts as successful.

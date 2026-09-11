@@ -1,0 +1,41 @@
+appId: ${MAESTRO_APP_ID}
+---
+# QA Authenticated App rows 207-209. Each acknowledgement requires peer evidence.
+- longPressOn: ${MAESTRO_RUN_TAG + ' from mobile ?'}
+- tapOn: '^Edit message$'
+- assertVisible:
+    id: MessageInput
+    text: ${MAESTRO_RUN_TAG + ' from mobile ?'}
+- tapOn:
+    id: MessageInput
+    point: '95%,50%'
+- waitForAnimationToEnd:
+    timeout: 5000
+- eraseText: 100
+- runFlow:
+    file: ../reliability/subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG + ' edited'}
+- tapOn:
+    id: MessageInputSendButton
+- assertVisible: ${MAESTRO_RUN_TAG + ' edited ?'}
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' from mobile ?'}
+- tapOn:
+    id: MessageInput
+- hideKeyboard
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' edit received'}
+    timeout: 15000
+- longPressOn: ${MAESTRO_RUN_TAG + ' edited ?'}
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- assertVisible: '^Delete message\?$'
+- tapOn: '^Delete message$'
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' edited ?'}
+- extendedWaitUntil:
+    visible: ${MAESTRO_RUN_TAG + ' delete received'}
+    timeout: 15000

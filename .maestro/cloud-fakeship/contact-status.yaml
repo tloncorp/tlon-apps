@@ -1,0 +1,33 @@
+appId: ${MAESTRO_APP_ID}
+name: A contact status update propagates to the native contact list
+env:
+  JOURNEY: contact-status
+---
+- runScript: ../reliability/data.js
+- runFlow: begin.yaml
+- runFlow: ../reliability/subflows/contacts-tab.yaml
+- assertVisible: ${'Available-' + MAESTRO_RUN_TAG}
+- runFlow: ../reliability/subflows/home-tab.yaml
+- scrollUntilVisible:
+    element: ${'Status-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Status-' + MAESTRO_RUN_TAG}
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: status ready
+      MESSAGE_PATTERN: '^status ready ?$'
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- extendedWaitUntil:
+    visible: '^status verified$'
+    timeout: 15000
+- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/contacts-tab.yaml
+- assertVisible: ${'Busy-' + MAESTRO_RUN_TAG}
+- assertNotVisible: ${'Available-' + MAESTRO_RUN_TAG}
+- tapOn: '^~ten$'
+- assertVisible: ${'Busy-' + MAESTRO_RUN_TAG}
+- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/home-tab.yaml
