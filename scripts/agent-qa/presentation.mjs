@@ -66,11 +66,8 @@ export function verifyPresentation(value, report) {
       seen.add(id);
     }
     const members = f.sources.map((id) => byId.get(id));
-    if (
-      new Set(members.map((s) => s.status)).size > 1 ||
-      new Set(members.map((s) => s.file || 'check')).size > 1
-    )
-      throw new Error('Cannot merge different finding statuses or files');
+    if (new Set(members.map((s) => s.status)).size > 1)
+      throw new Error('Cannot merge different finding statuses');
   }
   if (seen.size !== sources.length)
     throw new Error('Readable report omitted a finding');

@@ -61,6 +61,9 @@ Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.
 A fresh CODEX_HOME and temporary working directory avoid personal configuration.
 The installed Argent interaction skill is included in the task instructions.
+The operator prefers accessibility frames. When a visible control is absent from
+the tree, it can use the latest screenshot to target that control and verify the
+result. Two failed attempts require a different route, not abandoning all tests.
 After device execution and recording stop, a fresh Sol/high visual reviewer examines
 the original actions and screenshots without the plan, source hypotheses, PR prose,
 or operator conclusions. It records before/after transitions and unexpected defects.
@@ -104,6 +107,14 @@ result are saved. Codex does not report dollar cost or per-request usage through
 this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
 OpenRouter key's spending limit for spend management; these run limits are
 not a hard dollar cap. EAS runner/build charges remain separate.
+
+An operator timeout leaves every planned check pending and still runs the
+independent reviewers against the saved evidence. Reviewers may establish an
+outcome only from that evidence. Interrupted coverage remains explicit.
+For an older run whose timeout skipped review, `replay.mjs RUN QA_REF complete`
+runs the full review and publication on EAS using the original recording. If
+only publication needs a retry, `replay.mjs RUN QA_REF present REVIEW_RUN` reuses
+the completed review. Neither command performs another device session.
 
 Provisioned runs use disposable ships and allow writes only within their verified
 fixture. Runs without a setup recipe retain the shared account's navigation-only

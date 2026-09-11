@@ -2,7 +2,13 @@
 // Artifact URLs stay in the subprocess request and are never printed here.
 import { execFileSync } from 'node:child_process';
 import { selectEvidence } from './publish.mjs';
-const [id, ref, mode] = process.argv.slice(2);
+const [id, ref, mode, reviewerRun] = process.argv.slice(2);
+if (
+  reviewerRun &&
+  (mode !== 'present' ||
+    !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(reviewerRun))
+)
+  throw new Error('A reviewed run may only supply presentation evidence');
 if (mode && !['present', 'complete'].includes(mode))
   throw new Error('Expected optional present or complete mode');
 if (
@@ -25,12 +31,16 @@ const eas = (args) =>
   );
 const run = eas(['workflow:view', id]);
 const { video } = selectEvidence(run, id);
-const artifact = run.jobs
-  .find((j) => j.key === 'qa_ios')
-  .artifacts.find((a) => a.name === 'ios-agent-qa');
+const artifactRun = reviewerRun ? eas(['workflow:view', reviewerRun]) : run;
+const artifact = artifactRun.jobs
+  .find((j) => j.key === (reviewerRun ? 'review_recording' : 'qa_ios'))
+  ?.artifacts.find(
+    (a) => a.name === (reviewerRun ? 'evidence-review-replay' : 'ios-agent-qa')
+  );
 if (!artifact) throw new Error('Missing recorded evidence');
 const descriptor = {
   complete: mode === 'complete',
+  reviewerRun,
   id,
   sha: run.gitCommitHash,
   video: video

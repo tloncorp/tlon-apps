@@ -65,6 +65,23 @@ test('editing may group duplicates but cannot lose or invent findings or coverag
   assert.ok(!args.some((a) => a.startsWith('mcp_servers.')));
   assert.ok(args.includes('features.shell_tool=false'));
 });
+test('one observed defect may include different source files and a failed planned check', () => {
+  const r = {
+    ...report,
+    discoveries: [finding, { ...finding, file: 'Header.tsx' }],
+    checks: [
+      ...report.checks,
+      {
+        status: 'failed',
+        expected: 'Title remains visible',
+        observed: finding.observed,
+      },
+    ],
+  };
+  const v = structuredClone(value);
+  v.findings[0].sources.push('check-2');
+  assert.equal(verifyPresentation(v, r), v);
+});
 test('clip intervals prefer actual reviewed frames, clamp padding, and label approximate action timing', () => {
   const receipts = {
     'video-frames-1': { frames: [{ seconds: 4 }, { seconds: 4.1 }] },

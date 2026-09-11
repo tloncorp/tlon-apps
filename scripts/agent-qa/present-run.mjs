@@ -36,7 +36,7 @@ async function download(a, file) {
     url.hostname !== 'wf-artifacts.eascdn.net' ||
     url.username ||
     url.password ||
-    !(a.fileSizeBytes > 0 && a.fileSizeBytes <= 100 * 1024 * 1024)
+    !(a.fileSizeBytes > 0 && a.fileSizeBytes <= 200 * 1024 * 1024)
   )
     throw new Error('Invalid recorded artifact');
   const r = await fetch(url, { signal: AbortSignal.timeout(120000) });
@@ -92,6 +92,8 @@ const source = path.dirname(reports[0]),
 const c = original.context;
 if (expectedHarness && c.harnessSha !== expectedHarness)
   throw new Error('Recording source mismatch');
+if (replay?.reviewerRun && c.evidenceReview !== 'completed')
+  throw new Error('Recorded review did not complete');
 if (
   !/^[1-9][0-9]*$/.test(String(c.pr?.number)) ||
   !/^[a-f0-9]{40}$/.test(c.pr?.head?.sha) ||
