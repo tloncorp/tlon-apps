@@ -65,7 +65,7 @@ After device execution and recording stop, a fresh Sol/high visual reviewer exam
 the original actions and screenshots without the plan, source hypotheses, PR prose,
 or operator conclusions. It records before/after transitions and unexpected defects.
 A separate coverage reviewer then receives those observations, the plan and the
-operator result. Both use read-only evidence tools. The coverage reviewer also reads
+operator result. Both use read-only evidence tools. A final pass focuses only on unresolved checks and reads
 the finalized recording with `video_info` and `inspect_video_frames`: timestamped
 contact sheets at native frame intervals, with enlarged header crops or full
 viewports. Sparse overviews locate events; stride-one windows inspect fast states
@@ -96,8 +96,8 @@ the separate reporting job still posts the result.
 
 ## Limits and test data
 
-Device execution is capped at nine minutes and 100 MCP tool calls. Blind visual review has four minutes; source and coverage review each have six minutes. Each review has 80 read-only tool calls. The wrapper has a
-30-minute watchdog. JSONL events, diagnostics, token usage, and the structured
+Device execution is capped at nine minutes and 100 MCP tool calls. Blind visual review has four minutes; source, coverage, and unresolved-video review each have six minutes. Each review has 80 read-only tool calls. The wrapper has a
+35-minute watchdog. JSONL events, diagnostics, token usage, and the structured
 result are saved. Codex does not report dollar cost or per-request usage through
 this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
 OpenRouter key's spending limit for spend management; these run limits are

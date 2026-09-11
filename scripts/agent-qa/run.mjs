@@ -567,7 +567,10 @@ async function agent(diff) {
           await readFile(
             path.join(artifacts, 'video-frames/receipts.json'),
             'utf8'
-          )
+          ).catch((error) => {
+            if (error.code === 'ENOENT') return '{}';
+            throw error;
+          })
         );
         for (const [id, receipt] of Object.entries(receipts))
           evidence.set(id, receipt);
@@ -640,7 +643,7 @@ async function agent(diff) {
 await mkdir(artifacts, { recursive: true });
 const watchdog = setTimeout(() => {
   void terminate('Harness reached its 25-minute limit');
-}, 30 * 60_000);
+}, 35 * 60_000);
 process.once('SIGTERM', () => void terminate('Workflow was terminated'));
 process.once('SIGINT', () => void terminate('Workflow was interrupted'));
 

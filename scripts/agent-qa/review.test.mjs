@@ -11,6 +11,7 @@ import {
   reviewArgs,
   verifyDiscoveries,
   visualReviewInput,
+  unresolvedVideoAssessment,
 } from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
 
@@ -271,7 +272,6 @@ test('unplanned defects cannot be hidden by passing planned checks or cite nonex
   );
 });
 
-
 test('blind visual review input excludes the plan and all previous conclusions', () => {
   const input = visualReviewInput({
     files: ['screen.tsx', 'unplanned.tsx'],
@@ -281,7 +281,37 @@ test('blind visual review input excludes the plan and all previous conclusions',
     scenarios: [{ files: ['screen.tsx'], expected: 'Planned criterion' }],
     operatorResult: { summary: 'Passed' },
   });
-  assert.deepEqual(Object.keys(input).sort(), ['baselineDeviceEvidence', 'files']);
+  assert.deepEqual(Object.keys(input).sort(), [
+    'baselineDeviceEvidence',
+    'files',
+  ]);
   assert.deepEqual(input.files, ['screen.tsx', 'unplanned.tsx']);
-  assert.doesNotMatch(JSON.stringify(input), /conclusion|criterion|Human|Passed/);
+  assert.doesNotMatch(
+    JSON.stringify(input),
+    /conclusion|criterion|Human|Passed/
+  );
+});
+
+test('video follow-up prioritizes unresolved checks and preserves the full source scope', () => {
+  const assessment = {
+    scenarios: [
+      { id: 'change-1', method: 'simulator', files: ['one.tsx'] },
+      { id: 'change-2', method: 'simulator', files: ['two.tsx'] },
+      { id: 'change-3', method: 'unavailable', files: ['three.tsx'] },
+      { id: 'change-4', method: 'regression', files: ['four.ts'] },
+      { id: 'change-5', method: 'simulator', files: ['five.tsx'] },
+    ],
+  };
+  const plan = unresolvedVideoAssessment(assessment, {
+    checks: [
+      { scenarioId: 'change-1', status: 'passed' },
+      { scenarioId: 'change-2', status: 'blocked' },
+      { scenarioId: 'change-5', status: 'failed' },
+    ],
+  });
+  assert.deepEqual(
+    plan.scenarios.map((s) => s.id),
+    ['change-2', 'change-3']
+  );
+  assert.equal(plan.files.length, 5);
 });
