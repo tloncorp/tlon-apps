@@ -44,7 +44,10 @@ import {
 } from '../Channel/ChannelHeader';
 import { TextInput, type TextInputRef } from '../Form';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
-import { ScreenHeader } from '../ScreenHeader';
+import type { ScreenHeaderAction } from '../ScreenHeader';
+import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
+import { useFloatingHeaderHeight } from '../conversationScrollChrome';
+import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
   NotebookGateMessage,
   NotesMessage,
@@ -74,10 +77,10 @@ type NotesNoteSaveChain = {
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
-const MIN_BODY_INPUT_HEIGHT = 360;
+export const MIN_BODY_INPUT_HEIGHT = 360;
 const NOTE_COLUMN_MAX_WIDTH = 760;
 const BODY_FONT_SIZE = 14;
-const BODY_LINE_HEIGHT = 22;
+export const BODY_LINE_HEIGHT = 22;
 const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
 const SAVE_STATUS_SLOT_WIDTH = 88;
 const DRAFT_SNAPSHOT_TTL_MS = 120_000;
@@ -338,24 +341,67 @@ function useNotePreviewMode(
   return [isPreviewing, setPreviewMode] as const;
 }
 
-function estimateBodyInputHeight(body: string, inputWidth: number) {
+// The body input cannot size itself: with scrolling disabled it lays out at
+// its minHeight and onContentSizeChange only echoes the frame it was given, so
+// its height has to be computed here and it clips whatever falls below.
+// UIKit wraps at word boundaries, so a paragraph takes more lines than its
+// character count divided by the columns per line whenever a word would have
+// straddled the edge. Counting characters instead left the last lines of a
+// note outside the frame -- measured on iOS 26.5 as the final 17 characters
+// of a 3,671-character note never being drawn, at any scroll position.
+// Erring long only leaves blank space below the text; erring short hides it,
+// so every ambiguity here rounds towards more lines.
+export function estimateBodyInputHeight(body: string, inputWidth: number) {
   if (!inputWidth) return MIN_BODY_INPUT_HEIGHT;
 
   const charsPerLine = Math.max(
     1,
     Math.floor(inputWidth / BODY_MONO_CHAR_WIDTH)
   );
-  const visualLineCount = body
-    .split('\n')
-    .reduce(
-      (count, line) =>
-        count + Math.max(1, Math.ceil(line.length / charsPerLine)),
-      0
-    );
+  let lineCount = 0;
+  for (const paragraph of body.split('\n')) {
+    lineCount += 1;
+    let column = 0;
+    for (const run of paragraph.match(/\S+|\s+/g) ?? []) {
+      let length = run.length;
+      if (column + length <= charsPerLine) {
+        column += length;
+        continue;
+      }
+      if (/^\s/.test(run)) {
+        // Whitespace that would cross the edge hangs off it; the next word
+        // starts the following line. A run longer than one line keeps
+        // occupying lines after that, and counting a single line for any
+        // overflowing run sizes the input short -- the direction that clips.
+        lineCount += 1;
+        let overflow = length - (charsPerLine - column);
+        while (overflow > charsPerLine) {
+          lineCount += 1;
+          overflow -= charsPerLine;
+        }
+        // The run ends partway into its last line, so the next word starts
+        // from there. Resetting to zero would let that word appear to fit on
+        // a line the whitespace already occupies, which counts one line too
+        // few -- the direction that clips.
+        column = overflow;
+        continue;
+      }
+      if (column > 0) {
+        lineCount += 1;
+        column = 0;
+      }
+      // A word longer than a line breaks by character.
+      while (length > charsPerLine) {
+        lineCount += 1;
+        length -= charsPerLine;
+      }
+      column = length;
+    }
+  }
 
   return Math.max(
     MIN_BODY_INPUT_HEIGHT,
-    Math.ceil(visualLineCount * BODY_LINE_HEIGHT)
+    Math.ceil(lineCount * BODY_LINE_HEIGHT)
   );
 }
 
@@ -488,10 +534,18 @@ export function NotesNoteDetail({
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
-  const scrollOffsetYRef = useRef(0);
-  const lastUserScrollOffsetYRef = useRef(0);
-  const userIsScrollingRef = useRef(false);
+  const scrolledNoteIdRef = useRef<number | null>(null);
+  // Offsets are raw UIScrollView contentOffset values. Under a transparent
+  // native header the resting offset at the top is -adjustedContentInset.top
+  // rather than 0, so these start unobserved: assuming 0 scrolls the note
+  // down by the height of the header on the first restore.
+  const scrollOffsetYRef = useRef<number | null>(null);
   const pendingScrollRestoreYRef = useRef<number | null>(null);
+  // Where the caret is, straight from the input. Unlike the offset above this
+  // cannot go stale: onSelectionChange fires for every caret move, including
+  // the ones typing causes, and it is evaluated against the draft it moved in.
+  const caretAtBodyEndRef = useRef(false);
+  const pendingScrollFollowCaretRef = useRef(false);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
@@ -760,12 +814,47 @@ export function NotesNoteDetail({
     selectedNote,
   ]);
 
+  // A different note is a different document: the previous note's offsets and
+  // measured range no longer describe anything on screen. This has to run
+  // before the restore effect below so a switch cannot replay a stale offset.
+  useLayoutEffect(() => {
+    if (scrolledNoteIdRef.current === noteId) return;
+    scrolledNoteIdRef.current = noteId;
+    scrollOffsetYRef.current = null;
+    pendingScrollRestoreYRef.current = null;
+    caretAtBodyEndRef.current = false;
+    pendingScrollFollowCaretRef.current = false;
+  }, [noteId]);
+
+  // Toggling preview swaps the rendered markdown for the editor, which lays the
+  // note out at a different height. The scroll view moves to suit, but it does
+  // not report that through onScroll, so the last offset it did report
+  // describes a layout that no longer exists. Restoring it afterwards scrolls
+  // somewhere arbitrary: measured on iOS 26.5 as a restore to y=1462 that UIKit
+  // clamped to the end of the note while the caret sat near the top, dragging
+  // the reader away from what they were typing.
+  useLayoutEffect(() => {
+    scrollOffsetYRef.current = null;
+    pendingScrollRestoreYRef.current = null;
+    pendingScrollFollowCaretRef.current = false;
+  }, [isPreviewing]);
+
+  // Returns whether a restore was armed, so callers that also arm follow-caret
+  // state can keep it in step: a flag left set without a restore to consume it
+  // is read by whatever unrelated restore comes next.
   const preserveScrollOffset = useCallback(() => {
-    if (isPreviewing) return;
-    pendingScrollRestoreYRef.current = Math.max(
-      scrollOffsetYRef.current,
-      lastUserScrollOffsetYRef.current
-    );
+    if (isPreviewing) return false;
+    // This runs before the change that reflows the note, so the live offset is
+    // still where the viewport should stay. Preferring an older drag position
+    // would instead move it, and after UIKit scrolls to reveal the caret for
+    // an opening keyboard, moving it puts the caret back behind the keyboard.
+    // Nothing observed yet means the view sits wherever UIKit put it, which is
+    // already right; inventing an offset is what buried the body under the
+    // transparent header.
+    const candidate = scrollOffsetYRef.current;
+    if (candidate === null) return false;
+    pendingScrollRestoreYRef.current = candidate;
+    return true;
   }, [isPreviewing]);
 
   useLayoutEffect(() => {
@@ -773,8 +862,24 @@ export function NotesNoteDetail({
     if (restoreY === null || isPreviewing) return;
 
     pendingScrollRestoreYRef.current = null;
+    const followCaret = pendingScrollFollowCaretRef.current;
+    pendingScrollFollowCaretRef.current = false;
+    // Restored unbounded on purpose. Every value here is one the scroll view
+    // reported, so it is reachable by construction, and with the keyboard open
+    // automaticallyAdjustKeyboardInsets makes offsets past the inset-free end
+    // valid; bounding them there would scroll the caret behind the keyboard.
+    // scrollTo is clamped to the live range by UIKit regardless.
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ y: restoreY, animated: false });
+      const view = scrollViewRef.current;
+      if (!view) return;
+      if (followCaret) {
+        // The caret is at the end of the body, so the end of the content is
+        // where it is. scrollToEnd needs no offset of its own, so a stale one
+        // cannot misdirect it.
+        view.scrollToEnd({ animated: false });
+        return;
+      }
+      view.scrollTo({ y: restoreY, animated: false });
     });
   }, [bodyDraft, bodyInputHeight, draftBase, isPreviewing, saveState]);
 
@@ -1501,28 +1606,16 @@ export function NotesNoteDetail({
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = event.nativeEvent.contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      if (nextOffsetY > lastUserScrollOffsetYRef.current) {
-        lastUserScrollOffsetYRef.current = nextOffsetY;
-      }
-      if (userIsScrollingRef.current) {
-        lastUserScrollOffsetYRef.current = nextOffsetY;
-      }
+      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
     },
     []
   );
 
-  const handleScrollBeginDrag = useCallback(() => {
-    userIsScrollingRef.current = true;
-  }, []);
-
+  // onScroll is throttled, so the settled offset can differ from the last one
+  // it reported; the end handlers record where the scroll actually came to rest.
   const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = event.nativeEvent.contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      lastUserScrollOffsetYRef.current = nextOffsetY;
-      userIsScrollingRef.current = false;
+      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
     },
     []
   );
@@ -1540,11 +1633,28 @@ export function NotesNoteDetail({
       if (bodyDraftRef.current === nextBody) {
         return;
       }
-      preserveScrollOffset();
+      const armedRestore = preserveScrollOffset();
+      // Typing does not move the scroll view on its own, so appending at the
+      // end walks the caret down a line at a time until the keyboard covers
+      // it. Following the end is only right when the caret is actually there,
+      // which is why this asks the input rather than the last reported offset
+      // -- deciding it from the offset scrolled the note to its end while the
+      // caret sat near the top (see the isPreviewing reset above).
+      pendingScrollFollowCaretRef.current =
+        armedRestore && caretAtBodyEndRef.current;
       bodyDraftRef.current = nextBody;
       setBodyDraft(nextBody);
     },
     [preserveScrollOffset]
+  );
+
+  const handleBodySelectionChange = useCallback(
+    (event: { nativeEvent: { selection: { start: number; end: number } } }) => {
+      const { start, end } = event.nativeEvent.selection;
+      caretAtBodyEndRef.current =
+        start === end && end === bodyDraftRef.current.length;
+    },
+    []
   );
 
   const handleBodyInputFocus = useCallback(() => {
@@ -1562,22 +1672,33 @@ export function NotesNoteDetail({
     []
   );
 
-  const headerSaveLabel = getHeaderSaveLabel(saveState);
-  const saveStatusLabel = getSaveStatusLabel(saveState);
-  const headerControls = useMemo(
+  const screenScrollProps = useScreenScrollProps({
+    enabled: headerActionsPlacement === 'channel-header',
+  });
+  // Same condition as the scroll props above: the header is only transparent
+  // when this screen owns it, and the banner below the header is outside the
+  // scroll view, so nothing insets it.
+  const floatingHeaderHeight = useFloatingHeaderHeight(
+    headerActionsPlacement === 'channel-header'
+  );
+  const headerActions = useMemo<ScreenHeaderAction[]>(
     () =>
-      selectedNote ? (
-        <XStack alignItems="center" gap="$l">
-          <NotesPreviewToggle
-            isPreviewing={isPreviewing}
-            onPress={togglePreview}
-          />
-        </XStack>
-      ) : null,
+      selectedNote
+        ? [
+            {
+              id: 'NotesPreviewToggle',
+              text: isPreviewing ? 'Edit' : 'Preview',
+              onPress: togglePreview,
+              testID: 'NotesPreviewToggle',
+            },
+          ]
+        : [],
     [isPreviewing, selectedNote, togglePreview]
   );
+  const headerSaveLabel = getHeaderSaveLabel(saveState);
+  const saveStatusLabel = getSaveStatusLabel(saveState);
   useRegisterChannelHeaderItem(
-    headerActionsPlacement === 'channel-header' ? headerControls : null
+    headerActionsPlacement === 'channel-header' ? headerActions : null
   );
   useRegisterChannelHeaderLoadingSubtitle(
     headerActionsPlacement === 'channel-header' ? headerSaveLabel : null
@@ -1602,25 +1723,30 @@ export function NotesNoteDetail({
   }
 
   const inlineActions =
-    headerActionsPlacement === 'inline' ? <>{headerControls}</> : null;
+    headerActionsPlacement === 'inline' ? (
+      <ScreenHeaderItemElements actions={headerActions} />
+    ) : null;
 
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? (
-        <NotesBanner
-          message={error}
-          tone="negative"
-          actions={
-            conflictNote
-              ? [
-                  { label: 'Keep mine', onPress: resolveConflictKeepMine },
-                  { label: 'Use theirs', onPress: resolveConflictUseTheirs },
-                ]
-              : undefined
-          }
-        />
+        <YStack paddingTop={floatingHeaderHeight}>
+          <NotesBanner
+            message={error}
+            tone="negative"
+            actions={
+              conflictNote
+                ? [
+                    { label: 'Keep mine', onPress: resolveConflictKeepMine },
+                    { label: 'Use theirs', onPress: resolveConflictUseTheirs },
+                  ]
+                : undefined
+            }
+          />
+        </YStack>
       ) : null}
       <ScrollView
+        {...screenScrollProps}
         ref={scrollViewRef}
         flex={1}
         automaticallyAdjustKeyboardInsets
@@ -1631,7 +1757,6 @@ export function NotesNoteDetail({
           useWebEditorPane ? { flexGrow: 1, height: '100%' } : { flexGrow: 1 }
         }
         onScroll={handleScroll}
-        onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEnd}
         onMomentumScrollEnd={handleScrollEnd}
         scrollEventThrottle={16}
@@ -1773,6 +1898,7 @@ export function NotesNoteDetail({
                   value={bodyDraft}
                   onChangeText={handleBodyDraftChange}
                   onFocus={handleBodyInputFocus}
+                  onSelectionChange={handleBodySelectionChange}
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"
@@ -1803,25 +1929,6 @@ export function NotesNoteDetail({
         </YStack>
       </ScrollView>
     </YStack>
-  );
-}
-
-function NotesPreviewToggle({
-  isPreviewing,
-  onPress,
-}: {
-  isPreviewing: boolean;
-  onPress: () => void;
-}) {
-  const label = isPreviewing ? 'Edit' : 'Preview';
-  return (
-    <ScreenHeader.TextButton
-      color="$primaryText"
-      onPress={onPress}
-      testID="NotesPreviewToggle"
-    >
-      {label}
-    </ScreenHeader.TextButton>
   );
 }
 
