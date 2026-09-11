@@ -119,6 +119,8 @@ When a label is too long for the screen, read the text (`agent-device snapshot`)
 
 A JavaScript or TypeScript edit needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. Run `stim ios` or `stim android` again only after a native input changes. Format with `pnpm format` at the repository root (oxfmt); running prettier over a file rewrites it wholesale.
 
+Commit as you go. Everything after this step reads the branch, not the working tree: the review diff in step 7 and the pull request in step 8 both carry only what is committed.
+
 ### 6. Validate with the same repro
 
 Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform the change touches, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario.
@@ -168,12 +170,13 @@ For each item: fix what is real, push, reply in that thread with what changed (`
 
 ### 10. Clean up
 
-After the pull request is merged or closed, and after asking the user. **Order matters**: remove the worktree before the branch goes, or `remove` refuses because its commits are no longer on any remote.
+After the pull request is merged or closed, and after asking the user. **Order matters**: remove the worktree before the branch goes, or `remove` refuses because its commits are no longer on any remote. And leave the worktree before removing it: once it is gone, git cannot run from inside it.
 
 ```bash
 cd <worktree>/apps/tlon-mobile
 stim stop
-stim worktree remove          # then, if the branch should go too:
+cd <source checkout>
+stim worktree remove .worktrees/<name>   # then, if the branch should go too:
 git branch -d <handle>/<topic>
 ```
 
