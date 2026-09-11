@@ -118,12 +118,14 @@ function save() {
 // may do to it: MEMBER is any organization member and CONTRIBUTOR is anyone
 // whose pull request once merged. On a public repository only an actual
 // permission check separates a reviewer from a passer-by.
-// Only a yes is cached: gh exits 1 for a 404 (not a collaborator) and for a
-// network failure alike, and caching the latter would silence a reviewer for
-// the rest of the run.
+// A yes is cached for the run. A no is cached only for the current poll: gh
+// exits 1 for a 404 (not a collaborator) and for a network failure alike, and
+// caching the latter for the run would silence a reviewer.
 const writers = new Set();
+let denied = new Set();
 function hasWriteAccess(login) {
   if (writers.has(login)) return true;
+  if (denied.has(login)) return false;
   let allowed = false;
   try {
     allowed = WRITE.has(
@@ -140,6 +142,7 @@ function hasWriteAccess(login) {
     allowed = false;
   }
   if (allowed) writers.add(login);
+  else denied.add(login);
   return allowed;
 }
 
@@ -151,6 +154,7 @@ function qualifies(user) {
 }
 
 function collect() {
+  denied = new Set();
   const pulls = `repos/${repo}/pulls/${number}`;
   const items = [];
   for (const c of api(`repos/${repo}/issues/${number}/comments?per_page=100`)) {
