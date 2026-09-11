@@ -12,9 +12,9 @@ node .agents/skills/tlon-workflow-doctor/check.mjs          # report
 node .agents/skills/tlon-workflow-doctor/check.mjs --fix    # install and re-check
 ```
 
-Run it from the main checkout, unsandboxed. It exits 0 when every line is `ok` or `note`, and 1 while any line says `fix`.
+Run it from the source checkout, unsandboxed. It exits 0 when every line is `ok` or `note`, and 1 while any line says `fix`.
 
-Unsandboxed because `gh auth status` cannot reach the keyring inside a shell sandbox and reports a false `not authenticated`. From the main checkout because the ship-login check reads `apps/tlon-mobile/.env.local`, which a fresh worktree does not have until `stim worktree warm`.
+Unsandboxed because `gh auth status` cannot reach the keyring inside a shell sandbox and reports a false `not authenticated`. From the source checkout because the ship-login check reads `apps/tlon-mobile/.env.local`, which a fresh worktree does not have until `stim worktree warm`.
 
 ## What it checks
 
@@ -22,7 +22,7 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 |---|---|---|
 | `gh` | 2.99.0 or newer (the `--attach` upload flag), authenticated | nothing; prints the install or `gh auth login` line |
 | `stim config` | `~/.stim/config.json` names no path that no longer exists | nothing; prints the dead key |
-| `stim` | the `stim` package, 1.0.0 or newer, resolved first on PATH | uninstalls `stim-cli`, installs `stim` |
+| `stim` | the `stim` package, 1.1.0 or newer, resolved first on PATH | uninstalls `stim-cli`, installs `stim` |
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
 | `agent-device` | installed | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |

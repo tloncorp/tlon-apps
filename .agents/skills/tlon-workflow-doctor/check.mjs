@@ -79,9 +79,9 @@ const checks = [
           cmd: ['sh', ['-c', 'npm uninstall -g stim-cli; npm install -g stim']],
         };
       }
-      if (!atLeast(v, '1.0.0'))
+      if (!atLeast(v, '1.1.0'))
         return {
-          fix: `stim ${v} is older than 1.0.0`,
+          fix: `stim ${v} is older than 1.1.0, which \`stim worktree warm --refresh\` needs`,
           how: 'npm install -g stim@latest',
           cmd: ['npm', ['install', '-g', 'stim@latest']],
         };

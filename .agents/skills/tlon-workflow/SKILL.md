@@ -17,7 +17,7 @@ Everything below is written from the **repository root**. Steps 2 onward run fro
 
 ## Before anything
 
-From the **main checkout**, not a worktree, and unsandboxed:
+From the **source checkout**, not a worktree, and unsandboxed:
 
 ```bash
 node .agents/skills/tlon-workflow-doctor/check.mjs
@@ -25,7 +25,7 @@ node .agents/skills/tlon-workflow-doctor/check.mjs
 
 If any line says `fix`, use the tlon-workflow-doctor skill and come back. Do not work around a missing tool.
 
-Run it in the main checkout because it reads `apps/tlon-mobile/.env.local`, which a worktree does not have until `warm`. Run it unsandboxed because under a shell sandbox `gh auth status` cannot reach the keyring and reports a false `not authenticated`.
+Run it in the source checkout because it reads `apps/tlon-mobile/.env.local`, which a worktree does not have until `warm`. Run it unsandboxed because under a shell sandbox `gh auth status` cannot reach the keyring and reports a false `not authenticated`.
 
 ## The loop
 
@@ -42,9 +42,9 @@ The default branch is `develop`; every branch starts there and every PR targets 
 
 `git worktree add` writes `.git/config`, so it needs an unsandboxed shell. Sandboxed it half-fails: no worktree, but the branch is created, so the retry stops with `a branch named '<...>' already exists`. Delete the branch before retrying.
 
-`warm` copies the ignored state from the main checkout into this worktree: `node_modules`, `ios/Pods`, `.env.local`, and `.claude/` with whatever settings it holds. `--refresh` first brings that checkout up to date under a lock -- it fetches, fast-forwards its branch, and installs dependencies and pods only when their lockfiles moved. Wait for it to exit 0 before running anything else here.
+`warm` copies the ignored state from the source checkout into this worktree: `node_modules`, `ios/Pods`, `.env.local`, and `.claude/` with whatever settings it holds. `--refresh` first brings that checkout up to date under a lock -- it fetches, fast-forwards its branch, and installs dependencies and pods only when their lockfiles moved. Wait for it to exit 0 before running anything else here.
 
-In this workflow the main checkout is a seed, not a workspace: every worktree is a copy of it, so keeping it clean and on `develop` is what makes it worth copying. `--refresh` refuses a dirty or detached one and prints the git line that clears it. Clear it rather than dropping `--refresh`; a stale seed hands its staleness to every worktree made from it.
+In this workflow the source checkout is a seed, not a workspace: every worktree is a copy of it, so keeping it clean and on `develop` is what makes it worth copying. `--refresh` refuses a dirty or detached one and prints the git line that clears it. Clear it rather than dropping `--refresh`; a stale seed hands its staleness to every worktree made from it.
 
 ### 2. Run the app
 
