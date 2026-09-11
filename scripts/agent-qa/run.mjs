@@ -1,3 +1,4 @@
+import { billingSummary } from './billing.mjs';
 import { reviewEvidence, unresolvedVideoAssessment } from './review.mjs';
 import { runCodex, verifyCodexAuth, interruptedResult } from './codex.mjs';
 import { verifyCoverage, verifySourceOverlay } from './assess.mjs';
@@ -500,6 +501,45 @@ async function prepare() {
     ? 'Passed after one app relaunch: Home, Contacts, and exact test-ship identity. Fresh login failed.'
     : 'Passed: fresh login, Home, Contacts, and exact test-ship identity';
   console.log(context.smoke);
+  const fixture = context.backend?.fixtures?.find(
+    (f) => f.recipe === 'chat-v1'
+  );
+  if (fixture) {
+    const flow = path.join(artifacts, 'fixture-navigation.yaml');
+    const literal = (value) =>
+      JSON.stringify('^' + value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
+    await writeFile(
+      flow,
+      `appId: ${context.appId}
+---
+- assertVisible: '^Profile$'
+- tapOn:
+    point: '8%,9%'
+    label: Return from verified Profile
+- tapOn:
+    text: '^Tab Bar$'
+    point: '29%,38%'
+- assertVisible: '^Home$'
+- tapOn: ${literal(fixture.groupTitle)}
+- extendedWaitUntil:
+    visible: ${literal(fixture.peerMessage)}
+    timeout: 15000
+`
+    );
+    try {
+      await run(
+        env.QA_MAESTRO_BIN || 'maestro',
+        ['--device', udid, 'test', flow],
+        { timeout: 45000 }
+      );
+      context.fixtureNavigation =
+        'Runner opened the verified chat and confirmed its unique peer message.';
+    } catch {
+      context.fixtureNavigation =
+        'Scripted fixture navigation did not finish; operator must verify and reach the fixture.';
+    }
+    console.log(context.fixtureNavigation);
+  }
   await argent('launch-app', { bundleId: context.appId }, 120_000);
   await capture();
   await capture([], true);
@@ -547,7 +587,7 @@ async function agent(diff) {
   await capture();
   await capture([], true);
   await stopRecording();
-  if (context.assessment) {
+  if (context.assessment && env.QA_DEFER_REVIEW !== 'true') {
     const simulatorPlan = {
       ...context.assessment,
       scenarios: context.assessment.scenarios.filter(
@@ -651,10 +691,15 @@ async function agent(diff) {
           ? 'blocked'
           : 'passed';
   }
+  if (env.QA_DEFER_REVIEW === 'true' && context.assessment)
+    context.evidenceReview = 'pending';
   const counts = { passed: 0, failed: 0, blocked: 0 };
   for (const check of result.checks) counts[check.status]++;
   result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. ${result.discoveries?.length || 0} unexpected findings. See individual observations and source hypotheses below.`;
-  report = verifyCoverage(verifyReport(result, evidence), context.assessment);
+  report =
+    env.QA_DEFER_REVIEW === 'true'
+      ? verifyReport(result, evidence)
+      : verifyCoverage(verifyReport(result, evidence), context.assessment);
 }
 
 await mkdir(artifacts, { recursive: true });
@@ -725,6 +770,7 @@ function finalize() {
         evidence: [],
       });
     }
+    context.billing = billingSummary(artifacts);
     await writeFile(
       path.join(artifacts, 'report.json'),
       clean(

@@ -56,7 +56,7 @@ keeps the embedded JavaScript under test fixed. Original and installed bundle
 hashes, build ID, source commit, simulator UDID, and OS are recorded in report.json.
 
 Codex CLI 0.145.0 runs openai/gpt-5.6-sol through OpenRouter at high reasoning with Argent 0.23.0
-through MCP. It receives the assessment scenarios, PR title, description, and complete source diff.
+through MCP. It receives the assessment scenarios, PR title, and verified fixture details. The complete diff stays with the source reviewer and planner. Routine navigation into a verified chat fixture is scripted before the operator starts, with an operator fallback if navigation fails.
 Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.
 A fresh CODEX_HOME and temporary working directory avoid personal configuration.
@@ -68,7 +68,7 @@ After device execution and recording stop, a fresh Sol/high visual reviewer exam
 the original actions and screenshots without the plan, source hypotheses, PR prose,
 or operator conclusions. It records before/after transitions and unexpected defects.
 A separate coverage reviewer then receives those observations, the plan and the
-operator result. Both use read-only evidence tools. A final pass focuses only on unresolved checks and reads
+operator result. Both use read-only evidence tools. The coverage reviewer also resolves timing questions from
 the finalized recording with `video_info` and `inspect_video_frames`: timestamped
 contact sheets at native frame intervals, with enlarged header crops or full
 viewports. Sparse overviews locate events; stride-one windows inspect fast states
@@ -99,12 +99,35 @@ performance, or production release behavior. Reports are advisory, not merge
 gates. Failed and blocked results fail the QA job after saving its evidence;
 the separate reporting job still posts the result.
 
+## Cost and recovery
+
+Native preparation runs before the disposable backend is leased. EAS fingerprints
+native inputs using the `e2e` environment and finds a compatible simulator build.
+The repository commits its native projects, so the fingerprint job explicitly uses
+`unstable_skip_cng_check`; native sources remain fingerprint inputs. A matching
+build is repacked with the current checkout's JavaScript and assets. Missing matches
+or a failed fingerprint/repack fall back to a full build. Explicit reuse still
+requires the build's independently verified source commit.
+
+The backend uses a 4-CPU Blacksmith runner and stops once the simulator job has
+uploaded its recording and evidence. Independent visual review, combined
+coverage/video review, report editing and publication run on Linux after capture.
+A product failure is reported after publication; it does not trigger a paid retry.
+
+Completed model stages have checkpoints keyed by instructions, schema, prompt,
+review implementation and evidence content. A worker retries an interrupted review
+or publisher once, reusing completed stages. If publication still fails, the
+coordinator makes one evidence-only recovery attempt using durable review artifacts,
+or the original capture when no review artifact exists. Backend setup, native build
+and device interaction are not repeated for a report failure. Video receipts survive
+reviewer restarts, and clip timing can be derived from action metadata without an
+extra model pass. Full recording and the independent blind visual review remain.
+
 ## Limits and test data
 
-Device execution is capped at nine minutes and 100 MCP tool calls. Blind visual review has four minutes; source, coverage, and unresolved-video review each have six minutes. Each review has 80 read-only tool calls. The wrapper has a
+Device execution is capped at nine minutes and 100 MCP tool calls. Blind visual review has four minutes; source and combined coverage/video review each have six minutes. Each review has 80 read-only tool calls. The wrapper has a
 35-minute watchdog. JSONL events, diagnostics, token usage, and the structured
-result are saved. Codex does not report dollar cost or per-request usage through
-this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
+result are saved. A loopback proxy records provider-reported tokens and cost after each Responses request, including requests completed before a later operator timeout. It records no prompts, outputs or credentials. Requests without reported cost remain explicitly unpriced; totals are not treated as complete when usage is missing. Use the dedicated
 OpenRouter key's spending limit for spend management; these run limits are
 not a hard dollar cap. EAS runner/build charges remain separate.
 

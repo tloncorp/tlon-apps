@@ -337,6 +337,7 @@ Keep all text concise and return the supplied schema. Never claim that assessmen
         {
           cwd,
           timeoutMs: 300_000,
+          billingFile: path.join(output, 'assessment-billing.jsonl'),
           env: {
             PATH: process.env.PATH,
             HOME: process.env.HOME,

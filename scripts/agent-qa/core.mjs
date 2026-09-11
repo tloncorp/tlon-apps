@@ -181,7 +181,17 @@ export function renderReport(context, report, usage) {
         `- **${check.status}** — ${clean(check.expected)}\n  Observed: ${clean(check.observed)} (evidence: ${check.evidence.join(', ') || 'none'})`
     ),
     '',
-    `Agent usage: ${usage.calls} completed turns, ${usage.tokens} tokens. ${Number.isFinite(usage.cost) ? `$${usage.cost.toFixed(4)} reported cost.` : 'Dollar cost is not reported by Codex; API and runner billing are separate.'}`,
+    ...(context.billing
+      ? [
+          `Provider billing: $${context.billing.reportedCost.toFixed(4)} reported across ${context.billing.pricedRequests}/${context.billing.requests} requests; ${context.billing.unpricedRequests} requests have unavailable cost (not zero).`,
+          ...(context.presentationBilling
+            ? [
+                `Report editing: $${context.presentationBilling.reportedCost.toFixed(4)} reported; ${context.presentationBilling.unpricedRequests} requests unpriced.`,
+              ]
+            : []),
+        ]
+      : []),
+    `Agent usage: ${usage.calls} completed turns, ${usage.tokens} tokens. ${Number.isFinite(usage.cost) ? `$${usage.cost.toFixed(4)} reported cost.` : 'Completed-turn token counts may omit interrupted work; per-request provider billing is listed separately.'}`,
     'Screenshots, action evidence, and the structured report are in the ios-agent-qa artifact.',
     '',
   ].join('\n');

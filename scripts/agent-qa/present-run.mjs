@@ -1,3 +1,4 @@
+import { billingSummary } from './billing.mjs';
 // Run on the publisher worker. Only the editorial agent rewrites the recorded report.
 import { execFileSync } from 'node:child_process';
 import {
@@ -17,6 +18,8 @@ import {
   renderPresentation,
 } from './presentation.mjs';
 import { renderReport } from './core.mjs';
+import { videoReader } from './video-tools.mjs';
+import { readActions } from './review-tools.mjs';
 
 const env = process.env,
   out = path.resolve('../../artifacts/qa-presentation');
@@ -130,7 +133,15 @@ if (
   throw new Error('Recording does not match report');
 const optionalJSON = (p) => (existsSync(p) ? JSON.parse(readFileSync(p)) : {});
 const receipts = optionalJSON(path.join(source, 'video-frames/receipts.json'));
-const info = optionalJSON(path.join(source, 'video-frames/video-info.json'));
+const info = existsSync(path.join(source, 'video-frames/video-info.json'))
+  ? optionalJSON(path.join(source, 'video-frames/video-info.json'))
+  : videoReader({
+      file: fullVideo,
+      outputDir: path.join(source, 'video-frames'),
+      startedAt: c.video.startedAt,
+      actions: readActions(path.join(source, 'argent-trace.jsonl')),
+      drawLabels: false,
+    }).info;
 const usage = { calls: 0, tokens: 0, cost: null };
 const presentation = await explainReport(original.report, out, usage);
 writeFileSync(
@@ -141,6 +152,8 @@ writeFileSync(
     2
   )
 );
+original.context.billing = billingSummary(source);
+original.context.presentationBilling = billingSummary(out);
 const clips = makeClips(original, presentation, receipts, info, fullVideo, out);
 const text = renderPresentation(
   original,

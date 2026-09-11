@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.22.0'
+          node-version: "22.22.0"
       - id: plan
         name: Assess changes and select setup recipes before spending on devices
         env:
@@ -52,24 +52,51 @@ jobs:
           QA_TARGET_REF: ${{ inputs.qa_ref || '' }}
           QA_ASSESSMENT_RUN_ID: ${{ inputs.assessment_run_id || '' }}
         run: node scripts/agent-qa/cloud-pr.mjs assess
-  test:
+  prepare_build:
     needs: assess
+    if: ${{ needs.assess.outputs.decision == 'test' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      build_id: ${{ steps.build.outputs.build_id }}
+      build_sha: ${{ steps.build.outputs.build_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assess.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - name: Repack compatible native code or build before leasing ships
+        id: build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
+          QA_ASSESSMENT_JSON: ${{ needs.assess.outputs.plan }}
+          QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
+          QA_BUILD_ID: ${{ inputs.build_id || '' }}
+          QA_BUILD_SHA: ${{ inputs.build_sha || '' }}
+        run: node scripts/agent-qa/cloud-pr.mjs build
+  test:
+    needs: [assess, prepare_build]
     if: ${{ needs.assess.outputs.decision == 'test' && needs.assess.outputs.has_fixtures == 'true' }}
-    runs-on: blacksmith-16vcpu-ubuntu-2204
-    timeout-minutes: 85
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 45
+    outputs:
+      eas_run_id: ${{ steps.qa.outputs.eas_run_id }}
     env:
       PROOF_OUTPUT: ${{ github.workspace }}/proof-output
-      QA_PR_MODE: 'true'
+      QA_PR_MODE: "true"
       QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
       QA_SOURCE_SHA: ${{ fromJSON(needs.assess.outputs.pr_json).head.sha }}
       QA_ASSESSMENT_JSON: ${{ needs.assess.outputs.plan }}
       QA_FIXTURE_PLAN: ${{ needs.assess.outputs.fixture_plan }}
       QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
-      QA_BUILD_ID: ${{ inputs.build_id || '' }}
-      QA_BUILD_SHA: ${{ inputs.build_sha || '' }}
+      QA_BUILD_ID: ${{ needs.prepare_build.outputs.build_id }}
+      QA_BUILD_SHA: ${{ needs.prepare_build.outputs.build_sha }}
       MAESTRO_RUN_TAG: ci${{ github.run_id }}a${{ github.run_attempt }}
       MAESTRO_APP_ID: io.tlon.groups
-      MAESTRO_TEST_SHIP: '~zod'
+      MAESTRO_TEST_SHIP: "~zod"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -78,12 +105,12 @@ jobs:
         run: node --input-type=module -e "import {verifySourceOverlay} from './scripts/agent-qa/assess.mjs'; verifySourceOverlay(JSON.parse(process.env.QA_PR_JSON).head.sha)"
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.22.0'
+          node-version: "22.22.0"
       - uses: pnpm/action-setup@v3
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - name: Restore prepared ships
         id: snapshot
         uses: actions/cache/restore@v4
@@ -148,9 +175,27 @@ jobs:
           name: pr-agent-qa-backend
           path: proof-output/
           retention-days: 3
+  finish:
+    needs: [assess, test]
+    if: ${{ always() && needs.test.outputs.eas_run_id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assess.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - name: Finish recorded review and publication after releasing ships
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_EAS_RUN_ID: ${{ needs.test.outputs.eas_run_id }}
+          QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
+        run: node scripts/agent-qa/cloud-pr.mjs finish
   without_fixtures:
-    needs: assess
-    if: ${{ needs.assess.outputs.decision != 'test' || needs.assess.outputs.has_fixtures != 'true' }}
+    needs: [assess, prepare_build]
+    if: ${{ always() && needs.assess.result == 'success' && ( needs.assess.outputs.decision != 'test' || needs.assess.outputs.has_fixtures != 'true') }}
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
@@ -159,13 +204,13 @@ jobs:
           ref: ${{ needs.assess.outputs.ref }}
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.22.0'
+          node-version: "22.22.0"
       - name: Run or publish the assessment without a ship lease
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
           QA_ASSESSMENT_JSON: ${{ needs.assess.outputs.plan }}
           QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
-          QA_BUILD_ID: ${{ inputs.build_id || '' }}
-          QA_BUILD_SHA: ${{ inputs.build_sha || '' }}
+          QA_BUILD_ID: ${{ needs.prepare_build.outputs.build_id }}
+          QA_BUILD_SHA: ${{ needs.prepare_build.outputs.build_sha }}
         run: node scripts/agent-qa/cloud-pr.mjs run

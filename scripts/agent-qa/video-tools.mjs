@@ -1,6 +1,6 @@
 // Decode recorded frames on the runner. The model receives images, never a video URL.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 
 export const videoTools = [
@@ -120,7 +120,9 @@ export function videoReader({
     path.join(outputDir, 'video-info.json'),
     JSON.stringify({ ...info, timestamps })
   );
-  const receipts = {};
+  const receipts = existsSync(path.join(outputDir, 'receipts.json'))
+    ? JSON.parse(readFileSync(path.join(outputDir, 'receipts.json')))
+    : {};
   writeFileSync(
     path.join(outputDir, 'receipts.json'),
     JSON.stringify(receipts)

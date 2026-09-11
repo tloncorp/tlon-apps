@@ -82,6 +82,25 @@ for (const drawLabels of [true, false])
             [1, 3],
           ]
         );
+        const resumed = videoReader({
+          file,
+          drawLabels,
+          outputDir: path.join(dir, 'video-frames'),
+        });
+        const next = JSON.parse(
+          resumed.call('inspect_video_frames', {
+            startFrame: 1,
+            count: 1,
+            stride: 1,
+            region: 'full',
+          })[0].text
+        );
+        assert.equal(next.evidenceId, 'video-frames-2');
+        assert.ok(
+          JSON.parse(
+            readFileSync(path.join(dir, 'video-frames/receipts.json'))
+          )['video-frames-1']
+        );
         if (!drawLabels) assert.equal(receipt.timestampsPrinted, false);
         const png = path.join(dir, 'video-frames/video-frames-1.png');
         // Sample below the timestamp labels: only the middle cell must be white.
