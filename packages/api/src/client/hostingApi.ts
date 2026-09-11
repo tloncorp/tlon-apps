@@ -138,6 +138,19 @@ const EXPECTED_ERRORS = [ALREADY_IN_USE, CANNOT_BOOT, RATE_LIMITED];
 
 const MANUAL_UPDATE_REQUIRED_MESSAGE = 'manual update has been requested';
 
+// `401`, or `401 Unauthorized` when the server sent a reason phrase. Used in
+// error messages so a rejected session reads differently from a hosting
+// outage. This is for diagnosis only -- Sentry groups on the stack first, so
+// it is not a guarantee that different statuses land in different issues.
+function statusLabel(response: {
+  status: number;
+  statusText?: string;
+}): string {
+  return response.statusText
+    ? `${response.status} ${response.statusText}`
+    : String(response.status);
+}
+
 const hostingFetchResponse = async (
   path: string,
   init?: RequestInit
@@ -206,27 +219,28 @@ const hostingFetch = async <T extends object>(
   const stopTime = performance.now();
   const responseText = await response.text();
 
+  // Parse before checking `ok`, but only to recover hosting's own error
+  // `message`: a rejected request is reported as the status it is. Hosting
+  // answers an expired session with a 401 and an empty body, which the old
+  // parse-first order reported as `Failed to parse response`.
   let result: { message: string } | T = { message: 'Empty response' };
+  let parsed = true;
   try {
     result = JSON.parse(responseText) as { message: string } | T;
-  } catch (e) {
-    const hostingErr = new HostingError('Failed to parse response', {
-      method: init?.method ?? 'GET',
-      path,
-      status: response.status,
-      responseText,
-    });
-    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
-      details: hostingErr.details,
-      errorMessage: hostingErr.message,
-      errorStack: hostingErr.stack,
-    });
-    throw hostingErr;
+  } catch {
+    parsed = false;
   }
 
   if (!response.ok) {
+    const bodyMessage =
+      parsed &&
+      typeof result === 'object' &&
+      result !== null &&
+      'message' in result
+        ? String(result.message)
+        : null;
     const err = new HostingError(
-      'message' in result ? result.message : 'An unknown error has occurred.',
+      bodyMessage ?? `Hosting request failed (${statusLabel(response)})`,
       {
         method: init?.method ?? 'GET',
         path,
@@ -242,6 +256,21 @@ const hostingFetch = async <T extends object>(
       errorStack: err.stack,
     });
     throw err;
+  }
+
+  if (!parsed) {
+    const hostingErr = new HostingError('Failed to parse response', {
+      method: init?.method ?? 'GET',
+      path,
+      status: response.status,
+      responseText,
+    });
+    logger.trackEvent(AnalyticsEvent.UnexpectedHostingError, {
+      details: hostingErr.details,
+      errorMessage: hostingErr.message,
+      errorStack: hostingErr.stack,
+    });
+    throw hostingErr;
   }
 
   try {
@@ -604,7 +633,7 @@ async function fetchNullableString(
     const message =
       parsed && typeof parsed === 'object' && 'message' in parsed
         ? String((parsed as { message: unknown }).message)
-        : 'An unknown error has occurred.';
+        : `An unknown error has occurred. (${statusLabel(response)})`;
     const err = new HostingError(message, {
       method: init?.method ?? 'GET',
       path,

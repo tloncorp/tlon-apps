@@ -814,6 +814,8 @@ const MUST_MATCH = [
   'BadResponseError: HTTP request failed: Error: fetch failed: java.net.UnknownHostException: Unable to resolve host "www.burtonjernigan.org": No address associated with hostname',
   'Error: fetch failed: UnexpectedException: The request timed out. (at ExpoModulesCore/Promise.swift:56)',
   'Error: fetch failed: The request timed out.',
+  'Error: fetch failed: UnexpectedException: Could not connect to the server. (at ExpoModulesCore/Promise.swift:56)',
+  'Error: fetch failed: Could not connect to the server.',
 ];
 
 const MUST_NOT_MATCH = [
@@ -838,12 +840,15 @@ const MUST_NOT_MATCH = [
   'Error: discarded fetched data, had been running for 1271371ms',
   '[query] Database Query Error',
   'BadResponseError: HTTP 404: [object Response]',
+  'BadResponseError: HTTP 503: gall: agent not running',
+  'HostingError: Hosting request failed (401 Unauthorized)',
+  'HostingError: An unknown error has occurred. (404 Not Found)',
   'Error: Urbit client not set.',
 ];
 
 describe('SENTRY_IGNORE_ERRORS', () => {
   it('builds one regex per body', () => {
-    expect(SENTRY_IGNORE_ERRORS).toHaveLength(15);
+    expect(SENTRY_IGNORE_ERRORS).toHaveLength(16);
   });
 
   it.each(MUST_MATCH)('matches %s', (message) => {

@@ -92,6 +92,24 @@ function getNotificationType(data: ProcessableNotificationData) {
   return data.type ?? 'channelNotification';
 }
 
+// Shape-only description of a notification we failed to parse: which delivery
+// path it came in on, and which keys the payload carried. Key names only --
+// the values hold message content.
+function describeNotificationShape(notification: Notification) {
+  const { trigger } = notification.request;
+  const triggerType =
+    trigger != null &&
+    typeof trigger === 'object' &&
+    'type' in trigger &&
+    typeof trigger.type === 'string'
+      ? trigger.type
+      : 'none';
+  return {
+    notificationTrigger: triggerType,
+    payloadKeys: Object.keys(readRawPayload(notification)).sort().join(','),
+  };
+}
+
 export function getNotificationRouteCategory(
   data: ProcessableNotificationData
 ) {
@@ -200,6 +218,7 @@ export default function useNotificationListener() {
             context: 'Failed to get notification payload',
             properties: {
               notificationType: data?.type ?? 'null',
+              ...describeNotificationShape(notificationResponse.notification),
             },
           });
         } else {

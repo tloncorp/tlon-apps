@@ -1088,7 +1088,7 @@ export async function scry<T>({
       errorMessage: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
@@ -1139,10 +1139,17 @@ export async function requestJson<T = any>(
   }
 }
 
+// Reading a rejected response's body is purely diagnostic, and the request's
+// own timeout is already disarmed by the time the rejection reaches us
+// (`scryWithInfo` cleans its signal up in a `finally`), so an unbounded read
+// would hang a scry that had already failed. Give the read its own deadline
+// and settle for an empty body when it expires.
+const ERROR_BODY_READ_TIMEOUT = 5000;
+
 async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.text === 'function') {
     try {
-      return await res.text();
+      return await readWithin(res.text(), ERROR_BODY_READ_TIMEOUT);
     } catch {
       // Fall through to the generic cases below.
     }
@@ -1151,6 +1158,17 @@ async function responseErrorBody(res: any): Promise<string> {
   if (typeof res?.message === 'string') return res.message;
   const text = String(res);
   return text === '[object Response]' ? '' : text;
+}
+
+// Resolves with whatever `read` produces, or with an empty body once `ms`
+// elapses. The abandoned read stays attached to the race, so a late rejection
+// is never unhandled.
+function readWithin(read: Promise<string>, ms: number): Promise<string> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<string>((resolve) => {
+    timer = setTimeout(() => resolve(''), ms);
+  });
+  return Promise.race([read, deadline]).finally(() => clearTimeout(timer));
 }
 
 export async function scryNoun({
@@ -1197,7 +1215,7 @@ export async function scryNoun({
       message: res.message,
       responseStatus: res.status,
     });
-    throw new BadResponseError(res.status, res.toString());
+    throw new BadResponseError(res.status, await responseErrorBody(res));
   }
 }
 
