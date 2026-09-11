@@ -18,7 +18,7 @@ async function testGroupCreation({
   expectedTitle: string;
   expectedChannels: Array<{
     title: string;
-    type: 'chat' | 'notes' | 'gallery';
+    type: 'chat' | 'notebook' | 'gallery';
   }>;
   hasWelcomeMessage?: boolean;
 }) {
@@ -84,7 +84,7 @@ test('should create a basic group with chat, gallery, and notebook channels', as
     expectedChannels: [
       { title: 'Chat', type: 'chat' },
       { title: 'Gallery', type: 'gallery' },
-      { title: 'Notebook', type: 'notes' },
+      { title: 'Notebook', type: 'notebook' },
     ],
   });
 });
@@ -99,7 +99,7 @@ test('should create a Book Club template group with correct channels', async ({
     expectedChannels: [
       { title: 'Book chat', type: 'chat' },
       { title: 'Now reading', type: 'gallery' },
-      { title: 'Reviews', type: 'notes' },
+      { title: 'Reviews', type: 'notebook' },
     ],
   });
 });

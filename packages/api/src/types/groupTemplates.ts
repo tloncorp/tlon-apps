@@ -1,7 +1,4 @@
-// %notes replaced the legacy %diary type ('notebook'), so templates no longer
-// name it. A 'notes' channel can't ride the group-creation poke the way the
-// %channels kinds do — see `createGroupFromTemplate`.
-export type TemplateChannelType = 'chat' | 'gallery' | 'notes';
+export type TemplateChannelType = 'chat' | 'notebook' | 'gallery';
 
 export interface TemplateChannel {
   type: TemplateChannelType;
@@ -37,7 +34,7 @@ export const groupTemplates = [
         description: "Share what you're currently reading",
       },
       {
-        type: 'notes',
+        type: 'notebook',
         title: 'Reviews',
         description: 'Write and share book reviews',
       },
@@ -61,7 +58,7 @@ export const groupTemplates = [
         description: 'Share photos of your culinary creations',
       },
       {
-        type: 'notes',
+        type: 'notebook',
         title: 'Recipes',
         description: 'Collect and share your favorite recipes',
       },
@@ -85,7 +82,7 @@ export const groupTemplates = [
         description: "Share what you're listening to",
       },
       {
-        type: 'notes',
+        type: 'notebook',
         title: 'Playlists',
         description: 'Curate and share playlists',
       },
@@ -109,7 +106,7 @@ export const groupTemplates = [
         description: 'Share photos from your runs',
       },
       {
-        type: 'notes',
+        type: 'notebook',
         title: 'Goals',
         description: 'Track your running goals and progress',
       },
@@ -133,7 +130,7 @@ export const groupTemplates = [
         description: "Share what you're currently watching",
       },
       {
-        type: 'notes',
+        type: 'notebook',
         title: 'Reviews',
         description: 'Write and share film reviews',
       },
@@ -157,7 +154,7 @@ export const groupTemplates = [
         description: 'Share photos of your garden and plants',
       },
       {
-        type: 'notes',
+        type: 'notebook',
         title: 'Tips, plans and schedules',
         description: 'Share gardening tips and track your plans',
       },
@@ -184,7 +181,7 @@ export const basicGroupTemplate = {
       description: 'Share images',
     },
     {
-      type: 'notes',
+      type: 'notebook',
       title: 'Notebook',
       description: 'Share notes',
     },

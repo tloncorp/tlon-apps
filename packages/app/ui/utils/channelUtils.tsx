@@ -293,24 +293,6 @@ export function getChannelTypeIcon(type: db.Channel['type']): IconType {
   }
 }
 
-// Display names for channel types. %diary ('notebook') is the legacy longform
-// type and reads as 'Bulletin'; %notes is the one you can still create, and it
-// owns the 'Notebook' name.
-export function getChannelTypeLabel(type: db.Channel['type']): string {
-  switch (type) {
-    case 'chat':
-      return 'Chat';
-    case 'notebook':
-      return 'Bulletin';
-    case 'notes':
-      return 'Notebook';
-    case 'gallery':
-      return 'Gallery';
-    default:
-      return 'Channel';
-  }
-}
-
 export function hasNickname(contact: db.Contact | null | undefined): boolean {
   return 'nickname' in (contact ?? {}) && (contact?.nickname?.length ?? 0) > 0;
 }

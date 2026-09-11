@@ -4,7 +4,7 @@ import {
   useDebouncedValue,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useContact } from '@tloncorp/shared/store';
+import { useContact, useNotesDeskAvailable } from '@tloncorp/shared/store';
 import { useIsWindowNarrow } from '@tloncorp/ui';
 import {
   Fragment,
@@ -20,12 +20,7 @@ import { View } from 'tamagui';
 
 import { useShipConnectionStatus } from '../../../features/top/useShipConnectionStatus';
 import { useCurrentUserId } from '../../contexts/appDataContext';
-import {
-  getChannelHost,
-  getChannelTypeLabel,
-  useChatDescription,
-  useChatTitle,
-} from '../../utils';
+import { getChannelHost, useChatDescription, useChatTitle } from '../../utils';
 import { ContactAvatar } from '../Avatar';
 import ConnectionStatus from '../ConnectionStatus';
 import { GroupAvatar } from '../GroupAvatar';
@@ -116,12 +111,6 @@ export function useRegisterChannelHeaderLoadingSubtitle(
   }, [loadingSubtitle, setLoadingSubtitle]);
 }
 
-function getChannelTypeName(channelType: db.Channel['type']) {
-  return channelType === 'dm' || channelType === 'groupDm'
-    ? 'Channel'
-    : `${getChannelTypeLabel(channelType)} channel`;
-}
-
 export function ChannelHeader({
   title,
   titleIcon,
@@ -177,6 +166,26 @@ export function ChannelHeader({
   // Get contact info for 1:1 DMs - only fetch when we have a valid contact ID
   const dmContactId = channel.type === 'dm' ? channel.contactId : null;
   const { data: dmContact } = useContact({ id: dmContactId || '' });
+  const { data: notesAvailable = false } = useNotesDeskAvailable();
+
+  const getChannelTypeName = useCallback(
+    (channelType: db.Channel['type']) => {
+      switch (channelType) {
+        case 'chat':
+          return 'Chat channel';
+        case 'notebook':
+          return notesAvailable ? 'Bulletin channel' : 'Notebook channel';
+        case 'notes':
+          return 'Notebook channel';
+        case 'gallery':
+          return 'Gallery channel';
+        default:
+          return 'Channel';
+      }
+    },
+    [notesAvailable]
+  );
+
   const context = useContext(ChannelHeaderItemsContext);
   const registeredItems = context?.items ?? [];
   const contextItems = registeredItems.filter(
@@ -293,6 +302,7 @@ export function ChannelHeader({
     description,
     dmContactId,
     dmContact?.status,
+    getChannelTypeName,
     post,
   ]);
 

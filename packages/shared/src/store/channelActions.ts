@@ -46,16 +46,6 @@ export async function createChannel({
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
 
-  // %diary is closed to new channels; %notes is the supported longform path.
-  // Refuse before the optimistic insert so nothing has to be rolled back, and
-  // record the attempt so we can see which surface still offers it.
-  if (logic.isDiaryChannelType(channelType)) {
-    logger.trackEvent(AnalyticsEvent.ActionBlockedDiaryChannelCreation, {
-      groupId,
-    });
-    throw new logic.DiaryCreationBlockedError();
-  }
-
   if (channelType === 'notes') {
     return createNotesChannel({
       groupId,
