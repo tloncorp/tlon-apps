@@ -340,6 +340,9 @@ const RemoveAttachmentButton = ({
   }, [removeAttachment, attachment]);
   return (
     <Pressable
+      accessible
+      accessibilityLabel="Remove attachment"
+      accessibilityRole="button"
       width="$xl"
       height="$xl"
       borderColor="$border"
@@ -405,9 +408,7 @@ const LinkPreview = ({ attachment }: { attachment: domain.LinkAttachment }) => {
           </YStack>
         </YStack>
 
-        <View style={{ position: 'absolute', top: 8, right: 8, zIndex: 1000 }}>
-          <RemoveAttachmentButton attachment={attachment} />
-        </View>
+        <RemoveAttachmentButton attachment={attachment} />
       </ZStack>
     </View>
   );

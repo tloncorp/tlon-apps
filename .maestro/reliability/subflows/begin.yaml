@@ -1,0 +1,20 @@
+appId: ${MAESTRO_APP_ID}
+---
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'fresh'}
+    file: login.yaml
+- runFlow:
+    when:
+      true: ${output.reliability.session === 'warm'}
+    commands:
+      # Reset navigation and keyboard state while preserving the login.
+      - launchApp
+- extendedWaitUntil:
+    visible: '^(Home|Contacts)$'
+    timeout: 5000
+- runFlow: contacts-tab.yaml
+- tapOn: '^You$'
+- assertVisible: ${output.reliability.shipPattern}
+- tapOn: '^Back$'
+- runFlow: home-tab.yaml
