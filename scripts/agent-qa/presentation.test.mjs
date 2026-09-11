@@ -154,3 +154,32 @@ test(
     }
   }
 );
+
+test('every original finding and incomplete check is a required output field', async () => {
+  const { presentationPlan } = await import('./presentation.mjs');
+  const { schema, decode } = presentationPlan(report);
+  assert.deepEqual(schema.properties.assignments.required, [
+    'finding-1',
+    'finding-2',
+  ]);
+  assert.deepEqual(schema.properties.incomplete.required, ['check-1']);
+  const raw = {
+    findings: [
+      {
+        id: 'group-1',
+        title: 'Title hides',
+        when: 'Saving',
+        happened: 'Title moves',
+        impact: 'Title is obscured',
+      },
+    ],
+    assignments: { 'finding-1': 'group-1', 'finding-2': 'group-1' },
+    incomplete: { 'check-1': 'Ordering was not tested.' },
+  };
+  assert.equal(
+    verifyPresentation(decode(raw), report).findings[0].sources.length,
+    2
+  );
+  delete raw.assignments['finding-2'];
+  assert.throws(() => decode(raw), /required report assignments/);
+});
