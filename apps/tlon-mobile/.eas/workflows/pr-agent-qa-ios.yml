@@ -182,6 +182,10 @@ jobs:
       embed_bundle_assets: true
       js_bundle_only: false
       message: PR agent QA with compatible native code
+    hooks:
+      after_install_node_modules:
+        - name: Build generated JavaScript packages
+          run: pnpm -w run build:packages
 
   build_ios:
     after: [assess_pr, compatible_build, repack_ios]
