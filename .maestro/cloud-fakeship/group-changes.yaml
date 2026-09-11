@@ -1,0 +1,36 @@
+appId: ${MAESTRO_APP_ID}
+name: Native group title and description reach the peer
+env:
+  JOURNEY: group-changes
+---
+- runScript: ../reliability/data.js
+- runFlow: ../reliability/subflows/begin.yaml
+- tapOn: '^Search$'
+- inputText: ${'Meta-' + MAESTRO_RUN_TAG}
+- pressKey: Enter
+- longPressOn: ${'^Meta-' + MAESTRO_RUN_TAG + '$'}
+- tapOn: '^Group info & settings$'
+- tapOn: '^Rename$'
+- tapOn:
+    id: GroupTitleInput
+    point: '95%,50%'
+- eraseText: 100
+- inputText: ${'Renamed-' + MAESTRO_RUN_TAG}
+- tapOn:
+    id: GroupDescriptionInput
+    point: '95%,50%'
+- eraseText: 100
+- inputText: Shared description
+- tapOn: '^Save$'
+- assertVisible: ${'Renamed-' + MAESTRO_RUN_TAG}
+- assertVisible: '^Shared description$'
+- tapOn: '^Back$'
+# The old Home search no longer matches the renamed group.
+- tapOn: '^Clear$'
+- tapOn: '^Filter by name$'
+- inputText: ${'Renamed-' + MAESTRO_RUN_TAG}
+- pressKey: Enter
+- tapOn: ${'^Renamed-' + MAESTRO_RUN_TAG + '$'}
+- extendedWaitUntil:
+    visible: '^metadata verified$'
+    timeout: 15000

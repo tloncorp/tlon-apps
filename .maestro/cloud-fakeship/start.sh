@@ -110,5 +110,11 @@ echo "url=$url" >> "$GITHUB_OUTPUT"
 echo "code=$code" >> "$GITHUB_OUTPUT"
 mkdir -p proof-flows
 cp -R .maestro/reliability .maestro/cloud-fakeship proof-flows/
-printf 'flows:\n  - cloud-fakeship/exchange.yaml\n' > proof-flows/config.yaml
+node --input-type=module <<'JS'
+import { writeFileSync } from 'node:fs';
+const names = ['exchange', 'invitations', 'direct-messages', 'moderation', 'group-changes', 'reactions', 'contact-status'];
+const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
+if (!selected.length || selected.some(name => !names.includes(name))) throw Error('Unknown proof case');
+writeFileSync('proof-flows/config.yaml', 'flows:\n' + selected.map(name => `  - cloud-fakeship/${name}.yaml\n`).join(''));
+JS
 printf '{"readySeconds":%s}\n' "$((SECONDS-start))" > "$PROOF_OUTPUT/preparation.json"

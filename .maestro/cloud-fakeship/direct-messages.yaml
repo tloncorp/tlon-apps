@@ -1,0 +1,30 @@
+appId: ${MAESTRO_APP_ID}
+name: Incoming DM request and two-way delivery
+env:
+  JOURNEY: direct-messages
+---
+- runScript: ../reliability/data.js
+- runFlow: ../reliability/subflows/begin.yaml
+- tapOn: '^Search$'
+- inputText: ten
+- pressKey: Enter
+- tapOn: '^~ten$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' DM request'}
+- assertVisible: '^Accept$'
+- assertVisible: '^Deny$'
+- assertVisible: '^Block$'
+- tapOn: '^Accept$'
+- assertVisible:
+    id: MessageInput
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: dm mobile
+      MESSAGE_PATTERN: '^dm mobile ?$'
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- extendedWaitUntil:
+    visible: '^dm verified$'
+    timeout: 15000
+- assertNotVisible: '^Accept$'
+- assertNotVisible: '^Deny$'

@@ -1,0 +1,33 @@
+appId: ${MAESTRO_APP_ID}
+name: Cross-ship reaction add, count and selective removal
+env:
+  JOURNEY: reactions
+---
+- runScript: ../reliability/data.js
+- runFlow: ../reliability/subflows/begin.yaml
+- tapOn: '^Search$'
+- inputText: ${'React-' + MAESTRO_RUN_TAG}
+- pressKey: Enter
+- tapOn: ${'^React-' + MAESTRO_RUN_TAG + '$'}
+- extendedWaitUntil:
+    visible: '^reaction target$'
+    timeout: 15000
+- longPressOn: '^reaction target$'
+- tapOn:
+    id: EmojiToolbarButton-thumb
+- extendedWaitUntil:
+    visible: '^two reactions verified$'
+    timeout: 15000
+- assertVisible:
+    id: ReactionDisplay
+    containsDescendants:
+      - text: '^2$'
+- tapOn:
+    id: ReactionDisplay
+- extendedWaitUntil:
+    visible: '^reaction removal verified$'
+    timeout: 15000
+- assertVisible:
+    id: ReactionDisplay
+    containsDescendants:
+      - text: '^1$'

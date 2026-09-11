@@ -1,0 +1,27 @@
+appId: ${MAESTRO_APP_ID}
+name: Incoming group invitation and native acceptance
+env:
+  JOURNEY: invitations
+---
+- runScript: ../reliability/data.js
+- runFlow: ../reliability/subflows/begin.yaml
+- tapOn: '^Search$'
+- inputText: ${'Invite-' + MAESTRO_RUN_TAG}
+- pressKey: Enter
+- tapOn: ${'^Invite-' + MAESTRO_RUN_TAG + '$'}
+- assertVisible: '^Accept invite$'
+- tapOn: '^Accept invite$'
+- extendedWaitUntil:
+    visible:
+      id: MessageInput
+    timeout: 15000
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: invite accepted
+      MESSAGE_PATTERN: '^invite accepted ?$'
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- extendedWaitUntil:
+    visible: '^invite verified$'
+    timeout: 15000

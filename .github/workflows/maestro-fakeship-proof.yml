@@ -1,6 +1,11 @@
 name: Maestro two-ship test
 on:
   workflow_dispatch:
+    inputs:
+      cases:
+        description: Comma-separated flows, or all
+        default: all
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -11,6 +16,7 @@ jobs:
     runs-on: blacksmith-16vcpu-ubuntu-2204
     timeout-minutes: 55
     env:
+      PROOF_CASES: ${{ inputs.cases || 'all' }}
       PROOF_OUTPUT: ${{ github.workspace }}/proof-output
       MAESTRO_RUN_TAG: ci${{ github.run_id }}a${{ github.run_attempt }}
       MAESTRO_APP_ID: io.tlon.groups.preview

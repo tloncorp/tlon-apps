@@ -2,6 +2,8 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 
+import { prepareCases } from './cases';
+
 // Runs on the CI host. No peer control service is exposed to the internet.
 process.chdir(fileURLToPath(new URL('../../', import.meta.url)));
 const manifest = JSON.parse(
@@ -81,7 +83,9 @@ async function main() {
       (p) => p.authorId === '~ten' && p.text === `${tag} from ten`
     )
   );
+  const suite = await prepareCases(zod, ten);
   const evidence = {
+    fixtures: suite.fixtures,
     source: process.env.GITHUB_SHA,
     snapshotSource: snapshot?.source,
     previousFixtureCleared: snapshot ? true : null,
@@ -92,6 +96,15 @@ async function main() {
   };
   writeFileSync(`${out}/peer-ready.json`, JSON.stringify(evidence, null, 2));
   console.log('PEER_READY', JSON.stringify(evidence));
+  const casesDone = suite.run();
+  if (!suite.selected('exchange')) {
+    const checks = await casesDone;
+    writeFileSync(
+      `${out}/peer-result.json`,
+      JSON.stringify({ ...evidence, checks }, null, 2)
+    );
+    process.exit(0);
+  }
   let mobileId: string | undefined;
   await until(
     'native reply reaches ten',
@@ -180,6 +193,7 @@ async function main() {
     );
   });
   record('thread');
+  await casesDone;
   writeFileSync(
     `${out}/peer-result.json`,
     JSON.stringify(

@@ -440,7 +440,8 @@ export class TlonActorClient {
     this.connected = true;
   }
 
-  private async withClient<T>(fn: () => Promise<T>): Promise<T> {
+  // Serialize API calls so each operation uses this actor's ship context.
+  async withClient<T>(fn: () => Promise<T>): Promise<T> {
     return runExclusive(async () => {
       await this.ensureConnected();
       configureClient({

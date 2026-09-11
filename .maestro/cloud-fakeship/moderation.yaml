@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+name: Host kicks member while member is in the channel
+env:
+  JOURNEY: moderation
+---
+- runScript: ../reliability/data.js
+- runFlow: ../reliability/subflows/begin.yaml
+- tapOn: '^Search$'
+- inputText: ${'Kick-' + MAESTRO_RUN_TAG}
+- pressKey: Enter
+- tapOn: ${'^Kick-' + MAESTRO_RUN_TAG + '$'}
+- extendedWaitUntil:
+    visible: '^member before kick$'
+    timeout: 15000
+- runFlow:
+    file: ../reliability/subflows/send.yaml
+    env:
+      MESSAGE: kick ready
+      MESSAGE_PATTERN: '^kick ready ?$'
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- extendedWaitUntil:
+    notVisible:
+      id: MessageInput
+    timeout: 15000
+- runFlow:
+    when:
+      visible: '^Back$'
+    commands:
+      - tapOn: '^Back$'
+- assertVisible: '^Home$'
+- assertNotVisible: ${'^Kick-' + MAESTRO_RUN_TAG + '$'}
