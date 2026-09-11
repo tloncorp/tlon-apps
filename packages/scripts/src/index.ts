@@ -95,9 +95,26 @@ interface PreviewContentPayload {
     conversationTitle?: PreviewContentNode;
     messageText: PreviewContentNode;
   };
+  /**
+   * The %activity source a "mark as read" on this notification should read.
+   * Absent when the event has no source of its own — reading `base` would
+   * clear every unread on the ship, so those notifications get no action.
+   */
+  readSource?: ub.Source;
 }
 
-export function renderActivityEventPreview({
+export function renderActivityEventPreview(args: {
+  event: ub.ActivityEvent;
+}): PreviewContentPayload | null {
+  const payload = buildActivityEventPreview(args);
+  if (payload === null) {
+    return null;
+  }
+  const source = getSourceForEvent(args.event);
+  return 'base' in source ? payload : { ...payload, readSource: source };
+}
+
+function buildActivityEventPreview({
   event: ev,
 }: {
   event: ub.ActivityEvent;
