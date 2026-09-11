@@ -10,6 +10,10 @@
 /=  groups-ui-agent  /app/groups-ui
 |%
 ++  my-agent  %groups-ui
+::  The verb wrapper also emits diagnostic facts; assert external effects.
+++  pass-cards
+  |=  cards=(list card:agent:gall)
+  (skim cards |=(c=card:agent:gall ?=(%pass -.c)))
 ::  Retirement migration: only the queued wake may scry Eyre.
 ++  retirement-scry
   |=  p=path
@@ -19,8 +23,12 @@
       =/  cache=(map @t [@ud (unit cache-entry:eyre)])  ~
       =.  cache  (~(put by cache) '/profile' [1 `*cache-entry:eyre])
       =.  cache  (~(put by cache) '/profile/style.css' [1 `*cache-entry:eyre])
+      =.  cache  (~(put by cache) '/profile?keep=1' [1 `*cache-entry:eyre])
+      =.  cache  (~(put by cache) '/profile.html' [1 `*cache-entry:eyre])
+      =.  cache  (~(put by cache) '/profile.html?keep=1' [1 `*cache-entry:eyre])
       =.  cache  (~(put by cache) '/expose/post' [1 `*cache-entry:eyre])
       =.  cache  (~(put by cache) '/profile-other' [1 `*cache-entry:eyre])
+      =.  cache  (~(put by cache) '/expose-other?next=/profile' [1 `*cache-entry:eyre])
       =.  cache  (~(put by cache) '/notes/page' [1 `*cache-entry:eyre])
       =.  cache  (~(put by cache) '/expose/already-cleared' [2 ~])
       `!>(cache)
@@ -44,7 +52,7 @@
   ;<  bowl=bowl:gall  bind:m  get-bowl
   =/  expected=(list card:agent:gall)
     ~[[%pass /retired-public-pages %arvo %b %wait now.bowl]]
-  (ex-equal !>(expected) !>(cards))
+  (ex-equal !>(expected) !>((pass-cards cards)))
 ::
 ++  test-retirement-cleans-only-retired-resources
   %-  eval-mare
@@ -59,12 +67,15 @@
   =/  expected=(list card:agent:gall)
     :~  [%pass /retired-public-pages %arvo %e %set-response '/profile' ~]
         [%pass /retired-public-pages %arvo %e %set-response '/profile/style.css' ~]
+        [%pass /retired-public-pages %arvo %e %set-response '/profile?keep=1' ~]
+        [%pass /retired-public-pages %arvo %e %set-response '/profile.html' ~]
+        [%pass /retired-public-pages %arvo %e %set-response '/profile.html?keep=1' ~]
         [%pass /retired-public-pages %arvo %e %set-response '/expose/post' ~]
-        [%pass /retired-public-pages %arvo %e %disconnect [~ /profile]]
-        [%pass /retired-public-pages %arvo %e %disconnect [~ /expose]]
+        [%pass /retired-public-pages/routes %arvo %e %connect [~ /profile] %groups-ui]
+        [%pass /retired-public-pages/routes %arvo %e %connect [~ /expose] %groups-ui]
         [%pass /retired-public-pages %agent [our.bowl %contacts] %poke contact-action-1+!>(patch)]
     ==
-  (ex-equal !>((sy expected)) !>((sy cards)))
+  (ex-equal !>((sy expected)) !>((sy (pass-cards cards))))
 ::
 ++  test-retirement-completion-survives-load
   %-  eval-mare
@@ -77,10 +88,10 @@
   ;<  *  bind:m
     (do-agent /retired-public-pages [our.bowl %contacts] [%poke-ack ~])
   ;<  cards=(list card:agent:gall)  bind:m  (do-load groups-ui-agent ~)
-  ;<  ~  bind:m  (ex-equal !>(~) !>(cards))
+  ;<  ~  bind:m  (ex-equal !>(*(list card:agent:gall)) !>((pass-cards cards)))
   ;<  cards=(list card:agent:gall)  bind:m
     (do-arvo /retired-public-pages [%behn %wake ~])
-  (ex-equal !>(~) !>(cards))
+  (ex-equal !>(*(list card:agent:gall)) !>((pass-cards cards)))
 ::
 ++  test-retirement-with-empty-cache-still-clears-metadata
   %-  eval-mare
@@ -94,7 +105,7 @@
   =/  patch=action:co  [%self (~(put by *contact:co) %expose-cites ~)]
   =/  expected=(list card:agent:gall)
     ~[[%pass /retired-public-pages %agent [our.bowl %contacts] %poke contact-action-1+!>(patch)]]
-  (ex-equal !>(expected) !>(cards))
+  (ex-equal !>(expected) !>((pass-cards cards)))
 ::
 ++  test-retirement-nack-retries
   %-  eval-mare
@@ -108,7 +119,18 @@
     (do-agent /retired-public-pages [our.bowl %contacts] [%poke-ack `~])
   =/  expected=(list card:agent:gall)
     ~[[%pass /retired-public-pages %arvo %b %wait (add now.bowl ~s30)]]
-  (ex-equal !>(expected) !>(cards))
+  (ex-equal !>(expected) !>((pass-cards cards)))
+::
+++  test-retirement-disconnects-after-binding-ack
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-ui-init
+  ;<  cards=(list card:agent:gall)  bind:m
+    (do-arvo /retired-public-pages/routes [%eyre %bound & [~ /profile]])
+  =/  expected=(list card:agent:gall)
+    ~[[%pass /retired-public-pages/routes %arvo %e %disconnect [~ /profile]]]
+  (ex-equal !>(expected) !>((pass-cards cards)))
 ::
 ++  whom-a  `whom:u`[%group ~zod %a]
 ++  whom-b  `whom:u`[%group ~zod %b]

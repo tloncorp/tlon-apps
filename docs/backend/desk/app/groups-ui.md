@@ -7,10 +7,13 @@ suggestions.
 
 Initialization and upgrades from states 0–3 queue a Behn wake to clean up the
 retired `%profile` and `%expose` agents. No scries occur during `on-load`.
-The wake reads Eyre's cache and clears live entries at `/profile`, `/expose`,
-and their slash-delimited descendants using `%set-response` with a null entry.
-Other URLs are preserved. It also disconnects bindings whose action targets
-either retired agent, and sends `%contacts` an explicit null `%expose-cites`
+The wake reads Eyre's cache and clears live entries whose parsed route starts
+with `/profile` or `/expose`, including extension and query aliases such as
+`/profile.html` and `/profile?keep=1`, using `%set-response` with a null entry.
+Other routes, including `/profile-other`, are preserved. It also replaces bindings
+targeting either retired agent, then disconnects them on the same wire after the
+Eyre `%bound` acknowledgement (disconnect requires ownership of the binding).
+It sends `%contacts` an explicit null `%expose-cites`
 self-contact patch. Other contact fields are preserved.
 
 The migration completes when contacts acknowledges the patch. A nack retries

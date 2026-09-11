@@ -1,6 +1,6 @@
 /-  u=ui, gv=groups-ver, c=chat, cv=chat-ver, d=channels, dv=channels-ver,
     a=activity, av=activity-ver, co=contacts
-/+  default-agent, dbug, verb, vita-client
+/+  default-agent, dbug, verb, vita-client, hutils=http-utils
 ::  performance, keep warm
 ^-  agent:gall
 =>
@@ -12,7 +12,7 @@
         manual-contact-suggestions=(set ship)
         pins=(list whom:u)
         first-load=?
-        retired-public-pages-cleaned=?
+        retired-public-pages-cleaned=$~(| ?)
     ==
   --
 =|  current-state
@@ -520,6 +520,10 @@
   ^+  cor
   ?+  wire  !!
     [%build ~]  cor
+    [%retired-public-pages %routes ~]
+      ?>  ?=([%eyre %bound *] sign)
+      ?>  accepted.sign
+      (emit %pass /retired-public-pages/routes %arvo %e %disconnect binding.sign)
     [%retired-public-pages ~]
       ?>  ?=([%behn %wake *] sign)
       ?:  retired-public-pages-cleaned  cor
@@ -535,28 +539,27 @@
   =/  cache=(map @t [@ud (unit cache-entry:eyre)])
     .^((map @t [@ud (unit cache-entry:eyre)]) %e (scot %p our.bowl) %cache (scot %da now.bowl) ~)
   =.  cor
-    %+  emil
+    %-  emil
     %+  murn  ~(tap by cache)
     |=  [url=@t revision=@ud entry=(unit cache-entry:eyre)]
     ^-  (unit card)
     ?~  entry  ~
-    ::  Match exact roots or a slash boundary, never /profile-other.
-    ?.  ?|  =(url '/profile')
-            =(url '/expose')
-            =('/profile/' (crip (scag 9 (trip url))))
-            =('/expose/' (crip (scag 8 (trip url))))
-        ==
-      ~
+    ::  The retired profile handler ignored query and extension when routing,
+    ::  but cached the response under the original URL. Match its parsed route.
+    =/  query=query:hutils  (purse:hutils url)
+    ?.  ?=([?(%profile %expose) *] site.query)  ~
     `[%pass /retired-public-pages %arvo %e %set-response url ~]
   =/  bindings=(list [binding:eyre duct action:eyre])
     .^((list [binding:eyre duct action:eyre]) %e (scot %p our.bowl) %bindings (scot %da now.bowl) ~)
   =.  cor
-    %+  emil
+    %-  emil
     %+  murn  bindings
     |=  [binding=binding:eyre =duct action=action:eyre]
     ^-  (unit card)
     ?.  ?=([%app ?(%profile %expose)] action)  ~
-    `[%pass /retired-public-pages %arvo %e %disconnect binding]
+    ::  Eyre only disconnects bindings owned by the sending duct. Replace the
+    ::  retired binding first, then disconnect on the same wire after %bound.
+    `[%pass /retired-public-pages/routes %arvo %e %connect binding %groups-ui]
   =/  patch=action:co  [%self (~(put by *contact:co) %expose-cites ~)]
   (emit %pass /retired-public-pages %agent [our.bowl %contacts] %poke contact-action-1+!>(patch))
 ++  get-suggested-contacts
