@@ -94,13 +94,13 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
   if (selected('direct-messages')) {
     await ten.sendDm('~zod', `${tag} DM request`);
     task('direct-messages', async () => {
-      await received('~zod', 'dm mobile', 30 * 60_000);
+      await received('~zod', `${tag} dm mobile`, 30 * 60_000);
       record('dm-delivery', {
         sender: '~zod',
         recipient: '~ten',
-        text: 'dm mobile',
+        text: `${tag} dm mobile`,
       });
-      await ten.sendDm('~zod', 'dm verified');
+      await ten.sendDm('~zod', `${tag} dm verified`);
     });
   }
   if (selected('moderation')) {
@@ -149,23 +149,13 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     const post = await say(g.chatChannel, 'reaction target');
     const reactions = () =>
       ten.withClient(async () => {
-        const result = await getChannelPosts({ channelId: g.chatChannel });
-        writeFileSync(
-          `${out}/reaction-observed.json`,
-          JSON.stringify(
-            {
-              expectedId: post.id,
-              posts: result.posts.map((p) => ({
-                id: p.id,
-                text: p.textContent,
-                reactions: p.reactions,
-              })),
-            },
-            null,
-            2
-          )
-        );
-        return result.posts.find((p) => p.id === post.id)?.reactions ?? [];
+        const result = await getChannelPosts({
+          channelId: g.chatChannel,
+          mode: 'newest',
+        });
+        const target = result.posts.find((p) => p.id === post.id);
+        if (!target) throw Error(`Reaction target missing on peer: ${post.id}`);
+        return target.reactions ?? [];
       });
     task('reactions', async () => {
       await until(

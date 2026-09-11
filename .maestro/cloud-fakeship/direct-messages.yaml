@@ -20,12 +20,12 @@ env:
 - runFlow:
     file: ../reliability/subflows/send.yaml
     env:
-      MESSAGE: dm mobile
-      MESSAGE_PATTERN: '^dm mobile ?$'
+      MESSAGE: ${MAESTRO_RUN_TAG + ' dm mobile'}
+      MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' dm mobile ?'}
       EMPTY_INPUT: '^Message$'
 - hideKeyboard
 - extendedWaitUntil:
-    visible: '^dm verified$'
+    visible: ${MAESTRO_RUN_TAG + ' dm verified'}
     timeout: 15000
 - assertNotVisible: '^Accept$'
 - assertNotVisible: '^Deny$'
