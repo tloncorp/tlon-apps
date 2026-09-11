@@ -8,6 +8,25 @@ export function getChatTimestampsSignature(chats: db.Chat[]): string {
   return chats.map((chat) => chat.timestamp).join('|');
 }
 
+// A title can arrive from a warmed notebook snapshot without changing the
+// activity timestamp or row order, so it needs its own memo identity.
+export function getChatNotesActivitySignature(chats: db.Chat[]): string {
+  return chats
+    .map((chat) => {
+      const activity = chat.type === 'group' ? chat.notesActivity : null;
+      return activity
+        ? [
+            activity.channelId,
+            activity.notebookTitle ?? '',
+            activity.noteId ?? '',
+            activity.noteTitle ?? '',
+            activity.isNew ? 'new' : 'edited',
+          ].join(':')
+        : '';
+    })
+    .join('|');
+}
+
 /**
  * Memoizes the chat list structure based on relevant changes
  * (list lengths, unread counts) to prevent unnecessary recalculations
@@ -41,6 +60,9 @@ export function useResolvedChats(chats: UseCurrentChatsResult): {
       pinnedTimestamps: getChatTimestampsSignature(chats.pinned),
       unpinnedTimestamps: getChatTimestampsSignature(chats.unpinned),
       pendingTimestamps: getChatTimestampsSignature(chats.pending),
+      pinnedNotesActivity: getChatNotesActivitySignature(chats.pinned),
+      unpinnedNotesActivity: getChatNotesActivitySignature(chats.unpinned),
+      pendingNotesActivity: getChatNotesActivitySignature(chats.pending),
       pinnedUnreadCount: chats.pinned.reduce(
         (acc, chat) => acc + (chat.unreadCount ?? 0),
         0

@@ -85,24 +85,6 @@ export const useCurrentChats = (
   });
 };
 
-// Probe %notes once to detect whether the notes desk is installed on the
-// user's ship. Used to gate notes-specific UI (channel-creation option,
-// 'Bulletin' rename, etc.). Defaults to false until the request resolves.
-export const useNotesDeskAvailable = () => {
-  return useQuery({
-    queryKey: ['notesDeskAvailable'],
-    queryFn: async () => {
-      try {
-        await api.notes.listNotebooks();
-        return true;
-      } catch (e) {
-        return false;
-      }
-    },
-    staleTime: 60_000,
-  });
-};
-
 export const useUnjoinedGroupChannels = (groupId: string) => {
   const deps = useKeyFromQueryDeps(db.getUnjoinedGroupChannels);
   return useQuery({
@@ -895,9 +877,12 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };
 
-export const useThemeSettings = () => {
+export const useThemeSettings = ({
+  enabled = true,
+}: { enabled?: boolean } = {}) => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
+    enabled,
     queryKey: ['themeSettings', deps],
     queryFn: async () => {
       const settings = await db.getSettings();

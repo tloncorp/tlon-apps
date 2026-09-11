@@ -85,8 +85,8 @@ const simulatorOnlyMenuItems: ExpoDevMenuItem[] = [
   },
 ];
 
-const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
-  (isEmulator) => [
+function getDevMenuItems(isEmulator: boolean): ExpoDevMenuItem[] {
+  return [
     {
       name: 'Delete local database',
       callback: () => purgeDb(),
@@ -104,8 +104,8 @@ const devMenuItems: Promise<ExpoDevMenuItem[]> = DeviceInfo.isEmulator().then(
       },
     },
     ...(isEmulator ? simulatorOnlyMenuItems : []),
-  ]
-);
+  ];
+}
 
 async function sendBundlerRequest(
   path: string,
@@ -128,4 +128,12 @@ async function sendBundlerRequest(
   }
 }
 
-devMenuItems.then((items) => registerDevMenuItems(items));
+// expo-dev-menu's native module is only linked into development builds. In
+// release builds registerDevMenuItems rejects with "Cannot read property
+// 'addDevMenuCallbacks' of null" on every launch (Sentry REACT-NATIVE-3), so
+// never touch it outside __DEV__.
+if (__DEV__) {
+  DeviceInfo.isEmulator().then((isEmulator) =>
+    registerDevMenuItems(getDevMenuItems(isEmulator))
+  );
+}

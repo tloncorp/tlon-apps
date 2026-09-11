@@ -31,15 +31,29 @@ export async function getBytes(
   };
 
   while (result && !result.done) {
-    result = await Promise.race([
-      reader.read(),
-      new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
-        setTimeout(
-          () => reject(new Error('getBytes timed out')),
-          responseTimeout
-        );
-      }),
-    ]);
+    const readPromise = reader.read();
+    if (responseTimeout === undefined) {
+      result = await readPromise;
+    } else {
+      let readTimeout: ReturnType<typeof setTimeout> | undefined;
+      try {
+        result = await Promise.race([
+          readPromise,
+          new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+            readTimeout = setTimeout(
+              () => reject(new Error('getBytes timed out')),
+              responseTimeout
+            );
+          }),
+        ]);
+      } finally {
+        clearTimeout(readTimeout);
+      }
+    }
+
+    if (result.done) {
+      break;
+    }
 
     if (!result.value) {
       // empty chunk, skip it

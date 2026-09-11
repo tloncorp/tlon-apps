@@ -52,6 +52,8 @@ export {
   type PostResponse,
   type ReplyResponse,
   type WritResponse,
+  type DmNet,
+  type DmStatus,
   type WritResponseDelta,
   type WritDelta,
   type WritDiff,

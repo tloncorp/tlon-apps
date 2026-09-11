@@ -1,9 +1,18 @@
 import { DraftInputId } from '@tloncorp/api';
 import { ComponentProps, PropsWithChildren, useEffect } from 'react';
 import { Platform, StyleSheet } from 'react-native';
-import { KeyboardStickyView } from 'react-native-keyboard-controller';
+import {
+  KeyboardController,
+  KeyboardStickyView,
+  type NativeEvent,
+  useKeyboardHandler,
+} from 'react-native-keyboard-controller';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View } from 'tamagui';
+import { View, getVariableValue, useTheme } from 'tamagui';
 
 import { useComponentsKitContext } from '../../contexts/componentsKits';
 import {
@@ -48,6 +57,47 @@ export function DraftInputView({
 
 const supportsFloatingComposer = Platform.OS !== 'web';
 
+// KC's iOS sticky view applies its final position in onStart. Use native frame
+// events instead so the composer does not jump ahead of the keyboard.
+function IOSKeyboardTrackingView({
+  style,
+  offset,
+  enabled = true,
+  ...props
+}: ComponentProps<typeof KeyboardStickyView>) {
+  const isVisible = KeyboardController.isVisible();
+  const height = useSharedValue(
+    isVisible ? KeyboardController.state().height : 0
+  );
+  const progress = useSharedValue(isVisible ? 1 : 0);
+  const closedOffset = offset?.closed ?? 0;
+  const openedOffset = offset?.opened ?? 0;
+  const update = (event: NativeEvent) => {
+    'worklet';
+    height.value = event.height;
+    progress.value = event.progress;
+  };
+  useKeyboardHandler(
+    { onMove: update, onInteractive: update, onEnd: update },
+    []
+  );
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: enabled
+          ? -height.value +
+            closedOffset +
+            progress.value * (openedOffset - closedOffset)
+          : closedOffset,
+      },
+    ],
+  }));
+  return <Animated.View {...props} style={[style, animatedStyle]} />;
+}
+
+const ComposerKeyboardView =
+  Platform.OS === 'ios' ? IOSKeyboardTrackingView : KeyboardStickyView;
+
 /** Owns the native floating placement and its matching scroll-content inset. */
 export function ConversationComposerPlacement({
   children,
@@ -64,6 +114,7 @@ export function ConversationComposerPlacement({
   inlineID?: string;
 }>) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const scrollViewNativeID = useConversationScrollViewNativeID();
   const scrollToBottomControl = useConversationScrollToBottomControl();
   const { report: reportConversationComposerHeight } =
@@ -83,8 +134,7 @@ export function ConversationComposerPlacement({
 
   if (enabled && supportsFloatingComposer) {
     return (
-      <KeyboardStickyView
-        enabled={Platform.OS === 'ios'}
+      <ComposerKeyboardView
         // The container keeps its home-indicator padding while the keyboard is
         // open, so cancel that padding to place the visible input at its edge.
         offset={{ closed: 0, opened: insets.bottom }}
@@ -93,7 +143,12 @@ export function ConversationComposerPlacement({
         <ScrollEdgeElementContainer
           edge="bottom"
           scrollViewNativeID={scrollViewNativeID}
-          style={{ paddingBottom: insets.bottom }}
+          style={[
+            { paddingBottom: insets.bottom },
+            Platform.OS === 'android'
+              ? { backgroundColor: getVariableValue(theme.background) }
+              : undefined,
+          ]}
           onLayout={(event) => {
             const scrollControlClearance =
               Platform.OS === 'ios' && scrollToBottomControl?.visible
@@ -112,7 +167,7 @@ export function ConversationComposerPlacement({
         >
           {content}
         </ScrollEdgeElementContainer>
-      </KeyboardStickyView>
+      </ComposerKeyboardView>
     );
   }
 
@@ -125,11 +180,11 @@ export function ConversationComposerPlacement({
       children
     );
 
-  if (avoidKeyboard && Platform.OS === 'ios') {
+  if (avoidKeyboard && Platform.OS !== 'web') {
     return (
-      <KeyboardStickyView offset={{ closed: 0, opened: insets.bottom }}>
+      <ComposerKeyboardView offset={{ closed: 0, opened: insets.bottom }}>
         {inlineContent}
-      </KeyboardStickyView>
+      </ComposerKeyboardView>
     );
   }
 

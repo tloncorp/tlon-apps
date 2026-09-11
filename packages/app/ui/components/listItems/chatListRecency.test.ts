@@ -8,11 +8,15 @@ function makeGroupChat({
   notesActivityAt = 200,
   timestamp = Math.max(lastPostAt, notesActivityAt),
   isPending = false,
+  isNew = true,
+  noteTitle = 'Weekly plan',
 }: {
   lastPostAt?: number;
   notesActivityAt?: number;
   timestamp?: number;
   isPending?: boolean;
+  isNew?: boolean;
+  noteTitle?: string | null;
 } = {}): Extract<db.Chat, { type: 'group' }> {
   return {
     id: '~zod/test-group',
@@ -22,30 +26,38 @@ function makeGroupChat({
     timestamp,
     isPending,
     unreadCount: 0,
+    notesActivity: {
+      channelId: 'notes/~zod/test-notebook',
+      notebookTitle: 'Journal',
+      noteId: '42',
+      noteTitle,
+      authorId: '~zod',
+      isNew,
+      timestamp: notesActivityAt,
+    },
     group: {
       id: '~zod/test-group',
       lastPostAt,
-      channels: [
-        {
-          id: 'notes/~zod/test-notebook',
-          type: 'notes',
-          currentUserIsMember: true,
-          unread: {
-            channelId: 'notes/~zod/test-notebook',
-            updatedAt: notesActivityAt,
-          },
-        },
-      ],
     } as db.Group,
   };
 }
 
 describe('getGroupRecencyOverride', () => {
-  test('describes Notes activity when it supplies the group sort timestamp', () => {
+  test('describes the note and notebook when Notes supplies recency', () => {
     expect(getGroupRecencyOverride(makeGroupChat())).toEqual({
-      label: 'Notes activity',
+      label: 'New note “Weekly plan” in Journal',
       timestamp: 200,
+      channelId: 'notes/~zod/test-notebook',
     });
+  });
+
+  test('distinguishes edited notes and title-less fallbacks', () => {
+    expect(
+      getGroupRecencyOverride(makeGroupChat({ isNew: false }))?.label
+    ).toBe('Note “Weekly plan” edited in Journal');
+    expect(
+      getGroupRecencyOverride(makeGroupChat({ noteTitle: null }))?.label
+    ).toBe('New note in Journal');
   });
 
   test('keeps the post presentation when the latest post is newer', () => {
@@ -56,26 +68,18 @@ describe('getGroupRecencyOverride', () => {
     ).toBeNull();
   });
 
-  test('does not relabel pending groups or unrelated timestamps', () => {
+  test('does not relabel pending groups', () => {
     expect(
       getGroupRecencyOverride(makeGroupChat({ isPending: true }))
     ).toBeNull();
-    expect(
-      getGroupRecencyOverride(makeGroupChat({ timestamp: 300 }))
-    ).toBeNull();
   });
 
-  test('keeps the post presentation for pinned groups', () => {
+  test('updates the presentation for pinned groups without changing ordering', () => {
     const chat = makeGroupChat();
     chat.pin = { itemId: chat.id } as db.Pin;
 
-    expect(getGroupRecencyOverride(chat)).toBeNull();
-  });
-
-  test('ignores stale activity from a left Notes channel', () => {
-    const chat = makeGroupChat();
-    chat.group.channels![0].currentUserIsMember = false;
-
-    expect(getGroupRecencyOverride(chat)).toBeNull();
+    expect(getGroupRecencyOverride(chat)?.label).toBe(
+      'New note “Weekly plan” in Journal'
+    );
   });
 });

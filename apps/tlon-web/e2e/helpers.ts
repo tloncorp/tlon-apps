@@ -109,12 +109,21 @@ export async function createGroupWithTemplate(
   });
   await page.getByText('Create group').click();
 
-  // Wait for group creation to complete and navigate to group
-  const channelHeader = page.getByTestId('ChannelHeaderTitle');
+  // Wait for group creation to complete and navigate to the group. Single-
+  // channel groups open their channel directly, while multi-channel groups
+  // without a remembered channel open the group channel list.
+  //
+  // `.first()` is required: on desktop the group channel-list pane and the
+  // channel pane render side by side, so both testIDs are present and a bare
+  // `.or()` trips strict mode instead of resolving.
+  const groupDestination = page
+    .getByTestId('ChannelHeaderTitle')
+    .or(page.getByTestId('GroupChannelsHeaderTrigger'))
+    .first();
 
   try {
     // Wait briefly to see if we're automatically navigated to the group
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(groupDestination).toBeVisible({ timeout: 5000 });
     // Template groups don't show "Welcome to your group!" message
     await page.waitForTimeout(1000);
   } catch {
@@ -126,7 +135,7 @@ export async function createGroupWithTemplate(
     await page
       .getByTestId(`ChatListItem-${expectedGroupTitle}-unpinned`)
       .click();
-    await expect(channelHeader).toBeVisible({ timeout: 5000 });
+    await expect(groupDestination).toBeVisible({ timeout: 5000 });
     await page.waitForTimeout(1000);
   }
 }
@@ -138,7 +147,7 @@ export async function verifyGroupChannels(
   page: Page,
   expectedChannels: Array<{
     title: string;
-    type: 'chat' | 'notebook' | 'gallery';
+    type: 'chat' | 'notes' | 'gallery';
   }>
 ) {
   // Navigate to group settings
@@ -156,39 +165,41 @@ export async function verifyGroupChannels(
     timeout: 5000,
   });
 
-  // Verify the correct number of channels by checking the last one exists
-  const lastChannel = expectedChannels[expectedChannels.length - 1];
-  const lastChannelTestId = `ChannelItem-${lastChannel.title}-${expectedChannels.length - 1}`;
-  await expect(page.getByTestId(lastChannelTestId)).toBeVisible();
+  // Count the channels rather than pinning the last one to an index. A
+  // template's %notes notebook is created after the group rather than in the
+  // group-creation poke, so it doesn't land in template order.
+  await expect(page.getByTestId(/^ChannelItem-/)).toHaveCount(
+    expectedChannels.length,
+    { timeout: 15000 }
+  );
 
   // Verify each expected channel exists with correct title and type
   // Use regex to match any index since order may vary
   for (const channel of expectedChannels) {
-    // Capitalize the channel type for display (e.g., "chat" -> "Chat")
-    const capitalizedType = capitalize(channel.type);
+    const typeLabel = CHANNEL_TYPE_LABELS[channel.type];
 
     // Check that the channel exists (regardless of index)
     const channelItem = page.getByTestId(
-      new RegExp(
-        `^ChannelItem-${channel.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-`
-      )
+      new RegExp(`^ChannelItem-${escapeForRegExp(channel.title)}-`)
     );
     await expect(channelItem).toBeVisible({ timeout: 5000 });
 
     // Verify the channel type is displayed correctly within the channel item
-    const channelPattern = new RegExp(`^${channel.title}${capitalizedType}$`);
+    const channelPattern = new RegExp(`^${channel.title}${typeLabel}$`);
     await expect(
       page.locator('div').filter({ hasText: channelPattern }).first()
     ).toBeVisible({ timeout: 5000 });
   }
 }
 
-/**
- * Capitalizes the first letter of a string
- */
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
+// Mirrors `getChannelTypeLabel` in packages/app, where %notes owns the
+// 'Notebook' name. The legacy %diary type isn't here because it can't be
+// created any more, so no spec builds a group containing one.
+const CHANNEL_TYPE_LABELS = {
+  chat: 'Chat',
+  notes: 'Notebook',
+  gallery: 'Gallery',
+} as const;
 
 async function clickVisibleTestId(page: Page, testId: string, timeout = 1000) {
   const locator = page.locator(`[data-testid="${testId}"]:visible`);
@@ -861,7 +872,7 @@ export async function forwardGroupReference(page: Page, channelName: string) {
 export async function createChannel(
   page: Page,
   title: string,
-  type: 'chat' | 'notebook' | 'gallery' = 'chat'
+  type: 'chat' | 'notes' | 'gallery' = 'chat'
 ) {
   // Ensure session is stable before creating channel
   await waitForSessionStability(page);
@@ -879,23 +890,8 @@ export async function createChannel(
 
   await fillFormField(page, 'ChannelTitleInput', title);
 
-  if (type === 'notebook') {
-    // When the %notes desk is installed, the create-channel sheet relabels the
-    // legacy diary type to 'Bulletin' and gives the 'Notebook' label to the new
-    // native %notes type. These tests exercise the diary type, so select
-    // 'Bulletin' when it's present (notes desk installed) and fall back to
-    // 'Notebook' otherwise. The label depends on an async desk probe, so wait
-    // for 'Bulletin' to settle before falling back.
-    const bulletin = page.getByText('Bulletin', { exact: true });
-    const bulletinShown = await bulletin
-      .waitFor({ state: 'visible', timeout: 10000 })
-      .then(() => true)
-      .catch(() => false);
-    if (bulletinShown) {
-      await bulletin.click();
-    } else {
-      await page.getByText('Notebook', { exact: true }).click();
-    }
+  if (type === 'notes') {
+    await page.getByText('Notebook', { exact: true }).click();
   } else if (type === 'gallery') {
     await page.getByText('Gallery', { exact: true }).click();
   }
@@ -909,6 +905,91 @@ export async function createChannel(
 
   // Wait a bit longer for the channel to be created on the backend
   await page.waitForTimeout(2000);
+}
+
+/**
+ * Creates a legacy %diary ("bulletin") channel by poking %channels directly.
+ *
+ * The create-channel sheet no longer offers the diary type — %notes replaced it
+ * and new diary channels are refused (TLON-6480). Legacy diary reading and
+ * writing still has to work, so the specs that cover it build their fixture out
+ * of band rather than through a UI affordance that no longer exists.
+ *
+ * Must be called from a screen whose URL carries the group id (e.g. the group's
+ * manage-channels screen). Returns the new channel's nest.
+ */
+export async function createDiaryChannel(page: Page, title: string) {
+  const groupId = groupIdFromUrl(page);
+  const name = `bulletin-${Date.now().toString(36)}`;
+
+  const { status, channelId } = await page.evaluate(
+    async ([group, channelName, channelTitle]) => {
+      const our = (window as unknown as { ship: string }).ship;
+      const uid = `${Math.floor(Date.now() / 1000)}-${Math.random()
+        .toString(16)
+        .slice(2, 8)}`;
+      const response = await fetch(`/~/channel/${uid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify([
+          {
+            id: 1,
+            action: 'poke',
+            ship: our,
+            app: 'channels',
+            mark: 'channel-action-2',
+            json: {
+              create: {
+                kind: 'diary',
+                group,
+                name: channelName,
+                title: channelTitle,
+                description: '',
+                meta: null,
+                readers: [],
+                writers: [],
+              },
+            },
+          },
+        ]),
+      });
+      return {
+        status: response.status,
+        channelId: `diary/~${our}/${channelName}`,
+      };
+    },
+    [groupId, name, title] as const
+  );
+
+  expect(status, 'diary create poke was not accepted by eyre').toBe(204);
+
+  // The app is already subscribed to %channels, so the new channel arrives over
+  // the existing stream and shows up in the list it was created from.
+  await expect(
+    page.getByTestId(new RegExp(`^ChannelItem-${escapeForRegExp(title)}-`))
+  ).toBeVisible({ timeout: 15000 });
+
+  return channelId;
+}
+
+/**
+ * Reads the group id out of the current URL (`.../group/<id>/...`).
+ *
+ * The id is a flag (`~ship/name`). React Navigation percent-encodes it into the
+ * path, but the unencoded form is matched too so this doesn't silently capture
+ * just the host.
+ */
+function groupIdFromUrl(page: Page) {
+  const match = page.url().match(/\/group\/(~[a-z-]+(?:%2F|\/)[^/?#]+)/i);
+  if (!match) {
+    throw new Error(`No group id in URL: ${page.url()}`);
+  }
+  return decodeURIComponent(match[1]);
+}
+
+function escapeForRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**

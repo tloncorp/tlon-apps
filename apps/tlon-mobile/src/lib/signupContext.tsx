@@ -245,8 +245,7 @@ async function runProfileAndNotificationActions(params: {
       });
     } catch (e) {
       logger.trackError('onboarding: failed to set notification level', {
-        errorMessage: e instanceof Error ? e.message : String(e),
-        errorStack: e instanceof Error ? e.stack : undefined,
+        error: e,
       });
     }
   }

@@ -6,6 +6,7 @@ import {
   requestJson,
   scry,
   setClientResolver,
+  startSpinHintCheck,
 } from '../client/urbit';
 import { AuthError, type Urbit } from '../http-api';
 
@@ -33,6 +34,21 @@ describe('client resolver', () => {
       ship: '~zod',
     });
     await expect(requestJson('/notes', 'GET')).resolves.toEqual({ ok: true });
+  });
+
+  test('routes spin hints through the resolved client', async () => {
+    const scopedClient = {
+      getSpinHints: vi.fn().mockResolvedValue('/root'),
+    };
+    setClientResolver(() => scopedClient as unknown as Urbit);
+
+    await expect(startSpinHintCheck().settleWithin(500)).resolves.toMatchObject(
+      {
+        outcome: 'hint',
+        nodeBusyStatus: 'available',
+      }
+    );
+    expect(scopedClient.getSpinHints).toHaveBeenCalledOnce();
   });
 
   test('does not run singleton reauthentication for a scoped client', async () => {

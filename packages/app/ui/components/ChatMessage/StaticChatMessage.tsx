@@ -642,7 +642,6 @@ export function StaticChatMessage({
           </Text>
         ) : (
           <ChatContentRenderer
-            alignSelf="stretch"
             content={post.editStatus === 'failed' ? lastEditContent : content}
             paddingBottom={contentIsOnlyA2UI ? '$l' : undefined}
             isNotice={post.type === 'notice'}
@@ -673,7 +672,6 @@ export function StaticChatMessage({
             provisionedAgentTopics={provisionedAgentTopics}
             consumedA2UIMessageText={a2uiActionCompletion?.sentMessageText}
             searchQuery={searchQuery}
-            width="auto"
           />
         )}
         {isWeb && !hasReactions && !hasLowerAuxiliaryRow && feedbackRow && (

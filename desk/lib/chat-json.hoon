@@ -16,6 +16,13 @@
     |=  =@da
     s+`@t`(rsh 4 (scot %ui da))
   ::
+  ++  dm-status
+    |=  s=status:dm:c
+    %-  pairs
+    :~  ship+(ship ship.s)
+        net+?~(net.s ~ s+u.net.s)
+    ==
+  ::
   ++  meta
     |=  m=data:^meta
     %-  pairs
