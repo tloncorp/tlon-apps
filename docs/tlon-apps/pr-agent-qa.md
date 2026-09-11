@@ -215,8 +215,7 @@ The [publication-only action](https://github.com/tloncorp/tlon-apps/actions/runs
 downloaded the saved report and MP4, uploaded the native attachment, and verified
 GitHub's inline video player in the [automatically posted comment](https://github.com/tloncorp/tlon-apps/pull/6496#issuecomment-5626853536).
 The job passed in 36 seconds without starting a simulator or backend. This
-qualifies the GitHub publisher; the full assessment-to-simulator-to-publication
-PR path remains to be qualified together. The default `GITHUB_TOKEN` installation
+qualifies the separate GitHub publisher; full PR-run results are recorded below. The default `GITHUB_TOKEN` installation
 token cannot replace the upload credential.
 
 Argent boots the CI simulator with accessibility enabled and owns interaction,
@@ -248,8 +247,7 @@ The final assessor also classified documentation PR #6242 as `skip`: its interna
 engineering bot rubric changes no Tlon end-user product behavior. No native build
 or simulator was started.
 [EAS skip assessment](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08d84-228a-759f-9258-2780e5a594a3).
-These runs qualify assessment and planning only. The new assessment-to-simulator
-path and automatic video upload have not yet passed together end to end.
+These runs qualify assessment and planning only. Full PR-run results follow.
 
 ## Full runs before the workflow is merged
 
@@ -273,7 +271,7 @@ direct children of the requested PR head and change only QA files. A different
 product tree is rejected; no native rebuild is needed for a report-harness fix.
 
 The first full #6460 run built the requested product source, completed fresh
-login, exercised read-only notebook headers/scrolling/navigation and automatically
+login, exercised read-only notebook scrolling/navigation and automatically
 embedded a 164.8-second video. Its report guard rejected an additional generic
 smoke finding, hiding the detailed blocked scenarios. The output schema now
 restricts findings to assessed IDs and omits the default smoke focus on PR runs.
@@ -283,3 +281,22 @@ Editable notes, folders, save timing and event-order fixtures remain unqualified
 The full #6242 run correctly skipped simulator/build work and automatically posted
 the internal-docs-only assessment on the original PR.
 [Automatic skip report](https://github.com/tloncorp/tlon-apps/pull/6242#issuecomment-5627093779).
+
+Independent review of the first recording found the agent had visited Getting
+Started, which appears to use the legacy notebook UI. The requested PR changes
+`notes` channels; a visible title alone does not establish that its native header
+code ran. The blocked result must not be presented as successful changed-screen
+coverage. A known `notes` fixture with editable notes and folders is still needed.
+
+The [simulator retry](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08dda-da0d-7af3-80c9-6125ed77c412)
+reused build `242a11cc-2a62-40f7-9a60-d31eab6c8a40` with harness
+`87f85ddf61a650924ba59311931568889ecdca63`; EAS skipped native compilation.
+Fresh login passed. The agent returned all six planned findings with their exact
+acceptance criteria, correctly excluded the legacy Getting Started channel and
+reported every scenario blocked by unavailable `%notes` and sync fixtures. The
+227.4-second recording passed video validation. This qualifies source-checked
+build reuse and structured blocked reporting, not the requested app behavior.
+The EAS publisher then automatically embedded the video with all six findings
+[in the original PR](https://github.com/tloncorp/tlon-apps/pull/6460#issuecomment-5627538335).
+GitHub's rendered response contains a native `<video>` player. The workflow
+correctly ends in failure for blocked coverage while publication succeeds.
