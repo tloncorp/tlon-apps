@@ -195,6 +195,8 @@ const checks = [
           how: `cd apps/tlon-mobile && stim doctor`,
         };
       }
+      // stim doctor has two levels, cost and note; neither blocks a build,
+      // so neither is a fix here.
       const costly = findings.filter((f) => f.level === 'cost');
       if (costly.length === 0)
         return {
@@ -204,11 +206,11 @@ const checks = [
       // permission file and can delete generated Android .cxx directories, so
       // it is a decision for whoever is running this, not a repair to apply.
       return {
-        fix: costly
-          .map((f) => `${f.title}${f.fix ? ` -> ${f.fix}` : ''}`)
+        note: costly
+          .map(
+            (f) => `costs build time: ${f.title}${f.fix ? ` -> ${f.fix}` : ''}`
+          )
           .join('\n      '),
-        how: 'cd apps/tlon-mobile && stim doctor, then apply the fix each finding names',
-        cmd: null,
       };
     },
   },

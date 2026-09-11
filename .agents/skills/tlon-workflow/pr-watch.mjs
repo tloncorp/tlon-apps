@@ -20,6 +20,7 @@ import {
 import { dirname, join } from 'node:path';
 
 const BOT = 'chatgpt-codex-connector[bot]';
+const CODEX_STATUS_MARKER = '<!-- codex-pull-request-review-summary -->';
 const WRITE = new Set(['admin', 'maintain', 'write']);
 // gh paginates a busy pull request into more than the 1 MiB spawnSync default.
 const MAX_BUFFER = 64 * 1024 * 1024;
@@ -159,9 +160,13 @@ function collect() {
   const items = [];
   for (const c of api(`repos/${repo}/issues/${number}/comments?per_page=100`)) {
     if (!qualifies(c.user)) continue;
+    // Codex posts a status comment the moment a PR goes ready and edits it in
+    // place when the review completes, so it is reported once, on completion.
+    const status = c.body?.includes(CODEX_STATUS_MARKER);
+    if (status && !c.body.includes('"status":"completed"')) continue;
     items.push({
       kind: 'comment',
-      id: `c${c.id}`,
+      id: status ? `c${c.id}:completed` : `c${c.id}`,
       at: c.created_at,
       author: c.user.login,
       url: c.html_url,
