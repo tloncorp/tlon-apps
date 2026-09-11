@@ -1,4 +1,5 @@
 export { udToDate } from './apiUtils';
+export * from './agentProtocol';
 export * from './a2ui';
 export * from './channelContentConfig';
 export * from './channelsApi';
@@ -59,12 +60,15 @@ export {
   deleteTlawnProviderKey,
   setTlawnPrimaryModel,
   getTlawnProviderModels,
+  getTlawnOpenRouterRecommendedModels,
+  getTlawnOpenRouterZdrEndpoints,
   getTlawnBotInfo,
   getTlawnOAuthProviders,
   getTlawnOAuthStatus,
   getTlawnLLMAuthStatus,
   startTlawnLLMAuth,
   getTlawnLLMAuthFlow,
+  completeTlawnLLMAuth,
   disconnectTlawnLLMAuth,
   startTlawnOAuth,
   deleteTlawnOAuthGrant,
@@ -98,6 +102,7 @@ export type {
   TlawnChatConfigUpdate,
   TlawnConfig,
   TlawnProviderModel,
+  TlawnOpenRouterZdrEndpoint,
   TlawnOAuthGrant,
   TlawnOAuthProvider,
   TlawnOAuthProviderKind,

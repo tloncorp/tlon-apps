@@ -14,6 +14,8 @@
   ^-  group:g
   :*  meta=[title='My Test Group' description='A testing group' image='' cover='']
     ::
+      blob=~
+    ::
       ^=  admissions
       :*  privacy=%public
           banned=[ships=~ ranks=~]
@@ -108,7 +110,7 @@
   =/  m  (mare ,(list card))
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
-  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
+  (do-poke group-action-5+!>(`a-groups:v11:gv`a-groups))
 ::
 ++  do-a-group
   |=  =a-group:g
@@ -116,7 +118,7 @@
   ^-  form:m
   ;<  ~  bind:m  (wait ~m1)
   =/  =a-groups:g  [%group my-flag a-group]
-  (do-poke group-action-4+!>(`a-groups:v8:gv`a-groups))
+  (do-poke group-action-5+!>(`a-groups:v11:gv`a-groups))
 ::
 ++  do-a-foreigns
   |=  =a-foreigns:g
@@ -134,51 +136,64 @@
   (do-poke group-foreign-2+!>(`a-foreigns:v9:gv`a-foreigns))
 ::
 ++  ex-r-groups
-  |=  [caz=(list card) rs-groups=(list r-groups:v9:gv)]
+  |=  [caz=(list card) rs-groups=(list r-groups:g)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
+  %+  ex-cards  caz
+  %-  zing
+  %+  turn  rs-groups
+  |=  =r-groups:g
+  ^-  (list $-(card tang))
+  =/  r-group-10=(unit r-group:v10:gv)
+    (v10:r-group:v11:gc r-group.r-groups)
+  =/  r-group-9=(unit r-group:v9:gv)
+    (v9:r-group:v11:gc r-group.r-groups)
   =/  actions-2=(list action:v2:gv)
-    %-  zing
-    %+  turn  rs-groups
-    |=  =r-groups:v9:gv
+    ?~  r-group-9  ~
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc u.r-group-9 [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
-  %+  ex-cards  caz
-  %+  welp
-    %-  zing
-    %+  turn  rs-groups
-    |=  =r-groups:v9:gv
-    :~  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-        group-response-1+!>(r-groups)
-        %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
-        group-response-2+!>(`r-groups:v10:gv`r-groups)
-    ==
-  %+  turn  actions-2
-  |=  =action:v2:gv
-  (ex-fact ~[/groups/ui] group-action-3+!>(action))
+  ;:  welp
+    :_  ~
+    %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+    group-response-3+!>(`r-groups:v11:gv`r-groups)
+  ::
+    ?~  r-group-10  ~
+    :_  ~
+    %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
+    group-response-2+!>(`r-groups:v10:gv`[flag.r-groups u.r-group-10])
+  ::
+    ?~  r-group-9  ~
+    :_  ~
+    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+    group-response-1+!>(`r-groups:v9:gv`[flag.r-groups u.r-group-9])
+  ::
+    %+  turn  actions-2
+    |=  =action:v2:gv
+    (ex-fact ~[/groups/ui] group-action-3+!>(action))
+  ==
 ::
 ++  ex-cards-r-groups
   |=  $:  caz=(list card)
-          exes=(list (each $-(card tang) r-groups:v9:gv))
+          exes=(list (each $-(card tang) r-groups:g))
       ==
   =/  m  (mare ,~)
   ^-  form:m
   ::  extract group - it is needed for facts down-conversion
   ::
   ;<  =bowl:gall  bind:m  get-bowl
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ::  assemble expected
   ::
   %+  ex-cards  caz
   %-  flop
   %+  roll  exes
-  |=  [exe=(each $-(card tang) r-groups:v9:gv) out=(list $-(card tang))]
+  |=  [exe=(each $-(card tang) r-groups:g) out=(list $-(card tang))]
   ?:  ?=(%& -.exe)
     ::  expected card
     ::
@@ -186,20 +201,35 @@
   ::  expected r-groups
   ::
   =*  r-groups  p.exe
+  =/  r-group-10=(unit r-group:v10:gv)
+    (v10:r-group:v11:gc r-group.r-groups)
+  =/  r-group-9=(unit r-group:v9:gv)
+    (v9:r-group:v11:gc r-group.r-groups)
   =/  actions-2=(list action:v2:gv)
+    ?~  r-group-9  ~
     %+  turn
-      (diff:v2:r-group:v9:gc r-group.r-groups [seats admissions]:group)
+      (diff:v2:r-group:v9:gc u.r-group-9 [seats admissions]:group)
     |=  =diff:v2:gv
     [flag.r-groups now.bowl diff]
-  %+  welp
+  ;:  welp
     %+  turn  actions-2
     |=  =action:v2:gv
     (ex-fact ~[/groups/ui] group-action-3+!>(action))
-  :-  %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
-      group-response-2+!>(`r-groups:v10:gv`r-groups)
-  :-  %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
-      group-response-1+!>(r-groups)
-  out
+  ::
+    ?~  r-group-9  ~
+    :_  ~
+    %+  ex-fact  ~[/v1/groups /v1/groups/~zod/my-test-group]
+    group-response-1+!>(`r-groups:v9:gv`[flag.r-groups u.r-group-9])
+  ::
+    ?~  r-group-10  ~
+    :_  ~
+    %+  ex-fact  ~[/v2/groups /v2/groups/~zod/my-test-group]
+    group-response-2+!>(`r-groups:v10:gv`[flag.r-groups u.r-group-10])
+  ::
+    :_  out
+    %+  ex-fact  ~[/v3/groups /v3/groups/~zod/my-test-group]
+    group-response-3+!>(`r-groups:v11:gv`r-groups)
+  ==
 ::
 ++  get-invite
   |=  tok=(unit token:g)
@@ -396,7 +426,7 @@
   ::  verify the invitee is recorded on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -431,7 +461,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -485,7 +515,7 @@
   ::  verify the invitee is recorded on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -518,7 +548,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -577,7 +607,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -635,7 +665,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~fun))
@@ -688,8 +718,9 @@
   ;<  ~  bind:m
     %+  ex-cards  caz
     :~  (ex-poke (weld go-area /invite/revoke/~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `0v123]))
-        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v3/groups /v3/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/v2/groups /v2/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==

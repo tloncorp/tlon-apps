@@ -2,12 +2,102 @@ import { describe, expect, test } from 'vitest';
 
 import {
   NavigationChainNode,
+  getActiveNestedGroupId,
   getActiveTopLevelDrawerRouteName,
+  getDesktopGroupEntryRoute,
   getDesktopGroupInvitePreviewProps,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
   isActivityBackTarget,
 } from './routeHelpers';
+
+describe('getDesktopGroupEntryRoute', () => {
+  const groupId = '~zod/project';
+  const notebookId = 'notes/~zod/project/notebook';
+  const chatId = 'chat/~zod/project/general';
+
+  test('returns to the most recently visited current channel', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], chatId)
+    ).toMatchObject({
+      name: 'Home',
+      params: {
+        screen: 'Channel',
+        params: { channelId: chatId, groupId },
+      },
+    });
+  });
+
+  test('opens the group channel list when no channel has been visited', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], null)
+    ).toEqual({
+      name: 'Home',
+      params: {
+        screen: 'GroupChannels',
+        pop: true,
+        params: { groupId },
+      },
+    });
+  });
+
+  test('does not reopen a stale remembered channel', () => {
+    expect(
+      getDesktopGroupEntryRoute(groupId, [notebookId, chatId], 'notes/deleted')
+    ).toMatchObject({
+      name: 'Home',
+      params: { screen: 'GroupChannels', params: { groupId } },
+    });
+  });
+
+  test('keeps the single-channel desktop shortcut', () => {
+    expect(getDesktopGroupEntryRoute(groupId, [chatId], null)).toMatchObject({
+      name: 'Home',
+      params: {
+        screen: 'Channel',
+        params: { channelId: chatId, groupId },
+      },
+    });
+  });
+});
+
+describe('getActiveNestedGroupId', () => {
+  test('finds the group on the active nested desktop channel route', () => {
+    expect(
+      getActiveNestedGroupId({
+        index: 0,
+        routes: [
+          {
+            name: 'Home',
+            state: {
+              index: 1,
+              routes: [
+                { name: 'ChatList' },
+                { name: 'Channel', params: { groupId: '~zod/agent' } },
+              ],
+            },
+          },
+          {
+            name: 'Messages',
+            params: { groupId: '~zod/inactive' },
+          },
+        ],
+      })
+    ).toBe('~zod/agent');
+  });
+
+  test('ignores inactive routes and missing group ids', () => {
+    expect(
+      getActiveNestedGroupId({
+        index: 0,
+        routes: [
+          { name: 'Home' },
+          { name: 'Messages', params: { groupId: '~zod/inactive' } },
+        ],
+      })
+    ).toBeUndefined();
+  });
+});
 
 // Build a `{ getState, getParent }` chain from innermost -> outermost so we can
 // exercise the parent-walk without a live React Navigation object. The first

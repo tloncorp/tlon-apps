@@ -2,15 +2,28 @@ import { type Mock, beforeEach, expect, test, vi } from 'vitest';
 
 import { ThreadResponseBodyError } from '../http-api';
 import type { Group } from '../types/models';
-import { createGroup } from './groupsApi';
-import { scry, thread } from './urbit';
+import {
+  createGroup,
+  subscribeGroups,
+  toGroupsUpdate,
+  updateGroupMeta,
+} from './groupsApi';
+import { scry, subscribe, thread, trackedPoke } from './urbit';
 
 vi.mock('./urbit', async () => {
   const actual = await vi.importActual<typeof import('./urbit')>('./urbit');
-  return { ...actual, scry: vi.fn(), thread: vi.fn() };
+  return {
+    ...actual,
+    scry: vi.fn(),
+    thread: vi.fn(),
+    subscribe: vi.fn(),
+    trackedPoke: vi.fn(),
+  };
 });
 
 const scryMock = scry as unknown as Mock;
+const subscribeMock = subscribe as unknown as Mock;
+const trackedPokeMock = trackedPoke as unknown as Mock;
 const threadMock = thread as unknown as Mock;
 
 const group: Group = {
@@ -45,6 +58,52 @@ test('createGroup recovers only when a response body stalls after headers', asyn
 
   expect(scryMock).toHaveBeenCalledWith({
     app: 'groups',
-    path: '/v2/ui/groups/~zod/test-group',
+    path: '/v3/ui/groups/~zod/test-group',
   });
+});
+
+test('toGroupsUpdate maps blob responses to editGroupBlob', () => {
+  expect(
+    toGroupsUpdate({
+      flag: '~zod/test-group',
+      'r-group': { blob: '{"custom":"payload"}' },
+    })
+  ).toEqual({
+    type: 'editGroupBlob',
+    groupId: '~zod/test-group',
+    blob: '{"custom":"payload"}',
+  });
+
+  expect(
+    toGroupsUpdate({
+      flag: '~zod/test-group',
+      'r-group': { blob: null },
+    })
+  ).toEqual({
+    type: 'editGroupBlob',
+    groupId: '~zod/test-group',
+    blob: null,
+  });
+});
+
+// A trackedPoke resolves only when its watch endpoint receives an event, and
+// events arrive solely through that endpoint's own subscription. So the lane
+// tracked pokes watch must be the lane we subscribe to, or every group
+// mutation hangs until it times out and throws.
+test('tracked group pokes watch the lane subscribeGroups subscribes to', async () => {
+  subscribeMock.mockResolvedValue(1);
+  trackedPokeMock.mockResolvedValue(undefined);
+
+  await subscribeGroups(() => {});
+  const subscribedPaths = subscribeMock.mock.calls
+    .map(([endpoint]) => endpoint.path)
+    .filter((path: string) => path.endsWith('/groups'));
+
+  await updateGroupMeta({
+    groupId: '~zod/test-group',
+    meta: { title: 't', description: '', image: '', cover: '' },
+  });
+  const [, watchEndpoint] = trackedPokeMock.mock.calls[0];
+
+  expect(subscribedPaths).toContain(watchEndpoint.path);
 });

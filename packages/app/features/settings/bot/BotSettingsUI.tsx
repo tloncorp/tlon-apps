@@ -14,53 +14,22 @@ import { View, XStack, YStack } from 'tamagui';
 import { ImageAvatar } from '../../../ui/components/Avatar';
 import { Badge } from '../../../ui/components/Badge';
 import { ListItem } from '../../../ui/components/ListItem';
+import {
+  SettingsDivider,
+  SettingsSection,
+} from '../../../ui/components/SettingsSection';
 
-export function BotSettingsSection({
-  title,
-  description,
-  children,
-}: PropsWithChildren<{
-  title?: string;
-  description?: string;
-}>) {
-  return (
-    <YStack gap="$m">
-      {title ? (
-        <Text
-          size="$label/m"
-          color="$secondaryText"
-          fontWeight="500"
-          paddingHorizontal="$s"
-        >
-          {title}
-        </Text>
-      ) : null}
-      <YStack
-        borderWidth={1}
-        borderColor="$border"
-        borderRadius="$xl"
-        backgroundColor="$background"
-        overflow="hidden"
-      >
-        {children}
-      </YStack>
-      {description ? (
-        <Text size="$label/s" color="$secondaryText" paddingHorizontal="$s">
-          {description}
-        </Text>
-      ) : null}
-    </YStack>
-  );
-}
-
-export function BotSettingsDivider() {
-  return <View height={1} backgroundColor="$border" />;
-}
+export const BotSettingsSection = SettingsSection;
+export const BotSettingsDivider = SettingsDivider;
 
 export function BotSettingsRow({
   label,
   value,
+  valueColor = '$tertiaryText',
   description,
+  descriptionNumberOfLines = 1,
+  multilineDescriptionGap = 12,
+  multilinePaddingVertical = 32,
   icon,
   pending,
   disabled,
@@ -69,19 +38,37 @@ export function BotSettingsRow({
 }: PropsWithChildren<{
   label: string;
   value?: string;
+  valueColor?: '$primaryText' | '$secondaryText' | '$tertiaryText';
   description?: string;
+  descriptionNumberOfLines?: number;
+  multilineDescriptionGap?: number;
+  multilinePaddingVertical?: number;
   icon?: IconType;
   pending?: boolean;
   disabled?: boolean;
   onPress?: () => void;
 }>) {
+  const hasMultilineDescription =
+    Boolean(description) && descriptionNumberOfLines > 1;
   const content = (
-    <ListItem opacity={disabled ? 0.6 : 1}>
+    <ListItem
+      opacity={disabled ? 0.6 : 1}
+      paddingVertical={
+        hasMultilineDescription ? multilinePaddingVertical : '$l'
+      }
+    >
       {icon ? <ListItem.SystemIcon icon={icon} rounded /> : null}
-      <ListItem.MainContent>
+      <ListItem.MainContent
+        height={hasMultilineDescription ? 'auto' : '$4xl'}
+        minHeight="$4xl"
+        justifyContent={hasMultilineDescription ? 'center' : 'space-around'}
+        gap={hasMultilineDescription ? multilineDescriptionGap : undefined}
+      >
         <ListItem.Title>{label}</ListItem.Title>
         {description ? (
-          <ListItem.Subtitle>{description}</ListItem.Subtitle>
+          <ListItem.Subtitle numberOfLines={descriptionNumberOfLines}>
+            {description}
+          </ListItem.Subtitle>
         ) : null}
       </ListItem.MainContent>
       <XStack alignItems="center" gap="$s" flexShrink={0}>
@@ -89,7 +76,7 @@ export function BotSettingsRow({
         {value ? (
           <Text
             size="$label/m"
-            color="$tertiaryText"
+            color={valueColor}
             numberOfLines={1}
             maxWidth={160}
           >
@@ -123,6 +110,9 @@ export function BotSettingsRow({
 export function BotSwitchRow({
   label,
   description,
+  descriptionNumberOfLines,
+  multilineDescriptionGap,
+  multilinePaddingVertical,
   checked,
   disabled,
   pending,
@@ -130,13 +120,23 @@ export function BotSwitchRow({
 }: {
   label: string;
   description?: string;
+  descriptionNumberOfLines?: number;
+  multilineDescriptionGap?: number;
+  multilinePaddingVertical?: number;
   checked: boolean;
   disabled?: boolean;
   pending?: boolean;
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <BotSettingsRow label={label} description={description} pending={pending}>
+    <BotSettingsRow
+      label={label}
+      description={description}
+      descriptionNumberOfLines={descriptionNumberOfLines}
+      multilineDescriptionGap={multilineDescriptionGap}
+      multilinePaddingVertical={multilinePaddingVertical}
+      pending={pending}
+    >
       <Switch
         value={checked}
         disabled={disabled}
@@ -153,12 +153,14 @@ export function PendingBadge() {
 export function SelectableRow({
   label,
   description,
+  endContent,
   selected,
   disabled,
   onPress,
 }: {
   label: string;
   description?: string;
+  endContent?: ReactNode;
   selected: boolean;
   disabled?: boolean;
   onPress: () => void;
@@ -177,9 +179,12 @@ export function SelectableRow({
             <ListItem.Subtitle>{description}</ListItem.Subtitle>
           ) : null}
         </ListItem.MainContent>
-        {selected ? (
-          <XStack alignItems="center" flexShrink={0}>
-            <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+        {endContent || selected ? (
+          <XStack alignItems="center" gap="$s" flexShrink={0}>
+            {endContent}
+            {selected ? (
+              <Icon type="Checkmark" size="$m" color="$positiveActionText" />
+            ) : null}
           </XStack>
         ) : null}
       </ListItem>

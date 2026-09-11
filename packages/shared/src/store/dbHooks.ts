@@ -13,6 +13,7 @@ import { useEffect, useMemo } from 'react';
 import * as db from '../db';
 import { GroupedChats } from '../db/types';
 import * as logic from '../logic';
+import { getBotReplyFeedbackQueryKey } from './botReplyFeedback';
 import { hasCustomS3Creds, hasHostingUploadCreds } from './storage';
 import { syncChannelPreivews, syncPostReference } from './sync';
 import { keyFromQueryDeps, useKeyFromQueryDeps } from './useKeyFromQueryDeps';
@@ -33,6 +34,45 @@ export const useAllChannels = ({ enabled }: { enabled?: boolean }) => {
   });
 };
 
+/**
+ * The viewer's durable A2UI selections in a channel. Depends on the posts
+ * table, so the optimistic insert of a reply invalidates it immediately and a
+ * just-answered control locks in the same tick it posts.
+ */
+export const useA2UISelections = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getA2UISelections);
+  return useQuery({
+    queryKey: ['a2uiSelections', deps, channelId, authorId],
+    queryFn: () => db.getA2UISelections({ channelId, authorId }),
+    enabled,
+  });
+};
+
+export const useAgentA2UIProtocolReceipts = ({
+  channelId,
+  authorId,
+  enabled,
+}: {
+  channelId: string;
+  authorId: string;
+  enabled?: boolean;
+}) => {
+  const deps = useKeyFromQueryDeps(db.getAgentA2UIProtocolReceipts);
+  return useQuery({
+    queryKey: ['agentA2UIProtocolReceipts', deps, channelId, authorId],
+    queryFn: () => db.getAgentA2UIProtocolReceipts({ channelId, authorId }),
+    enabled,
+  });
+};
+
 export const useCurrentChats = (
   queryConfig?: CustomQueryConfig<GroupedChats>
 ): UseQueryResult<GroupedChats | null> => {
@@ -42,24 +82,6 @@ export const useCurrentChats = (
     },
     queryKey: ['currentChats', useKeyFromQueryDeps(db.getChats)],
     ...queryConfig,
-  });
-};
-
-// Probe %notes once to detect whether the notes desk is installed on the
-// user's ship. Used to gate notes-specific UI (channel-creation option,
-// 'Bulletin' rename, etc.). Defaults to false until the request resolves.
-export const useNotesDeskAvailable = () => {
-  return useQuery({
-    queryKey: ['notesDeskAvailable'],
-    queryFn: async () => {
-      try {
-        await api.notes.listNotebooks();
-        return true;
-      } catch (e) {
-        return false;
-      }
-    },
-    staleTime: 60_000,
   });
 };
 
@@ -855,9 +877,12 @@ export const useShowNotebookAddTooltip = (channelId: string) => {
   return isCorrectChan && !wayfindingProgress.tappedAddNote;
 };
 
-export const useThemeSettings = () => {
+export const useThemeSettings = ({
+  enabled = true,
+}: { enabled?: boolean } = {}) => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
+    enabled,
     queryKey: ['themeSettings', deps],
     queryFn: async () => {
       const settings = await db.getSettings();
@@ -877,6 +902,8 @@ export const useTelemetryEnabled = () => {
   });
 };
 
+// Legacy setting retained for older clients. Current clients make Context Lens
+// available by default and do not use this value as an availability gate.
 export const useContextLensEnabled = () => {
   const deps = useKeyFromQueryDeps(db.getSettings);
   return useQuery({
@@ -884,6 +911,17 @@ export const useContextLensEnabled = () => {
     queryFn: async () => {
       const settings = await db.getSettings();
       return settings?.contextLensEnabled ?? false;
+    },
+  });
+};
+
+export const useShowDeleteMarkers = () => {
+  const deps = useKeyFromQueryDeps(db.getSettings);
+  return useQuery({
+    queryKey: ['showDeleteMarkers', deps],
+    queryFn: async () => {
+      const settings = await db.getSettings();
+      return settings?.showDeleteMarkers ?? false;
     },
   });
 };
@@ -899,6 +937,14 @@ export const useTelemetrySettings = () => {
         logActivity: settings?.logActivity,
       };
     },
+  });
+};
+
+export const useBotReplyFeedback = (messageId: string) => {
+  return useQuery({
+    queryKey: getBotReplyFeedbackQueryKey(messageId),
+    queryFn: () => db.getBotReplyFeedback(messageId),
+    enabled: Boolean(messageId),
   });
 };
 

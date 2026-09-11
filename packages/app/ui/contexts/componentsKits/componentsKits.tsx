@@ -10,8 +10,13 @@ import { ReactElement, createContext, useContext } from 'react';
 import { DraftInputContext } from '../../components/draftInputs';
 import { IPostCollectionView } from '../../components/postCollectionViews/types';
 
+export type A2UIActionCompletion = {
+  sentMessageText?: string;
+};
+
 type RenderItemProps = {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   showReplies?: boolean;
   onPress?: (post: db.Post) => void;
@@ -24,7 +29,7 @@ type RenderItemProps = {
   onPressBotRun?: (post: db.Post) => void;
   editPost?: (post: db.Post, content: Story) => Promise<void>;
   onPressRetry?: (post: db.Post) => Promise<void>;
-  onPressDelete: (post: db.Post) => void;
+  onPressDelete?: (post: db.Post) => void;
   onShowEmojiPicker?: (post: db.Post) => void;
   onPressEdit?: (post: db.Post) => void;
   isHighlighted?: boolean;
@@ -40,6 +45,7 @@ export type RenderItemType =
 
 export type MinimalRenderItemProps = {
   post: db.Post;
+  a2uiActionCompletion?: A2UIActionCompletion;
   showAuthor?: boolean;
   showReplies?: boolean;
   onPress?: (post: db.Post) => void;

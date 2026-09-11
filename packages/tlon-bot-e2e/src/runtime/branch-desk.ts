@@ -14,7 +14,12 @@ import { waitFor, waitForShipLogin } from './waiters.js';
 
 type ShipLabel = keyof RuntimeContext['endpoints']['ships'];
 
-const DEFAULT_DESK_SHIPS = '~zod,~ten';
+// Every running ship, not just the two the scenarios drive directly. ~mug is
+// the reel/lure provider, so leaving it on its pier's desk makes a mixed-version
+// fleet — harmless until a change bumps the negotiated %groups protocol version,
+// at which point ~zod/~ten treat ~mug as a certain-mismatch and negotiate's
+// poke path crashes outright (`%poke-to-mismatching-gill`) rather than deferring.
+const DEFAULT_DESK_SHIPS = '~zod,~ten,~mug';
 const STAGED_DESK = '/tmp/tlon-bot-e2e-groups';
 const COMMIT_ATTEMPTS = 4;
 const ASSEMBLE_DESK_TIMEOUT_MS = 300_000;

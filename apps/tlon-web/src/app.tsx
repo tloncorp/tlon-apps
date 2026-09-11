@@ -46,6 +46,7 @@ import {
 import {
   AnalyticsEvent,
   AnalyticsSeverity,
+  createDevLogger,
   getAuthInfo,
 } from '@tloncorp/shared';
 import { sync } from '@tloncorp/shared';
@@ -74,6 +75,8 @@ import { useTheme } from '@/state/settings';
 
 import { DesktopLoginScreen } from './components/DesktopLoginScreen';
 import { isElectron } from './electron-bridge';
+
+const logger = createDevLogger('app', false);
 
 // Conditionally import the appropriate database functions
 const { checkDb, useMigrations } = isElectron()
@@ -470,12 +473,17 @@ function ConnectedDesktopApp({
   return <AppRoutes />;
 }
 
+// The web db is rebuilt on every load, so the splash screen waits for it to
+// report a nonzero size before handing over to the app.
+const DB_LOAD_ATTEMPTS = 10;
+
 function ConnectedWebApp() {
   const currentUserId = useCurrentUserId();
   const [dbIsLoaded, setDbIsLoaded] = useState(false);
   const configureClient = useConfigureUrbitClient();
   const session = store.useCurrentSession();
   const hasSyncedRef = React.useRef(false);
+  const dbLoadFailureReportedRef = React.useRef(false);
   const telemetry = useTelemetry();
 
   const isNewSignup = useMemo(() => {
@@ -509,9 +517,9 @@ function ConnectedWebApp() {
       // this is necessary because we load a fresh db on every load and we
       // can't be sure of when data has been loaded
 
-      for (let i = 0; i < 10; i++) {
+      for (let i = 0; i < DB_LOAD_ATTEMPTS; i++) {
         if (dbIsLoaded) {
-          break;
+          return;
         }
 
         const { databaseSizeBytes } = (await checkDb()) || {
@@ -521,10 +529,22 @@ function ConnectedWebApp() {
         if (databaseSizeBytes && databaseSizeBytes > 0) {
           setDbIsLoaded(true);
           splashScreenProgress.complete(SplashScreenTask.startDatabase);
-          break;
+          return;
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+
+      // Every attempt came back empty, so the splash screen is still up with no
+      // database behind it and nothing retries from here. Without this the only
+      // trace is whatever query happens to fail next.
+      if (!dbLoadFailureReportedRef.current) {
+        dbLoadFailureReportedRef.current = true;
+        logger.trackEvent(AnalyticsEvent.ErrorWebDb, {
+          context: 'ConnectedWebApp: database never became readable',
+          attempts: DB_LOAD_ATTEMPTS,
+          severity: AnalyticsSeverity.Critical,
+        });
       }
     };
 

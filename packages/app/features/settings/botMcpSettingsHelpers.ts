@@ -1,8 +1,8 @@
-import type { TlawnOAuthGrant, TlawnOAuthProvider } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 
 import { APP_SCHEME, MCP_OAUTH_COMPLETION_PATH } from '../../constants';
-import type { BotSettingsProviderRow } from '../../ui';
+
+export { buildProviderRows } from '../../lib/mcpProviders';
 
 export const GENERIC_ERROR_MESSAGE = 'Something went wrong. Please try again.';
 export const TOAST_BOTTOM_OFFSET = 24;
@@ -20,36 +20,6 @@ type OAuthCompletion = {
 };
 
 const logger = createDevLogger('botSettings', false);
-const DISABLED_PROVIDER_IDS = new Set(['supabase']);
-
-export function buildProviderRows(
-  providers: TlawnOAuthProvider[],
-  grants: TlawnOAuthGrant[]
-): BotSettingsProviderRow[] {
-  const grantsByProvider = new Map(
-    grants.map((grant) => [grant.provider.toLowerCase(), grant])
-  );
-
-  return providers
-    .filter((provider) => !DISABLED_PROVIDER_IDS.has(provider.id.toLowerCase()))
-    .map((provider) => {
-      const grant = grantsByProvider.get(provider.id.toLowerCase()) ?? null;
-      const status =
-        grant?.connected && !grant.expired
-          ? 'connected'
-          : grant
-            ? 'expired'
-            : 'not-connected';
-
-      return {
-        displayName: provider.displayName,
-        id: provider.id,
-        logoUrl: provider.logoUrl,
-        status,
-      };
-    });
-}
-
 export function getFinalRedirectUrl() {
   return `${APP_SCHEME}://${MCP_OAUTH_COMPLETION_PATH}`;
 }

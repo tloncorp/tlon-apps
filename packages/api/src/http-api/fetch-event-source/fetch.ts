@@ -1,9 +1,4 @@
-import {
-  FatalError,
-  ReapError,
-  SSEBadResponseError,
-  SSETimeoutError,
-} from '../types';
+import { ReapError, SSEBadResponseError, SSETimeoutError } from '../types';
 import { EventSourceMessage, getBytes, getLines, getMessages } from './parse';
 
 export const EventStreamContentType = 'text/event-stream';
@@ -78,15 +73,20 @@ export function fetchEventSource(
   }: FetchEventSourceInit
 ) {
   return new Promise<void>((resolve, reject) => {
+    if (inputSignal?.aborted) {
+      resolve();
+      return;
+    }
+
     // make a copy of the input headers since we may modify it below:
     const headers = { ...inputHeaders };
     if (!headers.accept) {
       headers.accept = EventStreamContentType;
     }
 
-    let curRequestController: AbortController;
+    let curRequestController: AbortController | undefined;
     function onVisibilityChange() {
-      curRequestController.abort(); // close existing request on every visibility change
+      curRequestController?.abort(); // close existing request on every visibility change
       if (!document.hidden) {
         create(); // page is now visible again, recreate request.
       }
@@ -98,39 +98,59 @@ export function fetchEventSource(
 
     let retryInterval = DefaultRetryInterval;
     let retryTimer: ReturnType<typeof setTimeout>;
+    let headerTimeout: ReturnType<typeof setTimeout> | undefined;
     function dispose() {
+      inputSignal?.removeEventListener('abort', onInputAbort);
       if (typeof document !== 'undefined' && !openWhenHidden) {
         document.removeEventListener('visibilitychange', onVisibilityChange);
       }
       clearTimeout(retryTimer);
-      curRequestController.abort();
+      clearTimeout(headerTimeout);
+      headerTimeout = undefined;
+      curRequestController?.abort();
     }
 
     // if the incoming signal aborts, dispose resources and resolve:
-    inputSignal?.addEventListener('abort', () => {
+    const onInputAbort = () => {
       dispose();
       resolve(); // don't waste time constructing/logging errors
-    });
+    };
+    inputSignal?.addEventListener('abort', onInputAbort, { once: true });
 
     const fetchFn = inputFetch ?? fetch;
     const onopen = inputOnOpen ?? defaultOnOpen;
     let isReconnect = false;
     async function create() {
+      if (inputSignal?.aborted) {
+        return;
+      }
+
       curRequestController = new AbortController();
       try {
-        const response = (await Promise.race([
-          fetchFn(input, {
-            ...rest,
-            headers,
-            signal: curRequestController.signal,
-          }),
-          new Promise((_, reject) => {
-            setTimeout(
-              () => reject(new SSETimeoutError('Request timed out')),
-              responseTimeout
-            );
-          }),
-        ])) as Response;
+        const fetchPromise = fetchFn(input, {
+          ...rest,
+          headers,
+          signal: curRequestController.signal,
+        });
+        let response: Response;
+        if (responseTimeout === undefined) {
+          response = await fetchPromise;
+        } else {
+          try {
+            response = (await Promise.race([
+              fetchPromise,
+              new Promise((_, reject) => {
+                headerTimeout = setTimeout(
+                  () => reject(new SSETimeoutError('Request timed out')),
+                  responseTimeout
+                );
+              }),
+            ])) as Response;
+          } finally {
+            clearTimeout(headerTimeout);
+            headerTimeout = undefined;
+          }
+        }
 
         if (response.status === 404) {
           dispose();
@@ -190,6 +210,9 @@ export function fetchEventSource(
             // check if we need to retry:
             curRequestController.abort();
             const interval: any = onerror?.(err) ?? retryInterval;
+            if (inputSignal?.aborted) {
+              return;
+            }
             clearTimeout(retryTimer);
             retryTimer = setTimeout(create, interval);
           } catch (innerErr) {

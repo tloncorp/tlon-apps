@@ -165,6 +165,32 @@ describe('sendPost', () => {
     expect(mockedPoke).toHaveBeenCalledTimes(0);
   });
 
+  test('interactive sends reject after recording a definitive failure', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    const sendError = new Error('definitive send failure');
+    vi.mocked(poke).mockRejectedValueOnce(sendError);
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toBe(sendError);
+    await vi.runOnlyPendingTimersAsync();
+    await rejection;
+
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  test('interactive sends reject when the channel is missing', async () => {
+    await expect(
+      finalizeAndSendPost(buildTestDraft({ channelId: 'missing-channel' }), {
+        rejectOnDefinitiveFailure: true,
+      })
+    ).rejects.toThrow('channel missing-channel is missing');
+  });
+
   test('tracks whether a sent post is going to a bot DM', async () => {
     const botDmId = '~pinser-botter-sampel';
     const capture = vi.fn();
@@ -316,6 +342,47 @@ describe('finalizeAndSendPost', () => {
       content: expect.stringContaining(message),
       deliveryStatus: 'failed',
     });
+  });
+
+  test('can reject a definitive send failure for one-shot controls', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockRejectedValueOnce(new Error('definitive send failure'));
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    const rejection = expect(sendPostPromise).rejects.toThrow(
+      'definitive send failure'
+    );
+    await vi.runOnlyPendingTimersAsync();
+
+    await rejection;
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  test('does not reject after backend delivery when local cleanup fails', async () => {
+    vi.useFakeTimers();
+    updateSession({ startTime: Date.now(), channelStatus: 'active' });
+    vi.mocked(poke).mockResolvedValueOnce(0);
+    const cleanup = vi
+      .spyOn(PostDataDraft, 'revokeBlobUrls')
+      .mockImplementationOnce(() => {
+        throw new Error('local cleanup failed');
+      });
+
+    const sendPostPromise = finalizeAndSendPost(buildTestDraft(), {
+      rejectOnDefinitiveFailure: true,
+    });
+    await vi.runOnlyPendingTimersAsync();
+
+    await expect(sendPostPromise).resolves.toBeUndefined();
+    expect(await fetchLatestPostFromDb()).toMatchObject({
+      deliveryStatus: 'pending',
+    });
+    cleanup.mockRestore();
   });
 
   test('tracks completion when a failed send succeeds on retry', async () => {

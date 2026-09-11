@@ -3,6 +3,7 @@ import * as urbit from '@tloncorp/api/urbit';
 import { JSONContent } from '@tloncorp/api/urbit';
 import {
   DraftInputId,
+  configurationFromChannel,
   isChatChannel as getIsChatChannel,
   hasUnreadActivity,
   makePrettyDayAndTime,
@@ -676,9 +677,25 @@ function SinglePostView({
       channelId: channel.id,
     });
 
+  const { data: showDeleteMarkers = false } = store.useShowDeleteMarkers();
+  const includeDeletedPosts =
+    configurationFromChannel(channel).includeDeletedPosts && showDeleteMarkers;
+  const visibleThreadPosts = useMemo(
+    () =>
+      includeDeletedPosts
+        ? threadPosts
+        : threadPosts?.filter((post) => !post.isDeleted),
+    [includeDeletedPosts, threadPosts]
+  );
+  const selectedReplyIsHidden = Boolean(
+    !includeDeletedPosts &&
+    selectedPostId &&
+    threadPosts?.some((post) => post.id === selectedPostId && post.isDeleted)
+  );
+
   const posts = useMemo(() => {
-    return parentPost ? [...(threadPosts ?? []), parentPost] : null;
-  }, [parentPost, threadPosts]);
+    return parentPost ? [...(visibleThreadPosts ?? []), parentPost] : null;
+  }, [parentPost, visibleThreadPosts]);
 
   const currentUserId = useCurrentUserId();
   const [activeMessage, setActiveMessage] = useState<db.Post | null>(null);
@@ -748,19 +765,19 @@ function SinglePostView({
   // This wires into Scroller's anchor initialization, giving us retry/recovery
   // for unmeasured items instead of a one-shot imperative scroll.
   const threadAnchor: ScrollAnchor | null = useMemo(() => {
-    if (isChatChannel && selectedPostId) {
+    if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       return { type: 'selected', postId: selectedPostId };
     }
     return null;
-  }, [isChatChannel, selectedPostId]);
+  }, [isChatChannel, selectedPostId, selectedReplyIsHidden]);
 
   // Trigger the 5s temporary highlight when selectedPostId changes.
   // Scrolling is handled by the anchor via useAnchorScrollLock.
   useEffect(() => {
-    if (isChatChannel && selectedPostId) {
+    if (isChatChannel && selectedPostId && !selectedReplyIsHidden) {
       highlightPost(selectedPostId);
     }
-  }, [isChatChannel, selectedPostId, highlightPost]);
+  }, [isChatChannel, selectedPostId, selectedReplyIsHidden, highlightPost]);
 
   const containingProperties: Partial<
     React.ComponentPropsWithoutRef<typeof View>
@@ -819,15 +836,16 @@ function SinglePostView({
       isEditingParent &&
       (channel.type === 'notebook' || channel.type === 'gallery')
     );
+  const hasFloatingReplyInput = canRenderReplyInput && isChatChannel;
   const { bottom } = useSafeAreaInsets();
   const { contentInsets, onFloatingHeightChange } = useConversationInsets({
-    hasFloatingComposer: canRenderReplyInput,
+    hasFloatingComposer: hasFloatingReplyInput,
     hasTransparentHeader: isChatChannel,
   });
   // Native floating composers include the home-indicator inset. Web composers
   // stay inline, so the screen still owns its bottom safe-area clearance.
   const screenBottomInset =
-    canRenderReplyInput && Platform.OS !== 'web' ? undefined : bottom;
+    hasFloatingReplyInput && Platform.OS !== 'web' ? undefined : bottom;
 
   const threadComposerContext = useMemo(
     (): DraftInputContext => ({
@@ -911,7 +929,8 @@ function SinglePostView({
 
         {replyInput && (
           <ConversationComposerPlacement
-            enabled
+            enabled={hasFloatingReplyInput}
+            avoidKeyboard={!hasFloatingReplyInput}
             contentProps={containingProperties}
             inlineID="reply-container"
             onFloatingHeightChange={onFloatingHeightChange}

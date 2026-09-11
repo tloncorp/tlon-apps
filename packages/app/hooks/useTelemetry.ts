@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import {
   AnalyticsEvent,
+  clearBreadcrumbs,
   createDevLogger,
   useCurrentSession,
 } from '@tloncorp/shared';
@@ -14,6 +15,8 @@ import { useCallback, useEffect } from 'react';
 import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
+import { captureMandatoryEventWithClient } from './mandatoryTelemetry';
+import { ensureIdentified } from './sessionIdentity';
 import { useCurrentUserId } from './useCurrentUser';
 import { usePosthog } from './usePosthog';
 
@@ -24,10 +27,20 @@ export function useClearTelemetryConfig() {
 
   const clearConfig = useCallback(async () => {
     logger.log('Clearing telemetry config');
-    await posthog.flush();
-    posthog?.reset();
-    await didInitializeTelemetry.resetValue();
-    await lastAnonymousAppOpenAt.resetValue();
+    // Breadcrumbs must not carry over from one account to the next on the same install.
+    // Clear before the first await: the native logout path does not await this
+    // callback, and a slow or rejected flush must not leave them behind.
+    clearBreadcrumbs();
+    posthog.reset();
+    await Promise.all([
+      didInitializeTelemetry.resetValue(),
+      lastAnonymousAppOpenAt.resetValue(),
+    ]);
+    try {
+      await posthog.flush();
+    } catch {
+      // Queued events keep their distinct_id and stay queued for the next flush.
+    }
   }, [posthog]);
 
   return clearConfig;
@@ -116,21 +129,18 @@ export function useTelemetry(): TelemetryClient {
       properties,
     }: {
       eventId: string;
-      properties?: Record<string, any>;
+      properties?: Record<string, unknown>;
     }) => {
       logger.log(
         `Capturing mandatory event ${eventId} with properties:`,
         properties
       );
-      const optedOut = getIsOptedOut();
-      if (optedOut) {
-        posthog?.optIn();
-        posthog?.capture(eventId, properties);
-        await posthog?.flush();
-        posthog?.optOut();
-      } else {
-        posthog?.capture(eventId, properties);
-      }
+      await captureMandatoryEventWithClient({
+        posthog,
+        getIsOptedOut,
+        eventId,
+        properties,
+      });
     },
     [posthog, getIsOptedOut]
   );
@@ -244,6 +254,44 @@ export function useTelemetry(): TelemetryClient {
     telemetryEnabled,
     telemetryInitialized,
     setDisabled,
+    posthog,
+    getIsOptedOut,
+  ]);
+
+  useEffect(() => {
+    if (!ready || !telemetryInitialized) {
+      return;
+    }
+
+    // The SDK's persisted identity and `didInitializeTelemetry` are separate
+    // stores that can diverge, which leaves a session reporting under a stale
+    // anonymous id. Re-link them once the SDK's storage has loaded.
+    let cancelled = false;
+    posthog
+      .ready()
+      .then(() => {
+        if (cancelled || getIsOptedOut()) {
+          return;
+        }
+
+        ensureIdentified({
+          posthog,
+          userId: currentUserId,
+          isHosted: api.getCurrentUserIsHosted(),
+        });
+      })
+      .catch(() => {
+        /* persistence failed to load; leave identity unset */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    ready,
+    telemetryInitialized,
+    telemetryEnabled,
+    currentUserId,
     posthog,
     getIsOptedOut,
   ]);

@@ -115,7 +115,7 @@ export function UserProfileScreenView(props: Props) {
           flexDirection: 'row',
         }}
       >
-        <View paddingHorizontal={'$l'}>
+        <View paddingHorizontal={'$l'} width="100%">
           <UserInfoRow
             userId={props.userId}
             hasNickname={!!userContact?.nickname?.length}
@@ -427,7 +427,7 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
         <ContactAvatar contactId={props.userId} size="$5xl" />
       </Pressable>
       <Pressable flex={1} minWidth={0} onPress={handleCopy}>
-        <YStack flex={1} justifyContent="center">
+        <YStack justifyContent="center">
           <XStack alignItems="center" gap="$s">
             <ContactName
               contactId={props.userId}

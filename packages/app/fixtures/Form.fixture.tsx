@@ -52,7 +52,7 @@ const FormFixture = () => {
     },
     {
       title: 'Gallery',
-      subtitle: 'Gather, connect, and arrange rich media',
+      subtitle: 'Gather and arrange rich media',
       value: 'gallery',
       icon: 'ChannelGalleries',
     },

@@ -79,6 +79,7 @@ export const settings = sqliteTable('settings', {
   webAppSplashDismissed: boolean('web_app_splash_dismissed'),
   mobileAppPromoDismissed: boolean('mobile_app_promo_dismissed'),
   contextLensEnabled: boolean('context_lens_enabled'),
+  showDeleteMarkers: boolean('show_delete_markers'),
 });
 
 export const systemContacts = sqliteTable(
@@ -410,6 +411,9 @@ export const activityEvents = sqliteTable(
   (table) => {
     return {
       pk: primaryKey({ columns: [table.id, table.bucketId] }),
+      channelTimestampIndex: index(
+        'activity_events_channel_id_timestamp_index'
+      ).on(table.channelId, table.timestamp),
     };
   }
 );
@@ -515,6 +519,7 @@ export type GroupPrivacy = ApiGroupPrivacy;
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   ...metaFields,
+  blob: text('blob'),
   privacy: text('privacy').$type<GroupPrivacy>(),
   haveInvite: boolean('have_invite'),
   haveRequestedInvite: boolean('have_requested_invite'),
@@ -1224,6 +1229,20 @@ export const notesNotesRelations = relations(notesNotes, ({ one }) => ({
   }),
 }));
 
+// A fetch-completion timestamp cannot prove that a lagging notebook replica
+// causally includes an activity event. Record only deletions that the Notes
+// action path explicitly confirmed against the host-facing API.
+export const notesActivityEventTombstones = sqliteTable(
+  'notes_activity_event_tombstones',
+  {
+    channelId: text('channel_id').notNull(),
+    noteId: text('note_id').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.channelId, table.noteId] }),
+  })
+);
+
 export const notesMembers = sqliteTable(
   'notes_members',
   {
@@ -1433,6 +1452,27 @@ export const postReactionsRelations = relations(postReactions, ({ one }) => ({
     references: [contacts.id],
   }),
 }));
+
+export const botReplyFeedback = sqliteTable(
+  'bot_reply_feedback',
+  {
+    messageId: text('message_id').primaryKey().notNull(),
+    postId: text('post_id').notNull(),
+    feedbackId: text('feedback_id').notNull(),
+    revision: integer('revision').notNull(),
+    rating: text('rating').$type<'up' | 'down' | null>(),
+    categories: text('categories', { mode: 'json' })
+      .$type<string[]>()
+      .notNull(),
+    submittedAt: timestamp('submitted_at').notNull(),
+  },
+  (table) => ({
+    postIdIndex: index('bot_reply_feedback_post_id_index').on(table.postId),
+    submittedAtIndex: index('bot_reply_feedback_submitted_at_index').on(
+      table.submittedAt
+    ),
+  })
+);
 
 // Per-run bot introspection records synced from the %steward agent's lens
 // module. Payload is the gateway's run record as structured JSON (inner

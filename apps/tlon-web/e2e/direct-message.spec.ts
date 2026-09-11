@@ -80,5 +80,5 @@ test('should test comprehensive direct message functionality between ~zod and ~t
 
   // Send a message and delete it
   await helpers.sendMessage(zodPage, 'Delete this message');
-  await helpers.deleteMessage(zodPage, 'Delete this message', true);
+  await helpers.deleteMessage(zodPage, 'Delete this message');
 });

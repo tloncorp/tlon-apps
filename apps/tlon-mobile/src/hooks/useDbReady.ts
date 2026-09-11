@@ -1,10 +1,54 @@
 import { ensureDbReady } from '@tloncorp/app/lib/nativeDb';
+import { AnalyticsEvent, createDevLogger } from '@tloncorp/shared';
 import { useEffect, useState } from 'react';
 
 const MAX_DB_READY_ATTEMPTS = 3;
+// Not a hang proof: every step of db init is uncapped, so no finite value
+// bounds the loop. This is the longest we're willing to leave the user on a
+// blank screen before showing them something they can act on.
+const DB_READY_DEADLINE_MS = 30_000;
+const MAX_LAST_ERROR_LENGTH = 200;
 
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const logger = createDevLogger('db-ready', false);
+
+let mountCount = 0;
+// Survives unmounts so a mount that recovers from a failed one can be told
+// apart from any other remount -- the root error boundary also remounts after
+// render crashes that have nothing to do with the database.
+let lastMountFailed = false;
+
+interface DbInitTimeoutDetails {
+  attempt: number;
+  elapsedMs: number;
+  lastError: string | null;
+}
+
+export class DbInitTimeoutError extends Error {
+  details: DbInitTimeoutDetails;
+
+  constructor(details: DbInitTimeoutDetails) {
+    super(
+      `Database initialization timed out after ${DB_READY_DEADLINE_MS}ms (attempt ${details.attempt}, ${details.elapsedMs} ms elapsed); last error: ${details.lastError ?? 'none'}`
+    );
+    // `extends Error` leaves `name` as 'Error', and Sentry reads the exception
+    // type from it.
+    this.name = 'DbInitTimeoutError';
+    // Deliberately not `cause`: Sentry's linked-errors integration appends
+    // causes after the original exception and `ignoreErrors` is matched against
+    // the last one, so a cause like 'Request timed out' would drop the whole
+    // event. The cause travels in the message and in `details` instead.
+    this.details = details;
+  }
+}
+
+// Capped here rather than at each use: the breadcrumb, the timeout message and
+// `details.lastError` all end up in the same reported payload, and
+// RootErrorBoundary spreads `details` into it.
+function describeError(error: unknown) {
+  const described =
+    error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+  return described.slice(0, MAX_LAST_ERROR_LENGTH);
 }
 
 export function useDbReady() {
@@ -12,35 +56,109 @@ export function useDbReady() {
   const [dbInitError, setDbInitError] = useState<unknown | null>(null);
 
   useEffect(() => {
+    const mount = ++mountCount;
+    const recoveringFromFailure = lastMountFailed;
+    const startedAt = Date.now();
+    const elapsed = () => Date.now() - startedAt;
+
     let cancelled = false;
+    let timedOut = false;
+    let attempt = 0;
+    let lastError: unknown = null;
+    let lastErrorText: string | null = null;
+    let backoffTimer: ReturnType<typeof setTimeout> | null = null;
+    let wakeBackoff: (() => void) | null = null;
+
+    const done = () => cancelled || timedOut;
+
+    function clearBackoff() {
+      if (backoffTimer !== null) {
+        clearTimeout(backoffTimer);
+        backoffTimer = null;
+      }
+      const wake = wakeBackoff;
+      wakeBackoff = null;
+      wake?.();
+    }
+
+    function wait(ms: number) {
+      return new Promise<void>((resolve) => {
+        wakeBackoff = resolve;
+        backoffTimer = setTimeout(() => {
+          backoffTimer = null;
+          wakeBackoff = null;
+          resolve();
+        }, ms);
+      });
+    }
+
+    const deadlineTimer = setTimeout(() => {
+      timedOut = true;
+      lastMountFailed = true;
+      clearBackoff();
+      logger.crumb(`deadline fired on attempt ${attempt}`);
+      setDbInitError(
+        new DbInitTimeoutError({
+          attempt,
+          elapsedMs: elapsed(),
+          lastError: lastErrorText,
+        })
+      );
+    }, DB_READY_DEADLINE_MS);
 
     async function initDb() {
-      let lastError: unknown = null;
+      for (attempt = 1; attempt <= MAX_DB_READY_ATTEMPTS; attempt++) {
+        if (done()) {
+          return;
+        }
 
-      for (let attempt = 1; attempt <= MAX_DB_READY_ATTEMPTS; attempt++) {
+        logger.crumb(`attempt ${attempt} started`);
+
         try {
           await ensureDbReady();
-          if (!cancelled) {
-            setIsDbReady(true);
+          if (done()) {
+            return;
           }
+          clearTimeout(deadlineTimer);
+          lastMountFailed = false;
+          if (recoveringFromFailure) {
+            logger.trackEvent(AnalyticsEvent.DbReadyRetrySucceeded, {
+              mount,
+              attempt,
+              elapsedMs: elapsed(),
+            });
+          }
+          setIsDbReady(true);
           return;
         } catch (error) {
           lastError = error;
-          if (attempt < MAX_DB_READY_ATTEMPTS && !cancelled) {
-            await wait(500 * attempt);
+          lastErrorText = describeError(error);
+          logger.crumb(`attempt ${attempt} failed: ${lastErrorText}`);
+          if (done()) {
+            return;
+          }
+          if (attempt < MAX_DB_READY_ATTEMPTS) {
+            const backoff = 500 * attempt;
+            logger.crumb(`waiting ${backoff}ms before retry`);
+            await wait(backoff);
+            if (done()) {
+              return;
+            }
           }
         }
       }
 
-      if (!cancelled) {
-        setDbInitError(lastError);
-      }
+      clearTimeout(deadlineTimer);
+      lastMountFailed = true;
+      setDbInitError(lastError);
     }
 
     void initDb();
 
     return () => {
       cancelled = true;
+      clearTimeout(deadlineTimer);
+      clearBackoff();
     };
   }, []);
 

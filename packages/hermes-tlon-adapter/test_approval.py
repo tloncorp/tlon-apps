@@ -182,6 +182,28 @@ class ForeignsTests(unittest.TestCase):
         self.assertEqual(by_flag["~host/projects"]["from"], "~ten")
         self.assertEqual(by_flag["~host/projects"]["title"], "Projects")
 
+    def test_skips_joins_already_in_flight(self):
+        # The post-/allow foreigns fact still carries the valid invite with
+        # progress set; reprocessing it would re-card the owner.
+        joining = foreign("~ten")
+        joining["progress"] = "join"
+        errored = foreign("~bus")
+        errored["progress"] = "error"
+        asking = foreign("~wet")
+        asking["progress"] = "ask"
+        payload = {
+            "~host/joining": joining,
+            "~host/errored": errored,
+            "~host/asking": asking,
+        }
+        invites = approval.parse_foreigns(payload)
+        # join is suppressed; error and ask (a pending entry request) stay
+        # actionable.
+        self.assertEqual(
+            sorted(inv["groupFlag"] for inv in invites),
+            ["~host/asking", "~host/errored"],
+        )
+
     def test_skips_invalid_and_empty(self):
         payload = {
             "~host/revoked": foreign("~ten", valid=False),
@@ -208,6 +230,40 @@ class ForeignsTests(unittest.TestCase):
     def test_non_mapping_payload(self):
         self.assertEqual(approval.parse_foreigns(None), [])
         self.assertEqual(approval.parse_foreigns([]), [])
+
+    def test_error_progress_flags_lists_only_errored_foreigns(self):
+        errored = foreign("~bus")
+        errored["progress"] = "error"
+        joining = foreign("~ten")
+        joining["progress"] = "join"
+        payload = {
+            "~host/errored": errored,
+            "~host/joining": joining,
+            "~host/plain": foreign("~wet"),
+        }
+
+        self.assertEqual(
+            approval.error_progress_flags(payload), ["~host/errored"]
+        )
+
+    def test_error_progress_flags_covers_foreigns_parse_drops(self):
+        # parse_foreigns yields nothing for these, but the flags still have to
+        # become actionable again.
+        payload = {
+            "~host/noinvites": {"progress": "error", "invites": []},
+            "~host/invalid": {"progress": "error", "invites": [{"valid": False}]},
+        }
+
+        self.assertEqual(approval.parse_foreigns(payload), [])
+        self.assertEqual(
+            sorted(approval.error_progress_flags(payload)),
+            ["~host/invalid", "~host/noinvites"],
+        )
+
+    def test_error_progress_flags_tolerates_malformed_payloads(self):
+        self.assertEqual(approval.error_progress_flags(None), [])
+        self.assertEqual(approval.error_progress_flags([]), [])
+        self.assertEqual(approval.error_progress_flags({"~host/g": "junk"}), [])
 
 
 class CommandParseTests(unittest.TestCase):
@@ -262,12 +318,31 @@ class FormattingTests(unittest.TestCase):
         request = approval.format_approval_request(group)
         self.assertIn("group invite", request)
         self.assertIn("Inviter: ~ten", request)
-        self.assertIn("Group: Project Space", request)
-        self.assertIn("joining Project Space", approval.format_confirmation(group, "allow"))
-        self.assertIn("declined invite to Project Space", approval.format_confirmation(group, "reject"))
+        # Host flag rides alongside the title on every owner-facing surface.
+        self.assertIn("Group: Project Space (~host/projects)", request)
+        self.assertIn(
+            "joining Project Space (~host/projects)",
+            approval.format_confirmation(group, "allow"),
+        )
+        self.assertIn(
+            "declined invite to Project Space (~host/projects)",
+            approval.format_confirmation(group, "reject"),
+        )
         # falls back to flag when no title
         no_title = make_approval(type="group", groupFlag="~host/projects")
         self.assertIn("~host/projects", approval.format_confirmation(no_title, "allow"))
+        self.assertNotIn("()", approval.format_confirmation(no_title, "allow"))
+
+    def test_pending_list_group_row_is_bounded(self):
+        oversized = make_approval(
+            id="g1a2b",
+            type="group",
+            groupFlag=f"~host/{'g' * 5_000}",
+            groupTitle="x" * 5_000,
+        )
+        text = approval.format_pending_list([oversized])
+        self.assertIn("~host/", text)
+        self.assertLess(len(text), 1_000)
 
     def test_blocked_list(self):
         self.assertEqual(approval.format_blocked_list([]), "No blocked ships.")
@@ -568,12 +643,14 @@ class A2UICardTests(unittest.TestCase):
             ]:
                 self.assertIn(ref, components, f"dangling ref {ref}")
         self.assertEqual(components["eyebrow"]["text"], "Group invite")
+        # Card title stays title-only; the host flag rides the context line.
         self.assertIn("Project Space", components["title"]["text"])
+        self.assertNotIn("~host/projects", components["title"]["text"])
         context_texts = [
             components[c]["text"] for c in components if c.startswith("context")
         ]
         self.assertIn("Inviter: ~ten", context_texts)
-        self.assertIn("Group: Project Space", context_texts)
+        self.assertIn("Group: Project Space (~host/projects)", context_texts)
         self.assertEqual(
             components["allow"]["action"]["event"]["context"]["text"], "/allow g9f3a"
         )
@@ -610,6 +687,17 @@ class A2UICardTests(unittest.TestCase):
                 resolved = approval.find_approval(store, arg)
                 self.assertIsNotNone(resolved)
                 self.assertEqual(resolved["id"], item["id"])
+        # The host flag survives the oversized title on the Group context line.
+        group_card = approval.build_approval_card(oversized_group)
+        group_components, _ = self.card_components(group_card)
+        context_texts = [
+            component["text"]
+            for component in group_components.values()
+            if component.get("component") == "Text"
+            and str(component.get("text", "")).startswith("Group: ")
+        ]
+        self.assertEqual(len(context_texts), 1)
+        self.assertIn("~host/projects", context_texts[0])
 
 
 class PendingApprovalsA2UITests(unittest.TestCase):

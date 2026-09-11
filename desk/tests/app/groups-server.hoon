@@ -121,7 +121,7 @@
 ::
 ::
 ++  ex-u-groups
-  |=  [caz=(list card) us-groups=(list u-group:v9:gv)]
+  |=  [caz=(list card) us-groups=(list u-group:g)]
   =/  m  (mare ,~)
   ^-  form:m
   ;<  =bowl:gall  bind:m  get-bowl
@@ -129,7 +129,7 @@
   (turn us-groups (cury ex-update now.bowl))
 ::
 ++  ex-update
-  |=  [=time =u-group:v9:gv]
+  |=  [=time =u-group:g]
   %+  ex-fact
     ~[/server/groups/~zod/my-test-group/updates/~zod/(scot:h136 %da *@da)]
   group-update+!>(`update:g`[time u-group])
@@ -144,7 +144,7 @@
   ^-  form:m
   ;<  *  bind:m  do-groups-init
   ;<  caz=(list card)  bind:m  (do-create-group %secret)
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-cards  caz
@@ -285,7 +285,7 @@
   ;<  =bowl  bind:m  get-bowl
   ;<  ~  bind:m
     (ex-u-groups caz [%entry %ask [%add ~dev now.bowl `story]]~)
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal
@@ -361,7 +361,7 @@
   ;<  =bowl:gall  bind:m  get-bowl
   ;<  ~  bind:m
     (ex-u-groups caz [%entry %ask [%add ~dev now.bowl `story]]~)
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal
@@ -395,7 +395,7 @@
     ['New Title' 'New description' '' '']
   ;<  caz=(list card)  bind:m
     ((do-as ~zod) (do-c-group [%meta meta]))
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     (ex-equal !>(meta.group) !>(meta))
@@ -407,6 +407,51 @@
   ;<  ~  bind:m  (ex-fail ((do-as ~dev) (do-c-group [%meta meta])))
   ::  non-members can't update metadata
   ;<  ~  bind:m  (ex-fail ((do-as ~fed) (do-c-group [%meta meta])))
+  (pure:m ~)
+::  +test-c-group-blob: test group custom payload update
+::
+::  the group blob can only be updated by an admin.
+::
+++  test-c-group-blob
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  *  bind:m  do-groups-init
+  ;<  *  bind:m  (do-create-group %public)
+  ::  the blob starts out empty
+  ::
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>(blob.group) !>(~))
+  ::  update the group blob as the host
+  ::
+  =/  blob=(unit @t)  `'{"custom":"payload"}'
+  ;<  caz=(list card)  bind:m
+    ((do-as ~zod) (do-c-group [%blob blob]))
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
+  =+  !<(=group:g q.peek)
+  ;<  ~  bind:m
+    (ex-equal !>(blob.group) !>(blob))
+  ;<  ~  bind:m
+    (ex-u-groups caz [%blob blob]~)
+  ::  setting an identical blob emits no update
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~zod) (do-c-group [%blob blob]))
+  ;<  ~  bind:m  (ex-cards caz ~)
+  ::  clearing the blob emits an update
+  ::
+  ;<  caz=(list card)  bind:m
+    ((do-as ~zod) (do-c-group [%blob ~]))
+  ;<  ~  bind:m
+    (ex-u-groups caz [%blob ~]~)
+  ::  non-admin members can't update the blob
+  ::
+  ;<  *  bind:m  (do-join-group ~dev)
+  ;<  ~  bind:m  (ex-fail ((do-as ~dev) (do-c-group [%blob blob])))
+  ::  non-members can't update the blob
+  ;<  ~  bind:m  (ex-fail ((do-as ~fed) (do-c-group [%blob blob])))
   (pure:m ~)
 ::  +test-c-group-entry-privacy: test group privacy update
 ::
@@ -424,7 +469,7 @@
     ((do-as ~zod) (do-c-group [%entry %privacy %secret]))
   ;<  ~  bind:m
     (ex-u-groups caz [%entry %privacy %secret]~)
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     (ex-equal !>(privacy.admissions.group) !>(%secret))
@@ -444,7 +489,7 @@
     ((do-as ~zod) (do-c-group [%seat (sy ~dev ~) %add-roles (sy %admin ~)]))
   ;<  *  bind:m
     ((do-as ~dev) (do-c-group [%entry %privacy %secret]))
-  ;<  peek=cage  bind:m  (got-peek /x/v2/groups/~zod/my-test-group)
+  ;<  peek=cage  bind:m  (got-peek /x/v3/groups/~zod/my-test-group)
   =+  !<(=group:g q.peek)
   ;<  ~  bind:m
     (ex-equal !>(privacy.admissions.group) !>(%secret))
@@ -599,7 +644,7 @@
   ::     typed values.
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -684,7 +729,7 @@
   ::     typed values.
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -722,7 +767,7 @@
         (ex-update now.bowl [%entry %pending %add (sy ~fun ~) ~])
     ==
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -764,7 +809,7 @@
   ::     typed values.
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -790,7 +835,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
@@ -830,7 +875,7 @@
   ::     typed values.
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -854,7 +899,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
@@ -896,7 +941,7 @@
   ::     typed values.
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -921,7 +966,7 @@
   ::  verify records on the invited list
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ;<  ~  bind:m
     %+  ex-equal  !>((~(get by invited.admissions.group) ~dev))
@@ -971,7 +1016,7 @@
   ::     typed values.
   ::
   ;<  peek=cage  bind:m
-    (got-peek /x/v2/groups/(scot %p p:my-flag)/[q:my-flag])
+    (got-peek /x/v3/groups/(scot %p p:my-flag)/[q:my-flag])
   =+  group=!<(group:g q.peek)
   ::  verify records on the invited list
   ::
@@ -992,8 +1037,9 @@
     :~  (ex-poke (snoc revoke-wire ~.~dev) [~dev my-agent] group-foreign-2+!>([%revoke my-flag `token0]))
         (ex-poke (snoc revoke-wire ~.~fun) [~fun my-agent] group-foreign-2+!>([%revoke my-flag `token1]))
         (ex-update now.bowl [%delete ~])
-        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v3/groups /v3/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/v2/groups /v2/groups/(scot %p p:my-flag)/[q:my-flag]])
+        (ex-fact-paths ~[/v1/groups /v1/groups/(scot %p p:my-flag)/[q:my-flag]])
         (ex-fact-paths ~[/groups/ui])
         (ex-task (weld go-area /updates) [~zod my-agent] %leave ~)
     ==

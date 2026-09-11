@@ -1,6 +1,6 @@
 import { QueryObserver } from '@tanstack/react-query';
 import { directoryToClientProfiles } from '@tloncorp/api';
-import { toClientGroupsV7 } from '@tloncorp/api';
+import { toClientGroups } from '@tloncorp/api';
 import type { ContactsDirectoryScryResult1 } from '@tloncorp/api/urbit/contact';
 import type * as ub from '@tloncorp/api/urbit/groups';
 import * as $ from 'drizzle-orm';
@@ -10,6 +10,7 @@ import * as schema from '../db/schema';
 import { useDebugStore } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import { syncContacts, syncInitData } from '../store/sync';
+import { keyFromQueryDeps } from '../store/useKeyFromQueryDeps';
 import contactBookResponse from '../test/contactBook.json';
 import contactsDirectoryResponse from '../test/contactsDirectory.json';
 import groupsResponse from '../test/groups.json';
@@ -19,13 +20,20 @@ import {
   setupDatabaseTestSuite,
 } from '../test/helpers';
 import initResponse from '../test/init.json';
+import { makeNotesNote, makeNotesNotebook } from '../test/notesFixtures';
 import suggestedContactsResponse from '../test/suggestedContacts.json';
 import * as queries from './queries';
 import { queryClient } from './reactQuery';
-import { ChannelUnread, GroupUnread, Post, ThreadUnreadState } from './types';
+import {
+  ActivityEvent,
+  ChannelUnread,
+  GroupUnread,
+  Post,
+  ThreadUnreadState,
+} from './types';
 
-const groupsData = toClientGroupsV7(
-  groupsResponse as unknown as Record<string, ub.GroupV7>,
+const groupsData = toClientGroups(
+  groupsResponse as unknown as Record<string, ub.GroupV11>,
   true
 );
 
@@ -182,12 +190,12 @@ test('uses init data to get chat list', async () => {
   const ids = result.unpinned.map((r) => r.id).slice(0, 7);
   expect(ids).toEqual([
     'chat/~nibset-napwyn/commons',
-    '~nibset-napwyn/tlon',
     '~nocsyx-lassul',
     'chat/~pondus-watbel/new-channel',
-    '~pondus-watbel/testing-facility',
     'chat/~nibset-napwyn/intros',
     '~ravseg-nosduc',
+    '~solfer-magfed',
+    '~hansel-ribbur',
   ]);
 
   expect(result.pending.map((r) => r.id)).toEqual([
@@ -195,6 +203,952 @@ test('uses init data to get chat list', async () => {
     '~barmyl-sigted/network-being',
     '~salfer-biswed/gamers',
   ]);
+});
+
+describe('getChats group recency workaround', () => {
+  type TestGroup = Parameters<typeof queries.insertGroups>[0]['groups'][number];
+
+  function testGroup(id: string, lastPostAt: number): TestGroup {
+    return {
+      id,
+      currentUserIsMember: true,
+      currentUserIsHost: false,
+      hostUserId: '~zod',
+      lastPostAt,
+      channels: [],
+    } as unknown as TestGroup;
+  }
+
+  function noteActivityEvent({
+    id,
+    channelId,
+    groupId,
+    postId = '42',
+    title,
+    timestamp,
+    type = 'note-create',
+  }: {
+    id: string;
+    channelId: string;
+    groupId: string;
+    postId?: string;
+    title: string;
+    timestamp: number;
+    type?: 'note-create' | 'note-edit';
+  }): ActivityEvent {
+    return {
+      id,
+      bucketId: 'all',
+      sourceId: `channel/${channelId}`,
+      type,
+      timestamp,
+      postId,
+      authorId: '~bus',
+      channelId,
+      groupId,
+      content: [{ inline: [title] }],
+    } as ActivityEvent;
+  }
+
+  async function insertNoteActivityEvent(event: ActivityEvent) {
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+
+    // The legacy activity-event contact-group FK names only `id` even though
+    // the parent key is `(id, bucketId)`. FK enforcement therefore rejects
+    // any direct activity event insert while FK enforcement is enabled. This
+    // focused selector seed does not exercise that unrelated legacy relation.
+    client.run($.sql`PRAGMA foreign_keys = OFF`);
+    await client.insert(schema.activityEvents).values(event);
+  }
+
+  test('ignores broad group activity and legacy notebook activity', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const noisyGroupId = '~zod/noisy-activity';
+    const legacyNotebookId = 'diary/~zod/noisy-activity/notebook';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(noisyGroupId, 100)],
+    });
+    await queries.insertChannels([
+      { id: legacyNotebookId, type: 'notebook', groupId: noisyGroupId },
+    ]);
+    await queries.insertGroupUnreads([
+      makeGroupUnread({ groupId: noisyGroupId, updatedAt: 400 }),
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: legacyNotebookId, updatedAt: 300 }),
+    ]);
+
+    const groupIds = (await queries.getChats()).unpinned
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([recentGroupId, noisyGroupId]);
+  });
+
+  test('reorders groups from a persisted Notes summary without local activity events', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const notesGroupId = '~zod/notes-activity';
+    const notesChannelId = 'notes/~zod/notes-activity';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(notesGroupId, 100)],
+    });
+    await queries.insertChannels([
+      {
+        id: notesChannelId,
+        type: 'notes',
+        groupId: notesGroupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: notesChannelId, updatedAt: 300 }),
+    ]);
+
+    const chats = (await queries.getChats()).unpinned;
+    const groupIds = chats
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([notesGroupId, recentGroupId]);
+    const notesChat = chats.find((chat) => chat.id === notesGroupId);
+    expect(notesChat?.type).toBe('group');
+    if (notesChat?.type === 'group') {
+      expect(notesChat.notesActivity).toMatchObject({
+        channelId: notesChannelId,
+        noteTitle: null,
+        isNew: true,
+        timestamp: 300,
+      });
+    }
+  });
+
+  test('uses the newest local note for own activity and converts seconds to milliseconds', async () => {
+    const groupId = '~zod/local-note';
+    const channelId = 'notes/~zod/local-note';
+    const notebookFlag = '~zod/local-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 299_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'local-note',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Weekly plan', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: 250,
+          updatedAt: 300,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(300_000);
+      expect(chat.notesActivity).toEqual({
+        channelId,
+        notebookTitle: 'Journal',
+        noteId: '42',
+        noteTitle: 'Weekly plan',
+        authorId: '~zod',
+        isNew: false,
+        timestamp: 300_000,
+      });
+    }
+  });
+
+  test('prefers a newer persisted note event over an older local note', async () => {
+    const groupId = '~zod/remote-note';
+    const channelId = 'notes/~zod/remote-note';
+    const notebookFlag = '~zod/remote-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Team notebook',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 300_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'remote-note',
+        title: 'Team notebook',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(1, 1, 'Old local note', {
+          id: `${notebookFlag}/note/1`,
+          notebookFlag,
+          createdAt: 200,
+          updatedAt: 200,
+        }),
+      ],
+      members: [],
+    });
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'remote-note-event',
+        channelId,
+        groupId,
+        title: 'Launch checklist',
+        timestamp: 299_000,
+        type: 'note-edit',
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'Launch checklist',
+        authorId: '~bus',
+        isNew: false,
+        timestamp: 300_000,
+      });
+    }
+  });
+
+  test('uses a fresh edit event over a stale row for the same note', async () => {
+    const groupId = '~zod/fresh-edit-event';
+    const channelId = 'notes/~zod/fresh-edit-event';
+    const notebookFlag = '~zod/fresh-edit-event';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    // An edit to a note already in notesNotes leaves the snapshot alone (see
+    // markNotesNotebookStaleForNoteEvent), so the row keeps the pre-edit
+    // title and its equal createdAt/updatedAt would read as a creation. The
+    // event is the current copy and has to win.
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'fresh-edit-event',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Title before the edit', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: 300,
+          updatedAt: 300,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'fresh-edit-event',
+        channelId,
+        groupId,
+        postId: '42',
+        title: 'Title after the edit',
+        timestamp: 399_000,
+        type: 'note-edit',
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'Title after the edit',
+        isNew: false,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('selects only the newest persisted note event for each notebook', async () => {
+    const groupId = '~zod/latest-note-event';
+    const channelId = 'notes/~zod/latest-note-event';
+    const notebookFlag = '~zod/latest-note-event';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'older-note-event',
+        channelId,
+        groupId,
+        postId: '41',
+        title: 'Old title',
+        timestamp: 300_000,
+      })
+    );
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'newest-note-event',
+        channelId,
+        groupId,
+        postId: '42',
+        title: 'Newest title',
+        timestamp: 399_000,
+        type: 'note-edit',
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'Newest title',
+        isNew: false,
+        timestamp: 400_000,
+      });
+    }
+
+    await queries.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: [42],
+    });
+    const afterConfirmedDelete = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(afterConfirmedDelete?.type).toBe('group');
+    if (afterConfirmedDelete?.type === 'group') {
+      expect(afterConfirmedDelete.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        isNew: true,
+        timestamp: 400_000,
+      });
+    }
+
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'latest-note-event',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(43, 1, 'Newer local note', {
+          id: `${notebookFlag}/note/43`,
+          notebookFlag,
+          createdAt: 500,
+          updatedAt: 500,
+        }),
+      ],
+      members: [],
+    });
+    const afterNewerLocalNote = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(afterNewerLocalNote?.type).toBe('group');
+    if (afterNewerLocalNote?.type === 'group') {
+      expect(afterNewerLocalNote.notesActivity).toMatchObject({
+        noteId: '43',
+        noteTitle: 'Newer local note',
+        timestamp: 500_000,
+      });
+    }
+  });
+
+  test('does not infer deletion from a fetch-stamped snapshot', async () => {
+    const groupId = '~zod/deleted-note';
+    const channelId = 'notes/~zod/deleted-note';
+    const notebookFlag = '~zod/deleted-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'deleted-note-event',
+        channelId,
+        groupId,
+        title: 'Deleted secret title',
+        timestamp: 399_000,
+      })
+    );
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'deleted-note',
+        title: 'Journal',
+        // Fetch completion is later than the event, but the read replica may
+        // still lag and this timestamp is not causal deletion evidence.
+        syncedAt: 500,
+      }),
+      folders: [],
+      notes: [],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toEqual({
+        channelId,
+        notebookTitle: 'Journal',
+        noteId: '42',
+        noteTitle: 'Deleted secret title',
+        authorId: '~bus',
+        isNew: true,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('suppresses activity after a later snapshot removes a synced note', async () => {
+    const groupId = '~zod/remote-deleted-note';
+    const channelId = 'notes/~zod/remote-deleted-note';
+    const notebookFlag = '~zod/remote-deleted-note';
+    const notebook = makeNotesNotebook({
+      id: notebookFlag,
+      flagName: 'remote-deleted-note',
+      title: 'Journal',
+    });
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook,
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Removed remotely', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          syncedAt: 100,
+        }),
+      ],
+      members: [],
+    });
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'remote-deleted-note-event',
+        channelId,
+        groupId,
+        title: 'Removed remotely',
+        timestamp: 399_000,
+      })
+    );
+
+    await queries.saveNotesNotebookSnapshot({
+      notebook: { ...notebook, syncedAt: 500 },
+      folders: [],
+      notes: [],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        authorId: null,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('uses createdAt when a local note has no updatedAt', async () => {
+    const groupId = '~zod/created-note';
+    const channelId = 'notes/~zod/created-note';
+    const notebookFlag = '~zod/created-note';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 299_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'created-note',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Fresh draft', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: 300,
+          updatedAt: null,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(300_000);
+      expect(chat.notesActivity).toEqual({
+        channelId,
+        notebookTitle: 'Journal',
+        noteId: '42',
+        noteTitle: 'Fresh draft',
+        authorId: '~zod',
+        isNew: true,
+        timestamp: 300_000,
+      });
+    }
+  });
+
+  test('normalizes mixed timestamp units before choosing the newest note', async () => {
+    const groupId = '~zod/mixed-note-times';
+    const channelId = 'notes/~zod/mixed-note-times';
+    const notebookFlag = '~zod/mixed-note-times';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 1_999_999_900_000 }),
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'mixed-note-times',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(1, 1, 'Newer seconds note', {
+          id: `${notebookFlag}/note/1`,
+          notebookFlag,
+          createdAt: 2_000_000_000,
+          updatedAt: 2_000_000_000_000,
+        }),
+        makeNotesNote(2, 1, 'Older milliseconds note', {
+          id: `${notebookFlag}/note/2`,
+          notebookFlag,
+          createdAt: 1_900_000_000_000,
+          updatedAt: 1_900_000_000_000,
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(2_000_000_000_000);
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '1',
+        noteTitle: 'Newer seconds note',
+        isNew: true,
+        timestamp: 2_000_000_000_000,
+      });
+    }
+  });
+
+  test('does not label a new bump with a stale note event', async () => {
+    const groupId = '~zod/stale-detail';
+    const channelId = 'notes/~zod/stale-detail';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'stale-note-event',
+        channelId,
+        groupId,
+        title: 'Wrong old title',
+        timestamp: 99_000,
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('does not use a far-future note detail as group recency', async () => {
+    const groupId = '~zod/future-detail';
+    const channelId = 'notes/~zod/future-detail';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 400_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'future-note-event',
+        channelId,
+        groupId,
+        title: 'Future title',
+        timestamp: 701_000,
+      })
+    );
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(400_000);
+      expect(chat.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+        timestamp: 400_000,
+      });
+    }
+  });
+
+  test('bounds a local note timestamp when notebook recency is absent', async () => {
+    const groupId = '~zod/no-notes-recency';
+    const channelId = 'notes/~zod/no-notes-recency';
+    const notebookFlag = '~zod/no-notes-recency';
+    const futureTimestamp =
+      Date.now() + queries.NOTES_ACTIVITY_DETAIL_WINDOW_MS + 10_000;
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'no-notes-recency',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(42, 1, 'Future local note', {
+          id: `${notebookFlag}/note/42`,
+          notebookFlag,
+          createdAt: futureTimestamp,
+          updatedAt: futureTimestamp,
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBeLessThanOrEqual(Date.now());
+      expect(chat.notesActivity).toBeNull();
+    }
+  });
+
+  test('scopes a tombstone to its own notes channel', async () => {
+    const groups = ['tomb-scoped-a', 'tomb-scoped-b'];
+
+    await queries.insertGroups({
+      groups: groups.map((name) => testGroup(`~zod/${name}`, 100_000)),
+    });
+    await queries.insertChannels(
+      groups.map((name) => ({
+        id: `notes/~zod/${name}`,
+        type: 'notes' as const,
+        groupId: `~zod/${name}`,
+        currentUserIsMember: true,
+      }))
+    );
+    await queries.insertChannelUnreads(
+      groups.map((name) =>
+        makeChannelUnread({
+          channelId: `notes/~zod/${name}`,
+          updatedAt: 400_000,
+        })
+      )
+    );
+    // The same note id in both notebooks, so a tombstone lookup that ignored
+    // the channel would suppress each channel's event.
+    for (const name of groups) {
+      await insertNoteActivityEvent(
+        noteActivityEvent({
+          id: `${name}-note-event`,
+          channelId: `notes/~zod/${name}`,
+          groupId: `~zod/${name}`,
+          postId: '42',
+          title: `${name} title`,
+          timestamp: 399_000,
+        })
+      );
+    }
+    await queries.confirmNotesActivityEventsDeleted({
+      notebookFlag: '~zod/tomb-scoped-a',
+      noteIds: [42],
+    });
+
+    const chats = (await queries.getChats()).unpinned;
+    const deleted = chats.find((c) => c.id === '~zod/tomb-scoped-a');
+    const kept = chats.find((c) => c.id === '~zod/tomb-scoped-b');
+    expect(deleted?.type).toBe('group');
+    if (deleted?.type === 'group') {
+      expect(deleted.notesActivity).toMatchObject({
+        noteId: null,
+        noteTitle: null,
+      });
+    }
+    expect(kept?.type).toBe('group');
+    if (kept?.type === 'group') {
+      expect(kept.notesActivity).toMatchObject({
+        noteId: '42',
+        noteTitle: 'tomb-scoped-b title',
+      });
+    }
+  });
+
+  test('keeps a local note the deleted event outranks on a lagging host clock', async () => {
+    const groupId = '~zod/lagging-host-clock';
+    const channelId = 'notes/~zod/lagging-host-clock';
+    const notebookFlag = '~zod/lagging-host-clock';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 100_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    // Recency matches the surviving note, so it is the authority on what the
+    // bump describes even though the deleted event carries a higher stamp.
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 399_000 }),
+    ]);
+    await insertNoteActivityEvent(
+      noteActivityEvent({
+        id: 'deleted-note-event',
+        channelId,
+        groupId,
+        postId: '42',
+        title: 'Deleted title',
+        timestamp: 400_000,
+      })
+    );
+    await queries.confirmNotesActivityEventsDeleted({
+      notebookFlag,
+      noteIds: [42],
+    });
+    // Written after the deletion, but the notebook host's clock trails the
+    // activity ship's, so its stamp lands below the deleted event's.
+    await queries.saveNotesNotebookSnapshot({
+      notebook: makeNotesNotebook({
+        id: notebookFlag,
+        flagName: 'lagging-host-clock',
+        title: 'Journal',
+      }),
+      folders: [],
+      notes: [
+        makeNotesNote(43, 1, 'Written after the delete', {
+          id: `${notebookFlag}/note/43`,
+          notebookFlag,
+          createdAt: 399,
+          updatedAt: 399,
+          updatedBy: '~zod',
+        }),
+      ],
+      members: [],
+    });
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.notesActivity).toMatchObject({
+        noteId: '43',
+        noteTitle: 'Written after the delete',
+        isNew: true,
+        timestamp: 399_000,
+      });
+    }
+  });
+
+  test('keeps a newer post as the group recency when notebook activity is older', async () => {
+    const groupId = '~zod/post-wins';
+    const channelId = 'notes/~zod/post-wins';
+
+    await queries.insertGroups({ groups: [testGroup(groupId, 400_000)] });
+    await queries.insertChannels([
+      {
+        id: channelId,
+        type: 'notes',
+        title: 'Journal',
+        groupId,
+        currentUserIsMember: true,
+      },
+    ]);
+    const client = getClient();
+    if (!client) throw new Error('test db not initialized');
+    await client
+      .update(schema.groups)
+      .set({ lastPostAt: 400_000 })
+      .where($.eq(schema.groups.id, groupId));
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId, updatedAt: 300_000 }),
+    ]);
+
+    const chat = (await queries.getChats()).unpinned.find(
+      (candidate) => candidate.id === groupId
+    );
+    expect(chat?.type).toBe('group');
+    if (chat?.type === 'group') {
+      expect(chat.timestamp).toBe(400_000);
+      expect(chat.notesActivity?.timestamp).toBe(300_000);
+    }
+  });
+
+  test('ignores stale Notes summaries after leaving a notebook', async () => {
+    const recentGroupId = '~zod/recent-post';
+    const leftNotesGroupId = '~zod/left-notes';
+    const leftNotesChannelId = 'notes/~zod/left-notes';
+
+    await queries.insertGroups({
+      groups: [testGroup(recentGroupId, 200), testGroup(leftNotesGroupId, 100)],
+    });
+    await queries.insertChannels([
+      {
+        id: leftNotesChannelId,
+        type: 'notes',
+        groupId: leftNotesGroupId,
+        currentUserIsMember: false,
+      },
+    ]);
+    await queries.insertChannelUnreads([
+      makeChannelUnread({ channelId: leftNotesChannelId, updatedAt: 300 }),
+    ]);
+
+    const groupIds = (await queries.getChats()).unpinned
+      .filter((chat) => chat.type === 'group')
+      .map((chat) => chat.id);
+
+    expect(groupIds).toEqual([recentGroupId, leftNotesGroupId]);
+  });
 });
 
 test('update channel: new writer roles with existing writer roles', async () => {
@@ -613,6 +1567,251 @@ function getRangedPosts(channelId: string, start: number, end: number): Post[] {
   }
   return posts;
 }
+
+test('getA2UISelections: returns the author’s live selections newest first', async () => {
+  const channelId = '~zod/dm';
+  const selectionBlob = (surfaceId: string) =>
+    JSON.stringify([
+      { type: 'tlon-context-lens', version: 1, lensId: 'other-entry' },
+      {
+        type: 'tlon-a2ui-selection',
+        version: 1,
+        surfaceId,
+        componentId: 'topics',
+        values: ['Weather'],
+      },
+    ]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...base,
+        id: 'mine',
+        authorId: '~zod',
+        receivedAt: refDate + 1,
+        sentAt: refDate + 1,
+        blob: selectionBlob('s-mine'),
+      },
+      // Another member posting a matching blob must not consume the
+      // viewer's control (or fake their answer).
+      {
+        ...base,
+        id: 'theirs',
+        authorId: '~ten',
+        receivedAt: refDate + 2,
+        sentAt: refDate + 2,
+        blob: selectionBlob('s-theirs'),
+      },
+      // Deleting the reply un-consumes the control.
+      {
+        ...base,
+        id: 'mine-deleted',
+        authorId: '~zod',
+        receivedAt: refDate + 3,
+        sentAt: refDate + 3,
+        isDeleted: true,
+        blob: selectionBlob('s-deleted'),
+      },
+      {
+        ...base,
+        id: 'mine-failed',
+        authorId: '~zod',
+        receivedAt: refDate + 4,
+        sentAt: refDate + 4,
+        deliveryStatus: 'failed' as const,
+        blob: selectionBlob('s-failed'),
+      },
+      {
+        ...base,
+        id: 'mine-no-blob',
+        authorId: '~zod',
+        receivedAt: refDate + 5,
+        sentAt: refDate + 5,
+      },
+    ],
+  });
+
+  const selections = await queries.getA2UISelections({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(selections).toEqual([
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId: 's-failed',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
+    {
+      type: 'tlon-a2ui-selection',
+      version: 1,
+      surfaceId: 's-mine',
+      componentId: 'topics',
+      values: ['Weather'],
+    },
+  ]);
+});
+
+test('getAgentA2UIProtocolReceipts: returns the latest live owner receipts', async () => {
+  const channelId = '~zod/dm';
+  const blob = (entry: Record<string, unknown>) => JSON.stringify([entry]);
+  await queries.insertChannels([{ id: channelId, type: 'dm' }]);
+  const base = {
+    type: 'chat' as const,
+    channelId,
+    authorId: '~zod',
+    sentAt: refDate,
+    syncedAt: 0,
+  };
+  await queries.insertChannelPosts({
+    posts: [
+      {
+        ...base,
+        id: 'provision-old',
+        receivedAt: refDate + 30,
+        sequenceNum: 1,
+        blob: blob({
+          type: 'tlon-agent-provision',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          purposeId: 'agent-daily-digest',
+          purpose: 'Daily digest',
+          topics: ['Weather'],
+          timezone: 'UTC',
+          scheduleHour: 8,
+          scheduleMinute: 0,
+          notebookNest: '~zod/notebook',
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-old-cycle',
+        receivedAt: refDate + 20,
+        sequenceNum: 2,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-old',
+          groupId: '~zod/group',
+          providerIds: ['calendar'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-live',
+        receivedAt: refDate + 2,
+        sequenceNum: 3,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['gmail'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provision-new',
+        receivedAt: refDate + 3,
+        sequenceNum: 4,
+        blob: JSON.stringify([
+          {
+            type: 'tlon-agent-provision',
+            version: 1,
+            provisionId: 'provision-new',
+            groupId: '~zod/group',
+            purposeId: 'agent-research',
+            purpose: 'Research',
+            topics: ['Robotics'],
+            timezone: 'UTC',
+            scheduleHour: 9,
+            scheduleMinute: 30,
+            notebookNest: '~zod/notebook',
+          },
+          {
+            type: 'tlon-a2ui-selection',
+            version: 1,
+            sourcePostId: 'source-post',
+            surfaceId: 'topics-surface',
+            componentId: 'topics',
+            values: ['Robotics'],
+          },
+        ]),
+      },
+      {
+        ...base,
+        id: 'provider-deleted',
+        receivedAt: refDate + 4,
+        isDeleted: true,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['github'],
+        }),
+      },
+      {
+        ...base,
+        id: 'provider-other-author',
+        authorId: '~ten',
+        receivedAt: refDate + 5,
+        blob: blob({
+          type: 'tlon-agent-provider-config',
+          version: 1,
+          provisionId: 'provision-new',
+          groupId: '~zod/group',
+          providerIds: ['notion'],
+        }),
+      },
+    ],
+  });
+
+  const receipts = await queries.getAgentA2UIProtocolReceipts({
+    channelId,
+    authorId: '~zod',
+  });
+  expect(receipts.provision).toMatchObject({
+    postId: 'provision-new',
+    receivedAt: refDate + 3,
+    entry: { topics: ['Robotics'] },
+    selection: {
+      sourcePostId: 'source-post',
+      surfaceId: 'topics-surface',
+      componentId: 'topics',
+    },
+  });
+  expect(receipts.provisions).toMatchObject([
+    { postId: 'provision-old', entry: { topics: ['Weather'] } },
+    {
+      postId: 'provision-new',
+      entry: { topics: ['Robotics'] },
+      selection: { sourcePostId: 'source-post' },
+    },
+  ]);
+  expect(receipts.providerConfig).toMatchObject({
+    postId: 'provider-live',
+    receivedAt: refDate + 2,
+    entry: { providerIds: ['gmail'] },
+  });
+  expect(receipts.providerConfigs).toMatchObject([
+    {
+      postId: 'provider-old-cycle',
+      entry: { provisionId: 'provision-old', providerIds: ['calendar'] },
+    },
+    {
+      postId: 'provider-live',
+      entry: { provisionId: 'provision-new', providerIds: ['gmail'] },
+    },
+  ]);
+});
 
 test('getMentionCandidates: returns candidates in priority order', async () => {
   // Setup
@@ -2192,6 +3391,16 @@ describe('pins reordering (TLON-5948)', () => {
       expect(queries.getChats.meta.tableDependencies).toContain('pins');
     });
 
+    test('getChats refreshes when notebook activity details change', () => {
+      expect(queries.getChats.meta.tableDependencies).toEqual(
+        expect.arrayContaining([
+          'activityEvents',
+          'notesNotebooks',
+          'notesNotes',
+        ])
+      );
+    });
+
     test('a pins write invalidates an in-flight getChats query', async () => {
       await seedPins(['A', 'B', 'C']);
 
@@ -2258,6 +3467,50 @@ describe('thread unreads by channel', () => {
       ...overrides,
     } as ThreadUnreadState;
   }
+
+  test.each([undefined, channelId])(
+    'returns null for an absent thread unread (channel: %s)',
+    async (scope) => {
+      const result = await queryClient.fetchQuery({
+        queryKey: ['missing-thread-unread', scope],
+        queryFn: () =>
+          queries.getThreadUnreadState({
+            parentId: 'missing-parent',
+            channelId: scope,
+          }),
+        retry: false,
+      });
+      expect(result).toBeNull();
+    }
+  );
+
+  test('observes unread activity inserted after a thread is opened', async () => {
+    const parentId = 'newly-active-thread';
+    const observer = new QueryObserver(queryClient, {
+      queryKey: [
+        'liveUnreadCount',
+        keyFromQueryDeps(queries.getThreadUnreadState),
+        'thread',
+        parentId,
+      ],
+      queryFn: () => queries.getThreadUnreadState({ parentId }),
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    try {
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().status).toBe('success');
+        expect(observer.getCurrentResult().data).toBeNull();
+      });
+
+      await queries.insertThreadUnreads([threadUnread(parentId, { count: 2 })]);
+
+      await vi.waitFor(() => {
+        expect(observer.getCurrentResult().data?.count).toBe(2);
+      });
+    } finally {
+      unsubscribe();
+    }
+  });
 
   // The channel-scoped thread-unread overlay keys its map on threadId and
   // matches it against post ids, so these rows have to come back keyed that

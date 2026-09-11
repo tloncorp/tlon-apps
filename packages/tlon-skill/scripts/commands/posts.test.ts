@@ -244,17 +244,58 @@ describe('posts send', () => {
     expect(missingValue.stderr()).toBe(`${POSTS_COMMAND_HELP.send}\n`);
     expectNoAuthOrApi(missingValue);
 
-    const nonHttp = makeDeps();
+    const invalidScheme = makeDeps();
     expect(
       await run(
         ['send', 'chat/~host/channel', '--image', 'ftp://x/y.png'],
-        nonHttp.deps
+        invalidScheme.deps
       )
     ).toBe(1);
-    expect(nonHttp.stderr()).toBe(
-      'Error: --image must be an http(s) image URL — upload first with `tlon upload`\n'
+    expect(invalidScheme.stderr()).toBe(
+      'Error: Invalid media URL — pass a public https URL. If this is a local ' +
+        'file, upload it first (e.g. `tlon upload <path>`) and resend with the ' +
+        'returned https URL.\n'
     );
-    expectNoAuthOrApi(nonHttp);
+    expectNoAuthOrApi(invalidScheme);
+
+    // The outbound-media contract classifies each rejected shape separately;
+    // every one of them fails before auth and before any network call.
+    const plainHttp = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', 'http://x/y.png'],
+        plainHttp.deps
+      )
+    ).toBe(1);
+    expect(plainHttp.stderr()).toBe(
+      'Error: Only https media URLs are supported.\n'
+    );
+    expectNoAuthOrApi(plainHttp);
+
+    const localPath = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', '/pier/generated.png'],
+        localPath.deps
+      )
+    ).toBe(1);
+    expect(localPath.stderr()).toBe(
+      'Error: Local file paths are not supported for --image — upload the file ' +
+        'first (e.g. `tlon upload <path>`) and pass the returned https URL.\n'
+    );
+    expectNoAuthOrApi(localPath);
+
+    const userinfo = makeDeps();
+    expect(
+      await run(
+        ['send', 'chat/~host/channel', '--image', 'https://u:p@x/y.png'],
+        userinfo.deps
+      )
+    ).toBe(1);
+    expect(userinfo.stderr()).toBe(
+      'Error: Media URLs with embedded credentials are not supported.\n'
+    );
+    expectNoAuthOrApi(userinfo);
   });
 
   it('rejects a malformed --blob flag before auth', async () => {

@@ -14,6 +14,10 @@ export type TopLevelTabParamList = {
 
 export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TopLevelTabParamList> | undefined;
+  OnboardingStartup: {
+    channelId: string;
+    groupId: string;
+  };
   VerifierStub: undefined;
   Empty: undefined;
   Settings: undefined;
@@ -29,6 +33,7 @@ export type RootStackParamList = {
   };
   Channel: {
     channelId: string;
+    disableTransition?: boolean;
     groupId?: string;
     selectedPostId?: string | null;
     startDraft?: boolean;
@@ -87,10 +92,12 @@ export type RootStackParamList = {
   FeatureFlags: undefined;
   ManageAccount: undefined;
   BotSettings: undefined;
-  BotMcpSettings: undefined;
+  BotMcpSettings: { providerId?: string } | undefined;
   BotModelSettings: { mode: 'default' | 'fallbacks' };
   BotApiKeySettings: { provider: string };
-  BotOpenAISubscription: undefined;
+  BotOpenAISubscription:
+    | { provider?: 'openai' | 'anthropic' | 'xai' }
+    | undefined;
   BotShipListSettings: {
     list: 'dmAllowlist' | 'defaultAuthorizedShips' | 'groupInviteAllowlist';
   };
@@ -273,7 +280,7 @@ export type RoleSelectionReturn =
       returnParams: {
         groupId: string;
         channelTitle: string;
-        channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+        channelType: 'chat' | 'gallery' | 'notes';
       };
     }
   | {
@@ -354,7 +361,7 @@ export type GroupSettingsStackParamList = {
   CreateChannelPermissions: {
     groupId: string;
     channelTitle: string;
-    channelType: 'chat' | 'notebook' | 'gallery' | 'notes';
+    channelType: 'chat' | 'gallery' | 'notes';
     createdRoleId?: string;
     selectedRoleIds?: string[];
   };

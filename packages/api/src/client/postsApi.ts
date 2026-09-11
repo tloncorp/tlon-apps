@@ -135,7 +135,7 @@ function toPostReference(said: ub.Said) {
   } else if ('post' in said.reference) {
     return toPostData(channelId, said.reference.post);
   } else {
-    throw new Error('invalid response' + JSON.stringify(said, null, 2));
+    throw new Error('invalid reference response for ' + said.nest);
   }
 }
 
@@ -636,8 +636,7 @@ export const getLatestPosts = async ({
     });
   } catch (e) {
     logger.trackError('failed to sync heads', {
-      errorMessage: e.message,
-      errorStack: e.stack,
+      error: e,
     });
     return [];
   }
@@ -658,6 +657,8 @@ export const getChangedPosts = async ({
   endCursor,
   afterTime,
 }: GetChangedPostsOptions): Promise<GetChangedPostsResponse> => {
+  // %chat exposes DM and club updates through its global changes-since feed,
+  // not a per-conversation, cursor-bounded changed-posts endpoint.
   if (!isGroupChannelId(channelId)) {
     throw new Error(
       `invalid channel id  ${channelId}:
@@ -997,7 +998,7 @@ export async function reportPost(
 
   const action = {
     app: 'groups',
-    mark: 'group-action-4',
+    mark: 'group-action-5',
     json: {
       group: {
         flag: groupId,

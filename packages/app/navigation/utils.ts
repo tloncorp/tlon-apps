@@ -5,13 +5,15 @@ import {
   useNavigation as useReactNavigation,
 } from '@react-navigation/native';
 import type { NativeStackNavigationOptions } from '@react-navigation/native-stack';
-import { parseNotesChannelId } from '@tloncorp/api/client';
 import { createDevLogger } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
 import * as store from '@tloncorp/shared/store';
 import { useGlobalSearch, useIsWindowNarrow } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+
+import { openExternalBotSettings } from '../utils/botSettings';
 
 import type {
   DesktopBasePathStackParamList,
@@ -20,6 +22,8 @@ import type {
 import {
   TOP_LEVEL_DRAWER_ROUTES,
   getActiveTopLevelDrawerRouteName,
+  getDesktopChannelRoute,
+  getDesktopGroupEntryRoute,
   getDesktopGroupInviteRoute,
   getDesktopPostRoute,
   isActivityBackTarget,
@@ -84,6 +88,8 @@ function useResetToChannel() {
     function resetToChannel(
       channelId: string,
       options?: {
+        backToGroupIndex?: boolean;
+        disableTransition?: boolean;
         groupId?: string;
         selectedPostId?: string | null;
         startDraft?: boolean;
@@ -92,13 +98,22 @@ function useResetToChannel() {
       const screenName = screenNameFromChannelId(channelId);
 
       if (isWindowNarrow) {
+        const { backToGroupIndex, ...channelOptions } = options ?? {};
         reset([
           getTopLevelTabRoute('ChatList'),
+          ...(backToGroupIndex && channelOptions.groupId
+            ? [
+                {
+                  name: 'GroupChannels' as const,
+                  params: { groupId: channelOptions.groupId },
+                },
+              ]
+            : []),
           {
             name: screenName,
             params: {
               channelId,
-              ...options,
+              ...channelOptions,
             },
           },
         ]);
@@ -498,6 +513,18 @@ export function useRootNavigation() {
     });
   }, [isWindowNarrow, navigationRef]);
 
+  const navigateToBotMcpSettings = useCallback(
+    (providerId?: string) => {
+      if (Platform.OS === 'web') {
+        openExternalBotSettings();
+        return;
+      }
+      const params = providerId ? { providerId } : undefined;
+      navigationRef.current.navigate('BotMcpSettings', params);
+    },
+    [navigationRef]
+  );
+
   const resetToChannel = useResetToChannel();
   const navigateToChannel = useNavigateToChannel();
   const navigateToChatDetails = useNavigateToChatDetails();
@@ -525,6 +552,7 @@ export function useRootNavigation() {
       resetToPost,
       navigateBack,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
     }),
     [
       navigation,
@@ -533,6 +561,7 @@ export function useRootNavigation() {
       navigateToChatDetails,
       navigateToChatVolume,
       navigateToBotSettings,
+      navigateToBotMcpSettings,
       navigateBackFromPost,
       navigateToGroup,
       navigateToPost,
@@ -543,40 +572,6 @@ export function useRootNavigation() {
       resetToPost,
     ]
   );
-}
-
-export function getDesktopChannelRoute(
-  tab: 'Home' | 'Messages',
-  channelId: string,
-  groupId?: string,
-  selectedPostId?: string
-) {
-  const screenName = screenNameFromChannelId(channelId);
-  logger.log('getDesktopChannelRoute', screenName);
-  // Notes channels always open under Home: the notebook sidebar wiring
-  // (NotebookSidebarProvider + the GroupChannelsScreenView takeover) exists
-  // only in that drawer, so under Messages the desktop split view would
-  // render a note detail with no tree or create actions.
-  const resolvedTab = parseNotesChannelId(channelId) ? 'Home' : tab;
-  return {
-    name: resolvedTab,
-    params: {
-      screen: screenName,
-      pop: true,
-      params: {
-        channelId,
-        selectedPostId,
-        ...(groupId ? { groupId } : {}),
-        screen: 'ChannelRoot',
-        pop: true,
-        params: {
-          channelId,
-          selectedPostId,
-          ...(groupId ? { groupId } : {}),
-        },
-      },
-    },
-  } as const;
 }
 
 export async function getMainGroupRoute(
@@ -590,25 +585,16 @@ export async function getMainGroupRoute(
     store.fetchGroup(groupId),
     isWindowNarrow ? null : db.lastVisitedChannelId(groupId).getValue(),
   ]);
-  if (
-    group &&
-    group.channels &&
-    (group.channels.length === 1 || !isWindowNarrow)
-  ) {
-    if (!isWindowNarrow && lastVisitedChannelId) {
-      return getDesktopChannelRoute('Home', lastVisitedChannelId, groupId);
-    }
 
-    if (!isWindowNarrow) {
-      if (group.channels.length > 0) {
-        return getDesktopChannelRoute('Home', group.channels[0].id, groupId);
-      }
-      return {
-        name: 'GroupChannels',
-        params: { groupId },
-      } as const;
-    }
+  if (!isWindowNarrow) {
+    return getDesktopGroupEntryRoute(
+      groupId,
+      group?.channels?.map((channel) => channel.id) ?? [],
+      lastVisitedChannelId
+    );
+  }
 
+  if (group && group.channels && group.channels.length === 1) {
     return {
       name: 'Channel',
       params: { channelId: group.channels[0].id, groupId },

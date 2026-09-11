@@ -17,6 +17,11 @@ import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
+// Channel types a client may still create. 'notebook' — the %diary type — is
+// absent because %notes replaced it; existing diary channels keep working.
+const CREATABLE_CHANNEL_TYPES = ['chat', 'gallery', 'notes'] as const;
+type CreatableChannelType = (typeof CREATABLE_CHANNEL_TYPES)[number];
+
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
 const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
 
@@ -45,6 +50,10 @@ export async function createChannel({
 }) {
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
+
+  if (!CREATABLE_CHANNEL_TYPES.includes(channelType as CreatableChannelType)) {
+    throw new Error(`Cannot create a channel of type ${channelType}`);
+  }
 
   if (channelType === 'notes') {
     return createNotesChannel({
@@ -158,6 +167,19 @@ async function createNotesChannel({
     const newChannel = await waitForNotesChannelListing(groupId, channelId);
     await db.insertChannels([newChannel]);
     insertedChannelId = newChannel.id;
+    // `insertChannels` excludes `currentUserIsMember` from its conflict-update
+    // set, so whoever inserts the row first decides it permanently. The chat
+    // path wins that race with a synchronous optimistic insert; this path
+    // cannot — it awaits a notebook create plus listing polls, and the %groups
+    // SSE update lands first and writes the row as a non-member. The notebook
+    // then sat under "Available Channels" with a Join button on the ship that
+    // hosts it. A direct update is the only write that can correct it, and it
+    // carries the listing's own answer rather than assuming membership, so a
+    // deliberately restricted notebook stays restricted.
+    await db.updateChannel({
+      id: newChannel.id,
+      currentUserIsMember: newChannel.currentUserIsMember ?? true,
+    });
     await db.insertChannelPerms([
       {
         channelId: newChannel.id,

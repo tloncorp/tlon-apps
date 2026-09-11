@@ -34,13 +34,16 @@ export enum AnalyticsEvent {
   ScryNoun = 'Scry Noun',
   Poke = 'Poke',
   NativeDbDebug = 'Native DB Debug',
+  DbReadyRetrySucceeded = 'DB Ready Retry Succeeded',
   Thread = 'Thread',
   TrackedPoke = 'TrackedPoke',
   ErrorDatabaseQuery = 'Database Query Error',
   ErrorTrackedPokeTimeout = 'Error Tracked Poke Timeout',
   ErrorThread = 'Thread Error',
   ErrorSubscribeOnceTimeout = 'Error Subscribe Once Timeout',
+  SubscribeOnceRecovered = 'Subscribe Once Recovered',
   ErrorNativeDb = 'Native DB Error',
+  ErrorWebDb = 'Web DB Error',
   InitDataFetched = 'Init Data Fetched',
   InitDataWritten = 'Init Data Written',
   LatestPostsFetched = 'Latest Posts Fetched',
@@ -64,6 +67,9 @@ export enum AnalyticsEvent {
   TlonbotMcpConnected = 'Tlonbot MCP: Connected',
   TlonbotMcpDisconnected = 'Tlonbot MCP: Disconnected',
   TlonbotMcpError = 'Tlonbot MCP: Error',
+  TlonbotSettingUpdated = 'Tlonbot Setting Updated',
+  TlonbotReplyFeedbackChanged = 'Tlonbot Reply Feedback Changed',
+  TlonbotReplyFeedbackDetailsSubmitted = 'Tlonbot Reply Feedback Details Submitted',
   AttachmentUploadSuccess = 'Attachment Upload Success',
   VideoUploadStarted = 'Video Upload Started',
   VideoUploadFailed = 'Video Upload Failed',
@@ -140,6 +146,15 @@ export enum AnalyticsEvent {
   ActivityMarkedAllRead = 'Activity Marked All Read',
   ContactProfileSelected = 'Contact Profile Selected',
   NoteOpened = 'Note Opened',
+  /**
+   * Fires when the authenticated navigator reveals the furnished onboarding
+   * chat after account creation.
+   */
+  AgentOnboardingChatOpened = 'Agent Onboarding Chat Opened',
+  /**
+   * Fires once when the owner first opens the generated onboarding entry.
+   */
+  AgentEntryFirstOpened = 'Agent Entry First Opened',
   NoteCreated = 'Note Created',
   NoteSaved = 'Note Saved',
   NoteMoved = 'Note Moved',
@@ -230,6 +245,39 @@ export enum AnalyticsEvent {
   ErrorThemeUpdate = 'Error Updating Theme Setting',
   ErrorApi = 'API Error',
   ErrorFetchLinkMetadata = 'Error Fetching Link Metadata',
+}
+
+export type TlonbotReplyFeedbackRating = 'up' | 'down';
+
+export interface TlonbotReplyFeedbackConversationExcerptItem {
+  authorType: 'user' | 'bot' | 'other';
+  sentAt: number;
+  text: string;
+}
+
+export interface TlonbotReplyFeedbackCommon {
+  feedbackId: string;
+  revision: number;
+  clientEventAt: number;
+  messageId: string;
+  botShip: string;
+  replySentAt: number;
+  isThreadReply: boolean;
+  channelType: string | null;
+  isBotDm: boolean;
+}
+
+export interface TlonbotReplyFeedbackChanged extends TlonbotReplyFeedbackCommon {
+  action: 'set' | 'clear';
+  rating?: TlonbotReplyFeedbackRating;
+}
+
+export interface TlonbotReplyFeedbackDetailsSubmitted extends TlonbotReplyFeedbackCommon {
+  rating: TlonbotReplyFeedbackRating;
+  categories: string[];
+  details: string;
+  replyText: string;
+  conversationExcerpt: TlonbotReplyFeedbackConversationExcerptItem[];
 }
 
 export interface AnalyticsDigest {

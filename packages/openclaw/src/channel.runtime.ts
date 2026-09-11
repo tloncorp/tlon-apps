@@ -1,11 +1,16 @@
-import { scry } from '@tloncorp/api';
-import crypto from 'node:crypto';
+import { notes, scry } from '@tloncorp/api';
 import type {
   ChannelAccountSnapshot,
   ChannelOutboundAdapter,
   ChannelPlugin,
   OpenClawConfig,
 } from 'openclaw/plugin-sdk/core';
+import { chunkText } from 'openclaw/plugin-sdk/reply-chunking';
+import {
+  formatTextWithAttachmentLinks,
+  resolvePayloadMediaUrls,
+  sendTextMediaPayload,
+} from 'openclaw/plugin-sdk/reply-payload';
 
 import {
   type ContextLensRegistry,
@@ -14,6 +19,7 @@ import {
   recordBackgroundContextLensOutput,
 } from './context-lens.js';
 import { monitorTlonProvider } from './monitor/index.js';
+import { notesDeliveryMessageId } from './notes-delivery-state.js';
 import { tlonSetupWizard } from './setup-surface.js';
 import { formatTargetHint, normalizeShip, parseTlonTarget } from './targets.js';
 import { observeActiveTlonTurnDelivery } from './turn-recorder.js';
@@ -26,6 +32,7 @@ import { urbitFetch } from './urbit/fetch.js';
 import {
   type BotProfile,
   buildMediaStory,
+  buildMediaText,
   sendChannelPost,
   sendDm,
   sendDmWithStory,
@@ -115,6 +122,90 @@ type OutboundLensTarget = {
   foreground: boolean;
 };
 
+function notesTitle(markdown: string): string {
+  const firstLine = markdown
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .find(Boolean);
+  if (!firstLine) {
+    return 'Update';
+  }
+  const title = firstLine
+    .replace(/^#{1,6}\s+/, '')
+    .replace(/^[-*+]\s+/, '')
+    .replace(/^\*\*(.+)\*\*$/, '$1')
+    .trim();
+  return (title || 'Update').slice(0, 120);
+}
+
+function notesBody(markdown: string): string {
+  const lines = markdown.split(/\r?\n/);
+  const headingIndex = lines.findIndex((line) => line.trim());
+  if (
+    headingIndex === -1 ||
+    !/^\s{0,3}#{1,6}\s+\S/.test(lines[headingIndex] ?? '')
+  ) {
+    return markdown;
+  }
+
+  lines.splice(headingIndex, 1);
+  while (lines[0]?.trim() === '') {
+    lines.shift();
+  }
+  return lines.join('\n');
+}
+
+async function sendNotesEntry({
+  fromShip,
+  nest,
+  text,
+}: {
+  fromShip: string;
+  nest: string;
+  text: string;
+}) {
+  const notebook = await notes.getNotebook(nest);
+  const title = notesTitle(text);
+  const noteIdsBeforeCreate = new Set(
+    (await notes.listNotes(nest)).map((note) => note.noteId)
+  );
+  const createStartedAt = Date.now();
+  const created = await notes.createNote({
+    flag: nest,
+    folder: notebook.rootFolderId,
+    title,
+    body: notesBody(text),
+  });
+  let noteId = created?.id;
+  if (noteId === undefined) {
+    // Compatibility with older Notes hosts whose successful write envelope
+    // omits the applied update. Recover only a newly created exact-title note.
+    for (const delayMs of [0, 250, 750, 1_500]) {
+      if (delayMs) {
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+      const match = (await notes.listNotes(nest))
+        .filter(
+          (note) =>
+            note.title === title &&
+            !noteIdsBeforeCreate.has(note.noteId) &&
+            (note.createdAt == null ||
+              note.createdAt >= createStartedAt - 5_000)
+        )
+        .sort((a, b) => b.noteId - a.noteId)[0];
+      if (match) {
+        noteId = match.noteId;
+        break;
+      }
+    }
+  }
+  return {
+    channel: 'tlon' as const,
+    messageId: notesDeliveryMessageId(fromShip, noteId),
+    sentAt: Date.now(),
+  };
+}
+
 /**
  * Resolve the context lens an outbound send should attach to.
  *
@@ -189,6 +280,29 @@ function recordOutboundLensDelivery(
   recordBackgroundContextLensOutput(target.lensId, output);
 }
 
+async function sendNotesEntryWithLens({
+  account,
+  fromShip,
+  nest,
+  text,
+}: {
+  account: ConfiguredTlonAccount;
+  fromShip: string;
+  nest: string;
+  text: string;
+}) {
+  const target = resolveOutboundLensTarget(account, fromShip, nest);
+  const result = await sendNotesEntry({ fromShip, nest, text });
+  recordOutboundLensDelivery(target, {
+    messageId: result.messageId,
+    conversationId: nest,
+    kind: 'channel',
+    sentAt: result.sentAt,
+    text,
+  });
+  return result;
+}
+
 const unobservedTlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
   'sendText' | 'sendMedia'
@@ -229,6 +343,14 @@ const unobservedTlonRuntimeOutbound: Pick<
             text,
           });
           return result;
+        }
+        if (parsed.kind === 'notebook') {
+          return await sendNotesEntryWithLens({
+            account,
+            fromShip,
+            nest: parsed.nest,
+            text,
+          });
         }
         const target = resolveOutboundLensTarget(
           account,
@@ -302,6 +424,14 @@ const unobservedTlonRuntimeOutbound: Pick<
           });
           return result;
         }
+        if (parsed.kind === 'notebook') {
+          return await sendNotesEntryWithLens({
+            account,
+            fromShip,
+            nest: parsed.nest,
+            text: buildMediaText(text, media?.url),
+          });
+        }
         const target = resolveOutboundLensTarget(
           account,
           fromShip,
@@ -329,7 +459,7 @@ const unobservedTlonRuntimeOutbound: Pick<
 
 export const tlonRuntimeOutbound: Pick<
   ChannelOutboundAdapter,
-  'sendText' | 'sendMedia'
+  'sendPayload' | 'sendText' | 'sendMedia'
 > = {
   sendText: (params) =>
     observeActiveTlonTurnDelivery(() =>
@@ -339,6 +469,44 @@ export const tlonRuntimeOutbound: Pick<
     observeActiveTlonTurnDelivery(() =>
       unobservedTlonRuntimeOutbound.sendMedia!(params)
     ),
+  sendPayload: async (ctx) => {
+    const parsed = parseTlonTarget(ctx.to);
+    if (parsed?.kind === 'notebook') {
+      const { account } = resolveOutboundContext({
+        cfg: ctx.cfg,
+        accountId: ctx.accountId,
+        to: ctx.to,
+      });
+      const mediaUrls = await withAuthenticatedTlonApi(
+        {
+          url: account.url,
+          code: account.code,
+          ship: account.ship,
+          allowPrivateNetwork: account.allowPrivateNetwork ?? undefined,
+        },
+        async () =>
+          Promise.all(
+            resolvePayloadMediaUrls(ctx.payload).map(
+              async (mediaUrl) => (await prepareOutboundMedia(mediaUrl)).url
+            )
+          )
+      );
+      const text = formatTextWithAttachmentLinks(ctx.payload.text, mediaUrls);
+      return await observeActiveTlonTurnDelivery(() =>
+        unobservedTlonRuntimeOutbound.sendText!({ ...ctx, text })
+      );
+    }
+    return await sendTextMediaPayload({
+      channel: 'tlon',
+      ctx,
+      adapter: {
+        chunker: chunkText,
+        sendMedia: tlonRuntimeOutbound.sendMedia,
+        sendText: tlonRuntimeOutbound.sendText,
+        textChunkLimit: 10_000,
+      },
+    });
+  },
 };
 
 export async function probeTlonAccount(account: ConfiguredTlonAccount) {

@@ -175,12 +175,13 @@ export function ReactionsDisplay({
         <XStack borderRadius="$m" gap="$xs" flexWrap="wrap">
           {reactionDetails.list.map((reaction) => (
             <Tooltip key={reaction.value} placement="top" delay={0} restMs={25}>
-              <Tooltip.Trigger
-                borderRadius="$s"
-                cursor="pointer"
-                testID="ReactionDisplay"
-              >
+              <Tooltip.Trigger borderRadius="$s" cursor="pointer">
                 <Pressable
+                  // The iOS message context menu checks the touched native
+                  // view hierarchy for this identifier before recognizing its
+                  // own long press. Keep it on the actual press target rather
+                  // than the tooltip wrapper.
+                  testID="ReactionDisplay"
                   flexDirection="row"
                   justifyContent="center"
                   alignItems="center"

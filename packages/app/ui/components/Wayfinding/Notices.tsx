@@ -3,6 +3,8 @@ import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, Pressable, Text } from '@tloncorp/ui';
 import { useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
+import { FullWindowOverlay } from 'react-native-screens';
 import { Circle, View, XStack, YStack, isWeb, styled } from 'tamagui';
 
 import { InviteFriendsToTlonButton } from '../InviteFriendsToTlonButton';
@@ -23,6 +25,7 @@ const WayfindingNotice = {
   GroupChannels,
   CustomizeGroup,
   HomeAddTooltip,
+  AgentOnboardingBackTooltip,
   ChatInputTooltip,
   BotMentionTooltip,
   CollectionInputTooltip,
@@ -195,6 +198,58 @@ export function HomeAddTooltip({ top = 36 }: { top?: number }) {
         </Pressable>
       </YStack>
     </View>
+  );
+}
+
+export function AgentOnboardingBackTooltip({
+  top,
+  onDismiss,
+}: {
+  top: number;
+  onDismiss: () => void;
+}) {
+  const tooltip = (
+    <View position="absolute" top={top} left={18} zIndex={100}>
+      <Pressable
+        testID="AgentOnboardingBackTooltip"
+        onPress={onDismiss}
+        paddingVertical={20}
+        paddingLeft={20}
+        paddingRight={44}
+        width={220}
+        backgroundColor="$positiveActionText"
+        borderRadius="$l"
+      >
+        <View
+          position="absolute"
+          top={Platform.OS === 'ios' ? -18 : -14}
+          left={27}
+          width={12}
+          height={12}
+          backgroundColor="$positiveActionText"
+          borderRadius={999}
+        />
+        <Text size="$label/l" color="$white">
+          Tap Back to return Home and explore the rest of Tlon.
+        </Text>
+        <View position="absolute" top={8} right={8} padding={4}>
+          <Icon
+            type="Close"
+            size="$s"
+            color="$white"
+            testID="AgentOnboardingBackTooltipDismiss"
+          />
+        </View>
+      </Pressable>
+    </View>
+  );
+
+  return Platform.OS === 'ios' ? (
+    <FullWindowOverlay unstable_accessibilityContainerViewIsModal={false}>
+      {tooltip}
+    </FullWindowOverlay>
+  ) : (
+    tooltip
   );
 }
 

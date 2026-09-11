@@ -83,6 +83,12 @@ const notes = [
     'Meeting notes',
     'A second root note so the list has mixed root and nested content.'
   ),
+  makeNote(
+    8,
+    1,
+    'A long note title that should wrap onto the next line instead of getting cut off on narrow screens',
+    'Long note title fixture body.'
+  ),
 ];
 const emptyFolders = [folders[0]];
 const emptyNotes: db.NotesNote[] = [];
@@ -308,6 +314,7 @@ function NotebookContentsListFixture() {
             getPublishedNoteUrl={(note) =>
               `https://test.tlon.app/notes/native-notes-fixture/${note.noteId}`
             }
+            hasPublishedUpdate={(noteId) => noteId === 5}
             isDeletingFolder={false}
             isNotePublished={(noteId) => publishedNoteIds.has(noteId)}
             layout={usePhoneViewport ? 'stack' : 'takeover'}
@@ -374,6 +381,7 @@ function NotesTreeFixture() {
         >
           <NotesTreePane
             canEdit
+            hasPublishedUpdate={() => false}
             isNotePublished={() => false}
             isDeletingFolder={false}
             layout="takeover"
@@ -443,6 +451,7 @@ export default {
   'Contents List': <NotebookContentsListFixture />,
   'Folder Contents': <NotesTreeFixture />,
   'Editor Header': <NotesEditorFixture />,
+  'Long Title': <NotesEditorFixture noteId={8} />,
   'Table Preview': <NotesEditorFixture noteId={5} />,
   'Saving Header': <NotesEditorFixture saving />,
 };

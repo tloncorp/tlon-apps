@@ -180,6 +180,10 @@ async function handleReact({
     return jsonResult({ ok: true, added: emoji });
   }
 
+  if (parsed.kind === 'notebook') {
+    throw new Error('Tlon reactions are not supported for notebook entries.');
+  }
+
   const nestPrefix = parsed.nest.split('/')[0];
   if (remove) {
     await removeChannelReaction({
@@ -225,7 +229,7 @@ async function handleDelete({
   }
 
   const parsed = parseTlonTarget(to);
-  if (!parsed || parsed.kind === 'dm') {
+  if (!parsed || parsed.kind !== 'channel') {
     throw new Error('Tlon delete is only supported for channel posts.');
   }
 
@@ -284,6 +288,12 @@ async function handleReply({
   if (parsed.kind === 'dm') {
     throw new Error(
       'Tlon reply action is supported for channel targets. For DMs, use action=send with replyTo.'
+    );
+  }
+
+  if (parsed.kind === 'notebook') {
+    throw new Error(
+      'Tlon reply action is not supported for notebook entries. Send a new notebook entry instead.'
     );
   }
 

@@ -25,6 +25,7 @@ import type {
   TlawnOAuthStartRequest,
   TlawnOAuthStartResponse,
   TlawnOAuthStatus,
+  TlawnOpenRouterZdrEndpoint,
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
@@ -54,6 +55,7 @@ export type {
   TlawnOAuthStartResponse,
   TlawnOAuthStatus,
   TlawnOAuthUpstream,
+  TlawnOpenRouterZdrEndpoint,
   TlawnPrimaryModelUpdate,
   TlawnProviderConfigInfo,
   TlawnProviderModel,
@@ -305,7 +307,9 @@ const parseTlawnLLMAuthFlowResponse = (
   if (
     !flow ||
     typeof flow.id !== 'string' ||
-    (flow.provider !== 'openai' && flow.provider !== 'anthropic') ||
+    !['openai', 'anthropic', 'xai'].includes(
+      typeof flow.provider === 'string' ? flow.provider : ''
+    ) ||
     ![
       'awaiting_browser',
       'awaiting_token',
@@ -361,7 +365,7 @@ const parseTlawnLLMAuthStatus = (value: unknown): TlawnLLMAuthStatus => {
   const validModels =
     modelGroups === undefined ||
     (isJsonObject(modelGroups) &&
-      (['openai', 'anthropic'] as const).every((provider) => {
+      (['openai', 'anthropic', 'xai'] as const).every((provider) => {
         const models = modelGroups[provider];
         return (
           models === undefined ||
@@ -450,6 +454,18 @@ export async function getTlawnLLMAuthFlow(
   return parseTlawnLLMAuthFlowResponse(response);
 }
 
+export async function completeTlawnLLMAuth(
+  ship: string,
+  flowId: string,
+  token: string
+): Promise<TlawnLLMAuthFlowResponse> {
+  const response = await hostingFetch<Record<string, unknown>>(
+    `/v1/tlawn/ships/${normalizeTlawnShipId(ship)}/llm-auth/complete`,
+    jsonInit('POST', { flowId, token })
+  );
+  return parseTlawnLLMAuthFlowResponse(response);
+}
+
 export async function disconnectTlawnLLMAuth(
   ship: string,
   provider: TlawnLLMAuthProvider
@@ -481,6 +497,22 @@ export async function getTlawnProviderModels(
 ): Promise<{ data: TlawnProviderModel[] }> {
   return hostingFetch<{ data: TlawnProviderModel[] }>(
     `/v1/tlawn/users/${userId}/provider-models?provider=${encodeURIComponent(provider)}`
+  );
+}
+
+export async function getTlawnOpenRouterRecommendedModels(
+  userId: string
+): Promise<string[]> {
+  return hostingFetch<string[]>(
+    `/v1/tlawn/users/${userId}/openrouter/recommended-models`
+  );
+}
+
+export async function getTlawnOpenRouterZdrEndpoints(
+  userId: string
+): Promise<TlawnOpenRouterZdrEndpoint[]> {
+  return hostingFetch<TlawnOpenRouterZdrEndpoint[]>(
+    `/v1/tlawn/users/${userId}/openrouter/zdr-endpoints`
   );
 }
 

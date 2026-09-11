@@ -1,6 +1,6 @@
 import { RouteProp, useIsFocused, useRoute } from '@react-navigation/native';
 import { FlashListRef } from '@shopify/flash-list';
-import { markInvitesRead } from '@tloncorp/api';
+import { markInvitesRead, reportBackgroundFailure } from '@tloncorp/api';
 import { AnalyticsEvent, createDevLogger, trackEvent } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as logic from '@tloncorp/shared/logic';
@@ -40,6 +40,7 @@ import { ChatList, ChatListItemData } from '../chat-list/ChatList';
 import { ChatListSearch } from '../chat-list/ChatListSearch';
 import { ChatListTabs } from '../chat-list/ChatListTabs';
 import { CreateChatSheet, CreateChatSheetMethods } from './CreateChatSheet';
+import { useAgentOnboardingLandingConsumer } from './useAgentOnboardingLandingConsumer';
 import {
   getGroupInviteSheetState,
   isGroupInviteReady,
@@ -94,6 +95,8 @@ export function ChatListScreenView({
   const { data: chats } = store.useCurrentChats({
     enabled: isFocused,
   });
+
+  useAgentOnboardingLandingConsumer();
   const { performGroupAction } = useGroupActions();
 
   const handleInviteFriends = useCallback(() => {
@@ -303,7 +306,10 @@ export function ChatListScreenView({
           'markInvitesRead',
           { priority: store.SyncPriority.Medium },
           async () => {
-            markInvitesRead();
+            // left unawaited so the queue thread isn't held for the backoff
+            markInvitesRead().catch(
+              reportBackgroundFailure(logger, 'mark invites read')
+            );
           }
         );
       }, 1000);

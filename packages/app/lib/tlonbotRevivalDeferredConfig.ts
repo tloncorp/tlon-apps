@@ -75,7 +75,7 @@ function requireString(value: string | null | undefined, message: string) {
 
 async function ensureBotHomeGroupTitleForNickname(nickname: string) {
   const homeGroup = await db.getBotHomeGroup();
-  if (!homeGroup || !botHomeGroupHasDefaultTitle(homeGroup)) {
+  if (!homeGroup || !botHomeGroupHasDefaultTitle(homeGroup, nickname)) {
     return;
   }
 
