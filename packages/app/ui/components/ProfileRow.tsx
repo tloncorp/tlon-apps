@@ -1,5 +1,6 @@
 import * as db from '@tloncorp/shared/db';
 import { Text } from '@tloncorp/ui';
+import { ReactNode } from 'react';
 import { XStack, YStack } from 'tamagui';
 
 import { ContactAvatar } from './Avatar';
@@ -10,10 +11,16 @@ export default function ProfileRow({
   contactId,
   contact,
   dark,
+  compact = false,
+  outlined = false,
+  endContent,
 }: {
   contactId: string;
   contact?: db.Contact;
   dark?: boolean;
+  compact?: boolean;
+  outlined?: boolean;
+  endContent?: ReactNode;
   debugMessage?: string;
 }) {
   const color = dark ? '$primaryText' : '$white';
@@ -22,13 +29,28 @@ export default function ProfileRow({
   return (
     <XStack
       padding="$l"
-      gap="$xl"
+      gap={compact ? 14 : '$xl'}
       alignItems="center"
-      backgroundColor={dark ? '$secondaryBackground' : undefined}
-      borderRadius={dark ? '$xl' : undefined}
+      backgroundColor={
+        outlined ? '$background' : dark ? '$secondaryBackground' : undefined
+      }
+      borderColor={outlined ? '$border' : undefined}
+      borderWidth={outlined ? 1 : 0}
+      borderRadius={dark || outlined ? '$xl' : undefined}
     >
-      <ContactAvatar size="$5xl" borderRadius={'$xl'} contactId={contactId} />
-      <YStack flex={1} minWidth={0} gap="$l" justifyContent="center">
+      <ContactAvatar
+        size={compact ? 'custom' : '$5xl'}
+        width={compact ? 52 : undefined}
+        height={compact ? 52 : undefined}
+        borderRadius={compact ? '$m' : '$xl'}
+        contactId={contactId}
+      />
+      <YStack
+        flex={1}
+        minWidth={0}
+        gap={compact ? '$xs' : '$l'}
+        justifyContent="center"
+      >
         {hasNickname ? (
           <>
             <XStack alignItems="center" gap="$s">
@@ -70,6 +92,7 @@ export default function ProfileRow({
           </XStack>
         )}
       </YStack>
+      {endContent}
     </XStack>
   );
 }

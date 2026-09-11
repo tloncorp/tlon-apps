@@ -13,6 +13,8 @@ import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 import { v4 as uuidv4 } from 'uuid';
 
+import { refreshHostingAuth } from './hostingAuth';
+
 const logger = createDevLogger('backgroundSync', true);
 
 async function performSync() {
@@ -43,23 +45,30 @@ async function performSync() {
     return;
   }
 
-  logger.trackEvent('Configuring urbit client...');
-  configureUrbitClient({
-    ship: shipInfo.ship,
-    shipUrl: shipInfo.shipUrl,
-    authType: shipInfo.authType,
-  });
-
   let didSucceed = false;
 
   try {
-    // TODO: re-enable when confirmed not causing hangs on Android
-    // // use the background task as an opportunity to refresh hosting auth
-    // const authPromise = refreshHostingAuth().catch((err) =>
-    //   logger.trackError('Background task: failed to refresh hosting auth', {
-    //     error: err,
-    //   })
-    // );
+    const authStart = Date.now();
+    const hostingAuth = await refreshHostingAuth({
+      authType: shipInfo.authType,
+    });
+    timings.authDuration = Date.now() - authStart;
+
+    if (hostingAuth === 'expired') {
+      logger.trackEvent('Skipping background sync', {
+        context: 'hosting auth expired',
+        taskExecutionId,
+      });
+      didSucceed = true;
+      return;
+    }
+
+    logger.trackEvent('Configuring urbit client...');
+    configureUrbitClient({
+      ship: shipInfo.ship,
+      shipUrl: shipInfo.shipUrl,
+      authType: shipInfo.authType,
+    });
 
     const changesStart = Date.now();
     await syncSince({
@@ -86,8 +95,6 @@ async function performSync() {
 
     logger.trackEvent('Background sync complete', { taskExecutionId });
     didSucceed = true;
-
-    // await authPromise;
   } catch (err) {
     logger.trackError('Background sync failed', {
       error: err instanceof Error ? err : undefined,
@@ -96,6 +103,7 @@ async function performSync() {
   } finally {
     logger.trackEvent('Background sync timing', {
       duration: Date.now() - timings.start,
+      authDuration: timings.authDuration,
       changesDuration: timings.changesDuration,
       taskExecutionId,
       didSucceed,

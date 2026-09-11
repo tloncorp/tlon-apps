@@ -5,11 +5,14 @@ import {
   configureHostingSessionStore,
   deleteTlawnProviderKey,
   disconnectTlawnLLMAuth,
+  getHostingHeartBeat,
   getTlawnLLMAuthFlow,
   getTlawnLLMAuthStatus,
   getTlawnOpenRouterRecommendedModels,
   getTlawnOpenRouterZdrEndpoints,
   startTlawnLLMAuth,
+  requestLoginOtpForUser,
+  verifyLoginOtpForUser,
 } from './hostingApi';
 
 const validFlow = {
@@ -229,5 +232,160 @@ describe('Tlawn provider auth', () => {
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/recommended-models',
       'https://hosting.test/v1/tlawn/users/user-1/openrouter/zdr-endpoints',
     ]);
+  });
+});
+
+describe('Hosting heartbeat', () => {
+  const setBotEnabled = vi.fn(async () => undefined);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    setBotEnabled.mockClear();
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'session=abc; HttpOnly;',
+        setValue: async () => undefined,
+      },
+      userId: {
+        getValue: async () => 'user-1',
+        setValue: async () => undefined,
+      },
+      botEnabled: {
+        getValue: async () => false,
+        setValue: setBotEnabled,
+      },
+    });
+  });
+
+  it('reports an expired session when a 401 has an empty body', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('expired');
+  });
+
+  it('updates bot status from a valid heartbeat', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(() => respond({ botEnabled: true }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('ok');
+    expect(setBotEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it('reports an indeterminate session for server errors', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 503 }))
+    );
+
+    await expect(getHostingHeartBeat()).resolves.toBe('unknown');
+  });
+});
+
+describe('Hosting auth reconnect', () => {
+  const setAuthToken = vi.fn(async () => undefined);
+  const setUserId = vi.fn(async () => undefined);
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.stubGlobal('window', undefined);
+    vi.stubGlobal('tlonEnv', {
+      API_URL: 'https://hosting.test',
+      API_AUTH_USERNAME: undefined,
+      API_AUTH_PASSWORD: undefined,
+    });
+    setAuthToken.mockClear();
+    setUserId.mockClear();
+    configureHostingSessionStore({
+      authToken: {
+        getValue: async () => 'expired=session; HttpOnly;',
+        setValue: setAuthToken,
+      },
+      userId: {
+        getValue: async () => 'user/1',
+        setValue: setUserId,
+      },
+      botEnabled: {
+        getValue: async () => false,
+        setValue: async () => undefined,
+      },
+    });
+  });
+
+  it('requests an OTP using the stored user identity contract', async () => {
+    const info = {
+      retryAfter: 0,
+      maskedEmail: 'b***@tlon.io',
+    };
+    const fetchMock = vi.fn().mockImplementation(() => respond(info));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      requestLoginOtpForUser({
+        userId: 'user/1',
+        recaptchaToken: 'recaptcha-token',
+        platform: 'ios',
+      })
+    ).resolves.toEqual(info);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/users/user%2F1/request-login-otp',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          recaptcha: {
+            recaptchaToken: { token: 'recaptcha-token' },
+            recaptchaPlatform: 'ios',
+          },
+        }),
+      })
+    );
+  });
+
+  it('stores the renewed session after verifying the OTP', async () => {
+    const user = {
+      id: 'user/1',
+      email: 'user@tlon.io',
+      admin: false,
+      ships: ['~zod'],
+      requirePhoneNumberVerification: false,
+      verified: true,
+    };
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(user), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          'Set-Cookie': 'SolarisSession=renewed; HttpOnly;',
+        },
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      verifyLoginOtpForUser({ userId: 'user/1', otp: '123456' })
+    ).resolves.toEqual(user);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://hosting.test/v1/users/user%2F1/verify-login-otp',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ otp: '123456' }),
+      })
+    );
+    expect(setAuthToken).toHaveBeenCalledWith(
+      'SolarisSession=renewed; HttpOnly;'
+    );
+    expect(setUserId).toHaveBeenCalledWith('user/1');
   });
 });

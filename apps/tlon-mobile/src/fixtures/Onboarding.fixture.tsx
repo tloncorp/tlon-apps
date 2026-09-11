@@ -73,6 +73,7 @@ function OnboardingFixture({
           value={{
             initRecaptcha: () => Promise.resolve('abc'),
             execRecaptchaLogin: () => Promise.resolve('abc'),
+            execRecaptchaRequestOtp: () => Promise.resolve('abc'),
             getLandscapeAuthCookie: () => Promise.resolve('abc'),
             checkPhoneVerify: async () => undefined,
             requestPhoneVerify: async () => undefined,

@@ -11,12 +11,18 @@ export {
   logInHostingUser,
   markUserTlonbotEnabled,
   requestLoginOtp,
+  requestLoginOtpForUser,
   requestPhoneVerify,
   setShipRevivalStatus,
   startTlawnOAuth,
   setUserTlonbotEnabled,
   signUpHostingUser,
+  verifyLoginOtpForUser,
   checkNodeIsTlonbotReady,
+} from './client/hostingApi';
+export type {
+  HostingLoginOtpInfo,
+  HostingRecaptchaPlatform,
 } from './client/hostingApi';
 export { getLandscapeAuthCookie } from './client/landscapeApi';
 export {

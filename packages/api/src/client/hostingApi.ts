@@ -62,6 +62,19 @@ export type {
   TlawnSubscriptionModel,
 } from '../types/hosting';
 
+export type HostingRecaptchaPlatform =
+  | 'ios'
+  | 'android'
+  | 'web'
+  | 'ios_test'
+  | 'android_test';
+
+export type HostingLoginOtpInfo = {
+  retryAfter: number;
+  maskedEmail?: string;
+  maskedPhoneNumber?: string;
+};
+
 const logger = createDevLogger('hostingApi', false);
 interface StoredValue<T> {
   getValue: () => Promise<T>;
@@ -846,6 +859,16 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
   const userId = await sessionStore.userId.getValue();
   const response = await rawHostingFetch(`/v1/users/${userId}`);
 
+  // A heartbeat must still report expiration when Hosting returns an empty or
+  // non-JSON 401 body.
+  if (response.status === 401) {
+    return 'expired';
+  }
+
+  if (response.status < 200 || response.status >= 300) {
+    return 'unknown';
+  }
+
   try {
     const body = (await response.json()) as User;
 
@@ -863,22 +886,11 @@ export const getHostingHeartBeat = async (): Promise<HostingHeartBeatCode> => {
       'Failed to read bot enabled status from hosting heartbeat',
       {
         errorMessage: e.toString(),
-        responseText: await response.text(),
       }
     );
   }
 
-  // 401 indicates that the authentication token is expired.
-  if (response.status === 401) {
-    return 'expired';
-  }
-
-  // if we get a response in the 2xx range, we know it's definitely still valid
-  if (response.status >= 200 && response.status < 300) {
-    return 'ok';
-  }
-
-  return 'unknown';
+  return 'ok';
 };
 
 export const getHostingAvailability = async (params: {
@@ -916,6 +928,28 @@ export const addUserToWaitlist = async ({
       },
     }
   );
+
+async function persistHostingSession(response: Response, user: User) {
+  const setCookie = response.headers.get('Set-Cookie');
+  if (setCookie) {
+    await sessionStore.authToken.setValue(setCookie);
+  }
+
+  if (!user.id) {
+    return;
+  }
+
+  await sessionStore.userId.setValue(user.id);
+  if (user.botEnabled !== null && user.botEnabled !== undefined) {
+    logger.trackEvent('Bot status set', {
+      enabled: user.botEnabled,
+      $set: {
+        botEnabled: user.botEnabled,
+      },
+    });
+    await sessionStore.botEnabled.setValue(user.botEnabled);
+  }
+}
 
 export const signUpHostingUser = async (params: {
   phoneNumber?: string;
@@ -958,26 +992,9 @@ export const signUpHostingUser = async (params: {
 
   const result = (await response.json()) as HostingError | User;
 
-  const setCookie = response.headers.get('Set-Cookie');
-  if (setCookie) {
-    sessionStore.authToken.setValue(setCookie);
-  }
-
-  const userId = 'id' in result && (result as User).id;
-  if (userId) {
-    sessionStore.userId.setValue(userId);
-    if (result.botEnabled !== null && result.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: result.botEnabled,
-        $set: {
-          botEnabled: result.botEnabled,
-        },
-      });
-      await sessionStore.botEnabled.setValue(result.botEnabled);
-    }
-  }
-
-  return result as User;
+  const user = result as User;
+  await persistHostingSession(response, user);
+  return user;
 };
 
 export const logInHostingUser = async (params: {
@@ -1002,26 +1019,63 @@ export const logInHostingUser = async (params: {
     );
   }
 
-  const setCookie = response.headers.get('Set-Cookie');
-  const user = 'id' in result && (result as User).id;
-  if (setCookie) {
-    sessionStore.authToken.setValue(setCookie);
-  }
+  const user = result as User;
+  await persistHostingSession(response, user);
+  return user;
+};
 
-  if (user) {
-    sessionStore.userId.setValue(user);
-    if (result.botEnabled !== null && result.botEnabled !== undefined) {
-      logger.trackEvent('Bot status set', {
-        enabled: result.botEnabled,
-        $set: {
-          botEnabled: result.botEnabled,
+export const requestLoginOtpForUser = async ({
+  userId,
+  recaptchaToken,
+  platform,
+}: {
+  userId: string;
+  recaptchaToken: string;
+  platform: HostingRecaptchaPlatform;
+}) =>
+  hostingFetch<HostingLoginOtpInfo>(
+    `/v1/users/${encodeURIComponent(userId)}/request-login-otp`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        recaptcha: {
+          recaptchaToken: { token: recaptchaToken },
+          recaptchaPlatform: platform,
         },
-      });
-      await sessionStore.botEnabled.setValue(result.botEnabled);
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
     }
+  );
+
+export const verifyLoginOtpForUser = async ({
+  userId,
+  otp,
+}: {
+  userId: string;
+  otp: string;
+}) => {
+  const path = `/v1/users/${encodeURIComponent(userId)}/verify-login-otp`;
+  const response = await hostingFetchResponse(path, {
+    method: 'POST',
+    body: JSON.stringify({ otp }),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const result = (await response.json()) as HostingError | User;
+  if (!response.ok) {
+    throw new HostingError(
+      'message' in result ? result.message : 'An unknown error has occurred.',
+      { status: response.status, method: 'POST', path }
+    );
   }
 
-  return result as User;
+  const user = result as User;
+  await persistHostingSession(response, user);
+  return user;
 };
 
 export const getHostingUser = async (userId: string) => {

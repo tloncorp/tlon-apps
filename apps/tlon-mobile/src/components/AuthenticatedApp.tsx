@@ -1,5 +1,6 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import NetInfo from '@react-native-community/netinfo';
+import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   AppStatus,
   useAppStatusChange,
@@ -24,17 +25,26 @@ import { RootStack } from '@tloncorp/app/navigation/RootStack';
 import { AppDataProvider } from '@tloncorp/app/provider/AppDataProvider';
 import {
   ForwardPostSheetProvider,
+  LoadingSpinner,
   ZStack,
   useWebAppSplash,
 } from '@tloncorp/app/ui';
 import {
+  createDevLogger,
   observeSyncSinceCompletion,
   sync,
   syncSince,
   updateSession,
 } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
-import { useCallback, useEffect, useState } from 'react';
+import * as store from '@tloncorp/shared/store';
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import { checkAnalyticsDigest, useCheckAppUpdated } from '../hooks/analytics';
 import { useAutomatedTestDbCommands } from '../hooks/useAutomatedTestDbCommands';
@@ -45,15 +55,79 @@ import useNotificationListener from '../hooks/useNotificationListener';
 import { usePoorUxShakeReport } from '../hooks/usePoorUxShakeReport';
 import { useSyncAppBadge } from '../hooks/useSyncAppBadge';
 import { useSyncReactionCapability } from '../hooks/useSyncReactionCapability';
+import { useRecaptcha } from '../hooks/useRecaptcha';
 import { inviteSystemContacts } from '../lib/contactsHelpers';
-import { refreshHostingAuth } from '../lib/hostingAuth';
+import {
+  clearHostingNativeCookie,
+  refreshHostingAuth,
+  selectRecaptchaPlatform,
+} from '../lib/hostingAuth';
+import { HostingAuthReconnectScreen } from '../screens/HostingAuthReconnectScreen';
 import { AutomatedTestSyncScreen } from '../screens/e2e/AutomatedTestSyncScreen';
 import { ShareIntentForwardSheetProvider } from './ShareIntentForwardSheetProvider';
 import { useTlonbotRevivalPrompt } from './TlonbotRevivalPromptSheet';
 
 const ABANDONED_FLUSH_TIMEOUT_MS = 300;
+const hostingAuthLogger = createDevLogger('hosting auth guard', true);
 
-function AuthenticatedApp() {
+type RequireHostingAuth = (options?: { force?: boolean }) => Promise<boolean>;
+
+function useRequireHostingAuth(
+  onHostingAuthExpired: () => void | Promise<void>
+): RequireHostingAuth {
+  const { authType } = useShip();
+  const expirationReported = useRef(false);
+  const checkInFlight = useRef<Promise<boolean> | null>(null);
+
+  return useCallback(
+    async (options = {}) => {
+      if (checkInFlight.current) {
+        return checkInFlight.current;
+      }
+
+      const check = (async () => {
+        const result = await refreshHostingAuth({
+          ...options,
+          authType,
+        }).catch((error) => {
+          hostingAuthLogger.trackError('Failed to check hosting auth', {
+            error,
+          });
+          return 'unknown' as const;
+        });
+        if (result !== 'expired') {
+          expirationReported.current = false;
+          return true;
+        }
+
+        if (!expirationReported.current) {
+          expirationReported.current = true;
+          hostingAuthLogger.trackEvent('Hosting Reconnect Required', {
+            authType,
+          });
+          await onHostingAuthExpired();
+        }
+        return false;
+      })();
+
+      checkInFlight.current = check;
+      try {
+        return await check;
+      } finally {
+        if (checkInFlight.current === check) {
+          checkInFlight.current = null;
+        }
+      }
+    },
+    [authType, onHostingAuthExpired]
+  );
+}
+
+function AuthenticatedApp({
+  requireHostingAuth,
+}: {
+  requireHostingAuth: RequireHostingAuth;
+}) {
   const telemetry = useTelemetry();
   const checkNodeStopped = useCheckNodeStopped();
   const { maybeShowPrompt, promptSheet } = useTlonbotRevivalPrompt();
@@ -92,13 +166,15 @@ function AuthenticatedApp() {
 
       // app opened or returned from background
       if (status === 'opened' || status === 'active') {
+        if (!(await requireHostingAuth())) {
+          return;
+        }
         startChatListSettleMeasurement(status);
         recoverTlonbotRevivalDeferredConfig(status).catch(() => {});
         await checkForCachedChanges();
         telemetry.captureAppActive();
         const nodeCheck = await checkNodeStopped();
         await maybeShowPrompt(nodeCheck);
-        refreshHostingAuth();
         checkAnalyticsDigest();
       }
 
@@ -112,7 +188,13 @@ function AuthenticatedApp() {
           });
       }
     },
-    [checkForCachedChanges, checkNodeStopped, maybeShowPrompt, telemetry]
+    [
+      checkForCachedChanges,
+      checkNodeStopped,
+      maybeShowPrompt,
+      requireHostingAuth,
+      telemetry,
+    ]
   );
 
   useAppStatusChange(handleAppStatusChange);
@@ -157,16 +239,21 @@ function AuthenticatedApp() {
   );
 }
 
-export default function ConnectedAuthenticatedApp() {
+function AuthenticatedAppContent({
+  requireHostingAuth,
+}: {
+  requireHostingAuth: RequireHostingAuth;
+}) {
   const [clientReady, setClientReady] = useState(false);
   const configureClient = useConfigureUrbitClient();
 
   useEffect(() => {
-    async function setup() {
-      configureClient();
-      // we store a flag to ensure this runs only once per login, not anytime
-      // the app is opened
-      const didSyncInitialPosts = await db.didSyncInitialPosts.getValue();
+    let canceled = false;
+
+    configureClient();
+    // we store a flag to ensure this runs only once per login, not anytime
+    // the app is opened
+    db.didSyncInitialPosts.getValue().then((didSyncInitialPosts) => {
       sync
         .syncStart()
         .then(async () => {
@@ -184,10 +271,23 @@ export default function ConnectedAuthenticatedApp() {
         })
         .catch(() => {});
 
-      setClientReady(true);
-    }
-    setup();
+      if (!canceled) {
+        setClientReady(true);
+      }
+    });
+
+    return () => {
+      canceled = true;
+    };
   }, [configureClient]);
+
+  if (!clientReady) {
+    return (
+      <ZStack flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </ZStack>
+    );
+  }
 
   return (
     <AppDataProvider inviteSystemContacts={inviteSystemContacts}>
@@ -199,11 +299,136 @@ export default function ConnectedAuthenticatedApp() {
       */}
       <BottomSheetModalProvider>
         <ForwardPostSheetProvider>
-          <ShareIntentForwardSheetProvider enabled={clientReady}>
-            {clientReady && <AuthenticatedApp />}
+          <ShareIntentForwardSheetProvider enabled>
+            <AuthenticatedApp requireHostingAuth={requireHostingAuth} />
           </ShareIntentForwardSheetProvider>
         </ForwardPostSheetProvider>
       </BottomSheetModalProvider>
     </AppDataProvider>
+  );
+}
+
+export default function ConnectedAuthenticatedApp({
+  onLogout,
+  authenticatedContent,
+  authenticatedOverlay,
+}: {
+  onLogout: () => void | Promise<void>;
+  authenticatedContent?: ReactNode;
+  authenticatedOverlay?: ReactNode;
+}) {
+  const [hostingAuthState, setHostingAuthState] = useState<
+    'checking' | 'valid' | 'expired'
+  >('checking');
+  const [authAttempt, setAuthAttempt] = useState(0);
+  const [profile, setProfile] = useState<db.Contact | null>(null);
+  const { contactId } = useShip();
+  const { getToken: getRecaptchaToken } = useRecaptcha(
+    hostingAuthState === 'expired'
+  );
+  const handleHostingAuthExpired = useCallback(() => {
+    setHostingAuthState('expired');
+  }, []);
+  const requireHostingAuth = useRequireHostingAuth(handleHostingAuthExpired);
+
+  const handleGateAppStatusChange = useCallback(
+    async (status: AppStatus) => {
+      if (status === 'opened') {
+        await requireHostingAuth({ force: true });
+      } else if (status === 'active') {
+        await requireHostingAuth();
+      }
+    },
+    [requireHostingAuth]
+  );
+  useAppStatusChange(handleGateAppStatusChange);
+
+  useEffect(() => {
+    let canceled = false;
+    if (!contactId) {
+      return;
+    }
+
+    db.getContact({ id: contactId })
+      .then((contact) => {
+        if (!canceled) {
+          setProfile(contact);
+        }
+      })
+      .catch((error) => {
+        hostingAuthLogger.trackError(
+          'Failed to load profile for Hosting reconnect',
+          { error }
+        );
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [contactId]);
+
+  const requestReconnectCode = useCallback(async () => {
+    const recaptchaToken = await getRecaptchaToken('request_otp');
+    return store.requestHostingAuthReconnectCode({
+      recaptchaToken,
+      platform: selectRecaptchaPlatform(),
+    });
+  }, [getRecaptchaToken]);
+
+  const verifyReconnectCode = useCallback(async (otp: string) => {
+    await store.confirmHostingAuthReconnectCode(otp);
+    await clearHostingNativeCookie();
+    hostingAuthLogger.trackEvent('Hosting Reconnect Succeeded');
+    setHostingAuthState('checking');
+    setAuthAttempt((attempt) => attempt + 1);
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+
+    async function setup() {
+      hostingAuthLogger.log('Starting authenticated app', { authAttempt });
+      if (!(await requireHostingAuth({ force: true })) || canceled) {
+        return;
+      }
+
+      setHostingAuthState('valid');
+    }
+    setup();
+
+    return () => {
+      canceled = true;
+    };
+  }, [authAttempt, requireHostingAuth]);
+
+  if (hostingAuthState === 'expired') {
+    return (
+      <HostingAuthReconnectScreen
+        profileId={contactId ?? ''}
+        profile={profile}
+        onRequestCode={requestReconnectCode}
+        onVerifyCode={verifyReconnectCode}
+        onLogout={onLogout}
+      />
+    );
+  }
+
+  if (hostingAuthState === 'checking') {
+    return (
+      <ZStack flex={1} alignItems="center" justifyContent="center">
+        <LoadingSpinner />
+      </ZStack>
+    );
+  }
+
+  if (authenticatedContent !== undefined) {
+    return authenticatedContent;
+  }
+
+  return (
+    <ZStack flex={1}>
+      <AuthenticatedAppContent requireHostingAuth={requireHostingAuth} />
+      {authenticatedOverlay}
+    </ZStack>
   );
 }
