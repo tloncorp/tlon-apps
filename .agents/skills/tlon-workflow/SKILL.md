@@ -17,7 +17,7 @@ Everything below is written from the **repository root**. Steps 2 onward run fro
 
 ## Before anything
 
-From the **source checkout**, not a worktree, and unsandboxed:
+Unsandboxed:
 
 ```bash
 node .agents/skills/tlon-workflow-doctor/check.mjs
@@ -25,7 +25,7 @@ node .agents/skills/tlon-workflow-doctor/check.mjs
 
 If any line says `fix`, use the tlon-workflow-doctor skill and come back. Do not work around a missing tool.
 
-Run it in the source checkout because it reads `apps/tlon-mobile/.env.local`, which a worktree does not have until `warm`. Run it unsandboxed because under a shell sandbox `gh auth status` cannot reach the keyring and reports a false `not authenticated`.
+It inspects the source checkout wherever it is run from. Run it unsandboxed because under a shell sandbox `gh auth status` cannot reach the keyring and reports a false `not authenticated`.
 
 ## The loop
 

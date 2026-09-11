@@ -1,13 +1,22 @@
 #!/usr/bin/env node
 // Checks what the tlon-workflow skill depends on. --fix installs what it can.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FIX = process.argv.includes('--fix');
-const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
+const HERE = dirname(fileURLToPath(import.meta.url));
+// The source checkout, whichever copy of this script runs: a linked worktree
+// has no .env.local or node_modules of its own until `stim worktree warm`.
+const REPO = dirname(
+  spawnSync(
+    'git',
+    ['-C', HERE, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }
+  ).stdout?.trim() || join(resolve(HERE, '..', '..', '..'), '.git')
+);
 const APP = join(REPO, 'apps', 'tlon-mobile');
 const SKILL_DIRS = [
   join(homedir(), '.agents', 'skills'),
@@ -43,21 +52,6 @@ function hasSkill(name) {
 }
 
 const checks = [
-  {
-    name: 'checkout',
-    test() {
-      // Every check reads REPO, which is this script's own location, not the
-      // shell's cwd. Run from a worktree it reports that worktree -- where
-      // `.env.local` and `node_modules` are absent until `stim worktree warm`,
-      // so unrelated checks read as unconfigured.
-      if (!existsSync(join(REPO, '.git'))) return { ok: `${REPO}` };
-      const linked = !statSync(join(REPO, '.git')).isDirectory();
-      if (!linked) return { ok: `source checkout at ${REPO}` };
-      return {
-        note: `running the copy in a worktree (${REPO}); results describe it, not the source checkout`,
-      };
-    },
-  },
   {
     name: 'gh',
     test() {

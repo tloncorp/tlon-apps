@@ -12,9 +12,9 @@ node .agents/skills/tlon-workflow-doctor/check.mjs          # report
 node .agents/skills/tlon-workflow-doctor/check.mjs --fix    # install and re-check
 ```
 
-Run it from the source checkout, unsandboxed. It exits 0 when every line is `ok` or `note`, and 1 while any line says `fix`.
+Run it unsandboxed, from anywhere in the repository. It exits 0 when every line is `ok` or `note`, and 1 while any line says `fix`.
 
-Unsandboxed because `gh auth status` cannot reach the keyring inside a shell sandbox and reports a false `not authenticated`. From the source checkout because the ship-login check reads `apps/tlon-mobile/.env.local`, which a fresh worktree does not have until `stim worktree warm`.
+Unsandboxed because `gh auth status` cannot reach the keyring inside a shell sandbox and reports a false `not authenticated`. It always inspects the source checkout, even when run from a worktree: that is where `apps/tlon-mobile/.env.local` lives, and `stim worktree warm` copies it from there.
 
 ## What it checks
 
