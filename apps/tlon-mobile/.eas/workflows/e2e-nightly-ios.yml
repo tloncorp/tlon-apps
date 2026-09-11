@@ -1,8 +1,9 @@
-name: e2e-nightly-ios
+name: e2e-nightly-mobile
 
 on:
   schedule:
     - cron: "0 7 * * *"
+  workflow_dispatch: {}
 
 jobs:
   build_ios_for_e2e:
@@ -11,6 +12,13 @@ jobs:
     params:
       platform: ios
       profile: e2e
+
+  build_android_for_reliability:
+    type: build
+    environment: production
+    params:
+      platform: android
+      profile: local-testing
 
   tests_started:
     needs: [build_ios_for_e2e]
@@ -32,6 +40,48 @@ jobs:
       maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
       flows: "../../.maestro"
       name: nightly-develop-ios
+
+  reliability_ios:
+    after: [build_ios_for_e2e, maestro_nightly]
+    if: ${{ after.build_ios_for_e2e.status == 'success' }}
+    type: maestro-cloud
+    environment: production
+    env:
+      MAESTRO_APP_ID: io.tlon.groups
+      MAESTRO_EMAIL: ${{ env.MAESTRO_RELIABILITY_EMAIL }}
+      MAESTRO_PASSWORD: ${{ env.MAESTRO_RELIABILITY_PASSWORD }}
+      MAESTRO_TEST_SHIP: '~batbet-litnec'
+      MAESTRO_RUN_TAG: nightly-${{ workflow.id }}-ios
+    params:
+      build_id: ${{ after.build_ios_for_e2e.outputs.build_id }}
+      maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
+      maestro_version: 2.6.1
+      flows: '../../.maestro/reliability'
+      device_model: iPhone-17
+      device_os: iOS-26-2
+      name: nightly-reliability-ios
+
+  # Both platforms share the test ship. Run Android even if iOS tests failed,
+  # but wait for iOS to finish so profile/settings changes cannot race.
+  reliability_android:
+    after: [build_android_for_reliability, reliability_ios]
+    if: ${{ after.build_android_for_reliability.status == 'success' }}
+    type: maestro-cloud
+    environment: production
+    env:
+      MAESTRO_APP_ID: io.tlon.groups
+      MAESTRO_EMAIL: ${{ env.MAESTRO_RELIABILITY_EMAIL }}
+      MAESTRO_PASSWORD: ${{ env.MAESTRO_RELIABILITY_PASSWORD }}
+      MAESTRO_TEST_SHIP: '~batbet-litnec'
+      MAESTRO_RUN_TAG: nightly-${{ workflow.id }}-android
+    params:
+      build_id: ${{ after.build_android_for_reliability.outputs.build_id }}
+      maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
+      maestro_version: 2.6.1
+      flows: '../../.maestro/reliability'
+      device_model: pixel_6
+      device_os: android-33
+      name: nightly-reliability-android
 
   notify_webhook:
     name: Alert
@@ -90,14 +140,14 @@ jobs:
 
           let summary;
           if (buildStatus !== 'success') {
-            summary = `❌ Nightly iOS E2E build failed before tests ran${duration ? ` after ${duration}` : ''}`;
+            summary = `❌ Nightly iOS smoke build failed before tests ran${duration ? ` after ${duration}` : ''}`;
           } else if (maestroStatus !== 'success' && Number(totalCount) === 0) {
-            summary = `❌ Nightly iOS E2E run failed before Maestro results were available${duration ? ` after ${duration}` : ''}`;
+            summary = `❌ Nightly iOS smoke run failed before Maestro results were available${duration ? ` after ${duration}` : ''}`;
           } else if (Number(failedCount) > 0) {
             const failedNames = failedFlows.length ? ` (${failedFlows.join(', ')})` : '';
-            summary = `❌ Nightly iOS E2E finished with failures: ${successfulCount}/${totalCount} passed, ${failedCount} failed${duration ? ` in ${duration}` : ''}${failedNames}`;
+            summary = `❌ Nightly iOS smoke finished with failures: ${successfulCount}/${totalCount} passed, ${failedCount} failed${duration ? ` in ${duration}` : ''}${failedNames}`;
           } else {
-            summary = `✅ Nightly iOS E2E passed: ${successfulCount}/${totalCount} flows completed${duration ? ` in ${duration}` : ''}`;
+            summary = `✅ Nightly iOS smoke passed: ${successfulCount}/${totalCount} flows completed${duration ? ` in ${duration}` : ''}`;
           }
 
           process.stdout.write(
