@@ -5,7 +5,28 @@ import {
   verifyCodexAuth,
   allowArgentCall,
   resultSchemaFor,
+  interruptedResult,
 } from './codex.mjs';
+
+test('operator interruption keeps each acceptance criterion pending for review', () => {
+  const plan = {
+    scenarios: [
+      { id: 'edit', method: 'simulator', expected: 'The edited text persists' },
+      { id: 'missing', method: 'unavailable', expected: 'Peer receives text' },
+      { id: 'unit', method: 'regression', expected: 'Parser retains text' },
+    ],
+  };
+  const result = interruptedResult(plan, 'time limit');
+  assert.deepEqual(
+    result.checks.map((c) => [c.scenarioId, c.expected, c.status]),
+    [
+      ['edit', 'The edited text persists', 'blocked'],
+      ['missing', 'Peer receives text', 'blocked'],
+    ]
+  );
+  assert.deepEqual(result.discoveries, []);
+  assert.ok(result.checks.every((c) => c.evidence.length === 0));
+});
 
 test('device boundary rejects other simulators, apps, tools and exhausted runs', () => {
   const valid = { name: 'describe', arguments: { udid: 'assigned-device' } };

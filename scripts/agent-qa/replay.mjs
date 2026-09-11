@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { selectEvidence } from './publish.mjs';
 const [id, ref, mode] = process.argv.slice(2);
-if (mode && mode !== 'present')
-  throw new Error('Expected optional present mode');
+if (mode && !['present', 'complete'].includes(mode))
+  throw new Error('Expected optional present or complete mode');
 if (
   !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id || '') ||
   !/^[a-zA-Z0-9][a-zA-Z0-9/_.-]{0,199}$/.test(ref || '')
@@ -30,6 +30,7 @@ const artifact = run.jobs
   .artifacts.find((a) => a.name === 'ios-agent-qa');
 if (!artifact) throw new Error('Missing recorded evidence');
 const descriptor = {
+  complete: mode === 'complete',
   id,
   sha: run.gitCommitHash,
   video: video

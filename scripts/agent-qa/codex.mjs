@@ -25,6 +25,25 @@ export const argentTools = [
   'launch-app',
 ];
 
+// An interrupted operator is not a verdict on evidence already captured.
+// Keep every acceptance criterion pending for the independent reviewers.
+export function interruptedResult(assessment, reason) {
+  return {
+    status: 'blocked',
+    summary: reason,
+    discoveries: [],
+    checks: assessment.scenarios
+      .filter((s) => s.method !== 'regression')
+      .map((s) => ({
+        scenarioId: s.id,
+        status: 'blocked',
+        expected: s.expected,
+        observed: `Operator interrupted: ${reason}. Review the captured evidence; do not infer an outcome from the interruption.`,
+        evidence: [],
+      })),
+  };
+}
+
 export function allowArgentCall(params, udid, appId, count) {
   if (count > 100) throw new Error('Argent reached its 100-tool-call limit');
   if (!udid || params.arguments?.udid !== udid)

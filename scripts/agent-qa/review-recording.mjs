@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import { reviewEvidence } from './review.mjs';
-import { verifyCodexAuth } from './codex.mjs';
+import { verifyCodexAuth, interruptedResult } from './codex.mjs';
 import { verifyReport, renderReport } from './core.mjs';
 import { verifyCoverage } from './assess.mjs';
 const descriptor = JSON.parse(process.env.QA_REPLAY_EVIDENCE || 'null');
@@ -75,12 +75,14 @@ const assessment = {
     (s) => s.method !== 'regression'
   ),
 };
-const operator = {
-  ...original.report,
-  checks: original.report.checks.filter((c) =>
-    assessment.scenarios.some((s) => s.id === c.scenarioId)
-  ),
-};
+const operator = descriptor.complete
+  ? interruptedResult(assessment, original.report.summary)
+  : {
+      ...original.report,
+      checks: original.report.checks.filter((c) =>
+        assessment.scenarios.some((s) => s.id === c.scenarioId)
+      ),
+    };
 let video;
 if (descriptor.video) {
   const v = descriptor.video,
@@ -117,7 +119,7 @@ const result = await reviewEvidence({
   artifacts: source,
   usage,
   video,
-  videoOnly: Boolean(video),
+  videoOnly: Boolean(video) && !descriptor.complete,
 });
 result.status = [...result.checks, ...result.discoveries].some(
   (c) => c.status === 'failed'
@@ -145,7 +147,14 @@ const context = {
   ...original.context,
   mode: 'Evidence replay only',
   assessment,
+  evidenceReview: 'completed',
+  operatorInterruption: descriptor.complete
+    ? original.report.summary
+    : original.context.operatorInterruption,
 };
+const counts = { passed: 0, failed: 0, blocked: 0 };
+for (const check of result.checks) counts[check.status]++;
+result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. ${result.discoveries.length} unexpected findings.`;
 const report = renderReport(context, result, usage);
 writeFileSync(
   path.join(out, 'replay.json'),
@@ -165,6 +174,33 @@ writeFileSync(
 );
 writeFileSync(path.join(out, 'report.md'), report);
 console.log(report);
+if (descriptor.complete) {
+  if (!video) throw new Error('Completing a recorded run requires its video');
+  writeFileSync(
+    path.join(source, 'report.json'),
+    JSON.stringify({
+      ...original,
+      context,
+      report: result,
+      usage,
+      evidence: { ...original.evidence, ...receipts },
+    })
+  );
+  execFileSync(
+    process.execPath,
+    [path.join(root, 'scripts/agent-qa/present-run.mjs')],
+    {
+      env: {
+        ...process.env,
+        QA_EVIDENCE_PATH: source,
+        QA_VIDEO_PATH: video.file,
+        QA_WORKFLOW_URL: `https://expo.dev/accounts/tlon/projects/groups/workflows/${id}`,
+      },
+      stdio: 'inherit',
+      timeout: 12 * 60_000,
+    }
+  );
+}
 // Keep original evidence at its source run, and retain only this review's receipts/events.
 rmSync(archive, { force: true });
 if (video) rmSync(video.file, { force: true });

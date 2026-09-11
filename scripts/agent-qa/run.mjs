@@ -1,5 +1,5 @@
 import { reviewEvidence, unresolvedVideoAssessment } from './review.mjs';
-import { runCodex, verifyCodexAuth } from './codex.mjs';
+import { runCodex, verifyCodexAuth, interruptedResult } from './codex.mjs';
 import { verifyCoverage, verifySourceOverlay } from './assess.mjs';
 import { connectShips } from './ship-proxy.mjs';
 import { execFile } from 'node:child_process';
@@ -532,6 +532,13 @@ async function agent(diff) {
     clean,
     usage,
     signal: agentAbort.signal,
+  }).catch((error) => {
+    if (!context.assessment || agentAbort.signal.aborted) throw error;
+    context.operatorInterruption = clean(error.message);
+    console.log(
+      `Operator interrupted; reviewing saved evidence: ${context.operatorInterruption}`
+    );
+    return interruptedResult(context.assessment, context.operatorInterruption);
   });
   await writeFile(
     path.join(artifacts, 'agent-result.json'),
