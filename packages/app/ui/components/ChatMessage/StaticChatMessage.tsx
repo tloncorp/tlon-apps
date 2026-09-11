@@ -160,6 +160,8 @@ export function StaticChatMessage({
     post.deliveryStatus === 'failed' ||
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
+  const activeDeliveryStatus =
+    post.deliveryStatus !== 'failed' ? post.deliveryStatus : null;
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -601,7 +603,7 @@ export function StaticChatMessage({
         />
       ) : null}
 
-      {!hideSentAtTimestamp && !showAuthor && (
+      {!hideSentAtTimestamp && !showAuthor && !activeDeliveryStatus && (
         <SentTimeText
           sentAt={post.sentAt}
           color="$tertiaryText"
@@ -611,15 +613,17 @@ export function StaticChatMessage({
         />
       )}
 
-      {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
+      {activeDeliveryStatus ? (
+        // Without an author row the top-right corner is the content itself
+        // (full-width images, videos, refs), so use the empty avatar gutter.
         <View
           pointerEvents="none"
           position="absolute"
-          right={12}
+          {...(showAuthor ? { right: 12 } : { left: 12 })}
           top={8}
           zIndex={199}
         >
-          <ChatMessageDeliveryStatus status={post.deliveryStatus} />
+          <ChatMessageDeliveryStatus status={activeDeliveryStatus} />
         </View>
       ) : null}
 
