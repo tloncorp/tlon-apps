@@ -57,7 +57,7 @@ stim android                              # only after ios has finished
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
 
-A cold `stim ios` takes 6 to 11 minutes here, longer than most tool timeouts. Run it in the background, or with the longest timeout your tools allow, and wait for it to exit. If a call times out anyway, run `stim status` before running `stim ios` again: the build is usually still going, and the log's `build_done` line says when it finished.
+A cold `stim ios` takes 6 to 11 minutes here, longer than most tool timeouts. Run it in the background, or with the longest timeout your tools allow. If a call times out anyway, run the same command again: the build outlives the shell, and the retry waits for it and installs the result rather than compiling twice.
 
 Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android` is right and `--variant` is not needed. For the preview flavor (`io.tlon.groups.preview`), ask for it:
 
@@ -121,7 +121,7 @@ Reproduce in a throwaway group named after the task (`TLON-1234 repro`), not the
 
 When a label is too long for the screen, read the text (`agent-device snapshot`) rather than trusting the picture.
 
-If the steps do not reproduce on current `develop`, check whether the fix already landed before doubting the ticket: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. A ticket filed weeks ago is often fixed. If it is, stop and report which pull request fixed it, with the recording that shows it not reproducing.
+If the steps do not reproduce on current `develop`, check whether the fix already landed before doubting the ticket: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. A ticket filed weeks ago is often fixed. If it is, stop: comment on the ticket naming the pull request that fixed it and the platforms you checked, and report the same to the user with the recording. No pull request.
 
 ### 5. Fix
 
@@ -195,7 +195,3 @@ git branch -d <handle>/<topic>
 ## Under a sandbox
 
 Stim writes to `~/.stim`, talks to the simulator service, and binds the adb port -- all outside a typical shell sandbox. `stim doctor` names this and offers `stim doctor --fix`, which writes an allowance into `.claude/settings.local.json`. That file is your own permission configuration: do not change it because a tool told you to. Run the Stim, agent-device and `gh` calls unsandboxed instead, or ask the user to apply the allowance themselves.
-
-## Two things Stim prints that look wrong and are not
-
-`waited 6m51s for .../<other>'s build -> installed from cache` on either platform: two worktrees on the same commit share one compile, and the second waits for the first rather than building. And `launch err` inside a run that ends `OK`: read the summary line, not the phase transcript.
