@@ -8,7 +8,7 @@ import {
 import { useShip } from '@tloncorp/app/contexts/ship';
 import {
   Field,
-  KeyboardAvoidingView,
+  OnboardingKeyboardScrollView,
   OnboardingTextBlock,
   ScreenHeader,
   TextInput,
@@ -68,7 +68,8 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     if (!urlPattern.test(url)) {
       return false;
     }
-    if (hostedPattern.test(url)) {
+    // dev helper: allow logging in to hosted ships with their access code
+    if (hostedPattern.test(url) && !__DEV__) {
       return 'hosted';
     }
     return true;
@@ -131,6 +132,14 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
     }
   }, [errors.shipUrl, formattedShipUrl, setFocus, setValue]);
 
+  // dev helper: validate the env-prefilled credentials up front so Connect is
+  // enabled without having to visit each field first
+  useEffect(() => {
+    if (__DEV__ && DEFAULT_SHIP_LOGIN_URL && DEFAULT_SHIP_LOGIN_ACCESS_CODE) {
+      trigger();
+    }
+  }, [trigger]);
+
   return (
     <View flex={1} backgroundColor="$secondaryBackground">
       <ScreenHeader
@@ -144,7 +153,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
           </ScreenHeader.TextButton>
         }
       />
-      <KeyboardAvoidingView behavior="height" keyboardVerticalOffset={90}>
+      <OnboardingKeyboardScrollView>
         <YStack gap="$m" paddingHorizontal="$2xl">
           <OnboardingTextBlock>
             <TlonText.Text size="$body" color="$primaryText">
@@ -252,7 +261,7 @@ export const ShipLoginScreen = ({ navigation }: Props) => {
             </TlonText.Text>
           </View>
         </YStack>
-      </KeyboardAvoidingView>
+      </OnboardingKeyboardScrollView>
     </View>
   );
 };

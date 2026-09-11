@@ -145,6 +145,14 @@ function hasPendingNotesNoteSave(notebookFlag: string, noteId: number) {
   );
 }
 
+export function usePendingNotesNoteSaveChanges() {
+  return useSyncExternalStore(
+    subscribeToPendingNotesNoteSaves,
+    getPendingNotesNoteSaveEpoch,
+    getPendingNotesNoteSaveEpoch
+  );
+}
+
 function markPendingNotesNoteSave(notebookFlag: string, noteId: number) {
   const key = draftSnapshotKey(notebookFlag, noteId);
   pendingNotesNoteSaveCounts.set(
@@ -264,6 +272,22 @@ export function getNotesNoteDraftSnapshot(
     return null;
   }
   return snapshot;
+}
+
+// When the retained snapshot for this note will lazily expire, after which
+// `getNotesNoteDraftSnapshot` stops returning it and a publish falls back to
+// the saved row. Null when nothing is retained, or when a pending save is
+// holding the snapshot open with no deadline to wait for.
+export function getNotesNoteDraftSnapshotExpiry(
+  notebookFlag: string,
+  noteId: number
+) {
+  const snapshot = notesNoteDraftSnapshots.get(
+    draftSnapshotKey(notebookFlag, noteId)
+  );
+  if (!snapshot) return null;
+  if (hasPendingNotesNoteSave(notebookFlag, noteId)) return null;
+  return snapshot.updatedAt + DRAFT_SNAPSHOT_TTL_MS;
 }
 
 function getNotePreviewModeKey(
@@ -435,11 +459,7 @@ export function NotesNoteDetail({
   const [bodyInputWidth, setBodyInputWidth] = useState(0);
   const [saveState, setSaveState] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
-  useSyncExternalStore(
-    subscribeToPendingNotesNoteSaves,
-    getPendingNotesNoteSaveEpoch,
-    getPendingNotesNoteSaveEpoch
-  );
+  usePendingNotesNoteSaveChanges();
   // The host's copy of the note after a save hit a genuine revision
   // conflict. While set, autosave is suspended and the banner offers the
   // user the resolution (keep mine / use theirs) — a blind retry can never

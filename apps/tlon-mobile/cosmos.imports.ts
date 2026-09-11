@@ -51,7 +51,7 @@ import * as fixture46 from './../../packages/app/fixtures/MessageInput.fixture';
 import * as fixture47 from './../../packages/app/fixtures/MetaEditorScreen.fixture';
 import * as fixture48 from './../../packages/app/fixtures/NotebookPost.fixture';
 import * as fixture49 from './../../packages/app/fixtures/Onboarding.fixture';
-import * as fixture50 from './../../packages/app/fixtures/ParentAgnosticKeyboardAvoidingView.fixture';
+import * as fixture50 from './../../packages/app/fixtures/KeyboardAvoidingView.fixture';
 import * as fixture51 from './../../packages/app/fixtures/PostErrorMessage.fixture';
 import * as fixture52 from './../../packages/app/fixtures/PostReference.fixture';
 import * as fixture53 from './../../packages/app/fixtures/PostScreen.fixture';
@@ -202,8 +202,9 @@ const fixtures = {
   },
   '../../packages/app/fixtures/NotebookPost.fixture.tsx': { module: fixture48 },
   '../../packages/app/fixtures/Onboarding.fixture.tsx': { module: fixture49 },
-  '../../packages/app/fixtures/ParentAgnosticKeyboardAvoidingView.fixture.tsx':
-    { module: fixture50 },
+  '../../packages/app/fixtures/KeyboardAvoidingView.fixture.tsx': {
+    module: fixture50,
+  },
   '../../packages/app/fixtures/PostErrorMessage.fixture.tsx': {
     module: fixture51,
   },

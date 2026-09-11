@@ -29,6 +29,7 @@ export * from './components/ContentReference';
 export * from './components/EditProfileScreenView';
 export * from './components/EditableProfileImages';
 export * from './components/VideoPreview';
+export * from './components/EmailSupportLink';
 export * from './components/Emoji/EmojiPickerSheet';
 export * from './components/FacePile';
 export * from './components/FeatureFlagScreenView';

@@ -120,8 +120,49 @@ def hasSentryAuthToken = System.getenv("SENTRY_AUTH_TOKEN")
 def hasSentryProperties = file("$rootDir/sentry.properties").exists() || file("$projectDir/sentry.properties").exists()
 if (hasSentryAuthToken || hasSentryProperties) {
     apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
+
+    // `sentry.gradle` above only uploads the JS source map. Native (NDK) frames stay
+    // unsymbolicated without the Sentry Android Gradle Plugin, which is what uploads
+    // the unstripped .so debug info — so a Fabric SIGSEGV shows one exported symbol
+    // and `?` for every other frame.
+    //
+    // Applied inside the same gate as the source map upload: SAGP has no per-variant
+    // switch (the `sentry {}` extension is project-wide), so gating the `apply` is the
+    // gate. Scoping to release is left to the plugin, which only registers upload
+    // tasks for non-debuggable variants.
+    apply plugin: "io.sentry.android.gradle"
+
+    sentry {
+        // `shouldSentryAutoUpload()` comes from sentry.gradle and honours
+        // SENTRY_DISABLE_AUTO_UPLOAD / SENTRY_DISABLE_NATIVE_DEBUG_UPLOAD, so native
+        // symbols obey the same escape hatches as the source map upload. Org, project
+        // and token are deliberately not set here: sentry-cli then reads the same
+        // SENTRY_* environment / sentry.properties the source map upload uses.
+        uploadNativeSymbols = shouldSentryAutoUpload()
+        autoUploadNativeSymbols = shouldSentryAutoUpload()
+        includeNativeSources = true
+
+        // @sentry/react-native already brings io.sentry:sentry-android (pinned in
+        // app/gradle.lockfile). Auto-installation would add the plugin's own version
+        // on top and break the lock.
+        autoInstallation {
+            enabled = false
+        }
+        // Bytecode instrumentation is a tracing feature we don't use; leaving it on
+        // would rewrite classes at build time for no benefit.
+        tracingInstrumentation {
+            enabled = false
+        }
+        // On by default, which would report build metrics to Sentry from every
+        // credentialed CI build; nobody asked for that.
+        telemetry = false
+        // R8 mapping handling stays exactly as it is today — sentry.gradle uploads no
+        // mapping, and turning that on is a separate change from native symbols.
+        includeProguardMapping = false
+        autoUploadProguardMapping = false
+    }
 } else {
-    logger.lifecycle("Skipping Sentry source map upload (no SENTRY_AUTH_TOKEN or sentry.properties found)")
+    logger.lifecycle("Skipping Sentry source map and native symbol upload (no SENTRY_AUTH_TOKEN or sentry.properties found)")
 }
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -133,6 +174,15 @@ android {
         compileSdk rootProject.ext.compileSdkVersion
         versionCode 108
         versionName "9.5.2"
+
+        // Read by RNFB as `rnfirebase_crashlytics_auto_collection_enabled`, ahead of
+        // its own `BuildConfig.DEBUG` check. That check can't be trusted here: RNGP
+        // generates a `debugOptimized` build type whose matchingFallbacks send every
+        // dependency lacking it to `release`, so the Crashlytics library believes it
+        // is in a production build while react-android — which does declare
+        // `debugOptimized` — turns Metro dev support on. Default off so a new build
+        // type never starts reporting into the production project by accident.
+        manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "false"
     }
     compileOptions {
         coreLibraryDesugaringEnabled true
@@ -153,10 +203,24 @@ android {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
             signingConfig signingConfigs.debug
+            manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "true"
             shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
+            firebaseCrashlytics {
+                // Symbolize native crash frames inside third-party .so files. With
+                // unstrippedNativeLibsDir left unset the plugin reads AGP's
+                // MERGED_NATIVE_LIBS artifact — every .so before stripping, from
+                // autolinked CMake modules (libworklets.so, libreanimated.so) and
+                // prebuilt AARs alike. Setting that property *replaces* the default
+                // rather than adding to it, so don't.
+                //
+                // Nothing wires the upload into assemble/bundle, so a build has to ask
+                // for :app:uploadCrashlyticsSymbolFile<Variant> by name — see the
+                // Android gradleCommand entries in eas.json.
+                nativeSymbolUploadEnabled true
+            }
         }
         releaseDebuggable {
             // Like release but with debuggable=true for testing
@@ -164,6 +228,8 @@ android {
             debuggable true
             signingConfig signingConfigs.debug
             matchingFallbacks = ['release']
+            // initWith copied release's `true`; this variant is never shipped.
+            manifestPlaceholders["crashlyticsAutoCollectionEnabled"] = "false"
         }
     }
     packagingOptions {
