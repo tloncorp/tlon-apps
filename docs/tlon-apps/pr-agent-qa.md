@@ -365,6 +365,8 @@ It groups duplicate descriptions of the same problem and explains when it happen
 what the reviewer saw, and the practical consequence. Every original finding must
 appear in exactly one group; failed and blocked findings cannot be merged. The
 editor has no media, source, shell, or other tools and makes no new review verdict.
+A second text-only pass checks the draft against the original observations for
+changed timing, unsupported causes, lost uncertainty, and misleading grouping.
 All original observations, checks, source hypotheses, and source commits remain in
 collapsed sections of the comment and in the original artifacts.
 
