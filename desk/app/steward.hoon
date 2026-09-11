@@ -78,26 +78,10 @@
     [~[watch-activity:cor] this]
   ++  on-save  !>(state)
   ++  on-load
-    |=  ole=vase
+    |=  =vase
     ^-  (quip card _this)
-    =+  !<(old=versioned-state ole)
-    ?-  -.old
-      %1  `this(state old)
-      ::  %0 → %1: the gateway slice gained leading .notify-on-start and
-      ::  .last-interaction fields
-        %0
-      =.  state  [%1 owner.old bots.old lens.old [| *@da gateway.old]]
-      ::  seed the liveness claim for a bot that predates it: heartbeats
-      ::  only advertise on an up transition, so an already-up gateway
-      ::  would otherwise stay unknown until its next restart. no owner
-      ::  means no bot (%steward runs on every ship); %unknown means the
-      ::  gateway never registered.
-      =/  seed  &(?=(^ owner.state) !?=(%unknown status.gateway.state))
-      ?.  seed  `this
-      =^  cards  state
-        abet:(ga-advertise-liveness:ga-core:cor =(%up status.gateway.state))
-      [cards this]
-    ==
+    =^  cards  state  abet:(load:cor vase)
+    [cards this]
   ++  on-poke
     |=  [=mark =vase]
     ^-  (quip card _this)
@@ -136,6 +120,34 @@
 ++  abet  [(flop cards) state]
 ++  emit  |=(=card cor(cards [card cards]))
 ++  give  |=(=gift:agent:gall (emit %give gift))
+::
+::  +load: progressive migration, one version per step, with cards emitted
+::  at the version they belong to (the shape of +load in %activity).
+::
+++  load
+  |=  =vase
+  ^+  cor
+  =+  !<(old=versioned-state vase)
+  =?  cor  ?=(%0 -.old)  (seed-migrated-liveness old)
+  =?  old  ?=(%0 -.old)  (state-0-to-1 old)
+  ?>  ?=(%1 -.old)
+  cor(state old)
+::  %0 → %1: the gateway slice gained leading .notify-on-start and
+::  .last-interaction fields
+++  state-0-to-1
+  |=  old=state-0
+  ^-  state-1
+  [%1 owner.old bots.old lens.old [| *@da gateway.old]]
+::  a %0 bot's gateway registered before the liveness claim existed, and
+::  heartbeats only advertise on an up transition: seed the claim from the
+::  migrated status, or an already-up gateway stays unknown until its next
+::  restart. no owner means no bot (%steward runs on every ship); %unknown
+::  means the gateway never registered.
+++  seed-migrated-liveness
+  |=  old=state-0
+  ^+  cor
+  ?.  &(?=(^ owner.old) !?=(%unknown status.gateway.old))  cor
+  (ga-advertise-liveness:ga-core =(%up status.gateway.old))
 ::
 ++  poke
   |=  [=mark =vase]
