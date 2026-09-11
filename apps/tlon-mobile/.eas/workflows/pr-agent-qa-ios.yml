@@ -254,10 +254,9 @@ jobs:
           artifact_id: ${{ after.qa_ios.outputs.evidence_artifact }}
       - name: Explain findings and embed their clips
         id: publish
-        env:
-          QA_EVIDENCE_PATH: ${{ steps.evidence.outputs.artifact_path }}
-          QA_VIDEO_PATH: ${{ steps.recording.outputs.artifact_path }}
         run: |
+          export QA_EVIDENCE_PATH="${{ steps.evidence.outputs.artifact_path }}"
+          export QA_VIDEO_PATH="${{ steps.recording.outputs.artifact_path }}"
           node ../../scripts/agent-qa/present-run.mjs || exit 1
           set-output comment_url "$(cat /tmp/qa-comment-url)"
       - uses: eas/upload_artifact
