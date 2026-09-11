@@ -77,10 +77,10 @@ type NotesNoteSaveChain = {
 // Long enough that we don't fire a save on every typing pause; exits are
 // covered by the flush paths and the draft stash either way.
 const AUTOSAVE_DEBOUNCE_MS = 10_000;
-const MIN_BODY_INPUT_HEIGHT = 360;
+export const MIN_BODY_INPUT_HEIGHT = 360;
 const NOTE_COLUMN_MAX_WIDTH = 760;
 const BODY_FONT_SIZE = 14;
-const BODY_LINE_HEIGHT = 22;
+export const BODY_LINE_HEIGHT = 22;
 const BODY_MONO_CHAR_WIDTH = BODY_FONT_SIZE * 0.62;
 const SAVE_STATUS_SLOT_WIDTH = 88;
 const DRAFT_SNAPSHOT_TTL_MS = 120_000;
@@ -341,24 +341,56 @@ function useNotePreviewMode(
   return [isPreviewing, setPreviewMode] as const;
 }
 
-function estimateBodyInputHeight(body: string, inputWidth: number) {
+// The body input cannot size itself: with scrolling disabled it lays out at
+// its minHeight and onContentSizeChange only echoes the frame it was given, so
+// its height has to be computed here and it clips whatever falls below.
+// UIKit wraps at word boundaries, so a paragraph takes more lines than its
+// character count divided by the columns per line whenever a word would have
+// straddled the edge. Counting characters instead left the last lines of a
+// note outside the frame -- measured on iOS 26.5 as the final 17 characters
+// of a 3,671-character note never being drawn, at any scroll position.
+// Erring long only leaves blank space below the text; erring short hides it,
+// so every ambiguity here rounds towards more lines.
+export function estimateBodyInputHeight(body: string, inputWidth: number) {
   if (!inputWidth) return MIN_BODY_INPUT_HEIGHT;
 
   const charsPerLine = Math.max(
     1,
     Math.floor(inputWidth / BODY_MONO_CHAR_WIDTH)
   );
-  const visualLineCount = body
-    .split('\n')
-    .reduce(
-      (count, line) =>
-        count + Math.max(1, Math.ceil(line.length / charsPerLine)),
-      0
-    );
+  let lineCount = 0;
+  for (const paragraph of body.split('\n')) {
+    lineCount += 1;
+    let column = 0;
+    for (const run of paragraph.match(/\S+|\s+/g) ?? []) {
+      let length = run.length;
+      if (column + length <= charsPerLine) {
+        column += length;
+        continue;
+      }
+      if (/^\s/.test(run)) {
+        // Whitespace that would cross the edge hangs off it; the next word
+        // starts the following line.
+        lineCount += 1;
+        column = 0;
+        continue;
+      }
+      if (column > 0) {
+        lineCount += 1;
+        column = 0;
+      }
+      // A word longer than a line breaks by character.
+      while (length > charsPerLine) {
+        lineCount += 1;
+        length -= charsPerLine;
+      }
+      column = length;
+    }
+  }
 
   return Math.max(
     MIN_BODY_INPUT_HEIGHT,
-    Math.ceil(visualLineCount * BODY_LINE_HEIGHT)
+    Math.ceil(lineCount * BODY_LINE_HEIGHT)
   );
 }
 
@@ -498,6 +530,11 @@ export function NotesNoteDetail({
   // down by the height of the header on the first restore.
   const scrollOffsetYRef = useRef<number | null>(null);
   const pendingScrollRestoreYRef = useRef<number | null>(null);
+  // Where the caret is, straight from the input. Unlike the offset above this
+  // cannot go stale: onSelectionChange fires for every caret move, including
+  // the ones typing causes, and it is evaluated against the draft it moved in.
+  const caretAtBodyEndRef = useRef(false);
+  const pendingScrollFollowCaretRef = useRef(false);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
@@ -774,6 +811,8 @@ export function NotesNoteDetail({
     scrolledNoteIdRef.current = noteId;
     scrollOffsetYRef.current = null;
     pendingScrollRestoreYRef.current = null;
+    caretAtBodyEndRef.current = false;
+    pendingScrollFollowCaretRef.current = false;
   }, [noteId]);
 
   // Toggling preview swaps the rendered markdown for the editor, which lays the
@@ -786,6 +825,7 @@ export function NotesNoteDetail({
   useLayoutEffect(() => {
     scrollOffsetYRef.current = null;
     pendingScrollRestoreYRef.current = null;
+    pendingScrollFollowCaretRef.current = false;
   }, [isPreviewing]);
 
   const preserveScrollOffset = useCallback(() => {
@@ -807,13 +847,24 @@ export function NotesNoteDetail({
     if (restoreY === null || isPreviewing) return;
 
     pendingScrollRestoreYRef.current = null;
+    const followCaret = pendingScrollFollowCaretRef.current;
+    pendingScrollFollowCaretRef.current = false;
     // Restored unbounded on purpose. Every value here is one the scroll view
     // reported, so it is reachable by construction, and with the keyboard open
     // automaticallyAdjustKeyboardInsets makes offsets past the inset-free end
     // valid; bounding them there would scroll the caret behind the keyboard.
     // scrollTo is clamped to the live range by UIKit regardless.
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ y: restoreY, animated: false });
+      const view = scrollViewRef.current;
+      if (!view) return;
+      if (followCaret) {
+        // The caret is at the end of the body, so the end of the content is
+        // where it is. scrollToEnd needs no offset of its own, so a stale one
+        // cannot misdirect it.
+        view.scrollToEnd({ animated: false });
+        return;
+      }
+      view.scrollTo({ y: restoreY, animated: false });
     });
   }, [bodyDraft, bodyInputHeight, draftBase, isPreviewing, saveState]);
 
@@ -1568,10 +1619,26 @@ export function NotesNoteDetail({
         return;
       }
       preserveScrollOffset();
+      // Typing does not move the scroll view on its own, so appending at the
+      // end walks the caret down a line at a time until the keyboard covers
+      // it. Following the end is only right when the caret is actually there,
+      // which is why this asks the input rather than the last reported offset
+      // -- deciding it from the offset scrolled the note to its end while the
+      // caret sat near the top (see the isPreviewing reset above).
+      pendingScrollFollowCaretRef.current = caretAtBodyEndRef.current;
       bodyDraftRef.current = nextBody;
       setBodyDraft(nextBody);
     },
     [preserveScrollOffset]
+  );
+
+  const handleBodySelectionChange = useCallback(
+    (event: { nativeEvent: { selection: { start: number; end: number } } }) => {
+      const { start, end } = event.nativeEvent.selection;
+      caretAtBodyEndRef.current =
+        start === end && end === bodyDraftRef.current.length;
+    },
+    []
   );
 
   const handleBodyInputFocus = useCallback(() => {
@@ -1815,6 +1882,7 @@ export function NotesNoteDetail({
                   value={bodyDraft}
                   onChangeText={handleBodyDraftChange}
                   onFocus={handleBodyInputFocus}
+                  onSelectionChange={handleBodySelectionChange}
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"

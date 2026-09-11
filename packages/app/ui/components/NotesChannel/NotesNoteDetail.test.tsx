@@ -16,6 +16,9 @@ import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import {
   NotesNoteDetail,
   deriveNotesNoteSaveFieldIntent,
+  BODY_LINE_HEIGHT,
+  MIN_BODY_INPUT_HEIGHT,
+  estimateBodyInputHeight,
 } from './NotesNoteDetail';
 
 const mocks = vi.hoisted(() => ({
@@ -1780,6 +1783,7 @@ describe('NotesNoteDetail scroll restoration', () => {
 
   async function renderDetail(noteId = 1) {
     const scrollTo = vi.fn();
+    const scrollToEnd = vi.fn();
     let renderer!: ReactTestRenderer;
     await act(async () => {
       renderer = create(
@@ -1792,12 +1796,12 @@ describe('NotesNoteDetail scroll restoration', () => {
           createNodeMock: (element) =>
             (element.props as { testID?: string }).testID ===
             'NotesDetailScrollView'
-              ? { scrollTo }
+              ? { scrollTo, scrollToEnd }
               : null,
         }
       );
     });
-    return { renderer, scrollTo };
+    return { renderer, scrollTo, scrollToEnd };
   }
 
   it('leaves an untouched note where the header put it', async () => {
@@ -1874,6 +1878,49 @@ describe('NotesNoteDetail scroll restoration', () => {
     await act(async () => renderer.unmount());
   });
 
+  it('follows the end when the caret is there and the body grows', async () => {
+    const { renderer, scrollTo, scrollToEnd } = await renderDetail();
+    const body = bodyInput(renderer);
+    const draft = body.props.value as string;
+
+    await act(async () => {
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 640 }));
+      // The input reports the caret at the very end of the draft.
+      body.props.onSelectionChange({
+        nativeEvent: { selection: { start: draft.length, end: draft.length } },
+      });
+    });
+    await act(async () => {
+      body.props.onChangeText(draft + ' appended');
+    });
+
+    // Re-asserting y=640 holds the viewport still while the body grows under
+    // it, walking the caret behind the keyboard. The end is where the caret
+    // is, and scrollToEnd cannot be misdirected by a stale offset.
+    expect(scrollToEnd).toHaveBeenCalledWith({ animated: false });
+    expect(scrollTo).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
+  it('keeps the captured offset when the caret is not at the end', async () => {
+    const { renderer, scrollTo, scrollToEnd } = await renderDetail();
+    const body = bodyInput(renderer);
+
+    await act(async () => {
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 640 }));
+      body.props.onSelectionChange({
+        nativeEvent: { selection: { start: 3, end: 3 } },
+      });
+    });
+    await act(async () => {
+      body.props.onChangeText('abcX' + (body.props.value as string).slice(3));
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 640, animated: false });
+    expect(scrollToEnd).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
   it('drops the previous note offsets when the note changes', async () => {
     const { renderer, scrollTo } = await renderDetail(1);
 
@@ -1895,5 +1942,44 @@ describe('NotesNoteDetail scroll restoration', () => {
 
     expect(scrollTo).not.toHaveBeenCalled();
     await act(async () => renderer.unmount());
+  });
+});
+
+describe('estimateBodyInputHeight', () => {
+  // BODY_MONO_CHAR_WIDTH is 14 * 0.62 = 8.68, so this width gives exactly ten
+  // columns per line.
+  const TEN_COLUMNS = 8.68 * 10 + 0.1;
+  const lines = (count: number) =>
+    Math.max(MIN_BODY_INPUT_HEIGHT, count * BODY_LINE_HEIGHT);
+
+  it('falls back to the minimum before the input has a width', () => {
+    expect(estimateBodyInputHeight('anything', 0)).toBe(MIN_BODY_INPUT_HEIGHT);
+  });
+
+  it('wraps at word boundaries rather than by character count', () => {
+    // 17 characters fit in two lines of ten by count, but UIKit will not split
+    // "bbbbb" across the edge, so each word lands on its own line.
+    const paragraph = 'aaaaa bbbbb ccccc';
+    const body = Array(20).fill(paragraph).join('\n');
+    // Counting characters gave ceil(17 / 10) = 2 lines per paragraph; the
+    // third line of every paragraph was outside the input and clipped.
+    expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(60));
+  });
+
+  it('breaks a word longer than a line by character', () => {
+    const body = Array(20).fill('a'.repeat(25)).join('\n');
+    expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(60));
+  });
+
+  it('lets the wrapping space hang instead of starting the next line', () => {
+    // "aaaaaaaaaa" fills the line exactly; the following space must not push
+    // "bb" down an extra line on its own.
+    const body = Array(20).fill('aaaaaaaaaa bb').join('\n');
+    expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(40));
+  });
+
+  it('counts an empty paragraph as a line', () => {
+    const body = Array(30).fill('').join('\n');
+    expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(30));
   });
 });
