@@ -126,7 +126,8 @@ jobs:
     steps:
       - uses: eas/checkout
       - name: Install the assessment harness
-        run: npm install -g @openai/codex@0.145.0
+        run: |
+          if [ -z "${QA_PREPARED_ASSESSMENT_JSON:-}" ]; then npm install -g @openai/codex@0.145.0; fi
       - id: assess
         name: Assess user-facing changes and plan simulator checks
         run: |

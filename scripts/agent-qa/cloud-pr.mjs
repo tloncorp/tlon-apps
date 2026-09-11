@@ -1,5 +1,6 @@
 import { assessmentForRetry } from './reuse-assessment.mjs';
 import { selectEvidence } from './publish.mjs';
+import { workflowState } from './workflow-state.mjs';
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 const env = process.env;
@@ -49,6 +50,7 @@ async function wait(id, minutes, deviceOnly = false) {
   const deadline = Date.now() + minutes * 60000;
   while (Date.now() < deadline) {
     const run = eas(['workflow:view', id]);
+    run.status = workflowState(run);
     if (
       deviceOnly &&
       run.jobs.some(
@@ -116,13 +118,16 @@ if (process.argv[2] === 'assess') {
       pr
     );
     console.log(
-      `Revalidating assessment from ${env.QA_ASSESSMENT_RUN_ID} against unchanged product commits.`
+      `Reusing assessment ${env.QA_ASSESSMENT_RUN_ID}; the build job revalidates its source citations before backend setup.`
     );
   }
-  const id = await dispatch(inputs, ref);
-  const run = await wait(id, 16);
-  const job = run.jobs.find((j) => j.key === 'assess_pr');
-  const plan = JSON.parse(job?.outputs?.assessment || 'null');
+  let plan = inputs.prepared_assessment_json;
+  if (!plan) {
+    const id = await dispatch(inputs, ref);
+    const run = await wait(id, 16);
+    const job = run.jobs.find((j) => j.key === 'assess_pr');
+    plan = JSON.parse(job?.outputs?.assessment || 'null');
+  }
   if (!plan || plan.headSha !== p.head.sha || plan.baseSha !== p.base.sha)
     throw new Error('Assessment source mismatch');
   output('pr_json', pr);
