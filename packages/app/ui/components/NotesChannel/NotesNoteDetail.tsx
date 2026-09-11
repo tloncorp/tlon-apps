@@ -776,6 +776,18 @@ export function NotesNoteDetail({
     pendingScrollRestoreYRef.current = null;
   }, [noteId]);
 
+  // Toggling preview swaps the rendered markdown for the editor, which lays the
+  // note out at a different height. The scroll view moves to suit, but it does
+  // not report that through onScroll, so the last offset it did report
+  // describes a layout that no longer exists. Restoring it afterwards scrolls
+  // somewhere arbitrary: measured on iOS 26.5 as a restore to y=1462 that UIKit
+  // clamped to the end of the note while the caret sat near the top, dragging
+  // the reader away from what they were typing.
+  useLayoutEffect(() => {
+    scrollOffsetYRef.current = null;
+    pendingScrollRestoreYRef.current = null;
+  }, [isPreviewing]);
+
   const preserveScrollOffset = useCallback(() => {
     if (isPreviewing) return;
     // This runs before the change that reflows the note, so the live offset is
