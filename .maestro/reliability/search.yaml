@@ -1,0 +1,32 @@
+appId: ${MAESTRO_APP_ID}
+name: Native search opens exact message
+tags: [regression]
+env:
+  JOURNEY: q
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- tapOn: '^Search$'
+- assertVisible: '^Search Chat$'
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${MAESTRO_RUN_TAG}
+- hideKeyboard
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: ${output.reliability.textPattern}
+- assertVisible: '^Chat$'
+- assertVisible: ${output.reliability.textPattern}
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'

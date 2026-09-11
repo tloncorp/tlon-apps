@@ -1,0 +1,140 @@
+appId: ${MAESTRO_APP_ID}
+name: Native message actions
+tags: [regression]
+env:
+  JOURNEY: a
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- longPressOn:
+    text: ${output.reliability.textPattern}
+    point: '10%,50%'
+- tapOn: '^Edit message$'
+- assertVisible:
+    id: MessageInput
+    text: ${output.reliability.textPattern}
+- tapOn:
+    id: MessageInput
+    point: '95%,50%'
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.editedText}
+- tapOn:
+    id: MessageInputSendButton
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertNotVisible: ${output.reliability.textPattern}
+- tapOn:
+    id: MessageInput
+- hideKeyboard
+- longPressOn:
+    text: ${output.reliability.editedTextPattern}
+    point: '10%,50%'
+- tapOn: '^Copy message text$'
+- runFlow:
+    when:
+      visible:
+        id: com.android.systemui:id/dismiss_button
+    commands:
+      - tapOn:
+          id: com.android.systemui:id/dismiss_button
+- tapOn:
+    id: MessageInput
+- longPressOn:
+    id: MessageInput
+- tapOn: '(?i)^Paste$'
+- assertVisible:
+    id: MessageInput
+    text: ${output.reliability.editedText}
+- eraseText: 100
+- hideKeyboard
+- waitForAnimationToEnd:
+    timeout: 5000
+- longPressOn:
+    text: ${output.reliability.editedTextPattern}
+    point: '10%,50%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: EmojiToolbarButton-thumb
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^👍$'
+- assertNotVisible: '^Copy message text$'
+- assertVisible:
+    id: ReactionDisplay
+- longPressOn:
+    text: ${output.reliability.editedTextPattern}
+    point: '10%,50%'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          id: EmojiToolbarButton-thumb
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: '^👍$'
+- assertNotVisible: '^Copy message text$'
+- assertNotVisible:
+    id: ReactionDisplay
+- longPressOn:
+    text: ${output.reliability.editedTextPattern}
+    point: '10%,50%'
+- tapOn: '^Quote$'
+- assertVisible: ${output.reliability.editedTextPattern}
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.reply}
+      MESSAGE_PATTERN: ${output.reliability.replyPattern}
+      EMPTY_INPUT: '^Message$'
+- assertVisible:
+    id: '^Post$'
+    containsDescendants:
+      - text: ${output.reliability.replyPattern}
+      - text: ${output.reliability.editedTextPattern}
+- hideKeyboard
+- longPressOn:
+    text: ${output.reliability.replyPattern}
+    point: '10%,50%'
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- assertVisible: '^Delete message\?$'
+- tapOn: '^Cancel$'
+- assertVisible: ${output.reliability.replyPattern}
+- longPressOn:
+    text: ${output.reliability.replyPattern}
+    point: '10%,50%'
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- tapOn: '^Delete message$'
+- assertNotVisible: ${output.reliability.replyPattern}
+- assertVisible: ${output.reliability.editedTextPattern}
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- assertVisible: '^Home$'

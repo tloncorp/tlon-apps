@@ -1,0 +1,82 @@
+appId: ${MAESTRO_APP_ID}
+name: Native profile editing and persistence
+tags: [regression]
+env:
+  JOURNEY: p
+onFlowComplete:
+  - runFlow:
+      when:
+        true: ${output.reliability && typeof output.reliability.originalNickname !== 'undefined'}
+      commands:
+        - runFlow:
+            when:
+              notVisible:
+                id: ProfileNicknameInput
+            commands:
+              - runFlow:
+                  when:
+                    notVisible:
+                      id: ContactEditButton
+                  commands:
+                    - runFlow: subflows/contacts-tab.yaml
+                    - tapOn: '^You$'
+              - tapOn:
+                  id: ContactEditButton
+        - tapOn:
+            id: ProfileNicknameInput
+            point: '95%,50%'
+        - eraseText: 100
+        - runFlow:
+            when:
+              true: ${output.reliability.originalNickname !== ''}
+            commands:
+              - inputText: ${output.reliability.originalNickname}
+        - assertVisible:
+            id: ProfileNicknameInput
+            text: ${output.reliability.originalNickname || MAESTRO_TEST_SHIP}
+        - tapOn: '^Save$'
+        - tapOn: '^Back$'
+        - assertNotVisible: ${MAESTRO_RUN_TAG + ' profile'}
+        - runFlow: subflows/home-tab.yaml
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- copyTextFrom:
+    id: ProfileNicknameInput
+- evalScript: ${output.reliability.originalNickname = maestro.copiedText || ''}
+- tapOn:
+    id: ProfileNicknameInput
+    point: '95%,50%'
+- eraseText: 100
+- inputText: ${MAESTRO_RUN_TAG + ' profile'}
+- assertVisible:
+    id: ProfileNicknameInput
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+- tapOn: '^Save$'
+- assertVisible: '^Profile$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' profile'}
+- tapOn: '^Back$'
+- assertVisible:
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+    leftOf: '^You$'
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: ScreenHeaderTitle
+      text: '^Home$'
+    timeout: 5000
+- runFlow: subflows/contacts-tab.yaml
+- assertVisible:
+    text: ${MAESTRO_RUN_TAG + ' profile'}
+    leftOf: '^You$'
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- assertVisible:
+    id: ProfileNicknameInput
+    text: ${MAESTRO_RUN_TAG + ' profile'}
