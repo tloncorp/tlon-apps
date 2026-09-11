@@ -28,7 +28,12 @@ env:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' role'}
+- assertVisible:
+    id: RoleTitleInput
+    text: ${MAESTRO_RUN_TAG + ' role'}
 - hideKeyboard
+- waitForAnimationToEnd:
+    timeout: 5000
 - scrollUntilVisible:
     element:
       id: RoleDescriptionInput
@@ -38,10 +43,32 @@ env:
     id: RoleDescriptionInput
 - waitForAnimationToEnd:
     timeout: 5000
+# Android can consume the first tap while the previous keyboard dismisses.
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - runFlow:
+          when:
+            notVisible:
+              id: RoleDescriptionInput
+              focused: true
+          commands:
+            - tapOn:
+                id: RoleDescriptionInput
+      - assertVisible:
+          id: RoleDescriptionInput
+          focused: true
 - runFlow:
     file: subflows/input.yaml
     env:
       INPUT_TEXT: ${MAESTRO_RUN_TAG + ' role description'}
+- assertVisible:
+    id: RoleDescriptionInput
+    text: ${MAESTRO_RUN_TAG + ' role description'}
+- assertVisible:
+    id: RoleTitleInput
+    text: ${MAESTRO_RUN_TAG + ' role'}
 - hideKeyboard
 - tapOn: '^Save$'
 - assertVisible: '^Group Roles$'
