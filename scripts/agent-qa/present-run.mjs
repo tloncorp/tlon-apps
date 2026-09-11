@@ -20,6 +20,7 @@ import {
 import { renderReport } from './core.mjs';
 import { videoReader } from './video-tools.mjs';
 import { readActions } from './review-tools.mjs';
+import { reviewFindingClips } from './clip-review.mjs';
 
 const env = process.env,
   out = path.resolve('../../artifacts/qa-presentation');
@@ -132,7 +133,6 @@ if (
 )
   throw new Error('Recording does not match report');
 const optionalJSON = (p) => (existsSync(p) ? JSON.parse(readFileSync(p)) : {});
-const receipts = optionalJSON(path.join(source, 'video-frames/receipts.json'));
 const info = existsSync(path.join(source, 'video-frames/video-info.json'))
   ? optionalJSON(path.join(source, 'video-frames/video-info.json'))
   : videoReader({
@@ -152,9 +152,30 @@ writeFileSync(
     2
   )
 );
+const reviewedClips = await reviewFindingClips({
+  original,
+  presentation,
+  source,
+  video: fullVideo,
+  outputDir: out,
+  usage,
+});
+writeFileSync(
+  path.join(out, 'clip-selection.json'),
+  JSON.stringify(reviewedClips)
+);
+for (const [i, finding] of presentation.findings.entries())
+  finding.clipUnavailableReason =
+    reviewedClips.selection[`group-${i + 1}`]?.unavailableReason || '';
 original.context.billing = billingSummary(source);
 original.context.presentationBilling = billingSummary(out);
-const clips = makeClips(original, presentation, receipts, info, fullVideo, out);
+const clips = makeClips(
+  original,
+  presentation,
+  reviewedClips.windows,
+  fullVideo,
+  out
+);
 const text = renderPresentation(
   original,
   presentation,

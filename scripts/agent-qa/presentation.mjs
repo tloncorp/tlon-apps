@@ -181,67 +181,12 @@ Return the corrected draft in the same schema. Every statement must be supported
   return verifyPresentation(decode(checked), report);
 }
 
-// Only existing reviewer receipts or recorded action times can select footage.
-export function clipWindows(sources, receipts, info, duration) {
-  const precise = sources.flatMap((s) => {
-    const ids = [
-      ...new Set(JSON.stringify(s).match(/video-frames-\d+/g) || []),
-    ];
-    const frames = ids.flatMap((id) => receipts[id]?.frames || []);
-    return frames.length
-      ? [
-          {
-            start: Math.min(...frames.map((f) => f.seconds)),
-            end: Math.max(...frames.map((f) => f.seconds)),
-            basis: 'reviewed frames',
-            evidence: ids,
-          },
-        ]
-      : [];
-  });
-  const candidates = precise.length
-    ? precise
-    : sources.flatMap((s) => {
-        const times = (s.evidenceActions || [])
-          .map(
-            (i) => info?.actions?.find((a) => a.index === i)?.approximateSeconds
-          )
-          .filter(Number.isFinite)
-          .sort((a, b) => a - b);
-        return times.slice(0, -1).map((t, i) => ({
-          start: t,
-          end: Math.min(times[i + 1], t + 18),
-          basis: 'approximate action times',
-          evidence: [s.id],
-        }));
-      });
-  const merged = [];
-  for (const c of candidates.sort((a, b) => a.start - b.start)) {
-    if (
-      ![c.start, c.end, duration].every(Number.isFinite) ||
-      c.start < 0 ||
-      c.end >= duration ||
-      c.end < c.start
-    )
-      continue;
-    const prev = merged.at(-1);
-    if (prev && c.start <= prev.end + 2 && c.end - prev.start <= 22) {
-      prev.end = Math.max(prev.end, c.end);
-      prev.evidence = [...new Set([...prev.evidence, ...c.evidence])];
-    } else merged.push({ ...c });
-  }
-  return merged.slice(0, 3).map((c) => ({
-    ...c,
-    start: Math.max(0, c.start - 2),
-    end: Math.min(duration, c.start + 23, c.end + 3),
-  }));
-}
 export function cutClip(video, output, window) {
   if (
     ![window.start, window.end].every(Number.isFinite) ||
     window.start < 0 ||
     window.end <= window.start ||
-    window.end - window.start > 30
+    window.end - window.start > 120
   )
     throw new Error('Invalid clip interval');
   execFileSync(
@@ -341,13 +286,13 @@ export function renderPresentation(
       '',
       ...(clips[i]?.length
         ? clips[i].flatMap((c) => [
-            `Clip from **${timestamp(c.start)}–${timestamp(c.end)}** of the full recording${c.basis === 'approximate action times' ? ' (located using approximate action timing)' : ''}.`,
+            `**Clip:** ${clean(c.label || f.title)}${c.additionalCase ? `. ${clean(c.additionalCase)}` : ''} (${timestamp(c.start)}–${timestamp(c.end)} in the full recording).`,
             '',
             `![Finding ${i + 1}](./${c.file})`,
             '',
           ])
         : [
-            'No reliable clip interval is available. See the original evidence below.',
+            `No complete short clip was verified. ${clean(f.clipUnavailableReason || 'See the full recording and original evidence below.')}`,
             '',
           ]),
       '<details>',
@@ -395,19 +340,13 @@ export function renderPresentation(
     '',
   ].join('\n');
 }
-export function makeClips(original, presentation, receipts, info, video, out) {
+export function makeClips(original, presentation, windows, video, out) {
   mkdirSync(out, { recursive: true });
-  const sources = new Map(
-    findingSources(original.report).map((s) => [s.id, s])
-  );
-  const clips = presentation.findings.map((f, i) =>
-    clipWindows(
-      f.sources.map((id) => sources.get(id)),
-      receipts,
-      info,
-      original.context.video.durationSeconds
-    ).map((w, j) =>
-      cutClip(video, path.join(out, `finding-${i + 1}-${j + 1}.mp4`), w)
+  if (windows.length !== presentation.findings.length)
+    throw new Error('Missing reviewed clip selections');
+  const clips = windows.map((group, i) =>
+    group.map((window, j) =>
+      cutClip(video, path.join(out, `finding-${i + 1}-${j + 1}.mp4`), window)
     )
   );
   writeFileSync(

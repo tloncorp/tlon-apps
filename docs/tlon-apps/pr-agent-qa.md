@@ -404,14 +404,20 @@ changed timing, unsupported causes, lost uncertainty, and misleading grouping.
 All original observations, checks, source hypotheses, and source commits remain in
 collapsed sections of the comment and in the original artifacts.
 
-Each group receives up to three normal-speed excerpts, selected from existing
-video-frame receipts with two seconds before and three seconds after the reviewed
-interval. When only recorded action times exist, the comment labels that timing
-as approximate. Missing timing produces an explicit no-clip note. Clips retain
-source timestamp ranges and extraction receipts; the full recording remains
-available. Synthetic tests require a one-frame flash to survive trimming at its
-expected offset. GitHub CLI replaces local clip references in place, and the
-publisher verifies that every clip and the full recording render as video players.
+After grouping, a targeted Sol/high clip reviewer inspects the actual recording.
+It chooses one complete occurrence per finding by default: before state, trigger,
+reported outcome, and settled result. All four moments must cite native frames
+inspected during that clip review. Cited action times only help locate the event;
+they cannot directly select a published clip. A second clip requires a distinct
+case and explanation, and overlapping intervals for the same finding are rejected.
+
+The cutter retains the complete verified interval with one second before and two
+after. It never truncates the outcome to meet a fixed short length. If no complete
+interval under two minutes can be verified, the finding gets an explicit no-clip
+explanation and retains the full recording. Clip labels explain the case shown.
+Synthetic tests cover a late disappearance, redundant fragments, missing outcome
+frames, and preservation of a one-frame event during extraction. GitHub CLI replaces
+local clip references in place, and the publisher verifies every player.
 
 To exercise only this publishing flow on an existing run (no simulator, no new
 product review), run from `apps/tlon-mobile`:

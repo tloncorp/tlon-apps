@@ -149,6 +149,7 @@ export async function session({
   environment,
   usage,
   signal,
+  validate,
   label = mode,
   timeoutMs = 360000,
 }) {
@@ -167,6 +168,7 @@ export async function session({
   try {
     const saved = JSON.parse(await readFile(checkpoint, 'utf8'));
     if (saved.signature === signature && saved.value) {
+      validate?.(saved.value);
       console.log(`Reusing completed ${label} stage.`);
       return saved.value;
     }
@@ -241,6 +243,7 @@ export async function session({
       }
     );
     const value = JSON.parse(await readFile(output, 'utf8'));
+    validate?.(value);
     await writeFile(checkpoint, JSON.stringify({ signature, value }));
     return value;
   } finally {

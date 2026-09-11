@@ -183,10 +183,12 @@ export function renderReport(context, report, usage) {
     '',
     ...(context.billing
       ? [
-          `Provider billing: $${context.billing.reportedCost.toFixed(4)} reported across ${context.billing.pricedRequests}/${context.billing.requests} requests; ${context.billing.unpricedRequests} requests have unavailable cost (not zero).`,
+          context.billing.requests
+            ? `Provider billing: $${context.billing.reportedCost.toFixed(4)} reported across ${context.billing.pricedRequests}/${context.billing.requests} requests; ${context.billing.unpricedRequests} requests have unavailable cost (not zero).`
+            : 'Per-request provider billing is unavailable for the original captured run.',
           ...(context.presentationBilling
             ? [
-                `Report editing: $${context.presentationBilling.reportedCost.toFixed(4)} reported; ${context.presentationBilling.unpricedRequests} requests unpriced.`,
+                `Report editing and clip verification: $${context.presentationBilling.reportedCost.toFixed(4)} reported; ${context.presentationBilling.unpricedRequests} requests unpriced.`,
               ]
             : []),
         ]

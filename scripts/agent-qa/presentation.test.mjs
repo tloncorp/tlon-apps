@@ -6,7 +6,6 @@ import path from 'node:path';
 import os from 'node:os';
 import {
   verifyPresentation,
-  clipWindows,
   cutClip,
   renderPresentation,
 } from './presentation.mjs';
@@ -81,35 +80,6 @@ test('one observed defect may include different source files and a failed planne
   const v = structuredClone(value);
   v.findings[0].sources.push('check-2');
   assert.equal(verifyPresentation(v, r), v);
-});
-test('clip intervals prefer actual reviewed frames, clamp padding, and label approximate action timing', () => {
-  const receipts = {
-    'video-frames-1': { frames: [{ seconds: 4 }, { seconds: 4.1 }] },
-  };
-  const precise = clipWindows(
-    [{ ...finding, observed: 'See video-frames-1' }],
-    receipts,
-    { actions: [] },
-    10
-  );
-  assert.equal(precise[0].start, 2);
-  assert.equal(precise[0].end, 7.1);
-  assert.equal(precise[0].basis, 'reviewed frames');
-  const approx = clipWindows(
-    [finding],
-    {},
-    {
-      actions: [
-        { index: 1, approximateSeconds: 0.2 },
-        { index: 2, approximateSeconds: 3 },
-      ],
-    },
-    5
-  );
-  assert.equal(approx[0].start, 0);
-  assert.equal(approx[0].end, 5);
-  assert.equal(approx[0].basis, 'approximate action times');
-  assert.deepEqual(clipWindows([finding], {}, {}, 10), []);
 });
 test('finding clip is beside its explanation and full evidence remains available', () => {
   const output = renderPresentation(

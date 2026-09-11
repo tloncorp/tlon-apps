@@ -35,13 +35,16 @@ for (const id of new Set(
   try {
     report = JSON.parse(readFileSync(output, 'utf8'));
   } catch {}
-  const assertions = report?.testResults?.flatMap((suite) => suite.assertionResults || []) || [];
-  const passedTests = assertions.filter((test) => test.status === 'passed').length;
-  const failedTests = assertions.filter((test) => test.status === 'failed').length;
+  const assertions =
+    report?.testResults?.flatMap((suite) => suite.assertionResults || []) || [];
+  const passedTests = assertions.filter(
+    (test) => test.status === 'passed'
+  ).length;
+  const failedTests = assertions.filter(
+    (test) => test.status === 'failed'
+  ).length;
   const passed =
-    run.status === 0 &&
-    passedTests > 0 &&
-    report?.numFailedTests === 0;
+    run.status === 0 && passedTests > 0 && report?.numFailedTests === 0;
   results.push({
     id,
     status: passed ? 'passed' : failedTests > 0 ? 'failed' : 'blocked',
@@ -50,7 +53,9 @@ for (const id of new Set(
     log: `${id}.log`,
     summary: passed
       ? `${passedTests} real regression tests passed`
-      : failedTests > 0 ? `${failedTests} regression tests failed; see backend job artifacts` : 'Regression process failed or produced no passing tests; see backend job artifacts',
+      : failedTests > 0
+        ? `${failedTests} regression tests failed; see backend job artifacts`
+        : 'Regression process failed or produced no passing tests; see backend job artifacts',
   });
   console.log(`${id}: ${results.at(-1).summary}`);
 }
