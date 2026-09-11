@@ -470,8 +470,17 @@ export function NotesNoteDetail({
   const autoFocusedTitleNoteIdRef = useRef<string | null>(null);
   const bodyInputRef = useRef<ElementRef<typeof TextArea>>(null);
   const scrollViewRef = useRef<ElementRef<typeof ScrollView>>(null);
-  const scrollOffsetYRef = useRef(0);
-  const lastUserScrollOffsetYRef = useRef(0);
+  const scrolledNoteIdRef = useRef<number | null>(null);
+  // Offsets are raw UIScrollView contentOffset values. Under a transparent
+  // native header the resting offset at the top is -adjustedContentInset.top
+  // rather than 0, so these start unobserved: assuming 0 scrolls the note
+  // down by the height of the header on the first restore.
+  const scrollOffsetYRef = useRef<number | null>(null);
+  const lastUserScrollOffsetYRef = useRef<number | null>(null);
+  const scrollRangeRef = useRef<{
+    overflows: boolean;
+    maxOffsetY: number;
+  } | null>(null);
   const userIsScrollingRef = useRef(false);
   const pendingScrollRestoreYRef = useRef<number | null>(null);
 
@@ -742,12 +751,28 @@ export function NotesNoteDetail({
     selectedNote,
   ]);
 
+  // A different note is a different document: the previous note's offsets and
+  // measured range no longer describe anything on screen. This has to run
+  // before the restore effect below so a switch cannot replay a stale offset.
+  useLayoutEffect(() => {
+    if (scrolledNoteIdRef.current === noteId) return;
+    scrolledNoteIdRef.current = noteId;
+    scrollOffsetYRef.current = null;
+    lastUserScrollOffsetYRef.current = null;
+    scrollRangeRef.current = null;
+    pendingScrollRestoreYRef.current = null;
+    userIsScrollingRef.current = false;
+  }, [noteId]);
+
   const preserveScrollOffset = useCallback(() => {
     if (isPreviewing) return;
-    pendingScrollRestoreYRef.current = Math.max(
-      scrollOffsetYRef.current,
-      lastUserScrollOffsetYRef.current
-    );
+    const candidate =
+      lastUserScrollOffsetYRef.current ?? scrollOffsetYRef.current;
+    // Nothing observed yet means the view sits wherever UIKit put it, which is
+    // already right. Inventing an offset here is what buried the note body
+    // under the transparent header.
+    if (candidate === null) return;
+    pendingScrollRestoreYRef.current = candidate;
   }, [isPreviewing]);
 
   useLayoutEffect(() => {
@@ -755,8 +780,17 @@ export function NotesNoteDetail({
     if (restoreY === null || isPreviewing) return;
 
     pendingScrollRestoreYRef.current = null;
+    // No lower bound is needed: every restored offset is one the scroll view
+    // actually reported, so it is reachable by construction. Bottom insets
+    // (the keyboard) let the real offset run past maxOffsetY, so this clamps a
+    // little short of the true end. That is the safe direction: it keeps
+    // content on screen instead of stranding a short note above the keyboard.
+    const range = scrollRangeRef.current;
+    const clampedY = range?.overflows
+      ? Math.min(restoreY, range.maxOffsetY)
+      : restoreY;
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ y: restoreY, animated: false });
+      scrollViewRef.current?.scrollTo({ y: clampedY, animated: false });
     });
   }, [bodyDraft, bodyInputHeight, draftBase, isPreviewing, saveState]);
 
@@ -1481,18 +1515,31 @@ export function NotesNoteDetail({
     bodyInputRef.current?.focus();
   }, []);
 
+  const recordScrollMetrics = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      const nextOffsetY = contentOffset.y;
+      scrollOffsetYRef.current = nextOffsetY;
+      scrollRangeRef.current = {
+        overflows: contentSize.height > layoutMeasurement.height,
+        maxOffsetY: contentSize.height - layoutMeasurement.height,
+      };
+      return nextOffsetY;
+    },
+    []
+  );
+
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = event.nativeEvent.contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      if (nextOffsetY > lastUserScrollOffsetYRef.current) {
-        lastUserScrollOffsetYRef.current = nextOffsetY;
-      }
+      const nextOffsetY = recordScrollMetrics(event);
+      // Only a drag reports where the user wants to be. Tracking the furthest
+      // offset instead made every later restore drift toward the bottom.
       if (userIsScrollingRef.current) {
         lastUserScrollOffsetYRef.current = nextOffsetY;
       }
     },
-    []
+    [recordScrollMetrics]
   );
 
   const handleScrollBeginDrag = useCallback(() => {
@@ -1501,12 +1548,10 @@ export function NotesNoteDetail({
 
   const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = event.nativeEvent.contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      lastUserScrollOffsetYRef.current = nextOffsetY;
+      lastUserScrollOffsetYRef.current = recordScrollMetrics(event);
       userIsScrollingRef.current = false;
     },
-    []
+    [recordScrollMetrics]
   );
 
   const handleTitleDraftChange = useCallback((nextTitle: string) => {

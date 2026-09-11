@@ -165,7 +165,7 @@ describe('deriveNotesNoteSaveFieldIntent', () => {
   });
 });
 
-describe('NotesNoteDetail note switching', () => {
+function registerNotesDetailTestHooks() {
   beforeAll(() => {
     Object.assign(globalThis, {
       IS_REACT_ACT_ENVIRONMENT: true,
@@ -204,6 +204,33 @@ describe('NotesNoteDetail note switching', () => {
       gate: null,
     }));
   });
+}
+
+/**
+ * A scroll event carrying the geometry the restore logic reads. Under a
+ * transparent native header the resting offset at the top is negative, so
+ * callers pass the offset they want reported rather than assuming 0.
+ */
+function scrollEvent({
+  offsetY,
+  contentHeight = 2000,
+  viewportHeight = 800,
+}: {
+  offsetY: number;
+  contentHeight?: number;
+  viewportHeight?: number;
+}) {
+  return {
+    nativeEvent: {
+      contentOffset: { x: 0, y: offsetY },
+      contentSize: { height: contentHeight, width: 390 },
+      layoutMeasurement: { height: viewportHeight, width: 390 },
+    },
+  };
+}
+
+describe('NotesNoteDetail note switching', () => {
+  registerNotesDetailTestHooks();
 
   it('registers native actions that switch between editing and preview', async () => {
     let renderer!: ReactTestRenderer;
@@ -1729,5 +1756,157 @@ describe('NotesNoteDetail note switching', () => {
     ).toBe('Remote A');
 
     act(() => renderer!.unmount());
+  });
+});
+
+describe('NotesNoteDetail scroll restoration', () => {
+  registerNotesDetailTestHooks();
+
+  // The resting offset at the top of a screen whose native header is
+  // transparent: UIKit reports -adjustedContentInset.top, not 0.
+  const HEADER_RESTING_OFFSET_Y = -96;
+
+  const scrollView = (renderer: ReactTestRenderer) =>
+    renderer.root.findByProps({ testID: 'NotesDetailScrollView' });
+  const bodyInput = (renderer: ReactTestRenderer) =>
+    renderer.root.findByProps({ testID: 'NotesBodyInput' });
+
+  async function renderDetail(noteId = 1) {
+    const scrollTo = vi.fn();
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          noteId={noteId}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />,
+        {
+          createNodeMock: (element) =>
+            (element.props as { testID?: string }).testID ===
+            'NotesDetailScrollView'
+              ? { scrollTo }
+              : null,
+        }
+      );
+    });
+    return { renderer, scrollTo };
+  }
+
+  it('leaves an untouched note where the header put it', async () => {
+    const { renderer, scrollTo } = await renderDetail();
+
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('Typed without scrolling');
+    });
+
+    // Restoring an assumed 0 here scrolled the note down by the header height
+    // and left it under the transparent bar.
+    expect(scrollTo).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
+  });
+
+  it('restores the reported resting offset rather than zero', async () => {
+    const { renderer, scrollTo } = await renderDetail();
+
+    await act(async () => {
+      scrollView(renderer).props.onScroll(
+        scrollEvent({ offsetY: HEADER_RESTING_OFFSET_Y })
+      );
+    });
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('Typed at the top of the note');
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith({
+      y: HEADER_RESTING_OFFSET_Y,
+      animated: false,
+    });
+    await act(async () => renderer.unmount());
+  });
+
+  it('ignores an automatic scroll when restoring the user position', async () => {
+    const { renderer, scrollTo } = await renderDetail();
+
+    await act(async () => {
+      scrollView(renderer).props.onScrollBeginDrag();
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 300 }));
+      scrollView(renderer).props.onScrollEndDrag(scrollEvent({ offsetY: 300 }));
+      // Keyboard avoidance scrolls without a drag. Adopting that offset as the
+      // user's place is what let restores drift toward the bottom.
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 900 }));
+    });
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('Typed after the keyboard opened');
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 300, animated: false });
+    await act(async () => renderer.unmount());
+  });
+
+  it('clamps a restore to the end of a short note', async () => {
+    const { renderer, scrollTo } = await renderDetail();
+    // Barely taller than the viewport: the end of the scroll range is y=100.
+    const shortNote = { contentHeight: 900, viewportHeight: 800 };
+
+    await act(async () => {
+      scrollView(renderer).props.onScrollBeginDrag();
+      scrollView(renderer).props.onScroll(
+        scrollEvent({ offsetY: 640, ...shortNote })
+      );
+      scrollView(renderer).props.onScrollEndDrag(
+        scrollEvent({ offsetY: 640, ...shortNote })
+      );
+    });
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('Typed past the end');
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 100, animated: false });
+    await act(async () => renderer.unmount());
+  });
+
+  it('does not clamp a note that fits its viewport', async () => {
+    const { renderer, scrollTo } = await renderDetail();
+    const fitsViewport = { contentHeight: 400, viewportHeight: 800 };
+
+    await act(async () => {
+      scrollView(renderer).props.onScroll(
+        scrollEvent({ offsetY: HEADER_RESTING_OFFSET_Y, ...fitsViewport })
+      );
+    });
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('Typed into a note that fits');
+    });
+
+    expect(scrollTo).toHaveBeenCalledWith({
+      y: HEADER_RESTING_OFFSET_Y,
+      animated: false,
+    });
+    await act(async () => renderer.unmount());
+  });
+
+  it('drops the previous note offsets when the note changes', async () => {
+    const { renderer, scrollTo } = await renderDetail(1);
+
+    await act(async () => {
+      scrollView(renderer).props.onScrollBeginDrag();
+      scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 700 }));
+      scrollView(renderer).props.onScrollEndDrag(scrollEvent({ offsetY: 700 }));
+    });
+
+    await act(async () => {
+      renderer.update(
+        <NotesNoteDetail noteId={2} notebookFlag="~zod/notebook" startInEdit />
+      );
+    });
+    scrollTo.mockClear();
+
+    await act(async () => {
+      bodyInput(renderer).props.onChangeText('Typed into the second note');
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    await act(async () => renderer.unmount());
   });
 });
