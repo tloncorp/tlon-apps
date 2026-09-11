@@ -105,11 +105,16 @@ export function allowedOverlayFile(file) {
   );
 }
 
-export function verifySourceOverlay(prHead) {
+export function verifySourceOverlay(prHead, overlay = 'HEAD') {
   if (!/^[a-f0-9]{40}$/.test(prHead || ''))
     throw new Error('Missing PR source commit');
   git(['fetch', '--no-tags', '--depth=1', 'origin', prHead]);
-  const parents = git(['cat-file', '-p', 'HEAD'])
+  if (overlay !== 'HEAD') {
+    if (!/^[a-f0-9]{40}$/.test(overlay))
+      throw new Error('Invalid QA overlay commit');
+    git(['fetch', '--no-tags', '--depth=1', 'origin', overlay]);
+  }
+  const parents = git(['cat-file', '-p', overlay])
     .split('\n\n')[0]
     .split('\n')
     .filter((line) => line.startsWith('parent '));
@@ -117,7 +122,7 @@ export function verifySourceOverlay(prHead) {
     throw new Error(
       'QA overlay must be a direct child of the requested PR head'
     );
-  const changed = git(['diff', '--name-only', '-z', prHead, 'HEAD'])
+  const changed = git(['diff', '--name-only', '-z', prHead, overlay])
     .split('\0')
     .filter(Boolean);
   if (!changed.length || changed.some((file) => !allowedOverlayFile(file)))

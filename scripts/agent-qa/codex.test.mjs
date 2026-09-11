@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { supervise, verifyCodexAuth, allowArgentCall } from './codex.mjs';
+import {
+  supervise,
+  verifyCodexAuth,
+  allowArgentCall,
+  resultSchemaFor,
+} from './codex.mjs';
 
 test('device boundary rejects other simulators, apps, tools and exhausted runs', () => {
   const valid = { name: 'describe', arguments: { udid: 'assigned-device' } };
@@ -125,4 +130,27 @@ test('parent cancellation terminates the agent', async () => {
   } finally {
     clearTimeout(timer);
   }
+});
+
+test('PR output schema rejects the generic smoke finding that broke the live run', () => {
+  const schema = resultSchemaFor({
+    scenarios: [
+      {
+        id: 'change-1',
+        expected: 'Native header remains clear while scrolling',
+      },
+      { id: 'change-2', expected: 'Edit opens the editor' },
+    ],
+  });
+  const props = schema.properties.checks.items.properties;
+  assert.deepEqual(props.scenarioId.enum, ['change-1', 'change-2']);
+  assert.ok(!props.scenarioId.enum.includes('harness'));
+  assert.deepEqual(props.expected.enum, [
+    'Native header remains clear while scrolling',
+    'Edit opens the editor',
+  ]);
+  assert.deepEqual(
+    resultSchemaFor().properties.checks.items.properties.scenarioId.enum,
+    ['harness']
+  );
 });

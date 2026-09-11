@@ -16,7 +16,7 @@ on:
       build_id:
         type: string
         required: false
-        description: Existing iOS simulator build for harness validation (does not certify a PR)
+        description: Existing simulator build; full PR runs independently verify identical product source
       build_sha:
         type: string
         required: false
@@ -83,7 +83,7 @@ jobs:
 
   build_ios:
     after: [assess_pr]
-    if: ${{ (github.event_name == 'pull_request' || inputs.full_pr_run) && after.assess_pr.outputs.decision == 'test' }}
+    if: ${{ (github.event_name == 'pull_request' || inputs.full_pr_run) && after.assess_pr.outputs.decision == 'test' && !inputs.build_id }}
     type: build
     environment: preview
     params:
@@ -91,9 +91,20 @@ jobs:
       profile: e2e
       message: PR agent QA
 
+  reuse_build:
+    after: [assess_pr]
+    if: ${{ inputs.full_pr_run && inputs.build_id && inputs.build_sha && after.assess_pr.outputs.decision == 'test' }}
+    type: get-build
+    params:
+      platform: ios
+      profile: e2e
+      simulator: true
+      git_commit_hash: ${{ inputs.build_sha }}
+      app_identifier: ${{ inputs.app_id }}
+
   qa_ios:
-    after: [assess_pr, build_ios]
-    if: ${{ always() && (after.build_ios.status == 'success' || (inputs.build_id && !inputs.assessment_pr_json)) }}
+    after: [assess_pr, build_ios, reuse_build]
+    if: ${{ always() && (after.build_ios.status == 'success' || after.reuse_build.outputs.build_id || (inputs.build_id && !inputs.assessment_pr_json && !inputs.full_pr_run)) }}
     environment: preview
     runs_on: macos-medium
     image: macos-tahoe-26.4-xcode-26.4
@@ -101,9 +112,10 @@ jobs:
       report: ${{ steps.run.outputs.report }}
       video_artifact: ${{ steps.video.outputs.artifact_id }}
     env:
-      QA_BUILD_ID: ${{ after.build_ios.outputs.build_id || inputs.build_id }}
-      QA_BUILD_SHA: ${{ after.build_ios.outputs.git_commit_hash || inputs.build_sha }}
-      QA_APP_ID: ${{ after.build_ios.outputs.app_identifier || inputs.app_id }}
+      QA_EXPECTED_BUILD_ID: ${{ inputs.full_pr_run && inputs.build_id || '' }}
+      QA_BUILD_ID: ${{ after.build_ios.outputs.build_id || after.reuse_build.outputs.build_id || inputs.build_id }}
+      QA_BUILD_SHA: ${{ after.build_ios.outputs.git_commit_hash || after.reuse_build.outputs.git_commit_hash || inputs.build_sha }}
+      QA_APP_ID: ${{ after.build_ios.outputs.app_identifier || after.reuse_build.outputs.app_identifier || inputs.app_id }}
       QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) || 'null' }}
       QA_FULL_PR_RUN: ${{ inputs.full_pr_run && 'true' || 'false' }}
       QA_MODE: ${{ inputs.build_id && !inputs.full_pr_run && 'workflow_dispatch' || 'pull_request' }}
@@ -247,7 +259,7 @@ jobs:
       QA_PR_NUMBER: ${{ after.assess_pr.outputs.pr_number }}
       QA_HEAD_SHA: ${{ after.assess_pr.outputs.head_sha }}
       QA_REPORT: >-
-        ${{ after.qa_ios.outputs.report || after.assess_pr.outputs.report || 'Blocked: assessment or build infrastructure failed before testing.' }}
+        ${{ after.qa_ios.outputs.report || (after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.report) || 'Blocked: build or simulator infrastructure failed before testing.' }}
       QA_WORKFLOW_URL: ${{ workflow.url }}
       QA_VIDEO_FAILED: ${{ after.qa_ios.outputs.video_artifact && 'true' || 'false' }}
     steps:

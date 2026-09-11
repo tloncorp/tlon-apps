@@ -250,3 +250,36 @@ or simulator was started.
 [EAS skip assessment](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08d84-228a-759f-9258-2780e5a594a3).
 These runs qualify assessment and planning only. The new assessment-to-simulator
 path and automatic video upload have not yet passed together end to end.
+
+## Full runs before the workflow is merged
+
+For a PR that does not yet contain this workflow, create a temporary QA branch
+whose sole commit is a direct child of the exact PR head. Only `scripts/agent-qa/`,
+this workflow file and this QA document may differ. Both assessment and simulator
+setup verify this boundary from Git objects; any product-file change blocks the
+run. The report records the requested PR source alongside the actual build commit.
+
+Dispatch that branch with the GitHub PR JSON in `assessment_pr_json` and
+`full_pr_run=true`. EAS verifies the PR metadata against GitHub, assesses the
+original diff, builds only when needed, runs the simulator checks and posts the
+video or skip/blocked report to the original PR. The original PR branch is not
+modified. Merged PRs can be checked historically with the same pinned-source
+rules. Regular PR-triggered runs continue to require the exact PR build commit.
+
+For a tooling-only retry, supply the previous `build_id` and `build_sha` with
+`full_pr_run=true`. EAS resolves the simulator build by its recorded commit and
+checks its ID. The harness independently verifies that both overlay commits are
+direct children of the requested PR head and change only QA files. A different
+product tree is rejected; no native rebuild is needed for a report-harness fix.
+
+The first full #6460 run built the requested product source, completed fresh
+login, exercised read-only notebook headers/scrolling/navigation and automatically
+embedded a 164.8-second video. Its report guard rejected an additional generic
+smoke finding, hiding the detailed blocked scenarios. The output schema now
+restricts findings to assessed IDs and omits the default smoke focus on PR runs.
+Editable notes, folders, save timing and event-order fixtures remain unqualified.
+[First full run](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08dba-9eb7-756c-8e06-784682632180).
+
+The full #6242 run correctly skipped simulator/build work and automatically posted
+the internal-docs-only assessment on the original PR.
+[Automatic skip report](https://github.com/tloncorp/tlon-apps/pull/6242#issuecomment-5627093779).

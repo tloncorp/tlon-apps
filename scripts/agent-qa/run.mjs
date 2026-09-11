@@ -243,7 +243,16 @@ async function hashBundle(directory) {
 async function prepare() {
   const harnessSha = (await run('git', ['rev-parse', 'HEAD'])).trim();
   context = verifyContext(env, harnessSha);
-  if (context.sourceOverlay) verifySourceOverlay(context.pr.head.sha);
+  if (context.sourceOverlay) {
+    verifySourceOverlay(context.pr.head.sha);
+    // Reused builds must independently contain the same PR product source.
+    verifySourceOverlay(context.pr.head.sha, context.buildSha);
+    if (
+      env.QA_EXPECTED_BUILD_ID &&
+      context.buildId !== env.QA_EXPECTED_BUILD_ID
+    )
+      throw new Error('EAS resolved a different build than requested');
+  }
   if (
     (!env.QA_SHIP_URL && (!env.MAESTRO_EMAIL || !env.MAESTRO_PASSWORD)) ||
     !env.OPENROUTER_API_KEY
@@ -506,6 +515,10 @@ async function agent(diff) {
     usage,
     signal: agentAbort.signal,
   });
+  await writeFile(
+    path.join(artifacts, 'agent-result.json'),
+    clean(JSON.stringify(result))
+  );
   await capture();
   await capture([], true);
   report = verifyCoverage(verifyReport(result, evidence), context.assessment);

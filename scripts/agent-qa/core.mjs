@@ -28,8 +28,8 @@ export function verifyContext(env, harnessSha) {
   if (env.QA_MODE === 'pull_request') {
     if (
       !pr?.head?.sha ||
-      (env.QA_FULL_PR_RUN !== 'true' && pr.head.sha !== env.QA_BUILD_SHA) ||
-      harnessSha !== env.QA_BUILD_SHA
+      (env.QA_FULL_PR_RUN !== 'true' &&
+        (pr.head.sha !== env.QA_BUILD_SHA || harnessSha !== env.QA_BUILD_SHA))
     )
       throw new Error(
         'PR head, EAS build commit, and checked-out source do not match'

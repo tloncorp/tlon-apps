@@ -33,12 +33,29 @@ test('QA overlay accepts tooling only and refuses altered product source', () =>
     writeFileSync(path.join(dir, 'scripts/agent-qa/test.mjs'), '// harness');
     git('add', '.');
     git('commit', '-m', 'qa');
+    const builtOverlay = git('rev-parse', 'HEAD');
     process.chdir(dir);
     assert.doesNotThrow(() => verifySourceOverlay(head));
+    writeFileSync(
+      path.join(dir, 'scripts/agent-qa/test.mjs'),
+      '// fixed harness'
+    );
+    git('add', '.');
+    git('commit', '--amend', '--no-edit');
+    assert.doesNotThrow(() => verifySourceOverlay(head));
+    assert.doesNotThrow(() => verifySourceOverlay(head, builtOverlay));
     writeFileSync(path.join(dir, 'app.txt'), 'changed');
     git('add', '.');
     git('commit', '--amend', '--no-edit');
     assert.throws(() => verifySourceOverlay(head), /changes product source/);
+    assert.throws(
+      () => verifySourceOverlay(head, git('rev-parse', 'HEAD')),
+      /changes product source/
+    );
+    assert.throws(
+      () => verifySourceOverlay(head, '--bad-ref'),
+      /Invalid QA overlay/
+    );
     assert.throws(
       () => verifySourceOverlay(git('rev-parse', 'HEAD')),
       /direct child/
