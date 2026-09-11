@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
-import { sourceReader, evidenceCall } from './review-tools.mjs';
+import { sourceReader, evidenceCall, readActions } from './review-tools.mjs';
 import { verifySourceReview, reviewArgs } from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
 
@@ -184,4 +184,39 @@ test('evidence reviewer can inspect original frames but has no device or shell t
     () => evidenceCall(actions, 'inspect_action', { index: 0 }),
     /Unknown/
   );
+});
+
+test('interleaved device responses remain attached to their original actions', () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'qa-actions-test-'));
+  try {
+    const trace = path.join(dir, 'trace.jsonl');
+    writeFileSync(
+      trace,
+      [
+        { type: 'request', id: 1, params: { name: 'describe', arguments: {} } },
+        {
+          type: 'request',
+          id: 2,
+          params: { name: 'screenshot', arguments: {} },
+        },
+        {
+          type: 'response',
+          id: 2,
+          result: { content: [{ type: 'image', data: 'second' }] },
+        },
+        {
+          type: 'response',
+          id: 1,
+          result: { content: [{ type: 'text', text: 'first' }] },
+        },
+      ]
+        .map((x) => JSON.stringify(x))
+        .join('\n')
+    );
+    const actions = readActions(trace);
+    assert.equal(actions[0].content[0].text, 'first');
+    assert.equal(actions[1].content[0].data, 'second');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

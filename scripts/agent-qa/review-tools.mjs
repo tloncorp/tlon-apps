@@ -173,18 +173,26 @@ export function sourceReader({ repo, base, head }) {
 }
 export function readActions(file) {
   const actions = [];
+  const pending = new Map();
   for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
     const entry = JSON.parse(line);
-    if (entry.type === 'request')
-      actions.push({
+    if (entry.type === 'request') {
+      const action = {
         index: actions.length + 1,
         at: entry.at,
         name: entry.params.name,
         arguments: entry.params.arguments,
         content: [],
-      });
-    if (entry.type === 'response' && actions.length)
-      actions.at(-1).content = entry.result?.content || [];
+      };
+      actions.push(action);
+      pending.set(entry.id, action);
+    }
+    if (entry.type === 'response') {
+      const action = pending.get(entry.id);
+      if (!action) throw new Error('Device response has no matching action');
+      action.content = entry.result?.content || [];
+      pending.delete(entry.id);
+    }
   }
   return actions;
 }
