@@ -270,6 +270,22 @@ function AuthenticatedApp({
     db.nodeStoppedWhileLoggedIn.setValue(false);
   }, []);
 
+  // The desk gate skips the desk-dependent half of the 'opened' callback, and
+  // clearing it — by Try again or by an automatic recovery — raises no
+  // app-status event of its own, so deferred config would sit unapplied until
+  // the next foreground.
+  const wasDeskGated = useRef(false);
+  useEffect(() => {
+    if (store.isDeskGated(deskCompat)) {
+      wasDeskGated.current = true;
+      return;
+    }
+    if (deskCompat?.status === 'ok' && wasDeskGated.current) {
+      wasDeskGated.current = false;
+      recoverTlonbotRevivalDeferredConfig('desk_gate_cleared').catch(() => {});
+    }
+  }, [deskCompat]);
+
   const handleRetryDeskCompatibility = useCallback(() => {
     sync
       .retryDeskCompatibility({ onRecovered: syncInitialPostsIfNeeded })
