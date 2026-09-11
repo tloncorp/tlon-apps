@@ -370,8 +370,15 @@ export function estimateBodyInputHeight(body: string, inputWidth: number) {
       }
       if (/^\s/.test(run)) {
         // Whitespace that would cross the edge hangs off it; the next word
-        // starts the following line.
+        // starts the following line. A run longer than one line keeps
+        // occupying lines after that, and counting a single line for any
+        // overflowing run sizes the input short -- the direction that clips.
         lineCount += 1;
+        let overflow = length - (charsPerLine - column);
+        while (overflow > charsPerLine) {
+          lineCount += 1;
+          overflow -= charsPerLine;
+        }
         column = 0;
         continue;
       }

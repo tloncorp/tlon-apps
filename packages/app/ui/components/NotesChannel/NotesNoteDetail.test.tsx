@@ -1978,6 +1978,16 @@ describe('estimateBodyInputHeight', () => {
     expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(40));
   });
 
+  it('counts every line a long whitespace run occupies', () => {
+    // 25 spaces after "a" fill the rest of the first line and span two more.
+    // Adding a single line for the whole run sized the input short, and the
+    // inner input has scrolling disabled, so the overflow is unreachable.
+    const body = Array(20)
+      .fill(`a${' '.repeat(25)}b`)
+      .join('\n');
+    expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(60));
+  });
+
   it('counts an empty paragraph as a line', () => {
     const body = Array(30).fill('').join('\n');
     expect(estimateBodyInputHeight(body, TEN_COLUMNS)).toBe(lines(30));
