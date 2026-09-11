@@ -3,6 +3,7 @@ import { afterEach, expect, test, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   fetchChangesSince: vi.fn(),
   addToChannelPosts: vi.fn(),
+  deleteFromChannelPosts: vi.fn(),
 }));
 
 vi.mock('@tloncorp/api/client/changesApi', () => ({
@@ -13,18 +14,24 @@ vi.mock('../useChannelPosts/subscriptions', async () => {
   const actual = await vi.importActual<
     typeof import('../useChannelPosts/subscriptions')
   >('../useChannelPosts/subscriptions');
-  return { ...actual, addToChannelPosts: mocks.addToChannelPosts };
+  return {
+    ...actual,
+    addToChannelPosts: mocks.addToChannelPosts,
+    deleteFromChannelPosts: mocks.deleteFromChannelPosts,
+  };
 });
 
 import type * as db from '../../db';
+import { batchEffects } from '../../db/query';
 import { setupDatabaseTestSuite } from '../../test/helpers';
-import { syncLatestChanges } from './sync';
+import { handleChannelsUpdate, syncLatestChanges } from './sync';
 
 setupDatabaseTestSuite();
 
 afterEach(() => {
   mocks.fetchChangesSince.mockReset();
   mocks.addToChannelPosts.mockReset();
+  mocks.deleteFromChannelPosts.mockReset();
 });
 
 const channelId = 'chat/~zod/test';
@@ -51,7 +58,7 @@ const tombstone: db.Post = {
   isDeleted: true,
 };
 
-test('the changes feed does not push tombstones into channel post listeners', async () => {
+test('the changes feed reports tombstones as deletes, not new posts', async () => {
   mocks.fetchChangesSince.mockResolvedValue({
     groups: [],
     posts: [livePost, tombstone],
@@ -70,4 +77,22 @@ test('the changes feed does not push tombstones into channel post listeners', as
   expect(mocks.addToChannelPosts).toHaveBeenCalledWith(
     expect.objectContaining({ id: livePost.id })
   );
+  expect(mocks.deleteFromChannelPosts).toHaveBeenCalledTimes(1);
+  expect(mocks.deleteFromChannelPosts).toHaveBeenCalledWith(
+    expect.objectContaining({ id: tombstone.id })
+  );
+});
+
+test('a subscription deletePost update reports the delete to channel post listeners', async () => {
+  await batchEffects('test:deletePost', (ctx) =>
+    handleChannelsUpdate(
+      { type: 'deletePost', postId: livePost.id, channelId },
+      ctx
+    )
+  );
+
+  expect(mocks.addToChannelPosts).not.toHaveBeenCalled();
+  expect(mocks.deleteFromChannelPosts).toHaveBeenCalledWith({
+    id: livePost.id,
+  });
 });

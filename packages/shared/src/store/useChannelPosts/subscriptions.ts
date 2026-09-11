@@ -63,7 +63,7 @@ export const addToChannelPosts = (post: SubscriptionPost) => {
   newPostListeners.forEach((listener) => listener(post));
 };
 
-export const deleteFromChannelPosts = (post: db.Post) => {
+export const deleteFromChannelPosts = (post: Pick<db.Post, 'id'>) => {
   deletedPostListeners.forEach((listener) => listener(post.id, true));
 };
 
