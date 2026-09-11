@@ -57,6 +57,8 @@ stim android                              # only after ios has finished
 stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
 ```
 
+A cold `stim ios` takes 6 to 11 minutes here, longer than most tool timeouts. Run it in the background, or with the longest timeout your tools allow, and wait for it to exit. If a call times out anyway, run `stim status` before running `stim ios` again: the build is usually still going, and the log's `build_done` line says when it finished.
+
 Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android` is right and `--variant` is not needed. For the preview flavor (`io.tlon.groups.preview`), ask for it:
 
 ```bash
@@ -83,13 +85,14 @@ They are read at build time by `app.config.ts`, so a build made before you set t
 With both set, a debug build fills the login form, so signing in is four presses and no typing:
 
 ```bash
-agent-device find "Have an account? Log in" click --session <name> --settle
-agent-device find "Or configure self hosted" click --session <name> --settle
-agent-device find "Connect" click --session <name> --first --settle
-agent-device find "Next" click --session <name> --settle
+agent-device press 'text="Have an account? Log in"' --session <name> --settle
+agent-device press 'text="Or configure self hosted"' --session <name> --settle
+agent-device press 'text="Connect"' --session <name> --settle
+agent-device press 'text="Next"' --session <name> --settle
+agent-device alert dismiss --session <name>
 ```
 
-That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), and the Usage Statistics header. A notifications prompt follows; dismiss it.
+That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
 
 The prefill itself is not `__DEV__`-gated, but the pre-validation that enables `Connect` without visiting each field is -- so in a release build the fields are filled and `Connect` stays disabled until each is touched. A `tlon.network` URL is rejected outside `__DEV__`.
 
@@ -104,16 +107,21 @@ For a bug or a change to existing behavior, record what the app does now, before
 ```bash
 agent-device devices                       # names, not udids
 agent-device open io.tlon.groups --platform ios --device "stim-<label> (<model> <runtime>)" --session <name>
-agent-device record start /absolute/path/before-ios.mp4 --session <name>
-agent-device press "<selector>" --session <name> --settle
+agent-device record start <evidence>/before-ios.mp4 --session <name>
+agent-device press 'text="<label>"' --session <name> --settle
+agent-device longpress 'text="<label>"' --session <name> --settle   # message actions, pin, delete
 agent-device record stop --session <name>
 ```
 
-`--device` takes the **name** agent-device lists, not the udid Stim prints; a udid gives `DEVICE_NOT_FOUND`. `press` is the interaction command -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
+`--device` takes the **name** agent-device lists, copied verbatim: iOS names look like `stim-<label> (iPhone 17 26.5)`, Android names are bare `stim-<label>`. A udid gives `DEVICE_NOT_FOUND`. `press` and `longpress` are the interaction commands -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
 
-Write recordings to an absolute path. `$TMPDIR` differs between sandboxed and unsandboxed shells, so a file written in one is invisible from the other.
+Put evidence in `<source checkout>/.worktrees/evidence-<name>/`: gitignored, outside your worktree so `git add -A` cannot commit it, and an absolute path, which matters because `$TMPDIR` differs between sandboxed and unsandboxed shells. After `record stop`, check the file exists; on Android a second recording in the same session has been seen to produce nothing without an error.
+
+Reproduce in a throwaway group named after the task (`TLON-1234 repro`), not the default "Untitled group": other agents make those too, and on Android the group list collapses into one label, so same-named groups are indistinguishable.
 
 When a label is too long for the screen, read the text (`agent-device snapshot`) rather than trusting the picture.
+
+If the steps do not reproduce on current `develop`, check whether the fix already landed before doubting the ticket: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. A ticket filed weeks ago is often fixed. If it is, stop and report which pull request fixed it, with the recording that shows it not reproducing.
 
 ### 5. Fix
 
@@ -125,7 +133,7 @@ Commit as you go. Everything after this step reads the branch, not the working t
 
 Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform the change touches, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario.
 
-**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen.
+**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` (shared, ui, app) is a full reload, not a refresh: navigation resets to Home, and on Android the notifications prompt returns (`agent-device alert dismiss`). Navigate back to the repro from Home before recording.
 
 ### 7. Get an independent review
 
@@ -188,4 +196,4 @@ Stim writes to `~/.stim`, talks to the simulator service, and binds the adb port
 
 ## Two things Stim prints that look wrong and are not
 
-`waited 6m51s for .../<other>'s build -> installed from cache` on an Android build: two worktrees on the same commit share one compile. And `launch err` inside a run that ends `OK`: read the summary line, not the phase transcript.
+`waited 6m51s for .../<other>'s build -> installed from cache` on either platform: two worktrees on the same commit share one compile, and the second waits for the first rather than building. And `launch err` inside a run that ends `OK`: read the summary line, not the phase transcript.
