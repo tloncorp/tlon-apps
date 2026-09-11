@@ -61,6 +61,7 @@ import {
 } from './src/monitor/agent-onboarding.js';
 import { isRouteDebugEnabled } from './src/monitor/session-routing.js';
 import { setTlonRuntime } from './src/runtime.js';
+import { resolveOwnerOnlyToolBlock } from './src/owner-only-tools.js';
 import { getSessionRole } from './src/session-roles.js';
 import { parseTlonTarget } from './src/targets.js';
 import {
@@ -1007,14 +1008,14 @@ export default defineBundledChannelEntry({
     });
 
     // Tool access control: block sensitive tools for non-owners
-    const ownerOnlyTools = new Set(['tlon', 'cron', 'read']);
     const logToolTraceContents = liveToolTraceContentsEnabled();
 
     api.on('before_tool_call', async (event, ctx) => {
       const toolCallId = readToolCallId(event);
       const role = getSessionRole(ctx.sessionKey ?? '');
-      const isOwnerOnlyTool = ownerOnlyTools.has(event.toolName);
-      const blocksNonOwner = isOwnerOnlyTool && role === 'user';
+      const ownerOnlyDecision = resolveOwnerOnlyToolBlock(event.toolName, role);
+      const isOwnerOnlyTool = ownerOnlyDecision.ownerOnly;
+      const blocksNonOwner = ownerOnlyDecision.blocked;
       const isMcpDescribe = isMcpDescribeToolName(event.toolName);
       const isMcpCall = isMcpCallToolName(event.toolName);
       const isMcpTool = isMcpDescribe || isMcpCall;
@@ -1046,9 +1047,7 @@ export default defineBundledChannelEntry({
       const isBlocked = blocksNonOwner || blocksOnboardingMcp;
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
-        : blocksNonOwner
-          ? `The ${event.toolName} tool is not available.`
-          : undefined;
+        : ownerOnlyDecision.reason;
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
