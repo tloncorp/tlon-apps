@@ -19,3 +19,5 @@ flows:
   - group-privacy.yaml
   - sections.yaml
   - notification-preferences.yaml
+  - roles.yaml
+  - thread-lifecycle.yaml

@@ -1,7 +1,7 @@
 # Native reliability tests
 
-Twenty default single-ship journeys, including attachments, profile details, pins,
-references, privacy, sections and notification preferences.
+Twenty-two default single-ship journeys, including attachments, profile details,
+pins, references, privacy, sections, notification preferences, roles and replies.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -46,7 +46,5 @@ The new role/privacy/section/notification/thread journeys delete their own group
 on success. Notification checks verify saved preferences; push delivery and
 enforcement on another ship require multiparty tests.
 
-`roles.yaml` passes on iOS but still fails a saved-role row assertion on Android.
-`thread-controls.yaml` still fails Android reply-count validation and iOS mute
-persistence after relaunch. Both run individually and are excluded from the
-default suite; their assertions remain intact for investigation.
+`thread-controls.yaml` remains standalone: iOS loses the muted state after
+relaunch. Its mute-persistence assertion remains intact for investigation.
