@@ -1,4 +1,4 @@
-import { reviewEvidence } from './review.mjs';
+import { reviewEvidence, unresolvedVideoAssessment } from './review.mjs';
 import { runCodex, verifyCodexAuth } from './codex.mjs';
 import { verifyCoverage, verifySourceOverlay } from './assess.mjs';
 import { connectShips } from './ship-proxy.mjs';
@@ -578,15 +578,25 @@ async function agent(diff) {
       context.evidenceReview = 'completed';
     } catch (error) {
       context.evidenceReview = clean(error.message);
-      result.checks.push(
-        ...simulatorPlan.scenarios.map((s) => ({
-          scenarioId: s.id,
-          expected: s.expected,
-          status: 'blocked',
-          observed: `Independent evidence review unavailable: ${clean(error.message)}`,
-          evidence: [],
-        }))
-      );
+      const affected =
+        error.reviewScope === 'video'
+          ? unresolvedVideoAssessment(simulatorPlan, result)
+          : simulatorPlan;
+      for (const s of affected.scenarios) {
+        const message = `Independent ${error.reviewScope === 'video' ? 'video' : 'evidence'} review unavailable: ${clean(error.message)}`;
+        const prior = result.checks.find(
+          (c) => c.scenarioId === s.id && c.status === 'blocked'
+        );
+        if (prior) prior.observed += ` ${message}`;
+        else
+          result.checks.push({
+            scenarioId: s.id,
+            expected: s.expected,
+            status: 'blocked',
+            observed: message,
+            evidence: [],
+          });
+      }
     }
     for (const scenario of context.assessment.scenarios.filter(
       (s) =>

@@ -54,8 +54,24 @@ export function validateFrameRequest(a, total) {
     );
   return Array.from({ length: a.count }, (_, i) => a.startFrame + i * a.stride);
 }
-export function videoReader({ file, outputDir, startedAt, actions = [] }) {
+export function videoReader({
+  file,
+  outputDir,
+  startedAt,
+  actions = [],
+  drawLabels = true,
+}) {
   mkdirSync(outputDir, { recursive: true });
+  const timestampsPrinted =
+    drawLabels &&
+    /\bdrawtext\b/.test(
+      execFileSync('ffmpeg', ['-hide_banner', '-filters'], {
+        encoding: 'utf8',
+        timeout: 10000,
+        maxBuffer: 1024 * 1024,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+    );
   const probe = JSON.parse(
     execFileSync(
       'ffprobe',
@@ -83,6 +99,9 @@ export function videoReader({ file, outputDir, startedAt, actions = [] }) {
   const info = {
     ...probe.streams[0],
     totalFrames: timestamps.length,
+    timestampsPrinted,
+    timestampGuide:
+      'Exact timestamps are always in each receipt, matched by one-based row and column. Images may omit printed labels when drawtext is unavailable.',
     lastFrameSeconds: timestamps.at(-1),
     origin: 'encoded recording frames; no interpolation',
     alignment: startedAt
@@ -123,7 +142,11 @@ export function videoReader({ file, outputDir, startedAt, actions = [] }) {
         `select='between(n,${indices[0]},${indices.at(-1)})*not(mod(n-${indices[0]},${a.stride}))'`,
         ...(a.region === 'top' ? ['crop=iw:floor(ih*0.3/2)*2:0:0'] : []),
         'scale=400:-2',
-        "drawtext=text='%{pts\\:hms}':fontsize=18:fontcolor=white:box=1:boxcolor=black:x=0:y=0",
+        ...(timestampsPrinted
+          ? [
+              "drawtext=text='%{pts\\:hms}':fontsize=18:fontcolor=white:box=1:boxcolor=black:x=0:y=0",
+            ]
+          : []),
         `tile=${columns}x${rows}:nb_frames=${a.count}:padding=4:color=black`,
       ].join(',');
       execFileSync(
@@ -151,7 +174,13 @@ export function videoReader({ file, outputDir, startedAt, actions = [] }) {
         screenshot: true,
         region: a.region,
         stride: a.stride,
-        frames: indices.map((i) => ({ index: i, seconds: timestamps[i] })),
+        timestampsPrinted,
+        frames: indices.map((i, cell) => ({
+          index: i,
+          seconds: timestamps[i],
+          row: Math.floor(cell / columns) + 1,
+          column: (cell % columns) + 1,
+        })),
         contiguous: a.stride === 1,
       };
       receipts[id] = receipt;

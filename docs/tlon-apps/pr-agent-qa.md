@@ -70,7 +70,9 @@ the finalized recording with `video_info` and `inspect_video_frames`: timestampe
 contact sheets at native frame intervals, with enlarged header crops or full
 viewports. Sparse overviews locate events; stride-one windows inspect fast states
 and transitions without dropping intermediate captured frames. Findings cite saved
-frame receipts. A video-backed finding can resolve a screenshot-only block; no
+frame receipts. The decoder checks whether FFmpeg supports printed labels; if it
+does not, exact timestamps remain associated with each cell by row and column.
+Missing font filters must not prevent frame inspection. A video-backed finding can resolve a screenshot-only block; no
 network delay is required before trying the normal recorded interaction.
 Action-to-video wall-clock alignment is approximate; actual visible frames establish
 the event timing. Missing captured states remain explicit and may need a controlled rerun. The coverage review can

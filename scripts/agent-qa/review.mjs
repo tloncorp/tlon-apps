@@ -416,15 +416,20 @@ export async function reviewEvidence({
       signal,
     });
     Object.assign(result, checked);
-    return reviewEvidence({
-      assessment,
-      result,
-      artifacts,
-      usage,
-      signal,
-      video,
-      videoOnly: true,
-    });
+    try {
+      return await reviewEvidence({
+        assessment,
+        result,
+        artifacts,
+        usage,
+        signal,
+        video,
+        videoOnly: true,
+      });
+    } catch (error) {
+      error.reviewScope = 'video';
+      throw error;
+    }
   }
   const previous = result;
   if (videoOnly) {
