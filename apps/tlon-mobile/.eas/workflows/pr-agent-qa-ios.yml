@@ -1,0 +1,338 @@
+name: PR agent QA (iOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      prepared_assessment_json:
+        type: string
+        description: Source-checked setup and test plan from the cloud coordinator
+      full_pr_run:
+        type: boolean
+        default: false
+        description: Assess, build if needed, test and publish for the supplied PR (requires a verified QA overlay branch)
+      assessment_pr_json:
+        type: string
+        description: GitHub PR JSON; assessment only unless full_pr_run is enabled
+      build_id:
+        type: string
+        required: false
+        description: Existing simulator build; full PR runs independently verify identical product source
+      build_sha:
+        type: string
+        required: false
+        description: Full git commit from the existing EAS build record
+      test_ship:
+        type: string
+        description: Optional manual identity expectation; defaults to EAS MAESTRO_TEST_SHIP
+      ship_url:
+        type: string
+        description: Authenticated disposable backend tunnel for manual validation
+      backend_sha:
+        type: string
+      run_tag:
+        type: string
+      present_evidence_json:
+        type: string
+        description: Reformat and publish an existing recorded report with finding clips; use replay.mjs with present
+      review_evidence_json:
+        type: string
+        description: Prepared replay descriptor; use scripts/agent-qa/replay.mjs
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+defaults:
+  tools:
+    node: '22.22.0'
+
+jobs:
+  present_recording:
+    if: ${{ inputs.present_evidence_json }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_PRESENT_EVIDENCE: ${{ inputs.present_evidence_json }}
+    outputs:
+      comment_url: ${{ steps.publish.outputs.comment_url }}
+    steps:
+      - uses: eas/checkout
+      - name: Install the report editor and clip tools
+        run: |
+          npm install -g @openai/codex@0.145.0
+          node ../../scripts/agent-qa/install-video-tools.mjs
+          curl --fail --location --retry 2 https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          echo 'ed4960225d2833e04a61590d9fa2b5773d147f3aa375459e5466a40c102f3832  /tmp/gh.tar.gz' | sha256sum --check
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+      - name: Explain recorded findings and attach their clips automatically
+        id: publish
+        run: |
+          node ../../scripts/agent-qa/present-run.mjs || exit 1
+          set-output comment_url "$(cat /tmp/qa-comment-url)"
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: qa-presentation
+          path: artifacts/qa-presentation/**
+  review_recording:
+    if: ${{ inputs.review_evidence_json }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_REPLAY_EVIDENCE: ${{ inputs.review_evidence_json }}
+    steps:
+      - uses: eas/checkout
+      - name: Install the evidence reviewer
+        run: |
+          npm install -g @openai/codex@0.145.0
+          node ../../scripts/agent-qa/install-video-tools.mjs
+      - name: Review original evidence without a device or human findings
+        run: node ../../scripts/agent-qa/review-recording.mjs
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: evidence-review-replay
+          path: artifacts/evidence-replay
+  assess_pr:
+    if: ${{ github.event_name == 'pull_request' || inputs.assessment_pr_json }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) }}
+      QA_FULL_PR_RUN: ${{ inputs.full_pr_run && 'true' || 'false' }}
+      QA_PREPARED_ASSESSMENT_JSON: ${{ inputs.prepared_assessment_json || '' }}
+      QA_ASSESSMENT_ONLY: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
+    outputs:
+      pr_number: ${{ steps.assess.outputs.pr_number }}
+      head_sha: ${{ steps.assess.outputs.head_sha }}
+      decision: ${{ steps.assess.outputs.decision }}
+      assessment: ${{ steps.assess.outputs.assessment }}
+      report: ${{ steps.assess.outputs.report }}
+    steps:
+      - uses: eas/checkout
+      - name: Install the assessment harness
+        run: npm install -g @openai/codex@0.145.0
+      - id: assess
+        name: Assess user-facing changes and plan simulator checks
+        run: |
+          set-output pr_number "$(node -e 'console.log(JSON.parse(process.env.QA_PR_JSON).number)')"
+          set-output head_sha "$(node -e 'console.log(JSON.parse(process.env.QA_PR_JSON).head.sha)')"
+          node ../../scripts/agent-qa/assess.mjs
+          set-output decision "$(node -e 'console.log(require("../../artifacts/qa-assessment/assessment.json").decision)')"
+          set-output assessment "$(cat ../../artifacts/qa-assessment/assessment.json)"
+          set-output report "$(cat ../../artifacts/qa-assessment/report.md)"
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: pr-qa-assessment
+          path: artifacts/qa-assessment/**
+
+  build_ios:
+    after: [assess_pr]
+    if: ${{ (github.event_name == 'pull_request' || inputs.full_pr_run) && after.assess_pr.outputs.decision == 'test' && !inputs.build_id }}
+    type: build
+    environment: preview
+    params:
+      platform: ios
+      profile: e2e
+      message: PR agent QA
+
+  reuse_build:
+    after: [assess_pr]
+    if: ${{ inputs.full_pr_run && inputs.build_id && inputs.build_sha && after.assess_pr.outputs.decision == 'test' }}
+    type: get-build
+    params:
+      platform: ios
+      profile: e2e
+      simulator: true
+      git_commit_hash: ${{ inputs.build_sha }}
+      app_identifier: io.tlon.groups
+
+  qa_ios:
+    after: [assess_pr, build_ios, reuse_build]
+    if: ${{ always() && (after.build_ios.status == 'success' || after.reuse_build.outputs.build_id || (inputs.build_id && !inputs.assessment_pr_json && !inputs.full_pr_run)) }}
+    environment: preview
+    runs_on: macos-medium
+    image: macos-tahoe-26.4-xcode-26.4
+    outputs:
+      report: ${{ steps.run.outputs.report }}
+      video_artifact: ${{ steps.video.outputs.artifact_id }}
+      evidence_artifact: ${{ steps.evidence.outputs.artifact_id }}
+    env:
+      QA_EXPECTED_BUILD_ID: ${{ inputs.full_pr_run && inputs.build_id || '' }}
+      QA_BUILD_ID: ${{ after.build_ios.outputs.build_id || after.reuse_build.outputs.build_id || inputs.build_id }}
+      QA_BUILD_SHA: ${{ after.build_ios.outputs.git_commit_hash || after.reuse_build.outputs.git_commit_hash || inputs.build_sha }}
+      QA_APP_ID: ${{ after.build_ios.outputs.app_identifier || after.reuse_build.outputs.app_identifier || 'io.tlon.groups' }}
+      QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) || 'null' }}
+      QA_FULL_PR_RUN: ${{ inputs.full_pr_run && 'true' || 'false' }}
+      QA_MODE: ${{ inputs.build_id && !inputs.full_pr_run && 'workflow_dispatch' || 'pull_request' }}
+      QA_ASSESSMENT_JSON: ${{ after.assess_pr.outputs.assessment || 'null' }}
+      QA_FOCUS: ''
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+      QA_SHIP_URL: ${{ inputs.ship_url || '' }}
+      QA_BACKEND_SHA: ${{ inputs.backend_sha || '' }}
+      QA_RUN_TAG: ${{ inputs.run_tag || '' }}
+      QA_MODEL: openai/gpt-5.6-sol
+      QA_TEST_SHIP: ${{ inputs.test_ship || '' }}
+    steps:
+      - uses: eas/checkout
+      - name: Install device and smoke test tools
+        run: |
+          npm install -g @openai/codex@0.145.0 @swmansion/argent@0.23.0
+          curl --fail --location --retry 2 https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.6.1/maestro.zip -o /tmp/qa-maestro.zip
+          unzip -q /tmp/qa-maestro.zip -d /tmp/qa-maestro
+          command -v ffmpeg >/dev/null && command -v ffprobe >/dev/null || brew install ffmpeg
+      - uses: eas/download_build
+        id: download
+        with:
+          build_id: ${{ env.QA_BUILD_ID }}
+          extensions: [app]
+      - id: run
+        name: Verify build, log in, and run Codex and Argent QA
+        env:
+          QA_MAESTRO_BIN: /tmp/qa-maestro/maestro/bin/maestro
+        run: |
+          export QA_ARGENT_SKILL_DIR="$(npm root -g)/@swmansion/argent/skills"
+          node ../../scripts/agent-qa/run.mjs "${{ steps.download.outputs.artifact_path }}"
+          set-output report "$(cat ../../artifacts/agent-qa/report.md)"
+          set-output video_ready "$(node -e 'console.log(require("../../artifacts/agent-qa/report.json").context.video?.status === "ready")')"
+      - uses: eas/upload_artifact
+        id: video
+        if: ${{ always() && steps.run.outputs.video_ready == 'true' }}
+        with:
+          type: other
+          name: ios-agent-qa-video
+          path: artifacts/agent-qa-video/test-session.mp4
+      - uses: eas/upload_artifact
+        id: evidence
+        if: ${{ always() }}
+        with:
+          type: other
+          name: ios-agent-qa
+          path: artifacts/agent-qa/**
+      - name: Reflect failed or blocked QA in the check status
+        run: |
+          node -e "const {report}=require('../../artifacts/agent-qa/report.json'); process.exit(report.status === 'passed' ? 0 : 1)"
+
+  report_video:
+    after: [assess_pr, qa_ios]
+    if: ${{ always() && (github.event_name == 'pull_request' || inputs.full_pr_run) && after.qa_ios.outputs.video_artifact }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_REPORT: ${{ after.qa_ios.outputs.report }}
+      QA_PR_NUMBER: ${{ after.assess_pr.outputs.pr_number || github.event.pull_request.number }}
+      QA_HEAD_SHA: ${{ after.assess_pr.outputs.head_sha || github.event.pull_request.head.sha }}
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+    outputs:
+      comment_url: ${{ steps.publish.outputs.comment_url }}
+    steps:
+      - uses: eas/checkout
+      - name: Check the GitHub upload credential
+        run: |
+          if [ -z "${GH_QA_TOKEN:-}" ]; then
+            echo 'Set the EAS preview GH_QA_TOKEN secret to a GitHub OAuth token, classic PAT, or fine-grained PAT with repository write access. Video embedding requires this credential.'
+            exit 1
+          fi
+      - name: Install report editing, clips, and native video uploads
+        run: |
+          npm install -g @openai/codex@0.145.0
+          node ../../scripts/agent-qa/install-video-tools.mjs
+          curl --fail --location --retry 2 https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          echo 'ed4960225d2833e04a61590d9fa2b5773d147f3aa375459e5466a40c102f3832  /tmp/gh.tar.gz' | sha256sum --check
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+      - uses: eas/download_artifact
+        id: recording
+        with:
+          artifact_id: ${{ after.qa_ios.outputs.video_artifact }}
+      - uses: eas/download_artifact
+        id: evidence
+        with:
+          artifact_id: ${{ after.qa_ios.outputs.evidence_artifact }}
+      - name: Explain findings and embed their clips
+        id: publish
+        env:
+          QA_EVIDENCE_PATH: ${{ steps.evidence.outputs.artifact_path }}
+          QA_VIDEO_PATH: ${{ steps.recording.outputs.artifact_path }}
+        run: |
+          node ../../scripts/agent-qa/present-run.mjs || exit 1
+          set-output comment_url "$(cat /tmp/qa-comment-url)"
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: qa-presentation
+          path: artifacts/qa-presentation/**
+
+  report:
+    after: [assess_pr, build_ios, qa_ios, report_video]
+    if: ${{ always() && github.event_name == 'pull_request' && after.report_video.status != 'success' && after.assess_pr.outputs.decision == 'test' }}
+    type: github-comment
+    params:
+      payload: |
+        ## iOS agent QA
+
+        ${{ after.qa_ios.outputs.report || 'Blocked: build or test infrastructure failed before a report was produced. No PR behavior was verified.' }}
+
+        [Run and evidence](${{ workflow.url }}) · Requested commit `${{ github.event.pull_request.head.sha }}`
+
+        ${{ after.qa_ios.outputs.video_artifact && 'Video embedding failed. Check the report_video job and its GH_QA_TOKEN credential. The MP4 remains available as ios-agent-qa-video in EAS.' || 'No test video was uploaded; see the report for the recording or setup failure.' }}
+        [Open the run to view or download the test video](${{ workflow.url }})
+
+        Advisory result. Simulator checks do not qualify physical-device performance, push delivery, or store builds.
+
+  report_assessment:
+    after: [assess_pr]
+    if: ${{ always() && github.event_name == 'pull_request' && after.assess_pr.outputs.decision != 'test' }}
+    type: github-comment
+    params:
+      payload: |
+        ## iOS agent QA
+
+        ${{ after.assess_pr.outputs.report || 'Blocked: PR assessment failed. No simulator checks were run.' }}
+
+        [Assessment and evidence](${{ workflow.url }}) · PR commit `${{ github.event.pull_request.head.sha }}`
+
+  assessment_status:
+    after: [assess_pr]
+    if: ${{ always() && (github.event_name == 'pull_request' || inputs.assessment_pr_json) && after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.decision != 'skip' }}
+    runs_on: linux-medium
+    steps:
+      - name: Reflect blocked assessment in the check status
+        run: |
+          echo 'PR assessment was blocked; see the assessment report. No behavior was verified.'
+          exit 1
+
+  manual_report:
+    after: [assess_pr, build_ios, qa_ios, report_video]
+    if: ${{ always() && inputs.full_pr_run && after.report_video.status != 'success' }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_PR_NUMBER: ${{ after.assess_pr.outputs.pr_number }}
+      QA_HEAD_SHA: ${{ after.assess_pr.outputs.head_sha }}
+      QA_REPORT: >-
+        ${{ after.qa_ios.outputs.report || (after.assess_pr.outputs.decision != 'test' && after.assess_pr.outputs.report) || 'Blocked: build or simulator infrastructure failed before testing.' }}
+      QA_WORKFLOW_URL: ${{ workflow.url }}
+      QA_VIDEO_FAILED: ${{ after.qa_ios.outputs.video_artifact && 'true' || 'false' }}
+    steps:
+      - name: Install the report publisher
+        run: |
+          curl --fail --location --retry 2 https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          echo 'ed4960225d2833e04a61590d9fa2b5773d147f3aa375459e5466a40c102f3832  /tmp/gh.tar.gz' | sha256sum --check
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+      - name: Publish the assessment or blocked run automatically
+        run: |
+          export GH_TOKEN="$GH_QA_TOKEN"
+          node <<'JS'
+          const fs = require('node:fs');
+          const e = process.env;
+          if (!/^[1-9][0-9]*$/.test(e.QA_PR_NUMBER) || !/^[a-f0-9]{40}$/.test(e.QA_HEAD_SHA)) throw new Error('Missing PR provenance');
+          fs.writeFileSync('/tmp/qa-report.md', ['## iOS agent QA', '', e.QA_REPORT, '',
+            `[Run and evidence](${e.QA_WORKFLOW_URL}) · Requested commit \`${e.QA_HEAD_SHA}\``, '',
+            e.QA_VIDEO_FAILED === 'true' ? 'Automatic video embedding failed; the recording remains in the run artifacts.' : 'No simulator recording was produced. See the assessment or setup result above.', ''].join('\n'));
+          JS
+          /tmp/gh_2.99.0_linux_amd64/bin/gh pr comment "$QA_PR_NUMBER" --repo tloncorp/tlon-apps --body-file /tmp/qa-report.md
