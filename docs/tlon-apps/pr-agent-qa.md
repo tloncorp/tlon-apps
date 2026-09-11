@@ -87,7 +87,7 @@ Run from `apps/tlon-mobile`, using a pushed ref containing the workflow:
 ```sh
 npx --yes eas-cli@23.2.0 workflow:run .eas/workflows/pr-agent-qa-ios.yml \
   --ref YOUR_PUSHED_REF --non-interactive \
-  -F build_id=BUILD_ID -F build_sha=FULL_BUILD_COMMIT -F app_id=io.tlon.groups
+  -F build_id=BUILD_ID -F build_sha=FULL_BUILD_COMMIT
 ```
 
 The manual SHA is operator-supplied; verify it against the build record before
