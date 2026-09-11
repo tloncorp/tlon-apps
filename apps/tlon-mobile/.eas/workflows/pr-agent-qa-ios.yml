@@ -151,19 +151,25 @@ jobs:
     env:
       AUTOMATED_TEST: "true"
       EXPO_USE_PRECOMPILED_MODULES: "0"
+      EAS_BUILD_PROFILE: e2e
     params:
       unstable_skip_cng_check: true
 
   compatible_build:
     needs: [fingerprint]
-    type: get-build
-    params:
-      platform: ios
-      profile: e2e
-      simulator: true
-      app_identifier: io.tlon.groups
-      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
-      wait_for_in_progress: true
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_NATIVE_FINGERPRINT: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+    outputs:
+      build_id: ${{ steps.match.outputs.build_id }}
+    steps:
+      - uses: eas/checkout
+      - id: match
+        name: Verify native compatibility
+        run: |
+          node ../../scripts/agent-qa/native-compatibility.mjs
+          set-output build_id "$(cat /tmp/qa-compatible-build)"
 
   repack_ios:
     needs: [compatible_build]
@@ -324,35 +330,6 @@ jobs:
     steps:
       - name: Reflect reviewed product result
         run: test '${{ needs.report_video.outputs.qa_status }}' = 'passed'
-
-  report:
-    after: [assess_pr, build_ios, qa_ios, report_video]
-    if: ${{ always() && github.event_name == 'pull_request' && after.report_video.status != 'success' && after.assess_pr.outputs.decision == 'test' }}
-    type: github-comment
-    params:
-      payload: |
-        ## iOS agent QA
-
-        ${{ after.qa_ios.outputs.report || 'Blocked: build or test infrastructure failed before a report was produced. No PR behavior was verified.' }}
-
-        [Run and evidence](${{ workflow.url }}) · Requested commit `${{ github.event.pull_request.head.sha }}`
-
-        ${{ after.qa_ios.outputs.video_artifact && 'Video embedding failed. Check the report_video job and its GH_QA_TOKEN credential. The MP4 remains available as ios-agent-qa-video in EAS.' || 'No test video was uploaded; see the report for the recording or setup failure.' }}
-        [Open the run to view or download the test video](${{ workflow.url }})
-
-        Advisory result. Simulator checks do not qualify physical-device performance, push delivery, or store builds.
-
-  report_assessment:
-    after: [assess_pr]
-    if: ${{ always() && github.event_name == 'pull_request' && after.assess_pr.outputs.decision != 'test' }}
-    type: github-comment
-    params:
-      payload: |
-        ## iOS agent QA
-
-        ${{ after.assess_pr.outputs.report || 'Blocked: PR assessment failed. No simulator checks were run.' }}
-
-        [Assessment and evidence](${{ workflow.url }}) · PR commit `${{ github.event.pull_request.head.sha }}`
 
   assessment_status:
     after: [assess_pr]

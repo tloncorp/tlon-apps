@@ -102,7 +102,7 @@ the separate reporting job still posts the result.
 ## Cost and recovery
 
 Native preparation runs before the disposable backend is leased. EAS fingerprints
-native inputs using the `e2e` environment and finds a compatible simulator build.
+native inputs using the `e2e` environment and profile, then checks the latest eight simulator builds for native compatibility. The comparison ignores only `extra.gitHash`, a source label replaced during repacking; all other configuration, dependencies, and native inputs must match.
 The repository commits its native projects, so the fingerprint job explicitly uses
 `unstable_skip_cng_check`; native sources remain fingerprint inputs. A matching
 build is repacked with the current checkout's JavaScript and assets. Missing matches
