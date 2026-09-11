@@ -16,3 +16,6 @@ flows:
   - pins.yaml
   - references.yaml
   - profile-groups.yaml
+  - group-privacy.yaml
+  - sections.yaml
+  - notification-preferences.yaml
