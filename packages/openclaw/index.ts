@@ -31,6 +31,7 @@ import {
   handleCronChangedEvent,
   setCronServiceAccessor,
 } from './src/cron-telemetry.js';
+import { stripImmutableCronUpdateAgentId } from './src/cron-tool-params.js';
 import {
   installTlonDiagnosticSubscriptions,
   shouldInstallTlonDiagnosticSubscriptions,
@@ -1044,11 +1045,20 @@ export default defineBundledChannelEntry({
               allowedProviderIds
             )));
       const isBlocked = blocksNonOwner || blocksOnboardingMcp;
+      const strippedImmutableCronAgentId =
+        event.toolName === 'cron' &&
+        !isBlocked &&
+        stripImmutableCronUpdateAgentId(event.params);
       const blockReason = blocksOnboardingMcp
         ? 'This scheduled onboarding update may inspect and call only selected-provider MCP tools explicitly described as read-only.'
         : blocksNonOwner
           ? `The ${event.toolName} tool is not available.`
           : undefined;
+      if (strippedImmutableCronAgentId) {
+        api.logger.info(
+          `[tlon] Removed immutable agentId from cron update patch. Session: ${ctx.sessionKey}`
+        );
+      }
       if (contextLensEnabled) {
         // Capture tool activity even when no conversation run owns this
         // session (cron wakes — including jobs that reuse the main session
