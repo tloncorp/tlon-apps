@@ -36,6 +36,7 @@ import {
   unbindContextLensFromSession,
 } from '../context-lens.js';
 import { scheduleCronSnapshot } from '../cron-telemetry.js';
+import { setCronAuthQuarantineNotifier } from '../cron-auth-quarantine.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -101,6 +102,7 @@ import { resolveTlonAccount } from '../types.js';
 import {
   runWithTlonApiScope,
   setScopedTlonApiWithPoke,
+  withTlonApiPoke,
 } from '../urbit/api-client.js';
 import {
   authenticate,
@@ -813,6 +815,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       apiClientParamsSlot.set(null);
     }
   };
+  let cleanupCronAuthQuarantineNotifier = (): void => {};
 
   // If the signal was already aborted before we reached this line,
   // addEventListener("abort", ..., { once: true }) won't fire (abort
@@ -992,6 +995,13 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
           break;
       }
     });
+    cleanupCronAuthQuarantineNotifier = setCronAuthQuarantineNotifier(
+      account.accountId,
+      async (message) =>
+        withTlonApiPoke(api.poke.bind(api), async () =>
+          Boolean(await sendOwnerNotification(message))
+        )
+    );
     // Bridge diary migration lifecycle events from the `/migrate` command
     // handler (a separate plugin module context) to this account's client.
     setMigrationTelemetryReporter((event) => {
@@ -5960,6 +5970,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       setDebugTelemetryReporter(null);
       setErrorTelemetryReporter(null);
       setCronTelemetryReporter(null);
+      cleanupCronAuthQuarantineNotifier();
       setMigrationTelemetryReporter(null);
       await telemetry?.close();
       try {
@@ -5971,6 +5982,7 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       }
     }
   } finally {
+    cleanupCronAuthQuarantineNotifier();
     // Outer finally — covers throws in the long bootstrap region
     // between slot publication (above) and the inner try (which begins
     // after the helper definitions). Anything that throws before the

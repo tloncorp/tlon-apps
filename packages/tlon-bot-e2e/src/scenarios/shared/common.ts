@@ -2,7 +2,11 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { expect } from 'vitest';
 
-import type { DriverName, RuntimeContext } from '../../drivers/types.js';
+import type {
+  DriverName,
+  ModelScript,
+  RuntimeContext,
+} from '../../drivers/types.js';
 import type { FakeModelClient, ReceivedCall } from '../../fake-model/index.js';
 import {
   connectComposeNetwork,
@@ -1164,6 +1168,87 @@ export const commonScenarios: readonly SharedScenario[] = [
         isBenign,
         modelBaseline
       );
+    }
+  ),
+
+  testScenario(
+    'tlon-6393-repeated-provider-auth-quarantines-cron',
+    { drivers: ['openclaw'], capabilities: ['cron'], timeoutMs: 420_000 },
+    async ({ ctx, driver, actors }) => {
+      const key = scenarioKey('tlon-6393-cron-auth');
+      const jobName = `cron-auth-${key}`;
+      const authKey = `${key}-provider`;
+      const authScript: ModelScript = {
+        steps: Array.from({ length: 3 }, () => ({
+          kind: 'http_error' as const,
+          status: 401,
+          message: 'OpenRouter user not found',
+        })),
+      };
+      const authTag = await registerModelScript(
+        ctx.fakeModel,
+        authKey,
+        authScript
+      );
+      const ownerBaseline = await conversationBaseline(
+        actors.owner,
+        actors.bot.ship
+      );
+      const thirdPartyBaseline = await conversationBaseline(
+        actors.thirdParty,
+        actors.bot.ship
+      );
+
+      const createdJob = await addOpenClawAuthFailureCronJob(
+        ctx,
+        jobName,
+        `${authTag} Return the single word ok.`
+      );
+      const cleanupTarget: CronCleanupTarget = {
+        name: jobName,
+        id: createdJob.id,
+        creationSettled: Promise.resolve(),
+      };
+      actors.bot.teardown(
+        () => cleanupCronJobAndArtifacts(ctx, driver.name, cleanupTarget),
+        { label: `remove TLON-6393 cron job ${jobName}` }
+      );
+
+      for (let run = 1; run <= 3; run += 1) {
+        const outcome = await runOpenClawCronJob(ctx, createdJob.id);
+        expect(outcome.status).toBe('error');
+        expect(outcome.errorReason).toBe('auth');
+        await waitForModelCalls(
+          ctx.fakeModel,
+          authKey,
+          run,
+          MODEL_CALL_WAIT_MS
+        );
+        const current = await readOpenClawCronJob(ctx, createdJob.id);
+        expect(current.enabled).toBe(run < 3);
+      }
+
+      const finalJob = await readOpenClawCronJob(ctx, createdJob.id);
+      expect(finalJob.enabled).toBe(false);
+      const notice = await waitForConversationTextAfterBaseline(
+        actors.owner,
+        actors.bot.ship,
+        'paused after 3 consecutive model-provider authentication failures',
+        ownerBaseline
+      );
+      expect(notice.text).toContain(
+        'reconnect or update the provider credentials'
+      );
+      expect(notice.text).toContain('re-enable the schedule');
+      await expectNoConversationTextAfterBaseline(
+        actors.thirdParty,
+        actors.bot.ship,
+        'model-provider authentication failures',
+        thirdPartyBaseline
+      );
+      const received = await ctx.fakeModel.received(authKey);
+      expect(received).toHaveLength(3);
+      expect(received.every((call) => call.responseStatus === 401)).toBe(true);
     }
   ),
 
@@ -2490,6 +2575,131 @@ function assertExecOk(
         `${(result.stderr || result.stdout).trim()}`
     );
   }
+}
+
+interface OpenClawCronJobRecord extends Record<string, unknown> {
+  id: string;
+  name: string;
+  enabled: boolean;
+}
+
+function parseOpenClawJson(
+  output: string,
+  action: string
+): Record<string, unknown> {
+  try {
+    const parsed: unknown = JSON.parse(output);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Fall through to the action-specific error below.
+  }
+  throw new Error(`${action} returned invalid JSON: ${JSON.stringify(output)}`);
+}
+
+function parseOpenClawCronJob(
+  value: unknown,
+  action: string
+): OpenClawCronJobRecord {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    typeof (value as { id?: unknown }).id !== 'string' ||
+    typeof (value as { name?: unknown }).name !== 'string' ||
+    typeof (value as { enabled?: unknown }).enabled !== 'boolean'
+  ) {
+    throw new Error(`${action} did not return a complete cron job.`);
+  }
+  return value as OpenClawCronJobRecord;
+}
+
+async function addOpenClawAuthFailureCronJob(
+  ctx: RuntimeContext,
+  name: string,
+  message: string
+): Promise<OpenClawCronJobRecord> {
+  const result = await execInComposeService(
+    ctx,
+    ctx.services.bot,
+    [
+      'openclaw',
+      'cron',
+      'add',
+      '--agent',
+      'main',
+      '--name',
+      name,
+      '--cron',
+      '15 6 * * *',
+      '--tz',
+      'UTC',
+      '--session',
+      'isolated',
+      '--message',
+      message,
+      '--no-deliver',
+      '--timeout-seconds',
+      '30',
+      '--json',
+    ],
+    { timeoutMs: 30_000 }
+  );
+  assertExecOk(result, `create OpenClaw auth-failure cron job ${name}`);
+  return parseOpenClawCronJob(
+    parseOpenClawJson(result.stdout, 'OpenClaw cron add'),
+    'OpenClaw cron add'
+  );
+}
+
+async function runOpenClawCronJob(
+  ctx: RuntimeContext,
+  jobId: string
+): Promise<{ status?: string; errorReason?: string }> {
+  const result = await execInComposeService(
+    ctx,
+    ctx.services.bot,
+    ['openclaw', 'cron', 'run', jobId, '--wait', '--wait-timeout', '60s'],
+    { timeoutMs: 90_000 }
+  );
+  const parsed = parseOpenClawJson(
+    result.stdout,
+    `run OpenClaw cron job ${jobId}`
+  );
+  const run = parsed.run;
+  if (!run || typeof run !== 'object') {
+    assertExecOk(result, `run OpenClaw cron job ${jobId}`);
+    throw new Error(`OpenClaw cron run ${jobId} omitted its run result.`);
+  }
+  return run as { status?: string; errorReason?: string };
+}
+
+async function readOpenClawCronJob(
+  ctx: RuntimeContext,
+  jobId: string
+): Promise<OpenClawCronJobRecord> {
+  const result = await execInComposeService(ctx, ctx.services.bot, [
+    'openclaw',
+    'cron',
+    'list',
+    '--all',
+    '--json',
+    '--timeout',
+    '10000',
+  ]);
+  assertExecOk(result, `read OpenClaw cron job ${jobId}`);
+  const parsed = parseOpenClawJson(result.stdout, 'OpenClaw cron list');
+  const jobs = parsed.jobs;
+  if (!Array.isArray(jobs)) {
+    throw new Error('OpenClaw cron list did not include jobs.');
+  }
+  const job = jobs.find(
+    (candidate) =>
+      candidate &&
+      typeof candidate === 'object' &&
+      (candidate as { id?: unknown }).id === jobId
+  );
+  return parseOpenClawCronJob(job, `OpenClaw cron list job ${jobId}`);
 }
 
 async function botNickname(actor: ScenarioActor): Promise<string> {

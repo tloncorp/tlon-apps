@@ -77,6 +77,7 @@ Current common scenarios are:
 -   stop/start replay coverage is selected and visibly skipped pending [TLON-6098](https://linear.app/tlon/issue/TLON-6098): neither runtime replays messages received while the bot is down; the intact scenario remains the regression gate when reconnect replay lands
 -   Hermes-only no-agent cron delivery to `TLON_HOME_CHANNEL`, with a future one-shot fired through `run_one_job(..., adapters=None, loop=None)` so the test uses the standalone sender path without racing the gateway ticker
 -   model-driven cron creation, scheduler firing, and origin delivery on both drivers in the `cron` capability partition
+-   TLON-6393 repeated provider-authentication failures on OpenClaw, proving exactly three real 401 runs disable the job and send one recovery notice only to the owner
 
 The reaction scenarios cover dispatch and acknowledgement anchoring only. `packages/openclaw/src/monitor/history.test.ts` is the deterministic gate for pre-echo ID normalization and exact-reply cache-miss fetching.
 
