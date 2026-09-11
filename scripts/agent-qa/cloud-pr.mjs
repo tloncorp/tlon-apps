@@ -1,6 +1,24 @@
 import { execFileSync } from 'node:child_process';
-import { appendFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, writeFileSync, mkdirSync } from 'node:fs';
 const env = process.env;
+// Ref-based dispatch needs only project identity, not app dependencies/config.
+const queryDir = `${env.GITHUB_WORKSPACE}/.qa-eas-query`;
+mkdirSync(queryDir, { recursive: true });
+writeFileSync(
+  `${queryDir}/package.json`,
+  JSON.stringify({ name: 'qa-eas-coordinator', private: true })
+);
+writeFileSync(
+  `${queryDir}/app.json`,
+  JSON.stringify({
+    expo: {
+      name: 'Tlon',
+      slug: 'groups',
+      owner: 'tlon',
+      extra: { eas: { projectId: '617bb643-5bf6-4c40-8af6-c6e9dd7e3bd0' } },
+    },
+  })
+);
 function command(bin, args, options = {}) {
   return execFileSync(bin, args, {
     encoding: 'utf8',
@@ -68,7 +86,11 @@ if (process.argv[2] === 'assess') {
       sha: p[side].sha,
       repo: { full_name: p[side].repo.full_name },
     };
-  const ref = env.QA_TARGET_REF || p.head.sha;
+  const requestedRef = env.QA_TARGET_REF || p.head.sha;
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9/_.-]{0,199}$/.test(requestedRef))
+    throw new Error('Invalid QA source ref');
+  command('git', ['fetch', '--no-tags', '--depth=1', 'origin', requestedRef]);
+  const ref = command('git', ['rev-parse', 'FETCH_HEAD']).trim();
   const id = await dispatch({ assessment_pr_json: pr }, ref);
   const run = await wait(id, 8);
   const job = run.jobs.find((j) => j.key === 'assess_pr');
