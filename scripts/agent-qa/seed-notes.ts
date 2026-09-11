@@ -1,4 +1,4 @@
-import { Urbit, configureClient, notesV1 } from '@tloncorp/api';
+import { Urbit, configureClient, notesV1 } from '../../packages/api/src/index';
 
 // Backend-only setup. Uses production APIs on the disposable local fake ship.
 export async function seedNotes({

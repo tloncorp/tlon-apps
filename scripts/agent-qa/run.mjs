@@ -556,7 +556,7 @@ async function agent(diff) {
         scenarioId: scenario.id,
         method: 'regression',
         expected: scenario.expected,
-        status: receipt?.status === 'passed' ? 'passed' : 'blocked',
+        status: ['passed', 'failed'].includes(receipt?.status) ? receipt.status : 'blocked',
         observed: `Automated regression, not a simulator check: ${receipt?.summary || 'No verified test receipt'}`,
         evidence: receipt ? ['regression-tests'] : [],
       });

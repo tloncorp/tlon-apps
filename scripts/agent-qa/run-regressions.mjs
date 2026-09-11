@@ -35,19 +35,22 @@ for (const id of new Set(
   try {
     report = JSON.parse(readFileSync(output, 'utf8'));
   } catch {}
+  const assertions = report?.testResults?.flatMap((suite) => suite.assertionResults || []) || [];
+  const passedTests = assertions.filter((test) => test.status === 'passed').length;
+  const failedTests = assertions.filter((test) => test.status === 'failed').length;
   const passed =
     run.status === 0 &&
-    report?.numPassedTests > 0 &&
+    passedTests > 0 &&
     report?.numFailedTests === 0;
   results.push({
     id,
-    status: passed ? 'passed' : 'blocked',
-    passedTests: report?.numPassedTests || 0,
+    status: passed ? 'passed' : failedTests > 0 ? 'failed' : 'blocked',
+    passedTests,
     source: process.env.QA_SOURCE_SHA,
     log: `${id}.log`,
     summary: passed
-      ? `${report.numPassedTests} real regression tests passed`
-      : 'Regression process failed or produced no passing tests; see backend job artifacts',
+      ? `${passedTests} real regression tests passed`
+      : failedTests > 0 ? `${failedTests} regression tests failed; see backend job artifacts` : 'Regression process failed or produced no passing tests; see backend job artifacts',
   });
   console.log(`${id}: ${results.at(-1).summary}`);
 }
