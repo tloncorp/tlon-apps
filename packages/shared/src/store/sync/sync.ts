@@ -558,16 +558,19 @@ export const syncAppInfo = async (
   if (options?.isStale?.()) {
     return null;
   }
+  fetchedGroupsVersion = {
+    generation: getClientGeneration(),
+    groupsVersion: appInfo?.groupsVersion,
+  };
   api.setActivitySupportsReactions(
     activityVersionSupportsReactions(appInfo?.groupsVersion)
   );
   api.setActivitySupportsNotes(
     activityVersionSupportsNotes(appInfo?.groupsVersion)
   );
-  // Awaited, because syncReactionSupport re-derives these same flags from the
-  // persisted value moments later and would otherwise read a stale one. A
-  // failed write is survivable, though — it must not cost the caller the
-  // version it just fetched.
+  // Awaited so the App Info screen and the notes-search gate see it promptly.
+  // The capability flags don't depend on it landing: what protects those is
+  // the in-memory version recorded above.
   try {
     await db.appInfo.setValue(appInfo);
   } catch (err) {
@@ -578,18 +581,28 @@ export const syncAppInfo = async (
   return appInfo;
 };
 
-// Resolves the backend's reaction/notes capabilities from the last-known
-// (persisted) groups version and applies them to the activity client before
-// it picks endpoint versions. A fresh version is fetched by syncAppInfo,
-// which also updates this.
+// The version this client lifetime actually fetched, which outranks whatever
+// is persisted: the write can fail or lag, and re-deriving the flags from a
+// stale value would drop the ship back to legacy activity endpoints for the
+// rest of the session.
+let fetchedGroupsVersion: {
+  generation: number;
+  groupsVersion?: string;
+} | null = null;
+
+// Resolves the backend's reaction/notes capabilities and applies them to the
+// activity client before it picks endpoint versions. Prefers the version this
+// client lifetime fetched, falling back to the last-known persisted one on a
+// fresh launch, before any fetch has happened.
 export const syncReactionSupport = async () => {
-  const appInfo = await db.appInfo.getValue();
+  const groupsVersion =
+    fetchedGroupsVersion?.generation === getClientGeneration()
+      ? fetchedGroupsVersion.groupsVersion
+      : (await db.appInfo.getValue())?.groupsVersion;
   api.setActivitySupportsReactions(
-    activityVersionSupportsReactions(appInfo?.groupsVersion)
+    activityVersionSupportsReactions(groupsVersion)
   );
-  api.setActivitySupportsNotes(
-    activityVersionSupportsNotes(appInfo?.groupsVersion)
-  );
+  api.setActivitySupportsNotes(activityVersionSupportsNotes(groupsVersion));
 };
 
 export const syncVolumeSettings = async (ctx?: SyncCtx) => {
@@ -2248,17 +2261,15 @@ export const handleDiscontinuity = async (config: {
   }
 
   const session = getSession();
-  // A gate has to survive the reset: the notice is still the right UI until the
-  // re-probe inside syncStart says otherwise, and dropping it here flashes the
-  // app back on mid-recovery. A clean verdict isn't carried over — the re-probe
-  // reaches its own.
-  const deskGate = isDeskGated(session?.deskCompat)
-    ? session?.deskCompat
-    : undefined;
+  // The verdict has to survive the reset in either direction: a gate because
+  // the notice is still the right UI until the re-probe says otherwise, and a
+  // clean verdict because dropping it reads as "not probed yet" and tears down
+  // whatever the shells only show on a known-good desk.
+  const deskCompat = session?.deskCompat;
   if (session?.channelStatus && config.retainChannelStatus) {
-    setSession({ channelStatus: session.channelStatus, deskCompat: deskGate });
-  } else if (deskGate) {
-    setSession({ deskCompat: deskGate });
+    setSession({ channelStatus: session.channelStatus, deskCompat });
+  } else if (deskCompat) {
+    setSession({ deskCompat });
   } else {
     updateSession(null);
   }
@@ -2269,9 +2280,9 @@ export const handleDiscontinuity = async (config: {
   // finally, refetch start data. A session gated before it ever subscribed has
   // to recover as a cold start, or a newly compatible desk would never get its
   // subscriptions set up.
-  await syncStart(deskGate ? deskGate.subscribed : true);
+  await syncStart(isDeskGated(deskCompat) ? deskCompat.subscribed : true);
 
-  if (deskGate && getSession()?.deskCompat?.status === 'ok') {
+  if (isDeskGated(deskCompat) && getSession()?.deskCompat?.status === 'ok') {
     // The gate cleared on this restart, so the shells' post-start prefetch —
     // which returned as a no-op while it was up — has to be redone here.
     syncInitialPosts({ syncSize: 'light' }).catch(() => {});
@@ -2371,9 +2382,11 @@ const checkDeskCompatibility = async (
         deskCompat: { ...priorGate, status: 'probing' },
       });
     }
-  } else if (!alreadySubscribed) {
-    // Cold start: the shell holds a spinner while probing so the app never
-    // flashes on before the notice. A recovery sync already has a rendered app.
+  } else if (!alreadySubscribed && !existingDeskCompat) {
+    // First probe of this session: the shell holds a spinner while it runs, so
+    // the app never flashes on before the notice. A recovery sync already has a
+    // rendered app, and an existing verdict stays put until this one replaces
+    // it — re-probing must not read as "not probed yet".
     updateSession({
       deskCompat: {
         status: 'probing',

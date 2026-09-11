@@ -1046,6 +1046,26 @@ describe('desk compatibility gate', () => {
   );
 
   test(
+    'an unwritable version still drives the activity endpoints',
+    async () => {
+      // Storage is broken and what's already there is older than the ship, so
+      // re-deriving the flags from it would drop us to legacy endpoints.
+      setAppInfo.mockRejectedValue(new Error('storage unavailable'));
+      vi.spyOn(db.appInfo, 'getValue').mockImplementation(async () => ({
+        groupsVersion: '11.0.0',
+        groupsHash: 'n/a',
+        groupsSyncNode: 'n/a',
+      }));
+
+      await syncStart();
+
+      expect(didScry('/v5/feed/init/')).toBe(false);
+      expect(didScry('/v7/feed/init/')).toBe(true);
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
     'gates on a version it could not persist',
     async () => {
       reportedDeskVersion = '12.1.0';
@@ -1732,6 +1752,47 @@ describe('desk compatibility gate', () => {
       expect(seen.every((deskCompat) => deskCompat != null)).toBe(true);
       expect(getSession()?.deskCompat?.status).toBe('incompatible');
       expect(setDidSyncInitialPosts).not.toHaveBeenCalled();
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a discontinuity in a clean session keeps the ok verdict throughout',
+    async () => {
+      await syncStart();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+
+      const seen: (DeskCompatibility | undefined)[] = [];
+      const unsubscribe = subscribeToSession((session) =>
+        seen.push(session?.deskCompat)
+      );
+      await handleDiscontinuity({ context: 'test' });
+      unsubscribe();
+
+      // Never absent and never back to probing: the shells read either as
+      // "not usable yet" and tear down what they only show on a good desk.
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.every((deskCompat) => deskCompat?.status === 'ok')).toBe(
+        true
+      );
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+    },
+    FULL_SYNC_TIMEOUT
+  );
+
+  test(
+    'a discontinuity whose reprobe finds an outdated desk still gates',
+    async () => {
+      await syncStart();
+      expect(getSession()?.deskCompat).toEqual({ status: 'ok' });
+
+      reportedDeskVersion = '12.1.0';
+      await handleDiscontinuity({ context: 'test' });
+
+      expect(getSession()?.deskCompat).toMatchObject({
+        status: 'incompatible',
+        current: '12.1.0',
+      });
     },
     FULL_SYNC_TIMEOUT
   );
