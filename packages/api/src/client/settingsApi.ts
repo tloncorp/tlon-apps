@@ -382,25 +382,40 @@ export interface Pikes {
   [desk: string]: Pike;
 }
 
-export async function getAppInfo(): Promise<db.AppInfo> {
-  const pikes = await scry<Pikes>({
-    app: 'hood',
-    path: '/kiln/pikes',
-  });
-  const charges = (
-    await scry<ChargeUpdateInitial>({
+// Ceiling for the pike scry. Short on purpose: it only carries the hash and
+// sync node shown on the App Info screen, and startup can't afford to wait on
+// it for the version it does need.
+const DIAGNOSTICS_TIMEOUT = 3 * 1000;
+
+export async function getAppInfo({
+  timeout,
+}: { timeout?: number } = {}): Promise<db.AppInfo> {
+  // Parallel rather than sequential: startup gates on this, so the two scries
+  // should cost one round trip, not two.
+  const [pikes, charges] = await Promise.all([
+    // The pike is diagnostics only. Losing it must not throw away the version
+    // from the charge, which is the answer the startup gate is waiting for —
+    // and it has to give up well inside the gate's own deadline, or a hung
+    // pike would hold this Promise.all past it and lose the version anyway.
+    scry<Pikes>({
+      app: 'hood',
+      path: '/kiln/pikes',
+      timeout: Math.min(timeout ?? DIAGNOSTICS_TIMEOUT, DIAGNOSTICS_TIMEOUT),
+    }).catch(() => null),
+    scry<ChargeUpdateInitial>({
       app: 'docket',
       path: '/charges',
-    })
-  ).initial;
+      timeout,
+    }).then((update) => update?.initial),
+  ]);
 
-  const groupsPike = pikes?.['groups'] ?? {};
+  const groupsPike = pikes?.['groups'];
   const groupsCharge = charges?.['groups'] ?? {};
 
   return {
     groupsVersion: groupsCharge.version ?? 'n/a',
-    groupsHash: groupsPike.hash ?? 'n/a',
-    groupsSyncNode: groupsPike.sync?.ship ?? 'n/a',
+    groupsHash: groupsPike?.hash ?? 'n/a',
+    groupsSyncNode: groupsPike?.sync?.ship ?? 'n/a',
   };
 }
 

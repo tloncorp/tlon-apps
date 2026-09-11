@@ -1,10 +1,15 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-import { AuthFailureError } from '../client/landscapeApi';
+import {
+  AuthFailureError,
+  getLandscapeAuthCookie,
+} from '../client/landscapeApi';
 import {
   internalConfigureClient,
   internalRemoveClient,
   poke,
+  scry,
+  scryNoun,
   subscribe,
 } from '../client/urbit';
 import { Atom } from '@urbit/nockjs';
@@ -509,5 +514,140 @@ describe('storms', () => {
     // the late failure saw the epoch move and just retried
     expect(loginFetch).toHaveBeenCalledTimes(1);
     expect(client.seamlessReset).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('scry reauth retry', () => {
+  test('bounds the retry that follows a 403 instead of hanging on it', async () => {
+    vi.useFakeTimers();
+    // Stands in for Urbit.scry, where the timeout is what aborts the request:
+    // a call issued without one has nothing to stop it.
+    const scryWithInfo = vi.fn(
+      async ({ timeout }: { app: string; path: string; timeout?: number }) => {
+        if (scryWithInfo.mock.calls.length === 1) {
+          throw Object.assign(new Error('forbidden'), { status: 403 });
+        }
+        return new Promise<never>((_resolve, reject) => {
+          if (timeout != null) {
+            setTimeout(() => reject(new Error('scry timed out')), timeout);
+          }
+        });
+      }
+    );
+    const client = fakeClient({ scryWithInfo });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const attempt = scry({ app: 'hood', path: '/kiln/pikes', timeout: 50 });
+    // Observed rather than awaited: an unbounded retry never settles, and the
+    // assertion below should say so rather than time the test out.
+    void attempt.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(scryWithInfo).toHaveBeenCalledTimes(2);
+    expect(scryWithInfo.mock.calls[1][0]).toMatchObject({ timeout: 50 });
+
+    await vi.advanceTimersByTimeAsync(50);
+    await expect(attempt).rejects.toThrow('scry timed out');
+  });
+
+  test('bounds the noun retry that follows a 403 in the same way', async () => {
+    vi.useFakeTimers();
+    const scryNounWithInfo = vi.fn(
+      async ({ timeout }: { app: string; path: string; timeout?: number }) => {
+        if (scryNounWithInfo.mock.calls.length === 1) {
+          throw Object.assign(new Error('forbidden'), { status: 403 });
+        }
+        return new Promise<never>((_resolve, reject) => {
+          if (timeout != null) {
+            setTimeout(() => reject(new Error('scry timed out')), timeout);
+          }
+        });
+      }
+    );
+    const client = fakeClient({ scryNounWithInfo });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const attempt = scryNoun({ app: 'hood', path: '/kiln/pikes', timeout: 50 });
+    void attempt.catch(() => {});
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(scryNounWithInfo).toHaveBeenCalledTimes(2);
+    expect(scryNounWithInfo.mock.calls[1][0]).toMatchObject({ timeout: 50 });
+
+    await vi.advanceTimersByTimeAsync(50);
+    await expect(attempt).rejects.toThrow('scry timed out');
+  });
+});
+
+describe('login timeout', () => {
+  const LOGIN_TIMEOUT = 30 * 1000;
+
+  // A login the ship never answers. Only the abort signal ends it, which is
+  // what a real fetch does.
+  function hangingLoginFetch() {
+    return vi.fn(
+      (_url: string, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () =>
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          );
+        })
+    );
+  }
+
+  test('bounds a login the ship never answers', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('fetch', hangingLoginFetch());
+
+    const attempt = getLandscapeAuthCookie('http://example.test', 'code');
+    // Observed rather than awaited, so an unbounded login fails the assertion
+    // below instead of timing the test out.
+    const settled = vi.fn();
+    void attempt.then(settled, settled);
+
+    await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT + 1);
+
+    expect(settled).toHaveBeenCalled();
+    await expect(attempt).rejects.toThrow(/Login timed out/);
+  });
+
+  test('a 403 whose reauth hangs rejects the scry instead of holding it', async () => {
+    vi.useFakeTimers();
+    const scryWithInfo = vi
+      .fn()
+      .mockRejectedValue(
+        Object.assign(new Error('forbidden'), { status: 403 })
+      );
+    const client = fakeClient({ scryWithInfo });
+    vi.stubGlobal('fetch', hangingLoginFetch());
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    const attempt = scry({ app: 'hood', path: '/kiln/pikes', timeout: 50 });
+    const settled = vi.fn();
+    void attempt.then(settled, settled);
+
+    await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT + 1);
+
+    // The queued caller settles rather than waiting on a silent ship forever.
+    expect(settled).toHaveBeenCalled();
+    await expect(attempt).rejects.toThrow(/Error during reauth/);
+    expect(scryWithInfo).toHaveBeenCalledTimes(1);
   });
 });

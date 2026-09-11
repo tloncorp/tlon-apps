@@ -1,15 +1,35 @@
+// A hung login would otherwise be unbounded, and callers wait on it before
+// retrying the request that triggered the reauth — holding a sync queue worker
+// for as long as the ship stays silent.
+const LOGIN_TIMEOUT = 30 * 1000;
+
 export const getLandscapeAuthCookie = async (
   shipUrl: string,
   accessCode: string
 ) => {
-  const response = await fetch(`${shipUrl}/~/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-    },
-    body: `password=${accessCode}`,
-    credentials: 'include',
-  });
+  // AbortSignal.timeout isn't available on every runtime we ship to.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), LOGIN_TIMEOUT);
+
+  let response: Response;
+  try {
+    response = await fetch(`${shipUrl}/~/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: `password=${accessCode}`,
+      credentials: 'include',
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`Login timed out after ${LOGIN_TIMEOUT}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (response.status < 200 || response.status > 299) {
     throw new AuthFailureError(response.status);

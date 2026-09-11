@@ -2,6 +2,7 @@ export * from './utilHooks';
 export * from './contextLens';
 export * from './embed';
 export * from './semver';
+export * from './deskCompatibility';
 export * from './reactionSupport';
 export * from './threadUnreads';
 export * from './notesActivitySupport';
