@@ -8,6 +8,7 @@ import {
   copyFileSync,
   writeFileSync,
   statSync,
+  rmSync,
 } from 'node:fs';
 import path from 'node:path';
 import {
@@ -148,6 +149,10 @@ const text = renderPresentation(
 );
 const marker = `<!-- ios-agent-qa-presentation:${sourceUrl.split('/').at(-1)}:${command('git', ['rev-parse', 'HEAD']).trim()} -->`;
 writeFileSync(path.join(out, 'report.md'), marker + '\n' + text);
+writeFileSync(path.join(out, 'original-report.json'), JSON.stringify(original));
+// The original run retains screenshots and traces. Do not upload a second copy.
+rmSync(path.join(out, 'recorded'), { recursive: true, force: true });
+rmSync(path.join(out, 'source.tar.gz'), { force: true });
 console.log(
   `Prepared ${presentation.findings.length} readable findings and ${clips.flat().length} clips.`
 );
@@ -162,10 +167,14 @@ const repo = 'tloncorp/tlon-apps',
 const target = JSON.parse(gh(['api', `repos/${repo}/pulls/${pr}`]));
 if (
   target.head.repo?.full_name !== repo ||
-  target.base.repo?.full_name !== repo ||
-  target.head.sha !== c.pr.head.sha
+  target.base.repo?.full_name !== repo
 )
-  throw new Error('Target PR no longer matches the tested commit');
+  throw new Error('Target PR is outside the expected repository');
+const historical = target.head.sha !== c.pr.head.sha;
+if (historical) {
+  const notice = `> **Earlier test results.** These clips were recorded at commit \`${c.pr.head.sha.slice(0, 10)}\`. The PR is now at \`${target.head.sha.slice(0, 10)}\`. This updates the presentation of the saved run; it does not retest the latest code.\n\n`;
+  writeFileSync(path.join(out, 'report.md'), marker + '\n' + notice + text);
+}
 const pages = JSON.parse(
   gh([
     'api',
@@ -219,6 +228,8 @@ writeFileSync(
       players,
       clipCount: clips.flat().length,
       sourceHead: c.pr.head.sha,
+      currentHead: target.head.sha,
+      historical,
     },
     null,
     2

@@ -139,14 +139,12 @@ export function clipWindows(sources, receipts, info, duration) {
           )
           .filter(Number.isFinite)
           .sort((a, b) => a - b);
-        return times
-          .slice(0, -1)
-          .map((t, i) => ({
-            start: t,
-            end: Math.min(times[i + 1], t + 18),
-            basis: 'approximate action times',
-            evidence: [s.id],
-          }));
+        return times.slice(0, -1).map((t, i) => ({
+          start: t,
+          end: Math.min(times[i + 1], t + 18),
+          basis: 'approximate action times',
+          evidence: [s.id],
+        }));
       });
   const merged = [];
   for (const c of candidates.sort((a, b) => a.start - b.start)) {
@@ -163,13 +161,11 @@ export function clipWindows(sources, receipts, info, duration) {
       prev.evidence = [...new Set([...prev.evidence, ...c.evidence])];
     } else merged.push({ ...c });
   }
-  return merged
-    .slice(0, 3)
-    .map((c) => ({
-      ...c,
-      start: Math.max(0, c.start - 2),
-      end: Math.min(duration, c.start + 23, c.end + 3),
-    }));
+  return merged.slice(0, 3).map((c) => ({
+    ...c,
+    start: Math.max(0, c.start - 2),
+    end: Math.min(duration, c.start + 23, c.end + 3),
+  }));
 }
 export function cutClip(video, output, window) {
   if (
@@ -261,7 +257,7 @@ export function renderPresentation(
   return [
     '## iOS agent QA',
     '',
-    `**${report.status === 'failed' ? 'Issues found' : report.status === 'blocked' ? 'Testing incomplete' : 'Checks passed'}** · ${counts.passed} checks passed · ${counts.failed} checks failed · ${counts.blocked} checks incomplete`,
+    `**${report.status === 'failed' ? 'Issues found' : report.status === 'blocked' ? 'Testing incomplete' : 'Checks passed'}** · ${presentation.findings.length} findings · ${counts.passed} checks passed · ${counts.blocked} checks incomplete`,
     '',
     'Findings below come from the automated reviewers. This run tested the PR version; it did not compare against a recording of the base version.',
     '',

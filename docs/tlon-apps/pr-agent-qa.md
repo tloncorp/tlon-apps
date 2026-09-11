@@ -385,5 +385,6 @@ node ../../scripts/agent-qa/replay.mjs EAS_RUN_UUID QA_REF present
 ```
 
 This publishes a new presentation of the original test results to that PR. It
-requires the PR to still match the tested commit and retains the original run
-link. The standard full QA flow invokes the same script automatically.
+verifies the target repository and retains the original test commit and run
+link. If the PR has changed, a prominent notice states that these are earlier
+results and that the latest code was not retested. The standard full QA flow invokes the same script automatically.
