@@ -20,6 +20,7 @@ import {
 
 const mocks = vi.hoisted(() => ({
   draftStashes: {} as Record<string, Record<string, unknown>>,
+  floatingHeaderHeight: 0,
   getDraftStashes: vi.fn(),
   notes: [] as Array<Record<string, unknown>>,
   saveNotebookNote: vi.fn(),
@@ -76,6 +77,11 @@ vi.mock('../Channel/ChannelHeader', () => ({
 
 vi.mock('../useScreenScrollProps', () => ({
   useScreenScrollProps: () => ({}),
+}));
+
+// Pulls in @react-navigation/elements, which ships a .png vitest cannot load.
+vi.mock('../conversationScrollChrome', () => ({
+  useFloatingHeaderHeight: () => mocks.floatingHeaderHeight,
 }));
 
 vi.mock('../Form', () => ({ TextInput: 'TextInput' }));
@@ -192,6 +198,7 @@ function registerNotesDetailTestHooks() {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.floatingHeaderHeight = 0;
     mocks.draftStashes = {};
     mocks.getDraftStashes.mockResolvedValue({});
     mocks.setDraftStashes.mockResolvedValue(undefined);
@@ -1844,45 +1851,28 @@ describe('NotesNoteDetail scroll restoration', () => {
     await act(async () => renderer.unmount());
   });
 
-  it('clamps a restore to the end of a short note', async () => {
+  it('keeps an offset the scroll view reported past the inset-free end', async () => {
     const { renderer, scrollTo } = await renderDetail();
-    // Barely taller than the viewport: the end of the scroll range is y=100.
-    const shortNote = { contentHeight: 900, viewportHeight: 800 };
+    // automaticallyAdjustKeyboardInsets makes offsets beyond
+    // contentSize - layoutMeasurement valid while the keyboard is open, so
+    // y=640 here is legitimate even though the inset-free end is y=100.
+    // Bounding the restore to that end scrolls the caret behind the keyboard.
+    const nearEndWithKeyboard = { contentHeight: 900, viewportHeight: 800 };
 
     await act(async () => {
       scrollView(renderer).props.onScrollBeginDrag();
       scrollView(renderer).props.onScroll(
-        scrollEvent({ offsetY: 640, ...shortNote })
+        scrollEvent({ offsetY: 640, ...nearEndWithKeyboard })
       );
       scrollView(renderer).props.onScrollEndDrag(
-        scrollEvent({ offsetY: 640, ...shortNote })
+        scrollEvent({ offsetY: 640, ...nearEndWithKeyboard })
       );
     });
     await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed past the end');
+      bodyInput(renderer).props.onChangeText('Typed near the end');
     });
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 100, animated: false });
-    await act(async () => renderer.unmount());
-  });
-
-  it('does not clamp a note that fits its viewport', async () => {
-    const { renderer, scrollTo } = await renderDetail();
-    const fitsViewport = { contentHeight: 400, viewportHeight: 800 };
-
-    await act(async () => {
-      scrollView(renderer).props.onScroll(
-        scrollEvent({ offsetY: HEADER_RESTING_OFFSET_Y, ...fitsViewport })
-      );
-    });
-    await act(async () => {
-      bodyInput(renderer).props.onChangeText('Typed into a note that fits');
-    });
-
-    expect(scrollTo).toHaveBeenCalledWith({
-      y: HEADER_RESTING_OFFSET_Y,
-      animated: false,
-    });
+    expect(scrollTo).toHaveBeenCalledWith({ y: 640, animated: false });
     await act(async () => renderer.unmount());
   });
 

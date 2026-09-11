@@ -38,6 +38,7 @@ import { useNotebookSidebarRegistration } from '../../contexts/notebookSidebar';
 import { ActionSheet } from '../ActionSheet';
 import { useRegisterChannelHeaderItem } from '../Channel/ChannelHeader';
 import type { ScreenHeaderAction } from '../ScreenHeader';
+import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { NotesActionGroupList } from './NotesActions';
 import { NotebookGateMessage, useNotebookData } from './NotesData';
 import { useEntityDialog } from './NotesDialogPrimitives';
@@ -1239,6 +1240,10 @@ export function NotesNativeChannel({
     notebookSidebarSourceId
   );
 
+  // The notes screens install a transparent native header on iOS 26 whenever
+  // their scroll view mounts, so the banners below always have one to clear.
+  const floatingHeaderHeight = useFloatingHeaderHeight(true);
+
   if (gate) {
     return (
       <NotebookGateMessage
@@ -1282,8 +1287,14 @@ export function NotesNativeChannel({
       position="relative"
       {...dropImportProps}
     >
-      {error ? <NotesBanner message={error} tone="negative" /> : null}
-      {importNotice ? <NotesBanner message={importNotice} /> : null}
+      {error || importNotice ? (
+        // These sit outside the tree pane's scroll view, so nothing insets
+        // them below a transparent header; the group clears it once.
+        <YStack paddingTop={floatingHeaderHeight}>
+          {error ? <NotesBanner message={error} tone="negative" /> : null}
+          {importNotice ? <NotesBanner message={importNotice} /> : null}
+        </YStack>
+      ) : null}
 
       {useDesktopSplit ? noteDetailPane : notesTreePane}
       {isDragImportActive ? (

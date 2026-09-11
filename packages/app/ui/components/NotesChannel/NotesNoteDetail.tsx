@@ -46,6 +46,7 @@ import { TextInput, type TextInputRef } from '../Form';
 import { NotebookContentRenderer } from '../NotebookPost/NotebookPost';
 import type { ScreenHeaderAction } from '../ScreenHeader';
 import { ScreenHeaderItemElements } from '../ScreenHeader/primitives';
+import { useFloatingHeaderHeight } from '../conversationScrollChrome';
 import { useScreenScrollProps } from '../useScreenScrollProps';
 import {
   NotebookGateMessage,
@@ -497,10 +498,6 @@ export function NotesNoteDetail({
   // down by the height of the header on the first restore.
   const scrollOffsetYRef = useRef<number | null>(null);
   const lastUserScrollOffsetYRef = useRef<number | null>(null);
-  const scrollRangeRef = useRef<{
-    overflows: boolean;
-    maxOffsetY: number;
-  } | null>(null);
   const userIsScrollingRef = useRef(false);
   const pendingScrollRestoreYRef = useRef<number | null>(null);
 
@@ -779,7 +776,6 @@ export function NotesNoteDetail({
     scrolledNoteIdRef.current = noteId;
     scrollOffsetYRef.current = null;
     lastUserScrollOffsetYRef.current = null;
-    scrollRangeRef.current = null;
     pendingScrollRestoreYRef.current = null;
     userIsScrollingRef.current = false;
   }, [noteId]);
@@ -800,17 +796,13 @@ export function NotesNoteDetail({
     if (restoreY === null || isPreviewing) return;
 
     pendingScrollRestoreYRef.current = null;
-    // No lower bound is needed: every restored offset is one the scroll view
-    // actually reported, so it is reachable by construction. Bottom insets
-    // (the keyboard) let the real offset run past maxOffsetY, so this clamps a
-    // little short of the true end. That is the safe direction: it keeps
-    // content on screen instead of stranding a short note above the keyboard.
-    const range = scrollRangeRef.current;
-    const clampedY = range?.overflows
-      ? Math.min(restoreY, range.maxOffsetY)
-      : restoreY;
+    // Restored unbounded on purpose. Every value here is one the scroll view
+    // reported, so it is reachable by construction, and with the keyboard open
+    // automaticallyAdjustKeyboardInsets makes offsets past the inset-free end
+    // valid; bounding them there would scroll the caret behind the keyboard.
+    // scrollTo is clamped to the live range by UIKit regardless.
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ y: clampedY, animated: false });
+      scrollViewRef.current?.scrollTo({ y: restoreY, animated: false });
     });
   }, [bodyDraft, bodyInputHeight, draftBase, isPreviewing, saveState]);
 
@@ -1535,31 +1527,17 @@ export function NotesNoteDetail({
     bodyInputRef.current?.focus();
   }, []);
 
-  const recordScrollMetrics = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const { contentOffset, contentSize, layoutMeasurement } =
-        event.nativeEvent;
-      const nextOffsetY = contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      scrollRangeRef.current = {
-        overflows: contentSize.height > layoutMeasurement.height,
-        maxOffsetY: contentSize.height - layoutMeasurement.height,
-      };
-      return nextOffsetY;
-    },
-    []
-  );
-
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = recordScrollMetrics(event);
+      const nextOffsetY = event.nativeEvent.contentOffset.y;
+      scrollOffsetYRef.current = nextOffsetY;
       // Only a drag reports where the user wants to be. Tracking the furthest
       // offset instead made every later restore drift toward the bottom.
       if (userIsScrollingRef.current) {
         lastUserScrollOffsetYRef.current = nextOffsetY;
       }
     },
-    [recordScrollMetrics]
+    []
   );
 
   const handleScrollBeginDrag = useCallback(() => {
@@ -1568,10 +1546,12 @@ export function NotesNoteDetail({
 
   const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      lastUserScrollOffsetYRef.current = recordScrollMetrics(event);
+      const nextOffsetY = event.nativeEvent.contentOffset.y;
+      scrollOffsetYRef.current = nextOffsetY;
+      lastUserScrollOffsetYRef.current = nextOffsetY;
       userIsScrollingRef.current = false;
     },
-    [recordScrollMetrics]
+    []
   );
 
   const handleTitleDraftChange = useCallback((nextTitle: string) => {
@@ -1612,6 +1592,12 @@ export function NotesNoteDetail({
   const screenScrollProps = useScreenScrollProps({
     enabled: headerActionsPlacement === 'channel-header',
   });
+  // Same condition as the scroll props above: the header is only transparent
+  // when this screen owns it, and the banner below the header is outside the
+  // scroll view, so nothing insets it.
+  const floatingHeaderHeight = useFloatingHeaderHeight(
+    headerActionsPlacement === 'channel-header'
+  );
   const headerActions = useMemo<ScreenHeaderAction[]>(
     () =>
       selectedNote
@@ -1661,18 +1647,20 @@ export function NotesNoteDetail({
   return (
     <YStack flex={1} backgroundColor="$background">
       {error ? (
-        <NotesBanner
-          message={error}
-          tone="negative"
-          actions={
-            conflictNote
-              ? [
-                  { label: 'Keep mine', onPress: resolveConflictKeepMine },
-                  { label: 'Use theirs', onPress: resolveConflictUseTheirs },
-                ]
-              : undefined
-          }
-        />
+        <YStack paddingTop={floatingHeaderHeight}>
+          <NotesBanner
+            message={error}
+            tone="negative"
+            actions={
+              conflictNote
+                ? [
+                    { label: 'Keep mine', onPress: resolveConflictKeepMine },
+                    { label: 'Use theirs', onPress: resolveConflictUseTheirs },
+                  ]
+                : undefined
+            }
+          />
+        </YStack>
       ) : null}
       <ScrollView
         {...screenScrollProps}
