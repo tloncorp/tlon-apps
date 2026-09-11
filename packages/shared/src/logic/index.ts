@@ -1,5 +1,6 @@
 export * from './utilHooks';
 export * from './contextLens';
+export * from './diaryDeprecation';
 export * from './embed';
 export * from './semver';
 export * from './reactionSupport';
