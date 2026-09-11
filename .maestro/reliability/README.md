@@ -44,3 +44,15 @@ pins the Cloud project, binary, device, and CLI. Prepared ship snapshots are key
 by backend/manifest inputs; a miss prepares cold ships, while a mismatched warm
 snapshot fails quickly. App builds and local native caches are not involved.
 The retained artifacts include backend hashes and the peer's delivery receipt.
+
+Multiparty cases from the [Authenticated App QA sheet](https://docs.google.com/spreadsheets/d/1tm0wY5qzLxgBrym6W4rDMSn66b2w9IjWxHNU6Dabp_A/edit?gid=0):
+
+| Rows | Case | Peer evidence |
+| --- | --- | --- |
+| 207-208 | Edit a mobile message | Same post ID has the edited text on the other ship |
+| 209 | Delete that message | Other ship receives its deletion tombstone |
+| 201-202 | Reply to a peer and receive a thread reply | Both replies have the expected authors under the same root; UI shows two replies and reopens them |
+
+These run sequentially inside `exchange.yaml` to share one login and ship setup.
+`peer-checks.json` records completed backend checks even if a later step fails;
+Maestro must also pass before the run counts as successful.

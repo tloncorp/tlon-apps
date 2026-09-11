@@ -15,13 +15,13 @@ appId: ${MAESTRO_APP_ID}
     file: ../reliability/subflows/send.yaml
     env:
       MESSAGE: ${MAESTRO_RUN_TAG + ' thread from mobile'}
-      MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' thread from mobile'}
+      MESSAGE_PATTERN: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
       EMPTY_INPUT: '^Reply$'
 - hideKeyboard
 - extendedWaitUntil:
     visible: ${MAESTRO_RUN_TAG + ' thread from ten'}
     timeout: 15000
-- assertVisible: ${MAESTRO_RUN_TAG + ' thread from mobile'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
 - tapOn: '^Back$'
 - assertVisible:
     id: MessageInput
@@ -31,11 +31,11 @@ appId: ${MAESTRO_APP_ID}
       text: '^2 replies$'
     direction: UP
     timeout: 5000
-- assertNotVisible: ${MAESTRO_RUN_TAG + ' thread from mobile'}
+- assertNotVisible: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
 - assertNotVisible: ${MAESTRO_RUN_TAG + ' thread from ten'}
 - tapOn: '^2 replies$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' from ten'}
-- assertVisible: ${MAESTRO_RUN_TAG + ' thread from mobile'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' thread from mobile ?'}
 - assertVisible: ${MAESTRO_RUN_TAG + ' thread from ten'}
 - assertVisible:
     id: MessageInput

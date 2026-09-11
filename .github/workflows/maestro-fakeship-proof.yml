@@ -68,11 +68,13 @@ jobs:
             MAESTRO_RUN_TAG=${{ env.MAESTRO_RUN_TAG }}
       - name: Verify peer evidence
         run: test -f "$PROOF_OUTPUT/peer-result.json" && cat "$PROOF_OUTPUT/peer-result.json"
-      - name: Snapshot successful ships after clean shutdown
-        if: steps.snapshot.outputs.cache-hit != 'true'
+      # A failed UI assertion must not discard successfully prepared backends.
+      - name: Snapshot prepared ships after clean shutdown
+        id: prepared
+        if: always() && steps.ships.outcome == 'success' && steps.snapshot.outputs.cache-hit != 'true'
         run: bash .maestro/cloud-fakeship/snapshot.sh
       - name: Save prepared ships
-        if: success() && steps.snapshot.outputs.cache-hit != 'true'
+        if: always() && steps.prepared.outcome == 'success'
         uses: actions/cache/save@v4
         with:
           path: .proof-snapshot
