@@ -51,6 +51,22 @@ function hasSkill(name) {
   return SKILL_DIRS.some((d) => existsSync(join(d, name, 'SKILL.md')));
 }
 
+// The registry's latest, or null when it cannot be reached; being offline is
+// not a finding.
+function latest(pkg) {
+  const r = run('npm', ['view', pkg, 'version']);
+  return r.ok ? r.stdout.trim() : null;
+}
+
+function upToDate(pkg, v, path) {
+  const newest = latest(pkg);
+  if (newest && atLeast(newest, v) && newest !== v)
+    return {
+      note: `${pkg} ${v} at ${path}; ${newest} is on npm: npm install -g ${pkg}@latest`,
+    };
+  return { ok: `${pkg} ${v} at ${path}` };
+}
+
 const checks = [
   {
     name: 'gh',
@@ -94,7 +110,7 @@ const checks = [
           how: 'npm install -g stim@latest',
           cmd: ['npm', ['install', '-g', 'stim@latest']],
         };
-      return { ok: `stim ${v} at ${path}` };
+      return upToDate('stim', v, path);
     },
   },
   {
@@ -125,7 +141,7 @@ const checks = [
           how: 'npm install -g agent-device',
           cmd: ['npm', ['install', '-g', 'agent-device']],
         };
-      return { ok: `agent-device ${v}` };
+      return upToDate('agent-device', v, path);
     },
   },
   {
