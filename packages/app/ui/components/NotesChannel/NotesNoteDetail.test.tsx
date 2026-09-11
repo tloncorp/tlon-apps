@@ -19,6 +19,7 @@ import {
 const mocks = vi.hoisted(() => ({
   draftStashes: {} as Record<string, Record<string, unknown>>,
   getDraftStashes: vi.fn(),
+  isWeb: true,
   notes: [] as Array<Record<string, unknown>>,
   saveNotebookNote: vi.fn(),
   setDraftStashes: vi.fn(),
@@ -64,7 +65,10 @@ vi.mock('tamagui', () => ({
   XStack: 'XStack',
   YStack: 'YStack',
   getTokenValue: () => 16,
-  isWeb: true,
+  // Read at render time, so a test can switch platform without re-importing.
+  get isWeb() {
+    return mocks.isWeb;
+  },
 }));
 
 vi.mock('../Channel/ChannelHeader', () => ({
@@ -159,46 +163,47 @@ describe('deriveNotesNoteSaveFieldIntent', () => {
   });
 });
 
+beforeAll(() => {
+  Object.assign(globalThis, {
+    IS_REACT_ACT_ENVIRONMENT: true,
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      callback(0);
+      return 0;
+    },
+  });
+});
+
+afterAll(() => {
+  delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
+    .IS_REACT_ACT_ENVIRONMENT;
+  delete (
+    globalThis as unknown as {
+      requestAnimationFrame?: typeof requestAnimationFrame;
+    }
+  ).requestAnimationFrame;
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.draftStashes = {};
+  mocks.getDraftStashes.mockResolvedValue({});
+  mocks.setDraftStashes.mockResolvedValue(undefined);
+  mocks.isWeb = true;
+  mocks.notes = [note(1, 'Original A'), note(2, 'Original B')];
+  mocks.useNotebookData.mockImplementation(() => ({
+    folders: [],
+    notes: mocks.notes,
+    canEdit: true,
+    rootFolderId: 0,
+    gate: null,
+  }));
+});
+
 describe('NotesNoteDetail note switching', () => {
-  beforeAll(() => {
-    Object.assign(globalThis, {
-      IS_REACT_ACT_ENVIRONMENT: true,
-      requestAnimationFrame: (callback: FrameRequestCallback) => {
-        callback(0);
-        return 0;
-      },
-    });
-  });
-
-  afterAll(() => {
-    delete (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean })
-      .IS_REACT_ACT_ENVIRONMENT;
-    delete (
-      globalThis as unknown as {
-        requestAnimationFrame?: typeof requestAnimationFrame;
-      }
-    ).requestAnimationFrame;
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.draftStashes = {};
-    mocks.getDraftStashes.mockResolvedValue({});
-    mocks.setDraftStashes.mockResolvedValue(undefined);
-    mocks.notes = [note(1, 'Original A'), note(2, 'Original B')];
-    mocks.useNotebookData.mockImplementation(() => ({
-      folders: [],
-      notes: mocks.notes,
-      canEdit: true,
-      rootFolderId: 0,
-      gate: null,
-    }));
-  });
-
   it('keeps same-note saves FIFO across A → B → A visits', async () => {
     const firstSave = deferred<Record<string, unknown>>();
     mocks.saveNotebookNote
@@ -1680,5 +1685,51 @@ describe('NotesNoteDetail note switching', () => {
     ).toBe('Remote A');
 
     act(() => renderer!.unmount());
+  });
+});
+
+describe('NotesNoteDetail scroll container', () => {
+  async function renderScrollView() {
+    let renderer!: ReactTestRenderer;
+    await act(async () => {
+      renderer = create(
+        <NotesNoteDetail
+          headerActionsPlacement="none"
+          noteId={1}
+          notebookFlag="~zod/notebook"
+          startInEdit
+        />
+      );
+    });
+    const scrollView = renderer.root.findByProps({
+      testID: 'NotesDetailScrollView',
+    });
+    return { renderer, scrollView };
+  }
+
+  it('sizes the native content container to the note, not the viewport', async () => {
+    // A container grown to the viewport gave automaticallyAdjustKeyboardInsets
+    // a full keyboard's worth of scroll range on a three-line note, which let
+    // the whole note scroll off the top (TLON-6540).
+    mocks.isWeb = false;
+    const { renderer, scrollView } = await renderScrollView();
+
+    expect(scrollView.props.contentContainerStyle ?? {}).not.toHaveProperty(
+      'flexGrow'
+    );
+
+    act(() => renderer.unmount());
+  });
+
+  it('keeps the web editor pane pinned to the viewport', async () => {
+    mocks.isWeb = true;
+    const { renderer, scrollView } = await renderScrollView();
+
+    expect(scrollView.props.contentContainerStyle).toEqual({
+      flexGrow: 1,
+      height: '100%',
+    });
+
+    act(() => renderer.unmount());
   });
 });
