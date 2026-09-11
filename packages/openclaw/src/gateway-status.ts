@@ -17,10 +17,25 @@ import { withTlonApiPoke } from './urbit/api-client.js';
 export const API_CLIENT_PARAMS_SLOT = '@tloncorp/openclaw.api-client-params';
 
 export interface SharedApiClientParams {
+  /**
+   * The bot ship this transport talks to. The slot is unkeyed and every
+   * monitor publishes to it, so a consumer whose correctness depends on
+   * reaching a PARTICULAR ship (the lens sync's ownership assertions) must
+   * check this rather than assume the newest publisher is theirs — a reload
+   * that repoints the account leaves the retiring monitor's transport here.
+   */
+  ship?: string;
   poke: (params: {
     app: string;
     mark: string;
     json: unknown;
+    /**
+     * Wait for gall's poke ack, not just Eyre's 2xx (which only means the
+     * poke was queued). Correctness pokes with no later event to retry them
+     * — the lens sync's ownership assertions — must set this, or a nack
+     * from a restarting %steward reads as success.
+     */
+    awaitAck?: boolean;
   }) => Promise<unknown>;
 }
 

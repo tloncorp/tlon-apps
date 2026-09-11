@@ -179,6 +179,15 @@ export interface AuthenticationInterface {
  */
 export interface SubscriptionInterface {
   /**
+   * Handle positive %watch-ack: gall accepted the watch and it is live.
+   *
+   * subscribe() resolves on the channel PUT, which only means Eyre queued
+   * the subscribe — facts can still be dropped until this fires. Callers
+   * that backfill a gap (scry, then watch) must do it from here, or a fact
+   * landing in between is lost with nothing to trigger another read.
+   */
+  ack?(id: number): void;
+  /**
    * Handle negative %watch-ack
    */
   err?(error: any, id: string): void;
@@ -260,6 +269,20 @@ export class ChannelPutError extends Error {
     super('Failed to PUT channel');
     this.name = 'ChannelPutError';
     this.status = status;
+  }
+}
+
+/**
+ * Thrown when the channel PUT succeeded but the first-time stream setup it
+ * performs afterwards (name checks, event source) did not. The ship HAS the
+ * message — unlike ChannelPutError, which means it was rejected outright —
+ * so a caller that registered something for it must undo that on the ship,
+ * not just locally.
+ */
+export class ChannelSetupError extends Error {
+  constructor(public cause: unknown) {
+    super('Channel stream setup failed after a successful PUT');
+    this.name = 'ChannelSetupError';
   }
 }
 

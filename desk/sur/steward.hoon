@@ -8,6 +8,9 @@
 ::
 ::    %configure: set the shared owner — the bot's owner ship, used across
 ::            modules (lens send target, gateway owner-DM tracking).
+::    %unconfigure: clear the shared owner (the gateway's config no longer
+::            names one). also revokes the former owner's prompt mirror so
+::            the bot stops appearing owned/editable there.
 ::    %trust-bot / %untrust-bot: add/remove a ship from the owner-side
 ::            trusted-bots set. only ships in this set may send lens %entry
 ::            pokes cross-ship. trust is explicit and ship-class-agnostic
@@ -16,6 +19,7 @@
 ::
 +$  action
   $%  [%configure owner=ship]
+      [%unconfigure ~]
       [%trust-bot ship=ship]
       [%untrust-bot ship=ship]
   ==

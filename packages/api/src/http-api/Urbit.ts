@@ -11,6 +11,7 @@ import {
   Ack,
   AuthError,
   ChannelPutError,
+  ChannelSetupError,
   AuthenticationInterface,
   FatalError,
   Message,
@@ -529,6 +530,15 @@ export class Urbit {
                 console.error(data.err);
                 funcs.err?.(data.err, data.id);
                 this.outstandingSubscriptions.delete(data.id);
+              } else if (funcs) {
+                // Positive watch-ack: the watch is live from here on, so a
+                // caller backfilling the scry-to-watch gap can read now
+                // without a fact being dropped behind it.
+                try {
+                  funcs.ack?.(data.id);
+                } catch (e) {
+                  console.error('Failed to call subscription ack callback', e);
+                }
               }
             } else if (
               data.response === 'diff' &&
@@ -728,23 +738,34 @@ export class Urbit {
     });
 
     if (!response.ok) {
+      // Known NOT accepted by the ship: safe for callers to roll back any
+      // local registration they made for this message (see subscribe()).
       throw new ChannelPutError(response.status);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
         console.log('initializing event source');
       }
-      await Promise.all([this.getOurName(), this.getShipName()]);
+      // Past the PUT, so the ship HAS these messages. Tag anything that
+      // fails from here as a setup failure, not a delivery failure: a
+      // caller that registered a subscription must close it on the ship
+      // rather than only dropping its local entry (see subscribe()).
+      try {
+        await Promise.all([this.getOurName(), this.getShipName()]);
 
-      if (this.our !== this.nodeId) {
-        console.log('our name does not match ship name');
-        console.log('our:', this.our);
-        console.log('ship:', this.nodeId);
-        console.log('messages:', json);
-        throw new AuthError('invalid session');
+        if (this.our !== this.nodeId) {
+          console.log('our name does not match ship name');
+          console.log('our:', this.our);
+          console.log('ship:', this.nodeId);
+          console.log('messages:', json);
+          throw new AuthError('invalid session');
+        }
+
+        await this.eventSource();
+      } catch (error) {
+        // AuthError drives re-authentication in the wrapper; leave it be.
+        throw error instanceof AuthError ? error : new ChannelSetupError(error);
       }
-
-      await this.eventSource();
     }
   }
 
@@ -928,7 +949,8 @@ export class Urbit {
    * @param handlers Handlers to deal with various events of the subscription
    */
   async subscribe(params: SubscriptionRequestInterface): Promise<number> {
-    const { app, path, ship, resubOnQuit, err, event, quit } = {
+    const { app, path, ship, resubOnQuit, ack, err, event, quit } = {
+      ack: () => {},
       err: () => {},
       event: () => {},
       quit: () => {},
@@ -953,6 +975,7 @@ export class Urbit {
       app,
       path,
       resubOnQuit,
+      ack,
       err,
       event,
       quit,
@@ -987,9 +1010,26 @@ export class Urbit {
       // reset resubscribe it on the caller's behalf; the caller retries. a
       // reset restarts the id sequence, so the slot may already belong to a
       // live subscription on the new channel
-      if (this.outstandingSubscriptions.get(message.id) === entry) {
+      const ours = this.outstandingSubscriptions.get(message.id) === entry;
+      if (ours) {
         this.outstandingSubscriptions.delete(message.id);
         this.emit('subscription', { id: message.id, status: 'close' });
+      }
+      // A failed PUT (rejected, or the request never completed) leaves
+      // nothing on the ship, so dropping the local entry is all there is to
+      // do. A ChannelSetupError is different: the PUT landed and only the
+      // stream setup after it failed, so the watch DOES exist there — a
+      // caller retrying would stack a second live one and leave only the
+      // newest id unsubscribable. Close it first, best-effort: if the
+      // channel itself is broken the unsubscribe fails too, but then the
+      // channel is being reset/reaped anyway. Skipped when the slot is no
+      // longer ours, since the id may now name someone else's watch.
+      if (ours && putError instanceof ChannelSetupError) {
+        try {
+          await this.unsubscribe(message.id);
+        } catch {
+          // Channel is unusable; the ship reaps the orphan with it.
+        }
       }
       throw putError;
     }

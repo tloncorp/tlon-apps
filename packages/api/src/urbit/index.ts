@@ -34,4 +34,5 @@ export * from './metagrab';
 export * from './meta';
 export * from './presence';
 export * from './stewardGateway';
+export * from './stewardPrompts';
 export * from './lens';

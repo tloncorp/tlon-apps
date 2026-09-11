@@ -1,0 +1,95 @@
+import type * as api from '@tloncorp/api';
+
+/**
+ * What our ship's prompts-module probe has determined so far. `unresolved`
+ * covers both a probe in flight and one still burning its retry budget: a
+ * 404 there means either the ship has no module or %steward is restarting,
+ * and only an exhausted probe distinguishes them.
+ */
+export type PromptsModuleState = 'present' | 'absent' | 'unresolved';
+
+export type BotOwnershipInputs = {
+  /** The bot's mirrored prompt set; undefined when never resolved. */
+  prompts: api.BotSystemPrompt[] | null | undefined;
+  /**
+   * True while the per-bot mirror scry has produced nothing trustworthy:
+   * still loading, refetching, errored, or answered before this mount.
+   */
+  mirrorUnresolved: boolean;
+  module: PromptsModuleState;
+};
+
+/**
+ * Decide whether a ship is a bot we own, and whether that verdict is
+ * settled enough to gate a destructive action (Block) on.
+ *
+ * The subtlety is that the per-bot mirror scry 404s — and so resolves to a
+ * successful `null` — in two very different situations: an ordinary ship
+ * with no mirror, and our own %steward restarting. Taken alone it would
+ * report an owned bot as unowned for the length of a restart, which is
+ * exactly when Block must stay hidden. So a null only becomes an
+ * authoritative "not owned" once the module probe has confirmed the module
+ * is there (or has exhausted its retries and found it genuinely absent, in
+ * which case no mirror can exist and every ship is unowned).
+ */
+export function resolveBotOwnership(inputs: BotOwnershipInputs): {
+  isOwnedBot: boolean;
+  isPending: boolean;
+} {
+  const isOwnedBot = Boolean(inputs.prompts?.length);
+  if (inputs.module === 'absent') {
+    // The ship serves no prompt mirrors at all, so the mirror scry has
+    // nothing left to decide. Keeping Block hidden on every profile until
+    // such a ship upgrades would be worse than the ambiguity this resolves.
+    return { isOwnedBot, isPending: false };
+  }
+  return {
+    isOwnedBot,
+    isPending: inputs.module === 'unresolved' || inputs.mirrorUnresolved,
+  };
+}
+
+/**
+ * What to do with a failed module probe.
+ *
+ * The two failure modes must not be conflated: only the module path's own
+ * 404 is (eventually) evidence that the ship has no module, and it needs a
+ * few tries first because %steward 404s the same way while restarting. A
+ * transport failure determined nothing at all — reporting it as absence
+ * would let Block appear beside an owned bot, and caching it as a verdict
+ * would strand ownership unresolved for the session, hiding Block on every
+ * ordinary profile. So it is rethrown for the caller to retry later.
+ */
+export function classifyProbeFailure(opts: {
+  unavailable: boolean;
+  attempt: number;
+  maxRetries: number;
+}): 'retry' | 'absent' | 'rethrow' {
+  if (!opts.unavailable) {
+    return 'rethrow';
+  }
+  return opts.attempt >= opts.maxRetries ? 'absent' : 'retry';
+}
+
+/**
+ * Fold the module probe's query state into a verdict.
+ *
+ * A revalidation in flight counts as unresolved even though the previous
+ * verdict is still in the cache: the whole point of revalidating is that
+ * %steward may have restarted since, and holding `present` through the
+ * refetch would let a per-bot 404 — which the client cannot distinguish
+ * from "no mirror" — resolve an owned bot to unowned.
+ */
+export function resolvePromptsModuleState(query: {
+  data?: 'present' | 'absent';
+  isFetching: boolean;
+  isError?: boolean;
+}): PromptsModuleState {
+  if (query.isFetching || query.isError) {
+    // A failed revalidation determined nothing, but react-query keeps the
+    // previous data — reusing it would report a stale `present` as settled
+    // and let a restart-time per-bot null resolve an owned bot to unowned.
+    return 'unresolved';
+  }
+  return query.data ?? 'unresolved';
+}

@@ -27,6 +27,7 @@ import { useNavigation as useContextNavigation } from '../contexts/navigation';
 import { useGroupTitle } from '../utils';
 import { ContactAvatar } from './Avatar';
 import { BotBadge } from './BotBadge';
+import { BotSystemPromptsSection, useIsOwnedBot } from './BotSystemPrompts';
 import { ContactName } from './ContactNameV2';
 import { GroupAvatar } from './GroupAvatar';
 import { ListItem } from './ListItem';
@@ -157,6 +158,15 @@ export function UserProfileScreenView(props: Props) {
             <StatusBlock status={sponsorStatus} label="Sponsor" />
           </View>
         </XStack>
+
+        {/* Data-gated rather than riding the hosted-bot check: our steward
+            only serves prompt sets for bots that configured us as their
+            owner (including a self-owned bot on this very ship, so no
+            own-profile guard here). Presence of prompt data is itself the
+            ownership signal — the section renders nothing for everyone
+            else. */}
+        <BotSystemPromptsSection botShip={props.userId} />
+
         <PinnedGroupsDisplay
           groups={pinnedGroups}
           onPressGroup={onPressGroup}
@@ -462,6 +472,17 @@ function UserInfoRow(props: { userId: string; hasNickname: boolean }) {
 function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
   const navContext = useContextNavigation();
   const queryClient = db.queryClient;
+  const currentUserId = useCurrentUserId();
+  // Blocking your own bot makes no sense; hide the button on an owned
+  // bot's profile. Unblock stays reachable so an already-blocked bot
+  // can't get stranded.
+  const ownedBot = useIsOwnedBot(props.userId);
+  const isDesignatedBot = api.isBotUserIdForUser(props.userId, currentUserId);
+  const isOwnedBot = ownedBot.isOwnedBot || isDesignatedBot;
+  // While the mirror scry is still deciding we can't tell an owned bot
+  // from a stranger — suppress Block (never Unblock) instead of flashing
+  // a tappable Block on a slow first load.
+  const ownershipPending = ownedBot.isPending && !isDesignatedBot;
 
   const handleMessageUser = useCallback(() => {
     if (!navContext.onPressGoToDm) {
@@ -527,10 +548,12 @@ function ProfileButtons(props: { userId: string; contact: db.Contact | null }) {
             onPress={handleRemoveContactSuggestion}
           />
         ) : null}
-        <ProfileButton
-          title={isBlocked ? 'Unblock' : 'Block'}
-          onPress={handleBlock}
-        />
+        {isBlocked || (!isOwnedBot && !ownershipPending) ? (
+          <ProfileButton
+            title={isBlocked ? 'Unblock' : 'Block'}
+            onPress={handleBlock}
+          />
+        ) : null}
       </ScrollView>
     </View>
   );
