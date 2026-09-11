@@ -115,6 +115,10 @@ import { writeFileSync } from 'node:fs';
 const names = ['exchange', 'invitations', 'direct-messages', 'moderation', 'group-changes', 'reactions', 'contact-status'];
 const selected = process.env.PROOF_CASES === 'all' ? names : (process.env.PROOF_CASES || 'exchange').split(',');
 if (!selected.length || selected.some(name => !names.includes(name))) throw Error('Unknown proof case');
-writeFileSync('proof-flows/config.yaml', 'flows:\n' + selected.map(name => `  - cloud-fakeship/${name}.yaml\n`).join(''));
+// One device/login for a batch; selecting one case still gives a focused retry.
+writeFileSync('proof-flows/cloud-fakeship/selected.yaml',
+  'appId: ${MAESTRO_APP_ID}\nname: Selected two-ship QA cases\n---\n' +
+  selected.map((name, i) => `- runFlow:\n    file: ${name}.yaml\n    env:\n      MAESTRO_SESSION: ${i ? 'warm' : 'fresh'}\n`).join(''));
+writeFileSync('proof-flows/config.yaml', 'flows:\n  - cloud-fakeship/selected.yaml\n');
 JS
 printf '{"readySeconds":%s}\n' "$((SECONDS-start))" > "$PROOF_OUTPUT/preparation.json"

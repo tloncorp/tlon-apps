@@ -5,10 +5,11 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: ../reliability/subflows/begin.yaml
-- tapOn: '^Search$'
-- inputText: ${'Meta-' + MAESTRO_RUN_TAG}
-- pressKey: Enter
-- longPressOn: ${'^Meta-' + MAESTRO_RUN_TAG + '$'}
+- scrollUntilVisible:
+    element: ${'Meta-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- longPressOn: ${'Meta-' + MAESTRO_RUN_TAG}
 - tapOn: '^Group info & settings$'
 - tapOn: '^Rename$'
 - tapOn:
@@ -25,12 +26,11 @@ env:
 - assertVisible: ${'Renamed-' + MAESTRO_RUN_TAG}
 - assertVisible: '^Shared description$'
 - tapOn: '^Back$'
-# The old Home search no longer matches the renamed group.
-- tapOn: '^Clear$'
-- tapOn: '^Filter by name$'
-- inputText: ${'Renamed-' + MAESTRO_RUN_TAG}
-- pressKey: Enter
-- tapOn: ${'^Renamed-' + MAESTRO_RUN_TAG + '$'}
+- scrollUntilVisible:
+    element: ${'Renamed-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Renamed-' + MAESTRO_RUN_TAG}
 - extendedWaitUntil:
     visible: '^metadata verified$'
     timeout: 15000

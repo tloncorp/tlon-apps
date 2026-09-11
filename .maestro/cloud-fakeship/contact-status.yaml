@@ -8,10 +8,11 @@ env:
 - runFlow: ../reliability/subflows/contacts-tab.yaml
 - assertVisible: ${'Available-' + MAESTRO_RUN_TAG}
 - runFlow: ../reliability/subflows/home-tab.yaml
-- tapOn: '^Search$'
-- inputText: ${'Status-' + MAESTRO_RUN_TAG}
-- pressKey: Enter
-- tapOn: ${'^Status-' + MAESTRO_RUN_TAG + '$'}
+- scrollUntilVisible:
+    element: ${'Status-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Status-' + MAESTRO_RUN_TAG}
 - runFlow:
     file: ../reliability/subflows/send.yaml
     env:

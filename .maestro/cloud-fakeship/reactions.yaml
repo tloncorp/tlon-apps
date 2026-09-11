@@ -5,10 +5,11 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: ../reliability/subflows/begin.yaml
-- tapOn: '^Search$'
-- inputText: ${'React-' + MAESTRO_RUN_TAG}
-- pressKey: Enter
-- tapOn: ${'^React-' + MAESTRO_RUN_TAG + '$'}
+- scrollUntilVisible:
+    element: ${'React-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'React-' + MAESTRO_RUN_TAG}
 - extendedWaitUntil:
     visible: '^reaction target$'
     timeout: 15000

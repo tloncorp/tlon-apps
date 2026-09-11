@@ -5,10 +5,11 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: ../reliability/subflows/begin.yaml
-- tapOn: '^Search$'
-- inputText: ${'Kick-' + MAESTRO_RUN_TAG}
-- pressKey: Enter
-- tapOn: ${'^Kick-' + MAESTRO_RUN_TAG + '$'}
+- scrollUntilVisible:
+    element: ${'Kick-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Kick-' + MAESTRO_RUN_TAG}
 - extendedWaitUntil:
     visible: '^member before kick$'
     timeout: 15000
@@ -25,8 +26,8 @@ env:
     timeout: 15000
 - runFlow:
     when:
-      visible: '^Back$'
+      notVisible: '^Home$'
     commands:
-      - tapOn: '^Back$'
+      - pressKey: Back
 - assertVisible: '^Home$'
-- assertNotVisible: ${'^Kick-' + MAESTRO_RUN_TAG + '$'}
+- assertNotVisible: ${'Kick-' + MAESTRO_RUN_TAG}

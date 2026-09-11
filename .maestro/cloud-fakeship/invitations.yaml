@@ -5,10 +5,11 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: ../reliability/subflows/begin.yaml
-- tapOn: '^Search$'
-- inputText: ${'Invite-' + MAESTRO_RUN_TAG}
-- pressKey: Enter
-- tapOn: ${'^Invite-' + MAESTRO_RUN_TAG + '$'}
+- scrollUntilVisible:
+    element: ${'Invite-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${'Invite-' + MAESTRO_RUN_TAG}
 - assertVisible: '^Accept invite$'
 - tapOn: '^Accept invite$'
 - extendedWaitUntil:
