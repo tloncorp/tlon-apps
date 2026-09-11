@@ -4,7 +4,7 @@ env:
   JOURNEY: reactions
 ---
 - runScript: ../reliability/data.js
-- runFlow: ../reliability/subflows/begin.yaml
+- runFlow: begin.yaml
 - scrollUntilVisible:
     element: ${'React-' + MAESTRO_RUN_TAG}
     direction: DOWN
@@ -32,3 +32,7 @@ env:
     id: ReactionDisplay
     containsDescendants:
       - text: '^1$'
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

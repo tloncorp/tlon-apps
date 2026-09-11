@@ -4,7 +4,7 @@ env:
   JOURNEY: contact-status
 ---
 - runScript: ../reliability/data.js
-- runFlow: ../reliability/subflows/begin.yaml
+- runFlow: begin.yaml
 - runFlow: ../reliability/subflows/contacts-tab.yaml
 - assertVisible: ${'Available-' + MAESTRO_RUN_TAG}
 - runFlow: ../reliability/subflows/home-tab.yaml
@@ -29,3 +29,5 @@ env:
 - assertNotVisible: ${'Available-' + MAESTRO_RUN_TAG}
 - tapOn: '^~ten$'
 - assertVisible: ${'Busy-' + MAESTRO_RUN_TAG}
+- tapOn: '^Back$'
+- runFlow: ../reliability/subflows/home-tab.yaml

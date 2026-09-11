@@ -4,7 +4,7 @@ env:
   JOURNEY: invitations
 ---
 - runScript: ../reliability/data.js
-- runFlow: ../reliability/subflows/begin.yaml
+- runFlow: begin.yaml
 - scrollUntilVisible:
     element: ${'Invite-' + MAESTRO_RUN_TAG}
     direction: DOWN
@@ -26,3 +26,7 @@ env:
 - extendedWaitUntil:
     visible: '^invite verified$'
     timeout: 15000
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'

@@ -4,10 +4,11 @@ env:
   JOURNEY: direct-messages
 ---
 - runScript: ../reliability/data.js
-- runFlow: ../reliability/subflows/begin.yaml
-- tapOn: '^Search$'
-- inputText: ten
-- pressKey: Enter
+- runFlow: begin.yaml
+- scrollUntilVisible:
+    element: '^~ten$'
+    direction: DOWN
+    timeout: 5000
 - tapOn: '^~ten$'
 - assertVisible: ${MAESTRO_RUN_TAG + ' DM request'}
 - assertVisible: '^Accept$'
@@ -28,3 +29,7 @@ env:
     timeout: 15000
 - assertNotVisible: '^Accept$'
 - assertNotVisible: '^Deny$'
+- tapOn: '^Back$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
