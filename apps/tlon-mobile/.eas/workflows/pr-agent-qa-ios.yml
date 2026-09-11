@@ -61,7 +61,7 @@ jobs:
         with:
           type: other
           name: evidence-review-replay
-          path: artifacts/evidence-replay/**
+          path: artifacts/evidence-replay
   assess_pr:
     if: ${{ github.event_name == 'pull_request' || inputs.assessment_pr_json }}
     environment: preview

@@ -159,6 +159,7 @@ async function session({
     JSON.stringify(prompt)
   );
   await writeFile(path.join(outputDir, `${label}-review-tools.jsonl`), '');
+  await writeFile(path.join(outputDir, `${label}-review-events.jsonl`), '');
   try {
     await supervise(
       'codex',
