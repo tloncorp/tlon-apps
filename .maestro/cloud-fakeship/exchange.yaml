@@ -5,6 +5,10 @@ env:
 ---
 - runScript: ../reliability/data.js
 - runFlow: begin.yaml
+- scrollUntilVisible:
+    element: ${'Cloud-' + MAESTRO_RUN_TAG}
+    direction: DOWN
+    timeout: 5000
 - tapOn: ${'Cloud-' + MAESTRO_RUN_TAG}
 # A group with one channel opens that conversation directly.
 - assertVisible:

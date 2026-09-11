@@ -13,20 +13,27 @@ env:
 - extendedWaitUntil:
     visible: '^member before kick$'
     timeout: 15000
+# Sending this marker lets the host remove the channel immediately.
+- tapOn:
+    id: MessageInput
+- waitForAnimationToEnd:
+    timeout: 5000
 - runFlow:
-    file: ../reliability/subflows/send.yaml
+    file: ../reliability/subflows/input.yaml
     env:
-      MESSAGE: kick ready
-      MESSAGE_PATTERN: '^kick ready ?$'
-      EMPTY_INPUT: '^Message$'
+      INPUT_TEXT: kick ready
 - hideKeyboard
+- tapOn:
+    id: MessageInputSendButton
 - extendedWaitUntil:
     notVisible:
       id: MessageInput
     timeout: 15000
 - runFlow:
     when:
-      notVisible: '^Home$'
+      notVisible:
+        id: ScreenHeaderTitle
+        text: '^Home$'
     commands:
       - pressKey: Back
 - assertVisible: '^Home$'
