@@ -53,7 +53,12 @@ jobs:
     steps:
       - uses: eas/checkout
       - name: Install the evidence reviewer
-        run: npm install -g @openai/codex@0.145.0
+        run: |
+          npm install -g @openai/codex@0.145.0
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
       - name: Review original evidence without a device or human findings
         run: node ../../scripts/agent-qa/review-recording.mjs
       - uses: eas/upload_artifact

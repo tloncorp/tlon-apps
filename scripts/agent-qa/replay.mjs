@@ -22,7 +22,7 @@ const eas = (args) =>
     )
   );
 const run = eas(['workflow:view', id]);
-selectEvidence(run, id);
+const { video } = selectEvidence(run, id);
 const artifact = run.jobs
   .find((j) => j.key === 'qa_ios')
   .artifacts.find((a) => a.name === 'ios-agent-qa');
@@ -30,6 +30,7 @@ if (!artifact) throw new Error('Missing recorded evidence');
 const descriptor = {
   id,
   sha: run.gitCommitHash,
+  video: video ? { downloadUrl: video.downloadUrl, fileSizeBytes: video.fileSizeBytes } : null,
   artifact: {
     downloadUrl: artifact.downloadUrl,
     fileSizeBytes: artifact.fileSizeBytes,

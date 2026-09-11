@@ -65,7 +65,15 @@ After device execution and recording stop, a fresh Sol/high visual reviewer exam
 the original actions and screenshots without the plan, source hypotheses, PR prose,
 or operator conclusions. It records before/after transitions and unexpected defects.
 A separate coverage reviewer then receives those observations, the plan and the
-operator result. Both use read-only evidence tools. The coverage review can
+operator result. Both use read-only evidence tools. The coverage reviewer also reads
+the finalized recording with `video_info` and `inspect_video_frames`: timestamped
+contact sheets at native frame intervals, with enlarged header crops or full
+viewports. Sparse overviews locate events; stride-one windows inspect fast states
+and transitions without dropping intermediate captured frames. Findings cite saved
+frame receipts. A video-backed finding can resolve a screenshot-only block; no
+network delay is required before trying the normal recorded interaction.
+Action-to-video wall-clock alignment is approximate; actual visible frames establish
+the event timing. Missing captured states remain explicit and may need a controlled rerun. The coverage review can
 reject an operator pass and surface visual failures; source hypotheses alone do
 not count as reproduced bugs. Review failures retain the original evidence and
 make the missing review explicit. Reports keep code hypotheses separate from
