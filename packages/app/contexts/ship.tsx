@@ -196,14 +196,14 @@ export const ShipProvider = ({
 
   const clearNeedsSplashSequence = useCallback(() => {
     // SplashSequence awaits up to seven seconds before calling onCompleted, so
-    // a completion can arrive after an account switch, through a callback still
-    // holding the account the sequence ran for. Clearing the flag then would
-    // skip the new account's own signup or revival sequence.
-    const current = shipInfoRef.current;
-    if (
-      current.ship !== shipInfo.ship ||
-      current.shipUrl !== shipInfo.shipUrl
-    ) {
+    // a completion can arrive through a callback still holding the session the
+    // sequence ran for. Clearing the flag then would skip the current session's
+    // own signup or revival sequence.
+    //
+    // Compared by identity rather than by ship and url: setShip always installs
+    // a fresh object, so this also catches a logout and re-login to the *same*
+    // ship, which those two fields cannot tell apart.
+    if (shipInfoRef.current !== shipInfo) {
       return;
     }
 
