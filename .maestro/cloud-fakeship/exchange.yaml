@@ -1,5 +1,5 @@
 appId: ${MAESTRO_APP_ID}
-name: Cloud device with CI fake ships
+name: Two-ship delivery, edits, deletion and threads
 env:
   JOURNEY: cloud
 ---
@@ -31,3 +31,5 @@ env:
     visible: ${MAESTRO_RUN_TAG + ' reply received'}
     timeout: 15000
 - assertNotVisible: '^Send failed, tap to retry$'
+- runFlow: message-actions.yaml
+- runFlow: thread.yaml

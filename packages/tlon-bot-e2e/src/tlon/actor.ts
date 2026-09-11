@@ -64,6 +64,7 @@ export interface BotProfileInput {
 }
 
 export interface ChannelPost {
+  isDeleted?: boolean;
   id?: string;
   authorId?: string;
   parentId?: string | null;
@@ -736,6 +737,7 @@ export function storyInputText(input: StoryInput): string {
 
 function postFromApi(post: unknown): ChannelPost {
   const raw = post as {
+    isDeleted?: boolean;
     id?: string;
     authorId?: string;
     parentId?: string | null;
@@ -746,6 +748,7 @@ function postFromApi(post: unknown): ChannelPost {
   };
   return {
     id: raw.id,
+    ...(raw.isDeleted ? { isDeleted: true } : {}),
     authorId: raw.authorId,
     sentAt: raw.sentAt,
     sequenceNum: raw.sequenceNum,

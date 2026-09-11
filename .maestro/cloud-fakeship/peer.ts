@@ -72,7 +72,7 @@ async function main() {
   await until('peer joins group', () =>
     ten.state.isMemberOfGroup(group.groupId)
   );
-  await ten.sendChannelPost({
+  const root = await ten.sendChannelPost({
     channelId: group.chatChannel,
     content: `${tag} from ten`,
   });
@@ -92,12 +92,15 @@ async function main() {
   };
   writeFileSync(`${out}/peer-ready.json`, JSON.stringify(evidence, null, 2));
   console.log('PEER_READY', JSON.stringify(evidence));
+  let mobileId: string | undefined;
   await until(
     'native reply reaches ten',
-    async () =>
-      (await ten.state.channelPosts(group.chatChannel)).some(
+    async () => {
+      mobileId = (await ten.state.channelPosts(group.chatChannel)).find(
         (p) => p.authorId === '~zod' && p.text === `${tag} from mobile`
-      ),
+      )?.id;
+      return !!mobileId;
+    },
     30 * 60_000
   );
   await ten.sendChannelPost({
@@ -109,12 +112,83 @@ async function main() {
       (p) => p.authorId === '~ten' && p.text === `${tag} reply received`
     )
   );
+  // QA Authenticated App rows 207-209: observe the same post on the other ship.
+  const checks: Record<string, string> = {};
+  const record = (name: string) => {
+    checks[name] = new Date().toISOString();
+    writeFileSync(`${out}/peer-checks.json`, JSON.stringify(checks, null, 2));
+  };
+  await until(
+    'edit reaches ten',
+    async () =>
+      (await ten.state.channelPosts(group.chatChannel)).some(
+        (p) =>
+          p.id === mobileId &&
+          p.authorId === '~zod' &&
+          p.text === `${tag} edited`
+      ),
+    180_000
+  );
+  record('edit');
+  await ten.sendChannelPost({
+    channelId: group.chatChannel,
+    content: `${tag} edit received`,
+  });
+  await until(
+    'delete tombstone reaches ten',
+    async () =>
+      (await ten.state.channelPosts(group.chatChannel)).some(
+        (p) => p.id === mobileId && p.isDeleted === true
+      ),
+    180_000
+  );
+  record('delete');
+  await ten.sendChannelPost({
+    channelId: group.chatChannel,
+    content: `${tag} delete received`,
+  });
+
+  // QA rows 201-202: replies must belong to the peer's root, with exact authors.
+  const thread = {
+    channelId: group.chatChannel,
+    rootId: root.id,
+    rootAuthor: '~ten',
+  };
+  await until(
+    'native thread reply reaches ten',
+    async () =>
+      (await ten.state.postWithReplies(thread)).replies.some(
+        (p) => p.author === '~zod' && p.text === `${tag} thread from mobile`
+      ),
+    180_000
+  );
+  await ten.replyToPost({
+    channelId: group.chatChannel,
+    parentId: root.id,
+    parentAuthor: '~ten',
+    content: `${tag} thread from ten`,
+  });
+  await until('both replies reach zod', async () => {
+    const { replies } = await zod.state.postWithReplies(thread);
+    return (
+      replies.some(
+        (p) => p.author === '~zod' && p.text === `${tag} thread from mobile`
+      ) &&
+      replies.some(
+        (p) => p.author === '~ten' && p.text === `${tag} thread from ten`
+      )
+    );
+  });
+  record('thread');
   writeFileSync(
     `${out}/peer-result.json`,
     JSON.stringify(
       {
         ...evidence,
         replyVerified: true,
+        checks,
+        mobilePostId: mobileId,
+        threadRootId: root.id,
         acknowledgementAt: new Date().toISOString(),
         elapsedMs: Date.now() - started,
       },
