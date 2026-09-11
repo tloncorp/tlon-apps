@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { codexArgs, supervise, verifyCodexAuth } from './codex.mjs';
+import { reviewSource, verifySourceReview } from './review.mjs';
 
 import {
   fixtureCatalog,
@@ -32,7 +33,7 @@ export const assessmentSchema = {
     },
     scenarios: {
       type: 'array',
-      maxItems: 8,
+      maxItems: 16,
       items: {
         type: 'object',
         additionalProperties: false,
@@ -43,7 +44,12 @@ export const assessmentSchema = {
           steps: { type: 'array', items: string },
           expected: string,
           prerequisites: string,
-          method: { type: 'string', enum: ['simulator', 'regression'] },
+          method: {
+            type: 'string',
+            enum: ['simulator', 'regression', 'unavailable'],
+          },
+          riskIds: { type: 'array', items: string },
+          checkpoints: { type: 'array', minItems: 1, items: string },
           fixture: {
             type: 'string',
             enum: ['none', ...Object.keys(fixtureCatalog)],
@@ -61,6 +67,8 @@ export const assessmentSchema = {
           'expected',
           'prerequisites',
           'method',
+          'riskIds',
+          'checkpoints',
           'fixture',
           'regression',
         ],
@@ -78,7 +86,7 @@ export function verifyAssessment(value, files) {
     !Array.isArray(value.changes) ||
     !value.changes.every((s) => typeof s === 'string') ||
     !Array.isArray(value.scenarios) ||
-    value.scenarios.length > 8
+    value.scenarios.length > 16
   )
     throw new Error('Invalid PR assessment');
   if (
@@ -94,7 +102,7 @@ export function verifyAssessment(value, files) {
   const ids = new Set();
   for (const scenario of value.scenarios) {
     if (
-      !/^change-[1-8]$/.test(scenario.id) ||
+      !/^change-(?:[1-9]|1[0-6])$/.test(scenario.id) ||
       ids.has(scenario.id) ||
       !scenario.change?.trim() ||
       !scenario.expected?.trim() ||
@@ -110,6 +118,31 @@ export function verifyAssessment(value, files) {
         'Scenario must identify a changed file, actions, and expected behavior'
       );
     ids.add(scenario.id);
+  }
+  if (value.sourceReview) {
+    const risks = new Set(value.sourceReview.hypotheses.map((h) => h.id));
+    for (const scenario of value.scenarios) {
+      if (
+        !Array.isArray(scenario.riskIds) ||
+        scenario.riskIds.some((id) => !risks.has(id)) ||
+        !Array.isArray(scenario.checkpoints) ||
+        !scenario.checkpoints.length
+      )
+        throw new Error(
+          'Reviewed scenarios need valid risk bindings and checkpoints'
+        );
+    }
+    if (value.decision === 'skip' && risks.size)
+      throw new Error('Unresolved source risks cannot be skipped');
+    if (
+      value.decision === 'test' &&
+      [...risks].some(
+        (id) => !value.scenarios.some((s) => s.riskIds.includes(id))
+      )
+    )
+      throw new Error(
+        'Every independently discovered risk needs an explicit validation or capability gap'
+      );
   }
   return verifySetupPlan(value);
 }
@@ -256,9 +289,25 @@ async function main() {
       const prepared = JSON.parse(process.env.QA_PREPARED_ASSESSMENT_JSON);
       if (prepared.headSha !== headSha || prepared.baseSha !== baseSha)
         throw new Error('Prepared plan source changed');
+      if (!prepared.sourceReview)
+        throw new Error('Prepared plan lacks independent code review');
+      verifySourceReview(prepared.sourceReview, {
+        repo: git(['rev-parse', '--show-toplevel']).trim(),
+        base: baseSha,
+        head: headSha,
+        files,
+      });
       assessment = { ...verifyAssessment(prepared, files), baseSha, headSha };
     } else {
       await verifyCodexAuth(process.env.OPENROUTER_API_KEY);
+      const sourceReview = await reviewSource({
+        repo: git(['rev-parse', '--show-toplevel']).trim(),
+        base: baseSha,
+        head: headSha,
+        files,
+        diff,
+        outputDir: output,
+      });
       directory = await mkdtemp(path.join(os.tmpdir(), 'qa-assessment-'));
       const cwd = path.join(directory, 'work');
       const home = path.join(directory, 'codex');
@@ -271,8 +320,10 @@ async function main() {
 User-facing means behavior experienced by Tlon end users in the product, including messages from their product bots. Changes solely to developer documentation, internal QA/CI agents, engineering digests or operational tooling are not product user-facing changes unless the diff also changes product runtime behavior. Do not confuse a staff-only automation consumer of documentation with an end-user product feature.
 Use the entire supplied diff and file list, not paths alone. UI, copy, assets, navigation, data behavior, error handling and backend changes can all be user-facing. Refactors, tests, docs, build/CI tooling may be non-user-facing only when the diff supports that conclusion. A bug fix is user-facing even without visual changes.
 decision=skip ONLY when there are no user-facing behavior changes; changes and scenarios must then be empty. Uncertainty, missing binary asset content, incomplete context, unsupported platforms or unavailable fixtures must never become a skip. Use blocked with the exact reason if meaningful simulator checks cannot be planned.
-For test, describe user-facing changes and at most eight specific scenarios covering those changes. Each scenario must have a unique change-N id, relevant changed files, concrete navigation/actions, prerequisites/test data, and an observable expected result. Cover failure cases when implicated by the diff. Do not substitute generic Home/login/message smoke tests for the changed behavior. Do not invent UI labels unsupported by the diff: instruct the device agent to discover them.
+For test, describe user-facing changes and at most sixteen atomic scenarios covering those changes. Each scenario must have a unique change-N id, relevant changed files, concrete navigation/actions, prerequisites/test data, and an observable expected result. Cover failure cases when implicated by the diff. Do not substitute generic Home/login/message smoke tests for the changed behavior. Do not invent UI labels unsupported by the diff: instruct the device agent to discover them.
 Target: iOS Simulator on disposable ships provisioned from the requested PR source. Return a setup plan selecting available fixture recipes; the runner creates and verifies that data before the simulator starts. Missing initial data is not a blocker when a recipe supplies it. Writes are permitted only inside these disposable fixtures. Each scenario selects its fixture and method. For simulator checks, regression must be none. For a known deterministic regression recipe, method=regression, regression=its ID, fixture=none; its real test result is attached separately and is never represented as a simulator observation. Prefer these recipes for event-order races and permission/capability combinations the real backend cannot expose. Never ask a UI agent to control database event order. Do not add impossible backend states just to enumerate hypothetical cases. Use the supplied supporting source to distinguish legacy notebook/diary screens from %notes. Include a positive feature-identity check in navigation steps. Do not combine independent behaviors into one all-or-nothing check. Android/web/physical-only checks remain blocked. If no supported recipe or executable scenario can cover the change, use blocked with the capability gap.
+The independent code-only review has already identified regression hypotheses. Plan falsification, not just confirmation of intended features. Bind each hypothesis to at least one scenario via riskIds; use an empty array for ordinary intended-behavior checks. Cover EVERY hypothesis, including performance/side-effect risks that leave final data correct. Existing regression recipes cover only their stated assertions: do not use a final-state test as proof of unmeasured intermediate work. If no recipe can execute the required probe, use method=unavailable and explicitly describe the missing instrumentation rather than disguising it as covered. An unsupported scenario must not prevent supported ones from running. method=unavailable uses regression=none, fixture=none.
+For each simulator scenario supply checkpoints: exact screen states to capture before the trigger, immediately after, and after settling/recovery. Use a single invariant per scenario. Separate focus from input, and input from deliberate scrolling; inspect the whole screen after each transition. Choose a short fixture item when a long document could make keyboard auto-scrolling ambiguous. Do not combine appearance, save success, transient status and keyboard behavior into one acceptance criterion. Transient states require an explicit timing-control prerequisite; if unavailable, only that scenario is unavailable. Base/head source comparison is supplied, but there is no base-version app recording: never claim device regression attribution from a head-only run. Distinguish an observed defect from whether the PR introduced it.
 Keep all text concise and return the supplied schema. Never claim that assessment itself tested any behavior.`;
       let tokens = 0;
       await supervise(
@@ -280,7 +331,7 @@ Keep all text concise and return the supplied schema. Never claim that assessmen
         assessmentArgs({ cwd, schema, output: result, instructions }),
         {
           cwd,
-          timeoutMs: 180_000,
+          timeoutMs: 300_000,
           env: {
             PATH: process.env.PATH,
             HOME: process.env.HOME,
@@ -297,6 +348,7 @@ Keep all text concise and return the supplied schema. Never claim that assessmen
             diff,
             fixtureCatalog,
             regressionCatalog,
+            sourceReview,
             supportingSource: Object.fromEntries(
               [
                 ...new Set([
@@ -324,7 +376,10 @@ Keep all text concise and return the supplied schema. Never claim that assessmen
         }
       );
       assessment = {
-        ...verifyAssessment(JSON.parse(await readFile(result, 'utf8')), files),
+        ...verifyAssessment(
+          { ...JSON.parse(await readFile(result, 'utf8')), sourceReview },
+          files
+        ),
         baseSha,
         headSha,
         tokens,
@@ -359,6 +414,11 @@ Keep all text concise and return the supplied schema. Never claim that assessmen
       `**PR assessment: ${assessment.decision === 'skip' ? 'no user-facing changes — simulator skipped' : assessment.decision}**`,
       '',
       assessment.reason.replaceAll('@', '@\u200b'),
+      '',
+      ...(assessment.sourceReview?.hypotheses || []).map(
+        (h) =>
+          `- **Source hypothesis ${h.id}**: ${h.impact} Trigger: ${h.trigger}. Not yet reproduced.`
+      ),
       '',
       ...assessment.scenarios.map(
         (s) => `- **${s.id}: ${s.change}** — ${s.expected}`

@@ -1,3 +1,4 @@
+import { reviewEvidence } from './review.mjs';
 import { runCodex, verifyCodexAuth } from './codex.mjs';
 import { verifyCoverage, verifySourceOverlay } from './assess.mjs';
 import { connectShips } from './ship-proxy.mjs';
@@ -510,7 +511,7 @@ async function agent(diff) {
     screenshot: false,
     command: 'codex exec',
   });
-  const result = await runCodex({
+  let result = await runCodex({
     env,
     deviceEnv,
     artifacts,
@@ -537,7 +538,45 @@ async function agent(diff) {
   );
   await capture();
   await capture([], true);
+  await stopRecording();
   if (context.assessment) {
+    const simulatorPlan = {
+      ...context.assessment,
+      scenarios: context.assessment.scenarios.filter(
+        (s) => s.method === 'simulator'
+      ),
+    };
+    try {
+      result = await reviewEvidence({
+        assessment: simulatorPlan,
+        result,
+        artifacts,
+        usage,
+        signal: agentAbort.signal,
+      });
+      context.evidenceReview = 'completed';
+    } catch (error) {
+      context.evidenceReview = clean(error.message);
+      result.checks.push(
+        ...simulatorPlan.scenarios.map((s) => ({
+          scenarioId: s.id,
+          expected: s.expected,
+          status: 'blocked',
+          observed: `Independent evidence review unavailable: ${clean(error.message)}`,
+          evidence: [],
+        }))
+      );
+    }
+    for (const scenario of context.assessment.scenarios.filter(
+      (s) => s.method === 'unavailable'
+    ))
+      result.checks.push({
+        scenarioId: scenario.id,
+        expected: scenario.expected,
+        status: 'blocked',
+        observed: `Not exercised: ${scenario.prerequisites}. Required validation: ${scenario.steps.join('; ')}`,
+        evidence: [],
+      });
     const receipts = context.backend?.regressionResults || [];
     evidence.set('regression-tests', {
       file: 'regression-results.json',
@@ -556,7 +595,9 @@ async function agent(diff) {
         scenarioId: scenario.id,
         method: 'regression',
         expected: scenario.expected,
-        status: ['passed', 'failed'].includes(receipt?.status) ? receipt.status : 'blocked',
+        status: ['passed', 'failed'].includes(receipt?.status)
+          ? receipt.status
+          : 'blocked',
         observed: `Automated regression, not a simulator check: ${receipt?.summary || 'No verified test receipt'}`,
         evidence: receipt ? ['regression-tests'] : [],
       });
@@ -567,6 +608,9 @@ async function agent(diff) {
         ? 'blocked'
         : 'passed';
   }
+  const counts = { passed: 0, failed: 0, blocked: 0 };
+  for (const check of result.checks) counts[check.status]++;
+  result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. See individual observations and source hypotheses below.`;
   report = verifyCoverage(verifyReport(result, evidence), context.assessment);
 }
 

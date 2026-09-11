@@ -2,7 +2,7 @@
 export const fixtureCatalog = {
   'notes-v1': {
     description:
-      'Disposable ~zod/~ten ships with a group-linked %notes notebook, a populated folder, long editable notes, and verified search. The device agent may create/edit within this fixture. Current group notes give readers write access; an independent read-only role cannot be provisioned through this backend API.',
+      'Disposable ~zod/~ten ships with a group-linked %notes notebook, populated and empty folders, a short editable QA Note 01, long QA Note 02 and additional notes, and verified search. The device agent may create/edit within this fixture. Current group notes give readers write access; an independent read-only role cannot be provisioned through this backend API.',
     source: [
       'packages/shared/src/logic/notesPermissionsCompat.ts',
       'packages/api/src/client/notesApi.ts',
@@ -32,7 +32,7 @@ export function verifySetupPlan(plan) {
   )
     throw new Error('Assessment must select known fixture recipes');
   for (const scenario of plan.scenarios) {
-    if (!['simulator', 'regression'].includes(scenario.method))
+    if (!['simulator', 'regression', 'unavailable'].includes(scenario.method))
       throw new Error('Unknown test method');
     if (
       scenario.fixture !== 'none' &&
@@ -44,7 +44,7 @@ export function verifySetupPlan(plan) {
       !regressionCatalog[scenario.regression]
     )
       throw new Error('Unknown regression recipe');
-    if (scenario.method === 'simulator' && scenario.regression !== 'none')
+    if (scenario.method !== 'regression' && scenario.regression !== 'none')
       throw new Error('Simulator check cannot claim regression evidence');
   }
   return plan;

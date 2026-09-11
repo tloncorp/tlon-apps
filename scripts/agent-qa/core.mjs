@@ -163,6 +163,11 @@ export function renderReport(context, report, usage) {
       ? `Video: test-session.mp4 (${context.video.durationSeconds.toFixed(1)} seconds), attached as ios-agent-qa-video. Recording starts after login and account verification.`
       : `Video unavailable: ${clean(context.video?.error || 'Testing did not reach the recording stage')}.`,
     '',
+    ...(context.assessment?.sourceReview?.hypotheses || []).flatMap((h) => [
+      `- **Source hypothesis ${h.id} (${h.confidence} confidence; not a runtime finding):** ${clean(h.impact)} Trigger: ${clean(h.trigger)} Invariant: ${clean(h.invariant)}`,
+      `  Source: ${h.citations.map((c) => `${c.version}:${c.file}:${c.line}`).join(', ')}`,
+    ]),
+    '',
     ...(report.checks || []).map(
       (check) =>
         `- **${check.status}** — ${clean(check.expected)}\n  Observed: ${clean(check.observed)} (evidence: ${check.evidence.join(', ') || 'none'})`

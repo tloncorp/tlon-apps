@@ -13,17 +13,26 @@ Runs for the same PR are serialized so backend cleanup can finish. The workflow 
 present on the PR branch, and the EAS project must be connected to GitHub.
 Fork PRs are excluded from credentialed testing.
 
-Codex + Sol first reads the PR title, description, complete changed-file list,
-and diff. It classifies the PR as `test`, `skip`, or `blocked`. It considers
+A separate Sol/high session first reviews only the pinned base/head code and diff.
+It has read-only source search and file tools, follows callers and helpers, and
+returns regression hypotheses with mechanically checked line citations from both
+revisions. It receives no PR prose, comments, human reviews, fixture catalog or
+previous QA reports. This stage runs before test planning.
+
+The planner then reads those hypotheses alongside the PR title, description,
+complete changed-file list and diff. It classifies the PR as `test`, `skip`, or `blocked`. It considers
 behavior changes as well as visible UI: error handling, copy, assets, data and
 backend changes can be user-facing. Only a supported conclusion that no
 user-facing behavior changes exist can skip the build and simulator. Missing
 context, large diffs and unsupported platforms are blocked. Supported missing
 fixtures are created by the runner before testing. The assessment is saved as `pr-qa-assessment`.
 
-A `test` assessment includes up to eight scenarios identifying changed files,
-concrete actions, expected results and prerequisites. Each scenario selects a reviewed fixture recipe and either simulator or regression
-execution. The report must account for every scenario by its ID and preserve its expected result verbatim
+A `test` assessment includes up to sixteen atomic scenarios identifying changed files,
+concrete actions, expected results and prerequisites. Each scenario selects a reviewed fixture recipe and simulator, regression, or
+explicitly unavailable execution. Every source hypothesis must be mapped to a
+scenario. Tests of final state cannot stand in for unmeasured intermediate work
+or side effects. Device checks include before/action/after checkpoints and one
+invariant each; an unavailable probe does not prevent supported tests from running. The report must account for every scenario by its ID and preserve its expected result verbatim
 in the findings. A generic successful
 login or Home smoke cannot satisfy this coverage requirement. A `skip` or
 `blocked` assessment posts its reason without starting a native build or simulator.
@@ -52,6 +61,18 @@ Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.
 A fresh CODEX_HOME and temporary working directory avoid personal configuration.
 The installed Argent interaction skill is included in the task instructions.
+After device execution and recording stop, a second Sol/high session reviews the
+original action trace and screenshots through read-only evidence tools. It can
+reject an operator pass and surface visual failures; source hypotheses alone do
+not count as reproduced bugs. Review failures retain the original evidence and
+make the missing review explicit. Reports keep code hypotheses separate from
+runtime observations and compute totals from the combined checks.
+
+This version compares base/head **source** and before/after **head-device states**.
+It does not yet run both app revisions on the same device. It must not claim that
+a visual defect was introduced by this PR without that comparison. Runtime
+instrumentation beyond the reviewed test recipes remains an explicit capability
+gap, even if source review identifies the likely defect.
 The MCP subprocess receives a stripped environment without the API key. Credentials stay in the scripted
 Maestro bootstrap; bootstrap recordings are excluded from uploaded evidence.
 
@@ -64,7 +85,7 @@ the separate reporting job still posts the result.
 
 ## Limits and test data
 
-Codex is capped at nine minutes and 100 MCP tool calls. The wrapper has a
+Device execution is capped at nine minutes and 100 MCP tool calls. Source and evidence review each have six minutes and 80 read-only tool calls. The wrapper has a
 25-minute watchdog. JSONL events, diagnostics, token usage, and the structured
 result are saved. Codex does not report dollar cost or per-request usage through
 this interface; the old OpenRouter $3 reserve is removed. Use the dedicated

@@ -13,7 +13,7 @@ export async function seedNotes({
   tag: string;
 }) {
   const client = new Urbit(url, code);
-  (client as Urbit & {ship:string}).ship = 'zod';
+  (client as Urbit & { ship: string }).ship = 'zod';
   await client.connect();
   await configureClient({
     shipName: 'zod',
@@ -31,6 +31,7 @@ export async function seedNotes({
   const detail = await notesV1.getNotebook(flag);
   const root = detail.notebook.rootFolderId;
   await notesV1.createFolder({ flag, parent: root, name: 'QA Folder' });
+  await notesV1.createFolder({ flag, parent: root, name: 'QA Empty Folder' });
   const folders = await notesV1.listFolders(flag);
   const folder = folders.find((f) => f.name === 'QA Folder');
   if (!folder) throw new Error('Created notes folder did not read back');
@@ -49,7 +50,10 @@ export async function seedNotes({
       flag,
       folder: root,
       title: `QA Note ${String(i).padStart(2, '0')}`,
-      body,
+      body:
+        i === 1
+          ? '# Short QA note\n\nOne short paragraph for isolated focus, editing and layout checks.'
+          : body,
     });
   for (let i = 1; i <= 4; i++)
     await notesV1.createNote({
@@ -80,6 +84,9 @@ export async function seedNotes({
     folderId: folder.id,
     folderTitle: 'QA Folder',
     editableNoteTitle: 'QA Note 01',
+    shortNoteTitle: 'QA Note 01',
+    longNoteTitle: 'QA Note 02',
+    emptyFolderTitle: 'QA Empty Folder',
     rootFolderId: root,
     noteCount: notes.length,
     searchVerified: true,

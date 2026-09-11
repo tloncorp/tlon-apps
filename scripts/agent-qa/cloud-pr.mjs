@@ -92,7 +92,7 @@ if (process.argv[2] === 'assess') {
   command('git', ['fetch', '--no-tags', '--depth=1', 'origin', requestedRef]);
   const ref = command('git', ['rev-parse', 'FETCH_HEAD']).trim();
   const id = await dispatch({ assessment_pr_json: pr }, ref);
-  const run = await wait(id, 8);
+  const run = await wait(id, 16);
   const job = run.jobs.find((j) => j.key === 'assess_pr');
   const plan = JSON.parse(job?.outputs?.assessment || 'null');
   if (!plan || plan.headSha !== p.head.sha || plan.baseSha !== p.base.sha)
