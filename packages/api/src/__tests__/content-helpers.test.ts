@@ -78,6 +78,63 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
   });
 });
 
+describe('contentToTextAndMentions block separators', () => {
+  const paragraph = (text: string) => ({
+    type: 'paragraph',
+    content: [{ type: 'text', text }],
+  });
+
+  test('separates a code block from the paragraphs around it', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        paragraph('before'),
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        paragraph('after'),
+      ],
+    });
+
+    expect(result.text).toBe('before\n```\nconst x = 42;\n```\nafter');
+  });
+
+  test('separates a blockquote from the paragraph before it', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        paragraph('before'),
+        { type: 'blockquote', content: [paragraph('quoted')] },
+        paragraph('after'),
+      ],
+    });
+
+    expect(result.text).toBe('before\n> quoted\nafter');
+  });
+
+  test('keeps mention offsets aligned across blocks', () => {
+    const result = contentToTextAndMentions({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+        },
+        {
+          type: 'paragraph',
+          content: [{ type: 'mention', attrs: { id: '~zod' } }],
+        },
+      ],
+    });
+
+    expect(result.mentions).toHaveLength(1);
+    expect(
+      result.text.slice(result.mentions[0].start, result.mentions[0].end)
+    ).toBe('~zod');
+  });
+});
+
 describe('post blob helpers', () => {
   test('parses the complete agent onboarding protocol', () => {
     const entries = [

@@ -1,8 +1,12 @@
 import {
   Mention,
+  contentToTextAndMentions,
   textAndMentionsToContent,
 } from '@tloncorp/api/client/content-helpers';
-import { expect, test } from 'vitest';
+import { Story, constructStory } from '@tloncorp/api/urbit/channel';
+import { describe, expect, test } from 'vitest';
+
+import { JSONToInlines, diaryMixedToJSON } from './tiptap';
 
 test('textAndMentionsToContent: multiline mentions', () => {
   const text = "User One Hello, world! here's more to the message.\nUser Two";
@@ -360,5 +364,49 @@ test('textAndMentionsToContent: text immediately before mention (no space)', () 
         ],
       },
     ],
+  });
+});
+
+/**
+ * The bare chat input round-trips a message through the wire format when you
+ * edit it: text -> editor JSON -> story (what the backend stores) -> editor
+ * JSON -> text. Fenced code blocks used to be dropped on the way back.
+ */
+describe('chat edit round-trip', () => {
+  const editText = (sent: string) => {
+    const story = constructStory(
+      JSONToInlines(textAndMentionsToContent(sent, []))
+    ) as Story;
+    return contentToTextAndMentions(diaryMixedToJSON(story)).text;
+  };
+
+  test('preserves a lone code block', () => {
+    expect(editText('```\nconst x = 42;\n```')).toBe('```\nconst x = 42;\n```');
+  });
+
+  test('preserves a multiline code block', () => {
+    expect(editText('```\nconst x = 42;\nconst y = x + 1;\n```')).toBe(
+      '```\nconst x = 42;\nconst y = x + 1;\n```'
+    );
+  });
+
+  test('preserves a code block between paragraphs', () => {
+    // `processLine` pads each line with a trailing space on the way in, so the
+    // surrounding prose comes back padded — only the fenced block matters here.
+    expect(editText('before\n```\nconst x = 42;\n```\nafter')).toBe(
+      'before \n```\nconst x = 42;\n```\nafter '
+    );
+  });
+
+  test('preserves two code blocks', () => {
+    expect(editText('```\nfirst\n```\n```\nsecond\n```')).toBe(
+      '```\nfirst\n```\n```\nsecond\n```'
+    );
+  });
+
+  test('leaves inline code alone', () => {
+    expect(editText('use `const x = 42;` here')).toBe(
+      'use `const x = 42;` here '
+    );
   });
 });
