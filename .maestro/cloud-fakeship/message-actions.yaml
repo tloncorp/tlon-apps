@@ -8,6 +8,9 @@ appId: ${MAESTRO_APP_ID}
     text: ${MAESTRO_RUN_TAG + ' from mobile ?'}
 - tapOn:
     id: MessageInput
+    point: '95%,50%'
+- waitForAnimationToEnd:
+    timeout: 5000
 - eraseText: 100
 - runFlow:
     file: ../reliability/subflows/input.yaml
