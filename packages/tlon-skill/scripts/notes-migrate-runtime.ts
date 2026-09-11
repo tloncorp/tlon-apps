@@ -9,7 +9,6 @@ import {
   toUrbitStory,
   updateChannel,
 } from '@tloncorp/api';
-// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
 import { storyToMarkdown, storyToMdast } from '@tloncorp/api/client/markdown';
 import { randomBytes } from 'crypto';
 

@@ -171,7 +171,11 @@ export class Urbit {
   /**
    * Custom fetch implementation to use.
    */
-  fetchFn: typeof fetch = (...args) => fetch(...args);
+  // A bare call signature, so the class also checks under runtimes whose
+  // global fetch carries extra properties (bun's adds `preconnect`).
+  fetchFn: (...args: Parameters<typeof fetch>) => Promise<Response> = (
+    ...args
+  ) => fetch(...args);
 
   /**
    * Whether anything has been sent over the current channel id yet. Once true,

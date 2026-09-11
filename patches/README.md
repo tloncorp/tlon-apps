@@ -761,3 +761,49 @@ the 5-minute window: the persisted class names are R8-obfuscated and the
 mapping is per-build. Making the restore path non-fatal is a separate change
 that upstream deliberately left to a maintainer
 ([option 3](https://github.com/expo/expo/pull/49836) in the PR description).
+
+## @tamagui/build@2.4.2
+
+Local patch:
+- `patches/@tamagui__build@2.4.2.patch`
+
+Why:
+`packages/ui` builds with `tamagui-build --skip-types`. TypeScript 7 (the native
+compiler) ships no `ts.sys`, but `tamagui-build.js` builds a module-level
+`formatHost` that reads `ts.sys.getCurrentDirectory` and `ts.sys.newLine` as the
+file loads. That throws `Cannot read properties of undefined (reading
+'getCurrentDirectory')` before `--skip-types` is even considered, so
+`pnpm build:packages` cannot get past `@tloncorp/ui`.
+
+What it does:
+Guards both reads with optional chaining and a fallback (`process.cwd()` and
+`'\n'`). `formatHost` is only consumed by `reportDiagnostics`, which
+`--skip-types` never reaches, so this restores the JS-only build without
+changing behavior when `ts.sys` is present.
+
+Upstream:
+- fix submitted: [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+- still present in `@tamagui/build@2.7.7`, the latest release at time of writing
+
+Validation:
+- `pnpm build:packages` completes, emitting `packages/ui/dist`
+
+Removal:
+Remove once [tamagui/tamagui#4171](https://github.com/tamagui/tamagui/pull/4171)
+(or an equivalent guard) ships in a released `@tamagui/build`.
+
+## @tamagui/static@2.4.2: TypeScript compiler API dependency
+
+`pnpm-workspace.yaml` adds the extractor's missing runtime dependency on
+TypeScript through `packageExtensions` and scopes its override to TypeScript 5.9.
+The published package only lists TypeScript in `devDependencies`, even though
+its config loader and import resolver call `ts.sys`, `findConfigFile`, and
+`nodeModuleNameResolver` at runtime. Resolving the hoisted TypeScript 7 instead
+throws while loading the Tamagui config and silently disables static extraction
+in an otherwise successful web build.
+
+Project type checks and API declarations still use TypeScript 7. Remove this
+exception when the extractor declares a compatible runtime dependency or no
+longer needs the legacy compiler API. Validate with `pnpm build:web`: the config
+must load and extraction must finish without `fileExists` or `Must provide
+components` errors.

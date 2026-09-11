@@ -18,7 +18,11 @@ type GroupPrivacy = schema.GroupPrivacy;
 
 type Props = NativeStackScreenProps<GroupSettingsStackParamList, 'Privacy'>;
 
-const privacyOptions = [
+const privacyOptions: {
+  title: string;
+  value: GroupPrivacy;
+  description: string;
+}[] = [
   {
     title: 'Public',
     value: 'public',
@@ -70,7 +74,7 @@ export function GroupPrivacyScreen(props: Props) {
         {group ? (
           <Form.RadioInput
             options={privacyOptions}
-            value={group.privacy}
+            value={group.privacy ?? undefined}
             onChange={handlePrivacyChange}
             testID="GroupPrivacyScreen-RadioInput"
           />

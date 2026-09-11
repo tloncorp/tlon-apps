@@ -9,6 +9,8 @@ import * as logic from '@tloncorp/shared/logic';
 import { ForwardingProps } from '@tloncorp/ui';
 import { ImagePickerAsset } from 'expo-image-picker';
 import {
+  Dispatch,
+  SetStateAction,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -390,9 +392,16 @@ export function GalleryInput({
     [resetAndExit]
   );
 
-  const setShowBigInput = useCallback((open: boolean) => {
-    setRoute(open ? 'text' : 'gallery');
-  }, []);
+  const setShowBigInput = useCallback<Dispatch<SetStateAction<boolean>>>(
+    (open) => {
+      setRoute((prev) => {
+        const shouldShow =
+          typeof open === 'function' ? open(prev === 'text') : open;
+        return shouldShow ? 'text' : 'gallery';
+      });
+    },
+    []
+  );
 
   const onAttachmentPostSent = useCallback(() => {
     resetAndExit();

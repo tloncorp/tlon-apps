@@ -1,0 +1,17 @@
+diff --git a/tamagui-build.js b/tamagui-build.js
+index a7b8c95b0cda885b629de54bdd3458a5c4447bf9..70e3ccef6d7087c312b572c5f44390e68de50c2f 100755
+--- a/tamagui-build.js
++++ b/tamagui-build.js
+@@ -840,8 +840,10 @@ async function compileTypeScript(fileNames, options) {
+ 
+ const formatHost = {
+   getCanonicalFileName: (path) => path,
+-  getCurrentDirectory: ts.sys.getCurrentDirectory,
+-  getNewLine: () => ts.sys.newLine,
++  // TypeScript 7 (native) ships no `ts.sys`; guard so `--skip-types` builds
++  // (which never invoke the type program) don't crash at module load.
++  getCurrentDirectory: ts.sys?.getCurrentDirectory ?? (() => process.cwd()),
++  getNewLine: () => ts.sys?.newLine ?? '\n',
+ }
+ 
+ function reportDiagnostics(diagnostics) {

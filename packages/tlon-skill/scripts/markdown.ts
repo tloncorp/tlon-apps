@@ -1,6 +1,4 @@
 import type { Story } from '@tloncorp/api';
-// @ts-expect-error -- subpath export not resolvable under moduleResolution:Node
-// (bun resolves it fine at runtime and in tests)
 import { markdownToStory as apiMarkdownToStory } from '@tloncorp/api/client/markdown';
 
 import { commandError } from './commands/command';

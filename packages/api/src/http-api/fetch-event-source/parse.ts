@@ -25,7 +25,10 @@ export async function getBytes(
   responseTimeout?: number
 ) {
   const reader = stream.getReader();
-  let result: ReadableStreamReadResult<Uint8Array> = {
+  // Derived from the reader itself so this also checks under runtimes that
+  // type `read()` differently (bun returns a union of result shapes).
+  type ReadResult = Awaited<ReturnType<typeof reader.read>>;
+  let result: ReadResult = {
     done: false,
     value: new Uint8Array(),
   };
@@ -39,7 +42,7 @@ export async function getBytes(
       try {
         result = await Promise.race([
           readPromise,
-          new Promise<ReadableStreamReadResult<Uint8Array>>((_, reject) => {
+          new Promise<ReadResult>((_, reject) => {
             readTimeout = setTimeout(
               () => reject(new Error('getBytes timed out')),
               responseTimeout

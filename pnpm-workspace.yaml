@@ -20,6 +20,13 @@ scriptShell: ${TLON_SHELL-/bin/bash}
 
 autoInstallPeers: false
 
+packageExtensions:
+  # The published extractor imports TypeScript at runtime but only declares it
+  # as a devDependency. Give it its own compiler API instead of the hoisted TS 7.
+  "@tamagui/static@2.4.2":
+    dependencies:
+      typescript: ~5.9.2
+
 peerDependencyRules:
   ignoreMissing:
     # Peer of app-builder-lib, only required for the Windows "squirrel"
@@ -27,6 +34,7 @@ peerDependencyRules:
     - electron-builder-squirrel-windows
 
 patchedDependencies:
+  "@tamagui/build@2.4.2": patches/@tamagui__build@2.4.2.patch
   "@react-navigation/bottom-tabs@7.18.14": patches/@react-navigation__bottom-tabs@7.18.14.patch
   "@types/testing-library__jest-dom": patches/@types__testing-library__jest-dom@5.14.5.patch
   "@urbit/http-api": patches/@urbit__http-api@3.2.0-dev.patch
@@ -63,7 +71,10 @@ overrides:
   # registry publishes the same version, and a registry resolution is required
   # by blockExoticSubdeps.
   "@electron/node-gyp": 10.2.0-electron.1
-  typescript: ~5.9.2
+  typescript: 7.0.2
+  # Tamagui's static extractor uses the legacy compiler API to resolve imports.
+  # Keep that build-time dependency on TS 5; project type checks still use TS 7.
+  "@tamagui/static>typescript": ~5.9.2
   "@10play/tentap-editor": 0.5.21
   "@tiptap/suggestion": 2.6.0
   "@tiptap/extension-mention": 2.6.0

@@ -15,8 +15,9 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { GroupSettingsStack } from '../../navigation/GroupSettingsStack';
 import { ActivityScreenView, DESKTOP_SIDEBAR_WIDTH } from '../../ui';
 import { useRootNavigation } from '../utils';
+import { ActivityDrawerParamList } from '../types';
 
-const ActivityDrawer = createDrawerNavigator();
+const ActivityDrawer = createDrawerNavigator<ActivityDrawerParamList>();
 
 function DrawerContent(props: DrawerContentComponentProps) {
   const isFocused = useIsFocused();

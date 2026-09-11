@@ -1,5 +1,6 @@
 import { useFocusEffect, useIsFocused } from '@react-navigation/native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as api from '@tloncorp/api';
 import { Story } from '@tloncorp/api/urbit';
 import {
@@ -25,7 +26,10 @@ import { useGroupActions } from '../../hooks/useGroupActions';
 import { useHandleLogout } from '../../hooks/useHandleLogout';
 import { usePushNotifTapTelemetry } from '../../hooks/usePushNotifTapTelemetry';
 import { useResetDb } from '../../hooks/useResetDb';
-import type { RootStackParamList } from '../../navigation/types';
+import type {
+  ChannelScreenParamList,
+  RootStackParamList,
+} from '../../navigation/types';
 import { useRootNavigation } from '../../navigation/utils';
 import {
   AttachmentProvider,
@@ -40,7 +44,13 @@ import { useAgentOnboardingFirstEntry } from './useAgentOnboardingFirstEntry';
 
 const logger = createDevLogger('ChannelScreen', false);
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Channel'>;
+type Props = {
+  route: RouteProp<
+    ChannelScreenParamList,
+    'Channel' | 'DM' | 'GroupDM' | 'ChannelRoot'
+  >;
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Channel'>;
+};
 
 export default function ChannelScreen(props: Props) {
   const {

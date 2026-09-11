@@ -5,7 +5,7 @@ import { Portal, View, YStack } from 'tamagui';
 
 import { MentionOption } from '../BareChatInput/useMentions';
 import { useIsWindowNarrow } from '../Emoji';
-import MentionPopup, { MentionPopupRef } from '../MentionPopup';
+import MentionPopup, { MentionController } from '../MentionPopup';
 import { useInputPopupBottomOffset } from './useInputPopupBottomOffset';
 
 function InputMentionPopupInternal(
@@ -29,7 +29,7 @@ function InputMentionPopupInternal(
     onSelectMention: (option: MentionOption) => void;
     onDismiss?: () => void;
   }>,
-  ref: MentionPopupRef
+  ref: React.ForwardedRef<MentionController>
 ) {
   const isNarrow = useIsWindowNarrow();
   const { bottomOffset, backdropBottom } = useInputPopupBottomOffset(

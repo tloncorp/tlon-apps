@@ -26,7 +26,9 @@ const manifestPath = path.join(
   'e2e',
   'shipManifest.json'
 );
-const shipManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+const shipManifest: Record<string, Ship> = JSON.parse(
+  fs.readFileSync(manifestPath, 'utf8')
+);
 
 // Handle cleanup on exit - make synchronous for reliability
 process.on('SIGINT', () => {

@@ -101,7 +101,7 @@ export default function useAppUpdates() {
   }, [pike, initialHash, needsUpdate]);
 
   const triggerUpdate = useCallback(
-    async (returnToRoot: boolean) => {
+    async (returnToRoot?: boolean) => {
       const basePath = '/apps/groups/';
       const path = returnToRoot
         ? `${window.location.origin}${basePath}?updatedAt=${Date.now()}`
