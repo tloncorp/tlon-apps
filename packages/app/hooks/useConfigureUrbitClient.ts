@@ -5,10 +5,12 @@ import { AnalyticsEvent, createDevLogger, sync } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { configureClient } from '@tloncorp/shared/store';
 import { useCallback } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform, TurboModuleRegistry } from 'react-native';
 
 import { ENABLED_LOGGERS } from '../constants';
 import { useShip } from '../contexts/ship';
+import { applyRefreshedAuthCookie } from '../utils/authCookie';
+import { UrbitModuleSpec } from '../utils/urbitModule';
 // We need to import resetDb this way because we have both a resetDb.ts and a
 // resetDb.native.ts file. We need to import the right one based on the
 // platform.
@@ -17,6 +19,12 @@ import { initializePolyfills } from '../platform/polyfills';
 import { useHandleLogout } from './useHandleLogout';
 
 initializePolyfills();
+
+// Only the native platforms keep a cookie copy for their notification service.
+const UrbitModule =
+  Platform.OS !== 'web'
+    ? (TurboModuleRegistry.get('UrbitModule') as UrbitModuleSpec | null)
+    : null;
 
 const clientLogger = createDevLogger('configure client', true);
 
@@ -37,6 +45,102 @@ const apiFetch: typeof fetch = (input, { ...init } = {}) => {
   };
   return fetch(input, newInit);
 };
+
+// Refreshes the copies of the auth cookie that live outside the client: the
+// persisted ShipInfo record, and on native the one the notification service
+// reads. Fire-and-forget -- this runs from inside the reauth that produced the
+// cookie, and failing to refresh only costs push previews until the next
+// reauth, so it must never reject into that caller.
+//
+// Each copy is arbitrated by whoever owns it, because this runs across awaits
+// and the active account can change at any of them. internalRemoveClient
+// leaves a pending reauth and its callback installed, and logout and account
+// switch write ship info before the client is reconfigured (setShip in
+// ShipLoginScreen vs configureClient in ConnectedAuthenticatedApp), so neither
+// this closure nor any flag computed earlier is trustworthy by the time a
+// write lands:
+//
+//   - the persisted record is decided inside StorageItem's write lock, by the
+//     updater, against the record as of that write
+//   - the native copy is decided by UrbitModule.setAuthCookie, which compares
+//     against the ship and url it currently holds; that is the only place the
+//     check and the write are not separated by an await
+//
+// The two are therefore independent, and deliberately not sequenced: native
+// keeps its own ship and url (setUrbit writes all three together), so it can
+// hold the active account even when the persisted write fails. Gating it on
+// that write would skip it there -- and skip it for the rest of the session,
+// since a rejected StorageItem write leaves `updateLock` rejected and every
+// later setValue on that item inherits the rejection.
+//
+// Ship and url are not enough on their own: logging out and back into the same
+// ship makes a new session at the same identity, and the old session's cookie
+// is dead once the new login lands. So each write also checks the client
+// generation, read fresh with no await between the check and the write.
+function refreshAuthCookieCopies(
+  clientGeneration: number,
+  shipName: string,
+  shipUrl: string,
+  authCookie: string
+) {
+  if (api.getClientGeneration() !== clientGeneration) {
+    clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+      context: 'client was reconfigured before the cookie could be applied',
+    });
+    return;
+  }
+
+  try {
+    // Synchronous and unconditional: nothing this function does afterwards can
+    // starve it, and native decides for itself whether to accept.
+    UrbitModule?.setAuthCookie(shipName, shipUrl, authCookie);
+  } catch (e) {
+    // an older native binary under a newer JS bundle may not have the method
+    clientLogger.trackError('Failed to refresh the native auth cookie', {
+      errorMessage: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  void (async () => {
+    try {
+      let applied = false;
+      // The updater form runs inside StorageItem's write lock, so the record it
+      // sees cannot be a snapshot taken before a logout or account switch that
+      // has since been written. Reading with getValue() first and writing after
+      // would let this clobber a resetValue() or the new account's record.
+      let superseded = false;
+      await db.storage.shipInfo.setValue((stored) => {
+        // rechecked in here because the await above is another chance for the
+        // session to be replaced
+        if (api.getClientGeneration() !== clientGeneration) {
+          superseded = true;
+          return stored;
+        }
+        const next = applyRefreshedAuthCookie(stored, {
+          shipName,
+          shipUrl,
+          authCookie,
+        });
+        // the helper hands back `stored` itself when it declines
+        applied = next !== stored;
+        return next;
+      });
+      if (superseded) {
+        clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+          context: 'client was reconfigured before the cookie was persisted',
+        });
+      } else if (!applied) {
+        clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+          context: 'stored ship info belongs to a different session',
+        });
+      }
+    } catch (e) {
+      clientLogger.trackError('Failed to persist the refreshed auth cookie', {
+        errorMessage: e instanceof Error ? e.message : String(e),
+      });
+    }
+  })();
+}
 
 export function configureUrbitClient({
   ship,
@@ -106,6 +210,38 @@ export function configureUrbitClient({
       return code;
     },
     handleAuthFailure: onAuthFailure,
+    onAuthCookieChange: ({
+      shipName: cookieShipName,
+      shipUrl: cookieShipUrl,
+      authCookie,
+      clientGeneration,
+    }) => {
+      // Reauth reads module-level config after its awaits, so one that started
+      // before an account switch can finish after it (TLON-6500). These values
+      // come from this function's own arguments, so comparing them against the
+      // closure's is exact: a mismatch means the cookie belongs to a client we
+      // are no longer configured for, and applying it would point the
+      // notification service at the wrong session. The ship is checked as well
+      // as the url because a url is not an identity -- the same self-hosted
+      // endpoint can end up serving a different ship.
+      //
+      // This is a cheap early-out, not the real arbiter: the closure is only
+      // as current as the last configureClient. refreshAuthCookieCopies
+      // decides from the persisted record, which a logout or account switch
+      // updates first.
+      if (cookieShipName !== ship || cookieShipUrl !== shipUrl) {
+        clientLogger.trackEvent(AnalyticsEvent.AuthCookieDropped, {
+          context: 'reauth cookie did not match the configured ship',
+        });
+        return;
+      }
+      refreshAuthCookieCopies(
+        clientGeneration,
+        cookieShipName,
+        cookieShipUrl,
+        authCookie
+      );
+    },
   });
 }
 

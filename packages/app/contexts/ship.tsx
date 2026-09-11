@@ -8,6 +8,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { Platform, TurboModuleRegistry } from 'react-native';
@@ -65,6 +66,14 @@ export const ShipProvider = ({
 }) => {
   const [isLoading, setIsLoading] = useState(!initialShipInfo);
   const [shipInfo, setShipInfo] = useState(initialShipInfo ?? emptyShip);
+  // Lets a callback that was captured earlier tell whether the account it was
+  // created for is still the current one. Kept in an effect rather than
+  // assigned during render; every reader runs from an event or a timer, well
+  // after effects have flushed.
+  const shipInfoRef = useRef(shipInfo);
+  useEffect(() => {
+    shipInfoRef.current = shipInfo;
+  }, [shipInfo]);
 
   const setShip = useCallback(
     ({
@@ -186,16 +195,40 @@ export const ShipProvider = ({
   }, []);
 
   const clearNeedsSplashSequence = useCallback(() => {
+    // SplashSequence awaits up to seven seconds before calling onCompleted, so
+    // a completion can arrive through a callback still holding the session the
+    // sequence ran for. Clearing the flag then would skip the current session's
+    // own signup or revival sequence.
+    //
+    // Compared by identity rather than by ship and url: setShip always installs
+    // a fresh object, so this also catches a logout and re-login to the *same*
+    // ship, which those two fields cannot tell apart.
+    if (shipInfoRef.current !== shipInfo) {
+      return;
+    }
+
     setShipInfo({
       ...shipInfo,
       needsSplashSequence: false,
       splashSequenceMode: undefined,
     });
-    storage.shipInfo.setValue({
-      ...shipInfo,
-      needsSplashSequence: false,
-      splashSequenceMode: undefined,
-    });
+    // Partial update, applied inside StorageItem's write lock: this provider's
+    // snapshot can be stale by the time splash completes -- notably authCookie,
+    // which a mid-session reauth refreshes in storage but not here -- so
+    // writing the whole snapshot back would clobber the fresher record. The
+    // identity is rechecked against the record itself, since a switch can also
+    // land between the check above and this write.
+    storage.shipInfo.setValue((stored) =>
+      stored &&
+      stored.ship === shipInfo.ship &&
+      stored.shipUrl === shipInfo.shipUrl
+        ? {
+            ...stored,
+            needsSplashSequence: false,
+            splashSequenceMode: undefined,
+          }
+        : stored
+    );
   }, [shipInfo]);
 
   useEffect(() => {

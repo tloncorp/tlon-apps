@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { AuthFailureError } from '../client/landscapeApi';
 import {
+  getClientGeneration,
   internalConfigureClient,
   internalRemoveClient,
   poke,
@@ -168,6 +169,173 @@ describe('reauth', () => {
     });
     expect(loginFetch).toHaveBeenCalledTimes(4);
     expect(handleAuthFailure).toHaveBeenCalledWith({ mustLogout: false });
+  });
+
+  test('reports the refreshed cookie so native copies can be updated', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+    expect(onAuthCookieChange).toHaveBeenCalledTimes(1);
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      authCookie: 'urbauth=refreshed',
+      clientGeneration: expect.any(Number),
+    });
+  });
+
+  // Reauth reads config.* after its awaits, so one started before an account
+  // switch can land after it (TLON-6500). The identity it reports must be the
+  // one the login actually ran under, otherwise a handler cannot tell that the
+  // cookie belongs to a client it is no longer configured for.
+  test('reports the identity the login used, not whatever is configured later', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    // switch ships at the moment the login request goes out, so the switch
+    // lands while the login response is still in flight
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://ship-b.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: client as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://ship-a.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
+      shipUrl: 'http://ship-a.test',
+      authCookie: 'urbauth=refreshed',
+      clientGeneration: expect.any(Number),
+    });
+  });
+
+  // A url is not an identity: the same self-hosted endpoint can end up serving
+  // a different ship, so a url-only check would let a late cookie from the
+  // previous ship through.
+  test('reports the originating ship even when the url is unchanged', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://same-endpoint.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: client as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://same-endpoint.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+
+    expect(onAuthCookieChange).toHaveBeenCalledWith({
+      shipName: '~zod',
+      shipUrl: 'http://same-endpoint.test',
+      authCookie: 'urbauth=refreshed',
+      clientGeneration: expect.any(Number),
+    });
+  });
+
+  // Ship name and url cannot tell two sessions for the same ship apart, so a
+  // logout-and-back-in during a pending reauth would otherwise look identical
+  // to the live session. The generation is what distinguishes them.
+  test('reports a stale generation when the same ship is reconfigured mid-login', async () => {
+    const onAuthCookieChange = vi.fn();
+    const client = fakeClient({
+      poke: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValue(1),
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => {
+        // log back into the very same ship and url while the login is in flight
+        internalRemoveClient();
+        internalConfigureClient({
+          shipName: '~zod',
+          shipUrl: 'http://example.test',
+          getCode: vi.fn(async () => 'code'),
+          onAuthCookieChange,
+          client: client as any,
+        });
+        return new Promise<Response>((resolve) =>
+          setTimeout(() => resolve(loginResponse()))
+        );
+      })
+    );
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      onAuthCookieChange,
+      client: client as any,
+    });
+    const staleGeneration = getClientGeneration();
+
+    await expect(poke({ app: 'a', mark: 'm', json: {} })).resolves.toBe(1);
+
+    expect(onAuthCookieChange).toHaveBeenCalledTimes(1);
+    const reported = onAuthCookieChange.mock.calls[0][0];
+    // identity alone is indistinguishable, which is the point
+    expect(reported.shipName).toBe('~zod');
+    expect(reported.shipUrl).toBe('http://example.test');
+    // but the generation it ran under is no longer the live one
+    expect(reported.clientGeneration).toBe(staleGeneration);
+    expect(getClientGeneration()).not.toBe(staleGeneration);
   });
 
   test('a rejected access code logs out instead of retrying', async () => {
