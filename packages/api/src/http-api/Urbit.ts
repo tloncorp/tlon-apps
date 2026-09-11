@@ -4,7 +4,7 @@ import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 import { EventEmitter } from '../lib/EventEmitter';
 import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
-import { desig } from '../lib/urbit';
+import { desig, preSig } from '../lib/urbit';
 import { UrbitHttpApiEventMap, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
@@ -307,7 +307,9 @@ export class Urbit {
       code
     );
     airlock.verbose = verbose;
-    airlock.nodeId = ship;
+    // callers pass a bare name (see onArvoNetwork), but the first channel PUT
+    // compares nodeId against the sigiled name from /~/name.
+    airlock.nodeId = preSig(ship);
     await airlock.connect();
     await airlock.poke({
       app: 'hood',

@@ -8,7 +8,7 @@ Quick reference for the Urbit HTTP API used by this skill.
 import { Urbit } from "@tloncorp/api/http-api";
 
 const api = await Urbit.authenticate({
-  ship: "sampel-palnet",  // without ~
+  ship: "~sampel-palnet",
   url: "https://myship.tlon.network",
   code: "lidlut-tabwed-...",
   verbose: false,
