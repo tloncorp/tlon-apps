@@ -33,7 +33,7 @@ function eas(args) {
     command(
       'npx',
       ['--yes', 'eas-cli@23.2.0', ...args, '--json', '--non-interactive'],
-      { cwd: `${env.GITHUB_WORKSPACE}/apps/tlon-mobile` }
+      { cwd: queryDir }
     )
   );
 }
