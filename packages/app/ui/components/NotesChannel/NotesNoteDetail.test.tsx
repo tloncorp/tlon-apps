@@ -1832,22 +1832,21 @@ describe('NotesNoteDetail scroll restoration', () => {
     await act(async () => renderer.unmount());
   });
 
-  it('ignores an automatic scroll when restoring the user position', async () => {
+  it('restores the live offset after the keyboard reveals the caret', async () => {
     const { renderer, scrollTo } = await renderDetail();
 
     await act(async () => {
-      scrollView(renderer).props.onScrollBeginDrag();
       scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 300 }));
       scrollView(renderer).props.onScrollEndDrag(scrollEvent({ offsetY: 300 }));
-      // Keyboard avoidance scrolls without a drag. Adopting that offset as the
-      // user's place is what let restores drift toward the bottom.
+      // UIKit scrolls to reveal the caret when the keyboard opens. Reverting to
+      // the earlier drag position here puts the caret back behind the keyboard.
       scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 900 }));
     });
     await act(async () => {
       bodyInput(renderer).props.onChangeText('Typed after the keyboard opened');
     });
 
-    expect(scrollTo).toHaveBeenCalledWith({ y: 300, animated: false });
+    expect(scrollTo).toHaveBeenCalledWith({ y: 900, animated: false });
     await act(async () => renderer.unmount());
   });
 
@@ -1860,7 +1859,6 @@ describe('NotesNoteDetail scroll restoration', () => {
     const nearEndWithKeyboard = { contentHeight: 900, viewportHeight: 800 };
 
     await act(async () => {
-      scrollView(renderer).props.onScrollBeginDrag();
       scrollView(renderer).props.onScroll(
         scrollEvent({ offsetY: 640, ...nearEndWithKeyboard })
       );
@@ -1880,7 +1878,6 @@ describe('NotesNoteDetail scroll restoration', () => {
     const { renderer, scrollTo } = await renderDetail(1);
 
     await act(async () => {
-      scrollView(renderer).props.onScrollBeginDrag();
       scrollView(renderer).props.onScroll(scrollEvent({ offsetY: 700 }));
       scrollView(renderer).props.onScrollEndDrag(scrollEvent({ offsetY: 700 }));
     });

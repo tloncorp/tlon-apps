@@ -497,8 +497,6 @@ export function NotesNoteDetail({
   // rather than 0, so these start unobserved: assuming 0 scrolls the note
   // down by the height of the header on the first restore.
   const scrollOffsetYRef = useRef<number | null>(null);
-  const lastUserScrollOffsetYRef = useRef<number | null>(null);
-  const userIsScrollingRef = useRef(false);
   const pendingScrollRestoreYRef = useRef<number | null>(null);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
@@ -775,18 +773,19 @@ export function NotesNoteDetail({
     if (scrolledNoteIdRef.current === noteId) return;
     scrolledNoteIdRef.current = noteId;
     scrollOffsetYRef.current = null;
-    lastUserScrollOffsetYRef.current = null;
     pendingScrollRestoreYRef.current = null;
-    userIsScrollingRef.current = false;
   }, [noteId]);
 
   const preserveScrollOffset = useCallback(() => {
     if (isPreviewing) return;
-    const candidate =
-      lastUserScrollOffsetYRef.current ?? scrollOffsetYRef.current;
+    // This runs before the change that reflows the note, so the live offset is
+    // still where the viewport should stay. Preferring an older drag position
+    // would instead move it, and after UIKit scrolls to reveal the caret for
+    // an opening keyboard, moving it puts the caret back behind the keyboard.
     // Nothing observed yet means the view sits wherever UIKit put it, which is
-    // already right. Inventing an offset here is what buried the note body
-    // under the transparent header.
+    // already right; inventing an offset is what buried the body under the
+    // transparent header.
+    const candidate = scrollOffsetYRef.current;
     if (candidate === null) return;
     pendingScrollRestoreYRef.current = candidate;
   }, [isPreviewing]);
@@ -1529,27 +1528,16 @@ export function NotesNoteDetail({
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = event.nativeEvent.contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      // Only a drag reports where the user wants to be. Tracking the furthest
-      // offset instead made every later restore drift toward the bottom.
-      if (userIsScrollingRef.current) {
-        lastUserScrollOffsetYRef.current = nextOffsetY;
-      }
+      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
     },
     []
   );
 
-  const handleScrollBeginDrag = useCallback(() => {
-    userIsScrollingRef.current = true;
-  }, []);
-
+  // onScroll is throttled, so the settled offset can differ from the last one
+  // it reported; the end handlers record where the scroll actually came to rest.
   const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const nextOffsetY = event.nativeEvent.contentOffset.y;
-      scrollOffsetYRef.current = nextOffsetY;
-      lastUserScrollOffsetYRef.current = nextOffsetY;
-      userIsScrollingRef.current = false;
+      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
     },
     []
   );
@@ -1674,7 +1662,6 @@ export function NotesNoteDetail({
           useWebEditorPane ? { flexGrow: 1, height: '100%' } : { flexGrow: 1 }
         }
         onScroll={handleScroll}
-        onScrollBeginDrag={handleScrollBeginDrag}
         onScrollEndDrag={handleScrollEnd}
         onMomentumScrollEnd={handleScrollEnd}
         scrollEventThrottle={16}
