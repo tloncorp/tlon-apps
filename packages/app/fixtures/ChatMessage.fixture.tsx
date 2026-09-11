@@ -286,6 +286,11 @@ const PostVariantsFixture = ({ post }: { post: db.Post }) => {
             post={{ ...post, deliveryStatus: 'pending' }}
           />
           <PostSpecimen
+            label="Pending (showAuthor=false)"
+            post={{ ...post, deliveryStatus: 'pending' }}
+            showAuthor={false}
+          />
+          <PostSpecimen
             label="Failed (showAuthor=true)"
             post={{ ...post, deliveryStatus: 'failed' }}
             onPressRetry={async (p) => {
