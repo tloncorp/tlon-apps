@@ -124,7 +124,7 @@ export function codexArgs({ cwd, schema, output, instructions }) {
     '-c',
     'approval_policy="never"',
     '-c',
-    'model_reasoning_effort="medium"',
+    'model_reasoning_effort="high"',
     '-c',
     'web_search="disabled"',
     '-c',

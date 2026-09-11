@@ -46,7 +46,7 @@ is changed to disable OTA updates, then signed ad hoc for the simulator. This
 keeps the embedded JavaScript under test fixed. Original and installed bundle
 hashes, build ID, source commit, simulator UDID, and OS are recorded in report.json.
 
-Codex CLI 0.145.0 runs openai/gpt-5.6-sol through OpenRouter at medium reasoning with Argent 0.23.0
+Codex CLI 0.145.0 runs openai/gpt-5.6-sol through OpenRouter at high reasoning with Argent 0.23.0
 through MCP. It receives the assessment scenarios, PR title, description, and complete source diff.
 Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.

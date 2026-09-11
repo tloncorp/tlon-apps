@@ -266,7 +266,7 @@ async function prepare() {
     runtime: 'Codex CLI 0.145.0',
     model: 'openai/gpt-5.6-sol',
     provider: 'OpenRouter Responses API',
-    reasoning: 'medium',
+    reasoning: 'high',
     deviceTools: 'Argent 0.23.0',
   };
   if (env.QA_SHIP_URL) {
