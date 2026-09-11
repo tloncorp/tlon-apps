@@ -1,8 +1,8 @@
 diff --git a/dist/cjs/index.cjs b/dist/cjs/index.cjs
-index d3f6a49d994c6a8784e7d2e047d1d0bb511693d8..01651eb26a767642539af4abf57d77a32154b1b4 100644
+index d3f6a49d994c6a8784e7d2e047d1d0bb511693d8..18ae0b7c7539ff0064110384f7fd43abb3c07b23 100644
 --- a/dist/cjs/index.cjs
 +++ b/dist/cjs/index.cjs
-@@ -450,10 +450,11 @@ class Urbit {
+@@ -450,13 +450,11 @@ class Urbit {
       * be the empty string.
       * @param code The access code for the ship at that address
       */
@@ -11,11 +11,14 @@ index d3f6a49d994c6a8784e7d2e047d1d0bb511693d8..01651eb26a767642539af4abf57d77a3
          this.url = url;
          this.code = code;
          this.desk = desk;
+-        if (isBrowser_1) {
+-            window.addEventListener('beforeunload', this.delete);
+-        }
 +        this.urlTransformer = urlTransformer;
-         if (isBrowser_1) {
-             window.addEventListener('beforeunload', this.delete);
+         if (fetchFn) {
+             this.fetchFn = fetchFn;
          }
-@@ -795,7 +796,7 @@ class Urbit {
+@@ -795,7 +793,7 @@ class Urbit {
          return eventId;
      }
      async sendJSONtoChannel(...json) {
@@ -25,10 +28,10 @@ index d3f6a49d994c6a8784e7d2e047d1d0bb511693d8..01651eb26a767642539af4abf57d77a3
              method: 'PUT',
              body: JSON.stringify(json),
 diff --git a/dist/esm/index.js b/dist/esm/index.js
-index cd9baa24e3a60f9b29110569b6a02ed1655cac0a..cbea42f857d4bf8c134cc77d8defb0ccd768dc28 100644
+index cd9baa24e3a60f9b29110569b6a02ed1655cac0a..96682a96b3404c7206b36195413d3b3b13bbe92c 100644
 --- a/dist/esm/index.js
 +++ b/dist/esm/index.js
-@@ -446,10 +446,11 @@ class Urbit {
+@@ -446,13 +446,11 @@ class Urbit {
       * be the empty string.
       * @param code The access code for the ship at that address
       */
@@ -37,11 +40,14 @@ index cd9baa24e3a60f9b29110569b6a02ed1655cac0a..cbea42f857d4bf8c134cc77d8defb0cc
          this.url = url;
          this.code = code;
          this.desk = desk;
+-        if (isBrowser_1) {
+-            window.addEventListener('beforeunload', this.delete);
+-        }
 +        this.urlTransformer = urlTransformer;
-         if (isBrowser_1) {
-             window.addEventListener('beforeunload', this.delete);
+         if (fetchFn) {
+             this.fetchFn = fetchFn;
          }
-@@ -791,7 +792,7 @@ class Urbit {
+@@ -791,7 +789,7 @@ class Urbit {
          return eventId;
      }
      async sendJSONtoChannel(...json) {

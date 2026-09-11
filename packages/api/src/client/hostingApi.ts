@@ -1250,7 +1250,17 @@ export const getNodeStatus = async (
   try {
     result = await getShip(nodeId);
   } catch (e) {
-    throw new Error('Hosting API call failed');
+    // Carry the status in the message so an expired hosting session (401)
+    // can be told apart from a hosting outage (5xx) in the issue title and
+    // the latest event. This is for diagnosis only -- Sentry groups on the
+    // stack first, so it is not a guarantee of separate issues. Deliberately
+    // no `cause`: the linked-error integration appends the cause as the last
+    // exception and the ignore filter inspects that one, which would silently
+    // drop wrapped hosting timeouts.
+    const status = e instanceof HostingError ? e.details.status : null;
+    throw new Error(
+      `Hosting API call failed${status === null ? '' : ` (${status})`}`
+    );
   }
 
   const nodeStatus = result.status ? (result.status.phase ?? 'Unknown') : null;

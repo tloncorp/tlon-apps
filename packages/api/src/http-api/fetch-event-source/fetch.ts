@@ -165,8 +165,15 @@ export function fetchEventSource(
         }
 
         if (response.status < 200 || response.status >= 300) {
+          // Carry the status in the message as well as on the error so it
+          // shows up in the issue title and the latest event. This is for
+          // diagnosis only -- Sentry groups on the stack first, so it is not
+          // a guarantee that different statuses land in different issues.
+          const statusText = response.statusText
+            ? ` ${response.statusText}`
+            : '';
           throw new SSEBadResponseError(
-            'Invalid server response',
+            `Invalid server response: ${response.status}${statusText}`,
             response.status
           );
         }

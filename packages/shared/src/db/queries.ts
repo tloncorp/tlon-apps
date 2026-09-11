@@ -55,6 +55,7 @@ import { alias } from 'drizzle-orm/sqlite-core';
 import { trackEvent } from '../analytics';
 import { createDevLogger } from '../debug';
 import * as domain from '../domain';
+import { reduceUrls } from '../errorReporting';
 import {
   appendContactIdToReplies,
   getCompositeGroups,
@@ -204,6 +205,13 @@ export const insertPendingMemberDismissals = createWriteQuery(
 export const insertSettings = createWriteQuery(
   'insertSettings',
   async (settings: Partial<Settings>, ctx: QueryCtx) => {
+    // Drizzle drops undefined entries when building the update set and throws
+    // `No values to set` on the empty remainder. Optimistic rollbacks pass the
+    // previous value back in, which is undefined whenever the setting had never
+    // been written, so there is nothing to write here either.
+    if (Object.values(settings).every((value) => value === undefined)) {
+      return;
+    }
     return ctx.db
       .insert($settings)
       .values({ ...settings, id: SETTINGS_SINGLETON_KEY })
@@ -1959,6 +1967,9 @@ export const insertMembers = createWriteQuery(
         logger.trackEvent(domain.AnalyticsEvent.ErrorDatabaseQuery, {
           context: 'failed to insert chat members batch',
           count: batch.length,
+          // No stack: this event is PostHog-only, so it never passes through
+          // the Sentry scrubber, and a raw stack can carry ship origins.
+          errorMessage: reduceUrls(e instanceof Error ? e.message : String(e)),
         });
       }
     }

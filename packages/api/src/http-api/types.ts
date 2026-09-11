@@ -256,8 +256,14 @@ export class AuthError extends Error {}
  */
 export class ChannelPutError extends Error {
   public status: number;
-  constructor(status: number) {
-    super('Failed to PUT channel');
+  constructor(status: number, statusText?: string) {
+    // Carry the status in the message as well as on the error so it shows up
+    // in the issue title and the latest event. This is for diagnosis only --
+    // Sentry groups on the stack first, so it is not a guarantee that
+    // different statuses land in different issues.
+    super(
+      `Failed to PUT channel: ${status}${statusText ? ` ${statusText}` : ''}`
+    );
     this.name = 'ChannelPutError';
     this.status = status;
   }

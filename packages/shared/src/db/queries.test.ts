@@ -3558,3 +3558,27 @@ describe('thread unreads by channel', () => {
     expect(result.map((u) => u.threadId)).toEqual(['mine']);
   });
 });
+
+describe('insertSettings', () => {
+  test('ignores a payload with no defined values', async () => {
+    // Optimistic rollbacks pass the previous value back in, and that value is
+    // undefined whenever the setting had never been written. Drizzle drops
+    // undefined entries and then throws `No values to set` on the empty
+    // remainder, so the write has to be skipped before it reaches drizzle.
+    await expect(
+      queries.insertSettings({ messagesFilter: undefined })
+    ).resolves.toBeUndefined();
+
+    expect(await queries.getSettings()).toBeUndefined();
+  });
+
+  test('leaves stored settings alone when every value is undefined', async () => {
+    await queries.insertSettings({ messagesFilter: 'all' });
+
+    await expect(
+      queries.insertSettings({ messagesFilter: undefined })
+    ).resolves.toBeUndefined();
+
+    expect((await queries.getSettings())?.messagesFilter).toBe('all');
+  });
+});

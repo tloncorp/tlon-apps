@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  changeMessageFilter,
   completeWayfindingSplash,
+  updateCalmSetting,
+  updateDisableTlonInfraEnhancement,
+  updateEnableTelemetry,
   updateShowDeleteMarkers,
+  updateTheme,
 } from './settingsActions';
 
 const mocks = vi.hoisted(() => ({
@@ -79,5 +84,49 @@ describe('completeWayfindingSplash', () => {
     await completeWayfindingSplash(options);
 
     expect(nextProgress?.tappedHomeGroupHint).toBe(expected);
+  });
+});
+
+describe('rollback when no setting was stored before', () => {
+  // Each entry: the action, and the settings key it rolls back.
+  const cases: [string, () => Promise<unknown>, string][] = [
+    [
+      'changeMessageFilter',
+      () => changeMessageFilter('All Messages'),
+      'messagesFilter',
+    ],
+    [
+      'updateCalmSetting',
+      () => updateCalmSetting('disableAvatars', true),
+      'disableAvatars',
+    ],
+    ['updateTheme', () => updateTheme('dark'), 'theme'],
+    [
+      'updateDisableTlonInfraEnhancement',
+      () => updateDisableTlonInfraEnhancement(true),
+      'disableTlonInfraEnhancement',
+    ],
+    [
+      'updateEnableTelemetry',
+      () => updateEnableTelemetry(true),
+      'enableTelemetry',
+    ],
+  ];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // No settings row yet, so every captured old value is undefined.
+    mocks.getSettings.mockResolvedValue({});
+    mocks.insertSettings.mockResolvedValue(undefined);
+    mocks.setSetting.mockRejectedValue(new Error('offline'));
+  });
+
+  it.each(cases)('%s clears the optimistic value', async (_, run, key) => {
+    // Some of these rethrow and some return false; both are the failure path.
+    await run().catch(() => {});
+
+    // An undefined value would be dropped before it reached SQLite, leaving
+    // the optimistic write in place while the caller reports failure.
+    expect(mocks.insertSettings).toHaveBeenLastCalledWith({ [key]: null });
   });
 });

@@ -700,7 +700,7 @@ export class Urbit {
     });
     if (!response.ok) {
       console.log(response.status, response.statusText, await response.text());
-      throw new ChannelPutError(response.status);
+      throw new ChannelPutError(response.status, response.statusText);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -728,7 +728,7 @@ export class Urbit {
     });
 
     if (!response.ok) {
-      throw new ChannelPutError(response.status);
+      throw new ChannelPutError(response.status, response.statusText);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {

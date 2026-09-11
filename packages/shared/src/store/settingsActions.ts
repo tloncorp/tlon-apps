@@ -20,7 +20,9 @@ export async function changeMessageFilter(filter: TalkSidebarFilter) {
     return true;
   } catch (e) {
     console.error('Failed to change message filter', e);
-    await db.insertSettings({ messagesFilter: oldFilter });
+    // ?? null so the rollback clears the optimistic write even when no
+    // settings row existed yet (insertSettings skips undefined fields).
+    await db.insertSettings({ messagesFilter: oldFilter ?? null });
     return false;
   }
 }
@@ -49,7 +51,7 @@ export async function updateCalmSetting(
       severity: AnalyticsSeverity.Medium,
     });
     // rollback optimistic update
-    await db.insertSettings({ [calmKey]: oldValue });
+    await db.insertSettings({ [calmKey]: oldValue ?? null });
     throw new Error('Failed to update calm setting');
   }
 }
@@ -197,7 +199,7 @@ export async function updateTheme(theme: AppTheme) {
       theme,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ theme: oldTheme });
+    await db.insertSettings({ theme: oldTheme ?? null });
     throw new Error('Failed to update theme setting');
   }
 }
@@ -216,7 +218,7 @@ export async function updateDisableTlonInfraEnhancement(disabled: boolean) {
       disabled,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ disableTlonInfraEnhancement: oldValue });
+    await db.insertSettings({ disableTlonInfraEnhancement: oldValue ?? null });
     throw e;
   }
 }
@@ -236,7 +238,7 @@ export async function updateEnableTelemetry(value: boolean) {
       value,
       severity: AnalyticsSeverity.Medium,
     });
-    await db.insertSettings({ enableTelemetry: oldValue });
+    await db.insertSettings({ enableTelemetry: oldValue ?? null });
     return false;
   }
 }
