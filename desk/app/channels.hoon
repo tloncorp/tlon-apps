@@ -796,11 +796,18 @@
   ::      happen. that way, local subs get established without issue.
   =.  cor  (emil reconcile-notes-cards)
   inflate-io
-::  +reconcile-notes-cards: %notes ships as its own gall agent but is kept OUT
-::  of desk.bill, so installing %tlon never trips gall's "can't run from two
-::  desks" against a user's standalone %notes desk. Instead we suspend that
-::  desk (a no-op if it isn't installed) and rein our %notes agent on. Fired
-::  once on install (+init) and once on upgrade (state-18-to-19).
+::  +reconcile-notes-cards: suspend a user's standalone %notes desk so that
+::  %tlon can run the %notes agent itself. Clay crashes the event rather
+::  than picking a winner when two *live* desks bill the same agent — see
+::  +apply-precedence in sys/vane/clay.hoon — so the suspend is load-bearing.
+::  A suspended desk is skipped by +goad entirely, which is what makes this
+::  safe. Fired once on install (+init) and once on upgrade (state-18-to-19).
+::
+::  %notes is now in desk.bill, so the %kiln-rein below is redundant: +override
+::  strips a reined dude from the bill and re-adds it, so the agent resolves
+::  exactly once either way. The rein is kept for one release so ships that
+::  upgrade before taking the new bill don't lose the agent; after that it
+::  should go, along with a %kiln-rein that clears the persisted override.
 ::
 ++  reconcile-notes-cards
   ^-  (list card)
@@ -2175,28 +2182,20 @@
     ^+  ca-core
     =.  ca-core
       %^  give  %fact  ~
-      ::  give result if it's readable by the requester,
-      ::  or if we pinned it intentionally
+      ::  give result if it's readable by the requester
       ::
-      =;  share=?
-        ?.  share
-          channel-denied+~
-        ?-  version
-          %v5         unsafe+(said-4:utils nest plan posts.channel)
-          %v4         unsafe+(said-3:utils nest plan posts.channel)
-          ?(%v2 %v3)  unsafe+(said-2:utils nest plan posts.channel)
-        ==
-      ?:  (can-read:ca-perms src.bowl)  &
-      ?^  q.plan  |  ::NOTE  expose/+grab-post doesn't support replies
-      ::  we need to grab the post first before we can check whether it's
-      ::  pinned, because its kind appears in the reference path...
+      ::NOTE  this used to fall back to a %expose scry, so that a publicly
+      ::      exposed post would still preview for someone who couldn't read
+      ::      the channel. %expose is gone; publishing lives in %notes now,
+      ::      which serves its own pages rather than gating channel reads.
       ::
-      ?~  post=(get:on-v-posts:c posts.channel p.plan)  |
-      ?:  ?=(%| -.u.post)  |
-      ?.  .^(? %gu (scry-path %expose /$))  |
-      =/  =cite:ci:utils
-        (from-post:cite:utils nest p.plan kind.u.post)
-      .^(? %gu (scry-path %expose [%show (print:ci:utils cite)]))
+      ?.  (can-read:ca-perms src.bowl)
+        channel-denied+~
+      ?-  version
+        %v5         unsafe+(said-4:utils nest plan posts.channel)
+        %v4         unsafe+(said-3:utils nest plan posts.channel)
+        ?(%v2 %v3)  unsafe+(said-2:utils nest plan posts.channel)
+      ==
     (give %kick ~ ~)
   ::
   ++  ca-has-sub

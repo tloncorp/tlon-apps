@@ -166,14 +166,6 @@ describe('tlon tool guard', () => {
         ],
         'diary/~sampel-palnet/Field-Notes',
       ],
-      [
-        [
-          'expose',
-          'check',
-          '/1/chan/diary/~sampel-palnet/field-notes/note/170.141',
-        ],
-        'diary/~sampel-palnet/field-notes',
-      ],
     ])('interpolates the target for %j', (args, expectedNest) => {
       const blocked = checkBlockedDiaryOperation(args as string[]);
 
@@ -243,21 +235,6 @@ describe('tlon tool guard', () => {
       {
         name: 'mis-cased posts action',
         args: ['posts', 'Send', 'diary/~zod/log', 'hello'],
-        cliRefusesDiary: false,
-      },
-      {
-        name: 'valid expose action',
-        args: ['expose', 'check', 'diary/~zod/log/170.141'],
-        cliRefusesDiary: true,
-      },
-      {
-        name: 'unknown expose action',
-        args: ['expose', 'bogus', 'diary/~zod/log/170.141'],
-        cliRefusesDiary: false,
-      },
-      {
-        name: 'mis-cased expose action',
-        args: ['expose', 'Check', 'diary/~zod/log/170.141'],
         cliRefusesDiary: false,
       },
       {

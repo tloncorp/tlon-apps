@@ -387,7 +387,7 @@ When someone asks "what should I do with this?", offer ideas like these, matched
 
 **Are conversations encrypted?** Yes, in transit — between nodes, and between the app and your node. Stored messages on a node aren't encrypted, so device access allows reading them. The app-to-node leg is only encrypted if the node is reached over HTTPS: that's automatic when Tlon hosts it, and a self-hoster on a plain `http://` address needs TLS or a tunnel in front.
 
-**Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` sit on the note afterwards. Other channel types don't have a button for it yet, though individual posts can be published through your Tlonbot, which can reach the same clearweb machinery from a DM.
+**Can I share things I post with people who aren't on Tlon Messenger?** Notebook notes, yes. Publish a note and you get a public link — the app copies it for you, and `Copy link` and `View published note` sit on the note afterwards. Publishing ordinary channel posts to the public web is no longer supported, including through Tlonbot.
 
 **What is Tlonbot?** A personal AI agent that lives inside Tlon Messenger. It can search the web, join your group chats, remember your conversations, and schedule tasks. It's powered by OpenClaw and runs on its own node, linked to yours, on the same peer-to-peer network.
 

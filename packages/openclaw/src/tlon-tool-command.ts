@@ -114,7 +114,6 @@ const ACTION_OPERATIONS_BY_SUBCOMMAND = new Map<string, ReadonlySet<string>>([
       'decline',
     ]),
   ],
-  ['expose', new Set(['list', 'show', 'hide', 'check', 'url'])],
   [
     'groups',
     new Set([
@@ -456,8 +455,6 @@ function summarizeKnownTlonCommand(
       return summarizeNotesOperation(operation, remainder, build);
     case 'dms':
       return summarizeDmsOperation(operation, remainder, build);
-    case 'expose':
-      return summarizeExposeOperation(operation, remainder, build);
     case 'posts':
       return summarizePostsOperation(operation, remainder, build);
     case 'notebook':
@@ -866,31 +863,6 @@ function summarizeDmsOperation(
       dmTargetKind: detectDmTargetKind(positionals[0]),
     }
   );
-}
-
-function summarizeExposeOperation(
-  operation: string,
-  args: string[],
-  build: (
-    intent: TlonToolIntent,
-    extra?: Omit<
-      Partial<TlonToolCallContext>,
-      | 'kind'
-      | 'summaryKey'
-      | 'subcommand'
-      | 'operation'
-      | 'intent'
-      | 'isKnownSubcommand'
-      | 'blockedSendOperation'
-    >
-  ) => TlonToolCallContext
-): TlonToolCallContext {
-  const positionals = collectPositionals(args);
-  const intent =
-    operation === 'show' || operation === 'hide' ? 'admin' : 'read';
-  return build(intent, {
-    channelKind: detectChannelKind(positionals[0]),
-  });
 }
 
 function summarizePostsOperation(
