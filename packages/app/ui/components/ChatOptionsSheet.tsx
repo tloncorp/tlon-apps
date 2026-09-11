@@ -1,5 +1,4 @@
 import * as ub from '@tloncorp/api/urbit';
-import { isDiaryChannelType } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -730,18 +729,15 @@ export function ChannelOptionsSheetContent({
           },
         ],
 
-        // Templating copies the source channel's type, and a bulletin's type
-        // can no longer be created.
-        hooksPreview &&
-          !isDiaryChannelType(channel.type) && [
-            'neutral',
-            {
-              title: 'Use channel as template',
-              description: 'Create a new channel based on this one',
-              endIcon: 'Copy',
-              action: wrappedAction.bind(null, onPressChannelTemplate),
-            },
-          ],
+        hooksPreview && [
+          'neutral',
+          {
+            title: 'Use channel as template',
+            description: 'Create a new channel based on this one',
+            endIcon: 'Copy',
+            action: wrappedAction.bind(null, onPressChannelTemplate),
+          },
+        ],
         currentUserIsChannelHost && [
           'negative',
           {

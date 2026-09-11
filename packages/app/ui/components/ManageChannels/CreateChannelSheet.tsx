@@ -1,9 +1,9 @@
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { createChannel } from '@tloncorp/shared';
+import { createChannel, useNotesDeskAvailable } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import { Button } from '@tloncorp/ui';
-import { type ComponentProps, useCallback } from 'react';
+import { type ComponentProps, useCallback, useMemo } from 'react';
 import { FormProvider, useForm, useWatch } from 'react-hook-form';
 import { YStack } from 'tamagui';
 
@@ -15,30 +15,42 @@ import * as Form from '../Form';
 import SystemNotices from '../SystemNotices';
 import { PrivateChannelToggle } from './ChannelPermissions';
 
-// The legacy %diary type ('notebook', shown as 'Bulletin') is deliberately
-// absent: %notes replaced it and no new diary channels may be created.
-export type ChannelTypeName = 'chat' | 'gallery' | 'notes';
+export type ChannelTypeName = 'chat' | 'notebook' | 'gallery' | 'notes';
 
-const CHANNEL_TYPES: Form.ListItemInputOption<ChannelTypeName>[] = [
-  {
+// When the notes desk is installed, we offer 'Notebook' as the new
+// %notes-backed type and rename the legacy diary type to 'Bulletin'.
+// Without the notes desk, the legacy diary type keeps its 'Notebook' label.
+function buildChannelTypes(
+  notesAvailable: boolean
+): Form.ListItemInputOption<ChannelTypeName>[] {
+  const chat: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Chat',
     subtitle: 'A simple, standard text chat',
     value: 'chat',
     icon: 'ChannelTalk',
-  },
-  {
+  };
+  const notes: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Notebook',
     subtitle: 'Collaborative markdown notebooks',
     value: 'notes',
     icon: 'ChannelNotebooks',
-  },
-  {
+  };
+  const diary: Form.ListItemInputOption<ChannelTypeName> = {
+    title: notesAvailable ? 'Bulletin' : 'Notebook',
+    subtitle: 'Longform publishing and discussion',
+    value: 'notebook',
+    icon: 'Bulletin',
+  };
+  const gallery: Form.ListItemInputOption<ChannelTypeName> = {
     title: 'Gallery',
     subtitle: 'Gather and arrange rich media',
     value: 'gallery',
     icon: 'ChannelGalleries',
-  },
-];
+  };
+  return notesAvailable
+    ? [chat, notes, diary, gallery]
+    : [chat, diary, gallery];
+}
 
 interface CreateChannelFormSchema {
   title: string;
@@ -80,6 +92,11 @@ export function CreateChannelSheet({
   const currentUserId = useCurrentUserId();
   const isGroupAdmin = useIsAdmin(group.id, currentUserId);
   const isNonHostAdmin = isGroupAdmin && !group.currentUserIsHost;
+  const { data: notesAvailable = false } = useNotesDeskAvailable();
+  const channelTypes = useMemo(
+    () => buildChannelTypes(notesAvailable),
+    [notesAvailable]
+  );
 
   const isPrivate = useWatch({ control, name: 'isPrivate' });
 
@@ -153,7 +170,7 @@ export function CreateChannelSheet({
           <ActionSheet.FormBlock>
             <Form.ControlledListItemField
               label="Channel type"
-              options={CHANNEL_TYPES}
+              options={channelTypes}
               control={control}
               name={'channelType'}
             />
