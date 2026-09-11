@@ -83,17 +83,20 @@ DEFAULT_SHIP_LOGIN_ACCESS_CODE=xxxxxx-xxxxxx-xxxxxx-xxxxxx
 
 They are read at build time by `app.config.ts`, so a build made before you set them will not have them: set them first, or rebuild.
 
-With both set, a debug build fills the login form, so signing in is four presses and no typing:
+With both set, a debug build fills the login form, so signing in is four presses and no typing. Each screen takes a moment to arrive, and `--settle` only waits for the current one to go quiet, so wait for the next screen's text before pressing on it:
 
 ```bash
 agent-device press 'text="Have an account? Log in"' --session <name> --settle
+agent-device wait text "Or configure self hosted" --session <name>
 agent-device press 'text="Or configure self hosted"' --session <name> --settle
+agent-device wait text "Ship URL" --session <name>
 agent-device press 'text="Connect"' --session <name> --settle
+agent-device wait text "Share Usage Statistics" --session <name>
 agent-device press 'text="Next"' --session <name> --settle
 agent-device alert dismiss --session <name>
 ```
 
-That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
+That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. On iOS a "Stay in the loop" sheet appears later over Home and blocks the bottom of the list; `press 'text="Not now"'` when it does. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
 
 The prefill itself is not `__DEV__`-gated, but the pre-validation that enables `Connect` without visiting each field is -- so in a release build the fields are filled and `Connect` stays disabled until each is touched. A `tlon.network` URL is rejected outside `__DEV__`.
 
@@ -103,7 +106,7 @@ This yields an `authType: 'self'` session. It gets you into the app; it does not
 
 ### 4. Capture the current behavior
 
-For a bug or a change to existing behavior, record what the app does now, before touching code. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
+For a bug or a change to existing behavior, record what the app does now, before touching code, on every platform the change could touch: an Android "before" is not recoverable once the fix is in. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
 
 ```bash
 agent-device devices                       # names, not udids
@@ -136,7 +139,7 @@ Commit as you go. Everything after this step reads the branch, not the working t
 
 Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform the change touches, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario.
 
-**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` (shared, ui, app) is a full reload, not a refresh: navigation resets to Home, and on Android the notifications prompt returns (`agent-device alert dismiss`). Navigate back to the repro from Home before recording.
+**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home, and on Android the notifications prompt returns (`agent-device alert dismiss`). Check which screen you are on before recording. If `stim logs` shows the edit bundled for one platform and not the other, `stim reload <platform>` for the one that missed it.
 
 ### 7. Get an independent review
 
@@ -160,7 +163,7 @@ gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.ev
   --attach <worktree>/.evidence/before-android.mp4 --attach <worktree>/.evidence/after-android.mp4
 ```
 
-One `--attach` per recording from steps 4 and 6, for every platform you tested.
+One `--attach` per recording from steps 4 and 6, for every platform you tested. `gh` appends the uploaded URLs to the body in `--attach` order, and rewrites a body reference only when it matches the `--attach` string exactly.
 
 **Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. To label them, attach bare paths and then splice the returned `user-attachments` URLs into the body:
 
