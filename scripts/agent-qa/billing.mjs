@@ -29,7 +29,8 @@ export async function billingProxy({
     const request = randomUUID(),
       controller = new AbortController();
     active.add(controller);
-    let settled = false,
+    let requestBytes = 0,
+      settled = false,
       responseId;
     log({ request, state: 'started' });
     const finish = (state, usage) => {
@@ -39,6 +40,7 @@ export async function billingProxy({
         request,
         responseId,
         state,
+        requestBytes,
         inputTokens: usage?.input_tokens ?? null,
         outputTokens: usage?.output_tokens ?? null,
         cachedInputTokens: usage?.input_tokens_details?.cached_tokens ?? null,
@@ -65,10 +67,15 @@ export async function billingProxy({
     });
     try {
       const chunks = [];
-      let size = 0;
       for await (const chunk of req) {
-        size += chunk.length;
-        if (size > 16 * 1024 * 1024) throw new Error('request size limit');
+        requestBytes += chunk.length;
+        // A recorded session can contain dozens of full-resolution screenshots.
+        // The limit applies to encoded image bytes, not the model token budget.
+        if (requestBytes > 128 * 1024 * 1024) {
+          finish('request_limit');
+          res.writeHead(413).end('QA image history exceeds 128 MiB');
+          return;
+        }
         chunks.push(chunk);
       }
       const response = await fetch(`${upstream}/responses`, {

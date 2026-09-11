@@ -36,7 +36,12 @@ test('per-request cost survives a later interrupted stream without logging conte
     const first = await fetch(proxy.url + '/responses', {
       method: 'POST',
       headers: { Authorization: `Bearer ${proxy.token}` },
-      body: '{"input":"private prompt"}',
+      // The screenshot history from the live reviewer exceeded the old 16 MiB
+      // proxy ceiling. It must reach the provider and retain usage accounting.
+      body: JSON.stringify({
+        input: 'private prompt',
+        image: 'x'.repeat(17 * 1024 * 1024),
+      }),
     });
     assert.match(await first.text(), /private output/);
     const abort = new AbortController();
