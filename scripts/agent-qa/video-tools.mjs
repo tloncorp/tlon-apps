@@ -127,6 +127,7 @@ export function videoReader({
     path.join(outputDir, 'receipts.json'),
     JSON.stringify(receipts)
   );
+  const delivered = new Set();
   return {
     info,
     call(name, a) {
@@ -142,11 +143,24 @@ export function videoReader({
       );
       if (existing) {
         const [evidenceId, receipt] = existing;
+        const image = delivered.has(evidenceId)
+          ? []
+          : [
+              {
+                type: 'image',
+                mimeType: 'image/png',
+                data: readFileSync(
+                  path.join(outputDir, `${evidenceId}.png`)
+                ).toString('base64'),
+              },
+            ];
+        delivered.add(evidenceId);
         return [
           {
             type: 'text',
             text: JSON.stringify({ evidenceId, ...receipt, reused: true }),
           },
+          ...image,
         ];
       }
       const id = `video-frames-${Object.keys(receipts).length + 1}`;
@@ -200,6 +214,7 @@ export function videoReader({
         contiguous: a.stride === 1,
       };
       receipts[id] = receipt;
+      delivered.add(id);
       writeFileSync(
         path.join(outputDir, 'receipts.json'),
         JSON.stringify(receipts)
