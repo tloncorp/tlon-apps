@@ -1,6 +1,12 @@
 // Read-only replay for evaluating the evidence reviewer without another device run.
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  rmSync,
+  existsSync,
+} from 'node:fs';
 import path from 'node:path';
 import { reviewEvidence } from './review.mjs';
 import { verifyCodexAuth } from './codex.mjs';
@@ -122,11 +128,12 @@ result.status = [...result.checks, ...result.discoveries].some(
       )
     ? 'blocked'
     : 'passed';
-const receipts = video
-  ? JSON.parse(
-      readFileSync(path.join(source, 'video-frames/receipts.json'), 'utf8')
-    )
-  : {};
+const receipts =
+  video && existsSync(path.join(source, 'video-frames/receipts.json'))
+    ? JSON.parse(
+        readFileSync(path.join(source, 'video-frames/receipts.json'), 'utf8')
+      )
+    : {};
 verifyCoverage(
   verifyReport(
     result,
