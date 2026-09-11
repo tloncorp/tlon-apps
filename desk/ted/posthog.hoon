@@ -78,19 +78,39 @@
     `p.u.fp
   ?~  fingerprint  ~
   =/  message=@t  (crip (head-line:l echo.event.log-item))
+  ::  "/app/groups/hoon:<[2.150 5].[2.152 41]>" -> line 2150, column 5
+  ::
+  =/  span-pos
+    |=  t=tape
+    ^-  [lineno=@ud colno=@ud]
+    =/  i  (find "<[" t)
+    ?~  i  [0 0]
+    =/  rest=tape  (slag (add 2 u.i) t)
+    =/  ln=tape  (scag (fall (find " " rest) 0) rest)
+    =/  after=tape  (slag +((lent ln)) rest)
+    =/  cn=tape  (scag (fall (find "]" after) 0) after)
+    :-  (fall (rush (crip (skip ln |=(c=@tD =(c 46)))) dem) 0)
+    (fall (rush (crip cn) dem) 0)
   =/  frames=(list json)
     %+  turn  (tang-lines:l tang.event.log-item)
     |=  line=tape
     =/  t=tape  (trim-line:l line)
+    =/  span=?  (span-line:l t)
+    =/  pos=[lineno=@ud colno=@ud]  ?.(span [0 0] (span-pos t))
     %-  pairs:enjs:format
-    ?:  (span-line:l t)
-      :~  'filename'^s+(crip (scag (need (find ":<[" t)) t))
+    %+  weld
+      ^-  (list [@t json])
+      :~  'platform'^s+'custom'
+          'lang'^s+'hoon'
           'function'^s+(crip t)
+          'lineno'^(numb:enjs:format lineno.pos)
+          'colno'^(numb:enjs:format colno.pos)
+          'resolved'^b+&
           'in_app'^b+&
       ==
-    :~  'function'^s+(crip t)
-        'in_app'^b+&
-    ==
+    ^-  (list [@t json])
+    ?.  span  ~
+    ~['filename'^s+(crip (scag (need (find ":<[" t)) t))]
   :-  ~
   %-  pairs:enjs:format
   :~  'distinct_id'^s+id
@@ -100,13 +120,16 @@
       :-  %o
       %-  ~(gas by p.props)
       :~  '$exception_fingerprint'^s+u.fingerprint
+          '$lib'^s+'urbit-logs'
+          '$issue_name'^(fall (~(get by p.props) 'signature') s+message)
+          '$issue_description'^s+message
           :-  '$exception_list'
           :-  %a
           :_  ~
           %-  pairs:enjs:format
           :~  'type'^s+(spat origin)
               'value'^s+message
-              'mechanism'^(pairs:enjs:format ~['handled'^b+| 'synthetic'^b+|])
+              'mechanism'^(pairs:enjs:format ~['handled'^b+| 'synthetic'^b+| 'type'^s+'generic'])
               'stacktrace'^(pairs:enjs:format ~['type'^s+'raw' 'frames'^a+frames])
           ==
       ==
