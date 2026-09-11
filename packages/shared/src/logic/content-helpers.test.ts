@@ -409,4 +409,25 @@ describe('chat edit round-trip', () => {
       'use `const x = 42;` here '
     );
   });
+
+  // Editing a code block puts the caret right after the closing fence, so
+  // typing there is an easy way to lose text if the fence line's remainder is
+  // discarded.
+  test('keeps prose typed directly onto the closing fence', () => {
+    expect(editText('```\nconst x = 42;\n```after')).toBe(
+      '```\nconst x = 42;\n```\nafter '
+    );
+  });
+
+  test('keeps prose typed onto a longer closing fence', () => {
+    expect(editText('````\nconst x = 42;\n````after')).toBe(
+      '```\nconst x = 42;\n```\nafter '
+    );
+  });
+
+  test('ignores whitespace after a closing fence', () => {
+    expect(editText('```\nconst x = 42;\n```   ')).toBe(
+      '```\nconst x = 42;\n```'
+    );
+  });
 });

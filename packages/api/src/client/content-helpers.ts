@@ -430,6 +430,24 @@ export function textAndMentionsToContent(
           },
         });
         currentCodeBlock = [];
+
+        // Only the opening fence carries an info string. Anything typed after
+        // a closing fence is prose, so carry it over to the next text line
+        // rather than dropping the rest of the line on the floor.
+        const fenceLength = text.match(/^`+/)![0].length;
+        const trailing = text.slice(fenceLength);
+        if (trailing.trim() !== '') {
+          currentLines.push({
+            text: trailing,
+            mentions: line.mentions
+              .filter((mention) => mention.start >= fenceLength)
+              .map((mention) => ({
+                ...mention,
+                start: mention.start - fenceLength,
+                end: mention.end - fenceLength,
+              })),
+          });
+        }
       }
     } else if (inCodeBlock) {
       currentCodeBlock.push(line);

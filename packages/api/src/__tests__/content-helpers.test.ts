@@ -78,6 +78,54 @@ describe('contentToTextAndMentions / textAndMentionsToContent round-trip', () =>
   });
 });
 
+describe('textAndMentionsToContent closing fences', () => {
+  test('keeps prose typed directly onto the closing fence', () => {
+    expect(
+      textAndMentionsToContent('```\nconst x = 42;\n```after', [])
+    ).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+          attrs: { language: 'plaintext' },
+        },
+        { type: 'paragraph', content: [{ type: 'text', text: 'after ' }] },
+      ],
+    });
+  });
+
+  test('keeps a mention that follows the closing fence', () => {
+    const text = '```\nconst x = 42;\n```~zod';
+    const result = textAndMentionsToContent(text, [
+      {
+        id: '~zod',
+        display: '~zod',
+        start: text.indexOf('~zod'),
+        end: text.length,
+      },
+    ]);
+
+    expect(result.content?.[1]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'mention', attrs: { id: '~zod' } }],
+    });
+  });
+
+  test('drops a bare closing fence with only trailing whitespace', () => {
+    expect(textAndMentionsToContent('```\nconst x = 42;\n```   ', [])).toEqual({
+      type: 'doc',
+      content: [
+        {
+          type: 'codeBlock',
+          content: [{ type: 'text', text: 'const x = 42;' }],
+          attrs: { language: 'plaintext' },
+        },
+      ],
+    });
+  });
+});
+
 describe('contentToTextAndMentions block separators', () => {
   const paragraph = (text: string) => ({
     type: 'paragraph',
