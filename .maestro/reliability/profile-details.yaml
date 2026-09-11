@@ -1,0 +1,121 @@
+appId: ${MAESTRO_APP_ID}
+name: Native profile status and biography persistence
+tags: [regression]
+env:
+  JOURNEY: pd
+onFlowComplete:
+  - runFlow:
+      when:
+        true: ${typeof output.originalStatus !== 'undefined' || typeof output.originalBio !== 'undefined'}
+      commands:
+        - runFlow:
+            when:
+              notVisible: '^Edit Profile$'
+            commands:
+              - launchApp
+              - runFlow: subflows/contacts-tab.yaml
+              - tapOn: '^You$'
+              - tapOn:
+                  id: ContactEditButton
+        - runFlow:
+            when:
+              true: ${typeof output.originalStatus !== 'undefined'}
+            commands:
+              - scrollUntilVisible:
+                  element:
+                    text: '^Bio$'
+                  direction: DOWN
+                  timeout: 5000
+              - tapOn:
+                  text: '.*'
+                  below: '^Status$'
+                  above: '^Bio$'
+              - eraseText: 100
+              - runFlow:
+                  when:
+                    true: ${output.originalStatus !== ''}
+                  commands:
+                    - inputText: ${output.originalStatus}
+        - runFlow:
+            when:
+              true: ${typeof output.originalBio !== 'undefined'}
+            commands:
+              - hideKeyboard
+              - scrollUntilVisible:
+                  element:
+                    text: '^Pinned groups$'
+                  direction: DOWN
+                  timeout: 5000
+              - tapOn:
+                  text: '.*'
+                  below: '^Bio$'
+                  above: '^Pinned groups$'
+              - eraseText: 300
+              - runFlow:
+                  when:
+                    true: ${output.originalBio !== ''}
+                  commands:
+                    - inputText: ${output.originalBio}
+        - tapOn: '^Save$'
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- scrollUntilVisible:
+    element:
+      text: '^Bio$'
+    direction: DOWN
+    timeout: 5000
+- copyTextFrom:
+    text: '.*'
+    below: '^Status$'
+    above: '^Bio$'
+- evalScript: "${output.originalStatus = maestro.copiedText === 'Hanging out...' ? '' : maestro.copiedText}"
+- tapOn:
+    text: '.*'
+    below: '^Status$'
+    above: '^Bio$'
+- eraseText: 100
+- inputText: ${MAESTRO_RUN_TAG + ' status'}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: '^Pinned groups$'
+    direction: DOWN
+    timeout: 5000
+- copyTextFrom:
+    text: '.*'
+    below: '^Bio$'
+    above: '^Pinned groups$'
+- evalScript: "${output.originalBio = maestro.copiedText === 'About yourself' ? '' : maestro.copiedText}"
+- tapOn:
+    text: '.*'
+    below: '^Bio$'
+    above: '^Pinned groups$'
+    point: '95%,15%'
+- eraseText: 300
+- inputText: ${MAESTRO_RUN_TAG + ' biography'}
+- hideKeyboard
+- tapOn: '^Save$'
+- assertVisible: '^Profile$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' status'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' biography'}
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- scrollUntilVisible:
+    element:
+      text: '^Bio$'
+    direction: DOWN
+    timeout: 5000
+- assertVisible: ${MAESTRO_RUN_TAG + ' status'}
+- assertVisible: ${MAESTRO_RUN_TAG + ' biography'}

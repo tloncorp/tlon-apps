@@ -1,0 +1,128 @@
+appId: ${MAESTRO_APP_ID}
+name: Native profile pinned group persistence and removal
+tags: [regression]
+env:
+  JOURNEY: pg
+onFlowComplete:
+  - runFlow:
+      when:
+        true: ${output.profileGroupAdded === true}
+      commands:
+        - launchApp
+        - extendedWaitUntil:
+            visible: '^Home$'
+            timeout: 15000
+        - runFlow: subflows/contacts-tab.yaml
+        - tapOn: '^You$'
+        - tapOn:
+            id: ContactEditButton
+        - scrollUntilVisible:
+            element:
+              text: ${output.reliability.groupPattern}
+            direction: DOWN
+            timeout: 5000
+        - tapOn:
+            id: ProfilePinnedGroupRemove
+            rightOf: ${output.reliability.groupPattern}
+        - tapOn: '^Save$'
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Group info & settings$'
+# Secret groups cannot be displayed on a profile. Only change our own fixture.
+- tapOn:
+    id: GroupPrivacy
+- tapOn: '^Private$'
+- tapOn: '^Back$'
+- assertVisible: '^Private$'
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- tapOn:
+    id: ContactEditButton
+- scrollUntilVisible:
+    element:
+      text: '^Add a group$'
+    direction: DOWN
+    timeout: 5000
+- assertNotVisible: ${output.reliability.groupPattern}
+- tapOn: '^Add a group$'
+- assertNotVisible: '^No more groups can be selected.*$'
+- scrollUntilVisible:
+    element:
+      text: ${output.reliability.groupPattern}
+    direction: DOWN
+    timeout: 5000
+- tapOn: ${output.reliability.groupPattern}
+- evalScript: ${output.profileGroupAdded = true}
+- tapOn:
+    id: CloseFavoriteGroupSelectorSheet
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn: '^Save$'
+- assertVisible: ${output.reliability.groupPattern}
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- assertVisible: ${output.reliability.groupPattern}
+- tapOn:
+    id: ContactEditButton
+- scrollUntilVisible:
+    element:
+      text: ${output.reliability.groupPattern}
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: ProfilePinnedGroupRemove
+    rightOf: ${output.reliability.groupPattern}
+- assertNotVisible: ${output.reliability.groupPattern}
+- tapOn: '^Save$'
+- assertNotVisible: ${output.reliability.groupPattern}
+- evalScript: ${output.profileGroupAdded = false}
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/contacts-tab.yaml
+- tapOn: '^You$'
+- assertNotVisible: ${output.reliability.groupPattern}
+- tapOn: '^Back$'
+- runFlow: subflows/home-tab.yaml
+- tapOn: '^Search$'
+# Keep the query distinct from the result's accessible name.
+- inputText: ${MAESTRO_RUN_TAG}
+- hideKeyboard
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Group info & settings$'
+- scrollUntilVisible:
+    element:
+      id: GroupLeaveAction-Delete group
+    direction: DOWN
+    timeout: 5000
+- tapOn:
+    id: GroupLeaveAction-Delete group
+- assertVisible: '^Delete ${output.reliability.group}[?]$'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          text: '^Delete group$'
+          rightOf: '^Cancel$'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn: '(?i)^Delete group$'
+- assertVisible: '^Home$'
+- assertNotVisible: ${output.reliability.groupPattern}
+- tapOn: '^Clear$'
+- tapOn: '^Close$'

@@ -53,6 +53,8 @@ export function PinnedPostBanner({
         </XStack>
       </Pressable>
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Dismiss pinned post"
         onPress={(event) => {
           event.stopPropagation();
           onDismiss();

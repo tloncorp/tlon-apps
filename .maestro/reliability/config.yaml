@@ -11,3 +11,8 @@ flows:
   - profile.yaml
   - channels.yaml
   - links.yaml
+  - attachments.yaml
+  - profile-details.yaml
+  - pins.yaml
+  - references.yaml
+  - profile-groups.yaml
