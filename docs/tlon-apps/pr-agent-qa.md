@@ -120,8 +120,9 @@ or publisher once, reusing completed stages. If publication still fails, the
 coordinator makes one evidence-only recovery attempt using durable review artifacts,
 or the original capture when no review artifact exists. Backend setup, native build
 and device interaction are not repeated for a report failure. Video receipts survive
-reviewer restarts, and clip timing can be derived from action metadata without an
-extra model pass. Full recording and the independent blind visual review remain.
+reviewer restarts, repeated frame requests are deduplicated, and clip timing can be
+derived from action metadata without an extra model pass. Full recording and the
+independent blind visual review remain.
 
 ## Limits and test data
 
@@ -404,12 +405,15 @@ changed timing, unsupported causes, lost uncertainty, and misleading grouping.
 All original observations, checks, source hypotheses, and source commits remain in
 collapsed sections of the comment and in the original artifacts.
 
-After grouping, a targeted Sol/high clip reviewer inspects the actual recording.
-It chooses one complete occurrence per finding by default: before state, trigger,
-reported outcome, and settled result. All four moments must cite native frames
-inspected during that clip review. Cited action times only help locate the event;
-they cannot directly select a published clip. A second clip requires a distinct
-case and explanation, and overlapping intervals for the same finding are rejected.
+The combined Sol/high evidence reviewer selects exact clip moments while it is
+already inspecting the recording: before state, trigger, reported outcome, and
+settled result. The publisher validates those frame receipts and cuts the clip
+deterministically, so complete findings do not incur a second image-heavy model
+pass. A targeted clip review is retained only as a fallback for a finding whose
+evidence pass could not produce a complete interval. Cited action times only help
+locate the event; they cannot directly select a published clip. A second clip
+requires a distinct case and explanation, and overlapping intervals for the same
+finding are rejected.
 
 The cutter retains the complete verified interval with one second before and two
 after. It never truncates the outcome to meet a fixed short length. If no complete
