@@ -34,6 +34,7 @@ export enum AnalyticsEvent {
   ScryNoun = 'Scry Noun',
   Poke = 'Poke',
   NativeDbDebug = 'Native DB Debug',
+  DbReadyRetrySucceeded = 'DB Ready Retry Succeeded',
   Thread = 'Thread',
   TrackedPoke = 'TrackedPoke',
   ErrorDatabaseQuery = 'Database Query Error',

@@ -851,6 +851,55 @@ describe('SENTRY_IGNORE_ERRORS', () => {
   });
 });
 
+interface IgnoreEvent {
+  exception: { values: Array<{ type: string; value: string }> };
+}
+
+// Mirrors @sentry/core's `getPossibleEventMessages`: only the *last* exception
+// in `values` is tested, in both its bare `value` and `type: value` form.
+// `packages/shared` has no `@sentry/*` dependency, so this stands in for it.
+function possibleMessages(event: IgnoreEvent): string[] {
+  const last = event.exception.values[event.exception.values.length - 1];
+
+  if (!last?.value) {
+    return [];
+  }
+
+  return last.type ? [last.value, `${last.type}: ${last.value}`] : [last.value];
+}
+
+function isIgnored(event: IgnoreEvent): boolean {
+  return possibleMessages(event).some((message) =>
+    SENTRY_IGNORE_ERRORS.some((r) => r.test(message))
+  );
+}
+
+describe('SENTRY_IGNORE_ERRORS with linked exceptions', () => {
+  // Sentry RN's linked-errors integration appends `cause` chains after the
+  // original exception, so the last entry is a cause when one exists.
+  const timeout = {
+    type: 'DbInitTimeoutError',
+    value:
+      'Database initialization timed out after 30000ms (attempt 2, 30000 ms elapsed); last error: Error: Request timed out',
+  };
+  const ignoredCause = { type: 'Error', value: 'Request timed out' };
+
+  it('drops the whole event when an ignored error is attached as a cause', () => {
+    // Why DbInitTimeoutError deliberately carries no `cause`.
+    expect(isIgnored({ exception: { values: [timeout, ignoredCause] } })).toBe(
+      true
+    );
+  });
+
+  it('keeps the timeout when the cause only appears in its message', () => {
+    expect(isIgnored({ exception: { values: [timeout] } })).toBe(false);
+  });
+
+  it('still drops the ignored error on its own', () => {
+    expect(isIgnored({ exception: { values: [ignoredCause] } })).toBe(true);
+  });
+});
+
 describe('SENTRY_DENY_URLS_WEB', () => {
   it('matches hawk499 urls', () => {
     expect(
