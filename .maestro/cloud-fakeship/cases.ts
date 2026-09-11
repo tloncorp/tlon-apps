@@ -1,11 +1,12 @@
 import { writeFileSync } from 'node:fs';
-import {
+import { actorApi } from '../../packages/tlon-bot-e2e/src/tlon/actor';
+const {
   addContact,
   getChannelPosts,
   getContacts,
   kickUsersFromGroup,
   updateCurrentUserProfile,
-} from '@tloncorp/api';
+} = actorApi;
 import type { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 
 // Each flow owns a group. Only the DM flow writes DMs; profile changes keep the

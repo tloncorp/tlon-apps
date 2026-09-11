@@ -1,3 +1,4 @@
+export * as actorApi from '@tloncorp/api';
 import {
   Urbit,
   addReaction,
