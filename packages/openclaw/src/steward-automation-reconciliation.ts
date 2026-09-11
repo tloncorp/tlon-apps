@@ -6,7 +6,11 @@ import type { PluginHookGatewayCronService } from 'openclaw/plugin-sdk/types';
 
 import { sharedSlot } from './shared-state.js';
 import { submitStewardAutomationProjection } from './steward-automation-adapter.js';
-import { normalizeStewardAutomationProjection } from './steward-automation-projection.js';
+import {
+  type StewardAutomationRejectedJob,
+  normalizeStewardAutomationProjectionWithRejections,
+} from './steward-automation-projection.js';
+import { reportTelemetryError } from './telemetry.js';
 import { listRunnableTlonAccountIds } from './types.js';
 
 type StewardAutomationCronService = Pick<PluginHookGatewayCronService, 'list'>;
@@ -17,11 +21,17 @@ export type StewardAutomationCronAccessor =
 
 type StewardAutomationSubmissionGuard = () => void | Promise<void>;
 
+/** Receives the jobs a snapshot could not represent, once per reconciliation. */
+export type StewardAutomationRejectionReporter = (
+  rejected: readonly StewardAutomationRejectedJob[]
+) => void;
+
 type StewardAutomationReconciliation = (
   getCron: StewardAutomationCronAccessor,
   beforeSubmit?: StewardAutomationSubmissionGuard,
   assertCanSubmit?: () => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onRejected?: StewardAutomationRejectionReporter
 ) => Promise<void>;
 
 interface ReconciliationWaiter {
@@ -39,6 +49,39 @@ interface PendingReconciliation {
 
 export const DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS = 5_000;
 export const DEFAULT_STEWARD_AUTOMATION_OPERATION_TIMEOUT_MS = 30_000;
+/** Attempts per batch before it is abandoned; about a minute at the default delay. */
+export const DEFAULT_STEWARD_AUTOMATION_MAX_ATTEMPTS = 12;
+
+/**
+ * A batch gave up after repeated retryable failures. The last error is kept
+ * so the log says what kept failing. Later triggers start a fresh batch.
+ */
+export class StewardAutomationReconciliationExhaustedError extends Error {
+  readonly retryable = false;
+
+  constructor(
+    readonly attempts: number,
+    readonly cause: unknown
+  ) {
+    super(
+      `Steward automation reconciliation abandoned after ${attempts} ` +
+        `attempts; last error: ${String(cause)}`
+    );
+    this.name = 'StewardAutomationReconciliationExhaustedError';
+  }
+}
+
+/**
+ * Errors that mark themselves non-retryable stop a batch at once. Anything
+ * else — a nack, a transport failure, an unknown throw — is retried up to
+ * the attempt cap, since a transient cause is the common case.
+ */
+function isRetryableError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) {
+    return true;
+  }
+  return (error as { retryable?: unknown }).retryable !== false;
+}
 
 export class StewardAutomationReconciliationTimeoutError extends Error {
   readonly retryable = true;
@@ -176,12 +219,13 @@ export class StewardAutomationReconciliationCancelledError extends Error {
   }
 }
 
-/** Read and submit one complete snapshot from the pinned gateway cron API. */
+/** Read and submit one complete snapshot from the gateway cron API. */
 export async function reconcileStewardAutomation(
   getCron: StewardAutomationCronAccessor,
   beforeSubmit?: StewardAutomationSubmissionGuard,
   assertCanSubmit?: () => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onRejected?: StewardAutomationRejectionReporter
 ): Promise<void> {
   signal?.throwIfAborted();
   if (!getCron) {
@@ -195,7 +239,11 @@ export async function reconcileStewardAutomation(
 
   const jobs = await cron.list({ includeDisabled: true });
   signal?.throwIfAborted();
-  const projection = normalizeStewardAutomationProjection(jobs);
+  const { projection, rejected } =
+    normalizeStewardAutomationProjectionWithRejections(jobs);
+  if (rejected.length > 0) {
+    onRejected?.(rejected);
+  }
   await beforeSubmit?.();
   signal?.throwIfAborted();
   // Keep these synchronous checks adjacent to invoking the adapter. Awaiting
@@ -228,7 +276,9 @@ export class StewardAutomationReconciler {
     private readonly reconcile: StewardAutomationReconciliation = reconcileStewardAutomation,
     private readonly retryDelay: StewardAutomationRetryDelay = waitForRetryDelay,
     private readonly retryDelayMs = DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
-    private readonly operationTimeoutMs = DEFAULT_STEWARD_AUTOMATION_OPERATION_TIMEOUT_MS
+    private readonly operationTimeoutMs = DEFAULT_STEWARD_AUTOMATION_OPERATION_TIMEOUT_MS,
+    private readonly maxAttempts = DEFAULT_STEWARD_AUTOMATION_MAX_ATTEMPTS,
+    private readonly onRejected?: StewardAutomationRejectionReporter
   ) {}
 
   start(getCron: StewardAutomationCronAccessor): Promise<void> {
@@ -329,6 +379,7 @@ export class StewardAutomationReconciler {
           break;
         }
         this.current = batch;
+        let attempts = 0;
 
         for (;;) {
           if (!this.isActiveEpoch(batch.epoch)) {
@@ -350,7 +401,8 @@ export class StewardAutomationReconciler {
                     phase = 'submission';
                   },
                   () => this.assertActiveEpoch(batch.epoch),
-                  signal
+                  signal,
+                  this.onRejected
                 ),
               batch.controller.signal,
               this.operationTimeoutMs,
@@ -362,6 +414,26 @@ export class StewardAutomationReconciler {
           } catch (error) {
             if (!this.isActiveEpoch(batch.epoch)) {
               this.rejectBatch(batch, this.cancellationFor(batch.epoch));
+              break;
+            }
+
+            // A non-retryable error, or one that keeps recurring, ends this
+            // batch rather than owning the worker forever. Triggers that
+            // coalesced into it are rejected with it; the next trigger starts
+            // a fresh batch and rereads the complete snapshot.
+            attempts += 1;
+            if (!isRetryableError(error)) {
+              this.rejectBatch(batch, error);
+              break;
+            }
+            if (attempts >= this.maxAttempts) {
+              this.rejectBatch(
+                batch,
+                new StewardAutomationReconciliationExhaustedError(
+                  attempts,
+                  error
+                )
+              );
               break;
             }
 
@@ -492,6 +564,33 @@ function isExpectedCancellation(error: unknown): boolean {
   );
 }
 
+/**
+ * Jobs a snapshot could not represent are logged once each and reported to
+ * telemetry so a stale-mirror question has an answer in PostHog. Reporting
+ * must never disturb the projection itself.
+ */
+export function reportRejectedJobs(
+  rejected: readonly StewardAutomationRejectedJob[],
+  warn: (message: string) => void
+): void {
+  for (const job of rejected) {
+    const label = job.id ?? '<no id>';
+    warn(
+      `[tlon] Steward automation projection dropped cron job ${label}: ${job.reason}`
+    );
+    try {
+      reportTelemetryError({
+        telemetrySource: 'steward_automation_projection',
+        sourceEventName: job.kind,
+        errorKind: job.kind,
+        errorText: job.reason,
+      });
+    } catch {
+      // Telemetry failures never affect the projection.
+    }
+  }
+}
+
 function observeProjectionWork(
   work: Promise<void>,
   logger: RegisterStewardAutomationReconciliationHooksOptions['logger']
@@ -520,12 +619,6 @@ export function registerStewardAutomationReconciliationHooks(
   api: Pick<OpenClawPluginApi, 'on'>,
   options: RegisterStewardAutomationReconciliationHooksOptions
 ): StewardAutomationReconciler {
-  let reconciler = getStewardAutomationReconciler();
-  if (!reconciler) {
-    reconciler = new StewardAutomationReconciler();
-    setStewardAutomationReconciler(reconciler);
-  }
-
   let reportedIneligibleAccountCount: number | null = null;
   const warnSafely = (message: string): void => {
     try {
@@ -534,6 +627,19 @@ export function registerStewardAutomationReconciliationHooks(
       // A host logger failure must not bypass the account-safety guard.
     }
   };
+
+  let reconciler = getStewardAutomationReconciler();
+  if (!reconciler) {
+    reconciler = new StewardAutomationReconciler(
+      reconcileStewardAutomation,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      (rejected) => reportRejectedJobs(rejected, warnSafely)
+    );
+    setStewardAutomationReconciler(reconciler);
+  }
   const guardSingleAccount = (): boolean => {
     let config: OpenClawConfig;
     try {

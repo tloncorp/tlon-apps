@@ -408,4 +408,141 @@
     }
     '''
   (expect-eq !>(expected) !>((tasks:enjs:aj tasks)))
+::
+::  edit loop codecs
+::
+++  rid  ^-  request-id:v1:a  `@uv`0x1234.5678
+++  rid-json  ^-  json  s+(scot %uv rid)
+++  new-task
+  ^-  task:v1:a
+  =/  =task:v1:a  empty-task
+  %=  task
+    name            (some 'New task')
+    enabled         (some %.y)
+    session-target  (some 'isolated')
+    wake-mode       (some 'now')
+    payload         (some [(some 'agentTurn') (some 'Say hello.')])
+  ==
+++  round-trip-action
+  |=  act=a-automation:v1:a
+  ^-  a-automation:v1:a
+  (a-automation:dejs:aj (a-automation:enjs:aj act))
+::
+++  test-edit-action-round-trips-all-verbs
+  ;:  weld
+    %+  expect-eq
+      !>(`a-automation:v1:a`[%edit rid ~zod [%create new-task]])
+    !>((round-trip-action [%edit rid ~zod [%create new-task]]))
+  ::
+    %+  expect-eq
+      !>(`a-automation:v1:a`[%edit rid ~zod [%update 'job-1' new-task]])
+    !>((round-trip-action [%edit rid ~zod [%update 'job-1' new-task]]))
+  ::
+    %+  expect-eq
+      !>(`a-automation:v1:a`[%edit rid ~zod [%delete 'job-1']])
+    !>((round-trip-action [%edit rid ~zod [%delete 'job-1']]))
+  ==
+::
+::  the client's action shapes, parsed through the production edit codec
+::
+++  test-edit-json-shapes
+  =/  blank=task:v1:a  empty-task
+  =/  create=json
+    (parse-json '{"create": {"name": "New task", "enabled": true}}')
+  =/  update=json
+    (parse-json '{"update": {"id": "job-1", "enabled": false}}')
+  =/  delete=json
+    (parse-json '{"delete": {"id": "job-1"}}')
+  ;:  weld
+    %+  expect-eq
+      !>(`edit:v1:a`[%create blank(name (some 'New task'), enabled (some %.y))])
+    !>((edit:dejs:aj create))
+  ::
+    %+  expect-eq
+      !>(`edit:v1:a`[%update 'job-1' blank(enabled (some %.n))])
+    !>((edit:dejs:aj update))
+  ::
+    %+  expect-eq
+      !>(`edit:v1:a`[%delete 'job-1'])
+    !>((edit:dejs:aj delete))
+  ==
+::
+++  test-finalize-round-trips-all-bodies
+  =/  bodies=(list response-body:v1:a)
+    :~  [%created 'job-1']
+        [%updated 'job-1']
+        [%deleted 'job-1']
+        [%error %harness-error ~[leaf+"cron job already exists"]]
+        [%error %invalid ~]
+        [%pending %acked]
+    ==
+  %+  roll  bodies
+  |=  [body=response-body:v1:a out=tang]
+  %+  weld  out
+  %+  expect-eq
+    !>(`a-automation:v1:a`[%finalize rid body])
+  !>((round-trip-action [%finalize rid body]))
+::
+::  the harness's finalize poke: a type-discriminated body like the
+::  notes v1 envelope, with the message as an array of strings
+::
+++  test-finalize-json-shape
+  =/  jon=json
+    =,  enjs:format
+    %+  frond  'finalize'
+    %-  pairs
+    :~  ['requestId' rid-json]
+        :-  'body'
+        %-  pairs
+        :~  ['type' s+'error']
+            ['errorType' s+'not-found']
+            ['message' a+~[s+'no such job']]
+        ==
+    ==
+  %+  expect-eq
+    !>(`a-automation:v1:a`[%finalize rid [%error %not-found ~[leaf+"no such job"]]])
+  !>((a-automation:dejs:aj jon))
+::
+++  test-response-grows-request-id-and-typed-body
+  =/  expected=json
+    =,  enjs:format
+    %-  pairs
+    :~  ['requestId' rid-json]
+        ['body' (pairs ~[['type' s+'created'] ['id' s+'job-1']])]
+    ==
+  %+  expect-eq
+    !>(expected)
+  !>((response:enjs:aj [rid [%created 'job-1']]))
+::
+++  test-response-error-grows-message-as-strings
+  =/  expected=json
+    =,  enjs:format
+    %-  pairs
+    :~  ['requestId' rid-json]
+        :-  'body'
+        %-  pairs
+        :~  ['type' s+'error']
+            ['errorType' s+'harness-offline']
+            ['message' a+~[s+'no harness']]
+        ==
+    ==
+  %+  expect-eq
+    !>(expected)
+  !>((response:enjs:aj [rid [%error %harness-offline ~[leaf+"no harness"]]]))
+::
+++  test-dispatch-grows-request-id-and-action
+  =/  expected=json
+    =,  enjs:format
+    %-  pairs
+    :~  ['requestId' rid-json]
+        ['action' (frond 'delete' (frond 'id' s+'job-1'))]
+    ==
+  %+  expect-eq
+    !>(expected)
+  !>((dispatch:enjs:aj [rid [%delete 'job-1']]))
+::
+++  test-project-still-parses-through-a-automation
+  %+  expect-eq
+    !>(`a-automation:v1:a`[%project ~])
+  !>((a-automation:dejs:aj (parse-json '{"project": {"tasks": []}}')))
 --

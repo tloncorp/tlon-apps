@@ -32,7 +32,7 @@ const PayloadSchema = z
   })
   .transform(({ kind, message: currentMessage, text: fallbackText }) => {
     // Current OpenClaw runtime values use `message`. Accept `text` only as a
-    // fallback for the stale pinned 2026.5.28 plugin declaration.
+    // fallback for the older 2026.5.28 plugin declaration.
     const message = currentMessage ?? fallbackText;
     return {
       ...(kind === undefined ? {} : { kind }),
@@ -166,26 +166,67 @@ function formatCronJobError(error: z.ZodError, job: unknown): Error {
   return new Error(`Invalid ${field}: ${message}`);
 }
 
-function normalizeTask(job: PluginHookGatewayCronJob): StewardAutomationTask {
-  const parsed = CronJobSchema.safeParse(job);
-  if (!parsed.success) {
-    throw formatCronJobError(parsed.error, job);
-  }
-  return parsed.data;
+/** A job left out of the projection, with the reason, for telemetry. */
+export interface StewardAutomationRejectedJob {
+  id: string | null;
+  kind: 'invalid' | 'duplicate';
+  reason: string;
 }
 
-/** Normalize one complete OpenClaw cron list into Steward's `%project` JSON. */
+export interface StewardAutomationNormalization {
+  projection: StewardAutomationProjection;
+  rejected: StewardAutomationRejectedJob[];
+}
+
+function jobIdOf(job: unknown): string | null {
+  const identity = CronJobIdentitySchema.safeParse(job);
+  return identity.success ? identity.data.id : null;
+}
+
+/**
+ * Normalize one complete OpenClaw cron list into Steward's `%project` JSON.
+ *
+ * Permissive by design: a job the schema cannot represent (an unsupported
+ * schedule kind such as a newer host's `on-exit`, a malformed field, a
+ * duplicate id) is dropped and reported rather than failing the whole
+ * snapshot. Failing closed would leave the mirror permanently stale over one
+ * odd job, and the reconciler would retry it forever. The projection is
+ * still complete for every job it can represent, so omission removes a
+ * dropped job from the ship's map until it parses again.
+ */
+export function normalizeStewardAutomationProjectionWithRejections(
+  jobs: readonly PluginHookGatewayCronJob[]
+): StewardAutomationNormalization {
+  const seenIds = new Set<string>();
+  const tasks: StewardAutomationTask[] = [];
+  const rejected: StewardAutomationRejectedJob[] = [];
+  for (const job of jobs) {
+    const parsed = CronJobSchema.safeParse(job);
+    if (!parsed.success) {
+      rejected.push({
+        id: jobIdOf(job),
+        kind: 'invalid',
+        reason: formatCronJobError(parsed.error, job).message,
+      });
+      continue;
+    }
+    if (seenIds.has(parsed.data.id)) {
+      rejected.push({
+        id: parsed.data.id,
+        kind: 'duplicate',
+        reason: `Duplicate cron job id: ${parsed.data.id}`,
+      });
+      continue;
+    }
+    seenIds.add(parsed.data.id);
+    tasks.push(parsed.data);
+  }
+  return { projection: { project: { tasks } }, rejected };
+}
+
+/** The projection alone; see normalizeStewardAutomationProjectionWithRejections. */
 export function normalizeStewardAutomationProjection(
   jobs: readonly PluginHookGatewayCronJob[]
 ): StewardAutomationProjection {
-  const seenIds = new Set<string>();
-  const tasks = jobs.map((job) => {
-    const task = normalizeTask(job);
-    if (seenIds.has(task.id)) {
-      throw new Error(`Duplicate cron job id: ${task.id}`);
-    }
-    seenIds.add(task.id);
-    return task;
-  });
-  return { project: { tasks } };
+  return normalizeStewardAutomationProjectionWithRejections(jobs).projection;
 }

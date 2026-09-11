@@ -12,7 +12,7 @@
 ::
 /-  s=steward, a=activity, av=activity-ver, cv=chat-ver, st=story
 /-  sl=steward-lens, sg=steward-gateway, sa=steward-automation
-/+  default-agent, verb, dbug
+/+  default-agent, verb, dbug, server, aj=steward-automation-json
 |%
 +$  card  card:agent:gall
 ::  versioned persisted state. state-0 is released and remains decodable for
@@ -59,7 +59,7 @@
   ++  on-init
     ^-  (quip card _this)
     =.  max-runs-per-bot.lens.state  default-max-runs-per-bot
-    [~[watch-activity:cor] this]
+    [[watch-activity:cor au-init-cards:au-core:cor] this]
   ++  on-save  !>(state)
   ++  on-load
     |^  |=  ole=vase
@@ -67,7 +67,11 @@
         =/  old=versioned-state  !<(versioned-state ole)
         =?  old  ?=(%0 -.old)  (state-0-to-1 old)
         ?>  ?=(%1 -.old)
-        `this(state old)
+        ::  re-establish the eyre binding and the request sweep on every
+        ::  load; re-connecting a bound path is harmless and stacked
+        ::  timers are cheap
+        ::
+        [au-init-cards:au-core:cor this(state old)]
     ::  preserve every released field and initialize the new module empty
     ::
     ++  state-0-to-1
@@ -161,10 +165,21 @@
       %steward-gateway-action-1
     (ga-poke-action:ga-core !<(action:v1:sg vase))
   ::
-  ::  automation snapshots. authorization is enforced in au-poke-action
+  ::  automation actions: all local-only, enforced in au-poke-action
   ::
       %steward-automation-action-1
     (au-poke-action:au-core !<(action:v1:sa vase))
+  ::
+  ::  owner → bot edit command: only the configured owner, enforced in
+  ::  au-poke-command
+  ::
+      %steward-automation-command-1
+    (au-poke-command:au-core !<(c-automation:v1:sa vase))
+  ::
+  ::  the owner ship's HTTP surface for the edit loop
+  ::
+      %handle-http-request
+    (au-handle-http:au-core !<([eyre-id=@ta =inbound-request:eyre] vase))
   ==
 ::
 ::  watch auth is per-path: the automation feed admits the
@@ -174,6 +189,13 @@
   |=  =path
   ^+  cor
   ?+  path  ~|(bad-watch-path+path !!)
+  ::
+  ::  eyre subscribes here for each inbound HTTP request before it pokes
+  ::  %handle-http-request; the response facts go out on this path
+  ::
+      [%http-response *]
+    cor
+  ::
       [%v1 %lens *]
     ?>  =(src.bowl our.bowl)
     (le-watch:le-core [%v1 t.t.path])
@@ -185,6 +207,29 @@
       [%v1 %automation %tasks ~]
     ?>  |(=(src.bowl our.bowl) =(`src.bowl owner.state))
     au-watch-tasks:au-core
+  ::
+  ::  the harness's pending-command feed (bot side): local only
+  ::
+      [%v1 %automation %harness ~]
+    ?>  =(src.bowl our.bowl)
+    au-watch-harness:au-core
+  ::
+  ::  a client's per-request stream (owner side): local only
+  ::
+      [%v1 %automation %request @ ~]
+    ?>  =(src.bowl our.bowl)
+    (au-watch-local-request:au-core (slav %uv i.t.t.t.path))
+  ::
+  ::  the owner's per-request stream (bot side): only the requester named
+  ::  in the path, and only when it is the configured owner
+  ::
+      [%v1 %automation %request @ @ ~]
+    =/  requester  (slav %p i.t.t.t.path)
+    ?>  ?&  =(src.bowl requester)
+            ?=(^ owner.state)
+            =(src.bowl u.owner.state)
+        ==
+    cor
   ==
 ::
 ++  peek
@@ -244,6 +289,16 @@
   ::
       [%automation %tasks @ ~]
     (au-handle-bot-sign:au-core (slav %p i.t.t.wire) sign)
+  ::
+  ::  the owner's per-request relay to a bot: wire carries bot and id
+  ::
+      [%automation %req @ @ %watch ~]
+    %-  au-handle-req-watch-sign:au-core
+    [(slav %p i.t.t.wire) (slav %uv i.t.t.t.wire) sign]
+  ::
+      [%automation %req @ @ %poke ~]
+    %-  au-handle-req-poke-sign:au-core
+    [(slav %p i.t.t.wire) (slav %uv i.t.t.t.wire) sign]
   ==
 ::
 ++  arvo
@@ -253,6 +308,17 @@
       [%gateway %lease-check ~]
     ?.  ?=([%behn %wake *] sign)  cor
     ga-lease-check:ga-core
+  ::
+      [%eyre %steward ~]
+    cor
+  ::
+      [%automation %cleanup ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    au-cleanup:au-core
+  ::
+      [%automation %req @ @ %wake ~]
+    ?.  ?=([%behn %wake *] sign)  cor
+    (au-finalize-pending:au-core (slav %uv i.t.t.t.wire))
   ==
 ::
 ++  watch-activity
@@ -708,6 +774,12 @@
       ::
       ?.  had  au-give-snapshot
       (au-give-deltas our.bowl old projected)
+    ::
+        %edit
+      (au-handle-edit [request-id bot edit]:action)
+    ::
+        %finalize
+      (au-handle-finalize [request-id body]:action)
     ==
   ::
   ++  au-watch-tasks
@@ -876,5 +948,333 @@
       entries    t.entries
       projected  (~(put by projected) id.entry task.entry)
     ==
+  ::
+  ::  edit loop: client → owner → bot → harness, with the response
+  ::  walking back the same way. steward never touches the task map on
+  ::  an edit; the change becomes visible through the harness's next
+  ::  %project. see docs/backend/desk/app/steward.md
+  ::
+  ++  au-init-cards
+    ^-  (list card)
+    :~  [%pass /eyre/steward %arvo %e %connect [~ /steward] %steward]
+        [%pass /automation/cleanup %arvo %b %wait (add now.bowl ~m5)]
+    ==
+  ::
+  ++  au-harness-path  `path`/v1/automation/harness
+  ++  au-req-wire
+    |=  [bot=ship rid=request-id:v1:sa kind=@ta]
+    ^-  wire
+    /automation/req/(scot %p bot)/(scot %uv rid)/[kind]
+  ++  au-req-path
+    |=  [requester=ship rid=request-id:v1:sa]
+    ^-  path
+    /v1/automation/request/(scot %p requester)/(scot %uv rid)
+  ++  au-local-req-path
+    |=  rid=request-id:v1:sa
+    ^-  path
+    /v1/automation/request/(scot %uv rid)
+  ::
+  ::  owner side
+  ::
+  ::  watch the bot's per-request path first so the response cannot be
+  ::  missed, then poke the command, then arm the pending wake. the
+  ::  owner always pokes the bot; gall loops the poke back when the bot
+  ::  is this ship
+  ::
+  ++  au-handle-edit
+    |=  [rid=request-id:v1:sa bot=ship =edit:v1:sa]
+    ^+  cor
+    =?  requests.automation.state
+        !(~(has by requests.automation.state) rid)
+      %+  ~(put by requests.automation.state)  rid
+      [rid bot ~ %sending ~ ~ |]
+    =.  cor
+      %-  emit
+      :*  %pass  (au-req-wire bot rid %watch)
+          %agent  [bot %steward]
+          %watch  (au-req-path our.bowl rid)
+      ==
+    =.  cor
+      %-  emit
+      :*  %pass  (au-req-wire bot rid %poke)
+          %agent  [bot %steward]
+          %poke  %steward-automation-command-1
+          !>(`c-automation:v1:sa`[%edit rid edit])
+      ==
+    %-  emit
+    [%pass (au-req-wire bot rid %wake) %arvo %b %wait (add now.bowl ~s20)]
+  ::
+  ++  au-leave-req
+    |=  [bot=ship rid=request-id:v1:sa]
+    ^+  cor
+    (emit %pass (au-req-wire bot rid %watch) %agent [bot %steward] %leave ~)
+  ::
+  ++  au-handle-req-watch-sign
+    |=  [bot=ship rid=request-id:v1:sa =sign:agent:gall]
+    ^+  cor
+    ?+  -.sign  cor
+        %watch-ack
+      ?~  p.sign  cor
+      (au-finalize-request rid [%error %not-authorized u.p.sign])
+    ::
+        %fact
+      ?>  ?=(%steward-automation-response-1 p.cage.sign)
+      =+  !<(=response:v1:sa q.cage.sign)
+      ?.  =(id.response rid)  cor
+      =.  cor  (au-finalize-request rid body.response)
+      (au-leave-req bot rid)
+    ==
+  ::
+  ++  au-handle-req-poke-sign
+    |=  [bot=ship rid=request-id:v1:sa =sign:agent:gall]
+    ^+  cor
+    ?.  ?=(%poke-ack -.sign)  cor
+    ?~  req=(~(get by requests.automation.state) rid)  cor
+    ?~  p.sign
+      =.  requests.automation.state
+        (~(put by requests.automation.state) rid u.req(poke-status %acked))
+      cor
+    =.  requests.automation.state
+      (~(put by requests.automation.state) rid u.req(poke-status %nacked))
+    =.  cor  (au-finalize-request rid [%error %unknown u.p.sign])
+    (au-leave-req bot rid)
+  ::
+  ::  store the terminal body, fact it on the client's per-request path,
+  ::  and complete a held HTTP request exactly once
+  ::
+  ++  au-finalize-request
+    |=  [rid=request-id:v1:sa body=response-body:v1:sa]
+    ^+  cor
+    ?~  req=(~(get by requests.automation.state) rid)  cor
+    =/  =response:v1:sa  [rid body]
+    =.  requests.automation.state
+      %+  ~(put by requests.automation.state)  rid
+      u.req(http-id ~, result `body, final-at `now.bowl)
+    =.  cor
+      %-  give
+      [%fact ~[(au-local-req-path rid)] %steward-automation-response-1 !>(response)]
+    ?~  http-id.u.req  cor
+    (au-give-http-response u.http-id.u.req response)
+  ::
+  ::  the pending wake: close a held HTTP request with %pending and keep
+  ::  the record for the late answer. a request already terminal is
+  ::  untouched. final-at is stamped so a never-answered request ages
+  ::  out in au-cleanup
+  ::
+  ++  au-finalize-pending
+    |=  rid=request-id:v1:sa
+    ^+  cor
+    ?~  req=(~(get by requests.automation.state) rid)  cor
+    ?:  ?=(^ result.u.req)  cor
+    =/  body=response-body:v1:sa  [%pending poke-status.u.req]
+    =/  =response:v1:sa  [rid body]
+    =.  requests.automation.state
+      %+  ~(put by requests.automation.state)  rid
+      u.req(http-id ~, result `body, final-at `now.bowl)
+    =.  cor
+      %-  give
+      [%fact ~[(au-local-req-path rid)] %steward-automation-response-1 !>(response)]
+    ?~  http-id.u.req  cor
+    (au-give-http-response u.http-id.u.req response)
+  ::
+  ::  a client subscribing after the result landed gets it immediately
+  ::
+  ++  au-watch-local-request
+    |=  rid=request-id:v1:sa
+    ^+  cor
+    ?~  req=(~(get by requests.automation.state) rid)  cor
+    ?~  result.u.req  cor
+    %-  give
+    [%fact ~ %steward-automation-response-1 !>(`response:v1:sa`[rid u.result.u.req])]
+  ::
+  ::  bot side
+  ::
+  ++  au-harness-online
+    ^-  ?
+    %+  lien  ~(val by sup.bowl)
+    |=  [=ship =path]
+    &(=(ship our.bowl) =(path au-harness-path))
+  ::
+  ::  an accepted command is handed to the harness when one is
+  ::  subscribed, and refused at once when none is. the pending record
+  ::  carries no deadline: a late answer still completes the request
+  ::
+  ++  au-poke-command
+    |=  =c-automation:v1:sa
+    ^+  cor
+    ?>  ?&(?=(^ owner.state) =(src.bowl u.owner.state))
+    ?-  -.c-automation
+        %edit
+      =*  rid  request-id.c-automation
+      ?.  au-harness-online
+        (au-give-response src.bowl [rid %error %harness-offline ~])
+      =.  pending.automation.state
+        %+  ~(put by pending.automation.state)  rid
+        [rid src.bowl edit.c-automation now.bowl]
+      (au-give-dispatch ~[au-harness-path] [rid edit.c-automation])
+    ==
+  ::
+  ++  au-give-dispatch
+    |=  [paths=(list path) =dispatch:v1:sa]
+    ^+  cor
+    (give %fact paths %steward-automation-dispatch-1 !>(dispatch))
+  ::
+  ++  au-give-response
+    |=  [requester=ship =response:v1:sa]
+    ^+  cor
+    %-  give
+    :*  %fact  ~[(au-req-path requester id.response)]
+        %steward-automation-response-1  !>(response)
+    ==
+  ::
+  ::  a finalize for an id no longer pending is ignored
+  ::
+  ++  au-handle-finalize
+    |=  [rid=request-id:v1:sa body=response-body:v1:sa]
+    ^+  cor
+    ?~  pen=(~(get by pending.automation.state) rid)  cor
+    =.  pending.automation.state  (~(del by pending.automation.state) rid)
+    (au-give-response requester.u.pen [rid body])
+  ::
+  ::  a (re)subscribing harness receives every outstanding command,
+  ::  oldest first, so a restart resumes in-flight work
+  ::
+  ++  au-watch-harness
+    ^+  cor
+    =/  entries=(list pending-command:v1:sa)
+      %+  sort  ~(val by pending.automation.state)
+      |=([a=pending-command:v1:sa b=pending-command:v1:sa] (lth sent-at.a sent-at.b))
+    |-  ^+  cor
+    ?~  entries  cor
+    =.  cor  (au-give-dispatch ~ [id edit]:i.entries)
+    $(entries t.entries)
+  ::
+  ::  sweep: terminal records go once fetched or after a day; a pending
+  ::  result and a pending command each live an hour; a record with no
+  ::  result yet is left for its wake
+  ::
+  ++  au-cleanup
+    ^+  cor
+    =.  requests.automation.state
+      %-  ~(rep by requests.automation.state)
+      |=  [[id=request-id:v1:sa req=incoming-request:v1:sa] out=requests:v1:sa]
+      ?~  final-at.req  (~(put by out) id req)
+      ?:  (lth now.bowl u.final-at.req)  (~(put by out) id req)
+      =/  age  (sub now.bowl u.final-at.req)
+      ?:  ?=([~ %pending *] result.req)
+        ?:((gth age ~h1) out (~(put by out) id req))
+      ?:  |(fetched.req (gth age ~d1))  out
+      (~(put by out) id req)
+    =.  pending.automation.state
+      %-  ~(rep by pending.automation.state)
+      |=  [[id=request-id:v1:sa pen=pending-command:v1:sa] out=pending:v1:sa]
+      ?:  (lth now.bowl sent-at.pen)  (~(put by out) id pen)
+      ?:  (gth (sub now.bowl sent-at.pen) ~h1)  out
+      (~(put by out) id pen)
+    (emit %pass /automation/cleanup %arvo %b %wait (add now.bowl ~m5))
+  ::
+  ::  HTTP surface on the owner ship, bound at /steward. auth is eyre's
+  ::  authenticated-session check on every route; a request id is not a
+  ::  capability, so GET is gated like POST
+  ::
+  ++  au-handle-http
+    |=  [eyre-id=@ta =inbound-request:eyre]
+    ^+  cor
+    =/  =request-line:server
+      (parse-request-line:server url.request.inbound-request)
+    =*  site  site.request-line
+    =*  ext   ext.request-line
+    =/  method=@tas  method.request.inbound-request
+    ?.  authenticated.inbound-request
+      (au-http-error eyre-id 401 'unauthorized')
+    ?:  =(site ~[%steward %~.~ %v1 %automation])
+      ?.  =(%'POST' method)  (au-http-error eyre-id 405 'method not allowed')
+      (au-handle-http-edit eyre-id inbound-request)
+    ?:  =(site ~[%steward %~.~ %v1 %automation %tasks])
+      ?.  =(%'GET' method)  (au-http-error eyre-id 405 'method not allowed')
+      %^  au-give-http  eyre-id  200
+      ['application/json' (en:json:html (ship-tasks:enjs:aj tasks.automation.state))]
+    ?:  ?=([%steward %~.~ %v1 %automation %request @ ~] site)
+      ?.  =(%'GET' method)  (au-http-error eyre-id 405 'method not allowed')
+      ::  a @uv carries dots; apat split its last dot-group off as a
+      ::  file extension, so glue it back before parsing
+      ::
+      =/  rid-knot=@t
+        ?~  ext  i.t.t.t.t.t.site
+        (rap 3 i.t.t.t.t.t.site '.' u.ext ~)
+      (au-handle-http-get-request eyre-id rid-knot)
+    (au-http-error eyre-id 404 'not found')
+  ::
+  ::  POST body: { requestId?, bot, action }. malformed input is a 400,
+  ::  never a crash. a client-supplied id is honored when it parses;
+  ::  otherwise one is minted and rides back in the envelope. the record
+  ::  is registered with the eyre id so the request is held open
+  ::
+  ++  au-handle-http-edit
+    |=  [eyre-id=@ta =inbound-request:eyre]
+    ^+  cor
+    ?~  body.request.inbound-request
+      (au-http-error eyre-id 400 'missing body')
+    ?~  jon=(de:json:html q.u.body.request.inbound-request)
+      (au-http-error eyre-id 400 'invalid json')
+    ?.  ?=([%o *] u.jon)
+      (au-http-error eyre-id 400 'body must be a json object')
+    =/  bot-j=(unit json)  (~(get by p.u.jon) 'bot')
+    ?.  ?&(?=(^ bot-j) ?=([%s *] u.bot-j))
+      (au-http-error eyre-id 400 'missing `bot` field')
+    =/  bot-res=(each ship tang)  (mule |.((slav %p p.u.bot-j)))
+    ?:  ?=(%| -.bot-res)
+      (au-http-error eyre-id 400 'malformed bot')
+    ?~  act-j=(~(get by p.u.jon) 'action')
+      (au-http-error eyre-id 400 'missing `action` field')
+    =/  edit-res=(each edit:v1:sa tang)  (mule |.((edit:dejs:aj u.act-j)))
+    ?:  ?=(%| -.edit-res)
+      (au-http-error eyre-id 400 'malformed action')
+    =/  rid=request-id:v1:sa
+      =/  rj=(unit json)  (~(get by p.u.jon) 'requestId')
+      ?.  ?&(?=(^ rj) ?=([%s *] u.rj))
+        `@uv`eny.bowl
+      =/  parsed=(each @uv tang)  (mule |.((slav %uv p.u.rj)))
+      ?:(?=(%& -.parsed) p.parsed `@uv`eny.bowl)
+    =.  requests.automation.state
+      %+  ~(put by requests.automation.state)  rid
+      [rid p.bot-res `eyre-id %sending ~ ~ |]
+    (au-handle-edit rid p.bot-res p.edit-res)
+  ::
+  ++  au-handle-http-get-request
+    |=  [eyre-id=@ta rid-knot=@t]
+    ^+  cor
+    =/  parsed=(each @uv tang)  (mule |.((slav %uv rid-knot)))
+    ?:  ?=(%| -.parsed)
+      (au-http-error eyre-id 400 'malformed request id')
+    ?~  req=(~(get by requests.automation.state) p.parsed)
+      (au-http-error eyre-id 404 'request not found')
+    =/  body=response-body:v1:sa
+      ?~  result.u.req  [%pending poke-status.u.req]
+      u.result.u.req
+    =.  requests.automation.state
+      (~(put by requests.automation.state) p.parsed u.req(fetched &))
+    (au-give-http-response eyre-id [p.parsed body])
+  ::
+  ++  au-give-http
+    |=  [eyre-id=@ta code=@ud ct=@t body=@t]
+    ^+  cor
+    =/  paths=(list path)  ~[/http-response/[eyre-id]]
+    =/  header=response-header:http  [code ~[['content-type' ct]]]
+    =.  cor  (give %fact paths %http-response-header !>(header))
+    =/  data=(unit octs)  `(as-octs:mimes:html body)
+    =.  cor  (give %fact paths %http-response-data !>(data))
+    (give %kick paths ~)
+  ::
+  ++  au-http-error
+    |=  [eyre-id=@ta code=@ud message=@t]
+    ^+  cor
+    (au-give-http eyre-id code 'text/plain' message)
+  ::
+  ++  au-give-http-response
+    |=  [eyre-id=@ta =response:v1:sa]
+    ^+  cor
+    %^  au-give-http  eyre-id  200
+    ['application/json' (en:json:html (response:enjs:aj response))]
   --
 --

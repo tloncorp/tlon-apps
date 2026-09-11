@@ -13,6 +13,7 @@ import { submitStewardAutomationProjection } from './steward-automation-adapter.
 import {
   DEFAULT_STEWARD_AUTOMATION_RETRY_DELAY_MS,
   StewardAutomationCronUnavailableError,
+  StewardAutomationReconciliationExhaustedError,
   StewardAutomationReconciler,
   StewardAutomationReconciliationCancelledError,
   getStewardAutomationReconciler,
@@ -411,8 +412,9 @@ describe('StewardAutomationReconciler', () => {
     });
   });
 
-  it('retries normalization and submission failures as complete operations', async () => {
+  it('drops unrepresentable jobs, reports them, and retries submission failures as complete operations', async () => {
     const { delay, waits } = controlledRetryDelay();
+    const onRejected = vi.fn();
     const invalid = {
       ...job('invalid'),
       schedule: { kind: 'future-schedule' },
@@ -426,25 +428,33 @@ describe('StewardAutomationReconciler', () => {
       .mockResolvedValueOnce(undefined);
     const reconciler = new StewardAutomationReconciler(
       reconcileStewardAutomation,
-      delay
+      delay,
+      undefined,
+      undefined,
+      undefined,
+      onRejected
     );
 
     const result = reconciler.start(() => ({ list }));
+    // The unrepresentable job is dropped and reported; the snapshot without
+    // it is still submitted, and only the nack triggers a retry.
     await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(1));
-    expect(submitStewardAutomationProjection).not.toHaveBeenCalled();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
+    expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
+      project: { tasks: [] },
+    });
+    expect(onRejected).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'invalid', kind: 'invalid' }),
+    ]);
     waits[0].resolve();
 
-    await vi.waitFor(() => expect(delay).toHaveBeenCalledTimes(2));
-    expect(list).toHaveBeenCalledTimes(2);
-    expect(submitStewardAutomationProjection).toHaveBeenCalledOnce();
-    waits[1].resolve();
-
     await result;
-    expect(list).toHaveBeenCalledTimes(3);
+    expect(list).toHaveBeenCalledTimes(2);
     expect(submitStewardAutomationProjection).toHaveBeenCalledTimes(2);
     expect(submitStewardAutomationProjection).toHaveBeenLastCalledWith({
       project: { tasks: [expect.objectContaining({ id: 'valid' })] },
     });
+    expect(onRejected).toHaveBeenCalledOnce();
   });
 
   it('schedules one delay for a failed burst and retries with only the latest accessor', async () => {
@@ -1236,5 +1246,88 @@ describe('registerStewardAutomationReconciliationHooks', () => {
 
     await api.fire('gateway_start', { port: 3000 }, { getCron: undefined });
     await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+  });
+});
+
+describe('StewardAutomationReconciler failure policy', () => {
+  it('abandons a batch at once on a non-retryable error', async () => {
+    const { delay } = controlledRetryDelay();
+    const fatal = Object.assign(new Error('bad projection'), {
+      retryable: false,
+    });
+    const reconcile = vi.fn().mockRejectedValue(fatal);
+    const reconciler = new StewardAutomationReconciler(reconcile, delay);
+
+    await expect(reconciler.start(undefined)).rejects.toBe(fatal);
+
+    expect(reconcile).toHaveBeenCalledOnce();
+    expect(delay).not.toHaveBeenCalled();
+  });
+
+  it('gives up after the attempt cap and lets a later trigger start fresh', async () => {
+    const delay = vi.fn(async () => {});
+    const failing = new Error('poke nack');
+    const reconcile = vi.fn().mockRejectedValue(failing);
+    const reconciler = new StewardAutomationReconciler(
+      reconcile,
+      delay,
+      0,
+      undefined,
+      3
+    );
+
+    const first = reconciler.start(undefined);
+    const coalesced = reconciler.trigger(undefined);
+    await expect(first).rejects.toBeInstanceOf(
+      StewardAutomationReconciliationExhaustedError
+    );
+    await expect(coalesced).rejects.toMatchObject({
+      name: 'StewardAutomationReconciliationExhaustedError',
+      attempts: 3,
+      cause: failing,
+      retryable: false,
+    });
+    expect(reconcile).toHaveBeenCalledTimes(3);
+    expect(delay).toHaveBeenCalledTimes(2);
+
+    // The epoch is still active: a new trigger reads a fresh snapshot.
+    reconcile.mockResolvedValue(undefined);
+    await expect(reconciler.trigger(undefined)).resolves.toBeUndefined();
+    expect(reconcile).toHaveBeenCalledTimes(4);
+  });
+
+  it('warns once per job the projection drops when registered through the hooks', async () => {
+    const api = createFakeHookApi();
+    const warn = vi.fn();
+    const invalid = {
+      ...job('watcher'),
+      schedule: { kind: 'on-exit', command: 'x' },
+    } as unknown as PluginHookGatewayCronJob;
+    const { context } = cronContext([invalid, job('daily')]);
+    registerStewardAutomationReconciliationHooks(api, {
+      logger: { warn },
+      getConfig: () =>
+        ({
+          channels: {
+            tlon: {
+              ship: '~zod',
+              url: 'http://zod.test',
+              code: 'lidlut-tabwed-pillex-ridrup',
+            },
+          },
+        }) as OpenClawConfig,
+    });
+
+    await api.fire('gateway_start', { port: 3000 }, context);
+
+    await vi.waitFor(() =>
+      expect(submitStewardAutomationProjection).toHaveBeenCalledWith({
+        project: { tasks: [expect.objectContaining({ id: 'daily' })] },
+      })
+    );
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn.mock.calls[0]?.[0]).toMatch(
+      /dropped cron job watcher: .*unsupported value on-exit/
+    );
   });
 });
