@@ -141,7 +141,7 @@ export function CreateChannelSheet({
     <FormProvider {...form}>
       <ActionSheet open onOpenChange={onOpenChange} {...sheetProps}>
         <ActionSheet.SimpleHeader title="Create a new channel" />
-        <ActionSheet.ScrollableContent>
+        <ActionSheet.ScrollableContent keyboardShouldPersistTaps="handled">
           <ActionSheet.FormBlock>
             <Form.ControlledTextField
               control={control}

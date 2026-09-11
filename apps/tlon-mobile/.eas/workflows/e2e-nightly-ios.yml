@@ -6,6 +6,19 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  prepare_reliability:
+    outputs:
+      run_tag: ${{ steps.run_tag.outputs.run_tag }}
+    steps:
+      - id: run_tag
+        name: Create a short reliability run tag
+        env:
+          RUN_ID: ${{ workflow.id }}
+        run: |
+          # Hash the whole workflow ID; UUID prefixes can share a timestamp.
+          # 14 characters with a platform suffix leaves room for renamed groups.
+          set-output run_tag "$(node -e 'process.stdout.write("r" + require("node:crypto").createHash("sha256").update(process.env.RUN_ID).digest("hex").slice(0, 12))')"
+
   build_ios_for_e2e:
     type: build
     environment: production
@@ -42,8 +55,8 @@ jobs:
       name: nightly-develop-ios
 
   reliability_ios:
-    after: [build_ios_for_e2e, maestro_nightly]
-    if: ${{ after.build_ios_for_e2e.status == 'success' }}
+    after: [build_ios_for_e2e, maestro_nightly, prepare_reliability]
+    if: ${{ after.build_ios_for_e2e.status == 'success' && after.prepare_reliability.status == 'success' }}
     type: maestro-cloud
     environment: production
     env:
@@ -51,7 +64,7 @@ jobs:
       MAESTRO_EMAIL: ${{ env.MAESTRO_RELIABILITY_EMAIL }}
       MAESTRO_PASSWORD: ${{ env.MAESTRO_RELIABILITY_PASSWORD }}
       MAESTRO_TEST_SHIP: '~batbet-litnec'
-      MAESTRO_RUN_TAG: nightly-${{ workflow.id }}-ios
+      MAESTRO_RUN_TAG: ${{ after.prepare_reliability.outputs.run_tag }}i
     params:
       build_id: ${{ after.build_ios_for_e2e.outputs.build_id }}
       maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
@@ -64,8 +77,8 @@ jobs:
   # Both platforms share the test ship. Run Android even if iOS tests failed,
   # but wait for iOS to finish so profile/settings changes cannot race.
   reliability_android:
-    after: [build_android_for_reliability, reliability_ios]
-    if: ${{ after.build_android_for_reliability.status == 'success' }}
+    after: [build_android_for_reliability, reliability_ios, prepare_reliability]
+    if: ${{ after.build_android_for_reliability.status == 'success' && after.prepare_reliability.status == 'success' }}
     type: maestro-cloud
     environment: production
     env:
@@ -73,7 +86,7 @@ jobs:
       MAESTRO_EMAIL: ${{ env.MAESTRO_RELIABILITY_EMAIL }}
       MAESTRO_PASSWORD: ${{ env.MAESTRO_RELIABILITY_PASSWORD }}
       MAESTRO_TEST_SHIP: '~batbet-litnec'
-      MAESTRO_RUN_TAG: nightly-${{ workflow.id }}-android
+      MAESTRO_RUN_TAG: ${{ after.prepare_reliability.outputs.run_tag }}a
     params:
       build_id: ${{ after.build_android_for_reliability.outputs.build_id }}
       maestro_project_id: proj_01jjmcqhxneg69zpqdty84xqvt
