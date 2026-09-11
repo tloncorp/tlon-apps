@@ -31,3 +31,16 @@ settings restores the original theme on success.
 
 Multi-ship delivery, DMs, notifications, media, extended onboarding/recovery, and
 advanced collaborative notebook cases remain outside this suite.
+
+The separate `Maestro two-ship test` workflow runs on demand. It starts disposable
+`~zod` and `~ten` ships on CI using this checkout's backend, exposes only `~zod`
+through an IP-restricted tunnel, and reuses a qualified Android Cloud binary.
+An API peer creates the group and sends a message; Maestro receives it, replies,
+and sees the peer's acknowledgement without reloading. Invite/accept UI is not
+covered. Dispatch `.github/workflows/maestro-fakeship-proof.yml` on this branch.
+
+CI needs `MAESTRO_CLOUD_API_KEY` and `MAESTRO_FAKE_SHIP_NGROK_TOKEN`. The workflow
+pins the Cloud project, binary, device, and CLI. Prepared ship snapshots are keyed
+by backend/manifest inputs; a miss prepares cold ships, while a mismatched warm
+snapshot fails quickly. App builds and local native caches are not involved.
+The retained artifacts include backend hashes and the peer's delivery receipt.

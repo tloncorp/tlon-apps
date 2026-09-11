@@ -1,0 +1,94 @@
+name: Maestro two-ship test
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: maestro-fakeship-proof
+  cancel-in-progress: false
+jobs:
+  proof:
+    runs-on: blacksmith-16vcpu-ubuntu-2204
+    timeout-minutes: 55
+    env:
+      PROOF_OUTPUT: ${{ github.workspace }}/proof-output
+      MAESTRO_RUN_TAG: ci${{ github.run_id }}a${{ github.run_attempt }}
+      MAESTRO_APP_ID: io.tlon.groups.preview
+      MAESTRO_TEST_SHIP: '~zod'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.22.0'
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Restore prepared ships
+        id: snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: .proof-snapshot
+          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json') }}
+      - name: Install ship and tunnel tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y netcat-openbsd tmux rsync
+          command -v nginx
+          java -version
+          pipx install peru
+          curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C /tmp
+          echo /tmp >> "$GITHUB_PATH"
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter tlon-web rube:compile
+      - name: Start matching ships and restricted tunnel
+        id: ships
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.MAESTRO_FAKE_SHIP_NGROK_TOKEN }}
+        run: bash .maestro/cloud-fakeship/start.sh
+      - name: Run existing Android binary on API 33
+        id: maestro
+        uses: mobile-dev-inc/action-maestro-cloud@854f4005c1ef637d20b7007d428d23afe17c9665
+        with:
+          api-key: ${{ secrets.MAESTRO_CLOUD_API_KEY }}
+          project-id: proj_01jjmcqhxneg69zpqdty84xqvt
+          app-binary-id: 2465d1a2815af198b0f719fd82f48641bf00f4d5
+          workspace: proof-flows
+          maestro-cli-version: 2.6.1
+          device-model: pixel_6
+          device-os: android-33
+          name: fakeship-${{ github.run_id }}
+          timeout: 30
+          env: |
+            MAESTRO_APP_ID=io.tlon.groups.preview
+            MAESTRO_TEST_SHIP=~zod
+            MAESTRO_LOGIN_URL=${{ steps.ships.outputs.url }}
+            MAESTRO_LOGIN_CODE=${{ steps.ships.outputs.code }}
+            MAESTRO_RUN_TAG=${{ env.MAESTRO_RUN_TAG }}
+      - name: Verify peer evidence
+        run: test -f "$PROOF_OUTPUT/peer-result.json" && cat "$PROOF_OUTPUT/peer-result.json"
+      - name: Snapshot successful ships after clean shutdown
+        if: steps.snapshot.outputs.cache-hit != 'true'
+        run: bash .maestro/cloud-fakeship/snapshot.sh
+      - name: Save prepared ships
+        if: success() && steps.snapshot.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .proof-snapshot
+          key: ${{ steps.snapshot.outputs.cache-primary-key }}
+      - name: Stop test processes
+        if: always()
+        run: |
+          tmux kill-session -t proof-rube 2>/dev/null || true
+          for name in ngrok peer; do
+            file="$PROOF_OUTPUT/$name.pid"
+            if [ -f "$file" ]; then kill "$(cat "$file")" 2>/dev/null || true; fi
+          done
+          nginx -s stop -c "$RUNNER_TEMP/proof-nginx.conf" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cloud-fakeship-proof
+          path: proof-output/
+          retention-days: 3
