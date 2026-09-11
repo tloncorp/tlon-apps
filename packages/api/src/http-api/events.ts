@@ -63,6 +63,15 @@ export type UrbitHttpApiEvent = {
   init: InitEvent;
 };
 
+/**
+ * The listener each event expects. Callers that forward `on` behind their own
+ * generic need this rather than `UrbitHttpApiEvent`: an unresolved
+ * `(data: UrbitHttpApiEvent[T]) => void` does not match the emitter's map.
+ */
+export type UrbitHttpApiEventMap = {
+  [E in keyof UrbitHttpApiEvent]: (event: UrbitHttpApiEvent[E]) => void;
+};
+
 export type UrbitHttpApiEventType =
   | 'subscription'
   | 'status-update'

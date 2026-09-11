@@ -4,14 +4,15 @@ import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 import { EventEmitter } from '../lib/EventEmitter';
 import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
-import { desig } from '../lib/urbit';
-import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
+import { desig, preSig } from '../lib/urbit';
+import { UrbitHttpApiEventMap, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
   ChannelPutError,
   AuthenticationInterface,
+  ChannelUrlTransformer,
   FatalError,
   Message,
   NounPokeInterface,
@@ -66,10 +67,6 @@ export class SpinClosedError extends Error {
 function isNoun(a: any): a is Noun {
   return a instanceof Atom || a instanceof Cell;
 }
-
-type UrbitHttpApiEventMap = {
-  [E in keyof UrbitHttpApiEvent]: (event: UrbitHttpApiEvent[E]) => void;
-};
 
 /**
  * A class for interacting with an urbit ship, given its URL and code
@@ -198,6 +195,14 @@ export class Urbit {
     return `${this.url}/~/channel/${this.uid}`;
   }
 
+  /**
+   * The url to PUT this batch of messages to. Every channel PUT goes through
+   * here so a caller-supplied transformer sees all of them.
+   */
+  private channelPutUrl(messages: readonly (Message | Ack)[]): string {
+    return this.channelUrlTransformer(this.channelUrl, messages);
+  }
+
   private get fetchOptions(): any {
     const headers: headers = {
       'Content-Type': 'application/json',
@@ -254,12 +259,15 @@ export class Urbit {
    * the airlock is running in a webpage served by the ship, this should just
    * be the empty string.
    * @param code The access code for the ship at that address
+   * @param channelUrlTransformer Rewrites the url of each channel PUT
    */
   constructor(
     public url: string,
     public code?: string,
     public desk?: string,
-    fetchFn?: typeof fetch
+    fetchFn?: typeof fetch,
+    private channelUrlTransformer: ChannelUrlTransformer = (channelUrl) =>
+      channelUrl
   ) {
     // There is deliberately no unload teardown here. A
     // `beforeunload` -> `this.delete` listener used to be registered, but
@@ -303,7 +311,9 @@ export class Urbit {
       code
     );
     airlock.verbose = verbose;
-    airlock.nodeId = ship;
+    // callers pass a bare name (see onArvoNetwork), but the first channel PUT
+    // compares nodeId against the sigiled name from /~/name.
+    airlock.nodeId = preSig(ship);
     await airlock.connect();
     await airlock.poke({
       app: 'hood',
@@ -691,12 +701,17 @@ export class Urbit {
 
   //NOTE  every arg is interpreted (through nockjs.dwim) as a noun, which
   //      should result in a noun nesting inside of the xx $eyre-command type
-  private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
+  //      `message` describes the same command in json shape, purely so the
+  //      channel url transformer sees noun PUTs on the same terms as json ones
+  private async sendNounsToChannel(
+    message: Message,
+    ...args: (Noun | any)[]
+  ): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
     const body = render('uw', jam(dejs.list(args)).number);
     this.validatePokeBodySize(body);
 
-    const response = await this.fetchFn(this.channelUrl, {
+    const response = await this.fetchFn(this.channelPutUrl([message]), {
       ...options,
       signal: this.channelAbort.signal,
       method: 'PUT',
@@ -724,7 +739,7 @@ export class Urbit {
     const body = JSON.stringify(json);
     this.validatePokeBodySize(body);
 
-    const response = await this.fetchFn(this.channelUrl, {
+    const response = await this.fetchFn(this.channelPutUrl(json), {
       ...this.fetchOptions,
       signal: this.channelAbort.signal,
       method: 'PUT',
@@ -851,7 +866,10 @@ export class Urbit {
     if (isNoun(noun)) {
       const shipAtom = new Atom(parse('p', `~${ship}`));
       const non = ['poke', eventId, shipAtom, app, mark, noun];
-      await this.sendNounsToChannel(non);
+      await this.sendNounsToChannel(
+        { id: eventId, action: 'poke', ship, app, mark },
+        non
+      );
     } else {
       throw new Error('pokeNoun requires a noun');
     }

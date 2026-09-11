@@ -90,7 +90,6 @@
     "@tloncorp/shared": "workspace:*",
     "@tloncorp/ui": "workspace:*",
     "@urbit/aura": "^3.0.0",
-    "@urbit/http-api": "3.2.0-dev",
     "classnames": "^2.3.2",
     "dotenv-expand": "^11.0.6",
     "drizzle-orm": "0.39.3",
