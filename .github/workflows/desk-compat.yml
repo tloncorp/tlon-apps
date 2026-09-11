@@ -1,0 +1,56 @@
+# Desk N-1 compatibility on the release branch.
+#
+# ci.yml is `pull_request`-only, so nothing there runs on a staging push — and
+# its `changes` job has no checkout (PR filtering goes through the API), which
+# is why a paths-filter is not an option here: dorny/paths-filter needs a
+# working tree on push. So this runs unconditionally.
+#
+# Policy: docs/tlon-apps/desk-compatibility.md
+name: Desk N-1 Compatibility
+on:
+  push:
+    branches:
+      - "staging"
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    name: Check the release candidate against desk N-1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - uses: pnpm/action-setup@v3
+        with:
+          run_install: |
+            - recursive: true
+              args: [--frozen-lockfile]
+
+      # A default checkout is depth 1 with no tags, so neither the N-1 desk tag
+      # nor origin/master is present. Fetch them narrowly.
+      - name: Fetch the refs the check compares
+        run: |
+          set -euo pipefail
+          MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskCompatibility.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
+          echo "MIN_GROUPS_VERSION=$MIN" >> "$GITHUB_ENV"
+          git fetch --no-tags --depth=1 origin "refs/tags/v${MIN}:refs/tags/v${MIN}"
+          git fetch --no-tags --depth=1 origin refs/heads/master:refs/remotes/origin/master
+
+      # Rule (b): the candidate must not need anything N-1 lacks.
+      - run: pnpm check:desk-compat --desk-ref "v$MIN_GROUPS_VERSION"
+        name: Candidate client vs desk N-1
+
+      # Candidate self-consistency: a client change needing a desk change
+      # nobody made.
+      - run: pnpm check:desk-compat --desk-ref "$GITHUB_SHA"
+        name: Candidate client vs candidate desk
+
+      # Rule (c): a desk change that removed something the released client
+      # still uses. origin/master is the last sync of `staging` after a
+      # deployment workflow *ran* — sync.yml triggers on `types: [completed]`,
+      # which fires whatever the conclusion, and merges the staging tip as it
+      # stands at that moment. So it is the best standing proxy for the
+      # released client, not proof of a deployed SHA.
+      - run: pnpm check:desk-compat --client-ref origin/master --desk-ref "$GITHUB_SHA"
+        name: Released client vs candidate desk

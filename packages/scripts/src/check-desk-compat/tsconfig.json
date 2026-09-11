@@ -1,0 +1,18 @@
+// Scoped to this directory on purpose.
+//
+// `packages/scripts`' own tsconfig pulls in @tloncorp/api's sources, which do
+// not typecheck standalone (they reference the React Native `__DEV__` global).
+// The compatibility checker depends on nothing but `typescript` and node, so it
+// gets its own project and can be typechecked by `pnpm -r tsc`.
+{
+  "extends": "../../../../tsconfig.json",
+  "include": ["."],
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "types": ["node"],
+    "lib": ["es2022"],
+    "module": "esnext",
+    "moduleResolution": "bundler"
+  }
+}

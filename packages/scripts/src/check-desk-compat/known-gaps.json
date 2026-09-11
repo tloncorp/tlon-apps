@@ -1,0 +1,24 @@
+{
+  "$comment": [
+    "Requests that are MISSING today and are knowingly not blocking the gate.",
+    "",
+    "Every entry is debt, not an exemption: it records a client call the desk",
+    "does not serve, so the feature behind it is already broken. An entry must",
+    "name the commit that broke it and the issue that will remove it. Adding an",
+    "entry to get a red gate green is the one thing this file is not for — a new",
+    "MISSING means the change under review needs the desk to ship first.",
+    "",
+    "A key is the exact request shape. An interpolation is written `{}` when it",
+    "is a plain identifier chain and `{#<hash>}` otherwise, and literal braces",
+    "are percent-escaped — so a longer path that merely shares a prefix, or one",
+    "whose suffix moved inside the expression, cannot inherit an exemption."
+  ],
+  "gaps": [
+    {
+      "key": "subscribe groups /chan/{}",
+      "reason": "getChannelPreview (groupsApi.ts) still subscribes to /chan/<nest>, which %groups deprecated in 50f96a667f (2026-03-25) and no longer serves at any v12 tag. The watch dispatcher nacks, so channel previews have been silently broken since before v12.0.0. The replacement is /v1/channels/<app>/<ship>/<name>/preview with the %channel-preview-1 mark, which is a behaviour change this PR does not make.",
+      "broke_at": "50f96a667f",
+      "issue": "TLON-6538"
+    }
+  ]
+}
