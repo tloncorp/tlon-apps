@@ -113,7 +113,7 @@ npx --yes eas-cli@23.2.0 workflow:run .eas/workflows/pr-agent-qa-ios.yml \
 
 The manual SHA is operator-supplied; verify it against the build record before
 dispatch. Automated PR runs use EAS's build output instead. Use `--ref` to avoid
-uploading a dirty local checkout. The manual focus can be set with `-F focus=...`.
+uploading a dirty local checkout. From `apps/tlon-mobile`, use `node ../../scripts/agent-qa/replay.mjs EAS_RUN_UUID QA_REF` to replay the evidence reviewer on a completed QA recording without starting another simulator. This evaluation mode publishes artifacts only.
 
 Manual harness validation may relaunch once if fresh login reaches the app's
 error boundary. The original failure remains in the artifacts and report, and
@@ -293,7 +293,7 @@ The first full #6460 run built the requested product source, completed fresh
 login, exercised read-only notebook scrolling/navigation and automatically
 embedded a 164.8-second video. Its report guard rejected an additional generic
 smoke finding, hiding the detailed blocked scenarios. The output schema now
-restricts findings to assessed IDs and omits the default smoke focus on PR runs.
+restricts planned checks to assessed IDs. Unexpected defects are recorded separately with their own invariant, source file, trigger, and before/after action references; they cannot substitute for passing planned coverage.
 Editable notes, folders, save timing and event-order fixtures remain unqualified.
 [First full run](https://expo.dev/accounts/tlon/projects/groups/workflows/01a08dba-9eb7-756c-8e06-784682632180).
 

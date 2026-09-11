@@ -31,9 +31,9 @@ on:
         type: string
       run_tag:
         type: string
-      focus:
+      review_evidence_json:
         type: string
-        default: Verify the Home, Contacts, and own profile screens load. Do not change account settings or message other people.
+        description: Prepared replay descriptor; use scripts/agent-qa/replay.mjs
 
 concurrency:
   cancel_in_progress: true
@@ -44,6 +44,24 @@ defaults:
     node: '22.22.0'
 
 jobs:
+  review_recording:
+    if: ${{ inputs.review_evidence_json }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_REPLAY_EVIDENCE: ${{ inputs.review_evidence_json }}
+    steps:
+      - uses: eas/checkout
+      - name: Install the evidence reviewer
+        run: npm install -g @openai/codex@0.145.0
+      - name: Review original evidence without a device or human findings
+        run: node ../../scripts/agent-qa/review-recording.mjs
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: evidence-review-replay
+          path: artifacts/evidence-replay/**
   assess_pr:
     if: ${{ github.event_name == 'pull_request' || inputs.assessment_pr_json }}
     environment: preview
@@ -118,7 +136,7 @@ jobs:
       QA_FULL_PR_RUN: ${{ inputs.full_pr_run && 'true' || 'false' }}
       QA_MODE: ${{ inputs.build_id && !inputs.full_pr_run && 'workflow_dispatch' || 'pull_request' }}
       QA_ASSESSMENT_JSON: ${{ after.assess_pr.outputs.assessment || 'null' }}
-      QA_FOCUS: ${{ inputs.focus || '' }}
+      QA_FOCUS: ''
       QA_WORKFLOW_URL: ${{ workflow.url }}
       QA_SHIP_URL: ${{ inputs.ship_url || '' }}
       QA_BACKEND_SHA: ${{ inputs.backend_sha || '' }}

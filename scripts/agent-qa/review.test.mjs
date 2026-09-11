@@ -1,3 +1,4 @@
+import { verifyReport } from './core.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
@@ -5,7 +6,11 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { sourceReader, evidenceCall, readActions } from './review-tools.mjs';
-import { verifySourceReview, reviewArgs } from './review.mjs';
+import {
+  verifySourceReview,
+  reviewArgs,
+  verifyDiscoveries,
+} from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
 
 test('blind review reads pinned versions and callers, rejects invented citations and local files', () => {
@@ -219,4 +224,48 @@ test('interleaved device responses remain attached to their original actions', (
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('unplanned defects cannot be hidden by passing planned checks or cite nonexistent actions', () => {
+  const assessment = { scenarios: [{ files: ['screen.tsx'] }] };
+  const discovery = {
+    title: 'Visible control lost after input',
+    file: 'screen.tsx',
+    status: 'failed',
+    invariant: 'Input preserves other controls',
+    trigger: 'Enter text',
+    observed: 'A control disappeared',
+    evidenceActions: [1, 2],
+  };
+  const result = {
+    status: 'passed',
+    summary: 'Passed planned check',
+    checks: [
+      {
+        status: 'passed',
+        expected: 'Text saves',
+        observed: 'Saved',
+        evidence: ['codex-trace'],
+      },
+    ],
+    discoveries: [discovery],
+  };
+  assert.equal(verifyDiscoveries(result, assessment, [{}, {}]), result);
+  assert.throws(
+    () =>
+      verifyReport(result, new Map([['codex-trace', { screenshot: true }]])),
+    /Incomplete or failed/
+  );
+  assert.throws(
+    () => verifyDiscoveries(result, assessment, [{}]),
+    /real before\/after/
+  );
+  assert.throws(
+    () =>
+      verifyDiscoveries(result, { scenarios: [{ files: ['other.tsx'] }] }, [
+        {},
+        {},
+      ]),
+    /relevant source/
+  );
 });

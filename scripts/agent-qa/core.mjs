@@ -93,11 +93,14 @@ export function verifyReport(report, evidence) {
     if (check.status !== 'blocked' && !check.evidence.length)
       throw new Error('Passed and failed checks require captured evidence');
   }
-  const derived = report.checks.some((check) => check.status === 'failed')
-    ? 'failed'
-    : report.checks.some((check) => check.status === 'blocked')
-      ? 'blocked'
-      : 'passed';
+  const derived =
+    report.checks.some((check) => check.status === 'failed') ||
+    report.discoveries?.some((d) => d.status === 'failed')
+      ? 'failed'
+      : report.checks.some((check) => check.status === 'blocked') ||
+          report.discoveries?.some((d) => d.status === 'blocked')
+        ? 'blocked'
+        : 'passed';
   if (report.status === 'passed' && derived !== 'passed')
     throw new Error('Incomplete or failed checks cannot produce a pass');
   if (
@@ -167,6 +170,11 @@ export function renderReport(context, report, usage) {
       `- **Source hypothesis ${h.id} (${h.confidence} confidence; not a runtime finding):** ${clean(h.impact)} Trigger: ${clean(h.trigger)} Invariant: ${clean(h.invariant)}`,
       `  Source: ${h.citations.map((c) => `${c.version}:${c.file}:${c.line}`).join(', ')}`,
     ]),
+    '',
+    ...(report.discoveries || []).map(
+      (d) =>
+        `- **Unexpected finding — ${d.status}: ${clean(d.title)}**\n  Trigger: ${clean(d.trigger)}\n  Observed: ${clean(d.observed)}\n  Invariant: ${clean(d.invariant)} (source: ${clean(d.file)}; evidence actions: ${d.evidenceActions.join(', ')})`
+    ),
     '',
     ...(report.checks || []).map(
       (check) =>

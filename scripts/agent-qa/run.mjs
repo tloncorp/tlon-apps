@@ -602,15 +602,18 @@ async function agent(diff) {
         evidence: receipt ? ['regression-tests'] : [],
       });
     }
-    result.status = result.checks.some((c) => c.status === 'failed')
-      ? 'failed'
-      : result.checks.some((c) => c.status === 'blocked')
-        ? 'blocked'
-        : 'passed';
+    result.status =
+      result.checks.some((c) => c.status === 'failed') ||
+      result.discoveries?.some((d) => d.status === 'failed')
+        ? 'failed'
+        : result.checks.some((c) => c.status === 'blocked') ||
+            result.discoveries?.some((d) => d.status === 'blocked')
+          ? 'blocked'
+          : 'passed';
   }
   const counts = { passed: 0, failed: 0, blocked: 0 };
   for (const check of result.checks) counts[check.status]++;
-  result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. See individual observations and source hypotheses below.`;
+  result.summary = `${counts.passed} checks passed; ${counts.failed} failed; ${counts.blocked} not fully verified. ${result.discoveries?.length || 0} unexpected findings. See individual observations and source hypotheses below.`;
   report = verifyCoverage(verifyReport(result, evidence), context.assessment);
 }
 
