@@ -16,6 +16,8 @@ env:
 - longPressOn: '^reaction target$'
 - tapOn:
     id: EmojiToolbarButton-thumb
+- assertVisible:
+    id: ReactionDisplay
 - extendedWaitUntil:
     visible: '^two reactions verified$'
     timeout: 15000

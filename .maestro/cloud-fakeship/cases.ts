@@ -150,6 +150,21 @@ export async function prepareCases(zod: TlonActorClient, ten: TlonActorClient) {
     const reactions = () =>
       ten.withClient(async () => {
         const result = await getChannelPosts({ channelId: g.chatChannel });
+        writeFileSync(
+          `${out}/reaction-observed.json`,
+          JSON.stringify(
+            {
+              expectedId: post.id,
+              posts: result.posts.map((p) => ({
+                id: p.id,
+                text: p.textContent,
+                reactions: p.reactions,
+              })),
+            },
+            null,
+            2
+          )
+        );
         return result.posts.find((p) => p.id === post.id)?.reactions ?? [];
       });
     task('reactions', async () => {
