@@ -5,7 +5,6 @@ import { afterEach, expect, test, vi } from 'vitest';
 
 import * as db from '../db';
 import * as schema from '../db/schema';
-import { DiaryCreationBlockedError } from '../logic';
 import { getClient, setupDatabaseTestSuite } from '../test/helpers';
 import {
   createChannel,
@@ -579,7 +578,7 @@ test('markChannelRead decrements group count and notify count for notifying mess
   });
 });
 
-test('createChannel refuses to create a diary channel', async () => {
+test('createChannel refuses a channel type that is no longer creatable', async () => {
   const client = getClient();
   if (!client) throw new Error('test db not initialized');
 
@@ -591,7 +590,7 @@ test('createChannel refuses to create a diary channel', async () => {
       title: 'Legacy bulletin',
       channelType: 'notebook',
     })
-  ).rejects.toThrow(DiaryCreationBlockedError);
+  ).rejects.toThrow('Cannot create a channel of type notebook');
 
   // The guard runs ahead of the optimistic insert, so there is nothing to roll
   // back and nothing reaches the backend.
