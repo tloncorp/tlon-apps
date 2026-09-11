@@ -16,10 +16,11 @@ export function isDiaryChannelType(
   return type === DIARY_CHANNEL_TYPE;
 }
 
-// Shown wherever a diary creation is refused. Says what replaced it and that
-// the existing channel is safe, since the refusal usually lands on someone who
-// meant to duplicate a bulletin they still use.
-export const DIARY_CREATION_BLOCKED_MESSAGE =
+// The refusal's user-facing text, carried as the error's message so any surface
+// that renders one gets it. Says what replaced %diary and that the existing
+// channel is safe, since a refusal usually reaches someone who meant to
+// duplicate a bulletin they still use.
+const DIARY_CREATION_BLOCKED_MESSAGE =
   'Bulletin channels can no longer be created. Create a notebook instead — ' +
   'existing bulletins keep working, and their posts can be migrated into one.';
 
