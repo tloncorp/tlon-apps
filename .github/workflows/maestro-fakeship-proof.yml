@@ -38,13 +38,12 @@ jobs:
           path: .proof-snapshot
           key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json') }}
       - name: Install ship and tunnel tools
+        timeout-minutes: 5
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y netcat-openbsd tmux rsync
-          command -v nginx
+          for tool in nc tmux rsync nginx; do command -v "$tool"; done
           java -version
           pipx install peru
-          curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C /tmp
+          curl --connect-timeout 10 --max-time 60 -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C /tmp
           echo /tmp >> "$GITHUB_PATH"
           pnpm install --frozen-lockfile --ignore-scripts
           pnpm --filter tlon-web rube:compile

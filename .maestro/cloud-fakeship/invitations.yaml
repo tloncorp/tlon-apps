@@ -13,6 +13,14 @@ env:
 - assertVisible: '^Accept invite$'
 - tapOn: '^Accept invite$'
 - extendedWaitUntil:
+    notVisible: '^Joining, please wait\.\.\.$'
+    timeout: 15000
+- assertNotVisible: '^Accept invite$'
+- assertVisible:
+    id: ScreenHeaderTitle
+    text: '^Home$'
+- tapOn: ${'Invite-' + MAESTRO_RUN_TAG}
+- extendedWaitUntil:
     visible:
       id: MessageInput
     timeout: 15000
