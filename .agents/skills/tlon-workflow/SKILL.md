@@ -125,9 +125,11 @@ If the steps do not reproduce on current `develop`, check whether the fix alread
 
 ### 5. Fix
 
+The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code before changing it, and say so in the pull request when the two differ. Then the smallest change that fixes it -- no refactor, no cleanup of what sits next to it.
+
 A JavaScript or TypeScript edit needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. Run `stim ios` or `stim android` again only after a native input changes. Format with `pnpm format` at the repository root (oxfmt); running prettier over a file rewrites it wholesale.
 
-Commit as you go. Everything after this step reads the branch, not the working tree: the review diff in step 7 and the pull request in step 8 both carry only what is committed.
+Commit as you go. Everything after this step reads the branch, not the working tree: the review diff in step 7 and the pull request in step 8 both carry only what is committed. Never force-push, and never `git stash`: the stash is shared with every other worktree of this checkout.
 
 ### 6. Validate with the same repro
 
