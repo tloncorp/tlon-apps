@@ -79,16 +79,16 @@
   ==
 ::
 ++  participant-error
-  ::  why src.bowl may not participate in .context, if at all.
+  ::  why .who may not participate in .context, if at all.
   ::  we are the context host here. the term ends up in the nack tang
   ::  the subscriber receives, so it should say what went wrong.
   ::
-  |=  [=context =bowl:gall]
+  |=  [who=ship =context =bowl:gall]
   ^-  (unit term)
   ?+  context  ~
       [%dm @ ~]
-    ?~  who=(slaw %p i.t.context)  `%presence-bad-path
-    ?:  =(src.bowl u.who)  ~
+    ?~  peer=(slaw %p i.t.context)  `%presence-bad-path
+    ?:  =(who u.peer)  ~
     `%presence-not-dm-counterparty
   ::
       [%channel @ @ @ ~]
@@ -98,13 +98,13 @@
     =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
     ?~  group  `%presence-unknown-channel
     ?.  (has-group u.group bowl)  `%presence-unknown-channel-group
-    ?.  (can-read u.group kind u.host name src.bowl bowl)
+    ?.  (can-read u.group kind u.host name who bowl)
       `%presence-cannot-read-channel
     ~
   ::
       [%group @ @ ~]
     ?~  host=(slaw %p i.t.context)  `%presence-bad-path
-    ?:  (has-seat [u.host i.t.t.context] bowl)  ~
+    ?:  (has-seat [u.host i.t.t.context] who bowl)  ~
     `%presence-not-group-member
   ==
 ::
@@ -133,14 +133,14 @@
   .^(? %gu (weld base /groups/(scot %p p.flag)/[q.flag]))
 ::
 ++  has-seat
-  |=  [=flag:gv =bowl:gall]
+  |=  [=flag:gv who=ship =bowl:gall]
   ^-  ?
   ?.  (has-group flag bowl)  |
   =;  seat
     ?=(^ seat)
   .^  (unit seat:v7:gv)  %gx
     %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
-    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p src.bowl)/noun
+    /groups/(scot %p p.flag)/[q.flag]/seats/(scot %p who)/noun
   ==
 ::
 ++  can-read
@@ -213,6 +213,33 @@
     %+  turn  ~(tap in s)
     |=(s=ship `path`[%context (scot %p s) context.key])
   [%give %fact paz %presence-update-1 !>(upd)]~
+::
+++  revalidate
+  ::  subscribers are only checked when they subscribe. before fanning out
+  ::  to .context, kick and forget any that may no longer participate in
+  ::  it (reader roles changed, left or removed from the group, channel
+  ::  deleted). a kicked subscriber re-checks on its own end and either
+  ::  drops the context or resubscribes and gets a nack that says why.
+  ::
+  |=  [=context subs=(jug context ship) =bowl:gall]
+  ^-  [(list card) _subs]
+  =/  bad=(list ship)
+    %+  skip  ~(tap in (~(get ju subs) context))
+    |=  who=ship
+    =(~ (participant-error who context bowl))
+  ::NOTE  not ?~, which would narrow .bad and make +roll nest-fail
+  ?:  =(~ bad)  [~ subs]
+  :_  %+  roll  bad
+      |=([who=ship s=_subs] (~(del ju s) context who))
+  :~  %^  tell:~(. logs [bowl /logs])  %info
+        ~['kicking subscribers that lost access' >[context=context ships=bad]<]
+      ~
+    ::
+      :+  %give  %kick
+      :_  ~
+      %+  turn  bad
+      |=(who=ship `path`[%context (scot %p who) context])
+  ==
 ::
 ++  give-response
   |=  res=response-1
@@ -413,8 +440,13 @@
     ?>  =(src.bowl ship.key)
     ::  for non-dm contexts, verify participant membership
     ::
-    ?^  err=?:(?=([%dm *] context.key) ~ (participant-error context.key bowl))
+    ?^  err=?:(?=([%dm *] context.key) ~ (participant-error src.bowl context.key bowl))
       ~|(u.err !!)
+    ::  subscribers are only checked when they subscribe. before fanning
+    ::  out, kick any that have since lost access (reader roles changed,
+    ::  left or got removed from the group, channel deleted).
+    ::
+    =^  kicks=(list card)  subs  (revalidate context.key subs bowl)
     ?-  -.cmd
         %set
       ::  ack but no-op on timed out presence
@@ -426,7 +458,7 @@
         (fall timeout.timing.cmd (default-timeout topic.key.cmd))
       ?:  (gth now.bowl end)
         ::TODO  maybe delete existing one at key?
-        [~ this]
+        [kicks this]
       =/  fus=(list card)
         %+  give-update
           (~(del ju subs) context.key.cmd src.bowl)
@@ -436,9 +468,10 @@
       ::  for contexts it hosts.
       ::
       ?.  |(=(~ disclose.cmd) (~(has in disclose.cmd) our.bowl))
-        [fus this]
+        [(weld kicks fus) this]
       ::TODO  send response too?
       :_  this(places (put-presence places +>.cmd))
+      %+  weld  kicks
       :+  (give-response %here +>.cmd)
         :+  %pass
           ::TODO  +key-wire
@@ -450,6 +483,7 @@
       ::TODO  no-op if we didn't have it anyway
       :_  this(places (del-presence places key.cmd))
       ;:  weld
+        kicks
         (cancel-expire places key.cmd)
         [(give-response %gone key.cmd)]~
         %+  give-update
@@ -476,7 +510,7 @@
     ::  verify the subscriber is a participant in this context.
     ::  the hint ends up in the subscriber's nack tang.
     ::
-    ?^  err=(participant-error t.t.path bowl)
+    ?^  err=(participant-error src.bowl t.t.path bowl)
       ~|(u.err !!)
     =.  subs  (~(put ju subs) t.t.path src.bowl)
     ::NOTE  no initial fact, since all data is short-lived,        ::REVIEW

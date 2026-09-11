@@ -336,4 +336,40 @@
   ;<  ~  bind:m  (set-src host)
   ;<  caz=(list card)  bind:m  (do-watch [%context (scot %p host) host-context])
   (ex-cards caz ~)
+::
+::  as a host, when fanning out we kick and forget subscribers that can no
+::  longer read the channel. ~ten can still read, ~fun cannot.
+::
+++  who-scry
+  |=  =path
+  ^-  (unit vase)
+  ?+  path  ((chan-scry &) path)
+      [%gx @ %groups @ %v2 %groups @ @ %channels @ @ @ %can-read @ %loob ~]
+    `!>(=((snag 13 `(list @ta)`path) (scot %p host)))
+  ==
+::
+++  test-set-kicks-subscribers-that-lost-access
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate who-scry)
+  ;<  *  bind:m
+    %+  do-load  agent
+    %-  some  !>
+    :*  %2  *places:p
+        want=*(set [ship context:p])
+        subs=(~(put ju (~(put ju *(jug context:p ship)) host-context host)) host-context ~fun)
+        tries=*(map [ship context:p] @ud)
+    ==
+  ;<  ~  bind:m  (set-src host)
+  =/  =key:p  [host-context host %typing]
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %presence-command-1
+    !>(`command-1:p`[%set ~ key [t0 ~] display])
+  %+  ex-cards  caz
+  :~  (ex-card [%give %kick ~[[%context (scot %p ~fun) host-context]] ~])
+      (ex-fact ~[/v1] %presence-response-1 !>(`response-1:p`[%here key [t0 ~] display]))
+      (ex-arvo [%expire (scot %p host) %typing host-context] [%b %wait (add t0 ~s30)])
+  ==
 --
