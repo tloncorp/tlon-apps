@@ -1,0 +1,96 @@
+appId: ${MAESTRO_APP_ID}
+name: Native threaded reply edit, delete and persistence
+tags: [regression]
+env:
+  JOURNEY: replylife
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.text}
+      MESSAGE_PATTERN: ${output.reliability.textPattern}
+      EMPTY_INPUT: '^Message$'
+- hideKeyboard
+- longPressOn: ${output.reliability.textPattern}
+- tapOn: '^Reply$'
+- runFlow:
+    file: subflows/send.yaml
+    env:
+      MESSAGE: ${output.reliability.reply}
+      MESSAGE_PATTERN: ${output.reliability.replyPattern}
+      EMPTY_INPUT: '^Reply$'
+- hideKeyboard
+- longPressOn: ${output.reliability.replyPattern}
+- tapOn: '^Edit message$'
+- tapOn:
+    id: MessageInput
+    point: '95%,50%'
+- eraseText: 100
+- runFlow:
+    file: subflows/input.yaml
+    env:
+      INPUT_TEXT: ${output.reliability.editedText}
+- tapOn:
+    id: MessageInputSendButton
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertNotVisible: ${output.reliability.replyPattern}
+# Android already dismisses the keyboard when the edit is saved.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - hideKeyboard
+- tapOn: '^Back$'
+- assertVisible:
+    text: '^1 reply$'
+    label: Reply count remains one after editing the reply
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: '^Chat$'
+- tapOn: '^1 reply$'
+- assertVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.textPattern}
+- longPressOn: ${output.reliability.editedTextPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- assertVisible: '^Delete message[?]$'
+- tapOn: '^Cancel$'
+- assertVisible: ${output.reliability.editedTextPattern}
+- longPressOn: ${output.reliability.editedTextPattern}
+- scrollUntilVisible:
+    element:
+      text: '^Delete message$'
+    direction: DOWN
+    timeout: 5000
+- tapOn: '^Delete message$'
+- tapOn: '^Delete message$'
+- assertNotVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.textPattern}
+- tapOn: '^Back$'
+# Reopen the now-empty thread; neither the badge nor deleted body should remain.
+- assertNotVisible:
+    text: '^1 reply$'
+    label: Reply count clears after deleting the only reply
+- assertVisible: ${output.reliability.textPattern}
+- longPressOn: ${output.reliability.textPattern}
+- tapOn: '^Reply$'
+- assertNotVisible: ${output.reliability.editedTextPattern}
+- assertVisible: ${output.reliability.textPattern}
+# Reopening Reply focuses the empty composer; dismiss it before navigating.
+- hideKeyboard
+- tapOn: '^Back$'
+- tapOn: '^Back$'
+- tapOn: ${output.reliability.groupPattern}
+- runFlow: subflows/delete-fixture-group.yaml

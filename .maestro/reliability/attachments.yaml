@@ -1,0 +1,53 @@
+appId: ${MAESTRO_APP_ID}
+name: Native image attachment removal and persistence
+tags: [regression, media]
+env:
+  JOURNEY: u
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- addMedia:
+    - fixtures/attachment.png
+- runFlow: subflows/create-group.yaml
+- tapOn: '^Chat$'
+- runFlow: subflows/pick-image.yaml
+- assertVisible: '^Remove attachment$'
+- tapOn: '^Remove attachment$'
+- assertNotVisible: '^Remove attachment$'
+- assertVisible:
+    id: MessageInput
+    text: '^Message$'
+- assertNotVisible:
+    id: Post
+- runFlow: subflows/pick-image.yaml
+- assertVisible: '^Remove attachment$'
+- tapOn:
+    id: MessageInput
+- inputText: ${MAESTRO_RUN_TAG + ' image'}
+- tapOn:
+    id: MessageInputSendButton
+- extendedWaitUntil:
+    notVisible:
+      id: ChatMessageDeliveryStatus
+    timeout: 30000
+- assertNotVisible: '^Send failed, tap to retry$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' image ?'}
+- assertNotVisible: '^Remove attachment$'
+- hideKeyboard
+- stopApp
+- launchApp
+- runFlow: subflows/home-tab.yaml
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: '^Chat$'
+- assertVisible: ${MAESTRO_RUN_TAG + ' image ?'}
+# The only post contains this run's image. Tap its image area, not its caption.
+- tapOn:
+    id: Post
+    containsDescendants:
+      - text: ${MAESTRO_RUN_TAG + ' image ?'}
+    point: '50%,35%'
+- assertVisible:
+    id: MediaViewerCloseButton
+- tapOn:
+    id: MediaViewerCloseButton
+- assertVisible: ${MAESTRO_RUN_TAG + ' image ?'}

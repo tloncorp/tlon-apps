@@ -1,7 +1,7 @@
 # Native reliability tests
 
-Twelve single-ship journeys for chat, message actions, search, history, links,
-groups, channels, notebook, gallery, profile, settings, and relaunch persistence.
+Twenty-two default single-ship journeys, including attachments, profile details,
+pins, references, privacy, sections, notification preferences, roles and replies.
 These cover a subset of the QA checklist, not the entire workbook.
 
 Use Maestro 2.6.1 and an installed build containing this branch's app changes.
@@ -29,5 +29,22 @@ groups and posts that remain on the ship; only the lifecycle tests delete their
 own fixtures. Profile restores the original nickname in its completion hook;
 settings restores the original theme on success.
 
-Multi-ship delivery, DMs, notifications, media, extended onboarding/recovery, and
-advanced collaborative notebook cases remain outside this suite.
+Two extra flows have prerequisites: `contacts.yaml` requires `MAESTRO_CONTACT_SHIP`
+to name another test ship absent from Contacts; `files.yaml` requires Android and
+network access to the pinned public PDF fixture. It checks attachment persistence
+and opening, not PDF contents. These two are excluded from the default suite.
+
+Profile details restore the original status/bio. Profile groups remove their new
+pin on completion and delete their fixture group on success. Serialize profile
+mutations on a shared ship. Image tests import `fixtures/attachment.png`; media
+picker selectors assume the qualified portrait iOS/Android layouts.
+
+The full default suite has not been rerun together. DMs, push notifications, avatar
+color, iOS documents, offline send/retry, and gallery custom titles remain gaps.
+
+The new role/privacy/section/notification/thread journeys delete their own groups
+on success. Notification checks verify saved preferences; push delivery and
+enforcement on another ship require multiparty tests.
+
+`thread-controls.yaml` remains standalone: iOS loses the muted state after
+relaunch. Its mute-persistence assertion remains intact for investigation.

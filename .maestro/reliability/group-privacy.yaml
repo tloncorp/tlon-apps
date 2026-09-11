@@ -1,0 +1,40 @@
+appId: ${MAESTRO_APP_ID}
+name: Native group privacy persistence
+tags: [regression]
+env:
+  JOURNEY: privacy
+---
+- runScript: data.js
+- runFlow: subflows/begin.yaml
+- runFlow: subflows/create-group.yaml
+- tapOn: ${output.reliability.groupPattern}
+- tapOn: '^Privacy$'
+- assertVisible: '^Group privacy$'
+- tapOn: '^Private$'
+- tapOn: '^Back$'
+- assertVisible: '^Private group with 1 member$'
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Private group with 1 member$'
+- tapOn: '^Privacy$'
+- tapOn: '^Public$'
+- tapOn: '^Back$'
+- assertVisible: '^Public group with 1 member$'
+- tapOn: '^Privacy$'
+- tapOn: '^Secret$'
+- tapOn: '^Back$'
+- assertVisible: '^Secret group with 1 member$'
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: '^Home$'
+    timeout: 15000
+- runFlow: subflows/open-fixture-group.yaml
+- tapOn: ${output.reliability.groupPattern}
+- assertVisible: '^Secret group with 1 member$'
+- runFlow: subflows/delete-fixture-group.yaml
