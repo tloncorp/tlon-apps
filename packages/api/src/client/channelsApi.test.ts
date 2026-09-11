@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest';
 
+import rawChannelPostsData from '../__tests__/fixtures/channelPosts.json';
 import type * as ub from '../urbit';
 import { toChannelsUpdate } from './channelsApi';
 
@@ -33,6 +34,19 @@ const event = (response: ub.ChannelsResponse['response']) =>
     nest: channelId,
     response,
   }) as unknown as ub.ChannelsSubscribeResponse;
+
+test('a post set to a live post is still an add', () => {
+  const [id, post] = Object.entries(
+    (rawChannelPostsData as unknown as ub.PagedPosts).posts
+  )[0];
+  const update = toChannelsUpdate(
+    event({ post: { id, 'r-post': { set: post } } })
+  );
+  expect(update).toMatchObject({ type: 'addPost', post: { id, channelId } });
+  expect((update as { post: { isDeleted?: boolean } }).post.isDeleted).toBe(
+    undefined
+  );
+});
 
 test('a post set to a tombstone is a delete, not an add', () => {
   const update = toChannelsUpdate(

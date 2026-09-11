@@ -463,6 +463,7 @@ function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
     if (
       post.parentId ||
       post.type === 'reply' ||
+      post.isDeleted ||
       post.sequenceNum == null ||
       seenIds.has(post.id)
     ) {
