@@ -1,6 +1,7 @@
 import * as api from '@tloncorp/api';
 import {
   GroupTemplateId,
+  TemplateChannel,
   groupTemplatesById,
 } from '@tloncorp/api/types/groupTemplates';
 import { createSectionId, getChannelKindFromType } from '@tloncorp/api/urbit';
@@ -13,6 +14,7 @@ import { createDevLogger } from '../debug';
 import { AnalyticsEvent } from '../domain';
 import * as logic from '../logic';
 import { getRandomId } from '../logic';
+import { createChannel } from './channelActions';
 
 const logger = createDevLogger('groupActions', false);
 
@@ -84,7 +86,17 @@ export async function createGroupFromTemplate(
     privacy: 'secret',
   };
 
-  const channels: db.Channel[] = template.channels.map((channelTemplate) => {
+  // %channels kinds (chat/gallery) ride the group-creation poke as nests. A
+  // %notes notebook can't — it's created against the %notes API and then bound
+  // to the group — so it has to follow once the group exists.
+  const pokeChannelTemplates = template.channels.filter(
+    (channelTemplate) => channelTemplate.type !== 'notes'
+  );
+  const notesChannelTemplates = template.channels.filter(
+    (channelTemplate) => channelTemplate.type === 'notes'
+  );
+
+  newGroup.channels = pokeChannelTemplates.map((channelTemplate) => {
     const channelSlug = getRandomId();
     const channelKind = getChannelKindFromType(channelTemplate.type);
     const channelId = `${channelKind}/${currentUserId}/${channelSlug}`;
@@ -99,13 +111,54 @@ export async function createGroupFromTemplate(
     };
   });
 
-  newGroup.channels = channels;
-
-  return createGroup({
+  const group = await createGroup({
     group: newGroup,
     memberIds: params.memberIds ?? [],
     templateId: params.templateId,
   });
+
+  const notesChannels = await addTemplateNotesChannels(
+    group.id,
+    notesChannelTemplates
+  );
+
+  return notesChannels.length
+    ? { ...group, channels: [...(group.channels ?? []), ...notesChannels] }
+    : group;
+}
+
+/**
+ * Add a template's %notes notebooks to a group that already exists.
+ *
+ * A notebook that fails to appear leaves the group usable, so this reports the
+ * failure and returns what it managed to create rather than rejecting and
+ * stranding the caller with a created group it thinks failed. The template's
+ * channel `description` is dropped: `createChannel` doesn't carry one onto the
+ * %notes path.
+ */
+async function addTemplateNotesChannels(
+  groupId: string,
+  channelTemplates: readonly TemplateChannel[]
+): Promise<db.Channel[]> {
+  const created: db.Channel[] = [];
+  for (const channelTemplate of channelTemplates) {
+    try {
+      created.push(
+        await createChannel({
+          groupId,
+          title: channelTemplate.title,
+          channelType: 'notes',
+        })
+      );
+    } catch (e) {
+      logger.trackError('Failed to create template notes channel', {
+        error: e,
+        groupId,
+        channelTitle: channelTemplate.title,
+      });
+    }
+  }
+  return created;
 }
 
 export async function createGroup(params: {
