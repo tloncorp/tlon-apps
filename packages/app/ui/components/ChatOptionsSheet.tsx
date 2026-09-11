@@ -729,15 +729,18 @@ export function ChannelOptionsSheetContent({
           },
         ],
 
-        hooksPreview && [
-          'neutral',
-          {
-            title: 'Use channel as template',
-            description: 'Create a new channel based on this one',
-            endIcon: 'Copy',
-            action: wrappedAction.bind(null, onPressChannelTemplate),
-          },
-        ],
+        // Templating copies the source channel's type, and a bulletin
+        // ('notebook', the %diary type) can no longer be created.
+        hooksPreview &&
+          channel.type !== 'notebook' && [
+            'neutral',
+            {
+              title: 'Use channel as template',
+              description: 'Create a new channel based on this one',
+              endIcon: 'Copy',
+              action: wrappedAction.bind(null, onPressChannelTemplate),
+            },
+          ],
         currentUserIsChannelHost && [
           'negative',
           {
