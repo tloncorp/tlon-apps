@@ -349,13 +349,33 @@ describe('classification precedence', () => {
     expect(check(files, scry('groups', ['x', 'v0', 'init']))).toBe('FOUND P1');
   });
 
-  it('P0 — a guard forbids only MISSING, since it leaves the pole alone', () => {
+  it('P0 — a guard this reader cannot discharge forbids both verdicts', () => {
+    // It may reject a request the arms would have served, so a match proves no
+    // more than an absence does. Same treatment as the in-body rule.
     const files = { 'desk/app/steward.hoon': GUARDED };
     expect(check(files, scry('steward', ['x', 'v1', 'status']))).toBe(
-      'FOUND P1'
+      'UNVERIFIED P0'
     );
     expect(check(files, scry('steward', ['x', 'v1', 'gone']))).toBe(
       'UNVERIFIED P0'
+    );
+  });
+
+  it('reports an agent the client uses and the desk deleted', () => {
+    // Without the client-side desk, a removed agent is indistinguishable from
+    // one that was never in this desk, and the removal gate passes.
+    const desk = loadDesk(
+      memoryTree({ 'desk/desk.bill': BILL }),
+      'test',
+      memoryTree({ 'desk/app/steward.hoon': DELEGATING })
+    );
+    const result = matchPath(desk, scry('steward', ['x', 'v1', 'lens']));
+    expect([result.verdict, result.rule]).toEqual(['MISSING', 'P1']);
+    expect(result.reason).toContain('no longer an agent');
+    // An app in neither tree is simply out of desk.
+    const absent = loadDesk(memoryTree({ 'desk/desk.bill': BILL }), 'test');
+    expect(matchPath(absent, scry('settings', ['x', 'all'])).verdict).toBe(
+      'UNVERIFIED'
     );
   });
 

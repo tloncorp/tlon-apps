@@ -218,6 +218,35 @@ describe('argument forms', () => {
     expect(placeholder?.unresolved).toContain('placeholder');
   });
 
+  it('resolves only the bindings that can reach the call', () => {
+    // An assignment after the call, or inside a closure that may never run,
+    // cannot be the value the call sent.
+    expect(
+      keys(`import { scry } from './urbit';
+        export const f = () => {
+          let path = '/v1/live';
+          const later = () => { path = '/v1/never-sent'; };
+          const out = scry({ app: 'groups', path });
+          path = '/v1/after-the-call';
+          return [out, later];
+        };`)
+    ).toEqual(['scry groups /v1/live']);
+  });
+
+  it('resolves nothing when a loop makes the ordering meaningless', () => {
+    // In a loop the call sees the previous iteration's value, so position no
+    // longer says which assignment reaches it.
+    const [dep] = extract(`import { scry } from './urbit';
+      export const f = (ids: string[]) => {
+        let path = '/v1/first';
+        for (const id of ids) {
+          scry({ app: 'groups', path });
+          path = \`/v1/\${id}\`;
+        }
+      };`);
+    expect(dep.unresolved).toBeDefined();
+  });
+
   it('records what it cannot resolve rather than dropping it', () => {
     // An open value set: feedVersion() returns 'v7' | 'v6' | 'v5' at runtime.
     expect(
@@ -277,6 +306,28 @@ describe('helper expansion', () => {
     expect(withHelpers("poke(channelPostAction('chat/~zod/x', {}))")).toContain(
       'poke channels channel-action-2'
     );
+  });
+
+  it('keeps the condition a conditional return sits under', () => {
+    // Without it, every call site of a version-gated helper looks like it needs
+    // all three marks, and the documented fallback can never pass the gate.
+    const deps = extract(
+      `import { poke } from './urbit';\n${HELPERS}\nexport const f = () => poke(activityAction({}));`
+    );
+    const guardOf = (mark: string) =>
+      deps.find((d) => d.mark === mark)?.guard ?? '';
+    expect(guardOf('activity-action-2')).toContain(
+      'getActivitySupportsNotes()'
+    );
+    expect(guardOf('activity-action-1')).toContain(
+      '! (getActivitySupportsNotes())'
+    );
+    expect(guardOf('activity-action')).toContain(
+      '! (getActivitySupportsNotes())'
+    );
+    // Every branch still comes from the one call site, which is what lets a
+    // served sibling cover a missing one.
+    expect(new Set(deps.map((d) => d.site.line)).size).toBe(1);
   });
 
   it('keeps every branch of a helper as its own record', () => {

@@ -279,29 +279,62 @@ function enclosingFunction(node: ts.Node): ts.Node | undefined {
  * function body. Multi-branch assignment is *not* collapsed — each branch
  * becomes its own record, carrying the block it came from.
  */
-function localAssignments(scope: ts.Node, name: string): Val<ts.Expression>[] {
+function localAssignments(
+  scope: ts.Node,
+  name: string,
+  /** Position of the call. Only assignments before it can reach it. */
+  before?: number
+): Val<ts.Expression>[] {
+  // A call inside a loop sees the previous iteration's value, so ordering says
+  // nothing about which assignment reaches it.
+  if (before !== undefined && inLoop(scope, before)) return [];
   const out: Val<ts.Expression>[] = [];
   const visit = (node: ts.Node) => {
-    if (
+    // A nested closure's assignments run on its own schedule, not this one's.
+    if (node !== scope && ts.isFunctionLike(node)) return;
+    const value =
       ts.isVariableDeclaration(node) &&
       ts.isIdentifier(node.name) &&
       node.name.text === name &&
       node.initializer &&
       node.initializer.kind !== ts.SyntaxKind.NullKeyword
-    ) {
-      out.push({ value: node.initializer, block: enclosingBlock(node) });
-    } else if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      ts.isIdentifier(node.left) &&
-      node.left.text === name
-    ) {
-      out.push({ value: node.right, block: enclosingBlock(node) });
+        ? node.initializer
+        : ts.isBinaryExpression(node) &&
+            node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+            ts.isIdentifier(node.left) &&
+            node.left.text === name
+          ? node.right
+          : null;
+    if (value && (before === undefined || node.getStart() < before)) {
+      out.push({ value, block: enclosingBlock(node) });
     }
     ts.forEachChild(node, visit);
   };
   ts.forEachChild(scope, visit);
   return out;
+}
+
+/** Is the position inside a loop that the scope encloses? */
+function inLoop(scope: ts.Node, pos: number): boolean {
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (found) return;
+    if (
+      (ts.isForStatement(node) ||
+        ts.isForInStatement(node) ||
+        ts.isForOfStatement(node) ||
+        ts.isWhileStatement(node) ||
+        ts.isDoStatement(node)) &&
+      node.getStart() <= pos &&
+      pos < node.getEnd()
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(scope, visit);
+  return found;
 }
 
 /** The initialiser of an object property, or 'shorthand' for `{ path }`. */
@@ -345,7 +378,8 @@ function literalValues(
   ctx: Ctx,
   obj: ts.ObjectLiteralExpression,
   name: string,
-  scope: ts.Node | undefined
+  scope: ts.Node | undefined,
+  callPos?: number
 ): Val<string | null>[] {
   const resolve = (expr: ts.Expression): Val<string | null>[] => {
     if (ts.isConditionalExpression(expr)) return branches(ctx, expr, resolve);
@@ -354,7 +388,7 @@ function literalValues(
   const prop = property(obj, name);
   if (prop === null) return [{ value: null }];
   const local = (identifier: string) =>
-    scope ? localAssignments(scope, identifier) : [];
+    scope ? localAssignments(scope, identifier, callPos) : [];
   const assignments =
     prop === 'shorthand'
       ? local(name)
@@ -374,6 +408,7 @@ function pathValues(
   ctx: Ctx,
   expr: ts.Expression,
   scope: ts.Node | undefined,
+  callPos?: number,
   depth = 0
 ): Val<PathPattern>[] {
   const text = textOf(ctx, expr);
@@ -411,13 +446,15 @@ function pathValues(
     ];
   }
   if (ts.isConditionalExpression(expr)) {
-    return branches(ctx, expr, (e) => pathValues(ctx, e, scope, depth));
+    return branches(ctx, expr, (e) =>
+      pathValues(ctx, e, scope, callPos, depth)
+    );
   }
   if (ts.isIdentifier(expr) && depth === 0 && scope) {
-    const assignments = localAssignments(scope, expr.text);
+    const assignments = localAssignments(scope, expr.text, callPos);
     if (assignments.length > 0) {
       return assignments.flatMap((a) =>
-        pathValues(ctx, a.value, scope, depth + 1).map((v) => ({
+        pathValues(ctx, a.value, scope, callPos, depth + 1).map((v) => ({
           ...v,
           block: a.block,
         }))
@@ -504,40 +541,94 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
   if (!body)
     return [{ app: null, mark: null, unresolved: `helper ${name} not found` }];
 
-  const returns: ts.Expression[] = [];
-  const collect = (node: ts.Node) => {
-    if (ts.isReturnStatement(node) && node.expression)
-      returns.push(node.expression);
-    ts.forEachChild(node, collect);
+  /**
+   * Each return with the condition it sits under. An early `return` inside an
+   * `if` implicitly negates that condition for everything after it, which is
+   * exactly how `activityAction` gates `activity-action-2`; without the
+   * condition every call site would look like it needs all three marks, and
+   * the documented fallback could never pass the gate.
+   */
+  const returns: [ts.Expression, string | undefined][] = [];
+  const both = (a?: string, b?: string) =>
+    [a, b].filter(Boolean).join(' && ') || undefined;
+  const statementsOf = (s: ts.Statement): readonly ts.Statement[] =>
+    ts.isBlock(s) ? s.statements : [s];
+  const alwaysReturns = (s: ts.Statement): boolean => {
+    const list = statementsOf(s);
+    const last = list[list.length - 1];
+    return Boolean(
+      last && (ts.isReturnStatement(last) || ts.isThrowStatement(last))
+    );
   };
-  ts.forEachChild(body, collect);
+  const nested = (node: ts.Node, guard?: string) => {
+    if (ts.isFunctionLike(node)) return;
+    if (ts.isReturnStatement(node) && node.expression) {
+      returns.push([node.expression, guard]);
+    }
+    ts.forEachChild(node, (n) => nested(n, guard));
+  };
+  const walkStatements = (list: readonly ts.Statement[], guard?: string) => {
+    let acc = guard;
+    for (const stmt of list) {
+      if (ts.isReturnStatement(stmt)) {
+        if (stmt.expression) returns.push([stmt.expression, acc]);
+        continue;
+      }
+      if (ts.isIfStatement(stmt)) {
+        const cond = textOf(ctx, stmt.expression);
+        walkStatements(statementsOf(stmt.thenStatement), both(acc, cond));
+        if (stmt.elseStatement) {
+          walkStatements(
+            statementsOf(stmt.elseStatement),
+            both(acc, `! (${cond})`)
+          );
+        } else if (alwaysReturns(stmt.thenStatement)) {
+          acc = both(acc, `! (${cond})`);
+        }
+        continue;
+      }
+      nested(stmt, acc);
+    }
+  };
+  if (ts.isBlock(body)) walkStatements(body.statements);
+  else returns.push([body as ts.Expression, undefined]);
 
   const results: PokeParams[] = [];
   const unresolved = (why: string) =>
     results.push({ app: null, mark: null, unresolved: why });
-  const fromObject = (obj: ts.ObjectLiteralExpression) => {
+  const fromObject = (obj: ts.ObjectLiteralExpression, guard?: string) => {
     for (const { a, b } of pairByBlock(
       literalValues(ctx, obj, 'app', undefined),
       literalValues(ctx, obj, 'mark', undefined)
     )) {
-      results.push({ app: a.value, mark: b.value, guard: b.guard ?? a.guard });
+      results.push({
+        app: a.value,
+        mark: b.value,
+        guard: both(guard, b.guard ?? a.guard),
+      });
     }
   };
 
-  const read = (expr: ts.Expression, hop: number) => {
-    if (ts.isObjectLiteralExpression(expr)) return fromObject(expr);
+  const read = (expr: ts.Expression, hop: number, guard?: string) => {
+    if (ts.isObjectLiteralExpression(expr)) return fromObject(expr, guard);
     const forwarded = ts.isCallExpression(expr) ? calleeName(expr) : null;
     if (forwarded && hop < 2 && HELPER_WHITELIST.has(forwarded)) {
-      return results.push(...expandHelper(ctx, forwarded, hop + 1));
+      return results.push(
+        ...expandHelper(ctx, forwarded, hop + 1).map((r) => ({
+          ...r,
+          guard: both(guard, r.guard),
+        }))
+      );
     }
     // `const action: Poke<...> = {...}; return action;`
     const local = ts.isIdentifier(expr)
-      ? localAssignments(body, expr.text)
+      ? localAssignments(body, expr.text, expr.getStart(ctx.sf))
       : [];
-    if (local.length > 0) return local.forEach((a) => read(a.value, hop));
+    if (local.length > 0)
+      return local.forEach((a) => read(a.value, hop, guard));
     unresolved(`helper ${name} returns ${textOf(ctx, expr)}`);
   };
-  returns.forEach((expr) => read(expr, depth));
+  returns.forEach(([expr, guard]) => read(expr, depth, guard));
 
   if (results.length === 0)
     unresolved(`helper ${name} has no resolvable return`);
@@ -553,12 +644,15 @@ function readEndpoint(
   surface: 'scry' | 'subscribe'
 ) {
   const scope = enclosingFunction(node);
+  const pos = node.getStart(ctx.sf);
   if (!arg) return push(ctx, node, { surface, unresolved: 'missing argument' });
   if (ts.isObjectLiteralExpression(arg)) {
-    return readEndpointObject(ctx, node, arg, surface, scope);
+    return readEndpointObject(ctx, node, arg, surface, scope, pos);
   }
   const assignments =
-    ts.isIdentifier(arg) && scope ? localAssignments(scope, arg.text) : [];
+    ts.isIdentifier(arg) && scope
+      ? localAssignments(scope, arg.text, node.getStart(ctx.sf))
+      : [];
   if (assignments.length === 0) {
     return push(ctx, node, {
       surface,
@@ -569,7 +663,7 @@ function readEndpoint(
   // ship, so it is recorded as coverage rather than silently dropped.
   for (const a of assignments) {
     if (ts.isObjectLiteralExpression(a.value)) {
-      readEndpointObject(ctx, node, a.value, surface, scope);
+      readEndpointObject(ctx, node, a.value, surface, scope, pos);
     } else {
       push(ctx, node, {
         surface,
@@ -585,7 +679,8 @@ function readEndpointObject(
   node: ts.Node,
   obj: ts.ObjectLiteralExpression,
   surface: 'scry' | 'subscribe',
-  scope: ts.Node | undefined
+  scope: ts.Node | undefined,
+  callPos: number
 ) {
   const prop = property(obj, 'path');
   const unknown = (text: string): Val<PathPattern>[] => [
@@ -594,19 +689,19 @@ function readEndpointObject(
   let paths: Val<PathPattern>[];
   if (prop === null) paths = unknown('<no path>');
   else if (prop === 'shorthand') {
-    const assignments = scope ? localAssignments(scope, 'path') : [];
+    const assignments = scope ? localAssignments(scope, 'path', callPos) : [];
     paths = assignments.length
       ? assignments.flatMap((a) =>
-          pathValues(ctx, a.value, scope, 1).map((v) => ({
+          pathValues(ctx, a.value, scope, callPos, 1).map((v) => ({
             ...v,
             block: a.block,
           }))
         )
       : unknown('path (shorthand, unresolved)');
-  } else paths = pathValues(ctx, prop, scope);
+  } else paths = pathValues(ctx, prop, scope, callPos);
 
   for (const { a: app, b: path } of pairByBlock(
-    literalValues(ctx, obj, 'app', scope),
+    literalValues(ctx, obj, 'app', scope, callPos),
     paths
   )) {
     push(ctx, node, {
@@ -637,6 +732,7 @@ function readPokeParams(
   depth = 0
 ) {
   const scope = enclosingFunction(node);
+  const pos = node.getStart(ctx.sf);
   const emit = (r: PokeParams) =>
     push(ctx, node, {
       surface: 'poke',
@@ -652,8 +748,8 @@ function readPokeParams(
 
   if (ts.isObjectLiteralExpression(arg)) {
     for (const { a, b } of pairByBlock(
-      literalValues(ctx, arg, 'app', scope),
-      literalValues(ctx, arg, 'mark', scope)
+      literalValues(ctx, arg, 'app', scope, pos),
+      literalValues(ctx, arg, 'mark', scope, pos)
     )) {
       emit({ app: a.value, mark: b.value, guard: b.guard ?? a.guard });
     }
@@ -675,7 +771,11 @@ function readPokeParams(
   }
   // Bounded local-variable resolution: one hop.
   if (ts.isIdentifier(arg) && scope && depth === 0) {
-    const assignments = localAssignments(scope, arg.text);
+    const assignments = localAssignments(
+      scope,
+      arg.text,
+      node.getStart(ctx.sf)
+    );
     if (assignments.length) {
       return assignments.forEach((a) =>
         readPokeParams(ctx, node, a.value, depth + 1)
@@ -705,7 +805,12 @@ function readCall(
         return readEndpoint(ctx, node, args[0], 'subscribe');
       // apps/tlon-web/src/api.ts: subscribeOnce(app, path, timeout)
       for (const path of args[1]
-        ? pathValues(ctx, args[1], enclosingFunction(node))
+        ? pathValues(
+            ctx,
+            args[1],
+            enclosingFunction(node),
+            node.getStart(ctx.sf)
+          )
         : [{ value: { known: [], unknownTail: true, text: '<missing>' } }]) {
         const app = args[0] ? stringLiteralOf(args[0]) : null;
         push(ctx, node, {

@@ -84,10 +84,16 @@ export interface Desk {
   bill: Set<string>;
   marFiles: Set<string>;
   hasApp(app: string): boolean;
+  /**
+   * Whether the desk shipping with the *client* ref had this agent. An app in
+   * that tree and not in this one was deleted, which is a removal the gate must
+   * catch; an app in neither is simply out of desk.
+   */
+  clientHadApp(app: string): boolean;
   agent(app: string): Agent | null;
 }
 
-export function loadDesk(tree: Tree, ref: string): Desk {
+export function loadDesk(tree: Tree, ref: string, clientDesk?: Tree): Desk {
   const bill = new Set(
     Array.from(
       (tree.readFile('desk/desk.bill') ?? '').matchAll(/%([a-z][a-z0-9-]*)/g)
@@ -101,6 +107,7 @@ export function loadDesk(tree: Tree, ref: string): Desk {
     bill,
     marFiles: new Set(tree.list('desk/mar', (p) => p.endsWith('.hoon'))),
     hasApp: (app) => tree.exists(`desk/app/${app}.hoon`),
+    clientHadApp: (app) => clientDesk?.exists(`desk/app/${app}.hoon`) ?? false,
     agent(app) {
       if (!cache.has(app)) {
         const file = `desk/app/${app}.hoon`;
@@ -261,6 +268,18 @@ export function matchPath(
     evidence,
   });
   if (!desk.hasApp(request.app)) {
+    // An agent the client's own desk has and this one does not was deleted.
+    // Reporting that as "out of desk" would let a removal walk through the
+    // gate it exists to catch.
+    if (desk.clientHadApp(request.app)) {
+      return {
+        verdict: 'MISSING',
+        rule: 'P1',
+        reason: `%${request.app} is no longer an agent in this desk, but the client still uses it`,
+        evidence: `desk/app/${request.app}.hoon (removed)`,
+        failureMode: 'crash',
+      };
+    }
     return unverified(
       `%${request.app} is not an agent in this desk (out-of-desk app)`
     );
@@ -297,24 +316,24 @@ export function matchPath(
     failureMode: failureModeOf(dispatcher),
   });
 
-  // P0 runs before the walk, not after it. A rewrite changes the pole the arms
-  // see, so it invalidates FOUND as much as MISSING: an arm added for `%v7`
-  // without extending the injection list matches here while the live pole
-  // becomes `/v0/v7/…`. Only a rewrite this reader can prove inert for *this*
-  // request — the segment is already a version the injection tests for — is
-  // safe to ignore.
-  const rewrites = surface.obstructions.filter(
-    (o) => o.kind === 'rewrite' && !isInert(o, request)
-  );
-  if (rewrites.length > 0) return p0('rewrites the pole', rewrites);
+  // P0 runs before the walk, not after it, and applies to both verdicts. A
+  // rewrite changes the pole the arms see, so an arm added for `%v7` without
+  // extending the injection list matches here while the live pole becomes
+  // `/v0/v7/…`; a guard this reader cannot discharge can reject a request the
+  // arms would have served. Self-guards never reach here — they are dropped
+  // when obstructions are collected — and a rewrite provably inert for *this*
+  // request is ignored.
+  const active = surface.obstructions.filter((o) => !isInert(o, request));
+  if (active.length > 0) {
+    const kind = active.every((o) => o.kind === 'guard')
+      ? 'guards the pole'
+      : 'rewrites the pole';
+    return p0(kind, active);
+  }
 
   const walked = walk(desk, agent, dispatcher, request, new Set(), depth);
   if (walked.verdict !== 'MISSING') return walked;
-  // A guard can reject before the dispatcher is reached, and an arm this
-  // reader could not parse might have served; neither allows MISSING.
-  if (surface.obstructions.length > 0) {
-    return p0('guards the pole', surface.obstructions);
-  }
+  // An arm this reader could not parse might have served the request.
   if (dispatcher.unparsedArms > 0) {
     return {
       verdict: 'UNVERIFIED',

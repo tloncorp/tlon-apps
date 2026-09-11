@@ -1,3 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 import { Finding, runCheck } from './check';
@@ -20,7 +24,23 @@ const CLIENT = '854b46c';
 const N1 = 'v12.1.0';
 const SHIPPED_WITH = 'v12.2.0';
 
-for (const ref of [CLIENT, N1, SHIPPED_WITH]) ensureRef(ref);
+/**
+ * The desk this working tree must support, read from the constant that defines
+ * it rather than pinned: once MIN_GROUPS_VERSION moves, this fixture must move
+ * with it, or `test:ci` would fail on a perfectly valid client.
+ */
+const MIN_GROUPS_VERSION = /MIN_GROUPS_VERSION = '([^']+)'/.exec(
+  readFileSync(
+    join(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../../shared/src/logic/deskCompatibility.ts'
+    ),
+    'utf8'
+  )
+)?.[1];
+const N1_TAG = `v${MIN_GROUPS_VERSION}`;
+
+for (const ref of [CLIENT, N1, SHIPPED_WITH, N1_TAG]) ensureRef(ref);
 
 const missingKeys = (findings: Finding[]) =>
   findings
@@ -104,9 +124,9 @@ describe('full-scan fixture — everything build 440 required', () => {
 });
 
 describe('this working tree against the desk release it must support', () => {
-  // The gate the `test-build` step runs. If this branch needs something
-  // v12.2.0 does not serve, that is the whole point of the check.
-  const report = runCheck({ clientRef: WORKTREE_REF, deskRef: SHIPPED_WITH });
+  // The gate the `test-build` step runs, against whichever release
+  // MIN_GROUPS_VERSION currently names.
+  const report = runCheck({ clientRef: WORKTREE_REF, deskRef: N1_TAG });
 
   it('has no blocking MISSING, and no protocol difference', () => {
     const blocking = report.findings.filter(

@@ -44,8 +44,26 @@ receive updates, and post against desk release N-1.
 - [ ] Run 1 reports **no** negotiation-protocol difference. A bump blocks the
       pair outright, whatever the paths say, so it must ship a release ahead of
       the client that needs it.
+- [ ] If run 1 reports an `ALLOWED PROTOCOL BUMP`, that bump is shipping in this
+      release: N-1 support for the protocol is suspended, which is a deliberate
+      break for anyone still on N-1. Confirm the issue it names says so.
+- [ ] If the checker warns that a `protocolBumps` entry matches no observed
+      difference, the bump it describes has become N-1. **Delete the entry** as
+      part of this release; a stale entry is standing permission for a mismatch
+      nobody is tracking.
 - [ ] Read the `UNVERIFIED` list rather than skipping it: it never changes the
       exit code, and each entry is a call the checker could not decide.
+
+### Shipping an `agent:neg` protocol bump
+
+A bump is the change that creates the difference rule (d) forbids, so the bump
+PR cannot pass its own gate unless it says so:
+
+- [ ] The bump PR adds a `protocolBumps` entry to
+      `packages/scripts/src/check-desk-compat/known-gaps.json` — agent,
+      protocol, `from`, `to`, and the issue tracking it.
+- [ ] The release *after* the one carrying the bump removes that entry, once the
+      bump has become N-1. The checker warns while an entry matches nothing.
 
 ## Tagging and deploying
 

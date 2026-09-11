@@ -29,6 +29,11 @@ export interface Finding extends MatchResult {
    * fail the run. Pre-existing debt only — see that file's header.
    */
   allowed?: KnownGap;
+  /**
+   * A sibling branch at the same call site is served at this ref, so the guard
+   * has somewhere to land. Reported, and does not fail the run.
+   */
+  fallback?: { coveredBy: string; guard?: string };
 }
 
 export interface KnownGap {
@@ -38,10 +43,30 @@ export interface KnownGap {
   issue?: string;
 }
 
+/**
+ * One in-flight `agent:neg` bump. Rule (d) makes any protocol difference a hard
+ * floor, which would otherwise mean the bump PR can never merge: it is the
+ * change that creates the difference. An entry says the difference is the
+ * intended one, so it is printed loudly and excluded from the exit code, and
+ * the following release removes it once the bump is N-1.
+ */
+export interface ProtocolBump {
+  agent: string;
+  protocol: string;
+  from: string;
+  to: string;
+  issue: string;
+  note?: string;
+}
+
 export interface Report {
   clientRef: string;
   deskRef: string;
   protocolDifferences: ProtocolDifference[];
+  /** Differences matching an allowed bump; reported, not counted. */
+  allowedBumps: { difference: ProtocolDifference; bump: ProtocolBump }[];
+  /** Entries that match nothing observed, so they may have gone stale. */
+  staleBumps: ProtocolBump[];
   findings: Finding[];
   counts: {
     found: number;
@@ -49,6 +74,8 @@ export interface Report {
     unverified: number;
     /** MISSING entries covered by known-gaps.json; excluded from `missing`. */
     allowed: number;
+    /** MISSING branches whose sibling is served; excluded from `missing`. */
+    fallback: number;
   };
 }
 
@@ -66,14 +93,55 @@ const DESK_PATHS = ['desk', 'peru.yaml'];
  * checkout the checker runs in, not from either ref under test: it is a policy
  * file about *this* repo's debt.
  */
-export function loadKnownGaps(): Map<string, KnownGap> {
+function loadPolicy(): { gaps?: KnownGap[]; protocolBumps?: ProtocolBump[] } {
   const here = dirname(fileURLToPath(import.meta.url));
-  const parsed = JSON.parse(
-    readFileSync(join(here, 'known-gaps.json'), 'utf8')
-  ) as {
-    gaps?: KnownGap[];
-  };
-  return new Map((parsed.gaps ?? []).map((g) => [g.key, g]));
+  return JSON.parse(readFileSync(join(here, 'known-gaps.json'), 'utf8'));
+}
+
+export function loadKnownGaps(): Map<string, KnownGap> {
+  return new Map((loadPolicy().gaps ?? []).map((g) => [g.key, g]));
+}
+
+export const loadProtocolBumps = (): ProtocolBump[] =>
+  loadPolicy().protocolBumps ?? [];
+
+/** An observed difference is allowed only if a bump entry describes it exactly. */
+export function matchBump(
+  difference: ProtocolDifference,
+  bumps: ProtocolBump[]
+): ProtocolBump | undefined {
+  return bumps.find(
+    (b) =>
+      b.agent === difference.agent &&
+      b.protocol === difference.protocol &&
+      difference.n1Versions.join() === b.from &&
+      difference.clientDeskVersions.join() === b.to
+  );
+}
+
+/**
+ * A guarded branch whose sibling is served is the policy's fallback exception,
+ * not a failure. Conditional branches are never unioned — each is its own
+ * record — so a fallback shows up as two records sharing one call site.
+ */
+export function markCoveredFallbacks(findings: Finding[]): void {
+  const foundBySite = new Map<string, string>();
+  for (const finding of findings) {
+    if (finding.verdict !== 'FOUND') continue;
+    for (const site of finding.sites) {
+      foundBySite.set(`${site.file}:${site.line}`, finding.dependency.key);
+    }
+  }
+  for (const finding of findings) {
+    if (finding.verdict !== 'MISSING' || !finding.dependency.guard) continue;
+    for (const site of finding.sites) {
+      const coveredBy = foundBySite.get(`${site.file}:${site.line}`);
+      if (coveredBy) {
+        finding.fallback = { coveredBy, guard: finding.dependency.guard };
+        break;
+      }
+    }
+  }
 }
 
 export function toRequest(dep: Dependency): PathRequest | null {
@@ -132,8 +200,11 @@ export function runCheck(options: CheckOptions): Report {
       : openTree(options.clientRef, DESK_PATHS);
 
   try {
-    const desk = loadDesk(deskTree, options.deskRef);
-    const vendored = loadOwnership(clientDeskTree);
+    const desk = loadDesk(deskTree, options.deskRef, clientDeskTree);
+    // Vendored availability is a property of the desk under test: a mark
+    // dropped from *its* pick list without a local mar file is a removal, and
+    // reading the client ref's older list would report it as unverifiable.
+    const vendored = loadOwnership(deskTree);
     const allowlist = loadKnownGaps();
 
     let deps = extractClient(clientTree);
@@ -161,19 +232,36 @@ export function runCheck(options: CheckOptions): Report {
           : {}),
       });
     }
+    markCoveredFallbacks(findings);
     findings.sort((a, b) => a.dependency.key.localeCompare(b.dependency.key));
 
+    const bumps = loadProtocolBumps();
+    const observed = compareProtocols(clientDeskTree, deskTree);
+    const allowedBumps: Report['allowedBumps'] = [];
+    const protocolDifferences: ProtocolDifference[] = [];
+    for (const difference of observed) {
+      const bump = matchBump(difference, bumps);
+      if (bump) allowedBumps.push({ difference, bump });
+      else protocolDifferences.push(difference);
+    }
+
     const count = (p: (f: Finding) => boolean) => findings.filter(p).length;
+    const excused = (f: Finding) => Boolean(f.allowed || f.fallback);
     return {
       clientRef: options.clientRef,
       deskRef: options.deskRef,
-      protocolDifferences: compareProtocols(clientDeskTree, deskTree),
+      protocolDifferences,
+      allowedBumps,
+      staleBumps: bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
       findings,
       counts: {
         found: count((f) => f.verdict === 'FOUND'),
-        missing: count((f) => f.verdict === 'MISSING' && !f.allowed),
+        missing: count((f) => f.verdict === 'MISSING' && !excused(f)),
         unverified: count((f) => f.verdict === 'UNVERIFIED'),
         allowed: count((f) => f.verdict === 'MISSING' && Boolean(f.allowed)),
+        fallback: count(
+          (f) => f.verdict === 'MISSING' && !f.allowed && Boolean(f.fallback)
+        ),
       },
     };
   } finally {
@@ -205,6 +293,9 @@ function describe(finding: Finding): string[] {
     `    sites: ${shown.join(', ')}${more > 0 ? ` (+${more} more)` : ''}`
   );
   if (finding.verdict === 'UNVERIFIED') lines.push(`    text:  ${dep.text}`);
+  if (finding.fallback) {
+    lines.push(`    covers N-1: ${finding.fallback.coveredBy}`);
+  }
   if (finding.allowed) {
     const { reason, broke_at, issue } = finding.allowed;
     lines.push(`    known: ${reason}`);
@@ -235,6 +326,23 @@ export function formatReport(report: Report): string {
     );
   } else out.push('negotiation protocols: no version difference', '');
 
+  for (const { difference: d, bump } of report.allowedBumps) {
+    out.push(
+      `ALLOWED PROTOCOL BUMP: %${d.agent} ~.${d.protocol} ${bump.from} -> ${bump.to}, tracked by ${bump.issue}`,
+      ...(bump.note ? [`  ${bump.note}`] : []),
+      '  N-1 support is suspended for this protocol until the bump becomes N-1.',
+      ''
+    );
+  }
+  for (const bump of report.staleBumps) {
+    out.push(
+      `warning: known-gaps.json still allows the %${bump.agent} ~.${bump.protocol} ` +
+        `${bump.from} -> ${bump.to} bump (${bump.issue}), but this pair shows no such ` +
+        'difference. Remove the entry once the bump is N-1.',
+      ''
+    );
+  }
+
   const section = (title: string, keep: (f: Finding) => boolean) => {
     const findings = report.findings.filter(keep);
     if (findings.length === 0) return;
@@ -244,15 +352,23 @@ export function formatReport(report: Report): string {
       ''
     );
   };
-  section('MISSING', (f) => f.verdict === 'MISSING' && !f.allowed);
+  section(
+    'MISSING',
+    (f) => f.verdict === 'MISSING' && !f.allowed && !f.fallback
+  );
+  section(
+    'MISSING on this branch, but a sibling branch is served',
+    (f) => Boolean(f.fallback) && !f.allowed
+  );
   section('MISSING but allowed by known-gaps.json', (f) => Boolean(f.allowed));
   section('UNVERIFIED', (f) => f.verdict === 'UNVERIFIED');
 
-  const { found, missing, unverified, allowed } = report.counts;
+  const { found, missing, unverified, allowed, fallback } = report.counts;
   const sites = report.findings.reduce((n, f) => n + f.sites.length, 0);
   out.push(
-    `summary: ${found} FOUND, ${missing} MISSING, ${unverified} UNVERIFIED, ${allowed} known gap(s) ` +
-      `over ${report.findings.length} distinct requests from ${sites} call sites`
+    `summary: ${found} FOUND, ${missing} MISSING, ${unverified} UNVERIFIED, ` +
+      `${fallback} covered fallback(s), ${allowed} known gap(s) over ` +
+      `${report.findings.length} distinct requests from ${sites} call sites`
   );
   out.push(
     report.protocolDifferences.length > 0

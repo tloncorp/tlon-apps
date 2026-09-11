@@ -13,6 +13,15 @@
     "are percent-escaped — so a longer path that merely shares a prefix, or one",
     "whose suffix moved inside the expression, cannot inherit an exemption."
   ],
+  "$protocolBumps": [
+    "One in-flight `agent:neg` bump, while it is landing. Rule (d) makes any",
+    "protocol difference a hard floor, so without an entry the bump PR itself",
+    "could never merge. An entry is printed loudly and excluded from the exit",
+    "code; the next release removes it once the bump has become N-1, and the",
+    "checker warns while an entry matches no observed difference.",
+    "Shape: { agent, protocol, from, to, issue, note }."
+  ],
+  "protocolBumps": [],
   "gaps": [
     {
       "key": "subscribe groups /chan/{}",

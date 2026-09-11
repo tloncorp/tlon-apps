@@ -40,6 +40,17 @@ compatibility rescues it. A protocol bump must ship one release ahead of the
 client that needs it, exactly like a new path. This is also why v12.1.0 is
 unusable as a pinned N-1 pier and v12.2.0 is.
 
+The bump PR is itself the change that creates the difference, so it would
+otherwise never be able to merge. It adds an entry to `protocolBumps` in
+`packages/scripts/src/check-desk-compat/known-gaps.json` naming the agent,
+protocol, `from`/`to` versions and an issue. The checker still prints the
+difference loudly — in its own `ALLOWED PROTOCOL BUMP` section — but stops
+failing on that exact transition; any other mismatch still blocks. N-1 support
+for the protocol is suspended until the bump becomes N-1, and the next release
+removes the entry. While an entry matches no observed difference the checker
+warns rather than failing, because the candidate-vs-candidate run legitimately
+shows no differences at all.
+
 ## Running the checker
 
 ```
@@ -81,8 +92,7 @@ Rules are applied in this order; the first that fires decides.
 - **P4 — open value sets ⇒ `UNVERIFIED`.** `` `/${feedVersion()}/…` `` leaves no
   prefix to match against.
 
-A guard is otherwise conservative — it may reject a request the arms would have
-served — but a **self-guard is treated as satisfied and ignored entirely**,
+A **self-guard is treated as satisfied and ignored entirely**,
 affecting neither `FOUND` nor `MISSING`. `?> from-self`, `?> =(src our)` and
 `(team:title our.bowl src.bowl)` all assert that the caller is this ship, which
 every frontend request is by construction: the client only ever scries and
@@ -91,7 +101,13 @@ both drop real coverage and let a genuinely absent arm hide behind them. `?<`
 asserts the negation, so a self-check there *rejects* the frontend and stays
 conservative.
 
+**Deleted agents**: an agent the client's own desk has and the desk under test
+does not is `MISSING`, not "out of desk" — otherwise deleting an agent would
+walk straight through the removal gate. An app in neither tree is out of desk.
+
 **Marks**: ownership is decided by exclusion against `peru.yaml`'s pick lists —
+read from the **desk under test**, since a mark dropped from its pick list
+without a local mar file is a removal —
 anything under `desk/mar` that is not vendored and not an out-of-desk app is
 repo-owned, and its absence is a removal. The alternative ("ours if it resolves
 at either ref") is self-defeating for exactly the removal case, because deleting
@@ -99,7 +115,16 @@ the mar file also erases the proof we owned the mark. `FOUND` for a mark claims
 only that the file exists.
 
 Conditional branches are reported **per branch, never unioned**, each carrying
-its guard text.
+its guard text — including the condition an early `return` inside an `if`
+implicitly negates for the returns after it. A `MISSING` branch whose sibling at
+the same call site is `FOUND` is the policy's fallback exception: it is reported
+in its own *covered fallback* section with the guard, and does not fail the run.
+A `MISSING` with no served sibling still blocks.
+
+A guard is otherwise conservative in **both** directions — it may reject a
+request the arms would have served, so a match proves no more than an absence
+does — whether it sits before the dispatcher or inside the matched arm. The one
+exception is the self-guard below.
 
 ## Reading `UNVERIFIED`
 
