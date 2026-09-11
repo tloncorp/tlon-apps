@@ -21,12 +21,10 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | Line | Requirement | `--fix` does |
 |---|---|---|
 | `gh` | 2.99.0 or newer (the `--attach` upload flag), authenticated | nothing; prints the install or `gh auth login` line |
-| `stim config` | `~/.stim/config.json` names no path that no longer exists | nothing; prints the dead key |
 | `stim` | the `stim` package, 1.1.0 or newer, resolved first on PATH | uninstalls `stim-cli`, installs `stim` |
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
 | `agent-device` | installed | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
-| `node` | major version matches `.nvmrc` | nothing; a note |
 | `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `costs time` finding in `apps/tlon-mobile` | nothing; prints each finding and its fix |
 
