@@ -155,7 +155,14 @@ const checks = [
         .trim()
         .replace(/^v/, '');
       const have = process.versions.node;
-      if (want.split('.')[0] !== have.split('.')[0])
+      const wantMajor = Number(want.split('.')[0]);
+      const haveMajor = Number(have.split('.')[0]);
+      if (haveMajor < wantMajor)
+        return {
+          fix: `node ${have} is older than the ${want} in .nvmrc`,
+          how: `nvm install ${want} && nvm use ${want}`,
+        };
+      if (haveMajor > wantMajor)
         return { note: `node ${have}; .nvmrc says ${want}` };
       return { ok: `node ${have}` };
     },

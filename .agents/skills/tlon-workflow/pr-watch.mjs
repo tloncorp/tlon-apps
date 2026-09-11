@@ -118,9 +118,12 @@ function save() {
 // may do to it: MEMBER is any organization member and CONTRIBUTOR is anyone
 // whose pull request once merged. On a public repository only an actual
 // permission check separates a reviewer from a passer-by.
-const permissions = new Map();
+// Only a yes is cached: gh exits 1 for a 404 (not a collaborator) and for a
+// network failure alike, and caching the latter would silence a reviewer for
+// the rest of the run.
+const writers = new Set();
 function hasWriteAccess(login) {
-  if (permissions.has(login)) return permissions.get(login);
+  if (writers.has(login)) return true;
   let allowed = false;
   try {
     allowed = WRITE.has(
@@ -136,7 +139,7 @@ function hasWriteAccess(login) {
     // Both mean "not established", and the safe answer is no.
     allowed = false;
   }
-  permissions.set(login, allowed);
+  if (allowed) writers.add(login);
   return allowed;
 }
 
@@ -179,9 +182,11 @@ function collect() {
   for (const r of api(`${pulls}/reviews?per_page=100`)) {
     if (!qualifies(r.user)) continue;
     if (!r.body && r.state === 'COMMENTED') continue;
+    // A dismissed approval keeps its id and changes state; key on both so the
+    // dismissal is reported.
     items.push({
       kind: 'review',
-      id: `r${r.id}`,
+      id: `r${r.id}:${r.state}`,
       at: r.submitted_at,
       author: r.user.login,
       state: r.state,
