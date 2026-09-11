@@ -116,7 +116,6 @@ export enum AnalyticsEvent {
   ActionVisitedGroup = 'Viewed Group',
   ActionRequestGroupInvite = 'Requested Group Invite',
   ActionCreateChannel = 'Created Channel',
-  ActionBlockedDiaryChannelCreation = 'Blocked Diary Channel Creation',
   ActionDeleteChannel = 'Deleted Channel',
   ActionUpdatedChannel = 'Updated Channel',
   ActionPinChat = 'Pinned Chat',

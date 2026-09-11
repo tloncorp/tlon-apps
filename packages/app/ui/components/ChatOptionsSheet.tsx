@@ -1,5 +1,4 @@
 import * as ub from '@tloncorp/api/urbit';
-import { isDiaryChannelType } from '@tloncorp/shared';
 import * as db from '@tloncorp/shared/db';
 import * as store from '@tloncorp/shared/store';
 import { Icon, useIsWindowNarrow } from '@tloncorp/ui';
@@ -730,10 +729,10 @@ export function ChannelOptionsSheetContent({
           },
         ],
 
-        // Templating copies the source channel's type, and a bulletin's type
-        // can no longer be created.
+        // Templating copies the source channel's type, and a bulletin
+        // ('notebook', the %diary type) can no longer be created.
         hooksPreview &&
-          !isDiaryChannelType(channel.type) && [
+          channel.type !== 'notebook' && [
             'neutral',
             {
               title: 'Use channel as template',

@@ -17,6 +17,11 @@ import { notesPermissionsCompatActive } from '../logic/notesPermissionsCompat';
 import { syncNotesNotebook } from './notesActions';
 
 const logger = createDevLogger('ChannelActions', false);
+// Channel types a client may still create. 'notebook' — the %diary type — is
+// absent because %notes replaced it; existing diary channels keep working.
+const CREATABLE_CHANNEL_TYPES = ['chat', 'gallery', 'notes'] as const;
+type CreatableChannelType = (typeof CREATABLE_CHANNEL_TYPES)[number];
+
 const NOTES_CHANNEL_LISTING_ATTEMPTS = 5;
 const NOTES_CHANNEL_LISTING_DELAY_MS = 250;
 
@@ -46,14 +51,8 @@ export async function createChannel({
   const currentUserId = api.getCurrentUserId();
   const channelType = rawChannelType === 'custom' ? 'chat' : rawChannelType;
 
-  // %diary is closed to new channels; %notes is the supported longform path.
-  // Refuse before the optimistic insert so nothing has to be rolled back, and
-  // record the attempt so we can see which surface still offers it.
-  if (logic.isDiaryChannelType(channelType)) {
-    logger.trackEvent(AnalyticsEvent.ActionBlockedDiaryChannelCreation, {
-      groupId,
-    });
-    throw new logic.DiaryCreationBlockedError();
+  if (!CREATABLE_CHANNEL_TYPES.includes(channelType as CreatableChannelType)) {
+    throw new Error(`Cannot create a channel of type ${channelType}`);
   }
 
   if (channelType === 'notes') {
