@@ -114,6 +114,49 @@ export const resultSchema = {
   required: ['status', 'summary', 'checks', 'discoveries'],
 };
 
+// Optional clip selections let the evidence pass hand exact frames to the
+// publisher, avoiding a second image-heavy review pass.
+const clipMoment = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    frame: { type: 'integer', minimum: 0 },
+    evidenceId: { type: 'string', pattern: '^video-frames-[0-9]+$' },
+    observation: { type: 'string', minLength: 1 },
+  },
+  required: ['frame', 'evidenceId', 'observation'],
+};
+const clipSelection = {
+  type: 'array',
+  maxItems: 2,
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      label: { type: 'string', minLength: 1 },
+      additionalCase: { type: 'string' },
+      before: clipMoment,
+      trigger: clipMoment,
+      outcome: clipMoment,
+      settled: clipMoment,
+    },
+    required: [
+      'label',
+      'additionalCase',
+      'before',
+      'trigger',
+      'outcome',
+      'settled',
+    ],
+  },
+};
+for (const item of [
+  resultSchema.properties.checks.items,
+  resultSchema.properties.discoveries.items,
+]) {
+  item.properties.clipEvidence = clipSelection;
+}
+
 export function resultSchemaFor(assessment) {
   const schema = structuredClone(resultSchema);
   const properties = schema.properties.checks.items.properties;

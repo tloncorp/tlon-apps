@@ -141,6 +141,37 @@ export async function reviewFindingClips({
   const priorReceipts = JSON.parse(
     readFileSync(path.join(source, 'video-frames/receipts.json'))
   );
+  // Reuse exact selections made during the evidence pass. The publisher still
+  // validates every frame and interval; this only avoids replaying images in a
+  // second model session.
+  const priorSelection = Object.fromEntries(
+    presentation.findings.map((finding, i) => [
+      `group-${i + 1}`,
+      {
+        clips: finding.sources.flatMap(
+          (id) => sources.get(id)?.clipEvidence || []
+        ),
+        unavailableReason: '',
+      },
+    ])
+  );
+  if (Object.values(priorSelection).every((group) => group.clips.length > 0)) {
+    try {
+      return {
+        selection: priorSelection,
+        windows: verifyClipReview(
+          priorSelection,
+          presentation,
+          priorReceipts,
+          info,
+          original.context.video.durationSeconds
+        ),
+      };
+    } catch {
+      // A merged finding may contain overlapping source selections. Fall back
+      // to the targeted reviewer so it can choose one representative clip.
+    }
+  }
   const validate = (value) =>
     verifyClipReview(
       value,

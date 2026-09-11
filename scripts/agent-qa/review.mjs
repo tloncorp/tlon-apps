@@ -467,6 +467,16 @@ export async function reviewEvidence({
     type: 'string',
     pattern: video ? '^(codex-trace|video-frames-[0-9]+)$' : '^codex-trace$',
   };
+  if (video) {
+    for (const item of [
+      schema.properties.checks.items,
+      schema.properties.discoveries.items,
+    ]) {
+      item.properties.clipEvidence.description =
+        'Use one complete clip when verified: exact before, trigger, outcome and settled frames with video-frames evidence IDs; otherwise return an empty array.';
+      item.required = [...new Set([...item.required, 'clipEvidence'])];
+    }
+  }
   const reviewed = await session({
     mode: 'evidence',
     label: videoOnly ? 'video' : 'evidence',
@@ -494,6 +504,9 @@ Return findings for every exact scenario ID and expected criterion. Unexpected d
       videoAvailable: Boolean(video),
       baselineDeviceEvidence:
         'unavailable: compare recorded head transitions; new-versus-existing attribution is source-based only',
+      clipSelectionContract: video
+        ? 'For each failed or blocked check and unexpected discovery, include clipEvidence only when exact video frames prove a complete before, trigger, outcome and settled interval. Use one clip by default with frame, evidenceId and observation for all four moments; omit it when incomplete.'
+        : 'No clipEvidence is needed without video.',
     },
   });
   const receipts = video

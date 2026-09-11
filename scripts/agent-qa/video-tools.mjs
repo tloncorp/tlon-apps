@@ -135,6 +135,20 @@ export function videoReader({
       if (name !== 'inspect_video_frames')
         throw new Error('Unknown video tool');
       const indices = validateFrameRequest(a, timestamps.length);
+      const existing = Object.entries(receipts).find(
+        ([, receipt]) =>
+          receipt.region === a.region &&
+          receipt.frames?.map((f) => f.index).join(',') === indices.join(',')
+      );
+      if (existing) {
+        const [evidenceId, receipt] = existing;
+        return [
+          {
+            type: 'text',
+            text: JSON.stringify({ evidenceId, ...receipt, reused: true }),
+          },
+        ];
+      }
       const id = `video-frames-${Object.keys(receipts).length + 1}`;
       const filename = path.join(outputDir, `${id}.png`);
       const columns =
@@ -202,11 +216,22 @@ export function videoReader({
   };
 }
 export function verifyVideoReferences(result, receipts) {
-  for (const check of result.checks)
-    for (const id of check.evidence || []) {
-      if (id === 'codex-trace') continue;
-      if (!/^video-frames-\d+$/.test(id) || !receipts[id]?.frames?.length)
-        throw new Error('Video finding cites uninspected frames');
-    }
+  const references = [];
+  for (const check of result.checks) {
+    references.push(...(check.evidence || []));
+    for (const clip of check.clipEvidence || [])
+      for (const moment of ['before', 'trigger', 'outcome', 'settled'])
+        references.push(clip[moment]?.evidenceId);
+  }
+  for (const discovery of result.discoveries || []) {
+    for (const clip of discovery.clipEvidence || [])
+      for (const moment of ['before', 'trigger', 'outcome', 'settled'])
+        references.push(clip[moment]?.evidenceId);
+  }
+  for (const id of references) {
+    if (id === 'codex-trace') continue;
+    if (!/^video-frames-\d+$/.test(id) || !receipts[id]?.frames?.length)
+      throw new Error('Video finding cites uninspected frames');
+  }
   return result;
 }
