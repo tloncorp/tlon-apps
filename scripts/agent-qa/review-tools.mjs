@@ -235,7 +235,15 @@ async function main() {
         head: process.env.QA_SOURCE_HEAD,
       });
   const actions = evidence ? readActions(process.env.QA_EVIDENCE_TRACE) : null;
-  const video = evidence && process.env.QA_EVIDENCE_VIDEO ? videoReader({ file: process.env.QA_EVIDENCE_VIDEO, outputDir: process.env.QA_VIDEO_FRAMES, startedAt: Number(process.env.QA_VIDEO_STARTED_AT) || null, actions }) : null;
+  const video =
+    evidence && process.env.QA_EVIDENCE_VIDEO
+      ? videoReader({
+          file: process.env.QA_EVIDENCE_VIDEO,
+          outputDir: process.env.QA_VIDEO_FRAMES,
+          startedAt: Number(process.env.QA_VIDEO_STARTED_AT) || null,
+          actions,
+        })
+      : null;
   let calls = 0;
   for await (const line of createInterface({ input: process.stdin })) {
     let m;
@@ -254,13 +262,19 @@ async function main() {
       };
     else if (m.method === 'ping') result = {};
     else if (m.method === 'tools/list')
-      result = { tools: evidence ? [...evidenceTools, ...(video ? videoTools : [])] : sourceTools };
+      result = {
+        tools: evidence
+          ? [...evidenceTools, ...(video ? videoTools : [])]
+          : sourceTools,
+      };
     else if (m.method === 'tools/call') {
       try {
         if (++calls > 80)
           throw new Error('Review reached its 80-tool-call limit');
         const content = evidence
-          ? (video && videoTools.some(t=>t.name===m.params.name) ? video.call(m.params.name,m.params.arguments) : evidenceCall(actions, m.params.name, m.params.arguments))
+          ? video && videoTools.some((t) => t.name === m.params.name)
+            ? video.call(m.params.name, m.params.arguments)
+            : evidenceCall(actions, m.params.name, m.params.arguments)
           : [
               {
                 type: 'text',

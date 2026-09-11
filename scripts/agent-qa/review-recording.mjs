@@ -69,19 +69,38 @@ const assessment = {
     (s) => s.method !== 'regression'
   ),
 };
-const operator = { ...original.report, checks: original.report.checks.filter(c => assessment.scenarios.some(s=>s.id===c.scenarioId)) };
+const operator = {
+  ...original.report,
+  checks: original.report.checks.filter((c) =>
+    assessment.scenarios.some((s) => s.id === c.scenarioId)
+  ),
+};
 let video;
 if (descriptor.video) {
-  const v=descriptor.video, url=new URL(v.downloadUrl);
-  if (url.protocol!=='https:' || url.hostname!=='wf-artifacts.eascdn.net' || url.username || url.password || !(v.fileSizeBytes>0 && v.fileSizeBytes<=100*1024*1024)) throw new Error('Invalid recorded video artifact');
-  const response=await fetch(url,{signal:AbortSignal.timeout(120000)});
-  if(!response.ok)throw new Error('Video artifact unavailable');
-  const bytes=Buffer.from(await response.arrayBuffer());
-  if(bytes.length!==v.fileSizeBytes)throw new Error('Video size mismatch');
-  const file=path.join(out,'test-session.mp4');writeFileSync(file,bytes);
-  const recording=JSON.parse(readFileSync(path.join(source,'recording.json'),'utf8'));
-  const startedAt=original.context.video.startedAt || Number(recording.video?.match(/-(\d{13})\.mp4$/)?.[1]) || null;
-  video={file,startedAt};
+  const v = descriptor.video,
+    url = new URL(v.downloadUrl);
+  if (
+    url.protocol !== 'https:' ||
+    url.hostname !== 'wf-artifacts.eascdn.net' ||
+    url.username ||
+    url.password ||
+    !(v.fileSizeBytes > 0 && v.fileSizeBytes <= 100 * 1024 * 1024)
+  )
+    throw new Error('Invalid recorded video artifact');
+  const response = await fetch(url, { signal: AbortSignal.timeout(120000) });
+  if (!response.ok) throw new Error('Video artifact unavailable');
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length !== v.fileSizeBytes) throw new Error('Video size mismatch');
+  const file = path.join(out, 'test-session.mp4');
+  writeFileSync(file, bytes);
+  const recording = JSON.parse(
+    readFileSync(path.join(source, 'recording.json'), 'utf8')
+  );
+  const startedAt =
+    original.context.video.startedAt ||
+    Number(recording.video?.match(/-(\d{13})\.mp4$/)?.[1]) ||
+    null;
+  video = { file, startedAt };
 }
 
 await verifyCodexAuth(process.env.OPENROUTER_API_KEY);
@@ -103,9 +122,16 @@ result.status = [...result.checks, ...result.discoveries].some(
       )
     ? 'blocked'
     : 'passed';
-const receipts = video ? JSON.parse(readFileSync(path.join(source,'video-frames/receipts.json'),'utf8')) : {};
+const receipts = video
+  ? JSON.parse(
+      readFileSync(path.join(source, 'video-frames/receipts.json'), 'utf8')
+    )
+  : {};
 verifyCoverage(
-  verifyReport(result, new Map(Object.entries({...original.evidence,...receipts}))),
+  verifyReport(
+    result,
+    new Map(Object.entries({ ...original.evidence, ...receipts }))
+  ),
   assessment
 );
 const context = {
@@ -133,5 +159,5 @@ writeFileSync(
 writeFileSync(path.join(out, 'report.md'), report);
 console.log(report);
 // Keep original evidence at its source run, and retain only this review's receipts/events.
-rmSync(archive,{force:true});
-if(video)rmSync(video.file,{force:true});
+rmSync(archive, { force: true });
+if (video) rmSync(video.file, { force: true });

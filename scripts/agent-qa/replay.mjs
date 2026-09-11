@@ -30,7 +30,9 @@ if (!artifact) throw new Error('Missing recorded evidence');
 const descriptor = {
   id,
   sha: run.gitCommitHash,
-  video: video ? { downloadUrl: video.downloadUrl, fileSizeBytes: video.fileSizeBytes } : null,
+  video: video
+    ? { downloadUrl: video.downloadUrl, fileSizeBytes: video.fileSizeBytes }
+    : null,
   artifact: {
     downloadUrl: artifact.downloadUrl,
     fileSizeBytes: artifact.fileSizeBytes,

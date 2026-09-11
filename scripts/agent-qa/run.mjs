@@ -554,11 +554,23 @@ async function agent(diff) {
         artifacts,
         usage,
         signal: agentAbort.signal,
-        video: context.video?.status === 'ready' ? { file: path.join(videoDirectory, 'test-session.mp4'), startedAt: context.video.startedAt } : undefined,
+        video:
+          context.video?.status === 'ready'
+            ? {
+                file: path.join(videoDirectory, 'test-session.mp4'),
+                startedAt: context.video.startedAt,
+              }
+            : undefined,
       });
       if (context.video?.status === 'ready') {
-        const receipts = JSON.parse(await readFile(path.join(artifacts, 'video-frames/receipts.json'), 'utf8'));
-        for(const [id,receipt] of Object.entries(receipts)) evidence.set(id,receipt);
+        const receipts = JSON.parse(
+          await readFile(
+            path.join(artifacts, 'video-frames/receipts.json'),
+            'utf8'
+          )
+        );
+        for (const [id, receipt] of Object.entries(receipts))
+          evidence.set(id, receipt);
       }
       context.evidenceReview = 'completed';
     } catch (error) {
@@ -574,7 +586,9 @@ async function agent(diff) {
       );
     }
     for (const scenario of context.assessment.scenarios.filter(
-      (s) => s.method === 'unavailable' && !result.checks.some(c=>c.scenarioId===s.id)
+      (s) =>
+        s.method === 'unavailable' &&
+        !result.checks.some((c) => c.scenarioId === s.id)
     ))
       result.checks.push({
         scenarioId: scenario.id,

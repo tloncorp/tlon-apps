@@ -297,7 +297,12 @@ async function main() {
         head: headSha,
         files,
       });
-      assessment = { ...verifyAssessment(prepared, files), files, baseSha, headSha };
+      assessment = {
+        ...verifyAssessment(prepared, files),
+        files,
+        baseSha,
+        headSha,
+      };
     } else {
       await verifyCodexAuth(process.env.OPENROUTER_API_KEY);
       const sourceReview = await reviewSource({
