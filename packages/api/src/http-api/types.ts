@@ -240,6 +240,18 @@ export interface Message extends Record<string, any> {
   id: number;
 }
 
+/**
+ * Rewrites the url of a single channel PUT, given the messages that PUT is
+ * about to carry. Hosted ships route on query hints derived from the payload,
+ * so the transformer needs the messages as well as the url. Defaults to
+ * identity; a transformer that cannot describe a given batch must return the
+ * url unchanged.
+ */
+export type ChannelUrlTransformer = (
+  url: string,
+  messages: readonly (Message | Ack)[]
+) => string;
+
 export class ResumableError extends Error {}
 
 export class FatalError extends Error {}

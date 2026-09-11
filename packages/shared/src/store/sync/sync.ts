@@ -3,7 +3,7 @@ import { GetChangedPostsOptions } from '@tloncorp/api';
 import { extractClientVolumes } from '@tloncorp/api/client/activity';
 import { fetchChangesSince } from '@tloncorp/api/client/changesApi';
 import { isLanyardMockEnabled } from '@tloncorp/api/dev/lanyardMock';
-import { ChannelStatus } from '@urbit/http-api';
+import { ChannelStatus } from '@tloncorp/api/http-api';
 import { backOff } from 'exponential-backoff';
 import _ from 'lodash';
 
