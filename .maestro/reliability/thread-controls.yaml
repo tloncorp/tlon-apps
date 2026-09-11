@@ -41,7 +41,12 @@ env:
     id: MessageInputSendButton
 - assertVisible: ${output.reliability.editedTextPattern}
 - assertNotVisible: ${output.reliability.replyPattern}
-- hideKeyboard
+# Android already dismisses the keyboard when the edit is saved.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - hideKeyboard
 - tapOn: '^Back$'
 - assertVisible:
     text: '^1 reply$'
