@@ -1240,9 +1240,11 @@ export function NotesNativeChannel({
     notebookSidebarSourceId
   );
 
-  // The notes screens install a transparent native header on iOS 26 whenever
-  // their scroll view mounts, so the banners below always have one to clear.
-  const floatingHeaderHeight = useFloatingHeaderHeight(true);
+  // NotesTreePane only mounts the scroll view that installs the transparent
+  // header once it has rows; its empty state leaves the header opaque, and
+  // padding the banner then would open a second header-height gap. The desktop
+  // split is web-only, so the tree pane is the only path that matters here.
+  const floatingHeaderHeight = useFloatingHeaderHeight(treeRows.length > 0);
 
   if (gate) {
     return (
