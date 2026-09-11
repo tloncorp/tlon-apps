@@ -16,6 +16,7 @@ import { isWeb } from 'tamagui';
 
 import { TelemetryClient } from '../types/telemetry';
 import { captureMandatoryEventWithClient } from './mandatoryTelemetry';
+import { ensureIdentified } from './sessionIdentity';
 import { useCurrentUserId } from './useCurrentUser';
 import { usePosthog } from './usePosthog';
 
@@ -30,10 +31,16 @@ export function useClearTelemetryConfig() {
     // Clear before the first await: the native logout path does not await this
     // callback, and a slow or rejected flush must not leave them behind.
     clearBreadcrumbs();
-    await posthog.flush();
-    posthog?.reset();
-    await didInitializeTelemetry.resetValue();
-    await lastAnonymousAppOpenAt.resetValue();
+    posthog.reset();
+    await Promise.all([
+      didInitializeTelemetry.resetValue(),
+      lastAnonymousAppOpenAt.resetValue(),
+    ]);
+    try {
+      await posthog.flush();
+    } catch {
+      // Queued events keep their distinct_id and stay queued for the next flush.
+    }
   }, [posthog]);
 
   return clearConfig;
@@ -247,6 +254,44 @@ export function useTelemetry(): TelemetryClient {
     telemetryEnabled,
     telemetryInitialized,
     setDisabled,
+    posthog,
+    getIsOptedOut,
+  ]);
+
+  useEffect(() => {
+    if (!ready || !telemetryInitialized) {
+      return;
+    }
+
+    // The SDK's persisted identity and `didInitializeTelemetry` are separate
+    // stores that can diverge, which leaves a session reporting under a stale
+    // anonymous id. Re-link them once the SDK's storage has loaded.
+    let cancelled = false;
+    posthog
+      .ready()
+      .then(() => {
+        if (cancelled || getIsOptedOut()) {
+          return;
+        }
+
+        ensureIdentified({
+          posthog,
+          userId: currentUserId,
+          isHosted: api.getCurrentUserIsHosted(),
+        });
+      })
+      .catch(() => {
+        /* persistence failed to load; leave identity unset */
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    ready,
+    telemetryInitialized,
+    telemetryEnabled,
+    currentUserId,
     posthog,
     getIsOptedOut,
   ]);

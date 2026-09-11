@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, XStack, YStack } from 'tamagui';
 
 import { SortableSection } from '../../../hooks/useSortableChannelNav';
-import { capitalize } from '../../utils';
+import { getChannelTypeLabel } from '../../utils';
 import { SimpleActionSheet } from '../ActionSheet';
 import { ListItem } from '../ListItem';
 import { ScreenHeader } from '../ScreenHeader';
@@ -79,7 +79,7 @@ export function ChannelItem({
             {channel?.title}
           </Text>
           <Text fontSize="$s" color="$secondaryText">
-            {capitalize(channel.type)}
+            {getChannelTypeLabel(channel.type)}
           </Text>
         </YStack>
       </XStack>

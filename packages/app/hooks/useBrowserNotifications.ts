@@ -7,10 +7,10 @@ import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useRootNavigation } from '../navigation/utils';
 import { useAgentGroupOnboardingNavGate } from './useAgentGroupOnboardingLock';
 import { reactDisplayValue } from '../ui/components/Activity/ActivitySummaryMessage';
+import { getNotificationCopy, isReactActivityType } from './notificationCopy';
 import { useCalm, useCurrentUserId } from '../ui/contexts/appDataContext';
 import {
   getBrowserNotificationContactName,
-  getBrowserNotificationCopy,
   getBrowserNotificationGroupTitle,
   getBrowserNotificationTargetWithRetry,
   isOtherBrowserNotificationTabForegrounded,
@@ -392,7 +392,7 @@ export default function useBrowserNotifications() {
           activityEvent.authorId,
           disableNicknames
         );
-        const isReact = activityEvent.type === 'react';
+        const isReact = isReactActivityType(activityEvent.type);
         const reactValue = isReact
           ? reactDisplayValue(activityEvent.content)
           : '';
@@ -403,7 +403,7 @@ export default function useBrowserNotifications() {
         const group = activityEvent.groupId
           ? await db.getGroup({ id: activityEvent.groupId })
           : null;
-        const { title, body } = getBrowserNotificationCopy({
+        const { title, body } = getNotificationCopy({
           activityType: activityEvent.type,
           channelTitle: channel.title,
           contactName,

@@ -300,8 +300,7 @@ export async function withTransactionCtx<T>(
           isNested: true,
           rootTransactionLabel: ctx.rootTransaction,
           label: ctx.meta.label,
-          errorMessage: e.message,
-          errorStack: e.stack,
+          error: e,
         });
       }
       throw e;
@@ -331,8 +330,7 @@ export async function withTransactionCtx<T>(
         if (shouldReportQueryError(e)) {
           txLogger.trackError('DB Transaction Error', {
             label: ctx.meta.label,
-            errorMessage: e.message,
-            errorStack: e.stack,
+            error: e,
           });
         }
         try {
@@ -341,8 +339,7 @@ export async function withTransactionCtx<T>(
           if (shouldReportQueryError(rollbackError)) {
             txLogger.trackError('DB Transaction Rollback Error', {
               label: ctx.meta.label,
-              errorMessage: rollbackError.message,
-              errorStack: rollbackError.stack,
+              error: rollbackError,
             });
           }
         }

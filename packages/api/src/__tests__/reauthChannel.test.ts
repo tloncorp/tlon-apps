@@ -7,7 +7,10 @@ import {
   internalRemoveClient,
   poke,
   subscribe,
+  subscribeOnce,
 } from '../client/urbit';
+import { configureLoggerFactory } from '../lib/logger';
+import { AnalyticsEvent } from '../types/analytics';
 import { Atom } from '@urbit/nockjs';
 
 import { AuthError, ChannelPutError, ReapError } from '../http-api';
@@ -43,6 +46,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
   internalRemoveClient();
+  configureLoggerFactory(
+    () =>
+      ({
+        ...console,
+        crumb: () => {},
+        sensitiveCrumb: () => {},
+        trackError: () => {},
+        trackEvent: () => {},
+      }) as any
+  );
 });
 
 describe('reauth', () => {
@@ -677,5 +690,188 @@ describe('storms', () => {
     // the late failure saw the epoch move and just retried
     expect(loginFetch).toHaveBeenCalledTimes(1);
     expect(client.seamlessReset).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('subscribeOnce auth retry', () => {
+  function configure(client: Record<string, any>) {
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+  }
+
+  function stubLogger() {
+    const stub = {
+      ...console,
+      crumb: vi.fn(),
+      sensitiveCrumb: vi.fn(),
+      trackError: vi.fn(),
+      trackEvent: vi.fn(),
+    };
+    configureLoggerFactory(() => stub as any);
+    return stub;
+  }
+
+  test('a one-shot whose client was swapped out is not replayed', async () => {
+    // logout / account switch replaces the client while the request is still
+    // in flight; the epoch is global, so only the client identity can tell
+    // this apart from a rotation on our own client
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi.fn().mockImplementationOnce(async () => {
+        internalRemoveClient();
+        internalConfigureClient({
+          shipName: '~bus',
+          shipUrl: 'http://other.test',
+          getCode: vi.fn(async () => 'code'),
+          client: fakeClient({ channelId: 'chan-9' }) as any,
+        });
+        throw new AuthError('invalid session');
+      }),
+    });
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('an auth failure is not retried when reauth gives up', async () => {
+    // a rejected access code sets loggingOut and returns without refreshing;
+    // retrying would fire at a session already known to be dead
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session')),
+    });
+    const loginFetch = vi.fn().mockResolvedValue(loginResponse(400));
+    vi.stubGlobal('fetch', loginFetch);
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'bad-code'),
+      handleAuthFailure: vi.fn(),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('an auth failure that recovers on retry is not reported as an error', async () => {
+    // trackError is the branch that reaches Sentry, and AuthError is the only
+    // rejection that takes it while still being retryable. The user saw no
+    // failure here, so Sentry should not either.
+    const { trackError } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValueOnce('fact'),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).resolves.toBe('fact');
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
+    expect(trackError).not.toHaveBeenCalled();
+  });
+
+  test('a failure that exhausts its retry is reported once', async () => {
+    const { trackError } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValue(new AuthError('invalid session')),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      getCode: vi.fn(async () => 'code'),
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(trackError).toHaveBeenCalledTimes(1);
+  });
+
+  test('the retry is bounded to one extra attempt', async () => {
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValue(new AuthError('invalid session')),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toBeInstanceOf(AuthError);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(2);
+  });
+
+  test('a reauth that throws still reports the original failure', async () => {
+    // with no getCode and no failure handler, reauth() throws rather than
+    // resolving; the caller gets that error, so the subscribe failure it
+    // replaced still has to be reported
+    const { trackError } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValue(new AuthError('invalid session')),
+    });
+    internalConfigureClient({
+      shipName: '~zod',
+      shipUrl: 'http://example.test',
+      client: client as any,
+    });
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).rejects.toThrow('Unable to authenticate with urbit');
+    expect(trackError).toHaveBeenCalledTimes(1);
+    expect(client.subscribeOnce).toHaveBeenCalledTimes(1);
+  });
+
+  test('a recovered retry is counted', async () => {
+    const { trackEvent } = stubLogger();
+    const client: Record<string, any> = fakeClient({
+      channelId: 'chan-1',
+      subscribeOnce: vi
+        .fn()
+        .mockRejectedValueOnce(new AuthError('invalid session'))
+        .mockResolvedValueOnce('fact'),
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(loginResponse()));
+    configure(client);
+
+    await expect(
+      subscribeOnce({ app: 'vitals', path: '/status/~zod' }, 3000)
+    ).resolves.toBe('fact');
+    expect(trackEvent).toHaveBeenCalledWith(
+      AnalyticsEvent.SubscribeOnceRecovered,
+      expect.objectContaining({ subEndpoint: 'vitals/status/~zod' })
+    );
   });
 });

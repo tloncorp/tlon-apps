@@ -2562,15 +2562,15 @@ export const getThreadPosts = createReadQuery(
 
 export const getThreadUnreadState = createReadQuery(
   'getThreadUnreadState',
-  (
+  async (
     { parentId, channelId }: { parentId: string; channelId?: string },
     ctx: QueryCtx
   ) => {
-    if (!parentId) return Promise.resolve(null);
+    if (!parentId) return null;
 
     // note thread ids are small decimals that repeat across notebooks, so
     // callers that know the channel should pin it to avoid collisions
-    return ctx.db.query.threadUnreads.findFirst({
+    const unread = await ctx.db.query.threadUnreads.findFirst({
       where: channelId
         ? and(
             eq($threadUnreads.threadId, parentId),
@@ -2578,6 +2578,7 @@ export const getThreadUnreadState = createReadQuery(
           )
         : eq($threadUnreads.threadId, parentId),
     });
+    return unread ?? null;
   },
   ['threadUnreads']
 );
@@ -3285,6 +3286,86 @@ export const getChannel = createReadQuery(
       .then(returnNullIfUndefined);
   },
   ['channels']
+);
+
+/**
+ * The dm rows the server is expected to know about: pending rows (a dm the
+ * user opened but hasn't messaged) are excluded, since the server has never
+ * seen them.
+ */
+export const getDmChannelIds = createReadQuery(
+  'getDmChannelIds',
+  async (ctx: QueryCtx): Promise<string[]> => {
+    const rows = await ctx.db.query.channels.findMany({
+      where: and(
+        inArray($channels.type, ['dm', 'groupDm']),
+        // null is the common case: the flag is only ever set on local rows
+        or(
+          isNull($channels.isPendingChannel),
+          eq($channels.isPendingChannel, false)
+        )
+      ),
+      columns: { id: true },
+    });
+    return rows.map((row) => row.id);
+  },
+  ['channels']
+);
+
+/**
+ * The backend's dm list is authoritative: a dm or group dm we have locally
+ * but the backend no longer lists was left, declined, or archived while we
+ * weren't subscribed.
+ *
+ * Only rows in `candidateIds` can go. Callers capture that set (via
+ * getDmChannelIds, which already leaves out pending rows) before they fetch
+ * the snapshot, so a row a live fact inserted while the fetch was in flight,
+ * or a pending dm that got its first message during it, is never mistaken for
+ * one the snapshot omitted. A dm whose first message is still unsent is
+ * exempt as well.
+ */
+export const deleteAbsentDmChannels = createWriteQuery(
+  'deleteAbsentDmChannels',
+  async (
+    { keepIds, candidateIds }: { keepIds: string[]; candidateIds: string[] },
+    ctx: QueryCtx
+  ): Promise<string[]> => {
+    const keep = new Set(keepIds);
+    const absent = candidateIds.filter((id) => !keep.has(id));
+    if (!absent.length) {
+      return [];
+    }
+    const local = await ctx.db.query.channels.findMany({
+      where: and(
+        inArray($channels.id, absent),
+        inArray($channels.type, ['dm', 'groupDm'])
+      ),
+      columns: { id: true },
+    });
+    if (!local.length) {
+      return [];
+    }
+    const unsent = await ctx.db.query.posts.findMany({
+      where: and(
+        inArray(
+          $posts.channelId,
+          local.map((c) => c.id)
+        ),
+        inArray($posts.deliveryStatus, ['enqueued', 'pending', 'failed'])
+      ),
+      columns: { channelId: true },
+    });
+    const unsentChannelIds = new Set(unsent.map((p) => p.channelId));
+    const toDelete = local
+      .map((c) => c.id)
+      .filter((id) => !unsentChannelIds.has(id));
+    if (toDelete.length) {
+      logger.log('deleteAbsentDmChannels', toDelete);
+      await deleteChannels(toDelete, ctx);
+    }
+    return toDelete;
+  },
+  ['channels', 'posts', 'chatMembers']
 );
 
 export const getAllMultiDms = createReadQuery(
