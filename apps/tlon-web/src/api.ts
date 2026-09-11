@@ -12,7 +12,7 @@ import _ from 'lodash';
 
 import { useLocalState } from '@/state/local';
 
-import { actionDrill, isHosted, parseKind } from './logic/utils';
+import { actionDrill, isHosted, parseKind, preSig } from './logic/utils';
 import { useEyreState } from './state/eyre';
 import useSchedulerStore from './state/scheduler';
 
@@ -98,7 +98,9 @@ class API {
     }
 
     this.client = new UrbitBase('', '', window.desk, undefined, hostingUrl);
-    this.client.nodeId = window.ship;
+    // the vendored client compares `nodeId` against the sigiled name it
+    // fetches from `/~/name`, and `window.ship` is bare.
+    this.client.nodeId = preSig(window.ship);
     this.client.verbose = showDevTools;
 
     // the vendored client has no onReconnect/onRetry/onError callbacks; the
