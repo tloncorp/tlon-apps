@@ -106,16 +106,16 @@ For a bug or a change to existing behavior, record what the app does now, before
 
 ```bash
 agent-device devices                       # names, not udids
-agent-device open io.tlon.groups --platform ios --device "stim-<label> (<model> <runtime>)" --session <name>
-agent-device record start <evidence>/before-ios.mp4 --session <name>
+agent-device open io.tlon.groups --platform ios --device "<name>" --session <name>
+agent-device record start <worktree>/.evidence/before-ios.mp4 --session <name>
 agent-device press 'text="<label>"' --session <name> --settle
-agent-device longpress 'text="<label>"' --session <name> --settle   # message actions, pin, delete
+agent-device longpress 'text="<label>"' --session <name> --settle
 agent-device record stop --session <name>
 ```
 
-`--device` takes the **name** agent-device lists, copied verbatim: iOS names look like `stim-<label> (iPhone 17 26.5)`, Android names are bare `stim-<label>`. A udid gives `DEVICE_NOT_FOUND`. `press` and `longpress` are the interaction commands -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
+`--device` takes the **name** exactly as `agent-device devices` prints it; a udid gives `DEVICE_NOT_FOUND`. `press` and `longpress` are the interaction commands -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
 
-Put evidence in `<source checkout>/.worktrees/evidence-<name>/`: gitignored, outside your worktree so `git add -A` cannot commit it, and an absolute path, which matters because `$TMPDIR` differs between sandboxed and unsandboxed shells. After `record stop`, check the file exists; on Android a second recording in the same session has been seen to produce nothing without an error.
+Evidence goes in `.evidence/` at the root of your worktree: gitignored, so it cannot be committed, and removed with the worktree in step 10. Give it as an absolute path, because `$TMPDIR` differs between sandboxed and unsandboxed shells. After `record stop`, check the file exists; on Android a second recording in the same session has been seen to produce nothing without an error.
 
 Reproduce in a throwaway group named after the task (`TLON-1234 repro`), not the default "Untitled group": other agents make those too, and on Android the group list collapses into one label, so same-named groups are indistinguishable.
 
@@ -154,15 +154,15 @@ This is cheap and it is not the same as the review the pull request gets later. 
 Read `pr-description.md` in this skill's directory, then fill `.github/pull_request_template.md` section by section.
 
 ```bash
-gh pr create --draft --base develop --title "<title>" --body-file /absolute/path/pr.md \
-  --attach /absolute/path/before-ios.mp4 --attach /absolute/path/after-ios.mp4
+gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.evidence/pr.md \
+  --attach <worktree>/.evidence/before-ios.mp4 --attach <worktree>/.evidence/after-ios.mp4
 ```
 
 **Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. To label them, attach bare paths and then splice the returned `user-attachments` URLs into the body:
 
 ```bash
-gh pr view <number> --json body -q .body > /absolute/path/body.md   # edit, then:
-gh pr edit <number> --body-file /absolute/path/body.md
+gh pr view <number> --json body -q .body > <worktree>/.evidence/body.md   # edit, then:
+gh pr edit <number> --body-file <worktree>/.evidence/body.md
 gh pr ready <number>
 ```
 
