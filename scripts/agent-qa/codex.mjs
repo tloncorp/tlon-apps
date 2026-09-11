@@ -105,7 +105,7 @@ export function resultSchemaFor(assessment) {
     );
   if (assessment)
     schema.properties.discoveries.items.properties.file.enum = [
-      ...new Set(assessment.scenarios.flatMap((s) => s.files)),
+      ...new Set(assessment.files || assessment.scenarios.flatMap((s) => s.files)),
     ];
   return schema;
 }

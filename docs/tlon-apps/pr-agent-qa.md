@@ -61,8 +61,11 @@ Its shell tool and web search are disabled, edits are blocked by a read-only
 sandbox, and Argent exposes only the selected interaction and inspection tools.
 A fresh CODEX_HOME and temporary working directory avoid personal configuration.
 The installed Argent interaction skill is included in the task instructions.
-After device execution and recording stop, a second Sol/high session reviews the
-original action trace and screenshots through read-only evidence tools. It can
+After device execution and recording stop, a fresh Sol/high visual reviewer examines
+the original actions and screenshots without the plan, source hypotheses, PR prose,
+or operator conclusions. It records before/after transitions and unexpected defects.
+A separate coverage reviewer then receives those observations, the plan and the
+operator result. Both use read-only evidence tools. The coverage review can
 reject an operator pass and surface visual failures; source hypotheses alone do
 not count as reproduced bugs. Review failures retain the original evidence and
 make the missing review explicit. Reports keep code hypotheses separate from
@@ -85,8 +88,8 @@ the separate reporting job still posts the result.
 
 ## Limits and test data
 
-Device execution is capped at nine minutes and 100 MCP tool calls. Source and evidence review each have six minutes and 80 read-only tool calls. The wrapper has a
-25-minute watchdog. JSONL events, diagnostics, token usage, and the structured
+Device execution is capped at nine minutes and 100 MCP tool calls. Blind visual review has four minutes; source and coverage review each have six minutes. Each review has 80 read-only tool calls. The wrapper has a
+30-minute watchdog. JSONL events, diagnostics, token usage, and the structured
 result are saved. Codex does not report dollar cost or per-request usage through
 this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
 OpenRouter key's spending limit for spend management; these run limits are

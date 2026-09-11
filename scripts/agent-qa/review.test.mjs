@@ -10,6 +10,7 @@ import {
   verifySourceReview,
   reviewArgs,
   verifyDiscoveries,
+  visualReviewInput,
 } from './review.mjs';
 import { verifyAssessment } from './assess.mjs';
 
@@ -268,4 +269,19 @@ test('unplanned defects cannot be hidden by passing planned checks or cite nonex
       ]),
     /relevant source/
   );
+});
+
+
+test('blind visual review input excludes the plan and all previous conclusions', () => {
+  const input = visualReviewInput({
+    files: ['screen.tsx', 'unplanned.tsx'],
+    title: 'PR conclusion',
+    body: 'Human findings',
+    sourceReview: { summary: 'Source conclusions' },
+    scenarios: [{ files: ['screen.tsx'], expected: 'Planned criterion' }],
+    operatorResult: { summary: 'Passed' },
+  });
+  assert.deepEqual(Object.keys(input).sort(), ['baselineDeviceEvidence', 'files']);
+  assert.deepEqual(input.files, ['screen.tsx', 'unplanned.tsx']);
+  assert.doesNotMatch(JSON.stringify(input), /conclusion|criterion|Human|Passed/);
 });

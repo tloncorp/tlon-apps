@@ -297,7 +297,7 @@ async function main() {
         head: headSha,
         files,
       });
-      assessment = { ...verifyAssessment(prepared, files), baseSha, headSha };
+      assessment = { ...verifyAssessment(prepared, files), files, baseSha, headSha };
     } else {
       await verifyCodexAuth(process.env.OPENROUTER_API_KEY);
       const sourceReview = await reviewSource({
@@ -380,6 +380,7 @@ Keep all text concise and return the supplied schema. Never claim that assessmen
           { ...JSON.parse(await readFile(result, 'utf8')), sourceReview },
           files
         ),
+        files,
         baseSha,
         headSha,
         tokens,

@@ -620,7 +620,7 @@ async function agent(diff) {
 await mkdir(artifacts, { recursive: true });
 const watchdog = setTimeout(() => {
   void terminate('Harness reached its 25-minute limit');
-}, 25 * 60_000);
+}, 30 * 60_000);
 process.once('SIGTERM', () => void terminate('Workflow was terminated'));
 process.once('SIGINT', () => void terminate('Workflow was interrupted'));
 
