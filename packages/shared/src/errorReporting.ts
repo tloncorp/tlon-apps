@@ -520,6 +520,7 @@ const REGEX_IGNORE_BODIES = [
   'fetch failed: (?:UnexpectedException: )?The network connection was lost\\.(?: \\([^)]*\\))?',
   'fetch failed: java\\.net\\.UnknownHostException: Unable to resolve host "[^"]*"(?:: No address associated with hostname)?',
   'fetch failed: (?:UnexpectedException: )?The request timed out\\.(?: \\([^)]*\\))?',
+  'fetch failed: (?:UnexpectedException: )?Could not connect to the server\\.(?: \\([^)]*\\))?',
 ];
 
 const IGNORE_BODIES = [
