@@ -1,14 +1,15 @@
 # PR simulator QA
 
-`apps/tlon-mobile/.eas/workflows/pr-agent-qa-ios.yml` runs entirely on EAS:
-the iOS build, simulator, Maestro bootstrap, and Codex CLI with Argent all run in the cloud.
+`.github/workflows/mobile-pr-agent-qa.yml` coordinates assessment, fixture setup and testing.
+EAS runs the iOS build, simulator, Maestro bootstrap and Codex CLI with Argent;
+Blacksmith hosts disposable ships and selected deterministic tests.
 No desktop Codex task, local Metro, or developer Mac is needed.
 
 ## Run on a PR
 
 Opening a non-draft PR from this repository, marking it ready, reopening it, or
 pushing a new commit starts a Linux assessment job. No `qa` label is needed.
-New commits cancel the previous same-branch workflow. The workflow must be
+Runs for the same PR are serialized so backend cleanup can finish. The workflow must be
 present on the PR branch, and the EAS project must be connected to GitHub.
 Fork PRs are excluded from credentialed testing.
 
@@ -17,12 +18,12 @@ and diff. It classifies the PR as `test`, `skip`, or `blocked`. It considers
 behavior changes as well as visible UI: error handling, copy, assets, data and
 backend changes can be user-facing. Only a supported conclusion that no
 user-facing behavior changes exist can skip the build and simulator. Missing
-context, large diffs, unsupported platforms and missing fixtures are blocked,
-not silently skipped. The assessment is saved as `pr-qa-assessment`.
+context, large diffs and unsupported platforms are blocked. Supported missing
+fixtures are created by the runner before testing. The assessment is saved as `pr-qa-assessment`.
 
 A `test` assessment includes up to eight scenarios identifying changed files,
-concrete actions, expected results and prerequisites. The simulator agent must
-account for every scenario by its ID and preserve its expected result verbatim
+concrete actions, expected results and prerequisites. Each scenario selects a reviewed fixture recipe and either simulator or regression
+execution. The report must account for every scenario by its ID and preserve its expected result verbatim
 in the findings. A generic successful
 login or Home smoke cannot satisfy this coverage requirement. A `skip` or
 `blocked` assessment posts its reason without starting a native build or simulator.
@@ -30,8 +31,9 @@ login or Home smoke cannot satisfy this coverage requirement. A `skip` or
 The job builds only assessed PRs using the existing `e2e` simulator profile, then rejects
 any mismatch between the assessed base/head, PR head, EAS build commit, and
 checked-out source. It
-uses the EAS preview environment's `MAESTRO_EMAIL`, `MAESTRO_PASSWORD`, and
-`OPENROUTER_API_KEY`, plus `MAESTRO_TEST_SHIP` for the account's expected ship.
+uses verified disposable-ship credentials for provisioned fixtures. Navigation-only
+runs without fixtures use EAS preview's shared-account credentials. `OPENROUTER_API_KEY`
+stays in EAS preview.
 Login must reach Home and the matching own-profile identity before
 the agent can act.
 
@@ -69,14 +71,10 @@ this interface; the old OpenRouter $3 reserve is removed. Use the dedicated
 OpenRouter key's spending limit for spend management; these run limits are
 not a hard dollar cap. EAS runner/build charges remain separate.
 
-The PR path currently shares the existing test ship and permits navigation and
-inspection only. It does not mutate settings, create content, message, invite,
-or modify groups. Scenarios requiring those actions are reported blocked with
-the missing prerequisite until isolated writable accounts are connected to
-this path. The disposable two-ship experiment remains separate. Likewise, the
-PR path does not deploy changed backend desks: checks depending on those changes
-must be blocked rather than claimed as tested against the old backend. EAS currently only cancels
-same-branch runs; a custom concurrency group does not serialize all PRs.
+Provisioned runs use disposable ships and allow writes only within their verified
+fixture. Runs without a setup recipe retain the shared account's navigation-only
+limits. Unsupported fixtures remain explicit blockers; a generic smoke pass
+cannot replace feature coverage.
 
 ## Validate the harness without a native build
 
@@ -300,3 +298,22 @@ The EAS publisher then automatically embedded the video with all six findings
 [in the original PR](https://github.com/tloncorp/tlon-apps/pull/6460#issuecomment-5627538335).
 GitHub's rendered response contains a native `<video>` player. The workflow
 correctly ends in failure for blocked coverage while publication succeeds.
+
+## Provisioned fixture runs
+
+The coordinator first obtains an assessment with a setup plan. `notes-v1` creates
+a group-linked `%notes` notebook, ten long root notes and four notes in a folder
+on disposable ~zod. It reads back notebook identity, folder, note count, owner
+permission and search results before starting the simulator. The agent receives
+those exact IDs/titles and may write only in that fixture. `Getting Started` is
+legacy notebook content and cannot substitute for `%notes` coverage.
+
+The current notes backend gives group readers edit access. The assessor reads
+that compatibility boundary and selects component regression tests for unsupported
+permission combinations; snapshot/reply races use the existing real database
+regression. Their receipts and logs are reported as automated tests, not video
+proof. Both the app and backend product source must match the requested PR.
+
+Fixture setup recipes are reviewed code selected by the assessment; the model
+cannot emit arbitrary setup shell commands. New feature families need additional
+recipes. Original shared-account results above are historical qualifications.

@@ -1,7 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
 
-export function verifyPeer(proof, sha, tag, complete = false) {
+export function verifyPeer(proof, sha, tag, complete = false, plan = null) {
   if (
     proof.source !== sha ||
     !/^[a-f0-9]{40}$/.test(sha) ||
@@ -10,11 +10,30 @@ export function verifyPeer(proof, sha, tag, complete = false) {
     !proof.deskHashes?.[0] ||
     proof.deskHashes.length !== 2 ||
     proof.deskHashes[0] !== proof.deskHashes[1] ||
-    (complete && proof.replyVerified !== true)
+    (complete &&
+      (plan ? proof.fixtureVerified !== true : proof.replyVerified !== true))
   ) {
     throw new Error(
       'Backend proof does not match the requested source, fixture, or peer receipt'
     );
+  }
+  if (plan) {
+    for (const recipe of plan.setup.fixtures) {
+      const fixture = proof.fixtures?.find((f) => f.recipe === recipe);
+      if (
+        !fixture?.verified ||
+        fixture.groupId !== proof.group.groupId ||
+        !fixture.channelId?.startsWith('notes/~zod/') ||
+        fixture.noteCount < 1 ||
+        !fixture.searchVerified ||
+        !fixture.writable
+      )
+        throw new Error('Requested fixture was not provisioned and verified');
+    }
+    for (const result of proof.regressionResults || []) {
+      if (result.source !== plan.headSha)
+        throw new Error('Regression evidence source mismatch');
+    }
   }
   return proof;
 }
@@ -51,7 +70,8 @@ export async function connectShips(env) {
       await response.json(),
       env.QA_BACKEND_SHA,
       env.QA_RUN_TAG,
-      complete
+      complete,
+      env.QA_MODE === 'pull_request' ? JSON.parse(env.QA_ASSESSMENT_JSON) : null
     );
   };
   const ready = await proof(false);

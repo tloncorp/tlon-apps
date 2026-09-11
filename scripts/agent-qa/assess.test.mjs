@@ -56,10 +56,9 @@ test('QA overlay accepts tooling only and refuses altered product source', () =>
       () => verifySourceOverlay(head, '--bad-ref'),
       /Invalid QA overlay/
     );
-    assert.throws(
-      () => verifySourceOverlay(git('rev-parse', 'HEAD')),
-      /direct child/
-    );
+    assert.doesNotThrow(() => verifySourceOverlay(git('rev-parse', 'HEAD')));
+    git('commit', '--allow-empty', '-m', 'grandchild');
+    assert.throws(() => verifySourceOverlay(head), /direct child/);
   } finally {
     process.chdir(before);
     rmSync(dir, { recursive: true, force: true });
@@ -74,9 +73,13 @@ const scenario = {
   steps: ['Open a test conversation', 'Attempt a send while offline'],
   expected: 'The message shows an error and retry action',
   prerequisites: 'Isolated writable account and network control',
+  method: 'simulator',
+  fixture: 'none',
+  regression: 'none',
 };
 const plan = {
   decision: 'test',
+  setup: { fixtures: [] },
   reason: 'Changes send failure behavior',
   changes: ['Send failure handling'],
   scenarios: [scenario],
@@ -101,6 +104,7 @@ test('assessment requires traceable behavioral scenarios and cannot skip known u
     verifyAssessment(
       {
         decision: 'skip',
+        setup: { fixtures: [] },
         reason: 'Documentation only',
         changes: [],
         scenarios: [],

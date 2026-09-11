@@ -1,11 +1,11 @@
 name: PR agent QA (iOS)
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    if: ${{ !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}
   workflow_dispatch:
     inputs:
+      prepared_assessment_json:
+        type: string
+        description: Source-checked setup and test plan from the cloud coordinator
       full_pr_run:
         type: boolean
         default: false
@@ -54,6 +54,7 @@ jobs:
     env:
       QA_PR_JSON: ${{ inputs.assessment_pr_json || toJSON(github.event.pull_request) }}
       QA_FULL_PR_RUN: ${{ inputs.full_pr_run && 'true' || 'false' }}
+      QA_PREPARED_ASSESSMENT_JSON: ${{ inputs.prepared_assessment_json || '' }}
       QA_ASSESSMENT_ONLY: ${{ github.event_name != 'pull_request' && 'true' || 'false' }}
     outputs:
       pr_number: ${{ steps.assess.outputs.pr_number }}

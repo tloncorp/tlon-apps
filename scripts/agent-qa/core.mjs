@@ -148,7 +148,7 @@ export function renderReport(context, report, usage) {
     `Harness commit: \`${context.harnessSha}\` · Device: ${context.device || 'not started'}`,
     ...(context.backend
       ? [
-          `Backend commit: \`${context.backend.source}\` · Peer receipt: ${context.backend.replyVerified === true ? 'verified on ~ten' : 'not verified'}`,
+          `Backend commit: \`${context.backend.source}\` · ${context.backend.fixtures?.length ? `Fixture setup: ${context.backend.fixtures.every((f) => f.verified) ? 'verified' : 'not verified'}` : `Peer receipt: ${context.backend.replyVerified === true ? 'verified on ~ten' : 'not verified'}`}`,
         ]
       : []),
     context.otaDisabled

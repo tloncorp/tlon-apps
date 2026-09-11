@@ -270,10 +270,16 @@ async function prepare() {
     deviceTools: 'Argent 0.23.0',
   };
   if (env.QA_SHIP_URL) {
-    if (env.QA_MODE !== 'workflow_dispatch' || context.testShip !== '~zod')
+    if (
+      context.testShip !== '~zod' ||
+      (env.QA_MODE === 'pull_request' &&
+        !context.assessment.setup.fixtures.length)
+    )
       throw new Error(
-        'Remote ship proof currently requires manual harness validation as ~zod'
+        'Disposable backend requires ~zod and an explicit fixture plan'
       );
+    if (env.QA_MODE === 'pull_request')
+      verifySourceOverlay(context.pr.head.sha, env.QA_BACKEND_SHA);
     ships = await connectShips(env);
     context.backend = ships.ready;
     const manifest = JSON.parse(
@@ -508,7 +514,17 @@ async function agent(diff) {
     env,
     deviceEnv,
     artifacts,
-    context,
+    context: context.assessment
+      ? {
+          ...context,
+          assessment: {
+            ...context.assessment,
+            scenarios: context.assessment.scenarios.filter(
+              (s) => s.method === 'simulator'
+            ),
+          },
+        }
+      : context,
     udid,
     diff,
     clean,
@@ -521,6 +537,36 @@ async function agent(diff) {
   );
   await capture();
   await capture([], true);
+  if (context.assessment) {
+    const receipts = context.backend?.regressionResults || [];
+    evidence.set('regression-tests', {
+      file: 'regression-results.json',
+      screenshot: false,
+      command: 'Selected regression recipes on the backend runner',
+    });
+    await writeFile(
+      path.join(artifacts, 'regression-results.json'),
+      JSON.stringify(receipts)
+    );
+    for (const scenario of context.assessment.scenarios.filter(
+      (s) => s.method === 'regression'
+    )) {
+      const receipt = receipts.find((r) => r.id === scenario.regression);
+      result.checks.push({
+        scenarioId: scenario.id,
+        method: 'regression',
+        expected: scenario.expected,
+        status: receipt?.status === 'passed' ? 'passed' : 'blocked',
+        observed: `Automated regression, not a simulator check: ${receipt?.summary || 'No verified test receipt'}`,
+        evidence: receipt ? ['regression-tests'] : [],
+      });
+    }
+    result.status = result.checks.some((c) => c.status === 'failed')
+      ? 'failed'
+      : result.checks.some((c) => c.status === 'blocked')
+        ? 'blocked'
+        : 'passed';
+  }
   report = verifyCoverage(verifyReport(result, evidence), context.assessment);
 }
 
@@ -554,7 +600,7 @@ try {
   const diff = await prepare();
   await startRecording();
   await agent(diff);
-  if (ships && report.status === 'passed') {
+  if (ships && (report.status === 'passed' || context.assessment)) {
     context.backend = await ships.verify();
     await writeFile(
       path.join(artifacts, 'peer-result.json'),

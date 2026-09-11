@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { seedNotes } from '../../scripts/agent-qa/seed-notes';
 import { TlonActorClient } from '../../packages/tlon-bot-e2e/src/tlon/actor';
 
 // Runs on the CI host. No peer control service is exposed to the internet.
@@ -81,8 +82,23 @@ async function main() {
       (p) => p.authorId === '~ten' && p.text === `${tag} from ten`
     )
   );
+  const setup = JSON.parse(process.env.QA_FIXTURE_PLAN || '{"fixtures":[]}');
+  const fixtures = [];
+  if (setup.fixtures.includes('notes-v1'))
+    fixtures.push(
+      await seedNotes({
+        url: process.env.PROOF_PUBLIC_URL!,
+        code: manifest['~zod'].code,
+        groupId: group.groupId,
+        tag,
+      })
+    );
   const evidence = {
-    source: process.env.GITHUB_SHA,
+    fixtures,
+    regressionResults: existsSync(`${out}/regression-results.json`)
+      ? JSON.parse(readFileSync(`${out}/regression-results.json`, 'utf8'))
+      : [],
+    source: readFileSync(`${out}/source.txt`, 'utf8').trim(),
     snapshotSource: snapshot?.source,
     previousFixtureCleared: snapshot ? true : null,
     controllerStreamMs,
@@ -92,6 +108,14 @@ async function main() {
   };
   writeFileSync(`${out}/peer-ready.json`, JSON.stringify(evidence, null, 2));
   console.log('PEER_READY', JSON.stringify(evidence));
+  if (process.env.QA_PR_MODE === 'true') {
+    writeFileSync(
+      `${out}/peer-result.json`,
+      JSON.stringify({ ...evidence, fixtureVerified: true }, null, 2)
+    );
+    console.log('PR_FIXTURE_READY');
+    process.exit(0);
+  }
   await until(
     'native reply reaches ten',
     async () =>
