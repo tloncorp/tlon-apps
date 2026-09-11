@@ -6,7 +6,7 @@ import { ColorTokens, View, XStack } from 'tamagui';
 
 import { useNavigation } from '../contexts/navigation';
 import { ContactAvatar } from './Avatar';
-import { Badge } from './Badge';
+import { BotBadge } from './BotBadge';
 import { ChatMessageDeliveryStatus } from './ChatMessage/ChatMessageDeliveryStatus';
 import { ContactName } from './ContactNameV2';
 import { SentTimeText } from './SentTimeText';
@@ -117,7 +117,7 @@ export function DetailViewAuthorRow({
         <ContactName contactId={authorId} />
       </Text>
       {showSentAt && <SentTimeText sentAt={sent} showFullDate />}
-      {isBot && <Badge type="neutral" size="micro" text="Bot" />}
+      {isBot && <BotBadge contactId={authorId} assumeBot />}
     </XStack>
   );
 }
@@ -169,7 +169,7 @@ export function ChatAuthorRow({
           <ContactName contactId={authorId} />
         </Text>
         {showSentAt && <SentTimeText sentAt={sent} paddingTop="$xs" />}
-        {isBot && <Badge type="neutral" size="micro" text="Bot" />}
+        {isBot && <BotBadge contactId={authorId} assumeBot />}
         {showEditedIndicator && (
           <Text size="$label/m" color="$secondaryText" paddingTop="$xs">
             Edited

@@ -7,8 +7,19 @@
 +$  status  $~(%unknown ?(%unknown %up %down))
 ::  $state: the gateway state as seen by the ship
 ::
+::    .notify-on-start: an owner-initiated stop (a hosted model change) is
+::    pending, so the next %gateway-start sends the back-online notice even
+::    if the owner hasn't messaged recently.
+::    .last-interaction: when anyone last engaged the bot — a group @-mention,
+::    a reply in one of its threads, or a DM — which widens the restart-notice
+::    window beyond the owner's own DMs (.last-owner-msg).
+::    both new fields lead so the app's %0→%1 migration is a one-line cons
+::    ([| *@da gateway.old]).
+::
 +$  state
-  $:  last-owner-msg=@da
+  $:  notify-on-start=?
+      last-interaction=@da
+      last-owner-msg=@da
       last-owner-msg-id=(unit message-key:a)
       =status
       boot-id=(unit @t)
