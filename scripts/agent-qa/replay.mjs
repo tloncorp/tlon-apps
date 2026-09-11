@@ -2,7 +2,9 @@
 // Artifact URLs stay in the subprocess request and are never printed here.
 import { execFileSync } from 'node:child_process';
 import { selectEvidence } from './publish.mjs';
-const [id, ref] = process.argv.slice(2);
+const [id, ref, mode] = process.argv.slice(2);
+if (mode && mode !== 'present')
+  throw new Error('Expected optional present mode');
 if (
   !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(id || '') ||
   !/^[a-zA-Z0-9][a-zA-Z0-9/_.-]{0,199}$/.test(ref || '')
@@ -45,7 +47,7 @@ try {
     '--ref',
     ref,
     '-F',
-    `review_evidence_json=${JSON.stringify(descriptor)}`,
+    `${mode === 'present' ? 'present_evidence_json' : 'review_evidence_json'}=${JSON.stringify(descriptor)}`,
   ]);
   const started = Array.isArray(value) ? value[0] : value;
   console.log(

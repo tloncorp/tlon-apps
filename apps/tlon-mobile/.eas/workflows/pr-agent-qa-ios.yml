@@ -31,6 +31,9 @@ on:
         type: string
       run_tag:
         type: string
+      present_evidence_json:
+        type: string
+        description: Reformat and publish an existing recorded report with finding clips; use replay.mjs with present
       review_evidence_json:
         type: string
         description: Prepared replay descriptor; use scripts/agent-qa/replay.mjs
@@ -44,6 +47,37 @@ defaults:
     node: '22.22.0'
 
 jobs:
+  present_recording:
+    if: ${{ inputs.present_evidence_json }}
+    environment: preview
+    runs_on: linux-medium
+    env:
+      QA_PRESENT_EVIDENCE: ${{ inputs.present_evidence_json }}
+    outputs:
+      comment_url: ${{ steps.publish.outputs.comment_url }}
+    steps:
+      - uses: eas/checkout
+      - name: Install the report editor and clip tools
+        run: |
+          npm install -g @openai/codex@0.145.0
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
+          curl --fail --location --retry 2 https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
+          echo 'ed4960225d2833e04a61590d9fa2b5773d147f3aa375459e5466a40c102f3832  /tmp/gh.tar.gz' | sha256sum --check
+          tar -xzf /tmp/gh.tar.gz -C /tmp
+      - name: Explain recorded findings and attach their clips automatically
+        id: publish
+        run: |
+          node ../../scripts/agent-qa/present-run.mjs || exit 1
+          set-output comment_url "$(cat /tmp/qa-comment-url)"
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: qa-presentation
+          path: artifacts/qa-presentation/**
   review_recording:
     if: ${{ inputs.review_evidence_json }}
     environment: preview
@@ -132,6 +166,7 @@ jobs:
     outputs:
       report: ${{ steps.run.outputs.report }}
       video_artifact: ${{ steps.video.outputs.artifact_id }}
+      evidence_artifact: ${{ steps.evidence.outputs.artifact_id }}
     env:
       QA_EXPECTED_BUILD_ID: ${{ inputs.full_pr_run && inputs.build_id || '' }}
       QA_BUILD_ID: ${{ after.build_ios.outputs.build_id || after.reuse_build.outputs.build_id || inputs.build_id }}
@@ -178,6 +213,7 @@ jobs:
           name: ios-agent-qa-video
           path: artifacts/agent-qa-video/test-session.mp4
       - uses: eas/upload_artifact
+        id: evidence
         if: ${{ always() }}
         with:
           type: other
@@ -200,14 +236,20 @@ jobs:
     outputs:
       comment_url: ${{ steps.publish.outputs.comment_url }}
     steps:
+      - uses: eas/checkout
       - name: Check the GitHub upload credential
         run: |
           if [ -z "${GH_QA_TOKEN:-}" ]; then
             echo 'Set the EAS preview GH_QA_TOKEN secret to a GitHub OAuth token, classic PAT, or fine-grained PAT with repository write access. Video embedding requires this credential.'
             exit 1
           fi
-      - name: Install GitHub CLI with native video uploads
+      - name: Install report editing, clips, and native video uploads
         run: |
+          npm install -g @openai/codex@0.145.0
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y ffmpeg
+          fi
           curl --fail --location --retry 2 https://github.com/cli/cli/releases/download/v2.99.0/gh_2.99.0_linux_amd64.tar.gz -o /tmp/gh.tar.gz
           echo 'ed4960225d2833e04a61590d9fa2b5773d147f3aa375459e5466a40c102f3832  /tmp/gh.tar.gz' | sha256sum --check
           tar -xzf /tmp/gh.tar.gz -C /tmp
@@ -215,22 +257,24 @@ jobs:
         id: recording
         with:
           artifact_id: ${{ after.qa_ios.outputs.video_artifact }}
-      - name: Post the QA report with an inline video player
+      - uses: eas/download_artifact
+        id: evidence
+        with:
+          artifact_id: ${{ after.qa_ios.outputs.evidence_artifact }}
+      - name: Explain findings and embed their clips
         id: publish
+        env:
+          QA_EVIDENCE_PATH: ${{ steps.evidence.outputs.artifact_path }}
+          QA_VIDEO_PATH: ${{ steps.recording.outputs.artifact_path }}
         run: |
-          export GH_TOKEN="$GH_QA_TOKEN"
-          node <<'JS'
-          const { writeFileSync } = require('node:fs');
-          const { QA_REPORT, QA_PR_NUMBER, QA_HEAD_SHA, QA_WORKFLOW_URL } = process.env;
-          if (!/^[1-9][0-9]*$/.test(QA_PR_NUMBER) || !/^[a-f0-9]{40}$/.test(QA_HEAD_SHA)) throw new Error('Missing PR provenance');
-          writeFileSync('/tmp/qa-report.md', [
-            '## iOS agent QA', '', QA_REPORT, '',
-            `[Run and evidence](${QA_WORKFLOW_URL}) · Requested commit \`${QA_HEAD_SHA}\``, '',
-            'Advisory result. Simulator checks do not qualify physical-device performance, push delivery, or store builds.', '',
-          ].join('\n'));
-          JS
-          comment_url="$(/tmp/gh_2.99.0_linux_amd64/bin/gh pr comment "$QA_PR_NUMBER" --repo tloncorp/tlon-apps --body-file /tmp/qa-report.md --attach "${{ steps.recording.outputs.artifact_path }}")" || exit 1
-          set-output comment_url "$comment_url"
+          node ../../scripts/agent-qa/present-run.mjs || exit 1
+          set-output comment_url "$(cat /tmp/qa-comment-url)"
+      - uses: eas/upload_artifact
+        if: ${{ always() }}
+        with:
+          type: other
+          name: qa-presentation
+          path: artifacts/qa-presentation/**
 
   report:
     after: [assess_pr, build_ios, qa_ios, report_video]

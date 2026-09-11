@@ -116,6 +116,7 @@ export function reviewArgs(options, mode) {
       !(arg === '-c' && all[i + 1]?.startsWith('mcp_servers.'))
   );
   args.pop();
+  if (mode === 'editorial') return [...args, '-'];
   const names = (
     mode === 'source'
       ? sourceTools
@@ -138,7 +139,7 @@ export function reviewArgs(options, mode) {
     '-',
   ];
 }
-async function session({
+export async function session({
   mode,
   schema: outputSchema,
   instructions,

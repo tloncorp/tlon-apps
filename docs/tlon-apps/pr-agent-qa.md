@@ -357,3 +357,33 @@ successful assessment from this project. The coordinator requires the same base
 and head, and EAS revalidates all source citations and scenario bindings. This
 reuses planning only; disposable setup, simulator execution, reviews, publication
 and cleanup still run again. Omit the input for a fresh model assessment.
+
+### Readable findings and short clips
+
+The `report_video` job runs a text-only Sol editor after the reviewers finish.
+It groups duplicate descriptions of the same problem and explains when it happens,
+what the reviewer saw, and the practical consequence. Every original finding must
+appear in exactly one group; failed and blocked findings cannot be merged. The
+editor has no media, source, shell, or other tools and makes no new review verdict.
+All original observations, checks, source hypotheses, and source commits remain in
+collapsed sections of the comment and in the original artifacts.
+
+Each group receives up to three normal-speed excerpts, selected from existing
+video-frame receipts with two seconds before and three seconds after the reviewed
+interval. When only recorded action times exist, the comment labels that timing
+as approximate. Missing timing produces an explicit no-clip note. Clips retain
+source timestamp ranges and extraction receipts; the full recording remains
+available. Synthetic tests require a one-frame flash to survive trimming at its
+expected offset. GitHub CLI replaces local clip references in place, and the
+publisher verifies that every clip and the full recording render as video players.
+
+To exercise only this publishing flow on an existing run (no simulator, no new
+product review), run from `apps/tlon-mobile`:
+
+```sh
+node ../../scripts/agent-qa/replay.mjs EAS_RUN_UUID QA_REF present
+```
+
+This publishes a new presentation of the original test results to that PR. It
+requires the PR to still match the tested commit and retains the original run
+link. The standard full QA flow invokes the same script automatically.
