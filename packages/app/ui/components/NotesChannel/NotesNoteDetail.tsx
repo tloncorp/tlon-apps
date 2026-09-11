@@ -498,6 +498,11 @@ export function NotesNoteDetail({
   // down by the height of the header on the first restore.
   const scrollOffsetYRef = useRef<number | null>(null);
   const pendingScrollRestoreYRef = useRef<number | null>(null);
+  // Geometry from the same scroll event as the offset above, so a restore can
+  // tell whether the view was parked at the end when the offset was captured.
+  const scrollContentHeightRef = useRef(0);
+  const scrollLayoutHeightRef = useRef(0);
+  const pendingScrollRestoreAtEndRef = useRef(false);
 
   const { folders, notes, canEdit, rootFolderId, gate } = useNotebookData(
     notebookFlag,
@@ -774,20 +779,43 @@ export function NotesNoteDetail({
     scrolledNoteIdRef.current = noteId;
     scrollOffsetYRef.current = null;
     pendingScrollRestoreYRef.current = null;
+    scrollContentHeightRef.current = 0;
+    scrollLayoutHeightRef.current = 0;
+    pendingScrollRestoreAtEndRef.current = false;
   }, [noteId]);
+
+  const recordScrollGeometry = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } =
+        event.nativeEvent;
+      scrollOffsetYRef.current = contentOffset.y;
+      scrollContentHeightRef.current = contentSize.height;
+      scrollLayoutHeightRef.current = layoutMeasurement.height;
+    },
+    []
+  );
 
   const preserveScrollOffset = useCallback(() => {
     if (isPreviewing) return;
-    // This runs before the change that reflows the note, so the live offset is
-    // still where the viewport should stay. Preferring an older drag position
-    // would instead move it, and after UIKit scrolls to reveal the caret for
-    // an opening keyboard, moving it puts the caret back behind the keyboard.
-    // Nothing observed yet means the view sits wherever UIKit put it, which is
-    // already right; inventing an offset is what buried the body under the
-    // transparent header.
+    // Only call this immediately before a state change the restore effect's
+    // dependencies observe: the pending value is consumed by the next run of
+    // that effect, so one armed without a matching reflow lands on an
+    // unrelated one later.
+    // The live offset -- not an older drag position -- is what the viewport
+    // should keep. Nothing observed yet means the view sits wherever UIKit put
+    // it, which is already right; inventing an offset is what buried the body
+    // under the transparent header.
     const candidate = scrollOffsetYRef.current;
     if (candidate === null) return;
     pendingScrollRestoreYRef.current = candidate;
+    // Offsets past contentSize - layoutMeasurement are only reachable while
+    // automaticallyAdjustKeyboardInsets is extending the range, so this marks
+    // "parked at the end with the keyboard open" -- the one case where holding
+    // the offset fixed walks the caret off the bottom of the screen.
+    pendingScrollRestoreAtEndRef.current =
+      scrollLayoutHeightRef.current > 0 &&
+      candidate >=
+        scrollContentHeightRef.current - scrollLayoutHeightRef.current;
   }, [isPreviewing]);
 
   useLayoutEffect(() => {
@@ -795,13 +823,24 @@ export function NotesNoteDetail({
     if (restoreY === null || isPreviewing) return;
 
     pendingScrollRestoreYRef.current = null;
-    // Restored unbounded on purpose. Every value here is one the scroll view
-    // reported, so it is reachable by construction, and with the keyboard open
-    // automaticallyAdjustKeyboardInsets makes offsets past the inset-free end
-    // valid; bounding them there would scroll the caret behind the keyboard.
-    // scrollTo is clamped to the live range by UIKit regardless.
+    const atEnd = pendingScrollRestoreAtEndRef.current;
+    pendingScrollRestoreAtEndRef.current = false;
     requestAnimationFrame(() => {
-      scrollViewRef.current?.scrollTo({ y: restoreY, animated: false });
+      const view = scrollViewRef.current;
+      if (!view) return;
+      if (atEnd) {
+        // The view was parked past the inset-free end, which only happens when
+        // the keyboard has extended the range and the user is appending there.
+        // Holding the captured offset walks the caret down a line at a time
+        // until the keyboard covers it; following the end keeps it in view.
+        view.scrollToEnd({ animated: false });
+        return;
+      }
+      // Everywhere else the body grows below the caret, so the captured offset
+      // is already the one that holds the viewport still. Restored unbounded
+      // on purpose: it is a value the scroll view reported, so it is reachable
+      // by construction, and scrollTo is clamped to the live range regardless.
+      view.scrollTo({ y: restoreY, animated: false });
     });
   }, [bodyDraft, bodyInputHeight, draftBase, isPreviewing, saveState]);
 
@@ -1320,7 +1359,11 @@ export function NotesNoteDetail({
       bodyToSave !== ctx.base.bodyMd;
     if (!dirty) return;
     const { flag, base } = ctx;
-    preserveScrollOffset();
+    // No preserve: a flush only sends the poke and writes the stash, so it
+    // reflows nothing. Arming one here would leave a restore pending that no
+    // dependency of the restore effect consumes -- on the AppState path the
+    // component stays mounted, so it would land on some later reflow with an
+    // offset captured when the app backgrounded.
     rememberNotesNoteDraftSnapshot(
       {
         notebookFlag: flag,
@@ -1366,7 +1409,6 @@ export function NotesNoteDetail({
     finishSave,
     handleSuccessfulSave,
     isCurrentNote,
-    preserveScrollOffset,
     reportConflict,
     runSave,
   ]);
@@ -1528,18 +1570,18 @@ export function NotesNoteDetail({
 
   const handleScroll = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
+      recordScrollGeometry(event);
     },
-    []
+    [recordScrollGeometry]
   );
 
   // onScroll is throttled, so the settled offset can differ from the last one
   // it reported; the end handlers record where the scroll actually came to rest.
   const handleScrollEnd = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
+      recordScrollGeometry(event);
     },
-    []
+    [recordScrollGeometry]
   );
 
   const handleTitleDraftChange = useCallback((nextTitle: string) => {
@@ -1555,16 +1597,15 @@ export function NotesNoteDetail({
       if (bodyDraftRef.current === nextBody) {
         return;
       }
+      // Typing reflows the body, and the outer scroll view does not follow the
+      // caret on its own here, so every keystroke has to re-assert where the
+      // viewport belongs -- see the restore effect for the two cases.
       preserveScrollOffset();
       bodyDraftRef.current = nextBody;
       setBodyDraft(nextBody);
     },
     [preserveScrollOffset]
   );
-
-  const handleBodyInputFocus = useCallback(() => {
-    preserveScrollOffset();
-  }, [preserveScrollOffset]);
 
   const handleBodyInputLayout = useCallback(
     (event: { nativeEvent: { layout: { width: number } } }) => {
@@ -1802,7 +1843,6 @@ export function NotesNoteDetail({
                   height={useWebEditorPane ? undefined : bodyInputHeight}
                   value={bodyDraft}
                   onChangeText={handleBodyDraftChange}
-                  onFocus={handleBodyInputFocus}
                   onLayout={handleBodyInputLayout}
                   placeholder="Note body"
                   placeholderTextColor="$tertiaryText"
