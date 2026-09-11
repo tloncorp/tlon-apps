@@ -88,6 +88,8 @@ env:
 - tapOn: '^Reply$'
 - assertNotVisible: ${output.reliability.editedTextPattern}
 - assertVisible: ${output.reliability.textPattern}
+# Reopening Reply focuses the empty composer; dismiss it before navigating.
+- hideKeyboard
 - tapOn: '^Back$'
 - tapOn: '^Back$'
 - tapOn: ${output.reliability.groupPattern}
