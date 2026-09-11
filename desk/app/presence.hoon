@@ -78,6 +78,64 @@
     [%group ship=@ term=@ ~]           (slav %p i.t.context)
   ==
 ::
++$  membership
+  ::  what it takes to participate in a context, once resolved
+  ::
+  $%  [%any ~]
+      [%dm peer=ship]
+      [%channel group=flag:gv kind=@tas host=ship name=@tas]
+      [%group =flag:gv]
+  ==
+::
+++  resolve-context
+  ::  the context-level half of the participant check: resolves the
+  ::  channel to its group and confirms we know it. done once per
+  ::  context so per-ship checks don't repeat these scries.
+  ::
+  |=  [=context =bowl:gall]
+  ^-  (each membership term)
+  ?+  context  &+[%any ~]
+      [%dm @ ~]
+    ?~  peer=(slaw %p i.t.context)  |+%presence-bad-path
+    &+[%dm u.peer]
+  ::
+      [%channel @ @ @ ~]
+    ?~  host=(slaw %p i.t.t.context)  |+%presence-bad-path
+    =*  kind  i.t.context
+    =*  name  i.t.t.t.context
+    =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
+    ?~  group  |+%presence-unknown-channel
+    ?.  (has-group u.group bowl)  |+%presence-unknown-channel-group
+    &+[%channel u.group kind u.host name]
+  ::
+      [%group @ @ ~]
+    ?~  host=(slaw %p i.t.context)  |+%presence-bad-path
+    =/  =flag:gv  [u.host i.t.t.context]
+    ?.  (has-group flag bowl)  |+%presence-unknown-group
+    &+[%group flag]
+  ==
+::
+++  member-error
+  ::  the per-ship half: why .who may not participate, if at all
+  ::
+  |=  [who=ship =membership =bowl:gall]
+  ^-  (unit term)
+  ?-  -.membership
+      %any  ~
+      %dm   ?:(=(who peer.membership) ~ `%presence-not-dm-counterparty)
+      %group
+    ?:((has-seat flag.membership who bowl) ~ `%presence-not-group-member)
+  ::
+      %channel
+    ::  the channel host can always read its own channel, whatever its
+    ::  roles say, mirroring +can-read:perms in /lib/channel-utils
+    ::
+    ?:  =(who host.membership)  ~
+    =,  membership
+    ?:  (can-read group kind host name who bowl)  ~
+    `%presence-cannot-read-channel
+  ==
+::
 ++  participant-error
   ::  why .who may not participate in .context, if at all.
   ::  we are the context host here. the term ends up in the nack tang
@@ -85,28 +143,9 @@
   ::
   |=  [who=ship =context =bowl:gall]
   ^-  (unit term)
-  ?+  context  ~
-      [%dm @ ~]
-    ?~  peer=(slaw %p i.t.context)  `%presence-bad-path
-    ?:  =(who u.peer)  ~
-    `%presence-not-dm-counterparty
-  ::
-      [%channel @ @ @ ~]
-    ?~  host=(slaw %p i.t.t.context)  `%presence-bad-path
-    =*  kind  i.t.context
-    =*  name  i.t.t.t.context
-    =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
-    ?~  group  `%presence-unknown-channel
-    ?.  (has-group u.group bowl)  `%presence-unknown-channel-group
-    ?.  (can-read u.group kind u.host name who bowl)
-      `%presence-cannot-read-channel
-    ~
-  ::
-      [%group @ @ ~]
-    ?~  host=(slaw %p i.t.context)  `%presence-bad-path
-    ?:  (has-seat [u.host i.t.t.context] who bowl)  ~
-    `%presence-not-group-member
-  ==
+  =/  res  (resolve-context context bowl)
+  ?:  ?=(%| -.res)  `p.res
+  (member-error who p.res bowl)
 ::
 ++  context-readable
   ::  whether we, as a subscriber, should still expect the host to accept
@@ -123,6 +162,7 @@
   =*  name  i.t.t.t.context
   =/  group=(unit flag:gv)  (group-for-channel kind u.host name bowl)
   ?~  group  |
+  ?.  (has-group u.group bowl)  |
   (can-read u.group kind u.host name our.bowl bowl)
 ::
 ++  has-group
@@ -133,9 +173,9 @@
   .^(? %gu (weld base /groups/(scot %p p.flag)/[q.flag]))
 ::
 ++  has-seat
+  ::  callers check +has-group first
   |=  [=flag:gv who=ship =bowl:gall]
   ^-  ?
-  ?.  (has-group flag bowl)  |
   =;  seat
     ?=(^ seat)
   .^  (unit seat:v7:gv)  %gx
@@ -145,12 +185,11 @@
 ::
 ++  can-read
   ::  whether .who may read channel [kind host name] of .group, according
-  ::  to our %groups. false if we don't have the group, or if the channel
-  ::  is no longer part of it.
+  ::  to our %groups. false if the channel is no longer part of the group.
+  ::  callers check +has-group first.
   ::
   |=  [group=flag:gv kind=@tas host=ship name=@tas who=ship =bowl:gall]
   ^-  ?
-  ?.  (has-group group bowl)  |
   .^  ?  %gx
     %+  weld  /(scot %p our.bowl)/groups/(scot %da now.bowl)
     %+  weld  /v2/groups/(scot %p p.group)/[q.group]
@@ -223,10 +262,14 @@
   ::
   |=  [=context subs=(jug context ship) =bowl:gall]
   ^-  [(list card) _subs]
+  ::  resolve the context once; only the per-ship check runs in the loop
+  ::
+  =/  res  (resolve-context context bowl)
   =/  bad=(list ship)
     %+  skip  ~(tap in (~(get ju subs) context))
     |=  who=ship
-    =(~ (participant-error who context bowl))
+    ?:  ?=(%| -.res)  |
+    =(~ (member-error who p.res bowl))
   ::NOTE  not ?~, which would narrow .bad and make +roll nest-fail
   ?:  =(~ bad)  [~ subs]
   :_  %+  roll  bad
@@ -275,7 +318,9 @@
   %+  murn  ~(tap by chans)
   |=  [=nest:v9:cv =channel:v9:cv]
   ^-  (unit [ship context])
-  ?.  (can-read group.perm.channel kind.nest ship.nest name.nest our.bowl bowl)
+  ?.  ?&  (has-group group.perm.channel bowl)
+          (can-read group.perm.channel kind.nest ship.nest name.nest our.bowl bowl)
+      ==
     ~
   `[ship.nest /channel/[kind.nest]/(scot %p ship.nest)/[name.nest]]
 ::
@@ -755,6 +800,8 @@
       [(tell:log %dbug ~['setup(specific): no longer wanted, skipping' >ship< >context<] ~)]~
     ::  likewise if we can no longer read it: the channel was deleted from
     ::  its group, or we lost read access. the host would keep nacking us.
+    ::  if access comes back, the next activity event in the channel (any
+    ::  post) re-registers it via /activity/all, as does any full setup.
     ::
     ?.  (context-readable context bowl)
       =.  want   (~(del in want) [ship context])

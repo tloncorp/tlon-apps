@@ -372,4 +372,23 @@
       (ex-fact ~[/v1] %presence-response-1 !>(`response-1:p`[%here key [t0 ~] display]))
       (ex-arvo [%expire (scot %p host) %typing host-context] [%b %wait (add t0 ~s30)])
   ==
+::
+::  the channel host can set presence in its own channel even when its
+::  group roles would not let it read it. ~zod hosts; who-scry says only
+::  ~ten can read.
+::
+++  test-host-sets-presence-without-reader-role
+  %-  eval-mare
+  =/  m  (mare ,~)
+  ^-  form:m
+  ;<  ~  bind:m  setup
+  ;<  ~  bind:m  (set-scry-gate who-scry)
+  =/  =key:p  [host-context ~zod %typing]
+  ;<  caz=(list card)  bind:m
+    %+  do-poke  %presence-command-1
+    !>(`command-1:p`[%set ~ key [t0 ~] display])
+  %+  ex-cards  caz
+  :~  (ex-fact ~[/v1] %presence-response-1 !>(`response-1:p`[%here key [t0 ~] display]))
+      (ex-arvo [%expire (scot %p ~zod) %typing host-context] [%b %wait (add t0 ~s30)])
+  ==
 --
