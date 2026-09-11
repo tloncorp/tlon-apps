@@ -2,36 +2,13 @@
 
 The description's job is to let a reviewer decide the change is safe to merge, from what they cannot get out of the diff.
 
-## The template wins
+## The template
 
-`.github/pull_request_template.md` has six sections, and they are the ones to use, with their own headings, in this order:
-
-    ## Summary
-    ## Changes
-    ## How did I test?
-    ## Risks and impact
-    ## Rollback plan
-    ## Screenshots / videos
-
-Do not rename, drop, or reorder them, and do not substitute a Description/Solution/Test-plan structure from habit. `gh pr create` does not apply the template, so write all six out. A section you genuinely cannot fill is a question for the user, not a placeholder.
-
-**Risks and impact** carries two things the template asks for literally: answer `Safe to rollback without consulting PR author? (Yes | No)`, and tick the affected area from its list -- Onboarding, State / providers, Message sync, Channel display, Notifications, or Other. Those five are there because they are where a regression is expensive and hard to spot; if your change touches one, say what it touches and how you checked it.
+Read `.github/pull_request_template.md` and fill every section under its own heading, in its order. `gh pr create` does not apply the template, so write it out yourself. Answer its literal questions literally; a section you genuinely cannot fill is a question for the user, not a placeholder.
 
 ## Title
 
-One line, an imperative verb, naming the user-facing effect rather than the mechanism. Two shapes are in use here, and either is fine:
-
-    Fix navigation-context crash in Pressable by removing link props
-    android: decode GIFs with Glide instead of APNG4Android
-
-Plain sentence, or a lowercase area prefix and a colon. Across the last 120 merged pull requests it splits roughly 57/43 in favour of plain, so reach for a prefix when the area is not obvious from the title itself. The areas actually in use: `ops`, `mobile`, `ios`, `android`, `web`, `api`, `shared`, `sync`, `desk`, `logs`, `e2e`, `onboarding`, `telemetry`, `tooling`.
-
-Two things this repository does **not** do, whatever your instincts say:
-
-- **No conventional-commit prefixes.** `feat:`, `fix(scope):`, `chore:` appear in 3 of the last 120. The commit log has them; the pull request titles do not. Do not infer the convention from commits.
-- **No ticket id in the title.** Also 3 of 120. Linear links belong in the body.
-
-Retitle if the scope changes after review.
+A conventional commit line: `type(scope): imperative summary`, with `fix`, `feat`, `chore`, `docs`, `refactor`, `test` or `ci` as the type and the platform or area as the scope (`fix(android): decode GIFs with Glide instead of APNG4Android`). Name the user-facing effect, not the mechanism. No ticket id in the title; the Linear link belongs in the body. Retitle if the scope changes after review.
 
 ## Summary and Changes
 
@@ -58,8 +35,6 @@ Rollback is usually "revert the PR". When it is not -- a migration has run, a se
 ## What not to write
 
 "This PR introduces...", "improves maintainability", a paragraph on how the other platform works, or the PR's own backstory ("reworked after feedback"). Describe the diff against the base branch, never the review process.
-
-No `## Changelog` section either: this template does not have one, and adding it out of habit from another repository is noise.
 
 ## Before editing an existing description
 

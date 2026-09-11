@@ -79,7 +79,11 @@ const checks = [
           fix: `gh ${v} predates --attach (needs 2.99.0)`,
           how: 'brew upgrade gh',
         };
-      if (!run('gh', ['auth', 'status']).ok)
+      // Unscoped, `gh auth status` exits 1 for a stale account on any host.
+      if (
+        !run('gh', ['auth', 'status', '--active', '--hostname', 'github.com'])
+          .ok
+      )
         return { fix: 'gh is not authenticated', how: 'gh auth login' };
       return { ok: `gh ${v}, authenticated` };
     },

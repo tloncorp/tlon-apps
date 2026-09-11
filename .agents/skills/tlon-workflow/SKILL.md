@@ -62,10 +62,11 @@ A cold `stim ios` takes 6 to 11 minutes here, longer than most tool timeouts. Ru
 Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android` is right and `--variant` is not needed. For the preview flavor (`io.tlon.groups.preview`), ask for it:
 
 ```bash
-stim android --variant previewDebug
+APP_VARIANT=preview stim start
+APP_VARIANT=preview stim android --variant previewDebug
 ```
 
-The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
+Both need `APP_VARIANT=preview`, as the repository's `android:preview` script does: `app.config.ts` reads it for the scheme and bundle id, and the Gradle variant alone leaves the app configured as production. The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
 
 Use `stim logs --errors`, not `--since <n> --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
 
@@ -127,7 +128,7 @@ If the steps do not reproduce on current `develop`, check whether the fix alread
 
 The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code before changing it, and say so in the pull request when the two differ. Then the smallest change that fixes it -- no refactor, no cleanup of what sits next to it.
 
-A JavaScript or TypeScript edit needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. Run `stim ios` or `stim android` again only after a native input changes. Format with `pnpm format` at the repository root (oxfmt); running prettier over a file rewrites it wholesale.
+An edit to application JavaScript or TypeScript needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. Configuration is not application code: after `babel.config.js`, `metro.config.js`, or `app.config.ts` changes, restart with `stim stop` and `stim start`, and run `stim ios` or `stim android` again after a native input changes. Format with `pnpm format` at the repository root (oxfmt); running prettier over a file rewrites it wholesale.
 
 Commit as you go. Everything after this step reads the branch, not the working tree: the review diff in step 7 and the pull request in step 8 both carry only what is committed. Never force-push, and never `git stash`: the stash is shared with every other worktree of this checkout.
 
@@ -155,8 +156,11 @@ Read `pr-description.md` in this skill's directory, then fill `.github/pull_requ
 
 ```bash
 gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.evidence/pr.md \
-  --attach <worktree>/.evidence/before-ios.mp4 --attach <worktree>/.evidence/after-ios.mp4
+  --attach <worktree>/.evidence/before-ios.mp4 --attach <worktree>/.evidence/after-ios.mp4 \
+  --attach <worktree>/.evidence/before-android.mp4 --attach <worktree>/.evidence/after-android.mp4
 ```
+
+One `--attach` per recording from steps 4 and 6, for every platform you tested.
 
 **Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. To label them, attach bare paths and then splice the returned `user-attachments` URLs into the body:
 
@@ -176,7 +180,7 @@ node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
 
 It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints each as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own comments are ignored. Run it in the background so it wakes you; run it again after you respond. When it prints `{"kind":"closed","merged":true}`, go to step 10.
 
-For each item: fix what is real, push, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<id>/replies -f body=...` for a review comment, `gh pr comment` otherwise), and re-capture evidence if the visible behavior changed. Push back, with reasons, on what is not real.
+For each item: fix what is real, push, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<commentId>/replies -f body=...` for a review comment, using the numeric `commentId` the watcher printed, not its `id`; `gh pr comment` otherwise), and re-capture evidence if the visible behavior changed. Push back, with reasons, on what is not real.
 
 ### 10. Clean up
 
