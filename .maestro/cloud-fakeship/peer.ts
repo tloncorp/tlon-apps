@@ -84,6 +84,17 @@ async function main() {
   );
   const setup = JSON.parse(process.env.QA_FIXTURE_PLAN || '{"fixtures":[]}');
   const fixtures = [];
+  if (setup.fixtures.includes('chat-v1'))
+    fixtures.push({
+      recipe: 'chat-v1',
+      verified: true,
+      groupId: group.groupId,
+      groupTitle: `Cloud-${tag}`,
+      channelId: group.chatChannel,
+      peerMessage: `${tag} from ten`,
+      peerMessageVerified: true,
+      writable: true,
+    });
   if (setup.fixtures.includes('notes-v1'))
     fixtures.push(
       await seedNotes({

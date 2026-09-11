@@ -390,3 +390,11 @@ This publishes a new presentation of the original test results to that PR. It
 verifies the target repository and retains the original test commit and run
 link. If the PR has changed, a prominent notice states that these are earlier
 results and that the latest code was not retested. The standard full QA flow invokes the same script automatically.
+
+The `chat-v1` fixture exposes the same disposable group chat already created by
+the ship runner. It verifies the peer's unique message before allowing the device
+agent to send and edit its own messages there. It does not claim to provide DMs,
+large history, or controlled synchronization. The assigned-device gesture tools
+include long press through `gesture-custom` for message actions. Runs needing a
+new app build reserve up to 70 minutes for the EAS workflow; reused-build runs
+retain the 40-minute lease.

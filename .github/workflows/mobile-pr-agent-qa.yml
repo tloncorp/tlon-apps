@@ -56,7 +56,7 @@ jobs:
     needs: assess
     if: ${{ needs.assess.outputs.decision == 'test' && needs.assess.outputs.has_fixtures == 'true' }}
     runs-on: blacksmith-16vcpu-ubuntu-2204
-    timeout-minutes: 55
+    timeout-minutes: 85
     env:
       PROOF_OUTPUT: ${{ github.workspace }}/proof-output
       QA_PR_MODE: 'true'
@@ -152,7 +152,7 @@ jobs:
     needs: assess
     if: ${{ needs.assess.outputs.decision != 'test' || needs.assess.outputs.has_fixtures != 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
         with:

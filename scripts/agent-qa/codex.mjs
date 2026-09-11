@@ -17,6 +17,7 @@ export const argentTools = [
   'screenshot',
   'gesture-tap',
   'gesture-swipe',
+  'gesture-custom',
   'keyboard',
   'button',
   'await-ui-element',
@@ -105,7 +106,9 @@ export function resultSchemaFor(assessment) {
     );
   if (assessment)
     schema.properties.discoveries.items.properties.file.enum = [
-      ...new Set(assessment.files || assessment.scenarios.flatMap((s) => s.files)),
+      ...new Set(
+        assessment.files || assessment.scenarios.flatMap((s) => s.files)
+      ),
     ];
   return schema;
 }
@@ -311,11 +314,12 @@ For PR verification, execute the supplied assessment scenarios. For every scenar
 Use the supplied backend source and verified fixture receipts to identify what is deployed. Never claim coverage of unverified backend changes.
 Never guess coordinates from screenshots. Rediscover after a failed tap; stop after two failures.
 Use screenshots to assess the whole visible screen, not just the element being clicked. Execute each scenario's checkpoints, capturing before the trigger, immediately after and after settling. Isolate one action at a time: focus, input, scroll and dismiss are distinct transitions. If a short fixture can isolate a layout transition, use it first; long content is for scrolling checks. Record action numbers and observations about changed positions, clipping, overlays, missing content, duplicated controls and intermediate states. A successful save does not establish visual correctness. Do not reinterpret unexplained motion as deliberate scrolling. Source hypotheses are questions to test, not facts to confirm. Report independently observed violations even if the hypothesized mechanism is wrong. There is no base-device run; do not claim one. Wait with await-ui-element, using bounded waits.
+For a long press, use gesture-custom with Down and Up at the discovered coordinates and an 800 ms delay before Up.
 The keyboard Return inserts a newline; the composer upward arrow sends. Send the requested text once.
 Do not change settings, log out, delete data, create groups or contact other ships.
 ${
   context.backend?.fixtures?.length
-    ? `The runner has already provisioned and verified the fixtures below on disposable ships. Navigate to their exact group and %notes channel, and verify its identity before testing. Legacy Getting Started/diary channels do not count. You may create/edit notes and folders only within these fixtures; do not alter other groups. Exercise each supplied simulator scenario, including typing and saving where requested. Setup data is not a product-test pass. Fixture manifest: ${JSON.stringify(context.backend.fixtures)}`
+    ? `The runner has already provisioned and verified the fixtures below on disposable ships. Navigate to the exact group and channel named in each fixture and verify its identity before testing. For notes-v1, use its %notes notebook; legacy Getting Started/diary channels do not count. For chat-v1, confirm the supplied peer message in its chat; you may send and edit your own messages there. You may create/edit notes and folders only in notes-v1. Do not alter other groups. Exercise each supplied simulator scenario, including typing and saving where requested. Setup data is not a product-test pass. Fixture manifest: ${JSON.stringify(context.backend.fixtures)}`
     : context.backend
       ? `Only use fixture group Cloud-${env.QA_RUN_TAG} on fake ship ~zod.
 From Profile go Home, open that group, confirm "${env.QA_RUN_TAG} from ten",

@@ -145,7 +145,7 @@ if (process.argv[2] === 'assess') {
     });
   const id = await dispatch(input, env.QA_TARGET_REF);
   output('eas_run_id', id);
-  const run = await wait(id, 40);
+  const run = await wait(id, env.QA_BUILD_ID ? 40 : 70);
   if (env.PROOF_OUTPUT)
     writeFileSync(
       `${env.PROOF_OUTPUT}/eas-run.json`,
