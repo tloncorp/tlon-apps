@@ -1,0 +1,222 @@
+---
+name: tlon-workflow
+description: Use when taking a Tlon Messenger mobile task from a fresh worktree to a merged pull request: reproducing or fixing something in the iOS or Android app, validating it on a simulator or emulator, opening the PR with evidence, and following its review.
+---
+
+# Tlon mobile workflow
+
+One task, one worktree, one pull request. Stim owns the Metro port, the device, and the build caches; agent-device drives the screen; `gh` carries the evidence; a watcher tells you when a reviewer spoke.
+
+Stim's own guide is the reference for its commands and refusals. Read it once per session:
+
+```bash
+stim guide agent
+```
+
+Everything below is written from the **repository root**. Steps 2 onward run from `apps/tlon-mobile`, so give this skill's scripts an absolute path rather than a relative one from the wrong directory.
+
+## Before anything
+
+Unsandboxed:
+
+```bash
+node .agents/skills/tlon-workflow-doctor/check.mjs
+```
+
+If any line says `fix`, use the tlon-workflow-doctor skill and come back. Do not work around a missing tool.
+
+It inspects the source checkout wherever it is run from. Run it unsandboxed because under a shell sandbox `gh auth status` cannot reach the keyring and reports a false `not authenticated`.
+
+## The loop
+
+### 1. A fresh worktree
+
+```bash
+git fetch --prune origin
+git worktree add -b <handle>/<topic> .worktrees/<name> origin/develop
+cd .worktrees/<name>/apps/tlon-mobile
+stim worktree warm --refresh
+```
+
+The default branch is `develop`; every branch starts there and every PR targets it. Branches are named `<handle>/<topic>` (`gh api user --jq .login` is your handle). `.worktrees/` is gitignored at any depth.
+
+`git worktree add` writes `.git/config`, so it needs an unsandboxed shell. Sandboxed it half-fails: no worktree, but the branch is created, so the retry stops with `a branch named '<...>' already exists`. Delete the branch before retrying.
+
+`warm` copies the ignored state from the source checkout into this worktree: `node_modules`, `ios/Pods`, `.env.local`, and `.claude/` with whatever settings it holds. `--refresh` first brings that checkout up to date under a lock -- it fetches, fast-forwards its branch, and installs dependencies and pods only when their lockfiles moved. Wait for it to exit 0 before running anything else here.
+
+In this workflow the source checkout is a seed, not a workspace: every worktree is a copy of it, so keeping it clean and on `develop` is what makes it worth copying. `--refresh` refuses a dirty or detached one and prints the git line that clears it. Clear it rather than dropping `--refresh`; a stale seed hands its staleness to every worktree made from it.
+
+### 2. Run the app
+
+**One build at a time.** Both are memory-hungry, and running `xcodebuild` and Gradle together makes D8 fail with `java.lang.OutOfMemoryError: Java heap space` (`org.gradle.jvmargs=-Xmx2048m` in `android/gradle.properties`). Overlapping them costs more than serialising them does.
+
+```bash
+stim start
+stim ios
+stim android                              # only after ios has finished
+stim logs --errors                        # exit 0 and "No matching log records" on stderr is the pass
+```
+
+A cold `stim ios` takes 6 to 11 minutes here, longer than most tool timeouts. Run it in the background, or with the longest timeout your tools allow. If a call times out anyway, run the same command again: the build outlives the shell, and the retry waits for it and installs the result rather than compiling twice.
+
+Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `android.variant` in `apps/tlon-mobile/.stim.json`, so plain `stim android` is right and `--variant` is not needed. For the preview flavor (`io.tlon.groups.preview`), ask for it:
+
+```bash
+APP_VARIANT=preview stim start
+APP_VARIANT=preview stim android --variant previewDebug
+```
+
+Both need `APP_VARIANT=preview`, as the repository's `android:preview` script does: `app.config.ts` reads it for the scheme and bundle id, and the Gradle variant alone leaves the app configured as production. The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
+
+Use `stim logs --errors`, not `--since 5m --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
+
+`ready` describes the process, not the screen: this app needs roughly another minute to paint its first screen.
+
+### 3. Sign in
+
+Most reproductions need a signed-in app. Put a self-hosted dev ship's URL and `+code` in `apps/tlon-mobile/.env.local`, which is gitignored and travels into every worktree through `warm`:
+
+```bash
+DEFAULT_SHIP_LOGIN_URL=https://your-ship.tlon.network
+DEFAULT_SHIP_LOGIN_ACCESS_CODE=xxxxxx-xxxxxx-xxxxxx-xxxxxx
+```
+
+They are read at build time by `app.config.ts`, so a build made before you set them will not have them: set them first, or rebuild.
+
+With both set, a debug build fills the login form, so signing in is four presses and no typing. Each screen takes a moment to arrive, and `--settle` only waits for the current one to go quiet, so wait for the next screen's text before pressing on it:
+
+```bash
+agent-device press 'text="Have an account? Log in"' --session <name> --settle
+agent-device wait text "Or configure self hosted" --session <name>
+agent-device press 'text="Or configure self hosted"' --session <name> --settle
+agent-device wait text "Ship URL" --session <name>
+agent-device press 'text="Connect"' --session <name> --settle
+agent-device wait text "Usage Statistics" --session <name>
+agent-device press 'text="Next"' --session <name> --settle
+agent-device alert dismiss --session <name>
+```
+
+That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. On iOS a "Stay in the loop" sheet appears later over Home and blocks the bottom of the list; `press 'text="Not now"'` when it does. Both prompts come back after every full reload, not only the first. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. On iOS a label that appears twice on screen (a `Back` button and its text, an action-sheet row) does not resolve by `text=`; snapshot and press the `[button]` ref. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
+
+The prefill itself is not `__DEV__`-gated, but the pre-validation that enables `Connect` without visiting each field is -- so in a release build the fields are filled and `Connect` stays disabled until each is touched. A `tlon.network` URL is rejected outside `__DEV__`.
+
+This yields an `authType: 'self'` session. It gets you into the app; it does not exercise the hosting-account flows (node status, revival, bot config).
+
+`DEFAULT_TLON_LOGIN_EMAIL` and `DEFAULT_TLON_LOGIN_PASSWORD` prefill the hosted path the same way, for a task that needs a hosting account. With neither pair set, sign-in needs a person: the phone and email paths send a 2FA code an unattended run cannot read. Ask rather than attempting them.
+
+### 4. Capture the current behavior
+
+For a bug or a change to existing behavior, record what the app does now, before touching code, on every platform the change could touch: an Android "before" is not recoverable once the fix is in. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
+
+Record the behavior, not the journey. Navigate to the screen first, start recording, do the one action that triggers it, stop as soon as the result is on screen. A reviewer watches these; sign-in, navigation and dead time are not evidence. Aim for under 30 seconds.
+
+```bash
+agent-device devices                       # names, not udids
+agent-device open io.tlon.groups --platform ios --device "<name>" --session <name>
+agent-device record start <worktree>/.evidence/before-ios.mp4 --quality high --session <name>
+agent-device press 'text="<label>"' --session <name> --settle
+agent-device longpress 'text="<label>"' --session <name> --settle
+agent-device record stop --session <name>
+```
+
+`--device` takes the **name** exactly as `agent-device devices` prints it; a udid gives `DEVICE_NOT_FOUND`. `--quality high` records at device resolution; the default is 220x480, which loses anything smaller than a button. `press` and `longpress` are the interaction commands -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
+
+Evidence goes in `.evidence/` at the root of your worktree: gitignored, so it cannot be committed, and removed with the worktree in step 10. Give it as an absolute path, because `$TMPDIR` differs between sandboxed and unsandboxed shells. After `record stop`, check the file exists; on Android a second recording in the same session has been seen to produce nothing without an error.
+
+Reproduce in a throwaway group named after the task (`TLON-1234 repro`), not the default "Untitled group": other agents make those too, and on Android the group list collapses into one label, so same-named groups are indistinguishable.
+
+When a label is too long for the screen, read the text (`agent-device snapshot`) rather than trusting the picture.
+
+If the steps do not reproduce on current `develop`, check whether the fix already landed before doubting the ticket: `git log -S '<suspect expression>' --oneline -- <path>` on the code the ticket points at, and the merged pull requests since it was filed. A ticket filed weeks ago is often fixed. If it is, stop: comment on the ticket naming the pull request that fixed it and the platforms you checked, and report the same to the user with the recording. No pull request.
+
+### 5. Fix
+
+The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code before changing it, and say so in the pull request when the two differ. Then the smallest change that fixes it -- no refactor, no cleanup of what sits next to it.
+
+An edit to application JavaScript or TypeScript needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. Configuration is not application code: after `babel.config.js`, `metro.config.js`, or `app.config.ts` changes, restart with `stim stop` and `stim start`, and run `stim ios` or `stim android` again after a native input changes. Format with `pnpm format` at the repository root (oxfmt); running prettier over a file rewrites it wholesale.
+
+Before running `packages/shared` tests, `npm rebuild better-sqlite3` from the worktree root: the desktop app's postinstall builds the hoisted copy for Electron, and the repository's own `test` script starts with that rebuild for the same reason.
+
+Commit as you go. Everything after this step reads the branch, not the working tree: the review diff in step 7 and the pull request in step 8 both carry only what is committed. Never force-push, and never `git stash`: the stash is shared with every other worktree of this checkout.
+
+### 6. Validate with the same repro
+
+Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform the change touches, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario.
+
+**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). Check which screen you are on before recording. If `stim logs` shows the edit bundled for one platform and not the other, `stim reload <platform>` for the one that missed it.
+
+### 7. Get an independent review
+
+Before opening the pull request, put the diff in front of a fresh agent -- one that has not seen your reasoning. That is the whole point of it: it cannot rationalise a choice it did not make, and it reads what you wrote rather than what you meant.
+
+Give it three things: the task as it was originally stated, the diff (`git diff origin/develop...HEAD`), and what to be adversarial about. Do not give it your notes, your reasoning, or the alternatives you rejected -- that primes it to agree with you.
+
+Ask for correctness first, with concrete inputs and the resulting wrong behavior, then whether the change actually does what the task asked, then what is untested.
+
+Fix what is real. Push back, with reasons, on what is not: a fresh agent is confidently wrong often enough that applying a finding you cannot verify is worse than ignoring it. If a fix changes visible behavior, re-capture the evidence from step 4 before continuing.
+
+This is cheap and it is not the same as the review the pull request gets later. This one catches your own mistakes before anyone else spends attention on them.
+
+### 8. Open the pull request
+
+Read `pr-description.md` in this skill's directory, then fill `.github/pull_request_template.md` section by section.
+
+```bash
+gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.evidence/pr.md \
+  --attach <worktree>/.evidence/before-ios.mp4 --attach <worktree>/.evidence/after-ios.mp4 \
+  --attach <worktree>/.evidence/before-android.mp4 --attach <worktree>/.evidence/after-android.mp4
+```
+
+One `--attach` per recording from steps 4 and 6, for every platform you tested. `gh` appends the uploaded URLs to the body in `--attach` order, and rewrites a body reference only when it matches the `--attach` string exactly.
+
+**Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. To label them, attach bare paths and then splice the returned `user-attachments` URLs into the body:
+
+```bash
+gh pr view <number> --json body -q .body > <worktree>/.evidence/body.md   # edit, then:
+gh pr edit <number> --body-file <worktree>/.evidence/body.md
+gh pr ready <number>
+```
+
+**Check every clip before attaching it.** `ffprobe -v error -show_entries format=duration -of csv=p=0 <clip>` for the length, and a frame strip to see what is in it:
+
+```bash
+ffmpeg -v error -i <clip> -vf fps=1/3 <worktree>/.evidence/frames-%02d.png    # one frame every 3s; look at them
+```
+
+A clip longer than about 30 seconds, or one that opens on sign-in or navigation, gets cut to the part that shows the behavior. Re-encode; do not stream-copy. Simulator recordings are variable frame rate, and `-c copy` lands the cut on the wrong frame:
+
+```bash
+ffmpeg -v error -i <clip> -ss <start> -to <end> -c:v libx264 -preset veryfast -crf 23 -an <clip>.trimmed.mp4
+```
+
+Mark it ready once the evidence is in: the Codex reviewer only reviews ready pull requests.
+
+### 9. Follow the review
+
+```bash
+node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
+```
+
+It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints everything new as one JSON line each (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own comments are ignored. Run it in the background so it wakes you. When it prints `{"kind":"closed","merged":true}`, go to step 10.
+
+One run is one round. For every item in it: fix what is real, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<commentId>/replies -f body=...` for a review comment, using the numeric `commentId` the watcher printed, not its `id`; `gh pr comment` otherwise), and push back, with reasons, on what is not. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
+
+Stop when a round contains only Codex's completed status with no findings, when the pull request is merged or closed, or when the watcher prints `{"kind":"timeout"}`: nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run). Any commit, comment, or review restarts that budget, so the loop runs as long as the conversation does and ends on inactivity. Report what is still open.
+
+### 10. Clean up
+
+After the pull request is merged or closed, and after asking the user. **Order matters**: remove the worktree before the branch goes, or `remove` refuses because its commits are no longer on any remote. And leave the worktree before removing it: once it is gone, git cannot run from inside it.
+
+```bash
+cd <worktree>/apps/tlon-mobile
+stim stop
+cd <source checkout>
+stim worktree remove .worktrees/<name>   # then, if the branch should go too:
+git branch -d <handle>/<topic>
+```
+
+`remove` deletes the worktree and parks the simulator or emulator it owned. Never reach for `--force`: it discards uncommitted and untracked files permanently. If it refuses because a commit exists nowhere else, push the branch rather than forcing.
+
+## Under a sandbox
+
+Stim writes to `~/.stim`, talks to the simulator service, and binds the adb port -- all outside a typical shell sandbox. `stim doctor` names this and offers `stim doctor --fix`, which writes an allowance into `.claude/settings.local.json`. That file is your own permission configuration: do not change it because a tool told you to. Run the Stim, agent-device and `gh` calls unsandboxed instead, or ask the user to apply the allowance themselves.
