@@ -16,7 +16,19 @@ Length tracks the subtlety of the problem, not how much you found out. A fix in 
 
 ## Summary and Changes
 
-Lead with the problem and its impact, then the intent behind the fix. Explain what a mechanism is *for* from the reviewer's side, not only when it triggers. Prose, not a file-by-file changelog; a short bullet per distinct fix when the PR bundles more than one. Inline code for identifiers and paths. Right-size it: a one-line fix needs three sentences.
+Lead with the problem and its impact, then the intent behind the fix. Explain what a mechanism is *for* from the reviewer's side, not only when it triggers. Inline code for identifiers and paths. Right-size it: a one-line fix needs three sentences.
+
+**Changes is not a file list.** The diff already shows which files changed. One bullet per distinct fix, each saying what it addresses and why that is the right place, and one paragraph when there is a single fix. `channelsApi.ts: ...`, `sync.ts: ...`, `Tests: ...` is the shape to avoid; "delete events decode to the existing `deletePost` update instead of `addPost`, so a tombstone never enters the pending-post merge" is the shape to write.
+
+Do: "When X happens, Y fails because Z. This changes A so that B." Show a tiny concrete input and its error when the change is about what is accepted or rejected.
+
+Do not: open with "This PR introduces"; close with what it "improves"; write "Minor fixes" or "Tested locally"; explain how the other platform or the wider subsystem works when the change does not need it; pad the motivation with benefits the diff does not demonstrate; state a root cause you have not confirmed. Either register is fine, first person or neutral; what reads badly is polish.
+
+Three questions before you finish, usually all "no", worth asking because "yes" changes the description:
+
+1. Is the problem spatial (layout, ordering, list regions)? Then a three-to-six-line ASCII sketch of the arrangement beats a paragraph about it.
+2. Is the change on a hot path (per render, per frame, per list item) and does it change the cost? Then one line saying so.
+3. Does the diff reverse something that looks deliberate? Then the history is load-bearing; see below.
 
 Ground every claim. A root cause is stated only when confirmed in code; otherwise hedge plainly. Every symbol named comes from reading the source. A load-bearing claim about a framework or library gets a permalink with a commit SHA (`https://github.com/{org}/{repo}/blob/{sha}/{path}#L{n}`). Never invent an issue number, PR number, or link.
 
@@ -40,9 +52,19 @@ Rollback is usually "revert the PR". When it is not -- a migration has run, a se
 
 "This PR introduces...", "improves maintainability", a paragraph on how the other platform works, or the PR's own backstory ("reworked after feedback"). Describe the diff against the base branch, never the review process.
 
-## Before editing an existing description
+## After a review round
+
+The description describes the diff against `develop`, not the review. When a round changes the approach, scope, or what was tested, re-read the diff and rewrite the affected section as if it had always been that way; never append "addressed review feedback" or "previously this did X". A fix for something the reviewer found is simply part of the change now.
 
 `gh pr view <n> --json body -q .body` first. The user may have edited it; merge, do not overwrite.
+
+## Fresh eyes before you post
+
+Put the title and body, and nothing else, in front of a fresh agent with `skimmer-review.md` from this directory: it reads the body cold, pulls `git diff origin/develop...HEAD` itself, and returns where its attention dropped and one to three cuts. Apply the cuts that hold, inside sections; the template's headings stay. One pass, no loop.
+
+## No bug archaeology in code comments
+
+A fix leaves the code doing the right thing; do not comment what it used to do wrong or link the ticket from the code. The commit and the pull request hold that history. The one comment that stays is the one a future reader needs to not "clean up" something that looks odd on purpose: a workaround for a bug you do not own, named in one line.
 
 ## Justification belongs on the PR, not in the code
 
