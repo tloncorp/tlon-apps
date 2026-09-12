@@ -97,8 +97,29 @@ jobs:
       - name: Check Types
         run: pnpm -r tsc
 
+      # Desk N-1 compatibility (docs/tlon-apps/desk-compatibility.md). A
+      # depth-1 checkout has no tags and no history, so the checker's refs are
+      # fetched narrowly rather than by deepening the whole clone: the N-1 tag
+      # named by MIN_GROUPS_VERSION, plus the two refs the incident fixtures
+      # replay (kept in sync with fixtures.test.ts; the fixtures also fetch
+      # them on demand, so a drift here costs a slower failure, not a wrong
+      # one).
+      - name: Fetch desk refs for the compatibility check
+        run: |
+          set -euo pipefail
+          MIN=$(node -p "require('fs').readFileSync('packages/shared/src/logic/deskCompatibility.ts','utf8').match(/MIN_GROUPS_VERSION = '([^']+)'/)[1]")
+          echo "MIN_GROUPS_VERSION=$MIN" >> "$GITHUB_ENV"
+          git fetch --no-tags --depth=1 origin "refs/tags/v${MIN}:refs/tags/v${MIN}"
+          git fetch --no-tags --depth=1 origin "refs/tags/v12.1.0:refs/tags/v12.1.0"
+          git fetch --no-tags --depth=1 origin 854b46c3ddd7ccf122485dd447a1225da7a66638
+
       - name: Run Tests
         run: pnpm test:ci
+
+      # Rule (b): this branch may not depend on anything the previous desk
+      # release lacks. Blocking, and inside ci-ok by way of test-build.
+      - name: Check desk N-1 compatibility
+        run: pnpm check:desk-compat --desk-ref "v${MIN_GROUPS_VERSION}"
 
       - name: tlon-skill build smoke
         run: pnpm --filter '@tloncorp/tlon-skill' build:smoke

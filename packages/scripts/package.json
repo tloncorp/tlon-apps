@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build": "esbuild src/index.ts --bundle --format=iife --global-name=tlon --conditions=react-native --outfile=build/bundle.js",
+    "check:desk-compat": "tsx src/check-desk-compat/index.ts",
+    "tsc": "tsc --noEmit -p src/check-desk-compat/tsconfig.json",
     "test": "vitest --passWithNoTests"
   },
   "keywords": [],
@@ -16,6 +18,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.8",
-    "esbuild": "^0.25.2"
+    "esbuild": "^0.25.2",
+    "tsx": "^4.20.6",
+    "typescript": "~5.9.2"
   }
 }

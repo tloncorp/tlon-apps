@@ -37,6 +37,7 @@
     "test": "npm rebuild better-sqlite3 && pnpm run -r test run -u",
     "test:ci": "npm rebuild better-sqlite3 && pnpm build:api && pnpm run -r test run",
     "lint:all": "pnpm -r lint",
+    "check:desk-compat": "pnpm --filter 'scripts' check:desk-compat",
     "sync:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs",
     "check:native-navigation-icons": "node scripts/sync-native-navigation-icons.mjs --check",
     "format": "oxfmt .",
