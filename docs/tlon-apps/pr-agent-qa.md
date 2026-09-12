@@ -174,8 +174,9 @@ Each run retains `ios-agent-qa`: screenshots, accessibility/action evidence,
 model responses, bundle provenance, and Markdown/JSON reports. The PR comment
 links to the EAS run's artifacts. A separate `ios-agent-qa-video` attachment
 contains `test-session.mp4`, and the PR report explicitly points reviewers to it.
-The reporting job downloads this MP4 and posts the report using GitHub CLI
-2.99.0 `gh pr comment --attach`. GitHub hosts the attachment and renders an
+The reporting job downloads this MP4 and uploads it through the same GitHub asset
+endpoint used by `gh pr comment --attach`, then updates the exact QA comment ID.
+GitHub hosts the attachment and renders an
 inline video player directly in the PR comment. No public media bucket is required.
 
 Set `GH_QA_TOKEN` as a **secret** in the EAS preview environment. Use a dedicated
@@ -229,8 +230,11 @@ GitHub `GH_QA_TOKEN` secret only in its publishing step; the simulator and model
 do not receive it. The EAS metadata/download step uses `EXPO_TOKEN` separately.
 
 To retry only publication, dispatch with the saved `eas_run_id` and destination
-`pr_number`. This skips ships and simulator work. A run-specific marker prevents
-duplicate comments by the same publisher on retries. Only completed runs from
+`pr_number`. This skips ships and simulator work. All publishing paths share one persistent QA comment per PR and publisher account.
+Retries replace its report and embedded videos; a collapsed history links up to ten
+earlier attempts to their saved EAS evidence. Older runs and fallback errors cannot
+overwrite a newer completed report. Existing duplicate QA comments by that account
+are consolidated after the replacement is verified; unrelated comments are untouched. Only completed runs from
 this EAS project and QA workflow are accepted. The action is manual while this
 harness experiment is under review; it has no push trigger.
 

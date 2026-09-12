@@ -1,3 +1,4 @@
+import { publishComment } from './comment.mjs';
 import { billingSummary } from './billing.mjs';
 // Run on the publisher worker. Only the editorial agent rewrites the recorded report.
 import { execFileSync } from 'node:child_process';
@@ -211,51 +212,16 @@ if (historical) {
   const notice = `> **Earlier test results.** These clips were recorded at commit \`${c.pr.head.sha.slice(0, 10)}\`. The PR is now at \`${target.head.sha.slice(0, 10)}\`. This updates the presentation of the saved run; it does not retest the latest code.\n\n`;
   writeFileSync(path.join(out, 'report.md'), marker + '\n' + notice + text);
 }
-const pages = JSON.parse(
-  gh([
-    'api',
-    '--paginate',
-    '--slurp',
-    `repos/${repo}/issues/${pr}/comments?per_page=100`,
-  ])
-);
-const viewer = JSON.parse(gh(['api', 'user']));
-let comment = pages
-  .flat()
-  .find((c) => c.user.id === viewer.id && c.body.includes(marker));
-if (!comment) {
-  const args = [
-    'pr',
-    'comment',
-    pr,
-    '--repo',
-    repo,
-    '--body-file',
-    'report.md',
-  ];
-  for (const file of [...clips.flat().map((c) => c.file), 'test-session.mp4'])
-    args.push('--attach', `./${file}`);
-  const url = gh(args).trim(),
-    id = url.match(/#issuecomment-(\d+)$/)?.[1];
-  if (!id) throw new Error('Publisher returned no comment ID');
-  comment = { id, html_url: url };
-}
-const rendered = JSON.parse(
-  gh([
-    'api',
-    '-H',
-    'Accept: application/vnd.github.full+json',
-    `repos/${repo}/issues/comments/${comment.id}`,
-  ])
-);
-const players = (rendered.body_html?.match(/<video\b/g) || []).length;
-if (
-  players !== clips.flat().length + 1 ||
-  /\]\(\.\/[^)]*\.mp4\)/.test(rendered.body)
-)
-  throw new Error(
-    'GitHub did not embed every finding clip and the full recording'
-  );
+const rendered = publishComment({
+  gh,
+  pr,
+  directory: out,
+  body: readFileSync(path.join(out, 'report.md'), 'utf8'),
+  attempt: { url: sourceUrl, head: c.pr.head.sha, key: marker, kind: 'report' },
+  attachments: [...clips.flat().map((c) => c.file), 'test-session.mp4'],
+});
+const comment = rendered,
+  players = rendered.players;
 writeFileSync(
   path.join(out, 'publication.json'),
   JSON.stringify(

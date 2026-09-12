@@ -1,3 +1,4 @@
+import { publishComment } from './comment.mjs';
 import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
@@ -151,45 +152,19 @@ async function main() {
   const meta = JSON.parse(readFileSync(join(dir, 'metadata.json'), 'utf8'));
   if (meta.id !== id || meta.pr !== pr)
     throw new Error('Prepared report provenance mismatch');
-  // Refuse cross-repository PRs; publishing never checks out or executes PR code.
-  const target = JSON.parse(gh(['api', `repos/${repo}/pulls/${pr}`]));
-  if (
-    target.head.repo?.full_name !== repo ||
-    target.base.repo?.full_name !== repo
-  )
-    throw new Error('Expected a same-repository PR');
-  const pages = JSON.parse(
-    gh([
-      'api',
-      '--paginate',
-      '--slurp',
-      `repos/${repo}/issues/${pr}/comments?per_page=100`,
-    ])
-  );
-  const viewer = JSON.parse(gh(['api', 'user']));
-  let comment = pages
-    .flat()
-    .find((c) => c.user.id === viewer.id && c.body.includes(marker));
-  if (!comment) {
-    const args = ['pr', 'comment', pr, '--repo', repo, '--body-file', bodyPath];
-    if (meta.video) args.push('--attach', videoPath);
-    const url = gh(args).trim();
-    const match = url.match(/#issuecomment-(\d+)$/);
-    if (!match) throw new Error('GitHub did not return a comment URL');
-    comment = { id: match[1], html_url: url };
-  }
-  const rendered = JSON.parse(
-    gh([
-      'api',
-      '-H',
-      'Accept: application/vnd.github.full+json',
-      `repos/${repo}/issues/comments/${comment.id}`,
-    ])
-  );
-  if (meta.video && !/<video\b/i.test(rendered.body_html ?? ''))
-    throw new Error(
-      'PR comment was created but GitHub did not render an inline video player'
-    );
+  const comment = publishComment({
+    gh,
+    pr,
+    directory: dir,
+    body: readFileSync(bodyPath, 'utf8'),
+    attempt: {
+      url: `https://expo.dev/accounts/tlon/projects/groups/workflows/${id}`,
+      key: marker,
+      head: '',
+      kind: 'report',
+    },
+    attachments: meta.video ? [videoPath] : [],
+  });
   console.log(`Published automatically: ${comment.html_url}`);
   if (process.env.GITHUB_STEP_SUMMARY)
     appendFileSync(

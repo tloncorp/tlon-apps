@@ -1,3 +1,4 @@
+import { publishComment } from './comment.mjs';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 const e = process.env;
@@ -21,16 +22,23 @@ fs.writeFileSync(
     '',
   ].join('\n')
 );
-execFileSync(
-  '/tmp/gh_2.99.0_linux_amd64/bin/gh',
-  [
-    'pr',
-    'comment',
-    e.QA_PR_NUMBER,
-    '--repo',
-    'tloncorp/tlon-apps',
-    '--body-file',
-    '/tmp/qa-report.md',
-  ],
-  { stdio: 'inherit', env: { ...e, GH_TOKEN: e.GH_QA_TOKEN } }
-);
+const gh = (args) =>
+  execFileSync(e.QA_GH_BIN || '/tmp/gh_2.99.0_linux_amd64/bin/gh', args, {
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    timeout: 120000,
+    env: { ...e, GH_TOKEN: e.GH_QA_TOKEN },
+  });
+const comment = publishComment({
+  gh,
+  pr: e.QA_PR_NUMBER,
+  directory: '/tmp',
+  body: fs.readFileSync('/tmp/qa-report.md', 'utf8'),
+  attempt: {
+    url: e.QA_WORKFLOW_URL,
+    head: e.QA_HEAD_SHA,
+    key: `${e.QA_WORKFLOW_URL}:blocked`,
+    kind: 'blocked',
+  },
+});
+console.log(`Published automatically: ${comment.html_url}`);
