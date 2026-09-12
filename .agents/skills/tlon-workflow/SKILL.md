@@ -199,7 +199,7 @@ It blocks until the pull request gets a review, review comment, or comment from 
 
 One run is one round. For every item in it: fix what is real, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<commentId>/replies -f body=...` for a review comment, using the numeric `commentId` the watcher printed, not its `id`; `gh pr comment` otherwise), and push back, with reasons, on what is not. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
 
-Stop when a round contains only Codex's completed status with no findings, when the pull request is merged or closed, or when the watcher's `--timeout` (default 1800 seconds after its start; pass a shorter one for a quick run) expires with nothing new, and report what is still open. Human reviewers come on their own schedule; the budget is for them, not a wait to extend.
+Stop when a round contains only Codex's completed status with no findings, when the pull request is merged or closed, or when the watcher prints `{"kind":"timeout"}`: nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run). Any commit, comment, or review restarts that budget, so the loop runs as long as the conversation does and ends on inactivity. Report what is still open.
 
 ### 10. Clean up
 

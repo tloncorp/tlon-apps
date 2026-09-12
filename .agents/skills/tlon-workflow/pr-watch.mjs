@@ -6,8 +6,9 @@
 //
 //   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]
 //
-// --timeout (default 1800) ends a blocking run that saw nothing new, with a
-// "timeout" line, so a review round has a budget.
+// --timeout (default 1800) ends a blocking run with a "timeout" line once the
+// pull request has been inactive that long: GitHub's updated_at moves on any
+// commit, comment, or review, by anyone, so the budget restarts on activity.
 //
 // Run it from anywhere inside the repository. State (what was already
 // reported) lives under the worktree's .git directory.
@@ -84,7 +85,6 @@ const {
   timeout,
   number: requested,
 } = parseArgs(process.argv.slice(2));
-const startedAt = Date.now();
 const repo = sh('gh', [
   'repo',
   'view',
@@ -248,8 +248,14 @@ for (;;) {
     break;
   }
   if (fresh.length || once) break;
-  if (Date.now() - startedAt >= timeout) {
-    console.log(JSON.stringify({ kind: 'timeout', seconds: timeout / 1000 }));
+  if (Date.now() - Date.parse(pr.updated_at) >= timeout) {
+    console.log(
+      JSON.stringify({
+        kind: 'timeout',
+        seconds: timeout / 1000,
+        lastActivity: pr.updated_at,
+      })
+    );
     break;
   }
   await sleep(interval);
