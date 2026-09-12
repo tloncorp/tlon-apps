@@ -6,6 +6,8 @@ import {
   parseDispatcher,
   preDispatchObstructions,
   splitTokens,
+  stripComment,
+  stripComments,
 } from './hoon';
 
 /** Flattened alternatives as `seg/seg/…` strings, or null when unparseable. */
@@ -146,6 +148,52 @@ const OUTDENTED_BODIES = `
     \`\`noun+!>(default)
 ==
 `.trim();
+
+describe('stripComment', () => {
+  it('removes a trailing comment, runes and all', () => {
+    expect(
+      stripComment('    [%x %v1 ~]  cor  :: handled like ?+  :~  ==')
+    ).toBe('    [%x %v1 ~]  cor');
+    expect(stripComment(':: whole line')).toBe('');
+    expect(stripComment('  ?+  pole  [~ ~]')).toBe('  ?+  pole  [~ ~]');
+  });
+
+  it('keeps a `::` that is text, not a comment', () => {
+    expect(stripComment("  =/  sep  '::'  :: the separator")).toBe(
+      "  =/  sep  '::'"
+    );
+    expect(stripComment('  =/  t  "a::b"')).toBe('  =/  t  "a::b"');
+    expect(stripComment("  =/  q  '\\''  :: escaped quote")).toBe(
+      "  =/  q  '\\''"
+    );
+  });
+});
+
+describe('a rune inside a comment', () => {
+  const COMMENTED = `
+?+    pole  [~ ~]
+    [%x %v1 %init ~]
+  cor  :: the ?+ below is handled elsewhere  :~
+::
+    [%x %v2 %init ~]
+  cor
+==
+`.trim();
+
+  it('does not swallow the arms below it', () => {
+    const raw = COMMENTED.split('\n');
+    // Unstripped, the commented `?+` and `:~` push the depth up and the second
+    // arm is read as body.
+    expect(
+      parseDispatcher(raw, 0, raw.length)!.arms.map((a) => a.patternText)
+    ).toEqual(['[%x %v1 %init ~]']);
+
+    const clean = stripComments(raw);
+    expect(
+      parseDispatcher(clean, 0, clean.length)!.arms.map((a) => a.patternText)
+    ).toEqual(['[%x %v1 %init ~]', '[%x %v2 %init ~]']);
+  });
+});
 
 describe('parseDispatcher', () => {
   const parse = (source: string) => {

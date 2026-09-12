@@ -53,6 +53,83 @@ const DELEGATES_BOTH = `
 --
 `.trim();
 
+const WATCHES = `
+++  on-peek  on-peek:def
+++  on-watch
+  |=  =path
+  ?+  path  ~|(bad+path !!)
+    [%v1 ~]  cor
+  ==
+--
+`.trim();
+
+describe('a comment in an agent file', () => {
+  const COMMENTED = [
+    '++  on-peek',
+    '  |=  =pole',
+    '  ?+    pole  [~ ~]',
+    '      [%x %v1 %init ~]',
+    '    cor  :: the ?+ in :~ this comment is prose',
+    '  ::',
+    '      [%x %v2 %init ~]',
+    '    cor',
+    '  ==',
+    '--',
+  ].join('\n');
+
+  it('cannot swallow the arms written after it', () => {
+    const files = {
+      'desk/desk.bill': ':~  %ledger\n==\n',
+      'desk/app/ledger.hoon': COMMENTED,
+    };
+    const loaded = loadDesk(memoryTree(files), 'test');
+    for (const version of ['v1', 'v2']) {
+      expect(
+        matchPath(loaded, scry('ledger', ['x', version, 'init'])).verdict
+      ).toBe('FOUND');
+    }
+    expect(matchPath(loaded, scry('ledger', ['x', 'v3', 'init'])).verdict).toBe(
+      'MISSING'
+    );
+  });
+});
+
+describe('dropping an agent from desk.bill', () => {
+  const app = '|_  =bowl:gall\n--\n';
+  const run = (deskBill: string, clientBill: string | null, r: PathRequest) => {
+    const files = (bill: string) => ({
+      'desk/desk.bill': bill,
+      'desk/app/ledger.hoon': app,
+    });
+    const result = matchPath(
+      loadDesk(
+        memoryTree(files(deskBill)),
+        'test',
+        clientBill === null ? undefined : memoryTree(files(clientBill))
+      ),
+      r
+    );
+    return `${result.verdict} ${result.rule} ${result.failureMode ?? '-'}`;
+  };
+  const request = scry('ledger', ['x', 'v1']);
+
+  it('is a removal even though every line of the agent survives', () => {
+    expect(run(':~  %other\n==\n', ':~  %ledger\n==\n', request)).toBe(
+      'MISSING P1 not-running'
+    );
+  });
+
+  it('decides nothing about an agent neither desk bills', () => {
+    // %ledger may simply live in another desk.
+    expect(run(':~  %other\n==\n', ':~  %other\n==\n', request)).toBe(
+      'UNVERIFIED coverage -'
+    );
+    expect(run(':~  %other\n==\n', null, request)).toBe(
+      'UNVERIFIED coverage -'
+    );
+  });
+});
+
 describe('handing a surface to default-agent', () => {
   const BILL_LEDGER = ':~  %ledger\n==\n';
   const desk = (app: string) => ({
@@ -68,6 +145,20 @@ describe('handing a surface to default-agent', () => {
     const result = matchPath(loaded, r);
     return `${result.verdict} ${result.rule}`;
   };
+  const failureOf = (
+    deskApp: string,
+    clientApp: string,
+    r: PathRequest,
+    deskFiles: Record<string, string> = {}
+  ) =>
+    matchPath(
+      loadDesk(
+        memoryTree({ ...desk(deskApp), ...deskFiles }),
+        'test',
+        memoryTree(desk(clientApp))
+      ),
+      r
+    ).failureMode;
 
   it('is a removal when the client desk dispatched that surface itself', () => {
     // The pinned default-agent nacks, so `on-peek:def` deletes the surface as
@@ -85,6 +176,44 @@ describe('handing a surface to default-agent', () => {
     expect(run(DELEGATES_BOTH, null, scry('ledger', ['x', 'v1', 'init']))).toBe(
       'UNVERIFIED coverage'
     );
+  });
+
+  it('reads a stub or a vanished arm the same way', () => {
+    const stub = [
+      '++  on-peek  |=(* ~)',
+      '++  on-watch  on-watch:def',
+      '--',
+    ].join('\n');
+    const gone = ['++  on-watch  on-watch:def', '--'].join('\n');
+    for (const removed of [stub, gone]) {
+      expect(
+        run(removed, DISPATCHES, scry('ledger', ['x', 'v1', 'init']))
+      ).toBe('MISSING P1');
+      // Unchanged between the trees, it is still merely unreadable.
+      expect(run(removed, removed, scry('ledger', ['x', 'v1', 'init']))).toBe(
+        'UNVERIFIED coverage'
+      );
+    }
+    // A peek that answers nothing is empty; a watch that answers nothing nacks.
+    expect(failureOf(stub, DISPATCHES, scry('ledger', ['x', 'v1']))).toBe(
+      'empty'
+    );
+    expect(failureOf(gone, WATCHES, watch('ledger', ['v1']))).toBe('crash');
+  });
+
+  it('does not call an arm it failed to index a removal', () => {
+    // The arm is plainly in the file; not finding it is this reader's problem,
+    // and a reader failure must never read as a removal.
+    const unreadable = [
+      '++  on-peek',
+      '  |=  =path',
+      '  ?:  =(path /x/v1/init)  [~ ~]',
+      '  [~ ~]',
+      '--',
+    ].join('\n');
+    expect(
+      run(unreadable, DISPATCHES, scry('ledger', ['x', 'v1', 'init']))
+    ).toBe('UNVERIFIED coverage');
   });
 
   it('judges each surface on its own', () => {

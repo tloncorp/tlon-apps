@@ -412,9 +412,18 @@ function branches<T>(
   resolve: (e: ts.Expression) => Val<T>[]
 ): Val<T>[] {
   const guard = textOf(ctx, expr.condition);
+  // Conjoined, never overwritten: in `a ? b ? x : y : z` the value `x` is sent
+  // under `a && b`, and a guard that said only `a` would pair `x` with the
+  // wrong sibling.
   return [
-    ...resolve(expr.whenTrue).map((v) => ({ ...v, guard: `${guard} ? …` })),
-    ...resolve(expr.whenFalse).map((v) => ({ ...v, guard: `! (${guard})` })),
+    ...resolve(expr.whenTrue).map((v) => ({
+      ...v,
+      guard: bothGuards(`${guard} ? …`, v.guard),
+    })),
+    ...resolve(expr.whenFalse).map((v) => ({
+      ...v,
+      guard: bothGuards(`! (${guard})`, v.guard),
+    })),
   ];
 }
 

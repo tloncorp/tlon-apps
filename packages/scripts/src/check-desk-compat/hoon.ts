@@ -69,6 +69,35 @@ const indentOf = (line: string) => line.length - line.trimStart().length;
 const isCode = (line: string) =>
   line.trim().length > 0 && !line.trim().startsWith('::');
 
+/**
+ * Blank out a `::` comment, keeping the line (and so every line number) in
+ * place. A `::` inside a cord or tape is text, not a comment, so the scan
+ * tracks quoting.
+ *
+ * Every structural read — rune counting, arm layout, body branching, nested
+ * dispatch — runs on the result. A rune written in a trailing comment would
+ * otherwise move the depth counter and swallow the arms below it, turning
+ * served requests into blocking MISSING.
+ */
+export function stripComment(line: string): string {
+  let quote: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote !== null) {
+      if (c === '\\') i++;
+      else if (c === quote) quote = null;
+    } else if (c === "'" || c === '"') {
+      quote = c;
+    } else if (c === ':' && line[i + 1] === ':') {
+      return line.slice(0, i).trimEnd();
+    }
+  }
+  return line;
+}
+
+export const stripComments = (lines: string[]): string[] =>
+  lines.map(stripComment);
+
 function count(line: string, re: RegExp): number {
   re.lastIndex = 0;
   let n = 0;

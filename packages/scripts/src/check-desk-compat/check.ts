@@ -158,9 +158,10 @@ const CAPABILITY_GUARD =
 
 const conjuncts = (guard?: string) =>
   (guard ?? '')
-    .replace(/\s*\?\s*…\s*$/, '')
     .split(' && ')
-    .map((c) => c.trim())
+    // The `? …` marker says "this is the true branch of that condition"; it is
+    // written on every conjunct, so it is stripped from every conjunct.
+    .map((c) => c.trim().replace(/\s*\?\s*…$/, ''))
     .filter(Boolean);
 
 const negate = (c: string) =>
@@ -402,6 +403,7 @@ export function runCheck(options: CheckOptions): Report {
 const FAILURE_TEXT = {
   crash: 'the agent crashes (watch nack / peek 500)',
   empty: 'the agent returns an empty result',
+  'not-running': 'the agent is not started, so nothing answers',
   unknown: 'failure mode not determined',
 };
 

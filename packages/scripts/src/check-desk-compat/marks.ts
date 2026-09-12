@@ -70,6 +70,17 @@ export function matchMark(
       failureMode: 'crash',
     };
   }
+  // Dropping the name from desk.bill stops the agent while leaving its source
+  // — and its marks — in place, so this too must beat the mar file lookup.
+  if (app !== null && !desk.bill.has(app) && desk.clientBilled(app)) {
+    return {
+      verdict: 'MISSING',
+      rule: 'marks',
+      reason: `%${app} is no longer listed in desk/desk.bill, so it does not run`,
+      evidence: 'desk/desk.bill (removed)',
+      failureMode: 'not-running',
+    };
+  }
   const candidates = markCandidates(mark);
   const hit = candidates.find((c) => desk.marFiles.has(c));
   // FOUND for a mark claims only that the file exists — not that the agent

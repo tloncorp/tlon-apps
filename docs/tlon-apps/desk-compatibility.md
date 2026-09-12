@@ -104,9 +104,29 @@ both drop real coverage and let a genuinely absent arm hide behind them. `?<`
 asserts the negation, so a self-check there *rejects* the frontend and stays
 conservative.
 
-**Deleted agents**: an agent the client's own desk has and the desk under test
-does not is `MISSING`, not "out of desk" — otherwise deleting an agent would
-walk straight through the removal gate. An app in neither tree is out of desk.
+**Removals** are read against the client's own desk, because a removal has many
+spellings and only the comparison tells them apart. Each of these is `MISSING`,
+not "out of desk" or "unverifiable", whenever the client's desk had the thing
+and the desk under test does not:
+
+- the agent file is gone;
+- the name is gone from `desk.bill`, so the agent is not started — its source
+  and its mar files survive, and would otherwise answer for an agent that is not
+  running (failure mode: *not started, so nothing answers*);
+- the surface is handed to `on-peek:def` / `on-watch:def`, which the pinned
+  default-agent nacks;
+- the surface is replaced by something that provably answers the same for every
+  path (`|=(* ~)`), or its arm is gone entirely.
+
+The last one is deliberately narrow: an arm holding any conditional rune or
+equality test is one this reader *failed to parse*, not one the desk removed,
+and it stays `UNVERIFIED`. Where both trees agree — both unbilled, both
+defaulted, both unparseable — nothing is decided, because there is no change to
+attribute.
+
+`::` comments are stripped before anything structural is read, so a rune written
+in prose cannot move the depth counter and swallow the arms below it. A `::`
+inside a cord or tape is text and survives.
 
 **Marks**: ownership is decided by exclusion against `peru.yaml`'s pick lists —
 read from the **desk under test**, since a mark dropped from its pick list

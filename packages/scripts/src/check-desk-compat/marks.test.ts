@@ -15,20 +15,23 @@ git module landscape:
 `;
 const VENDORED = vendoredMarks(PERU);
 
-function desk(files: string[], clientApps?: string[]) {
+function desk(files: string[], clientApps?: string[], bill = '%groups %chat') {
   const tree: Record<string, string> = {
-    'desk/desk.bill': ':~  %groups\n    %chat\n==\n',
+    'desk/desk.bill': `:~  ${bill}\n==\n`,
     'desk/app/groups.hoon': '|_  =bowl:gall\n--\n',
     'desk/app/chat.hoon': '|_  =bowl:gall\n--\n',
     'desk/app/notes.hoon': '|_  =bowl:gall\n--\n',
   };
   for (const f of files) tree[f] = ':: mark\n';
-  const client = Object.fromEntries(
+  const client: Record<string, string> = Object.fromEntries(
     (clientApps ?? []).map((a) => [
       `desk/app/${a}.hoon`,
       '|_  =bowl:gall\n--\n',
     ])
   );
+  // The client's desk bills everything it ships.
+  client['desk/desk.bill'] =
+    `:~  %groups %chat ${(clientApps ?? []).map((a) => `%${a}`).join(' ')}\n==\n`;
   return loadDesk(
     memoryTree(tree),
     'test',
@@ -114,6 +117,34 @@ describe('matchMark — ownership by exclusion from peru, never by the refs unde
       expect(result.reason).toContain('no longer an agent');
       expect(result.failureMode).toBe('crash');
     }
+  });
+
+  // Dropping the name from desk.bill stops the agent; its mar files survive
+  // untouched, so the file lookup would happily answer for an agent that is
+  // not running.
+  it('reports a poke at an unbilled agent, mar file or not', () => {
+    for (const files of [[], ['desk/mar/chat/action.hoon']]) {
+      const result = matchMark(
+        desk(files, [], '%groups'),
+        VENDORED,
+        'chat',
+        'chat-action'
+      );
+      expect(result.verdict).toBe('MISSING');
+      expect(result.reason).toContain('desk.bill');
+      expect(result.failureMode).toBe('not-running');
+    }
+  });
+
+  it('still answers normally for an agent both desks bill', () => {
+    expect(
+      matchMark(
+        desk(['desk/mar/chat/action.hoon'], []),
+        VENDORED,
+        'chat',
+        'chat-action'
+      ).verdict
+    ).toBe('FOUND');
   });
 
   it('calls no removal on an app the client never had', () => {

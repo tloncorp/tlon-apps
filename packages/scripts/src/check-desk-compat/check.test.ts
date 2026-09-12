@@ -86,6 +86,22 @@ describe('complementsGuard', () => {
     ).toBe(true);
   });
 
+  it('pairs a nested branch at the level that actually differs', () => {
+    const a = 'supportsNotes ? …';
+    const b = 'supportsReactions ? …';
+    // The inner pair: A && B against A && !B.
+    expect(
+      complementsGuard(`${a} && ${b}`, `${a} && ! (supportsReactions)`)
+    ).toBe(true);
+    // The outer pair: A && B against !A.
+    expect(complementsGuard(`${a} && ${b}`, '! (supportsNotes)')).toBe(true);
+    // A sibling under the same conditions is no fallback at all.
+    expect(complementsGuard(`${a} && ${b}`, `${a} && ${b}`)).toBe(false);
+    expect(
+      complementsGuard(`${a} && ${b}`, '! (somethingElse) && ! (andAnother)')
+    ).toBe(false);
+  });
+
   it('rejects a branch that is not about what the desk supports', () => {
     // chatAction picks a mark by conversation kind. Its club branch being
     // served says nothing about whether a DM request works on N-1.

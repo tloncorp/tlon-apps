@@ -67,6 +67,18 @@ describe('protocolsInSource', () => {
     expect([...(mixed.get('channels') ?? [])]).toEqual(['5']);
   });
 
+  it('does not read a commented-out charge as a declaration', () => {
+    const commented = protocolsInSource(
+      [
+        '%-  %-  agent:neg',
+        '    :+  notify=&',
+        '      [~.groups^%3 ~ ~]  :: was [~.groups^%2 ~ ~]',
+        '%-  agent:dbug',
+      ].join('\n')
+    );
+    expect([...(commented.get('groups') ?? [])]).toEqual(['3']);
+  });
+
   it('finds nothing in an agent that does not negotiate', () => {
     expect(protocolsInSource('|_  =bowl:gall\n--\n').size).toBe(0);
   });

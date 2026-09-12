@@ -9,6 +9,7 @@ import {
   parseDispatcher,
   preDispatchObstructions,
   splitTokens,
+  stripComments,
   stripSelfGuard,
 } from './hoon';
 
@@ -41,7 +42,7 @@ export type Rule =
  * to a crash and peek dispatchers to a silent empty, and the user-visible
  * symptom differs, so the verdict carries which.
  */
-export type FailureMode = 'crash' | 'empty' | 'unknown';
+export type FailureMode = 'crash' | 'empty' | 'not-running' | 'unknown';
 
 export interface MatchResult {
   verdict: Verdict;
@@ -96,8 +97,21 @@ export interface Desk {
    * the arms, so a removal PR must not read as merely unverifiable.
    */
   clientDispatched(app: string, surface: PathRequest['surface']): boolean;
+  /**
+   * Whether the client's own desk started this agent. Dropping a name from
+   * `desk.bill` stops the agent without touching a line of its source, so the
+   * app file surviving proves nothing.
+   */
+  clientBilled(app: string): boolean;
   agent(app: string): Agent | null;
 }
+
+const billIn = (tree: Tree) =>
+  new Set(
+    Array.from(
+      (tree.readFile('desk/desk.bill') ?? '').matchAll(/%([a-z][a-z0-9-]*)/g)
+    ).map((m) => m[1])
+  );
 
 /** Agents are parsed lazily; a run touches a handful of the 27. */
 function agentLoader(tree: Tree): (app: string) => Agent | null {
@@ -105,7 +119,11 @@ function agentLoader(tree: Tree): (app: string) => Agent | null {
   return (app) => {
     if (!cache.has(app)) {
       const file = `desk/app/${app}.hoon`;
-      const lines = tree.readFile(file)?.split('\n');
+      // Stripped once, here: this is the only place an agent file becomes
+      // lines, so nothing downstream can read a comment as code.
+      const source = tree.readFile(file);
+      const lines =
+        source === null ? undefined : stripComments(source.split('\n'));
       const arms = lines ? indexArms(lines) : null;
       cache.set(
         app,
@@ -126,11 +144,8 @@ function agentLoader(tree: Tree): (app: string) => Agent | null {
 }
 
 export function loadDesk(tree: Tree, ref: string, clientDesk?: Tree): Desk {
-  const bill = new Set(
-    Array.from(
-      (tree.readFile('desk/desk.bill') ?? '').matchAll(/%([a-z][a-z0-9-]*)/g)
-    ).map((m) => m[1])
-  );
+  const bill = billIn(tree);
+  const clientBill = clientDesk ? billIn(clientDesk) : null;
   const load = agentLoader(tree);
   const loadClient = clientDesk ? agentLoader(clientDesk) : null;
   return {
@@ -140,6 +155,7 @@ export function loadDesk(tree: Tree, ref: string, clientDesk?: Tree): Desk {
     marFiles: new Set(tree.list('desk/mar', (p) => p.endsWith('.hoon'))),
     hasApp: (app) => tree.exists(`desk/app/${app}.hoon`),
     clientHadApp: (app) => clientDesk?.exists(`desk/app/${app}.hoon`) ?? false,
+    clientBilled: (app) => clientBill?.has(app) ?? false,
     clientDispatched(app, surface) {
       const agent = loadClient?.(app);
       if (!agent) return false;
@@ -261,6 +277,18 @@ interface ArmMatch {
   kind: 'exact' | 'open';
 }
 
+/**
+ * Anything that looks like it branches on the path: a conditional rune, or an
+ * equality test. An arm holding one of these dispatches somehow, whether or not
+ * this reader can follow it.
+ */
+const DISPATCH_ISH = /(^|\s)(\?[-+:~=.^<>&|]|=\()/;
+
+const armText = (agent: Agent, entry: string) => {
+  const range = agent.arms.get(entry);
+  return range ? agent.lines.slice(range.start + 1, range.end).join('\n') : '';
+};
+
 function failureModeOf(dispatcher: Dispatcher | null): FailureMode {
   switch (dispatcher?.defaultKind) {
     case 'crash':
@@ -302,6 +330,17 @@ export function matchPath(
     );
   }
   if (!desk.bill.has(request.app)) {
+    // Unbilled is unstarted. When the client's desk billed it, the agent the
+    // client talks to is simply gone, however intact its source looks.
+    if (desk.clientBilled(request.app)) {
+      return {
+        verdict: 'MISSING',
+        rule: 'P1',
+        reason: `%${request.app} is no longer listed in desk/desk.bill, so it does not run`,
+        evidence: 'desk/desk.bill (removed)',
+        failureMode: 'not-running',
+      };
+    }
     return unverified(
       `%${request.app} is not listed in desk/desk.bill, so it may not be running`
     );
@@ -330,6 +369,21 @@ export function matchPath(
     );
   }
   if (surface.kind === 'stub' || surface.kind === 'absent') {
+    // `stub` covers two very different things and only one is a removal: an
+    // arm that provably answers the same thing for every path, and an arm that
+    // dispatches in a shape this reader cannot parse. Calling the second a
+    // removal would block every PR over a parser bug. `absent` needs no such
+    // care — its arm text is empty, so it fails the same test.
+    const removed = !DISPATCH_ISH.test(armText(agent, entry));
+    if (removed && desk.clientDispatched(request.app, request.surface)) {
+      return {
+        verdict: 'MISSING',
+        rule: 'P1',
+        reason: `%${request.app} no longer dispatches ${entry} (${surface.kind}), but the client's desk did`,
+        evidence: agent.file,
+        failureMode: request.surface === 'scry' ? 'empty' : 'crash',
+      };
+    }
     return unverified(
       `%${request.app} has no parseable ${entry} dispatcher (${surface.kind})`,
       agent.file

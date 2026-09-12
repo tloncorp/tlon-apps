@@ -199,6 +199,27 @@ describe('argument forms', () => {
     );
   });
 
+  it('conjoins nested conditionals inside a property', () => {
+    // `mark: A ? B ? x : y : z` sends x under A && B. A guard reading only `A`
+    // would pair x with y's sibling as if either could serve it.
+    const deps = extract(`import { poke } from './urbit';
+      export const f = (json: unknown) =>
+        poke({
+          app: 'activity',
+          mark: supportsNotes
+            ? supportsReactions
+              ? 'activity-action-3'
+              : 'activity-action-2'
+            : 'activity-action-1',
+          json,
+        });`);
+    expect(deps.map((d) => `${d.mark} ${d.guard}`).sort()).toEqual([
+      'activity-action-1 ! (supportsNotes)',
+      'activity-action-2 supportsNotes ? … && ! (supportsReactions)',
+      'activity-action-3 supportsNotes ? … && supportsReactions ? …',
+    ]);
+  });
+
   it('guards each arm of a ternary written as the poke argument itself', () => {
     // `poke(a ? new : old)` is the same fallback as `poke({ mark: a ? … : … })`
     // and has to read as one, or the new mark looks unconditional.

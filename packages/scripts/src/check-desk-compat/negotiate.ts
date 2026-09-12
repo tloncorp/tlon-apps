@@ -1,4 +1,5 @@
 import { Tree } from './git';
+import { stripComment } from './hoon';
 
 export interface ProtocolDifference {
   agent: string;
@@ -18,7 +19,11 @@ export interface ProtocolDifference {
 export function protocolsInSource(source: string): Map<string, Set<string>> {
   const out = new Map<string, Set<string>>();
   let inBlock = false;
-  for (const line of source.split('\n')) {
+  for (const raw of source.split('\n')) {
+    // A commented-out charge (`:: was [~.groups^%2 ~ ~]`) is not a
+    // declaration; reading one would invent a version difference and
+    // block every pair.
+    const line = stripComment(raw);
     if (/agent:neg(otiate)?\b/.test(line)) inBlock = true;
     // The wrapper stack ends at the next agent combinator.
     else if (
