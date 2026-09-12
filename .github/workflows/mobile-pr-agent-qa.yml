@@ -1,0 +1,216 @@
+name: Hosted PR agent QA
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Existing PR to assess and test
+        type: string
+        required: true
+      qa_ref:
+        description: Optional source-verified QA overlay ref before this workflow lands
+        type: string
+      assessment_run_id:
+        description: Optional successful assessment to revalidate for an infrastructure retry
+        type: string
+      build_id:
+        description: Optional existing simulator build to reuse
+        type: string
+      build_sha:
+        description: Existing build commit, verified independently by EAS
+        type: string
+permissions:
+  contents: read
+  pull-requests: read
+concurrency:
+  group: hosted-pr-agent-qa-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: false
+jobs:
+  assess:
+    if: ${{ github.event_name == 'workflow_dispatch' || (!github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      pr_json: ${{ steps.plan.outputs.pr_json }}
+      plan: ${{ steps.plan.outputs.plan }}
+      decision: ${{ steps.plan.outputs.decision }}
+      fixture_plan: ${{ steps.plan.outputs.fixture_plan }}
+      has_fixtures: ${{ steps.plan.outputs.has_fixtures }}
+      ref: ${{ steps.plan.outputs.ref }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - id: plan
+        name: Assess changes and select setup recipes before spending on devices
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_PR_NUMBER: ${{ github.event.pull_request.number || inputs.pr_number }}
+          QA_TARGET_REF: ${{ inputs.qa_ref || '' }}
+          QA_ASSESSMENT_RUN_ID: ${{ inputs.assessment_run_id || '' }}
+        run: node scripts/agent-qa/cloud-pr.mjs assess
+  prepare_build:
+    needs: assess
+    if: ${{ needs.assess.outputs.decision == 'test' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    outputs:
+      build_id: ${{ steps.build.outputs.build_id }}
+      build_sha: ${{ steps.build.outputs.build_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assess.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - name: Repack compatible native code or build before leasing ships
+        id: build
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
+          QA_ASSESSMENT_JSON: ${{ needs.assess.outputs.plan }}
+          QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
+          QA_BUILD_ID: ${{ inputs.build_id || '' }}
+          QA_BUILD_SHA: ${{ inputs.build_sha || '' }}
+        run: node scripts/agent-qa/cloud-pr.mjs build
+  test:
+    needs: [assess, prepare_build]
+    if: ${{ needs.assess.outputs.decision == 'test' && needs.assess.outputs.has_fixtures == 'true' }}
+    runs-on: blacksmith-4vcpu-ubuntu-2204
+    timeout-minutes: 45
+    outputs:
+      eas_run_id: ${{ steps.qa.outputs.eas_run_id }}
+    env:
+      PROOF_OUTPUT: ${{ github.workspace }}/proof-output
+      QA_PR_MODE: "true"
+      QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
+      QA_SOURCE_SHA: ${{ fromJSON(needs.assess.outputs.pr_json).head.sha }}
+      QA_ASSESSMENT_JSON: ${{ needs.assess.outputs.plan }}
+      QA_FIXTURE_PLAN: ${{ needs.assess.outputs.fixture_plan }}
+      QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
+      QA_BUILD_ID: ${{ needs.prepare_build.outputs.build_id }}
+      QA_BUILD_SHA: ${{ needs.prepare_build.outputs.build_sha }}
+      MAESTRO_RUN_TAG: ci${{ github.run_id }}a${{ github.run_attempt }}
+      MAESTRO_APP_ID: io.tlon.groups
+      MAESTRO_TEST_SHIP: "~zod"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assess.outputs.ref }}
+      - name: Verify the checkout contains the requested product source
+        run: node --input-type=module -e "import {verifySourceOverlay} from './scripts/agent-qa/assess.mjs'; verifySourceOverlay(JSON.parse(process.env.QA_PR_JSON).head.sha)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - uses: pnpm/action-setup@v3
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Restore prepared ships
+        id: snapshot
+        uses: actions/cache/restore@v4
+        with:
+          path: .proof-snapshot
+          key: rube-prepared-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('desk/**', '!desk/commit.txt', 'peru.yaml', 'apps/tlon-web/e2e/shipManifest.json') }}
+      - name: Install ship and tunnel tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y netcat-openbsd tmux rsync
+          command -v nginx
+          java -version
+          pipx install peru
+          curl -fsSL https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz | tar xz -C /tmp
+          echo /tmp >> "$GITHUB_PATH"
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter tlon-web rube:compile
+      - name: Verify fixture imports before starting ships
+        run: NODE_OPTIONS=--conditions=tlon-source pnpm --filter @tloncorp/tlon-bot-e2e exec tsx -e 'import(process.env.GITHUB_WORKSPACE + "/scripts/agent-qa/seed-notes.ts").then(() => process.exit(0), error => { console.error(error); process.exit(1); })'
+      - name: Run selected deterministic regressions
+        run: |
+          mkdir -p "$PROOF_OUTPUT"
+          pnpm --filter @tloncorp/shared rebuild better-sqlite3
+          node scripts/agent-qa/run-regressions.mjs
+      - name: Start matching ships and restricted tunnel
+        id: ships
+        env:
+          NGROK_AUTHTOKEN: ${{ secrets.MAESTRO_FAKE_SHIP_NGROK_TOKEN }}
+          QA_TUNNEL_TOKEN: ${{ secrets.QA_TUNNEL_TOKEN }}
+        run: bash .maestro/cloud-fakeship/start.sh
+      - name: Run the EAS iOS agent against these ships
+        id: qa
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_SHIP_URL: ${{ steps.ships.outputs.url }}
+        run: node scripts/agent-qa/cloud-pr.mjs run
+      - name: Verify setup evidence
+        if: always() && steps.ships.outcome == 'success'
+        run: test -f "$PROOF_OUTPUT/peer-ready.json"
+      - name: Snapshot validated backend after clean shutdown
+        id: capture
+        if: always() && steps.ships.outcome == 'success' && steps.snapshot.outputs.cache-hit != 'true'
+        run: bash .maestro/cloud-fakeship/snapshot.sh
+      - name: Save prepared ships
+        if: always() && steps.capture.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: .proof-snapshot
+          key: ${{ steps.snapshot.outputs.cache-primary-key }}
+      - name: Stop experiment processes
+        if: always()
+        run: |
+          tmux kill-session -t proof-rube 2>/dev/null || true
+          for name in ngrok peer; do
+            file="$PROOF_OUTPUT/$name.pid"
+            if [ -f "$file" ]; then kill "$(cat "$file")" 2>/dev/null || true; fi
+          done
+          nginx -s stop -c "$RUNNER_TEMP/proof-nginx.conf" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr-agent-qa-backend
+          path: proof-output/
+          retention-days: 3
+  finish:
+    needs: [assess, test]
+    if: ${{ always() && needs.test.outputs.eas_run_id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assess.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - name: Finish recorded review and publication after releasing ships
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_EAS_RUN_ID: ${{ needs.test.outputs.eas_run_id }}
+          QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
+        run: node scripts/agent-qa/cloud-pr.mjs finish
+  without_fixtures:
+    needs: [assess, prepare_build]
+    if: ${{ always() && needs.assess.result == 'success' && ( needs.assess.outputs.decision != 'test' || needs.assess.outputs.has_fixtures != 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.assess.outputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.22.0"
+      - name: Run or publish the assessment without a ship lease
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          QA_PR_JSON: ${{ needs.assess.outputs.pr_json }}
+          QA_ASSESSMENT_JSON: ${{ needs.assess.outputs.plan }}
+          QA_TARGET_REF: ${{ needs.assess.outputs.ref }}
+          QA_BUILD_ID: ${{ needs.prepare_build.outputs.build_id }}
+          QA_BUILD_SHA: ${{ needs.prepare_build.outputs.build_sha }}
+        run: node scripts/agent-qa/cloud-pr.mjs run
