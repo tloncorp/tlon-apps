@@ -108,6 +108,8 @@ This yields an `authType: 'self'` session. It gets you into the app; it does not
 
 For a bug or a change to existing behavior, record what the app does now, before touching code, on every platform the change could touch: an Android "before" is not recoverable once the fix is in. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
 
+Record the behavior, not the journey. Navigate to the screen first, start recording, do the one action that triggers it, stop as soon as the result is on screen. A reviewer watches these; sign-in, navigation and dead time are not evidence. Aim for under 30 seconds.
+
 ```bash
 agent-device devices                       # names, not udids
 agent-device open io.tlon.groups --platform ios --device "<name>" --session <name>
@@ -173,6 +175,18 @@ gh pr edit <number> --body-file <worktree>/.evidence/body.md
 gh pr ready <number>
 ```
 
+**Check every clip before attaching it.** `ffprobe -v error -show_entries format=duration -of csv=p=0 <clip>` for the length, and a frame strip to see what is in it:
+
+```bash
+ffmpeg -v error -i <clip> -vf fps=1/3 <worktree>/.evidence/frames-%02d.png    # one frame every 3s; look at them
+```
+
+A clip longer than about 30 seconds, or one that opens on sign-in or navigation, gets cut to the part that shows the behavior. Re-encode; do not stream-copy. Simulator recordings are variable frame rate, and `-c copy` lands the cut on the wrong frame:
+
+```bash
+ffmpeg -v error -i <clip> -ss <start> -to <end> -c:v libx264 -preset veryfast -crf 23 -an <clip>.trimmed.mp4
+```
+
 Mark it ready once the evidence is in: the Codex reviewer only reviews ready pull requests.
 
 ### 9. Follow the review
@@ -181,9 +195,11 @@ Mark it ready once the evidence is in: the Codex reviewer only reviews ready pul
 node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
 ```
 
-It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints each as one JSON line (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own comments are ignored. Run it in the background so it wakes you; run it again after you respond. When it prints `{"kind":"closed","merged":true}`, go to step 10.
+It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints everything new as one JSON line each (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own comments are ignored. Run it in the background so it wakes you. When it prints `{"kind":"closed","merged":true}`, go to step 10.
 
-For each item: fix what is real, push, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<commentId>/replies -f body=...` for a review comment, using the numeric `commentId` the watcher printed, not its `id`; `gh pr comment` otherwise), and re-capture evidence if the visible behavior changed. Push back, with reasons, on what is not real.
+One run is one round. For every item in it: fix what is real, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<commentId>/replies -f body=...` for a review comment, using the numeric `commentId` the watcher printed, not its `id`; `gh pr comment` otherwise), and push back, with reasons, on what is not. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
+
+Stop when a round contains only Codex's completed status with no findings, when the pull request is merged or closed, or when the watcher's `--timeout` (default 1800 seconds after its start; pass a shorter one for a quick run) expires with nothing new, and report what is still open. Human reviewers come on their own schedule; the budget is for them, not a wait to extend.
 
 ### 10. Clean up
 
