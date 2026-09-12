@@ -30,10 +30,13 @@ export interface Finding extends MatchResult {
    */
   allowed?: KnownGap;
   /**
-   * A sibling branch at the same call site is served at this ref, so the guard
-   * has somewhere to land. Reported, and does not fail the run.
+   * Every site making this request guards it on a capability, and the
+   * complementary branch of that guard is served at this ref, so the guard has
+   * somewhere to land. Reported, and does not fail the run.
    */
   fallback?: { coveredBy: string; guard?: string };
+  /** Which of this request's sites are covered, and which still block. */
+  coverage?: { covered: SourceLocation[]; blocking: SourceLocation[] };
 }
 
 export interface KnownGap {
@@ -105,41 +108,115 @@ export function loadKnownGaps(): Map<string, KnownGap> {
 export const loadProtocolBumps = (): ProtocolBump[] =>
   loadPolicy().protocolBumps ?? [];
 
-/** An observed difference is allowed only if a bump entry describes it exactly. */
+/**
+ * An observed difference is allowed only if a bump entry describes it exactly.
+ *
+ * Direction is not fixed: candidate-vs-N-1 sees the new version on the client
+ * side and the old on the desk under test, while released-client-vs-candidate
+ * sees exactly the reverse. Both are the same permitted transition, so the
+ * entry matches either orientation — but only that pair of versions.
+ */
 export function matchBump(
   difference: ProtocolDifference,
   bumps: ProtocolBump[]
 ): ProtocolBump | undefined {
+  const left = difference.clientDeskVersions.join();
+  const right = difference.n1Versions.join();
   return bumps.find(
     (b) =>
       b.agent === difference.agent &&
       b.protocol === difference.protocol &&
-      difference.n1Versions.join() === b.from &&
-      difference.clientDeskVersions.join() === b.to
+      ((left === b.to && right === b.from) ||
+        (left === b.from && right === b.to))
   );
 }
 
 /**
- * A guarded branch whose sibling is served is the policy's fallback exception,
- * not a failure. Conditional branches are never unioned — each is its own
- * record — so a fallback shows up as two records sharing one call site.
+ * Identifiers that make a guard a *capability* guard — one that asks what the
+ * desk supports, so its two branches are the same request written for two desk
+ * versions. Taken from what the client actually spells:
+ * `getActivitySupportsNotes`, `activityVersionSupportsNotes`,
+ * `groupsVersionSupportsNotesSearch`, `REACTIONS_MIN_GROUPS_VERSION`,
+ * `NOTES_ACTIVITY_MIN_GROUPS_VERSION`, `groupsVersion`.
+ *
+ * A branch on anything else — `whomIsDm(whom)`, `type === 'channel'` — chooses
+ * between two requests the client makes in different situations, not between
+ * two desks. Its sibling being served says nothing about the missing one.
  */
-export function markCoveredFallbacks(findings: Finding[]): void {
-  const foundBySite = new Map<string, string>();
+const CAPABILITY_GUARD =
+  /\b(\w*MIN_GROUPS_VERSION|\w*[Ss]upports\w*|\w*[Cc]apab\w*|\w*[Dd]esk[Vv]ersion\w*|\w*[Gg]roups[Vv]ersion\w*|isDeskAtLeast\w*|hasFeature\w*)\b/;
+
+const conjuncts = (guard?: string) =>
+  (guard ?? '')
+    .replace(/\s*\?\s*…\s*$/, '')
+    .split(' && ')
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+const negate = (c: string) =>
+  /^!\s*\(.*\)$/.test(c)
+    ? c
+        .replace(/^!\s*\(/, '')
+        .replace(/\)$/, '')
+        .trim()
+    : `! (${c})`;
+
+/**
+ * Whether `found` runs exactly when `missing` does not, on a capability this
+ * reader recognises. Requiring the complementary branch of the *same* guard is
+ * what stops an unrelated served sibling on the same line from excusing a gap.
+ */
+export function complementsGuard(missing?: string, found?: string): boolean {
+  const theirs = conjuncts(found);
+  return conjuncts(missing).some(
+    (c) => CAPABILITY_GUARD.test(c) && theirs.includes(negate(c))
+  );
+}
+
+/**
+ * A guarded branch whose complementary branch is served is the policy's
+ * fallback exception, not a failure.
+ *
+ * Coverage is decided per *record*, not per request: one call site may guard
+ * the request while another makes it unconditionally, and only the guarded one
+ * is excused. A request is covered only when every site that would miss is.
+ */
+export function markCoveredFallbacks(
+  findings: Finding[],
+  grouped: Map<string, Dependency[]>
+): void {
+  const at = (s: SourceLocation) => `${s.file}:${s.line}`;
+  const servedAt = new Map<string, { key: string; guard?: string }[]>();
   for (const finding of findings) {
     if (finding.verdict !== 'FOUND') continue;
-    for (const site of finding.sites) {
-      foundBySite.set(`${site.file}:${site.line}`, finding.dependency.key);
+    for (const dep of grouped.get(finding.dependency.key) ?? []) {
+      const list = servedAt.get(at(dep.site)) ?? [];
+      list.push({ key: finding.dependency.key, guard: dep.guard });
+      servedAt.set(at(dep.site), list);
     }
   }
   for (const finding of findings) {
-    if (finding.verdict !== 'MISSING' || !finding.dependency.guard) continue;
-    for (const site of finding.sites) {
-      const coveredBy = foundBySite.get(`${site.file}:${site.line}`);
-      if (coveredBy) {
-        finding.fallback = { coveredBy, guard: finding.dependency.guard };
-        break;
+    if (finding.verdict !== 'MISSING') continue;
+    const covered: SourceLocation[] = [];
+    const blocking: SourceLocation[] = [];
+    let coveredBy: string | undefined;
+    let guard: string | undefined;
+    for (const dep of grouped.get(finding.dependency.key) ?? []) {
+      const sibling = (servedAt.get(at(dep.site)) ?? []).find((s) =>
+        complementsGuard(dep.guard, s.guard)
+      );
+      if (!sibling) {
+        blocking.push(dep.site);
+        continue;
       }
+      covered.push(dep.site);
+      coveredBy ??= sibling.key;
+      guard ??= dep.guard;
+    }
+    if (covered.length === 0) continue;
+    finding.coverage = { covered, blocking };
+    if (blocking.length === 0) {
+      finding.fallback = { coveredBy: coveredBy!, guard };
     }
   }
 }
@@ -232,7 +309,7 @@ export function runCheck(options: CheckOptions): Report {
           : {}),
       });
     }
-    markCoveredFallbacks(findings);
+    markCoveredFallbacks(findings, grouped);
     findings.sort((a, b) => a.dependency.key.localeCompare(b.dependency.key));
 
     const bumps = loadProtocolBumps();
@@ -295,6 +372,13 @@ function describe(finding: Finding): string[] {
   if (finding.verdict === 'UNVERIFIED') lines.push(`    text:  ${dep.text}`);
   if (finding.fallback) {
     lines.push(`    covers N-1: ${finding.fallback.coveredBy}`);
+  } else if (finding.coverage) {
+    // Guarded at some sites and not at others: say which sites still block, so
+    // the fix is "guard these too", not "why is my fallback ignored?".
+    const at = (l: SourceLocation[]) =>
+      l.map((s) => `${s.file}:${s.line}`).join(', ');
+    lines.push(`    covered at: ${at(finding.coverage.covered)}`);
+    lines.push(`    blocks at:  ${at(finding.coverage.blocking)}`);
   }
   if (finding.allowed) {
     const { reason, broke_at, issue } = finding.allowed;

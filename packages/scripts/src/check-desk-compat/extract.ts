@@ -311,7 +311,13 @@ function localAssignments(
     ts.forEachChild(node, visit);
   };
   ts.forEachChild(scope, visit);
-  return out;
+  // `let scryPath = ''` is a placeholder only because something later
+  // overwrites it. On its own it is the value the call sends.
+  const isEmptyLiteral = (v: Val<ts.Expression>) =>
+    (ts.isStringLiteral(v.value) ||
+      ts.isNoSubstitutionTemplateLiteral(v.value)) &&
+    v.value.text === '';
+  return out.length > 1 ? out.filter((v) => !isEmptyLiteral(v)) : out;
 }
 
 /** Is the position inside a loop that the scope encloses? */
@@ -712,14 +718,8 @@ function readEndpointObject(
       unresolved:
         app.value === null
           ? 'app is not a string literal'
-          : path.value.known.length === 0
-            ? path.value.unknownTail
-              ? `path could not be resolved: ${path.value.text}`
-              : // `let scryPath = ''` before an if/else assigns the real one.
-                // An empty path *can* be a real request — chat watches the
-                // root — so this only says the literal is a placeholder, and
-                // reports it as coverage rather than as a request.
-                'empty literal placeholder, assigned before use'
+          : path.value.known.length === 0 && path.value.unknownTail
+            ? `path could not be resolved: ${path.value.text}`
             : undefined,
     });
   }

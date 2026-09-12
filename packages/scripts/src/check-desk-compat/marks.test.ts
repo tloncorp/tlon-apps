@@ -15,7 +15,7 @@ git module landscape:
 `;
 const VENDORED = vendoredMarks(PERU);
 
-function desk(files: string[]) {
+function desk(files: string[], clientApps?: string[]) {
   const tree: Record<string, string> = {
     'desk/desk.bill': ':~  %groups\n    %chat\n==\n',
     'desk/app/groups.hoon': '|_  =bowl:gall\n--\n',
@@ -23,7 +23,17 @@ function desk(files: string[]) {
     'desk/app/notes.hoon': '|_  =bowl:gall\n--\n',
   };
   for (const f of files) tree[f] = ':: mark\n';
-  return loadDesk(memoryTree(tree), 'test');
+  const client = Object.fromEntries(
+    (clientApps ?? []).map((a) => [
+      `desk/app/${a}.hoon`,
+      '|_  =bowl:gall\n--\n',
+    ])
+  );
+  return loadDesk(
+    memoryTree(tree),
+    'test',
+    clientApps ? memoryTree(client) : undefined
+  );
 }
 
 describe('vendoredMarks', () => {
@@ -88,6 +98,29 @@ describe('matchMark — ownership by exclusion from peru, never by the refs unde
     ],
   ])('%s', (_name, files, app, mark, verdict) => {
     expect(matchMark(desk(files), VENDORED, app, mark).verdict).toBe(verdict);
+  });
+
+  // The client's desk has %ping; N-1 does not. Nothing the client pokes at it
+  // can be delivered, so a surviving mar file must not answer for the agent.
+  it('reports a poke at a deleted agent, mar file or not', () => {
+    for (const files of [[], ['desk/mar/ping/action.hoon']]) {
+      const result = matchMark(
+        desk(files, ['ping']),
+        VENDORED,
+        'ping',
+        'ping-action'
+      );
+      expect(result.verdict).toBe('MISSING');
+      expect(result.reason).toContain('no longer an agent');
+      expect(result.failureMode).toBe('crash');
+    }
+  });
+
+  it('calls no removal on an app the client never had', () => {
+    // %settings lives in another desk; it was never ours to remove.
+    expect(
+      matchMark(desk([]), VENDORED, 'settings', 'settings-event').verdict
+    ).toBe('UNVERIFIED');
   });
 
   it('claims only that the file exists, never that the agent accepts it', () => {

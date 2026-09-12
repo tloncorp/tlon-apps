@@ -199,9 +199,9 @@ describe('argument forms', () => {
     );
   });
 
-  it('keeps the real assignments when a placeholder precedes them', () => {
-    // activityApi.ts:57 — `let scryPath = ''` is not a request, but the two
-    // paths assigned after it are, and both must survive as their own records.
+  it('drops an empty initialiser that a later assignment overwrites', () => {
+    // activityApi.ts:57 — `let scryPath = ''` is only a placeholder because
+    // both branches below it assign the path the call actually sends.
     const deps = extract(`import { scry } from './urbit';
       export const f = (id: string, dm: boolean) => {
         let scryPath = '';
@@ -210,12 +210,21 @@ describe('argument forms', () => {
         return scry({ app: 'activity', path: scryPath });
       };`);
     expect(deps.map((d) => d.key).sort()).toEqual([
-      'scry activity /',
       'scry activity /v4/activity/dm-threads/{}',
       'scry activity /v4/activity/threads/{}',
     ]);
-    const placeholder = deps.find((d) => d.key === 'scry activity /');
-    expect(placeholder?.unresolved).toContain('placeholder');
+  });
+
+  it('keeps an empty path that nothing overwrites', () => {
+    // chatApi.ts subscribes to `/` for real. Only a competing assignment makes
+    // an empty string a placeholder; on its own it is the request.
+    const deps = extract(`import { subscribe } from './urbit';
+      export const f = () => {
+        const path = '';
+        return subscribe({ app: 'chat', path }, () => {});
+      };`);
+    expect(deps.map((d) => d.key)).toEqual(['subscribe chat /']);
+    expect(deps[0].unresolved).toBeUndefined();
   });
 
   it('resolves only the bindings that can reach the call', () => {

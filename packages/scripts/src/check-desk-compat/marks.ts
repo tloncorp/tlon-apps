@@ -58,6 +58,18 @@ export function matchMark(
   });
   if (mark === null)
     return unverified('mark could not be resolved to a string literal');
+  // A deleted agent cannot accept any mark, however many mar files survive it.
+  // Checking before the file lookup is the point: a leftover mar would
+  // otherwise report FOUND for a poke that now crashes.
+  if (app !== null && !desk.hasApp(app) && desk.clientHadApp(app)) {
+    return {
+      verdict: 'MISSING',
+      rule: 'marks',
+      reason: `%${app} is no longer an agent in this desk, but the client still pokes it`,
+      evidence: `desk/app/${app}.hoon (removed)`,
+      failureMode: 'crash',
+    };
+  }
   const candidates = markCandidates(mark);
   const hit = candidates.find((c) => desk.marFiles.has(c));
   // FOUND for a mark claims only that the file exists — not that the agent

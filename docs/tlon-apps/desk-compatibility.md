@@ -43,7 +43,10 @@ unusable as a pinned N-1 pier and v12.2.0 is.
 The bump PR is itself the change that creates the difference, so it would
 otherwise never be able to merge. It adds an entry to `protocolBumps` in
 `packages/scripts/src/check-desk-compat/known-gaps.json` naming the agent,
-protocol, `from`/`to` versions and an issue. The checker still prints the
+protocol, `from`/`to` versions and an issue. `from`/`to` name the transition,
+and an entry matches it in either orientation: the gate run reads the candidate
+against N-1 and sees new/old, while a released-client run reads the other way.
+Only that one pair of versions is excused. The checker still prints the
 difference loudly — in its own `ALLOWED PROTOCOL BUMP` section — but stops
 failing on that exact transition; any other mismatch still blocks. N-1 support
 for the protocol is suspended until the bump becomes N-1, and the next release
@@ -116,10 +119,30 @@ only that the file exists.
 
 Conditional branches are reported **per branch, never unioned**, each carrying
 its guard text — including the condition an early `return` inside an `if`
-implicitly negates for the returns after it. A `MISSING` branch whose sibling at
-the same call site is `FOUND` is the policy's fallback exception: it is reported
-in its own *covered fallback* section with the guard, and does not fail the run.
-A `MISSING` with no served sibling still blocks.
+implicitly negates for the returns after it.
+
+### Writing a fallback the checker recognises
+
+A `MISSING` branch is excused only as a *covered fallback*, and the bar is
+deliberately narrow, because the exception suppresses the one signal the gate
+exists to give:
+
+- **Guard on a capability, not on a situation.** The guard must name what the
+  desk supports — `getActivitySupportsNotes()`, `groupsVersionSupportsNotesSearch`,
+  `REACTIONS_MIN_GROUPS_VERSION` — so its two branches are the same request
+  written for two desk versions. A branch on `whomIsDm(whom)` or
+  `type === 'channel'` picks between two requests the client makes in different
+  *situations*; its sibling being served says nothing about N-1, and the
+  `MISSING` one still blocks.
+- **Serve the complementary branch at the same call site.** Coverage requires a
+  `FOUND` request under the negation of that same guard, at that same line. Any
+  other served request nearby does not count.
+- **Guard every site.** Coverage is decided per call site. If the same request
+  is also made unconditionally somewhere else, the request still blocks, and the
+  report lists which sites are covered and which are blocking.
+
+A covered fallback is reported in its own section with the guard and does not
+fail the run. Everything else that is `MISSING` blocks.
 
 A guard is otherwise conservative in **both** directions — it may reject a
 request the arms would have served, so a match proves no more than an absence

@@ -37,6 +37,42 @@ function check(files: Record<string, string>, request: PathRequest): string {
   return `${r.verdict} ${r.rule}`;
 }
 
+// %chat's real root subscription: `~` is an arm like any other, so a request
+// with no segments is a request, not a missing one.
+const ROOT_WATCH = `
+++  on-watch
+  |=  =path
+  ?+  path  ~|(bad-path+path !!)
+    ~          cor
+    [%ui ~]    cor
+  ==
+--
+`.trim();
+
+const NO_ROOT_WATCH = `
+++  on-watch
+  |=  =path
+  ?+  path  ~|(bad-path+path !!)
+    [%ui ~]    cor
+  ==
+--
+`.trim();
+
+describe('the root path', () => {
+  const chat = (app: string) => ({
+    'desk/desk.bill': ':~  %chat\n==\n',
+    'desk/app/chat.hoon': app,
+  });
+
+  it('is served when an arm terminates immediately', () => {
+    expect(check(chat(ROOT_WATCH), watch('chat', []))).toBe('FOUND P1');
+  });
+
+  it('is missing when every arm demands a segment', () => {
+    expect(check(chat(NO_ROOT_WATCH), watch('chat', []))).toBe('MISSING P1');
+  });
+});
+
 describe('matchAlternative', () => {
   const m = (alt: string, known: string[], unknownTail: boolean) =>
     matchAlternative(elems(alt), known, unknownTail);
