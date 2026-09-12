@@ -160,6 +160,8 @@ export function StaticChatMessage({
     post.deliveryStatus === 'failed' ||
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
+  const showDeliveryStatus =
+    !!post.deliveryStatus && post.deliveryStatus !== 'failed';
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -601,7 +603,7 @@ export function StaticChatMessage({
         />
       ) : null}
 
-      {!hideSentAtTimestamp && !showAuthor && (
+      {!hideSentAtTimestamp && !showAuthor && !showDeliveryStatus && (
         <SentTimeText
           sentAt={post.sentAt}
           color="$tertiaryText"
@@ -612,10 +614,13 @@ export function StaticChatMessage({
       )}
 
       {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
+        // Without an author row the top-right corner belongs to the content
+        // (images, video, refs), so the status goes in the empty avatar gutter.
         <View
           pointerEvents="none"
           position="absolute"
-          right={12}
+          left={showAuthor ? undefined : 12}
+          right={showAuthor ? 12 : undefined}
           top={8}
           zIndex={199}
         >
