@@ -68,7 +68,7 @@ APP_VARIANT=preview stim android --variant previewDebug
 
 Both need `APP_VARIANT=preview`, as the repository's `android:preview` script does: `app.config.ts` reads it for the scheme and bundle id, and the Gradle variant alone leaves the app configured as production. The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
 
-Use `stim logs --errors`, not `--since <n> --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
+Use `stim logs --errors`, not `--since 5m --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
 
 `ready` describes the process, not the screen: this app needs roughly another minute to paint its first screen.
 
@@ -91,12 +91,12 @@ agent-device wait text "Or configure self hosted" --session <name>
 agent-device press 'text="Or configure self hosted"' --session <name> --settle
 agent-device wait text "Ship URL" --session <name>
 agent-device press 'text="Connect"' --session <name> --settle
-agent-device wait text "Share Usage Statistics" --session <name>
+agent-device wait text "Usage Statistics" --session <name>
 agent-device press 'text="Next"' --session <name> --settle
 agent-device alert dismiss --session <name>
 ```
 
-That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. On iOS a "Stay in the loop" sheet appears later over Home and blocks the bottom of the list; `press 'text="Not now"'` when it does. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
+That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. On iOS a "Stay in the loop" sheet appears later over Home and blocks the bottom of the list; `press 'text="Not now"'` when it does. Both prompts come back after every full reload, not only the first. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. On iOS a label that appears twice on screen (a `Back` button and its text, an action-sheet row) does not resolve by `text=`; snapshot and press the `[button]` ref. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
 
 The prefill itself is not `__DEV__`-gated, but the pre-validation that enables `Connect` without visiting each field is -- so in a release build the fields are filled and `Connect` stays disabled until each is touched. A `tlon.network` URL is rejected outside `__DEV__`.
 
@@ -113,13 +113,13 @@ Record the behavior, not the journey. Navigate to the screen first, start record
 ```bash
 agent-device devices                       # names, not udids
 agent-device open io.tlon.groups --platform ios --device "<name>" --session <name>
-agent-device record start <worktree>/.evidence/before-ios.mp4 --session <name>
+agent-device record start <worktree>/.evidence/before-ios.mp4 --quality high --session <name>
 agent-device press 'text="<label>"' --session <name> --settle
 agent-device longpress 'text="<label>"' --session <name> --settle
 agent-device record stop --session <name>
 ```
 
-`--device` takes the **name** exactly as `agent-device devices` prints it; a udid gives `DEVICE_NOT_FOUND`. `press` and `longpress` are the interaction commands -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
+`--device` takes the **name** exactly as `agent-device devices` prints it; a udid gives `DEVICE_NOT_FOUND`. `--quality high` records at device resolution; the default is 220x480, which loses anything smaller than a button. `press` and `longpress` are the interaction commands -- there is no `tap`. Keep one session per platform: this repository usually has both a simulator and an emulator booted.
 
 Evidence goes in `.evidence/` at the root of your worktree: gitignored, so it cannot be committed, and removed with the worktree in step 10. Give it as an absolute path, because `$TMPDIR` differs between sandboxed and unsandboxed shells. After `record stop`, check the file exists; on Android a second recording in the same session has been seen to produce nothing without an error.
 
@@ -135,13 +135,15 @@ The ticket's diagnosis is a lead, not the cause: confirm the mechanism in code b
 
 An edit to application JavaScript or TypeScript needs no rebuild; Fast Refresh applies it, and `stim logs --errors` shows what it broke. Configuration is not application code: after `babel.config.js`, `metro.config.js`, or `app.config.ts` changes, restart with `stim stop` and `stim start`, and run `stim ios` or `stim android` again after a native input changes. Format with `pnpm format` at the repository root (oxfmt); running prettier over a file rewrites it wholesale.
 
+Before running `packages/shared` tests, `npm rebuild better-sqlite3` from the worktree root: the desktop app's postinstall builds the hoisted copy for Electron, and the repository's own `test` script starts with that rebuild for the same reason.
+
 Commit as you go. Everything after this step reads the branch, not the working tree: the review diff in step 7 and the pull request in step 8 both carry only what is committed. Never force-push, and never `git stash`: the stash is shared with every other worktree of this checkout.
 
 ### 6. Validate with the same repro
 
 Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform the change touches, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario.
 
-**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home, and on Android the notifications prompt returns (`agent-device alert dismiss`). Check which screen you are on before recording. If `stim logs` shows the edit bundled for one platform and not the other, `stim reload <platform>` for the one that missed it.
+**Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). Check which screen you are on before recording. If `stim logs` shows the edit bundled for one platform and not the other, `stim reload <platform>` for the one that missed it.
 
 ### 7. Get an independent review
 
