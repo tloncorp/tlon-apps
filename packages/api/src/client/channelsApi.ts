@@ -322,7 +322,10 @@ export const toChannelsUpdate = (
         const replyResponse =
           channelEvent.response.post['r-post'].reply['r-reply'];
         if ('set' in replyResponse) {
-          if (!isPostTombstone(replyResponse.set)) {
+          if (
+            replyResponse.set !== null &&
+            !isPostTombstone(replyResponse.set)
+          ) {
             logger.log(`add reply event`);
             return {
               type: 'addPost',
