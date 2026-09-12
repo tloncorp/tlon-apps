@@ -304,6 +304,16 @@ const PostVariantsFixture = ({ post }: { post: db.Post }) => {
             label="Sent"
             post={{ ...post, deliveryStatus: 'sent' }}
           />
+          <PostSpecimen
+            label="Sent (showAuthor=false)"
+            post={{ ...post, deliveryStatus: 'sent' }}
+            showAuthor={false}
+          />
+          <PostSpecimen
+            label="Sent (showAuthor=false, image)"
+            post={{ ...postWithImage, deliveryStatus: 'sent' }}
+            showAuthor={false}
+          />
           <PostSpecimen label="Edited" post={{ ...post, isEdited: true }} />
           <PostSpecimen label="Hidden" post={{ ...post, hidden: true }} />
           <PostSpecimen label="Deleted" post={{ ...post, isDeleted: true }} />
