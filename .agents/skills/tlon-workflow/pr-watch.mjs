@@ -4,7 +4,10 @@
 // Prints a "closed" line and exits once the pull request is merged or closed.
 // Your own comments never count.
 //
-//   node pr-watch.mjs [<number>] [--interval <seconds>] [--once]
+//   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]
+//
+// --timeout (default 1800) ends a blocking run that saw nothing new, with a
+// "timeout" line, so a review round has a budget.
 //
 // Run it from anywhere inside the repository. State (what was already
 // reported) lives under the worktree's .git directory.
@@ -27,7 +30,7 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 
 function usage(message) {
   process.stderr.write(
-    `pr-watch: ${message}\nusage: pr-watch.mjs [<number>] [--interval <seconds>] [--once]\n`
+    `pr-watch: ${message}\nusage: pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]\n`
   );
   process.exit(2);
 }
@@ -35,6 +38,7 @@ function usage(message) {
 function parseArgs(argv) {
   let once = false;
   let interval = 60;
+  let timeout = 1800;
   let number = null;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -45,6 +49,11 @@ function parseArgs(argv) {
       if (!Number.isFinite(value) || value < 5)
         usage('--interval takes a number of seconds, at least 5');
       interval = value;
+    } else if (arg === '--timeout') {
+      const value = Number(argv[++i]);
+      if (!Number.isFinite(value) || value < 1)
+        usage('--timeout takes a number of seconds');
+      timeout = value;
     } else if (/^\d+$/.test(arg)) {
       if (number !== null)
         usage(`two pull request numbers given: ${number} and ${arg}`);
@@ -53,7 +62,7 @@ function parseArgs(argv) {
       usage(`unknown argument ${arg}`);
     }
   }
-  return { once, interval: interval * 1000, number };
+  return { once, interval: interval * 1000, timeout: timeout * 1000, number };
 }
 
 // Never put captured output in the message: on a public repository it is
@@ -69,7 +78,13 @@ function api(path) {
   return JSON.parse(sh('gh', ['api', '--paginate', '--slurp', path])).flat();
 }
 
-const { once, interval, number: requested } = parseArgs(process.argv.slice(2));
+const {
+  once,
+  interval,
+  timeout,
+  number: requested,
+} = parseArgs(process.argv.slice(2));
+const startedAt = Date.now();
 const repo = sh('gh', [
   'repo',
   'view',
@@ -233,5 +248,9 @@ for (;;) {
     break;
   }
   if (fresh.length || once) break;
+  if (Date.now() - startedAt >= timeout) {
+    console.log(JSON.stringify({ kind: 'timeout', seconds: timeout / 1000 }));
+    break;
+  }
   await sleep(interval);
 }

@@ -28,7 +28,7 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `cost` finding in `apps/tlon-mobile`; one is a note with its fix, since it slows builds without blocking them | nothing; prints each finding and its fix |
 
-`--fix` only installs global npm packages and adds skills under `~/.agents/skills`. It touches nothing in this repository.
+`--fix` only installs global npm and Homebrew packages and adds skills under `~/.agents/skills`. It touches nothing in this repository.
 
 It deliberately does not run `stim doctor --fix`, which writes `.claude/settings.local.json` -- your own agent permission configuration -- and can delete generated Android `.cxx` directories. Both are decisions for the person running this, not repairs to apply on a tool's say-so. The `stim doctor` line prints what it found and the fix each finding names, as a note: a slow cache costs minutes, not the task.
 

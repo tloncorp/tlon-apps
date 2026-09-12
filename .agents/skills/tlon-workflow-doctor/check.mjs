@@ -163,6 +163,18 @@ const checks = [
     },
   },
   {
+    name: 'ffmpeg',
+    test() {
+      if (which('ffmpeg') && which('ffprobe'))
+        return { ok: `ffmpeg ${version('ffmpeg', ['-version'])}` };
+      return {
+        fix: 'ffmpeg is not installed (trimming and checking recordings)',
+        how: 'brew install ffmpeg',
+        cmd: ['brew', ['install', 'ffmpeg']],
+      };
+    },
+  },
+  {
     name: 'ship login',
     test() {
       const env = join(APP, '.env.local');

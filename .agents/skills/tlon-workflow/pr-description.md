@@ -10,6 +10,10 @@ Read `.github/pull_request_template.md` and fill every section under its own hea
 
 A conventional commit line: `type(scope): imperative summary`, with `fix`, `feat`, `chore`, `docs`, `refactor`, `test` or `ci` as the type and the platform or area as the scope (`fix(android): decode GIFs with Glide instead of APNG4Android`). Name the user-facing effect, not the mechanism. No ticket id in the title; the Linear link belongs in the body. Retitle if the scope changes after review.
 
+## Length
+
+Length tracks the subtlety of the problem, not how much you found out. A fix in one or two files is a Summary of two to four sentences, one bullet per distinct fix under Changes, the steps and result under How did I test, and a sentence each for risk and rollback: about 250 words in all. A change across subsystems earns more, up to about 450. After drafting, cut: anything the reviewer gets from the diff, anything said twice, anything a code block already shows.
+
 ## Summary and Changes
 
 Lead with the problem and its impact, then the intent behind the fix. Explain what a mechanism is *for* from the reviewer's side, not only when it triggers. Prose, not a file-by-file changelog; a short bullet per distinct fix when the PR bundles more than one. Inline code for identifiers and paths. Right-size it: a one-line fix needs three sentences.
