@@ -199,6 +199,74 @@ describe('argument forms', () => {
     );
   });
 
+  it('guards each arm of a ternary written as the poke argument itself', () => {
+    // `poke(a ? new : old)` is the same fallback as `poke({ mark: a ? … : … })`
+    // and has to read as one, or the new mark looks unconditional.
+    const deps = extract(`import { poke } from './urbit';
+      export const f = (json: unknown) => {
+        const modern = { app: 'activity', mark: 'activity-action-2', json };
+        const legacy = { app: 'activity', mark: 'activity-action-1', json };
+        return poke(getActivitySupportsNotes() ? modern : legacy);
+      };`);
+    expect(deps.map((d) => `${d.mark} ${d.guard}`).sort()).toEqual([
+      'activity-action-1 ! (getActivitySupportsNotes())',
+      'activity-action-2 getActivitySupportsNotes() ? …',
+    ]);
+  });
+
+  it('conjoins a nested ternary with the branch it sits under', () => {
+    const deps = extract(`import { poke } from './urbit';
+      export const f = (json: unknown) => {
+        return poke(
+          supportsNotes
+            ? supportsReactions
+              ? { app: 'activity', mark: 'activity-action-3', json }
+              : { app: 'activity', mark: 'activity-action-2', json }
+            : { app: 'activity', mark: 'activity-action-1', json }
+        );
+      };`);
+    expect(deps.map((d) => `${d.mark} ${d.guard}`).sort()).toEqual([
+      'activity-action-1 ! (supportsNotes)',
+      'activity-action-2 supportsNotes ? … && ! (supportsReactions)',
+      'activity-action-3 supportsNotes ? … && supportsReactions ? …',
+    ]);
+  });
+
+  it('keeps only the last write on a straight line', () => {
+    // Nothing between the two assignments can skip either, so the first is
+    // dead and the request it describes was never sent.
+    expect(
+      keys(`import { scry } from './urbit';
+        export const f = () => {
+          let path = '/v1/removed';
+          path = '/v1/served';
+          return scry({ app: 'groups', path });
+        };`)
+    ).toEqual(['scry groups /v1/served']);
+  });
+
+  it('keeps every write once control flow can skip one', () => {
+    // Each of these leaves it open which assignment the call actually read, so
+    // both requests stay on the record.
+    const ambiguous = [
+      "let path = '/v1/a'; if (x) { path = '/v1/b'; }",
+      "let path = '/v1/a'; if (x) path = '/v1/b';",
+      "let path = '/v1/a'; x && (path = '/v1/b');",
+      "let path = '/v1/a'; path = x ? '/v1/b' : '/v1/a';",
+      "let path = '/v1/a'; for (const y of ys) { path = '/v1/b'; }",
+      "let path = '/v1/a'; try { path = '/v1/b'; } catch {}",
+    ];
+    for (const setup of ambiguous) {
+      expect(
+        keys(`import { scry } from './urbit';
+          export const f = (x: boolean, ys: string[]) => {
+            ${setup}
+            return scry({ app: 'groups', path });
+          };`)
+      ).toContain('scry groups /v1/a');
+    }
+  });
+
   it('drops an empty initialiser that a later assignment overwrites', () => {
     // activityApi.ts:57 — `let scryPath = ''` is only a placeholder because
     // both branches below it assign the path the call actually sends.

@@ -90,7 +90,39 @@ export interface Desk {
    * catch; an app in neither is simply out of desk.
    */
   clientHadApp(app: string): boolean;
+  /**
+   * Whether the client's own desk dispatched this surface itself. Replacing a
+   * real `on-peek` with `on-peek:def` removes the surface as surely as deleting
+   * the arms, so a removal PR must not read as merely unverifiable.
+   */
+  clientDispatched(app: string, surface: PathRequest['surface']): boolean;
   agent(app: string): Agent | null;
+}
+
+/** Agents are parsed lazily; a run touches a handful of the 27. */
+function agentLoader(tree: Tree): (app: string) => Agent | null {
+  const cache = new Map<string, Agent | null>();
+  return (app) => {
+    if (!cache.has(app)) {
+      const file = `desk/app/${app}.hoon`;
+      const lines = tree.readFile(file)?.split('\n');
+      const arms = lines ? indexArms(lines) : null;
+      cache.set(
+        app,
+        lines && arms
+          ? {
+              name: app,
+              file,
+              lines,
+              arms,
+              peek: resolveSurface(lines, arms, 'on-peek'),
+              watch: resolveSurface(lines, arms, 'on-watch'),
+            }
+          : null
+      );
+    }
+    return cache.get(app)!;
+  };
 }
 
 export function loadDesk(tree: Tree, ref: string, clientDesk?: Tree): Desk {
@@ -99,8 +131,8 @@ export function loadDesk(tree: Tree, ref: string, clientDesk?: Tree): Desk {
       (tree.readFile('desk/desk.bill') ?? '').matchAll(/%([a-z][a-z0-9-]*)/g)
     ).map((m) => m[1])
   );
-  // Agents are parsed lazily; a run touches a handful of the 27.
-  const cache = new Map<string, Agent | null>();
+  const load = agentLoader(tree);
+  const loadClient = clientDesk ? agentLoader(clientDesk) : null;
   return {
     ref,
     tree,
@@ -108,28 +140,13 @@ export function loadDesk(tree: Tree, ref: string, clientDesk?: Tree): Desk {
     marFiles: new Set(tree.list('desk/mar', (p) => p.endsWith('.hoon'))),
     hasApp: (app) => tree.exists(`desk/app/${app}.hoon`),
     clientHadApp: (app) => clientDesk?.exists(`desk/app/${app}.hoon`) ?? false,
-    agent(app) {
-      if (!cache.has(app)) {
-        const file = `desk/app/${app}.hoon`;
-        const source = tree.readFile(file);
-        const lines = source?.split('\n');
-        const arms = lines ? indexArms(lines) : null;
-        cache.set(
-          app,
-          lines && arms
-            ? {
-                name: app,
-                file,
-                lines,
-                arms,
-                peek: resolveSurface(lines, arms, 'on-peek'),
-                watch: resolveSurface(lines, arms, 'on-watch'),
-              }
-            : null
-        );
-      }
-      return cache.get(app)!;
+    clientDispatched(app, surface) {
+      const agent = loadClient?.(app);
+      if (!agent) return false;
+      const kind = (surface === 'scry' ? agent.peek : agent.watch).kind;
+      return kind === 'inline' || kind === 'delegated';
     },
+    agent: load,
   };
 }
 
@@ -295,6 +312,18 @@ export function matchPath(
   const entry = request.surface === 'scry' ? 'on-peek' : 'on-watch';
   const surface = request.surface === 'scry' ? agent.peek : agent.watch;
   if (surface.kind === 'default-agent') {
+    // The pinned default-agent nacks an unsupported peek or watch. Handing the
+    // surface to it is therefore a removal whenever the client's own desk
+    // dispatched it — the same gap as deleting the arms, spelled differently.
+    if (desk.clientDispatched(request.app, request.surface)) {
+      return {
+        verdict: 'MISSING',
+        rule: 'P1',
+        reason: `%${request.app} now routes ${entry} to default-agent, which the client's desk dispatched itself`,
+        evidence: agent.file,
+        failureMode: 'crash',
+      };
+    }
     return unverified(
       `%${request.app} routes ${entry} to default-agent`,
       agent.file

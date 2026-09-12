@@ -26,10 +26,13 @@ export function protocolsInSource(source: string): Map<string, Set<string>> {
       /^%-\s+agent:dbug|^\^-\s+agent:gall|^%\^\s+verb/.test(line)
     ) {
       inBlock = false;
-    } else if (inBlock) {
-      for (const m of line.matchAll(/~\.([a-z][a-z0-9-]*)\^%(\d+)/g)) {
-        out.set(m[1], (out.get(m[1]) ?? new Set()).add(m[2]));
-      }
+      continue;
+    }
+    if (!inBlock) continue;
+    // The triggering line is scanned too: `%-  %-  agent:neg  [~.groups^%4 ~ ~]`
+    // carries its charge inline, and skipping it would hide the protocol.
+    for (const m of line.matchAll(/~\.([a-z][a-z0-9-]*)\^%(\d+)/g)) {
+      out.set(m[1], (out.get(m[1]) ?? new Set()).add(m[2]));
     }
   }
   return out;

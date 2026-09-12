@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { Finding, runCheck } from './check';
+import { Finding, isBlocking, runCheck } from './check';
 import { WORKTREE_REF, ensureRef } from './git';
 
 /**
@@ -23,6 +23,8 @@ import { WORKTREE_REF, ensureRef } from './git';
 const CLIENT = '854b46c';
 const N1 = 'v12.1.0';
 const SHIPPED_WITH = 'v12.2.0';
+/** Two releases back: old enough that the activity fallbacks are exercised. */
+const WITH_FALLBACKS = 'v12.0.0';
 
 /**
  * The desk this working tree must support, read from the constant that defines
@@ -40,7 +42,8 @@ const MIN_GROUPS_VERSION = /MIN_GROUPS_VERSION = '([^']+)'/.exec(
 )?.[1];
 const N1_TAG = `v${MIN_GROUPS_VERSION}`;
 
-for (const ref of [CLIENT, N1, SHIPPED_WITH, N1_TAG]) ensureRef(ref);
+for (const ref of [CLIENT, N1, SHIPPED_WITH, WITH_FALLBACKS, N1_TAG])
+  ensureRef(ref);
 
 const missingKeys = (findings: Finding[]) =>
   findings
@@ -76,6 +79,10 @@ describe('incident fixture — the two call sites that broke build 440', () => {
     );
     expect(byKey.get('scry groups-ui /v10/init')).toBe('empty');
     expect(byKey.get('subscribe groups /v3/groups')).toBe('crash');
+  });
+
+  it('calls no gap stale on a scan that visited two call sites', () => {
+    expect(report.staleGaps).toEqual([]);
   });
 
   it('would have flagged the boundary on the protocol check alone', () => {
@@ -121,6 +128,40 @@ describe('full-scan fixture — everything build 440 required', () => {
     expect(report.counts.missing).toBeGreaterThan(0);
     expect(report.counts.found).toBeGreaterThan(40);
   });
+
+  it('finds every gap entry still doing its job', () => {
+    expect(report.staleGaps).toEqual([]);
+  });
+});
+
+describe('a desk old enough to need the activity fallbacks', () => {
+  const report = runCheck({
+    clientRef: WORKTREE_REF,
+    deskRef: WITH_FALLBACKS,
+  });
+
+  // The bug this guards: the gate excludes covered fallbacks from `missing`,
+  // so anything that recomputes "blocking" by hand can fail on a run the
+  // checker passes.
+  it('agrees with the gate about what blocks', () => {
+    expect(report.counts.fallback).toBeGreaterThan(0);
+    expect(report.findings.filter(isBlocking).length).toBe(
+      report.counts.missing
+    );
+    for (const covered of report.findings.filter((f) => f.fallback)) {
+      expect(isBlocking(covered)).toBe(false);
+    }
+  });
+
+  it('covers exactly the capability-guarded activity branches', () => {
+    expect(
+      report.findings.filter((f) => f.fallback).map((f) => f.dependency.key)
+    ).toEqual([
+      'poke activity activity-action-2',
+      'scry activity /v6/volume-settings',
+      'subscribe activity /v6',
+    ]);
+  });
 });
 
 describe('this working tree against the desk release it must support', () => {
@@ -129,9 +170,9 @@ describe('this working tree against the desk release it must support', () => {
   const report = runCheck({ clientRef: WORKTREE_REF, deskRef: N1_TAG });
 
   it('has no blocking MISSING, and no protocol difference', () => {
-    const blocking = report.findings.filter(
-      (f) => f.verdict === 'MISSING' && !f.allowed
-    );
+    // `isBlocking` is the checker's own predicate, so a covered fallback cannot
+    // pass the gate and fail this test.
+    const blocking = report.findings.filter(isBlocking);
     expect(blocking.map((f) => f.dependency.key)).toEqual([]);
     expect(report.counts.missing).toBe(0);
     expect(report.protocolDifferences).toEqual([]);

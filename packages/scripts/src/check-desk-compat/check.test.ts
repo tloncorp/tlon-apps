@@ -2,12 +2,20 @@ import { describe, expect, it } from 'vitest';
 
 import {
   Finding,
+  KnownGap,
   ProtocolBump,
+  Report,
   complementsGuard,
+  formatReport,
+  gapApplies,
+  isBlocking,
   markCoveredFallbacks,
   matchBump,
+  staleGapsIn,
 } from './check';
 import { Dependency } from './extract';
+import { memoryTree } from './git';
+import { loadDesk } from './match';
 import { ProtocolDifference } from './negotiate';
 
 const difference = (
@@ -194,5 +202,135 @@ describe('markCoveredFallbacks', () => {
       },
     ]);
     expect(missing.fallback).toBeUndefined();
+  });
+});
+
+const finding = (over: Partial<Finding> = {}): Finding => ({
+  verdict: 'MISSING',
+  rule: 'P1',
+  reason: '',
+  dependency: record('k', 1),
+  sites: [{ file: SITE, line: 1 }],
+  ...over,
+});
+
+describe('isBlocking', () => {
+  it('is the one answer to "does this MISSING fail the run?"', () => {
+    const gap: KnownGap = { key: 'k', reason: 'debt' };
+    expect(isBlocking(finding())).toBe(true);
+    expect(isBlocking(finding({ allowed: gap }))).toBe(false);
+    expect(isBlocking(finding({ fallback: { coveredBy: 'other' } }))).toBe(
+      false
+    );
+    expect(isBlocking(finding({ verdict: 'FOUND' }))).toBe(false);
+    expect(isBlocking(finding({ verdict: 'UNVERIFIED' }))).toBe(false);
+  });
+});
+
+describe('gapApplies', () => {
+  // %ledger serves /x/v1/init and nothing else.
+  const SERVES = `
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 %init ~]  \`\`noun+!>(~)
+  ==
+--
+`.trim();
+  const clientDesk = (app: string) =>
+    loadDesk(
+      memoryTree({
+        'desk/desk.bill': ':~  %ledger\n==\n',
+        'desk/app/ledger.hoon': app,
+      }),
+      'client'
+    );
+  const dep = (path: string): Dependency => ({
+    key: `scry ledger ${path}`,
+    surface: 'scry',
+    app: 'ledger',
+    path: {
+      known: path.split('/').filter(Boolean),
+      unknownTail: false,
+      text: path,
+    },
+    mark: null,
+    thread: null,
+    site: { file: SITE, line: 1 },
+    text: '',
+  });
+
+  it('stands when nothing disproves it', () => {
+    // A self-consistency run has no client-side desk to compare against.
+    expect(gapApplies(dep('/v1/init'), null, null)).toBe(true);
+    expect(gapApplies(dep('/v2/init'), clientDesk(SERVES), new Set())).toBe(
+      true
+    );
+  });
+
+  it('does not excuse a request the client shipped a desk for', () => {
+    // /v1/init worked at the client's own baseline, so a gap entry about some
+    // older breakage is not about this one — the change under review broke it.
+    expect(gapApplies(dep('/v1/init'), clientDesk(SERVES), new Set())).toBe(
+      false
+    );
+  });
+});
+
+describe('staleGapsIn', () => {
+  const gap = (key: string): KnownGap => ({ key, reason: 'debt' });
+
+  it('names an entry that excused nothing', () => {
+    const live = gap('live');
+    const dead = gap('dead');
+    expect(
+      staleGapsIn([live, dead], [finding({ allowed: live })]).map((g) => g.key)
+    ).toEqual(['dead']);
+  });
+
+  it('keeps quiet when every entry did its job', () => {
+    const live = gap('live');
+    expect(staleGapsIn([live], [finding({ allowed: live })])).toEqual([]);
+  });
+});
+
+const report = (over: Partial<Report> = {}): Report => ({
+  clientRef: 'worktree',
+  deskRef: 'v12.2.0',
+  protocolDifferences: [],
+  allowedBumps: [],
+  staleBumps: [],
+  staleGaps: [],
+  findings: [],
+  counts: { found: 0, missing: 0, unverified: 0, allowed: 0, fallback: 0 },
+  ...over,
+});
+
+describe('formatReport', () => {
+  it('does not claim the desks agree when a bump is being allowed through', () => {
+    const plain = formatReport(report());
+    expect(plain).toContain('negotiation protocols: no version difference');
+
+    const bumped = formatReport(
+      report({ allowedBumps: [{ difference: difference(), bump: bump() }] })
+    );
+    expect(bumped).toContain(
+      'negotiation protocols: no blocking protocol difference'
+    );
+    expect(bumped).not.toContain('no version difference');
+    expect(bumped).toContain('ALLOWED PROTOCOL BUMP');
+  });
+
+  it('warns about a gap entry that excused nothing', () => {
+    const text = formatReport(
+      report({
+        staleGaps: [
+          { key: 'subscribe groups /chan/{}', reason: 'debt', issue: 'TLON-1' },
+        ],
+      })
+    );
+    expect(text).toContain(
+      'warning: known-gaps.json still excuses subscribe groups /chan/{} (TLON-1)'
+    );
   });
 });

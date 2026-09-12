@@ -47,6 +47,26 @@ describe('protocolsInSource', () => {
     ]);
   });
 
+  it('reads a charge written on the line that opens the wrapper', () => {
+    // Nothing in the desk spells it this way today, but the grammar allows it
+    // and the whole gate rests on seeing every declared protocol.
+    const inline = protocolsInSource(
+      ['%-  %-  agent:neg  [~.groups^%4 ~ ~]', '%-  agent:dbug'].join('\n')
+    );
+    expect([...(inline.get('groups') ?? [])]).toEqual(['4']);
+
+    const mixed = protocolsInSource(
+      [
+        '%-  %-  agent:neg  :+  notify=&  [~.groups^%4 ~ ~]',
+        '    (my %channels^[~.channels^%5 ~ ~] ~)',
+        '%-  agent:dbug',
+        '++  peek  [~.groups^%9 ~ ~]',
+      ].join('\n')
+    );
+    expect([...(mixed.get('groups') ?? [])]).toEqual(['4']);
+    expect([...(mixed.get('channels') ?? [])]).toEqual(['5']);
+  });
+
   it('finds nothing in an agent that does not negotiate', () => {
     expect(protocolsInSource('|_  =bowl:gall\n--\n').size).toBe(0);
   });

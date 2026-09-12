@@ -37,6 +37,68 @@ function check(files: Record<string, string>, request: PathRequest): string {
   return `${r.verdict} ${r.rule}`;
 }
 
+const DISPATCHES = `
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 %init ~]  \`\`noun+!>(~)
+  ==
+++  on-watch  on-watch:def
+--
+`.trim();
+
+const DELEGATES_BOTH = `
+++  on-peek  on-peek:def
+++  on-watch  on-watch:def
+--
+`.trim();
+
+describe('handing a surface to default-agent', () => {
+  const BILL_LEDGER = ':~  %ledger\n==\n';
+  const desk = (app: string) => ({
+    'desk/desk.bill': BILL_LEDGER,
+    'desk/app/ledger.hoon': app,
+  });
+  const run = (deskApp: string, clientApp: string | null, r: PathRequest) => {
+    const loaded = loadDesk(
+      memoryTree(desk(deskApp)),
+      'test',
+      clientApp === null ? undefined : memoryTree(desk(clientApp))
+    );
+    const result = matchPath(loaded, r);
+    return `${result.verdict} ${result.rule}`;
+  };
+
+  it('is a removal when the client desk dispatched that surface itself', () => {
+    // The pinned default-agent nacks, so `on-peek:def` deletes the surface as
+    // surely as deleting the arms would.
+    expect(
+      run(DELEGATES_BOTH, DISPATCHES, scry('ledger', ['x', 'v1', 'init']))
+    ).toBe('MISSING P1');
+  });
+
+  it('stays unverifiable when it was the default in both trees', () => {
+    expect(
+      run(DELEGATES_BOTH, DELEGATES_BOTH, scry('ledger', ['x', 'v1', 'init']))
+    ).toBe('UNVERIFIED coverage');
+    // No client desk at all (a self-consistency run) decides nothing either.
+    expect(run(DELEGATES_BOTH, null, scry('ledger', ['x', 'v1', 'init']))).toBe(
+      'UNVERIFIED coverage'
+    );
+  });
+
+  it('judges each surface on its own', () => {
+    // %ledger dispatches on-peek and delegates on-watch in *both* trees, so the
+    // watch is unverifiable while the peek is read normally.
+    expect(run(DISPATCHES, DISPATCHES, watch('ledger', ['v1']))).toBe(
+      'UNVERIFIED coverage'
+    );
+    expect(run(DISPATCHES, DISPATCHES, scry('ledger', ['x', 'v2']))).toBe(
+      'MISSING P1'
+    );
+  });
+});
+
 // %chat's real root subscription: `~` is an arm like any other, so a request
 // with no segments is a request, not a missing one.
 const ROOT_WATCH = `

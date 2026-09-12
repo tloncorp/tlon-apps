@@ -317,7 +317,42 @@ function localAssignments(
     (ts.isStringLiteral(v.value) ||
       ts.isNoSubstitutionTemplateLiteral(v.value)) &&
     v.value.text === '';
-  return out.length > 1 ? out.filter((v) => !isEmptyLiteral(v)) : out;
+  const kept = out.length > 1 ? out.filter((v) => !isEmptyLiteral(v)) : out;
+  // On a straight line the last write is the only one the call can read.
+  // Anything that makes reachability a question — a branch, a loop, a
+  // short-circuit, a `case` — keeps every candidate, since the reader cannot
+  // tell which one ran.
+  const block = kept[0]?.block ?? null;
+  if (
+    kept.length > 1 &&
+    block !== null &&
+    kept.every((v) => v.block === block && runsUnconditionally(v.value, block))
+  ) {
+    return [kept[kept.length - 1]];
+  }
+  return kept;
+}
+
+/** Does this assignment run every time control reaches its block? */
+function runsUnconditionally(node: ts.Node, block: ts.Node): boolean {
+  const SHORT_CIRCUIT = new Set([
+    ts.SyntaxKind.AmpersandAmpersandToken,
+    ts.SyntaxKind.BarBarToken,
+    ts.SyntaxKind.QuestionQuestionToken,
+  ]);
+  for (let cur = node.parent; cur && cur !== block; cur = cur.parent) {
+    if (
+      ts.isConditionalExpression(cur) ||
+      ts.isIfStatement(cur) ||
+      ts.isSwitchStatement(cur) ||
+      ts.isTryStatement(cur) ||
+      ts.isIterationStatement(cur, false) ||
+      (ts.isBinaryExpression(cur) && SHORT_CIRCUIT.has(cur.operatorToken.kind))
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /** Is the position inside a loop that the scope encloses? */
@@ -365,6 +400,10 @@ const stringLiteralOf = (expr: ts.Expression) =>
   ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)
     ? expr.text
     : null;
+
+/** Both guards had to hold for the record to be sent. */
+const bothGuards = (a?: string, b?: string) =>
+  [a, b].filter(Boolean).join(' && ') || undefined;
 
 /** Branch a conditional into its two arms, each carrying the guard text. */
 function branches<T>(
@@ -555,8 +594,6 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
    * the documented fallback could never pass the gate.
    */
   const returns: [ts.Expression, string | undefined][] = [];
-  const both = (a?: string, b?: string) =>
-    [a, b].filter(Boolean).join(' && ') || undefined;
   const statementsOf = (s: ts.Statement): readonly ts.Statement[] =>
     ts.isBlock(s) ? s.statements : [s];
   const alwaysReturns = (s: ts.Statement): boolean => {
@@ -582,14 +619,14 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
       }
       if (ts.isIfStatement(stmt)) {
         const cond = textOf(ctx, stmt.expression);
-        walkStatements(statementsOf(stmt.thenStatement), both(acc, cond));
+        walkStatements(statementsOf(stmt.thenStatement), bothGuards(acc, cond));
         if (stmt.elseStatement) {
           walkStatements(
             statementsOf(stmt.elseStatement),
-            both(acc, `! (${cond})`)
+            bothGuards(acc, `! (${cond})`)
           );
         } else if (alwaysReturns(stmt.thenStatement)) {
-          acc = both(acc, `! (${cond})`);
+          acc = bothGuards(acc, `! (${cond})`);
         }
         continue;
       }
@@ -610,7 +647,7 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
       results.push({
         app: a.value,
         mark: b.value,
-        guard: both(guard, b.guard ?? a.guard),
+        guard: bothGuards(guard, b.guard ?? a.guard),
       });
     }
   };
@@ -622,7 +659,7 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
       return results.push(
         ...expandHelper(ctx, forwarded, hop + 1).map((r) => ({
           ...r,
-          guard: both(guard, r.guard),
+          guard: bothGuards(guard, r.guard),
         }))
       );
     }
@@ -729,7 +766,9 @@ function readPokeParams(
   ctx: Ctx,
   node: ts.Node,
   arg: ts.Expression | undefined,
-  depth = 0
+  depth = 0,
+  /** The branch condition that had to hold for this argument to be sent. */
+  guard?: string
 ) {
   const scope = enclosingFunction(node);
   const pos = node.getStart(ctx.sf);
@@ -738,13 +777,14 @@ function readPokeParams(
       surface: 'poke',
       app: r.app,
       mark: r.mark,
-      guard: r.guard,
+      guard: bothGuards(guard, r.guard),
       unresolved:
         r.unresolved ??
         (r.mark === null ? 'mark is not a string literal' : undefined),
     });
-  if (!arg)
-    return push(ctx, node, { surface: 'poke', unresolved: 'missing argument' });
+  const unresolved = (why: string) =>
+    push(ctx, node, { surface: 'poke', guard, unresolved: why });
+  if (!arg) return unresolved('missing argument');
 
   if (ts.isObjectLiteralExpression(arg)) {
     for (const { a, b } of pairByBlock(
@@ -759,15 +799,22 @@ function readPokeParams(
     const name = calleeName(arg);
     if (name && HELPER_WHITELIST.has(name))
       return expandHelper(ctx, name).forEach(emit);
-    return push(ctx, node, {
-      surface: 'poke',
-      unresolved: `poke params come from ${name ?? 'a call'}(…)`,
-    });
+    return unresolved(`poke params come from ${name ?? 'a call'}(…)`);
   }
-  // Each branch is its own record; never unioned.
+  // Each branch is its own record, carrying its own guard; never unioned. The
+  // guard is what lets a capability fallback written as `a ? new : old` be
+  // recognised as one, exactly as the `{ mark: a ? … : … }` spelling is.
   if (ts.isConditionalExpression(arg)) {
-    readPokeParams(ctx, node, arg.whenTrue, depth);
-    return readPokeParams(ctx, node, arg.whenFalse, depth);
+    const condition = textOf(ctx, arg.condition);
+    const under = (text: string) => bothGuards(guard, text);
+    readPokeParams(ctx, node, arg.whenTrue, depth, under(`${condition} ? …`));
+    return readPokeParams(
+      ctx,
+      node,
+      arg.whenFalse,
+      depth,
+      under(`! (${condition})`)
+    );
   }
   // Bounded local-variable resolution: one hop.
   if (ts.isIdentifier(arg) && scope && depth === 0) {
@@ -778,14 +825,11 @@ function readPokeParams(
     );
     if (assignments.length) {
       return assignments.forEach((a) =>
-        readPokeParams(ctx, node, a.value, depth + 1)
+        readPokeParams(ctx, node, a.value, depth + 1, guard)
       );
     }
   }
-  push(ctx, node, {
-    surface: 'poke',
-    unresolved: `poke params are ${textOf(ctx, arg)}`,
-  });
+  unresolved(`poke params are ${textOf(ctx, arg)}`);
 }
 
 function readCall(

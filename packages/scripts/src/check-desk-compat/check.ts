@@ -70,6 +70,8 @@ export interface Report {
   allowedBumps: { difference: ProtocolDifference; bump: ProtocolBump }[];
   /** Entries that match nothing observed, so they may have gone stale. */
   staleBumps: ProtocolBump[];
+  /** Gap entries that excused nothing in this run, for the same reason. */
+  staleGaps: KnownGap[];
   findings: Finding[];
   counts: {
     found: number;
@@ -107,6 +109,14 @@ export function loadKnownGaps(): Map<string, KnownGap> {
 
 export const loadProtocolBumps = (): ProtocolBump[] =>
   loadPolicy().protocolBumps ?? [];
+
+/**
+ * The one definition of "this MISSING fails the run". The exit code, the
+ * counts, the report section and the fixtures all read it, so they cannot
+ * drift into disagreeing about whether a covered fallback is a failure.
+ */
+export const isBlocking = (f: Finding) =>
+  f.verdict === 'MISSING' && !f.allowed && !f.fallback;
 
 /**
  * An observed difference is allowed only if a bump entry describes it exactly.
@@ -266,6 +276,34 @@ export function classify(
   return matchPath(desk, request);
 }
 
+/**
+ * Whether a known-gap entry is about *this* request.
+ *
+ * An entry documents a request that was already broken at the baseline it
+ * names. In the removal run the client ref shipped with its own desk, so a
+ * request that desk serves is one the change under review is breaking now — and
+ * an entry written about some older breakage must not excuse it. With no client
+ * desk to compare against there is nothing to disprove, so the entry stands.
+ */
+export function gapApplies(
+  dep: Dependency,
+  clientDesk: Desk | null,
+  vendored: Set<string> | null
+): boolean {
+  return (
+    clientDesk === null ||
+    classify(dep, clientDesk, vendored ?? new Set()).verdict !== 'FOUND'
+  );
+}
+
+/**
+ * Gap entries that excused nothing. Every one is debt someone is meant to pay
+ * off, so an entry outliving the breakage it documents has to be noticed the
+ * same way a stale protocol bump is.
+ */
+export const staleGapsIn = (gaps: KnownGap[], findings: Finding[]) =>
+  gaps.filter((g) => !findings.some((f) => f.allowed === g));
+
 export function runCheck(options: CheckOptions): Report {
   const clientTree = openTree(options.clientRef, CLIENT_ROOTS);
   const deskTree = openTree(options.deskRef, DESK_PATHS);
@@ -297,6 +335,12 @@ export function runCheck(options: CheckOptions): Report {
     for (const dep of deps)
       grouped.set(dep.key, [...(grouped.get(dep.key) ?? []), dep]);
 
+    const clientDesk =
+      clientDeskTree === deskTree
+        ? null
+        : loadDesk(clientDeskTree, options.clientRef);
+    const vendoredThere = clientDesk ? loadOwnership(clientDeskTree) : null;
+
     const findings: Finding[] = [];
     for (const group of grouped.values()) {
       const result = classify(group[0], desk, vendored);
@@ -304,7 +348,9 @@ export function runCheck(options: CheckOptions): Report {
         ...result,
         dependency: group[0],
         sites: group.map((d) => d.site),
-        ...(result.verdict === 'MISSING' && allowlist.has(group[0].key)
+        ...(result.verdict === 'MISSING' &&
+        allowlist.has(group[0].key) &&
+        gapApplies(group[0], clientDesk, vendoredThere)
           ? { allowed: allowlist.get(group[0].key) }
           : {}),
       });
@@ -323,17 +369,20 @@ export function runCheck(options: CheckOptions): Report {
     }
 
     const count = (p: (f: Finding) => boolean) => findings.filter(p).length;
-    const excused = (f: Finding) => Boolean(f.allowed || f.fallback);
     return {
       clientRef: options.clientRef,
       deskRef: options.deskRef,
       protocolDifferences,
       allowedBumps,
       staleBumps: bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
+      // A partial scan cannot tell a stale entry from an unvisited one.
+      staleGaps: options.onlySites
+        ? []
+        : staleGapsIn([...allowlist.values()], findings),
       findings,
       counts: {
         found: count((f) => f.verdict === 'FOUND'),
-        missing: count((f) => f.verdict === 'MISSING' && !excused(f)),
+        missing: count(isBlocking),
         unverified: count((f) => f.verdict === 'UNVERIFIED'),
         allowed: count((f) => f.verdict === 'MISSING' && Boolean(f.allowed)),
         fallback: count(
@@ -408,6 +457,8 @@ export function formatReport(report: Report): string {
       '  negotiate refuses a pair that disagrees on a protocol, whatever the paths say.',
       ''
     );
+  } else if (report.allowedBumps.length > 0) {
+    out.push('negotiation protocols: no blocking protocol difference', '');
   } else out.push('negotiation protocols: no version difference', '');
 
   for (const { difference: d, bump } of report.allowedBumps) {
@@ -426,6 +477,13 @@ export function formatReport(report: Report): string {
       ''
     );
   }
+  for (const gap of report.staleGaps) {
+    out.push(
+      `warning: known-gaps.json still excuses ${gap.key} (${gap.issue ?? 'no issue'}), ` +
+        'but this run reports no such MISSING. Remove the entry.',
+      ''
+    );
+  }
 
   const section = (title: string, keep: (f: Finding) => boolean) => {
     const findings = report.findings.filter(keep);
@@ -436,10 +494,7 @@ export function formatReport(report: Report): string {
       ''
     );
   };
-  section(
-    'MISSING',
-    (f) => f.verdict === 'MISSING' && !f.allowed && !f.fallback
-  );
+  section('MISSING', isBlocking);
   section(
     'MISSING on this branch, but a sibling branch is served',
     (f) => Boolean(f.fallback) && !f.allowed

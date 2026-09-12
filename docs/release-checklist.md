@@ -50,7 +50,12 @@ receive updates, and post against desk release N-1.
 - [ ] If the checker warns that a `protocolBumps` entry matches no observed
       difference, the bump it describes has become N-1. **Delete the entry** as
       part of this release; a stale entry is standing permission for a mismatch
-      nobody is tracking.
+      nobody is tracking. The same applies to a `gaps` entry the checker says
+      excused nothing: the request it covers is served again, so remove it.
+- [ ] With a bump in flight the summary reads `no blocking protocol difference`
+      rather than `no version difference`. Those are not the same statement —
+      the second means the desks agree; the first means the only disagreement is
+      the one this release is deliberately shipping.
 - [ ] Read the `UNVERIFIED` list rather than skipping it: it never changes the
       exit code, and each entry is a call the checker could not decide.
 

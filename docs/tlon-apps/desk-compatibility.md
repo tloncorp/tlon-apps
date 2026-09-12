@@ -166,6 +166,17 @@ already broken. An entry must name the commit that broke it. Adding one to turn
 a red gate green is the one thing the file is not for — a *new* `MISSING` means
 the change under review needs its desk change to ship first.
 
+Two rules keep an entry from outliving its breakage:
+
+- An entry excuses a request only where it was **already** broken. In the
+  removal run (`--client-ref origin/master`) the released client shipped with
+  its own desk; if that desk serves the request, this change is what is breaking
+  it, and the entry — written about some older breakage — does not apply.
+- The checker **warns when an entry excuses nothing** in a full scan, exactly as
+  it does for a stale `protocolBumps` entry. Delete it: the gap it names has
+  been fixed, and leaving it is standing permission for a regression nobody is
+  tracking.
+
 ## What the static check cannot see
 
 Response shapes; `.^` fan-out beyond one level or inside helper arms; whether an
