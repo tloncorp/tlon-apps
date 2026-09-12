@@ -47,7 +47,10 @@ import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
-import { addToChannelPosts } from '../useChannelPosts/subscriptions';
+import {
+  addToChannelPosts,
+  deleteFromChannelPosts,
+} from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
 import { syncContacts } from './syncContacts';
 import { syncGroup } from './syncGroup';
@@ -469,7 +472,11 @@ function notifyChannelPostListenersFromLatestChanges(posts: db.Post[]) {
       continue;
     }
     seenIds.add(post.id);
-    addToChannelPosts(post);
+    if (post.isDeleted) {
+      deleteFromChannelPosts(post);
+    } else {
+      addToChannelPosts(post);
+    }
     notified++;
   }
   return notified;
@@ -1752,6 +1759,7 @@ export const handleChannelsUpdate = async (
       }
       break;
     case 'deletePost':
+      deleteFromChannelPosts({ id: update.postId });
       await db.markPostAsDeleted(update.postId, ctx);
       await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;

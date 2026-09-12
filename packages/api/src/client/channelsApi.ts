@@ -12,7 +12,12 @@ import {
   getChannelIdType,
   isGroupChannelId,
 } from './apiUtils';
-import { toPostData, toPostReplyData, toReactionsData } from './postsApi';
+import {
+  isPostTombstone,
+  toPostData,
+  toPostReplyData,
+  toReactionsData,
+} from './postsApi';
 import {
   poke,
   scry,
@@ -272,7 +277,7 @@ export const toChannelsUpdate = (
         const postResponse = channelEvent.response.post['r-post'];
 
         if ('set' in postResponse) {
-          if (postResponse.set !== null) {
+          if (postResponse.set !== null && !isPostTombstone(postResponse.set)) {
             const postToAdd = { id: postId, ...postResponse.set };
 
             logger.log(`add post event`);
@@ -317,7 +322,10 @@ export const toChannelsUpdate = (
         const replyResponse =
           channelEvent.response.post['r-post'].reply['r-reply'];
         if ('set' in replyResponse) {
-          if (replyResponse.set !== null) {
+          if (
+            replyResponse.set !== null &&
+            !isPostTombstone(replyResponse.set)
+          ) {
             logger.log(`add reply event`);
             return {
               type: 'addPost',
