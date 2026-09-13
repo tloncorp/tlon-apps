@@ -20,7 +20,7 @@ The template's Changes heading invites a file-by-file walkthrough; do not write 
 
 ## Length
 
-A fix in one or two files is about 250 words in all; a change across `packages/` earns up to about 450. When the budget and the guide's grounding rules pull against each other, keep one permalink per load-bearing claim and at most two in the body, and keep the "where the old behavior came from" paragraph only when the diff reverses something deliberate.
+A fix in one or two files is about 250 words of prose, not counting the template's checkbox block and the evidence tables; a change across `packages/` earns up to about 450. When the budget and the guide's grounding rules pull against each other, keep one permalink per load-bearing claim and at most two in the body, and keep the "where the old behavior came from" paragraph only when the diff reverses something deliberate.
 
 ## How did I test?
 

@@ -11,8 +11,9 @@
 // A round arrives in pieces: CI fails or passes, Codex posts its comments,
 // then its status a minute later. After the first new item the run keeps
 // polling every 20s and exits once --settle seconds (default 150) pass with
-// nothing new, or once Codex's status for the head commit is in, so one run
-// is one round.
+// nothing new, or once Codex's status for the head commit is in and its checks
+// have resolved, so one run is one round. Checks can take twenty minutes; the
+// run keeps polling for them at the normal interval after the status.
 //
 // CI is part of the round: a "ci" line with status failure names the failed
 // checks; status success arrives once per head commit when every check is done.
@@ -334,9 +335,10 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 for (;;) {
   let pr;
   let fresh;
+  let ci;
   try {
     pr = JSON.parse(sh('gh', ['api', `repos/${repo}/pulls/${number}`]));
-    const ci = checks(pr.head.sha);
+    ci = checks(pr.head.sha);
     fresh = [...collect(), ...(ci ? [ci] : [])]
       .sort((a, b) => a.at.localeCompare(b.at))
       .filter((i) => !seen.has(i.id));
@@ -376,8 +378,11 @@ for (;;) {
   }
   if (once) break;
   if (settling !== null) {
-    if (statusSeen || Date.now() - settling >= settle) break;
-    await sleep(Math.min(interval, 20000));
+    const ciResolved = ci !== null && ci !== undefined;
+    if (statusSeen && ciResolved) break;
+    if (!statusSeen && Date.now() - settling >= settle) break;
+    // Status in, checks still running: wait for them at the normal interval.
+    await sleep(statusSeen ? interval : Math.min(interval, 20000));
     continue;
   }
   if (Date.now() - Date.parse(pr.updated_at) >= timeout) {
