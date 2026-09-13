@@ -46,7 +46,7 @@ Delete an already-loaded message; before shows the gap and the error toast.
 | https://github.com/user-attachments/assets/<before-android> | https://github.com/user-attachments/assets/<after-android> |
 ```
 
-A platform with a screenshot instead of a recording uses the same cell (`<img src="..." width="300">` keeps two phones side by side). The platform you only screenshotted after gets a one-column table, or a line under the other platform's table saying "Android after (shared code, no platform-specific path):" with the image; do not present a screenshot as a repro that was never recorded there.
+A platform with a screenshot instead of a recording uses the same cell (`<img src="..." width="300">` keeps two phones side by side). One table when one platform was enough, with the reason in "How did I test?".
 
 ## Risks and rollback
 

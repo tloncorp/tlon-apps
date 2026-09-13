@@ -118,7 +118,7 @@ This yields an `authType: 'self'` session. It gets you into the app; it does not
 
 For a bug or a change to existing behavior, record what the app does now, before touching code. A screen recording is the default; a screenshot only when the state is static and one frame shows it.
 
-**Which platforms.** Record before and after on the platform the ticket names, or iOS when it names none. The other platform gets an after screenshot in step 6 to show it renders, and nothing before. Record before and after on **both** when the fix could differ between them: the ticket reports a symptom on one platform only, or the change touches `Platform.select`, a `.ios.tsx` / `.android.tsx` file, a native module, the WebView editor, the keyboard, permissions, or notifications. A shared-JS rendering or sync fix (`packages/ui`, `packages/app`, `packages/shared`) with none of those is the one-platform case. Decide before touching code: a "before" on a platform you skipped is not recoverable once the fix is in.
+**Which platforms.** One platform is enough, the one the ticket names or iOS, when the change is logic only, or UI built from components that behave the same everywhere (`View`, `Text`, layout, styling). Both platforms, before and after, when the change touches anything with platform quirks: `TextInput`, `Switch`, `ScrollView` and list behavior, keyboard, gestures, the WebView editor, permissions, notifications, a native module, `Platform.select`, or a `.ios.tsx` / `.android.tsx` file; or when the ticket reports a symptom on one platform only. When unsure, both. Decide before touching code: a "before" on a platform you skipped is not recoverable once the fix is in.
 
 Record the behavior, not the journey. Navigate to the screen first, start recording, do the one action that triggers it, stop as soon as the result is on screen. A reviewer watches these; sign-in, navigation and dead time are not evidence. Aim for under 30 seconds.
 
@@ -158,7 +158,7 @@ Commit as you go. Everything after this step reads the branch, not the working t
 
 ### 6. Validate with the same repro
 
-Repeat step 4 into `after-<platform>.mp4` on the platform(s) you recorded before, and take an after screenshot on the other, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario. If the after screenshot on the other platform shows something different, that platform is now a both-platforms case: record it properly, and say so in the pull request.
+Repeat step 4 into `after-<platform>.mp4` on the platform(s) you recorded before, then `stim logs --errors` again. Evidence is the repro you already recorded, not a new scenario. Say in the pull request which platform(s) you tested and why one was enough, when it was.
 
 **Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). Check which screen you are on before recording. If the reload leaves the iOS runner hung (every command `COMMAND_FAILED`, "main thread execution timed out"), `agent-device close` and `open` the session. When one platform shows the edit and the other does not, `stim reload <platform>` for the one that missed it; Metro's log does not say which platform bundled.
 
