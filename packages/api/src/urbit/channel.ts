@@ -416,12 +416,14 @@ export type Command =
   | DiffMeta;
 
 export type PostResponse =
-  | { set: Post | null }
+  | { set: Post | PostTombstone | null }
   | { reply: { id: string; 'r-reply': ReplyResponse; meta: ReplyMeta } }
   | { essay: PostEssay }
   | { reacts: Record<string, React> };
 
-export type ReplyResponse = { set: Reply } | { reacts: Record<string, React> };
+export type ReplyResponse =
+  | { set: Reply | PostTombstone }
+  | { reacts: Record<string, React> };
 
 export interface ChannelPostResponse {
   post: {
