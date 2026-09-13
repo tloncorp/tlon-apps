@@ -66,10 +66,11 @@ Android defaults to **`productionDebug`** (`io.tlon.groups`), committed as `andr
 
 ```bash
 APP_VARIANT=preview stim start
+APP_VARIANT=preview stim ios --scheme Landscape-preview
 APP_VARIANT=preview stim android --variant previewDebug
 ```
 
-Both need `APP_VARIANT=preview`, as the repository's `android:preview` script does: `app.config.ts` reads it for the scheme and bundle id, and the Gradle variant alone leaves the app configured as production. The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
+The preview app id is `io.tlon.groups.preview`; open that with agent-device. All three need `APP_VARIANT=preview`, as the repository's `ios:preview` and `android:preview` scripts do: `app.config.ts` reads it for the scheme and bundle id, and the Gradle variant alone leaves the app configured as production. The two debug variants are `productionDebug` and `previewDebug`. Without that committed setting `assembleDebug` produces an APK per flavor and nothing says which to install, so Stim refuses rather than guess.
 
 Use `stim logs --errors`, not `--since 5m --level error`: the narrower form filters out the `hiddenapi ... AccessibilityNodeInfo` noise agent-device's own snapshots generate on Android.
 
@@ -79,7 +80,7 @@ With several agents' devices up, a boot can miss its window: `stim android` repo
 
 ### 3. Sign in
 
-Most reproductions need a signed-in app. Put a self-hosted dev ship's URL and `+code` in `apps/tlon-mobile/.env.local`, which is gitignored and travels into every worktree through `warm`:
+Most reproductions need a signed-in app. Put a self-hosted dev ship's URL and `+code` in `apps/tlon-mobile/.env.local` **of the source checkout**, which is gitignored and travels into every worktree through `warm`; written into a worktree it leaves with the worktree:
 
 ```bash
 DEFAULT_SHIP_LOGIN_URL=https://your-ship.tlon.network
@@ -178,12 +179,13 @@ This is cheap and it is not the same as the review the pull request gets later. 
 Read `pr-description.md` in this skill's directory (it sends you to `pr-workflow.md` and its fresh-eyes pass), then fill `.github/pull_request_template.md` section by section.
 
 ```bash
+git push -u origin <handle>/<topic>
 gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.evidence/pr.md \
   --attach <worktree>/.evidence/before-ios.mp4 --attach <worktree>/.evidence/after-ios.mp4 \
   --attach <worktree>/.evidence/before-android.mp4 --attach <worktree>/.evidence/after-android.mp4
 ```
 
-One `--attach` per recording from steps 4 and 6, for every platform you tested. `gh` appends the uploaded URLs to the body in `--attach` order, and rewrites a body reference only when it matches the `--attach` string exactly.
+One `--attach` per recording or screenshot from steps 4 and 6, for every platform you tested; `gh pr create` prompts for a remote when the branch is not pushed, and a prompt in an unattended shell is a hang. `gh` appends the uploaded URLs to the body in `--attach` order, and rewrites a body reference only when it matches the `--attach` string exactly.
 
 **Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. To label them, attach bare paths and then splice the returned `user-attachments` URLs into the body:
 

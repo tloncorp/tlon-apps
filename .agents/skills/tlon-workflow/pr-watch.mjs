@@ -85,6 +85,9 @@ const {
   timeout,
   number: requested,
 } = parseArgs(process.argv.slice(2));
+// The last activity GitHub reported, so a run whose polls start failing still
+// ends on the same budget instead of retrying forever.
+let lastSeen = Date.now();
 const repo = sh('gh', [
   'repo',
   'view',
@@ -187,7 +190,9 @@ function collect() {
         (rc) =>
           rc.user?.login === BOT &&
           !rc.in_reply_to_id &&
-          (headSha ? rc.commit_id === headSha : rc.created_at >= c.created_at)
+          (headSha
+            ? rc.original_commit_id === headSha
+            : rc.created_at >= c.created_at)
       ).length;
       items.push({
         kind: 'codex-status',
@@ -254,9 +259,20 @@ for (;;) {
     process.stderr.write(`pr-watch: ${err.message}\n`);
     // A one-shot run reports the failure rather than turning into a daemon.
     if (once) process.exit(1);
+    if (Date.now() - lastSeen >= timeout) {
+      console.log(
+        JSON.stringify({
+          kind: 'timeout',
+          seconds: timeout / 1000,
+          unreachable: true,
+        })
+      );
+      break;
+    }
     await sleep(interval);
     continue;
   }
+  lastSeen = Date.parse(pr.updated_at);
   for (const item of fresh) {
     console.log(JSON.stringify(item));
     seen.add(item.id);

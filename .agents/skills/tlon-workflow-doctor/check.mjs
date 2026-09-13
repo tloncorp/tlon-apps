@@ -179,18 +179,20 @@ const checks = [
     test() {
       const env = join(APP, '.env.local');
       const text = existsSync(env) ? readFileSync(env, 'utf8') : '';
-      const missing = [
-        'DEFAULT_SHIP_LOGIN_URL',
-        'DEFAULT_SHIP_LOGIN_ACCESS_CODE',
-      ].filter((k) => {
+      const has = (k) => {
         const line = text.match(new RegExp(`^${k}=(.*)$`, 'm'));
-        return !line || line[1].trim().replace(/^["']|["']$/g, '') === '';
-      });
-      if (missing.length)
-        return {
-          note: `${missing.join(', ')} not set in apps/tlon-mobile/.env.local; sign-in will need a person`,
-        };
-      return { ok: 'dev ship login configured' };
+        return !!line && line[1].trim().replace(/^["']|["']$/g, '') !== '';
+      };
+      const self = ['DEFAULT_SHIP_LOGIN_URL', 'DEFAULT_SHIP_LOGIN_ACCESS_CODE'];
+      const hosted = [
+        'DEFAULT_TLON_LOGIN_EMAIL',
+        'DEFAULT_TLON_LOGIN_PASSWORD',
+      ];
+      if (self.every(has)) return { ok: 'dev ship login configured' };
+      if (hosted.every(has)) return { ok: 'hosted login configured' };
+      return {
+        note: `neither ${self.join(' + ')} nor ${hosted.join(' + ')} set in apps/tlon-mobile/.env.local; sign-in will need a person`,
+      };
     },
   },
   {

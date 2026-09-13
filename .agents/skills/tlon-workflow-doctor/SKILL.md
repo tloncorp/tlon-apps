@@ -25,7 +25,7 @@ Unsandboxed because `gh auth status` cannot reach the keyring inside a shell san
 | `stim skill` | `stim` skill in `~/.agents/skills` or this repo | `npx skills add appandflow/stim -g -y` |
 | `agent-device` | installed; a note when npm has a newer one | `npm install -g agent-device` |
 | `agent-device skill` | `agent-device` skill in `~/.agents/skills` or this repo | `npx skills add callstack/agent-device -g -y` |
-| `ship login` | `DEFAULT_SHIP_LOGIN_URL` and `DEFAULT_SHIP_LOGIN_ACCESS_CODE` in `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
+| `ship login` | `DEFAULT_SHIP_LOGIN_URL` + `DEFAULT_SHIP_LOGIN_ACCESS_CODE`, or `DEFAULT_TLON_LOGIN_EMAIL` + `DEFAULT_TLON_LOGIN_PASSWORD`, in the source checkout's `apps/tlon-mobile/.env.local` | nothing; they are credentials (see the tlon-workflow skill, Sign in) |
 | `stim doctor` | no `cost` finding in `apps/tlon-mobile`; one is a note with its fix, since it slows builds without blocking them | nothing; prints each finding and its fix |
 
 `--fix` only installs global npm and Homebrew packages and adds skills under `~/.agents/skills`. It touches nothing in this repository.
