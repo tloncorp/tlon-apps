@@ -27,7 +27,10 @@ function comparePrerelease(a: string[] | null, b: string[] | null): number {
     if (a[i] === b[i]) continue;
     const numA = Number(a[i]);
     const numB = Number(b[i]);
-    if (!Number.isNaN(numA) || !Number.isNaN(numB)) return numA - numB;
+    const aIsNumeric = !Number.isNaN(numA);
+    const bIsNumeric = !Number.isNaN(numB);
+    if (aIsNumeric && bIsNumeric) return numA - numB;
+    if (aIsNumeric !== bIsNumeric) return aIsNumeric ? -1 : 1;
     return a[i] < b[i] ? -1 : 1;
   }
   return a.length - b.length;

@@ -31,6 +31,8 @@ describe('isVersionBelow', () => {
     expect(isVersionBelow('1.2.3-alpha', '1.2.3-beta')).toBe(true);
     expect(isVersionBelow('1.2.3-alpha', '1.2.3-alpha.1')).toBe(true);
     expect(isVersionBelow('1.2.3-alpha.1', '1.2.3-alpha')).toBe(false);
+    expect(isVersionBelow('1.2.3-1', '1.2.3-alpha')).toBe(true);
+    expect(isVersionBelow('1.2.3-alpha', '1.2.3-1')).toBe(false);
   });
 
   it('ignores build metadata', () => {
