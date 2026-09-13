@@ -23,7 +23,7 @@ function comparePrerelease(a: string[] | null, b: string[] | null): number {
   if (!a && !b) return 0;
   if (!a) return 1;
   if (!b) return -1;
-  for (let i = 0; i <= Math.min(a.length, b.length); i++) {
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
     if (a[i] === b[i]) continue;
     const numA = Number(a[i]);
     const numB = Number(b[i]);
