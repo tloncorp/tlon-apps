@@ -179,9 +179,14 @@ const checks = [
     test() {
       const env = join(APP, '.env.local');
       const text = existsSync(env) ? readFileSync(env, 'utf8') : '';
+      // dotenv semantics: an unquoted value ends at ` #`, a quoted one keeps it.
       const has = (k) => {
         const line = text.match(new RegExp(`^${k}=(.*)$`, 'm'));
-        return !!line && line[1].trim().replace(/^["']|["']$/g, '') !== '';
+        if (!line) return false;
+        const raw = line[1].trim();
+        const quoted = raw.match(/^(["'])(.*)\1/);
+        const value = quoted ? quoted[2] : raw.replace(/\s+#.*$/, '');
+        return value.trim() !== '';
       };
       const self = ['DEFAULT_SHIP_LOGIN_URL', 'DEFAULT_SHIP_LOGIN_ACCESS_CODE'];
       const hosted = [

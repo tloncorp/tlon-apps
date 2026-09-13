@@ -88,12 +88,9 @@ function api(path) {
 // The head commit's checks, folded to one line: a failure names the failed
 // checks, a success is reported once per commit, and a pending run is nothing
 // yet. Skipped and neutral runs do not count either way.
-const FAILED = new Set([
-  'failure',
-  'timed_out',
-  'cancelled',
-  'action_required',
-]);
+// Anything completed that is not a pass. GitHub also reports `stale` when a
+// run is superseded, which is not a pass either.
+const PASSED = new Set(['success', 'neutral', 'skipped']);
 function checks(sha) {
   const pages = JSON.parse(
     sh('gh', [
@@ -104,12 +101,19 @@ function checks(sha) {
     ])
   );
   const runs = pages.flatMap((p) => p.check_runs ?? []);
-  const failed = runs.filter((r) => FAILED.has(r.conclusion));
+  const failed = runs.filter(
+    (r) => r.status === 'completed' && !PASSED.has(r.conclusion)
+  );
   const pending = runs.filter((r) => r.status !== 'completed');
+  // The key names the failed checks, so a second check failing after the
+  // first was reported is a new item, not a repeat.
   if (failed.length)
     return {
       kind: 'ci',
-      id: `ci:${sha}:failure`,
+      id: `ci:${sha}:failure:${failed
+        .map((r) => r.name)
+        .sort()
+        .join('|')}`,
       at: failed[0].completed_at,
       sha,
       status: 'failure',
@@ -225,8 +229,14 @@ function collect() {
   denied = new Set();
   const pulls = `repos/${repo}/pulls/${number}`;
   const items = [];
+  // Issue comments first, review comments after: Codex posts its findings and
+  // then marks its status completed, so counting from a snapshot taken before
+  // the status was read could miss findings posted in between.
+  const issueComments = api(
+    `repos/${repo}/issues/${number}/comments?per_page=100`
+  );
   const reviewComments = api(`${pulls}/comments?per_page=100`);
-  for (const c of api(`repos/${repo}/issues/${number}/comments?per_page=100`)) {
+  for (const c of issueComments) {
     if (!qualifies(c.user, c.body)) continue;
     // Codex posts a status comment the moment a PR goes ready and edits it in
     // place when the review completes. It is reported once, on completion, as
@@ -245,7 +255,7 @@ function collect() {
       ).length;
       items.push({
         kind: 'codex-status',
-        id: `c${c.id}:${headSha ?? 'completed'}`,
+        id: `c${c.id}:${headSha ?? 'completed'}:${findings}`,
         at: c.updated_at ?? c.created_at,
         author: c.user.login,
         headSha,

@@ -87,7 +87,15 @@ DEFAULT_SHIP_LOGIN_URL=https://your-ship.tlon.network
 DEFAULT_SHIP_LOGIN_ACCESS_CODE=xxxxxx-xxxxxx-xxxxxx-xxxxxx
 ```
 
-They are read at build time by `app.config.ts`, so a build made before you set them will not have them: set them first, or rebuild.
+They are read at build time by `app.config.ts`, and `warm` copies the file only when the worktree has none. Set them before step 1. If you are setting them now, copy the file into this worktree's `apps/tlon-mobile/` as well, then rebuild; a rebuild alone does not fetch it.
+
+Open one agent-device session per platform first, on the devices `stim status` lists for this worktree:
+
+```bash
+stim status                                # this worktree's simulator udid and emulator serial
+agent-device open io.tlon.groups --platform ios --udid <udid> --session <name>
+agent-device open io.tlon.groups --platform android --serial <serial> --session <name>
+```
 
 With both set, a debug build fills the login form, so signing in is four presses and no typing. Each screen takes a moment to arrive, and `--settle` only waits for the current one to go quiet, so wait for the next screen's text before pressing on it:
 
@@ -123,16 +131,13 @@ For a bug or a change to existing behavior, record what the app does now, before
 Record the behavior, not the journey. Navigate to the screen first, start recording, do the one action that triggers it, stop as soon as the result is on screen. A reviewer watches these; sign-in, navigation and dead time are not evidence. Aim for under 30 seconds.
 
 ```bash
-stim status                                # which simulator udid and emulator serial are this worktree's
-agent-device open io.tlon.groups --platform ios --udid <udid> --session <name>
-agent-device open io.tlon.groups --platform android --serial <serial> --session <name>
 agent-device record start <worktree>/.evidence/before-ios.mp4 --quality high --session <name>
 agent-device press 'text="<label>"' --session <name> --settle
 agent-device longpress '@<ref>' --session <name> --settle
 agent-device record stop --session <name>
 ```
 
-Identify the device by the udid or serial `stim status` prints for this worktree, not by name: Stim re-adopts parked devices, so the name can still be a previous task's while the device is yours. Prove the repro first, then record it: "the behavior, not the journey" is only possible once you know the trigger. Wait for the result's text before `record stop`, then check the duration and the last frame; Android clips have ended early with no error. An emulator that was stopped and booted again after a recording can refuse `record start` with "native recovery evidence already exists": a stale `/sdcard/agent-device-recording-active.json` from the old serial; `adb -s <serial> shell rm` it.
+Use the sessions from step 3; identify a device by the udid or serial `stim status` prints for this worktree, never by name, since Stim re-adopts parked devices and the name can still be a previous task's. Prove the repro first, then record it: "the behavior, not the journey" is only possible once you know the trigger. Wait for the result's text before `record stop`, then check the duration and the last frame; Android clips have ended early with no error. An emulator that was stopped and booted again after a recording can refuse `record start` with "native recovery evidence already exists": a stale `/sdcard/agent-device-recording-active.json` from the old serial; `adb -s <serial> shell rm` it.
 
 To capture a "before" after the fix is already committed (a reviewer asks for another case), swap the file, not the branch: `git checkout origin/develop -- <path>`, record under Fast Refresh, then `git checkout HEAD -- <path>`.
 
@@ -221,7 +226,7 @@ node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
 
 It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints everything new as one JSON line each (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. Codex's own status comment arrives once, when its review completes, as `{"kind":"codex-status","headSha":...,"findings":<n>}`, where `findings` counts its inline comments on that commit. CI arrives the same way: `{"kind":"ci","status":"failure","failed":[{name,url}]}` as soon as a check fails, or `{"kind":"ci","status":"success"}` once every check on the head commit has passed. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own replies are ignored by the marker below, not by account: the person reviewing you usually shares your GitHub login, and their comments must wake you. Run it in the background so it wakes you. When it prints `{"kind":"closed","merged":true}`, go to step 10.
 
-One run is one round. A failed check is an item like any other: `gh run view <run id> --log-failed` (the id is the last path segment of its url), fix, and it re-runs on the push. For every item in it: fix what is real, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<commentId>/replies -f body=...` for a review comment, using the numeric `commentId` the watcher printed, not its `id`; `gh pr comment` otherwise), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is invisible on GitHub and it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
+One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. For every item in it: fix what is real, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...` for a review comment, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `gh pr comment` otherwise), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is invisible on GitHub and it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
 
 Stop when the head commit has both `{"kind":"codex-status","findings":0}` and `{"kind":"ci","status":"success"}` and nothing else is open, when the pull request is merged or closed, or when the watcher prints `{"kind":"timeout"}`: nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run). Any commit, comment, or review restarts that budget, so the loop runs as long as the conversation does and ends on inactivity. Report what is still open.
 
@@ -234,7 +239,7 @@ agent-device close --session <name>       # each session this run opened
 cd <worktree>/apps/tlon-mobile
 stim stop
 cd <source checkout>
-stim worktree remove .worktrees/<name>   # then, if the branch should go too:
+stim worktree remove <source checkout>/.worktrees/<name>   # the path step 1 created; then, if the branch should go too:
 git branch -d <handle>/<topic>
 ```
 
