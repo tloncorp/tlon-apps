@@ -185,7 +185,7 @@ This is cheap and it is not the same as the review the pull request gets later. 
 
 ### 8. Open the pull request
 
-Read `pr-description.md` in this skill's directory (it sends you to `pr-workflow.md` and its fresh-eyes pass), then fill `.github/pull_request_template.md` section by section.
+Read `pr-description.md` in this skill's directory, then fill `.github/pull_request_template.md` section by section, and run the fresh-eyes pass it describes before posting.
 
 ```bash
 git push -u origin <handle>/<topic>
