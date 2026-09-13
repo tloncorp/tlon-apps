@@ -1,6 +1,12 @@
 # Writing the pull request
 
-`pr-workflow.md` in this directory is the guide: read it in full, and run its fresh-eyes pass with `references/lazy-skimmer-review.md` before posting. What follows is only what is specific to this repository.
+`pr-workflow.md` in this directory is the guide: read it in full, and run its fresh-eyes pass with `references/lazy-skimmer-review.md` before posting. What follows is only what is specific to this repository, and it wins where the two differ.
+
+## Two things this repository does differently
+
+**Title:** a conventional commit line, `type(scope): imperative summary`, with `fix`, `feat`, `chore`, `docs`, `refactor`, `test` or `ci` as the type and the platform or area as the scope (`fix(android): decode GIFs with Glide instead of APNG4Android`). Name the user-facing effect, not the mechanism. This is a decision, not the observed history: the merged log is mostly plain sentences, and the guide's "match the repository" rule does not apply here.
+
+**Ready, not draft:** create as a draft so the evidence can be spliced in, then `gh pr ready` as step 8 says. The Codex reviewer only reviews ready pull requests, and that review is part of the loop; the guide's draft-by-default rule does not apply here.
 
 ## The template
 

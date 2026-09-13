@@ -149,19 +149,6 @@ dug up; a cold reader isn't. Run it on every PR (a tight, honest body passes in 
 One pass is enough; don't loop. If you can't spawn subagents, run the persona file yourself as a
 deliberate fresh-eyes pass — weaker (you can't un-see your draft), but better than nothing.
 
-**Optional — high-stakes or claim-heavy PRs.** For shared/foundational code, migrations, or a body
-with lots of named identifiers and external claims, also run two more reviewers the same way (fresh
-context, title + body + base branch):
-
-- `references/skeptical-maintainer-review.md` — is it safe to merge? Flags overclaimed root causes,
-  missing risk/blast-radius, and vague test plans.
-- `references/claim-fact-checker-review.md` — is every named symbol, path, and link true to the
-  diff? Flags fabricated or near-miss identifiers and invented issue numbers.
-
-These target merge-safety and grounding, not brevity — apply their fixes (correct a wrong
-identifier, hedge or link a load-bearing claim, add a one-line risk where genuinely warranted), but
-don't bolt a risk section onto a small change.
-
 ## Code comments in bug-fix PRs
 
 When your change moves code from broken to correct, don't document what was broken in a code comment — not the bug, not a link to the issue that was fixed. The code just does the right thing now; the history belongs in the commit message and PR description. A future reader opening the file doesn't need to know what used to be there.
