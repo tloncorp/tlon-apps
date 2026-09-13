@@ -149,6 +149,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     }, [hasSetInitialContent]);
     const [hasAutoFocused, setHasAutoFocused] = useState(false);
     const [editorCrashed, setEditorCrashed] = useState<string | undefined>();
+    const [webviewKey, setWebviewKey] = useState(0);
     const [containerHeight, setContainerHeight] = useState(initialHeight);
     const [isSending, setIsSending] = useState(false);
     const { bottom, top } = useSafeAreaInsets();
@@ -229,11 +230,14 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
     const reloadWebview = useCallback(
       (reason: string) => {
         reloadContentRef.current = editorContent as JSONContent | undefined;
-        webviewRef.current?.reload();
+        // The editor is loaded from an HTML string, so after its web process
+        // is terminated WKWebView.reload() has no page data to reload and
+        // leaves the view blank. Remounting the WebView loads the editor again.
+        setWebviewKey((key) => key + 1);
         messageInputLogger.log('[webview] Reloading webview, reason:', reason);
         setEditorCrashed(undefined);
       },
-      [editorContent, webviewRef]
+      [editorContent]
     );
 
     const lastEditingPost = useRef<db.Post | undefined>(editingPost);
@@ -818,6 +822,7 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             style={{ width: '100%' }}
           >
             <RichText
+              key={webviewKey}
               style={{
                 maxHeight: bigInput ? bigInputHeight : maxInputHeight,
                 width: '100%',
