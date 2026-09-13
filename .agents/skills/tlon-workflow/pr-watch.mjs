@@ -120,6 +120,13 @@ function checks(sha) {
     ])
   );
   const runs = pages.flatMap((p) => p.check_runs ?? []);
+  // Checks moving is activity too: a twenty-minute job must not look like
+  // an idle pull request to the inactivity budget.
+  ciActivity = runs
+    .flatMap((r) => [r.started_at, r.completed_at])
+    .filter(Boolean)
+    .map((t) => Date.parse(t))
+    .reduce((a, b) => Math.max(a, b), 0);
   const failed = runs.filter(
     (r) => r.status === 'completed' && !PASSED.has(r.conclusion)
   );
@@ -165,6 +172,7 @@ let lastSeen = Date.now();
 // rest of the round rather than exiting on the first piece.
 let settling = null;
 let statusSeen = false;
+let ciActivity = 0;
 const repo = sh('gh', [
   'repo',
   'view',
@@ -359,7 +367,7 @@ for (;;) {
     await sleep(interval);
     continue;
   }
-  lastSeen = Date.parse(pr.updated_at);
+  lastSeen = Math.max(Date.parse(pr.updated_at), ciActivity);
   for (const item of fresh) {
     console.log(JSON.stringify(item));
     seen.add(item.id);
@@ -385,12 +393,13 @@ for (;;) {
     await sleep(statusSeen ? interval : Math.min(interval, 20000));
     continue;
   }
-  if (Date.now() - Date.parse(pr.updated_at) >= timeout) {
+  if (Date.now() - lastSeen >= timeout) {
     console.log(
       JSON.stringify({
         kind: 'timeout',
         seconds: timeout / 1000,
-        lastActivity: pr.updated_at,
+        lastActivity: new Date(lastSeen).toISOString(),
+        checksPending: ci === null,
       })
     );
     break;
