@@ -173,22 +173,43 @@ function collect() {
   denied = new Set();
   const pulls = `repos/${repo}/pulls/${number}`;
   const items = [];
+  const reviewComments = api(`${pulls}/comments?per_page=100`);
   for (const c of api(`repos/${repo}/issues/${number}/comments?per_page=100`)) {
     if (!qualifies(c.user)) continue;
     // Codex posts a status comment the moment a PR goes ready and edits it in
-    // place when the review completes, so it is reported once, on completion.
-    const status = c.body?.includes(CODEX_STATUS_MARKER);
-    if (status && !c.body.includes('"status":"completed"')) continue;
+    // place when the review completes. It is reported once, on completion, as
+    // a codex-status line with the number of inline findings on the reviewed
+    // commit, so a clean round is one line rather than three queries.
+    if (c.body?.includes(CODEX_STATUS_MARKER)) {
+      if (!c.body.includes('"status":"completed"')) continue;
+      const headSha = c.body.match(/"headSha":"([0-9a-f]+)"/)?.[1] ?? null;
+      const findings = reviewComments.filter(
+        (rc) =>
+          rc.user?.login === BOT &&
+          !rc.in_reply_to_id &&
+          (headSha ? rc.commit_id === headSha : rc.created_at >= c.created_at)
+      ).length;
+      items.push({
+        kind: 'codex-status',
+        id: `c${c.id}:${headSha ?? 'completed'}`,
+        at: c.updated_at ?? c.created_at,
+        author: c.user.login,
+        headSha,
+        findings,
+        url: c.html_url,
+      });
+      continue;
+    }
     items.push({
       kind: 'comment',
-      id: status ? `c${c.id}:completed` : `c${c.id}`,
+      id: `c${c.id}`,
       at: c.created_at,
       author: c.user.login,
       url: c.html_url,
       body: c.body,
     });
   }
-  for (const c of api(`${pulls}/comments?per_page=100`)) {
+  for (const c of reviewComments) {
     if (!qualifies(c.user)) continue;
     items.push({
       kind: 'review_comment',
