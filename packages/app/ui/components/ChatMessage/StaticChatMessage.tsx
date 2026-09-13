@@ -7,6 +7,7 @@ import {
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI, convertContent, getRandomId } from '@tloncorp/shared/logic';
+import type * as cn from '@tloncorp/shared/logic';
 import {
   renameAgentGroupFromOnboarding,
   useGroup,
@@ -160,6 +161,10 @@ export function StaticChatMessage({
     post.deliveryStatus === 'failed' ||
     post.editStatus === 'failed' ||
     post.deleteStatus === 'failed';
+  const visibleDeliveryStatus =
+    post.deliveryStatus && post.deliveryStatus !== 'failed'
+      ? post.deliveryStatus
+      : null;
 
   const handleRepliesPressed = useCallback(() => {
     onPressReplies?.(post);
@@ -563,6 +568,16 @@ export function StaticChatMessage({
   ]);
   const contentIsOnlyA2UI =
     content.length > 0 && content.every((block) => block.type === 'a2ui');
+  const renderedContent =
+    post.editStatus === 'failed' ? lastEditContent : content;
+  // The delivery indicator is absolutely positioned at the top right. With an
+  // author row it sits on that row; without one it lands on the content, so a
+  // full-width first block (media, link, reference, code, file...) gets a
+  // strip above it instead. Inline text keeps the current placement.
+  const reservesDeliveryStrip =
+    !!visibleDeliveryStatus &&
+    !showAuthor &&
+    startsWithFullWidthBlock(renderedContent);
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
@@ -611,7 +626,7 @@ export function StaticChatMessage({
         />
       )}
 
-      {!!post.deliveryStatus && post.deliveryStatus !== 'failed' ? (
+      {visibleDeliveryStatus ? (
         <View
           pointerEvents="none"
           position="absolute"
@@ -619,11 +634,14 @@ export function StaticChatMessage({
           top={8}
           zIndex={199}
         >
-          <ChatMessageDeliveryStatus status={post.deliveryStatus} />
+          <ChatMessageDeliveryStatus status={visibleDeliveryStatus} />
         </View>
       ) : null}
 
-      <View paddingLeft={!isNotice ? '$4xl' : undefined}>
+      <View
+        paddingLeft={!isNotice ? '$4xl' : undefined}
+        paddingTop={reservesDeliveryStrip ? DELIVERY_STRIP_HEIGHT : undefined}
+      >
         {displayDebugMode ? (
           <Text color="$green" size="$body" padding="$xl">
             {JSON.stringify(
@@ -642,7 +660,7 @@ export function StaticChatMessage({
           </Text>
         ) : (
           <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
+            content={renderedContent}
             paddingBottom={contentIsOnlyA2UI ? '$l' : undefined}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
@@ -724,6 +742,23 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
   maxWidth: 600,
   maxHeight: 400,
 };
+
+// Indicator bottom edge (top 8 + 24 tall) minus the block wrapper's own $l
+// top padding.
+const DELIVERY_STRIP_HEIGHT = 20;
+
+const INLINE_TEXT_BLOCK_TYPES: ReadonlySet<cn.BlockType> = new Set([
+  'paragraph',
+  'header',
+  'list',
+  'blockquote',
+  'bigEmoji',
+]);
+
+function startsWithFullWidthBlock(content: cn.PostContent) {
+  const first = content[0];
+  return first != null && !INLINE_TEXT_BLOCK_TYPES.has(first.type);
+}
 
 const ChatContentRenderer = createContentRenderer({
   blockRenderers: {
