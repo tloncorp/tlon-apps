@@ -187,7 +187,7 @@ gh pr create --draft --base develop --title "<title>" --body-file <worktree>/.ev
 
 One `--attach` per recording or screenshot from steps 4 and 6, for every platform you tested; `gh pr create` prompts for a remote when the branch is not pushed, and a prompt in an unattended shell is a hang. `gh` appends the uploaded URLs to the body in `--attach` order, and rewrites a body reference only when it matches the `--attach` string exactly.
 
-**Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. To label them, attach bare paths and then splice the returned `user-attachments` URLs into the body:
+**Video takes no alt text.** `--attach '<file>#<label>'` is image-only and fails outright with `cannot set alt text on video`, creating no pull request. `gh` also does not rewrite a body reference to a video, so `![](./before-ios.mp4)` stays a broken relative link while the uploaded URLs are appended unlabeled at the end. Attach bare paths, then move the returned `user-attachments` URLs into the per-platform before/after tables `pr-description.md` describes:
 
 ```bash
 gh pr view <number> --json body -q .body > <worktree>/.evidence/body.md   # edit, then:
