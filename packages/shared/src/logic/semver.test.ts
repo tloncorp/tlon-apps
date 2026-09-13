@@ -24,10 +24,21 @@ describe('isVersionBelow', () => {
     expect(isVersionBelow('1.10.0', '1.9.0')).toBe(false);
   });
 
-  it('treats prerelease and build metadata as equal to the core version', () => {
-    expect(isVersionBelow('1.2.3-beta', '1.2.3')).toBe(false);
+  it('sorts a prerelease below its release', () => {
+    expect(isVersionBelow('1.2.3-beta', '1.2.3')).toBe(true);
     expect(isVersionBelow('1.2.3', '1.2.3-beta')).toBe(false);
+    expect(isVersionBelow('1.2.3-beta.1', '1.2.3-beta.2')).toBe(true);
+    expect(isVersionBelow('1.2.3-alpha', '1.2.3-beta')).toBe(true);
+  });
+
+  it('ignores build metadata', () => {
     expect(isVersionBelow('1.2.3+build.1', '1.2.3')).toBe(false);
+    expect(isVersionBelow('1.2.3', '1.2.3+build.1')).toBe(false);
+  });
+
+  it('accepts a minimum without a patch component', () => {
+    expect(isVersionBelow('11.3.2', '11.4')).toBe(true);
+    expect(isVersionBelow('11.4.0', '11.4')).toBe(false);
   });
 
   it('returns false when versions cannot be parsed (fail-open)', () => {
