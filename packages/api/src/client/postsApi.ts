@@ -1409,7 +1409,7 @@ function isPostDataResponse(
   return !!(post.seal.replies && !Array.isArray(post.seal.replies));
 }
 
-function isPostTombstone(
+export function isPostTombstone(
   post:
     | ub.Post
     | ub.PostTombstone
