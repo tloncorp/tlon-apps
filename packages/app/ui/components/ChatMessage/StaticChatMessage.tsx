@@ -7,6 +7,7 @@ import {
 import { isDmChannelId } from '@tloncorp/api/client';
 import * as db from '@tloncorp/shared/db';
 import { A2UI, convertContent, getRandomId } from '@tloncorp/shared/logic';
+import type * as cn from '@tloncorp/shared/logic';
 import {
   renameAgentGroupFromOnboarding,
   useGroup,
@@ -567,6 +568,15 @@ export function StaticChatMessage({
   ]);
   const contentIsOnlyA2UI =
     content.length > 0 && content.every((block) => block.type === 'a2ui');
+  const renderedContent =
+    post.editStatus === 'failed' ? lastEditContent : content;
+  // Without an author row the delivery indicator lands on the content, so
+  // full-width media gets a strip above it. The indicator is 24px at top 8;
+  // the block's own $l top padding covers the rest.
+  const reservesDeliveryStrip =
+    !!visibleDeliveryStatus &&
+    !showAuthor &&
+    isFullWidthBlock(renderedContent[0]);
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;
@@ -605,7 +615,7 @@ export function StaticChatMessage({
         />
       ) : null}
 
-      {!hideSentAtTimestamp && !showAuthor && !visibleDeliveryStatus && (
+      {!hideSentAtTimestamp && !showAuthor && (
         <SentTimeText
           sentAt={post.sentAt}
           color="$tertiaryText"
@@ -616,13 +626,10 @@ export function StaticChatMessage({
       )}
 
       {visibleDeliveryStatus ? (
-        // Beside an author row the top-right corner is free; without one it
-        // is the content's, so the status sits in the empty avatar gutter.
         <View
           pointerEvents="none"
           position="absolute"
-          left={showAuthor ? undefined : 12}
-          right={showAuthor ? 12 : undefined}
+          right={12}
           top={8}
           zIndex={199}
         >
@@ -630,7 +637,10 @@ export function StaticChatMessage({
         </View>
       ) : null}
 
-      <View paddingLeft={!isNotice ? '$4xl' : undefined}>
+      <View
+        paddingLeft={!isNotice ? '$4xl' : undefined}
+        paddingTop={reservesDeliveryStrip ? 20 : undefined}
+      >
         {displayDebugMode ? (
           <Text color="$green" size="$body" padding="$xl">
             {JSON.stringify(
@@ -649,7 +659,7 @@ export function StaticChatMessage({
           </Text>
         ) : (
           <ChatContentRenderer
-            content={post.editStatus === 'failed' ? lastEditContent : content}
+            content={renderedContent}
             paddingBottom={contentIsOnlyA2UI ? '$l' : undefined}
             isNotice={post.type === 'notice'}
             onPressImage={handleImagePressed}
@@ -715,6 +725,15 @@ export function StaticChatMessage({
         </View>
       )}
     </YStack>
+  );
+}
+
+function isFullWidthBlock(block: cn.BlockData | undefined) {
+  return (
+    block?.type === 'image' ||
+    block?.type === 'video' ||
+    block?.type === 'link' ||
+    block?.type === 'reference'
   );
 }
 
