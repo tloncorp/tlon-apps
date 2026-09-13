@@ -8,7 +8,7 @@ const SEMVER_RE =
 export function parseVersion(version: string): [number, number, number] | null {
   const match = SEMVER_RE.exec(version.trim());
   if (!match) return null;
-  return [Number(match[1]), Number(match[2]), Number(match[3])];
+  return [Number(match[1]), Number(match[2]), match[3] ? Number(match[3]) : 0];
 }
 
 function prereleaseIds(version: string): string[] | null {

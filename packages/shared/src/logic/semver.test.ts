@@ -43,6 +43,8 @@ describe('isVersionBelow', () => {
   it('accepts a minimum without a patch component', () => {
     expect(isVersionBelow('11.3.2', '11.4')).toBe(true);
     expect(isVersionBelow('11.4.0', '11.4')).toBe(false);
+    expect(isVersionBelow('11.4', '11.4.1')).toBe(true);
+    expect(isVersionBelow('11.4.1', '11.4')).toBe(false);
   });
 
   it('returns false when versions cannot be parsed (fail-open)', () => {
