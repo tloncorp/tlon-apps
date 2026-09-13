@@ -6,7 +6,13 @@
 // skill has the agent put in every reply, not by login: the agent and the
 // human reviewing it usually share one GitHub account.
 //
-//   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]
+//   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--settle <seconds>] [--once]
+//
+// A round arrives in pieces: CI fails or passes, Codex posts its comments,
+// then its status a minute later. After the first new item the run keeps
+// polling every 20s and exits once --settle seconds (default 150) pass with
+// nothing new, or once Codex's status for the head commit is in, so one run
+// is one round.
 //
 // CI is part of the round: a "ci" line with status failure names the failed
 // checks; status success arrives once per head commit when every check is done.
@@ -46,6 +52,7 @@ function parseArgs(argv) {
   let once = false;
   let interval = 60;
   let timeout = 1800;
+  let settle = 150;
   let number = null;
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -56,6 +63,11 @@ function parseArgs(argv) {
       if (!Number.isFinite(value) || value < 5)
         usage('--interval takes a number of seconds, at least 5');
       interval = value;
+    } else if (arg === '--settle') {
+      const value = Number(argv[++i]);
+      if (!Number.isFinite(value) || value < 0)
+        usage('--settle takes a number of seconds');
+      settle = value;
     } else if (arg === '--timeout') {
       const value = Number(argv[++i]);
       if (!Number.isFinite(value) || value < 1)
@@ -69,7 +81,13 @@ function parseArgs(argv) {
       usage(`unknown argument ${arg}`);
     }
   }
-  return { once, interval: interval * 1000, timeout: timeout * 1000, number };
+  return {
+    once,
+    interval: interval * 1000,
+    timeout: timeout * 1000,
+    settle: settle * 1000,
+    number,
+  };
 }
 
 // Never put captured output in the message: on a public repository it is
@@ -136,11 +154,16 @@ const {
   once,
   interval,
   timeout,
+  settle,
   number: requested,
 } = parseArgs(process.argv.slice(2));
 // The last activity GitHub reported, so a run whose polls start failing still
 // ends on the same budget instead of retrying forever.
 let lastSeen = Date.now();
+// Set when the first new item of this run arrives; the run then collects the
+// rest of the round rather than exiting on the first piece.
+let settling = null;
+let statusSeen = false;
 const repo = sh('gh', [
   'repo',
   'view',
@@ -338,15 +361,25 @@ for (;;) {
   for (const item of fresh) {
     console.log(JSON.stringify(item));
     seen.add(item.id);
+    if (item.kind === 'codex-status' && item.headSha === pr.head.sha)
+      statusSeen = true;
   }
-  if (fresh.length) save();
+  if (fresh.length) {
+    save();
+    settling = Date.now();
+  }
   if (pr.state === 'closed') {
     console.log(
       JSON.stringify({ kind: 'closed', merged: pr.merged, url: pr.html_url })
     );
     break;
   }
-  if (fresh.length || once) break;
+  if (once) break;
+  if (settling !== null) {
+    if (statusSeen || Date.now() - settling >= settle) break;
+    await sleep(Math.min(interval, 20000));
+    continue;
+  }
   if (Date.now() - Date.parse(pr.updated_at) >= timeout) {
     console.log(
       JSON.stringify({

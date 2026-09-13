@@ -204,6 +204,8 @@ gh pr edit <number> --body-file <worktree>/.evidence/body.md
 gh pr ready <number>
 ```
 
+A change with nothing to show on screen (logic, sync, a script) has no recordings: no `--attach`, no evidence table, and "How did I test?" says what you ran instead.
+
 **Check every clip before attaching it.** `ffprobe -v error -show_entries format=duration -of csv=p=0 <clip>` for the length, and a frame strip to see what is in it:
 
 ```bash
@@ -224,11 +226,11 @@ Mark it ready once the evidence is in: the Codex reviewer only reviews ready pul
 node /absolute/path/to/repo/.agents/skills/tlon-workflow/pr-watch.mjs <number>
 ```
 
-It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, prints everything new as one JSON line each (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. Codex's own status comment arrives once, when its review completes, as `{"kind":"codex-status","headSha":...,"findings":<n>}`, where `findings` counts its inline comments on that commit. CI arrives the same way: `{"kind":"ci","status":"failure","failed":[{name,url}]}` as soon as a check fails, or `{"kind":"ci","status":"success"}` once every check on the head commit has passed. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own replies are ignored by the marker below, not by account: the person reviewing you usually shares your GitHub login, and their comments must wake you. Run it in the background so it wakes you. When it prints `{"kind":"closed","merged":true}`, go to step 10.
+Run it in the foreground, with the longest timeout your shell tool allows; a harness does not wake an agent for a background process. If the call times out before it prints, run it again: it keeps what it already reported, so nothing is lost. It blocks until the pull request gets a review, review comment, or comment from the Codex reviewer (`chatgpt-codex-connector[bot]`) or from someone with write access, then keeps collecting for a couple of minutes (a round arrives in pieces: CI, then Codex's comments, then its status), prints everything as one JSON line each (`kind`, `author`, `path`, `line`, `url`, `body`), and exits. Codex's own status comment arrives once, when its review completes, as `{"kind":"codex-status","headSha":...,"findings":<n>}`, where `findings` counts its inline comments on that commit. CI arrives the same way: `{"kind":"ci","status":"failure","failed":[{name,url}]}` as soon as a check fails, or `{"kind":"ci","status":"success"}` once every check on the head commit has passed. It checks each commenter's actual repository permission, because on a public repository anyone can comment and `author_association` does not imply access. Your own replies are ignored by the marker below, not by account: the person reviewing you usually shares your GitHub login, and their comments must wake you. Run it in the background so it wakes you. When it prints `{"kind":"closed","merged":true}`, go to step 10.
 
 One run is one round. A failed check is an item like any other: `gh run view --job <job id> --log-failed` (the job id is the last path segment of its url), fix, and it re-runs on the push. For every item in it: fix what is real, reply in that thread with what changed (`gh api repos/{owner}/{repo}/pulls/<number>/comments/<root>/replies -f body=...` for a review comment, where `<root>` is the watcher's `replyTo` when set and its numeric `commentId` otherwise, since GitHub only accepts replies to a thread's first comment; `gh pr comment` otherwise), and push back, with reasons, on what is not. End every reply and comment you post with the line `<!-- tlon-workflow:agent -->`; it is invisible on GitHub and it is how the watcher tells your replies from a reviewer's. Push once for the whole round, re-capture evidence if the visible behavior changed, then run the watcher again. Codex reviews each push.
 
-Stop when the head commit has both `{"kind":"codex-status","findings":0}` and `{"kind":"ci","status":"success"}` and nothing else is open, when the pull request is merged or closed, or when the watcher prints `{"kind":"timeout"}`: nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run). Any commit, comment, or review restarts that budget, so the loop runs as long as the conversation does and ends on inactivity. Report what is still open.
+Codex reports only what is new on each push; it never repeats an open finding, so `findings: 0` means nothing new, not clean. Keep your own list of every thread the watcher has printed and what you did with it. Stop when every thread on that list has a reply from you (a fix or a reasoned push-back), the head commit has `{"kind":"ci","status":"success"}`, its `{"kind":"codex-status"}` has arrived with nothing you have not answered, when the pull request is merged or closed, or when the watcher prints `{"kind":"timeout"}`: nothing has happened on the pull request, by anyone, for `--timeout` seconds (default 1800; pass a shorter one for a quick run). Any commit, comment, or review restarts that budget, so the loop runs as long as the conversation does and ends on inactivity. Report what is still open.
 
 ### 10. Clean up
 
@@ -241,6 +243,7 @@ stim stop
 cd <source checkout>
 stim worktree remove <source checkout>/.worktrees/<name>   # the path step 1 created; then, if the branch should go too:
 git branch -d <handle>/<topic>
+git push origin --delete <handle>/<topic>
 ```
 
 Delete the throwaway group on the ship as well, so the next run does not find it.
