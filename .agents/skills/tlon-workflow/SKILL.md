@@ -102,7 +102,7 @@ agent-device press 'text="Next"' --session <name> --settle
 agent-device alert dismiss --session <name>
 ```
 
-Name sessions for this run (`ios-<ticket>-<hhmm>`), not the ticket alone: a session from an earlier run on the same ticket keeps its claim on a device after Stim has parked and re-adopted it, and `open` then fails with `DEVICE_IN_USE ... claimed by session <name>`. `agent-device session list` shows them; `agent-device close --session <name>` releases one whose device `stim status` says is yours.
+Name sessions for this run (`ios-<ticket>-<hhmm>`), not the ticket alone, and `agent-device close` them before starting devices again after a `stim stop`: a session from an earlier run on the same ticket keeps its claim on a device after Stim has parked and re-adopted it, and `open` then fails with `DEVICE_IN_USE ... claimed by session <name>`. `agent-device session list` shows them; `agent-device close --session <name>` releases one whose device `stim status` says is yours.
 
 On Android run these one at a time, not as one `&&` chain: a snapshot takes 3 to 10 seconds on an emulator, so a `wait` in a chain times out and the rest never runs; give `wait` a longer timeout (`wait text "..." 30000`). On iOS, when a press or wait returns "the iOS runner is still finishing a previous command that exceeded its execution watchdog", press without `--settle` and confirm with `screenshot`; if that keeps failing, `agent-device close` and `open` the session again.
 
@@ -132,7 +132,9 @@ agent-device longpress '@<ref>' --session <name> --settle
 agent-device record stop --session <name>
 ```
 
-Identify the device by the udid or serial `stim status` prints for this worktree, not by name: Stim re-adopts parked devices, so the name can still be a previous task's while the device is yours. Prove the repro first, then record it: "the behavior, not the journey" is only possible once you know the trigger. Wait for the result's text before `record stop`, then check the duration and the last frame; Android clips have ended early with no error.
+Identify the device by the udid or serial `stim status` prints for this worktree, not by name: Stim re-adopts parked devices, so the name can still be a previous task's while the device is yours. Prove the repro first, then record it: "the behavior, not the journey" is only possible once you know the trigger. Wait for the result's text before `record stop`, then check the duration and the last frame; Android clips have ended early with no error. An emulator that was stopped and booted again after a recording can refuse `record start` with "native recovery evidence already exists": a stale `/sdcard/agent-device-recording-active.json` from the old serial; `adb -s <serial> shell rm` it.
+
+To capture a "before" after the fix is already committed (a reviewer asks for another case), swap the file, not the branch: `git checkout origin/develop -- <path>`, record under Fast Refresh, then `git checkout HEAD -- <path>`.
 
 `--quality high` records at device resolution; the default is 220x480, which loses anything smaller than a button. `press` and `longpress` are the interaction commands -- there is no `tap`. Dialogs, action sheets and long-press targets resolve by `[button]` ref from a fresh snapshot, not by `text=`; in a sequence too fast to re-snapshot, press coordinates from the last snapshot. The chat list does not respond to `scroll`; `swipe x1 y1 x2 y2` moves it, and the header Search is the reliable way to a group. On Android the list collapses into one label, and a ref has opened another agent's group: read the channel header before posting anything, and tap the list by screenshot coordinates.
 
