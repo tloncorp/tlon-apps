@@ -13,7 +13,7 @@ Stim's own guide is the reference for its commands and refusals. Read it once pe
 stim guide agent
 ```
 
-Everything below is written from the **repository root**. Steps 2 onward run from `apps/tlon-mobile`, so give this skill's scripts an absolute path rather than a relative one from the wrong directory.
+Everything below is written from the **repository root**, and every `stim` command runs from `apps/tlon-mobile`: Stim resolves a workspace per directory, so from anywhere else it acts on a workspace that is not the app's. Give this skill's scripts an absolute path rather than a relative one from the wrong directory.
 
 ## Before anything
 
@@ -160,7 +160,7 @@ Repeat step 4 into `after-ios.mp4` and `after-android.mp4`, on every platform th
 
 **Re-snapshot first.** Fast Refresh remounts the tree, so a ref captured before the edit now points at a different element -- reusing one silently drives the wrong screen. An edit under `packages/` may be a full reload rather than a refresh: navigation resets to Home and the sign-in prompts return on both platforms (`alert dismiss`, `Not now`). Check which screen you are on before recording. If the reload leaves the iOS runner hung (every command `COMMAND_FAILED`, "main thread execution timed out"), `agent-device close` and `open` the session. When one platform shows the edit and the other does not, `stim reload <platform>` for the one that missed it; Metro's log does not say which platform bundled.
 
-`stim logs` reads the workspace of the directory it runs in: from the worktree root it queries a workspace that does not exist and passes with "No matching log records". Run it from `apps/tlon-mobile`, and keep `--since` windows short.
+`stim logs` from the wrong directory is the costly case of that rule: from the worktree root it queries a workspace that does not exist and passes with "No matching log records". Keep `--since` windows short.
 
 ### 7. Get an independent review
 
