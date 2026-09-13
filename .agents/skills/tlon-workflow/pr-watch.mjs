@@ -2,7 +2,9 @@
 // Waits for review activity on a pull request from the Codex reviewer or from
 // someone with write access, prints each item as one JSON line, and exits.
 // Prints a "closed" line and exits once the pull request is merged or closed.
-// Your own comments never count.
+// The agent's own replies never count. They are recognised by the marker the
+// skill has the agent put in every reply, not by login: the agent and the
+// human reviewing it usually share one GitHub account.
 //
 //   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]
 //
@@ -27,6 +29,7 @@ import {
 import { dirname, join } from 'node:path';
 
 const BOT = 'chatgpt-codex-connector[bot]';
+const AGENT_MARKER = '<!-- tlon-workflow:agent -->';
 const CODEX_STATUS_MARKER = '<!-- codex-pull-request-review-summary -->';
 const WRITE = new Set(['admin', 'maintain', 'write']);
 // gh paginates a busy pull request into more than the 1 MiB spawnSync default.
@@ -142,7 +145,6 @@ const repo = sh('gh', [
   '--jq',
   '.nameWithOwner',
 ]);
-const me = sh('gh', ['api', 'user', '--jq', '.login']);
 const number =
   requested ?? sh('gh', ['pr', 'view', '--json', 'number', '--jq', '.number']);
 const stateFile = join(
@@ -211,9 +213,10 @@ function hasWriteAccess(login) {
   return allowed;
 }
 
-function qualifies(user) {
+function qualifies(user, body) {
   const login = user?.login;
-  if (!login || login === me) return false;
+  if (!login) return false;
+  if (body?.includes(AGENT_MARKER)) return false;
   if (login === BOT) return true;
   return hasWriteAccess(login);
 }
@@ -224,7 +227,7 @@ function collect() {
   const items = [];
   const reviewComments = api(`${pulls}/comments?per_page=100`);
   for (const c of api(`repos/${repo}/issues/${number}/comments?per_page=100`)) {
-    if (!qualifies(c.user)) continue;
+    if (!qualifies(c.user, c.body)) continue;
     // Codex posts a status comment the moment a PR goes ready and edits it in
     // place when the review completes. It is reported once, on completion, as
     // a codex-status line with the number of inline findings on the reviewed
@@ -261,7 +264,7 @@ function collect() {
     });
   }
   for (const c of reviewComments) {
-    if (!qualifies(c.user)) continue;
+    if (!qualifies(c.user, c.body)) continue;
     items.push({
       kind: 'review_comment',
       id: `rc${c.id}`,
@@ -276,7 +279,7 @@ function collect() {
     });
   }
   for (const r of api(`${pulls}/reviews?per_page=100`)) {
-    if (!qualifies(r.user)) continue;
+    if (!qualifies(r.user, r.body)) continue;
     if (!r.body && r.state === 'COMMENTED') continue;
     // A dismissed approval keeps its id and changes state; key on both so the
     // dismissal is reported.
