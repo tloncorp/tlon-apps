@@ -6,6 +6,9 @@
 //
 //   node pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]
 //
+// CI is part of the round: a "ci" line with status failure names the failed
+// checks; status success arrives once per head commit when every check is done.
+//
 // --timeout (default 1800) ends a blocking run with a "timeout" line once the
 // pull request has been inactive that long: GitHub's updated_at moves on any
 // commit, comment, or review, by anyone, so the budget restarts on activity.
@@ -77,6 +80,49 @@ function sh(cmd, args) {
 
 function api(path) {
   return JSON.parse(sh('gh', ['api', '--paginate', '--slurp', path])).flat();
+}
+
+// The head commit's checks, folded to one line: a failure names the failed
+// checks, a success is reported once per commit, and a pending run is nothing
+// yet. Skipped and neutral runs do not count either way.
+const FAILED = new Set([
+  'failure',
+  'timed_out',
+  'cancelled',
+  'action_required',
+]);
+function checks(sha) {
+  const pages = JSON.parse(
+    sh('gh', [
+      'api',
+      '--paginate',
+      '--slurp',
+      `repos/${repo}/commits/${sha}/check-runs?per_page=100`,
+    ])
+  );
+  const runs = pages.flatMap((p) => p.check_runs ?? []);
+  const failed = runs.filter((r) => FAILED.has(r.conclusion));
+  const pending = runs.filter((r) => r.status !== 'completed');
+  if (failed.length)
+    return {
+      kind: 'ci',
+      id: `ci:${sha}:failure`,
+      at: failed[0].completed_at,
+      sha,
+      status: 'failure',
+      failed: failed.map((r) => ({ name: r.name, url: r.html_url })),
+    };
+  if (pending.length || runs.length === 0) return null;
+  return {
+    kind: 'ci',
+    id: `ci:${sha}:success`,
+    at: runs
+      .map((r) => r.completed_at)
+      .sort()
+      .at(-1),
+    sha,
+    status: 'success',
+  };
 }
 
 const {
@@ -254,7 +300,10 @@ for (;;) {
   let fresh;
   try {
     pr = JSON.parse(sh('gh', ['api', `repos/${repo}/pulls/${number}`]));
-    fresh = collect().filter((i) => !seen.has(i.id));
+    const ci = checks(pr.head.sha);
+    fresh = [...collect(), ...(ci ? [ci] : [])]
+      .sort((a, b) => a.at.localeCompare(b.at))
+      .filter((i) => !seen.has(i.id));
   } catch (err) {
     process.stderr.write(`pr-watch: ${err.message}\n`);
     // A one-shot run reports the failure rather than turning into a daemon.
