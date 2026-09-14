@@ -10,7 +10,7 @@
 ::  returned only to the requester — they never appear in a broadcast.
 ::
 /-  b=buckets, gv=groups-ver
-/+  default-agent, dbug, verb, server
+/+  default-agent, dbug, verb, server, util=buckets-util
 /=  buckets-json  /lib/buckets/json
 |%
 +$  card  card:agent:gall
@@ -801,7 +801,7 @@
   ++  se-create-folder
     |=  [parent=(unit @ud) name=@t actor=ship]
     ^-  [(unit response-body:b) _se-core]
-    ?.  (valid-parent st parent)
+    ?.  (valid-parent:util st parent)
       [`[%error %not-found 'no such parent folder'] se-core]
     =/  id=@ud  +(next-id)
     =.  next-id  id
@@ -832,7 +832,7 @@
   ++  se-move
     |=  [id=@ud parent=(unit @ud) actor=ship]
     ^-  [(unit response-body:b) _se-core]
-    ?.  (valid-parent st parent)
+    ?.  (valid-parent:util st parent)
       [`[%error %not-found 'no such parent folder'] se-core]
     ?~  got=(~(get by entries.st) id)
       [`[%error %not-found 'no such entry'] se-core]
@@ -841,7 +841,7 @@
       [`[%error %invalid-input 'an entry cannot contain itself'] se-core]
     ?:  ?&  ?=(%folder -.kind.ent)
             ?=(^ parent)
-            (descendant st id u.parent)
+            (descendant:util st id u.parent)
         ==
       [`[%error %invalid-input 'a folder cannot move inside itself'] se-core]
     =.  ent  ent(parent parent, updated-by actor, updated-at now.bowl)
@@ -854,7 +854,7 @@
     ^-  [(unit response-body:b) _se-core]
     ?.  (~(has by entries.st) id)
       [`[%error %not-found 'no such entry'] se-core]
-    =/  ids=(set @ud)  (descendants st id)
+    =/  ids=(set @ud)  (descendants:util st id)
     ?.  ?|(recursive =(1 ~(wyt in ids)))
       [`[%error %invalid-input 'folder is not empty'] se-core]
     =.  entries.st
@@ -923,13 +923,13 @@
       ==
   ^+  cor
   =/  st=bucket-state:b  (need-state flag)
-  ?.  (valid-parent st parent)
+  ?.  (valid-parent:util st parent)
     (answer [%error %not-found 'no such parent folder'])
   ?:  =(0 size)
     (answer [%error %invalid-input 'file size must be greater than zero'])
   ?:  (gth size max-object-size)
     (answer [%error %invalid-input 'file exceeds the maximum object size'])
-  ?.  (valid-mime mime)
+  ?.  (valid-mime:util mime)
     (answer [%error %invalid-input 'missing or malformed content type'])
   =.  cor  prune-broker-authority
   =/  id=@ud  +(next-id)
@@ -1071,7 +1071,7 @@
   ++  up-authority
     |=  st=bucket-state:b
     ^-  json
-    =/  fil=file:b  (entry-file entry.ses)
+    =/  fil=file:b  (entry-file:util entry.ses)
     =/  checksum-json=json
       ?~  checksum.fil  ~
       %-  pairs:enjs:format
@@ -1079,13 +1079,13 @@
           ['value' s+u.checksum.fil]
       ==
     %-  pairs:enjs:format
-    :~  ['host' s+(ship-text our.bowl)]
-        ['bucketHost' s+(ship-text ship.flag.ses)]
+    :~  ['host' s+(ship-text:util our.bowl)]
+        ['bucketHost' s+(ship-text:util ship.flag.ses)]
         ['bucketName' s+(scot %tas name.flag.ses)]
         ['bucketId' s+(scot %ud id.bucket.st)]
         ['gallSessionId' s+(scot %uv id.ses)]
         ['gallObjectId' s+object-key.fil]
-        ['actorShip' s+(ship-text requested-by.ses)]
+        ['actorShip' s+(ship-text:util requested-by.ses)]
         ['size' (numb:enjs:format size.fil)]
         ['mimeType' s+mime.fil]
         ['checksum' checksum-json]
@@ -1144,7 +1144,7 @@
     |=  actor=ship
     ^+  up-core
     =/  ent=entry:b  entry.ses
-    =/  fil=file:b  (entry-file ent)
+    =/  fil=file:b  (entry-file:util ent)
     =.  fil  fil(status %ready)
     =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
     =.  ses  ses(status %complete, entry ent)
@@ -1214,7 +1214,7 @@
       (up-fail 'the storage request was cancelled')
     =/  code=@ud  status-code.response-header.res
     ?.  &((gte code 200) (lth code 300))
-      (up-fail (broker-message res))
+      (up-fail (broker-message:util res))
     ?-  kind
         %grant   (up-took-grant res)
         %retry   (up-took-grant res)
@@ -1233,7 +1233,7 @@
   ++  up-took-grant
     |=  res=client-response:iris
     ^+  up-core
-    ?~  body=(broker-body res)
+    ?~  body=(broker-body:util res)
       (up-fail 'storage returned an unreadable grant')
     ?~  url=(~(get by u.body) 'uploadUrl')
       (up-fail 'storage returned no upload URL')
@@ -1245,8 +1245,8 @@
     =/  expiry=@da
       ?~  got=(~(get by u.body) 'uploadExpiresAtMillis')  expires-at.ses
       ?.  ?=([%n *] u.got)  expires-at.ses
-      (from-unix-ms (rash p.u.got dem))
-    =/  headers=(list [@t @t])  (broker-headers u.body)
+      (from-unix-ms:util (rash p.u.got dem))
+    =/  headers=(list [@t @t])  (broker-headers:util u.body)
     ::  A grant with no reservation behind it is not one we can act on: finish
     ::  and cancel both call storage against the reservation, so handing this
     ::  URL out would take the bytes and then have no way to settle or release
@@ -1343,7 +1343,7 @@
   =/  sync=reader-sync:b  u.got
   ::  Only a grant the broker has confirmed is worth handing out; anything
   ::  still owed would 403 on first use.
-  ?.  ?=(%settled (reader-status sync))  ~
+  ?.  ?=(%settled (reader-status:util sync now.bowl))  ~
   ?.  ?=(%granted -.desired.sync)  ~
   ?.  (gth expires-at.desired.sync (add now.bowl token-margin))  ~
   `[token.desired.sync expires-at.desired.sync]
@@ -1534,7 +1534,7 @@
     |=  [key=reader-key:b sync=reader-sync:b]
     ^-  [reader-key:b reader-sync:b]
     ::  Nothing to re-send for a pair whose token could not be used anyway.
-    ?:  ?=(%lapsed (reader-status sync))  [key sync]
+    ?:  ?=(%lapsed (reader-status:util sync now.bowl))  [key sync]
     ::  A new revision rather than the same one resent, because a request to
     ::  the broker we just left may still be in flight and its wire carries
     ::  the revision. Reusing it would let that broker's late 2xx confirm
@@ -1601,7 +1601,7 @@
     cor
   ::  +rd-status: what this record still asks of us.
   ::
-  ++  rd-status  (reader-status sync)
+  ++  rd-status  (reader-status:util sync now.bowl)
   ::  +rd-answer: give the held request its one terminal answer.
   ::
   ::  A record names at most one waiting request, and every transition that
@@ -1756,22 +1756,6 @@
   =/  key=reader-key:b  [flag reader]
   rd-abet:(rd-sync:(rd-init:rd-core key) bucket-id desired expires awaiting)
 ::
-::  +reader-status: the one place a record's state is decided.
-::
-::  Expiry dominates everything else: past it the token the record names can no
-::  longer be used, so there is nothing left to owe, serve or retry whatever
-::  the revisions say. A refusal settles it next -- the broker will answer the
-::  same way again -- then being level with the broker, and anything else is
-::  still owed.
-::
-++  reader-status
-  |=  sync=reader-sync:b
-  ^-  reader-status:b
-  ?:  (lte expires.sync now.bowl)  %lapsed
-  ?:  failed.sync  %refused
-  ?:  (gte synced.sync revision.sync)  %settled
-  %owed
-::
 ::  +owed: pairs the broker has not caught up with.
 ::
 ++  owed
@@ -1779,7 +1763,7 @@
   %+  murn  ~(tap by readers)
   |=  [key=reader-key:b sync=reader-sync:b]
   ^-  (unit [reader-key:b @ud @t reader-state:b])
-  ?.  ?=(%owed (reader-status sync))  ~
+  ?.  ?=(%owed (reader-status:util sync now.bowl))  ~
   `[key revision.sync bucket-id.sync desired.sync]
 ::
 ::  +sync-cards: one request per pair. The credential goes in a header: a
@@ -1801,10 +1785,10 @@
   ::  bucket state would make a revoke undeliverable exactly when it matters
   ::  most -- the bucket has been deleted and its objects still exist.
   =/  common=(list [@t json])
-    :~  ['bucketHost' s+(ship-text ship.flag.key)]
+    :~  ['bucketHost' s+(ship-text:util ship.flag.key)]
         ['bucketName' s+(scot %tas name.flag.key)]
         ['bucketId' s+bucket-id]
-        ['actorShip' s+(ship-text reader.key)]
+        ['actorShip' s+(ship-text:util reader.key)]
         ['revision' (numb:enjs:format revision)]
     ==
   ::  A revoke sends both fields as null rather than omitting them: the broker
@@ -1828,7 +1812,7 @@
       ==
     ==
   =/  url=@t
-    (rap 3 broker-base '/tokens/' (ship-text our.bowl) ~)
+    (rap 3 broker-base '/tokens/' (ship-text:util our.bowl) ~)
   =/  =request:http
     :*  %'PUT'  url
         :~  ['content-type' 'application/json']
@@ -1862,8 +1846,8 @@
 ++  verify-receipt
   |=  [ses=upload-session:b res=client-response:iris]
   ^-  ?
-  ?~  body=(broker-body res)  |
-  =/  fil=file:b  (entry-file entry.ses)
+  ?~  body=(broker-body:util res)  |
+  =/  fil=file:b  (entry-file:util entry.ses)
   =/  object=(unit @t)
     ?~  got=(~(get by u.body) 'objectId')  ~
     ?.(?=([%s *] u.got) ~ `p.u.got)
@@ -1877,89 +1861,6 @@
       =(mime `mime.fil)
       =(size `size.fil)
   ==
-::
-::  +broker-headers: the headers the signature covers.
-::
-::  Passed through exactly as given. They are part of what the URL is signed
-::  over, so dropping one -- or changing its capitalisation -- makes the PUT
-::  fail as a signature mismatch rather than as anything legible.
-::
-++  broker-headers
-  |=  body=(map @t json)
-  ^-  (list [@t @t])
-  ?~  got=(~(get by body) 'requiredHeaders')  ~
-  ?.  ?=([%a *] u.got)  ~
-  %+  murn  p.u.got
-  |=  =json
-  ^-  (unit [@t @t])
-  ?.  ?=([%a [%s *] [%s *] ~] json)  ~
-  `[p.i.p.json p.i.t.p.json]
-::
-::  +broker-message: what the broker said went wrong, if it said anything.
-::
-++  broker-message
-  |=  res=client-response:iris
-  ^-  @t
-  ?~  body=(broker-body res)  'storage refused the upload'
-  ?~  got=(~(get by u.body) 'message')  'storage refused the upload'
-  ?.(?=([%s *] u.got) 'storage refused the upload' p.u.got)
-::
-++  from-unix-ms
-  |=  ms=@ud
-  ^-  @da
-  (from-unix:chrono:userlib (div ms 1.000))
-::
-::  +broker-revision: the revision the broker says it holds, if it said.
-::
-::  It only matters when it is ahead of ours; a body we cannot parse simply
-::  tells us nothing, which is not an error.
-::
-++  broker-body
-  |=  res=client-response:iris
-  ^-  (unit (map @t json))
-  ?.  ?=(%finished -.res)  ~
-  ?~  full-file.res  ~
-  ?~  jon=(de:json:html q.data.u.full-file.res)  ~
-  ?.  ?=([%o *] u.jon)  ~
-  `p.u.jon
-::
-::  +broker-applied: whether the broker took the write, as it reported it.
-::
-::  The receipt says so outright, and inferring it from revisions instead gets
-::  the equal case wrong: a reader whose record was pruned at its expiry opens
-::  again at revision 1 while the broker still retains 1, which it answers 200
-::  and does not apply. A body we cannot read tells us nothing, and the
-::  revision comparison remains the fallback.
-::
-++  broker-applied
-  |=  res=client-response:iris
-  ^-  (unit ?)
-  ?~  body=(broker-body res)  ~
-  ?~  got=(~(get by u.body) 'applied')  ~
-  ?.  ?=([%b *] u.got)  ~
-  `p.u.got
-::
-++  broker-revision
-  |=  res=client-response:iris
-  ^-  (unit @ud)
-  ?~  body=(broker-body res)  ~
-  ?~  got=(~(get by u.body) 'currentRevision')  ~
-  ?.  ?=([%n *] u.got)  ~
-  `(rash p.u.got dem)
-::
-::  +broker-retryable: whether the broker says another attempt could work.
-::
-::  It marks a validation failure retryable:false and a service failure
-::  retryable:true. Absent, we assume it is worth another go -- a transport
-::  failure carries no body at all, and those are exactly the retryable ones.
-::
-++  broker-retryable
-  |=  res=client-response:iris
-  ^-  ?
-  ?~  body=(broker-body res)  &
-  ?~  got=(~(get by u.body) 'retryable')  &
-  ?.  ?=([%b *] u.got)  &
-  p.u.got
 ::
 ++  reader-wire
   |=  [key=reader-key:b revision=@ud]
@@ -2010,7 +1911,7 @@
   =.  cor
     %+  roll  ~(tap by readers)
     |=  [[key=reader-key:b sync=reader-sync:b] acc=_cor]
-    ?.  ?=(%lapsed (reader-status sync))  acc
+    ?.  ?=(%lapsed (reader-status:util sync now.bowl))  acc
     ?:  =(reader.key our.bowl)  (recover-local-reader:acc flag.key)
     %+  answer-waiter:acc  key
     [%error %unknown 'storage did not take this grant before it lapsed']
@@ -2077,11 +1978,6 @@
   ?~  got=(~(get by readers.acc) key)  acc
   %-  sync-reader:acc
   [flag.key reader.key bucket-id.u.got [%revoked ~] expires.u.got ~]
-::
-++  url-encode
-  |=  txt=@t
-  ^-  @t
-  (crip (en-urlt:html (trip txt)))
 ::
 ::  +keep-read-token: store a token the host issued us, and arm its refresh.
 ::
@@ -2210,7 +2106,7 @@
     ::  A record with a request still waiting on it stays until that request
     ::  is answered, whatever else is true of it.
     ?.  ?=(~ awaiting.sync)  &
-    ?-  (reader-status sync)
+    ?-  (reader-status:util sync now.bowl)
       ::  Still work to do, or still the answer to a read.
       %owed     &
       %settled  &
@@ -2272,69 +2168,6 @@
   =^  err  sec  (se-delete-entry:sec id recursive actor)
   ?^  err  (answer u.err)
   se-abet:sec
-::
-++  valid-parent
-  |=  [st=bucket-state:b parent=(unit @ud)]
-  ^-  ?
-  ?~  parent  &
-  ?~  ent=(~(get by entries.st) u.parent)  |
-  =(%folder -.kind.u.ent)
-::
-::  +valid-mime: a content type must be present and look like type/subtype.
-::  Memex refuses anything else, so refuse it here before committing state.
-::
-++  valid-mime
-  |=  mime=@t
-  ^-  ?
-  =/  txt=tape  (trip mime)
-  ?~  txt  |
-  ?~  cut=(find "/" txt)  |
-  &(!=(0 u.cut) !=(+(u.cut) (lent txt)))
-::
-++  entry-file
-  |=  ent=entry:b
-  ^-  file:b
-  ?-  -.kind.ent
-    %folder  ~|(%entry-is-a-folder !!)
-    %file    +.kind.ent
-  ==
-::
-++  descendant
-  |=  [st=bucket-state:b ancestor=@ud candidate=@ud]
-  ^-  ?
-  =/  cur=(unit @ud)  `candidate
-  |-
-  ?~  cur  |
-  ?:  =(u.cur ancestor)  &
-  ?~  ent=(~(get by entries.st) u.cur)  |
-  $(cur parent.u.ent)
-::
-::  +descendants: an entry and everything beneath it.
-::
-::  The parent-to-children index is built once rather than per node. Walking
-::  the whole entry map to find one node's children made a recursive delete
-::  quadratic in the manifest, and the client deletes each ready file on its
-::  own before the folder, so every one of those paid for a full scan too --
-::  enough for a large bucket to hold the agent through a routine delete.
-::
-++  descendants
-  |=  [st=bucket-state:b root=@ud]
-  ^-  (set @ud)
-  ?>  (~(has by entries.st) root)
-  =/  kids=(jug @ud @ud)
-    %-  ~(rep by entries.st)
-    |=  [[id=@ud ent=entry:b] acc=(jug @ud @ud)]
-    ?~  parent.ent  acc
-    (~(put ju acc) u.parent.ent id)
-  =/  acc=(set @ud)  (silt ~[root])
-  =/  queue=(list @ud)  ~[root]
-  |-
-  ?~  queue  acc
-  =/  next=(list @ud)  ~(tap in (~(get ju kids) i.queue))
-  %=  $
-    queue  (weld t.queue next)
-    acc    (~(gas in acc) next)
-  ==
 ::
 ::  +group-exists: does %groups still hold this group?
 ::
@@ -2425,11 +2258,6 @@
     %issue-delete   (group-can-write group.st flag writers.st who)
     %entry          (group-can-write group.st flag writers.st who)
   ==
-::
-++  ship-text
-  |=  who=ship
-  ^-  @t
-  (crip (slag 1 (trip (scot %p who))))
 ::
 ++  broker-simple-verdict
   |=  result=@t
@@ -2634,7 +2462,7 @@
       ?:  =(%delete -.u-bucket.res)
         =.  bu-core  (give [%fact ~[/v1] buckets-response-1+!>(res)])
         bu-end
-      =.  st  (apply-update st u-bucket.res)
+      =.  st  (apply-update:util st u-bucket.res)
       =.  revision.st  revision.res
       =.  space  [net.space `st `group.st]
       (give [%fact ~[/v1] buckets-response-1+!>(res)])
@@ -2963,17 +2791,17 @@
       %-  (slog leaf+"buckets: reader sync was cancelled" ~)
       cor
     =/  code=@ud  status-code.response-header.res
-    =/  theirs=(unit @ud)  (broker-revision res)
+    =/  theirs=(unit @ud)  (broker-revision:util res)
     ::  A stale write is not a failure -- it answers 200 with the revision it
     ::  kept, and adopting that is how we catch up.
     ?:  &((gte code 200) (lth code 300))
-      (confirm-reader key sent theirs (broker-applied res))
+      (confirm-reader key sent theirs (broker-applied:util res))
     ::  Only a success may confirm. An error body carries no revision under
     ::  the broker's contract, and adopting one from a rejection would install
     ::  a grant it just refused. Falling behind is recovered on the success
     ::  path instead: a stale write answers 200 with the revision the broker
     ::  kept, which +confirm-reader adopts.
-    ?:  (broker-retryable res)
+    ?:  (broker-retryable:util res)
       %-  (slog leaf+"buckets: reader sync failed, status {<code>}, retrying" ~)
       cor
     ::  Refused as invalid rather than stale. Another attempt gets the same
@@ -3022,26 +2850,6 @@
   ^+  cor
   ?.  (bu-held flag.res)  cor
   bu-abet:(bu-apply:(bu-abed:bu-core flag.res) res)
-::
-++  apply-update
-  |=  [st=bucket-state:b upd=u-bucket:b]
-  ^-  bucket-state:b
-  ?-  -.upd
-      %create   st(bucket bucket.upd)
-      %delete   st
-      %meta     st(bucket bucket.upd)
-      %writers  st(writers writers.upd)
-  ::
-      %entry
-    st(entries (~(put by entries.st) id.upd entry.u-entry.upd))
-  ::
-      %entries-deleted
-    =.  entries.st
-      %-  ~(rep in (silt ids.upd))
-      |=  [key=@ud acc=_entries.st]
-      (~(del by acc) key)
-    st
-  ==
 ::
 ::  +recheck-host-subs: read permissions may have shifted in `changed`, so
 ::  re-run can-read for subscribers of buckets bound to that group and kick
