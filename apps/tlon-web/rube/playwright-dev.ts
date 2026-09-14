@@ -5,6 +5,7 @@ import fetch from 'node-fetch';
 import * as path from 'path';
 
 import { Ship } from './index';
+import { shouldIncludeShip } from './shipSelection';
 
 interface WebServer {
   ship: string;
@@ -204,7 +205,7 @@ async function startWebServers(): Promise<void> {
 
   // Create web server configurations from ship manifest
   webServers = Object.entries(shipManifest)
-    .filter(([, ship]: [string, Ship]) => !ship.skipSetup)
+    .filter(([, ship]: [string, Ship]) => shouldIncludeShip(ship))
     .map(([key, ship]: [string, Ship]) => ({
       ship: key,
       port: extractPortFromWebUrl(ship.webUrl),

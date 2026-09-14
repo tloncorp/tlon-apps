@@ -16,7 +16,7 @@ Main script that automates the entire pier archiving and upload process.
 1. Starts the playwright-dev environment to boot all ships
 2. Applies latest desk updates to ships
 3. Gracefully stops the environment
-4. Archives each pier (except ~bus which is intentionally kept outdated)
+4. Archives each pier (except ~bus and ~bud, which are hand-built — see below)
 5. **Validates archives locally** before upload (structure and essential files)
 6. Uploads archives to `gs://bootstrap.urbit.org/`
 7. Updates `shipManifest.json` with new URLs
@@ -78,6 +78,26 @@ Helper script to verify that uploaded archives work correctly.
 
 # Verify specific ships
 SHIPS_TO_VERIFY="zod ten" ./verify-archives.sh
+```
+
+### `build-n1-pier.sh`
+
+Builds the pinned N-1 desk pier, `~bud`. Boots a fresh fakeship, merges and
+commits the `%groups` desk from the git tag named by the ship's `deskVersion` in
+`shipManifest.json`, verifies the ship reports that version, then hands off to
+`archive-piers.sh --skip-prepare --ship bud` to produce `rube-bud<n>.tgz`.
+
+It does not upload. Publishing the archive to `gs://bootstrap.urbit.org/` is a
+maintainer step; the script prints the two `gsutil` commands.
+
+Re-run it whenever `MIN_GROUPS_VERSION`
+(`packages/shared/src/logic/deskPolicy.ts`) moves — the `N-1 Desk E2E` workflow
+fails fast when the pin and the constant disagree. See
+`docs/tlon-apps/desk-compatibility.md`.
+
+```bash
+# after setting ~bud's deskVersion and the next rube-bud<n>.tgz in the manifest
+./build-n1-pier.sh
 ```
 
 ## Best Practices
@@ -192,6 +212,7 @@ Version numbers auto-increment based on the current version in `shipManifest.jso
 | ~ten | Secondary test ship | Yes - with each archive run |
 | ~mug | Additional test ship | Yes - with each archive run |
 | ~bus | Protocol mismatch testing | No - intentionally outdated |
+| ~bud | Pinned N-1 desk (E2E compatibility) | No - rebuilt by `build-n1-pier.sh` at every N-1 change |
 
 ## GCS Bucket Structure
 
@@ -276,6 +297,7 @@ If the automated script fails, you can manually archive:
 ## Notes
 
 - The ~bus pier is intentionally kept at an older version for protocol mismatch testing
+- The ~bud pier carries the previous %groups release and is rebuilt only when `MIN_GROUPS_VERSION` moves
 - Archives are publicly readable once uploaded
 - Each archive is approximately 100-200MB compressed
 - The archiving process takes about 5-10 minutes total

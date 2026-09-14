@@ -26,6 +26,21 @@
     "skipAuth": false,
     "optional": true
   },
+  "~bud": {
+    "authFile": "e2e/.auth/bud.json",
+    "downloadUrl": "https://bootstrap.urbit.org/rube-bud1.tgz",
+    "url": "http://localhost:41493",
+    "ship": "bud",
+    "code": "lathus-worsem-bortem-padmel",
+    "httpPort": "41493",
+    "loopbackPort": "",
+    "webUrl": "http://localhost:3004",
+    "skipCommit": true,
+    "skipSetup": false,
+    "skipAuth": false,
+    "optional": true,
+    "deskVersion": "12.2.0"
+  },
   "~ten": {
     "authFile": "e2e/.auth/ten.json",
     "downloadUrl": "https://bootstrap.urbit.org/rube-ten30.tgz",

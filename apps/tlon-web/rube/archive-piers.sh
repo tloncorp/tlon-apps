@@ -29,12 +29,21 @@ VERIFY_AFTER_UPLOAD=${VERIFY_AFTER_UPLOAD:-false}
 FRESH_BOOT=${FRESH_BOOT:-false}
 SKIP_PREPARE=${SKIP_PREPARE:-false}
 ARCHIVE_TAG=${ARCHIVE_TAG:-}
+SHIP_SELECTOR=""
 
 # Parse command line arguments
-for arg in "$@"; do
-    case $arg in
+while [ "$#" -gt 0 ]; do
+    case $1 in
         --fresh)
             FRESH_BOOT=true
+            shift
+            ;;
+        --ship)
+            SHIP_SELECTOR="${2:?--ship requires a ship name}"
+            shift 2
+            ;;
+        --ship=*)
+            SHIP_SELECTOR="${1#*=}"
             shift
             ;;
         --verify)
@@ -50,6 +59,7 @@ for arg in "$@"; do
             echo ""
             echo "Options:"
             echo "  --fresh               Boot fresh fakeships instead of using existing archives"
+            echo "  --ship NAME           Archive only this ship instead of the default set"
             echo "  --skip-prepare        Skip ship prep/re-extraction; archive piers already in dist/"
             echo "  --verify              Run verify-archives.sh after successful upload"
             echo "  --help                Show this help message"
@@ -67,6 +77,7 @@ for arg in "$@"; do
             ;;
         *)
             # Unknown option
+            shift
             ;;
     esac
 done
@@ -78,11 +89,24 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Ships to archive (bus is intentionally excluded as it's kept outdated)
+# Ships to archive by default. Two ships are deliberately left out:
+#   ~bus  kept outdated on purpose, for protocol-mismatch testing
+#   ~bud  the pinned N-1 pier; rebuilt by build-n1-pier.sh at every N-1 change,
+#         which then calls back in here with --ship bud
 SHIPS_TO_ARCHIVE=("zod" "ten" "mug")
 
 # Valid ships for input validation
-VALID_SHIPS=("zod" "ten" "mug" "bus")
+VALID_SHIPS=("zod" "ten" "mug" "bus" "bud")
+
+# --ship narrows the run to one pier. Both excluded ships are hand-built, so
+# this is how they get archived without touching the routinely-updated three.
+if [ -n "$SHIP_SELECTOR" ]; then
+    if ! printf '%s\n' "${VALID_SHIPS[@]}" | grep -qx "$SHIP_SELECTOR"; then
+        echo "Invalid ship name: $SHIP_SELECTOR (valid: ${VALID_SHIPS[*]})" >&2
+        exit 1
+    fi
+    SHIPS_TO_ARCHIVE=("$SHIP_SELECTOR")
+fi
 
 # Function to print colored output
 print_status() {
@@ -167,7 +191,7 @@ cleanup() {
     fi
 
     # Additional cleanup of e2e ports if needed
-    for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
+    for port in 3000 3001 3002 3003 3004 35453 36963 38473 39983 41493; do
         pids=$(lsof -ti:$port 2>/dev/null || true)
         if [ -n "$pids" ]; then
             echo "$pids" | xargs kill -9 2>/dev/null || true
@@ -193,12 +217,19 @@ check_prerequisites() {
         missing_tools+=("jq")
     fi
 
-    if ! command -v gsutil &> /dev/null; then
-        missing_tools+=("gsutil")
-    fi
+    # The cloud tools are only needed to upload. SKIP_UPLOAD exists so an
+    # archive can be produced locally and handed to whoever does have bucket
+    # access -- which is how the N-1 pier is built (build-n1-pier.sh) -- so
+    # demanding a gcloud login for a run that writes nothing to GCS would stop
+    # that flow for no gain.
+    if [ "$SKIP_UPLOAD" = "false" ]; then
+        if ! command -v gsutil &> /dev/null; then
+            missing_tools+=("gsutil")
+        fi
 
-    if ! command -v gcloud &> /dev/null; then
-        missing_tools+=("gcloud")
+        if ! command -v gcloud &> /dev/null; then
+            missing_tools+=("gcloud")
+        fi
     fi
 
     if ! command -v pnpm &> /dev/null; then
@@ -209,6 +240,11 @@ check_prerequisites() {
         print_error "Missing required tools: ${missing_tools[*]}"
         print_info "Please install missing tools and try again"
         exit 1
+    fi
+
+    if [ "$SKIP_UPLOAD" = "true" ]; then
+        print_status "Prerequisites check passed (SKIP_UPLOAD: no GCS access needed)"
+        return 0
     fi
 
     # Check GCP authentication
@@ -285,7 +321,7 @@ prepare_ships() {
         if [ $retry_count -gt 0 ]; then
             print_warning "Retrying... (attempt $((retry_count + 1))/$max_retries)"
             # Clean up any existing processes first
-            for port in 3000 3001 3002 3003 35453 36963 38473 39983; do
+            for port in 3000 3001 3002 3003 3004 35453 36963 38473 39983 41493; do
                 pids=$(lsof -ti:$port 2>/dev/null || true)
                 if [ -n "$pids" ]; then
                     echo "$pids" | xargs kill -9 2>/dev/null || true

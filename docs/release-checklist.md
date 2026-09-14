@@ -51,6 +51,18 @@ receive updates, and post against desk release N-1.
 ## After deploying
 
 - [ ] Raise `MIN_GROUPS_VERSION` to the release you just shipped, **only once it
-      has shipped**, and re-pin the `~bus` E2E pier
-      (`apps/tlon-web/e2e/shipManifest.json`) in the same change.
+      has shipped**, and rebuild the pinned N-1 E2E pier in the same change —
+      the `N-1 Desk E2E` job fails fast when the two disagree. `~bud` is the
+      N-1 pier; `~bus` is a different ship, kept deliberately far out of date
+      for protocol-mismatch rendering, and is not re-pinned here.
+      1. Set `~bud`'s `deskVersion` in `apps/tlon-web/e2e/shipManifest.json` to
+         the new `MIN_GROUPS_VERSION`, and bump its `downloadUrl` to the next
+         `rube-bud<n>.tgz`.
+      2. `cd apps/tlon-web/rube && ./build-n1-pier.sh` — boots a fresh `~bud`,
+         commits the `v<deskVersion>` desk to it, and leaves the archive in
+         `rube/dist/`.
+      3. Upload it: `gsutil cp rube/dist/rube-bud<n>.tgz gs://bootstrap.urbit.org/`
+         then `gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/rube-bud<n>.tgz`.
+      4. Dispatch `n1-e2e.yml` to confirm the new pier works before the next
+         staging push depends on it.
 - [ ] Cut mobile builds from the release tag if it includes native changes.
