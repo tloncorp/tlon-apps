@@ -25,6 +25,7 @@
 // Run it from anywhere inside the repository. State (what was already
 // reported) lives under the worktree's .git directory.
 import { spawnSync } from 'node:child_process';
+import { parseArgs as parseArgv } from 'node:util';
 import {
   existsSync,
   mkdirSync,
@@ -44,50 +45,47 @@ const MAX_BUFFER = 64 * 1024 * 1024;
 
 function usage(message) {
   process.stderr.write(
-    `pr-watch: ${message}\nusage: pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--once]\n`
+    `pr-watch: ${message}\nusage: pr-watch.mjs [<number>] [--interval <seconds>] [--timeout <seconds>] [--settle <seconds>] [--once]\n`
   );
   process.exit(2);
 }
 
+function seconds(name, raw, fallback, min) {
+  if (raw === undefined) return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value < min)
+    usage(`--${name} takes a number of seconds${min > 0 ? `, at least ${min}` : ''}`);
+  return value;
+}
+
 function parseArgs(argv) {
-  let once = false;
-  let interval = 60;
-  let timeout = 1800;
-  let settle = 150;
-  let number = null;
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i];
-    if (arg === '--once') {
-      once = true;
-    } else if (arg === '--interval') {
-      const value = Number(argv[++i]);
-      if (!Number.isFinite(value) || value < 5)
-        usage('--interval takes a number of seconds, at least 5');
-      interval = value;
-    } else if (arg === '--settle') {
-      const value = Number(argv[++i]);
-      if (!Number.isFinite(value) || value < 0)
-        usage('--settle takes a number of seconds');
-      settle = value;
-    } else if (arg === '--timeout') {
-      const value = Number(argv[++i]);
-      if (!Number.isFinite(value) || value < 1)
-        usage('--timeout takes a number of seconds');
-      timeout = value;
-    } else if (/^\d+$/.test(arg)) {
-      if (number !== null)
-        usage(`two pull request numbers given: ${number} and ${arg}`);
-      number = arg;
-    } else {
-      usage(`unknown argument ${arg}`);
-    }
+  let parsed;
+  try {
+    parsed = parseArgv({
+      args: argv,
+      allowPositionals: true,
+      options: {
+        once: { type: 'boolean' },
+        interval: { type: 'string' },
+        settle: { type: 'string' },
+        timeout: { type: 'string' },
+      },
+    });
+  } catch (err) {
+    const unknown = /^Unknown option '([^']+)'/.exec(err.message);
+    usage(unknown ? `unknown argument ${unknown[1]}` : err.message);
   }
+  const { values, positionals } = parsed;
+  const bad = positionals.find((arg) => !/^\d+$/.test(arg));
+  if (bad) usage(`unknown argument ${bad}`);
+  if (positionals.length > 1)
+    usage(`two pull request numbers given: ${positionals[0]} and ${positionals[1]}`);
   return {
-    once,
-    interval: interval * 1000,
-    timeout: timeout * 1000,
-    settle: settle * 1000,
-    number,
+    once: values.once ?? false,
+    interval: seconds('interval', values.interval, 60, 5) * 1000,
+    timeout: seconds('timeout', values.timeout, 1800, 1) * 1000,
+    settle: seconds('settle', values.settle, 150, 0) * 1000,
+    number: positionals[0] ?? null,
   };
 }
 
