@@ -42,7 +42,8 @@ const MIN_GROUPS_VERSION = /MIN_GROUPS_VERSION = '([^']+)'/.exec(
 )?.[1];
 const N1_TAG = `v${MIN_GROUPS_VERSION}`;
 
-for (const ref of [CLIENT, N1, WITH_GUARDS, N1_TAG]) ensureRef(ref);
+for (const ref of [CLIENT, N1, WITH_GUARDS, N1_TAG, 'origin/develop'])
+  ensureRef(ref);
 
 const keysWith = (findings: Finding[], verdict: Finding['verdict']) =>
   findings
@@ -105,6 +106,55 @@ describe('this working tree against the desk it says it supports', () => {
     // out-of-desk apps, threads and eyre endpoints are all real dependencies.
     expect(report.counts.unverified).toBeGreaterThan(0);
     expect(report.counts.matched).toBeGreaterThan(0);
+  });
+});
+
+describe('a known-gaps entry against the base it claims to predate', () => {
+  // `/chan/{}` has been missing since before v12.0.0, so it is still excused
+  // when the base is checked; anything this change introduces is not.
+  const allowedKey = 'subscribe groups /chan/{}';
+
+  it('excuses a request the base already made and could not have served', () => {
+    const report = runCheck({
+      clientRef: WORKTREE_REF,
+      deskRef: N1_TAG,
+      baseRef: 'origin/develop',
+    });
+    expect(
+      report.findings.find((f) => f.dependency.key === allowedKey)?.allowed
+    ).toBeDefined();
+    expect(report.counts.missing).toBe(0);
+    expect(report.exemptionsUnchecked).toBeUndefined();
+  });
+
+  it('knows the entry it is honouring is about a request the base made', () => {
+    // The positive case above is only meaningful if the base really makes it.
+    const base = runCheck({ clientRef: 'origin/develop', deskRef: N1_TAG });
+    expect(
+      base.findings.some(
+        (f) => f.dependency.key === allowedKey && f.verdict === 'MISSING'
+      )
+    ).toBe(true);
+  });
+
+  it('actually reads the base tree, rather than trusting the flag', () => {
+    // The only end-to-end proof that the base is consulted: a base that
+    // cannot be opened must fail the run rather than pass it silently.
+    expect(() =>
+      runCheck({
+        clientRef: WORKTREE_REF,
+        deskRef: N1_TAG,
+        baseRef: 'no-such-base-ref',
+      })
+    ).toThrow();
+  });
+
+  it('says so when no base was given, rather than pretending it checked', () => {
+    const report = runCheck({ clientRef: WORKTREE_REF, deskRef: N1_TAG });
+    expect(report.exemptionsUnchecked).toContain('--base-ref');
+    expect(
+      report.findings.find((f) => f.dependency.key === allowedKey)?.allowed
+    ).toBeDefined();
   });
 });
 

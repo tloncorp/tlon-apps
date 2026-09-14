@@ -10,6 +10,7 @@ import {
   ProtocolBump,
   Report,
   classify,
+  exemptionFor,
   exitCodeFor,
   runCheck,
   formatReport,
@@ -219,6 +220,36 @@ describe('what fails the run', () => {
         report({ allowedBumps: [{ difference: difference(), bump: bump() }] })
       )
     ).toBe(0);
+  });
+});
+
+describe('a known-gaps entry', () => {
+  const entry: KnownGap = {
+    key: 'subscribe groups /chan/{}',
+    reason: 'debt',
+    issue: 'TLON-6538',
+  };
+
+  it('excuses a request the base already made and could not serve', () => {
+    expect(
+      exemptionFor(entry.key, entry, new Set([entry.key]), 'origin/develop')
+    ).toEqual({ allowed: entry });
+  });
+
+  it('refuses one this change introduced alongside it', () => {
+    // A PR adding an unsupported request and its exemption in one commit is
+    // the whole reason the base is consulted.
+    const refused = exemptionFor(entry.key, entry, new Set(), 'origin/develop');
+    expect(refused.allowed).toBeUndefined();
+    expect(refused.exemptionRejected).toBe(
+      'exemption does not apply: request not present (or not missing) at base origin/develop'
+    );
+  });
+
+  it('is taken at face value only when there is no base to check', () => {
+    expect(exemptionFor(entry.key, entry, null)).toEqual({ allowed: entry });
+    // And says nothing about a request no entry names.
+    expect(exemptionFor('scry groups /other', undefined, null)).toEqual({});
   });
 });
 

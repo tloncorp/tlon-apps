@@ -31,6 +31,8 @@ export interface Finding extends MatchResult {
    * fail the run. Pre-existing debt only — see that file's header.
    */
   allowed?: KnownGap;
+  /** Why an entry that names this request did not excuse it after all. */
+  exemptionRejected?: string;
   /** A few lines of whatever the verdict turned on, for the report. */
   excerpt?: string[];
   /**
@@ -73,6 +75,8 @@ export interface Report {
   staleBumps: ProtocolBump[];
   /** Gap entries that excused nothing in this run, for the same reason. */
   staleGaps: KnownGap[];
+  /** Set when no base ref was given, so entries were taken at face value. */
+  exemptionsUnchecked?: string;
   findings: Finding[];
   counts: Record<Lowercase<Verdict> | 'allowed', number>;
 }
@@ -80,6 +84,12 @@ export interface Report {
 export interface CheckOptions {
   clientRef: string;
   deskRef: string;
+  /**
+   * The client this change is measured against — a PR's base commit. Without
+   * it a known-gaps entry is taken at face value, which is right for a local
+   * run and wrong for a gate.
+   */
+  baseRef?: string;
 }
 
 const DESK_PATHS = ['desk', 'peru.yaml'];
@@ -88,6 +98,11 @@ const DESK_PATHS = ['desk', 'peru.yaml'];
  * Pre-existing MISSING requests that do not fail the run. Read from the
  * checkout the checker runs in, not from either ref under test: it is a policy
  * file about *this* repo's debt.
+ *
+ * Reading it from the candidate is what makes `baseRef` necessary. On its own
+ * it lets a change add an unsupported request and the entry excusing it in one
+ * commit, which is the one thing the file is not for; an entry is only honoured
+ * when the request was already there, and already missing, at the base.
  */
 function loadPolicy(): { gaps?: KnownGap[]; protocolBumps?: ProtocolBump[] } {
   const here = dirname(fileURLToPath(import.meta.url));
@@ -253,6 +268,13 @@ export function runCheck(options: CheckOptions): Report {
     const vendored = loadOwnership(deskTree);
     const allowlist = loadKnownGaps();
 
+    // Which requests the base client already made, and already could not
+    // have served. An entry excuses only those: anything this change
+    // introduces is the change's own problem, whatever the file says.
+    const missingAtBase = options.baseRef
+      ? missingKeys(open(options.baseRef, CLIENT_ROOTS), desk, vendored)
+      : null;
+
     const deps = extractClient(clientTree);
 
     // Collapse identical requests, keeping every call site that produced one.
@@ -263,13 +285,19 @@ export function runCheck(options: CheckOptions): Report {
     const findings: Finding[] = [];
     for (const group of grouped.values()) {
       const result = classify(group, desk, vendored);
+      const key = group[0].key;
       findings.push({
         ...result,
         dependency: group[0],
         sites: group.map((d) => d.site),
         excerpt: excerpt(deskTree, result),
-        ...(result.verdict === 'MISSING' && allowlist.has(group[0].key)
-          ? { allowed: allowlist.get(group[0].key) }
+        ...(result.verdict === 'MISSING'
+          ? exemptionFor(
+              key,
+              allowlist.get(key),
+              missingAtBase,
+              options.baseRef
+            )
           : {}),
       });
     }
@@ -300,6 +328,12 @@ export function runCheck(options: CheckOptions): Report {
           ? []
           : bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
       staleGaps: [...allowlist.values()].filter((g) => !used.has(g.key)),
+      ...(options.baseRef
+        ? {}
+        : {
+            exemptionsUnchecked:
+              'no --base-ref given, so known-gaps entries were applied as written; a gate run must pass one',
+          }),
       findings,
       counts: {
         matched: count((f) => f.verdict === 'MATCHED'),
@@ -313,6 +347,44 @@ export function runCheck(options: CheckOptions): Report {
   } finally {
     for (const tree of opened) tree.dispose();
   }
+}
+
+/**
+ * Whether the entry naming this request actually excuses it.
+ *
+ * An entry records debt: a call that was *already* broken. So it applies only
+ * where the base client made the same request and the same desk could not take
+ * it either. Without a base — a local run — it is taken at face value, and the
+ * report says so.
+ */
+export function exemptionFor(
+  key: string,
+  entry: KnownGap | undefined,
+  missingAtBase: Set<string> | null,
+  baseRef?: string
+): Pick<Finding, 'allowed' | 'exemptionRejected'> {
+  if (!entry) return {};
+  if (missingAtBase === null || missingAtBase.has(key))
+    return { allowed: entry };
+  return {
+    exemptionRejected: `exemption does not apply: request not present (or not missing) at base ${baseRef}`,
+  };
+}
+
+/** The request keys this client makes that the desk cannot take. */
+function missingKeys(
+  tree: Tree,
+  desk: Desk,
+  vendored: Set<string>
+): Set<string> {
+  const grouped = new Map<string, Dependency[]>();
+  for (const dep of extractClient(tree))
+    grouped.set(dep.key, [...(grouped.get(dep.key) ?? []), dep]);
+  const out = new Set<string>();
+  for (const [key, group] of grouped) {
+    if (classify(group, desk, vendored).verdict === 'MISSING') out.add(key);
+  }
+  return out;
 }
 
 // --- reporting --------------------------------------------------------------
@@ -426,6 +498,8 @@ export function formatReport(report: Report): string {
       `\nWARNING: known-gaps entry "${g.key}" excused nothing in this run; delete it.`
     );
   }
+  if (report.exemptionsUnchecked)
+    line(`\nNOTICE: ${report.exemptionsUnchecked}`);
 
   for (const section of SECTIONS) {
     const rows = report.findings.filter(
@@ -438,6 +512,7 @@ export function formatReport(report: Report): string {
       line(`    why:   ${f.reason}`);
       if (f.evidence) line(`    desk:  ${f.evidence}`);
       if (f.failureMode) line(`    fails: ${FAILURE_TEXT[f.failureMode]}`);
+      if (f.exemptionRejected) line(`    entry: ${f.exemptionRejected}`);
       if (f.dependency.guard) line(`    guard: ${f.dependency.guard}`);
       line(`    sites: ${f.sites.slice(0, 6).map(at).join(', ')}`);
       if (f.coverage) {
@@ -508,6 +583,7 @@ export function markdownReport(report: Report): string {
     out.push('', `#### ${section.title} (${rows.length})`, '', section.blurb);
     for (const f of rows) {
       out.push('', `**\`${f.dependency.key}\`** — ${f.reason}`);
+      if (f.exemptionRejected) out.push(`- ${f.exemptionRejected}`);
       if (f.dependency.guard) out.push(`- guard: \`${f.dependency.guard}\``);
       if (f.failureMode) out.push(`- fails: ${FAILURE_TEXT[f.failureMode]}`);
       out.push(`- sites: ${siteList(f)}`);
@@ -553,6 +629,9 @@ export function markdownReport(report: Report): string {
       '',
       `> **Warning** the known-gaps entry \`${g.key}\` excused nothing in this run; delete it.`
     );
+  }
+  if (report.exemptionsUnchecked) {
+    out.push('', `> **Note** ${report.exemptionsUnchecked}.`);
   }
   for (const b of report.staleBumps) {
     out.push(

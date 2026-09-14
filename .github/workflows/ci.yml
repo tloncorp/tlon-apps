@@ -61,6 +61,11 @@ jobs:
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.app != 'false' }}
     runs-on: blacksmith-4vcpu-ubuntu-2204
+    # One run per PR: a superseded push has nothing to say about the head, and
+    # its report would only race the newer one.
+    concurrency:
+      group: desk-compat-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: true
     permissions:
       contents: read
       # The desk-compat report is posted as a sticky PR comment.
@@ -116,6 +121,13 @@ jobs:
           git fetch --no-tags --depth=1 origin "refs/tags/v12.1.0:refs/tags/v12.1.0"
           git fetch --no-tags --depth=1 origin "refs/tags/v12.0.0:refs/tags/v12.0.0"
           git fetch --no-tags --depth=1 origin 854b46c3ddd7ccf122485dd447a1225da7a66638
+          # The base this PR is measured against: a known-gaps entry only
+          # excuses a request that was already there, and already missing.
+          BASE="${{ github.event.pull_request.base.sha }}"
+          if [ -n "$BASE" ]; then
+            git fetch --no-tags --depth=1 origin "$BASE"
+            echo "DESK_COMPAT_BASE=$BASE" >> "$GITHUB_ENV"
+          fi
 
       # Ahead of the test suite on purpose: the suite includes the fixture that
       # asserts this branch needs nothing N-1 lacks, so running it first would
@@ -126,7 +138,8 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          pnpm check:desk-compat --desk-ref "v${MIN_GROUPS_VERSION}" --markdown \
+          pnpm check:desk-compat --desk-ref "v${MIN_GROUPS_VERSION}" \
+            ${DESK_COMPAT_BASE:+--base-ref "$DESK_COMPAT_BASE"} --markdown \
             | tee desk-compat.md
 
       # The summary is always written; it is the only place the report lands
@@ -151,15 +164,27 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          MARKER='<!-- desk-compat-report -->'
-          printf '%s\n\n' "$MARKER" > body.md
+          # Two pushes in quick succession race to edit the same comment, and
+          # the slower run would leave a report for a commit nobody is looking
+          # at. The head is stamped into the marker, and a run whose head is no
+          # longer the PR's simply stands down.
+          CURRENT=$(gh api "repos/$REPO/pulls/$PR" --jq .head.sha)
+          if [ "$CURRENT" != "$HEAD_SHA" ]; then
+            echo "head moved from $HEAD_SHA to $CURRENT; leaving the comment alone"
+            exit 0
+          fi
+          PREFIX='<!-- desk-compat-report'
+          printf '%s head=%s -->\n\n' "$PREFIX" "$HEAD_SHA" > body.md
           cat desk-compat.md >> body.md
-          # --jq runs per page, so `first` would pick one match per page;
-          # collect every id and take the earliest.
+          # Matched on the prefix, so a comment written before the head was
+          # stamped in is still the one that gets edited rather than a second
+          # one appearing beside it. --jq runs per page, so `first` would pick
+          # one match per page; collect every id and take the earliest.
           EXISTING=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
-            --jq ".[] | select(.body | startswith(\"$MARKER\")) | .id" \
+            --jq ".[] | select(.body | startswith(\"$PREFIX\")) | .id" \
             | head -n 1)
           if [ -n "$EXISTING" ]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$EXISTING" -F body=@body.md >/dev/null

@@ -43,7 +43,8 @@ unusable as a pinned N-1 pier and v12.2.0 is.
 ## Running the checker
 
 ```
-pnpm check:desk-compat --client-ref <ref> --desk-ref <ref> [--json|--markdown]
+pnpm check:desk-compat --client-ref <ref> --desk-ref <ref> [--base-ref <ref>]
+                       [--json|--markdown]
 pnpm check:desk-compat --list
 ```
 
@@ -183,6 +184,15 @@ The checker **warns when an entry excuses nothing** in a full scan. Delete it:
 the gap it names has been fixed, and leaving it is standing permission for a
 regression nobody is tracking. The same warning covers a stale `protocolBumps`
 entry.
+
+`known-gaps.json` is read from the candidate checkout, which on its own would
+let one change add an unsupported request *and* the entry excusing it. So an
+entry only applies to a request the base already made and the same desk already
+could not take: pass `--base-ref` (the PR's base commit; `ci.yml` does this
+from `github.event.pull_request.base.sha`) and an entry that does not clear that
+bar leaves its request `MISSING`, with the reason on the entry. A local run
+without `--base-ref` applies entries as written and says so in a `NOTICE` —
+convenient for reading a report, not a gate.
 
 ## Shipping a protocol bump
 

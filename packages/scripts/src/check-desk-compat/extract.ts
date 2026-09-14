@@ -267,7 +267,15 @@ function soleConstInitializer(
     ts.isIdentifier(n)
       ? n.text === name
       : n.elements.some((e) => !ts.isOmittedExpression(e) && declares(e.name));
-  const found: ts.Expression[] = [];
+  /** Every enclosing block between `n` and the scope, innermost first. */
+  const depthOf = (n: ts.Node) => {
+    let depth = 0;
+    for (let cur = n.parent; cur && cur !== scope; cur = cur.parent) {
+      if (ts.isBlock(cur) || ts.isCaseClause(cur)) depth++;
+    }
+    return depth;
+  };
+  const found: { init: ts.Expression; depth: number }[] = [];
   let assigned = false;
   const visit = (n: ts.Node) => {
     // A nested closure's own `const path` is its own business, and a parameter
@@ -292,7 +300,7 @@ function soleConstInitializer(
         (declared.flags & ts.NodeFlags.Const) !== 0;
       if (!isConst || !n.initializer || !ts.isIdentifier(n.name)) {
         assigned = true;
-      } else found.push(n.initializer);
+      } else found.push({ init: n.initializer, depth: depthOf(n) });
     }
     if (
       ts.isBinaryExpression(n) &&
@@ -305,7 +313,15 @@ function soleConstInitializer(
     ts.forEachChild(n, visit);
   };
   ts.forEachChild(scope, visit);
-  return !assigned && found.length === 1 ? found[0] : null;
+  if (assigned || found.length === 0) return null;
+  // `showPost` declares `action` twice: once inside an `if` and once after it.
+  // Both blocks enclose the call inside the `if`, and the language resolves
+  // that to the innermost — which is the only reading, since two `const`s of
+  // one name in one block do not compile. A tie would mean this reader has
+  // misjudged the blocks, so it gives up.
+  const deepest = Math.max(...found.map((f) => f.depth));
+  const innermost = found.filter((f) => f.depth === deepest);
+  return innermost.length === 1 ? innermost[0].init : null;
 }
 
 /** Turn a resolved template head into path segments. */
@@ -572,6 +588,13 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
         }))
       );
     }
+    // `const action: Poke<…> = {…}; return action;` — the same binding rule
+    // the call sites use, read inside the helper's own body. Without it
+    // `chatAction` reports two unreadable returns rather than its two marks.
+    if (ts.isIdentifier(expr) && hop < 2) {
+      const bound = soleConstInitializer(expr, expr.text);
+      if (bound !== null) return read(bound, hop + 1, guard);
+    }
     unresolved(`helper ${name} returns ${textOf(ctx, expr)}`);
   };
   returns.forEach(([expr, guard]) => read(expr, depth, guard));
@@ -656,7 +679,9 @@ function readEndpointObject(
 function readPokeParams(
   ctx: Ctx,
   node: ts.Node,
-  arg: ts.Expression | undefined
+  arg: ts.Expression | undefined,
+  /** One hop through a local binding, so a cycle cannot spin. */
+  hop = 0
 ) {
   const emit = (r: PokeParams) =>
     push(ctx, node, {
@@ -688,6 +713,12 @@ function readPokeParams(
     if (name && HELPER_WHITELIST.has(name))
       return expandHelper(ctx, name).forEach(emit);
     return unresolved(`poke params come from ${name ?? 'a call'}(…)`);
+  }
+  // `const action = { app, mark, json }; poke(action)` — the same binding rule
+  // the endpoint readers use, and under the same strict conditions.
+  if (ts.isIdentifier(arg) && hop === 0) {
+    const bound = soleConstInitializer(node, arg.text);
+    if (bound !== null) return readPokeParams(ctx, node, bound, hop + 1);
   }
   unresolved(`poke params are ${textOf(ctx, arg)}`);
 }

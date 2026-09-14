@@ -8,6 +8,10 @@ Usage: pnpm check:desk-compat [options]
 
   --client-ref <ref>     client tree to extract from (default: ${WORKTREE_REF})
   --desk-ref <ref>       desk tree to check against (required unless --list)
+  --base-ref <ref>       client this change is measured against. A known-gaps
+                         entry only excuses a request that was already made,
+                         and already missing, there. Omit it locally; a gate
+                         run must pass one.
   --json                 emit the report as JSON
   --markdown             emit the report as markdown, for a PR comment
   --list                 list every extracted request and exit; no desk is read
@@ -86,7 +90,12 @@ function main(): number {
     console.error(`error: --desk-ref is required\n\n${USAGE}`);
     return 2;
   }
-  const report = runCheck({ clientRef, deskRef });
+  const baseRef = args['base-ref'];
+  const report = runCheck({
+    clientRef,
+    deskRef,
+    ...(typeof baseRef === 'string' && baseRef.length > 0 ? { baseRef } : {}),
+  });
   console.log(
     args.json
       ? JSON.stringify(report, null, 2)

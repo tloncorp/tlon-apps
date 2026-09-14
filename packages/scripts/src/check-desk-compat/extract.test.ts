@@ -209,14 +209,16 @@ describe('the one local binding this reader follows', () => {
         return scry({ app: 'groups', path });
       };`).unresolved
     ).toBeDefined();
-    // Declared twice in the same function.
+    // Declared twice, once per block: each call reads the innermost binding
+    // that encloses it, which is the only reading the language allows.
     expect(
-      unresolved(`export const f = (n: number) => {
-        if (n) { const path = '/v1/a'; return scry({ app: 'groups', path }); }
-        const path = '/v1/b';
-        return scry({ app: 'groups', path });
-      };`).unresolved
-    ).toBeDefined();
+      keys(`import { scry } from './urbit';
+        export const f = (n: number) => {
+          if (n) { const path = '/v1/a'; return scry({ app: 'groups', path }); }
+          const path = '/v1/b';
+          return scry({ app: 'groups', path });
+        };`)
+    ).toEqual(['scry groups /v1/a', 'scry groups /v1/b']);
     // Declared in a block the call is not inside.
     expect(
       unresolved(`export const f = (flag: boolean) => {
@@ -291,11 +293,76 @@ describe('helper expansion', () => {
     ).toBe('getActivitySupportsNotes()');
   });
 
+  it('reads a helper that returns its object through a local const', () => {
+    // `chatAction` binds each branch before returning it; without this the
+    // helper reports two unreadable returns instead of its two marks.
+    expect(
+      keys(`import { poke } from './urbit';
+        export function chatAction(whom: string) {
+          if (whomIsDm(whom)) {
+            const action = { app: 'chat', mark: 'chat-dm-action-2', json: {} };
+            return action;
+          }
+          const action = { app: 'chat', mark: 'chat-club-action-2', json: {} };
+          return action;
+        }
+        export const f = (whom: string) => poke(chatAction(whom));`)
+    ).toEqual(['poke chat chat-club-action-2', 'poke chat chat-dm-action-2']);
+  });
+
   it('records a helper return it cannot read rather than dropping it', () => {
     const [dep] = extract(
       "import { poke } from './urbit';\nexport function groupAction(x: unknown) { return buildIt(x); }\nexport const f = () => poke(groupAction({}));"
     );
     expect(dep.unresolved).toContain('groupAction returns');
+  });
+});
+
+describe('a poke whose params are bound first', () => {
+  it('reads the object a sole const holds, innermost binding first', () => {
+    // `showPost` declares `action` twice: once inside the `if`, once after.
+    // Each call reads the one the language resolves it to.
+    expect(
+      keys(`import { poke } from './urbit';
+        export async function showPost(post: { id: string }) {
+          if (isGroupChannelId(post.id)) {
+            const action = { app: 'channels', mark: 'channel-action-2', json: {} };
+            return poke(action);
+          }
+          const action = { app: 'chat', mark: 'chat-toggle-message', json: {} };
+          return poke(action);
+        }`)
+    ).toEqual([
+      'poke channels channel-action-2',
+      'poke chat chat-toggle-message',
+    ]);
+  });
+
+  it('still gives up when the binding is not the one the call reads', () => {
+    const unresolved = (body: string) =>
+      extract(`import { poke } from './urbit';\n${body}`)[0].unresolved;
+    // Reassigned.
+    expect(
+      unresolved(`export const f = (n: number) => {
+        let action = { app: 'chat', mark: 'chat-dm-action-2' };
+        if (n) action = { app: 'chat', mark: 'chat-club-action-2' };
+        return poke(action);
+      };`)
+    ).toBeDefined();
+    // Declared only in a block the call is not inside.
+    expect(
+      unresolved(`export const f = (n: number) => {
+        if (n) { const action = { app: 'chat', mark: 'chat-dm-action-2' }; void action; }
+        return poke(action);
+      };`)
+    ).toBeDefined();
+    // Built in the enclosing function, sent from a callback.
+    expect(
+      unresolved(`export const f = () => {
+        const action = { app: 'chat', mark: 'chat-dm-action-2' };
+        return backOff(() => poke(action));
+      };`)
+    ).toBeDefined();
   });
 });
 
