@@ -106,10 +106,19 @@ export interface Desk {
   agent(app: string): Agent | null;
 }
 
+/**
+ * The agents `desk.bill` starts. Comments are stripped first: commenting the
+ * name out is how an agent is taken out of the bill, and reading `:: %activity`
+ * as an entry would hide exactly the removal the `not-running` check exists to
+ * catch. A bill holds no cords, but the quote-aware strip is the one this
+ * reader already uses everywhere else.
+ */
 const billIn = (tree: Tree) =>
   new Set(
     Array.from(
-      (tree.readFile('desk/desk.bill') ?? '').matchAll(/%([a-z][a-z0-9-]*)/g)
+      stripComments((tree.readFile('desk/desk.bill') ?? '').split('\n'))
+        .join('\n')
+        .matchAll(/%([a-z][a-z0-9-]*)/g)
     ).map((m) => m[1])
   );
 

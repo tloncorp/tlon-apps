@@ -128,6 +128,22 @@ describe('dropping an agent from desk.bill', () => {
       'UNVERIFIED coverage -'
     );
   });
+
+  it('does not bill a name written inside a comment', () => {
+    const bill = loadDesk(
+      memoryTree({ 'desk/desk.bill': ':~  %other\n    :: %ledger\n==\n' }),
+      'test'
+    ).bill;
+    expect([...bill]).toEqual(['other']);
+  });
+
+  it('reads a commented-out entry as removed, not as still billed', () => {
+    // Commenting the name out is how an agent leaves the bill. Counting the
+    // comment as an entry would hide exactly this removal.
+    expect(
+      run(':~  %other\n    :: %ledger\n==\n', ':~  %ledger\n==\n', request)
+    ).toBe('MISSING P1 not-running');
+  });
 });
 
 describe('handing a surface to default-agent', () => {

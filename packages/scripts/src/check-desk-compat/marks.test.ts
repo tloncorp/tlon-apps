@@ -150,6 +150,20 @@ describe('matchMark — ownership by exclusion from peru, never by the refs unde
     }
   });
 
+  it('reports a poke at an entry the bill comments out', () => {
+    // `:: %chat` is the name leaving the bill, not an entry. Reading it as one
+    // would let the surviving mar file answer for an agent that is not running.
+    const result = matchMark(
+      desk(['desk/mar/chat/action.hoon'], [], '%groups\n    :: %chat'),
+      VENDORED,
+      'chat',
+      'chat-action'
+    );
+    expect(result.verdict).toBe('MISSING');
+    expect(result.reason).toContain('desk.bill');
+    expect(result.failureMode).toBe('not-running');
+  });
+
   it('still answers normally for an agent both desks bill', () => {
     expect(
       matchMark(
