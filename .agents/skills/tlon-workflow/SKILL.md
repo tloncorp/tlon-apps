@@ -160,7 +160,7 @@ For a bug or a change to existing behavior, record what the app does now, before
 - **One platform, the one the ticket names**, when the change is logic only, or UI built from components that behave the same everywhere (`View`, `Text`, layout, styling). No named platform: iOS.
 - **Both iOS and Android**, before and after, when the change touches anything with native quirks: `TextInput`, `Switch`, `ScrollView` and list behavior, keyboard, gestures, the WebView editor, permissions, notifications, a native module, `Platform.select`, or a `.ios.tsx` / `.android.tsx` file; or when the ticket reports a symptom on one platform only.
 - **Web as well**, whenever the change is under `packages/app`, `packages/ui` or `packages/shared` and is layout or shared-component behavior: those ship to web and desktop too, and the desktop navigation is a different tree from the mobile one, so "it works in the app" says nothing about it. A change confined to `apps/tlon-mobile`, or to a `.ios.tsx` / `.android.tsx` file, does not reach web.
-- **Cosmos instead of a platform** for a difference that lives in one component rather than a flow; see below and step 6.
+- **Cosmos as well as web**, not instead of it, for any UI change to a component that has a fixture in `packages/app/fixtures`. It renders the exact state without driving the app to it and stays checkable after merge, but it is not the running app: a change that reaches web still gets validated in the desktop app too. Grep the fixtures for the component before assuming none exists. See step 6.
 
 When unsure, more platforms rather than fewer.
 
