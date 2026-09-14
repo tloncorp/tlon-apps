@@ -386,6 +386,10 @@ function localAssignments(
   let pos = before;
   while (cur) {
     const found = scopeAssignments(ctx, cur, name, pos);
+    // `null` is a write this reader could not read. Walking outward from it
+    // would resolve to some other binding and report a value the call never
+    // sends, so the walk stops with nothing.
+    if (found === null) return [];
     if (found.length > 0 || declaresName(cur, name)) return found;
     pos = cur.getStart();
     cur = enclosingFunction(cur);
@@ -404,11 +408,15 @@ function scopeAssignments(
   name: string,
   /** Position of the call. Only assignments before it can reach it. */
   before?: number
-): Val<ts.Expression>[] {
+): Val<ts.Expression>[] | null {
   // A call inside a loop sees the previous iteration's value, so ordering says
   // nothing about which assignment reaches it.
   if (before !== undefined && inLoop(scope, before)) return [];
   const out: Val<ts.Expression>[] = [];
+  // `path ||= '/v1'`, `path += id`: a write whose result depends on what the
+  // variable already held. Reading only the `=` writes would report the
+  // initialiser as the value the call sends, which it is not.
+  let unreadableWrite = false;
   const visit = (node: ts.Node) => {
     // A nested closure's assignments run on its own schedule, not this one's.
     if (node !== scope && ts.isFunctionLike(node)) return;
@@ -444,9 +452,21 @@ function scopeAssignments(
     ) {
       out.push({ value, block, guard: branchGuard(ctx, node, scope) });
     }
+    if (
+      ts.isBinaryExpression(node) &&
+      ts.isIdentifier(node.left) &&
+      node.left.text === name &&
+      node.operatorToken.kind !== ts.SyntaxKind.EqualsToken &&
+      node.operatorToken.kind >= ts.SyntaxKind.FirstCompoundAssignment &&
+      node.operatorToken.kind <= ts.SyntaxKind.LastCompoundAssignment &&
+      (before === undefined || node.getStart() < before)
+    ) {
+      unreadableWrite = true;
+    }
     ts.forEachChild(node, visit);
   };
   ts.forEachChild(scope, visit);
+  if (unreadableWrite) return null;
   // `let scryPath = ''` is a placeholder only where something later is *sure*
   // to overwrite it: a write on the straight line, or an if/else that assigns
   // in both arms. Under a lone `if` the empty value still reaches the call,
@@ -1120,7 +1140,15 @@ function readCall(
           surface: 'subscribe',
           app,
           path: path.value,
-          unresolved: app === null ? 'app is not a string literal' : undefined,
+          // The same check `readEndpointObject` makes: a path with no known
+          // prefix is a request this reader could not read, not one it read
+          // as the root.
+          unresolved:
+            app === null
+              ? 'app is not a string literal'
+              : path.value.known.length === 0 && path.value.unknownTail
+                ? `path could not be resolved: ${path.value.text}`
+                : undefined,
         });
       }
       return;

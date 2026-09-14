@@ -372,6 +372,30 @@ describe('argument forms', () => {
     ).toEqual(['scry chat /', 'scry chat /v1']);
   });
 
+  it('gives up on a write whose result depends on the old value', () => {
+    // `path ||= '/v1'` leaves the reader unable to say which value the call
+    // sends; reporting the initialiser would name a request that is not made.
+    for (const op of ['||=', '&&=', '??=', '+=']) {
+      const [dep] = extract(`import { scry } from './urbit';
+        export const f = () => {
+          let path = '';
+          path ${op} '/v1';
+          return scry({ app: 'groups', path });
+        };`);
+      expect(dep.key).toBe('scry groups /*');
+      expect(dep.unresolved).toContain('could not be resolved');
+    }
+    // A plain `=` is still read.
+    expect(
+      keys(`import { scry } from './urbit';
+        export const f = () => {
+          let path = '';
+          path = '/v1';
+          return scry({ app: 'groups', path });
+        };`)
+    ).toEqual(['scry groups /v1']);
+  });
+
   it('keeps an empty path that nothing overwrites', () => {
     // chatApi.ts subscribes to `/` for real. Only a competing assignment makes
     // an empty string a placeholder; on its own it is the request.
@@ -566,6 +590,14 @@ describe('argument forms', () => {
         web
       )
     ).toEqual(['subscribe groups /v3/groups']);
+    // A computed path there is unresolved, exactly as in the object form —
+    // not a request to the root.
+    const [computed] = extract(
+      "import api from '@/api';\nexport const f = () => api.subscribeOnce<string>('groups', buildPath(), 5000);",
+      web
+    );
+    expect(computed.key).toBe('subscribe groups /*');
+    expect(computed.unresolved).toContain('path could not be resolved');
     expect(
       keys(
         "import api from '@/api';\nexport const f = () => api.poke({ app: 'groups-ui', mark: 'ui-vita-toggle', json: true });",
