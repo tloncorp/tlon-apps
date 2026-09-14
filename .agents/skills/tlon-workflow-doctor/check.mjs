@@ -138,7 +138,11 @@ const checks = [
   {
     name: 'stim skill',
     test() {
-      if (hasSkill('stim')) return { ok: 'installed' };
+      if (hasSkill('stim'))
+        return {
+          ok: 'installed',
+          refresh: ['npx', ['--yes', 'skills', 'update', 'stim', '-g', '-y']],
+        };
       return {
         fix: 'the stim skill is not installed',
         how: 'npx skills add appandflow/stim -g -y',
@@ -169,7 +173,11 @@ const checks = [
   {
     name: 'agent-device skill',
     test() {
-      if (hasSkill('agent-device')) return { ok: 'installed' };
+      if (hasSkill('agent-device'))
+        return {
+          ok: 'installed',
+          refresh: ['npx', ['--yes', 'skills', 'update', 'agent-device', '-g', '-y']],
+        };
       return {
         fix: 'the agent-device skill is not installed',
         how: 'npx skills add callstack/agent-device -g -y',
@@ -265,14 +273,20 @@ function report(results) {
 let results = checks.map((c) => ({ name: c.name, r: c.test(), c }));
 
 if (FIX) {
-  const fixable = results.filter(({ r }) => r.fix && r.cmd);
-  for (const { name, r } of fixable) {
-    const [cmd, args = [], opts = {}] = r.cmd;
-    console.error(`fixing ${name}: ${r.how}`);
+  // `fix` is broken and `cmd` repairs it. `refresh` is fine but may be behind:
+  // `skills list` shows no versions and `skills update` has no dry run, so the
+  // only way to bring a skill current is to run the update, which is idempotent.
+  const actions = results.flatMap(({ name, r }) => [
+    ...(r.fix && r.cmd ? [{ name, verb: 'fixing', cmd: r.cmd, how: r.how }] : []),
+    ...(r.refresh ? [{ name, verb: 'refreshing', cmd: r.refresh, how: r.refresh.flat().join(' ') }] : []),
+  ]);
+  for (const { name, verb, cmd: c, how } of actions) {
+    const [cmd, args = [], opts = {}] = c;
+    console.error(`${verb} ${name}: ${how}`);
     const out = spawnSync(cmd, args, { stdio: 'inherit', ...opts });
     if (out.status !== 0) console.error(`${name}: exited ${out.status}`);
   }
-  if (fixable.length) console.error('');
+  if (actions.length) console.error('');
   results = checks.map((c) => ({ name: c.name, r: c.test(), c }));
 }
 
