@@ -6,9 +6,9 @@
 ::    the bot itself runs steward as well as the bot's owner, so that things
 ::    like lens data can be scried locally by the owner.
 ::
-::    protocol-bearing modules keep their own sur and marks. the stateless
-::    journey observer has no protocol; %steward-action-1 carries only
-::    cross-cutting config (the shared owner).
+::    modules keep their own sur (sur/steward/{lens,gateway}.hoon) and marks
+::    (%steward-{lens,gateway}-{action,update}-1); %steward-action-1 carries
+::    only cross-cutting config (the shared owner).
 ::
 /-  s=steward, a=activity, av=activity-ver, c=chat, ch=channels, co=contacts
 /-  cv=chat-ver, chv=channels-ver, st=story
@@ -196,7 +196,7 @@
       ?.  =(%writ-response-4 p.cage.sign)  cor
       =/  payload=[whom:c response:writs:c]
         !<([whom:c response:writs:c] q.cage.sign)
-      (jo-observe:jo-core payload)
+      (jo-observe-chat:jo-core payload)
     ::
         %kick
       (emit watch-journey-chat)
@@ -265,9 +265,11 @@
 ::
 ++  jo-core
   |%
-  ++  jo-contact-for
+  ++  jo-contact
     |=  who=ship
     ^-  (unit contact:co)
+    ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/$)
+      ~
     ?:  =(who our.bowl)
       `.^(contact:co %gx /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/self/contact-1)
     ?.  .^(? %gu /(scot %p our.bowl)/contacts/(scot %da now.bowl)/v1/contact/(scot %p who))
@@ -279,14 +281,15 @@
     ^-  ?
     ?~  jon  |
     ?.  ?=([%s *] u.jon)  |
-    ?&  !=('' p.u.jon)
-        (lte (lent (trip p.u.jon)) 64)
-    ==
+    ?:  =('' p.u.jon)  |
+    =/  length=(unit @ud)  (mole |.((lent (tuba (trip p.u.jon)))))
+    ?~  length  |
+    (lte u.length 64)
   ::
   ++  jo-is-openclaw
     |=  who=ship
     ^-  ?
-    =/  con=(unit contact:co)  (jo-contact-for who)
+    =/  con=(unit contact:co)  (jo-contact who)
     ?~  con  |
     ?~  info=(~(get by u.con) %bot-info)  |
     ?.  ?=([%text *] u.info)  |
@@ -305,7 +308,7 @@
     ?~  harness-ver  &
     (jo-valid-text harness-ver)
   ::
-  ++  jo-message
+  ++  jo-chat-message
     |=  response=response:writs:c
     ^-  (unit [id=id:c author=author:c])
     ?-  -.response.response
@@ -320,10 +323,13 @@
       %del-react  ~
     ==
   ::
+  ::  channel IDs belong to the host; the plugin knows the sender timestamp.
+  ::
   ++  jo-channel-message
     |=  response=r-channels:v10:chv
     ^-  (unit [nest=nest:ch id=id:c author=ship])
     =*  nest  nest.response
+    ?.  ?|(?=(%chat kind.nest) ?=(%heap kind.nest))  ~
     =*  r-channel  r-channel.response
     ?.  ?=(%post -.r-channel)  ~
     =*  r-post  r-post.r-channel
@@ -331,15 +337,17 @@
       %set
         ?:  ?=(%| -.post.r-post)  ~
         =/  post=post:v10:chv  +.post.r-post
+        ?.  =(0 rev.post)  ~
         =/  author=ship  (get-author-ship:utils author.post)
-        `[nest [author id.r-channel] author]
+        `[nest [author sent.post] author]
       %reply
         =*  r-reply  r-reply.r-post
         ?.  ?=(%set -.r-reply)  ~
         ?:  ?=(%| -.reply.r-reply)  ~
         =/  reply=reply:v10:chv  +.reply.r-reply
+        ?.  =(0 rev.reply)  ~
         =/  author=ship  (get-author-ship:utils author.reply)
-        `[nest [author id.r-post] author]
+        `[nest [author sent.reply] author]
       %reacts  ~
       %essay   ~
     ==
@@ -350,10 +358,10 @@
     =/  message-id=@t
       (rap 3 (scot %p p.id) '/' (scot %ud q.id) ~)
     =/  id-key=@t
-      ?:  ?|  =(stage 'moon_reply_persisted')
-              =(stage 'owner_reply_persisted')
-              =(stage 'group_host_reply_persisted')
-              =(stage 'owner_group_reply_persisted')
+      ?:  ?|  =(stage 'bot_message_sent')
+              =(stage 'owner_message_received')
+              =(stage 'group_host_message_received')
+              =(stage 'owner_group_message_received')
           ==
         'tlon.message_journey.output_message_id'
       'tlon.message_journey.input_message_id'
@@ -371,31 +379,32 @@
     =/  echo=echo:logs  ~[`tank`body]
     (emit (~(tell logs bowl /journey/logs) %info echo data))
   ::
-  ++  jo-observe
+  ++  jo-observe-chat
     |=  [=whom:c response=response:writs:c]
     ^+  cor
     ?.  ?=(%ship -.whom)  cor
     =/  peer=ship  p.whom
-    ?~  msg=(jo-message response)  cor
+    ?~  msg=(jo-chat-message response)  cor
     =/  author=author:c  author.u.msg
     =/  author-ship=ship  (get-author-ship:utils author)
     =/  peer-is-child=?
       =(our.bowl (sein:title our.bowl now.bowl peer))
     =/  peer-is-owner=?
-      =(peer (sein:title our.bowl now.bowl our.bowl))
+      ?~  owner.state  |
+      =(peer u.owner.state)
     ?:  =(author-ship our.bowl)
       ?:  peer-is-child
         ?.  (jo-is-openclaw peer)  cor
-        (jo-log 'owner_input_accepted' id.u.msg our.bowl peer 'dm')
+        (jo-log 'owner_message_sent' id.u.msg our.bowl peer 'dm')
       ?.  peer-is-owner  cor
       ?.  (jo-is-openclaw our.bowl)  cor
-      (jo-log 'moon_reply_persisted' id.u.msg peer our.bowl 'dm')
+      (jo-log 'bot_message_sent' id.u.msg peer our.bowl 'dm')
     ?:  peer-is-child
       ?.  (jo-is-openclaw peer)  cor
-      (jo-log 'owner_reply_persisted' id.u.msg our.bowl peer 'dm')
+      (jo-log 'owner_message_received' id.u.msg our.bowl peer 'dm')
     ?.  peer-is-owner  cor
     ?.  (jo-is-openclaw our.bowl)  cor
-    (jo-log 'moon_input_persisted' id.u.msg peer our.bowl 'dm')
+    (jo-log 'bot_message_received' id.u.msg peer our.bowl 'dm')
   ::
   ++  jo-observe-channel
     |=  response=r-channels:v10:chv
@@ -408,10 +417,10 @@
     ?.  (jo-is-openclaw bot)  cor
     =.  cor
       ?:  =(our.bowl host)
-        (jo-log 'group_host_reply_persisted' id.u.msg owner bot 'group_channel')
+        (jo-log 'group_host_message_received' id.u.msg owner bot 'group_channel')
       cor
     ?:  =(our.bowl owner)
-      (jo-log 'owner_group_reply_persisted' id.u.msg owner bot 'group_channel')
+      (jo-log 'owner_group_message_received' id.u.msg owner bot 'group_channel')
     cor
   --
 ::  |le-core: lens module

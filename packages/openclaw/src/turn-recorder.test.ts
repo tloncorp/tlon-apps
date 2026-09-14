@@ -751,7 +751,7 @@ describe('Tlon agent turn OTEL observer', () => {
       1,
       'tlon.message_journey.turn_started',
       expect.objectContaining({
-        'tlon.message_journey.bot_ship': 'zod',
+        'tlon.message_journey.bot_ship': '~zod',
         'tlon.message_journey.event': 'turn_started',
         'tlon.message_journey.input_message_id': '~nec/111',
         'tlon.message_journey.run_id': 'run-1',

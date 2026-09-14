@@ -1,5 +1,7 @@
 import { createSubsystemLogger } from 'openclaw/plugin-sdk/runtime-env';
 
+import { normalizeShip } from './targets.js';
+
 export const TLON_MESSAGE_JOURNEY_SCHEMA_VERSION = 1;
 
 export type TlonMessageJourneyDestinationKind =
@@ -37,10 +39,6 @@ export type MessageJourneyLoggerLike = {
 };
 
 const journeyLogger = createSubsystemLogger('tlon/message-journey');
-
-function normalizeShip(ship: string): string {
-  return ship.trim().replace(/^~/, '');
-}
 
 /**
  * Emit a content-free, high-cardinality journey record for Loki correlation.
