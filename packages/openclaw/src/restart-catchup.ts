@@ -7,7 +7,8 @@ import type {
 } from 'openclaw/plugin-sdk/core';
 
 import { sharedSlot } from './shared-state.js';
-import { listTlonAccountIds, resolveTlonAccount } from './types.js';
+import { normalizeShip } from './targets.js';
+import { listRunnableTlonAccountIds, resolveTlonAccount } from './types.js';
 
 export const RESTART_CATCHUP_TIMEOUT_MS = 180_000;
 
@@ -79,6 +80,7 @@ export function createRestartCatchupCoordinator(
   };
   const monitors = new Map<string, Monitor>();
   let lifecycle: AbortController | undefined;
+  let task: Promise<void> | undefined;
   let started = false;
 
   const attachMonitor = (accountId: string, config: OpenClawConfig) => {
@@ -105,7 +107,7 @@ export function createRestartCatchupCoordinator(
 
     // Hosted catch-up uses the bot's CLI credentials and one owner. Do not
     // run the checklist against an ambiguous multi-account transport.
-    const accountIds = listTlonAccountIds(ctx.config);
+    const accountIds = listRunnableTlonAccountIds(ctx.config);
     const account = resolveTlonAccount(ctx.config, accountIds[0]);
     if (
       accountIds.length !== 1 ||
@@ -141,8 +143,9 @@ export function createRestartCatchupCoordinator(
           );
           if (
             !currentAccount.enabled ||
+            !currentAccount.configured ||
             !currentAccount.ownerShip ||
-            listTlonAccountIds(monitor.config).length !== 1
+            listRunnableTlonAccountIds(monitor.config).length !== 1
           )
             return;
           const signal = AbortSignal.any([abort.signal, monitor.abort.signal]);
@@ -175,7 +178,10 @@ export function createRestartCatchupCoordinator(
             cfg: monitor.config,
             channel: 'tlon',
             accountId: account.accountId,
-            peer: { kind: 'direct', id: currentAccount.ownerShip },
+            peer: {
+              kind: 'direct',
+              id: normalizeShip(currentAccount.ownerShip),
+            },
           });
           const workspace = ctx.runtime.agent.resolveAgentWorkspaceDir(
             monitor.config,
@@ -217,7 +223,7 @@ export function createRestartCatchupCoordinator(
             `${bootId}.jsonl`
           );
           await mkdir(path.dirname(sessionFile), { recursive: true });
-          if (signal.aborted) return;
+          if (signal.aborted) continue;
           if (!connection.isConnected()) continue;
           clearTimeout(timer);
           ctx.logger.info(`[tlon] Restart catch-up started (runId=${bootId})`);
@@ -271,7 +277,7 @@ export function createRestartCatchupCoordinator(
     };
 
     // Never hold gateway_start open while waiting for a channel.
-    void run()
+    task = run()
       .catch((error: unknown) => {
         if (!abort.signal.aborted) {
           ctx.logger.error(`[tlon] Restart catch-up failed: ${String(error)}`);
@@ -290,11 +296,19 @@ export function createRestartCatchupCoordinator(
   return {
     attachMonitor,
     start,
-    stop() {
-      lifecycle?.abort();
-      started = false;
+    async stop() {
+      const stoppedLifecycle = lifecycle;
+      stoppedLifecycle?.abort();
       for (const monitor of monitors.values()) monitor.abort.abort();
       monitors.clear();
+      // gateway_stop awaits this promise before tearing down the runtime.
+      // Keep the startup latch set until the run and transcript cleanup settle.
+      await task;
+      if (lifecycle === stoppedLifecycle) {
+        lifecycle = undefined;
+        task = undefined;
+        started = false;
+      }
     },
   };
 }

@@ -1,4 +1,4 @@
-import { rm } from 'node:fs/promises';
+import { mkdir, rm } from 'node:fs/promises';
 import type {
   OpenClawConfig,
   OpenClawPluginApi,
@@ -19,7 +19,10 @@ vi.mock('node:fs/promises', () => ({
   readFile: vi.fn(),
 }));
 
-const config = (enabled = true): OpenClawConfig => ({
+const config = (
+  enabled = true,
+  overrides: Record<string, unknown> = {}
+): OpenClawConfig => ({
   channels: {
     tlon: {
       ship: '~zod',
@@ -27,6 +30,7 @@ const config = (enabled = true): OpenClawConfig => ({
       code: 'test-code',
       ownerShip: '~nec',
       restartCatchup: { enabled },
+      ...overrides,
     },
   },
 });
@@ -97,13 +101,52 @@ function fixture(cfg = config()) {
 }
 
 beforeEach(() => vi.useFakeTimers());
-afterEach(() => {
-  getRestartCatchupCoordinator().stop();
+afterEach(async () => {
+  await getRestartCatchupCoordinator().stop();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
 describe('restart catch-up', () => {
+  it.each([{ disabled: { enabled: false } }, { unconfigured: { url: '' } }])(
+    'runs with one runnable account and an inactive extra account: %j',
+    async (accounts) => {
+      const f = fixture(config(true, { accounts }));
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(f.run).toHaveBeenCalledTimes(1);
+      expect(f.logger.warn).not.toHaveBeenCalled();
+    }
+  );
+
+  it('skips an ambiguous pair of runnable accounts', async () => {
+    const f = fixture(config(true, { accounts: { second: {} } }));
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('requires one configured')
+    );
+  });
+
+  it.each(['nec', 'NEC', '~NEC', ' ~nec '])(
+    'routes owner %s using its canonical peer ID',
+    async (ownerShip) => {
+      const f = fixture(config(true, { ownerShip }));
+      f.ready();
+      f.coordinator.start(f.ctx);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(
+        f.ctx.runtime.channel.routing.resolveAgentRoute
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({ peer: { kind: 'direct', id: '~nec' } })
+      );
+      expect(f.run).toHaveBeenCalledTimes(1);
+    }
+  );
+
   it('waits through a slow moon startup before making any settings or model calls', async () => {
     const f = fixture();
     f.coordinator.start(f.ctx);
@@ -232,7 +275,10 @@ describe('restart catch-up', () => {
     f.readSettings.mockReturnValue(pending.promise);
     f.ready();
     f.coordinator.start(f.ctx);
-    const replacement = f.coordinator.attachMonitor('default', f.ctx.config);
+    const replacement = f.coordinator.attachMonitor(
+      'default',
+      config(true, { accounts: { disabled: { enabled: false } } })
+    );
     const readSettings = vi.fn().mockResolvedValue(settings());
     replacement.connected({ readSettings, isConnected: () => true });
     f.monitor.stop();
@@ -259,12 +305,44 @@ describe('restart catch-up', () => {
     expect(f.run).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the replacement monitor when reload occurs during directory creation', async () => {
+    const pending = deferred<void>();
+    vi.mocked(mkdir).mockReturnValueOnce(pending.promise);
+    const f = fixture();
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.readSettings).toHaveBeenCalledTimes(1);
+    const replacement = f.coordinator.attachMonitor('default', f.ctx.config);
+    const readSettings = vi.fn().mockResolvedValue(settings());
+    replacement.connected({ readSettings, isConnected: () => true });
+    pending.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(readSettings).toHaveBeenCalledTimes(1);
+    expect(f.run).toHaveBeenCalledTimes(1);
+    expect(f.logger.error).not.toHaveBeenCalled();
+  });
+
+  it('does not launch if shutdown occurs during directory creation', async () => {
+    const pending = deferred<void>();
+    vi.mocked(mkdir).mockReturnValueOnce(pending.promise);
+    const f = fixture();
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    const stopped = f.coordinator.stop();
+    pending.resolve();
+    await stopped;
+    expect(f.run).not.toHaveBeenCalled();
+    expect(f.logger.error).not.toHaveBeenCalled();
+  });
+
   it('allows one new task after a real in-process gateway restart', async () => {
     const f = fixture();
     f.ready();
     f.coordinator.start(f.ctx);
     await vi.advanceTimersByTimeAsync(0);
-    f.coordinator.stop();
+    await f.coordinator.stop();
     f.coordinator
       .attachMonitor('default', f.ctx.config)
       .connected(f.connection);
@@ -287,7 +365,7 @@ describe('restart catch-up', () => {
     expect(f.logger.error).toHaveBeenCalledTimes(1);
   });
 
-  it('cancels an active catch-up and removes its temporary transcript on shutdown', async () => {
+  it('waits for active catch-up and transcript cleanup before completing shutdown', async () => {
     const f = fixture();
     const pending = deferred<{ meta: { aborted: boolean } }>();
     f.run.mockReturnValue(pending.promise);
@@ -299,11 +377,24 @@ describe('restart catch-up', () => {
       /^\/test\/state\/plugins\/tlon\/restart-catchup\/[^/]+\.jsonl$/
     );
     expect(params.abortSignal.aborted).toBe(false);
-    f.coordinator.stop();
+    let stopCompleted = false;
+    const stopped = f.coordinator.stop().then(() => {
+      stopCompleted = true;
+    });
     expect(params.abortSignal.aborted).toBe(true);
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.run).toHaveBeenCalledTimes(1);
+    expect(stopCompleted).toBe(false);
+    const cleanup = deferred<void>();
+    vi.mocked(rm).mockReturnValueOnce(cleanup.promise);
     pending.resolve({ meta: { aborted: true } });
     await vi.advanceTimersByTimeAsync(0);
     expect(rm).toHaveBeenCalledWith(params.sessionFile, { force: true });
+    expect(stopCompleted).toBe(false);
+    cleanup.resolve();
+    await stopped;
+    expect(stopCompleted).toBe(true);
     expect(f.logger.error).not.toHaveBeenCalled();
   });
 
@@ -358,7 +449,7 @@ describe('restart catch-up', () => {
     }
   );
 
-  it('shares the same lifecycle across discovery, full activation, and prewarm hook registries', () => {
+  it('shares the same lifecycle across discovery, full activation, and prewarm hook registries', async () => {
     const coordinator = getRestartCatchupCoordinator();
     const start = vi.spyOn(coordinator, 'start').mockImplementation(() => {});
     const stop = vi.spyOn(coordinator, 'stop');
@@ -373,7 +464,9 @@ describe('restart catch-up', () => {
       return hooks;
     });
     registries[1].get('gateway_start')!({}, { config: config() });
-    registries[2].get('gateway_stop')!({});
+    const stopped = registries[2].get('gateway_stop')!({});
+    expect(stopped).toBeInstanceOf(Promise);
+    await stopped;
     expect(start).toHaveBeenCalledTimes(1);
     expect(stop).toHaveBeenCalledTimes(1);
   });
