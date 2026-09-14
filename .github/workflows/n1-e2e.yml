@@ -91,11 +91,19 @@ jobs:
         run: |
           set -euo pipefail
           URL=$(node -p "require('./apps/tlon-web/e2e/shipManifest.json')['~${N1_SHIP}'].downloadUrl")
+          ARCHIVE=$(basename "$URL")
           echo "~$N1_SHIP pier: $URL"
-          if ! curl -fsS --retry 3 --retry-delay 5 --head "$URL" >/dev/null; then
-            echo "::error::~$N1_SHIP's pier archive is not published at $URL. Rebuild it with apps/tlon-web/rube/build-n1-pier.sh, then: gsutil cp apps/tlon-web/rube/dist/$(basename "$URL") gs://bootstrap.urbit.org/ && gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/$(basename "$URL")"
+          # --location because the bucket may answer a redirect, which is a
+          # fetchable archive, not a failure. The code is reported rather than
+          # interpreted: rube fetches this URL anonymously, so anything but a
+          # readable 200 stops the job, and only the maintainer can tell a
+          # never-uploaded archive from one that lost its public ACL.
+          CODE=$(curl -sS --location --retry 3 --retry-delay 5 --head \
+            -o /dev/null -w '%{http_code}' "$URL" || echo 000)
+          if [ "$CODE" != "200" ]; then
+            echo "::error::~$N1_SHIP's pier archive at $URL is not publicly readable or unreachable (HTTP $CODE). If it was never uploaded, rebuild with apps/tlon-web/rube/build-n1-pier.sh and publish: gsutil cp apps/tlon-web/rube/dist/$ARCHIVE gs://bootstrap.urbit.org/ && gsutil acl ch -u AllUsers:R gs://bootstrap.urbit.org/$ARCHIVE. If it was uploaded, check that ACL."
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "**Failed:** \`$URL\` is not published." >> "$GITHUB_STEP_SUMMARY"
+            echo "**Failed:** \`$URL\` is not publicly readable or unreachable (HTTP $CODE)." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
           echo "| pier archive | \`$URL\` |" >> "$GITHUB_STEP_SUMMARY"

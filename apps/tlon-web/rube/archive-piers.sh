@@ -9,6 +9,11 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 RUBE_DIR="$SCRIPT_DIR"
 # Where extracted piers live. Overridable, matching construct-desk.sh, so a
 # caller that built a pier elsewhere (build-n1-pier.sh) can point this at it.
+# ONLY under --skip-prepare: prepare_ships drives rube, whose workspace is its
+# own RUBE_WORKSPACE, and the binary lookup below has its own default, so an
+# override would prepare piers in one directory and archive from another. The
+# check that enforces this is after the flags are parsed.
+DIST_DIR_OVERRIDE="${DIST_DIR:-}"
 DIST_DIR="${DIST_DIR:-$RUBE_DIR/dist}"
 # Binary used for sync/pack/meld/roll/chop. Normally downloaded by rube during
 # prepare_ships; with --skip-prepare you must supply one that runs on THIS host
@@ -107,6 +112,15 @@ SHIPS_TO_ARCHIVE=("zod" "ten" "mug")
 # Valid ships for input validation
 VALID_SHIPS=("zod" "ten" "mug" "bus" "bud")
 
+# DIST_DIR only redirects where prepared piers are READ from; it does not
+# reach rube. Preparing and archiving in different places would archive stale
+# piers, or none, so refuse the combination rather than half-honour it.
+if [ -n "$DIST_DIR_OVERRIDE" ] && [ "$SKIP_PREPARE" != "true" ]; then
+    echo "DIST_DIR is only honoured with --skip-prepare (it does not reach rube's own workspace)." >&2
+    echo "Either drop DIST_DIR, or prepare the piers yourself and pass --skip-prepare." >&2
+    exit 1
+fi
+
 # --ship narrows the run to one pier. Both excluded ships are hand-built, so
 # this is how they get archived without touching the routinely-updated three.
 if [ -n "$SHIP_SELECTOR" ]; then
@@ -184,28 +198,38 @@ cleanup() {
     if [ $exit_code -ne 0 ]; then
         print_error "Script failed with exit code $exit_code"
 
-        # On failure, restore manifest from backup if it exists
+        # On failure, restore manifest from backup if it exists. The `cp` is
+        # wrapped in an `if` rather than left bare: this runs under `set -e`,
+        # so an unwritable manifest would abort the trap and skip every
+        # cleanup step below it.
         if [ -n "${manifest_backup:-}" ] && [ -f "$manifest_backup" ]; then
             print_info "Restoring manifest from backup due to failure..."
-            cp "$manifest_backup" "$MANIFEST_FILE"
-            rm -f "$manifest_backup"
-            print_status "Manifest restored"
+            if cp "$manifest_backup" "$MANIFEST_FILE"; then
+                rm -f "$manifest_backup" || true
+                print_status "Manifest restored"
+            else
+                print_error "Could not restore $MANIFEST_FILE from $manifest_backup; restore it by hand"
+            fi
         fi
     fi
 
-    # Anything this script spawned, whatever mode it ran in.
+    # The background children this script started. (sync_ship_snapshots and
+    # roll_and_chop_piers also boot a ship, but in the FOREGROUND and bounded by
+    # `timeout`, so they are gone before this runs -- and a Ctrl-C reaches them
+    # through the process group. Only a signal sent to this script alone could
+    # outlive one.)
     if [ "${#SPAWNED_PIDS[@]}" -gt 0 ]; then
         for pid in "${SPAWNED_PIDS[@]}"; do
             kill -TERM "$pid" 2>/dev/null || true
         done
     fi
 
-    # The rest only applies when this run started the fleet. A run that started
-    # nothing -- --skip-prepare, which is how the hand-built piers (~bus, ~bud)
-    # are archived -- must not stop a playwright-dev someone else is using, and
-    # must not run the port sweep: `lsof -ti:<port> | xargs kill -9` hits every
-    # process on those ports, including ships booted from another checkout, and
-    # it runs on success as well as on failure.
+    # The rest only applies when this run started the fleet. A --skip-prepare
+    # run -- how the hand-built piers (~bus, ~bud) are archived -- starts no
+    # long-lived ships of its own, so it must not stop a playwright-dev someone
+    # else is using, and must not run the port sweep: `lsof -ti:<port> | xargs
+    # kill -9` hits every process on those ports, including ships booted from
+    # another checkout, and it runs on success as well as on failure.
     if [ "$STARTED_FLEET" = "true" ]; then
         # Stop any running playwright-dev processes
         if [ -f "$PROJECT_ROOT/apps/tlon-web/.playwright-dev.pid" ]; then

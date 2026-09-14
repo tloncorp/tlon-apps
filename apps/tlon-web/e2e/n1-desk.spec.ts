@@ -28,8 +28,9 @@ test.skip(
   `Requires the N-1 ship ~${n1Ship.ship}; run with N1_SHIP=${n1Ship.ship}`
 );
 
-// Group create + invite + accept + two-way post + a DM, across two ships.
-test.setTimeout(180_000);
+// Group create + invite + accept + two-way post + a DM each way, across two
+// ships, with a cross-ship sync between every step.
+test.setTimeout(300_000);
 
 const groupName = `~${n1Ship.ship}, ~${currentShip.ship}`;
 
@@ -111,30 +112,64 @@ test('current client interoperates with a ship on the N-1 desk', async ({
     timeout: 20000,
   });
 
-  // --- a DM crosses the boundary too -------------------------------------
+  // --- DMs cross the boundary in both directions -------------------------
   // DMs ride %chat rather than %channels, so they exercise a second agent
-  // pair and a second negotiated protocol.
-  const dmToBud = 'DM from the current desk to N-1';
-  const dmToZod = 'DM from N-1 back to the current desk';
+  // pair and a second negotiated protocol. Both directions are run, because
+  // opening a DM and accepting one are different exchanges: whichever ship
+  // initiates sends the invite, and only the other ship answers it.
 
-  await zodPage.getByTestId('HomeNavIcon').click();
-  await helpers.createDirectMessage(zodPage, `~${n1Ship.ship}`);
-  await helpers.sendMessage(zodPage, dmToBud);
+  /**
+   * Open a DM from `from`, accept it on `to`, and reply. Each side's ship is
+   * read from its own page rather than passed in, so the two cannot be given
+   * the wrong way round.
+   */
+  async function exchangeDm(
+    from: Page,
+    to: Page,
+    opening: string,
+    reply: string
+  ) {
+    const fromShip = helpers.ownShipForPage(from);
+    const toShip = helpers.ownShipForPage(to);
+    expect(fromShip, 'could not identify the sending ship').toBeTruthy();
+    expect(toShip, 'could not identify the receiving ship').toBeTruthy();
 
-  await budPage.getByTestId('HomeNavIcon').click();
-  await expect(
-    budPage.getByTestId(`ChannelListItem-~${currentShip.ship}`)
-  ).toBeVisible({ timeout: 20000 });
-  await budPage.getByTestId(`ChannelListItem-~${currentShip.ship}`).click();
+    await from.getByTestId('HomeNavIcon').click();
+    await helpers.createDirectMessage(from, toShip!);
+    await helpers.sendMessage(from, opening);
 
-  await expect(budPage.getByText(dmToBud).first()).toBeVisible({
-    timeout: 20000,
-  });
-  await budPage.getByText('Accept').click();
-  await expect(budPage.getByText('Accept')).not.toBeVisible({ timeout: 10000 });
+    await to.getByTestId('HomeNavIcon').click();
+    await expect(to.getByTestId(`ChannelListItem-${fromShip}`)).toBeVisible({
+      timeout: 20000,
+    });
+    await to.getByTestId(`ChannelListItem-${fromShip}`).click();
 
-  await helpers.sendMessage(budPage, dmToZod);
-  await expect(zodPage.getByText(dmToZod).first()).toBeVisible({
-    timeout: 20000,
-  });
+    await expect(to.getByText(opening).first()).toBeVisible({ timeout: 20000 });
+    await to.getByText('Accept').click();
+    await expect(to.getByText('Accept')).not.toBeVisible({ timeout: 10000 });
+
+    await helpers.sendMessage(to, reply);
+    await expect(from.getByText(reply).first()).toBeVisible({ timeout: 20000 });
+  }
+
+  // 1. the current desk opens, the N-1 desk accepts.
+  await exchangeDm(
+    zodPage,
+    budPage,
+    'Current desk opening a DM to N-1',
+    'N-1 desk accepting and replying'
+  );
+
+  // Both sides leave, so the next exchange is a fresh invite rather than the
+  // same conversation — an accepted DM has nothing left to accept.
+  await helpers.leaveDM(zodPage, `~${n1Ship.ship}`);
+  await helpers.leaveDM(budPage, `~${currentShip.ship}`);
+
+  // 2. the N-1 desk opens, the current desk accepts.
+  await exchangeDm(
+    budPage,
+    zodPage,
+    'N-1 desk opening a DM to the current desk',
+    'Current desk accepting and replying'
+  );
 });

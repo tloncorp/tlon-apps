@@ -1,21 +1,16 @@
 #!/usr/bin/env node
 import * as childProcess from 'child_process';
-import * as dotenv from 'dotenv';
 import * as fs from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
 
+import { loadEnvTest } from './envTest';
 import { Ship } from './index';
 import { shouldIncludeShip } from './shipSelection';
 
-// Load environment variables from .env.test if it exists
-const envPath = path.join(__dirname, '../../.env.test');
-if (fs.existsSync(envPath)) {
-  const result = dotenv.config({ path: envPath });
-  if (result.parsed) {
-    console.log('Loaded environment variables from .env.test');
-  }
-}
+// The same loader rube and the dev harness use: all three decide the ship
+// selection from this file and must read it identically.
+loadEnvTest(__dirname);
 
 // Parse command line arguments
 const args = process.argv.slice(2);
