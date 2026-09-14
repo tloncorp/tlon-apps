@@ -171,14 +171,14 @@ let lastSeen = Date.now();
 let settling = null;
 let statusSeen = false;
 let ciActivity = 0;
-const repo = sh('gh', [
-  'repo',
-  'view',
-  '--json',
-  'nameWithOwner',
-  '--jq',
-  '.nameWithOwner',
-]);
+let repo;
+try {
+  repo = sh('gh', ['repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner']);
+} catch (err) {
+  // gh reads its token from the keychain, which a shell sandbox blocks, so this
+  // is the first call that fails when pr-watch is run sandboxed.
+  usage(`gh cannot reach this repository (${err.message}). Run pr-watch unsandboxed, and from inside the repository.`);
+}
 const number =
   requested ?? sh('gh', ['pr', 'view', '--json', 'number', '--jq', '.number']);
 const stateFile = join(
