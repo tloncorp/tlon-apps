@@ -331,6 +331,45 @@ describe('argument forms', () => {
     ).toEqual(['scry groups /v1/live']);
   });
 
+  it('reads a request the enclosing function declared and a callback sends', () => {
+    // `backOff(() => poke(action))`: the call's own scope is the callback, and
+    // the request it sends was built one scope out.
+    expect(
+      keys(`import { poke } from './urbit';
+        export const readAll = () => {
+          const action = { app: 'activity', mark: 'activity-action-2' };
+          return backOff(() => poke(action), { numOfAttempts: 4 });
+        };`)
+    ).toEqual(['poke activity activity-action-2']);
+  });
+
+  it('stops the outward walk at a name the callback binds itself', () => {
+    // The callback's own `action` is the one it sends, whatever an outer
+    // scope calls by that name.
+    expect(
+      keys(`import { poke } from './urbit';
+        export const f = (items: unknown[]) => {
+          const action = { app: 'activity', mark: 'activity-action-2' };
+          items.forEach((action) => poke(action));
+          return action;
+        };`)
+    ).toEqual(['poke ? ?']);
+  });
+
+  it('keeps the loop rule in every scope the walk passes through', () => {
+    // The callback is built inside the loop, so the outer scope cannot say
+    // which write to `params` reached it either.
+    const [dep] = extract(`import { poke } from './urbit';
+      export const f = (ids: string[]) => {
+        let params = { app: 'groups', mark: 'group-action-5' };
+        for (const id of ids) {
+          backOff(() => poke(params));
+          params = { app: 'groups', mark: id };
+        }
+      };`);
+    expect(dep.unresolved).toBeDefined();
+  });
+
   it('resolves nothing when a loop makes the ordering meaningless', () => {
     // In a loop the call sees the previous iteration's value, so position no
     // longer says which assignment reaches it.
@@ -480,4 +519,19 @@ it('skips the wrapper definitions and test files', () => {
     ['packages/api/src']
   );
   expect(deps.map((d) => d.key)).toEqual(['scry groups /v1/init']);
+});
+
+it('scans both app source roots by default', () => {
+  const deps = extractClient(
+    memoryTree({
+      'apps/tlon-web/src/state/base.ts':
+        "import { scry } from '@tloncorp/api';\nexport const f = () => scry({ app: 'groups', path: '/v1/init' });",
+      'apps/tlon-mobile/src/lib/notifications.ts':
+        "import { poke } from '@tloncorp/api';\nexport const g = () => poke({ app: 'activity', mark: 'activity-action-2' });",
+    })
+  );
+  expect(deps.map((d) => d.key).sort()).toEqual([
+    'poke activity activity-action-2',
+    'scry groups /v1/init',
+  ]);
 });

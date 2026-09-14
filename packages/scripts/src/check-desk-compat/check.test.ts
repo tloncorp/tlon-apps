@@ -170,6 +170,79 @@ describe('markCoveredFallbacks', () => {
     expect(missing.fallback).toEqual({ coveredBy: 'old', guard: NOTES });
   });
 
+  describe('a nested guard, whose complement lands in more than one branch', () => {
+    // `notes ? new : (reactions ? mid : old)` — the three-way activityAction
+    // shape, and its mirror `notes ? (reactions ? new : mid) : old`.
+    const REACTIONS = 'getActivitySupportsReactions()';
+    const nested = (midVerdict: Finding['verdict']) =>
+      build([
+        {
+          key: 'new',
+          verdict: 'MISSING',
+          records: [record('new', 28, `${NOTES} ? …`)],
+        },
+        {
+          key: 'mid',
+          verdict: midVerdict,
+          records: [record('mid', 28, `! (${NOTES}) && ${REACTIONS} ? …`)],
+        },
+        {
+          key: 'old',
+          verdict: 'FOUND',
+          records: [record('old', 28, `! (${NOTES}) && ! (${REACTIONS})`)],
+        },
+      ]);
+
+    it('covers the outer branch when every inner alternative is served', () => {
+      expect(nested('FOUND')[0].fallback).toEqual({
+        coveredBy: 'mid',
+        guard: `${NOTES} ? …`,
+      });
+    });
+
+    it('does not cover it when an inner alternative is itself missing', () => {
+      // A desk without notes but with reactions still sends `mid`.
+      const [missing] = nested('MISSING');
+      expect(missing.fallback).toBeUndefined();
+      expect(missing.coverage).toBeUndefined();
+    });
+
+    it('does not cover either inner branch when both inner marks are missing', () => {
+      // `notes ? (reactions ? new : mid) : old`: `old` being served is the
+      // complement of `notes` only. A desk with notes and without reactions
+      // reaches `mid`, and one with both reaches `new`.
+      const [newer, mid] = build([
+        {
+          key: 'new',
+          verdict: 'MISSING',
+          records: [record('new', 28, `${NOTES} ? … && ${REACTIONS} ? …`)],
+        },
+        {
+          key: 'mid',
+          verdict: 'MISSING',
+          records: [record('mid', 28, `${NOTES} ? … && ! (${REACTIONS})`)],
+        },
+        {
+          key: 'old',
+          verdict: 'FOUND',
+          records: [record('old', 28, `! (${NOTES})`)],
+        },
+      ]);
+      expect(newer.fallback).toBeUndefined();
+      expect(newer.coverage).toBeUndefined();
+      expect(mid.fallback).toBeUndefined();
+      expect(mid.coverage).toBeUndefined();
+    });
+
+    it('is not blocked by an alternative the checker could not decide', () => {
+      // UNVERIFIED never decides the exit code, here included.
+      expect(nested('UNVERIFIED')[0].fallback).toEqual({
+        coveredBy: 'old',
+        guard: `${NOTES} ? …`,
+      });
+    });
+  });
+
   it('does not cover a branch on anything but a capability', () => {
     const [missing] = build([
       {

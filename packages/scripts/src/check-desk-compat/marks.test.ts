@@ -67,6 +67,20 @@ describe('matchMark — ownership by exclusion from peru, never by the refs unde
     );
   });
 
+  it('decides nothing when the target agent is unresolved', () => {
+    // `api.poke({ app, mark: 'chat-negotiate' })`: a mar file is desk-global,
+    // so its presence cannot say the poke lands, and its absence cannot say it
+    // does not — the removal checks below are all keyed on the app.
+    const present = desk(['desk/mar/chat/negotiate.hoon']);
+    expect(matchMark(present, VENDORED, null, 'chat-negotiate')).toMatchObject({
+      verdict: 'UNVERIFIED',
+      rule: 'marks',
+    });
+    expect(matchMark(desk([]), VENDORED, null, 'group-action-5').verdict).toBe(
+      'UNVERIFIED'
+    );
+  });
+
   it.each<[string, string[], string, string, Verdict]>([
     [
       'nested at any hyphen grouping',

@@ -58,10 +58,18 @@ export function matchMark(
   });
   if (mark === null)
     return unverified('mark could not be resolved to a string literal');
+  // With no target agent there is no verdict to reach in either direction. A
+  // mar file is desk-global, so its presence cannot mean the poke lands: every
+  // check below that would catch a removed or unbilled agent is keyed on the
+  // app, and skipping them would let a surviving mar report FOUND for a poke
+  // at an agent that is gone. Its absence cannot mean MISSING either, since
+  // the target may be an out-of-desk app this checker never owned.
+  if (app === null)
+    return unverified('app is not a string literal, so the target is unknown');
   // A deleted agent cannot accept any mark, however many mar files survive it.
   // Checking before the file lookup is the point: a leftover mar would
   // otherwise report FOUND for a poke that now crashes.
-  if (app !== null && !desk.hasApp(app) && desk.clientHadApp(app)) {
+  if (!desk.hasApp(app) && desk.clientHadApp(app)) {
     return {
       verdict: 'MISSING',
       rule: 'marks',
@@ -72,7 +80,7 @@ export function matchMark(
   }
   // Dropping the name from desk.bill stops the agent while leaving its source
   // — and its marks — in place, so this too must beat the mar file lookup.
-  if (app !== null && !desk.bill.has(app) && desk.clientBilled(app)) {
+  if (!desk.bill.has(app) && desk.clientBilled(app)) {
     return {
       verdict: 'MISSING',
       rule: 'marks',
@@ -98,12 +106,12 @@ export function matchMark(
       `%${mark} is vendored by peru into desk-deps/, which is not in the repo tree`
     );
   }
-  if (app !== null && !desk.hasApp(app)) {
+  if (!desk.hasApp(app)) {
     return unverified(
       `%${mark} targets %${app}, which is not an agent in this desk`
     );
   }
-  if (app !== null && !desk.bill.has(app)) {
+  if (!desk.bill.has(app)) {
     return unverified(
       `%${mark} targets %${app}, which is not listed in desk/desk.bill`
     );

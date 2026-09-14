@@ -191,19 +191,33 @@ export function complementsGuard(missing?: string, found?: string): boolean {
  * Coverage is decided per *record*, not per request: one call site may guard
  * the request while another makes it unconditionally, and only the guarded one
  * is excused. A request is covered only when every site that would miss is.
+ *
+ * The complement of a nested guard lands in more than one branch, so one
+ * served alternative is not enough. In `A ? (B ? new : mid) : old`, `new` runs
+ * under `A && B`; a desk without it has either no `A` — which takes `old` — or
+ * `A` without `B`, which takes `mid`. Excusing `new` because `old` is served
+ * would hide `mid` being missing on exactly the desks that reach it. So every
+ * alternative reached by the complement of a capability conjunct must be
+ * served, and a `MISSING` one among them blocks. An `UNVERIFIED` one neither
+ * proves nor disproves coverage and is left alone, because `UNVERIFIED` never
+ * decides the exit code.
  */
 export function markCoveredFallbacks(
   findings: Finding[],
   grouped: Map<string, Dependency[]>
 ): void {
   const at = (s: SourceLocation) => `${s.file}:${s.line}`;
-  const servedAt = new Map<string, { key: string; guard?: string }[]>();
+  type Branch = { key: string; guard?: string; verdict: Finding['verdict'] };
+  const recordsAt = new Map<string, Branch[]>();
   for (const finding of findings) {
-    if (finding.verdict !== 'FOUND') continue;
     for (const dep of grouped.get(finding.dependency.key) ?? []) {
-      const list = servedAt.get(at(dep.site)) ?? [];
-      list.push({ key: finding.dependency.key, guard: dep.guard });
-      servedAt.set(at(dep.site), list);
+      const list = recordsAt.get(at(dep.site)) ?? [];
+      list.push({
+        key: finding.dependency.key,
+        guard: dep.guard,
+        verdict: finding.verdict,
+      });
+      recordsAt.set(at(dep.site), list);
     }
   }
   for (const finding of findings) {
@@ -213,10 +227,13 @@ export function markCoveredFallbacks(
     let coveredBy: string | undefined;
     let guard: string | undefined;
     for (const dep of grouped.get(finding.dependency.key) ?? []) {
-      const sibling = (servedAt.get(at(dep.site)) ?? []).find((s) =>
-        complementsGuard(dep.guard, s.guard)
+      const alternatives = (recordsAt.get(at(dep.site)) ?? []).filter(
+        (s) =>
+          s.key !== finding.dependency.key &&
+          complementsGuard(dep.guard, s.guard)
       );
-      if (!sibling) {
+      const sibling = alternatives.find((s) => s.verdict === 'FOUND');
+      if (!sibling || alternatives.some((s) => s.verdict === 'MISSING')) {
         blocking.push(dep.site);
         continue;
       }

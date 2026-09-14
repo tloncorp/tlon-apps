@@ -135,7 +135,10 @@ anything under `desk/mar` that is not vendored and not an out-of-desk app is
 repo-owned, and its absence is a removal. The alternative ("ours if it resolves
 at either ref") is self-defeating for exactly the removal case, because deleting
 the mar file also erases the proof we owned the mark. `FOUND` for a mark claims
-only that the file exists.
+only that the file exists. A poke whose *app* is not a literal is `UNVERIFIED`
+either way: a mar file is desk-global, so it cannot say the poke lands, and the
+removal checks — agent file gone, name gone from `desk.bill` — are all keyed on
+the app, so with the app unknown none of them can run.
 
 Conditional branches are reported **per branch, never unioned**, each carrying
 its guard text — including the condition an early `return` inside an `if`
@@ -157,6 +160,12 @@ exists to give:
 - **Serve the complementary branch at the same call site.** Coverage requires a
   `FOUND` request under the negation of that same guard, at that same line. Any
   other served request nearby does not count.
+- **Serve *every* complementary branch.** A nested guard's complement lands in
+  more than one branch: in `A ? (B ? new : mid) : old`, a desk that does not
+  reach `new` reaches `old` when it lacks `A`, and `mid` when it has `A` but
+  not `B`. One served alternative excuses nothing while another is `MISSING`,
+  so a `MISSING` alternative blocks. An `UNVERIFIED` one does not, since
+  `UNVERIFIED` never decides the exit code.
 - **Guard every site.** Coverage is decided per call site. If the same request
   is also made unconditionally somewhere else, the request still blocks, and the
   report lists which sites are covered and which are blocking.
@@ -204,4 +213,9 @@ agent actually accepts a mark's JSON. Layers 2 (agent review at release time)
 and 3 (a pinned N-1 `~bus` in the E2E suite) cover those.
 
 **Out of scope:** desks older than N-1; web-glob versus desk skew; native store
-versions; agents outside `desk/app/`; `tlon-skill` / `openclaw` / `tlon-bot-e2e`.
+versions; agents outside `desk/app/`; `tlon-skill` / `openclaw` /
+`hermes-tlon-adapter` / `tlon-bot-e2e`. Those last four are the bot and tooling
+packages: they ship on their own cadence against whatever desk their host runs,
+so the N-1 window says nothing about them and the checker does not scan them.
+Everything the app itself is built from is scanned, which is both app source
+roots (`apps/tlon-web/src` and `apps/tlon-mobile/src`) plus the shared packages.

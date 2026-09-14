@@ -57,15 +57,18 @@ export interface Dependency {
 const set = (names: string) => new Set(names.split(' '));
 
 /**
- * Directories scanned for ship call sites. `tlon-skill`, `openclaw` and
- * `tlon-bot-e2e` are separately packaged tooling that `ci.yml` already treats
- * as unconsumed by the app, so they are out of scope.
+ * Directories scanned for ship call sites — every tree the shipped app is
+ * built from, so both app entry points are here. `tlon-skill`, `openclaw`,
+ * `hermes-tlon-adapter` and `tlon-bot-e2e` are separately packaged tooling
+ * that `ci.yml` already treats as unconsumed by the app, so they are out of
+ * scope.
  */
 export const CLIENT_ROOTS = [
   'packages/api/src',
   'packages/shared/src',
   'packages/app',
   'apps/tlon-web/src',
+  'apps/tlon-mobile/src',
 ];
 
 /**
@@ -275,11 +278,75 @@ function enclosingFunction(node: ts.Node): ts.Node | undefined {
 }
 
 /**
+ * Does this scope bind `name` itself — as a parameter, a variable, or a
+ * declared function or class? Such a binding shadows anything an outer scope
+ * calls `name`, so `localAssignments` must stop walking outward there even
+ * when it found no assignment to read. A nested closure's own parameters are
+ * its business, but a nested `function f` names `f` in *this* scope.
+ */
+function declaresName(scope: ts.Node, name: string): boolean {
+  const isName = (n: ts.BindingName): boolean =>
+    ts.isIdentifier(n)
+      ? n.text === name
+      : n.elements.some((e) => !ts.isOmittedExpression(e) && isName(e.name));
+  let found = false;
+  const visit = (node: ts.Node) => {
+    if (found) return;
+    if (node !== scope && ts.isFunctionLike(node)) {
+      if (ts.isFunctionDeclaration(node) && node.name?.text === name)
+        found = true;
+      return;
+    }
+    if (
+      ((ts.isParameter(node) || ts.isVariableDeclaration(node)) &&
+        isName(node.name)) ||
+      ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) &&
+        node.name?.text === name)
+    ) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  };
+  ts.forEachChild(scope, visit);
+  return found;
+}
+
+/**
+ * `scopeAssignments` continued outward through the lexical function scopes the
+ * call is nested in, so `backOff(() => poke(action))` still reads the `action`
+ * its enclosing function declared.
+ *
+ * Each scope keeps its own rules: assignments made inside a nested closure are
+ * still excluded, and the reachable-before rule still applies — against the
+ * nested function this scope encloses rather than against the call, since that
+ * is the point in *this* scope's straight line from which the call is reached.
+ * The walk stops at the innermost scope that binds the name, so a shadowing
+ * parameter is never resolved to an outer variable of the same name.
+ */
+function localAssignments(
+  scope: ts.Node,
+  name: string,
+  /** Position of the call. Only assignments before it can reach it. */
+  before?: number
+): Val<ts.Expression>[] {
+  let cur: ts.Node | undefined = scope;
+  let pos = before;
+  while (cur) {
+    const found = scopeAssignments(cur, name, pos);
+    if (found.length > 0 || declaresName(cur, name)) return found;
+    pos = cur.getStart();
+    cur = enclosingFunction(cur);
+  }
+  return [];
+}
+
+/**
  * Bounded local-variable resolution: one assignment chain, one hop, inside one
  * function body. Multi-branch assignment is *not* collapsed — each branch
  * becomes its own record, carrying the block it came from.
  */
-function localAssignments(
+function scopeAssignments(
   scope: ts.Node,
   name: string,
   /** Position of the call. Only assignments before it can reach it. */
