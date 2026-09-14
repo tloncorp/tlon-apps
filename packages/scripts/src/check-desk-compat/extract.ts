@@ -155,11 +155,56 @@ function collectBindings(sf: ts.SourceFile): Bindings {
 
 type Callee = { wrapper: string; positional: boolean } | 'airlock' | null;
 
+/**
+ * Does a scope between the call and the file declare this name?
+ *
+ * The import map is file-wide, so without this a parameter or local called
+ * `poke` reads as the imported wrapper and invents a dependency the client
+ * never has — which downstream is a `MISSING` nobody can fix.
+ */
+function shadowed(node: ts.Node, name: string): boolean {
+  const declares = (n: ts.BindingName): boolean =>
+    ts.isIdentifier(n)
+      ? n.text === name
+      : n.elements.some((e) => !ts.isOmittedExpression(e) && declares(e.name));
+  for (let cur: ts.Node | undefined = node; cur; cur = cur.parent) {
+    if (ts.isFunctionLike(cur) && cur.parameters.some((p) => declares(p.name)))
+      return true;
+    if (
+      (ts.isFunctionDeclaration(cur) || ts.isClassDeclaration(cur)) &&
+      cur.name?.text === name
+    ) {
+      return true;
+    }
+    if (
+      ts.isCatchClause(cur) &&
+      cur.variableDeclaration &&
+      declares(cur.variableDeclaration.name)
+    ) {
+      return true;
+    }
+    if (ts.isBlock(cur)) {
+      for (const stmt of cur.statements) {
+        if (
+          ts.isVariableStatement(stmt) &&
+          stmt.declarationList.declarations.some((d) => declares(d.name))
+        ) {
+          return true;
+        }
+        if (ts.isFunctionDeclaration(stmt) && stmt.name?.text === name)
+          return true;
+      }
+    }
+  }
+  return false;
+}
+
 function resolveCallee(node: ts.CallExpression, b: Bindings): Callee {
   const callee = node.expression;
   if (ts.isIdentifier(callee)) {
     const wrapper = b.wrappers.get(callee.text);
-    return wrapper ? { wrapper, positional: false } : null;
+    if (!wrapper || shadowed(node, callee.text)) return null;
+    return { wrapper, positional: false };
   }
   if (
     !ts.isPropertyAccessExpression(callee) ||
@@ -170,6 +215,7 @@ function resolveCallee(node: ts.CallExpression, b: Bindings): Callee {
   const obj = callee.expression.text;
   const prop = callee.name.text;
   if (obj === 'airlock' && prop === 'subscribe') return 'airlock';
+  if (shadowed(node, obj)) return null;
   if (!WRAPPERS.has(prop)) return null;
   if (b.namespaces.has(obj)) return { wrapper: prop, positional: false };
   // The web client's `subscribeOnce(app, path, timeout)` is positional — a
@@ -189,7 +235,8 @@ const textOf = (_ctx: Ctx, node: ts.Node) =>
 
 function makeKey(d: Omit<Dependency, 'key' | 'site' | 'text'>): string {
   if (d.surface === 'poke') return `poke ${d.app ?? '?'} ${d.mark ?? '?'}`;
-  if (d.surface === 'thread') return `thread ${d.thread ?? '?'}`;
+  if (d.surface === 'thread')
+    return `thread ${d.app ?? '?'}/${d.thread ?? '?'} ${d.mark ?? '?'}`;
   if (d.surface === 'http') return `http ${d.path?.text ?? '?'}`;
   if (d.path === null) return `${d.surface} ${d.app ?? '?'} ?`;
   if (d.path.shape) return `${d.surface} ${d.app ?? '?'} ${d.path.shape}`;
@@ -245,6 +292,35 @@ const literalShape = (text: string) =>
  * catch. Anything less certain — a second declaration, a reassignment, a
  * binding from an outer scope — gives up and reports UNVERIFIED.
  */
+/**
+ * The conditions that had to hold for this node to run, outermost first.
+ *
+ * A binding declared inside an `if` arm is as conditional as a ternary branch,
+ * and the GUARDED rule downstream reads exactly this text.
+ */
+function branchGuard(
+  ctx: Ctx,
+  node: ts.Node,
+  scope: ts.Node
+): string | undefined {
+  const parts: string[] = [];
+  for (let cur = node; cur && cur !== scope; cur = cur.parent) {
+    const parent: ts.Node | undefined = cur.parent;
+    if (!parent) break;
+    if (ts.isIfStatement(parent)) {
+      const condition = textOf(ctx, parent.expression);
+      if (cur === parent.thenStatement) parts.unshift(`${condition} ? …`);
+      else if (cur === parent.elseStatement) parts.unshift(`! (${condition})`);
+    } else if (ts.isCaseClause(cur) && ts.isCaseBlock(parent)) {
+      const subject = ts.isSwitchStatement(parent.parent)
+        ? textOf(ctx, parent.parent.expression)
+        : '?';
+      parts.unshift(`${subject} === ${textOf(ctx, cur.expression)}`);
+    }
+  }
+  return parts.length > 0 ? parts.join(' && ') : undefined;
+}
+
 function enclosingBlock(node: ts.Node): ts.Node | null {
   for (let cur = node.parent; cur; cur = cur.parent) {
     if (ts.isBlock(cur) || ts.isCaseClause(cur)) return cur;
@@ -253,9 +329,10 @@ function enclosingBlock(node: ts.Node): ts.Node | null {
 }
 
 function soleConstInitializer(
+  ctx: Ctx,
   node: ts.Node,
   name: string
-): ts.Expression | null {
+): Val<ts.Expression> | null {
   let scope: ts.Node | undefined;
   for (let cur = node.parent; cur && !scope; cur = cur.parent) {
     if (ts.isFunctionLike(cur)) scope = cur;
@@ -321,7 +398,11 @@ function soleConstInitializer(
   // misjudged the blocks, so it gives up.
   const deepest = Math.max(...found.map((f) => f.depth));
   const innermost = found.filter((f) => f.depth === deepest);
-  return innermost.length === 1 ? innermost[0].init : null;
+  if (innermost.length !== 1) return null;
+  return {
+    value: innermost[0].init,
+    guard: branchGuard(ctx, innermost[0].init, scope),
+  };
 }
 
 /** Turn a resolved template head into path segments. */
@@ -592,8 +673,9 @@ function expandHelper(ctx: Ctx, name: string, depth = 0): PokeParams[] {
     // the call sites use, read inside the helper's own body. Without it
     // `chatAction` reports two unreadable returns rather than its two marks.
     if (ts.isIdentifier(expr) && hop < 2) {
-      const bound = soleConstInitializer(expr, expr.text);
-      if (bound !== null) return read(bound, hop + 1, guard);
+      const bound = soleConstInitializer(ctx, expr, expr.text);
+      if (bound !== null)
+        return read(bound.value, hop + 1, bothGuards(guard, bound.guard));
     }
     unresolved(`helper ${name} returns ${textOf(ctx, expr)}`);
   };
@@ -633,13 +715,16 @@ function readEndpointObject(
   const prop = property(obj, 'path');
   const named =
     prop === 'shorthand'
-      ? soleConstInitializer(node, 'path')
+      ? soleConstInitializer(ctx, node, 'path')
       : prop !== null && ts.isIdentifier(prop)
-        ? soleConstInitializer(node, prop.text)
+        ? soleConstInitializer(ctx, node, prop.text)
         : null;
   const paths: Val<PathPattern>[] =
     named !== null
-      ? pathValues(ctx, named)
+      ? pathValues(ctx, named.value).map((v) => ({
+          ...v,
+          guard: bothGuards(named.guard, v.guard),
+        }))
       : prop === null || prop === 'shorthand' || ts.isIdentifier(prop)
         ? [
             {
@@ -681,20 +766,26 @@ function readPokeParams(
   node: ts.Node,
   arg: ts.Expression | undefined,
   /** One hop through a local binding, so a cycle cannot spin. */
-  hop = 0
+  hop = 0,
+  /** The branch condition the binding this came from sat under. */
+  outer?: string
 ) {
   const emit = (r: PokeParams) =>
     push(ctx, node, {
       surface: 'poke',
       app: r.app,
       mark: r.mark,
-      guard: r.guard,
+      guard: bothGuards(outer, r.guard),
       unresolved:
         r.unresolved ??
-        (r.mark === null ? 'mark is not a string literal' : undefined),
+        (r.mark === null
+          ? 'mark is not a string literal'
+          : r.app === null
+            ? 'app is not a string literal'
+            : undefined),
     });
   const unresolved = (why: string) =>
-    push(ctx, node, { surface: 'poke', unresolved: why });
+    push(ctx, node, { surface: 'poke', guard: outer, unresolved: why });
   if (!arg) return unresolved('missing argument');
 
   if (ts.isObjectLiteralExpression(arg)) {
@@ -717,8 +808,16 @@ function readPokeParams(
   // `const action = { app, mark, json }; poke(action)` — the same binding rule
   // the endpoint readers use, and under the same strict conditions.
   if (ts.isIdentifier(arg) && hop === 0) {
-    const bound = soleConstInitializer(node, arg.text);
-    if (bound !== null) return readPokeParams(ctx, node, bound, hop + 1);
+    const bound = soleConstInitializer(ctx, node, arg.text);
+    if (bound !== null) {
+      return readPokeParams(
+        ctx,
+        node,
+        bound.value,
+        hop + 1,
+        bothGuards(outer, bound.guard)
+      );
+    }
   }
   unresolved(`poke params are ${textOf(ctx, arg)}`);
 }
@@ -761,16 +860,27 @@ function readCall(
       readPokeParams(ctx, node, args[0]);
       return readEndpoint(ctx, node, args[1], 'subscribe');
     case 'thread': {
-      const prop =
-        args[0] && ts.isObjectLiteralExpression(args[0])
-          ? property(args[0], 'threadName')
-          : null;
-      const name = prop && prop !== 'shorthand' ? stringLiteralOf(prop) : null;
+      // A thread is identified by the desk that runs it, its name, and the
+      // mark it takes: two desks may both ship a `group-create-1`, and a
+      // thread that starts taking a different input mark is a new dependency.
+      const obj =
+        args[0] && ts.isObjectLiteralExpression(args[0]) ? args[0] : null;
+      const literal = (name: string) => {
+        const prop = obj ? property(obj, name) : null;
+        return prop && prop !== 'shorthand' ? stringLiteralOf(prop) : null;
+      };
+      const missing = (['desk', 'threadName', 'inputMark'] as const).filter(
+        (k) => literal(k) === null
+      );
       return push(ctx, node, {
         surface: 'thread',
-        thread: name,
+        app: literal('desk'),
+        mark: literal('inputMark'),
+        thread: literal('threadName'),
         unresolved:
-          name === null ? 'threadName is not a string literal' : undefined,
+          missing.length > 0
+            ? `${missing.join(', ')} ${missing.length > 1 ? 'are' : 'is'} not a string literal`
+            : undefined,
       });
     }
     case 'requestJson':

@@ -14,7 +14,9 @@ Usage: pnpm check:desk-compat [options]
                          run must pass one.
   --json                 emit the report as JSON
   --markdown             emit the report as markdown, for a PR comment
-  --list                 list every extracted request and exit; no desk is read
+  --list                 list every extracted request and exit; no desk is
+                         read. A row marked ? is one this reader could not
+                         resolve.
 
 Exit codes: 0 = nothing MISSING, 1 = one or more MISSING (or a negotiation
 protocol difference), 2 = internal error.
@@ -27,7 +29,9 @@ The three release-time runs (docs/tlon-apps/desk-compatibility.md):
 
 const at = (d: Dependency) => `${d.site.file}:${d.site.line}`;
 const target = (d: Dependency) =>
-  d.mark ?? d.thread ?? d.path?.shape ?? d.path?.text ?? '?';
+  d.surface === 'thread'
+    ? `${d.thread ?? '?'} <- ${d.mark ?? '?'}`
+    : (d.mark ?? d.path?.shape ?? d.path?.text ?? '?');
 
 /** `--list`: extraction only, so the reader can see what the client asks for. */
 function list(clientRef: string): number {
@@ -51,15 +55,22 @@ function list(clientRef: string): number {
     for (const row of listed) {
       console.log(
         [
+          row.dep.unresolved ? '?' : ' ',
           row.dep.surface.padEnd(kindWidth),
           (row.dep.app ?? '?').padEnd(appWidth),
           target(row.dep),
-        ].join('  ')
+        ].join(' ')
       );
-      console.log(`    ${row.sites.join(', ')}`);
+      // A row this reader could not resolve is still a request the client
+      // makes; printing the list without saying so reads like a clean sweep.
+      if (row.dep.unresolved)
+        console.log(`      unresolved: ${row.dep.unresolved}`);
+      console.log(`      ${row.sites.join(', ')}`);
     }
+    const unresolved = listed.filter((r) => r.dep.unresolved).length;
     console.log(
-      `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites`
+      `\n${listed.length} distinct requests from ${listed.reduce((n, r) => n + r.sites.length, 0)} call sites` +
+        `, ${unresolved} of them marked ? because this reader could not resolve them`
     );
     return 0;
   } finally {

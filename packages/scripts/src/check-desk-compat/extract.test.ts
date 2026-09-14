@@ -86,6 +86,60 @@ describe('binding is by import source, not by name', () => {
   });
 });
 
+describe('a wrapper name a nested scope has taken back', () => {
+  it('is not a ship call, however the shadow is bound', () => {
+    // The import map is file-wide, so without this each of these invents a
+    // dependency the client never has.
+    const shadowing = (body: string) =>
+      keys(`import { poke, scry } from './urbit';\n${body}`);
+    expect(
+      shadowing(
+        "export const f = (poke: (x: unknown) => void) => poke({ app: 'groups', mark: 'group-action-5' });"
+      )
+    ).toEqual([]);
+    expect(
+      shadowing(`export const f = () => {
+        const poke = (x: unknown) => x;
+        return poke({ app: 'groups', mark: 'group-action-5' });
+      };`)
+    ).toEqual([]);
+    expect(
+      shadowing(
+        "export const f = ({ scry }: { scry: (x: unknown) => void }) => scry({ app: 'groups', path: '/v1/init' });"
+      )
+    ).toEqual([]);
+    // And the real import still resolves beside them.
+    expect(
+      shadowing(
+        "export const g = () => poke({ app: 'groups', mark: 'group-action-5' });"
+      )
+    ).toEqual(['poke groups group-action-5']);
+  });
+});
+
+describe('threads', () => {
+  const run = (body: string) =>
+    extract(`import { thread } from './urbit';\n${body}`)[0];
+
+  it('are identified by desk, name and the mark they take', () => {
+    // Two desks may both ship a `group-create-1`, and a thread that starts
+    // taking a different input mark is a different dependency.
+    expect(
+      run(
+        "export const f = () => thread({ desk: 'groups', threadName: 'group-create-1', inputMark: 'group-create-thread', outputMark: 'group-ui-2', body: {} });"
+      ).key
+    ).toBe('thread groups/group-create-1 group-create-thread');
+  });
+
+  it('are unresolved when any of the three is computed', () => {
+    const dep = run(
+      "export const f = (desk: string) => thread({ desk, threadName: 'group-create-1', inputMark: 'group-create-thread', body: {} });"
+    );
+    expect(dep.key).toBe('thread ?/group-create-1 group-create-thread');
+    expect(dep.unresolved).toBe('desk is not a string literal');
+  });
+});
+
 describe('path shapes', () => {
   it('reads a template down to its literal prefix', () => {
     expect(
@@ -336,6 +390,32 @@ describe('a poke whose params are bound first', () => {
       'poke channels channel-action-2',
       'poke chat chat-toggle-message',
     ]);
+  });
+
+  it('carries the branch the binding sits under as its guard', () => {
+    // The whole call is inside the arm, so the request is as conditional as
+    // the binding is — which is what the GUARDED rule downstream reads.
+    const deps = extract(`import { poke } from './urbit';
+      export const f = (supportsNotes: boolean) => {
+        if (supportsNotes) {
+          const action = { app: 'activity', mark: 'activity-action-2' };
+          return poke(action);
+        }
+        const action = { app: 'activity', mark: 'activity-action' };
+        return poke(action);
+      };`);
+    expect(deps.map((d) => [d.mark, d.guard])).toEqual([
+      ['activity-action-2', 'supportsNotes ? …'],
+      ['activity-action', undefined],
+    ]);
+  });
+
+  it('marks a poke whose app it could not read', () => {
+    const [dep] = extract(
+      "import { poke } from './urbit';\nexport const f = (app: string) => poke({ app, mark: 'chat-negotiate' });"
+    );
+    expect(dep.key).toBe('poke ? chat-negotiate');
+    expect(dep.unresolved).toBe('app is not a string literal');
   });
 
   it('still gives up when the binding is not the one the call reads', () => {

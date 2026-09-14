@@ -188,11 +188,17 @@ entry.
 `known-gaps.json` is read from the candidate checkout, which on its own would
 let one change add an unsupported request *and* the entry excusing it. So an
 entry only applies to a request the base already made and the same desk already
-could not take: pass `--base-ref` (the PR's base commit; `ci.yml` does this
-from `github.event.pull_request.base.sha`) and an entry that does not clear that
-bar leaves its request `MISSING`, with the reason on the entry. A local run
-without `--base-ref` applies entries as written and says so in a `NOTICE` —
-convenient for reading a report, not a gate.
+could not take: pass `--base-ref`, and an entry that does not clear that bar
+leaves its request `MISSING`, with the reason on the entry.
+
+`ci.yml` passes the PR's base commit; the staging workflow passes
+`origin/master` on run 1. Runs 2 and 3 pass none, and neither needs one: run 2
+checks the candidate against its own desk, where a request the desk cannot take
+is the candidate's problem whether or not it is new, and run 3 already has
+`origin/master` as its *client*, so it would be comparing that ref with itself.
+
+A local run without `--base-ref` applies entries as written and says so in a
+`NOTICE` — convenient for reading a report, not a gate.
 
 ## Shipping a protocol bump
 
