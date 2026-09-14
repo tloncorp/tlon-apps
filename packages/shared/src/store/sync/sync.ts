@@ -54,6 +54,10 @@ import {
 import { migrateLegacyContextLensFlag } from '../settingsActions';
 import { SyncCtx, SyncPriority, syncQueue } from '../syncQueue';
 import { getSystemContacts } from '../systemContactsApi';
+import {
+  recordThreadPostsReceived,
+  recordThreadPostDeleted,
+} from '../threadSyncTelemetry';
 import { clearChannelPostsQueries } from '../useChannelPosts/queries';
 import { addToChannelPosts } from '../useChannelPosts/subscriptions';
 import { logger } from './logger';
@@ -427,6 +431,7 @@ export const syncLatestChanges = async ({
     throw new StaleSyncDataError(runningForMs);
   }
 
+  recordThreadPostsReceived(result.posts, 'changes');
   await perfTime(
     'syncLatestChanges.insertChanges',
     () => db.insertChanges(result, queryCtx),
@@ -1080,31 +1085,7 @@ export async function syncUpdatedPosts(
   return response;
 }
 
-export async function syncThreadPosts(
-  {
-    postId,
-    authorId,
-    channelId,
-  }: {
-    postId: string;
-    authorId: string;
-    channelId: string;
-  },
-  ctx?: SyncCtx
-) {
-  const response = await syncQueue.add('syncThreadPosts', ctx, () =>
-    api.getPostWithReplies({
-      postId,
-      authorId,
-      channelId,
-    })
-  );
-  logger.log('got thread posts from api', response);
-  await db.insertChannelPosts({
-    posts: [response, ...(response.replies ?? [])],
-  });
-  updateLastActivityTime();
-}
+export { syncThreadPosts } from './syncThreadPosts';
 
 export const syncStorageSettings = (ctx?: SyncCtx) => {
   return Promise.all([
@@ -1843,6 +1824,7 @@ export const handleChannelsUpdate = async (
       }
       break;
     case 'deletePost':
+      recordThreadPostDeleted(update.postId);
       await db.markPostAsDeleted(update.postId, ctx);
       await db.recomputeChannelLastPost({ channelId: update.channelId }, ctx);
       break;
@@ -1916,6 +1898,7 @@ export const handleChatUpdate = async (
       await handleAddPost(update.post, update.replyMeta, ctx);
       break;
     case 'deletePost':
+      recordThreadPostDeleted(update.postId);
       await db.deletePosts({ ids: [update.postId] }, ctx);
       break;
     case 'addReaction':
@@ -1995,6 +1978,7 @@ export async function handleAddPost(
   replyMeta?: db.ReplyMeta | null,
   ctx?: QueryCtx
 ) {
+  recordThreadPostsReceived([post], 'subscription');
   logger.log('event: add post', post);
   await perfTime(
     'handleAddPost.total',
