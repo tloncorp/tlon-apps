@@ -155,7 +155,8 @@ const reactNativeWeb = (
   },
 
   async transform(code, id) {
-    if (!filter.test(id)) return code;
+    // Returning the code string would tell Rollup the module was transformed without a map and drop its mapping.
+    if (!filter.test(id)) return null;
 
     if (nativeFilter.test(id)) {
       return null;

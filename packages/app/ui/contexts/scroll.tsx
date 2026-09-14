@@ -27,6 +27,8 @@ export type ConversationScrollToBottomControl = {
   visible: boolean;
 };
 
+type ConversationComposerHeightHandler = (height: number) => void;
+
 // @ts-expect-error - No other props than value are needed
 const INITIAL_VALUE: ScrollContextTuple = [{ value: 0 }, () => {}];
 
@@ -55,6 +57,10 @@ const ConversationScrollToBottomContext = createContext<{
     React.SetStateAction<ConversationScrollToBottomControl | null>
   >;
 }>({ control: null, setControl: () => {} });
+const ConversationComposerHeightContext = createContext<{
+  register: (handler: ConversationComposerHeightHandler) => () => void;
+  report: (height: number) => void;
+}>({ register: () => () => {}, report: () => {} });
 
 export const useScrollContext = () => useContext(ScrollContext);
 export const useConversationScrollViewNativeID = () =>
@@ -65,6 +71,8 @@ export const useConversationScrollToBottomControl = () =>
   useContext(ConversationScrollToBottomContext).control;
 export const useSetConversationScrollToBottomControl = () =>
   useContext(ConversationScrollToBottomContext).setControl;
+export const useConversationComposerHeight = () =>
+  useContext(ConversationComposerHeightContext);
 
 export const useScrollDirectionTracker = ({
   setIsAtBottom: setIsAtBottomProp,
@@ -155,6 +163,9 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
   const scrollValue = useSharedValue(0);
   const conversationScrollEndAnchor =
     useRef<ConversationScrollEndAnchorHandler | null>(null);
+  const conversationComposerHeightHandler =
+    useRef<ConversationComposerHeightHandler | null>(null);
+  const lastConversationComposerHeight = useRef<number | null>(null);
   const scrollViewNativeID = `${defaultConversationScrollViewNativeID}-${useId()}`;
   const [scrollToBottomControl, setScrollToBottomControl] =
     useState<ConversationScrollToBottomControl | null>(null);
@@ -192,6 +203,26 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
     }),
     []
   );
+  const composerHeightContextValue = useMemo(
+    () => ({
+      register: (handler: ConversationComposerHeightHandler) => {
+        conversationComposerHeightHandler.current = handler;
+        if (lastConversationComposerHeight.current !== null) {
+          handler(lastConversationComposerHeight.current);
+        }
+        return () => {
+          if (conversationComposerHeightHandler.current === handler) {
+            conversationComposerHeightHandler.current = null;
+          }
+        };
+      },
+      report: (height: number) => {
+        lastConversationComposerHeight.current = height;
+        conversationComposerHeightHandler.current?.(height);
+      },
+    }),
+    []
+  );
 
   return (
     <ConversationScrollEndAnchorContext.Provider
@@ -200,13 +231,17 @@ export const ScrollContextProvider: React.FC<React.PropsWithChildren> = ({
       <ConversationScrollToBottomContext.Provider
         value={scrollToBottomContextValue}
       >
-        <ConversationScrollViewNativeIDContext.Provider
-          value={scrollViewNativeID}
+        <ConversationComposerHeightContext.Provider
+          value={composerHeightContextValue}
         >
-          <ScrollContext.Provider value={contextValue}>
-            {children}
-          </ScrollContext.Provider>
-        </ConversationScrollViewNativeIDContext.Provider>
+          <ConversationScrollViewNativeIDContext.Provider
+            value={scrollViewNativeID}
+          >
+            <ScrollContext.Provider value={contextValue}>
+              {children}
+            </ScrollContext.Provider>
+          </ConversationScrollViewNativeIDContext.Provider>
+        </ConversationComposerHeightContext.Provider>
       </ConversationScrollToBottomContext.Provider>
     </ConversationScrollEndAnchorContext.Provider>
   );

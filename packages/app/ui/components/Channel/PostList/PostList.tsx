@@ -2,10 +2,12 @@ import { KeyboardAwareLegendList } from '@legendapp/list/keyboard';
 import { type LegendListRef } from '@legendapp/list/react-native';
 import { layoutForType } from '@tloncorp/shared';
 import * as React from 'react';
-import { Platform } from 'react-native';
+import { Platform, type ScrollView } from 'react-native';
+import { type SharedValue, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
+  useConversationComposerHeight,
   useConversationScrollEndAnchor,
   useConversationScrollViewNativeID,
   useScrollDirectionTracker,
@@ -27,6 +29,26 @@ import {
 
 const ANCHOR_RESOLUTION_TIMEOUT_MS = 2_000;
 const ESTIMATED_ITEM_SIZE = 120;
+
+function useConversationKeyboardListProps(
+  composerContentInset: SharedValue<number>
+) {
+  return React.useMemo(() => {
+    if (Platform.OS === 'ios') {
+      // iOS keeps the viewport fixed, so the list owns keyboard and composer
+      // insets and commits them with the preserving content offset.
+      return {
+        contentInsetEndAdjustment: composerContentInset,
+        keyboardDismissMode: 'interactive' as const,
+      };
+    }
+
+    return {
+      contentInsetEndAdjustment: undefined,
+      keyboardDismissMode: 'on-drag' as const,
+    };
+  }, [composerContentInset]);
+}
 
 function useLegendListIsNearEnd(
   listRef: React.RefObject<LegendListRef | null>
@@ -443,6 +465,11 @@ const ConversationPostListAttempt = React.forwardRef<
     forwardedRef
   ) => {
     const listRef = React.useRef<LegendListRef>(null);
+    const composerContentInset = useSharedValue(0);
+    const conversationKeyboardListProps =
+      useConversationKeyboardListProps(composerContentInset);
+    const { register: registerConversationComposerHeight } =
+      useConversationComposerHeight();
     const postsWithNeighborsRef = React.useRef(postsWithNeighbors);
     const scrollViewNativeID = useConversationScrollViewNativeID();
     const insets = useSafeAreaInsets();
@@ -450,6 +477,21 @@ const ConversationPostListAttempt = React.forwardRef<
       () => layoutForType(collectionLayoutType),
       [collectionLayoutType]
     );
+    const reportConversationComposerHeight = React.useCallback(
+      (height: number) => {
+        composerContentInset.set(height);
+        listRef.current?.reportContentInset({ bottom: height });
+      },
+      [composerContentInset]
+    );
+    React.useLayoutEffect(() => {
+      if (Platform.OS !== 'ios') {
+        return;
+      }
+      return registerConversationComposerHeight(
+        reportConversationComposerHeight
+      );
+    }, [registerConversationComposerHeight, reportConversationComposerHeight]);
     const anchorTarget = useConversationAnchorTarget({
       anchor,
       anchorIndex,
@@ -474,6 +516,22 @@ const ConversationPostListAttempt = React.forwardRef<
     React.useLayoutEffect(() => {
       postsWithNeighborsRef.current = postsWithNeighbors;
     }, [postsWithNeighbors]);
+    // Nothing else re-anchors an empty conversation: LegendList skips its end
+    // alignment and maintainScrollAtEnd without rows, and the composer inset
+    // reaction can run before the scroll view has reported its size. Rest the
+    // empty content at its end (offset 0, or the keyboard height while one is
+    // open) whenever its frame or content size settles.
+    const settleEmptyConversationAtEnd = React.useCallback(() => {
+      if (postsWithNeighborsRef.current.length > 0) {
+        return;
+      }
+      // LegendList types the native ref as the bare ScrollView component class;
+      // at runtime it is the ScrollView instance with its scroll methods.
+      const scrollView = listRef.current?.getNativeScrollRef() as
+        | ScrollView
+        | undefined;
+      scrollView?.scrollToEnd({ animated: false });
+    }, []);
     const { onScroll: handleScroll, isAtBottom: isWithinBottomThreshold } =
       useScrollDirectionTracker({
         atBottomThreshold: onScrolledToBottomThreshold,
@@ -520,11 +578,17 @@ const ConversationPostListAttempt = React.forwardRef<
     // Data anchoring and end anchoring choose different items to preserve.
     // Let end anchoring own updates while the conversation is being followed;
     // retain data anchoring only after the user has moved away from the end.
+    // With no rows there is nothing to keep in view, and LegendList's default
+    // size anchoring (left on by `undefined`) scrolls iOS by any top padding
+    // change, which carried an empty conversation up by the header inset when
+    // the transparent header reported its height after mount.
     const maintainVisibleContentPosition =
-      collectionLayout.shouldMaintainVisibleContentPosition &&
-      !(anchorToEnd && !hasNewerPosts && isNearEnd)
-        ? true
-        : undefined;
+      postsWithNeighbors.length === 0
+        ? false
+        : collectionLayout.shouldMaintainVisibleContentPosition &&
+            !(anchorToEnd && !hasNewerPosts && isNearEnd)
+          ? true
+          : undefined;
     usePostListBottomCallbacks(isAtBottom, {
       onScrolledToBottom,
       onScrolledAwayFromBottom,
@@ -600,18 +664,13 @@ const ConversationPostListAttempt = React.forwardRef<
         ListHeaderComponent={listHeaderComponent}
         ListFooterComponent={listBottomComponent}
         contentContainerStyle={contentContainerStyle}
-        contentInsetAdjustmentBehavior={
-          Platform.OS === 'ios' ? 'never' : undefined
-        }
-        keyboardLiftBehavior="always"
-        // Android already resizes the window for the keyboard. Applying the
-        // list's keyboard lift as well double-counts that height and makes an
-        // end-anchor land below the last message when a post is sent.
-        freeze={Platform.OS === 'android'}
+        {...conversationKeyboardListProps}
+        // Preserve older messages while browsing history, but keep the latest
+        // message anchored as the keyboard or composer grows at the end.
+        keyboardLiftBehavior="whenAtEnd"
         keyboardOffset={insets.bottom}
         scrollIndicatorInsets={{ top: 0, bottom: insets.bottom }}
         automaticallyAdjustsScrollIndicatorInsets={false}
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         scrollEnabled={scrollEnabled}
         style={[
           { flex: 1 },
@@ -627,6 +686,8 @@ const ConversationPostListAttempt = React.forwardRef<
         // the attachment at low frequency in case Screens replaces the view.
         testID={scrollViewNativeID}
         onLoad={scheduleInitialScroll}
+        onLayout={settleEmptyConversationAtEnd}
+        onContentSizeChange={settleEmptyConversationAtEnd}
         onScroll={handleScroll}
         onScrollBeginDrag={markUserScrolled}
         onStartReached={onStartReached}
