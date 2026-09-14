@@ -10,7 +10,7 @@
 ::  returned only to the requester — they never appear in a broadcast.
 ::
 /-  b=buckets, gv=groups-ver
-/+  default-agent, dbug, verb, server, util=buckets-util
+/+  default-agent, dbug, verb, server, util=buckets-util, eyre-reply
 /=  buckets-json  /lib/buckets/json
 |%
 +$  card  card:agent:gall
@@ -252,20 +252,8 @@
     (http-error eyre-id 404 'not found')
   ?.  =(%'GET' method)
     (http-error eyre-id 405 'method not allowed')
-  ::  A @uv request id carries dots, and apat mistakes its trailing dot-group
-  ::  for a file extension and splits it off -- so glue it back on before the
-  ::  id is parsed, or most ids resolve to a different request and 404.
-  ::  %notes' surface has the same wrinkle and does the same thing.
-  ::  Reattach by flopping rather than with snip/rear: those are wet gates,
-  ::  and handing one a list already narrowed to non-empty breaks its own
-  ::  recursive call on the tail.
-  =/  raw=(list @t)  t.t.t.site
   =/  pax=(list @t)
-    ?~  ext.request-line  raw
-    =/  back=(list @t)  (flop raw)
-    ?~  back  raw
-    %-  flop
-    [(rap 3 i.back '.' u.ext.request-line ~) t.back]
+    (rejoin-ext:eyre-reply t.t.t.site ext.request-line)
   (handle-read eyre-id pax)
 ::
 ::  +handle-post: parse an action, hold the request open, and dispatch.
@@ -366,23 +354,17 @@
 ++  give-http
   |=  [eyre-id=@ta code=@ud ct=@t body=@t]
   ^+  cor
-  =/  data=octs  (as-octs:mimes:html body)
-  %-  emil
-  :~  [%give %fact [/http-response/[eyre-id]]~ %http-response-header !>(`response-header:http`[code ~[['content-type' ct]]])]
-      [%give %fact [/http-response/[eyre-id]]~ %http-response-data !>(`data)]
-      [%give %kick [/http-response/[eyre-id]]~ ~]
-  ==
+  (emil (reply:eyre-reply eyre-id code ct body))
 ::
 ++  http-error
   |=  [eyre-id=@ta code=@ud message=@t]
   ^+  cor
-  (give-http eyre-id code 'text/plain' message)
+  (emil (error:eyre-reply eyre-id code message))
 ::
 ++  give-response
   |=  [eyre-id=@ta res=req-response:b]
   ^+  cor
-  %^  give-http  eyre-id  200
-  ['application/json' (en:json:html (req-response:enjs:buckets-json res))]
+  (emil (json-reply:eyre-reply eyre-id (req-response:enjs:buckets-json res)))
 ::
 ::  +track-request: start tracking a request, sweeping settled ones as we go.
 ::  The map only grows here, so sweeping on insert bounds it without a timer.
