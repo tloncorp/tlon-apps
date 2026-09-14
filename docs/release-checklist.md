@@ -40,10 +40,13 @@ receive updates, and post against desk release N-1.
 - [ ] Create and push the `vX.Y.Z` tag on the release commit.
 - [ ] Dispatch `deploy-livenet.yml` with that tag. It refuses one that does not
       exist.
-- [ ] Confirm the deploy succeeded, then that `sync.yml` ran and
-      `origin/master` advanced to the commit you tagged. `sync.yml` fires on a
-      completed run of either polarity, so a failed deploy can still move
-      `master`: check the deploy's conclusion, not just that master moved.
+- [ ] Confirm the deploy succeeded, then that `sync.yml` ran and `origin/master`
+      now **contains** the commit you tagged — `sync.yml` does
+      `git merge --no-ff staging`, so master gains a merge commit rather than
+      becoming the tagged one (`git merge-base --is-ancestor <tag> origin/master`).
+      It also fires on a completed run of either polarity, so a failed deploy
+      can still move `master`: check the deploy's conclusion, not just that
+      master moved.
 
 ## After deploying
 
