@@ -574,10 +574,12 @@ export function StaticChatMessage({
   // author row it sits on that row; without one it lands on the content, so a
   // full-width first block (media, link, reference, code, file...) gets a
   // strip above it instead. Inline text keeps the current placement.
+  //
+  // The strip does not depend on the delivery status. It is transient -- it
+  // clears on the server echo -- and reserving the space only while it shows
+  // would move the post the moment it disappears.
   const reservesDeliveryStrip =
-    !!visibleDeliveryStatus &&
-    !showAuthor &&
-    startsWithFullWidthBlock(renderedContent);
+    !showAuthor && startsWithFullWidthBlock(renderedContent);
 
   const shouldRenderReplies =
     showReplies && post.replyCount && post.replyTime && post.replyContactIds;

@@ -309,6 +309,13 @@ const PostVariantsFixture = ({ post }: { post: db.Post }) => {
             post={{ ...postWithImage, deliveryStatus: 'sent' }}
             showAuthor={false}
           />
+          {/* Pairs with the specimen above: the image must sit at the same
+              offset in both, so clearing the status does not move the post. */}
+          <PostSpecimen
+            label="No status (showAuthor=false, image)"
+            post={{ ...postWithImage, deliveryStatus: null }}
+            showAuthor={false}
+          />
           <PostSpecimen label="Edited" post={{ ...post, isEdited: true }} />
           <PostSpecimen label="Hidden" post={{ ...post, hidden: true }} />
           <PostSpecimen label="Deleted" post={{ ...post, isDeleted: true }} />
