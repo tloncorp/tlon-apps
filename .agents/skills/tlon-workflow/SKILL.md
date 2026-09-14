@@ -112,9 +112,13 @@ Name sessions for this run (`ios-<ticket>-<hhmm>`), and `agent-device close` the
 
 Run these one at a time, so a failed step is seen rather than skipped.
 
-That is the welcome screen, the bottom of the action sheet it opens, the Connect Ship header button (both fields already filled, already enabled), the Usage Statistics header, and the notifications prompt that follows. iOS also shows a keyboard tip ("Speed up your typing...", `Continue`) on the first text entry, which swallows the next tap. A "Stay in the loop" sheet appears later over Home on both platforms and blocks the bottom of the list; `press 'text="Not now"'` when it does. Both prompts come back after every full reload, not only the first. On Android the notifications prompt can arrive after `alert dismiss` has already returned; `wait 3000` before it, or `screenshot` and dismiss what is there. Use `press` with a `text="..."` selector, not `find ... click`: on Android this app's screens collapse into a few group nodes, so `find` matches nothing while the selector still resolves. On iOS a label that appears twice on screen (a `Back` button and its text, an action-sheet row) does not resolve by `text=`; snapshot and press the `[button]` ref. `--settle` is only accepted on `press`, `click`, `fill`, `longpress`, `scroll` and `back`.
+What this app does that the sequence above does not show:
 
-The prefill itself is not `__DEV__`-gated, but the pre-validation that enables `Connect` without visiting each field is -- so in a release build the fields are filled and `Connect` stays disabled until each is touched. A `tlon.network` URL is rejected outside `__DEV__`.
+- Both prompts come back after every full reload, not only the first launch.
+- A "Stay in the loop" sheet appears later over Home on both platforms and covers the bottom of the list: `press 'text="Not now"'`.
+- On Android the notifications prompt can arrive after `alert dismiss` has already returned; `wait 3000` before it, or `screenshot` and dismiss what is there.
+- On Android this app's screens collapse into a few group nodes, so `find` matches nothing; a `text="..."` selector still resolves.
+- iOS shows a keyboard tip ("Speed up your typing...", `Continue`) on the first text entry, which swallows the next tap. Only reached when the fields are not prefilled.
 
 This yields an `authType: 'self'` session. It gets you into the app; it does not exercise the hosting-account flows (node status, revival, bot config).
 
