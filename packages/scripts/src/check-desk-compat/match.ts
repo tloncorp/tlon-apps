@@ -33,12 +33,11 @@ export type Rule =
   | 'suffix'
   | 'marks'
   | 'removal'
-  | 'negotiation'
   | 'extraction'
   | 'coverage';
 
 /** How the desk fails when nothing answers. */
-export type FailureMode = 'crash' | 'empty' | 'not-running' | 'unknown';
+export type FailureMode = 'crash' | 'empty' | 'not-running';
 
 export interface MatchResult {
   verdict: Verdict;
@@ -63,10 +62,7 @@ export interface PathRequest {
 export const SCRY_CARE = 'x';
 
 interface Agent {
-  name: string;
   file: string;
-  lines: string[];
-  arms: Map<string, HoonArmRange>;
   peek: Surface;
   watch: Surface;
 }
@@ -125,10 +121,7 @@ function agentLoader(tree: Tree): (app: string) => Agent | null {
         app,
         lines && arms
           ? {
-              name: app,
               file,
-              lines,
-              arms,
               peek: resolveSurface(lines, arms, 'on-peek'),
               watch: resolveSurface(lines, arms, 'on-watch'),
             }
@@ -229,6 +222,11 @@ export function matchAlternative(
   let opaque = false;
   const settle = (kind: MatchKind) =>
     opaque && (kind === 'exact' || kind === 'open') ? 'opaque' : kind;
+  // A named mold is counted as one segment because that is the common case,
+  // but it need not be: `=path` is a whole list of knots. So once one has been
+  // crossed, every later element is walked against segments that may not be
+  // the ones the pattern meant, and no absence can be claimed from here on.
+  const mismatch = (): MatchKind => (opaque ? 'opaque' : 'no');
   while (i < alt.length) {
     const el = alt[i];
     // A `rest` accepts everything from here — but only once every element
@@ -237,27 +235,35 @@ export function matchAlternative(
     if (j >= known.length) {
       const remaining = alt.slice(i);
       if (remaining.length === 1 && remaining[0].k === 'nil') {
-        return unknownTail ? 'no' : settle('exact');
+        return unknownTail ? mismatch() : settle('exact');
       }
       // The arm still requires segments the request does not supply.
-      return unknownTail ? 'prefix' : 'no';
+      return unknownTail ? 'prefix' : mismatch();
     }
-    if (el.k === 'nil') return 'no';
-    if (el.k === 'lit' && el.v !== known[j]) return 'no';
+    if (el.k === 'nil') return mismatch();
+    if (el.k === 'lit' && el.v !== known[j]) return mismatch();
     if (el.k === 'opaque') opaque = true;
     i++;
     j++;
   }
-  if (j < known.length) return 'no';
-  return unknownTail ? 'no' : settle('exact');
+  if (j < known.length) return mismatch();
+  return unknownTail ? mismatch() : settle('exact');
 }
 
-/** Splice in the version the agent would inject before it dispatches. */
+/**
+ * Splice in the version the agent would inject before it dispatches.
+ *
+ * An empty pole is injected into as well: `!?=([?(%v0 …) *] pole)` holds for
+ * `~`, so `%channels` dispatches a bare `/` as `/v0` and takes it on
+ * `[?(%v0 …) ~]`. Returning the pole untouched there reported an absence the
+ * agent does not have.
+ */
 function inject(known: string[], injection: VersionInjection | null): string[] {
-  if (!injection || known.length <= injection.index) return known;
-  if (injection.members.includes(known[injection.index])) return known;
+  if (!injection) return known;
+  const at = Math.min(injection.index, known.length);
+  if (at < known.length && injection.members.includes(known[at])) return known;
   const out = [...known];
-  out.splice(injection.index, 0, injection.inject);
+  out.splice(at, 0, injection.inject);
   return out;
 }
 

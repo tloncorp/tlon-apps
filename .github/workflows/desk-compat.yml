@@ -41,6 +41,9 @@ jobs:
       # goes to the job summary whatever the verdict, because GUARDED,
       # WILDCARD and UNVERIFIED entries are the release reviewer's worklist.
       - name: Candidate client vs desk N-1
+        id: candidate_client_vs_desk_n_1
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
           set -o pipefail
           {
@@ -51,6 +54,9 @@ jobs:
       # Candidate self-consistency: a client change needing a desk change
       # nobody made.
       - name: Candidate client vs candidate desk
+        id: candidate_client_vs_candidate_desk
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
           set -o pipefail
           {
@@ -65,9 +71,28 @@ jobs:
       # stands at that moment. So it is the best standing proxy for the
       # released client, not proof of a deployed SHA.
       - name: Released client vs candidate desk
+        id: released_client_vs_candidate_desk
+        if: ${{ !cancelled() }}
+        continue-on-error: true
         run: |
           set -o pipefail
           {
             echo "## Released client vs candidate desk"
             pnpm check:desk-compat --client-ref origin/master --desk-ref "$GITHUB_SHA" --markdown
           } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Each comparison runs whatever the ones before it did — a release
+      # reviewer needs all three reports, not just the first failure.
+      - name: Verdict
+        if: ${{ !cancelled() }}
+        env:
+          RESULTS: >-
+            ${{ steps.candidate_client_vs_desk_n_1.outcome }}
+            ${{ steps.candidate_client_vs_candidate_desk.outcome }}
+            ${{ steps.released_client_vs_candidate_desk.outcome }}
+        run: |
+          set -euo pipefail
+          echo "outcomes: $RESULTS"
+          case "$RESULTS" in
+            *failure*) echo "::error::a desk compatibility comparison failed; see the job summary"; exit 1 ;;
+          esac

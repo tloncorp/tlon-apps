@@ -70,23 +70,58 @@ const isCode = (line: string) =>
  * turning a served request into a blocking `MISSING`.
  */
 export function stripComment(line: string): string {
+  const end = scanQuoted(line, (i) =>
+    line[i] === ':' && line[i + 1] === ':' ? i : null
+  );
+  return end === null ? line : line.slice(0, end).trimEnd();
+}
+
+export const stripComments = (lines: string[]): string[] =>
+  lines.map(stripComment);
+
+/**
+ * Walk a line outside cords and tapes, handing each index to `at` and
+ * returning the first non-null answer. `'::'` inside `'…'` or `"…"` is text,
+ * and so is a rune: a body holding `"a ?+ b"` would otherwise open a depth the
+ * dispatcher never closes and swallow every arm below it.
+ */
+function scanQuoted<T>(line: string, at: (i: number) => T | null): T | null {
   let quote: string | null = null;
   for (let i = 0; i < line.length; i++) {
     const c = line[i];
     if (quote !== null) {
       if (c === '\\') i++;
       else if (c === quote) quote = null;
-    } else if (c === "'" || c === '"') {
-      quote = c;
-    } else if (c === ':' && line[i + 1] === ':') {
-      return line.slice(0, i).trimEnd();
+      continue;
     }
+    if (c === "'" || c === '"') {
+      quote = c;
+      continue;
+    }
+    const answer = at(i);
+    if (answer !== null) return answer;
   }
-  return line;
+  return null;
 }
 
-export const stripComments = (lines: string[]): string[] =>
-  lines.map(stripComment);
+/** The line with every cord and tape blanked out, for structural counting. */
+export function blankQuoted(line: string): string {
+  const out = [...line];
+  let quote: string | null = null;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote !== null) {
+      out[i] = ' ';
+      if (c === '\\') {
+        if (i + 1 < line.length) out[++i] = ' ';
+      } else if (c === quote) quote = null;
+    } else if (c === "'" || c === '"') {
+      quote = c;
+      out[i] = ' ';
+    }
+  }
+  return out.join('');
+}
 
 function count(line: string, re: RegExp): number {
   re.lastIndex = 0;
@@ -205,14 +240,49 @@ export function expandPattern(text: string): Elem[][] | null {
  * would otherwise parse as unreadable arms and suppress `MISSING` for the
  * whole surface.
  */
-export function looksLikeArmPattern(text: string): boolean {
-  const bracketed = text.startsWith('[') && text.endsWith(']');
-  if (!bracketed && !/^%[a-z0-9]/.test(text)) return false;
-  const inner = bracketed ? text.slice(1, -1) : text;
+/**
+ * Could this line be an arm pattern at all, whether or not it reads as one?
+ *
+ * The difference matters: a line that could be a pattern and will not parse is
+ * an arm this reader failed, which has to withhold `MISSING` for the surface.
+ * A line that could never have been one is a body expression, and counting it
+ * would withhold `MISSING` for every agent with a multi-line arm body.
+ *
+ * Three tests separate them. It must *start* like a pattern — a bracket, a
+ * union, a `%term` (not a `%-` rune), a `face=`, an aura, a `~` or a `*`. Its
+ * inner text must *pin* something: a bracket of bare names like
+ * `[indices activity volume-settings]` is a tuple of values. And no token may
+ * hold a call: `[id.pole (got:on-event:a …)]` pins a `%da` and still is not a
+ * pattern.
+ */
+export function plausiblePattern(text: string): boolean {
+  if (text === '~' || text === '*') return true;
+  const starts =
+    text.startsWith('[') ||
+    text.startsWith('?(') ||
+    /^%[a-z0-9]/.test(text) ||
+    /^[a-z][a-z0-9-]*=/.test(text) ||
+    /^@[a-z]*$/.test(text);
+  if (!starts) return false;
+  const inner = text.replace(/^\[/, '').replace(/\]$/, '');
   if (!/[%=@*~]/.test(inner)) return false;
-  return splitTokens(inner).every(
-    (token) => !token.includes('.') && !/(^|[^?])\(/.test(token)
-  );
+  return splitTokens(inner).every((t) => !/(^|[^?])\(/.test(t));
+}
+
+export function looksLikeArmPattern(text: string): boolean {
+  // A bare `~` or `*` is a whole arm pattern on its own. Both also occur as
+  // body expressions, and both are read as arms deliberately: `~` matches only
+  // the empty pole and `*` catches everything, so mistaking a body line for
+  // one can turn a MISSING into a match but never the other way.
+  if (text === '~' || text === '*') return true;
+  const bracketed = text.startsWith('[') && text.endsWith(']');
+  if (!bracketed && !text.startsWith('?(') && !/^%[a-z0-9]/.test(text))
+    return false;
+  if (!plausiblePattern(text)) return false;
+  // A wing (`kind=foo.bar`) is a mold this reader has no rule for. It is a
+  // pattern, so it is an unparsed arm rather than a body line.
+  const inner = bracketed ? text.slice(1, -1) : text;
+  return splitTokens(inner).every((token) => !token.includes('.'));
 }
 
 const bracketBalance = (token: string) =>
@@ -227,6 +297,12 @@ const bracketBalance = (token: string) =>
  * leading bracket-balanced token run reads as a pattern. Reading a body line
  * as an extra arm is safe in the one direction that matters: an extra arm can
  * only turn a `MISSING` into a match, never the reverse.
+ *
+ * A line that *wants* to be a pattern and will not read as one — brackets that
+ * carry on to the next line, a mold wing with a `.` in it, a shape this reader
+ * has no rule for — is counted as an unparsed arm, which withholds `MISSING`
+ * for the whole surface. Silently dropping it is the one thing that cannot be
+ * allowed: the arm is there, and the request it takes would read as absent.
  */
 export function parseDispatcher(
   lines: string[],
@@ -271,20 +347,24 @@ export function parseDispatcher(
       while (balance !== 0 && take < tokens.length)
         balance += bracketBalance(tokens[take++]);
       const patternText = tokens.slice(0, take).join(' ');
-      if (balance === 0 && looksLikeArmPattern(patternText)) {
-        const alternatives = expandPattern(patternText);
-        if (alternatives === null) unparsedArms++;
+      const readable = balance === 0 && looksLikeArmPattern(patternText);
+      const alternatives = readable ? expandPattern(patternText) : null;
+      if (alternatives !== null) {
+        arms.push({ patternText, line: i + 1, alternatives, parsed: true });
+      } else if (plausiblePattern(trimmed)) {
+        unparsedArms++;
         arms.push({
           patternText,
           line: i + 1,
-          alternatives: alternatives ?? [],
-          parsed: alternatives !== null,
+          alternatives: [],
+          parsed: false,
         });
       }
     }
+    const code = blankQuoted(line);
     depth = Math.max(
       0,
-      depth + count(line, OPENER_RE) - count(line, CLOSER_RE)
+      depth + count(code, OPENER_RE) - count(code, CLOSER_RE)
     );
   }
 
@@ -405,9 +485,15 @@ export function rewritesSubject(
   skipLine?: number
 ): boolean {
   const head = subject.replace(/^[+-]\./, '');
-  const re = new RegExp(`^\\s*=[.?/]\\s+([+-]\\.)?${head}(\\s|$)`);
+  // `=.`, `=/`, `=*`, `=+`, `=;` and `=?` all bind; the face they bind may
+  // carry a `name=` prefix (`=/  path=path  t.path`) and may be a wing into
+  // the subject rather than the subject itself (`=.  t.path  …`), which
+  // rewrites it just the same.
+  const bound = new RegExp(
+    `^\\s*=[./*+;?]\\s+(?:[a-z][a-z0-9-]*=)?(?:[a-z0-9@^+-]+\\.)*${head}(?![a-z0-9-])`
+  );
   for (let i = from; i < to; i++) {
-    if (i !== skipLine && re.test(lines[i])) return true;
+    if (i !== skipLine && bound.test(lines[i])) return true;
   }
   return false;
 }

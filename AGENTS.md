@@ -11,18 +11,23 @@ defaults and should not be inferred from memory.
 
 ## Reviewing the desk-compatibility report
 
-Every PR gets one sticky comment headed "Desk compatibility", from
+Most PRs get one sticky comment headed "Desk compatibility", from
 `pnpm check:desk-compat` (policy: `docs/tlon-apps/desk-compatibility.md`). It
 answers one question: can this client still start, sync, receive updates and
-post against the **previous** %groups desk release?
+post against the **previous** %groups desk release? On a fork or Dependabot PR
+the token cannot comment, so the same report is in the `test-build` job summary
+— which is also where to look if the comment is missing for any other reason.
 
-Read it as a worklist, not a verdict. Only `MISSING` fails CI; the three
-sections that do not fail are exactly the ones that need a human:
+Read it as a worklist, not a verdict. Only a `MISSING` entry or a
+non-allowlisted negotiation-protocol difference fails CI; the three sections
+that do not fail are exactly the ones that need a human:
 
-- **`GUARDED`** — the desk cannot take this request, and the client only sends
-  it behind a capability guard. The checker does **not** verify the guard is
-  correct or that the other branch is served. Check that the guard resolves
-  false on N-1, and that the branch it falls back to is one N-1 has an arm for.
+- **`GUARDED`** — the desk cannot take this request, and every call site that
+  makes it sits behind something that *looks* like a capability guard. That
+  recognition is a regex over the guard's source: it does not resolve the
+  identifier, does not read polarity, and does not verify the other branch is
+  served. Check that the guard resolves false on N-1, and that the branch it
+  falls back to is one N-1 has an arm for.
 - **`WILDCARD`** — an arm matched only by swallowing the tail with `*` or by
   consuming a named mold the reader could not resolve. Open the arm the report
   links and confirm it really takes this pole.

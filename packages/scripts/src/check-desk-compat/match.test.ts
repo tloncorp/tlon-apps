@@ -184,6 +184,55 @@ describe('a match the arms do not decide outright', () => {
     expect(verdictOf(scry(['hidden']), versioned)).toBe('MATCHED');
     expect(verdictOf(scry(['v0', 'hidden']), versioned)).toBe('MATCHED');
   });
+
+  it('injects into an empty pole too, which is what the agent does', () => {
+    // `!?=([?(%v0 …) *] pole)` holds for `~`, so a bare `/` is dispatched as
+    // `/v0` and taken by `[?(%v0 …) ~]`.
+    const versioned = desk({
+      'desk/app/ledger.hoon': `
+|_  =bowl:gall
+++  on-watch
+  |=  =(pole knot)
+  =?  pole  !?=([?(%v0 %v1) *] pole)
+    [%v0 pole]
+  ?+  pole  !!
+    [?(%v0 %v1) ~]  ~
+  ==
+--
+`,
+    });
+    expect(
+      matchPath(versioned, {
+        app: 'ledger',
+        surface: 'subscribe',
+        known: [],
+        unknownTail: false,
+      }).verdict
+    ).toBe('MATCHED');
+  });
+
+  it('never calls an absence past a named mold, whose width it cannot know', () => {
+    // `=path` is a whole list of knots, not one segment, so the walk after it
+    // is against segments the pattern may not have meant.
+    const molded = desk({
+      'desk/app/ledger.hoon': `
+|_  =bowl:gall
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %things =path]        ~
+    [%x %posts =kind:c %new ~]  ~
+  ==
+--
+`,
+    });
+    expect(verdictOf(scry(['things', 'a', 'b']), molded)).toBe('WILDCARD');
+    expect(verdictOf(scry(['posts', 'diary', 'a', 'new']), molded)).toBe(
+      'WILDCARD'
+    );
+    // With nothing opaque crossed, an absence is still an absence.
+    expect(verdictOf(scry(['nope']), molded)).toBe('MISSING');
+  });
 });
 
 describe('an app that is not this desk’s to answer for', () => {

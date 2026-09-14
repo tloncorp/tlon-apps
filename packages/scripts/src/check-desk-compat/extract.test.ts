@@ -208,6 +208,20 @@ describe('the one local binding this reader follows', () => {
       unresolved(`const path = '/v1/a';
       export const f = () => scry({ app: 'groups', path });`).unresolved
     ).toBeDefined();
+    // Declared inside a nested closure, which the call cannot see.
+    expect(
+      unresolved(`export const f = async () => {
+        const unused = () => { const path = '/v99/init'; return path; };
+        return scry({ app: 'groups', path });
+      };`).unresolved
+    ).toBeDefined();
+    // Shadowed by a parameter of the call's own function.
+    expect(
+      unresolved(`export const f = async (path: string) => {
+        const unused = () => { const path = '/v99/init'; return path; };
+        return scry({ app: 'groups', path });
+      };`).unresolved
+    ).toBeDefined();
   });
 });
 

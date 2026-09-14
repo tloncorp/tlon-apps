@@ -89,39 +89,63 @@ describe('the GUARDED rule', () => {
     }
   });
 
+  const desk = loadDesk(
+    memoryTree({
+      'desk/desk.bill': ':~  %activity\n==\n',
+      'desk/app/activity.hoon':
+        '|_  =bowl:gall\n++  on-peek\n  |=  =path\n  ?+  path  [~ ~]\n    [%x %v4 ~]  ~\n  ==\n--\n',
+      'peru.yaml': '',
+    }),
+    'test'
+  );
+  const dep = (guard?: string): Dependency => ({
+    key: 'scry activity /v6',
+    surface: 'scry',
+    app: 'activity',
+    path: { known: ['v6'], unknownTail: false, text: "'/v6'" },
+    mark: null,
+    thread: null,
+    site: { file: 'a.ts', line: 1 },
+    text: '',
+    guard,
+  });
+
   it('turns a MISSING behind a capability guard into GUARDED, and only that', () => {
-    const desk = loadDesk(
-      memoryTree({
-        'desk/desk.bill': ':~  %activity\n==\n',
-        'desk/app/activity.hoon':
-          '|_  =bowl:gall\n++  on-peek\n  |=  =path\n  ?+  path  [~ ~]\n    [%x %v4 ~]  ~\n  ==\n--\n',
-        'peru.yaml': '',
-      }),
-      'test'
-    );
-    const dep = (guard?: string): Dependency => ({
-      key: 'scry activity /v6',
-      surface: 'scry',
-      app: 'activity',
-      path: { known: ['v6'], unknownTail: false, text: "'/v6'" },
-      mark: null,
-      thread: null,
-      site: { file: 'a.ts', line: 1 },
-      text: '',
-      guard,
-    });
-    expect(classify(dep(), desk, new Set()).verdict).toBe('MISSING');
+    expect(classify([dep()], desk, new Set()).verdict).toBe('MISSING');
     expect(
-      classify(dep('getActivitySupportsNotes() ? …'), desk, new Set()).verdict
+      classify([dep('getActivitySupportsNotes() ? …')], desk, new Set()).verdict
     ).toBe('GUARDED');
     // A situational guard still blocks.
-    expect(classify(dep('whomIsDm(whom)'), desk, new Set()).verdict).toBe(
+    expect(classify([dep('whomIsDm(whom)')], desk, new Set()).verdict).toBe(
       'MISSING'
     );
     // And a request that matched is untouched by any guard.
     const matched = { ...dep('getActivitySupportsNotes()') };
     matched.path = { known: ['v4'], unknownTail: false, text: "'/v4'" };
-    expect(classify(matched, desk, new Set()).verdict).toBe('MATCHED');
+    expect(classify([matched], desk, new Set()).verdict).toBe('MATCHED');
+  });
+
+  it('is decided over every occurrence, not whichever came first', () => {
+    // The same request, guarded at one call site and sent bare at another. The
+    // bare one is what reaches an N-1 desk, so the request still blocks — and
+    // the verdict must not depend on which site the extractor saw first.
+    const guarded = dep('getActivitySupportsNotes() ? …');
+    const bare = { ...dep(), site: { file: 'b.ts', line: 9 } };
+    for (const group of [
+      [guarded, bare],
+      [bare, guarded],
+    ]) {
+      const result = classify(group, desk, new Set());
+      expect(result.verdict).toBe('MISSING');
+      expect(result.coverage).toEqual({
+        guarded: [guarded.site],
+        blocking: [bare.site],
+      });
+    }
+    // Guarded everywhere is still GUARDED, and carries no split.
+    const both = classify([guarded, { ...guarded }], desk, new Set());
+    expect(both.verdict).toBe('GUARDED');
+    expect(both.coverage).toBeUndefined();
   });
 });
 
@@ -234,16 +258,70 @@ describe('the reports', () => {
     expect(md).toContain('```hoon');
   });
 
-  it('warns about an entry that excused nothing, in both files', () => {
-    const stale = formatReport(
-      report({
-        staleGaps: [{ key: 'scry groups /gone', reason: 'debt' }],
-        staleBumps: [bump()],
-      })
-    );
-    expect(stale).toContain(
+  it('warns about an entry that excused nothing, in both formats', () => {
+    const stale = report({
+      staleGaps: [{ key: 'scry groups /gone', reason: 'debt' }],
+      staleBumps: [bump()],
+    });
+    const text = formatReport(stale);
+    expect(text).toContain(
       'known-gaps entry "scry groups /gone" excused nothing'
     );
-    expect(stale).toContain('protocolBumps entry %groups');
+    expect(text).toContain('protocolBumps entry %groups');
+    const md = markdownReport(stale);
+    expect(md).toContain('`scry groups /gone` excused nothing');
+    expect(md).toContain('`%groups ~.groups 2->3` (TLON-0000)');
+  });
+
+  it('names the known gap it is counting, rather than only counting it', () => {
+    const md = markdownReport(
+      report({
+        findings: [
+          finding({
+            allowed: {
+              key: 'subscribe groups /chan/{}',
+              reason: 'deprecated in favour of /v1/channels/…/preview',
+              broke_at: '50f96a667f',
+              issue: 'TLON-6538',
+            },
+          }),
+        ],
+        counts: { ...report().counts, allowed: 1 },
+      })
+    );
+    expect(md).toContain('#### Known gaps (allowed, 1)');
+    expect(md).toContain('`50f96a667f`');
+    expect(md).toContain('TLON-6538');
+  });
+
+  it('lists every site for a verdict a human must act on', () => {
+    const many = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ file: 'a.ts', line: i + 1 }));
+    const md = (verdict: Finding['verdict']) =>
+      markdownReport(
+        report({ findings: [finding({ verdict, sites: many(20) })] })
+      );
+    // MISSING and GUARDED are worklists: truncating them hides work.
+    expect(md('MISSING')).toContain('`a.ts:20`');
+    expect(md('GUARDED')).toContain('`a.ts:20`');
+    // UNVERIFIED runs to dozens; the remainder is stated rather than dropped.
+    const unverified = md('UNVERIFIED');
+    expect(unverified).not.toContain('`a.ts:20`');
+    expect(unverified).toContain('(+12 more)');
+  });
+
+  it('fences an excerpt that contains backticks', () => {
+    const md = markdownReport(
+      report({
+        findings: [
+          finding({
+            excerpt: ['  ?+  path  ```one``` [~ ~]'],
+            source: { file: 'desk/app/groups.hoon', line: 1 },
+          }),
+        ],
+      })
+    );
+    // A three-backtick fence would be closed by the arm's own `` prefix.
+    expect(md).toContain('````hoon');
   });
 });

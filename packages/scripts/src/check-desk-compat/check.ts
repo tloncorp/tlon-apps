@@ -33,6 +33,11 @@ export interface Finding extends MatchResult {
   allowed?: KnownGap;
   /** A few lines of whatever the verdict turned on, for the report. */
   excerpt?: string[];
+  /**
+   * Set when a `MISSING` request is guarded at some call sites and not at
+   * others. The unguarded ones are what keeps it blocking.
+   */
+  coverage?: { guarded: SourceLocation[]; blocking: SourceLocation[] };
 }
 
 export interface KnownGap {
@@ -75,8 +80,6 @@ export interface Report {
 export interface CheckOptions {
   clientRef: string;
   deskRef: string;
-  /** Restrict extraction to these `file:line` call sites. */
-  onlySites?: SourceLocation[];
 }
 
 const DESK_PATHS = ['desk', 'peru.yaml'];
@@ -138,6 +141,14 @@ export function matchBump(
  * to prove the other branch is served — that analysis was more machinery than
  * signal — so a `GUARDED` entry is a question, not an answer.
  *
+ * This is a **textual** test over the guard's source, and it is credulous in
+ * both directions on purpose. It does not resolve identifiers, so
+ * `type === 'groupsVersion'` reads as a capability guard; it does not read
+ * polarity, so it cannot tell `supportsNotes` from `!supportsNotes`; and it
+ * does not know whether the guard is correct. A false positive here costs a
+ * blocking `MISSING` demoted to a line a reviewer must read — which is why the
+ * checklist and AGENTS.md both say to read every one.
+ *
  * A branch on anything else — `whomIsDm(whom)`, `type === 'channel'` — chooses
  * between two requests the client makes in different situations, not between
  * two desks, and stays blocking.
@@ -161,11 +172,22 @@ export function toRequest(dep: Dependency): PathRequest | null {
   };
 }
 
+/**
+ * The verdict for one request, across every call site that makes it.
+ *
+ * The match itself is the same at every site — the key fixes the app and the
+ * path or mark — but the *guard* is not, so the promotion to `GUARDED` is
+ * decided over the whole group: one unguarded occurrence means the client
+ * sends this to a desk that cannot take it, whatever the others do. Deciding
+ * it from whichever occurrence happened to be extracted first made the verdict
+ * depend on file order.
+ */
 export function classify(
-  dep: Dependency,
+  deps: Dependency[],
   desk: Desk,
   vendored: Set<string>
-): MatchResult {
+): MatchResult & Pick<Finding, 'coverage'> {
+  const dep = deps[0];
   const decide = (): MatchResult => {
     // Raw eyre URLs and threads are not matcher targets — the N-1 policy
     // defines no ownership rule for either — so they are recorded as
@@ -190,9 +212,18 @@ export function classify(
     return matchPath(desk, request);
   };
   const result = decide();
-  return result.verdict === 'MISSING' && isCapabilityGuard(dep.guard)
-    ? { ...result, verdict: 'GUARDED' }
-    : result;
+  if (result.verdict !== 'MISSING') return result;
+  const guarded = deps.filter((d) => isCapabilityGuard(d.guard));
+  const blocking = deps.filter((d) => !isCapabilityGuard(d.guard));
+  if (blocking.length === 0) return { ...result, verdict: 'GUARDED' };
+  if (guarded.length === 0) return result;
+  return {
+    ...result,
+    coverage: {
+      guarded: guarded.map((d) => d.site),
+      blocking: blocking.map((d) => d.site),
+    },
+  };
 }
 
 export function runCheck(options: CheckOptions): Report {
@@ -213,13 +244,7 @@ export function runCheck(options: CheckOptions): Report {
     const vendored = loadOwnership(deskTree);
     const allowlist = loadKnownGaps();
 
-    let deps = extractClient(clientTree);
-    if (options.onlySites) {
-      const wanted = new Set(
-        options.onlySites.map((s) => `${s.file}:${s.line}`)
-      );
-      deps = deps.filter((d) => wanted.has(`${d.site.file}:${d.site.line}`));
-    }
+    const deps = extractClient(clientTree);
 
     // Collapse identical requests, keeping every call site that produced one.
     const grouped = new Map<string, Dependency[]>();
@@ -228,7 +253,7 @@ export function runCheck(options: CheckOptions): Report {
 
     const findings: Finding[] = [];
     for (const group of grouped.values()) {
-      const result = classify(group[0], desk, vendored);
+      const result = classify(group, desk, vendored);
       findings.push({
         ...result,
         dependency: group[0],
@@ -260,10 +285,7 @@ export function runCheck(options: CheckOptions): Report {
       protocolDifferences,
       allowedBumps,
       staleBumps: bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
-      // A partial scan cannot tell a stale entry from an unvisited one.
-      staleGaps: options.onlySites
-        ? []
-        : [...allowlist.values()].filter((g) => !used.has(g.key)),
+      staleGaps: [...allowlist.values()].filter((g) => !used.has(g.key)),
       findings,
       counts: {
         matched: count((f) => f.verdict === 'MATCHED'),
@@ -287,8 +309,28 @@ const FAILURE_TEXT: Record<string, string> = {
   crash: 'the agent crashes (watch nack / peek 500)',
   empty: 'the agent returns an empty result',
   'not-running': 'the agent is not started, so nothing answers',
-  unknown: 'failure mode not determined',
 };
+
+/** Backticks in a quoted arm would end the fence they sit in. */
+const fence = (lines: string[]) => {
+  const ticks = '`'.repeat(
+    Math.max(3, ...lines.map((l) => (/(`+)/.exec(l)?.[1].length ?? 0) + 1))
+  );
+  return [`${ticks}hoon`, ...lines, ticks];
+};
+
+/**
+ * Every site for a verdict a human must act on; a capped list with an explicit
+ * remainder for the rest, since `UNVERIFIED` entries run to dozens of sites
+ * and a silent `.slice()` reads as if that were all of them.
+ */
+function siteList(f: Finding, cap = 8): string {
+  const all = f.sites.map((s) => `\`${at(s)}\``);
+  if (f.verdict === 'MISSING' || f.verdict === 'GUARDED' || all.length <= cap) {
+    return all.join(', ');
+  }
+  return `${all.slice(0, cap).join(', ')} (+${all.length - cap} more)`;
+}
 
 const at = (s: SourceLocation) => `${s.file}:${s.line}`;
 
@@ -386,6 +428,11 @@ export function formatReport(report: Report): string {
       if (f.failureMode) line(`    fails: ${FAILURE_TEXT[f.failureMode]}`);
       if (f.dependency.guard) line(`    guard: ${f.dependency.guard}`);
       line(`    sites: ${f.sites.slice(0, 6).map(at).join(', ')}`);
+      if (f.coverage) {
+        line(
+          `    also:  guarded at ${f.coverage.guarded.length} site(s); blocking at ${f.coverage.blocking.map(at).join(', ')}`
+        );
+      }
     }
   }
 
@@ -450,23 +497,56 @@ export function markdownReport(report: Report): string {
     for (const f of rows) {
       out.push('', `**\`${f.dependency.key}\`** — ${f.reason}`);
       if (f.dependency.guard) out.push(`- guard: \`${f.dependency.guard}\``);
-      out.push(
-        `- sites: ${f.sites
-          .slice(0, 6)
-          .map((s) => `\`${at(s)}\``)
-          .join(', ')}`
-      );
+      if (f.failureMode) out.push(`- fails: ${FAILURE_TEXT[f.failureMode]}`);
+      out.push(`- sites: ${siteList(f)}`);
+      if (f.coverage) {
+        out.push(
+          `- guarded at ${f.coverage.guarded.length} site(s), but still sent unguarded from ` +
+            f.coverage.blocking.map((s) => `\`${at(s)}\``).join(', ')
+        );
+      }
       const lines = f.excerpt ?? [];
       if (lines.length > 0) {
         out.push(
           `- ${f.verdict === 'MATCHED' || f.verdict === 'WILDCARD' ? 'arm' : 'nearest dispatcher'}: \`${f.source!.file}:${f.source!.line}\``,
           '',
-          '```hoon',
-          ...lines,
-          '```'
+          ...fence(lines)
         );
       } else if (f.evidence) out.push(`- desk: \`${f.evidence}\``);
     }
+  }
+
+  const allowed = report.findings.filter((f) => f.allowed);
+  if (allowed.length > 0) {
+    out.push(
+      '',
+      `#### Known gaps (allowed, ${allowed.length})`,
+      '',
+      'Already broken before this change, and tracked. Not a free pass: a new',
+      'MISSING needs its desk change to ship first.'
+    );
+    for (const f of allowed) {
+      out.push(
+        '',
+        `**\`${f.dependency.key}\`** — ${f.reason}`,
+        `- sites: ${siteList(f)}`,
+        `- broke at \`${f.allowed!.broke_at ?? '?'}\`, tracked by ${f.allowed!.issue ?? '?'}`,
+        `- ${f.allowed!.reason}`
+      );
+    }
+  }
+
+  for (const g of report.staleGaps) {
+    out.push(
+      '',
+      `> **Warning** the known-gaps entry \`${g.key}\` excused nothing in this run; delete it.`
+    );
+  }
+  for (const b of report.staleBumps) {
+    out.push(
+      '',
+      `> **Warning** the protocolBumps entry \`%${b.agent} ~.${b.protocol} ${b.from}->${b.to}\` (${b.issue}) matches no observed difference; delete it.`
+    );
   }
   return out.join('\n');
 }

@@ -20,16 +20,16 @@ export interface PathPattern {
   unknownTail: boolean;
   text: string;
   /**
-   * The whole path with each interpolation written as a `{…}` hole. Identity
+   * The whole path with each interpolation written as a `{}` hole. Identity
    * turns on this, not on `known`, so `/chan/${id}` and
    * `/chan/${id}/new-feature` stay separate requests — otherwise a new call
-   * would inherit an older one's known-gaps.json exemption.
+   * would inherit an older one's known-gaps.json exemption. Literal braces are
+   * percent-escaped, so no literal can spell a hole.
    *
-   * The hole is `{}` only for a plain identifier chain. Anything else is
-   * hashed over its whole text, because a suffix can be moved inside the
-   * expression (`` `/chan/${id + '/new'}` ``) and must not collapse onto the
-   * shorter shape. Literal braces are percent-escaped, so a literal can never
-   * spell a hole.
+   * Every interpolation is written the same way, whatever is inside it, so a
+   * suffix folded into the expression (`` `/chan/${id + '/new'}` ``) shares a
+   * key with `` `/chan/${id}` ``. That is a real limit: such a pair cannot be
+   * exempted separately in known-gaps.json.
    */
   shape?: string;
 }
@@ -221,19 +221,11 @@ function push(
 
 /**
  * Literal path text. Braces are percent-escaped rather than doubled: a hole is
- * spelled `{}` or `{#hash}`, so `%7B` can never be produced by one, and the
- * literal `'/chan/{}'` cannot collide with `` `/chan/${x}` ``.
+ * spelled `{}`, so `%7B` can never be produced by one, and the literal
+ * `'/chan/{}'` cannot collide with `` `/chan/${x}` ``.
  */
 const literalShape = (text: string) =>
   text.replace(/\{/g, '%7B').replace(/\}/g, '%7D');
-
-/**
- * The hole an interpolation leaves in a shape. Every interpolation is
- * anonymous, so `/chan/${id}` and `` `/chan/${id + '/new'}` `` share a key.
- * The literal text around the holes still separates shapes, and literal braces
- * are escaped, so a literal `'/chan/{}'` cannot spell one.
- */
-const hole = () => '{}';
 
 /**
  * The initialiser of a `const <name> = …` in the function the call sits in,
@@ -262,6 +254,14 @@ function soleConstInitializer(
   const found: ts.Expression[] = [];
   let assigned = false;
   const visit = (n: ts.Node) => {
+    // A nested closure's own `const path` is its own business, and a parameter
+    // of that name shadows everything: either way this reader gives up rather
+    // than resolve to a binding the call cannot see.
+    if (n !== scope && ts.isFunctionLike(n)) return;
+    if (ts.isParameter(n) && ts.isIdentifier(n.name) && n.name.text === name) {
+      assigned = true;
+      return;
+    }
     if (
       ts.isVariableDeclaration(n) &&
       ts.isIdentifier(n.name) &&
@@ -396,7 +396,7 @@ function pathValues(ctx: Ctx, raw: ts.Expression): Val<PathPattern>[] {
           shape:
             literalShape(expr.head.text) +
             expr.templateSpans
-              .map((s) => hole() + literalShape(s.literal.text))
+              .map((s) => `{}${literalShape(s.literal.text)}`)
               .join(''),
         },
       },

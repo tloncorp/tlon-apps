@@ -20,7 +20,8 @@ import { WORKTREE_REF, ensureRef } from './git';
  * than no gate. Refs are fetched on demand (`--no-tags --depth=1`), which is
  * what a fresh CI checkout needs.
  */
-const CLIENT = '854b46c';
+// The full SHA: a remote cannot be asked for a short one.
+const CLIENT = '854b46c3ddd7ccf122485dd447a1225da7a66638';
 const N1 = 'v12.1.0';
 /** Two releases back: old enough that the activity guards are exercised. */
 const WITH_GUARDS = 'v12.0.0';

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  blankQuoted,
   expandPattern,
   indexArms,
   looksLikeArmPattern,
@@ -157,6 +158,78 @@ describe('dispatcher discovery', () => {
     expect(looksLikeArmPattern('[%x (got:by m k)]')).toBe(false);
   });
 
+  it('counts a line that wants to be a pattern and will not read as one', () => {
+    // Discarding these silently is the one thing that cannot be allowed: the
+    // arm is there, and every request it takes would read as absent.
+    const odd = lines(`
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 %new ~]  ~
+    [%x %v1
+      %split-over-two-lines ~]  ~
+    [%x %v1 kind=foo.bar ~]  ~
+  ==
+`);
+    const d = parseDispatcher(odd, 0, odd.length)!;
+    expect(d.unparsedArms).toBe(2);
+    expect(d.arms.filter((a) => a.parsed).map((a) => a.patternText)).toContain(
+      '[%x %v1 %new ~]'
+    );
+  });
+
+  it('does not count a body expression as an arm it failed to read', () => {
+    // Counting these would withhold MISSING from every agent whose arm bodies
+    // run to more than one line, which is all of them.
+    const bodies = lines(`
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 %init ~]  ~
+      [%x %v1 %rows ~]
+    [indices activity volume-settings]
+  ::
+      [%x %v1 %row ~]
+    [id.pole (got:on-event:a stream:base (slav %da id.pole))]
+  ==
+`);
+    const d = parseDispatcher(bodies, 0, bodies.length)!;
+    expect(d.unparsedArms).toBe(0);
+    expect(d.arms.map((a) => a.patternText)).toEqual([
+      '[%x %v1 %init ~]',
+      '[%x %v1 %rows ~]',
+      '[%x %v1 %row ~]',
+    ]);
+  });
+
+  it('does not read a rune inside a cord as structure', () => {
+    // The `==` in the tape would otherwise close the dispatcher early and
+    // hide `/x/v2/init`.
+    const quoted = lines(`
+++  on-peek
+  |=  =path
+  ?+  path  [~ ~]
+    [%x %v1 %init ~]  ~|('bad ?+ path ==' !!)
+    [%x %v2 %init ~]  ~
+  ==
+`);
+    const d = parseDispatcher(quoted, 0, quoted.length)!;
+    expect(d.arms.map((a) => a.patternText)).toEqual([
+      '[%x %v1 %init ~]',
+      '[%x %v2 %init ~]',
+    ]);
+  });
+
+  it('blanks cords and tapes, leaving the line length alone', () => {
+    const blanked = blankQuoted(`=/  t  "a ?+ b"  cor`);
+    expect(blanked).toHaveLength(`=/  t  "a ?+ b"  cor`.length);
+    expect(blanked.trimEnd()).toBe('=/  t            cor');
+    const cord = blankQuoted("=/  c  '=='  cor");
+    expect(cord).toHaveLength("=/  c  '=='  cor".length);
+    expect(cord).not.toContain('=='.concat(''));
+    expect(cord).toContain('cor');
+  });
+
   it('indexes arms by name', () => {
     expect([...indexArms(source).keys()]).toEqual(['on-peek']);
   });
@@ -216,6 +289,30 @@ describe('a subject rewritten before dispatch', () => {
     // MISSING the agent does not have.
     const d = parseDispatcher(source, 0, source.length)!;
     expect(rewritesSubject(source, 0, d.headerLine - 1, d.subject)).toBe(true);
+  });
+
+  it('sees a rebinding however the face is written', () => {
+    const rewritten = (bind: string) => {
+      const src = lines(`
+++  on-peek
+  |=  =path
+  ${bind}
+  ?+  path  [~ ~]
+    [%v1 %init ~]  ~
+  ==
+`);
+      const d = parseDispatcher(src, 0, src.length)!;
+      return rewritesSubject(src, 0, d.headerLine - 1, d.subject);
+    };
+    // A `name=` prefix, a wing into the subject, and the other binding runes.
+    expect(rewritten('=/  path=path  t.path')).toBe(true);
+    expect(rewritten('=.  t.path  ~')).toBe(true);
+    expect(rewritten('=*  path  t.path')).toBe(true);
+    expect(rewritten('=+  path=t.path')).toBe(true);
+    expect(rewritten('=;  path  ~')).toBe(true);
+    // A different name is a different binding.
+    expect(rewritten('=/  other  t.path')).toBe(false);
+    expect(rewritten('=/  pathological  ~')).toBe(false);
   });
 
   it('does not count a guard, which can only reject', () => {

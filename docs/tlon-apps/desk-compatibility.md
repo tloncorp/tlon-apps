@@ -59,8 +59,10 @@ At release time it runs over **three** ref pairs:
 | 2   | candidate client | candidate desk | candidate self-consistency                          |
 | 3   | released client  | candidate desk | rule (c): the candidate desk removed something live |
 
-Every PR runs pair 1 in `ci.yml` and posts the `--markdown` report as one
-sticky comment, edited in place on each push.
+Pair 1 runs on every PR in `ci.yml`. The `--markdown` report goes to the job
+summary always, and to one sticky PR comment edited in place on each push —
+except on a fork or Dependabot PR, whose token cannot write comments, where the
+job summary is the only copy.
 
 ## The five verdicts
 
@@ -138,6 +140,18 @@ the desk supports, so the two branches are the same request written for two
 desk versions. A branch on `whomIsDm(whom)` or `type === 'channel'` picks
 between two requests the client makes in different *situations*; its sibling
 being served says nothing about N-1, and the `MISSING` one still blocks.
+
+That test is a **regex over the guard's text**, with all the credulity that
+implies: `type === 'groupsVersion'` matches, a guard written in a trailing
+comment matches, and polarity is not read at all — `supportsNotes` and
+`!supportsNotes` are the same string to it. It is a filter for a reviewer's
+attention, not a proof of anything, which is why every `GUARDED` entry has to
+be read rather than counted.
+
+A request is `GUARDED` only when **every** call site that makes it is guarded.
+One unguarded occurrence means the client sends it to N-1 regardless, so the
+request stays `MISSING` and the report names which sites are guarded and which
+are blocking.
 
 A guarded branch is reported as `GUARDED` and does not fail the run. That is
 deliberately weaker than it sounds: **the checker does not verify the other
