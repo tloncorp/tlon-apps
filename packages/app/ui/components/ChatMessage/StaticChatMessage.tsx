@@ -633,7 +633,7 @@ export function StaticChatMessage({
           pointerEvents="none"
           position="absolute"
           right={12}
-          top={8}
+          top={reservesDeliveryStrip ? 0 : 8}
           zIndex={199}
         >
           <ChatMessageDeliveryStatus status={visibleDeliveryStatus} />
@@ -745,9 +745,12 @@ const WebChatVideoRenderer: DefaultRendererProps['video'] = {
   maxHeight: 400,
 };
 
-// Indicator bottom edge (top 8 + 24 tall) minus the block wrapper's own $l
-// top padding.
-const DELIVERY_STRIP_HEIGHT = 20;
+// The smallest strip that clears the indicator's glyphs. Its box is 24 tall but
+// the chevrons are 16, inset 4 from the box top, so the ink runs `top + 4` to
+// `top + 20`. `BlockWrapper` already insets content by $l (12), so a strip only
+// has to cover what the ink reaches past that: with the indicator raised to the
+// post's top edge, 20 - 12 = 8.
+const DELIVERY_STRIP_HEIGHT = 8;
 
 const INLINE_TEXT_BLOCK_TYPES: ReadonlySet<cn.BlockType> = new Set([
   'paragraph',
