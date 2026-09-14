@@ -74,26 +74,33 @@ export function createRestartCatchupCoordinator(
   } = {}
 ) {
   type Monitor = {
+    accountId: string;
     config: OpenClawConfig;
     abort: AbortController;
     connection?: RestartCatchupConnection;
   };
-  const monitors = new Map<string, Monitor>();
+  let activeMonitor: Monitor | undefined;
   let lifecycle: AbortController | undefined;
   let task: Promise<void> | undefined;
   let started = false;
 
   const attachMonitor = (accountId: string, config: OpenClawConfig) => {
-    monitors.get(accountId)?.abort.abort();
-    const monitor: Monitor = { config, abort: new AbortController() };
-    monitors.set(accountId, monitor);
+    // Catch-up supports one runnable account. A reload can rename that account,
+    // so replace the current transport even when its account ID changes.
+    activeMonitor?.abort.abort();
+    const monitor: Monitor = {
+      accountId,
+      config,
+      abort: new AbortController(),
+    };
+    activeMonitor = monitor;
     return {
       connected(connection: RestartCatchupConnection) {
         if (!monitor.abort.signal.aborted) monitor.connection = connection;
       },
       stop() {
         monitor.abort.abort();
-        if (monitors.get(accountId) === monitor) monitors.delete(accountId);
+        if (activeMonitor === monitor) activeMonitor = undefined;
       },
     };
   };
@@ -133,19 +140,21 @@ export function createRestartCatchupCoordinator(
     const run = async () => {
       let retryMs = 250;
       while (!abort.signal.aborted) {
-        const monitor = monitors.get(account.accountId);
+        const monitor = activeMonitor;
         const connection = monitor?.connection;
         if (monitor && !isRestartCatchupEnabled(monitor.config)) return;
         if (monitor && connection?.isConnected()) {
+          const currentAccountIds = listRunnableTlonAccountIds(monitor.config);
           const currentAccount = resolveTlonAccount(
             monitor.config,
-            account.accountId
+            monitor.accountId
           );
           if (
             !currentAccount.enabled ||
             !currentAccount.configured ||
             !currentAccount.ownerShip ||
-            listRunnableTlonAccountIds(monitor.config).length !== 1
+            currentAccountIds.length !== 1 ||
+            currentAccountIds[0] !== monitor.accountId
           )
             return;
           const signal = AbortSignal.any([abort.signal, monitor.abort.signal]);
@@ -163,7 +172,7 @@ export function createRestartCatchupCoordinator(
           // A config reload or disconnect can happen while the scry is in flight.
           if (
             signal.aborted ||
-            monitors.get(account.accountId) !== monitor ||
+            activeMonitor !== monitor ||
             !connection.isConnected()
           )
             continue;
@@ -177,7 +186,7 @@ export function createRestartCatchupCoordinator(
           const route = ctx.runtime.channel.routing.resolveAgentRoute({
             cfg: monitor.config,
             channel: 'tlon',
-            accountId: account.accountId,
+            accountId: monitor.accountId,
             peer: {
               kind: 'direct',
               id: normalizeShip(currentAccount.ownerShip),
@@ -195,18 +204,23 @@ export function createRestartCatchupCoordinator(
               ((file, signal) => readFile(file, { encoding: 'utf8', signal }))
             )(file, signal);
           } catch (error) {
+            if (
+              signal.aborted ||
+              activeMonitor !== monitor ||
+              !connection.isConnected()
+            )
+              continue;
             if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
               ctx.logger.info(
                 '[tlon] Restart catch-up skipped: BOOT.md is missing'
               );
               return;
             }
-            if (signal.aborted) continue;
             throw error;
           }
           if (
             signal.aborted ||
-            monitors.get(account.accountId) !== monitor ||
+            activeMonitor !== monitor ||
             !connection.isConnected()
           )
             continue;
@@ -242,7 +256,7 @@ export function createRestartCatchupCoordinator(
               runId: bootId,
               trigger: 'manual',
               messageChannel: 'tlon',
-              agentAccountId: account.accountId,
+              agentAccountId: monitor.accountId,
               requireExplicitMessageTarget: true,
               isCanonicalWorkspace: true,
               timeoutMs: ctx.runtime.agent.resolveAgentTimeoutMs({
@@ -299,8 +313,8 @@ export function createRestartCatchupCoordinator(
     async stop() {
       const stoppedLifecycle = lifecycle;
       stoppedLifecycle?.abort();
-      for (const monitor of monitors.values()) monitor.abort.abort();
-      monitors.clear();
+      activeMonitor?.abort.abort();
+      activeMonitor = undefined;
       // gateway_stop awaits this promise before tearing down the runtime.
       // Keep the startup latch set until the run and transcript cleanup settle.
       await task;

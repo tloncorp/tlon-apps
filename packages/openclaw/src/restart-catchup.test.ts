@@ -288,6 +288,68 @@ describe('restart catch-up', () => {
     expect(f.run).toHaveBeenCalledTimes(1);
   });
 
+  it('follows a renamed sole account and retires the previous transport during reload', async () => {
+    const f = fixture();
+    const pending = deferred<unknown>();
+    f.readSettings.mockReturnValue(pending.promise);
+    f.ready();
+    f.coordinator.start(f.ctx);
+    const nextConfig = config(true, {
+      ship: undefined,
+      accounts: { renamed: { ship: '~zod', ownerShip: '~bus' } },
+    });
+    const replacement = f.coordinator.attachMonitor('renamed', nextConfig);
+    expect(f.readSettings.mock.calls[0][0].aborted).toBe(true);
+    const readSettings = vi.fn().mockResolvedValue(settings());
+    replacement.connected({ readSettings, isConnected: () => true });
+    f.monitor.stop();
+    pending.resolve(settings());
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(readSettings).toHaveBeenCalledTimes(1);
+    expect(f.run).toHaveBeenCalledTimes(1);
+    expect(f.run.mock.calls[0][0]).toMatchObject({
+      agentAccountId: 'renamed',
+      config: nextConfig,
+    });
+    expect(
+      f.ctx.runtime.channel.routing.resolveAgentRoute
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'renamed',
+        peer: { kind: 'direct', id: '~bus' },
+      })
+    );
+  });
+
+  it('ignores a missing checklist from a retired workspace after reload', async () => {
+    const f = fixture();
+    const pending = deferred<void>();
+    f.readChecklist.mockImplementationOnce(() =>
+      pending.promise.then(() => {
+        throw Object.assign(new Error('missing'), { code: 'ENOENT' });
+      })
+    );
+    vi.mocked(f.ctx.runtime.agent.resolveAgentWorkspaceDir)
+      .mockReturnValueOnce('/test/retired-workspace')
+      .mockReturnValue('/test/current-workspace');
+    f.ready();
+    f.coordinator.start(f.ctx);
+    await vi.advanceTimersByTimeAsync(0);
+    const replacement = f.coordinator.attachMonitor('default', config());
+    replacement.connected(f.connection);
+    pending.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(f.readChecklist).toHaveBeenLastCalledWith(
+      '/test/current-workspace/BOOT.md',
+      expect.any(AbortSignal)
+    );
+    expect(f.run).toHaveBeenCalledTimes(1);
+    expect(f.run.mock.calls[0][0].workspaceDir).toBe('/test/current-workspace');
+    expect(f.logger.info).not.toHaveBeenCalledWith(
+      expect.stringContaining('BOOT.md is missing')
+    );
+  });
+
   it('does not launch while disconnected, or repeat catch-up on reconnect', async () => {
     const f = fixture();
     f.isConnected.mockReturnValue(false);
