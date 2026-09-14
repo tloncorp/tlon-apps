@@ -25,7 +25,10 @@ import {
   useIsWindowNarrow,
 } from '../../ui';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
+type Props = NativeStackScreenProps<
+  RootStackParamList,
+  'PushNotificationSettings'
+>;
 
 export function PushNotificationSettingsScreen({ navigation }: Props) {
   const baseVolumeSetting = store.useBaseVolumeLevel();

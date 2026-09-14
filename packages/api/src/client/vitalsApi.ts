@@ -1,5 +1,8 @@
+import { createDevLogger } from '../lib/logger';
 import * as ub from '../urbit';
 import { poke, scry, subscribe, unsubscribe } from './urbit';
+
+const logger = createDevLogger('vitalsApi', false);
 
 export const getLastConnectionStatus = async (contactId: string) => {
   const result = await scry<ub.ConnectionUpdate>({
@@ -28,7 +31,9 @@ export const checkConnectionStatus = async (
 
       if (shouldUnsubscribe && id) {
         unsubscribed = true;
-        unsubscribe(id);
+        unsubscribe(id).catch((e) =>
+          logger.log('vitals unsubscribe failed', e)
+        );
       }
     }
   );
@@ -37,7 +42,7 @@ export const checkConnectionStatus = async (
     app: 'vitals',
     mark: 'run-check',
     json: contactId,
-  });
+  }).catch((e) => logger.log('vitals poke failed', e));
 
   return subscription;
 };

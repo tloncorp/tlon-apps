@@ -596,6 +596,9 @@ export const MessageInput = forwardRef<MessageInputHandle, MessageInputProps>(
             `
               function updateContentHeight() {
                 const editorElement = document.querySelector('#root div .ProseMirror');
+                // The ready message can arrive before React mounts the editor.
+                // The observer below will measure it once it exists.
+                if (!editorElement) return;
                 editorElement.style.height = 'auto';
                 editorElement.style.overflow = 'auto';
                 const newHeight = editorElement.scrollHeight;

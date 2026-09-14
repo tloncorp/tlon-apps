@@ -36,6 +36,7 @@ import {
   unbindContextLensFromSession,
 } from '../context-lens.js';
 import { scheduleCronSnapshot } from '../cron-telemetry.js';
+import type { RestartCatchupConnection } from '../restart-catchup.js';
 import {
   getEffectiveOwnerShip,
   setEffectiveOwnerShip,
@@ -302,6 +303,7 @@ export type MonitorTlonOpts = {
   runtime?: RuntimeEnv;
   abortSignal?: AbortSignal;
   accountId?: string | null;
+  onReady?: (connection: RestartCatchupConnection) => void;
   /**
    * Channel-start config snapshot (the gateway adapter's `ctx.cfg`), used
    * instead of an independent `core.config.loadConfig()` call so
@@ -5730,6 +5732,12 @@ async function monitorTlonProviderScoped(opts: MonitorTlonOpts): Promise<void> {
       );
       await api.connect();
       runtime.log?.('[tlon] Connected! Firehose subscriptions active');
+      if (!opts.abortSignal?.aborted && api.isConnected) {
+        opts.onReady?.({
+          isConnected: () => api.isConnected,
+          readSettings: (signal) => api.scry('/settings/all.json', { signal }),
+        });
+      }
       // The foreigns subscription gets no snapshot on watch; catch up now
       // that the channel is live so the boot gap cannot lose an invite.
       await groupInviteRunner.catchUp();

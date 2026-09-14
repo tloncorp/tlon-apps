@@ -4,13 +4,15 @@ import { Atom, Cell, Noun, dejs, jam } from '@urbit/nockjs';
 import { EventEmitter } from '../lib/EventEmitter';
 import { createDevLogger } from '../lib/logger';
 import { createTimeoutSignal } from '../lib/timeoutSignal';
-import { desig } from '../lib/urbit';
-import { UrbitHttpApiEvent, UrbitHttpApiEventType } from './events';
+import { desig, preSig } from '../lib/urbit';
+import { UrbitHttpApiEventMap, UrbitHttpApiEventType } from './events';
 import { EventSourceMessage, fetchEventSource } from './fetch-event-source';
 import {
   Ack,
   AuthError,
+  ChannelPutError,
   AuthenticationInterface,
+  ChannelUrlTransformer,
   FatalError,
   Message,
   NounPokeInterface,
@@ -29,6 +31,7 @@ import { hexString, unpackJamBytes } from './utils';
 
 const logger = createDevLogger('UrbitHttpApi', false);
 const DEFAULT_POKE_ACK_TIMEOUT = 30000;
+const SPIN_RESPONSE_TIMEOUT_MS = 25000;
 const isBrowser =
   typeof window !== 'undefined' && typeof window.document !== 'undefined';
 
@@ -46,14 +49,24 @@ export class ThreadResponseBodyError extends Error {
   }
 }
 
+export class SpinAbortedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpinAbortedError';
+  }
+}
+
+export class SpinClosedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpinClosedError';
+  }
+}
+
 //TODO  move into nockjs utils
 function isNoun(a: any): a is Noun {
   return a instanceof Atom || a instanceof Cell;
 }
-
-type UrbitHttpApiEventMap = {
-  [E in keyof UrbitHttpApiEvent]: (event: UrbitHttpApiEvent[E]) => void;
-};
 
 /**
  * A class for interacting with an urbit ship, given its URL and code
@@ -117,6 +130,22 @@ export class Urbit {
   private channelAbort = new AbortController();
 
   /**
+   * Abort controller for the event source alone, so a channel rotation can
+   * drop the old stream's reconnect loop without cancelling PUTs in flight
+   */
+  private sseAbort = new AbortController();
+
+  /**
+   * Subscriptions replayed onto a new channel by +seamlessReset, keyed by the
+   * entry they replaced. A subscribe whose PUT was still in flight during the
+   * rotation resolves to its replacement instead of failing.
+   */
+  private replayedSubscriptions = new WeakMap<
+    SubscriptionRequestInterface,
+    Promise<number>
+  >();
+
+  /**
    * Identity of the ship we're connected to
    */
   nodeId?: string | null;
@@ -139,11 +168,39 @@ export class Urbit {
   /**
    * Custom fetch implementation to use.
    */
-  fetchFn: typeof fetch = (...args) => fetch(...args);
+  // A bare call signature, so the class also checks under runtimes whose
+  // global fetch carries extra properties (bun's adds `preconnect`).
+  fetchFn: (...args: Parameters<typeof fetch>) => Promise<Response> = (
+    ...args
+  ) => fetch(...args);
+
+  /**
+   * Whether anything has been sent over the current channel id yet. Once true,
+   * the ship has a channel bound to whatever identity we had at the time.
+   */
+  get channelOpened(): boolean {
+    return this.lastEventId > 0;
+  }
+
+  /**
+   * The current channel id. Changes on every reset, so a caller can tell
+   * whether the channel it sent on is still the live one.
+   */
+  get channelId(): string {
+    return this.uid;
+  }
 
   /** This is basic interpolation to get the channel URL of an instantiated Urbit connection. */
   private get channelUrl(): string {
     return `${this.url}/~/channel/${this.uid}`;
+  }
+
+  /**
+   * The url to PUT this batch of messages to. Every channel PUT goes through
+   * here so a caller-supplied transformer sees all of them.
+   */
+  private channelPutUrl(messages: readonly (Message | Ack)[]): string {
+    return this.channelUrlTransformer(this.channelUrl, messages);
   }
 
   private get fetchOptions(): any {
@@ -202,16 +259,30 @@ export class Urbit {
    * the airlock is running in a webpage served by the ship, this should just
    * be the empty string.
    * @param code The access code for the ship at that address
+   * @param channelUrlTransformer Rewrites the url of each channel PUT
    */
   constructor(
     public url: string,
     public code?: string,
     public desk?: string,
-    fetchFn?: typeof fetch
+    fetchFn?: typeof fetch,
+    private channelUrlTransformer: ChannelUrlTransformer = (channelUrl) =>
+      channelUrl
   ) {
-    if (isBrowser) {
-      window.addEventListener('beforeunload', this.delete);
-    }
+    // There is deliberately no unload teardown here. A
+    // `beforeunload` -> `this.delete` listener used to be registered, but
+    // `delete` is a prototype method, so it ran with `this` bound to `window`,
+    // threw on `this.channelAbort`, and — being async — surfaced that as an
+    // unhandled rejection on every page close. It never deleted a channel, so
+    // dropping it changes no behavior; it only stops the rejection.
+    //
+    // Restoring the teardown takes more than fixing the binding: the listener
+    // must be stored and detached when a client is discarded, or every retired
+    // client stays rooted and each unload beacons all of them; and it must run
+    // on `pagehide` rather than `beforeunload`, since another handler can
+    // cancel the navigation after we have aborted the SSE and deleted the
+    // channel, and `delete()` leaves `sseClientInitialized` true so the stream
+    // never reopens. Tracked separately.
     if (fetchFn) {
       this.fetchFn = fetchFn;
     }
@@ -240,7 +311,9 @@ export class Urbit {
       code
     );
     airlock.verbose = verbose;
-    airlock.nodeId = ship;
+    // callers pass a bare name (see onArvoNetwork), but the first channel PUT
+    // compares nodeId against the sigiled name from /~/name.
+    airlock.nodeId = preSig(ship);
     await airlock.connect();
     await airlock.poke({
       app: 'hood',
@@ -371,6 +444,7 @@ export class Urbit {
       return;
     }
     this.sseClientInitialized = true;
+    const signal = this.sseAbort.signal;
     return new Promise((resolve, reject) => {
       const sseOptions: SSEOptions = {
         headers: {},
@@ -378,9 +452,18 @@ export class Urbit {
       if (isBrowser) {
         sseOptions.withCredentials = true;
       }
+      // a rotation that aborts this stream before it opens would otherwise
+      // leave anyone awaiting the channel setup hanging; fetchEventSource
+      // resolves on abort without calling any of the handlers below
+      signal.addEventListener(
+        'abort',
+        () =>
+          reject(new ReapError('Channel rotated before event source opened')),
+        { once: true }
+      );
       fetchEventSource(this.channelUrl, {
         ...this.fetchOptions,
-        signal: this.channelAbort.signal,
+        signal,
         reactNative: { textStreaming: true },
         openWhenHidden: true,
         responseTimeout: 25000,
@@ -424,7 +507,10 @@ export class Urbit {
           this.lastHeardEventId = eventId;
           this.emit('id-update', { lastHeard: this.lastHeardEventId });
           if (eventId - this.lastAcknowledgedEventId > 20) {
-            this.ack(eventId);
+            // Fire-and-forget: the next batch of events re-triggers the ack.
+            // Catch so a failed channel PUT doesn't escape this void callback
+            // as an unhandled rejection.
+            this.ack(eventId).catch(() => {});
           }
 
           if (event.data && JSON.parse(event.data)) {
@@ -480,7 +566,10 @@ export class Urbit {
                 status: 'close',
               });
               if (sub?.resubOnQuit) {
-                this.subscribe(sub);
+                // `subscribe` re-throws a failed PUT, and this callback
+                // returns void — same hazard the replay path in
+                // seamlessReset() already guards against.
+                this.subscribe(sub).catch(() => {});
               }
             } else if (this.verbose) {
               console.log([...this.outstandingSubscriptions.keys()]);
@@ -545,8 +634,14 @@ export class Urbit {
   }
 
   seamlessReset() {
-    // called if a channel was reaped by %eyre before we reconnected
-    // so we have to make a new channel.
+    // called if a channel was reaped by %eyre before we reconnected, or if
+    // our session can no longer use it, so we have to make a new channel.
+    // drop the old channel's event source first: its reconnect loop keeps
+    // the old channel url and would otherwise retry it forever. PUTs still in
+    // flight are left alone; they fail or succeed on their own and their
+    // callers handle the rotation
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     this.uid = `${Math.floor(Date.now() / 1000)}-${hexString(6)}`;
     this.emit('seamless-reset', { uid: this.uid });
     this.emit('status-update', { status: 'initial' });
@@ -567,7 +662,9 @@ export class Urbit {
       });
 
       if (sub.resubOnQuit) {
-        this.subscribe(sub);
+        const replay = this.subscribe(sub);
+        replay.catch(() => {});
+        this.replayedSubscriptions.set(sub, replay);
       }
     });
 
@@ -604,12 +701,17 @@ export class Urbit {
 
   //NOTE  every arg is interpreted (through nockjs.dwim) as a noun, which
   //      should result in a noun nesting inside of the xx $eyre-command type
-  private async sendNounsToChannel(...args: (Noun | any)[]): Promise<void> {
+  //      `message` describes the same command in json shape, purely so the
+  //      channel url transformer sees noun PUTs on the same terms as json ones
+  private async sendNounsToChannel(
+    message: Message,
+    ...args: (Noun | any)[]
+  ): Promise<void> {
     const options = this.fetchOptionsNoun('PUT', 'noun');
     const body = render('uw', jam(dejs.list(args)).number);
     this.validatePokeBodySize(body);
 
-    const response = await this.fetchFn(this.channelUrl, {
+    const response = await this.fetchFn(this.channelPutUrl([message]), {
       ...options,
       signal: this.channelAbort.signal,
       method: 'PUT',
@@ -617,7 +719,7 @@ export class Urbit {
     });
     if (!response.ok) {
       console.log(response.status, response.statusText, await response.text());
-      throw new Error('Failed to PUT channel command(s)');
+      throw new ChannelPutError(response.status, response.statusText);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -637,7 +739,7 @@ export class Urbit {
     const body = JSON.stringify(json);
     this.validatePokeBodySize(body);
 
-    const response = await this.fetchFn(this.channelUrl, {
+    const response = await this.fetchFn(this.channelPutUrl(json), {
       ...this.fetchOptions,
       signal: this.channelAbort.signal,
       method: 'PUT',
@@ -645,7 +747,7 @@ export class Urbit {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to PUT channel');
+      throw new ChannelPutError(response.status, response.statusText);
     }
     if (!this.sseClientInitialized) {
       if (this.verbose) {
@@ -694,15 +796,30 @@ export class Urbit {
   ) {
     return new Promise<T>((resolve, reject) => {
       let done = false;
-      const quit = () => {
-        if (!done) {
-          reject('quit');
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const finish = () => {
+        if (done) {
+          return false;
+        }
+        // A reset can reuse this subscription's id. Once settled, neither a
+        // late PUT nor an existing timeout may unsubscribe that replacement.
+        done = true;
+        clearTimeout(timer);
+        return true;
+      };
+      const fail = (error: unknown) => {
+        if (finish()) {
+          reject(error);
         }
       };
+      const quit = () => fail('quit');
       const event = (e: T, mark: string, id: number) => {
-        if (!done) {
+        if (finish()) {
           resolve(e);
-          this.unsubscribe(id);
+          // `unsubscribe` chains a `.then` with no rejection handler, so a
+          // failed PUT rejects the promise it returns. The outer promise is
+          // already settled by `resolve` above, so catch here or it escapes.
+          this.unsubscribe(id).catch(() => {});
         }
       };
       const request = {
@@ -711,21 +828,23 @@ export class Urbit {
         ship,
         resubOnQuit: false,
         event,
-        err: reject,
+        err: fail,
         quit,
       };
 
       this.subscribe(request).then((subId) => {
-        if (timeout) {
-          setTimeout(() => {
-            if (!done) {
-              done = true;
+        if (timeout && !done) {
+          timer = setTimeout(() => {
+            if (finish()) {
               reject('timeout');
-              this.unsubscribe(subId);
+              // Same as the event path above. This runs from a timer, so it
+              // is outside the `.then(..., fail)` chain below and `fail`
+              // cannot catch it.
+              this.unsubscribe(subId).catch(() => {});
             }
           }, timeout);
         }
-      });
+      }, fail);
     });
   }
 
@@ -747,7 +866,10 @@ export class Urbit {
     if (isNoun(noun)) {
       const shipAtom = new Atom(parse('p', `~${ship}`));
       const non = ['poke', eventId, shipAtom, app, mark, noun];
-      await this.sendNounsToChannel(non);
+      await this.sendNounsToChannel(
+        { id: eventId, action: 'poke', ship, app, mark },
+        non
+      );
     } else {
       throw new Error('pokeNoun requires a noun');
     }
@@ -785,9 +907,13 @@ export class Urbit {
     return new Promise((resolve, reject) => {
       const cleanup = () => {
         clearTimeout(ackTimer);
-        this.outstandingPokes.delete(message.id);
+        // A reset reuses numeric ids while old PUTs can still finish. Only
+        // remove this poke, not a replacement that now occupies its slot.
+        if (this.outstandingPokes.get(message.id) === entry) {
+          this.outstandingPokes.delete(message.id);
+        }
       };
-      this.outstandingPokes.set(message.id, {
+      const entry: PokeHandlers = {
         onSuccess: () => {
           cleanup();
           onSuccess();
@@ -798,7 +924,8 @@ export class Urbit {
           onError(err);
           reject(err);
         },
-      });
+      };
+      this.outstandingPokes.set(message.id, entry);
 
       const ackTimer = setTimeout(() => {
         cleanup();
@@ -844,14 +971,15 @@ export class Urbit {
       path,
     };
 
-    this.outstandingSubscriptions.set(message.id, {
+    const entry: SubscriptionRequestInterface = {
       app,
       path,
       resubOnQuit,
       err,
       event,
       quit,
-    });
+    };
+    this.outstandingSubscriptions.set(message.id, entry);
 
     this.emit('subscription', {
       id: message.id,
@@ -860,7 +988,33 @@ export class Urbit {
       status: 'open',
     });
 
-    await this.sendJSONtoChannel(message);
+    let putError: unknown = null;
+    try {
+      await this.sendJSONtoChannel(message);
+    } catch (err) {
+      putError = err;
+    }
+
+    // a reset while this PUT was pending has already replayed us onto the new
+    // channel with a new id. whether the stale PUT then failed or landed on
+    // the abandoned channel, the replay is the subscription the caller owns
+    const replay = this.replayedSubscriptions.get(entry);
+    if (replay) {
+      this.replayedSubscriptions.delete(entry);
+      return replay;
+    }
+
+    if (putError !== null) {
+      // the ship never saw this subscription, so don't let a later channel
+      // reset resubscribe it on the caller's behalf; the caller retries. a
+      // reset restarts the id sequence, so the slot may already belong to a
+      // live subscription on the new channel
+      if (this.outstandingSubscriptions.get(message.id) === entry) {
+        this.outstandingSubscriptions.delete(message.id);
+        this.emit('subscription', { id: message.id, status: 'close' });
+      }
+      throw putError;
+    }
 
     return message.id;
   }
@@ -890,6 +1044,8 @@ export class Urbit {
   async delete() {
     this.channelAbort.abort();
     this.channelAbort = new AbortController();
+    this.sseAbort.abort();
+    this.sseAbort = new AbortController();
     const body = JSON.stringify([
       {
         id: this.getEventId(),
@@ -908,27 +1064,6 @@ export class Urbit {
       if (!response.ok) {
         throw new Error('Failed to DELETE channel in node context');
       }
-    }
-  }
-
-  async checkIsNodeBusy(): Promise<'available' | 'busy' | 'unknown'> {
-    try {
-      const response = await this.fetchFn(`${this.url}/~_~/healthz`, {
-        method: 'GET',
-      });
-      if (response.status === 204) {
-        return 'available';
-      }
-      if (response.status === 429) {
-        return 'busy';
-      }
-      logger.trackEvent('Unexpected node busy response', {
-        status: response.status,
-      });
-      return 'unknown';
-    } catch (e) {
-      logger.trackEvent('Failed to check if node is busy', { error: e });
-      return 'unknown';
     }
   }
 
@@ -1121,31 +1256,55 @@ export class Urbit {
     }
   }
 
-  async getSpinHints(): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      const controller = new AbortController();
-      let messageReceived = false;
+  async getSpinHints(opts: { signal?: AbortSignal } = {}): Promise<string> {
+    if (opts.signal?.aborted) {
+      throw new SpinAbortedError('spin cancelled before start');
+    }
 
-      fetchEventSource(`${this.url}/~_~/spin`, {
-        signal: controller.signal,
-        // @ts-expect-error reactNative not in types but is essential
-        reactNative: { textStreaming: true },
-        openWhenHidden: true,
-        responseTimeout: 25000,
-        fetch: this.fetchFn,
-        onmessage(event) {
-          if (!messageReceived) {
-            messageReceived = true;
-            controller.abort();
-            resolve(event.data);
+    const controller = new AbortController();
+    const onCallerAbort = () => controller.abort();
+    opts.signal?.addEventListener('abort', onCallerAbort, { once: true });
+
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        let settled = false;
+        const settle = (fn: () => void) => {
+          if (!settled) {
+            settled = true;
+            fn();
           }
-        },
-        onerror(error) {
-          controller.abort();
-          reject(error);
-        },
+        };
+
+        fetchEventSource(`${this.url}/~_~/spin`, {
+          signal: controller.signal,
+          // @ts-expect-error reactNative not in types but is essential
+          reactNative: { textStreaming: true },
+          openWhenHidden: true,
+          responseTimeout: SPIN_RESPONSE_TIMEOUT_MS,
+          fetch: this.fetchFn,
+          onmessage: (event) => {
+            settle(() => resolve(event.data));
+            controller.abort();
+          },
+          onerror: (error) => {
+            settle(() => reject(error));
+            controller.abort();
+          },
+          onclose: () => {
+            settle(() =>
+              reject(
+                new SpinClosedError('spin stream closed before first event')
+              )
+            );
+          },
+        }).then(
+          () => settle(() => reject(new SpinAbortedError('spin cancelled'))),
+          (error) => settle(() => reject(error))
+        );
       });
-    });
+    } finally {
+      opts.signal?.removeEventListener('abort', onCallerAbort);
+    }
   }
 
   /**
