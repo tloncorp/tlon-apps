@@ -4,6 +4,7 @@ import {
   editPost,
   getChannelPosts,
   getPostReference,
+  getPostWithReplies,
   sendPost,
   sendReply,
   toPostData,
@@ -523,4 +524,40 @@ test('getChannelPosts skipGapFill: true produces no stubs; default still fills',
     false
   );
   expect(withoutGaps.posts).toHaveLength(2);
+});
+
+test.each([
+  ['chat/~zod/test', rawChannelPostWithRepliesData],
+  ['~zod', rawDmPostWithRepliesData],
+  ['0v4.00000.qd4mk.d4htu.er4b8.eao21', rawGroupDmPostWithRepliesData],
+])(
+  'reports transport completion before decoding a thread in %s',
+  async (channelId, data) => {
+    const onResponse = vi.fn();
+    scryMock.mockResolvedValueOnce(structuredClone(data));
+    const result = await getPostWithReplies({
+      channelId,
+      postId: '123',
+      authorId: '~zod',
+      onResponse,
+    });
+    expect(onResponse).toHaveBeenCalledOnce();
+    expect(result.replies?.length).toBeGreaterThan(0);
+  }
+);
+
+test('transport failure does not report a response; malformed payload does', async () => {
+  const onResponse = vi.fn();
+  const options = {
+    channelId: 'chat/~zod/test',
+    postId: '123',
+    authorId: '~zod',
+    onResponse,
+  };
+  scryMock.mockRejectedValueOnce(new Error('offline'));
+  await expect(getPostWithReplies(options)).rejects.toThrow('offline');
+  expect(onResponse).not.toHaveBeenCalled();
+  scryMock.mockResolvedValueOnce({});
+  await expect(getPostWithReplies(options)).rejects.toThrow();
+  expect(onResponse).toHaveBeenCalledOnce();
 });

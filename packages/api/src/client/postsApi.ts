@@ -1124,10 +1124,13 @@ export const getPostWithReplies = async ({
   postId,
   channelId,
   authorId,
+  onResponse,
 }: {
   postId: string;
   channelId: string;
   authorId: string;
+  /** Called after transport succeeds, before decoding the post. */
+  onResponse?: () => void;
 }) => {
   logger.log('fetching post with replies', { postId, channelId, authorId });
   if (
@@ -1160,6 +1163,7 @@ export const getPostWithReplies = async ({
     path,
   });
 
+  onResponse?.();
   const postData = toPostData(channelId, post);
   return postData;
 };
