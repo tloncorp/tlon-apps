@@ -137,6 +137,25 @@ describe('a match the arms do not decide outright', () => {
     expect(verdictOf(scry(['v9', 'nope'], true))).toBe('MISSING');
   });
 
+  it('is UNVERIFIED when the ?+ default may serve what no arm takes', () => {
+    const delegating = desk({
+      'desk/app/ledger.hoon': `
+|_  =bowl:gall
+++  on-peek
+  |=  =path
+  ?+  path  (serve-legacy path)
+    [%x %v1 %init ~]  ~
+  ==
+--
+`,
+    });
+    expect(verdictOf(scry(['v9', 'gone']), delegating)).toBe('UNVERIFIED');
+    // A matching arm still decides it.
+    expect(verdictOf(scry(['v1', 'init']), delegating)).toBe('MATCHED');
+    // And a default that answers nothing still gives an absence.
+    expect(verdictOf(scry(['v9', 'gone']))).toBe('MISSING');
+  });
+
   it('is UNVERIFIED when an arm pattern would not parse', () => {
     const odd = desk({
       'desk/app/ledger.hoon': `

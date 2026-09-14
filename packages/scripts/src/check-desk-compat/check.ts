@@ -126,6 +126,29 @@ export const loadProtocolBumps = (): ProtocolBump[] =>
   loadPolicy().protocolBumps ?? [];
 
 /**
+ * The desk release this client says it supports, read as text from the
+ * constant that defines it — the same way `ci.yml` reads it.
+ *
+ * Only the run against *that* tag can say a known-gaps entry excused nothing:
+ * the candidate desk may have fixed a gap the N-1 desk still has, and telling
+ * an operator to delete an entry the N-1 run still needs is worse than saying
+ * nothing.
+ */
+function n1Tag(): string | null {
+  try {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const source = readFileSync(
+      join(here, '../../../shared/src/logic/deskPolicy.ts'),
+      'utf8'
+    );
+    const version = /MIN_GROUPS_VERSION = '([^']+)'/.exec(source)?.[1];
+    return version ? `v${version}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The one definition of "this finding fails the run". The exit code, the
  * counts, both report formats and the fixtures all read it, so they cannot
  * drift into disagreeing.
@@ -142,8 +165,15 @@ export const isBlocking = (f: Finding) => f.verdict === 'MISSING' && !f.allowed;
  */
 export function matchBump(
   difference: ProtocolDifference,
-  bumps: ProtocolBump[]
+  bumps: ProtocolBump[],
+  /** Whether the two sides are the same tree; see below. */
+  selfCheck = false
 ): ProtocolBump | undefined {
+  // A bump entry excuses a difference *between releases*. Inside one tree
+  // there is no transition to be mid-way through: an exposure raised without
+  // its local consumers is an inconsistency the candidate's own agents would
+  // reject each other over, and no entry should let it through.
+  if (selfCheck) return undefined;
   const left = difference.clientDeskVersions.join();
   const right = difference.n1Versions.join();
   return bumps.find(
@@ -336,7 +366,7 @@ export function runCheck(options: CheckOptions): Report {
     const allowedBumps: Report['allowedBumps'] = [];
     const protocolDifferences: ProtocolDifference[] = [];
     for (const difference of compareProtocols(clientDeskTree, deskTree)) {
-      const bump = matchBump(difference, bumps);
+      const bump = matchBump(difference, bumps, selfCheck);
       if (bump) allowedBumps.push({ difference, bump });
       else protocolDifferences.push(difference);
     }
@@ -355,7 +385,7 @@ export function runCheck(options: CheckOptions): Report {
       staleBumps: selfCheck
         ? []
         : bumps.filter((b) => !allowedBumps.some((a) => a.bump === b)),
-      staleGaps: [...allowlist.values()].filter((g) => !used.has(g.key)),
+      staleGaps: staleGapsFor(options.deskRef, [...allowlist.values()], used),
       ...(options.baseRef
         ? {}
         : {
@@ -379,6 +409,24 @@ export function runCheck(options: CheckOptions): Report {
   } finally {
     for (const tree of opened) tree.dispose();
   }
+}
+
+/**
+ * The entries that excused nothing — but only from the run entitled to say so.
+ *
+ * A candidate desk may have fixed a gap the release it is measured against
+ * still has, so the self-check and the released-client run both see an entry
+ * doing nothing. Telling an operator to delete one the N-1 run still needs is
+ * worse than saying nothing at all, so only the N-1 pair reports it.
+ */
+export function staleGapsFor(
+  deskRef: string,
+  entries: KnownGap[],
+  used: Set<string>,
+  n1 = n1Tag()
+): KnownGap[] {
+  if (n1 === null || deskRef !== n1) return [];
+  return entries.filter((g) => !used.has(g.key));
 }
 
 /**
@@ -527,7 +575,7 @@ export function formatReport(report: Report): string {
   }
   for (const g of report.staleGaps) {
     line(
-      `\nWARNING: known-gaps entry "${g.key}" excused nothing in this run; delete it.`
+      `\nWARNING: known-gaps entry "${g.key}" excused nothing against desk ${report.deskRef}, the release this client supports; delete it.`
     );
   }
   if (report.exemptionsUnchecked)
@@ -666,7 +714,7 @@ export function markdownReport(report: Report): string {
   for (const g of report.staleGaps) {
     out.push(
       '',
-      `> **Warning** the known-gaps entry \`${g.key}\` excused nothing in this run; delete it.`
+      `> **Warning** the known-gaps entry \`${g.key}\` excused nothing against desk \`${report.deskRef}\`, the release this client supports; delete it.`
     );
   }
   if (report.exemptionsUnchecked) {

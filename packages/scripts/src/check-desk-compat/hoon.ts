@@ -40,13 +40,34 @@ export interface Arm {
   parsed: boolean;
 }
 
+/**
+ * What a `?+` does with a pole no arm takes.
+ *
+ * `crash`, `empty` and `default-agent` are the three ways of answering
+ * nothing, and only they make "no arm matches" an absence. Anything else —
+ * a call, a delegation, an expression this reader has no rule for — may well
+ * serve the request, so no absence can be claimed from the arms alone.
+ */
+export type DefaultKind = 'crash' | 'empty' | 'default-agent' | 'serves';
+
 export interface Dispatcher {
   subject: string;
   /** 1-based line of the `?+`. */
   headerLine: number;
+  /** What happens to a pole no arm takes. */
+  defaultKind: DefaultKind;
   arms: Arm[];
   /** Arms whose pattern would not parse; forbids a MISSING verdict. */
   unparsedArms: number;
+}
+
+export function classifyDefault(text: string): DefaultKind {
+  // The pinned default-agent crashes on an unsupported peek or watch rather
+  // than returning [~ ~], so `:def` is a nack, not a silent empty.
+  if (/:def\b/.test(text)) return 'default-agent';
+  if (text.includes('!!')) return 'crash';
+  if (/^(\[\s*~\s+~\s*\]|~)$/.test(text.trim())) return 'empty';
+  return 'serves';
 }
 
 // Runes whose tall form is terminated by `==`. Counted so a nested one cannot
@@ -325,7 +346,9 @@ export function parseDispatcher(
   };
   skipBlank();
   // The default may sit on the header line or on the line under it.
-  if (m[3].trim() === '') {
+  let defaultText = m[3].trim();
+  if (defaultText === '') {
+    defaultText = (lines[cursor] ?? '').trim();
     cursor++;
     skipBlank();
   }
@@ -373,7 +396,13 @@ export function parseDispatcher(
     );
   }
 
-  return { subject: m[2], headerLine: headerIdx + 1, arms, unparsedArms };
+  return {
+    subject: m[2],
+    headerLine: headerIdx + 1,
+    defaultKind: classifyDefault(defaultText),
+    arms,
+    unparsedArms,
+  };
 }
 
 export interface HoonArmRange {

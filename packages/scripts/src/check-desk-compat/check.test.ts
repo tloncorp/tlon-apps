@@ -19,6 +19,7 @@ import {
   markdownReport,
   missingKeys,
   matchBump,
+  staleGapsFor,
 } from './check';
 import { Dependency } from './extract';
 import { memoryTree } from './git';
@@ -54,6 +55,15 @@ describe('matchBump', () => {
         bump(),
       ])
     ).toBeDefined();
+  });
+
+  it('excuses nothing within one tree, whatever the versions say', () => {
+    // An exposure raised without its local consumers is an inconsistency the
+    // candidate's own agents would reject each other over. A cross-release
+    // entry describes a transition; inside one tree there is none to be
+    // mid-way through.
+    expect(matchBump(difference(), [bump()], true)).toBeUndefined();
+    expect(matchBump(difference(), [bump()], false)).toBeDefined();
   });
 
   it('excuses only that one pair of versions, on that one protocol', () => {
@@ -195,6 +205,29 @@ const report = (over: Partial<Report> = {}): Report => ({
     allowed: 0,
   },
   ...over,
+});
+
+describe('reporting an entry that excused nothing', () => {
+  const entry: KnownGap = { key: 'subscribe groups /chan/{}', reason: 'debt' };
+  const unused = new Set<string>();
+
+  it('is said only by the run against the release this client supports', () => {
+    expect(staleGapsFor('v12.2.0', [entry], unused, 'v12.2.0')).toEqual([
+      entry,
+    ]);
+    // The candidate's own desk may have fixed a gap N-1 still has, and the
+    // released-client run is measuring a different client entirely.
+    expect(staleGapsFor('candidate-sha', [entry], unused, 'v12.2.0')).toEqual(
+      []
+    );
+    expect(staleGapsFor('v12.0.0', [entry], unused, 'v12.2.0')).toEqual([]);
+  });
+
+  it('says nothing when the entry did excuse something', () => {
+    expect(
+      staleGapsFor('v12.2.0', [entry], new Set([entry.key]), 'v12.2.0')
+    ).toEqual([]);
+  });
 });
 
 describe('what fails the run', () => {

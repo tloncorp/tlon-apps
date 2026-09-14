@@ -44,17 +44,22 @@ receive updates, and post against desk release N-1.
 - [ ] Run 1 reports **no** negotiation-protocol difference. A bump blocks the
       pair outright, whatever the paths say, so it must ship a release ahead of
       the client that needs it.
+- [ ] Run 2 honours no `protocolBumps` entry at all: within one tree there is
+      no transition to be mid-way through, so an exposure raised without its
+      local consumers is an inconsistency the candidate's own agents would
+      reject each other over, and it blocks.
 - [ ] If run 1 reports an `ALLOWED PROTOCOL BUMP`, that bump is shipping in this
       release: N-1 support for the protocol is suspended, which is a deliberate
       break for anyone still on N-1. Confirm the issue it names says so.
 - [ ] A stale warning is only evidence from the run that could have seen the
-      thing. Run 2 compares the candidate desk with itself, so it can never
-      show a protocol difference and never proves a bump obsolete — the checker
-      suppresses the warning there. Trust a stale `protocolBumps` warning from
-      **run 1**, and a stale `gaps` warning from any full run (a request the
-      report did not reach cannot be said to be served). Where it does hold,
-      **delete the entry** as part of this release: a stale entry is standing
-      permission for a mismatch nobody is tracking.
+      thing, and the checker now prints one only from that run. Run 2 compares
+      the candidate desk with itself, so it can never show a protocol
+      difference and never proves a bump obsolete; and only **run 1** measures
+      against the release `MIN_GROUPS_VERSION` names, so only run 1 can say a
+      `gaps` entry excused nothing — the candidate desk may well have fixed a
+      gap N-1 still has. Where a warning does appear, **delete the entry** as
+      part of this release: a stale entry is standing permission for a
+      mismatch nobody is tracking.
 - [ ] Read the `GUARDED` list. Each entry is a request the desk cannot take,
       behind a capability guard nobody verified. For each, check the guard
       resolves false on N-1 and that the branch it falls back to is one N-1

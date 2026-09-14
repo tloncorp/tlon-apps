@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   blankQuoted,
+  classifyDefault,
   expandPattern,
   indexArms,
   looksLikeArmPattern,
@@ -255,6 +256,31 @@ describe('dispatcher discovery', () => {
     expect(cord).toHaveLength("=/  c  '=='  cor".length);
     expect(cord).not.toContain('=='.concat(''));
     expect(cord).toContain('cor');
+  });
+
+  it('tells a default that answers nothing from one that may serve', () => {
+    // Only `[~ ~]`, `~`, `!!` and `:def` answer nothing. Anything else may
+    // take the pole no arm does, so an absence cannot be claimed from the
+    // arms alone.
+    expect(classifyDefault('[~ ~]')).toBe('empty');
+    expect(classifyDefault('~')).toBe('empty');
+    expect(classifyDefault('~|(bad-watch-path+pole !!)')).toBe('crash');
+    expect(classifyDefault('on-peek:def')).toBe('default-agent');
+    expect(classifyDefault('(serve-legacy pole)')).toBe('serves');
+    expect(classifyDefault('(peek:old pole)')).toBe('serves');
+  });
+
+  it('reads the default whether it sits on the header line or under it', () => {
+    const inline = lines(
+      '++  on-peek\n  ?+  path  [~ ~]\n    [%x %v1 ~]  ~\n  ==\n'
+    );
+    expect(parseDispatcher(inline, 0, inline.length)?.defaultKind).toBe(
+      'empty'
+    );
+    const below = lines(
+      '++  on-peek\n  ?+    path\n    (serve-legacy path)\n    [%x %v1 ~]  ~\n  ==\n'
+    );
+    expect(parseDispatcher(below, 0, below.length)?.defaultKind).toBe('serves');
   });
 
   it('indexes arms by name', () => {

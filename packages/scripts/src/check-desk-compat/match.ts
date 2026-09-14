@@ -385,6 +385,16 @@ export function matchPath(desk: Desk, request: PathRequest): MatchResult {
       source: at(dispatcher.headerLine),
     };
   }
+  if (dispatcher.defaultKind === 'serves') {
+    return {
+      ...unverified(
+        `no arm under ${entry} in %${request.app} matches, but its ?+ default is not an empty or a crash`,
+        'suffix'
+      ),
+      evidence: `${agent.file}:${dispatcher.headerLine}`,
+      source: at(dispatcher.headerLine),
+    };
+  }
   if (dispatcher.unparsedArms > 0) {
     return {
       ...unverified(

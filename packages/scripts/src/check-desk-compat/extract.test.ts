@@ -233,6 +233,63 @@ describe('conditional branches', () => {
   });
 });
 
+describe('the branch a call site sits under', () => {
+  it('guards the request, wrapped or gated by an early return', () => {
+    // `getThreadUnreadsByChannel` gates its notes scry with
+    // `if (!supported) return null;` rather than by wrapping it, and the
+    // GUARDED rule downstream reads the same text either way.
+    const wrapped = extract(`import { scry } from './urbit';
+      export const f = () => {
+        if (getActivitySupportsNotes()) {
+          return scry({ app: 'activity', path: '/v6/activity' });
+        }
+        return null;
+      };`);
+    expect(wrapped[0].guard).toBe('getActivitySupportsNotes() ? …');
+
+    const gated = extract(`import { scry } from './urbit';
+      export const f = (channel: { type: string }) => {
+        if (channel.type === 'notes') {
+          if (!getActivitySupportsNotes()) {
+            return null;
+          }
+          return scry({ app: 'activity', path: '/v6/activity/notes' });
+        }
+        return null;
+      };`);
+    expect(gated[0].guard).toBe(
+      "channel.type === 'notes' ? … && ! (!getActivitySupportsNotes())"
+    );
+  });
+
+  it('does not reach through a nested closure', () => {
+    // The callback may run anywhere; the `if` around its definition says
+    // nothing about when it fires.
+    const deps = extract(`import { scry } from './urbit';
+      export const f = (flag: boolean) => {
+        if (flag) {
+          return later(() => scry({ app: 'activity', path: '/v6' }));
+        }
+        return null;
+      };`);
+    expect(deps[0].guard).toBeUndefined();
+  });
+
+  it('conjoins the call-site branch with the value-level guard', () => {
+    const deps = extract(`import { scry } from './urbit';
+      export const f = (a: boolean, b: boolean) => {
+        if (a) {
+          return scry({ app: 'activity', path: b ? '/v6' : '/v4' });
+        }
+        return null;
+      };`);
+    expect(deps.map((d) => d.guard)).toEqual([
+      'a ? … && b ? …',
+      'a ? … && ! (b)',
+    ]);
+  });
+});
+
 describe('the one local binding this reader follows', () => {
   it('reads a sole const used as the path, shorthand or named', () => {
     // `getGroup` — one of the two call sites that broke build 440.
@@ -406,7 +463,9 @@ describe('a poke whose params are bound first', () => {
       };`);
     expect(deps.map((d) => [d.mark, d.guard])).toEqual([
       ['activity-action-2', 'supportsNotes ? …'],
-      ['activity-action', undefined],
+      // The `if` above it always returns, so the fallback runs only when the
+      // capability is absent — and says so.
+      ['activity-action', '! (supportsNotes)'],
     ]);
   });
 

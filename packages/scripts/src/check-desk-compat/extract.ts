@@ -259,8 +259,17 @@ function push(
     thread: null,
     ...fields,
   } as Omit<Dependency, 'key' | 'site' | 'text'>;
+  // The branch the *call* sits under guards the request as surely as a
+  // ternary inside its argument does: `if (getActivitySupportsNotes()) { …
+  // scry(…) }` only ever reaches a desk that has it.
+  let scope: ts.Node | undefined;
+  for (let cur = node.parent; cur && !scope; cur = cur.parent) {
+    if (ts.isFunctionLike(cur)) scope = cur;
+  }
+  const at = scope ? branchGuard(ctx, node, scope) : undefined;
   ctx.out.push({
     ...base,
+    guard: bothGuards(at, base.guard),
     key: makeKey(base),
     site: { file: ctx.file, line: lineOf(ctx, node) },
     text: textOf(ctx, node),
@@ -303,10 +312,38 @@ function branchGuard(
   node: ts.Node,
   scope: ts.Node
 ): string | undefined {
+  const statementsOf = (st: ts.Statement): readonly ts.Statement[] =>
+    ts.isBlock(st) ? st.statements : [st];
+  /** Does control leave the function at the end of this branch? */
+  const alwaysLeaves = (st: ts.Statement): boolean => {
+    const list = statementsOf(st);
+    const last = list[list.length - 1];
+    return Boolean(
+      last && (ts.isReturnStatement(last) || ts.isThrowStatement(last))
+    );
+  };
   const parts: string[] = [];
   for (let cur = node; cur && cur !== scope; cur = cur.parent) {
     const parent: ts.Node | undefined = cur.parent;
     if (!parent) break;
+    // An `if (!supported) return;` above this statement guards everything
+    // after it as surely as wrapping it would. `getThreadUnreadsByChannel`
+    // gates its notes scry exactly that way, and without this the request
+    // reads as unconditional.
+    if (ts.isStatement(cur) && ts.isBlock(parent)) {
+      const earlier: string[] = [];
+      for (const st of parent.statements) {
+        if (st === cur) break;
+        if (
+          ts.isIfStatement(st) &&
+          !st.elseStatement &&
+          alwaysLeaves(st.thenStatement)
+        ) {
+          earlier.push(`! (${textOf(ctx, st.expression)})`);
+        }
+      }
+      parts.unshift(...earlier);
+    }
     if (ts.isIfStatement(parent)) {
       const condition = textOf(ctx, parent.expression);
       if (cur === parent.thenStatement) parts.unshift(`${condition} ? …`);
@@ -442,9 +479,20 @@ const stringLiteralOf = (expr: ts.Expression) =>
 const unwrap = (expr: ts.Expression): ts.Expression =>
   ts.isParenthesizedExpression(expr) ? unwrap(expr.expression) : expr;
 
-/** Both guards had to hold for the record to be sent. */
-const bothGuards = (a?: string, b?: string) =>
-  [a, b].filter(Boolean).join(' && ') || undefined;
+/**
+ * Both guards had to hold for the record to be sent.
+ *
+ * Repeats are dropped: a binding and the call that reads it often sit inside
+ * the same `if`, and both walks find it. `a && a` is the same condition said
+ * twice, and it reads as two.
+ */
+const bothGuards = (a?: string, b?: string) => {
+  const parts: string[] = [];
+  for (const part of [a, b].filter(Boolean).join(' && ').split(' && ')) {
+    if (part !== '' && !parts.includes(part)) parts.push(part);
+  }
+  return parts.length > 0 ? parts.join(' && ') : undefined;
+};
 
 /** Branch a conditional into its two arms, each carrying the guard text. */
 function branches<T>(
