@@ -878,7 +878,7 @@
   =.  sessions  (~(put by sessions) sid ses)
   ::  The URL comes from the broker, so the requester waits for it. %pending
   ::  is not terminal: a held POST stays held, and the grant answers it.
-  =.  cor  (grant-upload ses)
+  =.  cor  up-abet:up-grant:(up-abed:up-core sid)
   (answer [%pending ~])
 ::
 ::  +upload-wire: names one broker call for one session.
@@ -887,39 +887,6 @@
   |=  [sid=@uv kind=@tas]
   ^-  wire
   /buckets/upload/(scot %uv sid)/[kind]
-::
-::  +upload-authority: what we tell the broker about an upload.
-::
-::  Every field is something this ship already decided -- it allocated the
-::  entry and object ids and checked the size and MIME type against its own
-::  manifest -- which is why the broker no longer has to ask. Milliseconds
-::  rather than ISO 8601, the same convention the read-token sync uses,
-::  because a @da converts to millis in one step.
-::
-++  upload-authority
-  |=  [ses=upload-session:b st=bucket-state:b]
-  ^-  json
-  =/  fil=file:b  (entry-file entry.ses)
-  =/  checksum-json=json
-    ?~  checksum.fil  ~
-    %-  pairs:enjs:format
-    :~  ['algorithm' s+'crc32c']
-        ['value' s+u.checksum.fil]
-    ==
-  %-  pairs:enjs:format
-  :~  ['host' s+(ship-text our.bowl)]
-      ['bucketHost' s+(ship-text ship.flag.ses)]
-      ['bucketName' s+(scot %tas name.flag.ses)]
-      ['bucketId' s+(scot %ud id.bucket.st)]
-      ['gallSessionId' s+(scot %uv id.ses)]
-      ['gallObjectId' s+object-key.fil]
-      ['actorShip' s+(ship-text requested-by.ses)]
-      ['size' (numb:enjs:format size.fil)]
-      ['mimeType' s+mime.fil]
-      ['checksum' checksum-json]
-      :-  'expiresAtMillis'
-      (numb:enjs:format (mul 1.000 (unt:chrono:userlib expires-at.ses)))
-  ==
 ::
 ::  +broker-post: a POST to the broker, authenticated as this ship.
 ::
@@ -946,89 +913,6 @@
         payload
     ==
   `[%pass wire %arvo %i %request request *outbound-config:iris]
-::
-::  +grant-upload: ask the broker for this session's PUT URL.
-::
-++  grant-upload
-  |=  ses=upload-session:b
-  ^+  cor
-  =/  st=bucket-state:b  (need-state flag.ses)
-  =/  card=(unit card)
-    %^    broker-post
-        (upload-wire id.ses %grant)
-      '/uploads/grant'
-    `(upload-authority ses st)
-  ?~  card  (unreachable-storage ses)
-  (emit u.card)
-::
-::  +reservation-call: a POST against a session's broker reservation.
-::
-::  Used for completion, another URL, and cancellation alike -- all three are
-::  the same shape, differing only in the verb in the path.
-::
-++  reservation-call
-  |=  [ses=upload-session:b kind=@tas body=(unit json)]
-  ^+  cor
-  ?~  reservation.ses  (unreachable-storage ses)
-  =/  path=@t
-    (rap 3 '/uploads/' u.reservation.ses '/' (scot %tas kind) ~)
-  =/  card=(unit card)
-    (broker-post (upload-wire id.ses kind) path body)
-  ?~  card  (unreachable-storage ses)
-  (emit u.card)
-::
-::  +unreachable-storage: give up on a broker call we cannot make.
-::
-::  Nothing is retried here. An upload is a client sitting in front of a
-::  progress bar, not a background sync, so a failure it can act on beats a
-::  silent retry it cannot see.
-::
-++  unreachable-storage
-  |=  ses=upload-session:b
-  ^+  cor
-  =.  sessions
-    (~(put by sessions) id.ses ses(status %cancelled, error `'storage is unreachable'))
-  (answer-uploader ses [%error %unknown 'this ship cannot reach storage yet'])
-::
-::  +answer-uploader: give a session's held request its one terminal answer.
-::
-::  Mirrors +answer-waiter on the reader side: a session names at most one
-::  waiting request, and everything that resolves or abandons one comes
-::  through here, so the clearing and the answering cannot drift apart.
-::
-++  answer-uploader
-  |=  [ses=upload-session:b body=response-body:b]
-  ^+  cor
-  ?~  awaiting.ses  cor
-  =/  rid=request-id:b  u.awaiting.ses
-  =/  got=(unit upload-session:b)  (~(get by sessions) id.ses)
-  =?  sessions  ?=(^ got)
-    (~(put by sessions) id.ses u.got(awaiting ~))
-  (respond rid (answer-paths requested-by.ses rid) body)
-::
-::  +publish-upload: move a completed session's entry into the manifest and
-::  broadcast it. The session is retained as %complete so a repeated
-::  completion is a no-op rather than a second entry.
-::
-++  publish-upload
-  |=  [ses=upload-session:b actor=ship]
-  ^+  cor
-  =/  st=bucket-state:b  (need-state flag.ses)
-  =/  ent=entry:b  entry.ses
-  =/  fil=file:b  (entry-file ent)
-  =.  fil  fil(status %ready)
-  =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
-  =.  sessions  (~(put by sessions) id.ses ses(status %complete, entry ent))
-  =.  entries.st  (~(put by entries.st) id.ent ent)
-  (commit-update flag.ses st [%entry id.ent [%create ent]] actor)
-::
-::  +cancel-upload: the uploader is withdrawing from a session it opened.
-::
-::  Withdrawing is all it can report. Whether the bytes reached storage is the
-::  broker's to say, and the client asks that question and can lose the
-::  answer -- so this does not settle the upload, it only stops a new upload
-::  URL being issued against the session. A completion that arrives afterwards
-::  is still honoured, because the broker knows something we do not.
 ::
 ::  +up-core: one in-flight upload session.
 ::
@@ -1102,11 +986,216 @@
   ++  up-give-up
     |=  why=@t
     ^+  up-core
-    =.  up-core  up-core(ses ses(status %cancelled, error `why))
-    =?  cor  ?=(^ reservation.ses)
-      (reservation-call ses(awaiting ~) %cancel ~)
+    =.  ses  ses(status %cancelled, error `why)
+    ::  Answered before the broker is told, not after. +up-unreachable answers
+    ::  the waiter itself, and it would report "storage is unreachable" where
+    ::  the reason this was given up for is the one that matters. Once the
+    ::  waiter is answered that call has nothing left to say to it.
     =.  up-core  (up-answer [%error %unknown why])
+    =?  up-core  ?=(^ reservation.ses)  (up-reservation-call %cancel ~)
     up-core(gone &)
+  ::  +up-authority: what we tell the broker about this upload.
+  ::
+  ::  Every field is something this ship already decided -- it allocated the
+  ::  entry and object ids and checked the size and MIME type against its own
+  ::  manifest -- which is why the broker no longer has to ask. Milliseconds
+  ::  rather than ISO 8601, the same convention the read-token sync uses,
+  ::  because a @da converts to millis in one step.
+  ::
+  ++  up-authority
+    |=  st=bucket-state:b
+    ^-  json
+    =/  fil=file:b  (entry-file entry.ses)
+    =/  checksum-json=json
+      ?~  checksum.fil  ~
+      %-  pairs:enjs:format
+      :~  ['algorithm' s+'crc32c']
+          ['value' s+u.checksum.fil]
+      ==
+    %-  pairs:enjs:format
+    :~  ['host' s+(ship-text our.bowl)]
+        ['bucketHost' s+(ship-text ship.flag.ses)]
+        ['bucketName' s+(scot %tas name.flag.ses)]
+        ['bucketId' s+(scot %ud id.bucket.st)]
+        ['gallSessionId' s+(scot %uv id.ses)]
+        ['gallObjectId' s+object-key.fil]
+        ['actorShip' s+(ship-text requested-by.ses)]
+        ['size' (numb:enjs:format size.fil)]
+        ['mimeType' s+mime.fil]
+        ['checksum' checksum-json]
+        :-  'expiresAtMillis'
+        (numb:enjs:format (mul 1.000 (unt:chrono:userlib expires-at.ses)))
+    ==
+  ::  +up-grant: ask the broker for this session's PUT URL.
+  ::
+  ++  up-grant
+    ^+  up-core
+    =/  st=bucket-state:b  (need-state flag.ses)
+    =/  card=(unit card)
+      %^    broker-post
+          (upload-wire id.ses %grant)
+        '/uploads/grant'
+      `(up-authority st)
+    ?~  card  up-unreachable
+    (emit u.card)
+  ::  +up-reservation-call: a POST against this session's broker reservation.
+  ::
+  ::  Used for completion, another URL, and cancellation alike -- all three
+  ::  are the same shape, differing only in the verb in the path.
+  ::
+  ++  up-reservation-call
+    |=  [kind=@tas body=(unit json)]
+    ^+  up-core
+    ?~  reservation.ses  up-unreachable
+    =/  path=@t
+      (rap 3 '/uploads/' u.reservation.ses '/' (scot %tas kind) ~)
+    =/  card=(unit card)
+      (broker-post (upload-wire id.ses kind) path body)
+    ?~  card  up-unreachable
+    (emit u.card)
+  ::  +up-unreachable: give up on a broker call we cannot make.
+  ::
+  ::  Nothing is retried here. An upload is a client sitting in front of a
+  ::  progress bar, not a background sync, so a failure it can act on beats a
+  ::  silent retry it cannot see.
+  ::
+  ++  up-unreachable
+    ^+  up-core
+    =.  ses  ses(status %cancelled, error `'storage is unreachable')
+    (up-answer [%error %unknown 'this ship cannot reach storage yet'])
+  ::  +up-fail: the broker refused this call, or never made it.
+  ::
+  ++  up-fail
+    |=  why=@t
+    ^+  up-core
+    =.  ses  ses(status %cancelled, error `why)
+    (up-answer [%error %unknown why])
+  ::  +up-publish: move this session's entry into the manifest and broadcast
+  ::  it. The session is retained as %complete so a repeated completion is a
+  ::  no-op rather than a second entry.
+  ::
+  ++  up-publish
+    |=  actor=ship
+    ^+  up-core
+    =/  st=bucket-state:b  (need-state flag.ses)
+    =/  ent=entry:b  entry.ses
+    =/  fil=file:b  (entry-file ent)
+    =.  fil  fil(status %ready)
+    =.  ent  ent(updated-by actor, updated-at now.bowl, kind [%file fil])
+    =.  ses  ses(status %complete, entry ent)
+    =.  entries.st  (~(put by entries.st) id.ent ent)
+    =.  cor  (commit-update flag.ses st [%entry id.ent [%create ent]] actor)
+    up-core
+  ::  +up-finish: the bytes are up, so settle the reservation and publish.
+  ::
+  ::  The receipt is the answer to our own call rather than something pushed
+  ::  at us later, so the entry appears in the same breath as the uploader
+  ::  being told its upload landed.
+  ::
+  ++  up-finish
+    ^+  up-core
+    =/  body=(unit json)
+      ?~  reservation.ses  ~
+      `(pairs:enjs:format ~[['reservationId' s+u.reservation.ses]])
+    =.  up-core  (up-reservation-call %complete body)
+    =.  cor  (answer [%pending ~])
+    up-core
+  ::  +up-retry: another PUT URL for the same reservation.
+  ::
+  ::  Deliberately not a fresh session. Reserving again would strand the first
+  ::  reservation holding quota until it expired, and would sidestep the retry
+  ::  budget the broker keeps precisely so a failing upload cannot be retried
+  ::  without limit.
+  ::
+  ++  up-retry
+    ^+  up-core
+    =.  up-core  (up-reservation-call %retry ~)
+    =.  cor  (answer [%pending ~])
+    up-core
+  ::  +up-cancel: the uploader is withdrawing from a session it opened.
+  ::
+  ::  Cancelling at the broker is the point: quota is reserved before the
+  ::  first byte moves, so an abandoned upload holds it until the reservation
+  ::  lapses. That release used to be the client's to make, from a tab that
+  ::  was in the middle of closing, and it was made with the error swallowed.
+  ::
+  ::  Withdrawing is all the uploader can report. Whether the bytes reached
+  ::  storage is the broker's to say, so this does not settle the upload, it
+  ::  only stops a new upload URL being issued against the session. A
+  ::  completion that arrives afterwards is still honoured.
+  ::
+  ++  up-cancel
+    |=  reason=@t
+    ^+  up-core
+    ::  Recorded before the call, not after: the session must stop issuing
+    ::  URLs whether or not the broker is reachable to hear about it.
+    =/  had=(unit @t)  reservation.ses
+    =.  ses  ses(status %cancelled, error `reason)
+    ?~  had
+      =.  cor  (answer [%ok ~])
+      up-core
+    =.  up-core  (up-reservation-call %cancel ~)
+    =.  cor  (answer [%pending ~])
+    up-core
+  ::  +up-took: one broker answer about this session.
+  ::
+  ::  Every one of these has a client waiting on it, so there is no retry here
+  ::  and no silent failure: the session either advances or the uploader is
+  ::  told why it did not.
+  ::
+  ++  up-took
+    |=  [kind=?(%grant %retry %cancel %complete) res=client-response:iris]
+    ^+  up-core
+    ?:  ?=(%cancel -.res)
+      (up-fail 'the storage request was cancelled')
+    =/  code=@ud  status-code.response-header.res
+    ?.  &((gte code 200) (lth code 300))
+      (up-fail (broker-message res))
+    ?-  kind
+        %grant   (up-took-grant res)
+        %retry   (up-took-grant res)
+        %cancel  (up-answer [%ok ~])
+    ::
+        ::  The receipt is this call's answer, so publishing it here is the
+        ::  whole of completion -- there is no second delivery to wait for.
+        %complete
+      ?.  (verify-receipt ses res)
+        (up-fail 'the storage receipt did not match the upload')
+      =.  up-core  (up-publish requested-by.ses)
+      (up-answer [%ok ~])
+    ==
+  ::  +up-took-grant: a signed PUT, from either a first grant or a retry.
+  ::
+  ++  up-took-grant
+    |=  res=client-response:iris
+    ^+  up-core
+    ?~  body=(broker-body res)
+      (up-fail 'storage returned an unreadable grant')
+    ?~  url=(~(get by u.body) 'uploadUrl')
+      (up-fail 'storage returned no upload URL')
+    ?.  ?=([%s *] u.url)
+      (up-fail 'storage returned no upload URL')
+    =/  reservation=(unit @t)
+      ?~  got=(~(get by u.body) 'reservationId')  ~
+      ?.(?=([%s *] u.got) ~ `p.u.got)
+    =/  expiry=@da
+      ?~  got=(~(get by u.body) 'uploadExpiresAtMillis')  expires-at.ses
+      ?.  ?=([%n *] u.got)  expires-at.ses
+      (from-unix-ms (rash p.u.got dem))
+    =/  headers=(list [@t @t])  (broker-headers u.body)
+    ::  A grant with no reservation behind it is not one we can act on: finish
+    ::  and cancel both call storage against the reservation, so handing this
+    ::  URL out would take the bytes and then have no way to settle or release
+    ::  them -- the entry never publishes and the quota sits until it lapses.
+    ::  Checked on the bound session rather than on the answer, so a retry
+    ::  against the reservation we already hold need not repeat it.
+    =?  ses  ?=(^ reservation)  ses(reservation reservation)
+    ?~  reservation.ses
+      (up-fail 'storage granted no reservation to settle against')
+    =?  reservations  ?=(^ reservation)
+      (~(put by reservations) u.reservation id.ses)
+    %-  up-answer
+    [%upload [id.ses id.entry.ses p.u.url headers expiry]]
   --
 ::
 ::  +uploader-session: the pending session this actor may act on.
@@ -1144,12 +1233,7 @@
   ::  dropping it: a cancel arriving while this call is in flight used to
   ::  overwrite the waiter here, and the receipt then answered the cancel
   ::  while this request hung for good.
-  =.  cor  up-abet:(up-claim:(up-abed:up-core sid) rid)
-  =/  body=(unit json)
-    ?~  reservation.ses  ~
-    `(pairs:enjs:format ~[['reservationId' s+u.reservation.ses]])
-  =.  cor  (reservation-call ses(awaiting rid) %complete body)
-  (answer [%pending ~])
+  up-abet:up-finish:(up-claim:(up-abed:up-core sid) rid)
 ::
 ::  +retry-upload: another PUT URL for the same reservation.
 ::
@@ -1164,9 +1248,7 @@
   =/  found  (uploader-session flag sid actor)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  =.  cor  up-abet:(up-claim:(up-abed:up-core sid) rid)
-  =.  cor  (reservation-call ses(awaiting rid) %retry ~)
-  (answer [%pending ~])
+  up-abet:up-retry:(up-claim:(up-abed:up-core sid) rid)
 ::
 ::  +cancel-upload: the uploader is withdrawing from a session it opened.
 ::
@@ -1181,15 +1263,7 @@
   =/  found  (uploader-session flag sid actor)
   ?:  ?=(%| -.found)  (answer p.found)
   =/  ses=upload-session:b  p.found
-  ::  Recorded before the call, not after: the session must stop issuing URLs
-  ::  whether or not the broker is reachable to hear about it.
-  =/  done=upload-session:b
-    ses(status %cancelled, error `reason, awaiting rid)
-  =.  cor  up-abet:(up-claim:(up-abed:up-core sid) rid)
-  =.  sessions  (~(put by sessions) sid done)
-  ?~  reservation.ses  (answer [%ok ~])
-  =.  cor  (reservation-call done %cancel ~)
-  (answer [%pending ~])
+  up-abet:(up-cancel:(up-claim:(up-abed:up-core sid) rid) reason)
 ::
 ::  +held-read-token: a live token we have already minted for this reader.
 ::
@@ -1702,11 +1776,7 @@
       %request  request  *outbound-config:iris
   ==
 ::
-::  +take-upload: one broker answer about one upload session.
-::
-::  Every one of these has a client waiting on it, so there is no retry here
-::  and no silent failure: the session either advances or the uploader is
-::  told why it did not.
+::  +take-upload: route one broker answer to its session.
 ::
 ++  take-upload
   |=  $:  sid=@uv
@@ -1714,62 +1784,8 @@
           res=client-response:iris
       ==
   ^+  cor
-  ?~  got=(~(get by sessions) sid)  cor
-  =/  ses=upload-session:b  u.got
-  ?:  ?=(%cancel -.res)
-    (fail-upload ses 'the storage request was cancelled')
-  =/  code=@ud  status-code.response-header.res
-  ?.  &((gte code 200) (lth code 300))
-    (fail-upload ses (broker-message res))
-  ?-  kind
-      %grant   (took-grant ses res)
-      %retry   (took-grant ses res)
-      %cancel  (answer-uploader ses [%ok ~])
-  ::
-      ::  The receipt is this call's answer, so publishing it here is the
-      ::  whole of completion -- there is no second delivery to wait for.
-      %complete
-    =/  fil=file:b  (entry-file entry.ses)
-    ?.  (verify-receipt ses res)
-      (fail-upload ses 'the storage receipt did not match the upload')
-    =.  cor  (publish-upload ses requested-by.ses)
-    (answer-uploader ses [%ok ~])
-  ==
-::
-::  +took-grant: a signed PUT, from either a first grant or a retry.
-::
-++  took-grant
-  |=  [ses=upload-session:b res=client-response:iris]
-  ^+  cor
-  ?~  body=(broker-body res)
-    (fail-upload ses 'storage returned an unreadable grant')
-  ?~  url=(~(get by u.body) 'uploadUrl')
-    (fail-upload ses 'storage returned no upload URL')
-  ?.  ?=([%s *] u.url)
-    (fail-upload ses 'storage returned no upload URL')
-  =/  reservation=(unit @t)
-    ?~  got=(~(get by u.body) 'reservationId')  ~
-    ?.(?=([%s *] u.got) ~ `p.u.got)
-  =/  expiry=@da
-    ?~  got=(~(get by u.body) 'uploadExpiresAtMillis')  expires-at.ses
-    ?.  ?=([%n *] u.got)  expires-at.ses
-    (from-unix-ms (rash p.u.got dem))
-  =/  headers=(list [@t @t])  (broker-headers u.body)
-  =/  bound=upload-session:b
-    ?~(reservation ses ses(reservation reservation))
-  ::  A grant with no reservation behind it is not one we can act on: finish
-  ::  and cancel both call storage against the reservation, so handing this
-  ::  URL out would take the bytes and then have no way to settle or release
-  ::  them -- the entry never publishes and the quota sits until it lapses.
-  ::  Checked on the bound session rather than on the answer, so a retry
-  ::  against the reservation we already hold need not repeat it.
-  ?~  reservation.bound
-    (fail-upload ses 'storage granted no reservation to settle against')
-  =.  sessions  (~(put by sessions) id.ses bound)
-  =?  reservations  ?=(^ reservation)
-    (~(put by reservations) u.reservation id.ses)
-  %+  answer-uploader  bound
-  [%upload [id.ses id.entry.ses p.u.url headers expiry]]
+  ?.  (~(has by sessions) sid)  cor
+  up-abet:(up-took:(up-abed:up-core sid) kind res)
 ::
 ::  +verify-receipt: does what landed match what we asked for.
 ::
@@ -1823,15 +1839,6 @@
   ?~  body=(broker-body res)  'storage refused the upload'
   ?~  got=(~(get by u.body) 'message')  'storage refused the upload'
   ?.(?=([%s *] u.got) 'storage refused the upload' p.u.got)
-::
-::  +fail-upload: settle a session the broker would not advance.
-::
-++  fail-upload
-  |=  [ses=upload-session:b why=@t]
-  ^+  cor
-  =.  sessions
-    (~(put by sessions) id.ses ses(status %cancelled, error `why))
-  (answer-uploader ses [%error %unknown why])
 ::
 ++  from-unix-ms
   |=  ms=@ud
@@ -2104,7 +2111,7 @@
   =.  cor
     %+  roll  lapsed
     |=  [ses=upload-session:b acc=_cor]
-    (reservation-call:acc ses(awaiting ~) %cancel ~)
+    up-abet:(up-reservation-call:(up-abed:up-core:acc id.ses) %cancel ~)
   =.  sessions
     %-  malt
     %+  skim  ~(tap by sessions)
